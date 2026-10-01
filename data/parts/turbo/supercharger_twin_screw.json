@@ -7,8 +7,7 @@
   "tier": "race",
   "price": 5200,
   "mass": 28,
-  "model": "",
-  "modelTodo": "A twin-screw supercharger: a long ribbed case about 50 × 40 × 20 cm sitting on top of the engine, a pulley at the front and a throttle body.",
+  "model": "assets/parts/turbo/supercharger_twin_screw.glb",
   "icon": "assets/icons/parts/supercharger_twin_screw.png",
   "fits": [
     ["engine_layout:v6", "engine_layout:v8"]
@@ -18,8 +17,8 @@
   "provides": ["forced_induction:supercharger"],
   "_note": "A twin-screw supercharger on top of any engine without a turbo: full boost from just off idle — a wall of torque everywhere.",
   "bounds": {
-    "min": [-0.2, 0, -0.25],
-    "max": [0.2, 0.2, 0.25]
+    "min": [-0.19, 0, -0.25],
+    "max": [0.19, 0.242, 0.295]
   },
   "effects": [
     {
@@ -38,5 +37,26 @@
       "op": "multiply",
       "value": 1.08
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "twin-screw",
+    "settings": {
+      "width": 0.38,
+      "length": 0.5,
+      "height": 0.17,
+      "ribs": 6,
+      "throttle": 0.045,
+      "colour": "silver"
+    }
+  },
+  "byCar": {
+    "brute_500": {
+      "model": "assets/parts/turbo/supercharger_twin_screw/brute_500.glb",
+      "bounds": {
+        "min": [-0.19, 0, -0.25],
+        "max": [0.19, 0.242, 0.295]
+      }
+    }
+  }
 }

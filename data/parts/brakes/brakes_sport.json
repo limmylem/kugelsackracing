@@ -7,7 +7,7 @@
   "tier": "sport",
   "price": 1100,
   "mass": 36,
-  "model": "",
+  "model": "assets/parts/brakes/brakes_sport.glb",
   "icon": "assets/icons/parts/brakes_sport.png",
   "fits": ["brake_mount:std"],
   "requires": [],
@@ -52,5 +52,23 @@
         "value": 30
       }
     ]
+  },
+  "bounds": {
+    "min": [-0.091, -0.1641, -0.165],
+    "max": [0.006, 0.1684, 0.165]
+  },
+  "look": {
+    "drawAt": "wheels"
+  },
+  "madeBy": {
+    "generator": "tools/generators/brakes.js",
+    "design": "drilled, 4-piston",
+    "settings": {
+      "disc": 0.165,
+      "thickness": 0.028,
+      "face": "drilled",
+      "pistons": 4,
+      "caliperColour": "#e8b71c"
+    }
   }
 }

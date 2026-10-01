@@ -7,8 +7,7 @@
   "tier": "race",
   "price": 6200,
   "mass": 30,
-  "model": "",
-  "modelTodo": "A large turbocharger: a snail-shell housing about 30 cm across with its downpipe and intake pipe, sitting beside the engine.",
+  "model": "assets/parts/turbo/turbo_large.glb",
   "icon": "assets/icons/parts/turbo_large.png",
   "fits": [],
   "requires": ["slot:intercooler", "pistons:forged", "clutch_rating:race"],
@@ -17,8 +16,8 @@
   "_note": "A large turbo for any engine without one: slow to wake up, then a lot of boost high in the revs. Forged internals and a race clutch to live with it.",
   "hides": ["socket_intake"],
   "bounds": {
-    "min": [-0.17, 0, -0.15],
-    "max": [0.17, 0.3, 0.15]
+    "min": [-0.312, -0.1479, -0.2285],
+    "max": [0.0089, 0.2235, 0.282]
   },
   "effects": [
     {
@@ -43,6 +42,48 @@
       "q": 7,
       "spoolUp": 1.1,
       "spoolDown": 0.6
+    }
+  },
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "large turbo",
+    "settings": {
+      "size": 0.12,
+      "hot": "dark",
+      "inlet": "pipe",
+      "manifold": "flange",
+      "downpipe": 0.18,
+      "up": 0.08
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/turbo/turbo_large/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.4344, -0.3039, -0.3885],
+        "max": [0.0147, 0.0703, 0.1064]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/turbo/turbo_large/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.2544, -0.3039, -0.2285],
+        "max": [0.015, 0.0315, 0.2664]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/turbo/turbo_large/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.3144, -0.3039, -0.2285],
+        "max": [0.0089, 0.0315, 0.2664]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/turbo/turbo_large/brute_500.glb",
+      "bounds": {
+        "min": [-0.492, -0.2679, -0.3085],
+        "max": [0.0093, 0.1035, 0.202]
+      }
     }
   }
 }

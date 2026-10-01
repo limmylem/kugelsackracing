@@ -23,7 +23,8 @@
     "icons": "node tools/icons.mjs",
     "playtest": "node tools/playtest.mjs",
     "sounds": "node tools/sounds.mjs",
-    "models-todo": "node tools/models-todo.mjs"
+    "models-todo": "node tools/models-todo.mjs",
+    "generate-parts": "node tools/generate-parts.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

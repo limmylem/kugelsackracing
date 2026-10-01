@@ -13,9 +13,10 @@ const norm = a => { const l = Math.hypot(...a) || 1; return a.map(x => x / l); }
 
 // A part's shape (its bounds, or its base part's) for the physics: { mass, half, centre (part frame),
 // origin (its socket, car frame), type, axis, limits (rad), mount, open, pop, strength, plateNormal,
-// plateArea, edge, looseDrag }; rng picks a hanging part's mount
-export function bodyDef(part, socket, parts, rng = Math.random) {
-  let bounds = null;
+// plateArea, edge, looseDrag }; rng picks a hanging part's mount; carId: a part made to fit each car takes
+// that car's bounds
+export function bodyDef(part, socket, parts, rng = Math.random, carId = null) {
+  let bounds = carId ? part.byCar?.[carId]?.bounds ?? null : null;
   for (let p = part, i = 0; p && i < 8 && !bounds; p = p.variantOf ? parts[p.variantOf] : null, i++) bounds = p.bounds;
   bounds ??= { min: [-0.15, -0.15, -0.15], max: [0.15, 0.15, 0.15] };
   const D = part.detach ?? {}, half = [0, 1, 2].map(k => (bounds.max[k] - bounds.min[k]) / 2), centre = [0, 1, 2].map(k => (bounds.max[k] + bounds.min[k]) / 2);

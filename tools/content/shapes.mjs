@@ -102,7 +102,10 @@ const norm = a => scale(a, 1 / (Math.hypot(...a) || 1));
 // ---------- a model ----------
 
 export class ModelBuilder {
-  constructor() { this.groups = new Map(); }
+  constructor() { this.groups = new Map(); this.pivots = {}; }
+  // A node's origin somewhere other than the model's (what it turns about: a wing's element): its
+  // triangles stay where they are, the node moves there
+  pivot(node, at) { this.pivots[node] = at; return this; }
   // tris into a node (default: one node), in a material: 'car_atlas' (with a palette colour), 'paint'
   // or a finish name; extra: { flipNormals }
   add(tris, { node = 'model', material = 'car_atlas', colour = 'grey' } = {}) {
@@ -134,17 +137,18 @@ export class ModelBuilder {
       const m = doc.createMaterial(name);
       if (name === 'car_atlas') m.setBaseColorTexture(this.atlas ??= doc.createTexture('car_atlas').setMimeType('image/png')).setRoughnessFactor(0.7).setMetallicFactor(0);
       else if (name === 'paint') m.setBaseColorFactor(linear(paintColour)).setRoughnessFactor(0.4).setMetallicFactor(0.1);
-      else if (materials[name]) m.setBaseColorFactor(linear(materials[name].colour ?? '#888888')).setMetallicFactor(materials[name].metalness ?? 0).setRoughnessFactor(materials[name].roughness ?? 0.6);
+      else if (materials[name]) { const M = materials[name]; m.setBaseColorFactor(linear(M.colour ?? '#888888')).setMetallicFactor(M.metalness ?? 0).setRoughnessFactor(M.roughness ?? 0.6); if (M.emissive) m.setEmissiveFactor(linear(M.emissive).slice(0, 3)); }
       else { const f = finishes[name] ?? {}; m.setBaseColorFactor(linear(f.colour ?? '#c0c4c9')).setMetallicFactor(f.metalness ?? 0.5).setRoughnessFactor(f.roughness ?? 0.4); }
       mats.set(name, m);
       return m;
     };
     for (const g of this.groups.values()) {
-      if (!nodes.has(g.node)) { const n = doc.createNode(g.node).setMesh(doc.createMesh(g.node)); top.addChild(n); nodes.set(g.node, n); }
+      const pv = this.pivots[g.node] ?? [0, 0, 0];
+      if (!nodes.has(g.node)) { const n = doc.createNode(g.node).setMesh(doc.createMesh(g.node)); if (this.pivots[g.node]) n.setTranslation(pv); top.addChild(n); nodes.set(g.node, n); }
       const pos = [], nor = [], uv = [], [cu, cv] = uvOf(g.colour);
       for (const [a, b, c] of g.tris) {
         const n = norm(cross(sub(b, a), sub(c, a)));
-        for (const p of [a, b, c]) { pos.push(...p); nor.push(...n); uv.push(cu, cv); }
+        for (const p of [a, b, c]) { pos.push(p[0] - pv[0], p[1] - pv[1], p[2] - pv[2]); nor.push(...n); uv.push(cu, cv); }
       }
       const prim = doc.createPrimitive().setMaterial(material(g.material))
         .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(pos)).setBuffer(buffer))

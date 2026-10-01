@@ -8,8 +8,7 @@
   "purpose": "offroad",
   "price": 620,
   "mass": 35,
-  "model": "",
-  "modelTodo": "Ridgeback winch: a drum winch (50 × 20 × 20 cm) with a fairlead and hook, mounted in the bull bar or bumper.",
+  "model": "assets/parts/body/ridgeback_4x4_winch.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_winch.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -17,7 +16,16 @@
   "provides": [],
   "_note": "An electric winch on the front: for getting out of where you shouldn't have gone.",
   "bounds": {
-    "min": [-0.25, 0, -0.1],
-    "max": [0.25, 0.2, 0.1]
+    "min": [-0.25, 0, 0.015],
+    "max": [0.25, 0.1623, 0.254]
+  },
+  "madeBy": {
+    "generator": "tools/generators/offroad.js",
+    "design": "drum winch, fairlead and hook",
+    "settings": {
+      "width": 0.5,
+      "drum": 0.06,
+      "ahead": 0.095
+    }
   }
 }

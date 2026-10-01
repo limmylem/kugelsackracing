@@ -7,7 +7,7 @@
   "tier": "street",
   "price": 480,
   "mass": 33,
-  "model": "",
+  "model": "assets/parts/brakes/brakes_street.glb",
   "icon": "assets/icons/parts/brakes_street.png",
   "fits": ["brake_mount:std"],
   "requires": [],
@@ -42,5 +42,23 @@
         "value": 20
       }
     ]
+  },
+  "bounds": {
+    "min": [-0.09, -0.1512, -0.152],
+    "max": [0.005, 0.1558, 0.152]
+  },
+  "look": {
+    "drawAt": "wheels"
+  },
+  "madeBy": {
+    "generator": "tools/generators/brakes.js",
+    "design": "slotted, 4-piston",
+    "settings": {
+      "disc": 0.152,
+      "thickness": 0.026,
+      "face": "slotted",
+      "pistons": 4,
+      "caliperColour": "#d1232b"
+    }
   }
 }

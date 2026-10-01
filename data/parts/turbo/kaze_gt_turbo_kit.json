@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 2900,
   "mass": 20,
-  "model": "",
-  "modelTodo": "Kaze GT turbo kit: a twin-scroll turbo (25 cm) with equal-length stainless manifold pipes from both cylinder banks, under the front of the flat-four.",
+  "model": "assets/parts/turbo/kaze_gt_turbo_kit.glb",
   "icon": "assets/icons/parts/kaze_gt_turbo_kit.png",
   "fits": ["engine_family:kaze_flat4"],
   "requires": ["slot:intercooler"],
@@ -17,8 +16,8 @@
   "_note": "A turbo kit made for the Kaze GT's flat-four: an equal-length manifold and a twin-scroll turbo — strong mid-range, the boxer rumble with a whistle over it.",
   "hides": ["socket_intake"],
   "bounds": {
-    "min": [-0.15, 0, -0.15],
-    "max": [0.15, 0.26, 0.15]
+    "min": [-0.436, -0.3342, -0.3885],
+    "max": [0.0666, 0.0915, 0.1068]
   },
   "effects": [
     {
@@ -43,6 +42,17 @@
       "q": 11,
       "spoolUp": 0.55,
       "spoolDown": 0.35
+    }
+  },
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "twin-scroll, equal-length manifold",
+    "settings": {
+      "size": 0.1,
+      "inlet": "pipe",
+      "manifold": "equal",
+      "downpipe": 0.18,
+      "up": 0.1
     }
   }
 }

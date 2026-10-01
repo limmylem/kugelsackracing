@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Apex V8 active wing: a 150 cm carbon aerofoil (30 cm chord) on two hydraulic struts rising from the engine cover (up to 25 cm).",
+  "model": "assets/parts/aero/apex_v8_active_wing.glb",
   "icon": "assets/icons/parts/apex_v8_active_wing.png",
   "fits": ["car:apex_v8"],
   "requires": [],
@@ -42,12 +41,26 @@
       "rate": 40
     }
   },
-  "placeholder": {
-    "width": 1.5,
-    "chord": 0.3,
-    "thickness": 0.03,
-    "height": 0.2,
-    "colour": "#1f2226"
+  "massOffset": [0, 0.1, 0],
+  "bounds": {
+    "min": [-0.758, 0, -0.21],
+    "max": [0.758, 0.266, 0.18]
   },
-  "massOffset": [0, 0.1, 0]
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "active wing on hydraulic struts",
+    "settings": {
+      "span": 1.5,
+      "chord": 0.3,
+      "height": 0.18,
+      "mounts": "struts",
+      "mountX": 0.32,
+      "plates": {
+        "up": 0.05,
+        "down": 0.06
+      },
+      "gurney": 0.01,
+      "material": "carbon"
+    }
+  }
 }

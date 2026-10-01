@@ -9,8 +9,7 @@
   "price": 560,
   "mass": 9.5,
   "toughness": 1,
-  "model": "",
-  "modelTodo": "A deep-dish rim: a wide polished lip (8 cm) around a flat five-spoke face, origin at the hub face; one model for every size (scaled).",
+  "model": "assets/parts/wheels/rim_deepdish.glb",
   "icon": "assets/icons/parts/rim_deepdish.png",
   "fits": ["wheel_hub:std", "rim_fits:17"],
   "requires": [],
@@ -22,8 +21,30 @@
     "offset": 15
   },
   "bounds": {
-    "min": [-0.07, -0.21589999999999998, -0.21589999999999998],
-    "max": [0.08, 0.21589999999999998, 0.21589999999999998]
+    "min": [-0.1233, -0.2319, -0.2319],
+    "max": [0.1263, 0.2319, 0.2319]
   },
-  "massOffset": [0.012, 0, 0]
+  "massOffset": [0.012, 0, 0],
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "deep dish",
+    "settings": {
+      "diameter": 17,
+      "width": 9,
+      "spokes": 5,
+      "spoke": "straight",
+      "spokeWidth": 0.046,
+      "taper": 0.75,
+      "concave": 0.004,
+      "dish": 0.08,
+      "lip": 0.08,
+      "lipMaterial": "chrome",
+      "rivets": 30,
+      "cap": "dome",
+      "capMaterial": "chrome",
+      "colour": "#d8dbe0",
+      "metalness": 0.9,
+      "roughness": 0.18
+    }
+  }
 }

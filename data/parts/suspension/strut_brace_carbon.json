@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 520,
   "mass": 3,
-  "model": "",
-  "modelTodo": "A carbon strut brace: a 110 cm carbon bar with alloy end plates (the front one; the rear sits out of sight).",
+  "model": "assets/parts/suspension/strut_brace_carbon.glb",
   "icon": "assets/icons/parts/strut_brace_carbon.png",
   "fits": [],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": [],
   "_note": "Carbon braces across the front and rear strut towers: stiffer at both ends, sharper still.",
   "bounds": {
-    "min": [-0.55, 0, -0.04],
-    "max": [0.55, 0.05, 0.04]
+    "min": [-0.5468, -0.084, -0.045],
+    "max": [0.5468, -0.016, 0.06]
   },
   "effects": [
     {
@@ -25,5 +24,68 @@
       "op": "multiply",
       "value": 1.035
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/bay.js",
+    "design": "carbon bar, alloy plates",
+    "settings": {
+      "bar": "flat",
+      "radius": 0.02,
+      "material": "carbon",
+      "plates": "raw_metal",
+      "rise": 0.03,
+      "badge": "blue"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/suspension/strut_brace_carbon/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.61, -0.004, -0.045],
+        "max": [0.61, 0.094, 0.06]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/suspension/strut_brace_carbon/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.595, -0.004, -0.045],
+        "max": [0.595, 0.094, 0.06]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/suspension/strut_brace_carbon/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.65, -0.004, -0.045],
+        "max": [0.65, 0.094, 0.06]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/suspension/strut_brace_carbon/vortex_r.glb",
+      "bounds": {
+        "min": [-0.625, -0.004, -0.045],
+        "max": [0.625, 0.094, 0.06]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/suspension/strut_brace_carbon/brute_500.glb",
+      "bounds": {
+        "min": [-0.65, -0.004, -0.045],
+        "max": [0.65, 0.094, 0.06]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/suspension/strut_brace_carbon/strada_evo.glb",
+      "bounds": {
+        "min": [-0.61, -0.004, -0.045],
+        "max": [0.61, 0.094, 0.06]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/suspension/strut_brace_carbon/apex_v8.glb",
+      "bounds": {
+        "min": [-0.665, -0.004, -0.045],
+        "max": [0.665, 0.094, 0.06]
+      }
+    }
+  }
 }

@@ -7,8 +7,7 @@
   "tier": "street",
   "price": 180,
   "mass": 2.5,
-  "model": "",
-  "modelTodo": "A strut brace: a 110 cm polished alloy bar with a mounting plate at each end, across the engine bay between the strut towers.",
+  "model": "assets/parts/suspension/strut_brace.glb",
   "icon": "assets/icons/parts/strut_brace.png",
   "fits": [],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": [],
   "_note": "A bar across the strut towers: a stiffer front end — the car answers the wheel a touch sooner.",
   "bounds": {
-    "min": [-0.55, 0, -0.04],
-    "max": [0.55, 0.05, 0.04]
+    "min": [-0.5468, -0.084, -0.045],
+    "max": [0.5468, -0.02, 0.06]
   },
   "effects": [
     {
@@ -25,5 +24,68 @@
       "op": "multiply",
       "value": 1.02
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/bay.js",
+    "design": "polished alloy bar",
+    "settings": {
+      "bar": "round",
+      "radius": 0.016,
+      "material": "chrome",
+      "plates": "raw_metal",
+      "rise": 0.035,
+      "badge": "red"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/suspension/strut_brace/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.61, -0.004, -0.045],
+        "max": [0.61, 0.095, 0.06]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/suspension/strut_brace/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.595, -0.004, -0.045],
+        "max": [0.595, 0.095, 0.06]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/suspension/strut_brace/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.65, -0.004, -0.045],
+        "max": [0.65, 0.095, 0.06]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/suspension/strut_brace/vortex_r.glb",
+      "bounds": {
+        "min": [-0.625, -0.004, -0.045],
+        "max": [0.625, 0.095, 0.06]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/suspension/strut_brace/brute_500.glb",
+      "bounds": {
+        "min": [-0.65, -0.004, -0.045],
+        "max": [0.65, 0.095, 0.06]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/suspension/strut_brace/strada_evo.glb",
+      "bounds": {
+        "min": [-0.61, -0.004, -0.045],
+        "max": [0.61, 0.095, 0.06]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/suspension/strut_brace/apex_v8.glb",
+      "bounds": {
+        "min": [-0.665, -0.004, -0.045],
+        "max": [0.665, 0.095, 0.06]
+      }
+    }
+  }
 }

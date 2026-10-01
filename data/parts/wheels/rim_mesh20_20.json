@@ -1,0 +1,47 @@
+{
+  "id": "rim_mesh20_20",
+  "name": "20\" fine-mesh wheel, silver",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 1350,
+  "mass": 15.5,
+  "model": "assets/parts/wheels/rim_mesh20_20.glb",
+  "icon": "assets/icons/parts/rim_mesh20_20.png",
+  "fits": ["wheel_hub:std", "rim_fits:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:20"],
+  "bounds": {
+    "min": [-0.1296, -0.27, -0.27],
+    "max": [0.1426, 0.27, 0.27]
+  },
+  "massOffset": [0.022, 0, 0],
+  "rim": {
+    "diameter": 20,
+    "width": 9.5,
+    "offset": 35
+  },
+  "tier": "race",
+  "purpose": "looks",
+  "toughness": 0.9,
+  "_note": "A fine-mesh rim from the generator's variety pack (tools/generators/rims.js): 16 mesh spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "fine-mesh wheel, silver",
+    "settings": {
+      "diameter": 20,
+      "width": 9.5,
+      "spokes": 16,
+      "spoke": "mesh",
+      "lean": 0.24,
+      "spokeWidth": 0.013,
+      "concave": 0.02,
+      "cap": "flat",
+      "capMaterial": "chrome",
+      "colour": "#c8ccd2"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (15.5 kg from its volume and materials (rim_finish, raw_metal, chrome)). Then delete \"todo\" and the shop sells it."
+}

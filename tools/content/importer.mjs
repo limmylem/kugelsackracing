@@ -9,6 +9,12 @@
 //    car.json started from the starter car's (with its own copies of the stock body parts) if it has
 //    none, then split into its body and stock part models (tools/split-car.mjs), and an icon.
 // The original goes to incoming/imported/.
+//
+// For generated parts (npm run generate-parts), options also take: id (the part's id, whatever the file
+// is called), byCar (a car id: this is that car's own version of the part's model, written to
+// assets/parts/<category>/<id>/<car>.glb and listed in the part's byCar), defaults (fields a new part
+// starts with: name, tier, fits…) and set (fields set on the part, new or not: madeBy…). A model for a
+// part that was a placeholder takes its modelTodo and placeholder away.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,7 +53,7 @@ export async function importFile(file, project, options = {}) {
   if (after.verdict === 'fail') return { ...out, message: `${path.basename(file)} still has problems after fixing what could be fixed: it stays in ${rel(path.dirname(file), root)} until they're fixed (see above).` };
 
   const io = await modelIO(), bytes = await io.writeBinary(doc);
-  const result = type === 'car' ? await placeCar(carId, doc, bytes, project, out) : await placePart(base, type, doc, info, bytes, project, out);
+  const result = type === 'car' ? await placeCar(carId, doc, bytes, project, out) : await placePart(options.id ?? base, type, doc, info, bytes, project, out, options);
   if (!result.ok) return result;
   // the original, out of the way
   if (!options.keepOriginal) {
@@ -61,22 +67,31 @@ export async function importFile(file, project, options = {}) {
 
 // ---------- a part ----------
 
-async function placePart(base, type, doc, info, bytes, project, out) {
+async function placePart(base, type, doc, info, bytes, project, out, options = {}) {
   const { root, rules, db } = project, t = rules.types[type];
   const id = base.replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-  const model = `assets/parts/${t.category}/${id}.glb`, icon = `assets/icons/parts/${id}.png`, defFile = `data/parts/${t.category}/${id}.json`;
-  const existing = db.parts[id];
-  if (existing && existing.category !== t.category) return { ...out, message: `There's already a part "${id}" in data/parts/${existing.category}: rename the file.` };
+  const existing = db.parts[id], category = existing?.category ?? t.category;
+  const model = options.byCar ? `assets/parts/${category}/${id}/${options.byCar}.glb` : `assets/parts/${category}/${id}.glb`, icon = `assets/icons/parts/${id}.png`;
+  const defFile = existing ? `data/parts/${partFile(root, id)}` : `data/parts/${t.category}/${id}.json`;
+  if (existing && existing.slot !== t.slot) return { ...out, message: `There's already a part "${id}" in another slot (${existing.slot}): rename the file.` };
+  if (options.byCar && !existing) return { ...out, message: `${id} isn't a part yet: import its own model before a car's version of it.` };
   write(root, model, bytes); out.written.push(model);
-  write(root, icon, await renderIcon(doc, { rules, type })); out.written.push(icon);
   const bounds = { min: info.bounds.min.map(v => round(v)), max: info.bounds.max.map(v => round(v)) };
+  if (options.byCar) {
+    editJson(path.join(root, defFile), p => { p.byCar = { ...p.byCar, [options.byCar]: { model, bounds } }; });
+    out.written.push(defFile);
+    out.notes.push(`${id}: its ${options.byCar} version`);
+    return { ...out, ok: true, id, part: readJson(defFile, root) };
+  }
+  write(root, icon, await renderIcon(doc, { rules, type })); out.written.push(icon);
   if (existing) {
-    editJson(path.join(root, defFile), p => { p.model = model; p.icon = icon; p.bounds = bounds; });
+    editJson(path.join(root, defFile), p => { p.model = model; p.icon = icon; p.bounds = bounds; delete p.modelTodo; delete p.placeholder; Object.assign(p, options.set ?? {}); });
     out.written.push(defFile);
     out.notes.push(`${id} was already a part: its model, icon and bounds are replaced; the rest of ${defFile} is as it was`);
     return { ...out, ok: true, id, part: readJson(defFile, root) };
   }
-  const mass = estimateMass(info, t), tpl = clone(t.template ?? {}), todo = tpl.todo ?? ['price'];
+  const tpl = clone(t.template ?? {}), todo = options.defaults?.todo ?? tpl.todo ?? ['price'];
+  const mass = options.defaults?.mass != null ? { value: options.defaults.mass, how: options.defaults._massHow ?? 'set by its maker' } : estimateMass(info, t);
   delete tpl.todo;
   const def = {
     id, name: nameFor(id, type, rules), category: t.category, slot: t.slot, kind: 'component',
@@ -91,9 +106,10 @@ async function placePart(base, type, doc, info, bytes, project, out) {
     def.provides = [`rim:${diameter}`];
   }
   if (tpl.aero) tpl.aero.point = [0, round(info.bounds.max[1] * 0.75, 3), round(info.centroid[2], 3)];
-  Object.assign(def, tpl, {
+  const { _massHow, todo: _t, ...defaults } = options.defaults ?? {};
+  Object.assign(def, tpl, defaults, options.set ?? {}, {
     todo,
-    _todo: `Made by npm run import on ${new Date().toISOString().slice(0, 10)}. To do: ${todo.map(x => TODO_WORDS[x] ?? x).join('; ')}. Check the mass too (${mass.value} kg ${mass.how}). Then delete "todo" and the shop sells it.`,
+    _todo: `Made by ${options.madeBy ?? 'npm run import'} on ${new Date().toISOString().slice(0, 10)}. To do: ${todo.map(x => TODO_WORDS[x] ?? x).join('; ')}. Check the mass too (${mass.value} kg ${mass.how}). Then delete "todo" and the shop sells it.`,
   });
   writeJson(path.join(root, defFile), def); out.written.push(defFile);
   addToIndex(root, 'data/parts/index.json', 'parts', `${t.category}/${id}.json`);
@@ -170,6 +186,8 @@ function newCar(id, doc, project, out) {
   out.written.push(`data/cars/${id}/car.json`);
   return car;
 }
+// (a part's file, from the index: data/parts/<its file>)
+function partFile(root, id) { return readJson('data/parts/index.json', root).parts.find(x => path.basename(x, '.json') === id); }
 function readPart(root, id) {
   const f = readJson('data/parts/index.json', root).parts.find(x => path.basename(x, '.json') === id);
   return f ? readJson(`data/parts/${f}`, root) : null;

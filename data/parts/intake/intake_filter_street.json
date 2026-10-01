@@ -1,12 +1,12 @@
 {
   "kind": "modifier",
-  "model": "",
+  "model": "assets/parts/intake/intake_filter_street.glb",
   "icon": "assets/icons/parts/intake_filter_street.png",
   "requires": [],
   "conflicts": [],
   "provides": ["intake:filter"],
   "id": "intake_filter_street",
-  "name": "Performance air filter",
+  "name": "Cone air filter",
   "category": "intake",
   "slot": "intake",
   "tier": "street",
@@ -15,7 +15,7 @@
   "fits": [
     ["intake_flange:rs", "intake_flange:std"]
   ],
-  "_note": "A freer-flowing panel filter in the stock airbox: a little more at high revs.",
+  "_note": "A cone filter on a short pipe in place of the stock airbox: a little more at high revs.",
   "effects": [
     {
       "target": "engine.torqueCurve",
@@ -31,5 +31,68 @@
       "op": "multiply",
       "value": 1.3
     }
-  ]
+  ],
+  "bounds": {
+    "min": [0, -0.0461, -0.0296],
+    "max": [0.2, 0.1068, 0.292]
+  },
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "cone filter",
+    "settings": {
+      "kind": "cone",
+      "filter": "red"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/intake/intake_filter_street/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.12, -0.0061, -0.292],
+        "max": [0.0472, 0.1468, 0.0296]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intake/intake_filter_street/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.0121, -0.2261, -0.0296],
+        "max": [0.2, 0.027, 0.292]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intake/intake_filter_street/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.0085, -0.1661, -0.12],
+        "max": [0.372, 0.0283, 0.0472]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intake/intake_filter_street/vortex_r.glb",
+      "bounds": {
+        "min": [-0.0202, -0.1661, -0.292],
+        "max": [0.3473, 0.0216, 0.0296]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intake/intake_filter_street/brute_500.glb",
+      "bounds": {
+        "min": [-0.0015, -0.1061, -0.12],
+        "max": [0.532, 0.0467, 0.0473]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intake/intake_filter_street/strada_evo.glb",
+      "bounds": {
+        "min": [-0.0104, -0.3461, -0.0296],
+        "max": [0.28, 0.0277, 0.292]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/intake/intake_filter_street/apex_v8.glb",
+      "bounds": {
+        "min": [-0.0029, -0.1661, -0.0296],
+        "max": [0.36, 0.0294, 0.292]
+      }
+    }
+  }
 }

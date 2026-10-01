@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Apex V8 carbon aero kit: a front splitter (190 cm), two pairs of dive planes, carbon side blades and a big rear diffuser with five strakes — drawn as a frame the car's size.",
+  "model": "assets/parts/aero/apex_v8_aero_kit.glb",
   "icon": "assets/icons/parts/apex_v8_aero_kit.png",
   "fits": ["car:apex_v8"],
   "requires": [],
@@ -24,12 +23,17 @@
   "provides": [],
   "_note": "A carbon front splitter, dive planes and a bigger rear diffuser: downforce at both ends.",
   "bounds": {
-    "min": [-0.975, -0.05, -2.15],
-    "max": [0.975, 0.2, 2.15]
+    "min": [-1.0051, -0.1021, -2.255],
+    "max": [1.0051, 0.2261, 2.365]
   },
   "aeroEffect": {
     "liftFront": -0.1,
     "liftRear": -0.12,
     "drag": 0.012
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "splitter, dive planes, side blades, diffuser",
+    "settings": {}
   }
 }

@@ -1,0 +1,94 @@
+{
+  "id": "steering_wheel_flat_race",
+  "name": "Flat-bottomed race steering wheel",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 1350,
+  "mass": 0.8,
+  "model": "assets/parts/interior/steering_wheel_flat_race.glb",
+  "icon": "assets/icons/parts/steering_wheel_flat_race.png",
+  "fits": ["steering_column:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.177, -0.1482, -0.099],
+    "max": [0.177, 0.179, 0]
+  },
+  "massOffset": [0, 0.008, -0.07],
+  "tier": "race",
+  "purpose": "looks",
+  "_note": "Flat-bottomed race steering wheel: from tools/generators/interior.js.",
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "Flat-bottomed race steering wheel",
+    "settings": {
+      "diameter": 0.32,
+      "grip": 0.017,
+      "spokes": 4,
+      "spoke": "drilled",
+      "dish": 0.03,
+      "flatBottom": true,
+      "quickRelease": true,
+      "rimMaterial": "seat_fabric",
+      "rimColour": "#26282c",
+      "marker": "orange",
+      "spokeMaterial": "carbon",
+      "horn": "red"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (0.8 kg from its volume and materials (black, raw_metal, red, seat_fabric, orange, carbon)). Then delete \"todo\" and the shop sells it.",
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/vortex_r.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/brute_500.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/strada_evo.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.099],
+        "max": [0.177, 0.179, 0]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/steering_wheel_flat_race/apex_v8.glb",
+      "bounds": {
+        "min": [-0.177, -0.1482, -0.119],
+        "max": [0.177, 0.179, 0]
+      }
+    }
+  }
+}

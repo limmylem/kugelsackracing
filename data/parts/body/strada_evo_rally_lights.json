@@ -8,8 +8,7 @@
   "purpose": "gravel",
   "price": 450,
   "mass": 6,
-  "model": "",
-  "modelTodo": "Strada Evo rally lights pod: a black pod (110 × 22 × 15 cm) holding four 15 cm round spot lamps, strapped on the front of the bonnet.",
+  "model": "assets/parts/body/strada_evo_rally_lights.glb",
   "icon": "assets/icons/parts/strada_evo_rally_lights.png",
   "fits": ["car:strada_evo"],
   "requires": [],
@@ -17,10 +16,21 @@
   "provides": [],
   "_note": "A pod of four spot lights on the bonnet for night stages.",
   "bounds": {
-    "min": [-0.55, 0, -0.075],
+    "min": [-0.55, -0.004, -0.195],
     "max": [0.55, 0.22, 0.075]
   },
   "aeroEffect": {
     "drag": 0.012
+  },
+  "madeBy": {
+    "generator": "tools/generators/lights.js",
+    "design": "four-lamp pod",
+    "settings": {
+      "width": 1.1,
+      "height": 0.22,
+      "depth": 0.15,
+      "lamps": 4,
+      "lamp": 0.15
+    }
   }
 }

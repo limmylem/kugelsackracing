@@ -7,8 +7,7 @@
   "tier": "race",
   "price": 1300,
   "mass": 5,
-  "model": "",
-  "modelTodo": "A carbon race bucket: a deep one-piece shell with head wings and harness slots, about 50 × 95 × 72 cm.",
+  "model": "assets/parts/interior/bucket_seat_race.glb",
   "icon": "assets/icons/parts/bucket_seat_race.png",
   "fits": ["seat_mount:std"],
   "requires": [],
@@ -16,8 +15,74 @@
   "provides": ["seat:bucket"],
   "_note": "A carbon race bucket: 10 kg lighter than a stock seat.",
   "bounds": {
-    "min": [-0.25, 0, -0.48],
-    "max": [0.25, 0.95, 0.24]
+    "min": [-0.25, 0, -0.5545],
+    "max": [0.25, 0.94, 0.351]
   },
-  "massOffset": [0, 0.4, -0.12]
+  "massOffset": [0, 0.4, -0.12],
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "carbon fixed-back race bucket",
+    "settings": {
+      "width": 0.5,
+      "height": 0.94,
+      "depth": 0.7,
+      "style": "fixed",
+      "shell": "carbon",
+      "fabric": "#202226",
+      "bolster": 0.14,
+      "wings": true,
+      "slots": true
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/bucket_seat_race/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.7023],
+        "max": [0.25, 0.94, 0.261]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/bucket_seat_race/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.6576],
+        "max": [0.25, 0.8272, 0.231]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/bucket_seat_race/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.7322],
+        "max": [0.25, 0.94, 0.231]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/bucket_seat_race/vortex_r.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.7322],
+        "max": [0.25, 0.94, 0.231]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/bucket_seat_race/brute_500.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.7322],
+        "max": [0.25, 0.94, 0.231]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/bucket_seat_race/strada_evo.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.7322],
+        "max": [0.25, 0.94, 0.231]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/bucket_seat_race/apex_v8.glb",
+      "bounds": {
+        "min": [-0.25, 0, -0.509],
+        "max": [0.25, 0.94, 0.351]
+      }
+    }
+  }
 }

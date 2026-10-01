@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 3100,
   "mass": 17,
-  "model": "",
-  "modelTodo": "Kaze GT supercharger: a centrifugal compressor (22 cm) on a bracket at the front of the flat-four, belt-driven, with a pipe over the engine to the intake.",
+  "model": "assets/parts/turbo/kaze_gt_supercharger.glb",
   "icon": "assets/icons/parts/kaze_gt_supercharger.png",
   "fits": ["engine_family:kaze_flat4"],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": ["forced_induction:supercharger"],
   "_note": "A centrifugal supercharger made for the Kaze GT's flat-four: the power it lacked up top, and no lag.",
   "bounds": {
-    "min": [-0.13, 0, -0.13],
-    "max": [0.13, 0.22, 0.13]
+    "min": [-0.48, -0.24, -0.03],
+    "max": [0.0486, -0.025, 0.4083]
   },
   "effects": [
     {
@@ -36,5 +35,15 @@
       "op": "multiply",
       "value": 1.03
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "centrifugal, at the front of the flat-four",
+    "settings": {
+      "size": 0.1,
+      "polish": "silver",
+      "pipe": 0.32,
+      "filter": "red"
+    }
+  }
 }

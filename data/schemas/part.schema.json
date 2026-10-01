@@ -482,6 +482,30 @@
       "type": "string",
       "description": "Its model is still to be made (it's drawn as a placeholder box its bounds' size until then): what it is, for docs/models_todo.md (npm run models-todo)"
     },
+    "madeBy": {
+      "type": "object",
+      "required": ["generator"],
+      "additionalProperties": false,
+      "properties": {
+        "generator": { "type": "string", "description": "The generator script (tools/generators/<category>.js)" },
+        "design": { "type": "string", "description": "Which of its designs" },
+        "settings": { "type": "object", "description": "The settings it was made with" }
+      },
+      "description": "Its model is made in code by npm run generate-parts: change the generator's settings, not the model"
+    },
+    "byCar": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["model", "bounds"],
+        "additionalProperties": false,
+        "properties": {
+          "model": { "type": "string" },
+          "bounds": { "$ref": "#/properties/bounds" }
+        }
+      },
+      "description": "Its own model on each car it's made to fit (a roll cage, a strut brace): { carId: { model, bounds } }; other cars draw model"
+    },
     "upgrade": {
       "type": "object",
       "required": ["effects"],
@@ -666,6 +690,10 @@
       },
       "description": "How the model is drawn: a finish from data/finishes.json and / or a colour over all its materials (per material in materials), and a scale (one number, or x, y, z in the socket's frame, e.g. a wider rim)",
       "properties": {
+        "drawAt": {
+          "enum": ["socket", "wheels"],
+          "description": "Where it's drawn: at its socket (the default), or at every wheel's hub, steering with it but not turning (a brake kit's discs and calipers), made to fit inside the rim"
+        },
         "finish": {
           "type": "string",
           "pattern": "^[a-z0-9_]+$"

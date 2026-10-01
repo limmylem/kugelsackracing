@@ -8,8 +8,7 @@
   "purpose": "offroad",
   "price": 750,
   "mass": 14,
-  "model": "",
-  "modelTodo": "Ridgeback 2-inch lift kit: taller coil springs with 2-inch spacer blocks and longer shock absorbers at each corner (drawn as a frame the car's size under it).",
+  "model": "assets/parts/suspension/ridgeback_4x4_lift_kit_2in.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_lift_kit_2in.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -17,8 +16,8 @@
   "provides": [],
   "_note": "Raises the body 51 mm on the suspension (longer springs and spacers): more ground clearance, and room in the arches for bigger tyres — 33-inch (285/75 R17) with this one.",
   "bounds": {
-    "min": [-0.75, -0.05, -1.4],
-    "max": [0.75, 0.05, 1.4]
+    "min": [-0.6608, -0.1389, -1.425],
+    "max": [0.6608, 0.3275, 1.535]
   },
   "effects": [
     {
@@ -31,5 +30,14 @@
       "op": "add",
       "value": 0.0508
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/offroad.js",
+    "design": "2\" coils and spacers",
+    "settings": {
+      "inches": 2,
+      "colour": "red",
+      "shock": "yellow"
+    }
+  }
 }

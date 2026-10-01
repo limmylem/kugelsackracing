@@ -8,8 +8,7 @@
   "purpose": "safety",
   "price": 380,
   "mass": 2,
-  "model": "",
-  "modelTodo": "A six-point harness: two shoulder straps, lap belts and crotch straps in red webbing, laid over a bucket seat.",
+  "model": "assets/parts/interior/race_harness.glb",
   "icon": "assets/icons/parts/race_harness.png",
   "fits": [],
   "requires": ["seat:bucket"],
@@ -17,7 +16,74 @@
   "provides": [],
   "_note": "A six-point harness for a bucket seat.",
   "bounds": {
-    "min": [-0.2, 0, -0.05],
-    "max": [0.2, 0.7, 0.05]
+    "min": [-0.1494, -0.269, -0.2564],
+    "max": [0.1494, 0.2203, 0.4412]
+  },
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "six-point, over the bucket seat",
+    "settings": {
+      "colour": "red",
+      "seat": {
+        "width": 0.52,
+        "height": 0.9,
+        "depth": 0.7,
+        "style": "bucket",
+        "fabric": "#2d3138",
+        "bolster": 0.1,
+        "slots": true
+      }
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/race_harness/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.2853],
+        "max": [0.1494, 0.2623, 0.3812]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/race_harness/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.244],
+        "max": [0.1494, 0.1779, 0.3812]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/race_harness/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.3259],
+        "max": [0.1494, 0.2625, 0.3812]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/race_harness/vortex_r.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.3259],
+        "max": [0.1494, 0.2625, 0.3812]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/race_harness/brute_500.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.3259],
+        "max": [0.1494, 0.2625, 0.3812]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/race_harness/strada_evo.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.3259],
+        "max": [0.1494, 0.2625, 0.3812]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/race_harness/apex_v8.glb",
+      "bounds": {
+        "min": [-0.1494, -0.269, -0.2177],
+        "max": [0.1494, 0.2201, 0.4112]
+      }
+    }
   }
 }

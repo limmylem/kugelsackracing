@@ -7,8 +7,7 @@
   "tier": "street",
   "price": 420,
   "mass": 11,
-  "model": "",
-  "modelTodo": "A sport bucket seat: a fixed-back shell with side bolsters and harness slots, about 50 × 95 × 72 cm.",
+  "model": "assets/parts/interior/bucket_seat_street.glb",
   "icon": "assets/icons/parts/bucket_seat_street.png",
   "fits": ["seat_mount:std"],
   "requires": [],
@@ -16,8 +15,72 @@
   "provides": ["seat:bucket"],
   "_note": "A fixed-back sport bucket seat: 4 kg lighter than a stock seat, and a harness can go with it.",
   "bounds": {
-    "min": [-0.25, 0, -0.48],
-    "max": [0.25, 0.95, 0.24]
+    "min": [-0.2444, 0, -0.6241],
+    "max": [0.2644, 0.976, 0.291]
   },
-  "massOffset": [0, 0.4, -0.12]
+  "massOffset": [0, 0.4, -0.12],
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "sport bucket",
+    "settings": {
+      "width": 0.52,
+      "height": 0.9,
+      "depth": 0.7,
+      "style": "bucket",
+      "fabric": "#2d3138",
+      "bolster": 0.1,
+      "slots": true
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/bucket_seat_street/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.6355],
+        "max": [0.28, 1.03, 0.231]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/bucket_seat_street/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.5784],
+        "max": [0.28, 0.922, 0.231]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/bucket_seat_street/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.6963],
+        "max": [0.28, 1.03, 0.231]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/bucket_seat_street/vortex_r.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.6963],
+        "max": [0.28, 1.03, 0.231]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/bucket_seat_street/brute_500.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.6963],
+        "max": [0.28, 1.03, 0.231]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/bucket_seat_street/strada_evo.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.6963],
+        "max": [0.28, 1.03, 0.231]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/bucket_seat_street/apex_v8.glb",
+      "bounds": {
+        "min": [-0.26, 0, -0.5532],
+        "max": [0.28, 0.976, 0.261]
+      }
+    }
+  }
 }

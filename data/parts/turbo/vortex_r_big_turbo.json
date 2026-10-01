@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 2900,
   "mass": 6,
-  "model": "",
-  "modelTodo": "Vortex R big turbo: a larger turbo (26 cm) with a bigger compressor inlet, at the back of the transverse four.",
+  "model": "assets/parts/turbo/vortex_r_big_turbo.glb",
   "icon": "assets/icons/parts/vortex_r_big_turbo.png",
   "fits": ["engine_family:vortex_i4t"],
   "requires": ["pistons:forged", "slot:intercooler"],
@@ -16,8 +15,8 @@
   "provides": [],
   "_note": "A bigger turbo in place of the Vortex's own: a lot more top end, a little later.",
   "bounds": {
-    "min": [-0.15, 0, -0.14],
-    "max": [0.15, 0.26, 0.14]
+    "min": [-0.408, -0.3022, -0.3087],
+    "max": [0.0119, 0.0736, 0.1955]
   },
   "effects": [
     {
@@ -38,5 +37,17 @@
         "fade": 500
       }
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "big turbo, big compressor inlet",
+    "settings": {
+      "size": 0.105,
+      "hot": "dark",
+      "inlet": "pipe",
+      "manifold": "cast",
+      "downpipe": 0.2,
+      "up": 0.1
+    }
+  }
 }

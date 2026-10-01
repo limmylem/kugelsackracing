@@ -7,8 +7,7 @@
   "tier": "street",
   "price": 420,
   "mass": 1,
-  "model": "",
-  "modelTodo": "Aluminium radiator: an aluminium radiator core about 64 × 40 × 6 cm with its fan shroud, behind the front bumper.",
+  "model": "assets/parts/engine/radiator_aluminium.glb",
   "icon": "assets/icons/parts/radiator_aluminium.png",
   "fits": [],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": ["cooling:uprated"],
   "_note": "A bigger aluminium radiator: 35% more cooling — for a hotter engine, or a bigger one swapped in.",
   "bounds": {
-    "min": [-0.32, -0.2, -0.03],
-    "max": [0.32, 0.2, 0.03]
+    "min": [-0.288, -0.12, -0.1],
+    "max": [0.288, 0.28, 0.064]
   },
   "effects": [
     {
@@ -25,5 +24,69 @@
       "op": "multiply",
       "value": 1.35
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "aluminium, one fan",
+    "settings": {
+      "width": 0.64,
+      "height": 0.4,
+      "depth": 0.06,
+      "tanks": "top",
+      "tank": 0.045,
+      "tankMaterial": "silver",
+      "fan": 1
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/engine/radiator_aluminium/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.32, -0.18, -0.19],
+        "max": [0.32, 0.1, -0.026]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/engine/radiator_aluminium/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.32, -0.18, -0.19],
+        "max": [0.32, 0.1, -0.026]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/engine/radiator_aluminium/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.32, -0.2, -0.13],
+        "max": [0.32, 0.2, 0.034]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/engine/radiator_aluminium/vortex_r.glb",
+      "bounds": {
+        "min": [-0.32, -0.2, -0.19],
+        "max": [0.32, 0.2, -0.026]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/engine/radiator_aluminium/brute_500.glb",
+      "bounds": {
+        "min": [-0.32, -0.2, -0.19],
+        "max": [0.32, 0.2, -0.026]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/engine/radiator_aluminium/strada_evo.glb",
+      "bounds": {
+        "min": [-0.32, -0.17, -0.19],
+        "max": [0.32, 0.17, -0.026]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/engine/radiator_aluminium/apex_v8.glb",
+      "bounds": {
+        "min": [-0.32, -0.14, -0.16],
+        "max": [0.32, 0.14, 0.004]
+      }
+    }
+  }
 }

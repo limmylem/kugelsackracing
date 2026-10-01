@@ -16,8 +16,7 @@
     "looseThreshold": 50,
     "detachThreshold": 90
   },
-  "model": "",
-  "modelTodo": "Cat-back exhaust, stainless (sport): the tail pipe (a 90 mm tip) out of the rear bumper, 20 cm of pipe, origin at the tip.",
+  "model": "assets/parts/exhaust/catback_sport.glb",
   "icon": "assets/icons/parts/catback_sport.png",
   "fits": [
     ["exhaust_route:std", "exhaust_flange:rs"]
@@ -28,8 +27,8 @@
   "_note": "A stainless sport cat-back: more power up top, louder and deeper.",
   "massOffset": [0, 0, -0.09],
   "bounds": {
-    "min": [-0.045, -0.045, -0.2],
-    "max": [0.045, 0.045, 0]
+    "min": [-0.156, -0.056, -0.18],
+    "max": [0.156, 0.056, 0]
   },
   "effects": [
     {
@@ -51,5 +50,16 @@
       "op": "multiply",
       "value": 0.95
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/exhaust.js",
+    "design": "dual round tips",
+    "settings": {
+      "tips": [[0.05, 0], [-0.05, 0]],
+      "radius": 0.04,
+      "length": 0.18,
+      "cut": "rolled",
+      "material": "raw_metal"
+    }
+  }
 }

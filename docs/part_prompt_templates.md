@@ -11,7 +11,7 @@ Put this at the end of any prompt (the per-part prompts below already include it
 ```text
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -31,7 +31,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -53,7 +53,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -74,7 +74,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -95,7 +95,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -116,7 +116,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -137,7 +137,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -159,7 +159,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -181,7 +181,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -203,7 +203,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -225,7 +225,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -247,7 +247,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -269,7 +269,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -291,7 +291,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -313,7 +313,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -334,7 +334,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -355,7 +355,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -376,7 +376,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -397,7 +397,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -418,7 +418,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -439,7 +439,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -460,7 +460,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -481,7 +481,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -502,12 +502,495 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
 - Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
 Save it as roof_[name].glb.
+```
+
+## Brake kit (disc and caliper)
+
+```text
+Make a low-poly 3D model of a brake kit (disc and caliper) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.02–0.2 m wide (across the car), 0.2–0.48 m tall and 0.2–0.48 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the wheel hub's centre (the disc's centre on the axle), the outer face towards +x: drawn at every wheel.
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as brakes_[name].glb.
+```
+
+## Supercharger
+
+```text
+Make a low-poly 3D model of a supercharger for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.15–0.7 m wide (across the car), 0.1–0.5 m tall and 0.15–0.75 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): where it bolts to the engine.
+Triangles: under 2,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as supercharger_[name].glb.
+```
+
+## Radiator
+
+```text
+Make a low-poly 3D model of a radiator for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.3–0.95 m wide (across the car), 0.15–0.65 m tall and 0.03–0.25 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): its middle.
+Triangles: under 1,200.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as radiator_[name].glb.
+```
+
+## Strut brace
+
+```text
+Make a low-poly 3D model of a strut brace for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.6–1.6 m wide (across the car), 0.02–0.25 m tall and 0.03–0.3 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the bar, on the line between the strut tops.
+Triangles: under 800.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as strut_brace_[name].glb.
+```
+
+## Roll cage or hoop
+
+```text
+Make a low-poly 3D model of a roll cage or hoop for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.8–1.85 m wide (across the car), 0.4–1.6 m tall and 0.05–2.6 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the cabin above the seats (socket_cage): the cage goes where the cabin has room for it, front to back.
+Triangles: under 4,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as roll_cage_[name].glb.
+```
+
+## Harness
+
+```text
+Make a low-poly 3D model of a harness for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.2–0.6 m wide (across the car), 0.3–1 m tall and 0.02–1 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the seat back, where the straps cross.
+Triangles: under 800.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as harness_[name].glb.
+```
+
+## Gauge pod
+
+```text
+Make a low-poly 3D model of a gauge pod for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.04–0.45 m wide (across the car), 0.04–0.4 m tall and 0.03–0.25 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): where the pod sits on the dash or pillar.
+Triangles: under 1,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as gauges_[name].glb.
+```
+
+## Gear lever
+
+```text
+Make a low-poly 3D model of a gear lever for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.03–0.25 m wide (across the car), 0.1–0.45 m tall and 0.03–0.25 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of its base, on the tunnel.
+Triangles: under 600.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as shifter_[name].glb.
+```
+
+## Fog lights (a pair)
+
+```text
+Make a low-poly 3D model of a fog lights (a pair) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.3–1.9 m wide (across the car), 0.04–0.3 m tall and 0.02–0.3 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle between the two lamps (socket_fog_lights): they stand on the front bumper's face, in front of the socket.
+Triangles: under 1,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as fog_lights_[name].glb.
+```
+
+## Underglow strips
+
+```text
+Make a low-poly 3D model of a underglow strips for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.8–2.1 m wide (across the car), 0.004–0.08 m tall and 1.8–5 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the floor.
+Triangles: under 600.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as underglow_[name].glb.
+```
+
+## Front lip or splitter
+
+```text
+Make a low-poly 3D model of a front lip or splitter for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–2.2 m wide (across the car), 0.01–0.25 m tall and 0.05–0.6 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of its front edge, under the bumper (socket_front_lip).
+Triangles: under 1,200.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as front_lip_[name].glb.
+```
+
+## Canards (dive planes)
+
+```text
+Make a low-poly 3D model of a canards (dive planes) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–2.2 m wide (across the car), 0.02–0.35 m tall and 0.05–0.5 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle between the bumper corners (socket_canards).
+Triangles: under 800.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as canards_[name].glb.
+```
+
+## Mud flaps
+
+```text
+Make a low-poly 3D model of a mud flaps for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–2.2 m wide (across the car), 0.15–0.55 m tall and 0.005–3.6 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): between the flaps, at the height of their tops (socket_mud_flaps): they hang behind the wheels.
+Triangles: under 600.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as mud_flaps_[name].glb.
+```
+
+## Aero kit
+
+```text
+Make a low-poly 3D model of a aero kit for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1.4–2.3 m wide (across the car), 0.05–0.7 m tall and 2.5–5.2 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the car at floor level (socket_aero_kit).
+Triangles: under 3,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as aero_kit_[name].glb.
+```
+
+## Bull bar
+
+```text
+Make a low-poly 3D model of a bull bar for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1.2–2.2 m wide (across the car), 0.3–1.1 m tall and 0.05–0.55 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the bar where it bolts to the chassis (socket_bull_bar).
+Triangles: under 2,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as bull_bar_[name].glb.
+```
+
+## Winch
+
+```text
+Make a low-poly 3D model of a winch for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.25–0.75 m wide (across the car), 0.1–0.4 m tall and 0.1–0.45 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): its mounting plate (socket_winch).
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as winch_[name].glb.
+```
+
+## Snorkel
+
+```text
+Make a low-poly 3D model of a snorkel for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.05–0.35 m wide (across the car), 0.5–1.6 m tall and 0.05–0.6 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): where it goes into the wing (socket_snorkel): it runs up the outside of it.
+Triangles: under 800.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as snorkel_[name].glb.
+```
+
+## Roof rack
+
+```text
+Make a low-poly 3D model of a roof rack for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.8–1.7 m wide (across the car), 0.05–0.35 m tall and 0.8–2.4 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the rack, its feet on the roof (socket_roof_rack).
+Triangles: under 2,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as roof_rack_[name].glb.
+```
+
+## Light bar
+
+```text
+Make a low-poly 3D model of a light bar for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.3–1.6 m wide (across the car), 0.04–0.25 m tall and 0.03–0.3 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the bar, on its brackets.
+Triangles: under 1,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as light_bar_[name].glb.
+```
+
+## Rally light pod
+
+```text
+Make a low-poly 3D model of a rally light pod for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.4–1.5 m wide (across the car), 0.08–0.4 m tall and 0.05–0.35 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the pod where it straps on (socket_rally_lights).
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as rally_lights_[name].glb.
+```
+
+## Skid plates
+
+```text
+Make a low-poly 3D model of a skid plates for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.5–1.7 m wide (across the car), 0.003–0.25 m tall and 0.5–3.2 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the plates, under the car (socket_skid_plates).
+Triangles: under 800.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as skid_plates_[name].glb.
+```
+
+## Rock sliders
+
+```text
+Make a low-poly 3D model of a rock sliders for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1.3–2.3 m wide (across the car), 0.03–0.3 m tall and 1.4–3.3 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle between the two sills (socket_rock_sliders): they hang under the sills.
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as rock_sliders_[name].glb.
+```
+
+## Lift kit
+
+```text
+Make a low-poly 3D model of a lift kit for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–2.1 m wide (across the car), 0.1–0.8 m tall and 1.8–3.8 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the car between the axles (socket_lift_kit).
+Triangles: under 2,000.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as lift_kit_[name].glb.
 ```
 
 ## A whole car

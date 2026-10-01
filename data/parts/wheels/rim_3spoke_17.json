@@ -1,0 +1,48 @@
+{
+  "id": "rim_3spoke_17",
+  "name": "17\" three-spoke wheel, black",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 650,
+  "mass": 10.8,
+  "model": "assets/parts/wheels/rim_3spoke_17.glb",
+  "icon": "assets/icons/parts/rim_3spoke_17.png",
+  "fits": ["wheel_hub:std", "rim_fits:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "bounds": {
+    "min": [-0.1106, -0.2319, -0.2319],
+    "max": [0.1316, 0.2319, 0.2319]
+  },
+  "massOffset": [0.014, 0, 0],
+  "rim": {
+    "diameter": 17,
+    "width": 8,
+    "offset": 35
+  },
+  "tier": "sport",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A three-spoke rim from the generator's variety pack (tools/generators/rims.js): 3 straight spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "three-spoke wheel, black",
+    "settings": {
+      "diameter": 17,
+      "width": 8,
+      "spokes": 3,
+      "spoke": "straight",
+      "spokeWidth": 0.07,
+      "taper": 0.55,
+      "concave": 0.02,
+      "cap": "dome",
+      "colour": "#222428",
+      "metalness": 0.4,
+      "roughness": 0.35
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (10.8 kg from its volume and materials (rim_finish, raw_metal, black)). Then delete \"todo\" and the shop sells it."
+}

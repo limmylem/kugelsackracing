@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Kaze GT ducktail: a flip-up lip across the boot lid edge, 130 cm wide, 8 cm tall.",
+  "model": "assets/parts/aero/kaze_gt_ducktail.glb",
   "icon": "assets/icons/parts/kaze_gt_ducktail.png",
   "fits": ["car:kaze_gt"],
   "requires": [],
@@ -35,13 +34,6 @@
     "liftCoefficient": -0.12,
     "dragCoefficient": 0.008
   },
-  "placeholder": {
-    "width": 1.3,
-    "chord": 0.15,
-    "thickness": 0.03,
-    "height": 0.06,
-    "colour": "#1f2226"
-  },
   "massOffset": [0, 0.03, 0],
   "tuning": {
     "angle": {
@@ -56,6 +48,19 @@
           "op": "angle"
         }
       ]
+    }
+  },
+  "bounds": {
+    "min": [-0.65, 0.004, -0.065],
+    "max": [0.65, 0.08, 0.085]
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "ducktail",
+    "settings": {
+      "span": 1.3,
+      "chord": 0.15,
+      "height": 0.08
     }
   }
 }

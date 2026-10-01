@@ -8,8 +8,7 @@
   "purpose": "safety",
   "price": 1400,
   "mass": 28,
-  "model": "",
-  "modelTodo": "A bolt-in roll cage: 40 mm tubes — a main hoop behind the seats, two A-pillar bars, a diagonal and two rear stays, about 130 × 90 × 150 cm.",
+  "model": "assets/parts/interior/roll_cage_bolt_in.glb",
   "icon": "assets/icons/parts/roll_cage_bolt_in.png",
   "fits": [],
   "requires": [],
@@ -18,7 +17,67 @@
   "_note": "A bolt-in six-point cage: the shell takes hits far better (chassisToughness), and so does everything bolted to it — for 28 kg.",
   "chassisToughness": 0.4,
   "bounds": {
-    "min": [-0.65, -0.45, -0.75],
-    "max": [0.65, 0.45, 0.75]
+    "min": [-0.69, -0.499, -0.43],
+    "max": [0.69, 0.4846, 0.74]
+  },
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "bolt-in cage",
+    "settings": {
+      "tube": 0.02,
+      "style": "bolt_in",
+      "material": "raw_metal"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.8, -0.509, -0.31],
+        "max": [0.8, 0.5349, 0.7]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.735, -0.5, -0.37],
+        "max": [0.735, 0.4499, 0.6]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.86, -0.609, -0.55],
+        "max": [0.86, 0.8347, 0.65]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/vortex_r.glb",
+      "bounds": {
+        "min": [-0.81, -0.539, -0.55],
+        "max": [0.81, 0.6748, 0.7]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/brute_500.glb",
+      "bounds": {
+        "min": [-0.835, -0.5, -0.37],
+        "max": [0.835, 0.6199, 0.75]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/strada_evo.glb",
+      "bounds": {
+        "min": [-0.795, -0.529, -0.31],
+        "max": [0.795, 0.6549, 0.8]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/roll_cage_bolt_in/apex_v8.glb",
+      "bounds": {
+        "min": [-0.875, -0.4991, -0.31],
+        "max": [0.875, 0.485, 0.55]
+      }
+    }
   }
 }

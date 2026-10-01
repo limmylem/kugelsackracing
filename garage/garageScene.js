@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCarVisual, placeholderBox, placeholderWing, resolveLook, tyreKey, tyreModel } from './visual.js';
 import { tyreFit } from './tyres.js';
+import { partShape } from './partShape.js';
 import { wheelTransform } from '../physics/sockets.js';
 
 export const LIFT_HEIGHT = 1.35;
@@ -361,7 +362,7 @@ export class GarageScene {
     for (const e of entries) {
       const at = this.vis.attachPoint(e.socket);
       if (!at) continue;
-      const look = resolveLook(e.part, parts), current = this.vis.partObject(e.socket);
+      const look = resolveLook(e.part, parts, null, this.vis.car.id), current = this.vis.partObject(e.socket);
       let obj = null, key = null;
       try {
         if (e.part.tyreSize && e.rim?.rim) { const fit = tyreFit(e.rim.rim, e.part.tyreSize); key = tyreKey(fit); obj = await this.models.acquire(key, () => tyreModel(fit)); }
@@ -446,9 +447,10 @@ export class GarageScene {
   // a stand-in for a part with no model: a box its size, seen through whatever's in front of it
   #standIn(socket, part) {
     const at = this.vis.attachPoint(socket);
-    if (!at || !part?.bounds || part.model) return null;
+    const shape = part ? partShape(part, {}, this.vis.car.id) : null;
+    if (!at || !shape?.bounds || shape.model) return null;
     this.standInMaterial ??= new THREE.MeshBasicMaterial({ color: '#a9b6c2', transparent: true, opacity: 0.55, depthTest: false, depthWrite: false, toneMapped: false });
-    const obj = placeholderBox(part.bounds, false);
+    const obj = placeholderBox(shape.bounds, false);
     obj.traverse(o => { if (o.isMesh || o.isLineSegments) { o.material = this.standInMaterial; o.castShadow = false; o.renderOrder = 7; } });
     at.add(obj);
     return obj;

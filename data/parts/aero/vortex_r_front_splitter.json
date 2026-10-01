@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Vortex R front splitter: a 170 cm flat carbon splitter sticking out 12 cm under the front bumper, on two small struts.",
+  "model": "assets/parts/aero/vortex_r_front_splitter.glb",
   "icon": "assets/icons/parts/vortex_r_front_splitter.png",
   "fits": ["car:vortex_r"],
   "requires": [],
@@ -24,11 +23,22 @@
   "provides": [],
   "_note": "A flat splitter under the front bumper: front downforce to fight the understeer.",
   "bounds": {
-    "min": [-0.85, -0.02, -0.12],
-    "max": [0.85, 0.01, 0.1]
+    "min": [-0.84, -0.032, -0.238],
+    "max": [0.86, 0.02, 0.17]
   },
   "aeroEffect": {
     "liftFront": -0.06,
     "drag": 0.006
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "splitter with struts and fences",
+    "settings": {
+      "protrude": 0.12,
+      "under": 0.12,
+      "thick": 0.012,
+      "fences": true,
+      "struts": true
+    }
   }
 }

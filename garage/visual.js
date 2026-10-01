@@ -36,6 +36,7 @@ import { carFrameToModel, wheelPivotName } from '../physics/sockets.js';
 import { tyreFit } from './tyres.js';
 import { clearDents, finerOf, setDents } from './dents.js';
 import { dentSize } from './damage.js';
+import { KEEPS_LOOK, partShape } from './partShape.js';
 
 const TEXTURE_SLOTS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap'];
 const PHYSICAL = ['clearcoat', 'iridescence', 'sheen'];
@@ -182,10 +183,10 @@ export function finishMaterial(src, finish, colour, env = environment) {
 
 // A part's look, all things considered: its model, bounds and placeholder (from the first of it and the
 // parts it's a variant of that has one), its look over theirs, and its owner's colour / finish over that
-export function resolveLook(part, parts, instance) {
+export function resolveLook(part, parts, instance, carId = null) {
   const chain = [];
   for (let p = part; p && !chain.includes(p) && chain.length < 8; p = p.variantOf ? parts[p.variantOf] : null) chain.push(p);
-  const first = key => chain.find(p => p[key] && (typeof p[key] !== 'string' || p[key].length))?.[key];
+  const first = key => chain.find(p => p[key] && (typeof p[key] !== 'string' || p[key].length))?.[key], shape = partShape(part, parts, carId);
   const look = {};
   for (const p of chain.slice().reverse()) {
     const { materials, ...rest } = p.look ?? {};
@@ -194,7 +195,7 @@ export function resolveLook(part, parts, instance) {
   }
   if (instance?.paint?.colour) look.colour = instance.paint.colour;
   if (instance?.paint?.finish) look.finish = instance.paint.finish;
-  return { model: first('model') ?? '', bounds: first('bounds') ?? null, placeholder: first('placeholder') ?? null, look: Object.keys(look).length ? look : null };
+  return { model: shape.model, bounds: shape.bounds ?? null, placeholder: first('placeholder') ?? null, look: Object.keys(look).length ? look : null };
 }
 
 // ---------- tyres ----------
@@ -400,6 +401,7 @@ export class CarVisual {
       this.nodes.set(name, n);
     }
     this.wheels = {};
+    this.hubs = {};                   // FL… → a group under the wheel's pivot that doesn't spin (setWheelSpin)
     this.pivots = new Map();          // wheel socket node name → its pivot
     for (const k of ['FL', 'FR', 'RL', 'RR']) {
       const socket = this.nodes.get(car.model.sockets[k]);
@@ -409,6 +411,13 @@ export class CarVisual {
       socket.add(pivot);
       this.wheels[k] = pivot;
       this.pivots.set(socket.name, pivot);
+      // (a hub on it that steers and rides with the wheel but doesn't turn: brake discs and calipers;
+      // on the right it's mirrored front to back, so a caliper behind the axle stays behind it)
+      const hub = new THREE.Group();
+      hub.name = `hub_${k}`;
+      if (k.endsWith('R')) hub.scale.z = -1;
+      pivot.add(hub);
+      this.hubs[k] = hub;
     }
     // (every body node where the model puts it: dents go by these, not by a door the garage has swung open)
     this.nodeRest = new Map();
@@ -471,13 +480,21 @@ export class CarVisual {
   #wanted(s, build, view) {
     const id = build.sockets?.[s.name], instance = id ? view.owned[id] : null, part = instance ? view.parts[instance.partId] : null;
     if (!part) return null;
-    const { model, bounds, placeholder, look } = resolveLook(part, view.parts, instance), lookKey = JSON.stringify(look);
+    const { model, bounds, placeholder, look } = resolveLook(part, view.parts, instance, this.car.id), lookKey = JSON.stringify(look);
     if (part.tyreSize) {
       // a tyre is made to fit the rim on its wheel
       const rimId = s.node && build.sockets?.[s.node], rim = rimId ? view.parts[view.owned[rimId]?.partId] : null;
       if (!rim?.rim) return { key: `none:${part.id}:no rim`, kind: 'none', part, why: 'no rim to go on' };
       const fit = tyreFit(rim.rim, part.tyreSize);
       return { key: `${tyreKey(fit)}|${lookKey}`, kind: 'tyre', fit, look, part, bounds };
+    }
+    if (model && look?.drawAt === 'wheels') {
+      // at every wheel's hub, as big as fits inside the rim on it (a big brake kit behind a 15" wheel)
+      const rims = Object.fromEntries(Object.entries(this.hubs).map(([k]) => {
+        const rimId = build.sockets?.[this.car.model.sockets[k]], rim = rimId ? view.parts[view.owned[rimId]?.partId] : null;
+        return [k, rim?.rim?.diameter ?? null];
+      }));
+      return { key: `${model}|${lookKey}|${JSON.stringify(rims)}`, kind: 'wheels', url: model, bounds, look, part, rims };
     }
     if (model) return { key: `${model}|${lookKey}`, kind: 'model', url: model, bounds, look, part };
     if (placeholder || bounds) return { key: `placeholder:${part.id}|${lookKey}`, kind: 'placeholder', bounds, placeholder, look, part };
@@ -498,6 +515,7 @@ export class CarVisual {
     let object, url = null, status;
     try {
       if (want.kind === 'model') { url = want.url; object = await this.models.acquire(url); status = 'loaded'; }
+      else if (want.kind === 'wheels') { object = await this.#atWheels(want); url = null; status = `at ${object.userData.atWheels.length} wheels`; }
       else if (want.kind === 'tyre') { url = tyreKey(want.fit); object = await this.models.acquire(url, () => tyreModel(want.fit)); status = `made to fit (${want.fit.label})`; }
       else {
         object = want.placeholder?.width ? placeholderWing(want.placeholder) : placeholderBox(want.bounds, false); status = 'placeholder (no model yet)';
@@ -511,7 +529,11 @@ export class CarVisual {
     }
     if (this.tokens.get(s.name) !== token || this.disposed) { if (url) this.models.release(url); disposeOwned(object); return; }   // (a newer change won)
     this.pending.delete(s.name);
+    // (a light's lenses glow its colour: underglow, fog lights)
+    object.userData.glow = (want.part.effects ?? []).find(e => e.op === 'set' && /^cosmetic\.(underglow|fog)$/.test(e.target))?.value ?? null;
+    if (want.kind === 'model') object.userData.wing ??= object.getObjectByName('wing_element') ?? undefined;     // (a wing's element: turned to its angle)
     if (!object.userData.owned) this.#style(object, want.look);
+    for (const w of object.userData.atWheels ?? []) this.#style(w.object, want.look);
     this.#detach(s.name);                      // the old part goes only now the new one is here
     const at = this.#nodeFor(s);
     object.userData.partRoot = s.name;
@@ -523,6 +545,34 @@ export class CarVisual {
     this.#sweep();
     if (this.damage) this.#dentPart(s.name);
     if (this.overlay) this.showCondition(this.overlay);
+  }
+
+  // A part drawn at every wheel's hub (look.drawAt: wheels): a copy in each hub, scaled down to fit
+  // inside the rim there; the object returned (for the socket) is an empty group that keeps track of them
+  async #atWheels(want) {
+    const group = new THREE.Group(), b = want.bounds, reach = b ? Math.max(...[1, 2].flatMap(k => [Math.abs(b.min[k]), Math.abs(b.max[k])])) : 0;
+    group.userData.atWheels = [];
+    for (const [k, hub] of Object.entries(this.hubs)) {
+      const object = await this.models.acquire(want.url), d = want.rims[k];
+      // (inside the rim's drop well: its bead seat's radius less the barrel)
+      const room = d ? d * 0.0254 / 2 - 0.034 : reach, s = reach ? Math.min(1, room / reach) : 1;
+      object.scale.set(1, s, s);
+      hub.add(object);
+      group.userData.atWheels.push({ k, object, url: want.url });
+    }
+    return group;
+  }
+  // The wheels' spin, so the hubs on them don't turn (the game calls this with each wheel's pivot pose):
+  // axle in the wheel socket's axes (modelRig), spin in radians
+  setWheelSpin(k, axle, spin) {
+    const hub = this.hubs[k];
+    if (hub) hub.quaternion.setFromAxisAngle(new THREE.Vector3(axle[0], axle[1], axle[2]), -spin);
+  }
+  // A part's own lamps (light_… materials other than the car's head and tail lights) glowing: in its
+  // light's colour (glow: underglow, fog lights) or their own
+  #glowing(m, glow) {
+    if (!/^light_/.test(m.name) || /^light_(head|tail)/.test(m.name)) return m;
+    return this.#ownMaterial(`glow|${m.uuid}|${glow ?? ''}`, () => { const c = m.clone(); if (glow) c.color.set(glow); c.emissive = new THREE.Color(glow ?? '#fff6d8'); c.emissiveIntensity = glow ? 1.6 : 1.1; return c; });
   }
 
   #nodeFor(s) {
@@ -545,6 +595,7 @@ export class CarVisual {
     this.attached.delete(socket);
     this.offCar.delete(socket);
     if (!e.object) return;
+    for (const w of e.object.userData.atWheels ?? []) { w.object.removeFromParent(); this.models.release(w.url); disposeOwned(w.object); }
     e.object.traverse(o => { if (o.isMesh) clearDents(o); });
     e.object.removeFromParent();
     if (e.url) this.models.release(e.url);
@@ -554,11 +605,13 @@ export class CarVisual {
   // ---- materials ----
 
   #style(object, look) {
+    const glow = object.userData.glow;
     object.traverse(o => {
       if (!o.isMesh) return;
       o.castShadow = true;
       if (!this.sources.has(o)) this.sources.set(o, o.material);
       o.material = this.#materialFor(this.sources.get(o), look);
+      if (glow !== undefined) o.material = Array.isArray(o.material) ? o.material.map(m => this.#glowing(m, glow)) : this.#glowing(o.material, glow);
     });
     if (look?.scale) {
       const k = look.scale, s = typeof k === 'number' ? [k, k, k] : k;
@@ -568,7 +621,8 @@ export class CarVisual {
 
   #materialFor(src, look) {
     if (Array.isArray(src)) return src.map(m => this.#materialFor(m, look));
-    const per = look?.materials?.[src.name] ?? {}, finish = per.finish ?? look?.finish, colour = per.colour ?? look?.colour;
+    const per = look?.materials?.[src.name] ?? {}, keeps = KEEPS_LOOK.test(src.name) && !look?.materials?.[src.name];
+    const finish = keeps ? null : per.finish ?? look?.finish, colour = keeps ? null : per.colour ?? look?.colour;
     const isPaint = src.name === this.car.model.paintMaterial;
     if (isPaint && !finish && !colour) return this.paintMaterial;
     if (isPaint) {

@@ -9,8 +9,7 @@
   "price": 260,
   "mass": 8.5,
   "toughness": 1,
-  "model": "",
-  "modelTodo": "A multi-spoke rim: ten thin spokes in pairs, a shallow dish, origin at the hub face; one model for every size (scaled).",
+  "model": "assets/parts/wheels/rim_multispoke.glb",
   "icon": "assets/icons/parts/rim_multispoke.png",
   "fits": ["wheel_hub:std", "rim_fits:17"],
   "requires": [],
@@ -22,8 +21,24 @@
     "offset": 40
   },
   "bounds": {
-    "min": [-0.07, -0.21589999999999998, -0.21589999999999998],
-    "max": [0.08, 0.21589999999999998, 0.21589999999999998]
+    "min": [-0.1043, -0.2319, -0.2319],
+    "max": [0.1113, 0.2319, 0.2319]
   },
-  "massOffset": [0.012, 0, 0]
+  "massOffset": [0.012, 0, 0],
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "multi-spoke",
+    "settings": {
+      "diameter": 17,
+      "width": 7.5,
+      "spokes": 10,
+      "spoke": "paired",
+      "spokeWidth": 0.018,
+      "pairGap": 0.3,
+      "concave": 0.016,
+      "dish": 0.014,
+      "cap": "flat",
+      "colour": "#c9ccd1"
+    }
+  }
 }

@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Vortex R roof wing: a 115 cm spoiler (22 cm chord) off the rear roof edge, over the tailgate, with side plates.",
+  "model": "assets/parts/aero/vortex_r_roof_wing.glb",
   "icon": "assets/icons/parts/vortex_r_roof_wing.png",
   "fits": ["car:vortex_r"],
   "requires": [],
@@ -35,13 +34,6 @@
     "liftCoefficient": -0.2,
     "dragCoefficient": 0.015
   },
-  "placeholder": {
-    "width": 1.15,
-    "chord": 0.22,
-    "thickness": 0.03,
-    "height": 0.05,
-    "colour": "#1f2226"
-  },
   "massOffset": [0, 0.025, 0],
   "tuning": {
     "angle": {
@@ -56,6 +48,27 @@
           "op": "angle"
         }
       ]
+    }
+  },
+  "bounds": {
+    "min": [-0.583, 0.02, -0.131],
+    "max": [0.583, 0.112, 0.13]
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "roof-edge spoiler with side plates",
+    "settings": {
+      "span": 1.15,
+      "chord": 0.22,
+      "height": 0.02,
+      "thick": 0.1,
+      "mounts": "roof",
+      "plates": {
+        "up": 0.03,
+        "down": 0,
+        "long": 0.24
+      },
+      "material": "paint"
     }
   }
 }

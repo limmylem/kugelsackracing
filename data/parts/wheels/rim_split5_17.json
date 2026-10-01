@@ -1,0 +1,46 @@
+{
+  "id": "rim_split5_17",
+  "name": "17\" split five-spoke wheel, gunmetal",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 310,
+  "mass": 11,
+  "model": "assets/parts/wheels/rim_split5_17.glb",
+  "icon": "assets/icons/parts/rim_split5_17.png",
+  "fits": ["wheel_hub:std", "rim_fits:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "bounds": {
+    "min": [-0.1106, -0.2319, -0.2319],
+    "max": [0.1196, 0.2319, 0.2319]
+  },
+  "massOffset": [0.015, 0, 0],
+  "rim": {
+    "diameter": 17,
+    "width": 8,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A split five-spoke rim from the generator's variety pack (tools/generators/rims.js): 5 split spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "split five-spoke wheel, gunmetal",
+    "settings": {
+      "diameter": 17,
+      "width": 8,
+      "spokes": 5,
+      "spoke": "split",
+      "spokeWidth": 0.044,
+      "splitGap": 0.18,
+      "concave": 0.016,
+      "cap": "flat",
+      "colour": "#4a4f55"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (11 kg from its volume and materials (rim_finish, raw_metal, black)). Then delete \"todo\" and the shop sells it."
+}

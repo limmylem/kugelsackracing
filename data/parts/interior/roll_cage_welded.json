@@ -8,8 +8,7 @@
   "purpose": "safety",
   "price": 3200,
   "mass": 42,
-  "model": "",
-  "modelTodo": "A welded race cage: 45 mm tubes — main hoop, A-pillar bars, door bars, a roof X and rear stays, about 135 × 95 × 190 cm.",
+  "model": "assets/parts/interior/roll_cage_welded.glb",
   "icon": "assets/icons/parts/roll_cage_welded.png",
   "fits": [],
   "requires": [],
@@ -18,7 +17,67 @@
   "_note": "A welded multi-point race cage: the shell very hard to damage (chassisToughness), every part bolted to it tougher too.",
   "chassisToughness": 0.8,
   "bounds": {
-    "min": [-0.675, -0.45, -0.95],
-    "max": [0.675, 0.5, 0.95]
+    "min": [-0.6875, -0.499, -0.43],
+    "max": [0.6875, 0.4846, 0.7375]
+  },
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "welded multi-point cage",
+    "settings": {
+      "tube": 0.0225,
+      "style": "welded",
+      "material": "raw_metal"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/roll_cage_welded/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.7975, -0.509, -0.31],
+        "max": [0.7975, 0.5349, 0.6975]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/roll_cage_welded/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.7325, -0.5, -0.37],
+        "max": [0.7325, 0.4499, 0.5975]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/roll_cage_welded/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.8575, -0.609, -0.55],
+        "max": [0.8575, 0.8347, 0.6475]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/roll_cage_welded/vortex_r.glb",
+      "bounds": {
+        "min": [-0.8075, -0.539, -0.55],
+        "max": [0.8075, 0.6748, 0.6975]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/roll_cage_welded/brute_500.glb",
+      "bounds": {
+        "min": [-0.8325, -0.5, -0.37],
+        "max": [0.8325, 0.6199, 0.7475]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/roll_cage_welded/strada_evo.glb",
+      "bounds": {
+        "min": [-0.7925, -0.529, -0.31],
+        "max": [0.7925, 0.6548, 0.7975]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/roll_cage_welded/apex_v8.glb",
+      "bounds": {
+        "min": [-0.8725, -0.499, -0.31],
+        "max": [0.8725, 0.485, 0.5475]
+      }
+    }
   }
 }

@@ -7,13 +7,17 @@
 
 import sharp from 'sharp';
 import { inspect } from './inspect.mjs';
+import { KEEPS_LOOK } from '../../garage/partShape.js';
 
 const SS = 3;                     // supersampling
 const PAD = 0.08;                 // margin round the model, of the size
 
-export async function renderIcon(doc, { rules, type, size, paintColour, look = null }) {
-  const view = { ...rules.icon, ...(type === 'car' ? rules.car.icon : rules.types[type]?.icon) };
+// (also: view — { azimuth, elevation } instead of the type's; keep(triangle) — only the triangles it
+// passes are drawn: a cutaway)
+export async function renderIcon(doc, { rules, type, size, paintColour, look = null, view: angle = null, keep = null }) {
+  const view = { ...rules.icon, ...(type === 'car' ? rules.car.icon : rules.types[type]?.icon), ...angle };
   const S = (size ?? view.size) * SS, info = inspect(doc);
+  if (keep) info.triangles = info.triangles.filter(keep);
   const rgba = new Float32Array(S * S * 4), depth = new Float32Array(S * S).fill(Infinity);
   if (!info.triangleCount) return encode(rgba, S);
 
@@ -71,7 +75,8 @@ async function materialLook(info, rules, paintColour, look) {
   for (const tri of info.triangles) {
     const mat = tri.mat;
     if (!mat || out.has(mat)) continue;
-    const name = mat.getName(), own = look?.materials?.[name] ?? {}, lookFinish = finishOf(own.finish ?? look?.finish), lookColour = own.colour ?? look?.colour;
+    const name = mat.getName(), own = look?.materials?.[name] ?? {}, keeps = KEEPS_LOOK.test(name) && !look?.materials?.[name];
+    const lookFinish = keeps ? null : finishOf(own.finish ?? look?.finish), lookColour = keeps ? null : own.colour ?? look?.colour;
     let entry;
     if (name === 'paint' && !lookFinish && !lookColour) entry = { colour: hex(paintColour), metalness: 0.1, roughness: 0.4 };
     else if (lookFinish || lookColour) entry = { colour: hex(lookColour ?? lookFinish?.colour ?? (name === 'paint' ? paintColour : '#b8bdc4')), metalness: lookFinish?.metalness ?? 0.1, roughness: lookFinish?.roughness ?? 0.45, keep: lookFinish?.keepTexture };

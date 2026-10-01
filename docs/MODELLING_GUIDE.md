@@ -83,6 +83,32 @@ and splits it into the body and a model per stock part (`npm run build:car`).
   `Socket_Mirror_Right`) and says what they should be.
 - The body's painted surfaces use `paint`; it must be there.
 
+## Generated parts
+
+Mechanical parts aren't modelled by hand: `npm run generate-parts` builds them in code from settings
+(`tools/generators/<category>.js`, on the shared helpers in `tools/generators/lib/`) and imports each one
+through the same pipeline as a modelled part, so every one passes these rules. Change a part by changing
+its generator's settings and running it again — never the `.glb`. A part file says it's generated in its
+`madeBy` (the generator, the design and the settings it was made with).
+
+- **The same rules**: real size in metres, +Y up, front +Z, origins at the attach point, the materials
+  below, under the triangle budget, closed meshes (the mass of a new part comes from its volume and
+  materials), flat-shaded low-poly with slight bevels.
+- **Generators' own materials**: `rim_finish` (a rim's face: it takes the rim's finish), `caliper`,
+  `seat_fabric` and `light_aux` (a lamp's lens: it glows the light's colour) — each part's colour is in
+  its generator's settings. These, `titanium`, `rubber` and `glass` keep their own look whatever finish
+  the part is given.
+- **Made to fit each car**: parts that must fit a car's shape are measured from its model
+  (`tools/generators/lib/car.js`: the cabin's floor, roof, pillars and door openings; the strut towers; the
+  bumper's bottom outline; the roof; the sills) — a roll cage, a strut brace, underglow, a front lip, the
+  Ridgeback's bull bar and snorkel. A part for every car keeps a version per car in its `byCar`.
+- **Brake kits** are drawn at every wheel (`look.drawAt: "wheels"`): on the hub, steering but not
+  turning, made to fit inside the rim.
+- **Wings** have their element as a node of its own, `wing_element`, turning about its middle: the game
+  tips it to the wing's angle setting.
+- **Not generated**: anything that has to follow a car's curves — bumpers, bonnets, fenders, widebody
+  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them).
+
 ## Tools
 
 | Command | What it does |
@@ -96,6 +122,7 @@ and splits it into the body and a model per stock part (`npm run build:car`).
 | `npm run playtest` | A whole upgrade journey played through the player service, with the rating and the Step 6 results after every change (`reports/playtest.csv`). In the game: the garage's settings › Playtest, and `dev/playtest.html` to read the log. |
 | `npm run guide` | Rewrites this guide's tables and `docs/part_prompt_templates.md` from `data/content/model-rules.json`. |
 | `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes). |
+| `npm run generate-parts` | Makes the mechanical parts' models in code (`tools/generators/<category>.js`: rims, brakes, engine, aero, interior, bay, exhaust, lights, offroad) and imports them like a modelled part: checked, icon, part file. `-- rims brakes` for some generators, `--only id,id`, `--check` to build and check without importing. Draws `docs/generated_parts.png` (every generated part) and `docs/generated_fit.png` (every car with a set fitted through the garage). |
 | Part preview | `http://localhost:7690/dev/parts.html`: every part alone or on a car, its variants, sockets, wireframe, bounds, triangle counts, paint and finish tests, and a fit check (does it cut into the body or other parts?). |
 
 ## The rules
@@ -131,6 +158,29 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 | Exhaust (tip) | `exhaust_…` `exhaust_tip_…` | exhaust / exhaust | 0.03–0.4 | 0.03–0.3 | 0.05–1.6 | the front of the tip, where it meets the pipe (the tip points back, towards −z) | 1,200 |
 | Engine cover | `engine_cover_…` `enginecover_…` | body / engine_cover | 1–1.9 | 0.01–0.5 | 0.2–1.3 | the middle of its front edge (the hinge line), level with its top surface | 1,500 |
 | Roof (soft top, hardtop) | `roof_…` `soft_top_…` `hardtop_…` | body / roof | 0.9–1.9 | 0.05–1 | 0.4–1.8 | the middle of the roof, level with its top | 1,500 |
+| Brake kit (disc and caliper) | `brakes_…` `brake_kit_…` | brakes / brakes | 0.02–0.2 | 0.2–0.48 | 0.2–0.48 | the wheel hub's centre (the disc's centre on the axle), the outer face towards +x: drawn at every wheel | 1,500 |
+| Supercharger | `supercharger_…` `blower_…` | turbo / supercharger | 0.15–0.7 | 0.1–0.5 | 0.15–0.75 | where it bolts to the engine | 2,500 |
+| Radiator | `radiator_…` | engine / radiator | 0.3–0.95 | 0.15–0.65 | 0.03–0.25 | its middle | 1,200 |
+| Strut brace | `strut_brace_…` | suspension / strut_brace | 0.6–1.6 | 0.02–0.25 | 0.03–0.3 | the middle of the bar, on the line between the strut tops | 800 |
+| Roll cage or hoop | `roll_cage_…` `cage_…` `roll_hoop_…` | interior / roll_cage | 0.8–1.85 | 0.4–1.6 | 0.05–2.6 | the middle of the cabin above the seats (socket_cage): the cage goes where the cabin has room for it, front to back | 4,000 |
+| Harness | `harness_…` | interior / harness | 0.2–0.6 | 0.3–1 | 0.02–1 | the middle of the seat back, where the straps cross | 800 |
+| Gauge pod | `gauges_…` `gauge_pod_…` | interior / gauges | 0.04–0.45 | 0.04–0.4 | 0.03–0.25 | where the pod sits on the dash or pillar | 1,000 |
+| Gear lever | `shifter_…` `gear_lever_…` | drivetrain / shifter | 0.03–0.25 | 0.1–0.45 | 0.03–0.25 | the middle of its base, on the tunnel | 600 |
+| Fog lights (a pair) | `fog_lights_…` `fog_…` | cosmetic / fog_lights | 0.3–1.9 | 0.04–0.3 | 0.02–0.3 | the middle between the two lamps (socket_fog_lights): they stand on the front bumper's face, in front of the socket | 1,000 |
+| Underglow strips | `underglow_…` | cosmetic / underglow | 0.8–2.1 | 0.004–0.08 | 1.8–5 | the middle of the floor | 600 |
+| Front lip or splitter | `front_lip_…` `lip_…` `splitter_…` | aero / front_lip | 1–2.2 | 0.01–0.25 | 0.05–0.6 | the middle of its front edge, under the bumper (socket_front_lip) | 1,200 |
+| Canards (dive planes) | `canards_…` `dive_planes_…` | aero / canards | 1–2.2 | 0.02–0.35 | 0.05–0.5 | the middle between the bumper corners (socket_canards) | 800 |
+| Mud flaps | `mud_flaps_…` `mudflaps_…` | body / mud_flaps | 1–2.2 | 0.15–0.55 | 0.005–3.6 | between the flaps, at the height of their tops (socket_mud_flaps): they hang behind the wheels | 600 |
+| Aero kit | `aero_kit_…` | aero / aero_kit | 1.4–2.3 | 0.05–0.7 | 2.5–5.2 | the middle of the car at floor level (socket_aero_kit) | 3,000 |
+| Bull bar | `bull_bar_…` `nudge_bar_…` | body / bull_bar | 1.2–2.2 | 0.3–1.1 | 0.05–0.55 | the middle of the bar where it bolts to the chassis (socket_bull_bar) | 2,500 |
+| Winch | `winch_…` | body / winch | 0.25–0.75 | 0.1–0.4 | 0.1–0.45 | its mounting plate (socket_winch) | 1,500 |
+| Snorkel | `snorkel_…` | body / snorkel | 0.05–0.35 | 0.5–1.6 | 0.05–0.6 | where it goes into the wing (socket_snorkel): it runs up the outside of it | 800 |
+| Roof rack | `roof_rack_…` | body / roof_rack | 0.8–1.7 | 0.05–0.35 | 0.8–2.4 | the middle of the rack, its feet on the roof (socket_roof_rack) | 2,500 |
+| Light bar | `light_bar_…` | body / light_bar | 0.3–1.6 | 0.04–0.25 | 0.03–0.3 | the middle of the bar, on its brackets | 1,000 |
+| Rally light pod | `rally_lights_…` `light_pod_…` | body / rally_lights | 0.4–1.5 | 0.08–0.4 | 0.05–0.35 | the middle of the pod where it straps on (socket_rally_lights) | 1,500 |
+| Skid plates | `skid_plates_…` `skid_plate_…` | body / skid_plates | 0.5–1.7 | 0.003–0.25 | 0.5–3.2 | the middle of the plates, under the car (socket_skid_plates) | 800 |
+| Rock sliders | `rock_sliders_…` | body / rock_sliders | 1.3–2.3 | 0.03–0.3 | 1.4–3.3 | the middle between the two sills (socket_rock_sliders): they hang under the sills | 1,500 |
+| Lift kit | `lift_kit_…` | suspension / lift_kit | 1–2.1 | 0.1–0.8 | 1.8–3.8 | the middle of the car between the axles (socket_lift_kit) | 2,000 |
 
 The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning; over twice it, a failure.
 
@@ -150,7 +200,7 @@ The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning
 
 ### Materials and textures
 
-Material names: `paint`, `car_atlas`, `glass`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`. Textures at most 1024×1024, sides a power of two.
+Material names: `paint`, `car_atlas`, `glass`, `rim_finish`, `caliper`, `seat_fabric`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`, `titanium`. Textures at most 1024×1024, sides a power of two.
 
 <!-- rules:end -->
 

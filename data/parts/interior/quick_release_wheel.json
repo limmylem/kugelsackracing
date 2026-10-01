@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 320,
   "mass": 1.2,
-  "model": "",
-  "modelTodo": "A 350 mm suede-rimmed steering wheel with three flat spokes on a quick-release boss (origin at the column).",
+  "model": "assets/parts/interior/quick_release_wheel.glb",
   "icon": "assets/icons/parts/quick_release_wheel.png",
   "fits": ["steering_column:std"],
   "requires": [],
@@ -17,7 +16,73 @@
   "provides": [],
   "_note": "A suede-rimmed wheel on a quick-release boss.",
   "bounds": {
-    "min": [-0.175, -0.175, -0.05],
-    "max": [0.175, 0.175, 0.02]
+    "min": [-0.191, -0.191, -0.088],
+    "max": [0.191, 0.193, 0]
+  },
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "quick-release wheel",
+    "settings": {
+      "diameter": 0.35,
+      "grip": 0.016,
+      "spokes": 3,
+      "spoke": "flat",
+      "dish": 0.02,
+      "quickRelease": true,
+      "rimMaterial": "seat_fabric",
+      "rimColour": "#2b2d31",
+      "marker": "red"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/quick_release_wheel/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/quick_release_wheel/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/quick_release_wheel/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/quick_release_wheel/vortex_r.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/quick_release_wheel/brute_500.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/quick_release_wheel/strada_evo.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.088],
+        "max": [0.191, 0.193, 0]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/quick_release_wheel/apex_v8.glb",
+      "bounds": {
+        "min": [-0.191, -0.191, -0.128],
+        "max": [0.191, 0.193, 0]
+      }
+    }
   }
 }

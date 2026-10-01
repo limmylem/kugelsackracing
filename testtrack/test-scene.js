@@ -651,7 +651,7 @@ function syncLoose(w, v) {
     if (want === have) continue;
     const id = sn.garage.build.sockets[socket], part = id && sn.db.parts[sn.garage.state.parts[id]?.partId], sdef = car.sockets.find(x => x.name === socket);
     if (!part || !sdef) continue;
-    const def = bodyDef(part, sdef, sn.db.parts);
+    const def = bodyDef(part, sdef, sn.db.parts, Math.random, car.id);
     if (want === 'loose') { if (v.parts.loosen(socket, def)) w.carVis.loosenPart(socket); continue; }
     const pieceId = v.parts.detach(socket, def, w.sim.time, socket), object = w.carVis.detachPart(socket);
     if (object) {
@@ -1322,6 +1322,7 @@ function placeCar(vis, a, b, alpha) {
     if (wb.bend) { const r = v.rig, f = [r.axle[1] * r.up[2] - r.axle[2] * r.up[1], r.axle[2] * r.up[0] - r.axle[0] * r.up[2], r.axle[0] * r.up[1] - r.axle[1] * r.up[0]]; q = quatMul(axisAngle(f, 1.5 * wb.bend / 1000 / (W.rimRadius ?? W.radius) * Math.sin(spin)), q); }
     v.pivot.quaternion.fromArray(q);
     v.pivot.position.fromArray(t.position);
+    vis.setWheelSpin?.(wb.name, v.rig.axle, spin);           // (brake discs and calipers on the hub: they don't turn)
   });
 }
 

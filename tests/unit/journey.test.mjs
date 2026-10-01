@@ -105,11 +105,11 @@ test('every part for sale: bought, fitted, drawn, changes its stats as its tier 
       const garage = carOf(service.profile), stats = garage.stats();
       assert.ok(stats.spec, `${what}: the car can be worked out (${stats.errors.join('; ')})`);
       assert.ok(garage.drivable().ok, `${what}: the car can still be driven`);
-      // drawn: its model, its tyre made to fit, its placeholder — or nothing, for a part with no model
+      // drawn: its model (a brake kit's at every wheel), its tyre made to fit, its placeholder — or nothing, for a part with no model
       const vis = await createCarVisual({ car, finishes: db.finishes, models });
       await vis.applyBuild(garage.build, garage.view);
       const { model, bounds, placeholder } = resolveLook(part, db.parts), status = vis.attached.get(sockets[0])?.status ?? 'empty';
-      const expected = part.tyreSize ? /^made to fit/ : model ? /^loaded$/ : placeholder || bounds ? /^placeholder \(no model yet\)$/ : /^no model$/;
+      const expected = part.tyreSize ? /^made to fit/ : model && part.look?.drawAt === 'wheels' ? /^at [1-9]\d* wheels$/ : model ? /^loaded$/ : placeholder || bounds ? /^placeholder \(no model yet\)$/ : /^no model$/;
       assert.match(status, expected, `${what} is drawn`);
       vis.dispose();
       // its stats: its slot's key stat better than the car with just what it needs (a part with a

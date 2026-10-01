@@ -28,6 +28,8 @@
   .item .ph { display: flex; align-items: center; justify-content: center; color: var(--c-text-3); }
   .item .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--c-warn); }
+  .item .tag.gen { color: var(--c-text-3); }
+  .head .gen { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 6px; }
   .item.variant { padding-left: 26px; }
   .view { position: relative; min-width: 0; }
   .view canvas { display: block; width: 100%; height: 100%; }
@@ -53,7 +55,7 @@
 </head>
 <body class="ui">
   <aside class="side">
-    <div class="head"><div class="panel-title">Parts</div><input type="text" id="search" placeholder="Search parts" aria-label="Search parts"></div>
+    <div class="head"><div class="panel-title">Parts</div><input type="text" id="search" placeholder="Search parts" aria-label="Search parts"><label class="gen" title="Parts whose models npm run generate-parts makes (tools/generators)"><input type="checkbox" id="genOnly">Generated only</label></div>
     <div class="body" id="list"></div>
   </aside>
   <main class="view" id="view">

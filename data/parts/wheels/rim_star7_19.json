@@ -1,0 +1,50 @@
+{
+  "id": "rim_star7_19",
+  "name": "19\" seven-star wheel, gunmetal",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 1350,
+  "mass": 13.1,
+  "model": "assets/parts/wheels/rim_star7_19.glb",
+  "icon": "assets/icons/parts/rim_star7_19.png",
+  "fits": ["wheel_hub:std", "rim_fits:19"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:19"],
+  "bounds": {
+    "min": [-0.1233, -0.2573, -0.2573],
+    "max": [0.1543, 0.2573, 0.2573]
+  },
+  "massOffset": [0.016, 0, 0],
+  "rim": {
+    "diameter": 19,
+    "width": 9,
+    "offset": 35
+  },
+  "tier": "race",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A seven-star rim from the generator's variety pack (tools/generators/rims.js): 7 twisted spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "seven-star wheel, gunmetal",
+    "settings": {
+      "diameter": 19,
+      "width": 9,
+      "spokes": 7,
+      "spoke": "twisted",
+      "twist": -0.4,
+      "spokeWidth": 0.034,
+      "taper": 0.6,
+      "concave": 0.03,
+      "cap": "dome",
+      "capMaterial": "chrome",
+      "colour": "#3e4349",
+      "metalness": 0.8,
+      "roughness": 0.28
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (13.1 kg from its volume and materials (rim_finish, raw_metal, chrome)). Then delete \"todo\" and the shop sells it."
+}

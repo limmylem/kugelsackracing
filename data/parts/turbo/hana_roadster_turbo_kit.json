@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 2600,
   "mass": 18,
-  "model": "",
-  "modelTodo": "Hana Roadster turbo kit: a small turbo (20 cm) on a cast manifold at the side of the four-cylinder, with its intake pipe.",
+  "model": "assets/parts/turbo/hana_roadster_turbo_kit.glb",
   "icon": "assets/icons/parts/hana_roadster_turbo_kit.png",
   "fits": ["engine_family:hana_i4"],
   "requires": ["slot:intercooler"],
@@ -17,8 +16,8 @@
   "_note": "A small turbo kit made for the Hana's four: a big mid-range lift for a light car.",
   "hides": ["socket_intake"],
   "bounds": {
-    "min": [-0.13, 0, -0.13],
-    "max": [0.13, 0.24, 0.13]
+    "min": [-0.248, -0.3466, -0.2288],
+    "max": [0.015, 0.0236, 0.23]
   },
   "effects": [
     {
@@ -43,6 +42,17 @@
       "q": 12,
       "spoolUp": 0.45,
       "spoolDown": 0.35
+    }
+  },
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "small turbo on a cast manifold",
+    "settings": {
+      "size": 0.08,
+      "inlet": "filter",
+      "manifold": "cast",
+      "downpipe": 0.22,
+      "filter": "black"
     }
   }
 }

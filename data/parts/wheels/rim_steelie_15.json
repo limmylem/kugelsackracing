@@ -1,0 +1,51 @@
+{
+  "id": "rim_steelie_15",
+  "name": "15\" steel wheel, black",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 310,
+  "mass": 9.8,
+  "model": "assets/parts/wheels/rim_steelie_15.glb",
+  "icon": "assets/icons/parts/rim_steelie_15.png",
+  "fits": ["wheel_hub:std", "rim_fits:15"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "bounds": {
+    "min": [-0.0915, -0.2065, -0.2065],
+    "max": [0.0915, 0.2065, 0.2065]
+  },
+  "massOffset": [0.012, 0, 0],
+  "rim": {
+    "diameter": 15,
+    "width": 6.5,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A steel rim from the generator's variety pack (tools/generators/rims.js): 8 holes spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "steel wheel, black",
+    "settings": {
+      "diameter": 15,
+      "width": 6.5,
+      "spokes": 8,
+      "spoke": "holes",
+      "holes": 8,
+      "concave": 0.006,
+      "dish": 0.03,
+      "thickness": 0.012,
+      "cap": "dome",
+      "capMaterial": "chrome",
+      "nuts": 4,
+      "colour": "#1e2023",
+      "metalness": 0.2,
+      "roughness": 0.55
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (9.8 kg from its volume and materials (rim_finish, black, raw_metal, chrome)). Then delete \"todo\" and the shop sells it."
+}

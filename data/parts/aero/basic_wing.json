@@ -13,27 +13,20 @@
     "looseType": "none",
     "attachStrength": 1500,
     "looseThreshold": 12,
-    "detachThreshold": 7
+    "detachThreshold": 6
   },
-  "model": "",
+  "model": "assets/parts/aero/basic_wing.glb",
   "icon": "assets/icons/parts/basic_wing.png",
   "fits": ["spoiler_mount:boot"],
   "requires": [],
   "conflicts": [],
   "provides": [],
   "bounds": {
-    "min": [-0.65, 0, -0.18],
-    "max": [0.65, 0.25, 0.18]
+    "min": [-0.658, 0.008, -0.182],
+    "max": [0.658, 0.2812, 0.156]
   },
   "massOffset": [0, 0.125, 0],
-  "_note": "Aero part (see physics/parts.js). Coefficients are against the car's frontal area: liftCoefficient −0.3 is about 770 N of downforce at 170 km/h at sea level; dragCoefficient is added to the car's. The angle (degrees of attack) scales both: × scaleAtMin at min, × 1 at default, × scaleAtMax at max. No model yet, so the game draws the placeholder: a wing `width` × `chord` on two uprights `height` above the socket.",
-  "placeholder": {
-    "width": 1.3,
-    "chord": 0.28,
-    "thickness": 0.03,
-    "height": 0.22,
-    "colour": "#1f2226"
-  },
+  "_note": "Aero part (see physics/parts.js). Coefficients are against the car's frontal area: liftCoefficient −0.3 is about 770 N of downforce at 170 km/h at sea level; dragCoefficient is added to the car's. The angle (degrees of attack) scales both: × scaleAtMin at min, × 1 at default, × scaleAtMax at max. Its model is made by tools/generators/aero.js (npm run generate-parts aero).",
   "aero": {
     "liftCoefficient": -0.3,
     "dragCoefficient": 0.02,
@@ -61,5 +54,72 @@
       ]
     }
   },
-  "tier": "sport"
+  "tier": "sport",
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "wing on straight uprights",
+    "settings": {
+      "span": 1.3,
+      "chord": 0.26,
+      "height": 0.2,
+      "mounts": "straight",
+      "mountX": 0.42,
+      "plates": {
+        "up": 0.05,
+        "down": 0.06
+      },
+      "material": "black"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/aero/basic_wing/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/aero/basic_wing/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/aero/basic_wing/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.222],
+        "max": [0.658, 0.2812, 0.116]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/aero/basic_wing/vortex_r.glb",
+      "bounds": {
+        "min": [-0.658, 0.02, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/aero/basic_wing/brute_500.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/aero/basic_wing/strada_evo.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/aero/basic_wing/apex_v8.glb",
+      "bounds": {
+        "min": [-0.658, 0, -0.182],
+        "max": [0.658, 0.2812, 0.156]
+      }
+    }
+  }
 }

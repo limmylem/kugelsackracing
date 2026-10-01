@@ -16,8 +16,7 @@
     "looseThreshold": 50,
     "detachThreshold": 90
   },
-  "model": "",
-  "modelTodo": "Straight-through race exhaust: the tail pipes (twin 90 mm tips) out of the rear bumper, 20 cm of pipe, origin at the tip.",
+  "model": "assets/parts/exhaust/catback_race.glb",
   "icon": "assets/icons/parts/catback_race.png",
   "fits": [
     ["exhaust_route:std", "exhaust_flange:rs"]
@@ -28,8 +27,8 @@
   "_note": "A straight-through race exhaust: the most power, very loud, a hard deep bark (no crackle).",
   "massOffset": [0, 0, -0.09],
   "bounds": {
-    "min": [-0.045, -0.045, -0.2],
-    "max": [0.045, 0.045, 0]
+    "min": [-0.173, -0.063, -0.235],
+    "max": [0.173, 0.063, 0]
   },
   "effects": [
     {
@@ -51,5 +50,16 @@
       "op": "multiply",
       "value": 0.92
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/exhaust.js",
+    "design": "twin burnt titanium tips, slash cut",
+    "settings": {
+      "tips": [[0.055, 0], [-0.055, 0]],
+      "radius": 0.045,
+      "length": 0.2,
+      "cut": "slash",
+      "material": "titanium"
+    }
+  }
 }

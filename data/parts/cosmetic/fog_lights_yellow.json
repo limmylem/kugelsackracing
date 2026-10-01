@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 260,
   "mass": 1.6,
-  "model": "",
-  "modelTodo": "Yellow fog lights: two 14 × 7 cm rectangular lamps with yellow lenses, 110 cm apart, low in the front bumper.",
+  "model": "assets/parts/cosmetic/fog_lights_yellow.glb",
   "icon": "assets/icons/parts/fog_lights_yellow.png",
   "fits": [],
   "requires": [],
@@ -24,7 +23,68 @@
     }
   ],
   "bounds": {
-    "min": [-0.6, 0, -0.04],
-    "max": [0.6, 0.08, 0.04]
+    "min": [-0.62, 0, 0.139],
+    "max": [0.62, 0.07, 0.207]
+  },
+  "madeBy": {
+    "generator": "tools/generators/lights.js",
+    "design": "rectangular, yellow lenses",
+    "settings": {
+      "spacing": 1.1,
+      "shape": "rect",
+      "size": [0.14, 0.07],
+      "lens": "#ffd24a"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/vortex_r.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/brute_500.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/strada_evo.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/cosmetic/fog_lights_yellow/apex_v8.glb",
+      "bounds": {
+        "min": [-0.62, 0, 0.034],
+        "max": [0.62, 0.07, 0.102]
+      }
+    }
   }
 }

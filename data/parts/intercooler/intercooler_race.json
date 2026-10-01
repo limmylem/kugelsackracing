@@ -7,8 +7,7 @@
   "tier": "race",
   "price": 1300,
   "mass": 12,
-  "model": "",
-  "modelTodo": "A big bar-and-plate intercooler core about 68 × 28 × 8 cm with end tanks and pipes, behind the front bumper.",
+  "model": "assets/parts/intercooler/intercooler_race.glb",
   "icon": "assets/icons/parts/intercooler_race.png",
   "fits": ["intercooler_mount:std"],
   "requires": [
@@ -18,8 +17,8 @@
   "provides": ["intercooler"],
   "_note": "A big bar-and-plate intercooler: cooler charge air — worth a little more power from a turbo or supercharger (and nothing without one).",
   "bounds": {
-    "min": [-0.34, -0.14, -0.04],
-    "max": [0.34, 0.14, 0.04]
+    "min": [-0.306, -0.103, -0.2079],
+    "max": [0.306, 0.0416, 0.044]
   },
   "effects": [
     {
@@ -31,5 +30,71 @@
         "fade": 1000
       }
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "bar and plate",
+    "settings": {
+      "width": 0.68,
+      "height": 0.28,
+      "depth": 0.08,
+      "tanks": "side",
+      "tank": 0.06,
+      "fins": "bar",
+      "pipes": true,
+      "pipeR": 0.032,
+      "pipeMaterial": "blue"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/intercooler/intercooler_race/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.34, -0.098, -0.2679],
+        "max": [0.34, 0.098, -0.016]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intercooler/intercooler_race/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.34, -0.098, -0.2679],
+        "max": [0.34, 0.098, -0.016]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intercooler/intercooler_race/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.34, -0.1, -0.2679],
+        "max": [0.34, 0.18, -0.016]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intercooler/intercooler_race/vortex_r.glb",
+      "bounds": {
+        "min": [-0.34, -0.1, -0.2679],
+        "max": [0.34, 0.18, -0.016]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intercooler/intercooler_race/brute_500.glb",
+      "bounds": {
+        "min": [-0.34, -0.1, -0.2679],
+        "max": [0.34, 0.18, -0.016]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intercooler/intercooler_race/strada_evo.glb",
+      "bounds": {
+        "min": [-0.34, -0.098, -0.2679],
+        "max": [0.34, 0.098, -0.016]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/intercooler/intercooler_race/apex_v8.glb",
+      "bounds": {
+        "min": [-0.34, -0.14, -0.2079],
+        "max": [0.34, 0.14, 0.044]
+      }
+    }
+  }
 }

@@ -386,7 +386,7 @@ export function computeStats(build, db) {
   let mass = car.chassis.mass;
   for (const f of fitted) {
     if (loose(f)) continue;                        // (its own body in the physics while it's loose)
-    const shape = physicalShape(f.part, db.parts), mirrored = f.socket.mirrored ?? car.sockets.find(s => s.name === f.socket.node)?.mirrored;
+    const shape = physicalShape(f.part, db.parts, car.id), mirrored = f.socket.mirrored ?? car.sockets.find(s => s.name === f.socket.node)?.mirrored;
     const off = shape.massOffset ? (mirrored ? [-shape.massOffset[0], shape.massOffset[1], -shape.massOffset[2]] : shape.massOffset) : [0, 0, 0];
     bodies.push({ mass: f.part.mass, at: [0, 1, 2].map(k => f.socket.position[k] + off[k]), own: shape.bounds ? boxTensor(f.part.mass, shape.bounds) : null, source: partSource(f) });
     mass += f.part.mass;
@@ -415,8 +415,11 @@ const HUB_RADIUS = 0.07;    // m: where a spacer's mass sits
 const round9 = x => Math.round(x * 1e9) / 1e9 + 0;   // (+ 0: never −0)
 const num3 = x => +x.toFixed(3);
 
-// A part's physical shape (its bounds and mass offset: its own, else the part it's a variant of)
-function physicalShape(part, parts) {
+// A part's physical shape (its bounds and mass offset: its own, else the part it's a variant of; a part
+// made to fit each car: that car's bounds)
+function physicalShape(part, parts, carId) {
+  const own = carId && part.byCar?.[carId];
+  if (own) return { bounds: own.bounds, massOffset: part.massOffset ?? null };
   let p = part;
   for (let i = 0; i < 8 && p; i++) { if (p.bounds || p.massOffset) return { bounds: p.bounds ?? null, massOffset: p.massOffset ?? null }; p = p.variantOf ? parts[p.variantOf] : null; }
   return { bounds: null, massOffset: null };

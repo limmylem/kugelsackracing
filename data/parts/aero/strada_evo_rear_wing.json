@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Strada Evo large rear wing: a 140 cm aerofoil (26 cm chord) with big end plates on two uprights (20 cm) on the boot lid.",
+  "model": "assets/parts/aero/strada_evo_rear_wing.glb",
   "icon": "assets/icons/parts/strada_evo_rear_wing.png",
   "fits": ["car:strada_evo"],
   "requires": [],
@@ -35,13 +34,6 @@
     "liftCoefficient": -0.32,
     "dragCoefficient": 0.025
   },
-  "placeholder": {
-    "width": 1.4,
-    "chord": 0.26,
-    "thickness": 0.03,
-    "height": 0.2,
-    "colour": "#1f2226"
-  },
   "massOffset": [0, 0.1, 0],
   "tuning": {
     "angle": {
@@ -56,6 +48,31 @@
           "op": "angle"
         }
       ]
+    }
+  },
+  "bounds": {
+    "min": [-0.708, 0, -0.192],
+    "max": [0.708, 0.2888, 0.168]
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "rally wing, big end plates, two elements",
+    "settings": {
+      "span": 1.4,
+      "chord": 0.24,
+      "height": 0.18,
+      "mounts": "pedestal",
+      "mountX": 0.44,
+      "plates": {
+        "up": 0.08,
+        "down": 0.1,
+        "long": 0.36
+      },
+      "second": {
+        "chord": 0.09,
+        "gap": 0.015
+      },
+      "material": "paint"
     }
   }
 }

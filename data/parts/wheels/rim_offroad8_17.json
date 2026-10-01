@@ -1,0 +1,52 @@
+{
+  "id": "rim_offroad8_17",
+  "name": "17\" off-road eight-spoke wheel, bronze",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 310,
+  "mass": 11.9,
+  "model": "assets/parts/wheels/rim_offroad8_17.glb",
+  "icon": "assets/icons/parts/rim_offroad8_17.png",
+  "fits": ["wheel_hub:std", "rim_fits:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "bounds": {
+    "min": [-0.117, -0.2319, -0.2319],
+    "max": [0.12, 0.2319, 0.2319]
+  },
+  "massOffset": [0.009, 0, 0],
+  "rim": {
+    "diameter": 17,
+    "width": 8.5,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A off-road eight-spoke rim from the generator's variety pack (tools/generators/rims.js): 8 straight spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "off-road eight-spoke wheel, bronze",
+    "settings": {
+      "diameter": 17,
+      "width": 8.5,
+      "spokes": 8,
+      "spoke": "straight",
+      "spokeWidth": 0.03,
+      "taper": 1,
+      "thickness": 0.028,
+      "dish": 0.035,
+      "concave": 0.003,
+      "rivets": 24,
+      "nuts": 6,
+      "cap": "flat",
+      "colour": "#a57c45",
+      "metalness": 0.6,
+      "roughness": 0.4
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (11.9 kg from its volume and materials (rim_finish, raw_metal, black, chrome)). Then delete \"todo\" and the shop sells it."
+}

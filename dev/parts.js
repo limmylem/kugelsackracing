@@ -9,6 +9,7 @@ import { Garage, loadGarageData } from '../garage/data.js';
 import { ModelCache, createCarVisual, finishMaterial, placeholderBox, placeholderWing, resolveLook, setEnvironment, skyEnvironment, tyreModel } from '../garage/visual.js';
 import { tyreFit } from '../garage/tyres.js';
 import { iconFor } from '../garage/workshop.js';
+import { KEEPS_LOOK } from '../garage/partShape.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -40,7 +41,7 @@ addEventListener('resize', resize); resize();
 renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 
 // ---------- state ----------
-const ui = { part: null, mode: 'alone', car: Object.keys(db.cars)[0], q: '', sockets: false, wire: false, bounds: false, stats: true, paint: '#6d9a91', paintFinish: 'gloss', partFinish: '' };
+const ui = { part: null, mode: 'alone', car: Object.keys(db.cars)[0], q: '', gen: false, sockets: false, wire: false, bounds: false, stats: true, paint: '#6d9a91', paintFinish: 'gloss', partFinish: '' };
 let shown = null;          // { group, dispose(), triangles, visual, targets, fit }
 let token = 0;
 
@@ -53,11 +54,13 @@ for (const [id, f] of Object.entries(db.finishes)) {
 // ---------- the list ----------
 function drawList() {
   const q = ui.q.trim().toLowerCase(), parts = Object.values(db.parts);
-  const match = p => !q || p.name.toLowerCase().includes(q) || p.id.includes(q) || p.category.includes(q);
+  // (generated: a part whose model npm run generate-parts makes, or a variant of one)
+  const gen = p => !!(p.madeBy ?? db.parts[p.variantOf]?.madeBy);
+  const match = p => (!ui.gen || gen(p)) && (!q || p.name.toLowerCase().includes(q) || p.id.includes(q) || p.category.includes(q) || (q === 'generated' && gen(p)));
   const cats = [...new Set(parts.map(p => p.category))].sort();
   const row = (p, variant) => `<button class="item ${ui.part === p.id ? 'on' : ''} ${variant ? 'variant' : ''}" data-part="${p.id}" title="${esc(p.id)}">
       ${p.icon ? `<img src="../${esc(p.icon)}" alt="" loading="lazy">` : `<span class="ph">${icon(iconFor(p.slot === 'wheels' ? 'wheel' : p.slot))}</span>`}
-      <span class="nm">${esc(p.name)}</span>${p.todo?.length ? '<span class="tag">TO DO</span>' : p.retired ? '<span class="tag" style="color:var(--c-text-3)">RETIRED</span>' : ''}</button>`;
+      <span class="nm">${esc(p.name)}</span>${p.todo?.length ? '<span class="tag">TO DO</span>' : p.retired ? '<span class="tag" style="color:var(--c-text-3)">RETIRED</span>' : p.madeBy ? `<span class="tag gen" title="${esc(p.madeBy.generator)}${p.byCar ? ` · its own model on ${Object.keys(p.byCar).length + 1} cars` : ''}">GEN</span>` : ''}</button>`;
   $('list').innerHTML = cats.map(cat => {
     const inCat = parts.filter(p => p.category === cat), bases = inCat.filter(p => !p.variantOf || !db.parts[p.variantOf] || db.parts[p.variantOf].category !== cat);
     const rows = bases.flatMap(b => { const vs = inCat.filter(p => p.variantOf === b.id && p !== b); return (match(b) || vs.some(match)) ? [row(b, false), ...vs.filter(match).map(v => row(v, true))] : []; });
@@ -66,6 +69,7 @@ function drawList() {
 }
 $('list').addEventListener('click', e => { const b = e.target.closest('[data-part]'); if (b) pick(b.dataset.part); });
 $('search').addEventListener('input', e => { ui.q = e.target.value; drawList(); });
+$('genOnly').addEventListener('change', e => { ui.gen = e.target.checked; drawList(); });
 
 // ---------- controls ----------
 $('mode').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; ui.mode = b.dataset.mode; for (const x of $('mode').children) x.classList.toggle('on', x === b); show(); });
@@ -99,7 +103,7 @@ async function show() {
 }
 // its look, with the finish being tried
 function partLook(part) {
-  const r = resolveLook(part, db.parts);
+  const r = resolveLook(part, db.parts, null, ui.car);        // (a part made to fit each car: the chosen car's)
   if (ui.partFinish) r.look = { ...(r.look ?? {}), finish: ui.partFinish };
   return r;
 }
@@ -123,7 +127,8 @@ function style(obj, look) {
     if (!o.isMesh || o.userData.owned) return;
     o.userData.source ??= o.material;
     const one = src => {
-      const per = look?.materials?.[src.name] ?? {}, finish = per.finish ?? look?.finish, colour = per.colour ?? look?.colour;
+      const per = look?.materials?.[src.name] ?? {}, keeps = KEEPS_LOOK.test(src.name) && !look?.materials?.[src.name];
+      const finish = keeps ? null : per.finish ?? look?.finish, colour = keeps ? null : per.colour ?? look?.colour;
       if (src.name === 'paint' && !finish && !colour) return finishMaterial(src, db.finishes[ui.paintFinish], ui.paint);
       if (finish || colour) return finishMaterial(src, db.finishes[finish], colour ?? (src.name === 'paint' && !db.finishes[finish]?.colour ? ui.paint : undefined));
       return src;

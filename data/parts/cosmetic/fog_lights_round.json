@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 220,
   "mass": 1.5,
-  "model": "",
-  "modelTodo": "Round fog lights: two 10 cm round lamps with chrome bezels, 110 cm apart, low in the front bumper.",
+  "model": "assets/parts/cosmetic/fog_lights_round.glb",
   "icon": "assets/icons/parts/fog_lights_round.png",
   "fits": [],
   "requires": [],
@@ -24,7 +23,67 @@
     }
   ],
   "bounds": {
-    "min": [-0.6, 0, -0.04],
-    "max": [0.6, 0.1, 0.04]
+    "min": [-0.603, -0.003, 0.139],
+    "max": [0.603, 0.103, 0.221]
+  },
+  "madeBy": {
+    "generator": "tools/generators/lights.js",
+    "design": "round, chrome bezels",
+    "settings": {
+      "spacing": 1.1,
+      "shape": "round",
+      "size": 0.1
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/cosmetic/fog_lights_round/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/cosmetic/fog_lights_round/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/cosmetic/fog_lights_round/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/cosmetic/fog_lights_round/vortex_r.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/cosmetic/fog_lights_round/brute_500.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/cosmetic/fog_lights_round/strada_evo.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/cosmetic/fog_lights_round/apex_v8.glb",
+      "bounds": {
+        "min": [-0.603, -0.003, 0.034],
+        "max": [0.603, 0.103, 0.116]
+      }
+    }
   }
 }

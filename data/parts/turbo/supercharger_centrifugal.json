@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 2600,
   "mass": 18,
-  "model": "",
-  "modelTodo": "A centrifugal supercharger: a polished snail-shell compressor about 25 cm across on a bracket at the front of the engine, a belt pulley and an intake pipe.",
+  "model": "assets/parts/turbo/supercharger_centrifugal.glb",
   "icon": "assets/icons/parts/supercharger_centrifugal.png",
   "fits": [],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": ["forced_induction:supercharger"],
   "_note": "A belt-driven centrifugal supercharger for any engine without a turbo: the boost climbs with the revs, no lag.",
   "bounds": {
-    "min": [-0.13, 0, -0.14],
-    "max": [0.13, 0.24, 0.14]
+    "min": [-0.48, -0.3, -0.03],
+    "max": [0.03, 0.0283, 0.4289]
   },
   "effects": [
     {
@@ -36,5 +35,44 @@
       "op": "multiply",
       "value": 1.03
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "centrifugal",
+    "settings": {
+      "size": 0.115,
+      "polish": "chrome",
+      "pipe": 0.28
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/turbo/supercharger_centrifugal/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.48, -0.36, -0.03],
+        "max": [0.03, -0.025, 0.3689]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/turbo/supercharger_centrifugal/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.115, 0, -0.24],
+        "max": [0.2863, 0.3283, 0.0689]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/turbo/supercharger_centrifugal/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.115, 0, -0.24],
+        "max": [0.2863, 0.3283, 0.0689]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/turbo/supercharger_centrifugal/brute_500.glb",
+      "bounds": {
+        "min": [-0.115, 0, -0.24],
+        "max": [0.2863, 0.3283, 0.0689]
+      }
+    }
+  }
 }

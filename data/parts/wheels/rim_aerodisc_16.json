@@ -1,0 +1,50 @@
+{
+  "id": "rim_aerodisc_16",
+  "name": "16\" aero disc wheel, grey",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 650,
+  "mass": 13.3,
+  "model": "assets/parts/wheels/rim_aerodisc_16.glb",
+  "icon": "assets/icons/parts/rim_aerodisc_16.png",
+  "fits": ["wheel_hub:std", "rim_fits:16"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:16"],
+  "bounds": {
+    "min": [-0.0979, -0.2192, -0.2192],
+    "max": [0.0989, 0.2192, 0.2192]
+  },
+  "massOffset": [0.029, 0, 0],
+  "rim": {
+    "diameter": 16,
+    "width": 7,
+    "offset": 35
+  },
+  "tier": "sport",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A aero disc rim from the generator's variety pack (tools/generators/rims.js): 5 slot spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "aero disc wheel, grey",
+    "settings": {
+      "diameter": 16,
+      "width": 7,
+      "spokes": 5,
+      "spoke": "slot",
+      "holes": 5,
+      "slotWidth": 0.018,
+      "concave": 0.002,
+      "dish": 0.006,
+      "cap": "none",
+      "nuts": 5,
+      "colour": "#8d9299",
+      "metalness": 0.5,
+      "roughness": 0.35
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (13.3 kg from its volume and materials (rim_finish, black, raw_metal)). Then delete \"todo\" and the shop sells it."
+}

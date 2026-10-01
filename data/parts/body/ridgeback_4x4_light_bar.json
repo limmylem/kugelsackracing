@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 360,
   "mass": 4,
-  "model": "",
-  "modelTodo": "Ridgeback LED light bar: a 120 cm straight light bar (8 cm tall) with brackets, on the front of the roof.",
+  "model": "assets/parts/body/ridgeback_4x4_light_bar.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_light_bar.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -17,10 +16,19 @@
   "provides": [],
   "_note": "A roof-mounted LED light bar.",
   "bounds": {
-    "min": [-0.6, 0, -0.05],
-    "max": [0.6, 0.08, 0.05]
+    "min": [-0.6, -0.04, -0.05],
+    "max": [0.6, 0.08, 0.054]
   },
   "aeroEffect": {
     "drag": 0.01
+  },
+  "madeBy": {
+    "generator": "tools/generators/lights.js",
+    "design": "LED light bar",
+    "settings": {
+      "width": 1.2,
+      "height": 0.08,
+      "depth": 0.09
+    }
   }
 }

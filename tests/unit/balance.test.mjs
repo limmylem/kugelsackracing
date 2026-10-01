@@ -27,9 +27,10 @@ for (const [id, r] of Object.entries(results)) {
     if (!rules.exempt.includes(id)) assert.ok(order.indexOf(r.max.class) - order.indexOf(car.class) <= rules.maxClassJump, `fully upgraded: class ${r.max.class} (${r.max.index}) — ${r.max.parts.join(', ')}`);
     assert.deepEqual(r.classes, []);
   });
-  test(`${car.name}: its parts follow their tier's rules, a dearer part in a slot does more, and the balance report flags nothing`, () => {
+  test(`${car.name}: its parts follow their tier's rules, a dearer part in a slot does more, and the balance report flags nothing (but new parts still to be priced, which aren't for sale)`, (t) => {
     assert.deepEqual(r.tiers, []);
     assert.deepEqual(r.flags, []);
+    if (r.unfinished.length) t.diagnostic(`still to be priced (not for sale): ${r.unfinished.join(', ')}`);
     assert.ok(r.rows >= 60, `${r.rows} parts for it`);
   });
 }

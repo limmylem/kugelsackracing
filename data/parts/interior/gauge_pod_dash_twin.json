@@ -1,0 +1,85 @@
+{
+  "id": "gauge_pod_dash_twin",
+  "name": "Twin dash gauge pod (boost, oil pressure)",
+  "category": "interior",
+  "slot": "gauges",
+  "kind": "component",
+  "price": 260,
+  "mass": 0.9,
+  "model": "assets/parts/interior/gauge_pod_dash_twin.glb",
+  "icon": "assets/icons/parts/gauge_pod_dash_twin.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.07, -0.06, -0.0625],
+    "max": [0.07, 0.016, 0.03]
+  },
+  "massOffset": [0, 0.038, 0.027],
+  "tier": "street",
+  "purpose": "looks",
+  "_note": "Twin dash gauge pod (boost, oil pressure): from tools/generators/interior.js.",
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "Twin dash gauge pod (boost, oil pressure)",
+    "settings": {
+      "gauges": 2,
+      "size": 0.052,
+      "layout": "dash"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (0.9 kg from its volume and materials (black, chrome, dark, orange, white)). Then delete \"todo\" and the shop sells it.",
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.07, -0.06, -0.0225],
+        "max": [0.07, 0.016, 0.07]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.07, 0, 0.0175],
+        "max": [0.07, 0.076, 0.11]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.07, 0, -0.0225],
+        "max": [0.07, 0.076, 0.07]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/vortex_r.glb",
+      "bounds": {
+        "min": [-0.07, 0, -0.0225],
+        "max": [0.07, 0.076, 0.07]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/brute_500.glb",
+      "bounds": {
+        "min": [-0.07, 0, -0.0225],
+        "max": [0.07, 0.076, 0.07]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/strada_evo.glb",
+      "bounds": {
+        "min": [-0.07, 0, -0.0225],
+        "max": [0.07, 0.076, 0.07]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/gauge_pod_dash_twin/apex_v8.glb",
+      "bounds": {
+        "min": [-0.07, 0, -0.0225],
+        "max": [0.07, 0.076, 0.07]
+      }
+    }
+  }
+}

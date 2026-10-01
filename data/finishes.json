@@ -10,6 +10,7 @@
     "matte_black": { "name": "Matte black", "colour": "#161617", "roughness": 0.85, "metalness": 0.05 },
     "gloss_black": { "name": "Gloss black", "colour": "#0c0c0d", "roughness": 0.18, "metalness": 0.1, "clearcoat": 1, "clearcoatRoughness": 0.05, "reflective": true, "envIntensity": 0.6 },
     "raw_metal": { "name": "Raw metal", "colour": "#a3a7ab", "roughness": 0.42, "metalness": 1, "reflective": true, "envIntensity": 1 },
-    "rubber": { "name": "Rubber", "colour": "#1b1b1c", "roughness": 0.62, "metalness": 0.1 }
+    "rubber": { "name": "Rubber", "colour": "#1b1b1c", "roughness": 0.62, "metalness": 0.1 },
+    "titanium": { "name": "Titanium", "colour": "#8f8fb4", "roughness": 0.3, "metalness": 1, "reflective": true, "envIntensity": 1 }
   }
 }

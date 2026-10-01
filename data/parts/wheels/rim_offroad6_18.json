@@ -1,0 +1,52 @@
+{
+  "id": "rim_offroad6_18",
+  "name": "18\" off-road six-spoke wheel, matte black",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 650,
+  "mass": 13.7,
+  "model": "assets/parts/wheels/rim_offroad6_18.glb",
+  "icon": "assets/icons/parts/rim_offroad6_18.png",
+  "fits": ["wheel_hub:std", "rim_fits:18"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "bounds": {
+    "min": [-0.1233, -0.2446, -0.2446],
+    "max": [0.1233, 0.2446, 0.2446]
+  },
+  "massOffset": [0.01, 0, 0],
+  "rim": {
+    "diameter": 18,
+    "width": 9,
+    "offset": 35
+  },
+  "tier": "sport",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A off-road six-spoke rim from the generator's variety pack (tools/generators/rims.js): 6 straight spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "off-road six-spoke wheel, matte black",
+    "settings": {
+      "diameter": 18,
+      "width": 9,
+      "spokes": 6,
+      "spoke": "straight",
+      "spokeWidth": 0.05,
+      "taper": 0.95,
+      "thickness": 0.03,
+      "dish": 0.04,
+      "concave": 0.002,
+      "nuts": 6,
+      "cap": "flat",
+      "capMaterial": "raw_metal",
+      "colour": "#1b1c1e",
+      "metalness": 0.05,
+      "roughness": 0.8
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (13.7 kg from its volume and materials (rim_finish, raw_metal)). Then delete \"todo\" and the shop sells it."
+}

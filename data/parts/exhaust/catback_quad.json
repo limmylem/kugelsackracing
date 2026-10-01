@@ -1,0 +1,68 @@
+{
+  "id": "catback_quad",
+  "name": "Cat-back exhaust, quad tips (sport)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 650,
+  "mass": 4,
+  "model": "assets/parts/exhaust/catback_quad.glb",
+  "icon": "assets/icons/parts/catback_quad.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.142, -0.065, -0.16],
+    "max": [0.142, 0.065, 0]
+  },
+  "massOffset": [0, 0.003, -0.061],
+  "tier": "sport",
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.045,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.25
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 0.95
+    }
+  ],
+  "_note": "Cat-back exhaust, quad tips (sport): quad round tips, from tools/generators/exhaust.js. It starts with the sport cat-back's sound and gains: balance them.",
+  "madeBy": {
+    "generator": "tools/generators/exhaust.js",
+    "design": "quad round tips",
+    "settings": {
+      "tips": [[0.05, 0.035], [-0.05, 0.035], [0.05, -0.035], [-0.05, -0.035]],
+      "radius": 0.03,
+      "length": 0.16,
+      "cut": "straight",
+      "material": "chrome",
+      "segments": 12
+    }
+  },
+  "todo": ["price", "effects"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier); what it does (effects). Check the mass too (4 kg from its volume and materials (chrome, black, raw_metal)). Then delete \"todo\" and the shop sells it."
+}

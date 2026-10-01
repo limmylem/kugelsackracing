@@ -8,8 +8,7 @@
   "purpose": "offroad",
   "price": 340,
   "mass": 4,
-  "model": "",
-  "modelTodo": "Ridgeback snorkel: a 9 cm black pipe from the right front wing up the windscreen pillar to a ram head at roof height, about 1.1 m tall.",
+  "model": "assets/parts/body/ridgeback_4x4_snorkel.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_snorkel.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -17,8 +16,8 @@
   "provides": ["snorkel"],
   "_note": "A raised air intake up the right pillar: deep water can't reach the engine, and you hear it breathe.",
   "bounds": {
-    "min": [-0.06, -0.5, -0.1],
-    "max": [0.06, 0.6, 0.1]
+    "min": [-0.144, -0.37, -0.29],
+    "max": [-0.033, 0.64, 0.25]
   },
   "effects": [
     {
@@ -26,5 +25,13 @@
       "op": "multiply",
       "value": 1.3
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/offroad.js",
+    "design": "up the right windscreen pillar",
+    "settings": {
+      "radius": 0.045,
+      "material": "black"
+    }
+  }
 }

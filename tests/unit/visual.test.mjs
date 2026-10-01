@@ -131,6 +131,13 @@ test('a part whose model won\'t load is a placeholder box its bounds\' size, wit
 });
 
 test('socket groups, hides, empty sockets, variants and placeholders', async () => {
+  // (a wing and an intercooler with no model yet, drawn as placeholders: these two as they were before theirs were made)
+  const real = { basic_wing: db.parts.basic_wing, front_mount_intercooler: db.parts.front_mount_intercooler };
+  db.parts.basic_wing = { ...real.basic_wing, model: '', byCar: undefined, placeholder: { width: 1.3, chord: 0.28, thickness: 0.03, height: 0.22, colour: '#1f2226' } };
+  db.parts.front_mount_intercooler = { ...real.front_mount_intercooler, model: '', byCar: undefined };
+  try { await placeholders(); } finally { Object.assign(db.parts, real); }
+});
+async function placeholders() {
   const g = fresh(), models = cache(), vis = await createCarVisual({ car, finishes: db.finishes, models });
   // three looks of the stock wheel on all four corners: the same model, different finishes, a wider one
   for (const [id, check] of [['wheel_15_chrome', m => m.metalness === 1], ['wheel_15_matte_black', m => m.roughness === 0.85], ['wheel_15_bronze_wide', m => m.color.getHexString() === 'a57c45']]) {
@@ -160,7 +167,7 @@ test('socket groups, hides, empty sockets, variants and placeholders', async () 
   g.remove('socket_turbo');
   await vis.applyBuild(g.build, g.view);
   assert.equal(at(vis, 'socket_intake').visible, true);
-});
+}
 
 test('tyres: made round the rim, resized with the tyre size', async () => {
   const fit = tyreFit({ diameter: 15 }, { width: 180, sidewall: 55 });
@@ -237,4 +244,47 @@ test('a variant\'s look: its base part\'s model and bounds, its own look over th
   assert.deepEqual(r.bounds, db.parts.stock_wheel_15.bounds);
   assert.deepEqual(r.look, { finish: 'chrome', colour: '#a57c45', scale: [1.25, 1, 1] });
   assert.equal(resolveLook(db.parts.stock_ecu, db.parts).model, '');
+});
+
+// ---------- generated parts (npm run generate-parts) ----------
+
+test('a brake kit is drawn at every wheel: on a hub that steers but doesn\'t turn, inside the rim, its caliper behind the axle on both sides', async () => {
+  const g = fresh(), vis = await createCarVisual({ car, finishes: db.finishes, models: cache() });
+  assert.ok(g.install('brakes_race', { auto: true }).ok);
+  await vis.applyBuild(g.build, g.view);
+  const e = vis.attached.get('socket_brakes');
+  assert.equal(e.status, 'at 4 wheels');
+  const copies = e.object.userData.atWheels;
+  assert.deepEqual(copies.map(c => c.object.parent.name).sort(), ['hub_FL', 'hub_FR', 'hub_RL', 'hub_RR']);
+  for (const k of ['FL', 'FR', 'RL', 'RR']) assert.equal(vis.hubs[k].parent, vis.wheels[k], `hub_${k} is on the wheel's pivot`);
+  assert.equal(vis.hubs.FR.scale.z, -1); assert.equal(vis.hubs.FL.scale.z, 1);
+  // (the starter car's 15" rims: the kit made smaller to fit inside them)
+  const b = db.parts.brakes_race.bounds, reach = Math.max(...[1, 2].flatMap(i => [Math.abs(b.min[i]), Math.abs(b.max[i])]));
+  assert.ok(Math.abs(copies[0].object.scale.y - Math.min(1, (15 * 0.0254 / 2 - 0.034) / reach)) < 1e-9);
+  // the wheel turns; its hub turns back, so the caliper stays put
+  vis.wheels.FL.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.2);
+  vis.setWheelSpin('FL', [1, 0, 0], 1.2);
+  vis.root.updateMatrixWorld(true);
+  const q = vis.hubs.FL.getWorldQuaternion(new THREE.Quaternion()), base = vis.wheels.FL.parent.getWorldQuaternion(new THREE.Quaternion());
+  assert.ok(q.angleTo(base) < 1e-6);
+  // off again: all four copies go
+  g.remove('socket_brakes');
+  await vis.applyBuild(g.build, g.view);
+  for (const k of ['FL', 'FR', 'RL', 'RR']) assert.equal(vis.hubs[k].children.length, 0);
+});
+
+test('a part made to fit each car is drawn with that car\'s model; a wing\'s element turns to its angle; a light glows its colour', async () => {
+  for (const carId of ['starter_car', 'kaze_gt', 'ridgeback_4x4']) {
+    const c = db.cars[carId], g = new Garage(db, null, carId), vis = await createCarVisual({ car: c, finishes: db.finishes, models: cache() });
+    assert.ok(g.install('roll_cage_welded', { auto: true }).ok, carId);
+    await vis.applyBuild(g.build, g.view);
+    assert.equal(vis.attached.get('socket_cage').url, db.parts.roll_cage_welded.byCar?.[carId]?.model ?? db.parts.roll_cage_welded.model, carId);
+    assert.equal(resolveLook(db.parts.roll_cage_welded, db.parts, null, carId).model, vis.attached.get('socket_cage').url);
+  }
+  const g = new Garage(db, null, 'kaze_gt'), vis = await createCarVisual({ car: db.cars.kaze_gt, finishes: db.finishes, models: cache() });
+  for (const id of ['kaze_gt_gt_wing', 'underglow_blue']) assert.ok(g.install(id, { auto: true }).ok, id);
+  await vis.applyBuild(g.build, g.view);
+  assert.equal(vis.attached.get('socket_spoiler').object.userData.wing?.name, 'wing_element');
+  const lit = []; vis.attached.get('socket_underglow').object.traverse(o => { if (o.isMesh && o.material.name === 'light_aux') lit.push(o.material); });
+  assert.ok(lit.length && lit.every(m => m.emissive.getHexString() === '2f8cff'), 'the underglow strips glow blue');
 });

@@ -6,7 +6,7 @@
   "kind": "modifier",
   "price": 4200,
   "mass": 26,
-  "model": "",
+  "model": "assets/parts/turbo/turbo_medium.glb",
   "icon": "assets/icons/parts/turbo_medium.png",
   "fits": [],
   "requires": ["slot:intercooler", "pistons:forged", "clutch_rating:sport"],
@@ -40,9 +40,50 @@
     }
   },
   "bounds": {
-    "min": [-0.1, -0.1, -0.1],
-    "max": [0.1, 0.1, 0.1]
+    "min": [-0.264, -0.1566, -0.2288],
+    "max": [0.0047, 0.2236, 0.23]
   },
   "hides": ["socket_intake"],
-  "tier": "race"
+  "tier": "race",
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "medium turbo",
+    "settings": {
+      "size": 0.09,
+      "inlet": "filter",
+      "manifold": "cast",
+      "downpipe": 0.22,
+      "filter": "blue"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/turbo/turbo_medium/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.4008, -0.3636, -0.0688],
+        "max": [0.0147, 0.0666, 0.39]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/turbo/turbo_medium/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.264, -0.3366, -0.3088],
+        "max": [0.0218, 0.0436, 0.15]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/turbo/turbo_medium/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.2808, -0.3036, -0.2288],
+        "max": [0.0069, 0.0496, 0.23]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/turbo/turbo_medium/brute_500.glb",
+      "bounds": {
+        "min": [-0.444, -0.3366, -0.3888],
+        "max": [0.0147, 0.1206, 0.07]
+      }
+    }
+  }
 }

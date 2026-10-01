@@ -7,8 +7,7 @@
   "tier": "sport",
   "price": 950,
   "mass": 3,
-  "model": "",
-  "modelTodo": "Race radiator and oil cooler: an aluminium radiator core about 64 × 40 × 6 cm with its fan shroud, behind the front bumper.",
+  "model": "assets/parts/engine/radiator_race.glb",
   "icon": "assets/icons/parts/radiator_race.png",
   "fits": [],
   "requires": [],
@@ -16,8 +15,8 @@
   "provides": ["cooling:uprated"],
   "_note": "A race radiator with an oil cooler: 70% more cooling.",
   "bounds": {
-    "min": [-0.32, -0.2, -0.03],
-    "max": [0.32, 0.2, 0.03]
+    "min": [-0.288, -0.24, -0.1],
+    "max": [0.288, 0.28, 0.102]
   },
   "effects": [
     {
@@ -25,5 +24,71 @@
       "op": "multiply",
       "value": 1.7
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "race, two fans and an oil cooler",
+    "settings": {
+      "width": 0.64,
+      "height": 0.4,
+      "depth": 0.06,
+      "tanks": "side",
+      "tank": 0.045,
+      "tankMaterial": "silver",
+      "fins": "bar",
+      "fan": 2,
+      "oilCooler": true
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/engine/radiator_race/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.32, -0.192, -0.19],
+        "max": [0.32, 0.072, 0.012]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/engine/radiator_race/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.32, -0.192, -0.19],
+        "max": [0.32, 0.072, 0.012]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/engine/radiator_race/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.32, -0.19, -0.16],
+        "max": [0.32, 0.15, 0.042]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/engine/radiator_race/vortex_r.glb",
+      "bounds": {
+        "min": [-0.32, -0.192, -0.16],
+        "max": [0.32, 0.072, 0.042]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/engine/radiator_race/brute_500.glb",
+      "bounds": {
+        "min": [-0.32, -0.192, -0.16],
+        "max": [0.32, 0.072, 0.042]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/engine/radiator_race/strada_evo.glb",
+      "bounds": {
+        "min": [-0.32, -0.19, -0.19],
+        "max": [0.32, 0.15, 0.012]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/engine/radiator_race/apex_v8.glb",
+      "bounds": {
+        "min": [-0.32, -0.152, -0.23],
+        "max": [0.32, 0.112, -0.028]
+      }
+    }
+  }
 }

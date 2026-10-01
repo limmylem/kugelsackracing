@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 260,
   "mass": 1,
-  "model": "",
-  "modelTodo": "Underglow: four thin LED strips (2 cm) along the sills and under the bumpers, a frame about 150 × 320 cm under the floor.",
+  "model": "assets/parts/cosmetic/underglow_white.glb",
   "icon": "assets/icons/parts/underglow_white.png",
   "fits": [],
   "requires": [],
@@ -24,7 +23,65 @@
     }
   ],
   "bounds": {
-    "min": [-0.75, 0, -1.6],
-    "max": [0.75, 0.02, 1.6]
+    "min": [-0.744, -0.01, -1.889],
+    "max": [0.744, 0.008, 1.889]
+  },
+  "madeBy": {
+    "generator": "tools/generators/lights.js",
+    "design": "LED strips, sills and bumpers",
+    "settings": {
+      "colour": "#f2f6ff"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/cosmetic/underglow_white/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.744, -0.0201, -1.919],
+        "max": [0.744, -0.0019, 1.989]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/cosmetic/underglow_white/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.714, -0.0201, -1.734],
+        "max": [0.714, -0.0019, 1.884]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/cosmetic/underglow_white/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.8039, -0.0199, -2.264],
+        "max": [0.8039, -0.0021, 2.154]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/cosmetic/underglow_white/vortex_r.glb",
+      "bounds": {
+        "min": [-0.754, -0.02, -2.014],
+        "max": [0.754, -0.002, 1.954]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/cosmetic/underglow_white/brute_500.glb",
+      "bounds": {
+        "min": [-0.8141, -0.02, -2.294],
+        "max": [0.8141, -0.002, 2.174]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/cosmetic/underglow_white/strada_evo.glb",
+      "bounds": {
+        "min": [-0.7391, -0.0199, -2.139],
+        "max": [0.7391, -0.0021, 2.029]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/cosmetic/underglow_white/apex_v8.glb",
+      "bounds": {
+        "min": [-0.819, -0.02, -2.224],
+        "max": [0.819, -0.002, 1.994]
+      }
+    }
   }
 }

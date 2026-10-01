@@ -3,8 +3,8 @@
   "originTolerance": 0.03,
   "textureMaxSize": 1024,
   "materials": {
-    "_note": "The material names a model may use: paint is the car's paint (it follows the player's colour), car_atlas the shared colour-palette texture, glass and light_* the car's own, and any finish in data/finishes.json (chrome, carbon, raw_metal…) for surfaces that are always that finish",
-    "names": ["paint", "car_atlas", "glass"],
+    "_note": "The material names a model may use: paint is the car's paint (it follows the player's colour), car_atlas the shared colour-palette texture, glass and light_* the car's own (light_aux: an extra lamp: fog lights, light bars, underglow — it glows the part's light colour), rim_finish a rim's face (it takes the rim's finish: chrome, black…), caliper and seat_fabric surfaces in their own colour that keep it whatever the part's finish, and any finish in data/finishes.json (chrome, carbon, titanium, raw_metal…) for surfaces that are always that finish",
+    "names": ["paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric"],
     "patterns": ["^light_[a-z0-9_]+$"],
     "finishes": true
   },
@@ -582,6 +582,539 @@
       "template": {
         "fits": ["roof:convertible"],
         "todo": ["price", "fits"]
+      }
+    },
+    "brakes": {
+      "label": "Brake kit (disc and caliper)",
+      "category": "brakes",
+      "slot": "brakes",
+      "names": ["brakes", "brake_kit"],
+      "size": {
+        "x": [0.02, 0.2],
+        "y": [0.2, 0.48],
+        "z": [0.2, 0.48]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the wheel hub's centre (the disc's centre on the axle), the outer face towards +x: drawn at every wheel",
+      "triangles": 1500,
+      "density": 3500,
+      "massRange": [4, 40],
+      "icon": {
+        "azimuth": 62,
+        "elevation": 12
+      },
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "supercharger": {
+      "label": "Supercharger",
+      "category": "turbo",
+      "slot": "supercharger",
+      "names": ["supercharger", "blower"],
+      "size": {
+        "x": [0.15, 0.7],
+        "y": [0.1, 0.5],
+        "z": [0.15, 0.75]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it bolts to the engine",
+      "triangles": 2500,
+      "density": 2200,
+      "massRange": [5, 40],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "radiator": {
+      "label": "Radiator",
+      "category": "engine",
+      "slot": "radiator",
+      "names": ["radiator"],
+      "size": {
+        "x": [0.3, 0.95],
+        "y": [0.15, 0.65],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "its middle",
+      "triangles": 1200,
+      "density": 700,
+      "massRange": [1, 15],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "strut_brace": {
+      "label": "Strut brace",
+      "category": "suspension",
+      "slot": "strut_brace",
+      "names": ["strut_brace"],
+      "size": {
+        "x": [0.6, 1.6],
+        "y": [0.02, 0.25],
+        "z": [0.03, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar, on the line between the strut tops",
+      "triangles": 800,
+      "density": 1500,
+      "massRange": [1, 8],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "roll_cage": {
+      "label": "Roll cage or hoop",
+      "category": "interior",
+      "slot": "roll_cage",
+      "names": ["roll_cage", "cage", "roll_hoop"],
+      "size": {
+        "x": [0.8, 1.85],
+        "y": [0.4, 1.6],
+        "z": [0.05, 2.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "the middle of the cabin above the seats (socket_cage): the cage goes where the cabin has room for it, front to back",
+      "triangles": 4000,
+      "density": 1200,
+      "massRange": [5, 70],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "harness": {
+      "label": "Harness",
+      "category": "interior",
+      "slot": "harness",
+      "names": ["harness"],
+      "size": {
+        "x": [0.2, 0.6],
+        "y": [0.3, 1],
+        "z": [0.02, 1]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the seat back, where the straps cross",
+      "triangles": 800,
+      "density": 600,
+      "massRange": [0.5, 5],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "gauges": {
+      "label": "Gauge pod",
+      "category": "interior",
+      "slot": "gauges",
+      "names": ["gauges", "gauge_pod"],
+      "size": {
+        "x": [0.04, 0.45],
+        "y": [0.04, 0.4],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where the pod sits on the dash or pillar",
+      "triangles": 1000,
+      "density": 700,
+      "massRange": [0.2, 3],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "shifter": {
+      "label": "Gear lever",
+      "category": "drivetrain",
+      "slot": "shifter",
+      "names": ["shifter", "gear_lever"],
+      "size": {
+        "x": [0.03, 0.25],
+        "y": [0.1, 0.45],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "min",
+        "z": "within"
+      },
+      "attach": "the middle of its base, on the tunnel",
+      "triangles": 600,
+      "density": 1500,
+      "massRange": [0.2, 4],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "fog_lights": {
+      "label": "Fog lights (a pair)",
+      "category": "cosmetic",
+      "slot": "fog_lights",
+      "names": ["fog_lights", "fog"],
+      "size": {
+        "x": [0.3, 1.9],
+        "y": [0.04, 0.3],
+        "z": [0.02, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "the middle between the two lamps (socket_fog_lights): they stand on the front bumper's face, in front of the socket",
+      "triangles": 1000,
+      "density": 900,
+      "massRange": [0.5, 6],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "underglow": {
+      "label": "Underglow strips",
+      "category": "cosmetic",
+      "slot": "underglow",
+      "names": ["underglow"],
+      "size": {
+        "x": [0.8, 2.1],
+        "y": [0.004, 0.08],
+        "z": [1.8, 5]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the floor",
+      "triangles": 600,
+      "density": 900,
+      "massRange": [0.3, 4],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "front_lip": {
+      "label": "Front lip or splitter",
+      "category": "aero",
+      "slot": "front_lip",
+      "names": ["front_lip", "lip", "splitter"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.01, 0.25],
+        "z": [0.05, 0.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of its front edge, under the bumper (socket_front_lip)",
+      "triangles": 1200,
+      "density": 600,
+      "massRange": [1, 10],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "canards": {
+      "label": "Canards (dive planes)",
+      "category": "aero",
+      "slot": "canards",
+      "names": ["canards", "dive_planes"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.02, 0.35],
+        "z": [0.05, 0.5]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle between the bumper corners (socket_canards)",
+      "triangles": 800,
+      "density": 600,
+      "massRange": [0.3, 4],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "mud_flaps": {
+      "label": "Mud flaps",
+      "category": "body",
+      "slot": "mud_flaps",
+      "names": ["mud_flaps", "mudflaps"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.15, 0.55],
+        "z": [0.005, 3.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "between the flaps, at the height of their tops (socket_mud_flaps): they hang behind the wheels",
+      "triangles": 600,
+      "density": 1100,
+      "massRange": [1, 8],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "aero_kit": {
+      "label": "Aero kit",
+      "category": "aero",
+      "slot": "aero_kit",
+      "names": ["aero_kit"],
+      "size": {
+        "x": [1.4, 2.3],
+        "y": [0.05, 0.7],
+        "z": [2.5, 5.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the car at floor level (socket_aero_kit)",
+      "triangles": 3000,
+      "density": 500,
+      "massRange": [2, 25],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "bull_bar": {
+      "label": "Bull bar",
+      "category": "body",
+      "slot": "bull_bar",
+      "names": ["bull_bar", "nudge_bar"],
+      "size": {
+        "x": [1.2, 2.2],
+        "y": [0.3, 1.1],
+        "z": [0.05, 0.55]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar where it bolts to the chassis (socket_bull_bar)",
+      "triangles": 2500,
+      "density": 1200,
+      "massRange": [8, 70],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "winch": {
+      "label": "Winch",
+      "category": "body",
+      "slot": "winch",
+      "names": ["winch"],
+      "size": {
+        "x": [0.25, 0.75],
+        "y": [0.1, 0.4],
+        "z": [0.1, 0.45]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "its mounting plate (socket_winch)",
+      "triangles": 1500,
+      "density": 2500,
+      "massRange": [10, 60],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "snorkel": {
+      "label": "Snorkel",
+      "category": "body",
+      "slot": "snorkel",
+      "names": ["snorkel"],
+      "size": {
+        "x": [0.05, 0.35],
+        "y": [0.5, 1.6],
+        "z": [0.05, 0.6]
+      },
+      "origin": {
+        "x": "any",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it goes into the wing (socket_snorkel): it runs up the outside of it",
+      "triangles": 800,
+      "density": 400,
+      "massRange": [1, 10],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "roof_rack": {
+      "label": "Roof rack",
+      "category": "body",
+      "slot": "roof_rack",
+      "names": ["roof_rack"],
+      "size": {
+        "x": [0.8, 1.7],
+        "y": [0.05, 0.35],
+        "z": [0.8, 2.4]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the rack, its feet on the roof (socket_roof_rack)",
+      "triangles": 2500,
+      "density": 600,
+      "massRange": [5, 40],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "light_bar": {
+      "label": "Light bar",
+      "category": "body",
+      "slot": "light_bar",
+      "names": ["light_bar"],
+      "size": {
+        "x": [0.3, 1.6],
+        "y": [0.04, 0.25],
+        "z": [0.03, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar, on its brackets",
+      "triangles": 1000,
+      "density": 1200,
+      "massRange": [1, 10],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "rally_lights": {
+      "label": "Rally light pod",
+      "category": "body",
+      "slot": "rally_lights",
+      "names": ["rally_lights", "light_pod"],
+      "size": {
+        "x": [0.4, 1.5],
+        "y": [0.08, 0.4],
+        "z": [0.05, 0.35]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the pod where it straps on (socket_rally_lights)",
+      "triangles": 1500,
+      "density": 700,
+      "massRange": [2, 15],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "skid_plates": {
+      "label": "Skid plates",
+      "category": "body",
+      "slot": "skid_plates",
+      "names": ["skid_plates", "skid_plate"],
+      "size": {
+        "x": [0.5, 1.7],
+        "y": [0.003, 0.25],
+        "z": [0.5, 3.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "any",
+        "z": "within"
+      },
+      "attach": "the middle of the plates, under the car (socket_skid_plates)",
+      "triangles": 800,
+      "density": 2500,
+      "massRange": [5, 60],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "rock_sliders": {
+      "label": "Rock sliders",
+      "category": "body",
+      "slot": "rock_sliders",
+      "names": ["rock_sliders"],
+      "size": {
+        "x": [1.3, 2.3],
+        "y": [0.03, 0.3],
+        "z": [1.4, 3.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "any",
+        "z": "within"
+      },
+      "attach": "the middle between the two sills (socket_rock_sliders): they hang under the sills",
+      "triangles": 1500,
+      "density": 1500,
+      "massRange": [5, 50],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "lift_kit": {
+      "label": "Lift kit",
+      "category": "suspension",
+      "slot": "lift_kit",
+      "names": ["lift_kit"],
+      "size": {
+        "x": [1, 2.1],
+        "y": [0.1, 0.8],
+        "z": [1.8, 3.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the car between the axles (socket_lift_kit)",
+      "triangles": 2000,
+      "density": 1500,
+      "massRange": [3, 50],
+      "template": {
+        "todo": ["price", "effects"]
       }
     }
   },

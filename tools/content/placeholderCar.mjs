@@ -81,13 +81,25 @@ export async function placeholderCar(D) {
   const front = L / 2, rear = -L / 2, R = D.roof, B = D.bonnet, K = D.deck, P = n => S[n].position;
   // (a front door, no longer than 1.2 m: the body behind it to the rear arches)
   const doorFront = P('socket_door_left')[2], doorBack = D.doorBack ?? Math.max(R.rear - 0.05, doorFront - 1.2);
-  // --- the body shell: floor, sills, the sides behind the doors, the scuttle, the rear panel, and the cabin
+  // --- the body shell, hollow like a real car's: the floor (and a centre console), the sides behind the
+  // doors, the rear quarters over the rear arches (clear of the tyres), the boot or tail, the scuttle, an
+  // open engine bay (a slam panel under the bonnet's front, a lower apron, inner wings), the roof and pillars
+  const sideW = 0.06, tyreTop = 2 * r + 0.03, seatY = D.floor ?? c + 0.1, shifterY = seatY + 0.3, seatZ = D.seatZ ?? (R.front + R.rear) / 2 - 0.15;
   m.add('body_shell', 'paint', box([-half + 0.05, c, ra + r + 0.1], [half - 0.05, c + 0.06, fa - r - 0.1]));                       // floor
-  m.add('body_shell', 'paint', box([-half, c + 0.02, doorBack], [half, belt, ra + r + 0.05]));                                      // behind the doors (to the rear arches)
-  m.add('body_shell', 'paint', box([-half, c + r * 0.9, ra - r - 0.05], [half, belt - 0.02, K.front + 0.02]));                      // rear quarters over the rear wheels
+  m.add('body_shell', 'dark', box([-0.11, c + 0.06, seatZ - 0.2], [0.11, shifterY - 0.005, B.rear - 0.1]));                          // centre console (the gear lever on top)
+  for (const x of [1, -1]) {
+    const o = [x * half, x * (half - sideW)].sort((a, b) => a - b);
+    m.add('body_shell', 'paint', box([o[0], c + 0.02, ra + r + 0.05], [o[1], belt, doorBack]));                                    // behind the doors
+    m.add('body_shell', 'paint', box([o[0], Math.min(tyreTop, belt - 0.06), ra - r - 0.05], [o[1], belt - 0.02, ra + r + 0.05]));    // over the rear arch
+    m.add('body_shell', 'paint', box([o[0], c + 0.02, K.front + 0.02], [o[1], belt - 0.02, ra - r - 0.05]).filter(() => K.front + 0.02 < ra - r - 0.05));
+  }
   m.add('body_shell', 'paint', box([-half + 0.02, c + 0.05, rear + 0.18], [half - 0.02, K.height - 0.02, ra - r - 0.05]));         // tail
   m.add('body_shell', 'paint', box([-half + 0.1, belt - 0.12, B.rear - 0.05], [half - 0.1, B.back - 0.01, B.rear + 0.08]));         // scuttle
-  m.add('body_shell', 'paint', box([-half + 0.12, c + 0.1, fa + r + 0.05], [half - 0.12, B.front - 0.06, front - 0.22]));            // nose
+  // the engine bay: open between the inner wings, a slam panel under the bonnet's front edge and an apron low down
+  const bayFront = front - 0.22, bayBack = fa + r + 0.05;
+  m.add('body_shell', 'paint', box([-half + 0.12, B.front - 0.13, bayFront - 0.1], [half - 0.12, B.front - 0.07, bayFront]));       // slam panel
+  m.add('body_shell', 'dark', box([-half + 0.12, c + 0.1, bayBack], [half - 0.12, c + 0.15, bayFront]));                              // apron
+  for (const x of [1, -1]) { const o = [x * (half - 0.12), x * (half - 0.18)].sort((a, b) => a - b); m.add('body_shell', 'dark', box([o[0], c + 0.15, bayBack], [o[1], B.front - 0.07, bayFront])); }   // inner wings
   if (!D.convertible) m.add('body_shell', 'paint', box([-half + 0.08, R.height - 0.04, R.front + 0.1], [half - 0.08, R.height, R.rear - 0.05]));   // roof
   // pillars: A (windscreen sides), C (behind the side windows)
   for (const x of [1, -1]) {
@@ -95,7 +107,6 @@ export async function placeholderCar(D) {
     m.add('body_shell', 'paint', quad([xo, belt, B.rear], [xo, R.height, R.front + 0.1], [xi, R.height, R.front + 0.1], [xi, belt, B.rear]));
     if (!D.convertible) m.add('body_shell', 'paint', quad([xo, belt, R.rear - 0.25], [xo, R.height, R.rear - 0.05], [xi, R.height, R.rear - 0.05], [xi, belt, R.rear - 0.25]));
   }
-  m.add('body_shell', 'dark', box([-half + 0.1, c + 0.06, doorBack + 0.05], [half - 0.1, c + 0.3, B.rear - 0.1]));                    // interior tub
   // --- glass and lights (breakables)
   m.add('glass_windscreen', 'glass', quad([-half + 0.1, belt + 0.02, B.rear + 0.02], [half - 0.1, belt + 0.02, B.rear + 0.02], [half - 0.12, R.height - 0.03, R.front + 0.12], [-half + 0.12, R.height - 0.03, R.front + 0.12]));
   if (!D.convertible) m.add('glass_rear', 'glass', quad([-half + 0.12, R.height - 0.03, R.rear - 0.06], [half - 0.12, R.height - 0.03, R.rear - 0.06], [half - 0.1, belt + 0.02, R.rear - 0.35 - (D.fastback ?? 0)], [-half + 0.1, belt + 0.02, R.rear - 0.35 - (D.fastback ?? 0)]));
@@ -108,7 +119,9 @@ export async function placeholderCar(D) {
   m.add('dashboard', 'dark', box([-half + 0.12, belt - 0.2, B.rear - 0.35], [half - 0.12, belt + 0.02, B.rear - 0.05]));
   // --- the stock parts, under their sockets (each mesh in its socket's frame)
   const under = (socket, name, material, tris) => m.add(name, material, tris.map(t => t.map(p => sub(p, P(socket)))), socket);
-  under('socket_bonnet', 'panel_bonnet', 'paint', extrude([[B.back, B.rear], [B.back - 0.03, B.rear], [B.front - 0.03, front - 0.2], [B.front, front - 0.2]], -half + 0.14, half - 0.14, 'x'));
+  // (a bonnet whose front is lower than the tyres' tops stays between the front wheels)
+  const bonnetHalf = B.front < 2 * r + 0.03 ? Math.min(half - 0.14, D.track / 2 - D.wheel.width / 2 - 0.04) : half - 0.14;
+  under('socket_bonnet', 'panel_bonnet', 'paint', extrude([[B.back, B.rear], [B.back - 0.03, B.rear], [B.front - 0.03, front - 0.2], [B.front, front - 0.2]], -bonnetHalf, bonnetHalf, 'x'));
   under('socket_bumper_front', 'panel_bumper_front', 'paint', box([-half + 0.02, c + 0.04, front - 0.24], [half - 0.02, c + 0.3, front]));
   under('socket_bumper_rear', 'panel_bumper_rear', 'paint', box([-half + 0.02, c + 0.04, rear], [half - 0.02, c + 0.3, rear + 0.2]));
   // (a boot lid only on a car with a boot socket, long enough to open: a mid engine's lid is its engine cover)
@@ -121,7 +134,7 @@ export async function placeholderCar(D) {
     // (the front wing: behind the wheel, over its arch, and ahead of it to the bumper)
     under(`socket_fender_${fender}`, `panel_fender_${fender}`, 'paint', [
       ...box([xs - x * 0.1, c + 0.12, fa - r - 0.12], [xs, belt, fa - r - 0.02]),
-      ...box([xs - x * 0.1, r * 1.35, fa - r - 0.02], [xs, belt, fa + r + 0.02]),
+      ...box([xs - x * 0.1, Math.min(2 * r + 0.03, belt - 0.06), fa - r - 0.02], [xs, belt, fa + r + 0.02]),       // (over the arch: clear of the tyre)
       ...box([xs - x * 0.1, c + 0.12, fa + r + 0.02], [xs, belt, front - 0.24]),
     ].map(t => t.map(p => [Math.min(Math.max(p[0], -half), half), p[1], p[2]])));
     under(`socket_skirt_${n}`, `panel_skirt_${n}`, 'dark', box([xs - x * 0.05, c, fa - r - 0.08], [xs + x * 0.01, c + 0.12, ra + r + 0.08]));

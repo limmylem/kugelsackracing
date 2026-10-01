@@ -7,7 +7,7 @@
   "tier": "race",
   "price": 820,
   "mass": 1.5,
-  "model": "",
+  "model": "assets/parts/intake/intake_race.glb",
   "icon": "assets/icons/parts/intake_race.png",
   "fits": [
     ["intake_flange:rs", "intake_flange:std"]
@@ -45,5 +45,68 @@
       "op": "multiply",
       "value": 1.03
     }
-  ]
+  ],
+  "bounds": {
+    "min": [0, -0.0295, -0.24],
+    "max": [0.2, 0.17, 0.24]
+  },
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "carbon airbox, velocity stacks",
+    "settings": {
+      "kind": "stacks",
+      "stacks": 4
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/intake/intake_race/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.0081, -0.0879, -0.32],
+        "max": [0.42, 0.068, 0.16]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intake/intake_race/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.0152, -0.2454, -0.24],
+        "max": [0.2, 0.0254, 0.24]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intake/intake_race/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.0292, -0.3277, -0.08],
+        "max": [0.42, 0.0129, 0.4]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intake/intake_race/vortex_r.glb",
+      "bounds": {
+        "min": [-0.0202, -0.1491, -0.24],
+        "max": [0.42, 0.0216, 0.24]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intake/intake_race/brute_500.glb",
+      "bounds": {
+        "min": [-0.0035, -0.2001, -0.24],
+        "max": [0.42, 0.0293, 0.24]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intake/intake_race/strada_evo.glb",
+      "bounds": {
+        "min": [-0.0104, -0.3084, -0.24],
+        "max": [0.28, 0.0277, 0.24]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/intake/intake_race/apex_v8.glb",
+      "bounds": {
+        "min": [-0.0029, -0.142, -0.24],
+        "max": [0.36, 0.05, 0.24]
+      }
+    }
+  }
 }

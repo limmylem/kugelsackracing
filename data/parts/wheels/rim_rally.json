@@ -9,8 +9,7 @@
   "price": 280,
   "mass": 8,
   "toughness": 1.8,
-  "model": "",
-  "modelTodo": "A rally gravel rim: a tough flat six-spoke face with round holes, a plain lip, origin at the hub face; one model for every size (scaled).",
+  "model": "assets/parts/wheels/rim_rally.glb",
   "icon": "assets/icons/parts/rim_rally.png",
   "fits": ["wheel_hub:std", "rim_fits:15"],
   "requires": [],
@@ -22,8 +21,29 @@
     "offset": 35
   },
   "bounds": {
-    "min": [-0.07, -0.1905, -0.1905],
-    "max": [0.08, 0.1905, 0.1905]
+    "min": [-0.0979, -0.2065, -0.2065],
+    "max": [0.1009, 0.2065, 0.2065]
   },
-  "massOffset": [0.012, 0, 0]
+  "massOffset": [0.012, 0, 0],
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "rally gravel",
+    "settings": {
+      "diameter": 15,
+      "width": 7,
+      "spokes": 6,
+      "spoke": "holes",
+      "holes": 6,
+      "phase": 0.5235987755982988,
+      "concave": 0.008,
+      "dish": 0.01,
+      "thickness": 0.016,
+      "cap": "flat",
+      "capMaterial": "dark",
+      "nuts": 4,
+      "colour": "#f2f2f2",
+      "metalness": 0.1,
+      "roughness": 0.45
+    }
+  }
 }

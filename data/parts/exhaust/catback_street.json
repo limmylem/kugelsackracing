@@ -16,8 +16,7 @@
     "looseThreshold": 50,
     "detachThreshold": 90
   },
-  "model": "",
-  "modelTodo": "Cat-back exhaust (street): the tail pipe (a 90 mm tip) out of the rear bumper, 20 cm of pipe, origin at the tip.",
+  "model": "assets/parts/exhaust/catback_street.glb",
   "icon": "assets/icons/parts/catback_street.png",
   "fits": [
     ["exhaust_route:std", "exhaust_flange:rs"]
@@ -28,8 +27,8 @@
   "_note": "A freer-flowing cat-back system for any car: a little more power, a deeper, fuller note.",
   "massOffset": [0, 0, -0.09],
   "bounds": {
-    "min": [-0.045, -0.045, -0.2],
-    "max": [0.045, 0.045, 0]
+    "min": [-0.0486, -0.0486, -0.18],
+    "max": [0.0486, 0.0486, 0]
   },
   "effects": [
     {
@@ -51,5 +50,16 @@
       "op": "multiply",
       "value": 0.97
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/exhaust.js",
+    "design": "single round tip",
+    "settings": {
+      "tips": [[0, 0]],
+      "radius": 0.045,
+      "length": 0.18,
+      "cut": "rolled",
+      "material": "chrome"
+    }
+  }
 }

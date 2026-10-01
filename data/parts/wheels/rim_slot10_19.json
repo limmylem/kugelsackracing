@@ -1,0 +1,48 @@
+{
+  "id": "rim_slot10_19",
+  "name": "19\" ten-slot wheel, gunmetal",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 310,
+  "mass": 18.5,
+  "model": "assets/parts/wheels/rim_slot10_19.glb",
+  "icon": "assets/icons/parts/rim_slot10_19.png",
+  "fits": ["wheel_hub:std", "rim_fits:19"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:19"],
+  "bounds": {
+    "min": [-0.117, -0.2573, -0.2573],
+    "max": [0.122, 0.2573, 0.2573]
+  },
+  "massOffset": [0.038, 0, 0],
+  "rim": {
+    "diameter": 19,
+    "width": 8.5,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "toughness": 1,
+  "_note": "A ten-slot rim from the generator's variety pack (tools/generators/rims.js): 10 slot spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "ten-slot wheel, gunmetal",
+    "settings": {
+      "diameter": 19,
+      "width": 8.5,
+      "spokes": 10,
+      "spoke": "slot",
+      "holes": 10,
+      "slotWidth": 0.026,
+      "concave": 0.012,
+      "cap": "flat",
+      "colour": "#5d636b",
+      "metalness": 0.6,
+      "roughness": 0.35
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (18.5 kg from its volume and materials (rim_finish, black, raw_metal)). Then delete \"todo\" and the shop sells it."
+}

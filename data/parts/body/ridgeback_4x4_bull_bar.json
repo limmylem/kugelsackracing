@@ -9,8 +9,7 @@
   "price": 780,
   "mass": 38,
   "toughness": 3,
-  "model": "",
-  "modelTodo": "Ridgeback bull bar: a 60 mm steel tube frame across the front, 175 cm wide and 70 cm tall, a centre hoop and light mounts.",
+  "model": "assets/parts/body/ridgeback_4x4_bull_bar.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_bull_bar.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -18,12 +17,22 @@
   "provides": [],
   "_note": "A steel bull bar: heavy, but it takes a hit for the bumper, lights and radiator behind it.",
   "bounds": {
-    "min": [-0.875, -0.35, -0.125],
-    "max": [0.875, 0.35, 0.125]
+    "min": [-0.9082, -0.5, -0.295],
+    "max": [0.9077, 0.26, 0.075]
   },
   "protects": {
     "slots": ["bumper_front", "radiator", "fog_lights"],
     "systems": ["radiator"],
     "by": 0.6
+  },
+  "madeBy": {
+    "generator": "tools/generators/offroad.js",
+    "design": "steel tube bull bar following the bumper",
+    "settings": {
+      "tube": 0.03,
+      "ahead": 0.07,
+      "rise": 0.36,
+      "material": "black"
+    }
   }
 }

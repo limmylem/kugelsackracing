@@ -32,9 +32,10 @@ export function modelsInUse(project) {
   }
   for (const part of Object.values(project.db.parts)) {
     const { model, look } = resolveLook(part, project.db.parts);
-    if (!model) continue;
-    const k = look?.scale ?? 1;
-    add(model, { kind: 'part', part, scale: typeof k === 'number' ? [k, k, k] : k });
+    const k = look?.scale ?? 1, scale = typeof k === 'number' ? [k, k, k] : k;
+    if (model) add(model, { kind: 'part', part, scale });
+    // (its own version on each car it's made to fit)
+    for (const [carId, v] of Object.entries(part.byCar ?? {})) add(v.model, { kind: 'part', part, scale, car: carId });
   }
   return out;
 }

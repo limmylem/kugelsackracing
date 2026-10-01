@@ -56,7 +56,7 @@ export function damageLayout({ car, build, db, boxes = {} }, rules) {
     cage += part.chassisToughness ?? 0;              // (a roll cage: the whole car takes hits better)
     if (!rules.exterior.includes(part.category)) continue;
     const wheel = s.slot === 'wheel' || s.slot === 'tyre' ? Object.entries(car.model.sockets).find(([, n]) => n === (s.node ?? s.name))?.[0] ?? null : null;
-    const box = wheel ? around(s.position, WHEEL_BOX) : part.bounds ? boxOf(s.position, part.bounds) : around(s.position, [0.15, 0.15, 0.15]);
+    const box = wheel ? around(s.position, WHEEL_BOX) : (part.byCar?.[car.id]?.bounds ?? part.bounds) ? boxOf(s.position, part.byCar?.[car.id]?.bounds ?? part.bounds) : around(s.position, [0.15, 0.15, 0.15]);
     parts.push({ target: s.name, socket: s.name, instanceId: id, part, box, origin: s.position, toughness: part.toughness ?? 1, wheel });
     if (wheel) (corners[wheel] ??= { box })[s.slot === 'tyre' ? 'tyre' : 'rim'] = id;
   }

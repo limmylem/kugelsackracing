@@ -6,7 +6,7 @@
   "kind": "modifier",
   "price": 600,
   "mass": 9,
-  "model": "",
+  "model": "assets/parts/intercooler/front_mount_intercooler.glb",
   "icon": "assets/icons/parts/front_mount_intercooler.png",
   "fits": ["intercooler_mount:std"],
   "requires": [],
@@ -15,9 +15,72 @@
   "_note": "A front-mount intercooler for any car: it cools the charge air a turbo or supercharger pushes in. On its own it changes nothing.",
   "effects": [],
   "bounds": {
-    "min": [-0.3, -0.12, -0.03],
-    "max": [0.3, 0.12, 0.03]
+    "min": [-0.3, -0.12, -0.1956],
+    "max": [0.3, 0.12, 0.034]
   },
   "tier": "sport",
-  "modelTodo": "A front-mount intercooler: a finned core about 60 × 24 × 6 cm with two pipes out of its ends, sitting behind the front bumper."
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "tube and fin",
+    "settings": {
+      "width": 0.6,
+      "height": 0.24,
+      "depth": 0.06,
+      "tanks": "side",
+      "tank": 0.055,
+      "pipes": true,
+      "pipeMaterial": "raw_metal"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.3, -0.084, -0.2256],
+        "max": [0.3, 0.0856, 0.004]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2256],
+        "max": [0.3, 0.16, 0.004]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/vortex_r.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2256],
+        "max": [0.3, 0.16, 0.004]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/brute_500.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/strada_evo.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/intercooler/front_mount_intercooler/apex_v8.glb",
+      "bounds": {
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
+      }
+    }
+  }
 }

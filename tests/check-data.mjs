@@ -43,6 +43,10 @@ for (const part of Object.values(db.parts)) {
   if (blocks.length > 1) problems.push({ file, path: '', message: `carries ${blocks.join(' and ')}: a component carries one system block` });
   // its model (or its base part's) is there
   if (part.model && !fs.existsSync(path.join(root, part.model))) problems.push({ file, path: 'model', message: `${part.model} isn't there` });
+  for (const [carId, v] of Object.entries(part.byCar ?? {})) {
+    if (!fs.existsSync(path.join(root, v.model))) problems.push({ file, path: `byCar.${carId}.model`, message: `${v.model} isn't there` });
+    if (!db.cars[carId]) problems.push({ file, path: `byCar.${carId}`, message: `there's no car "${carId}"` });
+  }
   if (part.tyre && !part.tyreSize) warnings.push({ file, path: 'tyreSize', message: 'a tyre with no size can\'t be drawn' });
 }
 

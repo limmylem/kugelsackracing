@@ -1,0 +1,48 @@
+{
+  "id": "rim_crossmesh_15",
+  "name": "15\" cross-mesh wheel, silver",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 310,
+  "mass": 11.4,
+  "model": "assets/parts/wheels/rim_crossmesh_15.glb",
+  "icon": "assets/icons/parts/rim_crossmesh_15.png",
+  "fits": ["wheel_hub:std", "rim_fits:15"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "bounds": {
+    "min": [-0.0979, -0.2065, -0.2065],
+    "max": [0.1029, 0.2065, 0.2065]
+  },
+  "massOffset": [0.025, 0, 0],
+  "rim": {
+    "diameter": 15,
+    "width": 7,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "toughness": 0.9,
+  "_note": "A cross-mesh rim from the generator's variety pack (tools/generators/rims.js): 10 mesh spokes.",
+  "madeBy": {
+    "generator": "tools/generators/rims.js",
+    "design": "cross-mesh wheel, silver",
+    "settings": {
+      "diameter": 15,
+      "width": 7,
+      "spokes": 10,
+      "spoke": "mesh",
+      "lean": 0.45,
+      "dish": 0.02,
+      "lip": 0.025,
+      "lipMaterial": "chrome",
+      "cap": "dome",
+      "nuts": 4,
+      "colour": "#cfd2d6"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (11.4 kg from its volume and materials (rim_finish, chrome, raw_metal, black)). Then delete \"todo\" and the shop sells it."
+}

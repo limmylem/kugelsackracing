@@ -8,8 +8,7 @@
   "purpose": "offroad",
   "price": 480,
   "mass": 20,
-  "model": "",
-  "modelTodo": "Ridgeback rock sliders: two 50 mm steel tube rails along the sills (260 cm long), bolted to the frame.",
+  "model": "assets/parts/body/ridgeback_4x4_rock_sliders.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_rock_sliders.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -17,11 +16,19 @@
   "provides": [],
   "_note": "Steel tube sliders along the sills: the doors and sills ride over rocks instead of on them.",
   "bounds": {
-    "min": [-0.975, 0, -1.3],
-    "max": [0.975, 0.1, 1.3]
+    "min": [-0.9996, -0.1101, -0.909],
+    "max": [0.9996, -0.052, 0.919]
   },
   "protects": {
     "slots": ["skirt_left", "skirt_right", "door_left", "door_right"],
     "by": 0.5
+  },
+  "madeBy": {
+    "generator": "tools/generators/offroad.js",
+    "design": "sill tubes with kickers",
+    "settings": {
+      "tube": 0.025,
+      "material": "black"
+    }
   }
 }

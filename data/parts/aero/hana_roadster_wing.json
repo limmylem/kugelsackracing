@@ -15,8 +15,7 @@
     "looseThreshold": 12,
     "detachThreshold": 8
   },
-  "model": "",
-  "modelTodo": "Hana Roadster small wing: a 120 cm aerofoil (20 cm chord) on two short uprights (12 cm) on the rear deck.",
+  "model": "assets/parts/aero/hana_roadster_wing.glb",
   "icon": "assets/icons/parts/hana_roadster_wing.png",
   "fits": ["car:hana_roadster"],
   "requires": [],
@@ -35,13 +34,6 @@
     "liftCoefficient": -0.22,
     "dragCoefficient": 0.018
   },
-  "placeholder": {
-    "width": 1.2,
-    "chord": 0.2,
-    "thickness": 0.03,
-    "height": 0.12,
-    "colour": "#1f2226"
-  },
   "massOffset": [0, 0.06, 0],
   "tuning": {
     "angle": {
@@ -56,6 +48,26 @@
           "op": "angle"
         }
       ]
+    }
+  },
+  "bounds": {
+    "min": [-0.608, 0, -0.14],
+    "max": [0.608, 0.164, 0.12]
+  },
+  "madeBy": {
+    "generator": "tools/generators/aero.js",
+    "design": "small wing on short uprights",
+    "settings": {
+      "span": 1.2,
+      "chord": 0.2,
+      "height": 0.11,
+      "mounts": "pedestal",
+      "mountX": 0.36,
+      "plates": {
+        "up": 0.03,
+        "down": 0.04
+      },
+      "material": "paint"
     }
   }
 }

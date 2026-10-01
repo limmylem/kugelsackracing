@@ -7,8 +7,7 @@
   "tier": "race",
   "price": 5600,
   "mass": 32,
-  "model": "",
-  "modelTodo": "Brute 500 supercharger: a twin-screw blower (55 × 45 × 25 cm) on top of the V8, with a throttle body facing forward into the bonnet scoop.",
+  "model": "assets/parts/turbo/brute_500_supercharger.glb",
   "icon": "assets/icons/parts/brute_500_supercharger.png",
   "fits": ["engine_family:brute_v8"],
   "requires": ["bonnet:scoop"],
@@ -16,8 +15,8 @@
   "provides": ["forced_induction:supercharger"],
   "_note": "A big twin-screw supercharger on the V8, poking up through a scoop bonnet: an absurd amount of torque everywhere.",
   "bounds": {
-    "min": [-0.225, 0, -0.275],
-    "max": [0.225, 0.25, 0.275]
+    "min": [-0.22, 0, -0.275],
+    "max": [0.22, 0.2828, 0.32]
   },
   "effects": [
     {
@@ -36,5 +35,17 @@
       "op": "multiply",
       "value": 1.1
     }
-  ]
+  ],
+  "madeBy": {
+    "generator": "tools/generators/engine.js",
+    "design": "twin-screw blower with a forward throttle body",
+    "settings": {
+      "width": 0.44,
+      "length": 0.55,
+      "height": 0.19,
+      "ribs": 8,
+      "throttle": 0.058,
+      "colour": "black"
+    }
+  }
 }

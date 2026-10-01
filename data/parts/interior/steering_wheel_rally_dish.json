@@ -1,0 +1,93 @@
+{
+  "id": "steering_wheel_rally_dish",
+  "name": "Deep-dish rally steering wheel",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 650,
+  "mass": 0.8,
+  "model": "assets/parts/interior/steering_wheel_rally_dish.glb",
+  "icon": "assets/icons/parts/steering_wheel_rally_dish.png",
+  "fits": ["steering_column:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.192, -0.192, -0.144],
+    "max": [0.192, 0.194, 0]
+  },
+  "massOffset": [0, 0.001, -0.103],
+  "tier": "sport",
+  "purpose": "looks",
+  "_note": "Deep-dish rally steering wheel: from tools/generators/interior.js.",
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "Deep-dish rally steering wheel",
+    "settings": {
+      "diameter": 0.35,
+      "grip": 0.017,
+      "spokes": 3,
+      "spoke": "slotted",
+      "dish": 0.075,
+      "quickRelease": true,
+      "rimMaterial": "seat_fabric",
+      "rimColour": "#1f2124",
+      "marker": "yellow",
+      "spokeMaterial": "black",
+      "collar": "blue"
+    }
+  },
+  "todo": ["price"],
+  "_todo": "Made by npm run generate-parts on 2026-10-01. To do: the price (data/content/tiers.json has the rules for each tier). Check the mass too (0.8 kg from its volume and materials (black, raw_metal, blue, seat_fabric, yellow)). Then delete \"todo\" and the shop sells it.",
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/vortex_r.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/brute_500.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/strada_evo.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/steering_wheel_rally_dish/apex_v8.glb",
+      "bounds": {
+        "min": [-0.192, -0.192, -0.144],
+        "max": [0.192, 0.194, 0]
+      }
+    }
+  }
+}

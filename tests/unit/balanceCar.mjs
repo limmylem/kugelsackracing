@@ -12,11 +12,13 @@ export async function carBalance(carId) {
   const { db } = await loadProject(), tiers = readJson('data/content/tiers.json'), rules = readJson('data/content/balance.json');
   const stock = new Garage(db, null, carId).stats().totals.rating, max = maxBuild(db, carId);
   const { rows } = balanceRows(db, carId, tiers);
+  // (a new part still to be priced — marked todo, so the shop doesn't sell it yet — flagged for nothing else)
+  const unfinished = r => db.parts[r.id]?.todo?.length && r.flags.every(f => f.startsWith('to do:'));
   return {
     carId, stock: { class: stock.class, index: stock.index }, max: { class: max.rating.class, index: max.rating.index, parts: max.parts, drivable: max.garage.drivable().ok, valid: max.garage.validate().ok },
     classes: classProblems(db, carId, rules, { stock, max: max.rating }),
     tiers: tierProblems(db, tiers, carId).map(p => `${p.id}: ${p.problem}`),
-    flags: rows.filter(r => r.flags.length).map(r => `${r.id}: ${r.flags.join('; ')}`), rows: rows.length,
+    flags: rows.filter(r => r.flags.length && !unfinished(r)).map(r => `${r.id}: ${r.flags.join('; ')}`), unfinished: rows.filter(unfinished).map(r => r.id), rows: rows.length,
   };
 }
 if (parentPort && workerData?.carId) parentPort.postMessage(await carBalance(workerData.carId));

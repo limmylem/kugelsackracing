@@ -8,8 +8,7 @@
   "purpose": "looks",
   "price": 260,
   "mass": 0.8,
-  "model": "",
-  "modelTodo": "An A-pillar gauge pod: three 52 mm round gauges stacked in a moulded pod, about 8 × 26 × 8 cm.",
+  "model": "assets/parts/interior/gauge_pod.glb",
   "icon": "assets/icons/parts/gauge_pod.png",
   "fits": [],
   "requires": [],
@@ -17,7 +16,67 @@
   "provides": [],
   "_note": "Three extra gauges on the A-pillar.",
   "bounds": {
-    "min": [-0.04, 0, -0.04],
-    "max": [0.04, 0.26, 0.04]
+    "min": [-0.102, -0.06, -0.0625],
+    "max": [0.102, 0.016, 0.03]
+  },
+  "madeBy": {
+    "generator": "tools/generators/interior.js",
+    "design": "A-pillar pod",
+    "settings": {
+      "gauges": 3,
+      "size": 0.052,
+      "layout": "pillar"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/interior/gauge_pod/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.102, -0.06, -0.0225],
+        "max": [0.102, 0.016, 0.07]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/gauge_pod/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.038, 0, 0.0175],
+        "max": [0.038, 0.204, 0.11]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/gauge_pod/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/gauge_pod/vortex_r.glb",
+      "bounds": {
+        "min": [-0.102, 0, -0.0225],
+        "max": [0.102, 0.076, 0.07]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/gauge_pod/brute_500.glb",
+      "bounds": {
+        "min": [-0.102, 0, -0.0225],
+        "max": [0.102, 0.076, 0.07]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/gauge_pod/strada_evo.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/interior/gauge_pod/apex_v8.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    }
   }
 }

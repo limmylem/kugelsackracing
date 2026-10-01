@@ -7,7 +7,7 @@
   "tier": "race",
   "price": 2400,
   "mass": 34,
-  "model": "",
+  "model": "assets/parts/brakes/brakes_race.glb",
   "icon": "assets/icons/parts/brakes_race.png",
   "fits": ["brake_mount:std"],
   "requires": [],
@@ -62,5 +62,24 @@
         "value": 0.15
       }
     ]
+  },
+  "bounds": {
+    "min": [-0.097, -0.177, -0.178],
+    "max": [0.012, 0.1836, 0.178]
+  },
+  "look": {
+    "drawAt": "wheels"
+  },
+  "madeBy": {
+    "generator": "tools/generators/brakes.js",
+    "design": "vented, 6-piston",
+    "settings": {
+      "disc": 0.178,
+      "thickness": 0.032,
+      "face": "slotted",
+      "pistons": 6,
+      "caliperColour": "#e04a1c",
+      "hatColour": "black"
+    }
   }
 }

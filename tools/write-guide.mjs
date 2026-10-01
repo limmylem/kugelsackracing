@@ -13,7 +13,7 @@ const rules = loadRules(), check = process.argv.includes('--check');
 const ORIGIN = { centre: 'middle', min: { x: 'right-hand edge', y: 'bottom', z: 'back' }, max: { x: 'left-hand edge', y: 'top', z: 'front' }, within: 'anywhere inside', any: 'anywhere' };
 const originWords = o => ['x', 'y', 'z'].map(a => { const r = o[a] ?? 'within', w = typeof ORIGIN[r] === 'string' ? ORIGIN[r] : ORIGIN[r][a]; return `${a}: ${w}`; }).join(', ');
 const range = r => r ? `${r[0]}–${r[1]}` : 'any';
-const materials = `\`paint\`, \`car_atlas\`, \`glass\`, \`light_*\`${rules.materials.finishes ? `, or a finish: ${Object.keys(rules.finishes).map(f => `\`${f}\``).join(', ')}` : ''}`;
+const materials = `${rules.materials.names.map(n => `\`${n}\``).join(', ')}, \`light_*\`${rules.materials.finishes ? `, or a finish: ${Object.keys(rules.finishes).map(f => `\`${f}\``).join(', ')}` : ''}`;
 
 // ---------- the guide's tables ----------
 const tables = [
