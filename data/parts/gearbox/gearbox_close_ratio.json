@@ -1,0 +1,122 @@
+{
+  "id": "gearbox_close_ratio",
+  "name": "Close-ratio gear set (adjustable)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1800,
+  "mass": 37,
+  "model": "",
+  "icon": "assets/icons/parts/gearbox_close_ratio.png",
+  "fits": ["gearbox_mount:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:rs"],
+  "_note": "Closer ratios with a short-shift kit: a shorter 1st, the top gears closer together, quicker shifts. Every ratio (±15%) and the final drive can be set.",
+  "gearbox": {
+    "_note": "5-speed for a small coupe. ratios / reverse × finalDrive give the overall ratio. shiftTime: seconds with no drive while a gear changes (the engine is rev-matched meanwhile, revMatchGain throttle per rpm off). mode: 'auto' or 'sequential' (the game can switch). Sequential takes any downshift (one at too high a speed over-revs the engine: engine.overRev), unless the rev protection aid is on: then it refuses one that would put the engine over its redline or maxDownshiftRpm, whichever is lower. Automatic: upshifts when the engine (from road speed, so wheelspin doesn't count) passes upLight..upFull rpm (light..full throttle), downshifts under downLight..downFull, kicking straight down to the lowest gear that stays downMargin under the upshift point, at most every minInterval s; below stopSpeed m/s holding S selects reverse and W first.",
+    "mode": "auto",
+    "ratios": [3.6, 1.9, 1.4, 1.1, 0.9],
+    "reverse": 3.25,
+    "finalDrive": 3.78,
+    "shiftTime": 0.15,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7000,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6700,
+      "downLight": 1300,
+      "downFull": 3600,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tuning": {
+    "ratio1": {
+      "label": "1st gear",
+      "unit": ":1",
+      "min": 3.06,
+      "max": 4.14,
+      "step": 0.01,
+      "default": 3.6,
+      "apply": [
+        {
+          "target": "gearbox.ratios.0",
+          "op": "set"
+        }
+      ]
+    },
+    "ratio2": {
+      "label": "2nd gear",
+      "unit": ":1",
+      "min": 1.61,
+      "max": 2.18,
+      "step": 0.01,
+      "default": 1.9,
+      "apply": [
+        {
+          "target": "gearbox.ratios.1",
+          "op": "set"
+        }
+      ]
+    },
+    "ratio3": {
+      "label": "3rd gear",
+      "unit": ":1",
+      "min": 1.19,
+      "max": 1.61,
+      "step": 0.01,
+      "default": 1.4,
+      "apply": [
+        {
+          "target": "gearbox.ratios.2",
+          "op": "set"
+        }
+      ]
+    },
+    "ratio4": {
+      "label": "4th gear",
+      "unit": ":1",
+      "min": 0.94,
+      "max": 1.26,
+      "step": 0.01,
+      "default": 1.1,
+      "apply": [
+        {
+          "target": "gearbox.ratios.3",
+          "op": "set"
+        }
+      ]
+    },
+    "ratio5": {
+      "label": "5th gear",
+      "unit": ":1",
+      "min": 0.77,
+      "max": 1.03,
+      "step": 0.01,
+      "default": 0.9,
+      "apply": [
+        {
+          "target": "gearbox.ratios.4",
+          "op": "set"
+        }
+      ]
+    },
+    "finalDrive": {
+      "label": "final drive",
+      "unit": ":1",
+      "min": 3.3,
+      "max": 4.4,
+      "step": 0.01,
+      "default": 3.78,
+      "apply": [
+        {
+          "target": "gearbox.finalDrive",
+          "op": "set"
+        }
+      ]
+    }
+  },
+  "tier": "sport"
+}

@@ -1,0 +1,59 @@
+{
+  "id": "tyre_semi_slick",
+  "name": "215/45 R17 semi-slick tyre",
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "sport",
+  "price": 150,
+  "mass": 9.2,
+  "toughness": 1.5,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_semi_slick.png",
+  "fits": ["rim:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A road-legal semi-slick: more grip on tarmac, little on loose ground.",
+  "tyreSize": {
+    "width": 215,
+    "sidewall": 45,
+    "compound": "semi_slick"
+  },
+  "look": {
+    "finish": "rubber"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 18,
+      "C": 1.55,
+      "D": 1.14,
+      "E": 0.2
+    },
+    "lateral": {
+      "B": 13,
+      "C": 1.45,
+      "D": 0.96,
+      "E": -0.25
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.014,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 0.75,
+      "grass": 0.75,
+      "gravel": 0.75,
+      "ice": 0.7
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  }
+}

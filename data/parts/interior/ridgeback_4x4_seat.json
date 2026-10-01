@@ -1,0 +1,20 @@
+{
+  "id": "ridgeback_4x4_seat",
+  "name": "Seat (Ridgeback 4x4, stock)",
+  "category": "interior",
+  "slot": "seat",
+  "kind": "component",
+  "price": 150,
+  "mass": 15,
+  "model": "assets/parts/stock/ridgeback_4x4/seat_driver.glb",
+  "icon": "assets/icons/parts/ridgeback_4x4_seat.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.24, 0, -0.3],
+    "max": [0.24, 0.62, 0.28]
+  }
+}

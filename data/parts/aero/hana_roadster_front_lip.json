@@ -1,0 +1,34 @@
+{
+  "id": "hana_roadster_front_lip",
+  "name": "Front lip (Hana Roadster)",
+  "category": "aero",
+  "slot": "front_lip",
+  "kind": "component",
+  "tier": "street",
+  "price": 320,
+  "mass": 2.5,
+  "toughness": 0.8,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Hana Roadster front lip: a 150 cm black lip, 16 cm deep, under the front bumper.",
+  "icon": "assets/icons/parts/hana_roadster_front_lip.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A lip under the front bumper: a little front downforce.",
+  "bounds": {
+    "min": [-0.75, -0.03, -0.1],
+    "max": [0.75, 0.02, 0.06]
+  },
+  "aeroEffect": {
+    "liftFront": -0.025,
+    "drag": 0.004
+  }
+}

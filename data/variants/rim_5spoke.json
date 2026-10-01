@@ -1,0 +1,24 @@
+{
+  "_note": "The five-spoke rim's sizes, finishes and constructions: npm run generate-variants makes a part for each combination (their ids never change; one dropped from here is retired, not deleted). Prices: $260 × the options' price factors, to the nearest $10. Cast rims are street tier (how they look); forged ones race (a quarter lighter).",
+  "base": "rim_5spoke",
+  "id": "{base}_{size}_{finish}_{build}",
+  "name": "{size}\" 5-spoke wheel, {finish} ({build})",
+  "price": { "base": 260, "round": 10 },
+  "groups": {
+    "size": {
+      "15": { "name": "15" },
+      "17": { "name": "17", "priceFactor": 1.25, "scale": [1.08, 1.133, 1.133], "set": { "rim": { "diameter": 17, "width": 6.5, "offset": 35 }, "provides": ["rim:17"] }, "multiply": { "mass": 1.18 } }
+    },
+    "finish": {
+      "silver": { "name": "silver", "look": { "finish": "raw_metal", "colour": "#c9ccd1" } },
+      "black": { "name": "gloss black", "look": { "finish": "gloss_black" } },
+      "chrome": { "name": "chrome", "priceFactor": 1.2, "look": { "finish": "chrome" } },
+      "bronze": { "name": "bronze", "priceFactor": 1.1, "look": { "finish": "raw_metal", "colour": "#a57c45" } }
+    },
+    "build": {
+      "cast": { "name": "cast" },
+      "forged": { "name": "forged", "priceFactor": 3.6, "multiply": { "mass": 0.75 }, "set": { "tier": "race", "toughness": 1.3 } }
+    }
+  },
+  "skip": [{ "size": "15", "finish": "silver", "build": "cast" }]
+}

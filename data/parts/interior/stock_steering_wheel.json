@@ -1,0 +1,20 @@
+{
+  "id": "stock_steering_wheel",
+  "name": "Steering wheel (stock)",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 90,
+  "mass": 2,
+  "model": "assets/parts/stock/starter_car/steering_wheel.glb",
+  "icon": "assets/icons/parts/stock_steering_wheel.png",
+  "fits": ["car:starter_car"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.198, -0.198, -0.02],
+    "max": [0.198, 0.198, 0.02]
+  },
+  "tier": "stock"
+}

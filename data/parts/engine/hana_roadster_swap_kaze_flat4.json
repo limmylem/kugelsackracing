@@ -1,0 +1,17 @@
+{
+  "id": "hana_roadster_swap_kaze_flat4",
+  "name": "Flat-four swap kit (Hana Roadster)",
+  "category": "engine",
+  "slot": "engine_swap",
+  "kind": "component",
+  "tier": "sport",
+  "price": 2400,
+  "mass": 10,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_swap_kaze_flat4.png",
+  "fits": ["car:hana_roadster"],
+  "requires": ["clutch_rating:sport", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": [],
+  "provides": ["engine_swap:kaze_flat4"],
+  "_note": "Mounts and wiring to put the Kaze GT's 2.0 L flat-four in the Hana Roadster: 60 more horsepower, a lower centre of gravity. It needs an uprated clutch (sport), gearbox and radiator fitted first; then take the engine out and put the new one in."
+}

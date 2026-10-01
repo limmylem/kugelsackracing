@@ -1,0 +1,33 @@
+{
+  "id": "clutch_sport",
+  "name": "Sport clutch",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "tier": "sport",
+  "price": 450,
+  "mass": 7,
+  "model": "",
+  "icon": "assets/icons/parts/clutch_sport.png",
+  "fits": [
+    ["clutch_spline:rs", "clutch_spline:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_rating:sport", "clutch:uprated"],
+  "_note": "Holds 37% more torque than the car's own clutch, and bites a little quicker.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "clutch.maxTorque",
+        "op": "multiply",
+        "value": 1.375
+      },
+      {
+        "target": "clutch.engageTime",
+        "op": "multiply",
+        "value": 0.8
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "strada_evo_mud_flaps",
+  "name": "Mud flaps (Strada Evo)",
+  "category": "body",
+  "slot": "mud_flaps",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "gravel",
+  "price": 120,
+  "mass": 3,
+  "model": "",
+  "modelTodo": "Strada Evo mud flaps: four red rubber flaps (30 × 35 cm) behind the wheels with the car's name on them.",
+  "icon": "assets/icons/parts/strada_evo_mud_flaps.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Rally mud flaps behind each wheel: the stones stay off the car.",
+  "bounds": {
+    "min": [-0.85, 0, -0.01],
+    "max": [0.85, 0.35, 0.01]
+  }
+}

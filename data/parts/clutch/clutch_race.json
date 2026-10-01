@@ -1,0 +1,38 @@
+{
+  "id": "clutch_race",
+  "name": "Race clutch (twin-plate)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "tier": "race",
+  "price": 950,
+  "mass": 5,
+  "model": "",
+  "icon": "assets/icons/parts/clutch_race.png",
+  "fits": [
+    ["clutch_spline:rs", "clutch_spline:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_rating:sport", "clutch_rating:race", "clutch:uprated"],
+  "_note": "Holds twice the torque of the car's own clutch (a big engine swapped in), and bites fast.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "clutch.maxTorque",
+        "op": "multiply",
+        "value": 2
+      },
+      {
+        "target": "clutch.engageTime",
+        "op": "multiply",
+        "value": 0.53
+      },
+      {
+        "target": "clutch.releaseTime",
+        "op": "multiply",
+        "value": 0.6
+      }
+    ]
+  }
+}

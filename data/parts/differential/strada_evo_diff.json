@@ -1,0 +1,21 @@
+{
+  "id": "strada_evo_diff",
+  "name": "Rear limited-slip differential (Strada Evo, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_diff.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.3
+  },
+  "tier": "stock"
+}

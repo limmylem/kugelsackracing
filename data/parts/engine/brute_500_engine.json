@@ -1,0 +1,59 @@
+{
+  "id": "brute_500_engine",
+  "name": "5.0 L V8 (Brute 500, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 6300,
+  "mass": 205,
+  "model": "assets/parts/stock/brute_500/brute_500_engine.glb",
+  "icon": "assets/icons/parts/brute_500_engine.png",
+  "fits": [
+    "engine_bay:longitudinal",
+    ["car:brute_500", "engine_swap:brute_v8"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:brute_v8", "engine_layout:v8", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Brute 500's engine. It fits its own car, or another with a longitudinal engine bay (engine_bay:longitudinal) and an engine swap kit for it (engine_swap:brute_v8).",
+  "engine": {
+    "torqueCurve": [[650, 400], [1500, 470], [2500, 510], [3500, 535], [4250, 540], [5000, 520], [6000, 475], [6500, 440], [6900, 400]],
+    "idleRpm": 650,
+    "redlineRpm": 6500,
+    "inertia": 0.25,
+    "induction": "natural",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8.json",
+    "friction": {
+      "base": 20,
+      "perKrpm": 10,
+      "perKrpm2": 1.2
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.38, -0.25, -0.375],
+    "max": [0.38, 0.36, 0.375]
+  }
+}

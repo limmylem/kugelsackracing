@@ -1,0 +1,35 @@
+{
+  "id": "strada_evo_dog_box",
+  "name": "Sequential dog box (Strada Evo)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "tier": "race",
+  "price": 5200,
+  "mass": 42,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_dog_box.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std", "gearbox:uprated", "gearbox:sequential"],
+  "_note": "A six-speed sequential dog box with close rally ratios: shifts in 40 ms, the revs always in the power.",
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [2.9, 2.2, 1.75, 1.42, 1.18, 1],
+    "reverse": 3.2,
+    "finalDrive": 3.7,
+    "shiftTime": 0.04,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7200,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6900,
+      "downLight": 1300,
+      "downFull": 3700,
+      "downMargin": 500,
+      "minInterval": 0.35,
+      "stopSpeed": 0.5
+    }
+  }
+}

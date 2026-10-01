@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model-rules.schema.json",
+  "title": "Model rules",
+  "description": "data/content/model-rules.json: what the content tools check a model against (see docs/MODELLING_GUIDE.md)",
+  "type": "object",
+  "required": ["originTolerance", "textureMaxSize", "materials", "icon", "types", "car"],
+  "patternProperties": { "^_": { "type": "string" } },
+  "additionalProperties": false,
+  "properties": {
+    "originTolerance": { "type": "number", "exclusiveMinimum": 0 },
+    "textureMaxSize": { "type": "integer", "minimum": 16 },
+    "materials": {
+      "type": "object", "required": ["names", "patterns"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": { "names": { "type": "array", "items": { "type": "string" } }, "patterns": { "type": "array", "items": { "type": "string" } }, "finishes": { "type": "boolean" } }
+    },
+    "icon": { "$ref": "#/$defs/icon" },
+    "types": { "type": "object", "additionalProperties": { "$ref": "#/$defs/type" } },
+    "car": {
+      "type": "object", "required": ["names", "size", "requiredSockets", "expectedSockets", "triangles"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "names": { "type": "array", "items": { "type": "string" } },
+        "size": { "type": "object", "required": ["length", "width", "height"], "additionalProperties": false, "properties": { "length": { "$ref": "#/$defs/range" }, "width": { "$ref": "#/$defs/range" }, "height": { "$ref": "#/$defs/range" } } },
+        "wheelbase": { "$ref": "#/$defs/range" }, "track": { "$ref": "#/$defs/range" }, "wheelRadius": { "$ref": "#/$defs/range" },
+        "groundTolerance": { "type": "number", "minimum": 0 }, "wheelHeightTolerance": { "type": "number", "minimum": 0 }, "mirrorTolerance": { "type": "number", "minimum": 0 },
+        "triangles": { "type": "integer", "minimum": 1 }, "paintMaterial": { "type": "string" },
+        "requiredSockets": { "type": "array", "items": { "type": "string", "pattern": "^socket_" } },
+        "expectedSockets": { "type": "array", "items": { "type": "string", "pattern": "^socket_" } },
+        "icon": { "$ref": "#/$defs/icon" }
+      }
+    }
+  },
+  "$defs": {
+    "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } },
+    "icon": {
+      "type": "object", "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": { "size": { "type": "integer", "minimum": 16, "maximum": 1024 }, "paintColour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "azimuth": { "type": "number" }, "elevation": { "type": "number", "minimum": -89, "maximum": 89 } }
+    },
+    "originRule": { "enum": ["centre", "min", "max", "within", "any"] },
+    "type": {
+      "type": "object", "required": ["label", "category", "slot", "size", "origin", "attach", "triangles", "density", "massRange"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "label": { "type": "string" },
+        "category": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "The folder its parts go in (data/parts/<category>)" },
+        "slot": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "names": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }, "description": "File names starting with these (then _) are this type" },
+        "size": { "type": "object", "additionalProperties": false, "properties": { "x": { "$ref": "#/$defs/range" }, "y": { "$ref": "#/$defs/range" }, "z": { "$ref": "#/$defs/range" } } },
+        "origin": { "type": "object", "additionalProperties": false, "properties": { "x": { "$ref": "#/$defs/originRule" }, "y": { "$ref": "#/$defs/originRule" }, "z": { "$ref": "#/$defs/originRule" } } },
+        "originTolerance": { "type": "number", "exclusiveMinimum": 0 },
+        "attach": { "type": "string", "description": "Where the origin goes, in words" },
+        "triangles": { "type": "integer", "minimum": 1 },
+        "density": { "type": "number", "exclusiveMinimum": 0 },
+        "massRange": { "$ref": "#/$defs/range" },
+        "icon": { "$ref": "#/$defs/icon" },
+        "template": { "type": "object", "description": "Fields a new part of this type starts with (npm run import)" }
+      }
+    }
+  }
+}

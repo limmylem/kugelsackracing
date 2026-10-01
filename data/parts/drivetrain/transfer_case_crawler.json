@@ -1,0 +1,41 @@
+{
+  "id": "transfer_case_crawler",
+  "name": "Crawler transfer case",
+  "category": "drivetrain",
+  "slot": "transfer_case",
+  "kind": "component",
+  "price": 1800,
+  "mass": 38,
+  "model": "",
+  "icon": "assets/icons/parts/transfer_case_crawler.png",
+  "fits": ["transfer_case:4wd"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "offroad",
+  "_note": "A deeper low range for rock crawling: slower, and far more pull.",
+  "transferCase": {
+    "_note": "A part-time 4WD's transfer case: 2H drives the rear wheels only, 4H locks the front and rear together (no centre diff: for loose ground, it scrubs on tarmac), 4L too, through the low range (lowRatio × every gear: crawling, steep climbs). Into or out of 4L only nearly stopped (below shiftBelow m/s).",
+    "lowRatio": 4,
+    "modes": ["2H", "4H", "4L"],
+    "mode": "2H",
+    "shiftBelow": 2
+  },
+  "tuning": {
+    "lowRatio": {
+      "label": "low range",
+      "unit": ":1",
+      "min": 2.5,
+      "max": 4.7,
+      "step": 0.01,
+      "default": 4,
+      "apply": [
+        {
+          "target": "transferCase.lowRatio",
+          "op": "set"
+        }
+      ]
+    }
+  },
+  "tier": "sport"
+}

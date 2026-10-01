@@ -1,0 +1,21 @@
+{
+  "id": "apex_v8_diff",
+  "name": "Electronic limited-slip differential (Apex V8, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_diff.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.25
+  },
+  "tier": "stock"
+}

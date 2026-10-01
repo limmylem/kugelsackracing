@@ -1,0 +1,49 @@
+{
+  "id": "intake_race",
+  "name": "Carbon intake with velocity stacks",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 820,
+  "mass": 1.5,
+  "model": "",
+  "icon": "assets/icons/parts/intake_race.png",
+  "fits": [
+    ["intake_flange:rs", "intake_flange:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:race"],
+  "_note": "An open carbon airbox with velocity stacks: the most breathing up top, a loud induction howl.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.065,
+      "when": {
+        "rpm": [4500, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.97,
+      "when": {
+        "rpm": [0, 2000],
+        "fade": 500
+      }
+    },
+    {
+      "target": "soundMod.intake",
+      "op": "multiply",
+      "value": 2
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 1.03
+    }
+  ]
+}

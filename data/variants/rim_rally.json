@@ -1,0 +1,90 @@
+{
+  "_note": "The rally rim's sizes and finishes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Prices: $280 × the options' factors.",
+  "base": "rim_rally",
+  "id": "{base}_{size}_{finish}",
+  "name": "{size}\" rally gravel wheel, {finish}",
+  "price": {
+    "base": "part",
+    "round": 10
+  },
+  "skip": [
+    {
+      "size": "15",
+      "finish": "white"
+    }
+  ],
+  "groups": {
+    "size": {
+      "15": {
+        "name": "15",
+        "scale": [1, 1, 1],
+        "set": {
+          "rim": {
+            "diameter": 15,
+            "width": 7,
+            "offset": 35
+          },
+          "provides": ["rim:15"],
+          "fits": ["wheel_hub:std", "rim_fits:15"]
+        }
+      },
+      "16": {
+        "name": "16",
+        "priceFactor": 1.1,
+        "scale": [1, 1.067, 1.067],
+        "set": {
+          "rim": {
+            "diameter": 16,
+            "width": 7,
+            "offset": 35
+          },
+          "provides": ["rim:16"],
+          "fits": ["wheel_hub:std", "rim_fits:16"]
+        },
+        "multiply": {
+          "mass": 1.06
+        }
+      },
+      "17": {
+        "name": "17",
+        "priceFactor": 1.2,
+        "scale": [1.071, 1.133, 1.133],
+        "set": {
+          "rim": {
+            "diameter": 17,
+            "width": 7.5,
+            "offset": 38
+          },
+          "provides": ["rim:17"],
+          "fits": ["wheel_hub:std", "rim_fits:17"]
+        },
+        "multiply": {
+          "mass": 1.12
+        }
+      }
+    },
+    "finish": {
+      "white": {
+        "name": "white",
+        "look": {
+          "finish": "gloss",
+          "colour": "#f2f2f2"
+        }
+      },
+      "gold": {
+        "name": "gold",
+        "priceFactor": 1.1,
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#c9a13b"
+        }
+      },
+      "black": {
+        "name": "gloss black",
+        "look": {
+          "finish": "gloss_black"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "cold_air_intake",
+  "name": "Cold air intake",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 350,
+  "mass": 2,
+  "model": "",
+  "icon": "assets/icons/parts/cold_air_intake.png",
+  "fits": [
+    ["intake_flange:rs", "intake_flange:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:cold_air"],
+  "_note": "Test part: a freer-breathing intake. More torque from 4000 rpm up (fading in from 3000), a touch less right at the bottom where the longer pipe hurts.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.05,
+      "when": {
+        "rpm": [4000, 7200],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.98,
+      "when": {
+        "rpm": [0, 1500],
+        "fade": 500
+      }
+    },
+    {
+      "target": "soundMod.intake",
+      "op": "multiply",
+      "value": 1.6
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 1.02
+    }
+  ],
+  "bounds": {
+    "min": [-0.07, -0.07, -0.12],
+    "max": [0.07, 0.07, 0.12]
+  },
+  "tier": "sport"
+}

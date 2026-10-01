@@ -1,0 +1,36 @@
+{
+  "id": "apex_v8_engine_cover",
+  "name": "Engine cover (Apex V8, stock)",
+  "category": "body",
+  "slot": "engine_cover",
+  "kind": "component",
+  "price": 260,
+  "mass": 12,
+  "toughness": 0.9,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hinge",
+    "hinge": {
+      "axis": [1, 0, 0],
+      "limits": [0, 70]
+    },
+    "attachStrength": 2000,
+    "looseThreshold": 20,
+    "detachThreshold": 85,
+    "looseDrag": 0.03,
+    "open": 0.3,
+    "pop": 1
+  },
+  "model": "assets/parts/stock/apex_v8/apex_v8_engine_cover.glb",
+  "icon": "assets/icons/parts/apex_v8_engine_cover.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.805, -0.04, -1.1],
+    "max": [0.805, 0, 0]
+  },
+  "tier": "stock"
+}

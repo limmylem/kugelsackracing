@@ -1,0 +1,148 @@
+{
+  "_note": "The Vortex R's (and the Strada Evo's) 2.0 L turbo inline-four's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A turbo four: the turbine muffles the exhaust — deeper and duller than the naturally aspirated four, less rasp — and its whistle (the engine's turbo) rides on top.",
+  "engine": "vortex_r_engine",
+  "cylinders": 4,
+  "layers": [
+    {
+      "band": "idle",
+      "rpm": 750,
+      "on": "assets/sounds/engines/i4_turbo/rpm0750_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm0750_off.wav"
+    },
+    {
+      "band": "idle",
+      "rpm": 1000,
+      "on": "assets/sounds/engines/i4_turbo/rpm1000_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm1000_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1300,
+      "on": "assets/sounds/engines/i4_turbo/rpm1300_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm1300_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1750,
+      "on": "assets/sounds/engines/i4_turbo/rpm1750_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm1750_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 2300,
+      "on": "assets/sounds/engines/i4_turbo/rpm2300_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm2300_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 3050,
+      "on": "assets/sounds/engines/i4_turbo/rpm3050_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm3050_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 4000,
+      "on": "assets/sounds/engines/i4_turbo/rpm4000_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm4000_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 5300,
+      "on": "assets/sounds/engines/i4_turbo/rpm5300_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm5300_off.wav"
+    },
+    {
+      "band": "redline",
+      "rpm": 7000,
+      "on": "assets/sounds/engines/i4_turbo/rpm7000_on.wav",
+      "off": "assets/sounds/engines/i4_turbo/rpm7000_off.wav"
+    }
+  ],
+  "mix": {
+    "blend": 0.5,
+    "level": 0.4,
+    "idleLevel": 0.42,
+    "offLoadLevel": 0.6,
+    "curve": 1.3,
+    "load": [0.04, 0.55],
+    "toneHz": [1200, 5500],
+    "maxShift": 0.3
+  },
+  "intake": {
+    "file": "assets/sounds/engines/i4_turbo/intake.wav",
+    "gain": 0.1,
+    "hz": [380, 1900],
+    "q": 0.9,
+    "throttle": [0.45, 1]
+  },
+  "shift": {
+    "file": "assets/sounds/engines/i4_turbo/shift.wav",
+    "gain": 0.22
+  },
+  "limiter": {
+    "file": "assets/sounds/engines/i4_turbo/limiter.wav",
+    "gain": 0.18,
+    "every": 0.06
+  },
+  "damage": {
+    "bang": "assets/sounds/engines/i4_turbo/bang.wav",
+    "bangGain": 1,
+    "bent": "assets/sounds/engines/i4_turbo/bent.wav",
+    "bentGain": 0.55,
+    "rough": 0.35
+  },
+  "synth": {
+    "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",
+    "seed": 21,
+    "sampleRate": 32000,
+    "length": 0.9,
+    "cylinders": [1, 0.94, 0.97, 0.92],
+    "jitter": 0.02,
+    "pulseRise": 0.0003,
+    "pulseDecay": 0.0018,
+    "noiseDecay": 0.0016,
+    "noise": [0.2, 0.55],
+    "direct": 0.2,
+    "highpass": 35,
+    "resonances": [
+      {
+        "name": "boom",
+        "hz": [95, 125],
+        "q": 1.2,
+        "gain": [0.65, 0.5],
+        "offLoad": 0.55
+      },
+      {
+        "name": "tone",
+        "hz": [260, 480],
+        "q": 1.4,
+        "gain": [1.8, 1.3],
+        "offLoad": 1.1
+      },
+      {
+        "name": "rasp",
+        "hz": [1000, 1800],
+        "q": 1.3,
+        "gain": [0.3, 0.5],
+        "offLoad": 0.12
+      },
+      {
+        "name": "edge",
+        "hz": [2600, 3600],
+        "q": 2,
+        "gain": [0.05, 0.15],
+        "offLoad": 0.02
+      }
+    ],
+    "clip": [0.3, 1.6],
+    "tone": [1800, 5200],
+    "rms": 0.2,
+    "offLoad": {
+      "pulse": 0.4,
+      "burble": 0.3,
+      "noise": 0.06,
+      "clip": 0.2,
+      "tone": [1200, 3200]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$id": "engine-sound.schema.json",
+  "title": "An engine's sound config (data/sounds/engines): the files the game plays for it and how",
+  "type": "object",
+  "required": ["engine", "cylinders", "layers", "mix", "intake", "shift", "limiter", "damage"],
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "$defs": {
+    "file": { "type": "string", "pattern": "^assets/sounds/.+\\.wav$" },
+    "pair": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } }
+  },
+  "properties": {
+    "engine": { "type": "string", "description": "The engine part it's for" },
+    "cylinders": { "type": "integer", "minimum": 1 },
+    "layers": {
+      "type": "array", "minItems": 2, "description": "Loops at rpm points from idle to the redline (in order), each on load and off load",
+      "items": { "type": "object", "required": ["band", "rpm", "on", "off"], "additionalProperties": false, "properties": { "band": { "enum": ["idle", "low", "mid", "high", "redline"] }, "rpm": { "type": "number", "exclusiveMinimum": 0 }, "on": { "$ref": "#/$defs/file" }, "off": { "$ref": "#/$defs/file" } } }
+    },
+    "mix": {
+      "type": "object", "required": ["level", "idleLevel", "offLoadLevel", "curve", "load", "toneHz", "maxShift"], "additionalProperties": false,
+      "properties": { "blend": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "level": { "type": "number", "minimum": 0 }, "idleLevel": { "type": "number", "minimum": 0, "maximum": 1 }, "offLoadLevel": { "type": "number", "minimum": 0, "maximum": 1 }, "curve": { "type": "number", "exclusiveMinimum": 0 }, "load": { "$ref": "#/$defs/pair" }, "toneHz": { "$ref": "#/$defs/pair" }, "maxShift": { "type": "number", "minimum": 0, "maximum": 1 } }
+    },
+    "intake": { "type": "object", "required": ["file", "gain", "hz", "q", "throttle"], "additionalProperties": false, "properties": { "file": { "$ref": "#/$defs/file" }, "gain": { "type": "number", "minimum": 0 }, "hz": { "$ref": "#/$defs/pair" }, "q": { "type": "number", "exclusiveMinimum": 0 }, "throttle": { "$ref": "#/$defs/pair" } } },
+    "shift": { "type": "object", "required": ["file", "gain"], "additionalProperties": false, "properties": { "file": { "$ref": "#/$defs/file" }, "gain": { "type": "number", "minimum": 0 } } },
+    "limiter": { "type": "object", "required": ["file", "gain", "every"], "additionalProperties": false, "properties": { "file": { "$ref": "#/$defs/file" }, "gain": { "type": "number", "minimum": 0 }, "every": { "type": "number", "minimum": 0 } } },
+    "damage": { "type": "object", "required": ["bang", "bangGain", "bent", "bentGain", "rough"], "additionalProperties": false, "properties": { "bang": { "$ref": "#/$defs/file" }, "bangGain": { "type": "number", "minimum": 0 }, "bent": { "$ref": "#/$defs/file" }, "bentGain": { "type": "number", "minimum": 0 }, "rough": { "type": "number", "minimum": 0, "maximum": 1 } } },
+    "synth": { "type": "object", "description": "How npm run sounds makes the files (tools/content/sound.mjs); none for real recordings" }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "id": "centre_diff_viscous",
+  "name": "Viscous centre differential",
+  "category": "differential",
+  "slot": "centre_diff",
+  "kind": "component",
+  "price": 950,
+  "mass": 20,
+  "model": "",
+  "icon": "assets/icons/parts/centre_diff_viscous.png",
+  "fits": ["centre_diff:awd"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A viscous coupling across the centre diff: the drive is split front / rear, and when one axle starts to spin the coupling sends more to the other.",
+  "centreDifferential": {
+    "_note": "How AWD shares the drive front and rear: split is the front's share. type: 'open' (always the split: one spinning axle takes it all), 'viscous' (it resists the axles turning at different speeds, viscous N·m per rad/s of difference), 'lsd' (up to preload + lock × the torque through it) or 'locked' (front and rear turn together). lockable: the driver can lock it.",
+    "type": "viscous",
+    "split": 0.38,
+    "viscous": 45
+  },
+  "tuning": {
+    "split": {
+      "label": "front share",
+      "unit": "%",
+      "min": 25,
+      "max": 60,
+      "step": 1,
+      "default": 38,
+      "apply": [
+        {
+          "target": "centreDifferential.split",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    },
+    "viscous": {
+      "label": "coupling",
+      "unit": "N·m·s",
+      "min": 10,
+      "max": 150,
+      "step": 5,
+      "default": 45,
+      "apply": [
+        {
+          "target": "centreDifferential.viscous",
+          "op": "set"
+        }
+      ]
+    }
+  },
+  "tier": "street"
+}

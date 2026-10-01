@@ -1,0 +1,42 @@
+{
+  "id": "supercharger_twin_screw",
+  "name": "Twin-screw supercharger kit (V6, V8)",
+  "category": "turbo",
+  "slot": "supercharger",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 5200,
+  "mass": 28,
+  "model": "",
+  "modelTodo": "A twin-screw supercharger: a long ribbed case about 50 × 40 × 20 cm sitting on top of the engine, a pulley at the front and a throttle body.",
+  "icon": "assets/icons/parts/supercharger_twin_screw.png",
+  "fits": [
+    ["engine_layout:v6", "engine_layout:v8"]
+  ],
+  "requires": ["pistons:forged", "clutch_rating:sport"],
+  "conflicts": ["induction:turbo", "forced_induction:turbo"],
+  "provides": ["forced_induction:supercharger"],
+  "_note": "A twin-screw supercharger on top of any engine without a turbo: full boost from just off idle — a wall of torque everywhere.",
+  "bounds": {
+    "min": [-0.2, 0, -0.25],
+    "max": [0.2, 0.2, 0.25]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1000, 0.35], [2000, 0.6], [6000, 0.65], [7500, 0.6]],
+      "efficiency": 0.78
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "supercharged"
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.08
+    }
+  ]
+}

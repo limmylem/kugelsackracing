@@ -1,0 +1,61 @@
+{
+  "id": "hana_roadster_wing",
+  "name": "Small wing (Hana Roadster)",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "tier": "sport",
+  "price": 680,
+  "mass": 3.5,
+  "toughness": 0.7,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Hana Roadster small wing: a 120 cm aerofoil (20 cm chord) on two short uprights (12 cm) on the rear deck.",
+  "icon": "assets/icons/parts/hana_roadster_wing.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A small wing on the rear deck: some rear downforce to balance the lip.",
+  "aero": {
+    "point": [0, 0.12, 0],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    },
+    "liftCoefficient": -0.22,
+    "dragCoefficient": 0.018
+  },
+  "placeholder": {
+    "width": 1.2,
+    "chord": 0.2,
+    "thickness": 0.03,
+    "height": 0.12,
+    "colour": "#1f2226"
+  },
+  "massOffset": [0, 0.06, 0],
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "garage.schema.json",
+  "title": "Garage (saved player state)",
+  "type": "object",
+  "required": ["version", "nextId", "parts", "cars", "current"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "nextId": { "type": "integer", "minimum": 1 },
+    "parts": { "type": "object", "additionalProperties": { "$ref": "owned-part.schema.json" } },
+    "cars": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["carInstanceId", "carId", "build"], "additionalProperties": false,
+        "properties": {
+          "carInstanceId": { "type": "string" }, "carId": { "type": "string" }, "build": { "$ref": "build.schema.json" },
+          "paint": {
+            "type": "object", "required": ["colour", "finish"], "additionalProperties": false,
+            "properties": { "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "finish": { "type": "string", "pattern": "^[a-z0-9_]+$" } },
+            "description": "This car's paint (none: the car's factory paint)"
+          }
+        }
+      }
+    },
+    "current": { "type": "string" }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "tyre_smoke_black",
+  "name": "Tyre smoke (black)",
+  "category": "cosmetic",
+  "slot": "tyre_smoke",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 140,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_smoke_black.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coloured tyre smoke: black.",
+  "effects": [
+    {
+      "target": "cosmetic.smoke",
+      "op": "set",
+      "value": "#1b1b1b"
+    }
+  ]
+}

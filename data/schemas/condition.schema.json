@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "condition.schema.json",
+  "title": "Condition curves",
+  "description": "How a part's condition scales its effects, by part category (data/condition.json)",
+  "type": "object", "required": ["categories"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+  "properties": {
+    "categories": {
+      "type": "object", "propertyNames": { "pattern": "^[a-z0-9_]+$" },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object", "required": ["target", "curve"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+          "properties": {
+            "target": { "type": "string", "pattern": "^[a-zA-Z]+(\\.[a-zA-Z0-9]+)*$" },
+            "curve": { "type": "array", "minItems": 2, "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } } },
+            "per": { "enum": ["part"], "description": "each part's own condition (not the category's average)" },
+            "op": { "enum": ["multiply", "add"], "description": "the curve's value multiplies the target (the default) or is added to it" },
+            "slots": { "type": "array", "items": { "type": "string" }, "description": "only parts in these slots" }
+          }
+        }
+      }
+    }
+  }
+}

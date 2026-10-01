@@ -1,0 +1,20 @@
+{
+  "id": "strada_evo_steering_wheel",
+  "name": "Steering wheel (Strada Evo, stock)",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 90,
+  "mass": 2,
+  "model": "assets/parts/stock/strada_evo/strada_evo_steering_wheel.glb",
+  "icon": "assets/icons/parts/strada_evo_steering_wheel.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.19, -0.19, -0.015],
+    "max": [0.19, 0.19, 0.015]
+  }
+}

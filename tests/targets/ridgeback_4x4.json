@@ -1,0 +1,41 @@
+{
+  "_note": "The Ridgeback 4x4's targets: a 2000 kg V6 off-roader — slow and wallowy on tarmac (little grip, lots of roll), and in 4L it climbs the 30° dirt slope that stops it in 2H (lowRange: the height it reaches in 4L).",
+  "zeroTo100": {
+    "min": 8,
+    "max": 9.5
+  },
+  "quarterMile": {
+    "min": 15.9,
+    "max": 17.2
+  },
+  "braking": {
+    "min": 36,
+    "max": 42
+  },
+  "skidpad": {
+    "min": 0.7,
+    "max": 0.8
+  },
+  "slalom": {
+    "min": 9,
+    "max": 9.9
+  },
+  "topSpeed": {
+    "min": 185,
+    "max": 200
+  },
+  "lap": {
+    "min": 80,
+    "max": 87
+  },
+  "lowRange": {
+    "min": 14.5
+  },
+  "framerate": {
+    "min": 1,
+    "max": 1
+  },
+  "physicsCost": {
+    "max": 0.25
+  }
+}

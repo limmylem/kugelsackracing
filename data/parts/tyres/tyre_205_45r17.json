@@ -1,0 +1,55 @@
+{
+  "id": "tyre_205_45r17",
+  "name": "205/45 R17 road tyre",
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "price": 110,
+  "mass": 9.4,
+  "toughness": 1.5,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_205_45r17.png",
+  "fits": ["rim:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "look": {
+    "finish": "rubber"
+  },
+  "tyreSize": {
+    "width": 205,
+    "sidewall": 45,
+    "compound": "road"
+  },
+  "tyre": {
+    "_note": "Pacejka Magic Formula F = D*N*sin(C*atan(B*x - E*(B*x - atan(B*x)))): x is the slip ratio (longitudinal) or slip angle in radians (lateral), D is the friction coefficient, N the wheel's load. Below lowSpeed.blendEnd the forces blend into a spring-damper stiction model so a stopped car doesn't creep or jitter.",
+    "longitudinal": {
+      "B": 16,
+      "C": 1.5,
+      "D": 1.05,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 11,
+      "C": 1.4,
+      "D": 0.88,
+      "E": -0.2
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.012,
+    "wheelSubsteps": 6
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3,
+    "_note": "the tyre block's grip (D) is for a 180 mm tyre; a wider one grips more by (width / 180) ^ 0.3"
+  },
+  "tier": "street",
+  "purpose": "looks"
+}

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playtest log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../ui/theme.css">
+<style>
+  /* The playtest log (a development page): the upgrade journey recorded in playtest mode (the garage's
+     settings, or player.playtest(true)) — the rating against the money spent, and every change with
+     its numbers. Reads the log this browser keeps; updates as it's written. */
+  html, body { margin: 0; background: var(--c-base); }
+  body { padding: 24px; display: flex; flex-direction: column; gap: 18px; min-height: 100vh; box-sizing: border-box; }
+  header { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  header .grow { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 240px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .tile { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .tile .v { font-family: var(--f-mono); font-size: 22px; font-weight: 600; }
+  .tile .s { font-size: 13px; color: var(--c-text-2); }
+  .chart { padding: 16px; }
+  .chart svg { width: 100%; height: 240px; display: block; }
+  .tablewrap { overflow: auto; border-radius: var(--r-panel); border: 1px solid var(--c-line); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--c-line-soft); }
+  th { position: sticky; top: 0; background: var(--c-panel); color: var(--c-text-3); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  td { font-family: var(--f-mono); }
+  td.what { text-align: left; font-family: var(--f-ui); white-space: normal; min-width: 280px; }
+  tr.build td { background: rgba(54, 179, 245, 0.05); }
+  .better { color: var(--c-good); } .worse { color: var(--c-bad); } .pending { color: var(--c-text-3); }
+  .cls { display: inline-block; min-width: 18px; padding: 0 4px; border-radius: 3px; background: var(--c-accent); color: var(--c-accent-ink); font-family: var(--f-title); font-weight: 700; text-align: center; }
+  .empty { padding: 40px; text-align: center; color: var(--c-text-2); }
+  @media (max-width: 700px) { body { padding: 12px; } }
+</style>
+</head>
+<body class="ui">
+  <header>
+    <div class="grow"><div class="label">Playtest log</div><div class="panel-title">The upgrade journey</div>
+      <div class="secondary-text" id="about">Turn playtest mode on in the garage's settings (or <span class="mono">player.playtest(true)</span> in the console), then upgrade as a player would.</div></div>
+    <button class="btn secondary bar" id="csv"><span class="icon">download</span>CSV</button>
+    <button class="btn ghost bar" id="json"><span class="icon">data_object</span>JSON</button>
+    <button class="btn danger bar" id="clear"><span class="icon">delete</span>Clear</button>
+  </header>
+  <div class="tiles" id="tiles"></div>
+  <div class="panel chart"><div class="label" id="chartLabel">Performance rating against money spent</div><svg id="chart" viewBox="0 0 1000 240" preserveAspectRatio="none" aria-label="Rating against money spent"></svg></div>
+  <div class="tablewrap panel"><table><thead><tr><th>#</th><th>Spent</th><th>Money</th><th>Rating</th><th>hp</th><th>kg</th><th>0–100 s</th><th>100–0 m</th><th>Skidpad g</th><th>Lap s</th><th style="text-align:left">What happened</th></tr></thead><tbody id="rows"></tbody></table></div>
+<script type="module">
+import { toCsv } from '../garage/playtest.js';
+const KEY = 'driveWorld.playtest.log', $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const read = () => { try { return JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { return []; } };
+const money = n => n == null ? '—' : `$${Math.round(n).toLocaleString('en-GB')}`;
+// (a value against the one before: better or worse, which way is better per column)
+const cmp = (v, was, lowerBetter) => v == null ? '<span class="pending">…</span>' : was == null || v === was ? `${v}` : `<span class="${(v < was) === lowerBetter ? 'better' : 'worse'}">${v}</span>`;
+
+function draw() {
+  const E = read();
+  if (!E.length) { $('rows').innerHTML = '<tr><td colspan="11" class="empty">Nothing logged yet.</td></tr>'; $('tiles').innerHTML = ''; $('chart').innerHTML = ''; return; }
+  const first = E[0], last = E.at(-1), t0 = E.find(e => e.tests && !e.tests.error)?.tests, t1 = [...E].reverse().find(e => e.tests && !e.tests.error)?.tests;
+  const tile = (label, v, s) => `<div class="tile panel"><span class="label">${label}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
+  $('tiles').innerHTML = [
+    tile('Changes', E.length, `${E.filter(e => e.kinds.includes('buy')).length} purchases, ${E.filter(e => e.kinds.includes('install')).length} fittings`),
+    tile('Spent', money(last.spent), `${money(last.earned)} back from sales · ${money(last.money)} left`),
+    tile('Rating', last.rating ? `${last.rating.class} ${last.rating.index}` : '—', first.rating ? `from ${first.rating.class} ${first.rating.index} (+${last.rating.index - first.rating.index})` : ''),
+    tile('0–100 km/h', t1?.zeroTo100 != null ? `${t1.zeroTo100} s` : '…', t0?.zeroTo100 != null ? `from ${t0.zeroTo100} s` : 'Step 6, measured'),
+    tile('Lap', t1?.lap != null ? `${t1.lap} s` : '…', t0?.lap != null ? `from ${t0.lap} s` : 'Step 6, measured'),
+  ].join('');
+  // the chart: rating (steps) against money spent, class bands behind
+  const maxSpent = Math.max(1, ...E.map(e => e.spent)), ratings = E.filter(e => e.rating).map(e => e.rating.index);
+  const lo = Math.min(...ratings) - 20, hi = Math.max(620, Math.max(...ratings) + 20), X = s => 50 + s / maxSpent * 930, Y = r => 220 - (r - lo) / (hi - lo) * 200;
+  let svg = '';
+  for (const [c, from, to] of [['D', 0, 450], ['C', 450, 520], ['B', 520, 600], ['A', 600, 700]]) {
+    const y0 = Y(Math.min(to, hi)), y1 = Y(Math.max(from, lo));
+    if (y1 <= y0) continue;
+    svg += `<rect x="50" y="${y0}" width="930" height="${y1 - y0}" fill="${c === 'B' ? 'rgba(54,179,245,0.07)' : c === 'A' ? 'rgba(255,90,95,0.07)' : 'rgba(255,255,255,0.02)'}"/><text x="40" y="${(y0 + y1) / 2 + 4}" fill="#6B7480" font-size="12" text-anchor="end" font-family="JetBrains Mono">${c}</text>`;
+  }
+  const pts = E.filter(e => e.rating).map(e => [X(e.spent), Y(e.rating.index)]);
+  svg += `<path d="M${pts.map((p, i) => (i ? `L${p[0]} ${pts[i - 1][1]} L` : '') + `${p[0]} ${p[1]}`).join(' ')}" fill="none" stroke="#36B3F5" stroke-width="2.5"/>`;
+  for (const p of pts) svg += `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#36B3F5"/>`;
+  $('chart').innerHTML = svg;
+  $('chartLabel').textContent = `Performance rating against money spent ($0 – ${money(maxSpent)})`;
+  // the table, newest first
+  $('rows').innerHTML = E.map((e, i) => {
+    const p = E[i - 1], t = e.tests ?? {}, pt = p?.tests ?? {}, build = !p || p.fingerprint !== e.fingerprint;
+    return `<tr class="${build ? 'build' : ''}"><td>${e.n}</td><td>${money(e.spent)}</td><td>${money(e.money)}</td>
+      <td>${e.rating ? `<span class="cls">${e.rating.class}</span> ${cmp(e.rating.index, p?.rating?.index, false)}` : '—'}</td><td>${cmp(e.power, p?.power, false)}</td><td>${cmp(e.mass, p?.mass, true)}</td>
+      <td>${e.tests?.error ? 'error' : cmp(t.zeroTo100, pt.zeroTo100, true)}</td><td>${cmp(t.braking, pt.braking, true)}</td><td>${cmp(t.skidpad, pt.skidpad, false)}</td><td>${t.lap === null ? '<span class="worse" title="spun, or did not finish">—</span>' : cmp(t.lap, pt.lap, true)}</td>
+      <td class="what">${esc(e.text)}</td></tr>`;
+  }).reverse().join('');
+}
+const save = (name, type, text) => { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type })), download: name }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
+$('csv').onclick = () => save('playtest.csv', 'text/csv', toCsv(read()));
+$('json').onclick = () => save('playtest.json', 'application/json', JSON.stringify(read(), null, 2));
+$('clear').onclick = () => { if (confirm('Clear the playtest log?')) { localStorage.removeItem(KEY); draw(); } };
+addEventListener('storage', e => { if (e.key === KEY) draw(); });      // (the game's tab writing the log)
+draw();
+</script>
+</body>
+</html>

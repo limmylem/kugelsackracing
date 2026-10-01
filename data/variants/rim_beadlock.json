@@ -1,0 +1,90 @@
+{
+  "_note": "The beadlock rim's sizes and finishes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Prices: $520 × the options' factors.",
+  "base": "rim_beadlock",
+  "id": "{base}_{size}_{finish}",
+  "name": "{size}\" off-road beadlock wheel, {finish}",
+  "price": {
+    "base": "part",
+    "round": 10
+  },
+  "skip": [
+    {
+      "size": "17",
+      "finish": "black"
+    }
+  ],
+  "groups": {
+    "size": {
+      "16": {
+        "name": "16",
+        "priceFactor": 0.9,
+        "scale": [0.941, 0.941, 0.941],
+        "set": {
+          "rim": {
+            "diameter": 16,
+            "width": 8,
+            "offset": 0
+          },
+          "provides": ["rim:16"],
+          "fits": ["wheel_hub:std", "chassis:offroad", "rim_fits:16"]
+        },
+        "multiply": {
+          "mass": 0.93
+        }
+      },
+      "17": {
+        "name": "17",
+        "scale": [1, 1, 1],
+        "set": {
+          "rim": {
+            "diameter": 17,
+            "width": 8.5,
+            "offset": 0
+          },
+          "provides": ["rim:17"],
+          "fits": ["wheel_hub:std", "chassis:offroad", "rim_fits:17"]
+        }
+      },
+      "18": {
+        "name": "18",
+        "priceFactor": 1.15,
+        "scale": [1.059, 1.059, 1.059],
+        "set": {
+          "rim": {
+            "diameter": 18,
+            "width": 9,
+            "offset": 0
+          },
+          "provides": ["rim:18"],
+          "fits": ["wheel_hub:std", "chassis:offroad", "rim_fits:18"]
+        },
+        "multiply": {
+          "mass": 1.08
+        }
+      }
+    },
+    "finish": {
+      "black": {
+        "name": "gloss black",
+        "look": {
+          "finish": "gloss_black"
+        }
+      },
+      "bronze": {
+        "name": "bronze",
+        "priceFactor": 1.1,
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#a57c45"
+        }
+      },
+      "silver": {
+        "name": "silver",
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#c9ccd1"
+        }
+      }
+    }
+  }
+}

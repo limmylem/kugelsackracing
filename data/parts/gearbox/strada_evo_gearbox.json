@@ -1,0 +1,34 @@
+{
+  "id": "strada_evo_gearbox",
+  "name": "5-speed manual (Strada Evo, stock)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1500,
+  "mass": 48,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_gearbox.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std"],
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [2.785, 1.95, 1.407, 1.031, 0.761],
+    "reverse": 3.2,
+    "finalDrive": 4.53,
+    "shiftTime": 0.14,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7200,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6900,
+      "downLight": 1300,
+      "downFull": 3700,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "stock"
+}

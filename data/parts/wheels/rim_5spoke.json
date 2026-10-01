@@ -1,0 +1,33 @@
+{
+  "id": "rim_5spoke",
+  "name": "15\" 5-spoke wheel, silver (cast)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 260,
+  "mass": 7.2,
+  "toughness": 1,
+  "model": "assets/parts/wheels/rim_5spoke.glb",
+  "icon": "assets/icons/parts/rim_5spoke.png",
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "bounds": {
+    "min": [-0.07, -0.1985, -0.1985],
+    "max": [0.08, 0.1985, 0.1985]
+  },
+  "massOffset": [0.017, 0, 0],
+  "rim": {
+    "diameter": 15,
+    "width": 6,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "look": {
+    "finish": "raw_metal",
+    "colour": "#c9ccd1"
+  },
+  "_note": "A cast five-spoke rim. Made by npm run import; its sizes, finishes and forged versions come from data/variants/rim_5spoke.json."
+}

@@ -1,0 +1,64 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "offroad",
+  "price": 200,
+  "mass": 11.01,
+  "toughness": 1.5,
+  "fits": ["rim:16"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A mud-terrain tyre: huge open lugs for mud and grass — noisy and slippery on tarmac.",
+  "tyreSize": {
+    "width": 265,
+    "sidewall": 75,
+    "compound": "mud_terrain"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 12,
+      "C": 1.5,
+      "D": 1,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 8,
+      "C": 1.35,
+      "D": 0.74,
+      "E": -0.05
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.02,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 1.15,
+      "grass": 1.3,
+      "gravel": 1.1,
+      "ice": 1.1,
+      "tarmac": 0.92
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.2
+  },
+  "id": "tyre_mud_terrain_265_75r16",
+  "name": "265/75 R16 mud-terrain tyre",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_mud_terrain_265_75r16.png",
+  "variantOf": "tyre_mud_terrain",
+  "generated": {
+    "table": "tyre_mud_terrain",
+    "key": "size=265_75r16"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_mud_terrain.json: change the table, not this file."
+}

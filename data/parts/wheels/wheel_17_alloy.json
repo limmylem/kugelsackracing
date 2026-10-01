@@ -1,0 +1,34 @@
+{
+  "id": "wheel_17_alloy",
+  "name": "17\" alloy wheel",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 650,
+  "mass": 8.4,
+  "toughness": 0.9,
+  "model": "assets/parts/stock/starter_car/wheel_stock.glb",
+  "icon": "assets/icons/parts/wheel_17_alloy.png",
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "variantOf": "stock_wheel_15",
+  "look": {
+    "finish": "raw_metal",
+    "colour": "#c9ccd1",
+    "scale": [1, 1.1333333333333333, 1.1333333333333333]
+  },
+  "bounds": {
+    "min": [-0.06, -0.19, -0.19],
+    "max": [0.075, 0.19, 0.19]
+  },
+  "_note": "Bigger rims: a bigger wheel (with 205/45 R17 tyres, 308 mm against 290), so taller gearing, and more weight to spin up.",
+  "rim": {
+    "diameter": 17,
+    "width": 7,
+    "offset": 35
+  },
+  "tier": "sport",
+  "purpose": "looks"
+}

@@ -1,0 +1,58 @@
+{
+  "id": "apex_v8_tyre",
+  "name": "265/35 R20 semi-slick tyre (Apex V8, stock)",
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "price": 186,
+  "mass": 11,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_tyre.png",
+  "fits": ["rim:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "toughness": 1.5,
+  "tyreSize": {
+    "width": 265,
+    "sidewall": 35,
+    "compound": "semi_slick"
+  },
+  "look": {
+    "finish": "rubber"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 19,
+      "C": 1.55,
+      "D": 1.2,
+      "E": 0.2
+    },
+    "lateral": {
+      "B": 14,
+      "C": 1.45,
+      "D": 1.04,
+      "E": -0.3
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.014,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 0.75,
+      "grass": 0.75,
+      "gravel": 0.75,
+      "ice": 0.7
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  },
+  "tier": "stock"
+}

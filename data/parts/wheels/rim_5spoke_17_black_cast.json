@@ -1,0 +1,35 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 330,
+  "mass": 8.5,
+  "toughness": 1,
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "massOffset": [0.017, 0, 0],
+  "rim": {
+    "diameter": 17,
+    "width": 6.5,
+    "offset": 35
+  },
+  "tier": "street",
+  "purpose": "looks",
+  "_note": "A cast five-spoke rim. Made by npm run import; its sizes, finishes and forged versions come from data/variants/rim_5spoke.json.",
+  "id": "rim_5spoke_17_black_cast",
+  "name": "17\" 5-spoke wheel, gloss black (cast)",
+  "model": "",
+  "icon": "assets/icons/parts/rim_5spoke_17_black_cast.png",
+  "variantOf": "rim_5spoke",
+  "look": {
+    "scale": [1.08, 1.133, 1.133],
+    "finish": "gloss_black"
+  },
+  "generated": {
+    "table": "rim_5spoke",
+    "key": "size=17,finish=black,build=cast"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_5spoke.json: change the table, not this file."
+}

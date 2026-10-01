@@ -1,0 +1,69 @@
+{
+  "_note": "Crash sounds (testtrack/audio.js plays them; npm run sounds makes the files from synth). impacts: for each sound family, three takes each of a tap, a crunch and a crash (garage/damage.js says which, by strength: data/damage.json classes); materials: which family each thing the car can hit sounds like (physics/impacts.js material). A hit plays one of its takes at random, a little higher or lower (pitch: ± share) and louder the harder it was within its class (gain: [at its weakest, at its hardest] for each class). scrape: a loop for sliding along metal or anything else, its level following the scrape (gain at full) and its pitch the speed. glass, light: a window or a light breaking. tear: a part tearing off. clatter: a torn-off part bouncing (light and heavy takes; gain [at clatterFrom, hardest]). rattle: a loop for loose parts rattling and flapping, its level following how much.",
+  "materials": {
+    "metal": "metal",
+    "concrete": "concrete",
+    "ground": "concrete",
+    "wood": "concrete",
+    "car": "car",
+    "plastic": "car"
+  },
+  "impacts": {
+    "metal": {
+      "tap": ["assets/sounds/crash/metal_tap_1.wav", "assets/sounds/crash/metal_tap_2.wav", "assets/sounds/crash/metal_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/metal_crunch_1.wav", "assets/sounds/crash/metal_crunch_2.wav", "assets/sounds/crash/metal_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/metal_crash_1.wav", "assets/sounds/crash/metal_crash_2.wav", "assets/sounds/crash/metal_crash_3.wav"]
+    },
+    "concrete": {
+      "tap": ["assets/sounds/crash/concrete_tap_1.wav", "assets/sounds/crash/concrete_tap_2.wav", "assets/sounds/crash/concrete_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/concrete_crunch_1.wav", "assets/sounds/crash/concrete_crunch_2.wav", "assets/sounds/crash/concrete_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/concrete_crash_1.wav", "assets/sounds/crash/concrete_crash_2.wav", "assets/sounds/crash/concrete_crash_3.wav"]
+    },
+    "car": {
+      "tap": ["assets/sounds/crash/car_tap_1.wav", "assets/sounds/crash/car_tap_2.wav", "assets/sounds/crash/car_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/car_crunch_1.wav", "assets/sounds/crash/car_crunch_2.wav", "assets/sounds/crash/car_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/car_crash_1.wav", "assets/sounds/crash/car_crash_2.wav", "assets/sounds/crash/car_crash_3.wav"]
+    }
+  },
+  "gain": {
+    "tap": [0.12, 0.3],
+    "crunch": [0.35, 0.6],
+    "crash": [0.7, 1]
+  },
+  "pitch": 0.07,
+  "scrape": {
+    "files": {
+      "metal": "assets/sounds/crash/scrape_metal.wav",
+      "concrete": "assets/sounds/crash/scrape_concrete.wav"
+    },
+    "gain": 0.55
+  },
+  "glass": {
+    "files": ["assets/sounds/crash/glass_1.wav", "assets/sounds/crash/glass_2.wav"],
+    "gain": 0.6
+  },
+  "light": {
+    "files": ["assets/sounds/crash/light_1.wav", "assets/sounds/crash/light_2.wav"],
+    "gain": 0.45
+  },
+  "tear": {
+    "files": ["assets/sounds/crash/tear_1.wav", "assets/sounds/crash/tear_2.wav"],
+    "gain": 0.7
+  },
+  "clatter": {
+    "files": {
+      "light": ["assets/sounds/crash/clatter_light_1.wav", "assets/sounds/crash/clatter_light_2.wav", "assets/sounds/crash/clatter_light_3.wav"],
+      "heavy": ["assets/sounds/crash/clatter_heavy_1.wav", "assets/sounds/crash/clatter_heavy_2.wav", "assets/sounds/crash/clatter_heavy_3.wav"]
+    },
+    "heavyFrom": 5,
+    "gain": [0.08, 0.5]
+  },
+  "rattle": {
+    "file": "assets/sounds/crash/rattle.wav",
+    "gain": 0.35
+  },
+  "synth": {
+    "seed": 41,
+    "sampleRate": 32000
+  }
+}

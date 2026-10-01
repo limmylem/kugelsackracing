@@ -1,0 +1,74 @@
+{
+  "id": "strada_evo_engine",
+  "name": "2.0 L turbo inline-four (Strada Evo, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 5100,
+  "mass": 142,
+  "model": "assets/parts/stock/strada_evo/strada_evo_engine.glb",
+  "icon": "assets/icons/parts/strada_evo_engine.png",
+  "fits": [
+    "engine_bay:longitudinal",
+    ["car:strada_evo", "engine_swap:strada_i4t"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:strada_i4t", "engine_layout:i4", "induction:turbo", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Strada Evo's engine. It fits its own car, or another with a longitudinal engine bay (engine_bay:longitudinal) and an engine swap kit for it (engine_swap:strada_i4t).",
+  "engine": {
+    "torqueCurve": [[850, 200], [1500, 300], [2500, 380], [3500, 400], [5000, 390], [6500, 305], [7000, 272], [7400, 245]],
+    "idleRpm": 850,
+    "redlineRpm": 7000,
+    "inertia": 0.12,
+    "induction": "turbo",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/i4_turbo.json",
+    "friction": {
+      "base": 9.2,
+      "perKrpm": 4.6,
+      "perKrpm2": 0.54
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "turbo": {
+      "boost": [[1500, 0.4], [2500, 1.1], [3500, 1.4], [6000, 1.3], [7000, 1.1]],
+      "efficiency": 0.85,
+      "sound": {
+        "whistle": {
+          "fromHz": 2600,
+          "toHz": 8200,
+          "gain": 0.055,
+          "noise": 0.35,
+          "q": 12,
+          "spoolUp": 0.5,
+          "spoolDown": 0.35
+        }
+      }
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.3, -0.2, -0.275],
+    "max": [0.3, 0.31, 0.275]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "brute_500_clutch",
+  "name": "Clutch (Brute 500, stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 370,
+  "mass": 11,
+  "model": "",
+  "icon": "assets/icons/parts/brute_500_clutch.png",
+  "fits": ["clutch_spline:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "maxTorque": 730,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 400,
+    "auto": {
+      "launchRpm": 3000,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

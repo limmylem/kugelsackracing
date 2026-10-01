@@ -1,0 +1,25 @@
+{
+  "id": "tyre_smoke_purple",
+  "name": "Tyre smoke (purple)",
+  "category": "cosmetic",
+  "slot": "tyre_smoke",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 140,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_smoke_purple.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coloured tyre smoke: purple.",
+  "effects": [
+    {
+      "target": "cosmetic.smoke",
+      "op": "set",
+      "value": "#9b59b6"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "variants.schema.json",
+  "title": "Variant table",
+  "description": "data/variants/<base>.json: the parts npm run generate-variants makes from a base part — one per combination of the options in groups (e.g. every size × finish × tier), each drawn with the base part's model",
+  "type": "object",
+  "required": ["base", "id", "name", "price", "groups"],
+  "patternProperties": { "^_": { "type": "string" } },
+  "additionalProperties": false,
+  "properties": {
+    "base": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "The part the variants are of (their model, and every field the options don't change)" },
+    "id": { "type": "string", "pattern": "^[a-z0-9_{}]+$", "description": "Each variant's id: {group} is its option's key there, {base} the base part's id — e.g. {base}_{size}_{finish}. Ids never change once made: a variant no longer in the table is retired, not deleted" },
+    "name": { "type": "string", "minLength": 1, "description": "Each variant's name: {group} is its option's name" },
+    "price": {
+      "type": "object", "required": ["base"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "base": { "anyOf": [{ "type": "number", "minimum": 0 }, { "const": "part" }], "description": "The price the options' priceFactors multiply: a number, or \"part\" for the base part's price" },
+        "round": { "type": "number", "exclusiveMinimum": 0, "description": "Rounded to a multiple of this" }
+      }
+    },
+    "groups": { "type": "object", "additionalProperties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/option" } } },
+    "skip": { "type": "array", "items": { "type": "object", "additionalProperties": { "type": "string" } }, "description": "Combinations not to make: each {group: key, …} matches every combination with those options" }
+  },
+  "$defs": {
+    "option": {
+      "type": "object", "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "name": { "type": "string", "description": "In the variant's name (default: the key)" },
+        "priceFactor": { "type": "number", "exclusiveMinimum": 0 },
+        "look": { "type": "object", "description": "Merged into the variant's look (finish, colour, materials)" },
+        "scale": { "anyOf": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number", "exclusiveMinimum": 0 } }], "description": "The model drawn this much bigger (look.scale)" },
+        "set": { "type": "object", "description": "Fields set on the variant, by path: { \"rim.diameter\": 17, \"provides\": [\"rim:17\"], \"tier\": \"sport\" }" },
+        "multiply": { "type": "object", "additionalProperties": { "type": "number" }, "description": "Number fields multiplied, by path: { \"mass\": 0.8, \"aero.liftCoefficient\": 1.2 }" }
+      }
+    }
+  }
+}

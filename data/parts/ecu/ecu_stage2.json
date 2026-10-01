@@ -1,0 +1,41 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/ecu_stage2.png",
+  "requires": [
+    ["slot:turbo", "slot:supercharger", "induction:turbo"]
+  ],
+  "conflicts": [],
+  "provides": [],
+  "id": "ecu_stage2",
+  "name": "Stage 2 ECU map (forced induction)",
+  "category": "ecu",
+  "slot": "ecu",
+  "tier": "sport",
+  "price": 950,
+  "mass": 1,
+  "fits": [],
+  "_note": "A map for a turbo engine: 0.05 bar more boost from 3500 rpm, and the stage 1 timing. Needs a turbo.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[2500, 0], [3500, 0.05], [7200, 0.05]],
+      "efficiency": 0.85
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.03,
+      "when": {
+        "rpm": [2500, 7200],
+        "fade": 500
+      }
+    },
+    {
+      "target": "engine.redlineRpm",
+      "op": "add",
+      "value": 200
+    }
+  ]
+}

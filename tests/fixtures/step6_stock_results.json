@@ -1,0 +1,46 @@
+{
+  "_note": "The stock starter car's Step 6 results at full precision (every test but the timing one): the stock car must keep giving exactly these. Re-recorded in Phase 2 Step 8 (the test driver learnt to lift off as the rear slides or the driven wheels spin), and again in Fixes and engine upgrades: (1) the auto-clutch no longer slips after a shift while the car's moving (it used to slip the 1st→2nd change like a CVT, holding the engine near its launch revs) and the stock gearbox changes gear in 0.2 s rather than 0.25, so clutch out, gear and clutch in take about 0.3 s: without the slipping clutch keeping the engine near peak power, 0–100 is 0.1 s slower (9.22 s), the quarter mile 0.07 s (16.82 s) and the lap 0.18 s (77.69 s); braking moves in the last digits (it drives up to speed first); (2) a car put down already moving (the skidpad and slalom start that way) now starts with its wheels turning and no parking hold (they used to start locked): skidpad 0.83716 g, slalom 8.70 s.",
+  "car": "starter_car",
+  "results": [
+    {
+      "id": "zeroTo100",
+      "value": 9.216666666666784,
+      "detail": "timed from the car moving off"
+    },
+    {
+      "id": "quarterMile",
+      "value": 16.824999999999687,
+      "detail": "crossing at 135 km/h"
+    },
+    {
+      "id": "braking",
+      "value": 41.130210493793186,
+      "detail": "discs warmed up to 159 °C"
+    },
+    {
+      "id": "skidpad",
+      "value": 0.8371603776224966,
+      "detail": "understeer at the limit (front / rear slip 92% / 61% of peak) · understeer gradient 1.3°/g · body roll 3.9°"
+    },
+    {
+      "id": "slalom",
+      "value": 8.7,
+      "detail": "clean at 53.8 km/h, cones at ±1.3 m"
+    },
+    {
+      "id": "topSpeed",
+      "value": 191.43265243842885,
+      "detail": "no longer gaining after 5.2 km, in gear 4 at 6686 rpm"
+    },
+    {
+      "id": "lap",
+      "value": 77.69166666667456,
+      "detail": "stayed on the road (at most 1.9 m off the centre line)"
+    },
+    {
+      "id": "framerate",
+      "value": 1,
+      "detail": "identical after 12 s (1440 steps, car 76.3 m from the start) at 30 fps, 60 fps, 144 fps, jittery 4–40 ms"
+    }
+  ]
+}

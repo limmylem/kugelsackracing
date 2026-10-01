@@ -1,0 +1,34 @@
+{
+  "id": "hana_roadster_gearbox",
+  "name": "5-speed manual (Hana Roadster, stock)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1500,
+  "mass": 34,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_gearbox.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std"],
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [3.14, 1.89, 1.33, 1, 0.81],
+    "reverse": 3.2,
+    "finalDrive": 4.3,
+    "shiftTime": 0.16,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7200,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6900,
+      "downLight": 1300,
+      "downFull": 3700,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "stock"
+}

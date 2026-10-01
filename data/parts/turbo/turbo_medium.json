@@ -1,0 +1,48 @@
+{
+  "id": "turbo_medium",
+  "name": "Medium turbo kit",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "price": 4200,
+  "mass": 26,
+  "model": "",
+  "icon": "assets/icons/parts/turbo_medium.png",
+  "fits": [],
+  "requires": ["slot:intercooler", "pistons:forged", "clutch_rating:sport"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+  "provides": ["forced_induction:turbo"],
+  "_note": "A medium turbo kit for any engine without one: more boost, later — it needs forged internals and a clutch to hold it.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[2000, 0], [3000, 0.12], [4000, 0.4], [5000, 0.72], [5500, 0.8], [6500, 0.8], [7200, 0.71]],
+      "efficiency": 0.85,
+      "max": 0.85
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "_note": "The turbo's whistle (testtrack/audio.js), only heard with it fitted: its pitch follows the shaft speed — the spool, which chases the boost this turbo's curve gives at the revs times how open the throttle is, spoolUp s to rise and spoolDown s to fall — from fromHz to toHz at full boost; its level (gain at full boost) follows the spool and the throttle, so it rises under throttle and fades off it; noise: how much rushing air there is round the tone, q how narrow it is.",
+    "whistle": {
+      "fromHz": 1700,
+      "toHz": 6000,
+      "gain": 0.065,
+      "noise": 0.55,
+      "q": 8,
+      "spoolUp": 0.8,
+      "spoolDown": 0.5
+    }
+  },
+  "bounds": {
+    "min": [-0.1, -0.1, -0.1],
+    "max": [0.1, 0.1, 0.1]
+  },
+  "hides": ["socket_intake"],
+  "tier": "race"
+}

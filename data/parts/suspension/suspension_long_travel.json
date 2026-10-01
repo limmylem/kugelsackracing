@@ -1,0 +1,28 @@
+{
+  "id": "suspension_long_travel",
+  "name": "Long-travel off-road suspension",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 1400,
+  "mass": 72,
+  "model": "",
+  "icon": "assets/icons/parts/suspension_long_travel.png",
+  "fits": ["chassis:offroad"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "offroad",
+  "_note": "Long travel, soft springs and a tall ride: it soaks up rough ground and keeps the wheels on it, and rolls more on the road.",
+  "suspension": {
+    "restLength": 0.42,
+    "travel": 0.36,
+    "stiffness": 19000,
+    "damping": 2400,
+    "antiRoll": {
+      "front": 6000,
+      "rear": 3000
+    }
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,99 @@
+{
+  "_note": "How a part's condition (0–100, on the owned part) scales what it does, by the part's category: each curve is [condition, factor] points (straight lines between), and the factor multiplies the target in the physics spec, applied after the modifiers. Condition 100 is always a factor of 1: a part in perfect condition is exactly as defined. A category with no entry doesn't wear (body panels, wheels). Tyres on several corners use their average condition. A curve with per: \"part\" goes by each part's own condition instead (a crumpled bumper, whatever the doors are like): each worn part's value, multiplied together, or with op: \"add\" added to the target (slots: only parts in those slots).",
+  "categories": {
+    "engine": [
+      {
+        "target": "engine.torqueCurve",
+        "curve": [[0, 0.72], [40, 0.88], [75, 0.97], [100, 1]],
+        "_note": "power loss: compression, worn rings and valves"
+      }
+    ],
+    "tyres": [
+      {
+        "target": "tyre.lateral.D",
+        "curve": [[0, 0.78], [30, 0.86], [60, 0.95], [100, 1]],
+        "_note": "grip loss: worn tread, hardened rubber"
+      },
+      {
+        "target": "tyre.longitudinal.D",
+        "curve": [[0, 0.8], [30, 0.87], [60, 0.95], [100, 1]]
+      }
+    ],
+    "brakes": [
+      {
+        "target": "brakes.fade.startTemp",
+        "curve": [[0, 0.4], [50, 0.72], [100, 1]],
+        "_note": "worn pads and glazed discs start to fade at a lower temperature, and fade fully sooner"
+      },
+      {
+        "target": "brakes.fade.fullTemp",
+        "curve": [[0, 0.55], [50, 0.8], [100, 1]]
+      }
+    ],
+    "suspension": [
+      {
+        "target": "suspension.damping",
+        "curve": [[0, 0.45], [50, 0.8], [100, 1]],
+        "_note": "tired dampers"
+      }
+    ],
+    "clutch": [
+      {
+        "target": "clutch.maxTorque",
+        "curve": [[0, 0.65], [50, 0.88], [100, 1]],
+        "_note": "a worn clutch slips sooner"
+      }
+    ],
+    "gearbox": [
+      {
+        "target": "gearbox.shiftTime",
+        "curve": [[0, 1.8], [50, 1.25], [100, 1]],
+        "_note": "worn synchros: slower shifts"
+      }
+    ],
+    "differential": [
+      {
+        "target": "differential.lock",
+        "curve": [[0, 0.5], [100, 1]],
+        "_note": "worn clutch plates lock less"
+      },
+      {
+        "target": "differential.preload",
+        "curve": [[0, 0.5], [100, 1]]
+      }
+    ],
+    "body": [
+      {
+        "target": "aero.dragCoefficient",
+        "per": "part",
+        "op": "add",
+        "curve": [[0, 0.012], [50, 0.004], [100, 0]],
+        "_note": "crumpled panels: each adds a little drag"
+      },
+      {
+        "target": "aero.front.liftCoefficient",
+        "per": "part",
+        "op": "add",
+        "slots": ["bumper_front", "bonnet", "fender_left", "fender_right"],
+        "curve": [[0, 0.03], [50, 0.01], [100, 0]],
+        "_note": "a smashed front lets air under and into it: more lift"
+      },
+      {
+        "target": "aero.rear.liftCoefficient",
+        "per": "part",
+        "op": "add",
+        "slots": ["bumper_rear", "boot"],
+        "curve": [[0, 0.02], [50, 0.006], [100, 0]]
+      }
+    ],
+    "aero": [
+      {
+        "target": "aero.dragCoefficient",
+        "per": "part",
+        "op": "add",
+        "curve": [[0, 0.01], [100, 0]],
+        "_note": "a broken wing or spoiler drags"
+      }
+    ]
+  }
+}

@@ -1,0 +1,258 @@
+{
+  "name": "Proving ground",
+  "_axes": "World frame: +y up; x and z are horizontal. Points are [x, z]. Metres and degrees.",
+  "terrain": {
+    "size": 1000,
+    "cells": 200,
+    "edgeFade": 80,
+    "colour": "#6f8a55",
+    "waves": [
+      {
+        "amp": 6,
+        "wavelength": 620,
+        "dirDeg": 20,
+        "phase": 0.3
+      },
+      {
+        "amp": 4,
+        "wavelength": 1050,
+        "dirDeg": 110,
+        "phase": 1.2
+      },
+      {
+        "amp": 1.6,
+        "wavelength": 260,
+        "dirDeg": 60,
+        "phase": 2.1
+      },
+      {
+        "amp": 1.2,
+        "wavelength": 180,
+        "dirDeg": 150,
+        "phase": 0.7
+      }
+    ],
+    "flat": [
+      {
+        "name": "start area",
+        "centre": [
+          20,
+          -60
+        ],
+        "inner": 90,
+        "outer": 170
+      },
+      {
+        "name": "skidpad",
+        "centre": [
+          170,
+          -30
+        ],
+        "inner": 60,
+        "outer": 120
+      }
+    ]
+  },
+  "surfaces": {
+    "tarmac": {
+      "grip": 1.0,
+      "rollingResistance": 0.012,
+      "sound": "tarmac"
+    },
+    "kerb": {
+      "grip": 0.95,
+      "rollingResistance": 0.015,
+      "sound": "tarmac"
+    },
+    "grass": {
+      "grip": 0.72,
+      "rollingResistance": 0.04,
+      "dust": "#7d7a55",
+      "marks": "#4a5330",
+      "sound": "gravel"
+    }
+  },
+  "offRoad": "grass",
+  "ground": {
+    "size": [
+      4000,
+      4000
+    ],
+    "thickness": 2,
+    "top": -0.3,
+    "colour": "#6f8a55"
+  },
+  "spawn": {
+    "position": [
+      0,
+      0,
+      -150
+    ],
+    "headingDeg": 0
+  },
+  "roads": [
+    {
+      "name": "Circuit",
+      "closed": true,
+      "width": 12,
+      "kerbCurvature": 0.012,
+      "startLine": [
+        0,
+        -120
+      ],
+      "points": [
+        [
+          0,
+          -250
+        ],
+        [
+          0,
+          -150
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          110
+        ],
+        [
+          0,
+          180
+        ],
+        [
+          -25,
+          270
+        ],
+        [
+          -110,
+          320
+        ],
+        [
+          -220,
+          300
+        ],
+        [
+          -300,
+          230
+        ],
+        [
+          -330,
+          140
+        ],
+        [
+          -300,
+          70
+        ],
+        [
+          -235,
+          50
+        ],
+        [
+          -195,
+          120
+        ],
+        [
+          -150,
+          215
+        ],
+        [
+          -80,
+          190
+        ],
+        [
+          -120,
+          40
+        ],
+        [
+          -110,
+          -40
+        ],
+        [
+          -150,
+          -120
+        ],
+        [
+          -230,
+          -170
+        ],
+        [
+          -280,
+          -250
+        ],
+        [
+          -240,
+          -340
+        ],
+        [
+          -140,
+          -370
+        ],
+        [
+          -60,
+          -340
+        ],
+        [
+          -30,
+          -300
+        ]
+      ],
+      "surface": "tarmac",
+      "kerbSurface": "kerb",
+      "kerbWidth": 1.2
+    }
+  ],
+  "paint": [
+    {
+      "type": "skidpad",
+      "centre": [
+        170,
+        -30
+      ],
+      "surfaceRadius": 45,
+      "ringRadius": 30
+    }
+  ],
+  "cone": {
+    "halfHeight": 0.35,
+    "radius": 0.16,
+    "mass": 3,
+    "friction": 0.8
+  },
+  "props": [
+    {
+      "type": "coneLine",
+      "name": "Slalom",
+      "start": [
+        40,
+        -170
+      ],
+      "count": 10,
+      "spacing": 15,
+      "headingDeg": 0
+    },
+    {
+      "type": "coneRing",
+      "name": "Skidpad markers",
+      "centre": [
+        170,
+        -30
+      ],
+      "radius": 24,
+      "count": 12
+    }
+  ],
+  "trees": {
+    "count": 450,
+    "seed": 7,
+    "roadClearance": 16,
+    "propClearance": 30,
+    "minSize": 0.8,
+    "maxSize": 1.4,
+    "coniferShare": 0.35,
+    "trunkRadius": 0.25,
+    "trunkHeight": 3
+  },
+  "objects": []
+}

@@ -1,0 +1,23 @@
+{
+  "id": "bucket_seat_race",
+  "name": "Carbon race bucket",
+  "category": "interior",
+  "slot": "seat",
+  "kind": "component",
+  "tier": "race",
+  "price": 1300,
+  "mass": 5,
+  "model": "",
+  "modelTodo": "A carbon race bucket: a deep one-piece shell with head wings and harness slots, about 50 × 95 × 72 cm.",
+  "icon": "assets/icons/parts/bucket_seat_race.png",
+  "fits": ["seat_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["seat:bucket"],
+  "_note": "A carbon race bucket: 10 kg lighter than a stock seat.",
+  "bounds": {
+    "min": [-0.25, 0, -0.48],
+    "max": [0.25, 0.95, 0.24]
+  },
+  "massOffset": [0, 0.4, -0.12]
+}

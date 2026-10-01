@@ -1,0 +1,35 @@
+{
+  "id": "ridgeback_4x4_lift_kit_4in",
+  "name": "4-inch lift kit (Ridgeback 4x4)",
+  "category": "suspension",
+  "slot": "lift_kit",
+  "kind": "modifier",
+  "tier": "sport",
+  "purpose": "offroad",
+  "price": 1600,
+  "mass": 26,
+  "model": "",
+  "modelTodo": "Ridgeback 4-inch lift kit: taller coil springs with 4-inch spacer blocks and longer shock absorbers at each corner (drawn as a frame the car's size under it).",
+  "icon": "assets/icons/parts/ridgeback_4x4_lift_kit_4in.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Raises the body 102 mm on the suspension (longer springs and spacers): more ground clearance, and room in the arches for bigger tyres — 35-inch (315/75 R17) with this one.",
+  "bounds": {
+    "min": [-0.75, -0.05, -1.4],
+    "max": [0.75, 0.05, 1.4]
+  },
+  "effects": [
+    {
+      "target": "suspension.restLength",
+      "op": "add",
+      "value": 0.1016
+    },
+    {
+      "target": "wheels.lift",
+      "op": "add",
+      "value": 0.1016
+    }
+  ]
+}

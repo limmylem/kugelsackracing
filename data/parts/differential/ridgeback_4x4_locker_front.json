@@ -1,0 +1,24 @@
+{
+  "id": "ridgeback_4x4_locker_front",
+  "name": "Front air locker (Ridgeback 4x4)",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "offroad",
+  "price": 1100,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_locker_front.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A selectable front locker: lock the front axle in 4H or 4L and both front wheels pull together.",
+  "frontDifferential": {
+    "type": "open",
+    "preload": 0,
+    "lock": 0,
+    "lockable": true
+  }
+}

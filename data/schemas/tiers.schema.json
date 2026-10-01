@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tiers.schema.json",
+  "title": "Upgrade tiers",
+  "description": "data/content/tiers.json: each tier's price band, and each slot's street price, key stat and the gain each tier gives it",
+  "type": "object",
+  "required": ["tiers", "slots"],
+  "patternProperties": { "^_": { "type": "string" } },
+  "additionalProperties": false,
+  "properties": {
+    "tiers": {
+      "type": "object", "required": ["stock", "street", "sport", "race"],
+      "additionalProperties": {
+        "type": "object", "required": ["label", "colour"], "additionalProperties": false,
+        "properties": { "label": { "type": "string" }, "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "about": { "type": "string" }, "price": { "$ref": "#/$defs/range" } }
+      }
+    },
+    "stats": { "type": "object", "additionalProperties": { "type": "string" } },
+    "slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["street", "stat"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+        "properties": {
+          "street": { "type": "number", "exclusiveMinimum": 0, "description": "A street part's price (each, for a set)" },
+          "stat": { "anyOf": [{ "type": "null" }, { "type": "string" }, { "type": "array", "items": { "type": "string" } }], "description": "The stat(s) a part in this slot is judged by (the best of them), or null: none" },
+          "gain": { "type": "object", "additionalProperties": { "$ref": "#/$defs/range" }, "description": "Per tier: the share of the stock value it improves the stat by" }
+        }
+      }
+    }
+  },
+  "$defs": { "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } } }
+}

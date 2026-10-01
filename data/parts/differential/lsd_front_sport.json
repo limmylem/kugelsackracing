@@ -1,0 +1,57 @@
+{
+  "id": "lsd_front_sport",
+  "name": "Front limited-slip differential",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "price": 1050,
+  "mass": 23,
+  "model": "",
+  "icon": "assets/icons/parts/lsd_front_sport.png",
+  "fits": [
+    ["front_diff:awd", "front_diff:4wd"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A limited-slip front diff: more drive out of corners with less wheelspin on the inside wheel, and less torque steer than an open diff.",
+  "frontDifferential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m). lockable: the driver can lock it (a selectable locker). torqueSteer: on a driven front axle, how much of the car's torque steer gets through.",
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.35,
+    "torqueSteer": 0.35
+  },
+  "tuning": {
+    "preload": {
+      "label": "preload",
+      "unit": "N·m",
+      "min": 0,
+      "max": 150,
+      "step": 5,
+      "default": 40,
+      "apply": [
+        {
+          "target": "frontDifferential.preload",
+          "op": "set"
+        }
+      ]
+    },
+    "lock": {
+      "label": "lock",
+      "unit": "%",
+      "min": 0,
+      "max": 70,
+      "step": 5,
+      "default": 35,
+      "apply": [
+        {
+          "target": "frontDifferential.lock",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    }
+  },
+  "tier": "sport"
+}

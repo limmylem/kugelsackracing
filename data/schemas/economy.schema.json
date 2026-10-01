@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "economy.schema.json",
+  "title": "Money in the game: starting money, selling and repairs",
+  "type": "object",
+  "required": ["currency", "startingMoney", "startingCar", "sell", "repair"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^_": {
+      "type": "string"
+    }
+  },
+  "properties": {
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startingMoney": {
+      "type": "number",
+      "minimum": 0
+    },
+    "startingCar": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "The car a new player has, with its stock parts"
+    },
+    "sell": {
+      "type": "object",
+      "required": ["ratio", "conditionCurve"],
+      "additionalProperties": false,
+      "properties": {
+        "ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Of the price, for a part in perfect condition"
+        },
+        "conditionCurve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "[condition, factor] points, condition rising"
+        }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "required": ["perPoint", "minimum"],
+      "additionalProperties": false,
+      "properties": {
+        "perPoint": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Of the price, for each point of condition put back"
+        },
+        "minimum": {
+          "type": "number",
+          "minimum": 0
+        },
+        "breakable": {
+          "type": "number",
+          "minimum": 0,
+          "description": "For each broken window or light the body shell's repair puts back"
+        },
+        "mechanical": {
+          "type": "number",
+          "minimum": 0,
+          "description": "A part with mechanical damage (garage/mechanical.js): this share of its price more to put right"
+        }
+      }
+    },
+    "carPrices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      },
+      "description": "A new car's price by its class (× the car's priceFactor)"
+    }
+  }
+}

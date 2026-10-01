@@ -1,0 +1,44 @@
+{
+  "_note": "Hana Roadster's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_hana_roadster.glb) when it's made.",
+  "paint": "#2f7fc1",
+  "style": "roadster",
+  "convertible": true,
+  "length": 3.95,
+  "width": 1.72,
+  "height": 1.23,
+  "clearance": 0.12,
+  "beltline": 0.85,
+  "frontAxle": 1.08,
+  "rearAxle": -1.23,
+  "track": 1.49,
+  "wheel": {
+    "radius": 0.301,
+    "rimDiameter": 16,
+    "width": 0.195
+  },
+  "bonnet": {
+    "rear": 0.35,
+    "front": 0.6,
+    "back": 0.82
+  },
+  "roof": {
+    "front": -0.1,
+    "rear": -0.85,
+    "height": 1.23
+  },
+  "deck": {
+    "front": -1.2,
+    "height": 0.86
+  },
+  "engine": {
+    "at": [0, 0.45, 0.92],
+    "size": [0.5, 0.55, 0.6]
+  },
+  "seatZ": -0.5,
+  "floor": 0.19,
+  "extraSockets": {
+    "socket_front_lip": [0, 0.14, 1.93],
+    "socket_widebody": [0, 0.65, 0]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_boot", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_roof", "socket_front_lip", "socket_widebody"]
+}

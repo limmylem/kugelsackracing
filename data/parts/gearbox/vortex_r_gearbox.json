@@ -1,0 +1,34 @@
+{
+  "id": "vortex_r_gearbox",
+  "name": "6-speed manual (Vortex R, stock)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1620,
+  "mass": 40,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_gearbox.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std"],
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [3.46, 2.05, 1.38, 1.03, 0.82, 0.69],
+    "reverse": 3.2,
+    "finalDrive": 3.94,
+    "shiftTime": 0.16,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 6700,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6400,
+      "downLight": 1300,
+      "downFull": 3450,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "stock"
+}

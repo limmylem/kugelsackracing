@@ -1,0 +1,36 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 360,
+  "mass": 11.05,
+  "toughness": 1,
+  "modelTodo": "A multi-spoke rim: ten thin spokes in pairs, a shallow dish, origin at the hub face; one model for every size (scaled).",
+  "fits": ["wheel_hub:std", "rim_fits:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:20"],
+  "rim": {
+    "diameter": 20,
+    "width": 9,
+    "offset": 35
+  },
+  "massOffset": [0.012, 0, 0],
+  "id": "rim_multispoke_20_silver",
+  "name": "20\" multi-spoke wheel, silver",
+  "model": "",
+  "icon": "assets/icons/parts/rim_multispoke_20_silver.png",
+  "variantOf": "rim_multispoke",
+  "look": {
+    "scale": [1.2, 1.176, 1.176],
+    "finish": "raw_metal",
+    "colour": "#c9ccd1"
+  },
+  "generated": {
+    "table": "rim_multispoke",
+    "key": "size=20,finish=silver"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_multispoke.json: change the table, not this file."
+}

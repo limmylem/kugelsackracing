@@ -1,0 +1,148 @@
+{
+  "_note": "The Apex V8's 4.0 L twin-turbo V8's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A flat-plane V8: even firing, high revving, a hard, rasping howl rather than a burble; its turbos whistle on top (the engine's turbo).",
+  "engine": "apex_v8_engine",
+  "cylinders": 8,
+  "layers": [
+    {
+      "band": "idle",
+      "rpm": 950,
+      "on": "assets/sounds/engines/v8_tt/rpm0950_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm0950_off.wav"
+    },
+    {
+      "band": "idle",
+      "rpm": 1250,
+      "on": "assets/sounds/engines/v8_tt/rpm1250_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm1250_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1600,
+      "on": "assets/sounds/engines/v8_tt/rpm1600_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm1600_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 2100,
+      "on": "assets/sounds/engines/v8_tt/rpm2100_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm2100_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 2750,
+      "on": "assets/sounds/engines/v8_tt/rpm2750_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm2750_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 3600,
+      "on": "assets/sounds/engines/v8_tt/rpm3600_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm3600_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 4700,
+      "on": "assets/sounds/engines/v8_tt/rpm4700_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm4700_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 6150,
+      "on": "assets/sounds/engines/v8_tt/rpm6150_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm6150_off.wav"
+    },
+    {
+      "band": "redline",
+      "rpm": 8000,
+      "on": "assets/sounds/engines/v8_tt/rpm8000_on.wav",
+      "off": "assets/sounds/engines/v8_tt/rpm8000_off.wav"
+    }
+  ],
+  "mix": {
+    "blend": 0.5,
+    "level": 0.48,
+    "idleLevel": 0.42,
+    "offLoadLevel": 0.6,
+    "curve": 1.3,
+    "load": [0.04, 0.55],
+    "toneHz": [1800, 11000],
+    "maxShift": 0.3
+  },
+  "intake": {
+    "file": "assets/sounds/engines/v8_tt/intake.wav",
+    "gain": 0.1,
+    "hz": [380, 1900],
+    "q": 0.9,
+    "throttle": [0.45, 1]
+  },
+  "shift": {
+    "file": "assets/sounds/engines/v8_tt/shift.wav",
+    "gain": 0.22
+  },
+  "limiter": {
+    "file": "assets/sounds/engines/v8_tt/limiter.wav",
+    "gain": 0.18,
+    "every": 0.06
+  },
+  "damage": {
+    "bang": "assets/sounds/engines/v8_tt/bang.wav",
+    "bangGain": 1,
+    "bent": "assets/sounds/engines/v8_tt/bent.wav",
+    "bentGain": 0.55,
+    "rough": 0.35
+  },
+  "synth": {
+    "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",
+    "seed": 40,
+    "sampleRate": 32000,
+    "length": 0.9,
+    "cylinders": [1, 0.95, 0.98, 0.93, 1.02, 0.96, 0.99, 0.94],
+    "jitter": 0.015,
+    "pulseRise": 0.0003,
+    "pulseDecay": 0.0018,
+    "noiseDecay": 0.0016,
+    "noise": [0.25, 0.8],
+    "direct": 0.2,
+    "highpass": 35,
+    "resonances": [
+      {
+        "name": "boom",
+        "hz": [110, 150],
+        "q": 1.2,
+        "gain": [0.5, 0.35],
+        "offLoad": 0.45
+      },
+      {
+        "name": "tone",
+        "hz": [380, 760],
+        "q": 1.5,
+        "gain": [1.6, 1],
+        "offLoad": 1
+      },
+      {
+        "name": "rasp",
+        "hz": [1400, 2800],
+        "q": 1.3,
+        "gain": [0.7, 1.2],
+        "offLoad": 0.2
+      },
+      {
+        "name": "edge",
+        "hz": [3500, 5200],
+        "q": 2,
+        "gain": [0.2, 0.6],
+        "offLoad": 0.03
+      }
+    ],
+    "clip": [0.5, 2.8],
+    "tone": [2600, 11000],
+    "rms": 0.21,
+    "offLoad": {
+      "pulse": 0.4,
+      "burble": 0.3,
+      "noise": 0.06,
+      "clip": 0.2,
+      "tone": [1200, 3200]
+    }
+  }
+}

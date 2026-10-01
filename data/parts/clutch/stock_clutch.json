@@ -1,0 +1,28 @@
+{
+  "id": "stock_clutch",
+  "name": "Single-plate clutch (stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 220,
+  "mass": 7,
+  "model": "",
+  "icon": "assets/icons/parts/stock_clutch.png",
+  "fits": ["clutch_spline:rs"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "_note": "Friction coupling between engine and gearbox: it holds up to maxTorque (N·m) when fully closed, less as it opens, and slips beyond that. engageTime / releaseTime: seconds to close / open fully. Below idle its grip eases off (antiStallRpm → idleRpm) so the engine doesn't stall. Auto-clutch (keyboard / gamepad; a clutch pedal input overrides it): pulling away it slips to hold the engine near an rpm rising with throttle up to auto.launchRpm (it carries the engine's torque plus inertia × holdRate × the rpm error, so the engine settles there), closes once the car is rolling (engine would be above idle + auto.engageAbove) and opens when slowing to a stop.",
+    "maxTorque": 240,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 600,
+    "auto": {
+      "launchRpm": 4000,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

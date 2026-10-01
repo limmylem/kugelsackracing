@@ -1,0 +1,1122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real World Drive</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc9f0; font-family: system-ui, -apple-system, sans-serif; }
+  canvas { display: block; }
+  .box { position: fixed; background: rgba(15, 20, 30, 0.72); color: #fff; border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  #panel { top: 12px; left: 12px; width: 300px; }
+  #search { display: flex; gap: 6px; }
+  #search input { flex: 1; padding: 7px 9px; border-radius: 6px; border: none; font-size: 14px; }
+  #search button, #presets button { padding: 7px 10px; border-radius: 6px; border: none; background: #e8433a; color: #fff; font-weight: 600; cursor: pointer; }
+  #presets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  #presets button { background: #334; font-weight: 500; font-size: 12px; padding: 5px 8px; }
+  #presets button:hover { background: #445; }
+  #status { margin-top: 8px; font-size: 13px; opacity: 0.85; }
+  #loading { margin-top: 4px; font-size: 12px; color: #ffd76a; min-height: 15px; }
+  #speed { bottom: 16px; right: 16px; font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #speed small { font-size: 14px; font-weight: 500; opacity: 0.7; }
+  #help { bottom: 16px; left: 12px; font-size: 12px; line-height: 1.6; }
+  #attr { position: fixed; bottom: 2px; right: 6px; font-size: 10px; color: #223; opacity: 0.7; }
+  #minimap { position: fixed; top: 12px; right: 12px; width: 200px; height: 200px; border-radius: 50%; border: 3px solid rgba(15, 20, 30, 0.72); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); cursor: pointer; background: #86a071; }
+  @media (max-width: 560px) { #minimap { top: auto; bottom: 110px; width: 140px; height: 140px; } }
+  kbd { background: #fff2; border-radius: 3px; padding: 0 4px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "pbf": "https://cdn.jsdelivr.net/npm/pbf@4/+esm",
+  "@mapbox/vector-tile": "https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2/+esm"
+} }
+</script>
+</head>
+<body>
+<div id="panel" class="box">
+  <form id="search"><input id="q" placeholder="Drive anywhere… (e.g. Rome)"><button>Go</button></form>
+  <div id="presets"></div>
+  <div id="status">Starting…</div>
+  <div id="loading"></div>
+</div>
+<canvas id="minimap" title="Click or press M to zoom"></canvas>
+<div id="speed" class="box">0 <small>km/h</small></div>
+<div id="help" class="box">
+  <kbd>W</kbd>/<kbd>↑</kbd> gas &nbsp; <kbd>S</kbd>/<kbd>↓</kbd> brake / reverse &nbsp; <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> steer<br>
+  <kbd>Space</kbd> handbrake &nbsp; <kbd>R</kbd> reset onto road &nbsp; <kbd>C</kbd> change camera &nbsp; <kbd>M</kbd> map zoom
+</div>
+<div id="attr">© OpenFreeMap © OpenMapTiles · Data © OpenStreetMap contributors</div>
+
+<script type="module">
+import * as THREE from 'three';
+import Pbf from 'pbf';
+import { VectorTile, classifyRings } from '@mapbox/vector-tile';
+import { modelRig, wheelTransform } from './physics/sockets.js';
+import { ModelCache, createCarVisual, setEnvironment, skyEnvironment } from './garage/visual.js';
+import { garageSession } from './garage/session.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ---------- Scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9cc9f0);
+scene.fog = new THREE.Fog(0x9cc9f0, 300, 1200);
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 4000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x667766, 1.2));
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
+sun.position.set(300, 500, 150);
+scene.add(sun);
+
+const world = new THREE.Group();
+scene.add(world);
+const buildingMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const roadMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+// Soft studio reflections for the car's paint and glass (only affects PBR materials)
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture;
+setEnvironment(skyEnvironment(renderer));   // (what chrome and metallic paint reflect)
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- Geo projection (local metres around origin) ----------
+let origin = { lat: 0, lon: 0 };
+const M_LAT = 110574;
+const mLon = () => 111320 * Math.cos(origin.lat * Math.PI / 180);
+const toXZ = (lat, lon) => [(lon - origin.lon) * mLon(), -(lat - origin.lat) * M_LAT];
+const toLatLon = (x, z) => ({ lat: origin.lat - z / M_LAT, lon: origin.lon + x / mLon() });
+
+// Web-mercator tiles at zoom 14 (~1.5–2.4 km across)
+const Z = 14, N = 2 ** Z;
+const lon2tx = lon => (lon + 180) / 360 * N;
+const lat2ty = lat => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * N; };
+const tx2lon = x => x / N * 360 - 180;
+const ty2lat = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / N))) * 180 / Math.PI;
+function tileKeyAt(x, z) {
+  const ll = toLatLon(x, z);
+  return Math.floor(lon2tx(ll.lon)) + '/' + Math.floor(lat2ty(ll.lat));
+}
+
+// ---------- Elevation (AWS Terrain Tiles, terrarium PNGs: 256×256 heights per tile) ----------
+const ELEV_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+async function decodeTerrarium(blob) {
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const cx = new OffscreenCanvas(256, 256).getContext('2d', { willReadFrequently: true });
+  cx.drawImage(bmp, 0, 0);
+  const px = cx.getImageData(0, 0, 256, 256).data, h = new Float32Array(65536);
+  // Sea-floor depths are flattened to sea level so coasts and harbours sit flat
+  for (let i = 0; i < 65536; i++) h[i] = Math.max(0, px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768);
+  return h;
+}
+// Height of one global pixel; falls back to the edge of `home` when the neighbouring tile isn't loaded
+function pixelH(x, y, home) {
+  let t = home;
+  if (x >> 8 !== home.tx || y >> 8 !== home.ty) {
+    const n = tiles.get((x >> 8) + '/' + (y >> 8));
+    if (n && n.heights) t = n;
+    else {
+      x = Math.min(Math.max(x, home.tx * 256), home.tx * 256 + 255);
+      y = Math.min(Math.max(y, home.ty * 256), home.ty * 256 + 255);
+    }
+  }
+  return t.heights[(y - t.ty * 256) * 256 + (x - t.tx * 256)];
+}
+// Bilinear height at global pixel coordinates (pixel centres sit at +0.5)
+function heightAtG(gx, gy, home) {
+  const fx = gx - 0.5, fy = gy - 0.5, ix = Math.floor(fx), iy = Math.floor(fy), ax = fx - ix, ay = fy - iy;
+  const a = pixelH(ix, iy, home), b = pixelH(ix + 1, iy, home), c = pixelH(ix, iy + 1, home), d = pixelH(ix + 1, iy + 1, home);
+  return (a * (1 - ax) + b * ax) * (1 - ay) + (c * (1 - ax) + d * ax) * ay;
+}
+// Terrain height (metres above sea level) at a world position, or null if not loaded yet
+function hAt(x, z, home) {
+  const ll = toLatLon(x, z), gx = lon2tx(ll.lon) * 256, gy = lat2ty(ll.lat) * 256;
+  home = home || tiles.get(Math.floor(gx / 256) + '/' + Math.floor(gy / 256));
+  return home && home.heights ? heightAtG(gx, gy, home) : null;
+}
+
+// ---------- Spatial grids (per tile) for collision + minimap ----------
+const GRID = 40;
+function addToGrid(grid, item) {
+  for (let i = Math.floor(item.minx / GRID); i <= Math.floor(item.maxx / GRID); i++)
+    for (let j = Math.floor(item.minz / GRID); j <= Math.floor(item.maxz / GRID); j++) {
+      const k = i + ',' + j;
+      let cell = grid.get(k);
+      if (!cell) grid.set(k, cell = []);
+      cell.push(item);
+    }
+}
+let stampCounter = 0;
+function forCells(grid, x0, z0, x1, z1, stamp, fn) {
+  for (let i = Math.floor(x0 / GRID); i <= Math.floor(x1 / GRID); i++)
+    for (let j = Math.floor(z0 / GRID); j <= Math.floor(z1 / GRID); j++) {
+      const cell = grid.get(i + ',' + j);
+      if (!cell) continue;
+      for (const it of cell) { if (it.stamp !== stamp) { it.stamp = stamp; fn(it); } }
+    }
+}
+function withBBox(item, rings) {
+  let minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+  for (const r of rings) for (const [x, z] of r) { minx = Math.min(minx, x); maxx = Math.max(maxx, x); minz = Math.min(minz, z); maxz = Math.max(maxz, z); }
+  return Object.assign(item, { rings, minx, maxx, minz, maxz });
+}
+function inside(rings, x, z) {
+  let c = false;
+  for (const a of rings)
+    for (let i = 0, j = a.length - 1; i < a.length; j = i++)
+      if ((a[i][1] > z) !== (a[j][1] > z) && x < (a[j][0] - a[i][0]) * (z - a[i][1]) / (a[j][1] - a[i][1]) + a[i][0]) c = !c;
+  return c;
+}
+function inBuilding(x, z) {
+  const t = tiles.get(tileKeyAt(x, z));
+  const cell = t && t.bgrid.get(Math.floor(x / GRID) + ',' + Math.floor(z / GRID));
+  if (!cell) return false;
+  for (const p of cell)
+    if (x >= p.minx && x <= p.maxx && z >= p.minz && z <= p.maxz && inside(p.rings, x, z)) return true;
+  return false;
+}
+function tilesInBox(x0, z0, x1, z1) {
+  const out = [];
+  for (const t of tiles.values()) if (t.x1 >= x0 && t.x0 <= x1 && t.z1 >= z0 && t.z0 <= z1) out.push(t);
+  return out;
+}
+
+// ---------- Styling ----------
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const pick = (arr, rnd) => arr[Math.floor(rnd() * arr.length)];
+
+// Rough regions, used for typical local wall/roof colours and road markings
+function regionOf(lat, lon) {
+  if (lat > 49.8 && lat < 61 && lon > -11 && lon < 2) return 'uk';
+  if (lat > 35 && lat < 72 && lon > -10 && lon < 40) return lat < 45 ? 'eu_south' : 'eu';
+  if (lat > 15 && lat < 72 && lon > -170 && lon < -50) return 'na';
+  if (lat > 20 && lat < 46 && lon > 100 && lon < 146) return 'asia';
+  if (lat < -10 && lon > 110) return 'aus';
+  return 'other';
+}
+let region = 'other';
+const PALETTES = {
+  uk:       { walls: ['#9c5a3c', '#a8664a', '#c9b48a', '#ece6da', '#b9a58c', '#8f5238', '#d8d2c4'], pitched: ['#5b5f66', '#6a4a3c', '#57534e', '#4a4d52'] },
+  eu:       { walls: ['#e8dfc9', '#d9c9a8', '#e3d2b0', '#eeeae2', '#c8c6c0', '#d8b27a', '#b87a5a'], pitched: ['#a9553c', '#b5654a', '#5b5f66', '#8c4a36'] },
+  eu_south: { walls: ['#e9dcc0', '#e0c9a0', '#d8b27a', '#f0ebe0', '#d9a77a', '#c8b8a0'], pitched: ['#b5654a', '#a9553c', '#c07050'] },
+  na:       { walls: ['#8e4b36', '#a05a44', '#c7b08c', '#b5b3ae', '#e7e4dc', '#7d6450', '#d0c4b0'], pitched: ['#5d5f63', '#6e6259', '#4d4f52', '#7a7068'] },
+  asia:     { walls: ['#e9e9e6', '#c9ccce', '#d8d0c0', '#a6a9ad', '#f0eee8', '#bfc4c8'], pitched: ['#4e5866', '#3f4650', '#5a5f66'] },
+  aus:      { walls: ['#d9b98a', '#a4583d', '#ece8df', '#c9b99f', '#b5b0a8'], pitched: ['#a9553c', '#8a9096', '#6f757c'] },
+  other:    { walls: ['#d9cbb3', '#c8c2b8', '#b9a58c', '#e3dccf', '#a8a8ad', '#c9b49a'], pitched: ['#8a5a44', '#6f6a66', '#a9553c'] },
+};
+const PITCHED_CHANCE = { uk: 0.9, eu: 0.85, eu_south: 0.85, na: 0.92, asia: 0.5, aus: 0.9, other: 0.6 };
+const TOWER_COLORS = ['#9fb4c7', '#8aa0b4', '#b7c6d3', '#c9d0d6', '#8fb0ae', '#a8b6c2'].map(c => new THREE.Color(c));
+const STONE = new THREE.Color('#d9ccb0');
+// Buildings containing one of these points of interest are treated as landmarks (plain stone, no office windows)
+const LANDMARK_POI = new Set(['attraction', 'museum', 'place_of_worship', 'town_hall', 'castle', 'monument', 'theatre', 'library']);
+const ROOF_GREY = new THREE.Color('#8f8f8a'), TOWER_ROOF = new THREE.Color('#8d9296');
+const paletteCache = {};
+const palette = kind => paletteCache[region + kind] || (paletteCache[region + kind] = PALETTES[region][kind].map(c => new THREE.Color(c)));
+const colourCache = new Map();
+function osmColour(s) {
+  if (!colourCache.has(s)) {
+    const k = s.toLowerCase(), ok = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(k) || k in THREE.Color.NAMES;
+    colourCache.set(s, ok ? new THREE.Color(k).multiplyScalar(0.92) : null);
+  }
+  return colourCache.get(s);
+}
+
+// [width m, colour, rank]
+const ROADS = {
+  motorway: [14, 0x3b3b40, 6], trunk: [13, 0x3e3e43, 5], primary: [12, 0x414146, 5], secondary: [10, 0x46464b, 4],
+  tertiary: [9, 0x4a4a4f, 3], raceway: [10, 0x46464b, 3], minor: [7, 0x505055, 2], busway: [7, 0x505055, 2],
+  service: [4.5, 0x5b5b60, 1], track: [3, 0x8f7e5c, 0], path: [2, 0xcbc2b0, 0],
+};
+const PATHS = { pedestrian: [5, 0xb8b0a2, 1], cycleway: [2, 0xa87b72, 0] };
+const AREAS = {
+  water: '#5c9bd1', park: '#7fae63', wood: '#5f8a4f', grass: '#8fb070', farmland: '#a9b87a',
+  sand: '#e0d3a4', wetland: '#7fa38a', ice: '#f0f4f7', rock: '#a9a39a',
+};
+const LANDUSE = {
+  residential: '#93a47f', commercial: '#a7a89c', retail: '#a7a89c', industrial: '#a39f95',
+  railway: '#a09c92', cemetery: '#86a574', pitch: '#79ad62', stadium: '#9aa58e',
+};
+const GROUND = '#86a071', PAVEMENT = '#aeaaa2';
+
+// ---------- Facades: tileable window patterns, tinted by each building's colour ----------
+// u/v = metres covered by one texture repeat (2 bays wide × 2 floors high)
+const FACADES = { tower: { u: 6, v: 7.2 }, block: { u: 6.8, v: 6.4 }, house: { u: 8, v: 6 }, plain: { u: 8, v: 8 } };
+function facadeMaterial(style) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const g = cv.getContext('2d'), rnd = mulberry32(style.length * 7919);
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, 256, 256);
+  for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
+    const x = bx * 128, y = by * 128, s = 38 + rnd() * 26;
+    const glass = `rgb(${s | 0},${(s + 14) | 0},${(s + 30) | 0})`;
+    if (style === 'tower') {        // curtain wall: nearly all glass, reflecting the sky
+      g.fillStyle = '#d5dbe0'; g.fillRect(x, y, 128, 128);
+      const sky = g.createLinearGradient(0, y + 22, 0, y + 126);
+      sky.addColorStop(0, `rgb(${s + 70 | 0},${s + 92 | 0},${s + 112 | 0})`);
+      sky.addColorStop(1, `rgb(${s + 20 | 0},${s + 36 | 0},${s + 56 | 0})`);
+      g.fillStyle = sky; g.fillRect(x + 3, y + 22, 122, 104);
+    } else if (style === 'block') { // punched windows with sills
+      g.fillStyle = glass; g.fillRect(x + 34, y + 26, 60, 70);
+      g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(x + 34, y + 26, 60, 18);
+      g.fillStyle = '#d6d6d6'; g.fillRect(x + 30, y + 96, 68, 6);
+    } else {                        // house: smaller framed windows
+      g.fillStyle = glass; g.fillRect(x + 42, y + 40, 44, 50);
+      g.fillStyle = '#f4f4f4'; g.fillRect(x + 62, y + 40, 4, 50); g.fillRect(x + 42, y + 62, 44, 4);
+      g.fillStyle = '#d6d6d6'; g.fillRect(x + 38, y + 90, 52, 5);
+    }
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = maxAniso;
+  return new THREE.MeshLambertMaterial({ map: t, vertexColors: true });
+}
+const wallMats = { tower: facadeMaterial('tower'), block: facadeMaterial('block'), house: facadeMaterial('house'), plain: buildingMat };
+
+// ---------- Trees: low-poly instanced models ----------
+const treeMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+function part(geo, hex, x, y, z) {
+  geo.deleteAttribute('uv');
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  geo.translate(x, y, z);
+  const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return geo;
+}
+const TREES = {
+  broadleaf: mergeGeometries([
+    part(new THREE.CylinderGeometry(0.13, 0.2, 2.6, 5), '#6b4a2f', 0, 1.3, 0),
+    part(new THREE.IcosahedronGeometry(1.9, 0).scale(1, 1.15, 1), '#557f3c', 0, 3.9, 0),
+    part(new THREE.IcosahedronGeometry(1.25, 0), '#5f8a44', 0.8, 4.9, 0.3),
+  ]),
+  conifer: mergeGeometries([
+    part(new THREE.CylinderGeometry(0.12, 0.18, 1.6, 5), '#5e4128', 0, 0.8, 0),
+    part(new THREE.ConeGeometry(1.8, 3.2, 7), '#2f5d3a', 0, 3.0, 0),
+    part(new THREE.ConeGeometry(1.3, 2.6, 7), '#34663f', 0, 4.6, 0),
+  ]),
+  palm: mergeGeometries([
+    part(new THREE.CylinderGeometry(0.14, 0.22, 7, 5), '#8a7055', 0, 3.5, 0),
+    part(new THREE.ConeGeometry(2.6, 0.9, 7), '#4f8a3a', 0, 7.2, 0),
+  ]),
+};
+const TREE_SPACING = { wood: 13, park: 17, grass: 34, residential: 24 };
+
+// ---------- Geometry buffers ----------
+const newBuf = () => ({ pos: [], nrm: [], col: [], uv: [] });
+function flush(buf, group, mat) {
+  if (!buf.pos.length) return;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(buf.col, 3));
+  if (buf.nrm.length) g.setAttribute('normal', new THREE.Float32BufferAttribute(buf.nrm, 3));
+  if (buf.uv.length) g.setAttribute('uv', new THREE.Float32BufferAttribute(buf.uv, 2));
+  group.add(new THREE.Mesh(g, mat));
+  buf.pos = []; buf.nrm = []; buf.col = []; buf.uv = [];
+}
+function triangulate(rings) {
+  const v = rings.map(r => r.map(([x, z]) => new THREE.Vector2(x, z)));
+  return { verts: v.flat(), tris: THREE.ShapeUtils.triangulateShape(v[0], v.slice(1)) };
+}
+function ringArea(r) {
+  let a = 0;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += r[j][0] * r[i][1] - r[i][0] * r[j][1];
+  return a;
+}
+
+// Walls from y0 up to tops[i] at each ring vertex, facing away from the building material,
+// with facade UVs measured in metres along the wall and up from the ground
+function pushWalls(buf, ring, hole, y0, tops, c, base, style) {
+  const f = FACADES[style], s = Math.sign(ringArea(ring)) * (hole ? -1 : 1);
+  let run = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const j = (i + 1) % ring.length, [ax, az] = ring[i], [bx, bz] = ring[j];
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+    if (len < 0.01) continue;
+    const nx = s * dz / len, nz = -s * dx / len, u0 = run / f.u, u1 = (run + len) / f.u;
+    run += len;
+    const A0 = [ax, y0, az, u0], B0 = [bx, y0, bz, u1], B1 = [bx, tops[j], bz, u1], A1 = [ax, tops[i], az, u0];
+    // (A0,B0,B1) has normal (-dz, 0, dx); flip the winding when that points inward
+    const q = -dz * nx + dx * nz < 0 ? [A0, B1, B0, A0, A1, B1] : [A0, B0, B1, A0, B1, A1];
+    for (const [x, y, z, u] of q) {
+      buf.pos.push(x, y, z); buf.nrm.push(nx, 0, nz); buf.col.push(c.r, c.g, c.b); buf.uv.push(u, (y - base) / f.v);
+    }
+  }
+}
+function pushFlatRoof(buf, rings, y, c) {
+  const { verts, tris } = triangulate(rings);
+  for (const [a, b, d] of tris) {
+    const A = verts[a], B = verts[b], D = verts[d];
+    const up = (B.y - A.y) * (D.x - A.x) - (B.x - A.x) * (D.y - A.y) > 0;
+    for (const V of up ? [A, B, D] : [A, D, B]) { buf.pos.push(V.x, y, V.y); buf.nrm.push(0, 1, 0); buf.col.push(c.r, c.g, c.b); }
+  }
+}
+// Gabled roof for small, roughly rectangular footprints: the ridge runs along the long axis of
+// the tightest bounding box, and the footprint is split along it into two sloping halves
+function gable(ring) {
+  const area = Math.abs(ringArea(ring)) / 2;
+  if (area < 30 || area > 450 || ring.length > 14) return null;
+  let o = null;
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, az] = ring[i], [bx, bz] = ring[(i + 1) % ring.length], len = Math.hypot(bx - ax, bz - az);
+    if (len < 0.5) continue;
+    const ux = (bx - ax) / len, uz = (bz - az) / len;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, z] of ring) {
+      const a = x * ux + z * uz, b = z * ux - x * uz;
+      a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b);
+    }
+    const box = (a1 - a0) * (b1 - b0);
+    if (!o || box < o.box) o = { box, ux, uz, a0, a1, b0, b1 };
+  }
+  if (!o || area / o.box < 0.85) return null;
+  const long = o.a1 - o.a0 >= o.b1 - o.b0;
+  const hw = (long ? o.b1 - o.b0 : o.a1 - o.a0) / 2, mid = long ? (o.b0 + o.b1) / 2 : (o.a0 + o.a1) / 2;
+  const d = ([x, z]) => (long ? z * o.ux - x * o.uz : x * o.ux + z * o.uz) - mid;
+  const pts = [];
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length], da = d(a), db = d(b);
+    pts.push({ p: a, d: da });
+    if (da * db < 0) { const t = da / (da - db); pts.push({ p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], d: 0 }); }
+  }
+  return { pts, hw };
+}
+function pushGableRoof(buf, g, roofY, c) {
+  for (const half of [g.pts.filter(q => q.d >= -1e-6), g.pts.filter(q => q.d <= 1e-6)]) {
+    if (half.length < 3) continue;
+    for (const t of triangulate([half.map(q => q.p)]).tris) {
+      const P = t.map(k => [half[k].p[0], roofY(half[k]), half[k].p[1]]);
+      const e1 = [0, 1, 2].map(i => P[1][i] - P[0][i]), e2 = [0, 1, 2].map(i => P[2][i] - P[0][i]);
+      let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      if (n[1] < 0) { P.reverse(); n = n.map(v => -v); }
+      const l = Math.hypot(...n) || 1;
+      for (const v of P) { buf.pos.push(v[0], v[1], v[2]); buf.nrm.push(n[0] / l, n[1] / l, n[2] / l); buf.col.push(c.r, c.g, c.b); }
+    }
+  }
+}
+
+// Road ribbon draped over the terrain: sampled every ~6 m along, and at both edges across
+function pushRoad(buf, tile, pts, w, c, rank) {
+  const lift = 0.35 + rank * 0.03, hw = w / 2, e = hw * 0.9;
+  const edge = (x, z) => [x, hAt(x, z, tile) + lift, z];
+  const dashes = rank >= 3 && { next: 0, c: region === 'na' ? LINE_YELLOW : LINE_WHITE };
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+    if (len < 0.01) continue;
+    const ux = dx / len, uz = dz / len, nx = -uz * hw, nz = ux * hw;
+    const steps = Math.max(1, Math.ceil((len + 2 * e) / 6));
+    let L0 = null, R0 = null;
+    for (let k = 0; k <= steps; k++) {
+      const s = -e + (len + 2 * e) * k / steps, cx = ax + ux * s, cz = az + uz * s;
+      const L1 = edge(cx + nx, cz + nz), R1 = edge(cx - nx, cz - nz);
+      if (L0) for (const v of [L0, R0, R1, L0, R1, L1]) { buf.pos.push(v[0], v[1], v[2]); buf.col.push(c.r, c.g, c.b); }
+      L0 = L1; R0 = R1;
+    }
+    // Dashed centre line (3 m dashes, 6 m gaps), continuing its rhythm across segments
+    if (dashes) {
+      let t = dashes.next;
+      for (; t < len; t += 9) {
+        const t0 = Math.max(t, 0), t1 = Math.min(t + 3, len);
+        if (t1 - t0 < 0.3) continue;
+        const px = -uz * 0.09, pz = ux * 0.09;
+        const S = [ax + ux * t0, az + uz * t0], E = [ax + ux * t1, az + uz * t1];
+        const ys = hAt(S[0], S[1], tile) + lift + 0.04, ye = hAt(E[0], E[1], tile) + lift + 0.04;
+        const q = [[S[0] + px, ys, S[1] + pz], [S[0] - px, ys, S[1] - pz], [E[0] - px, ye, E[1] - pz], [E[0] + px, ye, E[1] + pz]];
+        for (const k of [0, 1, 2, 0, 2, 3]) { buf.pos.push(...q[k]); buf.col.push(dashes.c.r, dashes.c.g, dashes.c.b); }
+      }
+      dashes.next = t - len;
+    }
+    const seg = { ax, az, bx, bz, rank, w, minx: Math.min(ax, bx), maxx: Math.max(ax, bx), minz: Math.min(az, bz), maxz: Math.max(az, bz) };
+    addToGrid(tile.rgrid, seg);
+    tile.segs.push(seg);
+  }
+}
+const LINE_WHITE = new THREE.Color('#eeeeea'), LINE_YELLOW = new THREE.Color('#e0b93a');
+
+// ---------- Tile building (time-sliced generator) ----------
+function* buildTile(tile, vt) {
+  const layers = vt ? vt.layers : {};
+  const toW = (p, ext) => toXZ(ty2lat(tile.ty + p.y / ext), tx2lon(tile.tx + p.x / ext));
+  const polygons = (geom, ext) => classifyRings(geom).map(poly => poly.map(ring => {
+    const r = ring.map(p => toW(p, ext));
+    if (r.length > 1 && r[0][0] === r.at(-1)[0] && r[0][1] === r.at(-1)[1]) r.pop();
+    return r;
+  }).filter(r => r.length >= 3)).filter(p => p.length);
+  tile.areas = [];
+  tile.segs = [];
+
+  // 1. Ground texture painted onto a canvas: land use, paved city blocks, land cover, parks, water
+  const TEX = 1024, canvas = document.createElement('canvas');
+  canvas.width = canvas.height = TEX;
+  const g2 = canvas.getContext('2d'), mPerPx = (tile.x1 - tile.x0) / TEX;
+  g2.fillStyle = GROUND;
+  g2.fillRect(0, 0, TEX, TEX);
+  const toPath = (geom, k) => {
+    const path = new Path2D();
+    for (const ring of geom) {
+      ring.forEach((p, n) => n ? path.lineTo(p.x * k, p.y * k) : path.moveTo(p.x * k, p.y * k));
+      path.closePath();
+    }
+    return path;
+  };
+  const lu = layers.landuse;
+  for (let i = 0; lu && i < lu.length; i++) {
+    const f = lu.feature(i), cls = f.properties.class, css = f.type === 3 && LANDUSE[cls];
+    if (!css) continue;
+    const geom = f.loadGeometry();
+    g2.fillStyle = css;
+    g2.fill(toPath(geom, TEX / f.extent), 'evenodd');
+    if (cls === 'residential') for (const rings of polygons(geom, f.extent)) tile.areas.push(withBBox({ kind: 'residential' }, rings));
+    yield;
+  }
+  // Pave the ground around buildings: whole streets between city blocks, just a path round houses
+  const bl = layers.building;
+  g2.fillStyle = g2.strokeStyle = PAVEMENT;
+  g2.lineJoin = 'round';
+  for (let i = 0; bl && i < bl.length; i++) {
+    const f = bl.feature(i), p = f.properties;
+    if (f.type !== 3 || (p.render_min_height || 0) > 0) continue;
+    const geom = f.loadGeometry(), k = TEX / f.extent;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const pt of geom[0]) { x0 = Math.min(x0, pt.x); x1 = Math.max(x1, pt.x); y0 = Math.min(y0, pt.y); y1 = Math.max(y1, pt.y); }
+    const city = (p.render_height || 0) >= 12 || Math.max(x1 - x0, y1 - y0) * k * mPerPx >= 45;
+    g2.lineWidth = (city ? 18 : 4) / mPerPx;
+    const path = toPath(geom, k);
+    g2.stroke(path);
+    g2.fill(path);
+    if (i % 100 === 0) yield;
+  }
+  for (const name of ['landcover', 'park', 'water']) {
+    const layer = layers[name];
+    for (let i = 0; layer && i < layer.length; i++) {
+      const f = layer.feature(i), p = f.properties;
+      const css = f.type === 3 && AREAS[name === 'landcover' ? p.class : name];
+      if (!css) continue;
+      const geom = f.loadGeometry();
+      g2.fillStyle = css;
+      g2.fill(toPath(geom, TEX / f.extent), 'evenodd');
+      const kind = p.class === 'wood' ? 'wood' : p.class === 'grass' ? (p.subclass === 'park' || p.subclass === 'garden' ? 'park' : 'grass') : null;
+      for (const rings of polygons(geom, f.extent)) {
+        addToGrid(tile.agrid, withBBox({ css, water: name === 'water' }, rings));
+        if (kind && name === 'landcover') tile.areas.push(withBBox({ kind }, rings));
+      }
+      yield;
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAniso;
+
+  // 2. Terrain mesh: one vertex per elevation pixel corner, plus skirts to hide seams between tiles
+  const S = 256, V = S + 1;
+  const xs = new Float64Array(V), zs = new Float64Array(V), H = new Float32Array(V * V);
+  for (let i = 0; i < V; i++) {
+    xs[i] = toXZ(origin.lat, tx2lon(tile.tx + i / S))[0];
+    zs[i] = toXZ(ty2lat(tile.ty + i / S), origin.lon)[1];
+  }
+  for (let j = 0; j < V; j++) {
+    for (let i = 0; i < V; i++) H[j * V + i] = heightAtG(tile.tx * S + i, tile.ty * S + j, tile);
+    if (j % 32 === 0) yield;
+  }
+  const nV = V * V + 4 * V;
+  const pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2);
+  for (let j = 0; j < V; j++) {
+    for (let i = 0; i < V; i++) {
+      const k = j * V + i, i0 = Math.max(i - 1, 0), i1 = Math.min(i + 1, S), j0 = Math.max(j - 1, 0), j1 = Math.min(j + 1, S);
+      const sx = (H[j * V + i1] - H[j * V + i0]) / (xs[i1] - xs[i0]), sz = (H[j1 * V + i] - H[j0 * V + i]) / (zs[j1] - zs[j0]);
+      const inv = 1 / Math.hypot(sx, 1, sz);
+      pos[k * 3] = xs[i]; pos[k * 3 + 1] = H[k]; pos[k * 3 + 2] = zs[j];
+      nrm[k * 3] = -sx * inv; nrm[k * 3 + 1] = inv; nrm[k * 3 + 2] = -sz * inv;
+      uv[k * 2] = i / S; uv[k * 2 + 1] = 1 - j / S;
+    }
+    if (j % 64 === 0) yield;
+  }
+  const idx = new Uint32Array(S * S * 6 + 4 * S * 6);
+  let n = 0;
+  for (let j = 0; j < S; j++)
+    for (let i = 0; i < S; i++) {
+      const a = j * V + i, b = a + 1, c = a + V, d = c + 1;
+      idx[n++] = a; idx[n++] = c; idx[n++] = b; idx[n++] = b; idx[n++] = c; idx[n++] = d;
+    }
+  const edges = [i => i, i => S * V + i, j => j * V, j => j * V + S];
+  edges.forEach((gi, e) => {
+    const base = V * V + e * V;
+    for (let m = 0; m < V; m++) {
+      const g = gi(m), s = base + m;
+      pos[s * 3] = pos[g * 3]; pos[s * 3 + 1] = pos[g * 3 + 1] - 40; pos[s * 3 + 2] = pos[g * 3 + 2];
+      nrm[s * 3] = nrm[g * 3]; nrm[s * 3 + 1] = nrm[g * 3 + 1]; nrm[s * 3 + 2] = nrm[g * 3 + 2];
+      uv[s * 2] = uv[g * 2]; uv[s * 2 + 1] = uv[g * 2 + 1];
+      if (m < S) { idx[n++] = g; idx[n++] = gi(m + 1); idx[n++] = s; idx[n++] = gi(m + 1); idx[n++] = s + 1; idx[n++] = s; }
+    }
+  });
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  tg.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  tg.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  tg.setIndex(new THREE.BufferAttribute(idx, 1));
+  const terrain = new THREE.Mesh(tg, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
+  terrain.userData.ownsMaterial = true;
+  tile.group.add(terrain);
+  yield;
+
+  // 3. Roads
+  const roads = newBuf(), tr = layers.transportation;
+  for (let i = 0; tr && i < tr.length; i++) {
+    const f = tr.feature(i), p = f.properties;
+    if (f.type !== 2 || p.brunnel === 'tunnel') continue;
+    const style = (p.class === 'path' && PATHS[p.subclass]) || ROADS[p.class];
+    if (!style) continue;
+    const c = new THREE.Color(style[1]);
+    for (const line of f.loadGeometry()) pushRoad(roads, tile, line.map(pt => toW(pt, f.extent)), style[0], c, style[2]);
+    yield;
+  }
+  flush(roads, tile.group, roadMat);
+  tile.roadsDone = true;
+
+  // 4. Buildings on the lowest ground under their footprint, nearest to the car first.
+  //    Real OSM colours where mapped, otherwise typical local ones; window style by building type.
+  const landmarks = new Map(), poi = layers.poi;
+  for (let i = 0; poi && i < poi.length; i++) {
+    const f = poi.feature(i);
+    if (f.type !== 1 || !LANDMARK_POI.has(f.properties.class)) continue;
+    const [x, z] = toW(f.loadGeometry()[0][0], f.extent), k = Math.floor(x / GRID) + ',' + Math.floor(z / GRID);
+    if (!landmarks.has(k)) landmarks.set(k, []);
+    landmarks.get(k).push([x, z]);
+  }
+  const isLandmark = rings => {
+    const r = withBBox({}, rings);
+    for (let gx = Math.floor(r.minx / GRID); gx <= Math.floor(r.maxx / GRID); gx++)
+      for (let gz = Math.floor(r.minz / GRID); gz <= Math.floor(r.maxz / GRID); gz++)
+        for (const [x, z] of landmarks.get(gx + ',' + gz) || []) if (inside(rings, x, z)) return true;
+    return false;
+  };
+  const items = [];
+  for (let i = 0; bl && i < bl.length; i++) {
+    const f = bl.feature(i), p = f.properties;
+    if (f.type !== 3 || p.hide_3d) continue;
+    const h0 = p.render_min_height || 0, h1 = Math.max(p.render_height || 0, h0 + 3);
+    const id = (f.id || i) % 2147483647, rnd = mulberry32(id);
+    const osm = p.colour && osmColour(p.colour);
+    const glassy = c => c.b > c.r * 1.05 || c.r + c.g + c.b < 0.9;
+    // Raised parts of landmarks (towers, spires, domes) stay plain; tall glassy buildings get curtain walls
+    const style = h0 > 0 && (osm || h1 - h0 < 12) ? 'plain'
+      : h1 >= 40 && (!osm || glassy(osm)) ? 'tower' : h1 >= 10 ? 'block' : 'house';
+    for (const rings of polygons(f.loadGeometry(), f.extent)) {
+      const landmark = h0 === 0 && landmarks.size && isLandmark(rings);
+      const st = landmark ? 'plain' : style;
+      const wall = osm || (landmark ? STONE : st === 'tower' ? pick(TOWER_COLORS, rnd) : pick(palette('walls'), rnd));
+      let base = Infinity;
+      for (const [x, z] of rings[0]) base = Math.min(base, hAt(x, z, tile));
+      const [x, z] = rings[0][0];
+      items.push({ rings, h0, base, y0: base + h0, y1: base + h1, style: st, wall, rnd, d: Math.hypot(x - car.x, z - car.z) });
+    }
+    if (i % 50 === 0) yield;
+  }
+  items.sort((a, b) => a.d - b.d);
+  const walls = { tower: newBuf(), block: newBuf(), house: newBuf(), plain: newBuf() }, roofs = newBuf();
+  const flushAll = () => { for (const s in walls) flush(walls[s], tile.group, wallMats[s]); flush(roofs, tile.group, buildingMat); };
+  for (let i = 0; i < items.length; i++) {
+    const b = items[i];
+    try {
+      const g = b.style === 'house' && b.h0 === 0 && b.rings.length === 1 && b.rnd() < PITCHED_CHANCE[region] && gable(b.rings[0]);
+      if (g) {
+        const rise = Math.min(g.hw * 0.7, 4), roofY = q => b.y1 + rise * (1 - Math.min(1, Math.abs(q.d) / g.hw));
+        pushWalls(walls.house, g.pts.map(q => q.p), false, b.y0, g.pts.map(roofY), b.wall, b.base, 'house');
+        pushGableRoof(roofs, g, roofY, pick(palette('pitched'), b.rnd));
+      } else {
+        b.rings.forEach((ring, ri) => pushWalls(walls[b.style], ring, ri > 0, b.y0, ring.map(() => b.y1), b.wall, b.base, b.style));
+        pushFlatRoof(roofs, b.rings, b.y1, b.style === 'tower' ? TOWER_ROOF : b.wall.clone().lerp(ROOF_GREY, 0.55));
+      }
+    } catch (e) { continue; }
+    if (b.h0 < 2) addToGrid(tile.bgrid, withBBox({}, b.rings));
+    if (roofs.pos.length > 200000) flushAll();
+    yield;
+  }
+  flushAll();
+
+  // 5. Trees
+  yield* plantTrees(tile);
+  tile.state = 'ready';
+}
+
+// Scatter trees through woods, parks, lawns and gardens, and line city streets.
+// Positions are seeded per tile, so the same place always gets the same trees.
+function* plantTrees(tile) {
+  const rnd = mulberry32(tile.tx * 73856093 ^ tile.ty * 19349663), lat = Math.abs(origin.lat);
+  const out = { broadleaf: [], conifer: [], palm: [] };
+  let count = 0;
+  const cellOf = (grid, x, z) => grid.get(Math.floor(x / GRID) + ',' + Math.floor(z / GRID)) || [];
+  const inBuildingT = (x, z) => cellOf(tile.bgrid, x, z).some(p => x >= p.minx && x <= p.maxx && z >= p.minz && z <= p.maxz && inside(p.rings, x, z));
+  const blocked = (x, z) => {
+    if (x < tile.x0 || x >= tile.x1 || z < tile.z0 || z >= tile.z1) return true; // neighbours plant their own
+    for (const [ox, oz] of [[0, 0], [2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5]]) if (inBuildingT(x + ox, z + oz)) return true;
+    for (const s of cellOf(tile.rgrid, x, z)) {
+      const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz || 1;
+      const k = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / l2));
+      if (Math.hypot(s.ax + k * dx - x, s.az + k * dz - z) < s.w / 2 + 1.5) return true;
+    }
+    return cellOf(tile.agrid, x, z).some(a => a.water && inside(a.rings, x, z));
+  };
+  const plant = (x, z, where) => {
+    if (count >= 25000 || blocked(x, z)) return;
+    const y = hAt(x, z, tile);
+    // Pines on mountains and in the far north, palms in warm lowlands
+    const conifer = Math.min(0.95, Math.max(where === 'wood' ? 0.15 : 0.04, (y - 500) / 700 + (lat > 55 ? 0.5 : 0)));
+    const kind = lat < 33 && y < 300 && where !== 'wood' && rnd() < 0.35 ? 'palm' : rnd() < conifer ? 'conifer' : 'broadleaf';
+    out[kind].push(x, y, z, 0.75 + rnd() * 0.6, rnd() * Math.PI * 2, rnd());
+    count++;
+  };
+  for (const a of tile.areas) {
+    const s = TREE_SPACING[a.kind];
+    for (let x = Math.max(a.minx, tile.x0) + rnd() * s; x < Math.min(a.maxx, tile.x1); x += s) {
+      for (let z = Math.max(a.minz, tile.z0) + rnd() * s; z < Math.min(a.maxz, tile.z1); z += s) {
+        const px = x + (rnd() - 0.5) * s * 0.8, pz = z + (rnd() - 0.5) * s * 0.8;
+        if (inside(a.rings, px, pz)) plant(px, pz, a.kind);
+      }
+      yield;
+    }
+  }
+  // Street trees along ordinary city streets (only where there are buildings nearby)
+  for (let i = 0; i < tile.segs.length; i++) {
+    const s = tile.segs[i];
+    if (s.rank < 2 || s.rank > 4) continue;
+    const dx = s.bx - s.ax, dz = s.bz - s.az, len = Math.hypot(dx, dz), ux = dx / len, uz = dz / len, off = s.w / 2 + 2.2;
+    for (let t = rnd() * 13; t < len; t += 13)
+      for (const side of [1, -1]) {
+        const px = s.ax + ux * t - uz * off * side, pz = s.az + uz * t + ux * off * side;
+        if (rnd() < 0.3 || cellOf(tile.bgrid, px, pz).length < 2) continue;
+        plant(px, pz, 'street');
+      }
+    if (i % 20 === 0) yield;
+  }
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
+  for (const kind in out) {
+    const a = out[kind], n = a.length / 6;
+    if (!n) continue;
+    const mesh = new THREE.InstancedMesh(TREES[kind], treeMat, n);
+    for (let k = 0; k < n; k++) {
+      const [x, y, z, s, rot, shade] = a.slice(k * 6, k * 6 + 6);
+      mesh.setMatrixAt(k, m.compose(p.set(x, y - 0.3, z), q.setFromAxisAngle(up, rot), sc.set(s, s * (0.85 + shade * 0.3), s)));
+      mesh.setColorAt(k, col.setRGB(0.75 + shade * 0.25, 0.8 + shade * 0.2, 0.72 + shade * 0.2));
+    }
+    mesh.computeBoundingSphere();
+    tile.group.add(mesh);
+    yield;
+  }
+}
+
+let jobs = [];
+function runJobs(budgetMs) {
+  const end = performance.now() + budgetMs;
+  const dist = t => Math.hypot(t.cx - car.x, t.cz - car.z);
+  jobs.sort((a, b) => dist(a.tile) - dist(b.tile));
+  while (jobs.length && performance.now() < end) {
+    const job = jobs[0];
+    let r;
+    do { r = job.gen.next(); } while (!r.done && performance.now() < end);
+    if (r.done) jobs.shift();
+  }
+}
+
+// ---------- Tile streaming ----------
+const LOAD_RADIUS = 1300, UNLOAD_RADIUS = 3200, MAX_FETCH = 4;
+let tiles = new Map(), fetching = 0, tileUrl = null;
+
+async function getTileUrl() {
+  while (!tileUrl) {
+    try {
+      const r = await fetch('https://tiles.openfreemap.org/planet');
+      tileUrl = (await r.json()).tiles[0];
+    } catch (e) { await new Promise(r => setTimeout(r, 2000)); }
+  }
+}
+getTileUrl();
+
+function makeTile(tx, ty) {
+  const [x0, z0] = toXZ(ty2lat(ty), tx2lon(tx)), [x1, z1] = toXZ(ty2lat(ty + 1), tx2lon(tx + 1));
+  const group = new THREE.Group();
+  world.add(group);
+  return { key: tx + '/' + ty, tx, ty, x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
+    group, bgrid: new Map(), rgrid: new Map(), agrid: new Map(), state: 'new', roadsDone: false, retryAt: 0 };
+}
+function disposeTile(t) {
+  t.group.traverse(o => {
+    if (o.isInstancedMesh) return o.dispose(); // tree models are shared; only free the instance data
+    if (o.geometry) o.geometry.dispose();
+    if (o.userData.ownsMaterial) { o.material.map.dispose(); o.material.dispose(); }
+  });
+  world.remove(t.group);
+  tiles.delete(t.key);
+  jobs = jobs.filter(j => j.tile !== t);
+}
+
+async function fetchTile(t) {
+  fetching++;
+  t.state = 'loading';
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const url = u => u.replace('{z}', Z).replace('{x}', t.tx).replace('{y}', t.ty);
+    const [r, er] = await Promise.all([fetch(url(tileUrl), { signal: ctrl.signal }), fetch(url(ELEV_URL), { signal: ctrl.signal })]);
+    if (!er.ok || !(r.ok || r.status === 404 || r.status === 204)) throw new Error(r.status + '/' + er.status);
+    const data = r.ok && r.status !== 204 ? new Uint8Array(await r.arrayBuffer()) : null;
+    const heights = await decodeTerrarium(await er.blob());
+    if (tiles.get(t.key) !== t) return;
+    t.heights = heights;
+    t.state = 'building';
+    jobs.push({ tile: t, gen: buildTile(t, data && data.length ? new VectorTile(new Pbf(data)) : null) });
+  } catch (e) {
+    t.state = 'error';
+    t.retryAt = performance.now() + 3000;
+  } finally { clearTimeout(timer); fetching--; }
+}
+
+function rectDist(t, x, z) {
+  return Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1));
+}
+
+function updateTiles() {
+  if (!tileUrl) return;
+  // Look ahead in the direction of travel so the road in front is ready in time
+  const fx = Math.sin(car.h), fz = Math.cos(car.h);
+  const ahead = Math.min(Math.abs(car.v) * 8, 1200) * Math.sign(car.v);
+  const want = [];
+  for (const [px, pz] of [[car.x, car.z], [car.x + fx * ahead, car.z + fz * ahead]]) {
+    const nw = toLatLon(px - LOAD_RADIUS, pz - LOAD_RADIUS), se = toLatLon(px + LOAD_RADIUS, pz + LOAD_RADIUS);
+    for (let tx = Math.floor(lon2tx(nw.lon)); tx <= Math.floor(lon2tx(se.lon)); tx++)
+      for (let ty = Math.floor(lat2ty(nw.lat)); ty <= Math.floor(lat2ty(se.lat)); ty++) {
+        const key = tx + '/' + ty;
+        let t = tiles.get(key);
+        if (!t) tiles.set(key, t = makeTile(tx, ty));
+        if (rectDist(t, px, pz) <= LOAD_RADIUS) want.push(t);
+      }
+  }
+  const now = performance.now();
+  want.sort((a, b) => rectDist(a, car.x, car.z) - rectDist(b, car.x, car.z));
+  for (const t of want) {
+    if (fetching >= MAX_FETCH) break;
+    if (t.state === 'new' || (t.state === 'error' && now > t.retryAt)) fetchTile(t);
+  }
+  for (const t of [...tiles.values()])
+    if (rectDist(t, car.x, car.z) > UNLOAD_RADIUS) disposeTile(t);
+
+  if (!started) {
+    const t = tiles.get(tileKeyAt(0, 0));
+    if (t && t.roadsDone) { resetCar(0, 0); statusEl.textContent = `📍 ${placeName}`; }
+  }
+  const pending = [...tiles.values()].filter(t => t.state !== 'ready' && rectDist(t, car.x, car.z) < 900).length;
+  loadingEl.textContent = pending ? `⏳ Loading map around you… (${pending})` : '';
+}
+setInterval(updateTiles, 250);
+
+const statusEl = document.getElementById('status'), loadingEl = document.getElementById('loading');
+let placeName = '';
+
+function goTo(lat, lon, name) {
+  for (const t of [...tiles.values()]) disposeTile(t);
+  origin = { lat, lon }; placeName = name; started = false;
+  region = regionOf(lat, lon);
+  Object.assign(car, { x: 0, y: 0, z: 0, h: 0, v: 0, steer: 0, pitch: 0, roll: 0 });
+  statusEl.textContent = `Loading ${name}…`;
+  updateTiles();
+}
+
+// ---------- Car ----------
+function makeCar() {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshLambertMaterial({ color: 0xe8433a });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.7, 4.3), paint);
+  body.position.y = 0.7; g.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.6, 2.1), new THREE.MeshLambertMaterial({ color: 0x222a35 }));
+  cabin.position.set(0, 1.35, -0.25); g.add(cabin);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 1.9), paint);
+  roof.position.set(0, 1.68, -0.3); g.add(roof);
+  const light = (c, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.2, 0.05), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, 0.8, z); g.add(m); };
+  light(0xfff6c0, 0.65, 2.16); light(0xfff6c0, -0.65, 2.16); light(0xff2020, 0.7, -2.16); light(0xff2020, -0.7, -2.16);
+  const wheels = [];
+  const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 18); wGeo.rotateZ(Math.PI / 2);
+  const wMat = new THREE.MeshLambertMaterial({ color: 0x151515 });
+  for (const [x, z] of [[1, 1.4], [-1, 1.4], [1, -1.4], [-1, -1.4]]) {
+    const pivot = new THREE.Group(); pivot.position.set(x, 0.4, z);
+    const w = new THREE.Mesh(wGeo, wMat); pivot.add(w); g.add(pivot);
+    // roll forwards `distance` m, front wheels steered `steer` rad
+    wheels.push({ update(distance, steer) { w.rotation.x += distance / 0.4; if (z > 0) pivot.rotation.y = steer; } });
+  }
+  g.userData = { lean: body, wheels, eye: [0, 0.3, 1.6] };
+  return g;
+}
+// carMesh carries the physics transform; carModel is whichever car body is inside it
+const carMesh = new THREE.Group();
+let carModel = makeCar();
+carMesh.add(carModel);
+scene.add(carMesh);
+
+// The starter car, put together from its parts as your garage has it (garage/visual.js: the same
+// build and paint as in the other worlds). Each wheel's rim and tyre hang from a pivot that spins
+// about the car's axle, whichever way its socket faces: physics/sockets.js modelRig
+(async () => {
+  const session = await garageSession(), carDef = session.garage.car, M = carDef.model;
+  const rig = modelRig(await (await fetch(M.file)).arrayBuffer(), M);
+  const vis = await createCarVisual({ car: carDef, finishes: session.db.finishes, models: new ModelCache(), paint: session.paint });
+  await vis.applyBuild(session.garage.build, session.garage.view);
+  session.onLook(() => { vis.applyBuild(session.garage.build, session.garage.view); vis.setPaint(session.paint); });
+  const lean = new THREE.Group();
+  lean.add(vis.group);
+  const wheels = Object.entries(rig.wheels).map(([k, r]) => {
+    const pivot = vis.wheels[k];
+    let spin = 0;
+    return { update(distance, steer) {
+      spin += distance / (vis.wheelRadius(k) ?? 0.29);
+      const t = wheelTransform(r, [0, 0, 0, 1], k[0] === 'F' ? steer : 0, spin, 0);
+      pivot.quaternion.fromArray(t.rotation); pivot.position.fromArray(t.position);
+    } };
+  });
+  const glass = [];
+  vis.root.traverse(o => { if (o.isMesh && /glass/i.test(o.material?.name || '')) glass.push(o); });
+  lean.userData = { lean, wheels, glass, eye: [0.38, -0.3, 1.1] }; // driver sits on the left
+  carMesh.remove(carModel);
+  carMesh.add(carModel = lean);
+})().catch(e => console.warn('Could not load the car model, using the box car', e));
+const car = { x: 0, y: 0, z: 0, h: 0, v: 0, steer: 0, pitch: 0, roll: 0 };
+carMesh.rotation.order = 'YXZ';
+let started = false;
+
+function nearestRoad(px, pz, minRank, maxR = 600) {
+  let best = null, bestD = Infinity;
+  const stamp = ++stampCounter, x0 = px - maxR, z0 = pz - maxR, x1 = px + maxR, z1 = pz + maxR;
+  for (const t of tilesInBox(x0, z0, x1, z1))
+    forCells(t.rgrid, x0, z0, x1, z1, stamp, s => {
+      if (s.rank < minRank) return;
+      const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz || 1;
+      const k = Math.max(0, Math.min(1, ((px - s.ax) * dx + (pz - s.az) * dz) / l2));
+      const x = s.ax + k * dx, z = s.az + k * dz;
+      const d = Math.hypot(x - px, z - pz) - s.rank * 15;
+      if (d < bestD) { bestD = d; best = { x, z, h: Math.atan2(dx, dz) }; }
+    });
+  return best;
+}
+function resetCar(px, pz) {
+  const best = nearestRoad(px, pz, 2) || nearestRoad(px, pz, 0);
+  Object.assign(car, best || { x: px, z: pz, h: car.h }, { v: 0, steer: 0 });
+  car.y = (hAt(car.x, car.z) ?? car.y) + 0.45;
+  if (!started) camera.position.set(car.x - Math.sin(car.h) * 12, car.y + 6, car.z - Math.cos(car.h) * 12);
+  started = true;
+}
+
+// ---------- Input ----------
+const keys = {};
+let camMode = 0;
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  keys[e.code] = true;
+  if (e.code === 'KeyR' && started) resetCar(car.x, car.z);
+  if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
+  if (e.code === 'KeyM') zoom = (zoom + 1) % ZOOMS.length;
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+// ---------- Physics ----------
+function updateCar(dt) {
+  const gas = keys.KeyW || keys.ArrowUp, brake = keys.KeyS || keys.ArrowDown;
+  const left = keys.KeyA || keys.ArrowLeft, right = keys.KeyD || keys.ArrowRight;
+  if (gas) car.v += (car.v < 0 ? 30 : 12 * (1 - car.v / 60)) * dt;
+  else if (brake) car.v -= (car.v > 0 ? 30 : 8) * dt;
+  else car.v -= Math.sign(car.v) * Math.min(Math.abs(car.v), 3 * dt);
+  if (keys.Space) car.v -= Math.sign(car.v) * Math.min(Math.abs(car.v), 22 * dt);
+  car.v -= 9.8 * Math.sin(car.pitch) * 0.7 * dt; // hills slow you down going up, speed you up going down
+  car.v = Math.max(-12, Math.min(car.v, 55));
+
+  const target = (left ? 1 : 0) - (right ? 1 : 0);
+  car.steer += (target - car.steer) * Math.min(1, 6 * dt);
+  const grip = Math.min(1, Math.abs(car.v) / 6) / (1 + Math.abs(car.v) * 0.035);
+  car.h += car.steer * 2.0 * grip * Math.sign(car.v) * dt * (keys.Space ? 1.6 : 1);
+
+  const fx = Math.sin(car.h), fz = Math.cos(car.h);
+  const nx = car.x + fx * car.v * dt, nz = car.z + fz * car.v * dt;
+  const s = Math.sign(car.v) || 1;
+  const hit = inBuilding(nx + fx * 2.1 * s, nz + fz * 2.1 * s) ||
+    inBuilding(nx + fx * 2 * s + fz * 0.9, nz + fz * 2 * s - fx * 0.9) ||
+    inBuilding(nx + fx * 2 * s - fz * 0.9, nz + fz * 2 * s + fx * 0.9);
+  if (hit && !inBuilding(car.x, car.z)) car.v = -car.v * 0.3;
+  else { car.x = nx; car.z = nz; }
+
+  // Sit on the terrain, tilted to match the slope under the wheels
+  const hc = hAt(car.x, car.z);
+  if (hc !== null) {
+    const hf = hAt(car.x + fx * 1.5, car.z + fz * 1.5) ?? hc, hb = hAt(car.x - fx * 1.5, car.z - fz * 1.5) ?? hc;
+    const hl = hAt(car.x + fz * 0.9, car.z - fx * 0.9) ?? hc, hr = hAt(car.x - fz * 0.9, car.z + fx * 0.9) ?? hc;
+    car.y = hc + 0.45;
+    car.pitch = Math.atan2(hf - hb, 3);
+    car.roll = Math.atan2(hl - hr, 1.8);
+  }
+  carMesh.position.set(car.x, car.y, car.z);
+  carMesh.rotation.set(-car.pitch, car.h, car.roll);
+  const { lean, wheels } = carModel.userData;
+  lean.rotation.z = -car.steer * Math.min(1, Math.abs(car.v) / 30) * 0.05;
+  for (const w of wheels) w.update(car.v * dt, car.steer * 0.45);
+}
+
+function updateCamera(dt) {
+  const fx = Math.sin(car.h), fz = Math.cos(car.h);
+  for (const g of carModel.userData.glass || []) g.visible = camMode !== 2; // tinted glass washes out the in-car view
+  if (camMode === 2) {
+    const [side, fwd, up] = carModel.userData.eye;
+    camera.position.set(car.x + fx * fwd + fz * side, car.y + up, car.z + fz * fwd - fx * side);
+    camera.lookAt(camera.position.x + fx * 20, camera.position.y - 0.4 + Math.tan(car.pitch) * 20, camera.position.z + fz * 20);
+    return;
+  }
+  const [back, up] = camMode === 0 ? [10, 4] : [26, 14];
+  const target = new THREE.Vector3(car.x - fx * back, car.y + up, car.z - fz * back);
+  camera.position.lerp(target, 1 - Math.exp(-4 * dt));
+  const th = hAt(camera.position.x, camera.position.z);
+  if (th !== null && camera.position.y < th + 2) camera.position.y = th + 2; // never go inside a hill
+  camera.lookAt(car.x + fx * 3, car.y + 1.2, car.z + fz * 3);
+}
+
+// ---------- Minimap ----------
+const mini = document.getElementById('minimap'), mctx = mini.getContext('2d');
+const MINI = 200, ZOOMS = [120, 250, 500];
+const ROAD_COLORS = ['#ddd5c4', '#f4f1ea', '#ffffff', '#ffffff', '#fbe08a', '#f7c35c', '#ef9a48'];
+let zoom = 1;
+mini.width = mini.height = MINI * devicePixelRatio;
+mini.onclick = () => zoom = (zoom + 1) % ZOOMS.length;
+
+function ringsToPath(path, rings) {
+  for (const r of rings) {
+    path.moveTo(r[0][0], r[0][1]);
+    for (let k = 1; k < r.length; k++) path.lineTo(r[k][0], r[k][1]);
+    path.closePath();
+  }
+}
+
+function drawMinimap() {
+  const ctx = mctx, r = MINI / 2, range = ZOOMS[zoom], s = r / range;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.fillStyle = '#86a071';
+  ctx.fillRect(0, 0, MINI, MINI);
+
+  // World layer: centred on the car and rotated so its heading points up
+  ctx.save();
+  ctx.translate(r, r);
+  ctx.rotate(car.h + Math.PI);
+  ctx.scale(s, s);
+  ctx.translate(-car.x, -car.z);
+
+  const x0 = car.x - range, x1 = car.x + range, z0 = car.z - range, z1 = car.z + range;
+  const stamp = ++stampCounter;
+  const land = new Map(), water = new Path2D(), bpath = new Path2D(), byRank = ROAD_COLORS.map(() => []);
+  for (const t of tilesInBox(x0, z0, x1, z1)) {
+    forCells(t.agrid, x0, z0, x1, z1, stamp, a => {
+      if (a.water) return ringsToPath(water, a.rings);
+      if (!land.has(a.css)) land.set(a.css, new Path2D());
+      ringsToPath(land.get(a.css), a.rings);
+    });
+    forCells(t.bgrid, x0, z0, x1, z1, stamp, b => ringsToPath(bpath, b.rings));
+    forCells(t.rgrid, x0, z0, x1, z1, stamp, g => byRank[g.rank].push(g));
+  }
+  for (const [css, p] of land) { ctx.fillStyle = css; ctx.fill(p, 'evenodd'); }
+  ctx.fillStyle = '#5c9bd1'; ctx.fill(water, 'evenodd');
+  ctx.fillStyle = '#b8ad98'; ctx.fill(bpath, 'evenodd');
+
+  ctx.lineCap = ctx.lineJoin = 'round';
+  const px = 1 / s;
+  // Dark casing under car roads, then road fills from minor to major
+  for (let pass = 0; pass < 2; pass++)
+    byRank.forEach((segs, rank) => {
+      if (!segs.length || (pass === 0 && rank < 2)) return;
+      ctx.beginPath();
+      for (const g of segs) { ctx.moveTo(g.ax, g.az); ctx.lineTo(g.bx, g.bz); }
+      const w = Math.max(segs[0].w, (rank < 2 ? 1 : 2.5) * px);
+      ctx.lineWidth = pass === 0 ? w + 2 * px : w;
+      ctx.strokeStyle = pass === 0 ? '#5d5d5d' : ROAD_COLORS[rank];
+      ctx.stroke();
+    });
+  ctx.restore();
+
+  // Car arrow (always pointing up)
+  ctx.beginPath();
+  ctx.moveTo(r, r - 10); ctx.lineTo(r + 7, r + 8); ctx.lineTo(r, r + 4); ctx.lineTo(r - 7, r + 8);
+  ctx.closePath();
+  ctx.fillStyle = '#e8433a'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+
+  // North marker on the rim
+  const nx = r - Math.sin(car.h) * (r - 14), ny = r + Math.cos(car.h) * (r - 14);
+  ctx.beginPath(); ctx.arc(nx, ny, 9, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15, 20, 30, 0.8)'; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('N', nx, ny + 0.5);
+}
+
+// ---------- Loop ----------
+const speedEl = document.getElementById('speed');
+const clock = new THREE.Clock();
+let frame = 0;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (started) {
+    updateCar(dt);
+    updateCamera(dt);
+    speedEl.innerHTML = `${Math.round(Math.abs(car.v) * 3.6)} <small>km/h</small>`;
+  } else {
+    const t = performance.now() / 4000, base = hAt(0, 0) ?? 0;
+    camera.position.set(Math.sin(t) * 300, base + 220, Math.cos(t) * 300);
+    camera.lookAt(0, base, 0);
+  }
+  runJobs(started ? 8 : 30);
+  renderer.render(scene, camera);
+  if (frame++ % 2 === 0) drawMinimap();
+});
+
+// ---------- UI ----------
+const PRESETS = [
+  ['New York', 40.7580, -73.9855], ['London', 51.5080, -0.1281], ['Paris', 48.8738, 2.2950],
+  ['Tokyo', 35.6595, 139.7005], ['San Francisco', 37.7880, -122.4075], ['Sydney', -33.8688, 151.2093],
+  ['Swiss Alps', 46.6244, 8.0413],
+];
+const presetsEl = document.getElementById('presets');
+for (const [n, lat, lon] of PRESETS) {
+  const b = document.createElement('button');
+  b.textContent = n;
+  b.onclick = () => goTo(lat, lon, n);
+  presetsEl.appendChild(b);
+}
+document.getElementById('search').onsubmit = async e => {
+  e.preventDefault();
+  const input = document.getElementById('q'), q = input.value.trim();
+  if (!q) return;
+  statusEl.textContent = `Searching “${q}”…`;
+  input.blur();
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
+    const [hit] = await r.json();
+    if (!hit) return statusEl.textContent = `Couldn't find “${q}”`;
+    goTo(parseFloat(hit.lat), parseFloat(hit.lon), hit.display_name.split(',').slice(0, 2).join(','));
+  } catch { statusEl.textContent = 'Search failed — try again'; }
+};
+
+goTo(40.7580, -73.9855, 'New York');
+</script>
+</body>
+</html>

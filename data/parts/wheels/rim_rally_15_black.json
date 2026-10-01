@@ -1,0 +1,35 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 280,
+  "mass": 8,
+  "toughness": 1.8,
+  "modelTodo": "A rally gravel rim: a tough flat six-spoke face with round holes, a plain lip, origin at the hub face; one model for every size (scaled).",
+  "fits": ["wheel_hub:std", "rim_fits:15"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "rim": {
+    "diameter": 15,
+    "width": 7,
+    "offset": 35
+  },
+  "massOffset": [0.012, 0, 0],
+  "id": "rim_rally_15_black",
+  "name": "15\" rally gravel wheel, gloss black",
+  "model": "",
+  "icon": "assets/icons/parts/rim_rally_15_black.png",
+  "variantOf": "rim_rally",
+  "look": {
+    "scale": [1, 1, 1],
+    "finish": "gloss_black"
+  },
+  "generated": {
+    "table": "rim_rally",
+    "key": "size=15,finish=black"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_rally.json: change the table, not this file."
+}

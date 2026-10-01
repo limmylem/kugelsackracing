@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "classes.schema.json",
+  "title": "Performance rating and classes",
+  "type": "object", "required": ["weights", "ranges", "classes"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+  "properties": {
+    "weights": { "type": "object", "required": ["acceleration", "topSpeed", "grip", "braking"], "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+    "ranges": {
+      "type": "object", "required": ["acceleration", "topSpeed", "grip", "braking"],
+      "additionalProperties": { "type": "object", "required": ["worst", "best"], "additionalProperties": false, "properties": { "worst": { "type": "number" }, "best": { "type": "number" }, "unit": { "type": "string" } } }
+    },
+    "classes": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["class", "from"], "additionalProperties": false, "properties": { "class": { "type": "string", "minLength": 1 }, "from": { "type": "number", "minimum": 100, "maximum": 999 } } } }
+  }
+}

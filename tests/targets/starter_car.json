@@ -1,0 +1,38 @@
+{
+  "_note": "The starter car's targets for the test suite (physics/testSuite.js): 0–100, 100–0, skidpad and top speed are from the brief; quarter mile, slalom and lap are set around what a small, older rear-drive coupe of about 115 hp should do, as a regression guard.",
+  "zeroTo100": {
+    "min": 9,
+    "max": 11
+  },
+  "quarterMile": {
+    "min": 16.3,
+    "max": 17.5
+  },
+  "braking": {
+    "min": 38,
+    "max": 45
+  },
+  "skidpad": {
+    "min": 0.8,
+    "max": 0.85
+  },
+  "slalom": {
+    "min": 8.3,
+    "max": 9.2
+  },
+  "topSpeed": {
+    "min": 180,
+    "max": 195
+  },
+  "lap": {
+    "min": 76,
+    "max": 81
+  },
+  "framerate": {
+    "min": 1,
+    "max": 1
+  },
+  "physicsCost": {
+    "max": 0.25
+  }
+}

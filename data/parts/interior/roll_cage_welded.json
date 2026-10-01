@@ -1,0 +1,24 @@
+{
+  "id": "roll_cage_welded",
+  "name": "Welded race cage",
+  "category": "interior",
+  "slot": "roll_cage",
+  "kind": "component",
+  "tier": "race",
+  "purpose": "safety",
+  "price": 3200,
+  "mass": 42,
+  "model": "",
+  "modelTodo": "A welded race cage: 45 mm tubes — main hoop, A-pillar bars, door bars, a roof X and rear stays, about 135 × 95 × 190 cm.",
+  "icon": "assets/icons/parts/roll_cage_welded.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A welded multi-point race cage: the shell very hard to damage (chassisToughness), every part bolted to it tougher too.",
+  "chassisToughness": 0.8,
+  "bounds": {
+    "min": [-0.675, -0.45, -0.95],
+    "max": [0.675, 0.5, 0.95]
+  }
+}

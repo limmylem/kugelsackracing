@@ -1,0 +1,1571 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "blocks.schema.json",
+  "title": "System blocks",
+  "description": "The physics system blocks, the same fields as the Phase 1 car spec: cars carry the body-level ones (model, bodyCollider, baseAero, drivetrain, steering, pedals, assists, camera), component parts one of the others. Fields starting with _ are notes.",
+  "$defs": {
+    "engine": {
+      "type": "object",
+      "required": ["torqueCurve", "idleRpm", "redlineRpm", "inertia", "induction", "friction", "idle", "limiter"],
+      "properties": {
+        "torqueCurve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "idleRpm": {
+          "$ref": "#/$defs/positive"
+        },
+        "redlineRpm": {
+          "$ref": "#/$defs/positive"
+        },
+        "inertia": {
+          "$ref": "#/$defs/positive"
+        },
+        "induction": {
+          "enum": ["natural", "turbo", "supercharged"]
+        },
+        "friction": {
+          "type": "object",
+          "required": ["base", "perKrpm", "perKrpm2"],
+          "properties": {
+            "base": {
+              "type": "number"
+            },
+            "perKrpm": {
+              "type": "number"
+            },
+            "perKrpm2": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "idle": {
+          "type": "object",
+          "required": ["gain", "maxThrottle"],
+          "properties": {
+            "gain": {
+              "type": "number"
+            },
+            "maxThrottle": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limiter": {
+          "type": "object",
+          "required": ["hysteresis"],
+          "properties": {
+            "hysteresis": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cylinders": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Cylinders (four-stroke: a firing every 720 / cylinders degrees): misfires, and the sound"
+        },
+        "overRev": {
+          "type": "object",
+          "required": ["valveFloat", "bentValves", "blown", "floatWear", "bendTime", "bentLoss", "bentWear", "blowTime", "misfireBelow", "misfire", "drag"],
+          "properties": {
+            "valveFloat": {
+              "type": "number",
+              "minimum": 0
+            },
+            "bentValves": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "blown": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "floatWear": {
+              "type": "number",
+              "minimum": 0
+            },
+            "bendTime": {
+              "type": "number",
+              "minimum": 0
+            },
+            "bentLoss": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "bentWear": {
+              "type": "number",
+              "minimum": 0
+            },
+            "blowTime": {
+              "type": "number",
+              "minimum": 0
+            },
+            "misfireBelow": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "misfire": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "drag": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "What the engine takes past its redline (fractions over redlineRpm), and how a worn one misfires (physics/engineHealth.js)"
+        },
+        "sound": {
+          "type": "string",
+          "pattern": "^data/sounds/engines/[a-z0-9_]+\\.json$",
+          "description": "Its sound config (engine-sound.schema.json): the files the game plays for it"
+        },
+        "turbo": {
+          "type": "object",
+          "required": ["boost", "efficiency"],
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "A factory turbo (or turbos): its boost as it runs (bar by rpm; the torque curve already has it), for its whistle (sound) and a boost leak",
+          "properties": {
+            "boost": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                }
+              }
+            },
+            "efficiency": {
+              "type": "number"
+            },
+            "sound": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gearbox": {
+      "type": "object",
+      "required": ["mode", "ratios", "reverse", "finalDrive", "shiftTime", "revMatchGain", "maxDownshiftRpm", "auto"],
+      "properties": {
+        "mode": {
+          "enum": ["auto", "sequential"]
+        },
+        "ratios": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/positive"
+          }
+        },
+        "reverse": {
+          "$ref": "#/$defs/positive"
+        },
+        "finalDrive": {
+          "$ref": "#/$defs/positive"
+        },
+        "shiftTime": {
+          "$ref": "#/$defs/positive"
+        },
+        "revMatchGain": {
+          "type": "number"
+        },
+        "maxDownshiftRpm": {
+          "type": "number"
+        },
+        "auto": {
+          "type": "object",
+          "required": ["upLight", "upFull", "downLight", "downFull", "downMargin", "minInterval", "stopSpeed"],
+          "properties": {
+            "upLight": {
+              "type": "number"
+            },
+            "upFull": {
+              "type": "number"
+            },
+            "downLight": {
+              "type": "number"
+            },
+            "downFull": {
+              "type": "number"
+            },
+            "downMargin": {
+              "type": "number"
+            },
+            "minInterval": {
+              "type": "number"
+            },
+            "stopSpeed": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "clutch": {
+      "type": "object",
+      "required": ["maxTorque", "engageTime", "releaseTime", "antiStallRpm", "auto"],
+      "properties": {
+        "maxTorque": {
+          "$ref": "#/$defs/positive"
+        },
+        "engageTime": {
+          "$ref": "#/$defs/positive"
+        },
+        "releaseTime": {
+          "$ref": "#/$defs/positive"
+        },
+        "antiStallRpm": {
+          "type": "number"
+        },
+        "auto": {
+          "type": "object",
+          "required": ["launchRpm", "holdRate", "engageAbove"],
+          "properties": {
+            "launchRpm": {
+              "type": "number"
+            },
+            "holdRate": {
+              "type": "number"
+            },
+            "engageAbove": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "differential": {
+      "type": "object",
+      "required": ["type", "preload", "lock"],
+      "properties": {
+        "type": {
+          "enum": ["open", "locked", "lsd"]
+        },
+        "preload": {
+          "type": "number"
+        },
+        "lock": {
+          "$ref": "#/$defs/share"
+        },
+        "lockable": {
+          "type": "boolean",
+          "description": "The driver can lock it (a selectable locker): locked, it works as locked"
+        },
+        "torqueSteer": {
+          "$ref": "#/$defs/share",
+          "description": "On a driven front axle: how much of the car's torque steer gets through (none: open 1, lsd 0.35, locked 0.2)"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tyre": {
+      "type": "object",
+      "required": ["longitudinal", "lateral", "minSlipSpeed", "lowSpeed", "rollingResistance", "wheelSubsteps"],
+      "properties": {
+        "longitudinal": {
+          "type": "object",
+          "required": ["B", "C", "D", "E"],
+          "properties": {
+            "B": {
+              "type": "number"
+            },
+            "C": {
+              "type": "number"
+            },
+            "D": {
+              "$ref": "#/$defs/positive"
+            },
+            "E": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "lateral": {
+          "type": "object",
+          "required": ["B", "C", "D", "E"],
+          "properties": {
+            "B": {
+              "type": "number"
+            },
+            "C": {
+              "type": "number"
+            },
+            "D": {
+              "$ref": "#/$defs/positive"
+            },
+            "E": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "minSlipSpeed": {
+          "$ref": "#/$defs/positive"
+        },
+        "lowSpeed": {
+          "type": "object",
+          "required": ["blendStart", "blendEnd", "stiffness", "damping"],
+          "properties": {
+            "blendStart": {
+              "type": "number"
+            },
+            "blendEnd": {
+              "type": "number"
+            },
+            "stiffness": {
+              "type": "number"
+            },
+            "damping": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rollingResistance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "wheelSubsteps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "surfaceGrip": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "The tread on each surface (by the surface's name: gravel, dirt, grass, ice, tarmac…): × the surface's own grip (physics/vehicle.js). An off-road tread bites into loose ground; a slick slides on it"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "brakes": {
+      "type": "object",
+      "required": ["maxPressureBar", "bias", "front", "rear", "fade", "cooling", "handbrake", "autoHold"],
+      "properties": {
+        "maxPressureBar": {
+          "$ref": "#/$defs/positive"
+        },
+        "bias": {
+          "$ref": "#/$defs/share"
+        },
+        "front": {
+          "type": "object",
+          "required": ["discRadius", "pistonArea", "padMu", "heatCapacity"],
+          "properties": {
+            "discRadius": {
+              "$ref": "#/$defs/positive"
+            },
+            "pistonArea": {
+              "$ref": "#/$defs/positive"
+            },
+            "padMu": {
+              "$ref": "#/$defs/positive"
+            },
+            "heatCapacity": {
+              "$ref": "#/$defs/positive"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rear": {
+          "type": "object",
+          "required": ["discRadius", "pistonArea", "padMu", "heatCapacity"],
+          "properties": {
+            "discRadius": {
+              "$ref": "#/$defs/positive"
+            },
+            "pistonArea": {
+              "$ref": "#/$defs/positive"
+            },
+            "padMu": {
+              "$ref": "#/$defs/positive"
+            },
+            "heatCapacity": {
+              "$ref": "#/$defs/positive"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "fade": {
+          "type": "object",
+          "required": ["startTemp", "fullTemp", "muAtFull"],
+          "properties": {
+            "startTemp": {
+              "type": "number"
+            },
+            "fullTemp": {
+              "type": "number"
+            },
+            "muAtFull": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cooling": {
+          "type": "object",
+          "required": ["ambient", "still", "perSpeed"],
+          "properties": {
+            "ambient": {
+              "type": "number"
+            },
+            "still": {
+              "type": "number"
+            },
+            "perSpeed": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "handbrake": {
+          "type": "object",
+          "required": ["torque", "disengageClutch"],
+          "properties": {
+            "torque": {
+              "type": "number"
+            },
+            "disengageClutch": {
+              "type": "boolean"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "autoHold": {
+          "type": "object",
+          "required": ["belowSpeed", "torque"],
+          "properties": {
+            "belowSpeed": {
+              "type": "number"
+            },
+            "torque": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "suspension": {
+      "type": "object",
+      "required": ["restLength", "travel", "stiffness", "damping"],
+      "properties": {
+        "restLength": {
+          "$ref": "#/$defs/positive"
+        },
+        "travel": {
+          "$ref": "#/$defs/positive"
+        },
+        "stiffness": {
+          "$ref": "#/$defs/positive"
+        },
+        "damping": {
+          "type": "number",
+          "minimum": 0
+        },
+        "antiRoll": {
+          "type": "object",
+          "required": ["front", "rear"],
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Anti-roll bars, N a metre of difference between the two sides' compression (0: none)",
+          "properties": {
+            "front": {
+              "type": "number",
+              "minimum": 0
+            },
+            "rear": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "solidAxle": {
+          "type": "object",
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Solid (live) axles: the two wheels on one beam, sprung at springTrack of the track",
+          "properties": {
+            "front": {
+              "type": "boolean"
+            },
+            "rear": {
+              "type": "boolean"
+            },
+            "springTrack": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "steering": {
+      "type": "object",
+      "required": ["ratio", "maxWheelRotation", "falloffSpeed", "rate", "rateFalloffSpeed", "returnRate", "gamepadRateScale", "ackermann", "counterSteer", "selfAligning"],
+      "properties": {
+        "ratio": {
+          "$ref": "#/$defs/positive"
+        },
+        "maxWheelRotation": {
+          "$ref": "#/$defs/positive"
+        },
+        "falloffSpeed": {
+          "type": "number"
+        },
+        "rate": {
+          "type": "number"
+        },
+        "rateFalloffSpeed": {
+          "type": "number"
+        },
+        "returnRate": {
+          "type": "number"
+        },
+        "gamepadRateScale": {
+          "type": "number"
+        },
+        "ackermann": {
+          "type": "number"
+        },
+        "counterSteer": {
+          "type": "object",
+          "required": ["slideFrom", "slideTo", "margin", "rate", "minSpeed"],
+          "properties": {
+            "slideFrom": {
+              "type": "number"
+            },
+            "slideTo": {
+              "type": "number"
+            },
+            "margin": {
+              "type": "number"
+            },
+            "rate": {
+              "type": "number"
+            },
+            "minSpeed": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "selfAligning": {
+          "type": "object",
+          "required": ["pneumaticTrail", "trailZeroAtPeak", "mechanicalTrail", "ffbFullScale"],
+          "properties": {
+            "pneumaticTrail": {
+              "type": "number"
+            },
+            "trailZeroAtPeak": {
+              "type": "number"
+            },
+            "mechanicalTrail": {
+              "type": "number"
+            },
+            "ffbFullScale": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pedals": {
+      "type": "object",
+      "required": ["throttleRise", "throttleFall", "brakeRise", "brakeFall"],
+      "properties": {
+        "throttleRise": {
+          "type": "number"
+        },
+        "throttleFall": {
+          "type": "number"
+        },
+        "brakeRise": {
+          "type": "number"
+        },
+        "brakeFall": {
+          "type": "number"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "assists": {
+      "type": "object",
+      "required": ["abs", "tractionControl", "slideLimit", "stability", "countersteer", "steering", "drift"],
+      "properties": {
+        "abs": {
+          "type": "object",
+          "required": ["enabled", "releaseAt", "reapplyAt", "releaseRate", "applyRate", "holdTime", "minPressure", "minSpeed"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "releaseAt": {
+              "type": "number"
+            },
+            "reapplyAt": {
+              "type": "number"
+            },
+            "releaseRate": {
+              "type": "number"
+            },
+            "applyRate": {
+              "type": "number"
+            },
+            "holdTime": {
+              "type": "number"
+            },
+            "minPressure": {
+              "type": "number"
+            },
+            "minSpeed": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tractionControl": {
+          "type": "object",
+          "required": ["enabled", "strength", "slipTarget", "slipWindow", "straightSlipTarget", "straightSlipWindow"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "strength": {
+              "$ref": "#/$defs/share"
+            },
+            "slipTarget": {
+              "type": "number"
+            },
+            "slipWindow": {
+              "type": "number"
+            },
+            "straightSlipTarget": {
+              "type": "number"
+            },
+            "straightSlipWindow": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "slideLimit": {
+          "type": "object",
+          "required": ["angle", "window", "lookAhead"],
+          "properties": {
+            "angle": {
+              "type": "number"
+            },
+            "window": {
+              "type": "number"
+            },
+            "lookAhead": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "stability": {
+          "type": "object",
+          "required": ["enabled", "characteristicSpeed", "yawThreshold", "slipAllowance", "driftSlipAllowance", "strongYawError", "oversteerGain", "understeerGain", "maxTorque", "throttleCut", "minSpeed", "understeerFrontShare", "handbrakeHold"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "characteristicSpeed": {
+              "type": "number"
+            },
+            "yawThreshold": {
+              "type": "number"
+            },
+            "slipAllowance": {
+              "type": "number"
+            },
+            "driftSlipAllowance": {
+              "type": "number"
+            },
+            "strongYawError": {
+              "type": "number"
+            },
+            "oversteerGain": {
+              "type": "number"
+            },
+            "understeerGain": {
+              "type": "number"
+            },
+            "maxTorque": {
+              "type": "number"
+            },
+            "throttleCut": {
+              "type": "number"
+            },
+            "minSpeed": {
+              "type": "number"
+            },
+            "understeerFrontShare": {
+              "type": "number"
+            },
+            "handbrakeHold": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "countersteer": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "steering": {
+          "type": "object",
+          "required": ["enabled", "ofPeakSlip"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "ofPeakSlip": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "drift": {
+          "type": "object",
+          "required": ["enabled", "from", "to", "hold", "range", "unwindTime", "rearGripLoss", "angle", "powerGain", "powerDamping", "steerDamping"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "from": {
+              "type": "number"
+            },
+            "to": {
+              "type": "number"
+            },
+            "hold": {
+              "type": "number"
+            },
+            "range": {
+              "type": "number"
+            },
+            "unwindTime": {
+              "type": "number"
+            },
+            "rearGripLoss": {
+              "type": "number"
+            },
+            "angle": {
+              "type": "number"
+            },
+            "powerGain": {
+              "type": "number"
+            },
+            "powerDamping": {
+              "type": "number"
+            },
+            "steerDamping": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "revProtection": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Refuses a downshift that would over-rev the engine (off by default)"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "camera": {
+      "type": "object",
+      "required": ["chase", "shake", "bonnet", "cockpit"],
+      "properties": {
+        "chase": {
+          "type": "object",
+          "required": ["distance", "height", "lookHeight", "lookAhead", "positionLag", "headingLag", "accelLag", "sway", "fov", "fovAtSpeed", "fovSpeed"],
+          "properties": {
+            "distance": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "lookHeight": {
+              "type": "number"
+            },
+            "lookAhead": {
+              "type": "number"
+            },
+            "positionLag": {
+              "type": "number"
+            },
+            "headingLag": {
+              "type": "number"
+            },
+            "accelLag": {
+              "type": "number"
+            },
+            "sway": {
+              "type": "number"
+            },
+            "fov": {
+              "type": "number"
+            },
+            "fovAtSpeed": {
+              "type": "number"
+            },
+            "fovSpeed": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "shake": {
+          "type": "object",
+          "required": ["bumps", "kerbs", "speed", "shakeFrom"],
+          "properties": {
+            "bumps": {
+              "type": "number"
+            },
+            "kerbs": {
+              "type": "number"
+            },
+            "speed": {
+              "type": "number"
+            },
+            "shakeFrom": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "bonnet": {
+          "type": "object",
+          "required": ["position", "fov", "pitch"],
+          "properties": {
+            "position": {
+              "$ref": "#/$defs/vec3"
+            },
+            "fov": {
+              "type": "number"
+            },
+            "pitch": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cockpit": {
+          "type": "object",
+          "required": ["position", "fov", "pitch", "headSway", "glance"],
+          "properties": {
+            "position": {
+              "$ref": "#/$defs/vec3"
+            },
+            "fov": {
+              "type": "number"
+            },
+            "pitch": {
+              "type": "number"
+            },
+            "headSway": {
+              "type": "number"
+            },
+            "glance": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "drivetrain": {
+      "type": "object",
+      "required": ["layout", "efficiency"],
+      "properties": {
+        "layout": {
+          "enum": ["RWD", "FWD", "AWD", "4WD"],
+          "description": "The driven axles: RWD, FWD, AWD (full time, a centre differential) or 4WD (part time, a transfer case: 2H / 4H / 4L)"
+        },
+        "efficiency": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "torqueSteer": {
+          "type": "number",
+          "description": "Torque steer (a driven front axle): road-wheel angle, rad a kN·m of drive at the front wheels (+ pulls left); a limited-slip front diff lets less through"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bodyCollider": {
+      "type": "object",
+      "required": ["centre", "halfExtents", "friction", "restitution"],
+      "properties": {
+        "centre": {
+          "$ref": "#/$defs/vec3"
+        },
+        "halfExtents": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/positive"
+          }
+        },
+        "friction": {
+          "type": "number"
+        },
+        "restitution": {
+          "type": "number"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["file", "forwardAxis", "sockets"],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "forwardAxis": {
+          "enum": ["+x", "-x", "+z", "-z"]
+        },
+        "sockets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^socket_"
+          }
+        },
+        "wheels": {
+          "type": "object",
+          "required": ["FL", "FR", "RL", "RR"],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "steeringWheel": {
+          "type": "string"
+        },
+        "paintMaterial": {
+          "type": "string"
+        },
+        "breakables": {
+          "type": "array",
+          "description": "Glass and lights in the body a hard hit breaks",
+          "items": {
+            "type": "object",
+            "required": ["node", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": ["glass", "light"]
+              }
+            }
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "baseAero": {
+      "type": "object",
+      "required": ["dragCoefficient", "frontalArea", "front", "rear", "sideways", "wind", "slipstream"],
+      "properties": {
+        "dragCoefficient": {
+          "type": "number"
+        },
+        "frontalArea": {
+          "$ref": "#/$defs/positive"
+        },
+        "front": {
+          "type": "object",
+          "required": ["liftCoefficient", "point"],
+          "properties": {
+            "liftCoefficient": {
+              "type": "number"
+            },
+            "point": {
+              "$ref": "#/$defs/vec3"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rear": {
+          "type": "object",
+          "required": ["liftCoefficient", "point"],
+          "properties": {
+            "liftCoefficient": {
+              "type": "number"
+            },
+            "point": {
+              "$ref": "#/$defs/vec3"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "sideways": {
+          "type": "object",
+          "required": ["dragFactor", "liftLoss"],
+          "properties": {
+            "dragFactor": {
+              "type": "number"
+            },
+            "liftLoss": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "wind": {
+          "$ref": "#/$defs/vec3"
+        },
+        "slipstream": {
+          "type": "object",
+          "required": ["reach", "peak", "width", "spread", "maxDragCut", "maxDownforceLoss", "minSpeed", "minGap"],
+          "properties": {
+            "reach": {
+              "type": "number"
+            },
+            "peak": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            },
+            "spread": {
+              "type": "number"
+            },
+            "maxDragCut": {
+              "type": "number"
+            },
+            "maxDownforceLoss": {
+              "type": "number"
+            },
+            "minSpeed": {
+              "type": "number"
+            },
+            "minGap": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wheels": {
+      "type": "object",
+      "required": ["radius", "inertia"],
+      "properties": {
+        "radius": {
+          "$ref": "#/$defs/positive"
+        },
+        "inertia": {
+          "$ref": "#/$defs/positive"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "partAero": {
+      "type": "object",
+      "required": ["liftCoefficient", "dragCoefficient", "point", "angle"],
+      "properties": {
+        "liftCoefficient": {
+          "type": "number"
+        },
+        "dragCoefficient": {
+          "type": "number"
+        },
+        "point": {
+          "$ref": "#/$defs/vec3"
+        },
+        "angle": {
+          "type": "object",
+          "required": ["min", "max", "default", "scaleAtMin", "scaleAtMax"],
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "default": {
+              "type": "number"
+            },
+            "scaleAtMin": {
+              "type": "number"
+            },
+            "scaleAtMax": {
+              "type": "number"
+            }
+          },
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "active": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "required": ["straight", "corner", "braking"],
+          "properties": {
+            "straight": {
+              "type": "number"
+            },
+            "corner": {
+              "type": "number"
+            },
+            "braking": {
+              "type": "number"
+            },
+            "turnG": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "rate": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "description": "An active wing sets its own angle (degrees): braking — an air brake, hard on the brakes at speed; corner — in a bend (past turnG sideways) or slow; straight — flat, low drag, at speed; moving rate degrees a second (physics/aero.js)"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "positive": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "share": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "centreDifferential": {
+      "type": "object",
+      "required": ["type", "split"],
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "AWD's centre differential: how it shares the torque front / rear (split: the front's share) and how it holds the axles together",
+      "properties": {
+        "type": {
+          "enum": ["open", "viscous", "lsd", "locked"],
+          "description": "open: the split, always; viscous: resists the axles turning at different speeds, viscous N·m per rad/s of difference; lsd: up to preload + lock × the torque through it; locked: front and rear turn together"
+        },
+        "split": {
+          "$ref": "#/$defs/share"
+        },
+        "preload": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lock": {
+          "$ref": "#/$defs/share"
+        },
+        "viscous": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lockable": {
+          "type": "boolean",
+          "description": "The driver can lock it"
+        }
+      }
+    },
+    "transferCase": {
+      "type": "object",
+      "required": ["lowRatio"],
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "A part-time 4WD's transfer case: 2H drives the rear, 4H locks front and rear together, 4L too through the low range",
+      "properties": {
+        "lowRatio": {
+          "type": "number",
+          "minimum": 1,
+          "description": "The low range: every gear this many times lower in 4L"
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "enum": ["2H", "4H", "4L"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "mode": {
+          "enum": ["2H", "4H", "4L"],
+          "description": "The mode it starts in"
+        },
+        "shiftBelow": {
+          "type": "number",
+          "minimum": 0,
+          "description": "m/s: into or out of 4L only slower than this"
+        }
+      }
+    },
+    "roof": {
+      "type": "object",
+      "required": ["kind"],
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "A roof: fixed (a coupe's), soft (a folding top: open when down) or hard (a hardtop); none: open",
+      "properties": {
+        "kind": {
+          "enum": ["fixed", "soft", "hard", "none"]
+        },
+        "open": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "1: down (open), 0: up"
+        }
+      }
+    }
+  }
+}

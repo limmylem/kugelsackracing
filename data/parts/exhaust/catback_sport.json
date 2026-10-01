@@ -1,0 +1,55 @@
+{
+  "id": "catback_sport",
+  "name": "Cat-back exhaust, stainless (sport)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 780,
+  "mass": 11,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "model": "",
+  "modelTodo": "Cat-back exhaust, stainless (sport): the tail pipe (a 90 mm tip) out of the rear bumper, 20 cm of pipe, origin at the tip.",
+  "icon": "assets/icons/parts/catback_sport.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A stainless sport cat-back: more power up top, louder and deeper.",
+  "massOffset": [0, 0, -0.09],
+  "bounds": {
+    "min": [-0.045, -0.045, -0.2],
+    "max": [0.045, 0.045, 0]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.045,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.25
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 0.95
+    }
+  ]
+}

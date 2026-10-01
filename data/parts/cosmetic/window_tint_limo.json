@@ -1,0 +1,25 @@
+{
+  "id": "window_tint_limo",
+  "name": "Window tint (limo)",
+  "category": "cosmetic",
+  "slot": "window_tint",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 180,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/window_tint_limo.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Tinted side and rear windows (limo).",
+  "effects": [
+    {
+      "target": "cosmetic.tint",
+      "op": "set",
+      "value": "limo"
+    }
+  ]
+}

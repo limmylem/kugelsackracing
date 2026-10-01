@@ -1,0 +1,26 @@
+{
+  "id": "hana_roadster_suspension",
+  "name": "Springs and dampers (Hana Roadster, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 560,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_suspension.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.26,
+    "travel": 0.2,
+    "stiffness": 20500,
+    "damping": 1750,
+    "antiRoll": {
+      "front": 2500,
+      "rear": 0
+    }
+  },
+  "tier": "stock"
+}

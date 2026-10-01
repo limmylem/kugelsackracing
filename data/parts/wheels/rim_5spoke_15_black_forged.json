@@ -1,0 +1,34 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 940,
+  "mass": 5.4,
+  "toughness": 1.3,
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "massOffset": [0.017, 0, 0],
+  "rim": {
+    "diameter": 15,
+    "width": 6,
+    "offset": 35
+  },
+  "tier": "race",
+  "purpose": "looks",
+  "_note": "A cast five-spoke rim. Made by npm run import; its sizes, finishes and forged versions come from data/variants/rim_5spoke.json.",
+  "id": "rim_5spoke_15_black_forged",
+  "name": "15\" 5-spoke wheel, gloss black (forged)",
+  "model": "",
+  "icon": "assets/icons/parts/rim_5spoke_15_black_forged.png",
+  "variantOf": "rim_5spoke",
+  "look": {
+    "finish": "gloss_black"
+  },
+  "generated": {
+    "table": "rim_5spoke",
+    "key": "size=15,finish=black,build=forged"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_5spoke.json: change the table, not this file."
+}

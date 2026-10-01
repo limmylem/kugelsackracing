@@ -1,0 +1,38 @@
+{
+  "_note": "The Kaze GT's targets (physics/testSuite.js): a light 2+2 rear-drive coupe, about 200 hp and 1250 kg — 0–100 km/h in about 7.5 s, about 225 km/h flat out; playful and balanced.",
+  "zeroTo100": {
+    "min": 6.8,
+    "max": 7.8
+  },
+  "quarterMile": {
+    "min": 14.6,
+    "max": 15.6
+  },
+  "braking": {
+    "min": 36,
+    "max": 41
+  },
+  "skidpad": {
+    "min": 0.82,
+    "max": 0.9
+  },
+  "slalom": {
+    "min": 8,
+    "max": 8.7
+  },
+  "topSpeed": {
+    "min": 218,
+    "max": 235
+  },
+  "lap": {
+    "min": 70,
+    "max": 76
+  },
+  "framerate": {
+    "min": 1,
+    "max": 1
+  },
+  "physicsCost": {
+    "max": 0.25
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "hana_roadster_diff",
+  "name": "Open differential (Hana Roadster, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_diff.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "open",
+    "preload": 0,
+    "lock": 0
+  },
+  "tier": "stock"
+}

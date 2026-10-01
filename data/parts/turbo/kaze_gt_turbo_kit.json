@@ -1,0 +1,48 @@
+{
+  "id": "kaze_gt_turbo_kit",
+  "name": "Turbo kit (Kaze GT flat-four)",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 2900,
+  "mass": 20,
+  "model": "",
+  "modelTodo": "Kaze GT turbo kit: a twin-scroll turbo (25 cm) with equal-length stainless manifold pipes from both cylinder banks, under the front of the flat-four.",
+  "icon": "assets/icons/parts/kaze_gt_turbo_kit.png",
+  "fits": ["engine_family:kaze_flat4"],
+  "requires": ["slot:intercooler"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+  "provides": ["forced_induction:turbo"],
+  "_note": "A turbo kit made for the Kaze GT's flat-four: an equal-length manifold and a twin-scroll turbo — strong mid-range, the boxer rumble with a whistle over it.",
+  "hides": ["socket_intake"],
+  "bounds": {
+    "min": [-0.15, 0, -0.15],
+    "max": [0.15, 0.26, 0.15]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[2000, 0], [3000, 0.35], [4000, 0.6], [6500, 0.65], [7500, 0.55]],
+      "efficiency": 0.85,
+      "max": 0.8
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "whistle": {
+      "fromHz": 2400,
+      "toHz": 7600,
+      "gain": 0.05,
+      "noise": 0.4,
+      "q": 11,
+      "spoolUp": 0.55,
+      "spoolDown": 0.35
+    }
+  }
+}

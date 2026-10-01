@@ -1,0 +1,21 @@
+{
+  "id": "vortex_r_diff",
+  "name": "Front differential (Vortex R, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_diff.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "open",
+    "preload": 0,
+    "lock": 0
+  },
+  "tier": "stock"
+}

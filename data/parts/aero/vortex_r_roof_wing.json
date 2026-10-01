@@ -1,0 +1,61 @@
+{
+  "id": "vortex_r_roof_wing",
+  "name": "Rear roof wing (Vortex R)",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "tier": "sport",
+  "price": 720,
+  "mass": 3.5,
+  "toughness": 0.7,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Vortex R roof wing: a 115 cm spoiler (22 cm chord) off the rear roof edge, over the tailgate, with side plates.",
+  "icon": "assets/icons/parts/vortex_r_roof_wing.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A bigger roof wing over the tailgate: rear downforce to settle the tail.",
+  "aero": {
+    "point": [0, 0.05, 0],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    },
+    "liftCoefficient": -0.2,
+    "dragCoefficient": 0.015
+  },
+  "placeholder": {
+    "width": 1.15,
+    "chord": 0.22,
+    "thickness": 0.03,
+    "height": 0.05,
+    "colour": "#1f2226"
+  },
+  "massOffset": [0, 0.025, 0],
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  }
+}

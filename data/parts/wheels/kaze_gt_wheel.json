@@ -1,0 +1,26 @@
+{
+  "id": "kaze_gt_wheel",
+  "name": "17\" wheel (Kaze GT, stock)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 150,
+  "mass": 9,
+  "model": "assets/parts/stock/kaze_gt/wheel_FL.glb",
+  "icon": "assets/icons/parts/kaze_gt_wheel.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "toughness": 1.3,
+  "rim": {
+    "diameter": 17,
+    "width": 7.5,
+    "offset": 45
+  },
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.0903, -0.2159, -0.2159],
+    "max": [0.0903, 0.2159, 0.2159]
+  }
+}

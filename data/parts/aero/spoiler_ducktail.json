@@ -1,0 +1,43 @@
+{
+  "id": "spoiler_ducktail",
+  "name": "Ducktail spoiler",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "price": 380,
+  "mass": 5.9,
+  "toughness": 0.9,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2000,
+    "looseThreshold": 12,
+    "detachThreshold": 7
+  },
+  "model": "assets/parts/aero/spoiler_ducktail.glb",
+  "icon": "assets/icons/parts/spoiler_ducktail.png",
+  "fits": ["spoiler_mount:boot"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.68, 0.006, -0.21],
+    "max": [0.68, 0.31, 0.22]
+  },
+  "massOffset": [0, 0.208, 0.005],
+  "aero": {
+    "liftCoefficient": -0.12,
+    "dragCoefficient": 0.008,
+    "point": [0, 0.232, 0.005],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    }
+  },
+  "tier": "street",
+  "_note": "A ducktail on two feet: a little rear downforce for very little drag. Made by npm run import."
+}

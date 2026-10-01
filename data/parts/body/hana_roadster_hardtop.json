@@ -1,0 +1,30 @@
+{
+  "id": "hana_roadster_hardtop",
+  "name": "Removable hardtop (Hana Roadster)",
+  "category": "body",
+  "slot": "roof",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 1600,
+  "mass": 32,
+  "model": "",
+  "modelTodo": "Hana Roadster hardtop: a fibreglass hard roof with a glass rear window, about 140 × 30 × 90 cm, over the cockpit.",
+  "icon": "assets/icons/parts/hana_roadster_hardtop.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A bolt-on hard roof: quieter and a touch slipperier than the soft top, but heavier, and high up.",
+  "roof": {
+    "kind": "hard",
+    "open": 0
+  },
+  "aeroEffect": {
+    "drag": -0.005
+  },
+  "bounds": {
+    "min": [-0.7, -0.3, -0.45],
+    "max": [0.7, 0, 0.45]
+  }
+}

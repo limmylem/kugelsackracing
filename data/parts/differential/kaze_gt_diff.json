@@ -1,0 +1,21 @@
+{
+  "id": "kaze_gt_diff",
+  "name": "Limited-slip differential (Kaze GT, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_diff.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "lsd",
+    "preload": 50,
+    "lock": 0.35
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "ridgeback_4x4_clutch",
+  "name": "Clutch (Ridgeback 4x4, stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 300,
+  "mass": 8,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_clutch.png",
+  "fits": ["clutch_spline:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "maxTorque": 510,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 400,
+    "auto": {
+      "launchRpm": 2200,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

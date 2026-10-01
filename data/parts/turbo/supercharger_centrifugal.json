@@ -1,0 +1,40 @@
+{
+  "id": "supercharger_centrifugal",
+  "name": "Centrifugal supercharger kit",
+  "category": "turbo",
+  "slot": "supercharger",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 2600,
+  "mass": 18,
+  "model": "",
+  "modelTodo": "A centrifugal supercharger: a polished snail-shell compressor about 25 cm across on a bracket at the front of the engine, a belt pulley and an intake pipe.",
+  "icon": "assets/icons/parts/supercharger_centrifugal.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": ["induction:turbo", "forced_induction:turbo"],
+  "provides": ["forced_induction:supercharger"],
+  "_note": "A belt-driven centrifugal supercharger for any engine without a turbo: the boost climbs with the revs, no lag.",
+  "bounds": {
+    "min": [-0.13, 0, -0.14],
+    "max": [0.13, 0.24, 0.14]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1000, 0.03], [3000, 0.15], [5000, 0.35], [7000, 0.5]],
+      "efficiency": 0.8
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "supercharged"
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 1.03
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build.schema.json",
+  "title": "Build",
+  "description": "Which owned part instance is in each socket of an owned car (null: empty).",
+  "type": "object",
+  "required": ["carId", "carInstanceId", "sockets"],
+  "additionalProperties": false,
+  "properties": {
+    "carId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "carInstanceId": { "type": "string", "minLength": 1 },
+    "sockets": { "type": "object", "patternProperties": { "^socket_": { "type": ["string", "null"] } }, "additionalProperties": false },
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{14}$", "description": "Hash of the car, its parts, their condition and tuning (garage/fingerprint.js): the same fingerprint, the same physics" }
+  }
+}

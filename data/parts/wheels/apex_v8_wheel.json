@@ -1,0 +1,26 @@
+{
+  "id": "apex_v8_wheel",
+  "name": "20\" wheel (Apex V8, stock)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 160,
+  "mass": 10,
+  "model": "assets/parts/stock/apex_v8/wheel_FL.glb",
+  "icon": "assets/icons/parts/apex_v8_wheel.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:20"],
+  "toughness": 1.3,
+  "rim": {
+    "diameter": 20,
+    "width": 9.5,
+    "offset": 40
+  },
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.1113, -0.254, -0.254],
+    "max": [0.1113, 0.254, 0.254]
+  }
+}

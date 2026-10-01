@@ -1,0 +1,43 @@
+{
+  "_note": "Brute 500's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_brute_500.glb) when it's made.",
+  "paint": "#d35400",
+  "style": "muscle",
+  "length": 4.8,
+  "width": 1.92,
+  "height": 1.38,
+  "clearance": 0.13,
+  "beltline": 0.95,
+  "frontAxle": 1.42,
+  "rearAxle": -1.3,
+  "track": 1.6,
+  "wheel": {
+    "radius": 0.343,
+    "rimDiameter": 19,
+    "width": 0.255
+  },
+  "bonnet": {
+    "rear": 0.5,
+    "front": 0.7,
+    "back": 0.95
+  },
+  "roof": {
+    "front": -0.05,
+    "rear": -1,
+    "height": 1.38
+  },
+  "deck": {
+    "front": -1.6,
+    "height": 0.98
+  },
+  "fastback": 0.35,
+  "engine": {
+    "at": [0, 0.5, 1.15],
+    "size": [0.76, 0.6, 0.75]
+  },
+  "seatZ": -0.5,
+  "floor": 0.2,
+  "extraSockets": {
+    "socket_widebody": [0, 0.75, -1.3]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_boot", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_widebody"]
+}

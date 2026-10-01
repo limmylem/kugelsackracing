@@ -1,0 +1,35 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/intake_filter_street.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:filter"],
+  "id": "intake_filter_street",
+  "name": "Performance air filter",
+  "category": "intake",
+  "slot": "intake",
+  "tier": "street",
+  "price": 130,
+  "mass": 1,
+  "fits": [
+    ["intake_flange:rs", "intake_flange:std"]
+  ],
+  "_note": "A freer-flowing panel filter in the stock airbox: a little more at high revs.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.02,
+      "when": {
+        "rpm": [4000, 7200],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "soundMod.intake",
+      "op": "multiply",
+      "value": 1.3
+    }
+  ]
+}

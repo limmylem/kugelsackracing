@@ -1,0 +1,28 @@
+{
+  "id": "ridgeback_4x4_skid_plates",
+  "name": "Skid plates (Ridgeback 4x4)",
+  "category": "body",
+  "slot": "skid_plates",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "offroad",
+  "price": 560,
+  "mass": 22,
+  "model": "",
+  "modelTodo": "Ridgeback skid plates: 5 mm steel plates bolted under the engine, gearbox and transfer case, about 110 × 250 cm (a flat shape under the car).",
+  "icon": "assets/icons/parts/ridgeback_4x4_skid_plates.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Steel skid plates under the engine, gearbox and diffs: rocks and bad landings hurt them far less.",
+  "bounds": {
+    "min": [-0.55, 0, -1.25],
+    "max": [0.55, 0.02, 1.25]
+  },
+  "protects": {
+    "systems": ["radiator", "gearbox", "differential", "exhaust", "intake"],
+    "slots": ["engine", "gearbox", "differential", "differential_front", "transfer_case", "exhaust"],
+    "by": 0.6
+  }
+}

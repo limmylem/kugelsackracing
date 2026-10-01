@@ -1,0 +1,26 @@
+{
+  "id": "vortex_r_wheel",
+  "name": "18\" wheel (Vortex R, stock)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 150,
+  "mass": 10,
+  "model": "assets/parts/stock/vortex_r/wheel_FL.glb",
+  "icon": "assets/icons/parts/vortex_r_wheel.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "toughness": 1.3,
+  "rim": {
+    "diameter": 18,
+    "width": 8,
+    "offset": 45
+  },
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.0945, -0.2286, -0.2286],
+    "max": [0.0945, 0.2286, 0.2286]
+  }
+}

@@ -1,0 +1,792 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "part.schema.json",
+  "title": "Part definition",
+  "description": "A part: a component (carries one whole system block, the same fields as the Phase 1 car spec; body panels carry none) or a modifier (a list of effects on the car's stats). Fields starting with _ are notes.",
+  "type": "object",
+  "required": ["id", "name", "category", "slot", "kind", "price", "mass", "model", "icon", "fits", "requires", "conflicts", "provides"],
+  "patternProperties": {
+    "^_": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Its folder under data/parts"
+    },
+    "slot": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "The socket type it goes in, or one of the car's socket groups (wheels: every socket in the group)"
+    },
+    "kind": {
+      "enum": ["component", "modifier"]
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "What it costs in the shop (for a part that goes on a group of sockets: each one)"
+    },
+    "retired": {
+      "type": "boolean",
+      "description": "No longer sold in the shop; copies players own still work"
+    },
+    "tier": {
+      "enum": ["stock", "street", "sport", "race"],
+      "description": "Its upgrade tier: prices and stats follow the tier's rules (data/content/tiers.json)"
+    },
+    "todo": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "What's still to be filled in (npm run import starts a part with its price and stats to do): the shop doesn't sell a part until this is gone"
+    },
+    "generated": {
+      "type": "object",
+      "required": ["table", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "description": "Made by npm run generate-variants from a variant table (data/variants/<table>.json): edit the table, not this file"
+    },
+    "mass": {
+      "type": "number",
+      "description": "kg; below 0 for what takes weight out (weight reduction: the rear seats taken out)"
+    },
+    "toughness": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "How well it takes a hit (garage/damage.js): the condition points a crash costs it are divided by this (none: 1)"
+    },
+    "detach": {
+      "type": "object",
+      "required": ["detachable", "looseType", "attachStrength", "looseThreshold", "detachThreshold"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js)",
+      "properties": {
+        "detachable": {
+          "type": "boolean"
+        },
+        "looseType": {
+          "enum": ["hinge", "hanging", "none"]
+        },
+        "attachStrength": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "N a loose part's fixings hold before it tears off"
+        },
+        "looseThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "description": "stress (condition points) that makes it loose, added up"
+        },
+        "detachThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "description": "stress in one hit that tears it off"
+        },
+        "hinge": {
+          "type": "object",
+          "required": ["axis", "limits"],
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number"
+              }
+            },
+            "limits": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            }
+          }
+        },
+        "mounts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "description": "where a hanging part can stay fixed (socket frame)"
+        },
+        "looseDrag": {
+          "type": "number",
+          "minimum": 0
+        },
+        "open": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pop": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "purpose": {
+      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety"],
+      "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels): not held to its tier's stat band, and left out of value-for-money comparisons"
+    },
+    "model": {
+      "type": "string",
+      "description": "Path of its model (.glb, origin at the socket); empty for hidden parts (ECU, pistons) and parts with no model yet (bounds: a placeholder box)"
+    },
+    "variantOf": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "A part whose model this one uses (and its look and bounds, with this part's look on top)"
+    },
+    "look": {
+      "$ref": "#/$defs/look"
+    },
+    "bounds": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "$ref": "blocks.schema.json#/$defs/vec3"
+        },
+        "max": {
+          "$ref": "blocks.schema.json#/$defs/vec3"
+        }
+      },
+      "description": "Its model's extent in the socket's frame (m): the placeholder box while it has no model, or if the model won't load"
+    },
+    "hides": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Sockets (whatever's in them) or model nodes hidden while this part is fitted"
+    },
+    "rim": {
+      "type": "object",
+      "required": ["diameter", "width", "offset"],
+      "additionalProperties": false,
+      "properties": {
+        "diameter": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "inches (where the tyre's bead sits)"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "inches"
+        },
+        "offset": {
+          "type": "number",
+          "minimum": -80,
+          "maximum": 80,
+          "description": "mm (ET): less than the car's wheels.referenceOffset puts the wheel further out, widening the track"
+        }
+      },
+      "description": "A wheel's rim: the tyres are made to fit it; the wheel's radius and its turning inertia come from it and the tyre"
+    },
+    "gripWidth": {
+      "type": "object",
+      "required": ["reference", "exponent"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "reference": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "mm: the width the tyre block's grip (D) is for"
+        },
+        "exponent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "description": "A tyre: its grip scales with its width, by (width / reference) ^ exponent"
+    },
+    "spacer": {
+      "type": "object",
+      "required": ["thickness"],
+      "additionalProperties": false,
+      "properties": {
+        "thickness": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "description": "mm the wheel moves out"
+        }
+      }
+    },
+    "massOffset": {
+      "$ref": "blocks.schema.json#/$defs/vec3",
+      "description": "Where its mass centre is from its socket (m, the socket's frame); none: at the socket"
+    },
+    "aeroEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "drag": {
+          "type": "number"
+        },
+        "liftFront": {
+          "type": "number"
+        },
+        "liftRear": {
+          "type": "number"
+        }
+      },
+      "description": "What it adds to the car's drag and front / rear lift coefficients while it's fitted (a bumper lowers the drag; take it off and the drag goes up)"
+    },
+    "tuning": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-zA-Z0-9]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/setting"
+      },
+      "description": "Settings the owner can adjust (stored on the owned part): each within min–max (outside: clamped), applied by the stats calculator"
+    },
+    "tyreSize": {
+      "type": "object",
+      "required": ["width", "sidewall", "compound"],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "mm"
+        },
+        "sidewall": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "% of the width (the aspect ratio)"
+        },
+        "compound": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        }
+      },
+      "description": "A tyre: its mesh is made from these and the fitted rim's diameter"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "fits": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/tag"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/tag"
+            }
+          }
+        ]
+      },
+      "description": "Tags the car, socket or other fitted parts must offer (a list: any one of them)"
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/need"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/need"
+            }
+          }
+        ]
+      },
+      "description": "slot:x (something in an x socket) or tags that must be present (a list: any one of them)"
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/need"
+      },
+      "description": "slot:x, part:id or tags that mustn't be present"
+    },
+    "provides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tag"
+      },
+      "description": "Tags it offers other parts (engine family, bolt pattern…)"
+    },
+    "placeholder": {
+      "type": "object",
+      "description": "Sizes for a stand-in shape while it has no model"
+    },
+    "engine": {
+      "$ref": "blocks.schema.json#/$defs/engine"
+    },
+    "gearbox": {
+      "$ref": "blocks.schema.json#/$defs/gearbox"
+    },
+    "clutch": {
+      "$ref": "blocks.schema.json#/$defs/clutch"
+    },
+    "differential": {
+      "$ref": "blocks.schema.json#/$defs/differential"
+    },
+    "tyre": {
+      "$ref": "blocks.schema.json#/$defs/tyre"
+    },
+    "brakes": {
+      "$ref": "blocks.schema.json#/$defs/brakes"
+    },
+    "suspension": {
+      "$ref": "blocks.schema.json#/$defs/suspension"
+    },
+    "wheels": {
+      "$ref": "blocks.schema.json#/$defs/wheels"
+    },
+    "aero": {
+      "$ref": "blocks.schema.json#/$defs/partAero"
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/effect"
+      }
+    },
+    "sound": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "What the part sounds like (a turbo: its whistle, testtrack/audio.js)",
+      "properties": {
+        "whistle": {
+          "type": "object",
+          "required": ["fromHz", "toHz", "gain", "noise", "q", "spoolUp", "spoolDown"],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "fromHz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "toHz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "noise": {
+              "type": "number",
+              "minimum": 0
+            },
+            "q": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "spoolUp": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "spoolDown": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      }
+    },
+    "frontDifferential": {
+      "$ref": "blocks.schema.json#/$defs/differential",
+      "description": "AWD / 4WD: the front axle's differential"
+    },
+    "centreDifferential": {
+      "$ref": "blocks.schema.json#/$defs/centreDifferential"
+    },
+    "transferCase": {
+      "$ref": "blocks.schema.json#/$defs/transferCase"
+    },
+    "roof": {
+      "$ref": "blocks.schema.json#/$defs/roof"
+    },
+    "chassisToughness": {
+      "type": "number",
+      "minimum": 0,
+      "description": "A roll cage and the like: added to the body shell's toughness, and every part on the car takes hits a little better (garage/damage.js)"
+    },
+    "modelTodo": {
+      "type": "string",
+      "description": "Its model is still to be made (it's drawn as a placeholder box its bounds' size until then): what it is, for docs/models_todo.md (npm run models-todo)"
+    },
+    "upgrade": {
+      "type": "object",
+      "required": ["effects"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        }
+      },
+      "description": "An upgrade of the car's own part (a big brake kit, coilovers, an uprated gearbox): a component whose system blocks are the socket's stock part's, changed by these effects (targets: brakes.front.discRadius…) — so one part suits every car"
+    },
+    "protects": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "required": ["by"],
+      "properties": {
+        "systems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "mechanical systems (garage/mechanical.js) that hits hurt less"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "parts in these slots take hits better"
+        },
+        "by": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "the share of the damage it takes away"
+        }
+      },
+      "description": "Armour (skid plates, rock sliders, a bull bar): what it shields from crash and underbody damage (garage/damage.js, garage/mechanical.js)"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "modifier"
+          }
+        }
+      },
+      "then": {
+        "required": ["effects"],
+        "errorMessage": "is a modifier, so it has effects, not a system block (engine, suspension…)",
+        "not": {
+          "anyOf": [
+            {
+              "required": ["engine"]
+            },
+            {
+              "required": ["gearbox"]
+            },
+            {
+              "required": ["clutch"]
+            },
+            {
+              "required": ["differential"]
+            },
+            {
+              "required": ["tyre"]
+            },
+            {
+              "required": ["brakes"]
+            },
+            {
+              "required": ["suspension"]
+            },
+            {
+              "required": ["wheels"]
+            },
+            {
+              "required": ["aero"]
+            }
+          ]
+        }
+      },
+      "else": {
+        "errorMessage": "is a component, so it carries a system block, not effects",
+        "not": {
+          "required": ["effects"]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "tag": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(:[a-z0-9_.x-]+)?$"
+    },
+    "setting": {
+      "type": "object",
+      "required": ["label", "min", "max", "step", "default", "apply"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "default": {
+          "type": "number"
+        },
+        "apply": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["op"],
+            "additionalProperties": false,
+            "properties": {
+              "target": {
+                "type": "string",
+                "pattern": "^[a-zA-Z]+(\\.[a-zA-Z0-9]+)*$",
+                "description": "Path in the physics spec"
+              },
+              "op": {
+                "enum": ["set", "add", "multiply", "boostPeak", "angle"],
+                "description": "set / add / multiply the target by the setting (× scale); boostPeak: scale the boost curves of the fitted turbos so they peak at the setting (bar); angle: this aero part's angle (degrees)"
+              },
+              "scale": {
+                "type": "number",
+                "description": "the setting × scale (+ offset) is what's applied (mm → m: 0.001)"
+              },
+              "offset": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "colour": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "look": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "How the model is drawn: a finish from data/finishes.json and / or a colour over all its materials (per material in materials), and a scale (one number, or x, y, z in the socket's frame, e.g. a wider rim)",
+      "properties": {
+        "finish": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "colour": {
+          "$ref": "#/$defs/colour"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          ]
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "finish": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "colour": {
+                "$ref": "#/$defs/colour"
+              }
+            }
+          }
+        }
+      }
+    },
+    "need": {
+      "type": "string",
+      "pattern": "^((slot|part):[a-z0-9_]+|[a-z0-9_]+(:[a-z0-9_.x-]+)?)$"
+    },
+    "effect": {
+      "type": "object",
+      "required": ["target", "op"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]+(\\.[a-zA-Z0-9]+)*$",
+          "description": "Path in the physics spec, e.g. engine.torqueCurve or suspension.stiffness"
+        },
+        "op": {
+          "enum": ["add", "multiply", "set", "boost"]
+        },
+        "value": {
+          "type": ["number", "string", "boolean"]
+        },
+        "when": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rpm": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "description": "Torque curve points in this rpm range"
+            },
+            "fade": {
+              "type": "number",
+              "minimum": 0,
+              "description": "rpm over which it fades out beyond the range"
+            }
+          }
+        },
+        "curve": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          },
+          "description": "boost: [rpm, bar] points"
+        },
+        "efficiency": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1.5,
+          "description": "boost: how much of the extra charge becomes torque"
+        },
+        "max": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "boost: the most this turbo can make (bar): an ECU's boost target (boostPeak) raises its curve no higher"
+        }
+      },
+      "if": {
+        "properties": {
+          "op": {
+            "const": "boost"
+          }
+        }
+      },
+      "then": {
+        "required": ["curve", "efficiency"]
+      },
+      "else": {
+        "required": ["value"]
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "hana_roadster_airbox",
+  "name": "Airbox and filter (Hana Roadster, stock)",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 70,
+  "mass": 3,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_airbox.png",
+  "fits": ["intake_flange:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:airbox"],
+  "effects": [],
+  "tier": "stock"
+}

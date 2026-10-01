@@ -1,0 +1,62 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "race",
+  "price": 315,
+  "mass": 10.06,
+  "toughness": 1.5,
+  "fits": ["rim:18"],
+  "requires": ["slot:roll_cage"],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A treadless track slick for a car set up for the track (a roll cage): the most grip there is on dry tarmac — hopeless on anything loose.",
+  "tyreSize": {
+    "width": 245,
+    "sidewall": 40,
+    "compound": "track_slick"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 19,
+      "C": 1.55,
+      "D": 1.2,
+      "E": 0.2
+    },
+    "lateral": {
+      "B": 14,
+      "C": 1.45,
+      "D": 1.02,
+      "E": -0.3
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.015,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 0.6,
+      "gravel": 0.6,
+      "grass": 0.6,
+      "ice": 0.5
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  },
+  "id": "tyre_track_slick_245_40r18",
+  "name": "245/40 R18 track slick",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_track_slick_245_40r18.png",
+  "variantOf": "tyre_track_slick",
+  "generated": {
+    "table": "tyre_track_slick",
+    "key": "size=245_40r18"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_track_slick.json: change the table, not this file."
+}

@@ -1,0 +1,50 @@
+{
+  "id": "brute_500_brakes",
+  "name": "Disc brakes (Brute 500, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 450,
+  "mass": 42,
+  "model": "",
+  "icon": "assets/icons/parts/brute_500_brakes.png",
+  "fits": ["car:brute_500"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.66,
+    "front": {
+      "discRadius": 0.138,
+      "pistonArea": 0.003129,
+      "padMu": 0.42,
+      "heatCapacity": 1773
+    },
+    "rear": {
+      "discRadius": 0.1261,
+      "pistonArea": 0.001544,
+      "padMu": 0.4,
+      "heatCapacity": 1213
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 4032,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 2240
+    }
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,44 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/pads_race.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "pads_race",
+  "name": "Race brake pads",
+  "category": "brakes",
+  "slot": "brake_pads",
+  "tier": "race",
+  "price": 520,
+  "mass": 0,
+  "fits": [],
+  "_note": "Pads for the fitted discs: 26% more friction, fading 150 °C later. With none fitted, the discs' own pads.",
+  "effects": [
+    {
+      "target": "brakes.front.padMu",
+      "op": "multiply",
+      "value": 1.26
+    },
+    {
+      "target": "brakes.rear.padMu",
+      "op": "multiply",
+      "value": 1.26
+    },
+    {
+      "target": "brakes.fade.startTemp",
+      "op": "add",
+      "value": 150
+    },
+    {
+      "target": "brakes.fade.fullTemp",
+      "op": "add",
+      "value": 150
+    },
+    {
+      "target": "brakes.fade.muAtFull",
+      "op": "multiply",
+      "value": 1.3
+    }
+  ]
+}

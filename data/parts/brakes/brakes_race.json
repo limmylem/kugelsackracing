@@ -1,0 +1,66 @@
+{
+  "id": "brakes_race",
+  "name": "Big brake kit, 6-piston vented (race)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "tier": "race",
+  "price": 2400,
+  "mass": 34,
+  "model": "",
+  "icon": "assets/icons/parts/brakes_race.png",
+  "fits": ["brake_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A big brake kit for any car: bigger discs and callipers than its own (27% more disc radius at the front), more heat capacity, later fade.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "brakes.front.discRadius",
+        "op": "multiply",
+        "value": 1.2673
+      },
+      {
+        "target": "brakes.rear.discRadius",
+        "op": "multiply",
+        "value": 1.1268
+      },
+      {
+        "target": "brakes.front.pistonArea",
+        "op": "multiply",
+        "value": 1.31
+      },
+      {
+        "target": "brakes.rear.pistonArea",
+        "op": "multiply",
+        "value": 1.1504
+      },
+      {
+        "target": "brakes.front.heatCapacity",
+        "op": "multiply",
+        "value": 2
+      },
+      {
+        "target": "brakes.rear.heatCapacity",
+        "op": "multiply",
+        "value": 1.5385
+      },
+      {
+        "target": "brakes.fade.startTemp",
+        "op": "add",
+        "value": 100
+      },
+      {
+        "target": "brakes.fade.fullTemp",
+        "op": "add",
+        "value": 150
+      },
+      {
+        "target": "brakes.fade.muAtFull",
+        "op": "add",
+        "value": 0.15
+      }
+    ]
+  }
+}

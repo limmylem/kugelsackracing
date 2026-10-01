@@ -1,0 +1,34 @@
+{
+  "id": "kaze_gt_front_lip",
+  "name": "Front lip (Kaze GT)",
+  "category": "aero",
+  "slot": "front_lip",
+  "kind": "component",
+  "tier": "street",
+  "price": 380,
+  "mass": 3,
+  "toughness": 0.8,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Kaze GT front lip: a 160 cm carbon blade, 18 cm deep, following the underside of the front bumper.",
+  "icon": "assets/icons/parts/kaze_gt_front_lip.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A carbon lip under the front bumper: a little front downforce.",
+  "bounds": {
+    "min": [-0.8, -0.03, -0.1],
+    "max": [0.8, 0.02, 0.08]
+  },
+  "aeroEffect": {
+    "liftFront": -0.03,
+    "drag": 0.004
+  }
+}

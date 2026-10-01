@@ -1,0 +1,150 @@
+{
+  "_note": "The sport tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $85 × the size's factor (bigger costs more).",
+  "base": "tyre_sport",
+  "id": "{base}_{size}",
+  "name": "{size} sport tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "215_45r17"
+    }
+  ],
+  "groups": {
+    "size": {
+      "205_55r16": {
+        "name": "205/55 R16",
+        "priceFactor": 0.953,
+        "set": {
+          "tyreSize": {
+            "width": 205,
+            "sidewall": 55,
+            "compound": "sport"
+          },
+          "fits": ["rim:16"]
+        },
+        "multiply": {
+          "mass": 0.953
+        }
+      },
+      "215_45r17": {
+        "name": "215/45 R17",
+        "set": {
+          "tyreSize": {
+            "width": 215,
+            "sidewall": 45,
+            "compound": "sport"
+          },
+          "fits": ["rim:17"]
+        }
+      },
+      "225_45r17": {
+        "name": "225/45 R17",
+        "priceFactor": 1.023,
+        "set": {
+          "tyreSize": {
+            "width": 225,
+            "sidewall": 45,
+            "compound": "sport"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 1.023
+        }
+      },
+      "235_40r18": {
+        "name": "235/40 R18",
+        "priceFactor": 1.07,
+        "set": {
+          "tyreSize": {
+            "width": 235,
+            "sidewall": 40,
+            "compound": "sport"
+          },
+          "fits": ["rim:18"]
+        },
+        "multiply": {
+          "mass": 1.07
+        }
+      },
+      "245_40r18": {
+        "name": "245/40 R18",
+        "priceFactor": 1.093,
+        "set": {
+          "tyreSize": {
+            "width": 245,
+            "sidewall": 40,
+            "compound": "sport"
+          },
+          "fits": ["rim:18"]
+        },
+        "multiply": {
+          "mass": 1.093
+        }
+      },
+      "255_35r19": {
+        "name": "255/35 R19",
+        "priceFactor": 1.14,
+        "set": {
+          "tyreSize": {
+            "width": 255,
+            "sidewall": 35,
+            "compound": "sport"
+          },
+          "fits": ["rim:19"]
+        },
+        "multiply": {
+          "mass": 1.14
+        }
+      },
+      "275_35r19": {
+        "name": "275/35 R19",
+        "priceFactor": 1.184,
+        "set": {
+          "tyreSize": {
+            "width": 275,
+            "sidewall": 35,
+            "compound": "sport"
+          },
+          "fits": ["rim:19"]
+        },
+        "multiply": {
+          "mass": 1.184
+        }
+      },
+      "265_35r20": {
+        "name": "265/35 R20",
+        "priceFactor": 1.187,
+        "set": {
+          "tyreSize": {
+            "width": 265,
+            "sidewall": 35,
+            "compound": "sport"
+          },
+          "fits": ["rim:20"]
+        },
+        "multiply": {
+          "mass": 1.187
+        }
+      },
+      "295_30r20": {
+        "name": "295/30 R20",
+        "priceFactor": 1.252,
+        "set": {
+          "tyreSize": {
+            "width": 295,
+            "sidewall": 30,
+            "compound": "sport"
+          },
+          "fits": ["rim:20"]
+        },
+        "multiply": {
+          "mass": 1.252
+        }
+      }
+    }
+  }
+}

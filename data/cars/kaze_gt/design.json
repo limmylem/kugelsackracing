@@ -1,0 +1,44 @@
+{
+  "_note": "Kaze GT's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_kaze_gt.glb) when it's made.",
+  "paint": "#c93a2b",
+  "style": "coupe",
+  "length": 4.24,
+  "width": 1.78,
+  "height": 1.29,
+  "clearance": 0.13,
+  "beltline": 0.9,
+  "frontAxle": 1.25,
+  "rearAxle": -1.32,
+  "track": 1.52,
+  "wheel": {
+    "radius": 0.313,
+    "rimDiameter": 17,
+    "width": 0.215
+  },
+  "bonnet": {
+    "rear": 0.55,
+    "front": 0.62,
+    "back": 0.86
+  },
+  "roof": {
+    "front": 0.05,
+    "rear": -0.95,
+    "height": 1.29
+  },
+  "deck": {
+    "front": -1.35,
+    "height": 0.92
+  },
+  "engine": {
+    "at": [0, 0.36, 1.12],
+    "size": [0.72, 0.4, 0.55]
+  },
+  "seatZ": -0.4,
+  "floor": 0.2,
+  "extraSockets": {
+    "socket_front_lip": [0, 0.15, 2.07],
+    "socket_canards": [0, 0.4, 1.98],
+    "socket_widebody": [0, 0.7, 0]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_boot", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_front_lip", "socket_canards", "socket_widebody"]
+}

@@ -1,0 +1,33 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/ecu_stage1.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "ecu_stage1",
+  "name": "Stage 1 ECU map",
+  "category": "ecu",
+  "slot": "ecu",
+  "tier": "street",
+  "price": 450,
+  "mass": 1,
+  "fits": [],
+  "_note": "Remapped ignition and fuelling for the stock engine: more torque from 2500 rpm and 200 rpm more before the limiter.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.04,
+      "when": {
+        "rpm": [2500, 7200],
+        "fade": 500
+      }
+    },
+    {
+      "target": "engine.redlineRpm",
+      "op": "add",
+      "value": 200
+    }
+  ]
+}

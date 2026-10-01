@@ -1,0 +1,25 @@
+{
+  "id": "diff_locked",
+  "name": "Locked differential (welded)",
+  "category": "differential",
+  "slot": "differential",
+  "tier": "street",
+  "purpose": "drift",
+  "kind": "component",
+  "price": 380,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/diff_locked.png",
+  "fits": [
+    ["diff_mount:starter", "diff:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Both rear wheels always turn together: the car pushes wide in slow corners, but it slides on command.",
+  "differential": {
+    "type": "locked",
+    "preload": 0,
+    "lock": 1
+  }
+}

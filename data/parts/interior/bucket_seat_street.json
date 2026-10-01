@@ -1,0 +1,23 @@
+{
+  "id": "bucket_seat_street",
+  "name": "Sport bucket seat",
+  "category": "interior",
+  "slot": "seat",
+  "kind": "component",
+  "tier": "street",
+  "price": 420,
+  "mass": 11,
+  "model": "",
+  "modelTodo": "A sport bucket seat: a fixed-back shell with side bolsters and harness slots, about 50 × 95 × 72 cm.",
+  "icon": "assets/icons/parts/bucket_seat_street.png",
+  "fits": ["seat_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["seat:bucket"],
+  "_note": "A fixed-back sport bucket seat: 4 kg lighter than a stock seat, and a harness can go with it.",
+  "bounds": {
+    "min": [-0.25, 0, -0.48],
+    "max": [0.25, 0.95, 0.24]
+  },
+  "massOffset": [0, 0.4, -0.12]
+}

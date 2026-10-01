@@ -1,0 +1,46 @@
+{
+  "id": "hana_roadster_soft_top",
+  "name": "Folding soft top (Hana Roadster, stock)",
+  "category": "body",
+  "slot": "roof",
+  "kind": "component",
+  "price": 1200,
+  "mass": 18,
+  "model": "assets/parts/stock/hana_roadster/hana_roadster_soft_top.glb",
+  "icon": "assets/icons/parts/hana_roadster_soft_top.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A folding fabric roof: up, a closed car; down (its setting, or ; while stopped), the wind and the engine loud in the cockpit and a little more drag. Its model is the roof up; folded, the drawing packs it away behind the seats.",
+  "roof": {
+    "kind": "soft",
+    "open": 0
+  },
+  "tuning": {
+    "open": {
+      "label": "roof down",
+      "unit": "",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "default": 0,
+      "apply": [
+        {
+          "target": "roof.open",
+          "op": "set"
+        },
+        {
+          "target": "aero.dragCoefficient",
+          "op": "add",
+          "scale": 0.03
+        }
+      ]
+    }
+  },
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.74, -0.36, -0.825],
+    "max": [0.74, 0, 0.475]
+  }
+}

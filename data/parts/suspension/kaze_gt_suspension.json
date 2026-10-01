@@ -1,0 +1,26 @@
+{
+  "id": "kaze_gt_suspension",
+  "name": "Springs and dampers (Kaze GT, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 590,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_suspension.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.27,
+    "travel": 0.18,
+    "stiffness": 42000,
+    "damping": 3050,
+    "antiRoll": {
+      "front": 12000,
+      "rear": 9000
+    }
+  },
+  "tier": "stock"
+}

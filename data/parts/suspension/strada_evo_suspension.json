@@ -1,0 +1,26 @@
+{
+  "id": "strada_evo_suspension",
+  "name": "Springs and dampers (Strada Evo, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 620,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_suspension.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.29,
+    "travel": 0.22,
+    "stiffness": 36500,
+    "damping": 3050,
+    "antiRoll": {
+      "front": 10000,
+      "rear": 10000
+    }
+  },
+  "tier": "stock"
+}

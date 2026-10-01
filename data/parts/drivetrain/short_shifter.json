@@ -1,0 +1,29 @@
+{
+  "id": "short_shifter",
+  "name": "Short shifter",
+  "category": "drivetrain",
+  "slot": "shifter",
+  "kind": "modifier",
+  "tier": "street",
+  "price": 220,
+  "mass": 0.5,
+  "model": "",
+  "modelTodo": "A short shift lever: a 20 cm metal stalk with a round knob and a small gaiter plate.",
+  "icon": "assets/icons/parts/short_shifter.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A shorter gear lever throw: every shift a quarter quicker.",
+  "bounds": {
+    "min": [-0.025, 0, -0.025],
+    "max": [0.025, 0.25, 0.025]
+  },
+  "effects": [
+    {
+      "target": "gearbox.shiftTime",
+      "op": "multiply",
+      "value": 0.75
+    }
+  ]
+}

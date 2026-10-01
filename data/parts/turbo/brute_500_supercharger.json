@@ -1,0 +1,40 @@
+{
+  "id": "brute_500_supercharger",
+  "name": "Supercharger with bonnet scoop (Brute 500)",
+  "category": "turbo",
+  "slot": "supercharger",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 5600,
+  "mass": 32,
+  "model": "",
+  "modelTodo": "Brute 500 supercharger: a twin-screw blower (55 × 45 × 25 cm) on top of the V8, with a throttle body facing forward into the bonnet scoop.",
+  "icon": "assets/icons/parts/brute_500_supercharger.png",
+  "fits": ["engine_family:brute_v8"],
+  "requires": ["bonnet:scoop"],
+  "conflicts": ["induction:turbo", "forced_induction:turbo"],
+  "provides": ["forced_induction:supercharger"],
+  "_note": "A big twin-screw supercharger on the V8, poking up through a scoop bonnet: an absurd amount of torque everywhere.",
+  "bounds": {
+    "min": [-0.225, 0, -0.275],
+    "max": [0.225, 0.25, 0.275]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1000, 0.4], [2000, 0.6], [5500, 0.62], [6800, 0.55]],
+      "efficiency": 0.78
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "supercharged"
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.1
+    }
+  ]
+}

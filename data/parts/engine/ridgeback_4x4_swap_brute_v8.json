@@ -1,0 +1,17 @@
+{
+  "id": "ridgeback_4x4_swap_brute_v8",
+  "name": "V8 swap kit (Ridgeback 4x4)",
+  "category": "engine",
+  "slot": "engine_swap",
+  "kind": "component",
+  "tier": "sport",
+  "price": 2400,
+  "mass": 16,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_swap_brute_v8.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": ["clutch_rating:sport", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": [],
+  "provides": ["engine_swap:brute_v8"],
+  "_note": "Mounts and wiring to put the Brute 500's 5.0 L V8 in the Ridgeback 4x4: torque for the rocks. It needs an uprated clutch (sport), gearbox and radiator fitted first; then take the engine out and put the new one in."
+}

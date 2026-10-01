@@ -1,0 +1,30 @@
+{
+  "id": "underglow_red",
+  "name": "Underglow (red)",
+  "category": "cosmetic",
+  "slot": "underglow",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 260,
+  "mass": 1,
+  "model": "",
+  "modelTodo": "Underglow: four thin LED strips (2 cm) along the sills and under the bumpers, a frame about 150 × 320 cm under the floor.",
+  "icon": "assets/icons/parts/underglow_red.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "LED strips under the car, glowing red on the ground.",
+  "effects": [
+    {
+      "target": "cosmetic.underglow",
+      "op": "set",
+      "value": "#ff3030"
+    }
+  ],
+  "bounds": {
+    "min": [-0.75, 0, -1.6],
+    "max": [0.75, 0.02, 1.6]
+  }
+}

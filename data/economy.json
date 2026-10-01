@@ -1,0 +1,24 @@
+{
+  "_note": "Money in the game (garage/player). Prices are the parts' and cars' own (their files). Selling: price × sell.ratio × the condition curve at the part's condition (straight lines between the points). Repairing to 100%: price × repair.perPoint × the points missing, at least repair.minimum (dents with no points missing: the minimum). The body shell repairs the same way from its own price (car.json shell.price), plus repair.breakable for each broken window or light. A part with mechanical damage (bent, leaking, worn: garage/mechanical.js) costs price × repair.mechanical more to put right (at least repair.minimum). Parts that go on a group of sockets (wheels, tyres, spacers) are bought as a set of that many. A new car costs its class's carPrices × its priceFactor (car.json).",
+  "currency": "$",
+  "startingMoney": 6000,
+  "startingCar": "starter_car",
+  "sell": {
+    "ratio": 0.6,
+    "conditionCurve": [[0, 0.1], [40, 0.45], [70, 0.8], [100, 1]]
+  },
+  "repair": {
+    "perPoint": 0.006,
+    "minimum": 20,
+    "breakable": 60,
+    "mechanical": 0.2
+  },
+  "carPrices": {
+    "D": 12000,
+    "C": 24000,
+    "B": 42000,
+    "A": 70000,
+    "S": 160000,
+    "X": 300000
+  }
+}

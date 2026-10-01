@@ -1,0 +1,18 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/weight_rear_seats.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "weight_rear_seats",
+  "name": "Rear seats removed",
+  "category": "weight",
+  "slot": "weight_rear_seats",
+  "tier": "street",
+  "price": 120,
+  "mass": -26,
+  "fits": ["car:starter_car"],
+  "_note": "Out come the rear seats and their belts: 26 kg lighter, from behind the driver.",
+  "effects": []
+}

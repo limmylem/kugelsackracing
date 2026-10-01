@@ -1,0 +1,27 @@
+{
+  "id": "diff_locker_rear",
+  "name": "Rear selectable locker",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 650,
+  "mass": 26,
+  "model": "",
+  "icon": "assets/icons/parts/diff_locker_rear.png",
+  "fits": [
+    ["diff_mount:starter", "rear_diff:4wd", "rear_diff:awd"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "offroad",
+  "_note": "An open rear diff the driver can lock: both rear wheels turn together, so one on ice or in the air can't take all the drive.",
+  "differential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m). lockable: the driver can lock it (a selectable locker). torqueSteer: on a driven front axle, how much of the car's torque steer gets through.",
+    "type": "open",
+    "preload": 0,
+    "lock": 0,
+    "lockable": true
+  },
+  "tier": "street"
+}

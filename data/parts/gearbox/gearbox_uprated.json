@@ -1,0 +1,26 @@
+{
+  "id": "gearbox_uprated",
+  "name": "Uprated gearbox (stronger gears, quicker shift)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "tier": "street",
+  "price": 950,
+  "mass": 38,
+  "model": "",
+  "icon": "assets/icons/parts/gearbox_uprated.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:rs", "clutch_spline:std", "gearbox:uprated"],
+  "_note": "The car's own ratios in a stronger case with a quicker shift: it takes a bigger engine's torque (an engine swap needs it).",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "gearbox.shiftTime",
+        "op": "multiply",
+        "value": 0.8
+      }
+    ]
+  }
+}

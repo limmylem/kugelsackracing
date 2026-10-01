@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#030405;overflow:hidden;}
+*{box-sizing:border-box;}
+a{color:#36B3F5;text-decoration:none;}
+a:hover{color:#5CC3F8;}
+</style>
+</helmet>
+<div style="position:fixed; inset:0; background:#030405; overflow:hidden; font-family:'Barlow',sans-serif; color:#E9ECEF; -webkit-font-smoothing:antialiased;">
+<div style="position:absolute; left:{{ offX }}; top:{{ offY }}; width:1920px; height:1080px; transform:{{ stageScale }}; transform-origin:0 0; overflow:hidden; background:#0B0E11;">
+
+  <!-- VIEWPORT -->
+  <div data-screen-label="3D viewport" style="position:absolute; inset:0; background:radial-gradient(ellipse 60% 55% at 50% 42%, #1F2429 0%, #121519 55%, #08090B 100%);">
+    <div style="position:absolute; left:0; right:0; top:860px; bottom:0; background:linear-gradient(#171B1F, #0A0C0E); border-top:1px solid #2A3139;"></div>
+    <div style="position:absolute; left:500px; top:240px; width:30px; height:620px; background:#1A1F24; border:1px solid #2C333B; border-radius:3px;"></div>
+    <div style="position:absolute; left:1390px; top:240px; width:30px; height:620px; background:#1A1F24; border:1px solid #2C333B; border-radius:3px;"></div>
+    <div style="position:absolute; left:530px; top:598px; width:230px; height:10px; background:#262C33; border-radius:2px;"></div>
+    <div style="position:absolute; left:1160px; top:598px; width:230px; height:10px; background:#262C33; border-radius:2px;"></div>
+    <div style="position:absolute; left:560px; top:330px; width:800px; height:320px; opacity:{{ carOpacity }};">
+      <div style="position:absolute; left:230px; top:0; width:380px; height:112px; border-radius:160px 180px 0 0; background:#22282E; border:1px solid #353D46; border-bottom:none;"></div>
+      <div style="position:absolute; left:0; top:96px; width:800px; height:170px; border-radius:70px 110px 30px 30px; background-color:{{ carBg }}; background-image:repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 14px); border:1px solid #3A424B;"></div>
+      <div style="position:absolute; left:90px; top:200px; width:120px; height:120px; border-radius:50%; background:#0D0F12; border:12px solid #1C2126;"></div>
+      <div style="position:absolute; left:590px; top:200px; width:120px; height:120px; border-radius:50%; background:#0D0F12; border:12px solid #1C2126;"></div>
+      <div style="position:absolute; left:0; right:0; top:226px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:0.14em; color:rgba(233,236,239,0.5);">3D CAR MODEL · ON 2-POST LIFT</div>
+    </div>
+    <div style="position:absolute; left:264px; top:100px; font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; color:#6B7480;">CAM · {{ camLabel }}</div>
+    <sc-if value="{{ showOrbitHint }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; left:264px; width:1128px; top:900px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; color:#6B7480;">DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A MARKER TO OPEN ITS SLOT</div>
+    </sc-if>
+    <sc-if value="{{ isSystems }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:560px; top:470px; width:800px; text-align:center; display:flex; flex-direction:column; gap:6px; align-items:center;">
+        <div style="font-family:'Barlow Condensed'; font-size:22px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;">Model ghosted</div>
+        <div style="font-size:15px; color:#A3ABB5;">These parts have no visible 3D model. Manage them from the list.</div>
+      </div>
+    </sc-if>
+    <sc-for list="{{ hotspots }}" as="h" hint-placeholder-count="0">
+      <div onClick="{{ h.onClick }}" style="position:absolute; left:{{ h.left }}; top:{{ h.top }}; display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <sc-if value="{{ h.empty }}">
+          <div style="width:18px; height:18px; border-radius:50%; border:2px dashed {{ h.color }}; background:rgba(7,9,11,0.8); box-shadow:0 0 0 {{ h.ringW }} rgba(54,179,245,0.25); display:flex; align-items:center; justify-content:center; font-size:12px; line-height:1; color:{{ h.color }}; font-weight:700;">+</div>
+        </sc-if>
+        <sc-if value="{{ h.filled }}">
+          <div style="width:18px; height:18px; border-radius:50%; background:{{ h.color }}; border:3px solid #07090B; box-shadow:0 0 0 4px {{ h.ring }};"></div>
+        </sc-if>
+        <sc-if value="{{ h.showLabel }}">
+          <div style="height:24px; padding:0 9px; display:flex; align-items:center; gap:6px; border-radius:4px; background:rgba(7,9,11,0.82); border:1px solid {{ h.labelBorder }}; font-size:13px; font-weight:600; white-space:nowrap;">
+            <span>{{ h.label }}</span><span style="font-family:'JetBrains Mono',monospace; font-weight:500; color:{{ h.color }};">{{ h.val }}</span>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- TOP BAR -->
+  <div data-screen-label="Top bar" style="position:absolute; left:0; top:0; width:1920px; height:72px; display:flex; align-items:center; gap:16px; padding:0 24px; background:linear-gradient(rgba(7,9,11,0.97), rgba(7,9,11,0.85)); border-bottom:1px solid #1C2228;">
+    <div onClick="{{ goUnsaved }}" style="width:40px; height:40px; border-radius:6px; background:#151A1F; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; cursor:pointer;" style-hover="background:#1B2127;">
+      <span style="font-family:'Material Symbols Outlined'; font-size:22px; line-height:1;">arrow_back</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <div style="font-family:'Barlow Condensed'; font-size:24px; font-weight:600; line-height:1; letter-spacing:0.02em;">Kestrel GL 1.6</div>
+      <div style="font-size:13px; color:#6B7480;">1989 · Hatchback · FWD</div>
+    </div>
+    <div style="display:flex; align-items:stretch; height:32px; border-radius:5px; overflow:hidden; border:1px solid #36B3F5; margin-left:8px;">
+      <div style="width:30px; background:#36B3F5; color:#04121B; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed'; font-weight:700; font-size:20px;">{{ classLetter }}</div>
+      <div style="padding:0 10px; display:flex; align-items:center; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">{{ classNum }}</div>
+    </div>
+    <div style="position:absolute; left:50%; top:0; height:72px; transform:translateX(-50%); display:flex; gap:4px;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <div onClick="{{ t.onClick }}" style="height:72px; padding:0 22px; display:flex; align-items:center; gap:8px; color:{{ t.fg }}; border-bottom:2px solid {{ t.line }}; cursor:pointer; font-family:'Barlow Condensed'; font-size:18px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;" style-hover="color:#E9ECEF;">
+          <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">{{ t.icon }}</span><span>{{ t.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:600;">
+      <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#6B7480;">account_balance_wallet</span>$18,400
+    </div>
+    <div style="width:1px; height:32px; background:#242B33; margin:0 4px;"></div>
+    <div style="display:flex; gap:6px;">
+      <div style="width:40px; height:40px; border-radius:6px; background:#151A1F; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; cursor:pointer;" style-hover="background:#1B2127;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1;">undo</span></div>
+      <div style="width:40px; height:40px; border-radius:6px; background:#151A1F; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#6B7480;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1;">redo</span></div>
+    </div>
+    <div style="height:40px; padding:0 16px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#1B2127; border:1px solid #333C46; font-family:'Barlow Condensed'; font-size:16px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#232A31;">
+      <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">save</span>Save
+      <span style="min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:#F2C037; color:#1A1405; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; letter-spacing:0;">3</span>
+    </div>
+    <sc-if value="{{ canDrive }}" hint-placeholder-val="{{ true }}">
+      <div style="height:40px; padding:0 20px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:16px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;">
+        <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">sports_score</span>Test drive
+      </div>
+    </sc-if>
+    <sc-if value="{{ noEngine }}" hint-placeholder-val="{{ false }}">
+      <div style="height:40px; padding:0 20px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#151A1F; border:1px solid #242B33; color:#6B7480; font-family:'Barlow Condensed'; font-size:16px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:not-allowed;">
+        <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">lock</span>Test drive
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- NO ENGINE BANNER -->
+  <sc-if value="{{ noEngine }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Warning banner" style="position:absolute; left:50%; top:88px; transform:translateX(-50%); width:820px; display:flex; align-items:center; gap:16px; padding:14px 14px 14px 18px; border-radius:8px; background:#2A1215; border:1px solid #FF5A5F;">
+      <span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1; color:#FF5A5F;">error</span>
+      <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+        <div style="font-size:17px; font-weight:700;">Car can't be driven: no engine installed</div>
+        <div style="font-size:14px; color:#E3B7B9;">Install an engine in the engine bay to enable test drive and dyno runs.</div>
+      </div>
+      <div onClick="{{ goMain }}" style="height:40px; padding:0 16px; display:flex; align-items:center; gap:6px; border-radius:6px; background:#FF5A5F; color:#1F0607; font-family:'Barlow Condensed'; font-size:16px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;">Open engine bay</div>
+    </div>
+  </sc-if>
+
+  <!-- LEFT RAIL -->
+  <div data-screen-label="Focus rail" style="position:absolute; left:24px; top:96px; width:216px; display:flex; flex-direction:column; gap:12px;">
+    <div style="padding:8px; border-radius:10px; background:rgba(12,15,18,0.9); border:1px solid #242B33; display:flex; flex-direction:column; gap:2px;">
+      <div style="padding:8px 12px 6px; font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Focus area</div>
+      <sc-for list="{{ rail }}" as="r" hint-placeholder-count="6">
+        <div onClick="{{ r.onClick }}" style="height:44px; padding:0 12px; display:flex; align-items:center; gap:12px; border-radius:6px; background:{{ r.bg }}; color:{{ r.fg }}; cursor:pointer;" style-hover="background:#1B2127;">
+          <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1;">{{ r.icon }}</span>
+          <span style="flex:1; font-size:15px; font-weight:500;">{{ r.label }}</span>
+          <span style="width:8px; height:8px; border-radius:50%; background:{{ r.dot }};"></span>
+        </div>
+      </sc-for>
+      <div style="height:1px; background:#242B33; margin:6px 4px;"></div>
+      <div onClick="{{ sys.onClick }}" style="height:44px; padding:0 12px; display:flex; align-items:center; gap:12px; border-radius:6px; background:{{ sys.bg }}; color:{{ sys.fg }}; cursor:pointer;" style-hover="background:#1B2127;">
+        <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1;">settings_suggest</span>
+        <span style="flex:1; font-size:15px; font-weight:500;">Systems</span>
+        <span style="width:8px; height:8px; border-radius:50%; background:#FF5A5F;"></span>
+      </div>
+    </div>
+    <div style="padding:14px 16px; border-radius:10px; background:rgba(12,15,18,0.9); border:1px solid #242B33; display:flex; flex-direction:column; gap:8px;">
+      <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Condition</div>
+      <div style="display:flex; align-items:center; gap:10px; font-size:14px; color:#A3ABB5;"><span style="width:10px; height:10px; border-radius:50%; background:#3DD68C;"></span>Good · 70–100%</div>
+      <div style="display:flex; align-items:center; gap:10px; font-size:14px; color:#A3ABB5;"><span style="width:10px; height:10px; border-radius:50%; background:#F2C037;"></span>Worn · 40–69%</div>
+      <div style="display:flex; align-items:center; gap:10px; font-size:14px; color:#A3ABB5;"><span style="width:10px; height:10px; border-radius:50%; background:#FF5A5F;"></span>Damaged · 0–39%</div>
+      <div style="display:flex; align-items:center; gap:10px; font-size:14px; color:#A3ABB5;"><span style="width:10px; height:10px; border-radius:50%; border:2px dashed #36B3F5;"></span>Empty slot</div>
+    </div>
+  </div>
+
+  <!-- STAT STRIP -->
+  <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Stat strip" style="position:absolute; left:264px; bottom:24px; width:1128px; height:80px; display:flex; border-radius:10px; background:rgba(12,15,18,0.9); border:1px solid #242B33; overflow:hidden;">
+      <sc-for list="{{ strip }}" as="s" hint-placeholder-count="6">
+        <div style="flex:1; padding:14px 18px; display:flex; flex-direction:column; justify-content:center; gap:6px; border-right:1px solid #1C2228;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">{{ s.label }}</div>
+          <div style="display:flex; align-items:baseline; gap:6px; font-family:'JetBrains Mono',monospace;">
+            <span style="font-size:22px; font-weight:600;">{{ s.value }}</span>
+            <span style="font-size:13px; color:#A3ABB5;">{{ s.unit }}</span>
+            <span style="font-size:14px; font-weight:600; color:{{ s.dColor }};">{{ s.delta }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- PARTS PANEL -->
+  <sc-if value="{{ isParts }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="02 Parts panel" style="position:absolute; left:1416px; top:96px; width:480px; height:960px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+      <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; align-items:flex-start; gap:12px;">
+        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Engine bay / Forced induction</div>
+          <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Turbocharger</div>
+        </div>
+        <div onClick="{{ goMain }}" style="width:36px; height:36px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#A3ABB5; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;"><span style="font-family:'Material Symbols Outlined'; font-size:22px; line-height:1;">close</span></div>
+      </div>
+      <div style="flex:1; overflow:auto; padding:20px 24px; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Installed</div>
+        <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; border:1px dashed #333C46;">
+          <div style="width:56px; height:56px; border-radius:6px; border:1px dashed #333C46; display:flex; align-items:center; justify-content:center; color:#6B7480;"><span style="font-family:'Material Symbols Outlined'; font-size:26px; line-height:1;">block</span></div>
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <div style="font-size:16px; font-weight:600;">Empty</div>
+            <div style="font-size:14px; color:#A3ABB5;">No turbo fitted. Engine is naturally aspirated.</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Compatible parts · {{ partCount }}</div>
+          <div onClick="{{ toggleSort }}" style="height:30px; padding:0 10px; display:flex; align-items:center; gap:6px; border-radius:5px; border:1px solid #242B33; font-size:13px; color:#A3ABB5; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;">
+            <span style="font-family:'Material Symbols Outlined'; font-size:18px; line-height:1;">sort</span>{{ sortLabel }}
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <sc-for list="{{ filters }}" as="c" hint-placeholder-count="4">
+            <div onClick="{{ c.onClick }}" style="height:30px; padding:0 12px; display:flex; align-items:center; border-radius:15px; background:{{ c.bg }}; border:1px solid {{ c.border }}; color:{{ c.fg }}; font-size:13px; font-weight:600; cursor:pointer;">{{ c.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <sc-for list="{{ partRows }}" as="p" hint-placeholder-count="5">
+            <div onClick="{{ p.onClick }}" style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; background:{{ p.bg }}; border:1px solid {{ p.border }}; opacity:{{ p.opacity }}; cursor:{{ p.cursor }};" style-hover="border-color:#333C46;">
+              <div style="width:56px; height:56px; flex:none; border-radius:6px; background:#0B0E11; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1;">mode_fan</span></div>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;">
+                <div style="font-size:16px; font-weight:600;">{{ p.name }}</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">{{ p.spec }}</div>
+                <sc-if value="{{ p.locked }}">
+                  <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#FF7A7E;"><span style="font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">lock</span>Requires: {{ p.req }}</div>
+                </sc-if>
+                <sc-if value="{{ p.open }}">
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#3DD68C;">{{ p.gain }}</div>
+                </sc-if>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                <sc-if value="{{ p.owned }}">
+                  <div style="height:22px; padding:0 8px; display:flex; align-items:center; border-radius:4px; background:rgba(54,179,245,0.14); color:#36B3F5; font-size:12px; font-weight:700; letter-spacing:0.08em;">OWNED</div>
+                </sc-if>
+                <sc-if value="{{ p.forSale }}">
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">{{ p.price }}</div>
+                </sc-if>
+                <div style="height:22px; padding:0 8px; display:flex; align-items:center; gap:6px; border-radius:4px; background:{{ p.condBg }}; color:{{ p.condColor }}; font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;">
+                  <span style="width:6px; height:6px; border-radius:50%; background:{{ p.condColor }};"></span>{{ p.cond }}
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- COMPARE PANEL -->
+  <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="03 Stat comparison" style="position:absolute; left:1416px; top:96px; width:480px; height:960px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+      <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; align-items:center; gap:12px;">
+        <div onClick="{{ goParts }}" style="width:36px; height:36px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#A3ABB5; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;"><span style="font-family:'Material Symbols Outlined'; font-size:22px; line-height:1;">arrow_back</span></div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Turbocharger / Preview</div>
+          <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">{{ part.name }}</div>
+        </div>
+        <div onClick="{{ goMain }}" style="width:36px; height:36px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#A3ABB5; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;"><span style="font-family:'Material Symbols Outlined'; font-size:22px; line-height:1;">close</span></div>
+      </div>
+      <div style="flex:1; overflow:auto; padding:20px 24px; display:flex; flex-direction:column; gap:18px;">
+        <div style="display:flex; gap:16px; align-items:center;">
+          <div style="width:88px; height:88px; flex:none; border-radius:8px; background:#0B0E11; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:44px; line-height:1;">mode_fan</span></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">{{ part.spec }}</div>
+            <div style="display:flex; gap:6px;">
+              <div style="height:22px; padding:0 8px; display:flex; align-items:center; gap:6px; border-radius:4px; background:{{ part.condBg }}; color:{{ part.condColor }}; font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;"><span style="width:6px; height:6px; border-radius:50%; background:{{ part.condColor }};"></span>{{ part.cond }}</div>
+              <div style="height:22px; padding:0 8px; display:flex; align-items:center; border-radius:4px; background:#1B2127; color:#A3ABB5; font-size:12px; font-weight:600;">Fits 1.6 I4 8V</div>
+            </div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:600;">{{ part.price }}</div>
+        </div>
+        <div style="display:flex; flex-direction:column;">
+          <div style="display:grid; grid-template-columns:minmax(0,1fr) 78px 78px 72px 24px; gap:8px; padding:0 0 8px; border-bottom:1px solid #242B33; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">
+            <span>Stat</span><span style="text-align:right;">Current</span><span style="text-align:right;">New</span><span style="text-align:right;">Change</span><span></span>
+          </div>
+          <sc-for list="{{ stats }}" as="s" hint-placeholder-count="8">
+            <div style="display:flex; flex-direction:column; border-bottom:1px solid #1C2228;">
+              <div onClick="{{ s.onClick }}" style="display:grid; grid-template-columns:minmax(0,1fr) 78px 78px 72px 24px; gap:8px; align-items:center; height:44px; cursor:pointer;" style-hover="background:#151A1F;">
+                <span style="font-size:15px; font-weight:500;">{{ s.label }}</span>
+                <span style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:14px; color:#A3ABB5;">{{ s.cur }}</span>
+                <span style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600;">{{ s.nv }}</span>
+                <span style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:{{ s.dColor }};">{{ s.delta }}</span>
+                <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#6B7480;">{{ s.chev }}</span>
+              </div>
+              <sc-if value="{{ s.expanded }}">
+                <div style="margin:0 0 12px; padding:12px 14px; border-radius:6px; background:#0B0E11; border:1px solid #1C2228; display:flex; flex-direction:column; gap:10px;">
+                  <div style="font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">What affects {{ s.labelLower }}</div>
+                  <sc-for list="{{ s.bd }}" as="b">
+                    <div style="display:grid; grid-template-columns:minmax(0,1fr) 90px 70px; gap:10px; align-items:center;">
+                      <div style="display:flex; flex-direction:column; gap:1px;">
+                        <span style="font-size:14px; font-weight:500;">{{ b.n }}</span>
+                        <span style="font-size:12px; color:#6B7480;">{{ b.s }}</span>
+                      </div>
+                      <div style="height:4px; border-radius:2px; background:#1C2228; overflow:hidden;"><div style="height:4px; width:{{ b.bar }}; background:{{ b.color }};"></div></div>
+                      <span style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:{{ b.color }};">{{ b.v }}</span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ s.hasNote }}">
+                    <div style="display:flex; gap:8px; align-items:center; padding-top:8px; border-top:1px solid #1C2228; font-size:13px; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:18px; line-height:1; color:#36B3F5;">lightbulb</span>{{ s.note }}</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:16px 24px 20px; border-top:1px solid #1C2228; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:14px; color:#A3ABB5;"><span>Balance after</span><span style="font-family:'JetBrains Mono',monospace; color:#E9ECEF;">{{ balanceAfter }}</span></div>
+        <div style="display:flex; gap:10px;">
+          <div onClick="{{ goParts }}" style="height:48px; padding:0 20px; display:flex; align-items:center; justify-content:center; border-radius:6px; background:#1B2127; border:1px solid #333C46; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#232A31;">Cancel</div>
+          <div style="flex:1; height:48px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;">{{ buyLabel }}</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- SYSTEMS PANEL -->
+  <sc-if value="{{ isSystems }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="04 Systems" style="position:absolute; left:1416px; top:96px; width:480px; height:960px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+      <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; align-items:flex-start; gap:12px;">
+        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Hidden components</div>
+          <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Systems</div>
+        </div>
+        <div onClick="{{ goMain }}" style="width:36px; height:36px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#A3ABB5; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;"><span style="font-family:'Material Symbols Outlined'; font-size:22px; line-height:1;">close</span></div>
+      </div>
+      <div style="flex:1; overflow:auto; padding:16px 24px 20px; display:flex; flex-direction:column; gap:18px;">
+        <sc-for list="{{ systems }}" as="g" hint-placeholder-count="4">
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#A3ABB5;">{{ g.icon }}</span>
+              <span style="flex:1; font-family:'Barlow Condensed'; font-size:18px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;">{{ g.name }}</span>
+              <span style="font-size:13px; color:#6B7480;">{{ g.summary }}</span>
+            </div>
+            <div style="border-radius:8px; background:#0B0E11; border:1px solid #1C2228; overflow:hidden;">
+              <sc-for list="{{ g.rows }}" as="r">
+                <div style="height:46px; padding:0 12px 0 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #161B20; cursor:pointer;" style-hover="background:#151A1F;">
+                  <span style="width:8px; height:8px; border-radius:50%; background:{{ r.color }}; border:{{ r.ring }};"></span>
+                  <span style="width:132px; font-size:15px; font-weight:500;">{{ r.n }}</span>
+                  <span style="flex:1; font-size:13px; color:#A3ABB5;">{{ r.part }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:{{ r.color }};">{{ r.val }}</span>
+                  <span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#6B7480;">chevron_right</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:16px 24px 20px; border-top:1px solid #1C2228; display:flex; align-items:center; gap:12px;">
+        <div style="flex:1; font-size:14px; color:#A3ABB5;">8 parts need attention</div>
+        <div style="height:44px; padding:0 18px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#1B2127; border:1px solid #333C46; font-family:'Barlow Condensed'; font-size:16px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#232A31;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">build</span>Repair all · $1,340</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- TUNING PANEL -->
+  <sc-if value="{{ isTuning }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="05 Tuning" style="position:absolute; left:1416px; top:96px; width:480px; height:960px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+      <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Setup: Street · adjustable parts only</div>
+          <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Tuning</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px;">
+          <sc-for list="{{ effects }}" as="e" hint-placeholder-count="4">
+            <div style="padding:10px; border-radius:6px; background:#0B0E11; border:1px solid #1C2228; display:flex; flex-direction:column; gap:4px;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#6B7480;">{{ e.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600;">{{ e.val }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{{ e.color }};">{{ e.delta }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1; overflow:auto; padding:18px 24px 20px; display:flex; flex-direction:column; gap:16px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Suspension · Adjustable coilovers</div>
+        <sc-for list="{{ susp }}" as="s" hint-placeholder-count="3">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; font-weight:500;">{{ s.label }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:{{ s.valColor }};">{{ s.valText }}</span></div>
+            <div style="position:relative; height:20px;">
+              <div style="position:absolute; left:0; right:0; top:8px; height:4px; border-radius:2px; background:#242B33;"></div>
+              <div style="position:absolute; left:0; top:8px; height:4px; border-radius:2px; width:{{ s.pct }}; background:#36B3F5;"></div>
+              <div style="position:absolute; left:{{ s.def }}; top:3px; width:2px; height:14px; margin-left:-1px; background:#6B7480;"></div>
+              <div style="position:absolute; left:{{ s.pct }}; top:2px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:#E9ECEF; border:3px solid #36B3F5;"></div>
+              <input type="range" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.value }}" onChange="{{ s.onChange }}" style="position:absolute; inset:0; width:100%; height:20px; margin:0; opacity:0; cursor:pointer;">
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ lowRide }}">
+          <div style="display:flex; gap:8px; align-items:center; font-size:13px; color:#F2C037;"><span style="font-family:'Material Symbols Outlined'; font-size:18px; line-height:1;">warning</span>Low ride height: risk of bottoming out on kerbs.</div>
+        </sc-if>
+        <div style="height:1px; background:#1C2228;"></div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Aero</div>
+        <div style="display:flex; flex-direction:column; gap:6px; opacity:0.45;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; font-weight:500;">Wing angle</span><span style="font-family:'JetBrains Mono',monospace; font-size:14px; color:#A3ABB5;">—</span></div>
+          <div style="position:relative; height:20px;"><div style="position:absolute; left:0; right:0; top:8px; height:4px; border-radius:2px; background:#242B33;"></div></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-top:-8px; font-size:13px; font-weight:600; color:#FF7A7E;"><span style="font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">lock</span>Requires: Adjustable rear wing</div>
+        <div style="height:1px; background:#1C2228;"></div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Differential · Plate LSD</div>
+        <sc-for list="{{ diff }}" as="s" hint-placeholder-count="1">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; font-weight:500;">{{ s.label }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:{{ s.valColor }};">{{ s.valText }}</span></div>
+            <div style="position:relative; height:20px;">
+              <div style="position:absolute; left:0; right:0; top:8px; height:4px; border-radius:2px; background:#242B33;"></div>
+              <div style="position:absolute; left:0; top:8px; height:4px; border-radius:2px; width:{{ s.pct }}; background:#36B3F5;"></div>
+              <div style="position:absolute; left:{{ s.def }}; top:3px; width:2px; height:14px; margin-left:-1px; background:#6B7480;"></div>
+              <div style="position:absolute; left:{{ s.pct }}; top:2px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:#E9ECEF; border:3px solid #36B3F5;"></div>
+              <input type="range" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.value }}" onChange="{{ s.onChange }}" style="position:absolute; inset:0; width:100%; height:20px; margin:0; opacity:0; cursor:pointer;">
+            </div>
+          </div>
+        </sc-for>
+        <div style="height:1px; background:#1C2228;"></div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Gearbox · 5-speed close ratio</div>
+        <sc-for list="{{ gears }}" as="s" hint-placeholder-count="6">
+          <div style="display:grid; grid-template-columns:96px minmax(0,1fr) 52px; gap:14px; align-items:center;">
+            <span style="font-size:14px; font-weight:500; color:#A3ABB5;">{{ s.label }}</span>
+            <div style="position:relative; height:20px;">
+              <div style="position:absolute; left:0; right:0; top:8px; height:4px; border-radius:2px; background:#242B33;"></div>
+              <div style="position:absolute; left:0; top:8px; height:4px; border-radius:2px; width:{{ s.pct }}; background:#36B3F5;"></div>
+              <div style="position:absolute; left:{{ s.def }}; top:3px; width:2px; height:14px; margin-left:-1px; background:#6B7480;"></div>
+              <div style="position:absolute; left:{{ s.pct }}; top:2px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:#E9ECEF; border:3px solid #36B3F5;"></div>
+              <input type="range" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.value }}" onChange="{{ s.onChange }}" style="position:absolute; inset:0; width:100%; height:20px; margin:0; opacity:0; cursor:pointer;">
+            </div>
+            <span style="text-align:right; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:{{ s.valColor }};">{{ s.valText }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:16px 24px 20px; border-top:1px solid #1C2228; display:flex; gap:10px;">
+        <div onClick="{{ resetTune }}" style="height:48px; padding:0 18px; display:flex; align-items:center; gap:8px; border-radius:6px; color:#A3ABB5; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#1B2127; color:#E9ECEF;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">restart_alt</span>Reset</div>
+        <div style="flex:1; height:48px; display:flex; align-items:center; justify-content:center; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;">Save setup</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- PAINT PANEL -->
+  <sc-if value="{{ isPaint }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="06 Paint" style="position:absolute; left:1416px; top:96px; width:480px; height:960px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+      <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; flex-direction:column; gap:4px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Body colour · finish · part finishes</div>
+        <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Paint</div>
+      </div>
+      <div style="flex:1; overflow:auto; padding:18px 24px 20px; display:flex; flex-direction:column; gap:14px;">
+        <div onMouseDown="{{ pickSV }}" onMouseMove="{{ dragSV }}" style="position:relative; height:180px; border-radius:8px; background:{{ svBg }}; cursor:crosshair;">
+          <div style="position:absolute; left:{{ svX }}; top:{{ svY }}; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%; border:3px solid #FFFFFF; box-shadow:0 0 0 1px rgba(0,0,0,0.5); pointer-events:none;"></div>
+        </div>
+        <div onMouseDown="{{ pickHue }}" onMouseMove="{{ dragHue }}" style="position:relative; height:14px; border-radius:7px; background:linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); cursor:pointer;">
+          <div style="position:absolute; left:{{ hueX }}; top:-3px; width:20px; height:20px; margin-left:-10px; border-radius:50%; border:3px solid #FFFFFF; background:{{ hueColor }}; box-shadow:0 0 0 1px rgba(0,0,0,0.5); pointer-events:none;"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:6px; background:{{ hex }}; border:1px solid #333C46;"></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+            <span style="font-size:15px; font-weight:600;">{{ colorName }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">{{ hexUpper }}</span>
+          </div>
+        </div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480; margin-top:4px;">Presets</div>
+        <div style="display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:8px;">
+          <sc-for list="{{ presets }}" as="p" hint-placeholder-count="16">
+            <div onClick="{{ p.onClick }}" style="aspect-ratio:1; border-radius:6px; background:{{ p.hex }}; box-shadow:0 0 0 2px {{ p.ring }}; border:1px solid rgba(255,255,255,0.08); cursor:pointer;"></div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480; margin-top:4px;">Finish</div>
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px;">
+          <sc-for list="{{ finishes }}" as="f" hint-placeholder-count="4">
+            <div onClick="{{ f.onClick }}" style="padding:10px 8px; border-radius:6px; background:{{ f.bg }}; border:1px solid {{ f.border }}; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer;">
+              <span style="font-size:14px; font-weight:600; color:{{ f.fg }};">{{ f.n }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">{{ f.p }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480; margin-top:4px;">Part finishes</div>
+        <div style="border-radius:8px; background:#0B0E11; border:1px solid #1C2228; overflow:hidden;">
+          <sc-for list="{{ partFins }}" as="r" hint-placeholder-count="5">
+            <div style="height:48px; padding:0 8px 0 14px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #161B20;">
+              <span style="flex:1; font-size:15px; font-weight:500;">{{ r.n }}</span>
+              <div style="display:flex; gap:2px; padding:2px; border-radius:6px; background:#151A1F;">
+                <sc-for list="{{ r.opts }}" as="o">
+                  <div onClick="{{ o.onClick }}" style="height:30px; padding:0 12px; display:flex; align-items:center; border-radius:4px; background:{{ o.bg }}; color:{{ o.fg }}; font-size:13px; font-weight:600; cursor:pointer;">{{ o.n }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:16px 24px 20px; border-top:1px solid #1C2228; display:flex; align-items:center; gap:12px;">
+        <div style="flex:1; display:flex; flex-direction:column; gap:2px;"><span style="font-size:13px; color:#6B7480;">Total</span><span style="font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:600;">{{ paintTotal }}</span></div>
+        <div style="height:48px; padding:0 28px; display:flex; align-items:center; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;">Apply paint</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- DYNO -->
+  <sc-if value="{{ isDyno }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="07 Dyno" style="position:absolute; left:264px; top:560px; width:1632px; height:496px; display:flex; flex-direction:column; border-radius:10px; background:rgba(12,15,18,0.95); border:1px solid #242B33; overflow:hidden;">
+      <div style="height:60px; padding:0 24px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #1C2228;">
+        <span style="font-family:'Barlow Condensed'; font-size:24px; font-weight:600;">Dyno</span>
+        <span style="font-size:14px; color:#6B7480;">Chassis dyno · wheel output · 22 °C</span>
+        <div style="flex:1;"></div>
+        <div style="display:flex; gap:20px; font-size:13px; color:#A3ABB5;">
+          <span style="display:flex; align-items:center; gap:8px;"><span style="width:22px; height:3px; background:#36B3F5;"></span>Power</span>
+          <span style="display:flex; align-items:center; gap:8px;"><span style="width:22px; height:3px; background:#E9ECEF;"></span>Torque</span>
+          <span style="display:flex; align-items:center; gap:8px;"><span style="width:22px; height:0; border-top:2px dashed #6B7480;"></span>{{ prevName }} (overlay)</span>
+        </div>
+      </div>
+      <div style="flex:1; display:flex; gap:24px; padding:16px 24px 20px;">
+        <svg width="1080" height="400" style="flex:none; display:block;">
+          <sc-for list="{{ gridX }}" as="g">
+            <line x1="{{ g.x }}" x2="{{ g.x }}" y1="16" y2="364" style="stroke:#1C2228; stroke-width:1;"></line>
+            <text x="{{ g.x }}" y="386" style="fill:#6B7480; font-family:'JetBrains Mono',monospace; font-size:12px; text-anchor:middle;">{{ g.label }}</text>
+          </sc-for>
+          <sc-for list="{{ gridY }}" as="g">
+            <line x1="56" x2="1024" y1="{{ g.y }}" y2="{{ g.y }}" style="stroke:#1C2228; stroke-width:1;"></line>
+            <text x="46" y="{{ g.ty }}" style="fill:#36B3F5; font-family:'JetBrains Mono',monospace; font-size:12px; text-anchor:end;">{{ g.hp }}</text>
+            <text x="1034" y="{{ g.ty }}" style="fill:#A3ABB5; font-family:'JetBrains Mono',monospace; font-size:12px; text-anchor:start;">{{ g.nm }}</text>
+          </sc-for>
+          <text x="46" y="10" style="fill:#6B7480; font-family:'JetBrains Mono',monospace; font-size:11px; text-anchor:end;">HP</text>
+          <text x="1034" y="10" style="fill:#6B7480; font-family:'JetBrains Mono',monospace; font-size:11px;">NM</text>
+          <path d="{{ prevP }}" style="fill:none; stroke:#36B3F5; stroke-opacity:0.45; stroke-width:2; stroke-dasharray:6 6;"></path>
+          <path d="{{ prevT }}" style="fill:none; stroke:#E9ECEF; stroke-opacity:0.35; stroke-width:2; stroke-dasharray:6 6;"></path>
+          <path d="{{ curT }}" style="fill:none; stroke:#E9ECEF; stroke-width:2.5;"></path>
+          <path d="{{ curP }}" style="fill:none; stroke:#36B3F5; stroke-width:3;"></path>
+          <circle cx="{{ pkPx }}" cy="{{ pkPy }}" r="5" style="fill:#0B0E11; stroke:#36B3F5; stroke-width:2.5;"></circle>
+          <circle cx="{{ pkTx }}" cy="{{ pkTy }}" r="5" style="fill:#0B0E11; stroke:#E9ECEF; stroke-width:2.5;"></circle>
+          <text x="540" y="386" style="fill:#6B7480; font-family:'JetBrains Mono',monospace; font-size:11px; text-anchor:middle; opacity:0;">rpm</text>
+        </svg>
+        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div style="padding:14px; border-radius:8px; background:#0B0E11; border:1px solid #1C2228; display:flex; flex-direction:column; gap:4px;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Peak power</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:600; color:#36B3F5;">{{ pkP }}<span style="font-size:14px; color:#A3ABB5;"> hp</span></span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">@ {{ pkPr }} rpm</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:{{ dPColor }};">{{ dP }}</span>
+            </div>
+            <div style="padding:14px; border-radius:8px; background:#0B0E11; border:1px solid #1C2228; display:flex; flex-direction:column; gap:4px;">
+              <span style="font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Peak torque</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:600;">{{ pkT }}<span style="font-size:14px; color:#A3ABB5;"> Nm</span></span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">@ {{ pkTr }} rpm</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:{{ dTColor }};">{{ dT }}</span>
+            </div>
+          </div>
+          <div style="font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Runs · click to overlay</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <sc-for list="{{ runs }}" as="r" hint-placeholder-count="3">
+              <div onClick="{{ r.onClick }}" style="height:40px; padding:0 12px; display:flex; align-items:center; gap:10px; border-radius:6px; background:{{ r.bg }}; border:1px solid {{ r.border }}; cursor:pointer;">
+                <span style="font-size:14px; font-weight:600; width:52px;">{{ r.name }}</span>
+                <span style="flex:1; font-size:13px; color:#A3ABB5;">{{ r.note }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">{{ r.peak }}</span>
+                <span style="font-size:11px; font-weight:700; letter-spacing:0.08em; color:{{ r.tagColor }}; width:60px; text-align:right;">{{ r.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="height:48px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">play_arrow</span>Run dyno · $50</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- UNSAVED DIALOG -->
+  <sc-if value="{{ isUnsaved }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="08 Unsaved dialog" style="position:absolute; inset:0; background:rgba(3,4,5,0.72); display:flex; align-items:center; justify-content:center;">
+      <div style="width:560px; border-radius:12px; background:#0E1114; border:1px solid #333C46; box-shadow:0 24px 80px rgba(0,0,0,0.6); overflow:hidden;">
+        <div style="padding:24px 28px 8px; display:flex; gap:16px; align-items:flex-start;">
+          <div style="width:44px; height:44px; flex:none; border-radius:8px; background:rgba(242,192,55,0.14); display:flex; align-items:center; justify-content:center; color:#F2C037;"><span style="font-family:'Material Symbols Outlined'; font-size:26px; line-height:1;">warning</span></div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Unsaved changes</div>
+            <div style="font-size:15px; color:#A3ABB5; line-height:1.45;">You have 3 changes that haven't been saved. Leave the garage anyway?</div>
+          </div>
+        </div>
+        <div style="margin:16px 28px 0; border-radius:8px; background:#0B0E11; border:1px solid #1C2228;">
+          <div style="height:44px; padding:0 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #161B20;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#A3ABB5;">mode_fan</span><span style="flex:1; font-size:14px;">GT28 Turbo Kit installed</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">$3,250</span></div>
+          <div style="height:44px; padding:0 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #161B20;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#A3ABB5;">tune</span><span style="flex:1; font-size:14px;">Ride height 125 → 115 mm</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">Free</span></div>
+          <div style="height:44px; padding:0 14px; display:flex; align-items:center; gap:12px;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; color:#A3ABB5;">palette</span><span style="flex:1; font-size:14px;">Body paint: Signal Red, Metallic</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">$600</span></div>
+        </div>
+        <div style="padding:24px 28px; display:flex; gap:10px;">
+          <div onClick="{{ goMain }}" style="height:48px; padding:0 18px; display:flex; align-items:center; border-radius:6px; color:#FF5A5F; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:rgba(255,90,95,0.12);">Discard</div>
+          <div style="flex:1;"></div>
+          <div onClick="{{ goMain }}" style="height:48px; padding:0 20px; display:flex; align-items:center; border-radius:6px; background:#1B2127; border:1px solid #333C46; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#232A31;">Cancel</div>
+          <div onClick="{{ goMain }}" style="height:48px; padding:0 22px; display:flex; align-items:center; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;" style-hover="background:#5CC3F8;">Save &amp; exit</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;main&quot;,&quot;options&quot;:[&quot;main&quot;,&quot;parts&quot;,&quot;compare&quot;,&quot;systems&quot;,&quot;tuning&quot;,&quot;paint&quot;,&quot;dyno&quot;,&quot;no-engine&quot;,&quot;unsaved&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;hotspotLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const AC='#36B3F5', GR='#3DD68C', YE='#F2C037', RD='#FF5A5F', TX='#E9ECEF', T2='#A3ABB5', T3='#6B7480';
+const cc = p => p>=70?GR:p>=40?YE:RD;
+const cl = p => p>=70?'Good':p>=40?'Worn':'Damaged';
+const money = n => '$'+Math.round(n).toLocaleString('en-US');
+const fmt = (v,d=0) => Math.abs(v)>=1000 ? Math.round(v).toLocaleString('en-US') : v.toFixed(d);
+const sgn = (v,d=0) => v===0 ? '±0' : (v>0?'+':'−')+fmt(Math.abs(v),d);
+const cls = v => v>=400?'B':v>=300?'C':'D';
+function hsvHex(h,s,v){const f=n=>{const k=(n+h/60)%6;return v-v*s*Math.max(0,Math.min(k,4-k,1));};const t=x=>Math.round(x*255).toString(16).padStart(2,'0');return '#'+t(f(5))+t(f(3))+t(f(1));}
+function hexHsv(hex){const n=parseInt(hex.slice(1),16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;}return {h,s:mx?d/mx:0,v:mx};}
+const PARTS=[
+ {id:'t25',name:'T25 Street Turbo',spec:'Journal bearing · 0.6 bar',hp:38,price:1850,cond:100,state:'New'},
+ {id:'gt28',name:'GT28 Turbo Kit',spec:'Ball bearing · 0.8 bar',hp:62,price:3250,cond:100,state:'New'},
+ {id:'t3',name:'T3 Turbo',spec:'Journal bearing · 0.7 bar',hp:45,price:0,owned:true,cond:58,state:'Used'},
+ {id:'k03',name:'K03 Turbo',spec:'Salvaged · 0.5 bar',hp:30,price:420,cond:22,state:'Used'},
+ {id:'gt30',name:'GT30 Ball-Bearing Turbo',spec:'Ball bearing · 1.1 bar',hp:98,price:4900,cond:100,state:'New',req:'Intercooler'},
+];
+const BASE=[
+ {k:'power',label:'Power',unit:'hp',cur:110,d:62,up:true,dec:0},
+ {k:'torque',label:'Torque',unit:'Nm',cur:145,d:83,up:true,dec:0},
+ {k:'weight',label:'Weight',unit:'kg',cur:1150,d:12,up:false,dec:0,fixed:true},
+ {k:'grip',label:'Grip',unit:'g',cur:0.92,d:0,up:true,dec:2,fixed:true},
+ {k:'braking',label:'Braking',unit:'m',cur:38.5,d:0.4,up:false,dec:1,fixed:true},
+ {k:'top',label:'Top speed',unit:'km/h',cur:182,d:29,up:true,dec:0},
+ {k:'accel',label:'0–100',unit:'s',cur:10.8,d:-2.9,up:false,dec:1},
+ {k:'pr',label:'Performance rating',unit:'',cur:285,d:57,up:true,dec:0},
+];
+const DEF={rh:125,spring:38,damp:6,diff:20,final:4.06,g1:3.45,g2:1.94,g3:1.29,g4:0.97,g5:0.80};
+const PRESETS=[['Arctic White','#EDEFF0'],['Cement Grey','#8C9092'],['Graphite','#3A3F45'],['Midnight Black','#111316'],['Signal Red','#C8202B'],['Sunburst Orange','#E3701E'],['Canary Yellow','#E8C21C'],['Lime','#8DC63F'],['Racing Green','#1F4D3A'],['Teal','#1E7F80'],['Sky Blue','#5EA8DB'],['Deep Blue','#1D3E8A'],['Plum','#5B2A55'],['Rose','#C9677E'],['Bronze','#8A6A3E'],['Sand','#C8B48E']];
+const FIN=[['Gloss',0],['Matte',900],['Metallic',600],['Pearl',1400]];
+const PF=['Hood','Roof','Mirrors','Wheels','Grille'], PFC={Paint:0,Carbon:800,Chrome:350};
+const SYS=[
+ {name:'Engine internals',icon:'settings',rows:[['Pistons','Stock cast',74],['Connecting rods','Stock steel',81],['Camshaft','Stock 256°',66],['Head gasket','Stock composite',34],['Oil pump','Stock',90]]},
+ {name:'Drivetrain',icon:'settings_input_component',rows:[['Clutch','Stock organic',52],['Gearbox','5-speed close ratio',78],['Differential','Plate LSD',85],['Driveshafts','Stock',70]]},
+ {name:'Brakes',icon:'do_not_disturb_on',rows:[['Master cylinder','Stock',88],['Brake lines','Rubber',61],['Front pads','Stock organic',18],['Rear shoes','Stock drum',55]]},
+ {name:'Electronics',icon:'memory',rows:[['ECU','Stock map',100],['Ignition coil','Stock',72],['Fuel pump','Stock 90 l/h',64],['Launch control',null,null]]},
+];
+const RUNS=[{id:3,name:'Run 3',note:'Current setup',t:145,rpm:4200},{id:2,name:'Run 2',note:'Before exhaust swap',t:139,rpm:4300},{id:1,name:'Run 1',note:'As purchased',t:134,rpm:4000}];
+const X=r=>56+(r-1000)/6000*968, YP=p=>364-p/160*348, YT=t=>364-t/200*348;
+function curve(run){const pts=[];for(let r=1000;r<=6800;r+=100){const t=run.t*(1-0.55*((r-run.rpm)/4200)**2);pts.push([r,t,t*r/7121*(run.t/145)*0.9945]);}
+ const pk=pts.reduce((a,b)=>b[2]>a[2]?b:a), tk=pts.reduce((a,b)=>b[1]>a[1]?b:a);
+ return {p:'M'+pts.map(q=>X(q[0]).toFixed(1)+' '+YP(q[2]).toFixed(1)).join(' L'), t:'M'+pts.map(q=>X(q[0]).toFixed(1)+' '+YT(q[1]).toFixed(1)).join(' L'), pk, tk};}
+
+class Component extends DCLogic {
+  state={vw:window.innerWidth,vh:window.innerHeight,view:null,partId:'gt28',expanded:'power',filter:'All',sort:'price',focus:'Engine bay',tune:{...DEF},...hexHsv('#C8202B'),finish:'Metallic',pf:{Hood:'Carbon',Mirrors:'Chrome'},overlay:2};
+  componentDidMount(){this._r=()=>this.setState({vw:window.innerWidth,vh:window.innerHeight});window.addEventListener('resize',this._r);}
+  componentWillUnmount(){window.removeEventListener('resize',this._r);}
+  componentDidUpdate(p){if(p.screen!==this.props.screen)this.setState({view:null});}
+  go(v){this.setState({view:v});}
+  pick(e,kind){const r=e.currentTarget.getBoundingClientRect();const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+    if(kind==='hue')this.setState({h:x*359.9});else this.setState({s:x,v:1-y});}
+  renderVals(){
+    const st=this.state, V=st.view||this.props.screen||'main';
+    const sc=Math.min(st.vw/1920,st.vh/1080);
+    const noEng=V==='no-engine', showLabels=this.props.hotspotLabels!==false;
+    const isParts=V==='parts', isCompare=V==='compare', isSystems=V==='systems', isTuning=V==='tuning', isPaint=V==='paint', isDyno=V==='dyno', isUnsaved=V==='unsaved';
+    const tab=isTuning?'Tuning':isPaint?'Paint':isDyno?'Dyno':'Parts';
+    const tabs=[['Parts','build','main'],['Tuning','tune','tuning'],['Paint','palette','paint'],['Dyno','monitoring','dyno']].map(([n,i,v])=>({name:n,icon:i,fg:tab===n?TX:T3,line:tab===n?AC:'transparent',onClick:()=>this.go(v)}));
+    const af=isParts||isCompare?'Engine bay':isSystems?'Systems':st.focus;
+    const ri=([n,i,c])=>({label:n,icon:i,dot:c,bg:af===n?'rgba(54,179,245,0.14)':'transparent',fg:af===n?AC:TX,onClick:()=>n==='Systems'?this.go('systems'):this.setState({focus:n,view:(isParts||isCompare||isSystems)?'main':V})});
+    const rail=[['Engine bay','car_repair',noEng?RD:GR],['Front','keyboard_double_arrow_left',RD],['Rear','keyboard_double_arrow_right',YE],['Wheels','tire_repair',YE],['Interior','airline_seat_recline_normal',GR],['Underside','vertical_align_bottom',YE]].map(ri);
+    const sys=ri(['Systems','settings_suggest',RD]);
+
+    const HS=[{id:'turbo',x:700,y:432,label:'Turbo',empty:true},{id:'engine',x:790,y:476,label:'Engine',cond:92},{id:'bumper',x:588,y:522,label:'Front bumper',cond:81},{id:'brakes',x:700,y:580,label:'Front brakes',cond:18},{id:'interior',x:960,y:398,label:'Interior',cond:88},{id:'susp',x:1120,y:556,label:'Rear suspension',cond:76},{id:'tyres',x:1210,y:624,label:'Tyres',cond:47},{id:'exhaust',x:1300,y:572,label:'Exhaust',cond:55}];
+    const selT=isParts||isCompare;
+    const hotspots=(isSystems||isDyno)?[]:HS.filter(h=>!(noEng&&h.id==='turbo')).map(h=>{
+      const empty=h.empty||(noEng&&h.id==='engine'), sel=h.id==='turbo'&&selT;
+      const color=empty?(noEng?RD:AC):cc(h.cond);
+      return {left:(h.x-9)+'px',top:(h.y-9)+'px',empty,filled:!empty,color,ring:color+'40',ringW:sel?'6px':'0px',label:h.label,val:empty?'Empty':h.cond+'%',showLabel:showLabels||sel,labelBorder:sel?AC:'#242B33',
+        onClick:()=>h.id==='turbo'?this.go('parts'):(h.id==='engine'&&noEng?null:this.setState({focus:h.id==='interior'?'Interior':h.id==='tyres'?'Wheels':h.id==='exhaust'||h.id==='susp'?'Rear':h.id==='engine'?'Engine bay':'Front'}))};
+    });
+
+    const part=PARTS.find(p=>p.id===st.partId)||PARTS[1], f=part.hp/62;
+    const pcond=p=>({cond:(p.state==='New'?'New':cl(p.cond))+' · '+p.cond+'%',condColor:cc(p.cond),condBg:cc(p.cond)+'1F'});
+    const stats=BASE.map(b=>{
+      const d=b.fixed?b.d:+(b.d*f).toFixed(b.dec), nv=b.cur+d, good=d===0?null:(b.up?d>0:d<0), P=part.name;
+      const B=(n,s,v)=>({n,s,v,base:true});
+      const bdRaw={power:[B('Engine','1.6 I4 8V · base output',110),{n:P,s:'Forced induction',v:d+9},{n:'Intake',s:'Stock airbox · restrictive',v:-6},{n:'ECU',s:'Stock map · not tuned for boost',v:-3}],
+        torque:[B('Engine','1.6 I4 8V · base output',145),{n:P,s:'Boost from ~3,000 rpm',v:d+7},{n:'Intake',s:'Stock airbox',v:-4},{n:'ECU',s:'Stock map',v:-3}],
+        weight:[B('Current car','',1150),{n:P,s:'Turbo, manifold, downpipe',v:9},{n:'Oil & coolant lines',s:'',v:3}],
+        grip:[B('Tyres','Stock 175/70 R13 · worn 47%',0.92),{n:P,s:'No effect on grip',v:0}],
+        braking:[B('Brakes','Stock pads · damaged 18%',38.5),{n:'Added weight',s:'+12 kg',v:0.4}],
+        top:[B('Current car','',182),{n:P,s:'Higher power output',v:d}],
+        accel:[B('Current car','',10.8),{n:P,s:'Higher power output',v:d}],
+        pr:[B('Current car','Class D',285),{n:'Power & torque',s:'',v:d+3},{n:'Weight',s:'+12 kg',v:-3}]}[b.k];
+      const mx=Math.max(...bdRaw.filter(x=>!x.base).map(x=>Math.abs(x.v)),0.0001);
+      const bd=bdRaw.map(x=>{const c=x.base?T2:x.v===0?T3:((b.up?x.v>0:x.v<0)?GR:RD);return {n:x.n,s:x.s||' ',v:x.base?fmt(x.v,b.dec)+(b.unit?' '+b.unit:''):sgn(x.v,b.dec),color:c,bar:x.base?'100%':(Math.abs(x.v)/mx*100)+'%'};});
+      const show=v=>b.k==='pr'?cls(v)+' '+Math.round(v):fmt(v,b.dec);
+      const exp=st.expanded===b.k;
+      return {k:b.k,label:b.label,labelLower:b.label.toLowerCase(),unit:b.unit,cur:show(b.cur),nv:show(nv),delta:d===0?'—':sgn(d,b.dec),dColor:good===null?T3:good?GR:RD,expanded:exp,chev:exp?'expand_less':'expand_more',bd,
+        hasNote:b.k==='power'||b.k==='torque',note:b.k==='power'?'Upgrade intake and ECU to recover 9 hp.':'Upgrade intake and ECU to recover 7 Nm.',
+        onClick:()=>this.setState({expanded:exp?null:b.k})};
+    });
+    const sx=k=>stats.find(s=>s.k===k);
+    const stripKeys=[['power','Power'],['torque','Torque'],['weight','Weight'],['top','Top speed'],['accel','0–100'],['pr','Rating']];
+    const strip=stripKeys.map(([k,l])=>{const s=sx(k), b=BASE.find(x=>x.k===k);
+      if(noEng&&(k==='power'||k==='torque'||k==='top'||k==='accel'||k==='pr'))return {label:l,value:'—',unit:b.unit,delta:'',dColor:T3};
+      if(noEng&&k==='weight')return {label:l,value:'1,012',unit:'kg',delta:'',dColor:T3};
+      return {label:l,value:s.cur,unit:k==='pr'?'':b.unit,delta:isCompare&&s.delta!=='—'?s.delta:'',dColor:s.dColor};});
+
+    let list=PARTS.filter(p=>st.filter==='All'||(st.filter==='Owned'&&p.owned)||(st.filter==='New'&&p.state==='New')||(st.filter==='Used'&&p.state==='Used'));
+    list=[...list].sort((a,b)=>st.sort==='price'?a.price-b.price:b.hp-a.hp);
+    const partRows=list.map(p=>{const sel=isCompare&&p.id===part.id, lk=!!p.req;
+      return {name:p.name,spec:p.spec,gain:'+'+p.hp+' hp',locked:lk,open:!lk,req:p.req,owned:!!p.owned,forSale:!p.owned,price:money(p.price),...pcond(p),
+        bg:sel?'rgba(54,179,245,0.12)':'#12161A',border:sel?AC:'#1C2228',opacity:lk?0.5:1,cursor:lk?'not-allowed':'pointer',
+        onClick:()=>lk?null:this.setState({partId:p.id,view:'compare',expanded:'power'})};});
+    const filters=['All','Owned','New','Used'].map(n=>({label:n,bg:st.filter===n?'rgba(54,179,245,0.14)':'transparent',border:st.filter===n?AC:'#242B33',fg:st.filter===n?AC:T2,onClick:()=>this.setState({filter:n})}));
+
+    const T=st.tune;
+    const mk=(key,label,min,max,step,unit,dec)=>{const v=T[key];return {label,value:v,min,max,step,valText:v.toFixed(dec)+unit,valColor:Math.abs(v-DEF[key])>1e-6?AC:T2,pct:((v-min)/(max-min)*100)+'%',def:((DEF[key]-min)/(max-min)*100)+'%',
+      onChange:e=>{const nv=parseFloat(e.target.value);this.setState(s=>({tune:{...s.tune,[key]:nv}}));}};};
+    const susp=[mk('rh','Ride height',90,150,1,' mm',0),mk('spring','Spring rate',20,80,1,' N/mm',0),mk('damp','Damping',1,12,1,' / 12',0)];
+    const diff=[mk('diff','Diff lock (on power)',0,100,1,'%',0)];
+    const gears=[mk('final','Final drive',3.2,4.8,0.01,'',2),mk('g1','1st',2.8,4.0,0.01,'',2),mk('g2','2nd',1.6,2.4,0.01,'',2),mk('g3','3rd',1.1,1.6,0.01,'',2),mk('g4','4th',0.85,1.2,0.01,'',2),mk('g5','5th',0.65,0.95,0.01,'',2)];
+    const dg=+((125-T.rh)*0.0012+(T.spring-38)*0.0006+(T.damp-6)*0.004).toFixed(2);
+    const dts=Math.round((4.06-T.final)*30-(T.g5-0.80)*40);
+    const dac=+(-(T.final-4.06)*1.2-(T.g1-3.45)*0.5).toFixed(1);
+    const bal=T.diff<30?'Understeer':T.diff<60?'Neutral':'Oversteer';
+    const eff=(label,val,d,dec,up)=>({label,val,delta:d===0?'±0':sgn(d,dec),color:d===0?T3:((up?d>0:d<0)?GR:RD)});
+    const effects=[eff('Grip',(0.92+dg).toFixed(2)+' g',dg,2,true),eff('Top speed',(182+dts)+'',dts,0,true),eff('0–100',(10.8+dac).toFixed(1)+' s',dac,1,false),{label:'Balance',val:bal,delta:'Diff '+T.diff+'%',color:T3}];
+
+    const hex=hsvHex(st.h,st.s,st.v), match=PRESETS.find(p=>p[1].toLowerCase()===hex.toLowerCase());
+    const presets=PRESETS.map(([n,hx])=>({hex:hx,ring:hx.toLowerCase()===hex.toLowerCase()?AC:'transparent',onClick:()=>this.setState(hexHsv(hx))}));
+    const finishes=FIN.map(([n,p])=>({n,p:p?money(p):'Included',bg:st.finish===n?'rgba(54,179,245,0.12)':'#12161A',border:st.finish===n?AC:'#1C2228',fg:st.finish===n?AC:TX,onClick:()=>this.setState({finish:n})}));
+    const partFins=PF.map(n=>({n,opts:['Paint','Carbon','Chrome'].map(o=>{const on=(st.pf[n]||'Paint')===o;return {n:o,bg:on?'#2A323B':'transparent',fg:on?TX:T3,onClick:()=>this.setState(s=>({pf:{...s.pf,[n]:o}}))};})}));
+    const paintTotal=money(FIN.find(x=>x[0]===st.finish)[1]+PF.reduce((a,n)=>a+PFC[st.pf[n]||'Paint'],0));
+
+    const cur=curve(RUNS[0]), pr=RUNS.find(r=>r.id===st.overlay)||RUNS[1], prev=curve(pr);
+    const pkP=Math.round(cur.pk[2]), pkT=Math.round(cur.tk[1]), dp=pkP-Math.round(prev.pk[2]), dt=pkT-Math.round(prev.tk[1]);
+    const runs=RUNS.map(r=>{const c=curve(r), isCur=r.id===3, ov=r.id===st.overlay;
+      return {name:r.name,note:r.note,peak:Math.round(c.pk[2])+' hp · '+Math.round(c.tk[1])+' Nm',tag:isCur?'CURRENT':ov?'OVERLAY':'',tagColor:isCur?AC:T2,bg:ov?'#1B2127':'transparent',border:ov?'#333C46':'#1C2228',onClick:()=>isCur?null:this.setState({overlay:r.id})};});
+
+    const syst=SYS.map(g=>{const need=g.rows.filter(r=>r[2]!=null&&r[2]<70).length;
+      return {name:g.name,icon:g.icon,summary:need?need+' need attention':'All good',rows:g.rows.map(([n,p,c])=>({n,part:p||'Empty slot',val:c==null?'—':c+'%',color:c==null?'transparent':cc(c),ring:c==null?'2px dashed '+AC:'none'}))};});
+
+    return {
+      offX:((st.vw-1920*sc)/2)+'px',offY:((st.vh-1080*sc)/2)+'px',stageScale:'scale('+sc+')',
+      camLabel:isSystems?'SYSTEMS · MODEL GHOSTED':isDyno?'DYNO BAY':isParts||isCompare?'ENGINE BAY · CLOSE-UP':isPaint?'PAINT BOOTH':isTuning?'SIDE PROFILE':af.toUpperCase(),
+      showOrbitHint:!isDyno&&!isSystems&&!isCompare&&!isParts&&!isTuning&&!isPaint&&!isUnsaved,
+      carOpacity:isSystems?0.3:1, carBg:isPaint?hex:'#2A3037',
+      hotspots, tabs, rail, sys, isParts, isCompare, isSystems, isTuning, isPaint, isDyno, isUnsaved,
+      noEngine:noEng, canDrive:!noEng, showStrip:!isDyno,
+      classLetter:isCompare?cls(285+(+(57*f).toFixed(0))):'D', classNum:isCompare?String(285+Math.round(57*f)):(noEng?'—':'285'),
+      strip, stats, partRows, filters, partCount:PARTS.length,
+      sortLabel:st.sort==='price'?'Price: low to high':'Power: high to low',
+      toggleSort:()=>this.setState({sort:st.sort==='price'?'power':'price'}),
+      part:{name:part.name,spec:part.spec,price:part.owned?'Owned':money(part.price),...pcond(part)},
+      buyLabel:part.owned?'Install':'Buy & install · '+money(part.price), balanceAfter:money(18400-(part.owned?0:part.price)),
+      systems:syst,
+      susp, diff, gears, effects, lowRide:T.rh<100, resetTune:()=>this.setState({tune:{...DEF}}),
+      svBg:'linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, hsl('+st.h+',100%,50%))',
+      svX:(st.s*100)+'%', svY:((1-st.v)*100)+'%', hueX:(st.h/360*100)+'%', hueColor:'hsl('+st.h+',100%,50%)',
+      hex, hexUpper:hex.toUpperCase(), colorName:match?match[0]:'Custom colour', presets, finishes, partFins, paintTotal,
+      pickSV:e=>this.pick(e,'sv'), dragSV:e=>{if(e.buttons&1)this.pick(e,'sv');}, pickHue:e=>this.pick(e,'hue'), dragHue:e=>{if(e.buttons&1)this.pick(e,'hue');},
+      gridX:[1,2,3,4,5,6,7].map(k=>({x:X(k*1000),label:k+'k rpm'})),
+      gridY:[0,1,2,3,4].map(i=>({y:364-i*87,ty:368-i*87,hp:String(i*40),nm:String(i*50)})),
+      curP:cur.p,curT:cur.t,prevP:prev.p,prevT:prev.t,pkPx:X(cur.pk[0]),pkPy:YP(cur.pk[2]),pkTx:X(cur.tk[0]),pkTy:YT(cur.tk[1]),
+      pkP:String(pkP),pkT:String(pkT),pkPr:cur.pk[0].toLocaleString('en-US'),pkTr:cur.tk[0].toLocaleString('en-US'),
+      dP:sgn(dp)+' hp vs '+pr.name,dT:sgn(dt)+' Nm vs '+pr.name,dPColor:dp>0?GR:dp<0?RD:T3,dTColor:dt>0?GR:dt<0?RD:T3,prevName:pr.name,runs,
+      goMain:()=>this.go('main'),goParts:()=>this.go('parts'),goUnsaved:()=>this.go('unsaved'),
+    };
+  }
+}
+</script>
+</body>
+</html>

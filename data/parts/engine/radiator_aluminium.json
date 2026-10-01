@@ -1,0 +1,29 @@
+{
+  "id": "radiator_aluminium",
+  "name": "Aluminium radiator",
+  "category": "engine",
+  "slot": "radiator",
+  "kind": "modifier",
+  "tier": "street",
+  "price": 420,
+  "mass": 1,
+  "model": "",
+  "modelTodo": "Aluminium radiator: an aluminium radiator core about 64 × 40 × 6 cm with its fan shroud, behind the front bumper.",
+  "icon": "assets/icons/parts/radiator_aluminium.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["cooling:uprated"],
+  "_note": "A bigger aluminium radiator: 35% more cooling — for a hotter engine, or a bigger one swapped in.",
+  "bounds": {
+    "min": [-0.32, -0.2, -0.03],
+    "max": [0.32, 0.2, 0.03]
+  },
+  "effects": [
+    {
+      "target": "cooling.capacity",
+      "op": "multiply",
+      "value": 1.35
+    }
+  ]
+}

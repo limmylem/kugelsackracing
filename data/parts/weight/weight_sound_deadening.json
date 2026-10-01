@@ -1,0 +1,18 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/weight_sound_deadening.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "weight_sound_deadening",
+  "name": "Sound deadening removed",
+  "category": "weight",
+  "slot": "weight_sound_deadening",
+  "tier": "street",
+  "price": 220,
+  "mass": -18,
+  "fits": ["car:starter_car"],
+  "_note": "The bitumen mats and carpet underlay stripped out: 18 kg lighter, and louder.",
+  "effects": []
+}

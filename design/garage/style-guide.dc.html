@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#07090B;}
+*{box-sizing:border-box;}
+a{color:#36B3F5;text-decoration:none;}
+a:hover{color:#5CC3F8;}
+</style>
+</helmet>
+<div data-screen-label="Style guide" style="width:1920px; min-height:1080px; padding:72px 96px 96px; background:#07090B; color:#E9ECEF; font-family:'Barlow',sans-serif; display:flex; flex-direction:column; gap:64px; -webkit-font-smoothing:antialiased;">
+  <div style="display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid #242B33; padding-bottom:28px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-size:13px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:#6B7480;">Garage UI · v1.0</div>
+      <div style="font-family:'Barlow Condensed'; font-size:64px; font-weight:600; line-height:1;">Style guide</div>
+    </div>
+    <div style="font-size:16px; color:#A3ABB5; max-width:560px; text-align:right; line-height:1.5;">One accent for interaction. Green and red only ever mean better and worse. Condition uses green, yellow and red. Everything else is neutral.</div>
+  </div>
+
+  <!-- COLOURS -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Colour</div><div style="font-size:15px; color:#A3ABB5; line-height:1.5;">Dark neutrals with a slight cool bias. Panels sit at 90–94% opacity over the 3D view.</div></div>
+    <div style="display:flex; flex-direction:column; gap:28px;">
+      <div style="display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:12px;">
+        <sc-for list="{{ neutrals }}" as="c" hint-placeholder-count="8">
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="height:96px; border-radius:8px; background:{{ c.hex }}; border:1px solid #242B33;"></div>
+            <div style="font-size:14px; font-weight:600;">{{ c.name }}</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">{{ c.hex }}</div>
+            <div style="font-size:12px; color:#6B7480;">{{ c.use }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px;">
+        <sc-for list="{{ signals }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex; gap:14px; align-items:center; padding:14px; border-radius:8px; background:#0E1114; border:1px solid #242B33;">
+            <div style="width:72px; height:72px; flex:none; border-radius:6px; background:{{ c.hex }};"></div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-size:15px; font-weight:600;">{{ c.name }}</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">{{ c.hex }} · tint {{ c.tint }}</div>
+              <div style="font-size:12px; color:#6B7480;">{{ c.use }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPE -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Type</div><div style="font-size:15px; color:#A3ABB5; line-height:1.5;">Barlow for UI text, Barlow Condensed for titles and buttons, JetBrains Mono for every number that changes.</div></div>
+    <div style="border-radius:10px; border:1px solid #242B33; overflow:hidden;">
+      <sc-for list="{{ type }}" as="t" hint-placeholder-count="8">
+        <div style="display:grid; grid-template-columns:200px minmax(0,1fr) 320px; gap:24px; align-items:center; padding:18px 24px; border-bottom:1px solid #1C2228;">
+          <div style="font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">{{ t.name }}</div>
+          <div style="font-family:{{ t.fam }}; font-size:{{ t.size }}; font-weight:{{ t.w }}; letter-spacing:{{ t.ls }}; text-transform:{{ t.tt }}; line-height:1.15;">{{ t.sample }}</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#A3ABB5;">{{ t.spec }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- BUTTONS -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Buttons</div><div style="font-size:15px; color:#A3ABB5; line-height:1.5;">48 px in panels, 40 px in the top bar. One primary per surface.</div></div>
+    <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px;">
+      <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Primary · default / hover / disabled</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div style="height:48px; padding:0 22px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#36B3F5; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">sports_score</span>Test drive</div>
+          <div style="height:48px; padding:0 22px; display:flex; align-items:center; border-radius:6px; background:#5CC3F8; color:#04121B; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Hover</div>
+          <div style="height:48px; padding:0 22px; display:flex; align-items:center; gap:8px; border-radius:6px; background:#151A1F; border:1px solid #242B33; color:#6B7480; font-family:'Barlow Condensed'; font-size:17px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">lock</span>Disabled</div>
+        </div>
+      </div>
+      <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Secondary · ghost · danger</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div style="height:48px; padding:0 20px; display:flex; align-items:center; border-radius:6px; background:#1B2127; border:1px solid #333C46; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;">Cancel</div>
+          <div style="height:48px; padding:0 18px; display:flex; align-items:center; gap:8px; border-radius:6px; color:#A3ABB5; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1; letter-spacing:0;">restart_alt</span>Reset</div>
+          <div style="height:48px; padding:0 18px; display:flex; align-items:center; border-radius:6px; background:rgba(255,90,95,0.12); color:#FF5A5F; font-family:'Barlow Condensed'; font-size:17px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;">Discard</div>
+        </div>
+      </div>
+      <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Icon · chip · tab</div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="width:40px; height:40px; border-radius:6px; background:#151A1F; border:1px solid #242B33; display:flex; align-items:center; justify-content:center;"><span style="font-family:'Material Symbols Outlined'; font-size:20px; line-height:1;">undo</span></div>
+          <div style="height:30px; padding:0 12px; display:flex; align-items:center; border-radius:15px; background:rgba(54,179,245,0.14); border:1px solid #36B3F5; color:#36B3F5; font-size:13px; font-weight:600;">All</div>
+          <div style="height:30px; padding:0 12px; display:flex; align-items:center; border-radius:15px; border:1px solid #242B33; color:#A3ABB5; font-size:13px; font-weight:600;">Owned</div>
+          <div style="height:48px; padding:0 16px; display:flex; align-items:center; gap:8px; border-bottom:2px solid #36B3F5; font-family:'Barlow Condensed'; font-size:18px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;">Parts</div>
+          <div style="height:48px; padding:0 16px; display:flex; align-items:center; color:#6B7480; font-family:'Barlow Condensed'; font-size:18px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;">Tuning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANELS & COMPONENTS -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Panels &amp; parts</div><div style="font-size:15px; color:#A3ABB5; line-height:1.5;">Panel → card → row. Borders, not shadows, separate layers. Shadows only on modal dialogs.</div></div>
+    <div style="display:grid; grid-template-columns:480px minmax(0,1fr); gap:24px;">
+      <div style="border-radius:10px; background:rgba(12,15,18,0.94); border:1px solid #242B33; overflow:hidden;">
+        <div style="padding:20px 24px 16px; border-bottom:1px solid #1C2228; display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Breadcrumb / Label</div>
+          <div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600; line-height:1.1;">Panel title</div>
+        </div>
+        <div style="padding:20px 24px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; background:#12161A; border:1px solid #1C2228;">
+            <div style="width:56px; height:56px; border-radius:6px; background:#0B0E11; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1;">mode_fan</span></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:3px;"><div style="font-size:16px; font-weight:600;">Row · default</div><div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">Spec line</div></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">$1,850</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; background:rgba(54,179,245,0.12); border:1px solid #36B3F5;">
+            <div style="width:56px; height:56px; border-radius:6px; background:#0B0E11; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1;">mode_fan</span></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:3px;"><div style="font-size:16px; font-weight:600;">Row · selected</div><div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">Previewing</div></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">$3,250</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; background:#12161A; border:1px solid #1C2228; opacity:0.5;">
+            <div style="width:56px; height:56px; border-radius:6px; background:#0B0E11; border:1px solid #242B33; display:flex; align-items:center; justify-content:center; color:#A3ABB5;"><span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1;">mode_fan</span></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:3px;"><div style="font-size:16px; font-weight:600;">Row · locked</div><div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#FF7A7E;"><span style="font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">lock</span>Requires: Intercooler</div></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">$4,900</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:8px; border:1px dashed #333C46;">
+            <div style="width:56px; height:56px; border-radius:6px; border:1px dashed #333C46; display:flex; align-items:center; justify-content:center; color:#6B7480;"><span style="font-family:'Material Symbols Outlined'; font-size:26px; line-height:1;">block</span></div>
+            <div style="font-size:16px; font-weight:600;">Row · empty slot</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:16px;">
+          <div style="font-size:12px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#6B7480;">Badges &amp; indicators</div>
+          <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+            <div style="display:flex; height:32px; border-radius:5px; overflow:hidden; border:1px solid #36B3F5;"><div style="width:30px; background:#36B3F5; color:#04121B; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed'; font-weight:700; font-size:20px;">D</div><div style="padding:0 10px; display:flex; align-items:center; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600;">285</div></div>
+            <div style="height:22px; padding:0 8px; display:flex; align-items:center; gap:6px; border-radius:4px; background:#3DD68C1F; color:#3DD68C; font-size:12px; font-weight:700; letter-spacing:0.06em;"><span style="width:6px; height:6px; border-radius:50%; background:#3DD68C;"></span>NEW · 100%</div>
+            <div style="height:22px; padding:0 8px; display:flex; align-items:center; gap:6px; border-radius:4px; background:#F2C0371F; color:#F2C037; font-size:12px; font-weight:700; letter-spacing:0.06em;"><span style="width:6px; height:6px; border-radius:50%; background:#F2C037;"></span>WORN · 58%</div>
+            <div style="height:22px; padding:0 8px; display:flex; align-items:center; gap:6px; border-radius:4px; background:#FF5A5F1F; color:#FF5A5F; font-size:12px; font-weight:700; letter-spacing:0.06em;"><span style="width:6px; height:6px; border-radius:50%; background:#FF5A5F;"></span>DAMAGED · 22%</div>
+            <div style="height:22px; padding:0 8px; display:flex; align-items:center; border-radius:4px; background:rgba(54,179,245,0.14); color:#36B3F5; font-size:12px; font-weight:700; letter-spacing:0.08em;">OWNED</div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:#3DD68C;">+62 hp</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:#FF5A5F;">+12 kg</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:#6B7480;">—</span>
+          </div>
+          <div style="display:flex; gap:28px; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;"><div style="width:18px; height:18px; border-radius:50%; background:#3DD68C; border:3px solid #07090B; box-shadow:0 0 0 4px #3DD68C40;"></div><span style="font-size:13px; color:#A3ABB5;">Hotspot</span></div>
+            <div style="display:flex; align-items:center; gap:8px;"><div style="width:18px; height:18px; border-radius:50%; border:2px dashed #36B3F5; box-shadow:0 0 0 6px rgba(54,179,245,0.25);"></div><span style="font-size:13px; color:#A3ABB5;">Empty slot · selected</span></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; font-size:13px;"><span>Slider</span><span style="font-family:'JetBrains Mono',monospace; color:#36B3F5;">115 mm</span></div>
+              <div style="position:relative; height:20px;"><div style="position:absolute; left:0; right:0; top:8px; height:4px; border-radius:2px; background:#242B33;"></div><div style="position:absolute; left:0; top:8px; height:4px; width:42%; background:#36B3F5; border-radius:2px;"></div><div style="position:absolute; left:58%; top:3px; width:2px; height:14px; background:#6B7480;"></div><div style="position:absolute; left:42%; top:2px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:#E9ECEF; border:3px solid #36B3F5;"></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 14px 14px 18px; border-radius:8px; background:#2A1215; border:1px solid #FF5A5F; display:flex; align-items:center; gap:14px;">
+          <span style="font-family:'Material Symbols Outlined'; font-size:28px; line-height:1; color:#FF5A5F;">error</span>
+          <div style="flex:1; display:flex; flex-direction:column; gap:2px;"><div style="font-size:17px; font-weight:700;">Blocking banner</div><div style="font-size:14px; color:#E3B7B9;">Red for blockers, yellow (#F2C037 on #2A2310) for advisories.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ICONS & SPACING -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Icons &amp; spacing</div><div style="font-size:15px; color:#A3ABB5; line-height:1.5;">Material Symbols Outlined, weight 400, 20 px in rows, 28 px in part thumbs. 4 px grid.</div></div>
+    <div style="display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:24px;">
+      <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:10px;">
+        <sc-for list="{{ icons }}" as="i" hint-placeholder-count="18">
+          <div style="height:84px; border-radius:6px; background:#12161A; border:1px solid #1C2228; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+            <span style="font-family:'Material Symbols Outlined'; font-size:26px; line-height:1;">{{ i.g }}</span>
+            <span style="font-size:12px; color:#6B7480;">{{ i.n }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:24px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ spacing }}" as="s" hint-placeholder-count="8">
+          <div style="display:grid; grid-template-columns:60px 140px minmax(0,1fr); gap:16px; align-items:center;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600;">{{ s.v }}</span>
+            <div style="height:14px; width:{{ s.w }}; background:#36B3F5; border-radius:2px;"></div>
+            <span style="font-size:13px; color:#A3ABB5;">{{ s.use }}</span>
+          </div>
+        </sc-for>
+        <div style="height:1px; background:#1C2228; margin:6px 0;"></div>
+        <div style="display:flex; gap:16px;">
+          <div style="flex:1; height:56px; border:1px solid #333C46; border-radius:4px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">r 4 · pills</div>
+          <div style="flex:1; height:56px; border:1px solid #333C46; border-radius:6px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">r 6 · buttons</div>
+          <div style="flex:1; height:56px; border:1px solid #333C46; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">r 8 · cards</div>
+          <div style="flex:1; height:56px; border:1px solid #333C46; border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; color:#A3ABB5;">r 10 · panels</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE -->
+  <div style="display:grid; grid-template-columns:240px minmax(0,1fr); gap:48px;">
+    <div style="display:flex; flex-direction:column; gap:8px;"><div style="font-family:'Barlow Condensed'; font-size:28px; font-weight:600;">Adapting to mobile</div></div>
+    <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px;">
+      <sc-for list="{{ mobile }}" as="m" hint-placeholder-count="4">
+        <div style="padding:20px; border-radius:10px; background:#0E1114; border:1px solid #242B33; display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:16px; font-weight:600;">{{ m.t }}</div>
+          <div style="font-size:14px; color:#A3ABB5; line-height:1.5;">{{ m.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals(){
+    return {
+      neutrals:[
+        {name:'Base',hex:'#07090B',use:'Top bar, page'},{name:'Viewport',hex:'#0B0E11',use:'Wells, inputs'},{name:'Panel',hex:'#0E1114',use:'Panels @ 94%'},{name:'Card',hex:'#12161A',use:'List rows'},
+        {name:'Raised',hex:'#1B2127',use:'Secondary btn, hover'},{name:'Line',hex:'#242B33',use:'Borders, tracks'},{name:'Text 2',hex:'#A3ABB5',use:'Secondary text'},{name:'Text',hex:'#E9ECEF',use:'Primary text'}],
+      signals:[
+        {name:'Accent · Signal Blue',hex:'#36B3F5',tint:'14%',use:'Selection, primary action, power'},
+        {name:'Good / Improvement',hex:'#3DD68C',tint:'12%',use:'Condition 70–100%, better stat'},
+        {name:'Worn / Advisory',hex:'#F2C037',tint:'12%',use:'Condition 40–69%, unsaved'},
+        {name:'Damaged / Downgrade',hex:'#FF5A5F',tint:'12%',use:'Condition 0–39%, worse stat, blockers'}],
+      type:[
+        {name:'Display',fam:"'Barlow Condensed'",size:'64px',w:600,ls:'0',tt:'none',sample:'Style guide',spec:'Condensed 600 · 64/64'},
+        {name:'Panel title',fam:"'Barlow Condensed'",size:'28px',w:600,ls:'0',tt:'none',sample:'Turbocharger',spec:'Condensed 600 · 28/31'},
+        {name:'Tab / Button',fam:"'Barlow Condensed'",size:'17px',w:700,ls:'0.08em',tt:'uppercase',sample:'Buy & install',spec:'Condensed 600–700 · 16–18 · +8% · caps'},
+        {name:'Body',fam:"'Barlow'",size:'15px',w:500,ls:'0',tt:'none',sample:'Ball bearing turbo with 0.8 bar wastegate',spec:'Barlow 500 · 15–16'},
+        {name:'Secondary',fam:"'Barlow'",size:'14px',w:400,ls:'0',tt:'none',sample:'No turbo fitted. Engine is naturally aspirated.',spec:'Barlow 400 · 13–14 · #A3ABB5'},
+        {name:'Label',fam:"'Barlow'",size:'12px',w:600,ls:'0.1em',tt:'uppercase',sample:'Compatible parts',spec:'Barlow 600 · 11–12 · +10% · caps · #6B7480'},
+        {name:'Data large',fam:"'JetBrains Mono'",size:'28px',w:600,ls:'0',tt:'none',sample:'110 hp  145 Nm',spec:'Mono 600 · 22–28'},
+        {name:'Data',fam:"'JetBrains Mono'",size:'14px',w:500,ls:'0',tt:'none',sample:'1,150 → 1,162 kg  +12',spec:'Mono 500–600 · 12–16'}],
+      icons:[['car_repair','Engine bay'],['keyboard_double_arrow_left','Front'],['keyboard_double_arrow_right','Rear'],['tire_repair','Wheels'],['airline_seat_recline_normal','Interior'],['vertical_align_bottom','Underside'],['settings_suggest','Systems'],['build','Parts'],['tune','Tuning'],['palette','Paint'],['monitoring','Dyno'],['mode_fan','Turbo'],['sports_score','Test drive'],['save','Save'],['undo','Undo'],['lock','Locked'],['warning','Advisory'],['error','Blocker']].map(([g,n])=>({g,n})),
+      spacing:[['4','4px','Icon to text in pills'],['8','8px','Row gaps, chip gaps'],['12','12px','Row padding'],['16','16px','Section gaps'],['20','20px','Panel body padding (v)'],['24','24px','Panel padding, screen margin'],['32','32px','Group spacing'],['48','48px','Button height, touch min 44']].map(([v,w,use])=>({v,w,use})),
+      mobile:[
+        {t:'Panels become sheets',d:'The 480 px side panel becomes a bottom sheet at 50% / 90% height. Same header, body, footer.'},
+        {t:'Rail becomes a strip',d:'Focus areas collapse to a horizontal icon strip above the tab bar; labels appear on the active item only.'},
+        {t:'Tabs move to the bottom',d:'Parts / Tuning / Paint / Dyno sit in a 56 px bottom tab bar within thumb reach.'},
+        {t:'Keep the numbers',d:'Stat strip shows 3 stats (Power, Weight, Rating); swipe for the rest. Hotspot labels hide until tapped.'}],
+    };
+  }
+}
+</script>
+</body>
+</html>

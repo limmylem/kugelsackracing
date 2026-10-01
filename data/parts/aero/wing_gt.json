@@ -1,0 +1,58 @@
+{
+  "id": "wing_gt",
+  "name": "GT wing",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "price": 1600,
+  "mass": 5.4,
+  "toughness": 0.7,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2500,
+    "looseThreshold": 12,
+    "detachThreshold": 7
+  },
+  "model": "assets/parts/aero/wing_gt.glb",
+  "icon": "assets/icons/parts/wing_gt.png",
+  "fits": ["spoiler_mount:boot"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.75, 0.006, -0.26],
+    "max": [0.75, 0.46, 0.17]
+  },
+  "massOffset": [0, 0.356, -0.058],
+  "aero": {
+    "liftCoefficient": -0.36,
+    "dragCoefficient": 0.03,
+    "point": [0, 0.345, -0.058],
+    "angle": {
+      "min": 0,
+      "max": 18,
+      "default": 10,
+      "scaleAtMin": 0.4,
+      "scaleAtMax": 1.3
+    }
+  },
+  "tier": "race",
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 18,
+      "step": 1,
+      "default": 10,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  },
+  "_note": "A race wing on swan-neck mounts: lots of rear downforce, some drag; its angle can be set. Made by npm run import."
+}

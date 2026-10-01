@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "damage.schema.json",
+  "title": "Crash damage rules (data/damage.json)",
+  "type": "object",
+  "required": ["exterior", "classes", "dent", "condition", "engine", "wheels", "breakables", "mechanical"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^_": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "curve": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "n": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "properties": {
+    "exterior": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "classes": {
+      "type": "object",
+      "required": ["tap", "crunch", "crash"],
+      "additionalProperties": false,
+      "properties": {
+        "tap": {
+          "$ref": "#/$defs/n"
+        },
+        "crunch": {
+          "$ref": "#/$defs/n"
+        },
+        "crash": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    },
+    "dent": {
+      "type": "object",
+      "required": ["depth", "radius", "maxDepth", "maxPerPart", "merge", "reach"],
+      "additionalProperties": false,
+      "properties": {
+        "depth": {
+          "$ref": "#/$defs/curve"
+        },
+        "radius": {
+          "$ref": "#/$defs/curve"
+        },
+        "maxDepth": {
+          "$ref": "#/$defs/n"
+        },
+        "maxPerPart": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "merge": {
+          "$ref": "#/$defs/n"
+        },
+        "reach": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": ["loss", "neighbours"],
+      "additionalProperties": false,
+      "properties": {
+        "loss": {
+          "$ref": "#/$defs/curve"
+        },
+        "neighbours": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "required": ["from", "perMs", "max", "frontZ"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/n"
+        },
+        "perMs": {
+          "$ref": "#/$defs/n"
+        },
+        "max": {
+          "$ref": "#/$defs/n"
+        },
+        "frontZ": {
+          "type": "number"
+        }
+      }
+    },
+    "wheels": {
+      "type": "object",
+      "required": ["from", "share"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/n"
+        },
+        "share": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    },
+    "breakables": {
+      "type": "object",
+      "required": ["glass", "light"],
+      "additionalProperties": false,
+      "properties": {
+        "glass": {
+          "$ref": "#/$defs/n"
+        },
+        "light": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    },
+    "mechanical": {
+      "type": "object",
+      "required": ["systems", "wheelOff", "effects", "saveEvery"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "systems": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["from"],
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "wheelOff": {
+          "type": "object",
+          "required": ["from"],
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "effects": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "saveEvery": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "zoneReach": {
+          "type": "number",
+          "minimum": 0
+        },
+        "underbody": {
+          "type": "object",
+          "required": ["from", "share", "systems"],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "from": {
+              "type": "number",
+              "minimum": 0
+            },
+            "share": {
+              "type": "number",
+              "minimum": 0
+            },
+            "systems": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

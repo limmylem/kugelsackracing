@@ -1,0 +1,56 @@
+{
+  "id": "centre_diff_lsd",
+  "name": "Active centre differential",
+  "category": "differential",
+  "slot": "centre_diff",
+  "kind": "component",
+  "price": 1900,
+  "mass": 21,
+  "model": "",
+  "icon": "assets/icons/parts/centre_diff_lsd.png",
+  "fits": ["centre_diff:awd"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A clutch-type limited-slip centre diff with an adjustable split: rear-biased for a car that turns in like a rear-driver, forward for security.",
+  "centreDifferential": {
+    "_note": "How AWD shares the drive front and rear: split is the front's share. type: 'open' (always the split: one spinning axle takes it all), 'viscous' (it resists the axles turning at different speeds, viscous N·m per rad/s of difference), 'lsd' (up to preload + lock × the torque through it) or 'locked' (front and rear turn together). lockable: the driver can lock it.",
+    "type": "lsd",
+    "split": 0.4,
+    "preload": 60,
+    "lock": 0.4
+  },
+  "tuning": {
+    "split": {
+      "label": "front share",
+      "unit": "%",
+      "min": 25,
+      "max": 60,
+      "step": 1,
+      "default": 40,
+      "apply": [
+        {
+          "target": "centreDifferential.split",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    },
+    "lock": {
+      "label": "lock",
+      "unit": "%",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "default": 40,
+      "apply": [
+        {
+          "target": "centreDifferential.lock",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    }
+  },
+  "tier": "sport"
+}

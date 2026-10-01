@@ -1,0 +1,34 @@
+{
+  "id": "kaze_gt_side_skirt_right",
+  "name": "Side skirt, right (Kaze GT)",
+  "category": "aero",
+  "slot": "skirt_right",
+  "kind": "component",
+  "tier": "street",
+  "price": 180,
+  "mass": 3,
+  "toughness": 0.8,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Kaze GT right side skirt: a 260 cm moulded sill extension, 14 cm tall, a small splitter edge at the bottom.",
+  "icon": "assets/icons/parts/kaze_gt_side_skirt_right.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A deeper side skirt: a little less lift from under the car.",
+  "bounds": {
+    "min": [0, 0, -1.3],
+    "max": [0.06, 0.14, 1.3]
+  },
+  "aeroEffect": {
+    "liftFront": -0.005,
+    "liftRear": -0.005
+  }
+}

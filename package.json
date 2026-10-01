@@ -1,0 +1,37 @@
+{
+  "name": "drive-world",
+  "private": true,
+  "type": "module",
+  "description": "Driving game: a real-world Cesium map and three.js test worlds on a Rapier vehicle simulation",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node tests/run.mjs",
+    "check": "node tests/check-data.mjs",
+    "test:unit": "node --test tests/unit/",
+    "test:all": "node tests/check-data.mjs && node tools/check-models.mjs --quiet && node --test tests/unit/ && node tests/run.mjs",
+    "build:car": "node tools/split-car.mjs",
+    "parts": "node tests/parts-report.mjs",
+    "check-models": "node tools/check-models.mjs",
+    "fix-model": "node tools/fix-model.mjs",
+    "import": "node tools/import.mjs",
+    "generate-variants": "node tools/generate-variants.mjs",
+    "balance-report": "node tools/balance-report.mjs",
+    "sample-models": "node tools/sample-models.mjs",
+    "guide": "node tools/write-guide.mjs",
+    "hooks": "node tools/install-hooks.mjs",
+    "prepare": "node tools/install-hooks.mjs",
+    "icons": "node tools/icons.mjs",
+    "playtest": "node tools/playtest.mjs",
+    "sounds": "node tools/sounds.mjs",
+    "models-todo": "node tools/models-todo.mjs"
+  },
+  "devDependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "meshoptimizer": "^0.22.0",
+    "sharp": "^0.35.5",
+    "three": "0.160.0"
+  }
+}

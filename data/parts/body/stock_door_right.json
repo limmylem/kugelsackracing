@@ -1,0 +1,39 @@
+{
+  "id": "stock_door_right",
+  "name": "Door, right (stock)",
+  "category": "body",
+  "slot": "door_right",
+  "kind": "component",
+  "price": 350,
+  "mass": 19,
+  "toughness": 1,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hinge",
+    "hinge": {
+      "axis": [0, 1, 0],
+      "limits": [0, 70]
+    },
+    "attachStrength": 2500,
+    "looseThreshold": 12,
+    "detachThreshold": 90,
+    "looseDrag": 0.05,
+    "pop": 2
+  },
+  "model": "assets/parts/stock/starter_car/door_right.glb",
+  "icon": "assets/icons/parts/stock_door_right.png",
+  "fits": ["car:starter_car"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.012, -0.28, -1.15],
+    "max": [0.11, 0.28, 0]
+  },
+  "massOffset": [0.049, 0, -0.575],
+  "aeroEffect": {
+    "drag": -0.02
+  },
+  "tier": "stock"
+}

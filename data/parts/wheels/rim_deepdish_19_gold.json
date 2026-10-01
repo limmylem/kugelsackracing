@@ -1,0 +1,36 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "looks",
+  "price": 760,
+  "mass": 11.4,
+  "toughness": 1,
+  "modelTodo": "A deep-dish rim: a wide polished lip (8 cm) around a flat five-spoke face, origin at the hub face; one model for every size (scaled).",
+  "fits": ["wheel_hub:std", "rim_fits:19"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:19", "rim_width:wide"],
+  "rim": {
+    "diameter": 19,
+    "width": 10,
+    "offset": 10
+  },
+  "massOffset": [0.012, 0, 0],
+  "id": "rim_deepdish_19_gold",
+  "name": "19\" deep-dish wheel, gold",
+  "model": "",
+  "icon": "assets/icons/parts/rim_deepdish_19_gold.png",
+  "variantOf": "rim_deepdish",
+  "look": {
+    "scale": [1.111, 1.118, 1.118],
+    "finish": "raw_metal",
+    "colour": "#c9a13b"
+  },
+  "generated": {
+    "table": "rim_deepdish",
+    "key": "size=19,finish=gold"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_deepdish.json: change the table, not this file."
+}

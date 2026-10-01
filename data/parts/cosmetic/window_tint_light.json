@@ -1,0 +1,25 @@
+{
+  "id": "window_tint_light",
+  "name": "Window tint (light)",
+  "category": "cosmetic",
+  "slot": "window_tint",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 120,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/window_tint_light.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Tinted side and rear windows (light).",
+  "effects": [
+    {
+      "target": "cosmetic.tint",
+      "op": "set",
+      "value": "light"
+    }
+  ]
+}

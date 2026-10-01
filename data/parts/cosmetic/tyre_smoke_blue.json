@@ -1,0 +1,25 @@
+{
+  "id": "tyre_smoke_blue",
+  "name": "Tyre smoke (blue)",
+  "category": "cosmetic",
+  "slot": "tyre_smoke",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 140,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_smoke_blue.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coloured tyre smoke: blue.",
+  "effects": [
+    {
+      "target": "cosmetic.smoke",
+      "op": "set",
+      "value": "#2f7de0"
+    }
+  ]
+}

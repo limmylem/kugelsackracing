@@ -1,0 +1,90 @@
+{
+  "_note": "The all-terrain tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $160 × the size's factor (bigger costs more).",
+  "base": "tyre_all_terrain",
+  "id": "{base}_{size}",
+  "name": "{size} all-terrain tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "265_70r17"
+    }
+  ],
+  "groups": {
+    "size": {
+      "245_70r16": {
+        "name": "245/70 R16",
+        "priceFactor": 0.938,
+        "set": {
+          "tyreSize": {
+            "width": 245,
+            "sidewall": 70,
+            "compound": "all_terrain"
+          },
+          "fits": ["rim:16"]
+        },
+        "multiply": {
+          "mass": 0.938
+        }
+      },
+      "265_70r17": {
+        "name": "265/70 R17",
+        "set": {
+          "tyreSize": {
+            "width": 265,
+            "sidewall": 70,
+            "compound": "all_terrain"
+          },
+          "fits": ["rim:17"]
+        }
+      },
+      "285_75r17": {
+        "name": "285/75 R17",
+        "priceFactor": 1.037,
+        "set": {
+          "tyreSize": {
+            "width": 285,
+            "sidewall": 75,
+            "compound": "all_terrain"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 1.037
+        }
+      },
+      "315_75r17": {
+        "name": "315/75 R17",
+        "priceFactor": 1.09,
+        "set": {
+          "tyreSize": {
+            "width": 315,
+            "sidewall": 75,
+            "compound": "all_terrain"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 1.09
+        }
+      },
+      "265_65r18": {
+        "name": "265/65 R18",
+        "priceFactor": 1.024,
+        "set": {
+          "tyreSize": {
+            "width": 265,
+            "sidewall": 65,
+            "compound": "all_terrain"
+          },
+          "fits": ["rim:18"]
+        },
+        "multiply": {
+          "mass": 1.024
+        }
+      }
+    }
+  }
+}

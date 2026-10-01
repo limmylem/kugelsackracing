@@ -1,0 +1,18 @@
+{
+  "name": "Physics test track",
+  "_axes": "World frame: +y up; the car starts at the origin facing +z. Metres and degrees.",
+  "ground": { "size": [600, 600], "thickness": 2, "colour": "#6f8062" },
+  "spawn": { "position": [0, 0, 0], "headingDeg": 0 },
+  "objects": [
+    { "type": "bumps", "name": "Small bumps", "start": [0, 0, 20], "count": 6, "spacing": 3.5, "radius": 0.1, "width": 5, "colour": "#e0c040" },
+    { "type": "bumps", "name": "Big bump", "start": [0, 0, 50], "count": 1, "spacing": 0, "radius": 0.22, "width": 5, "colour": "#e0c040" },
+    { "type": "ramp", "name": "Jump ramp", "start": [0, 0, 70], "length": 8, "angleDeg": 12, "width": 5, "thickness": 1.7, "colour": "#b8b2a6" },
+
+    { "type": "ramp", "name": "15% slope up", "start": [20, 0, 10], "length": 40, "angleDeg": 8.5, "width": 8, "thickness": 6, "colour": "#b8b2a6" },
+    { "type": "box", "name": "Plateau", "centre": [20, 2.9565, 59.56], "halfExtents": [4, 2.9565, 10], "colour": "#a9a294" },
+    { "type": "ramp", "name": "15% slope down", "start": [20, 5.913, 69.56], "length": 40, "angleDeg": -8.5, "width": 8, "thickness": 6, "colour": "#b8b2a6" },
+
+    { "type": "ramp", "name": "Crest up", "start": [-20, 0, 20], "length": 12, "angleDeg": 6, "width": 6, "thickness": 1.5, "colour": "#b8b2a6" },
+    { "type": "ramp", "name": "Crest down", "start": [-20, 1.2543, 31.934], "length": 12, "angleDeg": -6, "width": 6, "thickness": 1.5, "colour": "#b8b2a6" }
+  ]
+}

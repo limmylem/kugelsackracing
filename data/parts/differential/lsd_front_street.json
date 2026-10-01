@@ -1,0 +1,25 @@
+{
+  "id": "lsd_front_street",
+  "name": "Front 1-way limited-slip differential",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "tier": "street",
+  "price": 650,
+  "mass": 23,
+  "model": "",
+  "icon": "assets/icons/parts/lsd_front_street.png",
+  "fits": [
+    ["front_diff:awd", "front_diff:4wd"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A mild limited-slip front diff for an AWD or 4WD car: less wheelspin at the inside front wheel.",
+  "frontDifferential": {
+    "type": "lsd",
+    "preload": 25,
+    "lock": 0.25,
+    "torqueSteer": 0.5
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "id": "sport_suspension",
+  "name": "Adjustable coilovers",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "tier": "sport",
+  "price": 900,
+  "mass": 52,
+  "model": "",
+  "icon": "assets/icons/parts/sport_suspension.png",
+  "fits": ["suspension_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coilovers for any car: 40% stiffer springs and firmer dampers than its own, about 20 mm lower, the ride height, springs and dampers adjustable.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "suspension.stiffness",
+        "op": "multiply",
+        "value": 1.4
+      },
+      {
+        "target": "suspension.damping",
+        "op": "multiply",
+        "value": 1.344
+      },
+      {
+        "target": "suspension.restLength",
+        "op": "multiply",
+        "value": 0.843
+      }
+    ]
+  },
+  "tuning": {
+    "rideHeight": {
+      "label": "ride height",
+      "unit": "mm",
+      "min": -40,
+      "max": 15,
+      "step": 1,
+      "default": 0,
+      "apply": [
+        {
+          "target": "suspension.restLength",
+          "op": "add",
+          "scale": 0.001
+        }
+      ]
+    },
+    "springs": {
+      "label": "spring rate",
+      "unit": "%",
+      "min": 70,
+      "max": 160,
+      "step": 5,
+      "default": 100,
+      "apply": [
+        {
+          "target": "suspension.stiffness",
+          "op": "multiply",
+          "scale": 0.01
+        }
+      ]
+    },
+    "dampers": {
+      "label": "damping",
+      "unit": "%",
+      "min": 50,
+      "max": 160,
+      "step": 5,
+      "default": 100,
+      "apply": [
+        {
+          "target": "suspension.damping",
+          "op": "multiply",
+          "scale": 0.01
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "strut_brace",
+  "name": "Front strut brace",
+  "category": "suspension",
+  "slot": "strut_brace",
+  "kind": "modifier",
+  "tier": "street",
+  "price": 180,
+  "mass": 2.5,
+  "model": "",
+  "modelTodo": "A strut brace: a 110 cm polished alloy bar with a mounting plate at each end, across the engine bay between the strut towers.",
+  "icon": "assets/icons/parts/strut_brace.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A bar across the strut towers: a stiffer front end — the car answers the wheel a touch sooner.",
+  "bounds": {
+    "min": [-0.55, 0, -0.04],
+    "max": [0.55, 0.05, 0.04]
+  },
+  "effects": [
+    {
+      "target": "tyre.lateral.B",
+      "op": "multiply",
+      "value": 1.02
+    }
+  ]
+}

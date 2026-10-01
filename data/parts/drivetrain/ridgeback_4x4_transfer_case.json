@@ -1,0 +1,22 @@
+{
+  "id": "ridgeback_4x4_transfer_case",
+  "name": "Two-speed transfer case (Ridgeback 4x4, stock)",
+  "category": "drivetrain",
+  "slot": "transfer_case",
+  "kind": "component",
+  "price": 900,
+  "mass": 36,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_transfer_case.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "transferCase": {
+    "lowRatio": 2.64,
+    "modes": ["2H", "4H", "4L"],
+    "mode": "2H",
+    "shiftBelow": 2
+  },
+  "tier": "stock"
+}

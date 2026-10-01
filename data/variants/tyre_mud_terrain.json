@@ -1,0 +1,60 @@
+{
+  "_note": "The mud-terrain tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $210 × the size's factor (bigger costs more).",
+  "base": "tyre_mud_terrain",
+  "id": "{base}_{size}",
+  "name": "{size} mud-terrain tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "285_75r17"
+    }
+  ],
+  "groups": {
+    "size": {
+      "265_75r16": {
+        "name": "265/75 R16",
+        "priceFactor": 0.941,
+        "set": {
+          "tyreSize": {
+            "width": 265,
+            "sidewall": 75,
+            "compound": "mud_terrain"
+          },
+          "fits": ["rim:16"]
+        },
+        "multiply": {
+          "mass": 0.941
+        }
+      },
+      "285_75r17": {
+        "name": "285/75 R17",
+        "set": {
+          "tyreSize": {
+            "width": 285,
+            "sidewall": 75,
+            "compound": "mud_terrain"
+          },
+          "fits": ["rim:17"]
+        }
+      },
+      "315_75r17": {
+        "name": "315/75 R17",
+        "priceFactor": 1.051,
+        "set": {
+          "tyreSize": {
+            "width": 315,
+            "sidewall": 75,
+            "compound": "mud_terrain"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 1.051
+        }
+      }
+    }
+  }
+}

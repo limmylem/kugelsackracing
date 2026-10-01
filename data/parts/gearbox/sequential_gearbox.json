@@ -1,0 +1,31 @@
+{
+  "id": "sequential_gearbox",
+  "name": "Sequential gearbox",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "tier": "race",
+  "price": 4600,
+  "mass": 36,
+  "model": "",
+  "icon": "assets/icons/parts/sequential_gearbox.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:rs", "clutch_spline:std", "gearbox:uprated", "gearbox:sequential"],
+  "_note": "A dog-engagement sequential box with the car's own ratios: shifts in 50 ms, flat out.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "gearbox.shiftTime",
+        "op": "set",
+        "value": 0.05
+      },
+      {
+        "target": "gearbox.auto.minInterval",
+        "op": "multiply",
+        "value": 0.6
+      }
+    ]
+  }
+}

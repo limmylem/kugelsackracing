@@ -1,0 +1,40 @@
+{
+  "id": "arb_rear_street",
+  "name": "Uprated rear anti-roll bar",
+  "category": "suspension",
+  "slot": "anti_roll_bar_rear",
+  "kind": "modifier",
+  "price": 220,
+  "mass": 5,
+  "model": "",
+  "icon": "assets/icons/parts/arb_rear_street.png",
+  "fits": [
+    ["chassis:starter", "arb_mounts"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A rear anti-roll bar: it resists the rear axle's two sides compressing differently (N a metre of difference), so the body rolls less and that end takes more of the load moving across in a corner — a stiffer rear bar frees the car up towards oversteer.",
+  "effects": [],
+  "tuning": {
+    "stiffness": {
+      "label": "stiffness",
+      "unit": "N/m",
+      "min": 5000,
+      "max": 16000,
+      "step": 500,
+      "default": 9000,
+      "apply": [
+        {
+          "target": "suspension.antiRoll.rear",
+          "op": "add"
+        }
+      ]
+    }
+  },
+  "bounds": {
+    "min": [-0.6, -0.03, -0.05],
+    "max": [0.6, 0.03, 0.05]
+  },
+  "tier": "street"
+}

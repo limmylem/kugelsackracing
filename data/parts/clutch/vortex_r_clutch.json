@@ -1,0 +1,27 @@
+{
+  "id": "vortex_r_clutch",
+  "name": "Clutch (Vortex R, stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 290,
+  "mass": 8,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_clutch.png",
+  "fits": ["clutch_spline:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "maxTorque": 470,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 500,
+    "auto": {
+      "launchRpm": 3200,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

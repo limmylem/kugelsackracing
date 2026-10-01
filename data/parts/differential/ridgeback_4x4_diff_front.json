@@ -1,0 +1,21 @@
+{
+  "id": "ridgeback_4x4_diff_front",
+  "name": "Front differential (Ridgeback 4x4, stock)",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "price": 450,
+  "mass": 22,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_diff_front.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "frontDifferential": {
+    "type": "open",
+    "preload": 0,
+    "lock": 0
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design preview</title>
+<style>html,body{margin:0;background:#030405;} #pick{position:fixed;right:8px;bottom:8px;z-index:9;font:12px system-ui;color:#aaa;background:#000a;padding:6px 8px;border-radius:6px} #pick a{color:#36B3F5;margin:0 4px}</style>
+</head>
+<body>
+<!-- Opens the Claude Design files here (garage.dc.html, style-guide.dc.html) without their support.js:
+     a small runtime for what they use ({{ bindings }}, sc-for, sc-if, onClick…, the Component's
+     renderVals). preview.html?file=garage.dc.html&screen=parts -->
+<div id="root"></div>
+<div id="pick"></div>
+<script>
+const q = new URLSearchParams(location.search), file = q.get('file') || 'garage.dc.html';
+class DCLogic {
+  constructor(props) { this.props = props; }
+  setState(patch) { const p = typeof patch === 'function' ? patch(this.state) : patch; this.state = { ...this.state, ...p }; render(); }
+}
+let comp, template;
+const lookup = (scope, expr) => {
+  expr = expr.trim();
+  if (expr === 'true') return true; if (expr === 'false') return false;
+  if (/^-?\d+(\.\d+)?$/.test(expr)) return +expr;
+  return expr.split('.').reduce((o, k) => o?.[k], scope);
+};
+const interp = (text, scope) => {
+  const whole = text.match(/^\s*\{\{([^}]+)\}\}\s*$/);
+  if (whole) return lookup(scope, whole[1]);
+  return text.replace(/\{\{([^}]+)\}\}/g, (_, e) => { const v = lookup(scope, e); return v == null ? '' : v; });
+};
+function build(node, scope, out) {
+  if (node.nodeType === 3) { out.appendChild(document.createTextNode(interp(node.textContent, scope))); return; }
+  if (node.nodeType !== 1) return;
+  const tag = node.tagName.toLowerCase();
+  if (tag === 'sc-for') {
+    const list = interp(node.getAttribute('list'), scope) || [], as = node.getAttribute('as');
+    for (const item of list) for (const c of node.childNodes) build(c, { ...scope, [as]: item }, out);
+    return;
+  }
+  if (tag === 'sc-if') { if (interp(node.getAttribute('value'), scope)) for (const c of node.childNodes) build(c, scope, out); return; }
+  if (tag === 'helmet') return;
+  const el = node.namespaceURI === 'http://www.w3.org/2000/svg' ? document.createElementNS(node.namespaceURI, tag) : document.createElement(tag);
+  for (const a of node.attributes) {
+    if (a.name.startsWith('hint-')) continue;
+    if (/^on[a-z]+$/i.test(a.name)) { const fn = interp(a.value, scope); if (typeof fn === 'function') el.addEventListener(a.name.slice(2).toLowerCase(), fn); continue; }
+    if (a.name === 'style-hover') { const hover = interp(a.value, scope); el.addEventListener('mouseenter', () => { el.dataset.base = el.getAttribute('style'); el.setAttribute('style', el.dataset.base + ';' + hover); }); el.addEventListener('mouseleave', () => el.setAttribute('style', el.dataset.base)); continue; }
+    const v = interp(a.value, scope);
+    if (a.name === 'value' && tag === 'input') el.value = v; else el.setAttribute(a.name, v);
+  }
+  for (const c of node.childNodes) build(c, scope, el);
+  out.appendChild(el);
+}
+function render() {
+  const vals = comp.renderVals(), root = document.getElementById('root');
+  root.textContent = '';
+  for (const c of template.childNodes) build(c, vals, root);
+}
+fetch(file).then(r => r.text()).then(text => {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const x = doc.querySelector('x-dc');
+  for (const h of x.querySelectorAll('helmet > *')) {
+    // (made afresh here: nodes copied from another document don't load their stylesheets)
+    const el = document.createElement(h.tagName.toLowerCase());
+    for (const a of h.attributes) el.setAttribute(a.name, a.value);
+    el.textContent = h.textContent;
+    document.head.appendChild(el);
+  }
+  template = x;
+  const script = doc.querySelector('script[data-dc-script]');
+  const props = {};
+  for (const [k, def] of Object.entries(JSON.parse(script.dataset.props || '{}'))) props[k] = q.has(k) ? (def.tsType === 'boolean' ? q.get(k) !== 'false' : q.get(k)) : def.default;
+  const Component = new Function('DCLogic', script.textContent + '\nreturn Component;')(DCLogic);
+  comp = new Component(props);
+  comp.state = comp.state || {};
+  comp.componentDidMount?.();
+  render();
+  // (a closer look: &zoom=2&x=0&y=0, the top-left corner at 2×)
+  if (q.get('zoom')) { const r = document.getElementById('root'); r.style.transformOrigin = '0 0'; r.style.transform = `scale(${q.get('zoom')}) translate(${-(+q.get('x') || 0)}px, ${-(+q.get('y') || 0)}px)`; r.style.position = 'fixed'; r.style.inset = '0'; }
+  const opts = JSON.parse(script.dataset.props || '{}').screen?.options;
+  if (opts) document.getElementById('pick').innerHTML = opts.map(o => `<a href="?file=${file}&screen=${o}">${o}</a>`).join('');
+});
+</script>
+</body>
+</html>

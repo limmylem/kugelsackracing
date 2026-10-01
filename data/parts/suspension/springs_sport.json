@@ -1,0 +1,36 @@
+{
+  "id": "springs_sport",
+  "name": "Sport springs (15 mm lower)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "tier": "street",
+  "price": 450,
+  "mass": 58,
+  "model": "",
+  "icon": "assets/icons/parts/springs_sport.png",
+  "fits": ["suspension_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Lowering springs for any car: 20% stiffer than its own and about 15 mm lower, the dampers a little firmer.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "suspension.stiffness",
+        "op": "multiply",
+        "value": 1.2
+      },
+      {
+        "target": "suspension.damping",
+        "op": "multiply",
+        "value": 1.125
+      },
+      {
+        "target": "suspension.restLength",
+        "op": "multiply",
+        "value": 0.8967
+      }
+    ]
+  }
+}

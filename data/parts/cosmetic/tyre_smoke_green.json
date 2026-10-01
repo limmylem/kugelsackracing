@@ -1,0 +1,25 @@
+{
+  "id": "tyre_smoke_green",
+  "name": "Tyre smoke (green)",
+  "category": "cosmetic",
+  "slot": "tyre_smoke",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 140,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_smoke_green.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coloured tyre smoke: green.",
+  "effects": [
+    {
+      "target": "cosmetic.smoke",
+      "op": "set",
+      "value": "#2ecc71"
+    }
+  ]
+}

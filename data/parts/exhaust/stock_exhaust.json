@@ -1,0 +1,31 @@
+{
+  "id": "stock_exhaust",
+  "name": "Exhaust system (stock)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 260,
+  "mass": 16,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "model": "assets/parts/stock/starter_car/exhaust.glb",
+  "icon": "assets/icons/parts/stock_exhaust.png",
+  "fits": ["exhaust_flange:rs"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.0342, -0.036, -0.18],
+    "max": [0.0342, 0.036, 0]
+  },
+  "massOffset": [0, 0, -0.09],
+  "effects": [],
+  "tier": "stock"
+}

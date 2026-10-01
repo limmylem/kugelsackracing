@@ -1,0 +1,50 @@
+{
+  "id": "kaze_gt_brakes",
+  "name": "Disc brakes (Kaze GT, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 390,
+  "mass": 35,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_brakes.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.66,
+    "front": {
+      "discRadius": 0.1147,
+      "pistonArea": 0.002601,
+      "padMu": 0.42,
+      "heatCapacity": 1226
+    },
+    "rear": {
+      "discRadius": 0.1049,
+      "pistonArea": 0.001284,
+      "padMu": 0.4,
+      "heatCapacity": 839
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3054,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 1549
+    }
+  },
+  "tier": "stock"
+}

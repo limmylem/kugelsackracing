@@ -1,0 +1,29 @@
+{
+  "id": "radiator_race",
+  "name": "Race radiator and oil cooler",
+  "category": "engine",
+  "slot": "radiator",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 950,
+  "mass": 3,
+  "model": "",
+  "modelTodo": "Race radiator and oil cooler: an aluminium radiator core about 64 × 40 × 6 cm with its fan shroud, behind the front bumper.",
+  "icon": "assets/icons/parts/radiator_race.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["cooling:uprated"],
+  "_note": "A race radiator with an oil cooler: 70% more cooling.",
+  "bounds": {
+    "min": [-0.32, -0.2, -0.03],
+    "max": [0.32, 0.2, 0.03]
+  },
+  "effects": [
+    {
+      "target": "cooling.capacity",
+      "op": "multiply",
+      "value": 1.7
+    }
+  ]
+}

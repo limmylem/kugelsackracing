@@ -1,0 +1,23 @@
+{
+  "id": "ridgeback_4x4_winch",
+  "name": "Recovery winch (Ridgeback 4x4)",
+  "category": "body",
+  "slot": "winch",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "offroad",
+  "price": 620,
+  "mass": 35,
+  "model": "",
+  "modelTodo": "Ridgeback winch: a drum winch (50 × 20 × 20 cm) with a fairlead and hook, mounted in the bull bar or bumper.",
+  "icon": "assets/icons/parts/ridgeback_4x4_winch.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "An electric winch on the front: for getting out of where you shouldn't have gone.",
+  "bounds": {
+    "min": [-0.25, 0, -0.1],
+    "max": [0.25, 0.2, 0.1]
+  }
+}

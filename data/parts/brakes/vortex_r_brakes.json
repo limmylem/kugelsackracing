@@ -1,0 +1,50 @@
+{
+  "id": "vortex_r_brakes",
+  "name": "Disc brakes (Vortex R, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 400,
+  "mass": 37,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_brakes.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.72,
+    "front": {
+      "discRadius": 0.1204,
+      "pistonArea": 0.002729,
+      "padMu": 0.42,
+      "heatCapacity": 1349
+    },
+    "rear": {
+      "discRadius": 0.11,
+      "pistonArea": 0.001347,
+      "padMu": 0.4,
+      "heatCapacity": 923
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3299,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 1705
+    }
+  },
+  "tier": "stock"
+}

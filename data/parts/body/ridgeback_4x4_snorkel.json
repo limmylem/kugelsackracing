@@ -1,0 +1,30 @@
+{
+  "id": "ridgeback_4x4_snorkel",
+  "name": "Snorkel (Ridgeback 4x4)",
+  "category": "body",
+  "slot": "snorkel",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "offroad",
+  "price": 340,
+  "mass": 4,
+  "model": "",
+  "modelTodo": "Ridgeback snorkel: a 9 cm black pipe from the right front wing up the windscreen pillar to a ram head at roof height, about 1.1 m tall.",
+  "icon": "assets/icons/parts/ridgeback_4x4_snorkel.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["snorkel"],
+  "_note": "A raised air intake up the right pillar: deep water can't reach the engine, and you hear it breathe.",
+  "bounds": {
+    "min": [-0.06, -0.5, -0.1],
+    "max": [0.06, 0.6, 0.1]
+  },
+  "effects": [
+    {
+      "target": "soundMod.intake",
+      "op": "multiply",
+      "value": 1.3
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "stock_ecu",
+  "name": "Engine control unit (stock)",
+  "category": "ecu",
+  "slot": "ecu",
+  "kind": "modifier",
+  "price": 180,
+  "mass": 1,
+  "model": "",
+  "icon": "assets/icons/parts/stock_ecu.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [],
+  "tier": "stock"
+}

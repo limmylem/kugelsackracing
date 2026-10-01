@@ -1,0 +1,48 @@
+{
+  "id": "turbo_kit",
+  "name": "Small turbo kit",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "price": 2400,
+  "mass": 22,
+  "model": "",
+  "icon": "assets/icons/parts/turbo_kit.png",
+  "fits": [],
+  "requires": ["slot:intercooler"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+  "provides": ["forced_induction:turbo"],
+  "_note": "A small turbo kit for any engine without one: quick to spool, a modest boost.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1500, 0], [2500, 0.15], [3500, 0.45], [4500, 0.55], [6500, 0.55], [7200, 0.5]],
+      "efficiency": 0.85,
+      "max": 0.7
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "_note": "The turbo's whistle (testtrack/audio.js), only heard with it fitted: its pitch follows the shaft speed — the spool, which chases the boost this turbo's curve gives at the revs times how open the throttle is, spoolUp s to rise and spoolDown s to fall — from fromHz to toHz at full boost; its level (gain at full boost) follows the spool and the throttle, so it rises under throttle and fades off it; noise: how much rushing air there is round the tone, q how narrow it is.",
+    "whistle": {
+      "fromHz": 2600,
+      "toHz": 8200,
+      "gain": 0.045,
+      "noise": 0.35,
+      "q": 12,
+      "spoolUp": 0.45,
+      "spoolDown": 0.35
+    }
+  },
+  "bounds": {
+    "min": [-0.1, -0.1, -0.1],
+    "max": [0.1, 0.1, 0.1]
+  },
+  "hides": ["socket_intake"],
+  "tier": "sport"
+}

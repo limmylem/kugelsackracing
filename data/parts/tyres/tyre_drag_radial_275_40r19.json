@@ -1,0 +1,57 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "drag",
+  "price": 215,
+  "mass": 11.65,
+  "toughness": 1.5,
+  "fits": ["rim:19"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A soft drag radial: enormous traction in a straight line, vague and slippery in corners.",
+  "tyreSize": {
+    "width": 275,
+    "sidewall": 40,
+    "compound": "drag_radial"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 14,
+      "C": 1.6,
+      "D": 1.3,
+      "E": 0.35
+    },
+    "lateral": {
+      "B": 9,
+      "C": 1.35,
+      "D": 0.8,
+      "E": -0.1
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.014,
+    "wheelSubsteps": 6
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  },
+  "id": "tyre_drag_radial_275_40r19",
+  "name": "275/40 R19 drag radial",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_drag_radial_275_40r19.png",
+  "variantOf": "tyre_drag_radial",
+  "generated": {
+    "table": "tyre_drag_radial",
+    "key": "size=275_40r19"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_drag_radial.json: change the table, not this file."
+}

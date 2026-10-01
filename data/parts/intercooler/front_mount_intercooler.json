@@ -1,0 +1,23 @@
+{
+  "id": "front_mount_intercooler",
+  "name": "Front-mount intercooler",
+  "category": "intercooler",
+  "slot": "intercooler",
+  "kind": "modifier",
+  "price": 600,
+  "mass": 9,
+  "model": "",
+  "icon": "assets/icons/parts/front_mount_intercooler.png",
+  "fits": ["intercooler_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intercooler"],
+  "_note": "A front-mount intercooler for any car: it cools the charge air a turbo or supercharger pushes in. On its own it changes nothing.",
+  "effects": [],
+  "bounds": {
+    "min": [-0.3, -0.12, -0.03],
+    "max": [0.3, 0.12, 0.03]
+  },
+  "tier": "sport",
+  "modelTodo": "A front-mount intercooler: a finned core about 60 × 24 × 6 cm with two pipes out of its ends, sitting behind the front bumper."
+}

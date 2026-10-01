@@ -1,0 +1,44 @@
+{
+  "_note": "Vortex R's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_vortex_r.glb) when it's made.",
+  "paint": "#e8c21c",
+  "style": "hatch",
+  "frontDrive": true,
+  "length": 4.3,
+  "width": 1.8,
+  "height": 1.45,
+  "clearance": 0.12,
+  "beltline": 0.95,
+  "frontAxle": 1.35,
+  "rearAxle": -1.29,
+  "track": 1.55,
+  "wheel": {
+    "radius": 0.319,
+    "rimDiameter": 18,
+    "width": 0.225
+  },
+  "bonnet": {
+    "rear": 0.75,
+    "front": 0.68,
+    "back": 0.92
+  },
+  "roof": {
+    "front": 0.3,
+    "rear": -1.55,
+    "height": 1.45
+  },
+  "deck": {
+    "front": -1.75,
+    "height": 1
+  },
+  "engine": {
+    "at": [0, 0.5, 1.28],
+    "size": [0.66, 0.5, 0.5]
+  },
+  "seatZ": -0.2,
+  "floor": 0.22,
+  "extraSockets": {
+    "socket_front_lip": [0, 0.14, 2.1],
+    "socket_spoiler": [0, 1.43, -1.6]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_front_lip"]
+}

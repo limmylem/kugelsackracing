@@ -1,0 +1,90 @@
+{
+  "_note": "The semi-slick tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $150 × the size's factor (bigger costs more).",
+  "base": "tyre_semi_slick",
+  "id": "{base}_{size}",
+  "name": "{size} semi-slick tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "215_45r17"
+    }
+  ],
+  "groups": {
+    "size": {
+      "205_55r16": {
+        "name": "205/55 R16",
+        "priceFactor": 0.953,
+        "set": {
+          "tyreSize": {
+            "width": 205,
+            "sidewall": 55,
+            "compound": "semi_slick"
+          },
+          "fits": ["rim:16"]
+        },
+        "multiply": {
+          "mass": 0.953
+        }
+      },
+      "215_45r17": {
+        "name": "215/45 R17",
+        "set": {
+          "tyreSize": {
+            "width": 215,
+            "sidewall": 45,
+            "compound": "semi_slick"
+          },
+          "fits": ["rim:17"]
+        }
+      },
+      "235_40r18": {
+        "name": "235/40 R18",
+        "priceFactor": 1.07,
+        "set": {
+          "tyreSize": {
+            "width": 235,
+            "sidewall": 40,
+            "compound": "semi_slick"
+          },
+          "fits": ["rim:18"]
+        },
+        "multiply": {
+          "mass": 1.07
+        }
+      },
+      "255_35r19": {
+        "name": "255/35 R19",
+        "priceFactor": 1.14,
+        "set": {
+          "tyreSize": {
+            "width": 255,
+            "sidewall": 35,
+            "compound": "semi_slick"
+          },
+          "fits": ["rim:19"]
+        },
+        "multiply": {
+          "mass": 1.14
+        }
+      },
+      "265_35r20": {
+        "name": "265/35 R20",
+        "priceFactor": 1.187,
+        "set": {
+          "tyreSize": {
+            "width": 265,
+            "sidewall": 35,
+            "compound": "semi_slick"
+          },
+          "fits": ["rim:20"]
+        },
+        "multiply": {
+          "mass": 1.187
+        }
+      }
+    }
+  }
+}

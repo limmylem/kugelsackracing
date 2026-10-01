@@ -1,0 +1,59 @@
+{
+  "id": "hana_roadster_engine",
+  "name": "1.8 L inline-four (Hana Roadster, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 3400,
+  "mass": 112,
+  "model": "assets/parts/stock/hana_roadster/hana_roadster_engine.glb",
+  "icon": "assets/icons/parts/hana_roadster_engine.png",
+  "fits": [
+    "engine_bay:longitudinal",
+    ["car:hana_roadster", "engine_swap:hana_i4"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:hana_i4", "engine_layout:i4", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Hana Roadster's engine. It fits its own car, or another with a longitudinal engine bay (engine_bay:longitudinal) and an engine swap kit for it (engine_swap:hana_i4).",
+  "engine": {
+    "torqueCurve": [[850, 110], [2000, 124], [3000, 136], [4000, 148], [5000, 160], [5500, 166], [6500, 152], [7000, 140], [7300, 128]],
+    "idleRpm": 850,
+    "redlineRpm": 7000,
+    "inertia": 0.11,
+    "induction": "natural",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/i4.json",
+    "friction": {
+      "base": 8.48,
+      "perKrpm": 4.24,
+      "perKrpm2": 0.496
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.25, 0, -0.3],
+    "max": [0.25, 0.61, 0.3]
+  }
+}

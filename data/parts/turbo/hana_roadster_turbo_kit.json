@@ -1,0 +1,48 @@
+{
+  "id": "hana_roadster_turbo_kit",
+  "name": "Turbo kit (Hana Roadster)",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 2600,
+  "mass": 18,
+  "model": "",
+  "modelTodo": "Hana Roadster turbo kit: a small turbo (20 cm) on a cast manifold at the side of the four-cylinder, with its intake pipe.",
+  "icon": "assets/icons/parts/hana_roadster_turbo_kit.png",
+  "fits": ["engine_family:hana_i4"],
+  "requires": ["slot:intercooler"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+  "provides": ["forced_induction:turbo"],
+  "_note": "A small turbo kit made for the Hana's four: a big mid-range lift for a light car.",
+  "hides": ["socket_intake"],
+  "bounds": {
+    "min": [-0.13, 0, -0.13],
+    "max": [0.13, 0.24, 0.13]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1800, 0], [2800, 0.3], [3800, 0.55], [6000, 0.55], [7000, 0.45]],
+      "efficiency": 0.85,
+      "max": 0.7
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "whistle": {
+      "fromHz": 2800,
+      "toHz": 8400,
+      "gain": 0.045,
+      "noise": 0.35,
+      "q": 12,
+      "spoolUp": 0.45,
+      "spoolDown": 0.35
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "strada_evo_brakes",
+  "name": "Disc brakes (Strada Evo, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 420,
+  "mass": 38,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_brakes.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.64,
+    "front": {
+      "discRadius": 0.1253,
+      "pistonArea": 0.002842,
+      "padMu": 0.42,
+      "heatCapacity": 1463
+    },
+    "rear": {
+      "discRadius": 0.1145,
+      "pistonArea": 0.001402,
+      "padMu": 0.4,
+      "heatCapacity": 1001
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3543,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 1848
+    }
+  },
+  "tier": "stock"
+}

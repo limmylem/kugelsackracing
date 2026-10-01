@@ -1,0 +1,24 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/flywheel_light.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "flywheel_light",
+  "name": "Lightweight flywheel",
+  "category": "flywheel",
+  "slot": "flywheel",
+  "tier": "sport",
+  "price": 480,
+  "mass": -3,
+  "fits": [],
+  "_note": "A lighter flywheel for any engine: it revs up and down quicker (a quarter less inertia).",
+  "effects": [
+    {
+      "target": "engine.inertia",
+      "op": "multiply",
+      "value": 0.75
+    }
+  ]
+}

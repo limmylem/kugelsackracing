@@ -1,0 +1,27 @@
+# The same checks as the pre-commit hook (.githooks/pre-commit), on every push and pull request: the
+# data against its schemas, every model against the model rules, the unit tests and the headless
+# physics test suite. Any failure fails the run.
+name: checks
+on:
+  push:
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Data (schemas and cross-checks)
+        run: npm run check
+      - name: Models (model rules)
+        run: npm run check-models
+      - name: Modelling docs up to date with the rules
+        run: npm run guide -- --check
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Physics tests (headless)
+        run: npm test

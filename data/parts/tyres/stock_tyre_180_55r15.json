@@ -1,0 +1,54 @@
+{
+  "id": "stock_tyre_180_55r15",
+  "name": "180/55 R15 road tyre (stock)",
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "price": 55,
+  "mass": 8,
+  "toughness": 1.5,
+  "model": "",
+  "icon": "assets/icons/parts/stock_tyre_180_55r15.png",
+  "fits": ["rim:15"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "tyreSize": {
+    "width": 180,
+    "sidewall": 55,
+    "compound": "road"
+  },
+  "look": {
+    "finish": "rubber"
+  },
+  "tyre": {
+    "_note": "Pacejka Magic Formula F = D*N*sin(C*atan(B*x - E*(B*x - atan(B*x)))): x is the slip ratio (longitudinal) or slip angle in radians (lateral), D is the friction coefficient, N the wheel's load. Below lowSpeed.blendEnd the forces blend into a spring-damper stiction model so a stopped car doesn't creep or jitter.",
+    "longitudinal": {
+      "B": 16,
+      "C": 1.5,
+      "D": 1.05,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 11,
+      "C": 1.4,
+      "D": 0.88,
+      "E": -0.2
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.012,
+    "wheelSubsteps": 6
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3,
+    "_note": "the tyre block's grip (D) is for a 180 mm tyre; a wider one grips more by (width / 180) ^ 0.3"
+  },
+  "tier": "stock"
+}

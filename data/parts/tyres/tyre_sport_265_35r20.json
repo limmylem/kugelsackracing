@@ -1,0 +1,61 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "street",
+  "price": 100,
+  "mass": 10.92,
+  "toughness": 1.5,
+  "fits": ["rim:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A sport road tyre, for any rim size: what to fit with new wheels.",
+  "tyreSize": {
+    "width": 265,
+    "sidewall": 35,
+    "compound": "sport"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 17,
+      "C": 1.5,
+      "D": 1.1,
+      "E": 0.25
+    },
+    "lateral": {
+      "B": 12,
+      "C": 1.4,
+      "D": 0.92,
+      "E": -0.25
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.013,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 0.85,
+      "gravel": 0.85,
+      "grass": 0.85
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  },
+  "id": "tyre_sport_265_35r20",
+  "name": "265/35 R20 sport tyre",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_sport_265_35r20.png",
+  "variantOf": "tyre_sport",
+  "generated": {
+    "table": "tyre_sport",
+    "key": "size=265_35r20"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_sport.json: change the table, not this file."
+}

@@ -1,0 +1,425 @@
+{
+  "_note": "Upgrade tiers, so parts in the same tier are consistent. Every part has a tier (data/parts: tier). Price: a part's price (each, for a set) is its slot's street price × its tier's price band. Stats: what a part does to its slot's key stat (on the starter car, with whatever it needs fitted too: its own difference) is within its slot's band for its tier — a share of the stock value, better-ward (for weight, braking distance and 0–100 time: less). Parts with a purpose (drift, looks) do their own thing and aren't held to the stat bands. Checked by the balance tests (tests/unit/balance.test.mjs) and npm run balance-report.",
+  "tiers": {
+    "stock": {
+      "label": "Stock",
+      "colour": "#8a939c",
+      "about": "What the car came with"
+    },
+    "street": {
+      "label": "Street",
+      "colour": "#3dd68c",
+      "price": [0.7, 1.4],
+      "about": "A first step: cheap, road-friendly, the best value"
+    },
+    "sport": {
+      "label": "Sport",
+      "colour": "#36b3f5",
+      "price": [1.5, 2.8],
+      "about": "A real gain, for about twice the money"
+    },
+    "race": {
+      "label": "Race",
+      "colour": "#ff5a5f",
+      "price": [3, 6],
+      "about": "The last few per cent, at a price"
+    }
+  },
+  "stats": {
+    "_note": "The key stats a slot can be judged by (tools/content/balance.mjs works each one out from a build's stats)",
+    "power": "peak power (hp)",
+    "grip": "cornering grip (g, the rating's estimate)",
+    "accel": "0–100 km/h (s, the rating's estimate: less is better)",
+    "weight": "the car's mass (kg: less is better)",
+    "brakeTorque": "the brakes' total torque (N·m)",
+    "clutchTorque": "what the clutch holds (N·m)",
+    "diffLock": "the differential's lock (share)",
+    "springRate": "the springs' stiffness (N/m)",
+    "rating": "the performance rating"
+  },
+  "slots": {
+    "intake": {
+      "street": 140,
+      "stat": "power",
+      "gain": {
+        "street": [0.01, 0.035],
+        "sport": [0.03, 0.07],
+        "race": [0.06, 0.12]
+      }
+    },
+    "header": {
+      "street": 400,
+      "stat": "power",
+      "gain": {
+        "street": [0.01, 0.04],
+        "sport": [0.03, 0.07],
+        "race": [0.06, 0.12]
+      }
+    },
+    "exhaust": {
+      "street": 300,
+      "stat": "power",
+      "gain": {
+        "street": [0.01, 0.04],
+        "sport": [0.03, 0.07],
+        "race": [0.06, 0.12]
+      }
+    },
+    "ecu": {
+      "street": 450,
+      "stat": "power",
+      "gain": {
+        "street": [0.03, 0.08],
+        "sport": [0.06, 0.2],
+        "race": [0.08, 0.3]
+      }
+    },
+    "turbo": {
+      "street": 1200,
+      "stat": "power",
+      "gain": {
+        "sport": [0.25, 0.5],
+        "race": [0.45, 0.85]
+      }
+    },
+    "intercooler": {
+      "street": 350,
+      "stat": null,
+      "_note": "what a turbo needs: no gain of its own"
+    },
+    "pistons": {
+      "street": 500,
+      "stat": null,
+      "_note": "what a bigger turbo needs: no gain of its own"
+    },
+    "flywheel": {
+      "street": 250,
+      "stat": "accel",
+      "gain": {
+        "street": [0.002, 0.02],
+        "sport": [0.005, 0.03],
+        "race": [0.01, 0.05]
+      }
+    },
+    "clutch": {
+      "street": 220,
+      "stat": "clutchTorque",
+      "gain": {
+        "street": [0.1, 0.3],
+        "sport": [0.2, 0.5],
+        "race": [0.5, 1.2]
+      }
+    },
+    "gearbox": {
+      "street": 900,
+      "stat": "accel",
+      "gain": {
+        "street": [0.003, 0.02],
+        "sport": [0.008, 0.04],
+        "race": [0.015, 0.08]
+      },
+      "_note": "0–100 is traction-limited in 1st: gears and quicker shifts win a few per cent"
+    },
+    "differential": {
+      "street": 500,
+      "stat": "diffLock",
+      "gain": {
+        "sport": [0.2, 1],
+        "race": [0.5, 2],
+        "street": [0.05, 1]
+      }
+    },
+    "suspension": {
+      "street": 450,
+      "stat": "springRate",
+      "gain": {
+        "street": [0.1, 0.3],
+        "sport": [0.3, 0.6],
+        "race": [0.6, 1.2]
+      },
+      "_note": "firmer springs: less roll and a lower car (the tyres, not the springs, set how much grip there is)"
+    },
+    "brakes": {
+      "street": 450,
+      "stat": "brakeTorque",
+      "gain": {
+        "street": [0.05, 0.15],
+        "sport": [0.15, 0.35],
+        "race": [0.3, 0.7]
+      }
+    },
+    "brake_pads": {
+      "street": 120,
+      "stat": "brakeTorque",
+      "gain": {
+        "street": [0.03, 0.1],
+        "sport": [0.1, 0.2],
+        "race": [0.18, 0.35]
+      }
+    },
+    "tyres": {
+      "street": 80,
+      "stat": "grip",
+      "gain": {
+        "street": [0.01, 0.12],
+        "sport": [0.04, 0.26],
+        "race": [0.08, 0.4]
+      },
+      "_note": "a wider tyre grips more, so a size up (on bigger rims) adds to its tier's gain; tyres are compared with tyres of their own rim size"
+    },
+    "wheels": {
+      "street": 300,
+      "stat": null,
+      "_note": "rims: mostly how they look; lighter ones help a little"
+    },
+    "spacers": {
+      "street": 70,
+      "stat": "grip",
+      "gain": {
+        "street": [0.0005, 0.02]
+      }
+    },
+    "spoiler": {
+      "street": 400,
+      "stat": "grip",
+      "gain": {
+        "street": [0.004, 0.03],
+        "sport": [0.01, 0.05],
+        "race": [0.03, 0.09]
+      }
+    },
+    "bonnet": {
+      "street": 450,
+      "stat": ["grip", "weight"],
+      "gain": {
+        "street": [0.002, 0.02],
+        "sport": [0.002, 0.03],
+        "race": [0.005, 0.05]
+      }
+    },
+    "bumper_front": {
+      "street": 350,
+      "stat": ["grip", "weight"],
+      "gain": {
+        "street": [0.002, 0.02],
+        "sport": [0.004, 0.03],
+        "race": [0.01, 0.05]
+      }
+    },
+    "weight_rear_seats": {
+      "street": 100,
+      "stat": "weight",
+      "gain": {
+        "street": [0.01, 0.04]
+      }
+    },
+    "weight_sound_deadening": {
+      "street": 200,
+      "stat": "weight",
+      "gain": {
+        "street": [0.005, 0.03],
+        "sport": [0.01, 0.04]
+      }
+    },
+    "differential_front": {
+      "_note": "AWD / 4WD: the front axle's differential",
+      "street": 500,
+      "stat": null
+    },
+    "centre_diff": {
+      "_note": "AWD: how the drive is shared front / rear",
+      "street": 900,
+      "stat": null
+    },
+    "transfer_case": {
+      "_note": "4WD: 2H / 4H / 4L",
+      "street": 900,
+      "stat": null
+    },
+    "anti_roll_bar_front": {
+      "_note": "balance, not grip: a stiffer front bar pushes towards understeer",
+      "street": 250,
+      "stat": null
+    },
+    "anti_roll_bar_rear": {
+      "_note": "balance, not grip: a stiffer rear bar frees the car towards oversteer",
+      "street": 250,
+      "stat": null
+    },
+    "lift_kit": {
+      "_note": "off road: clearance and room for bigger tyres",
+      "street": 700,
+      "stat": null
+    },
+    "roof": {
+      "_note": "a convertible's roof",
+      "street": 1400,
+      "stat": null
+    },
+    "supercharger": {
+      "street": 1300,
+      "stat": "power",
+      "gain": {
+        "sport": [0.2, 0.45],
+        "race": [0.4, 0.8]
+      },
+      "_note": "no lag: less than a turbo at the top, more everywhere else"
+    },
+    "radiator": {
+      "street": 450,
+      "stat": null,
+      "_note": "cooling: what an engine swap needs"
+    },
+    "engine_swap": {
+      "street": 1500,
+      "stat": null,
+      "_note": "mounts and wiring for another car's engine: the engine is what changes the car"
+    },
+    "shifter": {
+      "street": 220,
+      "stat": "accel",
+      "gain": {
+        "street": [0.001, 0.02]
+      }
+    },
+    "roll_cage": {
+      "street": 900,
+      "stat": null,
+      "_note": "toughness, not speed: it adds weight"
+    },
+    "harness": {
+      "street": 250,
+      "stat": null
+    },
+    "gauges": {
+      "street": 250,
+      "stat": null
+    },
+    "strut_brace": {
+      "street": 200,
+      "stat": null,
+      "_note": "feel: the car answers the wheel a touch sooner"
+    },
+    "window_tint": {
+      "street": 150,
+      "stat": null,
+      "_note": "looks"
+    },
+    "tyre_smoke": {
+      "street": 140,
+      "stat": null,
+      "_note": "looks"
+    },
+    "underglow": {
+      "street": 250,
+      "stat": null,
+      "_note": "looks"
+    },
+    "fog_lights": {
+      "street": 220,
+      "stat": null,
+      "_note": "looks"
+    },
+    "front_lip": {
+      "street": 380,
+      "stat": ["grip", "weight"],
+      "gain": {
+        "street": [0.001, 0.02],
+        "sport": [0.002, 0.03]
+      }
+    },
+    "canards": {
+      "street": 350,
+      "stat": "grip",
+      "gain": {
+        "sport": [0.002, 0.03]
+      }
+    },
+    "widebody": {
+      "street": 1200,
+      "stat": null,
+      "_note": "looks, and room for wider wheels"
+    },
+    "aero_kit": {
+      "street": 1000,
+      "stat": "grip",
+      "gain": {
+        "race": [0.005, 0.06]
+      }
+    },
+    "bull_bar": {
+      "street": 700,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "snorkel": {
+      "street": 300,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "winch": {
+      "street": 600,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "roof_rack": {
+      "street": 400,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "light_bar": {
+      "street": 350,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "skid_plates": {
+      "street": 500,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "rock_sliders": {
+      "street": 450,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "rally_lights": {
+      "street": 420,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "mud_flaps": {
+      "street": 110,
+      "stat": null,
+      "_note": "off-road and rally kit: what it's for, not speed"
+    },
+    "seat": {
+      "street": 400,
+      "stat": "weight",
+      "gain": {
+        "street": [0.001, 0.02],
+        "race": [0.004, 0.03]
+      }
+    },
+    "steering_wheel": {
+      "street": 300,
+      "stat": null
+    },
+    "engine_cover": {
+      "street": 1200,
+      "stat": "weight",
+      "gain": {
+        "sport": [0.002, 0.02]
+      }
+    },
+    "skirt_left": {
+      "street": 180,
+      "stat": null,
+      "_note": "looks, a little less lift"
+    },
+    "skirt_right": {
+      "street": 180,
+      "stat": null,
+      "_note": "looks, a little less lift"
+    }
+  }
+}

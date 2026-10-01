@@ -1,0 +1,74 @@
+{
+  "id": "apex_v8_engine",
+  "name": "4.0 L twin-turbo V8 (Apex V8, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 12900,
+  "mass": 200,
+  "model": "assets/parts/stock/apex_v8/apex_v8_engine.glb",
+  "icon": "assets/icons/parts/apex_v8_engine.png",
+  "fits": [
+    "engine_bay:mid",
+    ["car:apex_v8", "engine_swap:apex_tt8"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:apex_tt8", "engine_layout:v8", "induction:turbo", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Apex V8's engine. It fits its own car, or another with a mid engine bay (engine_bay:mid) and an engine swap kit for it (engine_swap:apex_tt8).",
+  "engine": {
+    "torqueCurve": [[950, 360], [2500, 480], [3500, 560], [6500, 580], [7500, 570], [8000, 530], [8400, 480]],
+    "idleRpm": 950,
+    "redlineRpm": 8000,
+    "inertia": 0.18,
+    "induction": "turbo",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8_tt.json",
+    "friction": {
+      "base": 16.4,
+      "perKrpm": 8.2,
+      "perKrpm2": 0.98
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "turbo": {
+      "boost": [[1500, 0.3], [2500, 1], [3000, 1.4], [6000, 1.4], [8000, 1.2]],
+      "efficiency": 0.8,
+      "sound": {
+        "whistle": {
+          "fromHz": 3000,
+          "toHz": 9200,
+          "gain": 0.06,
+          "noise": 0.35,
+          "q": 12,
+          "spoolUp": 0.5,
+          "spoolDown": 0.35
+        }
+      }
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.375, -0.225, -0.35],
+    "max": [0.375, 0.335, 0.35]
+  }
+}

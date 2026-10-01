@@ -1,0 +1,74 @@
+{
+  "id": "vortex_r_engine",
+  "name": "2.0 L turbo inline-four (Vortex R, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 5100,
+  "mass": 138,
+  "model": "assets/parts/stock/vortex_r/vortex_r_engine.glb",
+  "icon": "assets/icons/parts/vortex_r_engine.png",
+  "fits": [
+    "engine_bay:transverse",
+    ["car:vortex_r", "engine_swap:vortex_i4t"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:vortex_i4t", "engine_layout:i4", "induction:turbo", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Vortex R's engine. It fits its own car, or another with a transverse engine bay (engine_bay:transverse) and an engine swap kit for it (engine_swap:vortex_i4t).",
+  "engine": {
+    "torqueCurve": [[750, 180], [1500, 280], [2000, 350], [4500, 350], [5500, 300], [6200, 270], [6600, 245]],
+    "idleRpm": 750,
+    "redlineRpm": 6500,
+    "inertia": 0.12,
+    "induction": "turbo",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/i4_turbo.json",
+    "friction": {
+      "base": 9.2,
+      "perKrpm": 4.6,
+      "perKrpm2": 0.54
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "turbo": {
+      "boost": [[1000, 0.2], [1500, 0.6], [2000, 1.2], [4500, 1.2], [6500, 1]],
+      "efficiency": 0.85,
+      "sound": {
+        "whistle": {
+          "fromHz": 2400,
+          "toHz": 7600,
+          "gain": 0.05,
+          "noise": 0.35,
+          "q": 12,
+          "spoolUp": 0.5,
+          "spoolDown": 0.35
+        }
+      }
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.33, -0.2, -0.25],
+    "max": [0.33, 0.31, 0.25]
+  }
+}

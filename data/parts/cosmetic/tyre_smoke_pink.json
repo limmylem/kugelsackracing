@@ -1,0 +1,25 @@
+{
+  "id": "tyre_smoke_pink",
+  "name": "Tyre smoke (pink)",
+  "category": "cosmetic",
+  "slot": "tyre_smoke",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 140,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/tyre_smoke_pink.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Coloured tyre smoke: pink.",
+  "effects": [
+    {
+      "target": "cosmetic.smoke",
+      "op": "set",
+      "value": "#ff6fb5"
+    }
+  ]
+}

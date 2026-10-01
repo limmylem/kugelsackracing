@@ -1,0 +1,21 @@
+{
+  "id": "wheel_spacers_15",
+  "name": "15 mm wheel spacers",
+  "category": "wheels",
+  "slot": "spacers",
+  "kind": "component",
+  "price": 80,
+  "mass": 0.6,
+  "toughness": 2,
+  "model": "",
+  "icon": "assets/icons/parts/wheel_spacers_15.png",
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Each wheel 15 mm further out: a 30 mm wider track.",
+  "spacer": {
+    "thickness": 15
+  },
+  "tier": "street"
+}

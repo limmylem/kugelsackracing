@@ -1,0 +1,33 @@
+{
+  "id": "suspension_solid_axle",
+  "name": "Solid axles on leaf springs",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 1100,
+  "mass": 96,
+  "model": "",
+  "icon": "assets/icons/parts/suspension_solid_axle.png",
+  "fits": ["chassis:offroad"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "offroad",
+  "_note": "Live axles front and rear: each axle's wheels on one beam, sprung near the middle (springTrack of the track), so the body rolls more on the road but the axles twist a long way over rough ground and keep the load on all four wheels.",
+  "suspension": {
+    "restLength": 0.44,
+    "travel": 0.4,
+    "stiffness": 21000,
+    "damping": 2600,
+    "antiRoll": {
+      "front": 0,
+      "rear": 0
+    },
+    "solidAxle": {
+      "front": true,
+      "rear": true,
+      "springTrack": 0.72
+    }
+  },
+  "tier": "stock"
+}

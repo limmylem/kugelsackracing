@@ -1,0 +1,21 @@
+{
+  "id": "stock_seat",
+  "name": "Seat (stock)",
+  "category": "interior",
+  "slot": "seat",
+  "kind": "component",
+  "price": 150,
+  "mass": 14,
+  "model": "assets/parts/stock/starter_car/seat.glb",
+  "icon": "assets/icons/parts/stock_seat.png",
+  "fits": ["car:starter_car"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.24, 0, -0.48],
+    "max": [0.24, 0.882, 0.26]
+  },
+  "massOffset": [0, 0.441, -0.11],
+  "tier": "stock"
+}

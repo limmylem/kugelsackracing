@@ -1,0 +1,1870 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real World Drive</title>
+<script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/';</script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<link rel="stylesheet" href="ui/theme.css">
+<link rel="stylesheet" href="garage/garage.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc9f0; font-family: system-ui, -apple-system, sans-serif; }
+  #cesium { position: fixed; inset: 0; }
+  .box { position: fixed; background: rgba(15, 20, 30, 0.72); color: #fff; border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  #panel { top: 12px; left: 12px; width: 300px; }
+  #search { display: flex; gap: 6px; }
+  #search input { flex: 1; padding: 7px 9px; border-radius: 6px; border: none; font-size: 14px; }
+  #search button, #presets button, #setup button { padding: 7px 10px; border-radius: 6px; border: none; background: #e8433a; color: #fff; font-weight: 600; cursor: pointer; }
+  #presets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  #presets button { background: #334; font-weight: 500; font-size: 12px; padding: 5px 8px; }
+  #presets button:hover { background: #445; }
+  #status { margin-top: 8px; font-size: 13px; opacity: 0.85; }
+  #loading { margin-top: 4px; font-size: 12px; color: #ffd76a; min-height: 15px; }
+  #links { margin-top: 6px; font-size: 11px; opacity: 0.7; }
+  #links a, #setup a { color: #9cd0ff; }
+  #speed { bottom: 44px; right: 16px; font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #speed small { font-size: 14px; font-weight: 500; opacity: 0.7; }
+  #help { bottom: 44px; left: 12px; font-size: 12px; line-height: 1.6; }
+  #attr { position: fixed; top: 220px; right: 12px; width: 206px; text-align: center; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; opacity: 0.8; }
+  #attr a { color: inherit; }
+  #minimap { position: fixed; top: 12px; right: 12px; width: 200px; height: 200px; border-radius: 50%; border: 3px solid rgba(15, 20, 30, 0.72); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); cursor: pointer; background: #86a071; }
+  #setup { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100vw - 56px)); padding: 20px 22px; font-size: 14px; line-height: 1.5; z-index: 10; }
+  #setup h2 { margin: 0 0 8px; font-size: 20px; }
+  #setup ol { padding-left: 20px; margin: 8px 0 12px; }
+  #setup form { display: flex; gap: 6px; }
+  #setup input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: none; font-size: 13px; }
+  #setup .error { color: #ffb4a8; margin: 10px 0 0; }
+  #setup .small { font-size: 12px; opacity: 0.85; margin: 12px 0 0; }
+  @media (max-width: 560px) { #minimap { top: auto; bottom: 150px; width: 140px; height: 140px; } #attr { display: none; } }
+  kbd { background: #fff2; border-radius: 3px; padding: 0 4px; }
+  .cesium-viewer-bottom { z-index: 5; }
+  /* Physics test track (T) */
+  body.test-mode #cesium, body.test-mode #panel, body.test-mode #minimap, body.test-mode #attr,
+  body.test-mode #speed, body.test-mode #help, body.test-mode #setup { display: none !important; }
+  #testHud { position: fixed; top: 12px; left: 12px; z-index: 5; background: rgba(15, 20, 30, 0.78); color: #fff; border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5; max-width: min(560px, calc(100vw - 48px)); font-variant-numeric: tabular-nums; }
+  #testHud .big { font-size: 34px; font-weight: 700; line-height: 1; }
+  #testHud .big small { font-size: 14px; opacity: 0.7; }
+  #testHud .sub { opacity: 0.75; font-size: 12px; margin: 4px 0 8px; }
+  #testHud table { border-collapse: collapse; }
+  #testHud td { padding: 1px 10px 1px 0; white-space: nowrap; }
+  #testHud th { padding: 0 10px 2px 0; font-size: 10px; font-weight: 500; text-align: left; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.03em; }
+  #testHud .tacho { float: right; margin: -6px -8px 0 8px; }
+  #testHud.compact { width: min(430px, calc(100vw - 48px)); }
+  #testHud.compact .engine { white-space: nowrap; }
+  #testHud .engine { font-size: 12px; line-height: 1.55; margin: 2px 0 6px; }
+  #testHud .engine b, #testHud .timer b { font-weight: 700; }
+  #testHud .timer { font-size: 12px; margin: 0 0 8px; padding: 4px 8px; background: #ffffff10; border-radius: 6px; display: inline-block; }
+  #testHud .timing { color: #fc3; font-weight: 700; }
+  #testHud .timer.stage { display: block; background: #e8433a33; margin-bottom: 4px; }
+  #dyno { position: fixed; z-index: 6; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(600px, calc(100vw - 32px)); background: rgba(15, 20, 30, 0.92); color: #fff; border-radius: 12px; padding: 12px 14px 8px; font-size: 13px; }
+  #dyno .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  #dyno .head span { font-size: 11px; opacity: 0.75; }
+  #speed .alt { font-size: 11px; font-weight: 500; opacity: 0.75; margin-top: 2px; }
+  #speed .alt.dim { opacity: 0.5; font-size: 10px; }
+  #testHud .lamp { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 0 5px; border-radius: 4px; border: 1px solid #fff3; color: #fff6; margin-right: 2px; }
+  #testHud .lamp.on { border-color: #5e8; color: #5e8; }
+  #testHud .abs { color: #fc3; font-size: 10px; }
+  #testHud .dash { float: right; clear: right; margin: 0 -4px 4px 8px; width: 182px; text-align: center; }
+  #testHud .dash canvas { display: block; margin: 0 auto -4px; }
+  #testHud .dash .lamps { display: flex; justify-content: center; gap: 5px; }
+  #testHud .dash .dl { display: inline-flex; align-items: center; gap: 1px; height: 22px; min-width: 22px; justify-content: center; border-radius: 5px; color: #ffffff30; }
+  #testHud .dash .dl.text { font-size: 10px; font-weight: 800; letter-spacing: 0.05em; padding: 0 4px; }
+  #testHud .dash .dl.amber { color: #ffb52e; background: #ffb52e1c; }
+  #testHud .dash .dl.red { color: #ff4b3e; background: #ff4b3e22; }
+  #testHud .dash .dl b { font-size: 10px; }
+  .damage-report { position: fixed; top: 64px; right: 12px; z-index: 6; background: rgba(15, 20, 30, 0.88); color: #fff; border-radius: 10px; padding: 10px 12px; font: 12px/1.45 system-ui, sans-serif; max-width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 100px); overflow: auto; font-variant-numeric: tabular-nums; }
+  .damage-report .head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+  .damage-report .head span { opacity: 0.7; flex: 1; }
+  .damage-report table { border-collapse: collapse; margin-bottom: 8px; }
+  .damage-report th { text-align: left; font-weight: 500; opacity: 0.65; padding: 1px 10px 1px 0; white-space: nowrap; }
+  .damage-report td { padding: 1px 10px 1px 0; }
+  .damage-report td.ok { color: #8fe0a0; } .damage-report td.worn { color: #ffc24a; } .damage-report td.bad { color: #ff6a5c; font-weight: 600; }
+  .damage-report .foot { opacity: 0.55; font-size: 11px; }
+  #testHud .ffb { display: inline-block; position: relative; width: 60px; height: 6px; background: #ffffff22; border-radius: 3px; vertical-align: middle; }
+  #testHud .ffb span { position: absolute; top: 0; bottom: 0; background: #5ec8ff; border-radius: 3px; }
+  #settings { position: fixed; z-index: 30; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; background: rgba(15, 20, 30, 0.95); color: #fff; border-radius: 12px; padding: 14px 18px; font: 13px system-ui, sans-serif; }
+  #settings .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 15px; }
+  #settings .head span { font-size: 11px; opacity: 0.7; }
+  #settings .cols { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; }
+  @media (max-width: 720px) { #settings .cols { grid-template-columns: 1fr; } }
+  #settings h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; margin: 12px 0 6px; font-weight: 600; }
+  #settings h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  #settings .row { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; }
+  #settings .row small { display: block; opacity: 0.65; font-size: 11px; }
+  #settings .slider { display: flex; gap: 8px; align-items: center; margin: 4px 0 4px 26px; font-size: 12px; }
+  #settings .slider input[type=range] { flex: 1; }
+  #settings .slider output { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+  #settings .pads { display: block; opacity: 0.65; font-size: 11px; margin: 0 0 6px 26px; }
+  #settings .binds { border-collapse: collapse; width: 100%; font-size: 12px; }
+  #settings .binds td, #settings .binds th { padding: 2px 4px; text-align: left; }
+  #settings .binds th { opacity: 0.6; font-weight: 500; }
+  #settings button { background: #ffffff18; color: #fff; border: 1px solid #ffffff25; border-radius: 5px; padding: 2px 8px; font: 12px system-ui, sans-serif; cursor: pointer; min-width: 60px; }
+  #settings button:hover { background: #ffffff30; }
+  #settings button.listening { background: #e8433a; }
+  #settings [data-reset] { margin-top: 10px; }
+  #testHud .lamp.lit { background: #fc3; border-color: #fc3; color: #111; }
+  #testHud .hold { font-size: 12px; font-weight: 700; color: #fc3; border: 1px solid #fc3; border-radius: 4px; padding: 0 4px; vertical-align: middle; }
+  #testHud .bar { width: 70px; height: 8px; background: #fff2; border-radius: 4px; overflow: hidden; }
+  #testHud .bar div { height: 100%; background: #f91; }
+  #testHud .on { color: #5e8; } #testHud .off { color: #f76; }
+  #testHud .keys, #testHud .legend { margin-top: 8px; font-size: 11px; opacity: 0.85; }
+  #testHud .legend span { margin-right: 8px; }
+  #testHud .world { font-size: 12px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
+  #testHud .test { font-size: 12px; margin: 2px 0 6px; padding: 4px 8px; border-radius: 6px; background: #5ec8ff22; border: 1px solid #5ec8ff55; }
+  /* engine warnings (a money shift, bent valves, a blown engine): big and centred, fading */
+  .engine-flash { position: fixed; z-index: 19; left: 50%; top: 38%; transform: translateX(-50%); max-width: calc(100vw - 32px); box-sizing: border-box; pointer-events: none; text-align: center; font: 700 26px system-ui, sans-serif; letter-spacing: 0.04em; padding: 10px 22px; border-radius: 10px; color: #fff; background: rgba(15, 20, 30, 0.75); border: 2px solid #fff4; opacity: 0; transition: opacity 0.4s; }
+  .engine-flash.show { opacity: 1; transition: none; }
+  .engine-flash.bad { border-color: #f54; color: #ffe1dd; background: rgba(110, 18, 14, 0.8); }
+  .engine-flash.bad.show { animation: engineFlashPulse 0.18s 4 alternate; }
+  .engine-flash.warn { border-color: #fc3; color: #fff1c2; }
+  .engine-flash.ok { border-color: #5e8; }
+  .engine-flash small { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; letter-spacing: 0; opacity: 0.9; }
+  @keyframes engineFlashPulse { from { opacity: 1; } to { opacity: 0.35; } }
+  @media (max-width: 600px) { .engine-flash { font-size: 20px; padding: 8px 14px; } }
+  /* tuning panel (P): on the right, the car keeps driving */
+  #tuning { position: fixed; z-index: 21; top: 58px; right: 12px; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 70px); display: flex; flex-direction: column; background: rgba(15, 20, 30, 0.9); color: #fff; border-radius: 10px; font: 12px system-ui, sans-serif; box-shadow: 0 6px 24px #0006; }
+  #tuning[hidden] { display: none; }
+  @media (max-width: 760px) { #tuning { top: 12px; max-height: calc(100vh - 24px); } }
+  body:has(#telemetry:not([hidden])) #tuning { max-height: calc(100vh - min(330px, 42vh) - 82px); }
+  #tuning .head { display: flex; gap: 8px; align-items: baseline; padding: 10px 12px 6px; font-size: 14px; }
+  #tuning .head span { font-size: 11px; opacity: 0.7; }
+  #tuning .head .keys { margin-left: auto; }
+  #tuning .tabs { display: flex; gap: 4px; padding: 0 12px 8px; border-bottom: 1px solid #ffffff1a; }
+  #tuning .tabs button.on { background: #5ec8ff; color: #0b1320; border-color: #5ec8ff; font-weight: 600; }
+  #tuning .body { overflow: auto; padding: 8px 12px 0; flex: 1; }
+  #tuning button { background: #ffffff18; color: #fff; border: 1px solid #ffffff25; border-radius: 5px; padding: 3px 9px; font: 12px system-ui, sans-serif; cursor: pointer; }
+  #tuning button:hover:not([disabled]) { background: #ffffff30; }
+  #tuning button[disabled] { opacity: 0.4; cursor: default; }
+  #tuning input[type=search], #tuning input[type=text] { background: #ffffff12; color: #fff; border: 1px solid #ffffff30; border-radius: 5px; padding: 4px 8px; font: 12px system-ui, sans-serif; flex: 1; min-width: 0; }
+  #tuning .tbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  #tuning details { border-top: 1px solid #ffffff14; padding: 4px 0; }
+  #tuning summary { cursor: pointer; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 0; opacity: 0.9; }
+  #tuning summary small { opacity: 0.5; font-weight: 400; }
+  #tuning .note { font-size: 11px; opacity: 0.6; line-height: 1.4; margin: 2px 0 6px; }
+  #tuning .trow { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(60px, 1fr) 64px 34px 18px; gap: 6px; align-items: center; padding: 1px 0; }
+  #tuning label.trow { grid-template-columns: minmax(0, 1fr) auto 18px; cursor: pointer; }
+  #tuning .trow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+  #tuning .trow input[type=range] { width: 100%; }
+  #tuning .trow input[type=number] { width: 100%; background: #ffffff10; color: #fff; border: 1px solid #ffffff22; border-radius: 4px; padding: 1px 4px; font: 11px system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  #tuning .trow select { background: #1b2230; color: #fff; border: 1px solid #ffffff30; border-radius: 4px; font: 12px system-ui, sans-serif; }
+  #tuning .trow .unit { font-size: 10px; opacity: 0.55; white-space: nowrap; }
+  #tuning .trow .undo { visibility: hidden; padding: 0 3px; min-width: 0; border: none; background: none; color: #fc3; }
+  #tuning .trow.modified .name { color: #fc3; opacity: 1; }
+  #tuning .trow.modified .undo { visibility: visible; }
+  #tuning .tfoot { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 0 10px; background: rgba(15, 20, 30, 0.97); border-top: 1px solid #ffffff1a; margin-top: 6px; }
+  #tuning .status { font-size: 11px; color: #9fe39f; flex-basis: 100%; }
+  #tuning table { border-collapse: collapse; width: 100%; }
+  #tuning td, #tuning th { padding: 3px 4px; text-align: left; vertical-align: top; }
+  #tuning th { font-size: 10px; font-weight: 500; opacity: 0.6; text-transform: uppercase; }
+  #tuning td small { display: block; font-size: 10px; opacity: 0.55; line-height: 1.3; }
+  #tuning .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #tuning .dim { opacity: 0.55; }
+  #tuning .tests td:last-child { white-space: nowrap; }
+  #tuning .tests tr.pass td:nth-child(2) { color: #7be07b; font-weight: 700; }
+  #tuning .tests tr.fail td:nth-child(2) { color: #ff6b6b; font-weight: 700; }
+  #tuning .running { margin: 0 0 8px; padding: 6px 8px; border-radius: 6px; background: #5ec8ff1c; }
+  #tuning .progress { height: 4px; background: #ffffff18; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+  #tuning .progress div { height: 100%; background: #5ec8ff; }
+  #tuning .presets td:last-child { text-align: right; white-space: nowrap; }
+  #tuning .diff td { font-size: 11px; }
+  #tuning h4 { margin: 10px 0 4px; font-size: 12px; }
+  #tuning code { background: #ffffff14; padding: 0 3px; border-radius: 3px; }
+  /* telemetry graphs (L): along the bottom */
+  #telemetry { position: fixed; z-index: 15; left: 12px; right: 12px; bottom: 12px; height: min(330px, 42vh); display: flex; flex-direction: column; background: rgba(12, 16, 24, 0.86); color: #fff; border-radius: 10px; font: 12px system-ui, sans-serif; padding: 8px 10px; }
+  #telemetry[hidden] { display: none; }
+  #telemetry .head { display: flex; gap: 8px; align-items: center; }
+  #telemetry .what { opacity: 0.65; font-size: 11px; }
+  #telemetry .tools { margin-left: auto; display: flex; gap: 6px; align-items: center; font-size: 11px; }
+  #telemetry button, #telemetry select { background: #ffffff18; color: #fff; border: 1px solid #ffffff25; border-radius: 5px; padding: 2px 8px; font: 11px system-ui, sans-serif; cursor: pointer; }
+  #telemetry select option { background: #1b2230; }
+  #telemetry .picks[hidden] { display: none; }
+  #telemetry .picks { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 6px 0; font-size: 11px; opacity: 0.85; }
+  #telemetry .picks label { cursor: pointer; white-space: nowrap; }
+  #telemetry .picks label.wheel { color: #bfe6ff; }
+  #telemetry .picks input { margin: 0 3px 0 0; vertical-align: -2px; }
+  #telemetry canvas { flex: 1; width: 100%; min-height: 0; }
+  /* World switcher */
+  #worlds { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; gap: 4px; padding: 4px; background: rgba(15, 20, 30, 0.72); border-radius: 10px; backdrop-filter: blur(6px); }
+  #worlds button { border: none; border-radius: 7px; padding: 6px 10px; background: transparent; color: #fff; font: 600 12px system-ui, sans-serif; cursor: pointer; opacity: 0.75; }
+  #worlds button:hover { opacity: 1; background: #fff1; }
+  #worlds button.on { background: #e8433a; opacity: 1; }
+  @media (max-width: 760px) { #worlds { top: auto; bottom: 150px; } }
+  /* The garage (garage/garage.js): its own screen over everything */
+  body.garage-mode #worlds, body.garage-mode #testHud, body.garage-mode #backToGarage { display: none !important; }
+  #backToGarage { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 20; }
+  @media (max-width: 760px) { #backToGarage { top: auto; bottom: 196px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "pbf": "https://cdn.jsdelivr.net/npm/pbf@4/+esm",
+  "@mapbox/vector-tile": "https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2/+esm",
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/+esm"
+} }
+</script>
+</head>
+<body>
+<div id="cesium"></div>
+<div id="panel" class="box">
+  <form id="search"><input id="q" placeholder="Drive anywhere… (e.g. Rome)"><button>Go</button></form>
+  <div id="presets"></div>
+  <div id="status">Starting…</div>
+  <div id="loading"></div>
+  <div id="links"><a href="#" id="changeToken">Change Cesium ion token</a> · <a href="lowpoly.html">Low-poly version</a></div>
+</div>
+<canvas id="minimap" title="Click or press M to zoom"></canvas>
+<div id="worlds" title="Switch world (T)"></div>
+<div id="backToGarage" class="ui" hidden><button class="btn primary bar" title="Back to the garage with this build"><span class="icon">garage</span>Back to garage</button></div>
+<div id="attr">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Minimap © OpenFreeMap</div>
+<div id="speed" class="box">0 <small>km/h</small></div>
+<div id="help" class="box">
+  <kbd>W</kbd>/<kbd>↑</kbd> gas &nbsp; <kbd>S</kbd>/<kbd>↓</kbd> brake / reverse &nbsp; <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>
+  <kbd>Q</kbd><kbd>E</kbd> gears &nbsp; <kbd>Z</kbd> auto / manual &nbsp; <kbd>X</kbd> aids &nbsp; <kbd>R</kbd> reset onto road &nbsp; <kbd>B</kbd> repair (dev) &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>M</kbd> map zoom &nbsp; <kbd>V</kbd> clean roads &nbsp; <kbd>T</kbd> switch world
+</div>
+<div id="setup" class="box" hidden>
+  <h2>Connect Cesium ion</h2>
+  <div>The whole world is streamed from Cesium ion as Google Photorealistic 3D Tiles: real buildings, terrain and trees, exactly as they look.</div>
+  <ol>
+    <li>Create a free account at <a href="https://ion.cesium.com/signup" target="_blank" rel="noopener">ion.cesium.com</a></li>
+    <li>Open <b>Access Tokens</b> and copy the <b>Default</b> token</li>
+    <li>Paste it here (it's only saved in this browser)</li>
+  </ol>
+  <form id="tokenForm"><input id="token" placeholder="Paste your Cesium ion access token" autocomplete="off" spellcheck="false"><button>Start driving</button></form>
+  <div class="error" id="setupError" hidden></div>
+  <div class="small"><a href="#" id="demo">Try now with CesiumJS's built-in demo token</a> · <a href="lowpoly.html">Low-poly version (no account)</a></div>
+</div>
+
+<script type="module">
+import Pbf from 'pbf';
+import { VectorTile, classifyRings } from '@mapbox/vector-tile';
+import { airDensity, SEA_LEVEL_DENSITY } from './physics/aero.js';
+import { wheelTransform } from './physics/sockets.js';
+import { ModelCache, createCarVisual } from './garage/visual.js';
+import { garageSession } from './garage/session.js';
+const C = window.Cesium;
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), loadingEl = $('loading'), speedEl = $('speed');
+
+// ---------- Cesium ion token ----------
+const TOKEN_KEY = 'cesiumIonToken';
+const store = {
+  get: () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } },
+  set: v => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch {} },
+};
+function showSetup(error) {
+  $('setup').hidden = false;
+  $('setupError').hidden = !error;
+  $('setupError').textContent = error || '';
+}
+$('tokenForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('token').value.trim();
+  if (!t) return;
+  store.set(t);
+  start(t);
+};
+$('demo').onclick = e => { e.preventDefault(); store.set('demo'); start('demo'); };
+$('changeToken').onclick = e => { e.preventDefault(); store.set(null); location.reload(); };
+
+// ---------- Geo projection for the minimap (local metres around origin) ----------
+let origin = { lat: 0, lon: 0 };
+const M_LAT = 110574;
+const mLon = () => 111320 * Math.cos(origin.lat * Math.PI / 180);
+const toXZ = (lat, lon) => [(lon - origin.lon) * mLon(), -(lat - origin.lat) * M_LAT];
+const toLatLon = (x, z) => ({ lat: origin.lat - z / M_LAT, lon: origin.lon + x / mLon() });
+const Z = 14, N = 2 ** Z;
+const lon2tx = lon => (lon + 180) / 360 * N;
+const lat2ty = lat => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * N; };
+const tx2lon = x => x / N * 360 - 180;
+const ty2lat = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / N))) * 180 / Math.PI;
+
+// ---------- 2D map data (OpenFreeMap vector tiles) for the minimap and finding roads ----------
+const GRID = 40;
+function addToGrid(grid, item) {
+  for (let i = Math.floor(item.minx / GRID); i <= Math.floor(item.maxx / GRID); i++)
+    for (let j = Math.floor(item.minz / GRID); j <= Math.floor(item.maxz / GRID); j++) {
+      const k = i + ',' + j;
+      let cell = grid.get(k);
+      if (!cell) grid.set(k, cell = []);
+      cell.push(item);
+    }
+}
+let stampCounter = 0;
+function forCells(grid, x0, z0, x1, z1, stamp, fn) {
+  for (let i = Math.floor(x0 / GRID); i <= Math.floor(x1 / GRID); i++)
+    for (let j = Math.floor(z0 / GRID); j <= Math.floor(z1 / GRID); j++) {
+      const cell = grid.get(i + ',' + j);
+      if (!cell) continue;
+      for (const it of cell) { if (it.stamp !== stamp) { it.stamp = stamp; fn(it); } }
+    }
+}
+function withBBox(item, rings) {
+  let minx = Infinity, maxx = -Infinity, minz = Infinity, maxz = -Infinity;
+  for (const r of rings) for (const [x, z] of r) { minx = Math.min(minx, x); maxx = Math.max(maxx, x); minz = Math.min(minz, z); maxz = Math.max(maxz, z); }
+  return Object.assign(item, { rings, minx, maxx, minz, maxz });
+}
+function inside(rings, x, z) {
+  let c = false;
+  for (const a of rings)
+    for (let i = 0, j = a.length - 1; i < a.length; j = i++)
+      if ((a[i][1] > z) !== (a[j][1] > z) && x < (a[j][0] - a[i][0]) * (z - a[i][1]) / (a[j][1] - a[i][1]) + a[i][0]) c = !c;
+  return c;
+}
+function inBuilding(x, z) {
+  const ll = toLatLon(x, z), t = tiles.get(Math.floor(lon2tx(ll.lon)) + '/' + Math.floor(lat2ty(ll.lat)));
+  const cell = t && t.bgrid.get(Math.floor(x / GRID) + ',' + Math.floor(z / GRID));
+  if (!cell) return false;
+  for (const p of cell) if (x >= p.minx && x <= p.maxx && z >= p.minz && z <= p.maxz && inside(p.rings, x, z)) return true;
+  return false;
+}
+function tilesInBox(x0, z0, x1, z1) {
+  const out = [];
+  for (const t of tiles.values()) if (t.x1 >= x0 && t.x0 <= x1 && t.z1 >= z0 && t.z0 <= z1) out.push(t);
+  return out;
+}
+// [width m, rank]
+const ROADS = {
+  motorway: [14, 6], trunk: [13, 5], primary: [12, 5], secondary: [10, 4], tertiary: [9, 3], raceway: [10, 3],
+  minor: [7, 2], busway: [7, 2], service: [4.5, 1], track: [3, 0], path: [2, 0],
+};
+const PATHS = { pedestrian: [5, 1], cycleway: [2, 0] };
+const AREAS = {
+  water: '#5c9bd1', park: '#7fae63', wood: '#5f8a4f', grass: '#8fb070', farmland: '#a9b87a',
+  sand: '#e0d3a4', wetland: '#7fa38a', ice: '#f0f4f7', rock: '#a9a39a',
+};
+
+let lineCounter = 0;
+function* buildTile(tile, vt) {
+  const layers = vt ? vt.layers : {};
+  const toW = (p, ext) => toXZ(ty2lat(tile.ty + p.y / ext), tx2lon(tile.tx + p.x / ext));
+  const polygons = (geom, ext) => classifyRings(geom).map(poly => poly.map(ring => ring.map(p => toW(p, ext))).filter(r => r.length >= 3)).filter(p => p.length);
+  for (const name of ['landcover', 'park', 'water']) {
+    const layer = layers[name];
+    for (let i = 0; layer && i < layer.length; i++) {
+      const f = layer.feature(i);
+      const css = f.type === 3 && AREAS[name === 'landcover' ? f.properties.class : name];
+      if (!css) continue;
+      for (const rings of polygons(f.loadGeometry(), f.extent)) addToGrid(tile.agrid, withBBox({ css, water: name === 'water' }, rings));
+      yield;
+    }
+  }
+  const tr = layers.transportation;
+  for (let i = 0; tr && i < tr.length; i++) {
+    const f = tr.feature(i), p = f.properties;
+    if (f.type !== 2 || p.brunnel === 'tunnel') continue;
+    const style = (p.class === 'path' && PATHS[p.subclass]) || ROADS[p.class];
+    if (!style) continue;
+    const [w, rank] = style;
+    for (const line of f.loadGeometry()) {
+      const pts = line.map(pt => toW(pt, f.extent)), lineId = ++lineCounter;
+      for (let k = 0; k < pts.length - 1; k++) {
+        const [ax, az] = pts[k], [bx, bz] = pts[k + 1];
+        addToGrid(tile.rgrid, { ax, az, bx, bz, rank, w, line: lineId, bridge: p.brunnel === 'bridge', ped: p.subclass === 'pedestrian', oneway: !!p.oneway, minx: Math.min(ax, bx), maxx: Math.max(ax, bx), minz: Math.min(az, bz), maxz: Math.max(az, bz) });
+      }
+    }
+    yield;
+  }
+  tile.roadsDone = true;
+  const bl = layers.building;
+  for (let i = 0; bl && i < bl.length; i++) {
+    const f = bl.feature(i), p = f.properties;
+    if (f.type !== 3 || (p.render_min_height || 0) > 2) continue; // (outlines of buildings modelled in parts count too)
+    for (const rings of polygons(f.loadGeometry(), f.extent)) addToGrid(tile.bgrid, withBBox({ height: p.render_height || 0, colour: p.colour || null }, rings));
+    if (i % 50 === 0) yield;
+  }
+  tile.state = 'ready';
+  roadMapDirty = true;
+}
+
+let jobs = [];
+function runJobs(budgetMs) {
+  const end = performance.now() + budgetMs;
+  const dist = t => Math.hypot(t.cx - car.x, t.cz - car.z);
+  jobs.sort((a, b) => dist(a.tile) - dist(b.tile));
+  while (jobs.length && performance.now() < end) {
+    const job = jobs[0];
+    let r;
+    do { r = job.gen.next(); } while (!r.done && performance.now() < end);
+    if (r.done) jobs.shift();
+  }
+}
+
+const LOAD_RADIUS = 1300, UNLOAD_RADIUS = 3200, MAX_FETCH = 4;
+let tiles = new Map(), fetching = 0, tileUrl = null;
+(async () => {
+  while (!tileUrl) {
+    try { tileUrl = (await (await fetch('https://tiles.openfreemap.org/planet')).json()).tiles[0]; }
+    catch { await new Promise(r => setTimeout(r, 2000)); }
+  }
+})();
+function makeTile(tx, ty) {
+  const [x0, z0] = toXZ(ty2lat(ty), tx2lon(tx)), [x1, z1] = toXZ(ty2lat(ty + 1), tx2lon(tx + 1));
+  return { key: tx + '/' + ty, tx, ty, x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
+    bgrid: new Map(), rgrid: new Map(), agrid: new Map(), state: 'new', roadsDone: false, retryAt: 0 };
+}
+function disposeTile(t) {
+  tiles.delete(t.key);
+  jobs = jobs.filter(j => j.tile !== t);
+}
+async function fetchTile(t) {
+  fetching++;
+  t.state = 'loading';
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = await fetch(tileUrl.replace('{z}', Z).replace('{x}', t.tx).replace('{y}', t.ty), { signal: ctrl.signal });
+    if (!(r.ok || r.status === 404 || r.status === 204)) throw new Error(r.status);
+    const data = r.ok && r.status !== 204 ? new Uint8Array(await r.arrayBuffer()) : null;
+    if (tiles.get(t.key) !== t) return;
+    t.state = 'building';
+    jobs.push({ tile: t, gen: buildTile(t, data && data.length ? new VectorTile(new Pbf(data)) : null) });
+  } catch (e) {
+    t.state = 'error';
+    t.retryAt = performance.now() + 3000;
+  } finally { clearTimeout(timer); fetching--; }
+}
+const rectDist = (t, x, z) => Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1));
+function updateTiles() {
+  if (!tileUrl) return;
+  const fx = Math.sin(car.h), fz = Math.cos(car.h);
+  const ahead = Math.min(Math.abs(car.v) * 8, 1200) * Math.sign(car.v);
+  const want = [];
+  for (const [px, pz] of [[car.x, car.z], [car.x + fx * ahead, car.z + fz * ahead]]) {
+    const nw = toLatLon(px - LOAD_RADIUS, pz - LOAD_RADIUS), se = toLatLon(px + LOAD_RADIUS, pz + LOAD_RADIUS);
+    for (let tx = Math.floor(lon2tx(nw.lon)); tx <= Math.floor(lon2tx(se.lon)); tx++)
+      for (let ty = Math.floor(lat2ty(nw.lat)); ty <= Math.floor(lat2ty(se.lat)); ty++) {
+        const key = tx + '/' + ty;
+        let t = tiles.get(key);
+        if (!t) tiles.set(key, t = makeTile(tx, ty));
+        if (rectDist(t, px, pz) <= LOAD_RADIUS) want.push(t);
+      }
+  }
+  const now = performance.now();
+  want.sort((a, b) => rectDist(a, car.x, car.z) - rectDist(b, car.x, car.z));
+  for (const t of want) {
+    if (fetching >= MAX_FETCH) break;
+    if (t.state === 'new' || (t.state === 'error' && now > t.retryAt)) fetchTile(t);
+  }
+  for (const t of [...tiles.values()]) if (rectDist(t, car.x, car.z) > UNLOAD_RADIUS) disposeTile(t);
+}
+setInterval(updateTiles, 250);
+
+function nearestRoad(px, pz, minRank, maxR = 600) {
+  let best = null, bestD = Infinity;
+  const stamp = ++stampCounter, x0 = px - maxR, z0 = pz - maxR, x1 = px + maxR, z1 = pz + maxR;
+  for (const t of tilesInBox(x0, z0, x1, z1))
+    forCells(t.rgrid, x0, z0, x1, z1, stamp, s => {
+      if (s.rank < minRank) return;
+      const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz || 1;
+      const k = Math.max(0, Math.min(1, ((px - s.ax) * dx + (pz - s.az) * dz) / l2));
+      const x = s.ax + k * dx, z = s.az + k * dz;
+      const d = Math.hypot(x - px, z - pz) - s.rank * 15;
+      if (d < bestD) { bestD = d; best = { x, z, h: Math.atan2(dx, dz) }; }
+    });
+  return best;
+}
+
+// ---------- Car state ----------
+// The car itself is the physics car (realworld/physicsCar.js: Rapier, in a local frame with a floating
+// origin). This mirrors where it is for the camera, minimap and map data: position geographic (radians)
+// + ellipsoid height, bearing clockwise from north; x/z/h in the minimap's local frame (x east, z south,
+// h with forward = (sin h, cos h)).
+let physics = null, ground = null;       // (ground: realworld/ground.js, the collision round the car, built from the map)
+const car = { lon: 0, lat: 0, height: 0, vz: 0, bearing: 0, v: 0, steer: 0, pitch: 0, x: 0, z: 0, h: 0, trail: null, skipped: 0 };
+window.game = { car, get physics() { return physics; }, get ground() { return ground; }, get viewer() { return viewer; }, get scene() { return scene; }, get tileset() { return tileset; }, get carModel() { return carModel; }, goTo: (...a) => goTo(...a), get cal() { return calSamples; }, get map() { return roadMap; }, roadMapAt: (...a) => roadMapAt(...a), get clean() { return { built: !!roadMap, busy: roadMapBusy, calibrated, offset: roadOffset, enabled: shaderWanted(), terrain: !!terrain, prims: roadMap ? roadMap.prims.map(p => p.ready) : null }; } }; // handy for debugging in the console
+const R_EARTH = 6378137;
+function move(lon, lat, b, fwd, left = 0) {
+  const e = Math.sin(b) * fwd - Math.cos(b) * left, n = Math.cos(b) * fwd + Math.sin(b) * left;
+  return [lon + e / (R_EARTH * Math.cos(lat)), lat + n / R_EARTH];
+}
+function syncLocal() {
+  [car.x, car.z] = toXZ(C.Math.toDegrees(car.lat), C.Math.toDegrees(car.lon));
+  car.h = Math.PI - car.bearing;
+}
+
+// ---------- Input ----------
+const keys = {};
+let camMode = 0;
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || window.testTrackActive) return;
+  keys[e.code] = true;
+  if (e.code === 'KeyR' && started) resetCar();
+  if (e.code === 'KeyC') camMode = (camMode + 1) % 3;
+  if (e.code === 'KeyM') zoom = (zoom + 1) % ZOOMS.length;
+  if (e.code === 'KeyV') { cleanRoads = !cleanRoads; showCleanRoads(); }
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+// ---------- Minimap ----------
+const mini = $('minimap'), mctx = mini.getContext('2d');
+const MINI = 200, ZOOMS = [120, 250, 500];
+const ROAD_COLORS = ['#ddd5c4', '#f4f1ea', '#ffffff', '#ffffff', '#fbe08a', '#f7c35c', '#ef9a48'];
+let zoom = 1;
+mini.width = mini.height = MINI * devicePixelRatio;
+mini.onclick = () => zoom = (zoom + 1) % ZOOMS.length;
+function ringsToPath(path, rings) {
+  for (const r of rings) {
+    path.moveTo(r[0][0], r[0][1]);
+    for (let k = 1; k < r.length; k++) path.lineTo(r[k][0], r[k][1]);
+    path.closePath();
+  }
+}
+function drawMinimap() {
+  const ctx = mctx, r = MINI / 2, range = ZOOMS[zoom], s = r / range;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.fillStyle = '#86a071';
+  ctx.fillRect(0, 0, MINI, MINI);
+  // World layer: centred on the car and rotated so its heading points up
+  ctx.save();
+  ctx.translate(r, r);
+  ctx.rotate(car.h + Math.PI);
+  ctx.scale(s, s);
+  ctx.translate(-car.x, -car.z);
+  const x0 = car.x - range, x1 = car.x + range, z0 = car.z - range, z1 = car.z + range;
+  const stamp = ++stampCounter;
+  const land = new Map(), water = new Path2D(), bpath = new Path2D(), byRank = ROAD_COLORS.map(() => []);
+  for (const t of tilesInBox(x0, z0, x1, z1)) {
+    forCells(t.agrid, x0, z0, x1, z1, stamp, a => {
+      if (a.water) return ringsToPath(water, a.rings);
+      if (!land.has(a.css)) land.set(a.css, new Path2D());
+      ringsToPath(land.get(a.css), a.rings);
+    });
+    forCells(t.bgrid, x0, z0, x1, z1, stamp, b => ringsToPath(bpath, b.rings));
+    forCells(t.rgrid, x0, z0, x1, z1, stamp, g => byRank[g.rank].push(g));
+  }
+  for (const [css, p] of land) { ctx.fillStyle = css; ctx.fill(p, 'evenodd'); }
+  ctx.fillStyle = '#5c9bd1'; ctx.fill(water, 'evenodd');
+  ctx.fillStyle = '#b8ad98'; ctx.fill(bpath, 'evenodd');
+  ctx.lineCap = ctx.lineJoin = 'round';
+  const px = 1 / s;
+  // Dark casing under car roads, then road fills from minor to major
+  for (let pass = 0; pass < 2; pass++)
+    byRank.forEach((segs, rank) => {
+      if (!segs.length || (pass === 0 && rank < 2)) return;
+      ctx.beginPath();
+      for (const g of segs) { ctx.moveTo(g.ax, g.az); ctx.lineTo(g.bx, g.bz); }
+      const w = Math.max(segs[0].w, (rank < 2 ? 1 : 2.5) * px);
+      ctx.lineWidth = pass === 0 ? w + 2 * px : w;
+      ctx.strokeStyle = pass === 0 ? '#5d5d5d' : ROAD_COLORS[rank];
+      ctx.stroke();
+    });
+  ctx.restore();
+  // Car arrow (always pointing up)
+  ctx.beginPath();
+  ctx.moveTo(r, r - 10); ctx.lineTo(r + 7, r + 8); ctx.lineTo(r, r + 4); ctx.lineTo(r - 7, r + 8);
+  ctx.closePath();
+  ctx.fillStyle = '#e8433a'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+  // North marker on the rim
+  const nx = r - Math.sin(car.h) * (r - 14), ny = r + Math.cos(car.h) * (r - 14);
+  ctx.beginPath(); ctx.arc(nx, ny, 9, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15, 20, 30, 0.8)'; ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('N', nx, ny + 0.5);
+}
+
+// ---------- The 3D world (CesiumJS + Google Photorealistic 3D Tiles via Cesium ion) ----------
+let viewer, scene, tileset, carModel, geocoder, started = false, settleFrames = 0, generation = 0;
+let wheels = [], glass = [], steeringWheel = null;
+
+// ---------- Clean roads ----------
+// Google's scan is kept for everything around you — buildings, trees, pavements, terrain — but its
+// road surface (with every car that was photographed on it) is cut away and replaced by our own
+// smooth asphalt road with lane markings. The road network comes from the map; its height from
+// Cesium World Terrain (bare earth: no cars, no buildings), lined up against the scan near the car.
+// Both live in a 2 km square "road map" round the car (1 m pixels), rebuilt as you drive:
+//  - a shader on the scan cuts away everything from 1.5 m below the road surface upwards inside
+//    the road area (map roads minus buildings): cars, the old surface, trees and wires overhead;
+//  - a mesh slightly wider than that area is the new road the car drives on.
+const RMAP = 2048, RMAP_HALF = RMAP / 2, RGRID = 129, RSTEP = RMAP / (RGRID - 1), R2 = 2 * 6371000;
+let terrain = null, roadShader = null, cleanRoads = true, roadMap = null, roadMapBusy = false, roadMapDirty = false;
+let roadOffset = 0, calibrated = false, calibTick = 0, mapSlot = 0, asphalt = null, paving = null;
+const mPerDegLat = lat => { const p = lat * Math.PI / 180; return 111132.92 - 559.82 * Math.cos(2 * p) + 1.175 * Math.cos(4 * p); };
+const mPerDegLon = lat => { const p = lat * Math.PI / 180; return 111412.84 * Math.cos(p) - 93.5 * Math.cos(3 * p); };
+
+function makeRoadShader() {
+  const blank = () => new C.TextureUniform({ typedArray: new Uint8Array(4), width: 1, height: 1 });
+  return new C.CustomShader({
+    uniforms: {
+      u_mapA: { type: C.UniformType.SAMPLER_2D, value: blank() },
+      u_mapB: { type: C.UniformType.SAMPLER_2D, value: blank() },
+      u_slot: { type: C.UniformType.FLOAT, value: 0 },
+      u_ecToLocal: { type: C.UniformType.MAT4, value: C.Matrix4.clone(C.Matrix4.IDENTITY) },
+      u_localToEc: { type: C.UniformType.MAT4, value: C.Matrix4.clone(C.Matrix4.IDENTITY) },
+      u_offset: { type: C.UniformType.FLOAT, value: 0 },
+      u_enabled: { type: C.UniformType.FLOAT, value: 0 },
+      u_tube: { type: C.UniformType.FLOAT, value: 0 },
+      u_carEC: { type: C.UniformType.VEC3, value: new C.Cartesian3(0, 0, -10) },
+      u_upEC: { type: C.UniformType.VEC3, value: new C.Cartesian3(0, 1, 0) },
+    },
+    varyings: { v_local: C.VaryingType.VEC3, v_ec: C.VaryingType.VEC3 },
+    vertexShaderText: `
+      vec4 roadTexel(vec2 uv) { return u_slot < 0.5 ? texture(u_mapA, uv) : texture(u_mapB, uv); }
+      float roadHeight(vec4 m) { return (m.g * 65280.0 + m.b * 255.0) / 100.0 - 327.68 + u_offset; }
+      bool inMap(vec2 uv) { return uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0; }
+      // Low scan points in the road band (kerbs, verges, the old surface) are folded down just under
+      // the new road, so the ground beside the road slopes into it instead of leaving a hole
+      void vertexMain(VertexInput vsInput, inout czm_modelVertexOutput vsOutput) {
+        v_ec = (czm_modelView * vec4(vsOutput.positionMC, 1.0)).xyz;
+        v_local = (u_ecToLocal * vec4(v_ec, 1.0)).xyz;
+        if (u_enabled < 0.5) return;
+        vec2 uv = v_local.xy / ${RMAP.toFixed(1)} + 0.5;
+        if (!inMap(uv)) return;
+        vec4 m = roadTexel(uv);
+        if (m.r < 0.25) return; // road or pavement
+        float road = roadHeight(m), lift = v_local.z - road;
+        if (lift > -1.5 && lift < 1.2) {
+          v_local.z = road - 0.06;
+          v_ec = (u_localToEc * vec4(v_local, 1.0)).xyz;
+          vsOutput.positionMC = (czm_inverseModelView * vec4(v_ec, 1.0)).xyz;
+        }
+      }`,
+    fragmentShaderText: `
+      vec4 roadTexel(vec2 uv) { return u_slot < 0.5 ? texture(u_mapA, uv) : texture(u_mapB, uv); }
+      float roadHeight(vec4 m) { return (m.g * 65280.0 + m.b * 255.0) / 100.0 - 327.68 + u_offset; }
+      bool inMap(vec2 uv) { return uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0; }
+      // Everything of the scan on or above the road is cut away: cars, the old surface, trees and
+      // wires overhead — in a clean vertical cut at the road's edge
+      void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
+        // Keep the view of the car clear: cut away anything (above road level) in a tube from the
+        // camera to the car, and in a 2 m bubble round the car itself
+        if (u_tube > 0.5) {
+          float t = dot(v_ec, u_carEC) / dot(u_carEC, u_carEC);
+          float above = dot(v_ec - u_carEC, u_upEC) + 0.6;
+          if (t > 0.03 && t < 1.12 && above > 0.25 && length(v_ec - t * u_carEC) < mix(2.2, 2.0, t)) discard;
+        }
+        if (u_enabled < 0.5) return;
+        vec2 uv = v_local.xy / ${RMAP.toFixed(1)} + 0.5;
+        if (!inMap(uv)) return;
+        vec4 m = roadTexel(uv);
+        if (m.r < 0.25) return; // road or pavement
+        float lift = v_local.z - roadHeight(m);
+        if (lift > -1.5) discard;
+      }`,
+  });
+}
+const shaderWanted = () => cleanRoads && !!roadMap && calibrated;
+const setShaderEnabled = on => roadShader && roadShader.setUniform('u_enabled', on ? 1 : 0);
+function showCleanRoads() {
+  setShaderEnabled(shaderWanted());
+  if (roadMap) for (const p of roadMap.prims) p.show = shaderWanted();
+}
+// Rays and height samples must see the untouched scan (the shader is set up for the main camera)
+function rawScan(fn) {
+  setShaderEnabled(false);
+  if (roadShader) roadShader.setUniform('u_tube', 0);
+  try { return fn(); } finally { setShaderEnabled(shaderWanted()); if (roadShader) roadShader.setUniform('u_tube', tubeWanted()); }
+}
+const tubeWanted = () => started && camMode !== 2 ? 1 : 0;
+
+function roadMapEN(r, latDeg, lonDeg) { return [(lonDeg - r.lon) * r.mLon, (latDeg - r.lat) * r.mLat]; }
+function gridRaw(r, e, n, g = r.grid) {
+  const gx = Math.min(Math.max((e + RMAP_HALF) / RSTEP, 0), RGRID - 1.001), gy = Math.min(Math.max((n + RMAP_HALF) / RSTEP, 0), RGRID - 1.001);
+  const ix = Math.floor(gx), iy = Math.floor(gy), ax = gx - ix, ay = gy - iy;
+  return (g[iy * RGRID + ix] * (1 - ax) + g[iy * RGRID + ix + 1] * ax) * (1 - ay) + (g[(iy + 1) * RGRID + ix] * (1 - ax) + g[(iy + 1) * RGRID + ix + 1] * ax) * ay;
+}
+function barrierAt(latRad, lonRad) {
+  const r = roadMap;
+  if (!r || !r.barrier) return 0;
+  const [e, n] = roadMapEN(r, C.Math.toDegrees(latRad), C.Math.toDegrees(lonRad));
+  const x = Math.floor(e + RMAP_HALF), y = Math.floor(n + RMAP_HALF);
+  return x >= 0 && y >= 0 && x < RMAP && y < RMAP ? r.barrier[y * RMAP + x] : 0;
+}
+// Is this spot on our road, and what's the bare-earth height there?
+function roadMapAt(latRad, lonRad) {
+  const r = roadMap;
+  if (!r) return null;
+  const [e, n] = roadMapEN(r, C.Math.toDegrees(latRad), C.Math.toDegrees(lonRad));
+  if (Math.abs(e) > RMAP_HALF - 2 || Math.abs(n) > RMAP_HALF - 2) return null;
+  const v = r.mask[Math.floor(n + RMAP_HALF) * RMAP + Math.floor(e + RMAP_HALF)];
+  return { onRoad: v === 1, onPavement: v === 2, raw: gridRaw(r, e, n), surface: gridRaw(r, e, n) + (v === 2 ? KERB : 0) };
+}
+
+let sliceEnd = 0;
+async function slice() {
+  if (performance.now() < sliceEnd) return;
+  await new Promise(r => requestAnimationFrame(r));
+  sliceEnd = performance.now() + 6;
+}
+const frames = n => new Promise(r => { const f = () => --n <= 0 ? r() : requestAnimationFrame(f); requestAnimationFrame(f); });
+function capsule(mask, ax, ay, bx, by, rad, val) {
+  const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - rad)), x1 = Math.min(RMAP - 1, Math.ceil(Math.max(ax, bx) + rad));
+  const y0 = Math.max(0, Math.floor(Math.min(ay, by) - rad)), y1 = Math.min(RMAP - 1, Math.ceil(Math.max(ay, by) + rad));
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1e-9, r2 = rad * rad;
+  for (let y = y0; y <= y1; y++) {
+    const py = y + 0.5;
+    for (let x = x0; x <= x1; x++) {
+      const px = x + 0.5, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
+      const qx = ax + t * dx - px, qy = ay + t * dy - py;
+      if (qx * qx + qy * qy <= r2) mask[y * RMAP + x] = val;
+    }
+  }
+}
+function fillPolygon(mask, rings, val) {
+  let y0 = Infinity, y1 = -Infinity;
+  for (const r of rings) for (const p of r) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(RMAP - 1, Math.ceil(y1)); y++) {
+    const py = y + 0.5, xs = [];
+    for (const r of rings)
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++)
+        if ((r[i][1] > py) !== (r[j][1] > py)) xs.push(r[i][0] + (py - r[i][1]) / (r[j][1] - r[i][1]) * (r[j][0] - r[i][0]));
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2)
+      for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x <= Math.min(RMAP - 1, Math.floor(xs[k + 1] - 0.5)); x++) mask[y * RMAP + x] = val;
+  }
+}
+
+// Pavements (sidewalks) in built-up streets
+const KERB = 0.15;          // pavement surface above the road (m)
+const PAVE_SEARCH = 12;     // look this far out from the kerb for buildings; none → no pavement (m)
+const PAVE_MAX = 8;         // widest pavement (m)
+const PAVE_STEP = 4;        // pavement pieces along the road (m)
+const PAVE_BUILDING_GAP = 1.0; // keep this clear in front of buildings so their fronts aren't touched (m)
+
+// Building shells: a plain solid block just inside each real building, so wherever Google's scan of a
+// building is melted or see-through (usually the ground floors) you see a wall, not through it
+const SHELL_RADIUS = 800;   // build shells for buildings this close to the car (m)
+const SHELL_INSET = 0.6;    // how far inside the footprint, so they don't flicker against the scanned walls (m)
+const SHELL_MAX = 7;        // no taller than this — ground floors are where the scan breaks down, and a
+                            // low shell can't poke out above a real roof if the map's height is wrong (m)
+const SHELL_COLOUR = '#5f5a54';
+
+// Tileable concrete paving: 1.5 m slabs with joints and a little weathering
+function pavingMaterial() {
+  const S = 512, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d'), rnd = mulberry32(11);
+  g.fillStyle = '#a7a39b';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const v = (rnd() - 0.5) * 18;
+    g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) / 255})`;
+    g.fillRect(i * S / 3, j * S / 3, S / 3, S / 3);
+  }
+  const img = g.getImageData(0, 0, S, S), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const v = (rnd() - 0.5) * 22; d[i] += v; d[i + 1] += v; d[i + 2] += v; }
+  g.putImageData(img, 0, 0);
+  g.strokeStyle = 'rgba(60,58,54,0.55)';
+  g.lineWidth = 3;
+  for (let i = 0; i <= 3; i++) {
+    g.beginPath(); g.moveTo(i * S / 3, 0); g.lineTo(i * S / 3, S); g.moveTo(0, i * S / 3); g.lineTo(S, i * S / 3); g.stroke();
+  }
+  return C.Material.fromType('Image', { image: cv.toDataURL(), repeat: new C.Cartesian2(1, 1) });
+}
+
+// Tileable asphalt: fine aggregate speckle over soft light/dark blotches
+function asphaltMaterial() {
+  const S = 512, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d'), rnd = mulberry32(7);
+  g.fillStyle = '#4f5154';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * S, y = rnd() * S, r = 20 + rnd() * 70, a = 0.035 + rnd() * 0.05, light = rnd() < 0.5;
+    for (const [dx, dy] of [[0, 0], [S, 0], [-S, 0], [0, S], [0, -S]]) {
+      const grad = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+      grad.addColorStop(0, light ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grad;
+      g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+    }
+  }
+  const img = g.getImageData(0, 0, S, S), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = (rnd() - 0.5) * 34 + (rnd() < 0.02 ? 40 : 0);
+    d[i] += v; d[i + 1] += v; d[i + 2] += v;
+  }
+  g.putImageData(img, 0, 0);
+  return C.Material.fromType('Image', { image: cv.toDataURL(), repeat: new C.Cartesian2(1, 1) });
+}
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Build a Cesium primitive from local (east, north, up) triangles in the road map's frame
+function roadPrimitive(r, loc, uvs, instances, lit = false, material = asphalt) {
+  const makeGeom = (verts, st, normals) => {
+    const n = verts.length / 3, pos = new Float64Array(verts.length), nrm = new Float32Array(verts.length), p = new C.Cartesian3();
+    const up = C.Matrix4.getColumn(r.enu, 2, new C.Cartesian4());
+    for (let i = 0; i < n; i++) {
+      C.Matrix4.multiplyByPoint(r.enu, C.Cartesian3.fromElements(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2], p), p);
+      pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+      if (normals) {
+        C.Matrix4.multiplyByPointAsVector(r.enu, C.Cartesian3.fromElements(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2], p), p);
+        nrm[i * 3] = p.x; nrm[i * 3 + 1] = p.y; nrm[i * 3 + 2] = p.z;
+      } else { nrm[i * 3] = up.x; nrm[i * 3 + 1] = up.y; nrm[i * 3 + 2] = up.z; }
+    }
+    const attributes = {
+      position: new C.GeometryAttribute({ componentDatatype: C.ComponentDatatype.DOUBLE, componentsPerAttribute: 3, values: pos }),
+      normal: new C.GeometryAttribute({ componentDatatype: C.ComponentDatatype.FLOAT, componentsPerAttribute: 3, values: nrm }),
+    };
+    if (st) attributes.st = new C.GeometryAttribute({ componentDatatype: C.ComponentDatatype.FLOAT, componentsPerAttribute: 2, values: new Float32Array(st) });
+    const indices = new Uint32Array(n);
+    for (let i = 0; i < n; i++) indices[i] = i;
+    return new C.Geometry({ attributes, indices, primitiveType: C.PrimitiveType.TRIANGLES, boundingSphere: C.BoundingSphere.fromVertices(pos) });
+  };
+  if (uvs) {
+    return new C.Primitive({
+      geometryInstances: new C.GeometryInstance({ geometry: makeGeom(loc, uvs) }),
+      appearance: new C.MaterialAppearance({ material, flat: true, faceForward: true, materialSupport: C.MaterialAppearance.MaterialSupport.TEXTURED }),
+      asynchronous: false, allowPicking: false, shadows: C.ShadowMode.RECEIVE_ONLY, show: false,
+    });
+  }
+  return new C.Primitive({
+    geometryInstances: instances.filter(i => i.verts.length).map(i => new C.GeometryInstance({
+      geometry: makeGeom(i.verts, null, i.normals), attributes: { color: C.ColorGeometryInstanceAttribute.fromColor(i.color) },
+    })),
+    appearance: new C.PerInstanceColorAppearance({ flat: !lit, faceForward: true, closed: false }),
+    asynchronous: false, allowPicking: false, shadows: C.ShadowMode.RECEIVE_ONLY, show: false,
+  });
+}
+
+// ---------- Lining the bare-earth heights up with the scan ----------
+// Cesium World Terrain and Google's scan disagree by different amounts in different places (by
+// metres in hills and cuttings), so we keep measuring the scan's real road surface — along the
+// roads in view when a road map is built, and continuously ahead of the car — and bend the
+// height grid smoothly through those measurements.
+let calSamples = [], nearby = [], targetOffset = 0;
+// Height of the scan's road surface at a spot: the top surface, or what's under it if the top was
+// a tree canopy or a car roof. If it looks too high (a car?), also try a spot 3 m across and keep the lower.
+function scanRoadHeight(lon, lat, bearing, expected) {
+  const at = (lo, la) => {
+    const top = rawSampleHeight(C.Cartographic.fromRadians(lo, la), [carModel]);
+    if (!plausible(top)) return null;
+    const under = groundBelow(lo, la, top - 1.5);
+    return under !== null && top - under < 12 ? under : top;
+  };
+  const h = at(lon, lat);
+  if (h !== null && h - expected < 0.5) return h;
+  const h2 = at(...move(lon, lat, bearing, 0, 3));
+  return h === null ? h2 : h2 === null ? h : Math.min(h, h2);
+}
+function onScreen(cart) {
+  const cam = scene.camera, toP = C.Cartesian3.subtract(cart, cam.positionWC, new C.Cartesian3());
+  if (C.Cartesian3.dot(toP, cam.directionWC) < 5) return false;
+  const w = scene.cartesianToCanvasCoordinates(cart);
+  return !!w && w.x >= 0 && w.y >= 0 && w.x <= scene.canvas.clientWidth && w.y <= scene.canvas.clientHeight;
+}
+function addCalSample(latRad, lonRad, bearing, cwt, expected) {
+  const h = scanRoadHeight(lonRad, latRad, bearing, expected);
+  if (h === null) return null;
+  if (Math.abs(h - cwt) > 40) return null; // a bad reading (e.g. off a half-loaded tile)
+  const s = { lat: C.Math.toDegrees(latRad), lon: C.Math.toDegrees(lonRad), r: h - cwt };
+  calSamples.push(s);
+  if (calSamples.length > 800) calSamples.splice(0, calSamples.length - 800);
+  return s;
+}
+// Bend the grid: bare earth + a smooth correction interpolated from nearby measurements
+// (falling back to the typical correction far from any)
+function applyCalibration(r) {
+  const pts = calSamples.map(s => [...roadMapEN(r, s.lat, s.lon), s.r]).filter(([e, n]) => Math.abs(e) < RMAP && Math.abs(n) < RMAP);
+  if (!pts.length) return 0;
+  const sorted = pts.map(p => p[2]).sort((a, b) => a - b), med = sorted[sorted.length >> 1];
+  // drop readings that disagree with their neighbours (within 120 m) by more than 4 m — a treetop,
+  // a truck — while keeping real changes like cuttings and embankments that neighbours share
+  const good = pts.filter(p => {
+    if (Math.abs(p[2] - med) > 20) return false;
+    const nb = pts.filter(q => q !== p && (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2 < 14400).map(q => q[2]).sort((a, b) => a - b);
+    return nb.length < 2 || Math.abs(p[2] - nb[nb.length >> 1]) < 4;
+  });
+  for (let j = 0; j < RGRID; j++)
+    for (let i = 0; i < RGRID; i++) {
+      const e = i * RSTEP - RMAP_HALF, n = j * RSTEP - RMAP_HALF;
+      let ws = 1 / 360000, acc = med * ws;
+      for (const [pe, pn, pr] of good) {
+        const d2 = (e - pe) ** 2 + (n - pn) ** 2;
+        if (d2 > 160000) continue;
+        const w = 1 / (d2 + 900);
+        acc += w * pr; ws += w;
+      }
+      r.grid[j * RGRID + i] = r.cwt[j * RGRID + i] + acc / ws;
+    }
+  return good.length;
+}
+
+// Move a footprint ring toward the building's inside by d metres (holes: toward the building too).
+// Returns null if the shape collapses (very thin buildings).
+const area2 = ring => ring.reduce((a, p, i) => { const q = ring[(i + 1) % ring.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0);
+function insetRing(ring, d) {
+  const n = ring.length, s = Math.sign(area2(ring)) || 1, out = [];
+  for (let i = 0; i < n; i++) {
+    const p = ring[(i - 1 + n) % n], c = ring[i], q = ring[(i + 1) % n];
+    const l1 = Math.hypot(c[0] - p[0], c[1] - p[1]) || 1, l2 = Math.hypot(q[0] - c[0], q[1] - c[1]) || 1;
+    const n1 = [-(c[1] - p[1]) / l1, (c[0] - p[0]) / l1], n2 = [-(q[1] - c[1]) / l2, (q[0] - c[0]) / l2]; // left normals
+    const m = [n1[0] + n2[0], n1[1] + n2[1]], ml = Math.hypot(...m) || 1, k = d / Math.max((m[0] * n1[0] + m[1] * n1[1]) / ml, 0.35);
+    out.push([c[0] + m[0] / ml * k * s, c[1] + m[1] / ml * k * s]);
+  }
+  const a0 = area2(ring), a1 = area2(out);
+  return Math.sign(a1) === Math.sign(a0) && Math.abs(a1) > 0.2 * Math.abs(a0) ? out : null;
+}
+// A shell: walls and a flat top, in the road map's local frame (east, north, up)
+function shellGeometry(rings, height, zAt) {
+  if (!(height > 3)) return null;
+  const inset = rings.map((ring, i) => insetRing(ring, i === 0 ? SHELL_INSET : -SHELL_INSET));
+  if (!inset[0]) return null;
+  const used = [inset[0], ...inset.slice(1).filter(Boolean)];
+  let lo = Infinity;
+  for (const [e, n] of used[0]) lo = Math.min(lo, zAt(e, n));
+  const base = lo - 0.5, top = lo + Math.min(height - 0.8, SHELL_MAX);
+  if (top - base < 1) return null;
+  const verts = [], normals = [];
+  used.forEach((ring, ri) => {
+    const out = (Math.sign(area2(ring)) || 1) * (ri === 0 ? -1 : 1); // which side of each edge faces out of the building
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+      if (l < 0.05) continue;
+      const nrm = [-dy / l * out, dx / l * out, 0];
+      for (const [e, n, z] of [[a[0], a[1], base], [b[0], b[1], base], [b[0], b[1], top], [a[0], a[1], base], [b[0], b[1], top], [a[0], a[1], top]]) {
+        verts.push(e, n, z); normals.push(...nrm);
+      }
+    }
+  });
+  const flat = used.flat(), holes = [];
+  let count = used[0].length;
+  for (const ring of used.slice(1)) { holes.push(count); count += ring.length; }
+  const tris = C.PolygonPipeline.triangulate(flat.map(([e, n]) => new C.Cartesian2(e, n)), holes);
+  for (const k of tris) { verts.push(flat[k][0], flat[k][1], top); normals.push(0, 0, 1); }
+  return { verts, normals };
+}
+
+// Mark pavement pixels inside a quad, leaving road and building (+gap) pixels alone
+function fillPavement(mask, bld, rings) {
+  let y0 = Infinity, y1 = -Infinity;
+  for (const r of rings) for (const p of r) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(RMAP - 1, Math.ceil(y1)); y++) {
+    const py = y + 0.5, xs = [];
+    for (const r of rings)
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++)
+        if ((r[i][1] > py) !== (r[j][1] > py)) xs.push(r[i][0] + (py - r[i][1]) / (r[j][1] - r[i][1]) * (r[j][0] - r[i][0]));
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2)
+      for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x <= Math.min(RMAP - 1, Math.floor(xs[k + 1] - 0.5)); x++) {
+        const i = y * RMAP + x;
+        if (mask[i] === 0 && !bld[i]) mask[i] = 2;
+      }
+  }
+}
+
+async function buildRoadMap() {
+  roadMapBusy = true;
+  roadMapDirty = false;
+  const gen = generation, lat = C.Math.toDegrees(car.lat), lon = C.Math.toDegrees(car.lon);
+  const r = { lat, lon, h0: car.height, mLat: mPerDegLat(lat), mLon: mPerDegLon(lat), grid: new Float32Array(RGRID * RGRID), mask: new Uint8Array(RMAP * RMAP) };
+  r.enu = C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromDegrees(lon, lat, r.h0));
+  r.inv = C.Matrix4.inverseTransformation(r.enu, new C.Matrix4());
+  const zAt = (e, n) => gridRaw(r, e, n) - r.h0 - (e * e + n * n) / R2; // local up, allowing for the earth's curve
+  try {
+    // 1. Bare-earth heights every 16 m
+    const pts = [];
+    for (let j = 0; j < RGRID; j++)
+      for (let i = 0; i < RGRID; i++) pts.push(C.Cartographic.fromDegrees(lon + (i * RSTEP - RMAP_HALF) / r.mLon, lat + (j * RSTEP - RMAP_HALF) / r.mLat));
+    await C.sampleTerrainMostDetailed(terrain, pts);
+    if (gen !== generation) return;
+    const valid = pts.filter(p => Number.isFinite(p.height));
+    if (valid.length < pts.length * 0.9) throw new Error('terrain missing here');
+    const mean = valid.reduce((a, p) => a + p.height, 0) / valid.length;
+    pts.forEach((p, k) => r.grid[k] = Number.isFinite(p.height) ? p.height : mean);
+    r.cwt = Float32Array.from(r.grid);
+
+    // 2. Road segments in the map's local frame (each counted once: by the tile its midpoint is in)
+    const toEN = (x, z) => { const ll = toLatLon(x, z); return roadMapEN(r, ll.lat, ll.lon); };
+    const [cx, cz] = toXZ(lat, lon), reach = RMAP_HALF * 1.1, stamp = ++stampCounter, segs = [], blds = [];
+    for (const t of tilesInBox(cx - reach, cz - reach, cx + reach, cz + reach)) {
+      forCells(t.rgrid, cx - reach, cz - reach, cx + reach, cz + reach, stamp, s => {
+        const mx = (s.ax + s.bx) / 2, mz = (s.az + s.bz) / 2;
+        if (s.rank < 1 || s.bridge || s.ped || mx < t.x0 || mx >= t.x1 || mz < t.z0 || mz >= t.z1) return;
+        const a = toEN(s.ax, s.az), b = toEN(s.bx, s.bz), len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len < 0.05) return;
+        segs.push({ a, b, len, u: [(b[0] - a[0]) / len, (b[1] - a[1]) / len], hw: s.w * (s.rank >= 2 ? 1.35 : 1.15) / 2, rank: s.rank, oneway: s.oneway, line: s.line });
+      });
+      forCells(t.bgrid, cx - reach, cz - reach, cx + reach, cz + reach, stamp, b => blds.push(b));
+    }
+    // 2b. Measure the scan's road surface every 40 m along the roads in view (within 400 m),
+    //     then bend the height grid to match
+    const cand = [];
+    for (const sg of segs) {
+      if (sg.rank < 2) continue;
+      for (let t = 0; t < sg.len; t += 40) {
+        const e = sg.a[0] + sg.u[0] * t, n = sg.a[1] + sg.u[1] * t, d = Math.hypot(e, n);
+        if (d < 400) cand.push([d, e, n, Math.atan2(sg.u[0], sg.u[1])]);
+      }
+    }
+    cand.sort((p, q) => p[0] - q[0]);
+    let measured = 0;
+    const typical = calSamples.length ? calSamples.map(c => c.r).sort((p, q) => p - q)[calSamples.length >> 1] : 0;
+    for (const [, e, n, bearing] of cand) {
+      if (measured >= 40) break;
+      const la = C.Math.toRadians(lat + n / r.mLat), lo = C.Math.toRadians(lon + e / r.mLon), cwt = gridRaw(r, e, n, r.cwt);
+      if (!onScreen(C.Cartesian3.fromRadians(lo, la, cwt + typical))) continue;
+      await slice();
+      if (addCalSample(la, lo, bearing, cwt, cwt + typical)) measured++;
+    }
+    if (gen !== generation) return;
+    r.fieldSamples = applyCalibration(r);
+    await slice();
+
+    // Where roads meet: junctions (3+ ends) get no markings; bends and ends get a round patch
+    const nodes = new Map(), key = p => Math.round(p[0] * 10) + ',' + Math.round(p[1] * 10);
+    for (const s of segs) for (const [p, dir] of [[s.a, 1], [s.b, -1]]) {
+      const k = key(p);
+      if (!nodes.has(k)) nodes.set(k, { p, hw: 0, dirs: [] });
+      const nd = nodes.get(k);
+      nd.hw = Math.max(nd.hw, s.hw);
+      nd.dirs.push([s.u[0] * dir, s.u[1] * dir]);
+    }
+    const needsPatch = nd => nd.dirs.length !== 2 || nd.dirs[0][0] * nd.dirs[1][0] + nd.dirs[0][1] * nd.dirs[1][1] > -0.9;
+
+    // 3. Road area for the shader: the full road out past the guardrails (the new road surface is
+    //    wider still, with a shoulder, so it always covers whatever is cut away), minus buildings
+    //    and 1.2 m round them so walls are never touched
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      capsule(r.mask, s.a[0] + RMAP_HALF, s.a[1] + RMAP_HALF, s.b[0] + RMAP_HALF, s.b[1] + RMAP_HALF, s.hw + 0.2, 1);
+      if (i % 100 === 0) await slice();
+    }
+    const bld = new Uint8Array(RMAP * RMAP); // buildings plus the gap kept in front of them
+    for (let i = 0; i < blds.length; i++) {
+      const rings = blds[i].rings.map(ring => ring.map(([x, z]) => { const [e, n] = toEN(x, z); return [e + RMAP_HALF, n + RMAP_HALF]; }));
+      fillPolygon(r.mask, rings, 0);
+      fillPolygon(bld, rings, 1);
+      for (const ring of rings) for (let k = 0; k < ring.length; k++) {
+        capsule(r.mask, ...ring[k], ...ring[(k + 1) % ring.length], 1.2, 0);
+        capsule(bld, ...ring[k], ...ring[(k + 1) % ring.length], PAVE_BUILDING_GAP, 1);
+      }
+      if (i % 50 === 0) await slice();
+    }
+    if (gen !== generation) return;
+
+    // 3b. Pavements: where there are buildings beside the road, the strip from the kerb to just short
+    //     of them becomes clean paving 15 cm above the road, and everything the scan has standing on
+    //     it (scaffolding, sheds, parked vans, bins, people) is cut away like on the road. They stop
+    //     where other roads join. Country roads with no buildings nearby get none.
+    const px = (e, n) => { const x = Math.floor(e + RMAP_HALF), y = Math.floor(n + RMAP_HALF); return x >= 0 && y >= 0 && x < RMAP && y < RMAP ? y * RMAP + x : -1; };
+    const isRoad = (e, n) => { const k = px(e, n); return k >= 0 && r.mask[k] === 1; };
+    const isBld = (e, n) => { const k = px(e, n); return k >= 0 && bld[k] === 1; };
+    const pavV = [], pavSt = [];
+    const pv = (e, n, z) => { pavV.push(e, n, z); pavSt.push(e / 4.5, n / 4.5); };
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (s.rank < 2) continue;
+      const { a, u, len } = s, inner = s.hw + 0.2, nx = -u[1], ny = u[0], steps = Math.max(1, Math.round(len / PAVE_STEP));
+      for (const side of [1, -1]) {
+        let prev = null;
+        for (let k = 0; k <= steps; k++) {
+          const t = len * k / steps, cx = a[0] + u[0] * t, cy = a[1] + u[1] * t;
+          let outer = null;
+          for (let o = inner + 0.5; o <= inner + PAVE_SEARCH; o += 0.5) if (isBld(cx + nx * side * o, cy + ny * side * o)) { outer = Math.min(o, inner + PAVE_MAX); break; }
+          const cur = outer !== null && outer - inner >= 0.8 ? { cx, cy, outer } : null;
+          if (cur && prev) {
+            const at = (p, o) => [p.cx + nx * side * o, p.cy + ny * side * o];
+            const Pi = at(prev, inner), Po = at(prev, prev.outer), Qi = at(cur, inner), Qo = at(cur, cur.outer);
+            const mid = (f, g, w) => [f[0] + (g[0] - f[0]) * w, f[1] + (g[1] - f[1]) * w];
+            const probe = [mid(mid(Pi, Qi, 0.5), mid(Po, Qo, 0.5), 0.3), mid(mid(Pi, Qi, 0.5), mid(Po, Qo, 0.5), 0.8)];
+            if (!probe.some(p => isRoad(...p))) {             // not across a side road
+              const z = p => zAt(...p) + KERB;
+              for (const p of [Pi, Po, Qo, Pi, Qo, Qi]) pv(p[0], p[1], z(p));                                     // paving
+              for (const [A, B] of [[Pi, Qi], [Po, Qo]]) {                                                      // kerb face + back edge
+                const za = zAt(...A), zb = zAt(...B), drop = A === Pi ? KERB + 0.05 : 1;
+                for (const [p, zz] of [[A, za + KERB], [B, zb + KERB], [B, zb + KERB - drop], [A, za + KERB], [B, zb + KERB - drop], [A, za + KERB - drop]]) pv(p[0], p[1], zz);
+              }
+              const ring = [[Pi, Po, Qo, Qi].map(p => [p[0] + RMAP_HALF, p[1] + RMAP_HALF])];
+              fillPavement(r.mask, bld, ring);
+            }
+          }
+          prev = cur;
+        }
+      }
+      if (i % 100 === 0) await slice();
+    }
+    if (gen !== generation) return;
+
+    // Junctions: record which road (and which way it runs) covers every pixel. Where two different
+    // roads running different ways overlap, it's a junction: no lane markings, no guardrails.
+    // (Bends in the same road overlap themselves too, so those don't count.)
+    const way = new Float32Array(RMAP * RMAP).fill(-1), wayLine = new Int32Array(RMAP * RMAP);
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i], ang = (Math.atan2(s.u[1], s.u[0]) + Math.PI) % Math.PI, rad = s.hw + 1;
+      const ax = s.a[0] + RMAP_HALF, ay = s.a[1] + RMAP_HALF, bx = s.b[0] + RMAP_HALF, by = s.b[1] + RMAP_HALF;
+      const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - rad)), x1 = Math.min(RMAP - 1, Math.ceil(Math.max(ax, bx) + rad));
+      const y0 = Math.max(0, Math.floor(Math.min(ay, by) - rad)), y1 = Math.min(RMAP - 1, Math.ceil(Math.max(ay, by) + rad));
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, r2 = rad * rad;
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const t = Math.max(0, Math.min(1, ((x + 0.5 - ax) * dx + (y + 0.5 - ay) * dy) / l2));
+          const qx = ax + t * dx - x - 0.5, qy = ay + t * dy - y - 0.5;
+          if (qx * qx + qy * qy > r2) continue;
+          const k = y * RMAP + x, w0 = way[k];
+          if (w0 < 0) { way[k] = ang; wayLine[k] = s.line; }
+          else if (w0 < 9 && wayLine[k] !== s.line) { const d = Math.abs(w0 - ang); if (Math.min(d, Math.PI - d) > 0.35) way[k] = 9; }
+        }
+      if (i % 100 === 0) await slice();
+    }
+    const clearOfJunctions = (e, n) => {
+      const x = Math.floor(e + RMAP_HALF), y = Math.floor(n + RMAP_HALF);
+      return x >= 0 && y >= 0 && x < RMAP && y < RMAP && way[y * RMAP + x] !== 9;
+    };
+
+    // 3c. Building shells (see SHELL_*)
+    const shellGroups = new Map();
+    for (let i = 0; i < blds.length; i++) {
+      const b = blds[i], rings = b.rings.map(ring => ring.map(([x, z]) => toEN(x, z)));
+      const [e0, n0] = rings[0][0];
+      if (Math.hypot(e0, n0) > SHELL_RADIUS || rings[0].length > 400) continue;
+      const shell = shellGeometry(rings, b.height, zAt);
+      if (!shell) continue;
+      const colour = b.colour && /^#[0-9a-f]{6}$/i.test(b.colour) ? b.colour : SHELL_COLOUR;
+      if (!shellGroups.has(colour)) shellGroups.set(colour, { verts: [], normals: [], color: C.Color.fromCssColorString(colour).darken(0.25, new C.Color()) });
+      const g = shellGroups.get(colour);
+      for (const v of shell.verts) g.verts.push(v);
+      for (const v of shell.normals) g.normals.push(v);
+      if (i % 200 === 0) await slice();
+    }
+
+    // 4. The new road: ribbons along each segment, with a 1 m shoulder each side (sampled every
+    //    4 m so it follows the ground),
+    //    round patches at junctions, bends and dead ends; texture mapped in world space so
+    //    overlapping pieces look identical
+    const loc = [], st = [];
+    const tri = (...ps) => { for (const [e, n] of ps) { loc.push(e, n, zAt(e, n)); st.push(e / 7, n / 7); } };
+    for (let i = 0; i < segs.length; i++) {
+      const { a, u, len } = segs[i], hw = segs[i].hw + 1.0, ext = hw * 0.5, nx = -u[1] * hw, ny = u[0] * hw;
+      const steps = Math.max(1, Math.ceil((len + 2 * ext) / 4));
+      let L0, R0;
+      for (let k = 0; k <= steps; k++) {
+        const t = -ext + (len + 2 * ext) * k / steps, px = a[0] + u[0] * t, py = a[1] + u[1] * t;
+        const L1 = [px + nx, py + ny], R1 = [px - nx, py - ny];
+        if (k) {
+          tri(L0, R0, R1, L0, R1, L1);
+          for (const [P, Q] of [[L0, L1], [R0, R1]]) {
+            const zp = zAt(...P), zq = zAt(...Q);
+            loc.push(...P, zp, ...Q, zq, ...Q, zq - 1, ...P, zp, ...Q, zq - 1, ...P, zp - 1);
+            st.push(P[0] / 7, P[1] / 7, Q[0] / 7, Q[1] / 7, Q[0] / 7, Q[1] / 7 + 0.14, P[0] / 7, P[1] / 7, Q[0] / 7, Q[1] / 7 + 0.14, P[0] / 7, P[1] / 7 + 0.14);
+          }
+        }
+        L0 = L1; R0 = R1;
+      }
+      if (i % 200 === 0) await slice();
+    }
+    for (const nd of nodes.values()) {
+      if (!needsPatch(nd)) continue;
+      const [e, n] = nd.p, rad = nd.hw + 1.3;
+      for (let k = 0; k < 12; k++) {
+        const a0 = k / 12 * Math.PI * 2, a1 = (k + 1) / 12 * Math.PI * 2;
+        tri([e, n], [e + Math.cos(a0) * rad, n + Math.sin(a0) * rad], [e + Math.cos(a1) * rad, n + Math.sin(a1) * rad]);
+      }
+    }
+    await slice();
+
+    // 5. Lane markings, in the local style, kept clear of junctions
+    const na = lat > 15 && lon > -170 && lon < -50;
+    const white = [], yellow = [];
+    const stripe = (out, s, off, width, dash, gap, t0, t1) => {
+      const { a, u } = s, nx = -u[1], ny = u[0], hw2 = width / 2;
+      for (let t = t0; t < t1; t += dash + gap)
+        for (let p0 = t, end = Math.min(t + dash, t1); p0 < end - 0.2; p0 += 1.5) {
+          const p1 = Math.min(p0 + 1.5, end), pm = (p0 + p1) / 2;
+          if (!clearOfJunctions(a[0] + u[0] * pm + nx * off, a[1] + u[1] * pm + ny * off)) continue;
+          const q = [[p0, off + hw2], [p0, off - hw2], [p1, off - hw2], [p1, off + hw2]].map(([tt, o]) => {
+            const e = a[0] + u[0] * tt + nx * o, n = a[1] + u[1] * tt + ny * o;
+            return [e, n, zAt(e, n) + 0.03];
+          });
+          for (const k of [0, 1, 2, 0, 2, 3]) out.push(...q[k]);
+        }
+    };
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (s.rank < 3) continue;
+      const na0 = nodes.get(key(s.a)), nb = nodes.get(key(s.b));
+      const t0 = na0 && na0.dirs.length > 2 ? na0.hw + 1.5 : 0, t1 = s.len - (nb && nb.dirs.length > 2 ? nb.hw + 1.5 : 0);
+      if (t1 - t0 < 2) continue;
+      const lanes = s.oneway ? Math.max(1, Math.round(s.hw * 2 / 3.4)) : Math.max(1, Math.round(s.hw / 3.4));
+      const [dash, gap] = na ? [3, 9] : [3, 6];
+      if (!s.oneway) {
+        if (na) { stripe(yellow, s, 0.12, 0.1, t1, 0, t0, t1); stripe(yellow, s, -0.12, 0.1, t1, 0, t0, t1); }
+        else stripe(white, s, 0, 0.12, dash, gap, t0, t1);
+        for (let k = 1; k < lanes; k++) for (const side of [1, -1]) stripe(white, s, side * k * s.hw / lanes, 0.1, dash, gap, t0, t1);
+      } else {
+        for (let k = 1; k < lanes; k++) stripe(white, s, -s.hw + k * 2 * s.hw / lanes, 0.1, dash, gap, t0, t1);
+      }
+      if (s.rank >= 4) for (const side of [1, -1]) stripe(white, s, side * (s.hw - 0.35), 0.12, t1, 0, t0, t1);
+      if (i % 200 === 0) await slice();
+    }
+    if (gen !== generation) return;
+
+    // 5b. Guardrails (galvanised W-beam on posts) along both road edges, with gaps wherever another
+    //     road joins. Built within 700 m of the car; also drawn into a collision map for the car.
+    const railV = [], railN = [], postV = [], postN = [];
+    r.barrier = new Uint8Array(RMAP * RMAP);
+    const wayAt = (e, n) => {
+      const x = Math.floor(e + RMAP_HALF), y = Math.floor(n + RMAP_HALF);
+      return x >= 0 && y >= 0 && x < RMAP && y < RMAP ? way[y * RMAP + x] : -1;
+    };
+    // W-beam profile: [height above road, distance out toward the traffic]
+    const PROFILE = [[0.45, 0], [0.52, 0.07], [0.6, 0.02], [0.68, 0.07], [0.76, 0]];
+    const quad = (V, Nn, p, nrm) => { for (const k of [0, 1, 2, 0, 2, 3]) { V.push(...p[k]); Nn.push(...nrm); } };
+    const faceNormal = (a, b, c) => {
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n) || 1;
+      return [n[0] / l, n[1] / l, n[2] / l];
+    };
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i], { a, u, len, hw } = s, nx = -u[1], ny = u[0];
+      if (Math.hypot(a[0], a[1]) > 700 + len) continue;
+      for (const side of [1, -1]) {
+        const off = side * (hw - 0.4), steps = Math.max(1, Math.round(len / 4));
+        let prev = null;
+        for (let k = 0; k <= steps; k++) {
+          const t = len * k / steps, cx = a[0] + u[0] * t, cy = a[1] + u[1] * t;
+          const e = cx + nx * off, n = cy + ny * off;
+          const ok = Math.hypot(e, n) < 700 && wayAt(e, n) !== 9 && wayAt(cx + nx * side * (hw + 1.6), cy + ny * side * (hw + 1.6)) < 0;
+          const cur = ok ? [e, n, zAt(e, n)] : null;
+          if (cur) {
+            // post, just behind the beam
+            const pe = e + nx * side * 0.08, pn = n + ny * side * 0.08, hs = 0.075, z0 = cur[2] - 0.2, z1 = cur[2] + 0.72;
+            const c = [[-hs, -hs], [hs, -hs], [hs, hs], [-hs, hs]].map(([du, dv]) => [pe + u[0] * du + nx * dv, pn + u[1] * du + ny * dv]);
+            for (let q = 0; q < 4; q++) {
+              const A = c[q], B = c[(q + 1) % 4], p = [[...A, z0], [...B, z0], [...B, z1], [...A, z1]];
+              quad(postV, postN, p, faceNormal(p[0], p[1], p[2]));
+            }
+            quad(postV, postN, c.map(([x, y]) => [x, y, z1]), [0, 0, 1]);
+          }
+          if (cur && prev) {
+            // beam between this post and the last, facing the traffic
+            const inE = -nx * side, inN = -ny * side;
+            for (let q = 0; q < PROFILE.length - 1; q++) {
+              const [h0, d0] = PROFILE[q], [h1, d1] = PROFILE[q + 1];
+              const p = [
+                [prev[0] + inE * d0, prev[1] + inN * d0, prev[2] + h0], [cur[0] + inE * d0, cur[1] + inN * d0, cur[2] + h0],
+                [cur[0] + inE * d1, cur[1] + inN * d1, cur[2] + h1], [prev[0] + inE * d1, prev[1] + inN * d1, prev[2] + h1],
+              ];
+              quad(railV, railN, p, faceNormal(p[0], p[1], p[2]));
+            }
+            // collision: the rail itself plus a 3 m solid strip behind it, so the car can't slip through
+            const ang = (Math.atan2(u[1], u[0]) + Math.PI) % Math.PI, code = 1 + Math.round(ang / Math.PI * 254);
+            const oE = nx * side * 3, oN = ny * side * 3, px = q => [q[0] + RMAP_HALF, q[1] + RMAP_HALF];
+            capsule(r.barrier, ...px(prev), ...px(cur), 0.35, code);
+            fillPolygon(r.barrier, [[px(prev), px(cur), px([cur[0] + oE, cur[1] + oN]), px([prev[0] + oE, prev[1] + oN])]], code);
+          }
+          prev = cur;
+        }
+      }
+      if (i % 100 === 0) await slice();
+    }
+    if (gen !== generation) return;
+
+    // 6. Pack the road area + heights for the GPU: R = road (255) / pavement (128), G/B = surface height in cm (local frame)
+    const rgba = new Uint8Array(RMAP * RMAP * 4);
+    for (let y = 0; y < RMAP; y++) {
+      const n = y + 0.5 - RMAP_HALF;
+      for (let x = 0; x < RMAP; x++) {
+        const k = y * RMAP + x;
+        rgba[k * 4 + 3] = 255;
+        if (!r.mask[k]) continue;
+        const surface = zAt(x + 0.5 - RMAP_HALF, n) + (r.mask[k] === 2 ? KERB : 0);
+        const code = Math.max(0, Math.min(65535, Math.round((surface + 327.68) * 100)));
+        rgba[k * 4] = r.mask[k] === 2 ? 128 : 255; rgba[k * 4 + 1] = code >> 8; rgba[k * 4 + 2] = code & 255;
+      }
+      if (y % 32 === 0) await slice();
+    }
+    if (gen !== generation) return;
+
+    // 7. Swap in: upload into the spare texture slot, give it a couple of frames, then switch the
+    //    shader, the road meshes and the car's road map over together
+    const slot = 1 - mapSlot;
+    roadShader.setUniform(slot ? 'u_mapB' : 'u_mapA', new C.TextureUniform({
+      typedArray: rgba, width: RMAP, height: RMAP,
+      minificationFilter: C.TextureMinificationFilter.NEAREST, magnificationFilter: C.TextureMagnificationFilter.NEAREST,
+    }));
+    r.prims = [
+      roadPrimitive(r, loc, st),
+      roadPrimitive(r, pavV, pavSt, null, false, paving),
+      roadPrimitive(r, null, null, [...shellGroups.values()], true),
+      roadPrimitive(r, null, null, [{ verts: white, color: C.Color.fromCssColorString('#e8e8e2') }, { verts: yellow, color: C.Color.fromCssColorString('#e3b536') }]),
+      roadPrimitive(r, null, null, [{ verts: railV, normals: railN, color: C.Color.fromCssColorString('#b9bec3') }, { verts: postV, normals: postN, color: C.Color.fromCssColorString('#8d9298') }], true),
+    ];
+    for (const p of r.prims) scene.primitives.add(p);
+    await frames(3);
+    if (gen !== generation) { for (const p of r.prims) scene.primitives.remove(p); return; }
+    const old = roadMap;
+    mapSlot = slot;
+    roadShader.setUniform('u_slot', slot);
+    roadMap = r;
+    r.builtAt = performance.now();
+    nearby = []; targetOffset = 0;
+    if (r.fieldSamples >= 5) { roadOffset = 0; calibrated = true; }
+    else calibrate(true);
+    applyOffset();
+    showCleanRoads();
+    if (old) for (const p of old.prims) scene.primitives.remove(p);
+  } catch (e) {
+    console.warn('Clean roads unavailable here:', e.message || e);
+  } finally { roadMapBusy = false; }
+}
+
+// Line the bare-earth heights up with the scan where the car is: first from a ring of samples
+// round it, then a steady trickle of single samples (ignoring any that land on a scanned car)
+function calibrate(first) {
+  const s = roadMapAt(car.lat, car.lon);
+  if (!s || !s.onRoad) return;
+  if (first || !calibrated) {
+    const ring = ringCartos(car.lon, car.lat);
+    const res = ring.map(c => rawSampleHeight(c, [carModel]))
+      .map((h, k) => { const m = roadMapAt(ring[k].latitude, ring[k].longitude); return plausible(h) && m ? h - m.raw : null; })
+      .filter(v => v !== null).sort((a, b) => a - b);
+    if (res.length < 4 || Math.abs(res[Math.min(2, res.length - 1)]) > 40) return;
+    roadOffset = res[Math.min(2, res.length - 1)];
+    calibrated = true;
+    showCleanRoads();
+  } else {
+    const g = groundBelow(car.lon, car.lat, car.height + 2.5);
+    if (g === null) return;
+    const d = g - s.raw;
+    if (Math.abs(d - roadOffset) < 0.4) roadOffset += (d - roadOffset) * 0.05;
+  }
+  applyOffset();
+}
+// The physics car's ground (realworld/ground.js) is built on Cesium World Terrain's bare earth, like
+// the road map before its correction; what's drawn sits where the scan was measured. So the physics
+// ground is raised by the same correction the road map has where the car is (Stage E lines it up
+// chunk by chunk)
+function groundCorrection() {
+  let field = 0;
+  const r = roadMap;
+  if (r) {
+    const [e, n] = roadMapEN(r, C.Math.toDegrees(car.lat), C.Math.toDegrees(car.lon));
+    if (Math.abs(e) < RMAP_HALF && Math.abs(n) < RMAP_HALF) field = gridRaw(r, e, n) - gridRaw(r, e, n, r.cwt);
+  }
+  return roadOffset + field;
+}
+function followCorrection() {
+  const want = groundCorrection();
+  if (physics && Math.abs(want - physics.groundOffset) > 0.01) physics.setGroundOffset(want);
+}
+// The offset moves the cut-away band, our road meshes and the physics car's ground together
+function applyOffset() {
+  followCorrection();
+  if (!roadMap) return;
+  roadShader.setUniform('u_offset', roadOffset);
+  const up = C.Matrix4.getColumn(roadMap.enu, 2, new C.Cartesian4());
+  const m = C.Matrix4.fromTranslation(new C.Cartesian3(up.x * roadOffset, up.y * roadOffset, up.z * roadOffset));
+  for (const p of roadMap.prims) p.modelMatrix = m;
+}
+
+// While driving, measure the scan's road 30–150 m ahead. The median of the last dozen differences
+// between the scan and the road we built becomes a local correction the road follows smoothly
+// (the median ignores the odd reading off a car or tree); rebuilds fold the measurements in for good.
+function measureAhead() {
+  const d = 30 + (calibTick >> 3) % 5 * 30, fx = Math.sin(car.h), fz = Math.cos(car.h);
+  const rd = nearestRoad(car.x + fx * d * Math.sign(car.v || 1), car.z + fz * d * Math.sign(car.v || 1), 2, 25);
+  if (!rd) return;
+  const ll = toLatLon(rd.x, rd.z), la = C.Math.toRadians(ll.lat), lo = C.Math.toRadians(ll.lon);
+  const [e, n] = roadMapEN(roadMap, ll.lat, ll.lon);
+  if (Math.abs(e) > RMAP_HALF - 20 || Math.abs(n) > RMAP_HALF - 20) return;
+  const cwt = gridRaw(roadMap, e, n, roadMap.cwt), built = gridRaw(roadMap, e, n) + roadOffset;
+  if (!onScreen(C.Cartesian3.fromRadians(lo, la, built))) return;
+  const s = addCalSample(la, lo, Math.PI - rd.h, cwt, built);
+  if (!s || Math.abs(cwt + s.r - built) > 15) return;
+  nearby.push(cwt + s.r - gridRaw(roadMap, e, n));
+  if (nearby.length > 12) nearby.shift();
+  if (nearby.length >= 3) targetOffset = [...nearby].sort((p, q) => p - q)[nearby.length >> 1];
+}
+
+// The shader works in the road map's local frame: keep its eye-space transform current
+function updateRoadShaderFrame() {
+  if (!roadShader) return;
+  const carPos = C.Cartesian3.fromRadians(car.lon, car.lat, car.height + 0.6);
+  roadShader.setUniform('u_carEC', C.Matrix4.multiplyByPoint(scene.camera.viewMatrix, carPos, new C.Cartesian3()));
+  const upWC = C.Ellipsoid.WGS84.geodeticSurfaceNormal(carPos, new C.Cartesian3());
+  roadShader.setUniform('u_upEC', C.Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, upWC, new C.Cartesian3()));
+  roadShader.setUniform('u_tube', tubeWanted());
+  if (!roadMap) return;
+  const ecToLocal = C.Matrix4.multiply(roadMap.inv, scene.camera.inverseViewMatrix, new C.Matrix4());
+  roadShader.setUniform('u_ecToLocal', ecToLocal);
+  roadShader.setUniform('u_localToEc', C.Matrix4.inverseTransformation(ecToLocal, new C.Matrix4()));
+}
+function maybeRebuildRoadMap() {
+  if (!started || !terrain || !roadShader || roadMapBusy || settleFrames > 0) return;
+  if (roadMap && !calibrated) calibrate(true);
+  const far = !roadMap || Math.hypot(...roadMapEN(roadMap, C.Math.toDegrees(car.lat), C.Math.toDegrees(car.lon))) > 420;
+  if (far || (roadMapDirty && performance.now() - (roadMap?.builtAt || 0) > 5000)) buildRoadMap();
+}
+function clearRoadMap() {
+  if (roadMap) for (const p of roadMap.prims) scene.primitives.remove(p);
+  roadMap = null;
+  calibrated = false;
+  calSamples = [];
+  nearby = []; targetOffset = 0;
+  setShaderEnabled(false);
+}
+
+// Height of the first surface straight below a point
+function groundBelow(lon, lat, fromH) {
+  const start = C.Cartesian3.fromRadians(lon, lat, fromH);
+  const down = C.Cartesian3.negate(C.Ellipsoid.WGS84.geodeticSurfaceNormal(start, new C.Cartesian3()), new C.Cartesian3());
+  const pos = rawScan(() => scene.pickFromRay(new C.Ray(start, down), [carModel], 0.1))?.position;
+  return pos ? C.Cartographic.fromCartesian(pos).height : null;
+}
+// Road height at a spot: the top surface sampled at the spot and in a 5 m ring around it. Tree
+// canopies and parked cars only cover some samples, so the second-lowest of the nine is the road.
+function ringCartos(lon, lat) {
+  const out = [C.Cartographic.fromRadians(lon, lat)];
+  for (let k = 0; k < 8; k++) out.push(C.Cartographic.fromRadians(...move(lon, lat, k * Math.PI / 4, 5)));
+  return out;
+}
+const rawSampleHeight = (...a) => rawScan(() => scene.sampleHeight(...a));
+function roadHeight(heights) {
+  const v = heights.filter(h => h !== undefined && h !== null).sort((a, b) => a - b);
+  return v.length ? v[Math.min(1, v.length - 1)] : null;
+}
+
+// The car as Cesium draws it: the car put together from its parts, exported as one .glb. A newer one
+// takes over once it's ready (the old one stays until then); its wheel pivots, steering wheel and glass
+// are what driveCar moves
+let carVersion = 0;
+async function showCar(parts) {
+  const version = ++carVersion, M = physics.model;
+  const url = URL.createObjectURL(new Blob([await parts.exportGlb()], { type: 'model/gltf-binary' }));
+  const next = await C.Model.fromGltfAsync({ url, forwardAxis: M.forwardAxis === '+x' ? C.Axis.X : C.Axis.Z });
+  if (version !== carVersion) { next.destroy(); URL.revokeObjectURL(url); return; }
+  next.shadows = C.ShadowMode.CAST_ONLY;
+  if (carModel) next.modelMatrix = C.Matrix4.clone(carModel.modelMatrix);
+  scene.primitives.add(next);
+  next.readyEvent.addEventListener(() => {
+    URL.revokeObjectURL(url);
+    if (version !== carVersion) { scene.primitives.remove(next); return; }
+    const rig = M.rig, rotationOf = m => C.Quaternion.fromRotationMatrix(C.Matrix4.getRotation(m, new C.Matrix3()));
+    wheels = Object.entries(rig.wheels).map(([name, r]) => ({ name, rig: r, node: next.getNode(r.node) })).filter(w => w.node)
+      .map(w => { const q = rotationOf(w.node.originalMatrix); return { ...w, base: [q.x, q.y, q.z, q.w] }; });
+    glass = M.glass.map(n => next.getNode(n)).filter(Boolean);
+    const sw = rig.steeringWheel && next.getNode(rig.steeringWheel.node);
+    steeringWheel = sw ? { node: sw, base: C.Matrix4.clone(sw.originalMatrix), sign: rig.steeringWheel.sign } : null;
+    const old = carModel;
+    carModel = next;
+    if (old && old !== next) scene.primitives.remove(old);
+  });
+  if (!carModel) carModel = next;
+}
+
+const scratch = { m4: new C.Matrix4(), m3: new C.Matrix3(), m3b: new C.Matrix3(), v3: new C.Cartesian3() }, UNIT_SCALE = new C.Cartesian3(1, 1, 1);
+// Drive the physics car one frame and draw it: the body from its earth-fixed matrix, the wheels
+// turning, steering and riding the suspension, the steering wheel turning
+function driveCar(now, dt) {
+  if (settleFrames > 0) settleFrames--;
+  const pose = physics.update(now, dt, !window.testTrackActive && settleFrames <= 0);
+  if (!pose) return;
+  Object.assign(car, { lat: pose.lat, lon: pose.lon, height: pose.height, bearing: pose.bearing, pitch: pose.pitch, v: pose.speed, speedometer: pose.speedometer });
+  car.air = pose.snapshot.aero.density / SEA_LEVEL_DENSITY;
+  carModel.modelMatrix = C.Matrix4.fromArray(pose.matrix, 0, carModel.modelMatrix);
+  // each wheel spins forwards about the car's axle, steers and rides the suspension, whichever way
+  // its socket faces (the model's right-hand sockets are turned round: physics/sockets.js modelRig)
+  for (const w of wheels) {
+    const pw = pose.wheels.find(x => x.name === w.name);
+    if (!pw) continue;
+    const t = wheelTransform(w.rig, w.base, pw.steer, pw.spin, pw.drop, pw.offset);
+    w.node.matrix = C.Matrix4.fromTranslationQuaternionRotationScale(C.Cartesian3.fromArray(t.position, 0, scratch.v3), new C.Quaternion(...t.rotation), UNIT_SCALE, new C.Matrix4());
+  }
+  // the steering wheel turns about its own z axis (the column)
+  if (steeringWheel) steeringWheel.node.matrix = C.Matrix4.multiply(steeringWheel.base, C.Matrix4.fromRotationTranslation(C.Matrix3.fromRotationZ(steeringWheel.sign * pose.steeringWheel, scratch.m3), C.Cartesian3.ZERO, scratch.m4), new C.Matrix4());
+  for (const g of glass) g.show = camMode !== 2; // tinted glass washes out the in-car view
+  // keep lining the visible roads up with the scan while driving on them
+  const here = shaderWanted() && roadMapAt(car.lat, car.lon);
+  if (here && (here.onRoad || here.onPavement)) {
+    if (++calibTick % 8 === 4) measureAhead();
+    if (Math.abs(targetOffset - roadOffset) > 0.005) { roadOffset += (targetOffset - roadOffset) * Math.min(1, dt * 1.5); applyOffset(); }
+  }
+}
+
+const camPos = new C.Cartesian3(), camRel = new C.Cartesian3();
+let camInit = false, trail = [];
+// Where the car has been (last ~80 m), for the chase camera to follow
+function recordTrail() {
+  const p = C.Cartesian3.fromRadians(car.lon, car.lat, car.height), last = trail[trail.length - 1];
+  if (last) {
+    const d = C.Cartesian3.distance(p, last.p);
+    if (d > 25) trail = [];        // jumped (reset / new place)
+    else if (d < 0.5) return;
+  }
+  const prev = trail[trail.length - 1];
+  trail.push({ p, s: prev ? prev.s + C.Cartesian3.distance(p, prev.p) : 0 });
+  while (trail.length > 2 && trail[trail.length - 1].s - trail[1].s > 80) trail.shift();
+}
+// The point `back` metres behind the car along its path (null if it hasn't driven that far yet)
+function trailPoint(back) {
+  if (trail.length < 2) return null;
+  const last = trail[trail.length - 1], target = last.s + C.Cartesian3.distance(C.Cartesian3.fromRadians(car.lon, car.lat, car.height), last.p) - back;
+  if (trail[0].s > target) return null;
+  for (let i = trail.length - 1; i > 0; i--)
+    if (trail[i - 1].s <= target) {
+      const a = trail[i - 1], b = trail[i];
+      return C.Cartesian3.lerp(a.p, b.p, Math.min(1, (target - a.s) / (b.s - a.s || 1)), new C.Cartesian3());
+    }
+  return null;
+}
+function updateCamera(dt) {
+  const enu = C.Transforms.eastNorthUpToFixedFrame(C.Cartesian3.fromRadians(car.lon, car.lat, car.height));
+  const sb = Math.sin(car.bearing), cb = Math.cos(car.bearing);
+  const local = (fwd, left, up) => C.Matrix4.multiplyByPoint(enu, new C.Cartesian3(sb * fwd - cb * left, cb * fwd + sb * left, up), new C.Cartesian3());
+  let eye, target;
+  if (camMode === 2) {
+    // the driver's eye: the car's cockpit camera (its data: car frame, +x left, +y up, +z forward)
+    const cockpit = physics.spec.camera.cockpit, [side, up, fwd] = cockpit.position, pitchUp = Math.tan(car.pitch);
+    eye = local(fwd, side, up + pitchUp * fwd);
+    target = local(fwd + 20, side, up - 20 * Math.tan((cockpit.pitch ?? 0) * Math.PI / 180) + pitchUp * (fwd + 20));
+    C.Cartesian3.clone(eye, camPos);
+  } else {
+    const [back, up] = camMode === 0 ? [9, 3.2] : [26, 14];
+    // Where to sit, as an offset from the car (east, north, up): behind it along the road it came
+    // down, so the camera stays over the road on bends (straight back when reversing, just placed,
+    // or after a U-turn). Height stays a fixed amount above the car — only raised if the road
+    // behind is higher — so the camera doesn't bob over crests and dips.
+    const want = new C.Cartesian3(-sb * back, -cb * back, up);
+    const onPath = car.v > -0.2 && trailPoint(back);
+    if (onPath) {
+      const rel = C.Matrix4.multiplyByPoint(C.Matrix4.inverseTransformation(enu, new C.Matrix4()), onPath, new C.Cartesian3());
+      if (rel.x * sb + rel.y * cb < -back * 0.5) { want.x = rel.x; want.y = rel.y; want.z = Math.max(up, rel.z + 2); }
+    }
+    // Ease toward it relative to the car, so it neither lags behind at speed nor jumps
+    if (!camInit) C.Cartesian3.clone(want, camRel);
+    else C.Cartesian3.lerp(camRel, want, 1 - Math.exp(-5 * dt), camRel);
+    eye = C.Matrix4.multiplyByPoint(enu, camRel, camPos);
+    target = local(3, 0, 1.2);
+  }
+  camInit = true;
+  const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(target, eye, new C.Cartesian3()), new C.Cartesian3());
+  const upAxis = C.Matrix4.multiplyByPointAsVector(enu, C.Cartesian3.UNIT_Z, new C.Cartesian3());
+  const right = C.Cartesian3.normalize(C.Cartesian3.cross(dir, upAxis, new C.Cartesian3()), new C.Cartesian3());
+  scene.camera.setView({ destination: eye, orientation: { direction: dir, up: C.Cartesian3.cross(right, dir, new C.Cartesian3()) } });
+}
+
+// Put the car on the nearest real road (from the map data), then let it settle onto the 3D surface
+function placeOnRoad(px, pz) {
+  const best = nearestRoad(px, pz, 2) || nearestRoad(px, pz, 0);
+  if (best) {
+    const ll = toLatLon(best.x, best.z);
+    car.lat = C.Math.toRadians(ll.lat);
+    car.lon = C.Math.toRadians(ll.lon);
+    car.bearing = Math.PI - best.h;
+  }
+  car.v = 0; car.vz = 0; car.steer = 0; car.pitch = 0; car.trail = null; car.skipped = 0;
+  settleFrames = 30;
+}
+function resetCar() {
+  syncLocal();
+  placeOnRoad(car.x, car.z);
+  const h = roadHeight(ringCartos(car.lon, car.lat).map(c => rawSampleHeight(c, [carModel])).filter(plausible));
+  if (h !== null) car.height = h;
+  placePhysicsCar();
+}
+// The physics car goes where `car` says (it re-centres its frame there and waits for ground under it:
+// the collision for round here, which ground.js brings in from the map as it's built)
+function placePhysicsCar() {
+  if (!physics) return;
+  physics.place(car.lat, car.lon, car.height, car.bearing);
+}
+// Terrain heights for the collision (ground.js asks, in blocks): Cesium World Terrain's bare earth,
+// or with no access to it, level ground at the car's height
+let flatHeight = 0;
+async function sampleTerrainPoints(pts) {
+  const out = new Float32Array(pts.length / 2);
+  if (!terrain) return out.fill(flatHeight);
+  const cartos = [];
+  for (let i = 0; i < pts.length; i += 2) cartos.push(C.Cartographic.fromDegrees(pts[i + 1], pts[i]));
+  await C.sampleTerrainMostDetailed(terrain, cartos);
+  cartos.forEach((c, k) => out[k] = Number.isFinite(c.height) ? c.height : NaN);
+  return out;
+}
+
+let placeName = '';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Wait until the tiles for the current view have been requested and have all arrived
+async function waitForTiles(gen, maxMs) {
+  while (gen === generation && document.visibilityState !== 'visible') await sleep(250); // nothing renders in the background
+  const t0 = performance.now();
+  let sawLoading = false;
+  await sleep(200);
+  while (gen === generation && performance.now() - t0 < maxMs) {
+    if (!tileset.tilesLoaded) sawLoading = true;
+    else if (sawLoading || performance.now() - t0 > 1500) break;
+    await sleep(100);
+  }
+}
+// Real ground is between the Dead Sea and Everest; anything else is the coarse whole-planet mesh
+const plausible = h => h !== undefined && h !== null && h > -450 && h < 9000;
+function lookAtSpot(lon, lat, h, range) {
+  scene.camera.lookAt(C.Cartesian3.fromRadians(lon, lat, h), new C.HeadingPitchRange(car.bearing, C.Math.toRadians(-40), range));
+  scene.camera.lookAtTransform(C.Matrix4.IDENTITY);
+}
+async function goTo(lat, lon, name) {
+  const gen = ++generation;
+  for (const t of [...tiles.values()]) disposeTile(t);
+  origin = { lat, lon }; placeName = name; started = false; camInit = false; trail = [];
+  clearRoadMap();
+  ground?.reset();
+  Object.assign(car, { lat: C.Math.toRadians(lat), lon: C.Math.toRadians(lon), bearing: 0, v: 0, steer: 0, pitch: 0 });
+  syncLocal();
+  statusEl.textContent = `Loading ${name}…`;
+  // Midday at this longitude, so the sky is bright and the car is sunlit
+  const noon = new Date();
+  noon.setUTCHours(0, 0, 0, 0);
+  noon.setTime(noon.getTime() + ((12 - lon / 15 + 24) % 24) * 3600e3);
+  viewer.clock.currentTime = C.JulianDate.fromDate(noon);
+  lookAtSpot(car.lon, car.lat, 0, 6000);
+  updateTiles();
+  // Wait (briefly) for the road map so we can start on a road
+  for (let i = 0; i < 40 && gen === generation; i++) {
+    const t = tiles.get(Math.floor(lon2tx(lon)) + '/' + Math.floor(lat2ty(lat)));
+    if (t && t.roadsDone) break;
+    await new Promise(r => setTimeout(r, 200));
+  }
+  if (gen !== generation) return;
+  placeOnRoad(0, 0);
+  // Heights can only be measured on tiles that are loaded around the camera (the coarse
+  // whole-planet mesh sits kilometres off), so look from high up, then move in close.
+  const spot = C.Cartographic.fromRadians(car.lon, car.lat);
+  // (the first measurement keeps retrying: nothing can be measured while the page is in the background)
+  let rough = null;
+  for (const range of [6000, 600, 120]) {
+    await waitForTiles(gen, 10000);
+    for (let i = 0; i < (rough === null ? 600 : 20) && gen === generation; i++) {
+      const h = document.visibilityState === 'visible' ? rawSampleHeight(spot, [carModel]) : undefined;
+      if (plausible(h)) { rough = h; break; }
+      await sleep(250);
+    }
+    if (gen !== generation) return;
+    if (range > 120) lookAtSpot(car.lon, car.lat, rough ?? 0, range / 5);
+  }
+  car.height = roadHeight(ringCartos(car.lon, car.lat).map(c => rawSampleHeight(c, [carModel])).filter(h => plausible(h) && Math.abs(h - (rough ?? h)) < 60)) ?? rough ?? 0;
+  flatHeight = car.height;
+  settleFrames = 45;
+  syncLocal();
+  placePhysicsCar();
+  started = true;
+  statusEl.textContent = `📍 ${name}`;
+}
+
+async function start(token) {
+  $('setup').hidden = true;
+  if (token && token !== 'demo') C.Ion.defaultAccessToken = token;
+  statusEl.textContent = 'Connecting to Cesium ion…';
+  if (!viewer) {
+    viewer = new C.Viewer('cesium', {
+      animation: false, baseLayerPicker: false, fullscreenButton: false, geocoder: false, homeButton: false,
+      infoBox: false, sceneModePicker: false, selectionIndicator: false, timeline: false, navigationHelpButton: false,
+      globe: false, baseLayer: false, skyAtmosphere: new C.SkyAtmosphere(), scene3DOnly: true,
+    });
+    scene = viewer.scene;
+    scene.screenSpaceCameraController.enableInputs = false;
+    scene.postProcessStages.fxaa.enabled = true;
+    viewer.clock.shouldAnimate = false;
+  }
+  try {
+    tileset = await C.createGooglePhotorealistic3DTileset({ onlyUsingWithGoogleGeocoder: true });
+  } catch (e) {
+    statusEl.textContent = 'Not connected';
+    showSetup(`Couldn't load the 3D world with that token: ${e.message || e}. Check you copied the whole token. If it's right, open Asset Depot in Cesium ion, find "Google Photorealistic 3D Tiles" and click "Add to my assets".`);
+    return;
+  }
+  scene.primitives.add(tileset);
+  tileset.backFaceCulling = false; // where the ground is cut open beside the road, show the underside, not a black hole
+  tileset.shadows = C.ShadowMode.RECEIVE_ONLY;
+  tileset.loadProgress.addEventListener((pending, processing) => {
+    loadingEl.textContent = pending + processing > 0 ? `⏳ Loading 3D world… (${pending + processing})` : '';
+  });
+  try {
+    terrain = await C.CesiumTerrainProvider.fromIonAssetId(1);
+    roadShader = makeRoadShader();
+    asphalt = asphaltMaterial();
+    paving = pavingMaterial();
+    tileset.customShader = roadShader;
+    scene.preRender.addEventListener(updateRoadShaderFrame);
+    setInterval(maybeRebuildRoadMap, 500);
+  } catch (e) { console.warn('Clean roads off: no access to Cesium World Terrain', e); }
+  geocoder = new C.IonGeocoderService({ scene, geocodeProviderType: C.IonGeocodeProviderType.GOOGLE });
+
+  // the physics car first: it knows which model the car is (its data in data/cars) and how it moves
+  physics = await (await import('./realworld/physicsCar.js')).createPhysicsCar();
+  ground = (await import('./realworld/ground.js')).createGround({ physics, RAPIER: physics.RAPIER, sampleTerrain: sampleTerrainPoints });
+  viewer.shadows = true;
+  Object.assign(scene.shadowMap, { softShadows: true, size: 2048, maximumDistance: 80, darkness: 0.4 });
+  // The car is put together from its parts like in the test worlds (garage/visual.js), then handed to
+  // Cesium as one model — again whenever a part, its look or the paint changes (window.garage)
+  const session = await garageSession(), carModels = new ModelCache();
+  let carParts = await createCarVisual({ car: session.garage.car, finishes: session.db.finishes, models: carModels, paint: session.paint });
+  await carParts.applyBuild(session.garage.build, session.garage.view);
+  carParts.setDamage(session.damage, session.db.damage);          // (its crash dents and broken glass)
+  await showCar(carParts);
+  // another car (picked in the garage, or a test drive): put together afresh, and shown
+  physics.onCar(async () => {
+    const next = await createCarVisual({ car: session.garage.car, finishes: session.db.finishes, models: carModels, paint: session.paint });
+    await next.applyBuild(session.garage.build, session.garage.view);
+    next.setDamage(session.damage, session.db.damage);
+    const old = carParts;
+    carParts = next;
+    await showCar(carParts);
+    old.dispose();
+  });
+  let showing = null;
+  session.onLook(async () => {
+    if (carParts.car.id !== session.garage.car.id) return;       // (another car: onCar draws it)
+    await carParts.applyBuild(session.garage.build, session.garage.view);
+    const p = session.paint;
+    if (carParts.paint.colour !== p.colour || carParts.paint.finish !== p.finish) carParts.setPaint(p);
+    carParts.setDamage(session.damage, session.db.damage);
+    // (hits in quick succession: the car's handed to Cesium once they've settled)
+    clearTimeout(showing);
+    showing = setTimeout(() => showCar(carParts), 250);
+  });
+
+  // the engine's news (a money shift, bent valves, a blown engine): a warning in the middle of the screen
+  const { engineFlash } = await import('./testtrack/engineNews.js'), flash = engineFlash();
+  document.body.appendChild(flash.el);
+  let last = performance.now(), frame = 0;
+  scene.postRender.addEventListener(() => {
+    const now = performance.now(), dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    ground.update(C.Math.toDegrees(car.lat), C.Math.toDegrees(car.lon));
+    if (started) {
+      followCorrection();
+      driveCar(now, dt);
+      recordTrail();
+      updateCamera(dt);
+      syncLocal();
+      for (const n of physics.takeNews()) { if (n.type === 'restored') flash.show('Car reset', 'ok', 1.5, 'repaired (development)'); else flash.news(n); }
+      flash.update(dt);
+      const e = physics.sim.vehicle.drivetrain, o = physics.sim.vehicle.body.translation(), h = e.health;
+      // (the speedometer reads the wheels, at their actual size)
+      const stuck = physics.sim.vehicle.immobilized;
+      speedEl.innerHTML = `${Math.round(Math.abs(car.speedometer ?? car.v) * 3.6)} <small>km/h</small>` +
+        (stuck ? `<div class="alt" style="color:#ffb4a8">can't drive: ${stuck[0]}</div>` : '') +
+        `<div class="alt">gear ${e.gearName(e.shifting ? e.pending : e.gear)} · ${Math.round(e.rpm)} rpm${h.blown ? ' · <b style="color:#ffb4a8">engine blown</b>' : h.floating ? ' · <b style="color:#ffb4a8">valve float</b>' : h.condition < 70 ? ` · engine ${Math.round(h.condition)}%` : ''}${physics.holding ? ' · waiting for the ground' : ''}` +
+        `${car.height > 600 ? ` · ${Math.round(car.height)} m, air ${Math.round((car.air ?? 1) * 100)}%` : ''}</div>` +
+        `<div class="alt dim">physics origin ${Math.round(Math.hypot(o.x, o.z))} m away · moved ${physics.rebases}×</div>` + groundLine();
+    }
+    runJobs(4);
+    if (frame++ % 2 === 0) drawMinimap();
+  });
+  goTo(40.7580, -73.9855, 'New York');
+}
+
+// What the collision round the car is up to (only while it's still coming in, or has trouble)
+function groundLine() {
+  const g = ground?.status;
+  if (!g) return '';
+  const coming = g.wanted - g.chunks, waiting = g.fetching || g.queue || g.building;
+  if (!coming && !g.pieces && !g.provisional) return '';
+  const trouble = (coming || g.provisional) && g.errors ? ` · map server: ${g.lastError}${g.retryIn ? `, trying again in ${g.retryIn} s` : ', retrying'}` : '';
+  return `<div class="alt dim">ground ${g.chunks}/${g.wanted} km²${g.provisional ? ` (${g.provisional} without roads yet)` : ''}${waiting ? ` · building${g.fetching ? ` · fetching map ${g.fetching}` : ''}` : ''}${trouble}</div>`;
+}
+
+// ---------- Worlds: the real world plus test worlds (buttons at the top, or T to cycle) ----------
+let worldList = [{ id: 'real', name: 'Real world', icon: '🌍' }], currentWorld = 'real', switching = false;
+fetch('scenes/worlds.json').then(r => r.json()).then(list => { worldList = list; drawWorldButtons(); }).catch(() => drawWorldButtons());
+function drawWorldButtons() {
+  $('worlds').innerHTML = '';
+  for (const w of worldList) {
+    const b = document.createElement('button');
+    b.textContent = `${w.icon} ${w.name}`;
+    b.className = w.id === currentWorld ? 'on' : '';
+    b.onclick = () => { b.blur(); switchWorld(w.id); };
+    $('worlds').appendChild(b);
+  }
+}
+// The garage is a world too: you go in with the car as it is, and leave back to where you were; a
+// test drive from it goes to the test centre, with a button back
+let cameFrom = 'real', testDriving = false;
+async function switchWorld(id, nested = false) {
+  if (id === currentWorld || (switching && !nested)) return;
+  switching = true;
+  try {
+    const test = await import('./testtrack/test-scene.js');
+    // the tuning panel's tests run in the test centre: let them switch world through here
+    test.hooks.switchTo = file => { const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true); };
+    const target = worldList.find(w => w.id === id);
+    if (currentWorld === 'garage') {
+      (await import('./garage/garage.js')).exit();
+      document.body.classList.remove('garage-mode');
+    }
+    if (target.garage) {
+      test.exit();
+      if (!testDriving) cameFrom = currentWorld;   // (back from a test drive: still where you came from before)
+      testDriving = false;
+      window.testTrackActive = true;
+      for (const k in keys) keys[k] = false;
+      if (viewer) viewer.useDefaultRenderLoop = false; // the real world waits
+      document.body.classList.add('test-mode', 'garage-mode');
+      currentWorld = id;
+      drawWorldButtons();
+      await (await import('./garage/garage.js')).enter({
+        leave: () => switchWorld(cameFrom && cameFrom !== 'garage' ? cameFrom : 'real'),
+        testDrive: () => { switchWorld(worldList.find(w => w.file === 'scenes/test_centre.json')?.id ?? 'tests').then(() => { testDriving = true; $('backToGarage').hidden = false; }); },
+      });
+    } else if (!target.file) {
+      test.exit();
+      window.testTrackActive = false;
+      document.body.classList.remove('test-mode');
+      if (viewer) viewer.useDefaultRenderLoop = true; // the real world carries on where you left it
+    } else {
+      window.testTrackActive = true;
+      for (const k in keys) keys[k] = false;
+      if (viewer) viewer.useDefaultRenderLoop = false; // pause the real world while away
+      document.body.classList.add('test-mode');
+      await test.enter(target.file);
+    }
+    currentWorld = id;
+    $('backToGarage').hidden = !testDriving;
+    drawWorldButtons();
+  } finally { switching = false; }
+}
+$('backToGarage').onclick = e => { e.currentTarget.blur(); switchWorld('garage'); };
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.repeat || currentWorld === 'garage') return;
+  if (e.code !== 'KeyT') return;
+  const i = worldList.findIndex(w => w.id === currentWorld);
+  switchWorld(worldList[(i + 1) % worldList.length].id);
+});
+
+// ---------- UI ----------
+const PRESETS = [
+  ['New York', 40.7580, -73.9855], ['London', 51.5080, -0.1281], ['Paris', 48.8738, 2.2950],
+  ['Tokyo', 35.6595, 139.7005], ['San Francisco', 37.7880, -122.4075], ['Sydney', -33.8688, 151.2093],
+  ['Swiss Alps', 46.6244, 8.0413],
+];
+for (const [n, lat, lon] of PRESETS) {
+  const b = document.createElement('button');
+  b.textContent = n;
+  b.onclick = () => viewer && tileset && goTo(lat, lon, n);
+  $('presets').appendChild(b);
+}
+$('search').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('q'), q = input.value.trim();
+  if (!q || !geocoder) return;
+  statusEl.textContent = `Searching “${q}”…`;
+  input.blur();
+  try {
+    const [hit] = await geocoder.geocode(q);
+    if (!hit) return statusEl.textContent = `Couldn't find “${q}”`;
+    const d = hit.destination;
+    const c = d instanceof C.Rectangle ? C.Rectangle.center(d) : C.Cartographic.fromCartesian(d);
+    goTo(C.Math.toDegrees(c.latitude), C.Math.toDegrees(c.longitude), hit.displayName.split(',').slice(0, 2).join(','));
+  } catch (err) { statusEl.textContent = 'Search failed — try again'; }
+};
+
+const saved = store.get();
+if (saved) start(saved); else { statusEl.textContent = 'Waiting for Cesium ion token'; showSetup(); }
+</script>
+</body>
+</html>

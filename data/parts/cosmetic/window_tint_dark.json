@@ -1,0 +1,25 @@
+{
+  "id": "window_tint_dark",
+  "name": "Window tint (dark)",
+  "category": "cosmetic",
+  "slot": "window_tint",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 150,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/window_tint_dark.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Tinted side and rear windows (dark).",
+  "effects": [
+    {
+      "target": "cosmetic.tint",
+      "op": "set",
+      "value": "dark"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "_note": "The rally gravel tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $170 × the size's factor (bigger costs more).",
+  "base": "tyre_rally_gravel",
+  "id": "{base}_{size}",
+  "name": "{size} rally gravel tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "215_60r16"
+    }
+  ],
+  "groups": {
+    "size": {
+      "205_65r15": {
+        "name": "205/65 R15",
+        "priceFactor": 0.952,
+        "set": {
+          "tyreSize": {
+            "width": 205,
+            "sidewall": 65,
+            "compound": "rally_gravel"
+          },
+          "fits": ["rim:15"]
+        },
+        "multiply": {
+          "mass": 0.952
+        }
+      },
+      "215_60r16": {
+        "name": "215/60 R16",
+        "set": {
+          "tyreSize": {
+            "width": 215,
+            "sidewall": 60,
+            "compound": "rally_gravel"
+          },
+          "fits": ["rim:16"]
+        }
+      },
+      "225_50r17": {
+        "name": "225/50 R17",
+        "priceFactor": 1.048,
+        "set": {
+          "tyreSize": {
+            "width": 225,
+            "sidewall": 50,
+            "compound": "rally_gravel"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 1.048
+        }
+      }
+    }
+  }
+}

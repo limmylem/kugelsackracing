@@ -1,0 +1,171 @@
+/* The game's UI theme (design/garage/style-guide.dc.html): colours, type, sizes, spacing and the shared
+   components (buttons, chips, tabs, panels, rows, badges, sliders, banners, dialogs). One accent for
+   interaction; green and red only ever mean better and worse; condition is green / yellow / red;
+   everything else is neutral. Fonts: Barlow (UI text), Barlow Condensed (titles, buttons), JetBrains
+   Mono (every number that changes), Material Symbols Outlined (icons) — loaded by the page.
+   Put class "ui" on the element holding themed UI (rows and sliders only take the theme inside it:
+   the test centre's panels have their own). */
+
+:root {
+  /* neutrals, with a slight cool bias */
+  --c-base: #07090B;          /* top bar, page */
+  --c-viewport: #0B0E11;      /* wells, inputs */
+  --c-panel: #0E1114;         /* panels (at 90–94% over the 3D view) */
+  --c-panel-a: rgba(12, 15, 18, 0.94);
+  --c-panel-a90: rgba(12, 15, 18, 0.9);
+  --c-card: #12161A;          /* list rows */
+  --c-raised: #1B2127;        /* secondary buttons, hover */
+  --c-raised-2: #232A31;      /* secondary hover */
+  --c-icon-btn: #151A1F;      /* icon buttons */
+  --c-line: #242B33;          /* borders, tracks */
+  --c-line-soft: #1C2228;     /* dividers inside panels */
+  --c-line-strong: #333C46;   /* secondary button borders, dashed empties */
+  --c-text: #E9ECEF;
+  --c-text-2: #A3ABB5;        /* secondary text */
+  --c-text-3: #6B7480;        /* labels, disabled */
+
+  /* signals (and their 12–14% tints) */
+  --c-accent: #36B3F5;        /* selection, primary action, power */
+  --c-accent-hover: #5CC3F8;
+  --c-accent-ink: #04121B;    /* text on the accent */
+  --c-accent-tint: rgba(54, 179, 245, 0.14);
+  --c-accent-tint-12: rgba(54, 179, 245, 0.12);
+  --c-good: #3DD68C;          /* condition 70–100%, a better stat */
+  --c-good-tint: rgba(61, 214, 140, 0.12);
+  --c-warn: #F2C037;          /* condition 40–69%, unsaved, advisories */
+  --c-warn-tint: rgba(242, 192, 55, 0.12);
+  --c-warn-ink: #1A1405;
+  --c-bad: #FF5A5F;           /* condition 0–39%, a worse stat, blockers */
+  --c-bad-soft: #FF7A7E;      /* "requires" text */
+  --c-bad-tint: rgba(255, 90, 95, 0.12);
+  --c-bad-bg: #2A1215;        /* blocking banner */
+  --c-bad-text: #E3B7B9;
+  --c-warn-bg: #2A2310;       /* advisory banner */
+
+  /* type */
+  --f-ui: 'Barlow', system-ui, sans-serif;
+  --f-title: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --f-icon: 'Material Symbols Outlined';
+  --t-display: 64px;          /* Condensed 600 */
+  --t-panel-title: 28px;      /* Condensed 600, 1.1 */
+  --t-button: 17px;           /* Condensed 600–700, +8% tracking, caps */
+  --t-body: 15px;             /* Barlow 500 */
+  --t-secondary: 14px;        /* Barlow 400, text-2 */
+  --t-label: 12px;            /* Barlow 600, +10% tracking, caps, text-3 */
+  --t-data-large: 28px;       /* Mono 600 */
+  --t-data: 14px;             /* Mono 500–600 */
+
+  /* spacing: a 4 px grid */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-12: 48px;
+  /* radii: pills, buttons, cards, panels, dialogs */
+  --r-pill: 4px; --r-btn: 6px; --r-card: 8px; --r-panel: 10px; --r-dialog: 12px;
+  /* sizes */
+  --h-btn: 48px; --h-btn-bar: 40px; --h-row: 44px; --h-chip: 30px; --h-badge: 22px; --h-topbar: 72px;
+  --w-panel: 480px; --w-rail: 216px;
+  --shadow-dialog: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- basics ---------- */
+.ui, .ui * { box-sizing: border-box; }
+.ui { font-family: var(--f-ui); color: var(--c-text); -webkit-font-smoothing: antialiased; font-size: var(--t-body); }
+:where(.ui) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.ui :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+.icon { font-family: var(--f-icon); font-weight: 400; font-style: normal; font-size: 20px; line-height: 1; letter-spacing: 0; text-transform: none; display: inline-block; white-space: nowrap; direction: ltr; font-feature-settings: 'liga'; -webkit-font-feature-settings: 'liga'; user-select: none; }
+.mono { font-family: var(--f-mono); }
+.label { font-size: var(--t-label); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-text-3); }
+.secondary-text { font-size: var(--t-secondary); color: var(--c-text-2); }
+.panel-title { font-family: var(--f-title); font-size: var(--t-panel-title); font-weight: 600; line-height: 1.1; }
+.good { color: var(--c-good); } .warn { color: var(--c-warn); } .bad { color: var(--c-bad); } .muted { color: var(--c-text-3); } .accent { color: var(--c-accent); }
+
+/* ---------- buttons ---------- */
+.btn { height: var(--h-btn); padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); border-radius: var(--r-btn);
+  font-family: var(--f-title) !important; font-size: var(--t-button) !important; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transition: background 0.12s, color 0.12s; }
+.btn.bar { height: var(--h-btn-bar); font-size: 16px !important; padding: 0 16px; }
+.btn.primary { background: var(--c-accent); color: var(--c-accent-ink); font-weight: 700; }
+.btn.primary:hover { background: var(--c-accent-hover); }
+.btn.secondary { background: var(--c-raised); border: 1px solid var(--c-line-strong); }
+.btn.secondary:hover { background: var(--c-raised-2); }
+.btn.ghost { color: var(--c-text-2); padding: 0 18px; }
+.btn.ghost:hover { background: var(--c-raised); color: var(--c-text); }
+.btn.danger { color: var(--c-bad); padding: 0 18px; }
+.btn.danger:hover { background: var(--c-bad-tint); }
+.btn.danger.solid { background: var(--c-bad); color: #1F0607; font-weight: 700; }
+.btn:disabled, .btn.disabled { background: var(--c-icon-btn); border: 1px solid var(--c-line); color: var(--c-text-3); cursor: not-allowed; }
+.icon-btn { width: 40px; height: 40px; border-radius: var(--r-btn); background: var(--c-icon-btn); border: 1px solid var(--c-line); display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn:hover:not(:disabled) { background: var(--c-raised); }
+.icon-btn:disabled { color: var(--c-text-3); cursor: default; }
+.icon-btn.flat { background: transparent; border: 0; width: 36px; height: 36px; color: var(--c-text-2); }
+.icon-btn.flat:hover { background: var(--c-raised); color: var(--c-text); }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--c-warn); color: var(--c-warn-ink); font-family: var(--f-mono); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; letter-spacing: 0; }
+
+/* ---------- chips, tabs, segmented ---------- */
+.chip { height: var(--h-chip); padding: 0 12px; display: inline-flex; align-items: center; border-radius: 15px; border: 1px solid var(--c-line); color: var(--c-text-2); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip.on { background: var(--c-accent-tint); border-color: var(--c-accent); color: var(--c-accent); }
+.chip.square { border-radius: 5px; gap: 6px; }
+.chip:hover:not(.on) { background: var(--c-raised); color: var(--c-text); }
+.tab { height: var(--h-topbar); padding: 0 22px; display: inline-flex; align-items: center; gap: var(--s-2); color: var(--c-text-3); border-bottom: 2px solid transparent;
+  font-family: var(--f-title); font-size: 18px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.tab:hover { color: var(--c-text); }
+.tab.on { color: var(--c-text); border-bottom-color: var(--c-accent); }
+.segmented { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-btn); background: var(--c-icon-btn); }
+.segmented button { height: 30px; padding: 0 12px; border-radius: var(--r-pill); color: var(--c-text-3); font-size: 13px; font-weight: 600; }
+.segmented button.on { background: #2A323B; color: var(--c-text); }
+
+/* ---------- panels, cards, rows ---------- */
+.panel { border-radius: var(--r-panel); background: var(--c-panel-a); border: 1px solid var(--c-line); overflow: hidden; display: flex; flex-direction: column; }
+.panel.a90 { background: var(--c-panel-a90); }
+.panel-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--c-line-soft); display: flex; align-items: flex-start; gap: var(--s-3); }
+.panel-body { flex: 1; overflow: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.panel-foot { padding: 16px 24px 20px; border-top: 1px solid var(--c-line-soft); display: flex; align-items: center; gap: 10px; }
+.card { padding: var(--s-6); border-radius: var(--r-panel); background: var(--c-panel); border: 1px solid var(--c-line); }
+.well { border-radius: var(--r-card); background: var(--c-viewport); border: 1px solid var(--c-line-soft); }
+.ui .row { display: flex; align-items: center; gap: 14px; padding: var(--s-3); border-radius: var(--r-card); background: var(--c-card); border: 1px solid var(--c-line-soft); text-align: left; width: 100%; }
+.ui .row:hover { border-color: var(--c-line-strong); }
+.ui .row.selected { background: var(--c-accent-tint-12); border-color: var(--c-accent); }
+.ui .row.locked { opacity: 0.5; cursor: not-allowed; }
+.ui .row.empty { background: transparent; border: 1px dashed var(--c-line-strong); }
+.thumb { width: 56px; height: 56px; flex: none; border-radius: var(--r-btn); background: var(--c-viewport); border: 1px solid var(--c-line); display: flex; align-items: center; justify-content: center; color: var(--c-text-2); }
+.thumb .icon { font-size: 28px; }
+.ui .row.empty .thumb { background: transparent; border-style: dashed; border-color: var(--c-line-strong); color: var(--c-text-3); }
+
+/* ---------- badges ---------- */
+.badge { height: var(--h-badge); padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.plain::before { display: none; }
+.badge.good { background: var(--c-good-tint); color: var(--c-good); }
+.badge.warn { background: var(--c-warn-tint); color: var(--c-warn); }
+.badge.bad { background: var(--c-bad-tint); color: var(--c-bad); }
+.badge.owned { background: var(--c-accent-tint); color: var(--c-accent); letter-spacing: 0.08em; }
+.badge.info { background: var(--c-raised); color: var(--c-text-2); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.class-badge { display: inline-flex; align-items: stretch; height: 32px; border-radius: 5px; overflow: hidden; border: 1px solid var(--c-accent); }
+.class-badge .cls { width: 30px; background: var(--c-accent); color: var(--c-accent-ink); display: flex; align-items: center; justify-content: center; font-family: var(--f-title); font-weight: 700; font-size: 20px; }
+.class-badge .pi { padding: 0 10px; display: flex; align-items: center; font-family: var(--f-mono); font-size: 16px; font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.empty { background: transparent; border: 2px dashed var(--c-accent); }
+
+/* ---------- slider (a styled range input) ---------- */
+.ui .slider { position: relative; height: 20px; }
+.ui .slider .track { position: absolute; left: 0; right: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--c-line); }
+.ui .slider .fill { position: absolute; left: 0; top: 8px; height: 4px; border-radius: 2px; background: var(--c-accent); }
+.ui .slider .tick { position: absolute; top: 3px; width: 2px; height: 14px; margin-left: -1px; background: var(--c-text-3); }
+.ui .slider .thumb-dot { position: absolute; top: 2px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--c-text); border: 3px solid var(--c-accent); pointer-events: none; }
+.ui .slider input { position: absolute; inset: 0; width: 100%; height: 20px; margin: 0; opacity: 0; cursor: pointer; }
+.ui .slider input:focus-visible ~ .thumb-dot { box-shadow: 0 0 0 3px var(--c-accent-tint); }
+
+/* ---------- banners, dialogs ---------- */
+.banner { display: flex; align-items: center; gap: var(--s-4); padding: 14px 14px 14px 18px; border-radius: var(--r-card); }
+.banner.blocker { background: var(--c-bad-bg); border: 1px solid var(--c-bad); }
+.banner.blocker > .icon { color: var(--c-bad); font-size: 28px; }
+.banner.advisory { background: var(--c-warn-bg); border: 1px solid var(--c-warn); }
+.banner.advisory > .icon { color: var(--c-warn); font-size: 28px; }
+.banner .title { font-size: 17px; font-weight: 700; }
+.banner.blocker .text { font-size: 14px; color: var(--c-bad-text); }
+.banner.advisory .text { font-size: 14px; color: var(--c-text-2); }
+.scrim { position: absolute; inset: 0; background: rgba(3, 4, 5, 0.72); display: flex; align-items: center; justify-content: center; }
+.dialog { width: 560px; max-width: calc(100vw - 32px); border-radius: var(--r-dialog); background: var(--c-panel); border: 1px solid var(--c-line-strong); box-shadow: var(--shadow-dialog); overflow: hidden; }
+
+/* scrollbars in panels */
+.ui ::-webkit-scrollbar { width: 8px; height: 8px; }
+.ui ::-webkit-scrollbar-thumb { background: var(--c-line); border-radius: 4px; }
+.ui ::-webkit-scrollbar-track { background: transparent; }

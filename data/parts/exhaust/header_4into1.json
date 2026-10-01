@@ -1,0 +1,49 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/header_4into1.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "header_4into1",
+  "name": "Tubular headers",
+  "category": "exhaust",
+  "slot": "header",
+  "tier": "sport",
+  "price": 750,
+  "mass": -2,
+  "fits": [
+    ["exhaust_flange:rs", "exhaust_flange:std"]
+  ],
+  "_note": "Tubular exhaust headers for any engine: more power up top, a harder, louder note.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.04,
+      "when": {
+        "rpm": [3500, 7200],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.98,
+      "when": {
+        "rpm": [0, 1800],
+        "fade": 500
+      }
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.06
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 1.04
+    }
+  ]
+}

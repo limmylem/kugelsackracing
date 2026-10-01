@@ -1,0 +1,17 @@
+{
+  "id": "strada_evo_airbox",
+  "name": "Airbox and filter (Strada Evo, stock)",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 70,
+  "mass": 3,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_airbox.png",
+  "fits": ["intake_flange:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:airbox"],
+  "effects": [],
+  "tier": "stock"
+}

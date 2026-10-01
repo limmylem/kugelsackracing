@@ -1,0 +1,215 @@
+{
+  "name": "Test centre",
+  "_axes": "World frame: +y up; x and z are horizontal. Points are [x, z]. Metres and degrees.",
+  "_about": "Where the automated test suite runs (physics/testSuite.js, tests/run.mjs): an 8 km straight for acceleration, braking and top speed, a vehicle dynamics pad with a 40 m skidpad circle and an 18 m slalom, and a 1.8 km mixed circuit. `tests` says where each test is. North of the pad, a crash test area: a concrete wall and a metal barrier to drive into, and a guardrail to scrape along (tests.crash: where the crash test tool puts the car).",
+  "surfaces": {
+    "tarmac": {
+      "grip": 1,
+      "rollingResistance": 0.012,
+      "sound": "tarmac"
+    },
+    "kerb": {
+      "grip": 0.95,
+      "rollingResistance": 0.015,
+      "sound": "tarmac"
+    },
+    "grass": {
+      "grip": 0.72,
+      "rollingResistance": 0.04,
+      "dust": "#7d7a55",
+      "marks": "#4a5330",
+      "sound": "gravel"
+    },
+    "dirt": {
+      "grip": 0.75,
+      "rollingResistance": 0.035,
+      "dust": "#8a7152",
+      "marks": "#5a4a36",
+      "sound": "gravel"
+    },
+    "ice": {
+      "grip": 0.03,
+      "rollingResistance": 0.01,
+      "sound": "tarmac"
+    }
+  },
+  "offRoad": "grass",
+  "ground": {
+    "size": [10000, 10000],
+    "thickness": 2,
+    "colour": "#6f8a55"
+  },
+  "spawn": {
+    "onRoad": {
+      "road": 0,
+      "at": 40
+    }
+  },
+  "roads": [
+    {
+      "name": "Test circuit",
+      "closed": true,
+      "width": 12,
+      "kerbCurvature": 0.012,
+      "startLine": [100, 120],
+      "points": [[100, -100], [100, -58.9], [100, -17.8], [100, 23.4], [100, 64.5], [100, 105.6], [100, 146.7], [100, 187.8], [100, 228.9], [100, 270.1], [102.1, 278.1], [108, 283.9], [116, 286.1], [124, 283.9], [129.9, 278.1], [132, 270.1], [132, 230.1], [132, 190.1], [132, 150.1], [132, 110.1], [132, 70.1], [132, 30.1], [132, -9.9], [132, -49.9], [133, -58.4], [135.8, -66.4], [140.3, -73.6], [146.3, -79.7], [153.5, -84.2], [161.5, -87], [170, -87.9], [206, -87.9], [242, -87.9], [278, -87.9], [314, -87.9], [350, -87.9], [358.7, -88.3], [367.4, -89.3], [375.9, -91], [384.3, -93.4], [392.5, -96.5], [400.4, -100.2], [408, -104.5], [415.2, -109.4], [422, -114.8], [428.4, -120.8], [434.3, -127.2], [464, -162.7], [493.7, -198.1], [498.1, -205.1], [500.4, -213], [500.5, -221.3], [498.3, -229.2], [494, -236.3], [487.9, -241.9], [482.5, -247.3], [479.3, -254.3], [476.1, -261.2], [470.7, -266.6], [440, -288.1], [409.2, -309.6], [378.5, -331.1], [347.8, -352.6], [340.1, -357], [331.7, -359.9], [322.9, -361.2], [314, -360.9], [305.3, -358.9], [297.2, -355.4], [289.8, -350.4], [283.5, -344.2], [259.6, -315.7], [235.8, -287.3], [211.9, -258.8], [188, -230.4], [164.1, -201.9], [140.3, -173.4], [116.4, -145], [111.5, -138.5], [107.4, -131.4], [104.2, -123.9], [101.9, -116.1], [100.5, -108.1]],
+      "surface": "tarmac",
+      "kerbSurface": "kerb",
+      "kerbWidth": 1.2
+    },
+    {
+      "name": "Straight",
+      "closed": false,
+      "width": 16,
+      "kerbCurvature": 1,
+      "points": [[-300, -3950], [-300, 3950]],
+      "surface": "tarmac"
+    }
+  ],
+  "pads": [
+    {
+      "name": "Vehicle dynamics pad",
+      "surface": "tarmac",
+      "centre": [-125, -20],
+      "halfExtents": [105, 262],
+      "colour": "#3c3e42"
+    },
+    {
+      "name": "Crash test area",
+      "surface": "tarmac",
+      "centre": [-130, 360],
+      "halfExtents": [95, 90],
+      "colour": "#404247"
+    },
+    {
+      "name": "Hill climb (dirt)",
+      "surface": "dirt",
+      "centre": [-480, -20],
+      "halfExtents": [20, 60],
+      "colour": "#7a6246"
+    },
+    {
+      "name": "Split-grip lane: tarmac",
+      "surface": "tarmac",
+      "centre": [-622.5, 0],
+      "halfExtents": [2.5, 110],
+      "colour": "#3c3e42"
+    },
+    {
+      "name": "Split-grip lane: ice",
+      "surface": "ice",
+      "centre": [-617.5, 0],
+      "halfExtents": [2.5, 110],
+      "colour": "#cfe6f2"
+    }
+  ],
+  "paint": [
+    {
+      "type": "skidpad",
+      "centre": [-170, 170],
+      "surfaceRadius": 48,
+      "ringRadius": 40
+    }
+  ],
+  "cone": {
+    "halfHeight": 0.35,
+    "radius": 0.16,
+    "mass": 3,
+    "friction": 0.8
+  },
+  "props": [
+    {
+      "type": "coneLine",
+      "name": "Slalom",
+      "start": [-80, -110],
+      "count": 8,
+      "spacing": 18,
+      "headingDeg": 0
+    }
+  ],
+  "tests": {
+    "straight": {
+      "road": 1,
+      "startAt": 40
+    },
+    "skidpad": {
+      "centre": [-170, 170],
+      "radius": 40
+    },
+    "slalom": {
+      "cones": "Slalom",
+      "runUp": 150,
+      "offset": 1.3
+    },
+    "circuit": {
+      "road": 0,
+      "startBefore": 150
+    },
+    "crash": {
+      "_note": "The crash test tool: the car put down facing the target at the speed asked for, its front gap m short of it (wall, barrier: head on; guardrail: alongside, angled into it by angleDeg).",
+      "gap": 3,
+      "wall": {
+        "face": [-130, 430]
+      },
+      "barrier": {
+        "face": [-60, 430]
+      },
+      "guardrail": {
+        "face": [-204.85, 305],
+        "angleDeg": 4
+      }
+    },
+    "hillClimb": {
+      "_note": "The low-range test: a 30° dirt slope, from a standstill start m short of it (x, z, heading along +z); up means reaching top m high.",
+      "start": [-480, -52],
+      "top": 15
+    },
+    "splitGrip": {
+      "_note": "The diff-lock test: a lane with ice under the left wheels and tarmac under the right, from start (heading along +z).",
+      "start": [-620, -100]
+    }
+  },
+  "objects": [
+    {
+      "name": "Crash wall",
+      "type": "box",
+      "centre": [-130, 1.25, 431.5],
+      "halfExtents": [14, 1.25, 1.5],
+      "colour": "#b9b3a8",
+      "material": "concrete"
+    },
+    {
+      "name": "Crash barrier",
+      "type": "box",
+      "centre": [-60, 0.4, 430.15],
+      "halfExtents": [10, 0.4, 0.15],
+      "colour": "#9aa4ab",
+      "material": "metal"
+    },
+    {
+      "name": "Guardrail",
+      "type": "box",
+      "centre": [-205, 0.4, 360],
+      "halfExtents": [0.15, 0.4, 60],
+      "colour": "#9aa4ab",
+      "material": "metal"
+    },
+    {
+      "name": "Hill climb",
+      "type": "ramp",
+      "start": [-480, 0, -40],
+      "length": 30,
+      "angleDeg": 30,
+      "width": 10,
+      "thickness": 8,
+      "colour": "#8a7152"
+    },
+    {
+      "name": "Hill climb top",
+      "type": "box",
+      "centre": [-480, 7.5, -4.019],
+      "halfExtents": [5, 7.5, 10],
+      "colour": "#8a7152"
+    }
+  ]
+}

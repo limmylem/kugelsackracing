@@ -1,0 +1,61 @@
+{
+  "id": "strada_evo_rear_wing",
+  "name": "Large rear wing (Strada Evo)",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "tier": "sport",
+  "price": 980,
+  "mass": 5,
+  "toughness": 0.7,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Strada Evo large rear wing: a 140 cm aerofoil (26 cm chord) with big end plates on two uprights (20 cm) on the boot lid.",
+  "icon": "assets/icons/parts/strada_evo_rear_wing.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "The big rally-style rear wing: rear downforce for fast stages.",
+  "aero": {
+    "point": [0, 0.2, 0],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    },
+    "liftCoefficient": -0.32,
+    "dragCoefficient": 0.025
+  },
+  "placeholder": {
+    "width": 1.4,
+    "chord": 0.26,
+    "thickness": 0.03,
+    "height": 0.2,
+    "colour": "#1f2226"
+  },
+  "massOffset": [0, 0.1, 0],
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  }
+}

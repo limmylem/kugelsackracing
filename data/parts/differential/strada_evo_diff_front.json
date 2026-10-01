@@ -1,0 +1,21 @@
+{
+  "id": "strada_evo_diff_front",
+  "name": "Front limited-slip differential (Strada Evo, stock)",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "price": 450,
+  "mass": 22,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_diff_front.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "frontDifferential": {
+    "type": "lsd",
+    "preload": 30,
+    "lock": 0.25
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,174 @@
+{
+  "_note": "Crash damage (garage/damage.js; the physics finds the impacts, physics/impacts.js). Strength: how fast the car was going into what it hit, along the contact (m/s; less for something light, a cone). classes: from which strength an impact is a tap, a crunch or a crash (its sound). exterior: the part categories a hit can reach (the rest are inside the car). dent: how deep (m) and how wide (radius, m) a dent is by strength, never deeper than maxDepth in all at any point; a part keeps at most maxPerPart dents (a new one within merge × its radius of an old one deepens that one); a wide, hard hit (radius 0.3 m or more) along a wall dents every half radius along the contact, each dent a share (w) of the depth so they go evenly deep; reach: how far to the side of the contact a part can be and still be the one hit. condition: points lost by the part hit (÷ its toughness), and by the parts round it within the dent (× neighbours × how near). engine: a hit on the front (the dent ahead of frontZ, pushing back) from engine.from m/s costs the engine perMs points a m/s over, at most max. wheels: a hit that reaches a wheel from wheels.from m/s costs its rim and tyre share of the loss. breakables: the strength that breaks glass and lights within the dent. The body shell (the car without its parts) has its own toughness and price (car.json shell).",
+  "exterior": ["body", "aero", "wheels", "tyres"],
+  "classes": {
+    "tap": 0,
+    "crunch": 3.5,
+    "crash": 9
+  },
+  "dent": {
+    "depth": [[1.2, 0.006], [3, 0.02], [6, 0.06], [10, 0.13], [17, 0.26], [30, 0.34]],
+    "radius": [[1.2, 0.1], [3, 0.16], [6, 0.26], [10, 0.38], [17, 0.58], [30, 0.8]],
+    "maxDepth": 0.32,
+    "maxPerPart": 16,
+    "merge": 0.35,
+    "reach": 0.25
+  },
+  "condition": {
+    "loss": [[1.5, 0], [3, 2], [6, 10], [10, 28], [17, 65], [25, 100]],
+    "neighbours": 0.5
+  },
+  "engine": {
+    "from": 9,
+    "perMs": 1.5,
+    "max": 30,
+    "frontZ": 1
+  },
+  "wheels": {
+    "from": 5,
+    "share": 0.6
+  },
+  "breakables": {
+    "glass": 7,
+    "light": 4
+  },
+  "mechanical": {
+    "_note": "Mechanical damage (garage/mechanical.js works out what a hit does; physics/mechanical.js drives it). A hit reaches the car's damage zones (car.json damageZones): each zone by how near the contact came to its box (within zoneReach m, plus the dent's depth: a hard hit crumples further in) and, for a zone facing a way, how squarely it came from there. Each system the zone lists takes damage by how far that strength is over its `from` (m/s), per m/s over (…PerMs), at most its max, divided by the toughness of the part carrying it. systems — steering: toe (degrees, + the wheel points left: the car pulls); suspension: camber (degrees: less grip), ride (m lower), damper (share of the damping lost, down to minDamper left); rim: bend (mm: a wobble that grows with speed); tyre: a puncture leaking leakPerMs of the pressure a second per m/s over; brakeLine: share of that corner's brake force lost; radiator: coolant lost a second (a leak); intake: share of the turbo's boost leaking (no turbo, nothing); gearbox, differential, exhaust: damage 0..1. wheelOff: a corner hit from this strength tears the wheel off (for the drive: the reset or the garage puts it back, bent and flat). effects (the physics): toe — hands off, the steering settles centreShare of the way to where the damaged front wheels run straight (the steering wheel sits off-centre, the car still pulls); camber: gripPerDeg of the tyre's grip lost a degree, down to minGrip; rim: wobble N a mm of bend at 100 km/h (by the speed squared); tyre: below flatBelow pressure it's flat (on its rim: rimGrip), above it grip goes from gripAtZero up to full, the tyre sags dropShare of its sidewall at nothing (mostly near flat) and drags flatRolling more; cooling: the engine's heat (heatPerKw °C/s a kW it makes, idleHeat idling) against the radiator (cooling °C/s a °C over ambient × the coolant's share — dryShare with none, full from fullCoolant, lowCoolant up — × airflow: airflowBase standing, full from airflowSpeed m/s — × the thermostat opening round thermostat °C); at warn a warning, at limp limp mode (limpTorque of the torque, limpRpm rev limit, the automatic's shifts scaled down to it) until it's cooled to recover; from cook it loses cookRate condition a second (more the hotter), and can seize; clutch: slipping heats it (heatCapacity J/°C, losing cooling of its heat over ambient a second); past wearFrom °C it wears wearRate a °C a second, and worn it holds capacityLoss × wear less; gearbox: from failFrom damage a gear can fail to go in (up to failMax of the time at full damage; tried again after retry s), grinding from grindFrom; a money shift (an over-rev downshift) costs overRevShift × how far over; differential: bias × damage of the torque to one side, and a surge of ripple × damage once a turn; kerb: a wheel meeting a step up of at least minStep m (a kerb's edge, a bump) at speed goes up at speed × sin of the angle it meets it — past speed (m/s) that's a strike on its corner as hard as the excess × scale (a slope's change of angle counts the same way); landing: a wheel landing faster than speed m/s strikes its corner as hard as the excess × scale; hub: a wheel torn off leaves its hub (radius m) on the road, not rolling: it slides and gouges (grip: of its load), and its drive shaft turns free. saveEvery: s between writing back what changes while driving (tyre pressures, coolant, clutch wear).",
+    "zoneReach": 0.35,
+    "systems": {
+      "steering": {
+        "from": 3,
+        "toePerMs": 0.45,
+        "max": 4
+      },
+      "suspension": {
+        "from": 4,
+        "camberPerMs": 0.25,
+        "maxCamber": 5,
+        "ridePerMs": 0.0025,
+        "maxRide": 0.06,
+        "damperPerMs": 0.035,
+        "minDamper": 0.15
+      },
+      "rim": {
+        "from": 4,
+        "bendPerMs": 0.35,
+        "max": 8
+      },
+      "tyre": {
+        "from": 7,
+        "leakPerMs": 0.0015,
+        "maxLeak": 0.05
+      },
+      "brakeLine": {
+        "from": 5,
+        "perMs": 0.04,
+        "max": 0.7
+      },
+      "radiator": {
+        "from": 5,
+        "leakPerMs": 0.0012,
+        "max": 0.03
+      },
+      "intake": {
+        "from": 6,
+        "leakPerMs": 0.04,
+        "max": 0.7
+      },
+      "gearbox": {
+        "from": 12,
+        "perMs": 0.025,
+        "max": 1
+      },
+      "differential": {
+        "from": 9,
+        "perMs": 0.03,
+        "max": 1
+      },
+      "exhaust": {
+        "from": 4,
+        "perMs": 0.04,
+        "max": 1
+      }
+    },
+    "wheelOff": {
+      "from": 21
+    },
+    "underbody": {
+      "_note": "A landing hard enough to bottom the car out (a wheel strike of at least from) hits its belly too, at share × the strike: the exhaust, gearbox, diff and sump (the radiator: its coolant). Skid plates (a part's protects) keep their share of it off.",
+      "from": 8,
+      "share": 0.8,
+      "systems": ["exhaust", "gearbox", "differential", "radiator"]
+    },
+    "effects": {
+      "toe": {
+        "centreShare": 0.7
+      },
+      "camber": {
+        "gripPerDeg": 0.035,
+        "minGrip": 0.75
+      },
+      "rim": {
+        "wobble": 60
+      },
+      "tyre": {
+        "flatBelow": 0.08,
+        "gripAtZero": 0.6,
+        "rimGrip": 0.3,
+        "dropShare": 0.75,
+        "flatRolling": 0.06
+      },
+      "cooling": {
+        "ambient": 25,
+        "heatPerKw": 0.012,
+        "idleHeat": 0.12,
+        "cooling": 0.035,
+        "airflowBase": 0.35,
+        "airflowSpeed": 25,
+        "thermostat": 90,
+        "warn": 108,
+        "limp": 116,
+        "recover": 100,
+        "cook": 117,
+        "cookRate": 0.2,
+        "limpTorque": 0.5,
+        "limpRpm": 4200,
+        "dryShare": 0.25,
+        "lowCoolant": 0.1,
+        "fullCoolant": 0.6
+      },
+      "clutch": {
+        "heatCapacity": 1500,
+        "cooling": 0.015,
+        "wearFrom": 150,
+        "wearRate": 0.0001,
+        "capacityLoss": 0.6
+      },
+      "gearbox": {
+        "failFrom": 0.4,
+        "failMax": 0.5,
+        "retry": 0.3,
+        "grindFrom": 0.15,
+        "overRevShift": 0.3
+      },
+      "differential": {
+        "bias": 0.08,
+        "ripple": 0.12
+      },
+      "kerb": {
+        "minStep": 0.04,
+        "speed": 9,
+        "scale": 0.8
+      },
+      "landing": {
+        "speed": 5,
+        "scale": 2
+      },
+      "hub": {
+        "radius": 0.12,
+        "grip": 1.2
+      }
+    },
+    "saveEvery": 2
+  }
+}

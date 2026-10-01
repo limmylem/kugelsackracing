@@ -1,0 +1,34 @@
+{
+  "id": "kaze_gt_gearbox",
+  "name": "6-speed manual (Kaze GT, stock)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1620,
+  "mass": 42,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_gearbox.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std"],
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [3.63, 2.19, 1.54, 1.21, 1, 0.77],
+    "reverse": 3.44,
+    "finalDrive": 4.1,
+    "shiftTime": 0.15,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7700,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 7400,
+      "downLight": 1300,
+      "downFull": 4000,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "stock"
+}

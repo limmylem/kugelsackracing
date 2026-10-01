@@ -1,0 +1,20 @@
+{
+  "id": "brute_500_steering_wheel",
+  "name": "Steering wheel (Brute 500, stock)",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 90,
+  "mass": 2,
+  "model": "assets/parts/stock/brute_500/brute_500_steering_wheel.glb",
+  "icon": "assets/icons/parts/brute_500_steering_wheel.png",
+  "fits": ["car:brute_500"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.19, -0.19, -0.015],
+    "max": [0.19, 0.19, 0.015]
+  }
+}

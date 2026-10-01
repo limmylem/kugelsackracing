@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Part preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../ui/theme.css">
+<style>
+  /* The part preview (a development page): the parts by category on the left, the 3D view, what's
+     shown and the part's details and fit check on the right. Built on ui/theme.css. */
+  html, body { margin: 0; height: 100%; background: var(--c-base); overflow: hidden; }
+  body { display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; height: 100vh; }
+  .side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--c-line-soft); background: var(--c-panel); }
+  .side.right { border-right: 0; border-left: 1px solid var(--c-line-soft); }
+  .side .head { padding: 16px; border-bottom: 1px solid var(--c-line-soft); display: flex; flex-direction: column; gap: 10px; }
+  .side .body { flex: 1; overflow: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  input[type=text], select { height: 36px; padding: 0 10px; border-radius: var(--r-btn); background: var(--c-viewport); border: 1px solid var(--c-line); color: var(--c-text); font: inherit; font-size: 14px; }
+  input[type=color] { width: 36px; height: 32px; padding: 0; border: 1px solid var(--c-line); border-radius: var(--r-btn); background: none; }
+  .cat { display: flex; flex-direction: column; gap: 2px; }
+  .cat > .label { padding: 4px 0; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--r-btn); text-align: left; width: 100%; font-size: 14px; }
+  .item:hover { background: var(--c-raised); }
+  .item.on { background: var(--c-accent-tint); color: var(--c-accent); }
+  .item img, .item .ph { width: 32px; height: 32px; flex: none; border-radius: 4px; background: var(--c-viewport); }
+  .item .ph { display: flex; align-items: center; justify-content: center; color: var(--c-text-3); }
+  .item .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--c-warn); }
+  .item.variant { padding-left: 26px; }
+  .view { position: relative; min-width: 0; }
+  .view canvas { display: block; width: 100%; height: 100%; }
+  .toolbar { position: absolute; left: 16px; right: 16px; top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toolbar .group { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-radius: var(--r-card); background: rgba(7, 9, 11, 0.85); border: 1px solid var(--c-line); font-size: 13px; }
+  .toolbar label { display: flex; gap: 6px; align-items: center; color: var(--c-text-2); cursor: pointer; }
+  .hud { position: absolute; left: 16px; bottom: 16px; font-family: var(--f-mono); font-size: 12px; color: var(--c-text-2); background: rgba(7, 9, 11, 0.8); padding: 8px 10px; border-radius: var(--r-btn); white-space: pre; }
+  .kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 10px; font-size: 13px; }
+  .kv > :nth-child(odd) { color: var(--c-text-3); }
+  .kv > :nth-child(even) { font-family: var(--f-mono); overflow-wrap: anywhere; }
+  .note { display: flex; gap: 8px; font-size: 13px; line-height: 1.4; color: var(--c-text-2); }
+  .note .icon { font-size: 18px; flex: none; }
+  .note.good .icon { color: var(--c-good); } .note.warn .icon { color: var(--c-warn); } .note.bad .icon { color: var(--c-bad); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .big-icon { width: 128px; height: 128px; border-radius: var(--r-card); background: var(--c-viewport); align-self: center; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body class="ui">
+  <aside class="side">
+    <div class="head"><div class="panel-title">Parts</div><input type="text" id="search" placeholder="Search parts" aria-label="Search parts"></div>
+    <div class="body" id="list"></div>
+  </aside>
+  <main class="view" id="view">
+    <div class="toolbar">
+      <div class="group"><div class="segmented" id="mode"><button data-mode="alone" class="on">Alone</button><button data-mode="car">On a car</button></div><select id="car" aria-label="Car"></select></div>
+      <div class="group"><label><input type="checkbox" id="sockets">Sockets</label><label><input type="checkbox" id="wire">Wireframe</label><label><input type="checkbox" id="bounds">Bounds</label><label><input type="checkbox" id="stats" checked>Triangles</label></div>
+      <div class="group"><span>Paint</span><input type="color" id="paint" value="#6d9a91" aria-label="Paint colour"><select id="paintFinish" aria-label="Paint finish"></select><span>Part</span><select id="partFinish" aria-label="Part finish"><option value="">its own look</option></select></div>
+    </div>
+    <div class="hud" id="hud"></div>
+  </main>
+  <aside class="side right">
+    <div class="head"><div class="label" id="where">—</div><div class="panel-title" id="title">Pick a part</div></div>
+    <div class="body" id="info"></div>
+  </aside>
+<script type="module" src="parts.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Runs before every commit (switched on by npm install, or npm run hooks): the data against its schemas,
+# every model against the model rules, and the headless physics tests. Any failure stops the commit
+# (git commit --no-verify skips it, for a work-in-progress commit).
+set -e
+echo "pre-commit: data (npm run check)"
+npm run --silent check
+echo "pre-commit: models (npm run check-models)"
+npm run --silent check-models -- --quiet
+echo "pre-commit: physics tests (npm test)"
+npm test --silent

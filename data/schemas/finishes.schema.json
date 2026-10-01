@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finishes.schema.json",
+  "title": "Finishes",
+  "description": "Material finishes shared by every car and part (data/finishes.json): what a paint finish or a part's finish does to its material. Fields starting with _ are notes.",
+  "type": "object",
+  "required": ["finishes"],
+  "patternProperties": { "^_": { "type": "string" } },
+  "additionalProperties": false,
+  "properties": {
+    "finishes": { "type": "object", "propertyNames": { "pattern": "^[a-z0-9_]+$" }, "additionalProperties": { "$ref": "#/$defs/finish" } }
+  },
+  "$defs": {
+    "share": { "type": "number", "minimum": 0, "maximum": 1 },
+    "finish": {
+      "type": "object", "required": ["name"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "paint": { "type": "boolean", "description": "A car can be painted in it (it takes the paint's colour)" },
+        "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Its own colour (chrome, carbon); a colour chosen for the part or car wins" },
+        "roughness": { "$ref": "#/$defs/share" },
+        "metalness": { "$ref": "#/$defs/share" },
+        "clearcoat": { "$ref": "#/$defs/share" },
+        "clearcoatRoughness": { "$ref": "#/$defs/share" },
+        "iridescence": { "$ref": "#/$defs/share" },
+        "iridescenceIOR": { "type": "number", "minimum": 1, "maximum": 2.333 },
+        "sheen": { "$ref": "#/$defs/share" },
+        "sheenColour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "sheenRoughness": { "$ref": "#/$defs/share" },
+        "reflective": { "type": "boolean", "description": "Needs reflections of the surroundings to look right (the game gives it an environment map)" },
+        "envIntensity": { "type": "number", "minimum": 0, "maximum": 4 },
+        "keepTexture": { "type": "boolean", "description": "Keep the model's texture under the finish (tinted by the colour) instead of a plain colour" }
+      }
+    }
+  }
+}

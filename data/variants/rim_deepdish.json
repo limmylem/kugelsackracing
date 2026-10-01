@@ -1,0 +1,114 @@
+{
+  "_note": "The deep-dish rim's sizes and finishes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Prices: $560 × the options' factors.",
+  "base": "rim_deepdish",
+  "id": "{base}_{size}_{finish}",
+  "name": "{size}\" deep-dish wheel, {finish}",
+  "price": {
+    "base": "part",
+    "round": 10
+  },
+  "skip": [
+    {
+      "size": "17",
+      "finish": "polished"
+    }
+  ],
+  "groups": {
+    "size": {
+      "16": {
+        "name": "16",
+        "priceFactor": 0.9,
+        "scale": [0.944, 0.941, 0.941],
+        "set": {
+          "rim": {
+            "diameter": 16,
+            "width": 8.5,
+            "offset": 20
+          },
+          "provides": ["rim:16", "rim_width:wide"],
+          "fits": ["wheel_hub:std", "rim_fits:16"]
+        },
+        "multiply": {
+          "mass": 0.92
+        }
+      },
+      "17": {
+        "name": "17",
+        "scale": [1, 1, 1],
+        "set": {
+          "rim": {
+            "diameter": 17,
+            "width": 9,
+            "offset": 15
+          },
+          "provides": ["rim:17", "rim_width:wide"],
+          "fits": ["wheel_hub:std", "rim_fits:17"]
+        }
+      },
+      "18": {
+        "name": "18",
+        "priceFactor": 1.15,
+        "scale": [1.056, 1.059, 1.059],
+        "set": {
+          "rim": {
+            "diameter": 18,
+            "width": 9.5,
+            "offset": 12
+          },
+          "provides": ["rim:18", "rim_width:wide"],
+          "fits": ["wheel_hub:std", "rim_fits:18"]
+        },
+        "multiply": {
+          "mass": 1.1
+        }
+      },
+      "19": {
+        "name": "19",
+        "priceFactor": 1.3,
+        "scale": [1.111, 1.118, 1.118],
+        "set": {
+          "rim": {
+            "diameter": 19,
+            "width": 10,
+            "offset": 10
+          },
+          "provides": ["rim:19", "rim_width:wide"],
+          "fits": ["wheel_hub:std", "rim_fits:19"]
+        },
+        "multiply": {
+          "mass": 1.2
+        }
+      }
+    },
+    "finish": {
+      "polished": {
+        "name": "polished",
+        "priceFactor": 1.1,
+        "look": {
+          "finish": "chrome"
+        }
+      },
+      "chrome": {
+        "name": "chrome",
+        "priceFactor": 1.1,
+        "look": {
+          "finish": "chrome"
+        }
+      },
+      "black": {
+        "name": "gloss black",
+        "look": {
+          "finish": "gloss_black"
+        }
+      },
+      "gold": {
+        "name": "gold",
+        "priceFactor": 1.05,
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#c9a13b"
+        }
+      }
+    }
+  }
+}

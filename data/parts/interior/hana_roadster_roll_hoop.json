@@ -1,0 +1,24 @@
+{
+  "id": "hana_roadster_roll_hoop",
+  "name": "Roll hoop (Hana Roadster)",
+  "category": "interior",
+  "slot": "roll_cage",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "safety",
+  "price": 650,
+  "mass": 11,
+  "model": "",
+  "modelTodo": "Hana Roadster roll hoop: a 45 mm tube hoop behind both seats, 120 cm wide and 75 cm tall, with two short braces back to the deck.",
+  "icon": "assets/icons/parts/hana_roadster_roll_hoop.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A padded roll hoop behind the seats: a stiffer, tougher shell (chassisToughness), and a bar over your head with the roof down.",
+  "chassisToughness": 0.2,
+  "bounds": {
+    "min": [-0.6, -0.2, -0.1],
+    "max": [0.6, 0.55, 0.1]
+  }
+}

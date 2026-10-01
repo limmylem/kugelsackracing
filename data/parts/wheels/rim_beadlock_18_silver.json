@@ -1,0 +1,36 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "looks",
+  "price": 600,
+  "mass": 15.12,
+  "toughness": 2.2,
+  "modelTodo": "An off-road beadlock rim: a steel eight-spoke face and a bolted beadlock ring (24 bolts) round the outer lip, origin at the hub face; one model for every size (scaled).",
+  "fits": ["wheel_hub:std", "chassis:offroad", "rim_fits:18"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "rim": {
+    "diameter": 18,
+    "width": 9,
+    "offset": 0
+  },
+  "massOffset": [0.012, 0, 0],
+  "id": "rim_beadlock_18_silver",
+  "name": "18\" off-road beadlock wheel, silver",
+  "model": "",
+  "icon": "assets/icons/parts/rim_beadlock_18_silver.png",
+  "variantOf": "rim_beadlock",
+  "look": {
+    "scale": [1.059, 1.059, 1.059],
+    "finish": "raw_metal",
+    "colour": "#c9ccd1"
+  },
+  "generated": {
+    "table": "rim_beadlock",
+    "key": "size=18,finish=silver"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_beadlock.json: change the table, not this file."
+}

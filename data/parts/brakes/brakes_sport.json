@@ -1,0 +1,56 @@
+{
+  "id": "brakes_sport",
+  "name": "Big brake kit, 4-piston (sport)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "tier": "sport",
+  "price": 1100,
+  "mass": 36,
+  "model": "",
+  "icon": "assets/icons/parts/brakes_sport.png",
+  "fits": ["brake_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A big brake kit for any car: bigger discs and callipers than its own (17% more disc radius at the front), more heat capacity, later fade.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "brakes.front.discRadius",
+        "op": "multiply",
+        "value": 1.1683
+      },
+      {
+        "target": "brakes.rear.discRadius",
+        "op": "multiply",
+        "value": 1.0834
+      },
+      {
+        "target": "brakes.front.pistonArea",
+        "op": "multiply",
+        "value": 1.1354
+      },
+      {
+        "target": "brakes.front.heatCapacity",
+        "op": "multiply",
+        "value": 1.4737
+      },
+      {
+        "target": "brakes.rear.heatCapacity",
+        "op": "multiply",
+        "value": 1.2308
+      },
+      {
+        "target": "brakes.fade.startTemp",
+        "op": "add",
+        "value": 40
+      },
+      {
+        "target": "brakes.fade.fullTemp",
+        "op": "add",
+        "value": 30
+      }
+    ]
+  }
+}

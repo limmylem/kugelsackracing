@@ -1,0 +1,29 @@
+{
+  "id": "ridgeback_4x4_bull_bar",
+  "name": "Steel bull bar (Ridgeback 4x4)",
+  "category": "body",
+  "slot": "bull_bar",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "offroad",
+  "price": 780,
+  "mass": 38,
+  "toughness": 3,
+  "model": "",
+  "modelTodo": "Ridgeback bull bar: a 60 mm steel tube frame across the front, 175 cm wide and 70 cm tall, a centre hoop and light mounts.",
+  "icon": "assets/icons/parts/ridgeback_4x4_bull_bar.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A steel bull bar: heavy, but it takes a hit for the bumper, lights and radiator behind it.",
+  "bounds": {
+    "min": [-0.875, -0.35, -0.125],
+    "max": [0.875, 0.35, 0.125]
+  },
+  "protects": {
+    "slots": ["bumper_front", "radiator", "fog_lights"],
+    "systems": ["radiator"],
+    "by": 0.6
+  }
+}

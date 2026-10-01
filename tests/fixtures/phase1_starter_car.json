@@ -1,0 +1,324 @@
+{
+  "name": "Starter roadster",
+  "_axes": "Car frame: +x left, +y up, +z forward, origin on the ground under the middle of the car. Units: metres, kilograms, newtons, radians, seconds.",
+  "_tuning": "Tuned at the test centre (npm test, or the Tests tab in the tuning panel, P) to drive like a small, older, slightly soft rear-drive coupe: 0–100 km/h in about 9.1 s, 100–0 in about 41 m, 0.83 g on the skidpad with gentle understeer at the limit (it lets go at the front first) and about 4° of body roll, top speed about 191 km/h in 4th. Targets: tests/targets.json.",
+  "model": {
+    "file": "roadster.glb",
+    "forwardAxis": "+x",
+    "sockets": {
+      "FL": "socket_wheel_FL",
+      "FR": "socket_wheel_FR",
+      "RL": "socket_wheel_RL",
+      "RR": "socket_wheel_RR",
+      "spoiler": "socket_spoiler"
+    },
+    "wheels": {
+      "FL": "wheel_FL",
+      "FR": "wheel_FR",
+      "RL": "wheel_RL",
+      "RR": "wheel_RR"
+    },
+    "steeringWheel": "socket_steering_wheel"
+  },
+  "mass": 1150,
+  "centreOfMass": [0, 0.45, 0.05],
+  "inertiaBox": [1.74, 1.1, 3.75],
+  "bodyCollider": {
+    "centre": [0, 0.62, 0],
+    "halfExtents": [0.85, 0.3, 1.85],
+    "friction": 0.4,
+    "restitution": 0.1
+  },
+  "suspension": {
+    "restLength": 0.3,
+    "travel": 0.22,
+    "stiffness": 30000,
+    "damping": 3200
+  },
+  "wheels": {
+    "radius": 0.33,
+    "inertia": 1.3,
+    "front": ["FL", "FR"],
+    "rear": ["RL", "RR"]
+  },
+  "steering": {
+    "_note": "ratio: steering wheel angle ÷ front wheel angle; maxWheelRotation: steering wheel lock to lock (degrees), so the front wheels turn up to (maxWheelRotation/2) ÷ ratio. Keyboard / gamepad: the front wheels' reach shrinks with speed (falloffSpeed) and they move at rate / returnRate rad/s, slower at speed (rateFalloffSpeed); a gamepad steers gamepadRateScale × faster. A steering wheel goes straight through. ackermann: 1 = the inside wheel turns enough for both to roll round the same centre.",
+    "ratio": 14,
+    "maxWheelRotation": 900,
+    "falloffSpeed": 28,
+    "rate": 2.6,
+    "rateFalloffSpeed": 30,
+    "returnRate": 4,
+    "gamepadRateScale": 2.5,
+    "ackermann": 1,
+    "counterSteer": {
+      "_note": "Countersteer assist (keyboard / gamepad): as the rear axle starts sliding sideways (fading in from slideFrom to slideTo radians) the front wheels may turn as far as it takes to point where the car is going (zero front slip angle, where the self-aligning torque pulls them), faster (rate), and with no steering input they go there on their own.",
+      "slideFrom": 0.1,
+      "slideTo": 0.3,
+      "margin": 0.06,
+      "rate": 4,
+      "minSpeed": 3
+    },
+    "selfAligning": {
+      "_note": "Self-aligning torque at the front wheels = side force × trail. Pneumatic trail shrinks from pneumaticTrail (m) to nothing at trailZeroAtPeak × the tyre's peak slip angle, so the steering goes light as the front loses grip; mechanicalTrail (caster, m) stays. ffbFullScale: torque (N·m, at the kingpins) that gives full force feedback.",
+      "pneumaticTrail": 0.035,
+      "trailZeroAtPeak": 1.3,
+      "mechanicalTrail": 0.012,
+      "ffbFullScale": 160
+    }
+  },
+  "pedals": {
+    "_note": "Keyboard keys are on/off, so the pedals move at these rates (full travel per second): a tap is part throttle.",
+    "throttleRise": 3,
+    "throttleFall": 8,
+    "brakeRise": 5,
+    "brakeFall": 10
+  },
+  "drivetrain": {
+    "_note": "layout picks the driven axle: RWD or FWD (AWD needs a centre differential, not built yet). efficiency is the share of engine torque that reaches the wheels (gear and bearing losses).",
+    "layout": "RWD",
+    "efficiency": 0.9
+  },
+  "engine": {
+    "_note": "About a 1.7 L four: ~115 hp at about 6000 rpm, 158 N·m at 4500. torqueCurve is full-throttle torque at the flywheel (rpm, N·m), what a dyno shows. friction (base + perKrpm·k + perKrpm2·k², k = rpm/1000, N·m) is what's left with the throttle shut: engine braking. inertia is the crank and flywheel (kg·m²). The idle controller opens the throttle to hold idleRpm; the rev limiter cuts fuel at redlineRpm and restores it limiter.hysteresis rpm lower. induction: 'natural' (loses torque in thin air, in proportion to the air density) or 'turbo' / 'supercharged' (full torque for now; boost making up for altitude comes later).",
+    "torqueCurve": [[800, 95], [1500, 113], [2000, 124], [2500, 133], [3000, 142], [3500, 150], [4000, 155], [4500, 158], [5000, 154], [5500, 147], [6000, 136], [6500, 123], [6800, 116], [7200, 102]],
+    "idleRpm": 900,
+    "redlineRpm": 6800,
+    "inertia": 0.12,
+    "induction": "natural",
+    "friction": {
+      "base": 8,
+      "perKrpm": 4,
+      "perKrpm2": 0.5
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    }
+  },
+  "clutch": {
+    "_note": "Friction coupling between engine and gearbox: it holds up to maxTorque (N·m) when fully closed, less as it opens, and slips beyond that. engageTime / releaseTime: seconds to close / open fully. Below idle its grip eases off (antiStallRpm → idleRpm) so the engine doesn't stall. Auto-clutch (keyboard / gamepad; a clutch pedal input overrides it): pulling away it slips to hold the engine near an rpm rising with throttle up to auto.launchRpm (it carries the engine's torque plus inertia × holdRate × the rpm error, so the engine settles there), closes once the car is rolling (engine would be above idle + auto.engageAbove) and opens when slowing to a stop.",
+    "maxTorque": 240,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 600,
+    "auto": {
+      "launchRpm": 4000,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "gearbox": {
+    "_note": "5-speed for a small coupe. ratios / reverse × finalDrive give the overall ratio. shiftTime: seconds with no drive while a gear changes (the engine is rev-matched meanwhile, revMatchGain throttle per rpm off). mode: 'auto' or 'sequential' (the game can switch). Sequential refuses a downshift that would put the engine over maxDownshiftRpm. Automatic: upshifts when the engine (from road speed, so wheelspin doesn't count) passes upLight..upFull rpm (light..full throttle), downshifts under downLight..downFull, kicking straight down to the lowest gear that stays downMargin under the upshift point, at most every minInterval s; below stopSpeed m/s holding S selects reverse and W first.",
+    "mode": "auto",
+    "ratios": [3.31, 1.9, 1.33, 1, 0.81],
+    "reverse": 3.25,
+    "finalDrive": 4.3,
+    "shiftTime": 0.25,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7000,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6700,
+      "downLight": 1300,
+      "downFull": 3600,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "differential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m).",
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.3
+  },
+  "brakes": {
+    "_note": "Pedal → line pressure (up to maxPressureBar) → each caliper: torque = 2 pads × pad friction × pressure × piston area (m²) × effective disc radius (m). bias: share of braking torque at the front (a balance valve trims one axle). Discs heat with the work they do (J) over their heatCapacity (J/K) and cool by (cooling.still + cooling.perSpeed × speed) W/K toward cooling.ambient °C. Pad friction falls toward fade.muAtFull × its value between fade.startTemp and fade.fullTemp °C. The handbrake is a separate rear torque (N·m); disengageClutch opens the clutch while it's held. autoHold parks the car: below belowSpeed m/s with no pedal, all four brakes hold with torque N·m.",
+    "maxPressureBar": 80,
+    "bias": 0.68,
+    "front": {
+      "discRadius": 0.115,
+      "pistonArea": 0.00229,
+      "padMu": 0.42,
+      "heatCapacity": 950
+    },
+    "rear": {
+      "discRadius": 0.105,
+      "pistonArea": 0.00113,
+      "padMu": 0.4,
+      "heatCapacity": 650
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3200,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "_note": "Parks the car: below this speed with no throttle, all four brakes hold.",
+      "belowSpeed": 0.3,
+      "torque": 1500
+    }
+  },
+  "assists": {
+    "_note": "Driver aids: each can be switched on and off in the game's settings (these are the defaults). ABS: per wheel, when the slip passes releaseAt × the tyre's peak-grip slip it dumps pressure at releaseRate (share per second, down to minPressure), holds holdTime s once the slip is back under reapplyAt × peak, then reapplies at applyRate — it pulses; off below minSpeed m/s. Traction control closes the throttle once a driven wheel slips past its target (fully by a window later): straightSlipTarget / Window pointing straight, easing to slipTarget / slipWindow as you steer or drift; strength 0..1 (0.5 = these values, 1 = half, 0 = double). The slide limiter (with traction control) fades the drive once the rear slides past angle rad (looking lookAhead s ahead). Stability control: expected yaw rate = speed × tan(front angle) ÷ (wheelbase × (1 + (speed / characteristicSpeed)²)), capped by grip; turning faster than that by yawThreshold rad/s with the rear sliding past slipAllowance rad (driftSlipAllowance with the drift assist on), or by strongYawError, brakes the outside front (oversteerGain N·m per rad/s); turning slower brakes the inside rear (understeerGain) and the inside front by understeerFrontShare of that; at most maxTorque, easing the throttle by up to throttleCut; above minSpeed m/s; it leaves oversteer alone while the handbrake is held and handbrakeHold s after. Countersteer, steering and drift assists are for keyboard / gamepad (see steering.counterSteer and the drift section).",
+    "abs": {
+      "enabled": true,
+      "releaseAt": 1.1,
+      "reapplyAt": 0.75,
+      "releaseRate": 16,
+      "applyRate": 8,
+      "holdTime": 0.02,
+      "minPressure": 0.1,
+      "minSpeed": 2
+    },
+    "tractionControl": {
+      "enabled": true,
+      "strength": 0.5,
+      "slipTarget": 0.45,
+      "slipWindow": 0.4,
+      "straightSlipTarget": 0.15,
+      "straightSlipWindow": 0.2
+    },
+    "slideLimit": {
+      "angle": 0.85,
+      "window": 0.3,
+      "lookAhead": 0.3
+    },
+    "stability": {
+      "enabled": true,
+      "characteristicSpeed": 25,
+      "yawThreshold": 0.12,
+      "slipAllowance": 0.14,
+      "driftSlipAllowance": 0.6,
+      "strongYawError": 1.6,
+      "oversteerGain": 2500,
+      "understeerGain": 2500,
+      "maxTorque": 1400,
+      "throttleCut": 0.7,
+      "minSpeed": 5,
+      "understeerFrontShare": 0.5,
+      "handbrakeHold": 0.8
+    },
+    "countersteer": {
+      "enabled": true
+    },
+    "steering": {
+      "enabled": true,
+      "ofPeakSlip": 1.15
+    },
+    "drift": {
+      "enabled": true,
+      "from": 0.15,
+      "to": 0.35,
+      "hold": 0.08,
+      "range": 0.15,
+      "unwindTime": 0.8,
+      "rearGripLoss": 0.15,
+      "angle": 0.45,
+      "powerGain": 3,
+      "powerDamping": 0.15,
+      "steerDamping": 0.25
+    }
+  },
+  "tyre": {
+    "_note": "Pacejka Magic Formula F = D*N*sin(C*atan(B*x - E*(B*x - atan(B*x)))): x is the slip ratio (longitudinal) or slip angle in radians (lateral), D is the friction coefficient, N the wheel's load. Below lowSpeed.blendEnd the forces blend into a spring-damper stiction model so a stopped car doesn't creep or jitter.",
+    "longitudinal": {
+      "B": 16,
+      "C": 1.5,
+      "D": 1.05,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 11,
+      "C": 1.4,
+      "D": 0.88,
+      "E": -0.2
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.012,
+    "wheelSubsteps": 6
+  },
+  "aero": {
+    "_note": "Aero forces are ½ ρ C A v² with the car's velocity through the air (minus wind, m/s world frame) and ρ from the standard atmosphere at the car's altitude (the world gives its ground level's altitude). Drag (dragCoefficient × frontalArea) acts at the centre of mass along the airflow. front / rear.liftCoefficient (+ lift, − downforce, also × frontalArea) act at their points (car frame, m), so the balance changes the handling: this car makes a little lift at both ends, so it gets lighter at speed. Air hitting the body from the side (sliding) raises drag up to sideways.dragFactor × and loses sideways.liftLoss of the lift / downforce, both by sin² of the angle. Parts (parts/*.json) add their own coefficients at their sockets.",
+    "dragCoefficient": 0.38,
+    "frontalArea": 1.9,
+    "front": {
+      "liftCoefficient": 0.08,
+      "point": [0, 0.55, 1.2]
+    },
+    "rear": {
+      "liftCoefficient": 0.1,
+      "point": [0, 0.6, -1.2]
+    },
+    "sideways": {
+      "dragFactor": 2.6,
+      "liftLoss": 0.9
+    },
+    "wind": [0, 0, 0],
+    "slipstream": {
+      "_note": "Behind another car: drag drops by up to maxDragCut and downforce by maxDownforceLoss, fully up to peak m behind, fading out by reach m; the wake is width m wide plus spread m per metre behind; nothing below minSpeed m/s or closer than minGap m.",
+      "reach": 30,
+      "peak": 6,
+      "width": 1.6,
+      "spread": 0.06,
+      "maxDragCut": 0.4,
+      "maxDownforceLoss": 0.25,
+      "minSpeed": 10,
+      "minGap": 1
+    }
+  },
+  "camera": {
+    "_note": "Cameras (for the game, not the physics). chase: distance / height behind the car (m), where it looks (lookHeight above the car, lookAhead in front), positionLag / headingLag (s: how far it trails the car's position and heading), accelLag (m it drifts back per g of acceleration, forward under braking, out in corners), sway (share of the body's roll and pitch it follows), fov (°) widening by fovAtSpeed at fovSpeed km/h. shake (0–1 each): road bumps, kerbs, and very high speed from shakeFrom km/h. bonnet / cockpit: eye position in the car frame (m), fov, pitch (° looking down); in the cockpit the head leans with the g-forces (headSway m per g) and glances into turns (glance s of yaw).",
+    "chase": {
+      "distance": 6.2,
+      "height": 2.1,
+      "lookHeight": 1,
+      "lookAhead": 2.5,
+      "positionLag": 0.08,
+      "headingLag": 0.22,
+      "accelLag": 0.6,
+      "sway": 0.35,
+      "fov": 58,
+      "fovAtSpeed": 12,
+      "fovSpeed": 200
+    },
+    "shake": {
+      "bumps": 0.6,
+      "kerbs": 0.6,
+      "speed": 0.5,
+      "shakeFrom": 140
+    },
+    "bonnet": {
+      "position": [0, 1.1, 1],
+      "fov": 66,
+      "pitch": 1
+    },
+    "cockpit": {
+      "position": [0.36, 1.18, -0.52],
+      "fov": 70,
+      "pitch": 5,
+      "headSway": 0.03,
+      "glance": 0.15
+    }
+  },
+  "spawnHeight": 0.1
+}

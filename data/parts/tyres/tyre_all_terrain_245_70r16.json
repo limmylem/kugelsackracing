@@ -1,0 +1,64 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "offroad",
+  "price": 150,
+  "mass": 10.32,
+  "toughness": 1.5,
+  "fits": ["rim:16"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "An all-terrain tyre: good off road, fine on it.",
+  "tyreSize": {
+    "width": 245,
+    "sidewall": 70,
+    "compound": "all_terrain"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 13,
+      "C": 1.5,
+      "D": 1.05,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 9,
+      "C": 1.4,
+      "D": 0.8,
+      "E": -0.1
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.016,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 1,
+      "grass": 1.15,
+      "gravel": 1.05,
+      "ice": 1.1,
+      "tarmac": 0.96
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.2
+  },
+  "id": "tyre_all_terrain_245_70r16",
+  "name": "245/70 R16 all-terrain tyre",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_all_terrain_245_70r16.png",
+  "variantOf": "tyre_all_terrain",
+  "generated": {
+    "table": "tyre_all_terrain",
+    "key": "size=245_70r16"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_all_terrain.json: change the table, not this file."
+}

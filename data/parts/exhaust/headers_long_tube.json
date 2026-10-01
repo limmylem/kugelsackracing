@@ -1,0 +1,49 @@
+{
+  "id": "headers_long_tube",
+  "name": "Long-tube headers",
+  "category": "exhaust",
+  "slot": "header",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 1500,
+  "mass": -3,
+  "model": "",
+  "icon": "assets/icons/parts/headers_long_tube.png",
+  "fits": [
+    ["exhaust_flange:rs", "exhaust_flange:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Long equal-length headers for any engine: the most power up top, a raw note.",
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.065,
+      "when": {
+        "rpm": [4000, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.97,
+      "when": {
+        "rpm": [0, 2000],
+        "fade": 500
+      }
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.1
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 1.06
+    }
+  ]
+}

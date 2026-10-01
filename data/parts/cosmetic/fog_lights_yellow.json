@@ -1,0 +1,30 @@
+{
+  "id": "fog_lights_yellow",
+  "name": "Yellow fog lights",
+  "category": "cosmetic",
+  "slot": "fog_lights",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 260,
+  "mass": 1.6,
+  "model": "",
+  "modelTodo": "Yellow fog lights: two 14 × 7 cm rectangular lamps with yellow lenses, 110 cm apart, low in the front bumper.",
+  "icon": "assets/icons/parts/fog_lights_yellow.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A pair of rectangular yellow fog lights.",
+  "effects": [
+    {
+      "target": "cosmetic.fog",
+      "op": "set",
+      "value": "#ffd24a"
+    }
+  ],
+  "bounds": {
+    "min": [-0.6, 0, -0.04],
+    "max": [0.6, 0.08, 0.04]
+  }
+}

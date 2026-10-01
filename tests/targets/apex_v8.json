@@ -1,0 +1,41 @@
+{
+  "_note": "The Apex V8's targets: a 600 hp mid-engined supercar, 1500 kg, big aero — fast and demanding. pace: how hard the test robot drives it — 0.85 of the usual share of its tyres' grip on the circuit: at the usual pace the robot runs it wide in the infield.",
+  "pace": {
+    "lap": 0.85
+  },
+  "zeroTo100": {
+    "min": 3.4,
+    "max": 4
+  },
+  "quarterMile": {
+    "min": 11,
+    "max": 11.8
+  },
+  "braking": {
+    "min": 28.5,
+    "max": 32
+  },
+  "skidpad": {
+    "min": 1.02,
+    "max": 1.12
+  },
+  "slalom": {
+    "min": 7,
+    "max": 7.6
+  },
+  "topSpeed": {
+    "min": 315,
+    "max": 340
+  },
+  "lap": {
+    "min": 60,
+    "max": 66
+  },
+  "framerate": {
+    "min": 1,
+    "max": 1
+  },
+  "physicsCost": {
+    "max": 0.25
+  }
+}

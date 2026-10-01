@@ -1,0 +1,50 @@
+{
+  "id": "hana_roadster_brakes",
+  "name": "Disc brakes (Hana Roadster, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 360,
+  "mass": 30,
+  "model": "",
+  "icon": "assets/icons/parts/hana_roadster_brakes.png",
+  "fits": ["car:hana_roadster"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.65,
+    "front": {
+      "discRadius": 0.0911,
+      "pistonArea": 0.002065,
+      "padMu": 0.42,
+      "heatCapacity": 773
+    },
+    "rear": {
+      "discRadius": 0.0832,
+      "pistonArea": 0.001019,
+      "padMu": 0.4,
+      "heatCapacity": 529
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 2590,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 1263
+    }
+  },
+  "tier": "stock"
+}

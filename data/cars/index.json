@@ -1,0 +1,3 @@
+{
+  "cars": ["starter_car/car.json", "kaze_gt/car.json", "hana_roadster/car.json", "ridgeback_4x4/car.json", "vortex_r/car.json", "brute_500/car.json", "strada_evo/car.json", "apex_v8/car.json"]
+}

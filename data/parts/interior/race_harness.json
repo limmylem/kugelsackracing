@@ -1,0 +1,23 @@
+{
+  "id": "race_harness",
+  "name": "Race harness (6-point)",
+  "category": "interior",
+  "slot": "harness",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "safety",
+  "price": 380,
+  "mass": 2,
+  "model": "",
+  "modelTodo": "A six-point harness: two shoulder straps, lap belts and crotch straps in red webbing, laid over a bucket seat.",
+  "icon": "assets/icons/parts/race_harness.png",
+  "fits": [],
+  "requires": ["seat:bucket"],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A six-point harness for a bucket seat.",
+  "bounds": {
+    "min": [-0.2, 0, -0.05],
+    "max": [0.2, 0.7, 0.05]
+  }
+}

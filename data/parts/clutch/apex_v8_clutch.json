@@ -1,0 +1,27 @@
+{
+  "id": "apex_v8_clutch",
+  "name": "Clutch (Apex V8, stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 380,
+  "mass": 11,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_clutch.png",
+  "fits": ["clutch_spline:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "maxTorque": 780,
+    "engageTime": 0.08,
+    "releaseTime": 0.2,
+    "antiStallRpm": 700,
+    "auto": {
+      "launchRpm": 3800,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

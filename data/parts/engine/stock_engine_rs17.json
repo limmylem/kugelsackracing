@@ -1,0 +1,57 @@
+{
+  "id": "stock_engine_rs17",
+  "name": "RS17 1.7 L twin-cam four (stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 2600,
+  "mass": 118,
+  "model": "assets/parts/stock/starter_car/engine_rs17.glb",
+  "icon": "assets/icons/parts/stock_engine_rs17.png",
+  "fits": ["engine_mount:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:rs17", "intake_flange:rs", "exhaust_flange:rs"],
+  "bounds": {
+    "min": [-0.24, -0.04, -0.47],
+    "max": [0.24, 0.44, 0.34]
+  },
+  "massOffset": [0, 0.2, -0.065],
+  "engine": {
+    "_note": "About a 1.7 L four: ~115 hp at about 6000 rpm, 158 N·m at 4500. torqueCurve is full-throttle torque at the flywheel (rpm, N·m), what a dyno shows. friction (base + perKrpm·k + perKrpm2·k², k = rpm/1000, N·m) is what's left with the throttle shut: engine braking. inertia is the crank and flywheel (kg·m²). The idle controller opens the throttle to hold idleRpm; the rev limiter cuts fuel at redlineRpm and restores it limiter.hysteresis rpm lower. induction: 'natural' (loses torque in thin air, in proportion to the air density) or 'turbo' / 'supercharged' (full torque for now; boost making up for altitude comes later). cylinders: a firing every 720 / cylinders degrees (misfires, the sound). sound: its sound config (the files the game plays, data/sounds/engines).",
+    "torqueCurve": [[800, 95], [1500, 113], [2000, 124], [2500, 133], [3000, 142], [3500, 150], [4000, 155], [4500, 158], [5000, 154], [5500, 147], [6000, 136], [6500, 123], [6800, 116], [7200, 102]],
+    "idleRpm": 900,
+    "redlineRpm": 6800,
+    "inertia": 0.12,
+    "induction": "natural",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/rs17.json",
+    "friction": {
+      "base": 8,
+      "perKrpm": 4,
+      "perKrpm2": 0.5
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "_note": "What the engine takes past its redline, when the wheels drive it there (a downshift at too high a speed: the rev limiter can't stop that). Bands are fractions over redlineRpm. From valveFloat the valves float: it stutters and drags harder (drag × friction per bentValves over) while it's there, and wears floatWear condition points a second at the top of the band. From bentValves, bendTime s there and the valves hit the pistons: the condition drops bentLoss points (up to 1.6× that at the top of the band), then bentWear a second while it stays there. From blown, blowTime s there and it's blown: a bang and smoke, the engine stops and the car coasts; condition 0 until it's repaired in the garage. Below misfireBelow condition it misfires: up to `misfire` of its firings lost at condition 0, so it runs rough and down on power. A tougher engine (or forged internals) takes more.",
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "stock"
+}

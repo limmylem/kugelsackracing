@@ -1,0 +1,55 @@
+{
+  "id": "strada_evo_centre_diff",
+  "name": "Active centre differential (Strada Evo, stock)",
+  "category": "differential",
+  "slot": "centre_diff",
+  "kind": "component",
+  "price": 1200,
+  "mass": 20,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_centre_diff.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Its split (the front axle's share of the drive) and lock can be set in the garage: more to the rear for a car that turns in on the throttle, more lock for loose surfaces.",
+  "centreDifferential": {
+    "type": "lsd",
+    "split": 0.45,
+    "preload": 50,
+    "lock": 0.35
+  },
+  "tuning": {
+    "split": {
+      "label": "front share",
+      "unit": "%",
+      "min": 30,
+      "max": 55,
+      "step": 1,
+      "default": 45,
+      "apply": [
+        {
+          "target": "centreDifferential.split",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    },
+    "lock": {
+      "label": "lock",
+      "unit": "%",
+      "min": 0,
+      "max": 80,
+      "step": 5,
+      "default": 35,
+      "apply": [
+        {
+          "target": "centreDifferential.lock",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    }
+  },
+  "tier": "stock"
+}

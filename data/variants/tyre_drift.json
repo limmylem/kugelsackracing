@@ -1,0 +1,75 @@
+{
+  "_note": "The drift tyre's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $80 × the size's factor (bigger costs more).",
+  "base": "tyre_drift",
+  "id": "{base}_{size}",
+  "name": "{size} drift tyre",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "225_40r18"
+    }
+  ],
+  "groups": {
+    "size": {
+      "215_45r17": {
+        "name": "215/45 R17",
+        "priceFactor": 0.955,
+        "set": {
+          "tyreSize": {
+            "width": 215,
+            "sidewall": 45,
+            "compound": "drift"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 0.955
+        }
+      },
+      "225_40r18": {
+        "name": "225/40 R18",
+        "set": {
+          "tyreSize": {
+            "width": 225,
+            "sidewall": 40,
+            "compound": "drift"
+          },
+          "fits": ["rim:18"]
+        }
+      },
+      "235_40r18": {
+        "name": "235/40 R18",
+        "priceFactor": 1.022,
+        "set": {
+          "tyreSize": {
+            "width": 235,
+            "sidewall": 40,
+            "compound": "drift"
+          },
+          "fits": ["rim:18"]
+        },
+        "multiply": {
+          "mass": 1.022
+        }
+      },
+      "255_35r19": {
+        "name": "255/35 R19",
+        "priceFactor": 1.089,
+        "set": {
+          "tyreSize": {
+            "width": 255,
+            "sidewall": 35,
+            "compound": "drift"
+          },
+          "fits": ["rim:19"]
+        },
+        "multiply": {
+          "mass": 1.089
+        }
+      }
+    }
+  }
+}

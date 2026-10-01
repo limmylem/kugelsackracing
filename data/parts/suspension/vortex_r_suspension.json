@@ -1,0 +1,26 @@
+{
+  "id": "vortex_r_suspension",
+  "name": "Springs and dampers (Vortex R, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 600,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_suspension.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.26,
+    "travel": 0.17,
+    "stiffness": 50500,
+    "damping": 3700,
+    "antiRoll": {
+      "front": 16000,
+      "rear": 8000
+    }
+  },
+  "tier": "stock"
+}

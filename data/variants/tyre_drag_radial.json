@@ -1,0 +1,60 @@
+{
+  "_note": "The drag radial's sizes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Price: $210 × the size's factor (bigger costs more).",
+  "base": "tyre_drag_radial",
+  "id": "{base}_{size}",
+  "name": "{size} drag radial",
+  "price": {
+    "base": "part",
+    "round": 5
+  },
+  "skip": [
+    {
+      "size": "275_40r18"
+    }
+  ],
+  "groups": {
+    "size": {
+      "255_45r17": {
+        "name": "255/45 R17",
+        "priceFactor": 0.941,
+        "set": {
+          "tyreSize": {
+            "width": 255,
+            "sidewall": 45,
+            "compound": "drag_radial"
+          },
+          "fits": ["rim:17"]
+        },
+        "multiply": {
+          "mass": 0.941
+        }
+      },
+      "275_40r18": {
+        "name": "275/40 R18",
+        "set": {
+          "tyreSize": {
+            "width": 275,
+            "sidewall": 40,
+            "compound": "drag_radial"
+          },
+          "fits": ["rim:18"]
+        }
+      },
+      "275_40r19": {
+        "name": "275/40 R19",
+        "priceFactor": 1.022,
+        "set": {
+          "tyreSize": {
+            "width": 275,
+            "sidewall": 40,
+            "compound": "drag_radial"
+          },
+          "fits": ["rim:19"]
+        },
+        "multiply": {
+          "mass": 1.022
+        }
+      }
+    }
+  }
+}

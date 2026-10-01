@@ -1,0 +1,124 @@
+{
+  "_note": "The multispoke rim's sizes and finishes: npm run generate-variants makes a part for each (ids never change; one dropped from here is retired, not deleted). Prices: $260 × the options' factors.",
+  "base": "rim_multispoke",
+  "id": "{base}_{size}_{finish}",
+  "name": "{size}\" multi-spoke wheel, {finish}",
+  "price": {
+    "base": "part",
+    "round": 10
+  },
+  "skip": [
+    {
+      "size": "17",
+      "finish": "silver"
+    }
+  ],
+  "groups": {
+    "size": {
+      "16": {
+        "name": "16",
+        "priceFactor": 0.9,
+        "scale": [0.933, 0.941, 0.941],
+        "set": {
+          "rim": {
+            "diameter": 16,
+            "width": 7,
+            "offset": 40
+          },
+          "provides": ["rim:16"],
+          "fits": ["wheel_hub:std", "rim_fits:16"]
+        },
+        "multiply": {
+          "mass": 0.9
+        }
+      },
+      "17": {
+        "name": "17",
+        "scale": [1, 1, 1],
+        "set": {
+          "rim": {
+            "diameter": 17,
+            "width": 7.5,
+            "offset": 40
+          },
+          "provides": ["rim:17"],
+          "fits": ["wheel_hub:std", "rim_fits:17"]
+        }
+      },
+      "18": {
+        "name": "18",
+        "priceFactor": 1.12,
+        "scale": [1.067, 1.059, 1.059],
+        "set": {
+          "rim": {
+            "diameter": 18,
+            "width": 8,
+            "offset": 40
+          },
+          "provides": ["rim:18"],
+          "fits": ["wheel_hub:std", "rim_fits:18"]
+        },
+        "multiply": {
+          "mass": 1.1
+        }
+      },
+      "19": {
+        "name": "19",
+        "priceFactor": 1.25,
+        "scale": [1.133, 1.118, 1.118],
+        "set": {
+          "rim": {
+            "diameter": 19,
+            "width": 8.5,
+            "offset": 38
+          },
+          "provides": ["rim:19"],
+          "fits": ["wheel_hub:std", "rim_fits:19"]
+        },
+        "multiply": {
+          "mass": 1.2
+        }
+      },
+      "20": {
+        "name": "20",
+        "priceFactor": 1.4,
+        "scale": [1.2, 1.176, 1.176],
+        "set": {
+          "rim": {
+            "diameter": 20,
+            "width": 9,
+            "offset": 35
+          },
+          "provides": ["rim:20"],
+          "fits": ["wheel_hub:std", "rim_fits:20"]
+        },
+        "multiply": {
+          "mass": 1.3
+        }
+      }
+    },
+    "finish": {
+      "silver": {
+        "name": "silver",
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#c9ccd1"
+        }
+      },
+      "gunmetal": {
+        "name": "gunmetal",
+        "priceFactor": 1.05,
+        "look": {
+          "finish": "raw_metal",
+          "colour": "#4a4f55"
+        }
+      },
+      "black": {
+        "name": "gloss black",
+        "look": {
+          "finish": "gloss_black"
+        }
+      }
+    }
+  }
+}

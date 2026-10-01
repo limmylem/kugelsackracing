@@ -1,0 +1,50 @@
+{
+  "id": "ridgeback_4x4_brakes",
+  "name": "Disc brakes (Ridgeback 4x4, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 500,
+  "mass": 52,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_brakes.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.64,
+    "front": {
+      "discRadius": 0.1643,
+      "pistonArea": 0.003725,
+      "padMu": 0.42,
+      "heatCapacity": 2513
+    },
+    "rear": {
+      "discRadius": 0.1501,
+      "pistonArea": 0.001838,
+      "padMu": 0.4,
+      "heatCapacity": 1719
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 4887,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 3174
+    }
+  },
+  "tier": "stock"
+}

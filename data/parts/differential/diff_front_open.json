@@ -1,0 +1,24 @@
+{
+  "id": "diff_front_open",
+  "name": "Front differential (open)",
+  "category": "differential",
+  "slot": "differential_front",
+  "kind": "component",
+  "price": 450,
+  "mass": 22,
+  "model": "",
+  "icon": "assets/icons/parts/diff_front_open.png",
+  "fits": [
+    ["front_diff:awd", "front_diff:4wd"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "frontDifferential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m). lockable: the driver can lock it (a selectable locker). torqueSteer: on a driven front axle, how much of the car's torque steer gets through.",
+    "type": "open",
+    "preload": 0,
+    "lock": 0
+  },
+  "tier": "stock"
+}

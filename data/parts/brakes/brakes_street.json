@@ -1,0 +1,46 @@
+{
+  "id": "brakes_street",
+  "name": "Big brake kit, slotted discs (street)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "tier": "street",
+  "price": 480,
+  "mass": 33,
+  "model": "",
+  "icon": "assets/icons/parts/brakes_street.png",
+  "fits": ["brake_mount:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A big brake kit for any car: bigger discs and callipers than its own (8% more disc radius at the front), more heat capacity, later fade.",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "brakes.front.discRadius",
+        "op": "multiply",
+        "value": 1.0792
+      },
+      {
+        "target": "brakes.rear.discRadius",
+        "op": "multiply",
+        "value": 1.0802
+      },
+      {
+        "target": "brakes.front.heatCapacity",
+        "op": "multiply",
+        "value": 1.1579
+      },
+      {
+        "target": "brakes.rear.heatCapacity",
+        "op": "multiply",
+        "value": 1.1077
+      },
+      {
+        "target": "brakes.fade.startTemp",
+        "op": "add",
+        "value": 20
+      }
+    ]
+  }
+}

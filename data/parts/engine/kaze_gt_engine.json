@@ -1,0 +1,59 @@
+{
+  "id": "kaze_gt_engine",
+  "name": "2.0 L flat-four (Kaze GT, stock)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 3600,
+  "mass": 130,
+  "model": "assets/parts/stock/kaze_gt/kaze_gt_engine.glb",
+  "icon": "assets/icons/parts/kaze_gt_engine.png",
+  "fits": [
+    "engine_bay:longitudinal",
+    ["car:kaze_gt", "engine_swap:kaze_flat4"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:kaze_flat4", "engine_layout:flat4", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "_note": "Kaze GT's engine. It fits its own car, or another with a longitudinal engine bay (engine_bay:longitudinal) and an engine swap kit for it (engine_swap:kaze_flat4).",
+  "engine": {
+    "torqueCurve": [[800, 140], [1500, 158], [2500, 172], [3500, 182], [4500, 188], [5500, 197], [6400, 205], [7000, 203], [7500, 192], [7900, 172]],
+    "idleRpm": 800,
+    "redlineRpm": 7500,
+    "inertia": 0.13,
+    "induction": "natural",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/flat4.json",
+    "friction": {
+      "base": 9.2,
+      "perKrpm": 4.6,
+      "perKrpm2": 0.54
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "massOffset": [0, 0.18, 0],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.36, 0, -0.275],
+    "max": [0.36, 0.46, 0.275]
+  }
+}

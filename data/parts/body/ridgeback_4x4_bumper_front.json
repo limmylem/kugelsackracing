@@ -1,0 +1,31 @@
+{
+  "id": "ridgeback_4x4_bumper_front",
+  "name": "Front bumper (Ridgeback 4x4, stock)",
+  "category": "body",
+  "slot": "bumper_front",
+  "kind": "component",
+  "price": 240,
+  "mass": 6,
+  "toughness": 1.2,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0.8, 0, 0], [-0.8, 0, 0]],
+    "attachStrength": 900,
+    "looseThreshold": 35,
+    "detachThreshold": 70,
+    "looseDrag": 0.02
+  },
+  "model": "assets/parts/stock/ridgeback_4x4/ridgeback_4x4_bumper_front.glb",
+  "icon": "assets/icons/parts/ridgeback_4x4_bumper_front.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.91, -0.1, -0.19],
+    "max": [0.91, 0.16, 0.05]
+  },
+  "tier": "stock"
+}

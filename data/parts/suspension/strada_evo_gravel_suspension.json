@@ -1,0 +1,28 @@
+{
+  "id": "strada_evo_gravel_suspension",
+  "name": "Gravel suspension (Strada Evo)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "gravel",
+  "price": 1250,
+  "mass": 64,
+  "model": "",
+  "icon": "assets/icons/parts/strada_evo_gravel_suspension.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Long-travel gravel dampers and softer springs, 30 mm taller: the car soaks up ruts and jumps and keeps its wheels on loose ground.",
+  "suspension": {
+    "restLength": 0.34,
+    "travel": 0.28,
+    "stiffness": 29000,
+    "damping": 3200,
+    "antiRoll": {
+      "front": 8000,
+      "rear": 8000
+    }
+  }
+}

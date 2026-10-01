@@ -1,0 +1,16 @@
+{
+  "$id": "mechanical-sound.schema.json",
+  "title": "Mechanical damage sounds (data/sounds/mechanical.json): how they're made and played",
+  "type": "object",
+  "required": ["hiss", "flap", "grind", "whine", "exhaust"],
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "$defs": { "n": { "type": "number", "minimum": 0 } },
+  "properties": {
+    "hiss": { "type": "object", "required": ["gain", "hz", "q"], "additionalProperties": false, "properties": { "gain": { "$ref": "#/$defs/n" }, "hz": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/n" } }, "q": { "$ref": "#/$defs/n" } } },
+    "flap": { "type": "object", "required": ["gain", "hz", "seconds"], "additionalProperties": false, "properties": { "gain": { "$ref": "#/$defs/n" }, "hz": { "$ref": "#/$defs/n" }, "seconds": { "$ref": "#/$defs/n" } } },
+    "grind": { "type": "object", "required": ["gain", "hz", "seconds"], "additionalProperties": false, "properties": { "gain": { "$ref": "#/$defs/n" }, "hz": { "$ref": "#/$defs/n" }, "seconds": { "$ref": "#/$defs/n" } } },
+    "whine": { "type": "object", "required": ["gain", "hzPerRev", "fromSpeed"], "additionalProperties": false, "properties": { "gain": { "$ref": "#/$defs/n" }, "hzPerRev": { "$ref": "#/$defs/n" }, "fromSpeed": { "$ref": "#/$defs/n" } } },
+    "exhaust": { "type": "object", "required": ["gain", "drive", "hz", "q", "rattleHz"], "additionalProperties": false, "properties": { "gain": { "$ref": "#/$defs/n" }, "drive": { "$ref": "#/$defs/n" }, "hz": { "$ref": "#/$defs/n" }, "q": { "$ref": "#/$defs/n" }, "rattleHz": { "$ref": "#/$defs/n" } } }
+  }
+}

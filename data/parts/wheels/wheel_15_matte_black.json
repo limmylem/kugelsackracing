@@ -1,0 +1,27 @@
+{
+  "id": "wheel_15_matte_black",
+  "name": "15\" wheel, matte black",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 300,
+  "mass": 7,
+  "toughness": 1,
+  "model": "",
+  "icon": "assets/icons/parts/wheel_15_matte_black.png",
+  "fits": ["bolt_pattern:4x100"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:15"],
+  "rim": {
+    "diameter": 15,
+    "width": 6,
+    "offset": 35
+  },
+  "variantOf": "stock_wheel_15",
+  "look": {
+    "finish": "matte_black"
+  },
+  "tier": "street",
+  "purpose": "looks"
+}

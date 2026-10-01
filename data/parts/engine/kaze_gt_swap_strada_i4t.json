@@ -1,0 +1,17 @@
+{
+  "id": "kaze_gt_swap_strada_i4t",
+  "name": "Turbo four swap kit (Kaze GT)",
+  "category": "engine",
+  "slot": "engine_swap",
+  "kind": "component",
+  "tier": "sport",
+  "price": 2400,
+  "mass": 12,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_swap_strada_i4t.png",
+  "fits": ["car:kaze_gt"],
+  "requires": ["clutch_rating:sport", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": [],
+  "provides": ["engine_swap:strada_i4t"],
+  "_note": "Mounts, an adaptor plate and wiring to put the Strada Evo's 2.0 L turbo four in the Kaze GT. It needs an uprated clutch (sport), gearbox and radiator fitted first; then take the engine out and put the new one in."
+}

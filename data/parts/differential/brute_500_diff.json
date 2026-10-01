@@ -1,0 +1,21 @@
+{
+  "id": "brute_500_diff",
+  "name": "Limited-slip differential (Brute 500, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/brute_500_diff.png",
+  "fits": ["car:brute_500"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "lsd",
+    "preload": 30,
+    "lock": 0.22
+  },
+  "tier": "stock"
+}

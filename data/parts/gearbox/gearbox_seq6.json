@@ -1,0 +1,52 @@
+{
+  "id": "gearbox_seq6",
+  "name": "6-speed sequential gearbox",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "tier": "race",
+  "kind": "component",
+  "price": 4200,
+  "mass": 34,
+  "model": "",
+  "icon": "assets/icons/parts/gearbox_seq6.png",
+  "fits": ["gearbox_mount:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:rs"],
+  "_note": "A dog-engaged sequential box: six close ratios and shifts in 100 ms. The final drive can be set.",
+  "gearbox": {
+    "_note": "5-speed for a small coupe. ratios / reverse × finalDrive give the overall ratio. shiftTime: seconds with no drive while a gear changes (the engine is rev-matched meanwhile, revMatchGain throttle per rpm off). mode: 'auto' or 'sequential' (the game can switch). Sequential takes any downshift (one at too high a speed over-revs the engine: engine.overRev), unless the rev protection aid is on: then it refuses one that would put the engine over its redline or maxDownshiftRpm, whichever is lower. Automatic: upshifts when the engine (from road speed, so wheelspin doesn't count) passes upLight..upFull rpm (light..full throttle), downshifts under downLight..downFull, kicking straight down to the lowest gear that stays downMargin under the upshift point, at most every minInterval s; below stopSpeed m/s holding S selects reverse and W first.",
+    "mode": "auto",
+    "ratios": [3.6, 2, 1.5, 1.2, 1, 0.86],
+    "reverse": 3.25,
+    "finalDrive": 3.6,
+    "shiftTime": 0.1,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 7000,
+    "auto": {
+      "upLight": 2600,
+      "upFull": 6700,
+      "downLight": 1300,
+      "downFull": 3600,
+      "downMargin": 500,
+      "minInterval": 0.6,
+      "stopSpeed": 0.5
+    }
+  },
+  "tuning": {
+    "finalDrive": {
+      "label": "final drive",
+      "unit": ":1",
+      "min": 3.2,
+      "max": 4.3,
+      "step": 0.01,
+      "default": 3.6,
+      "apply": [
+        {
+          "target": "gearbox.finalDrive",
+          "op": "set"
+        }
+      ]
+    }
+  }
+}

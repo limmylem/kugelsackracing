@@ -1,0 +1,17 @@
+{
+  "id": "vortex_r_airbox",
+  "name": "Airbox and filter (Vortex R, stock)",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 70,
+  "mass": 3,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_airbox.png",
+  "fits": ["intake_flange:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["intake:airbox"],
+  "effects": [],
+  "tier": "stock"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "gauge_pod",
+  "name": "Gauge pod (boost, oil, water)",
+  "category": "interior",
+  "slot": "gauges",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 260,
+  "mass": 0.8,
+  "model": "",
+  "modelTodo": "An A-pillar gauge pod: three 52 mm round gauges stacked in a moulded pod, about 8 × 26 × 8 cm.",
+  "icon": "assets/icons/parts/gauge_pod.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Three extra gauges on the A-pillar.",
+  "bounds": {
+    "min": [-0.04, 0, -0.04],
+    "max": [0.04, 0.26, 0.04]
+  }
+}

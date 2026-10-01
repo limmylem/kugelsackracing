@@ -1,0 +1,35 @@
+{
+  "id": "intercooler_race",
+  "name": "Race intercooler (bar and plate)",
+  "category": "intercooler",
+  "slot": "intercooler",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 1300,
+  "mass": 12,
+  "model": "",
+  "modelTodo": "A big bar-and-plate intercooler core about 68 × 28 × 8 cm with end tanks and pipes, behind the front bumper.",
+  "icon": "assets/icons/parts/intercooler_race.png",
+  "fits": ["intercooler_mount:std"],
+  "requires": [
+    ["slot:turbo", "slot:supercharger", "induction:turbo"]
+  ],
+  "conflicts": [],
+  "provides": ["intercooler"],
+  "_note": "A big bar-and-plate intercooler: cooler charge air — worth a little more power from a turbo or supercharger (and nothing without one).",
+  "bounds": {
+    "min": [-0.34, -0.14, -0.04],
+    "max": [0.34, 0.14, 0.04]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.03,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    }
+  ]
+}

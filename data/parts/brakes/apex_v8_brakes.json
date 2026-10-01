@@ -1,0 +1,50 @@
+{
+  "id": "apex_v8_brakes",
+  "name": "Disc brakes (Apex V8, stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 430,
+  "mass": 42,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_brakes.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "maxPressureBar": 80,
+    "bias": 0.62,
+    "front": {
+      "discRadius": 0.1382,
+      "pistonArea": 0.003134,
+      "padMu": 0.42,
+      "heatCapacity": 1779
+    },
+    "rear": {
+      "discRadius": 0.1263,
+      "pistonArea": 0.001546,
+      "padMu": 0.4,
+      "heatCapacity": 1217
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3665,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 2060
+    }
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,36 @@
+{
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 310,
+  "mass": 9.35,
+  "toughness": 1,
+  "modelTodo": "A multi-spoke rim: ten thin spokes in pairs, a shallow dish, origin at the hub face; one model for every size (scaled).",
+  "fits": ["wheel_hub:std", "rim_fits:18"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "rim": {
+    "diameter": 18,
+    "width": 8,
+    "offset": 40
+  },
+  "massOffset": [0.012, 0, 0],
+  "id": "rim_multispoke_18_gunmetal",
+  "name": "18\" multi-spoke wheel, gunmetal",
+  "model": "",
+  "icon": "assets/icons/parts/rim_multispoke_18_gunmetal.png",
+  "variantOf": "rim_multispoke",
+  "look": {
+    "scale": [1.067, 1.059, 1.059],
+    "finish": "raw_metal",
+    "colour": "#4a4f55"
+  },
+  "generated": {
+    "table": "rim_multispoke",
+    "key": "size=18,finish=gunmetal"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/rim_multispoke.json: change the table, not this file."
+}

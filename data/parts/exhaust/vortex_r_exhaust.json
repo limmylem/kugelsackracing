@@ -1,0 +1,31 @@
+{
+  "id": "vortex_r_exhaust",
+  "name": "Exhaust system (Vortex R, stock)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 300,
+  "mass": 18,
+  "model": "assets/parts/stock/vortex_r/vortex_r_exhaust.glb",
+  "icon": "assets/icons/parts/vortex_r_exhaust.png",
+  "fits": ["exhaust_flange:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [],
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "massOffset": [0, 0, -0.09],
+  "tier": "stock",
+  "bounds": {
+    "min": [-0.045, -0.045, -0.05],
+    "max": [0.045, 0.045, 0.05]
+  }
+}

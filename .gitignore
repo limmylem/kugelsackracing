@@ -1,0 +1,8 @@
+node_modules/
+# the dev server's backups of data files it saved
+data/.backup/
+# npm run balance-report output
+reports/
+# models waiting to be imported, and the originals of imported ones (what's imported is in assets/)
+incoming/*
+!incoming/README.md

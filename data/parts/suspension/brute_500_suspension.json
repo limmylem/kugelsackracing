@@ -1,0 +1,26 @@
+{
+  "id": "brute_500_suspension",
+  "name": "Springs and dampers (Brute 500, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 650,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/brute_500_suspension.png",
+  "fits": ["car:brute_500"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.28,
+    "travel": 0.18,
+    "stiffness": 41500,
+    "damping": 3300,
+    "antiRoll": {
+      "front": 14000,
+      "rear": 8000
+    }
+  },
+  "tier": "stock"
+}

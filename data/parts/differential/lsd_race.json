@@ -1,0 +1,55 @@
+{
+  "id": "lsd_race",
+  "name": "2-way race LSD (adjustable)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "tier": "race",
+  "price": 1900,
+  "mass": 23,
+  "model": "",
+  "icon": "assets/icons/parts/lsd_race.png",
+  "fits": [
+    ["diff_mount:starter", "diff:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A tight 2-way LSD for any car's driven axle: both wheels driven hard on and off the power — stable under braking, a handful on the throttle.",
+  "differential": {
+    "type": "lsd",
+    "preload": 90,
+    "lock": 0.6
+  },
+  "tuning": {
+    "preload": {
+      "label": "preload",
+      "unit": "N·m",
+      "min": 20,
+      "max": 200,
+      "step": 5,
+      "default": 90,
+      "apply": [
+        {
+          "target": "differential.preload",
+          "op": "set"
+        }
+      ]
+    },
+    "lock": {
+      "label": "lock",
+      "unit": "%",
+      "min": 20,
+      "max": 90,
+      "step": 5,
+      "default": 60,
+      "apply": [
+        {
+          "target": "differential.lock",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    }
+  }
+}

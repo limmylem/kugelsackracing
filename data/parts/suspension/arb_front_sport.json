@@ -1,0 +1,40 @@
+{
+  "id": "arb_front_sport",
+  "name": "Adjustable front anti-roll bar",
+  "category": "suspension",
+  "slot": "anti_roll_bar_front",
+  "kind": "modifier",
+  "price": 520,
+  "mass": 5,
+  "model": "",
+  "icon": "assets/icons/parts/arb_front_sport.png",
+  "fits": [
+    ["chassis:starter", "arb_mounts"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A front anti-roll bar: it resists the front axle's two sides compressing differently (N a metre of difference), so the body rolls less and that end takes more of the load moving across in a corner — a stiffer front bar pushes the car towards understeer.",
+  "effects": [],
+  "tuning": {
+    "stiffness": {
+      "label": "stiffness",
+      "unit": "N/m",
+      "min": 10000,
+      "max": 40000,
+      "step": 500,
+      "default": 22000,
+      "apply": [
+        {
+          "target": "suspension.antiRoll.front",
+          "op": "add"
+        }
+      ]
+    }
+  },
+  "bounds": {
+    "min": [-0.6, -0.03, -0.05],
+    "max": [0.6, 0.03, 0.05]
+  },
+  "tier": "sport"
+}

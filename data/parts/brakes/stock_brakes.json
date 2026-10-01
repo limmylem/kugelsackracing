@@ -1,0 +1,52 @@
+{
+  "id": "stock_brakes",
+  "name": "Disc brakes, front and rear (stock)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 380,
+  "mass": 32,
+  "model": "",
+  "icon": "assets/icons/parts/stock_brakes.png",
+  "fits": ["chassis:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "brakes": {
+    "_note": "Pedal → line pressure (up to maxPressureBar) → each caliper: torque = 2 pads × pad friction × pressure × piston area (m²) × effective disc radius (m). bias: share of braking torque at the front (a balance valve trims one axle). Discs heat with the work they do (J) over their heatCapacity (J/K) and cool by (cooling.still + cooling.perSpeed × speed) W/K toward cooling.ambient °C. Pad friction falls toward fade.muAtFull × its value between fade.startTemp and fade.fullTemp °C. The handbrake is a separate rear torque (N·m); disengageClutch opens the clutch while it's held. autoHold parks the car: below belowSpeed m/s with no pedal, all four brakes hold with torque N·m.",
+    "maxPressureBar": 80,
+    "bias": 0.68,
+    "front": {
+      "discRadius": 0.101,
+      "pistonArea": 0.00229,
+      "padMu": 0.42,
+      "heatCapacity": 950
+    },
+    "rear": {
+      "discRadius": 0.0923,
+      "pistonArea": 0.00113,
+      "padMu": 0.4,
+      "heatCapacity": 650
+    },
+    "fade": {
+      "startTemp": 250,
+      "fullTemp": 450,
+      "muAtFull": 0.4
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 2810,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "_note": "Parks the car: below this speed with no throttle, all four brakes hold.",
+      "belowSpeed": 0.3,
+      "torque": 1320
+    }
+  },
+  "tier": "stock"
+}

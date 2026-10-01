@@ -1,0 +1,38 @@
+{
+  "_note": "The Hana Roadster's targets: a light 140 hp roadster, 1060 kg — 0–100 km/h in about 8.5 s, about 200 km/h; nimble, with lots of body roll.",
+  "zeroTo100": {
+    "min": 8,
+    "max": 9.2
+  },
+  "quarterMile": {
+    "min": 15.7,
+    "max": 16.8
+  },
+  "braking": {
+    "min": 37,
+    "max": 42.5
+  },
+  "skidpad": {
+    "min": 0.78,
+    "max": 0.85
+  },
+  "slalom": {
+    "min": 8.4,
+    "max": 9.1
+  },
+  "topSpeed": {
+    "min": 192,
+    "max": 210
+  },
+  "lap": {
+    "min": 74,
+    "max": 80
+  },
+  "framerate": {
+    "min": 1,
+    "max": 1
+  },
+  "physicsCost": {
+    "max": 0.25
+  }
+}

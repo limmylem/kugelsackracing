@@ -1,0 +1,31 @@
+{
+  "id": "strada_evo_fender_left",
+  "name": "Front fender, left (Strada Evo, stock)",
+  "category": "body",
+  "slot": "fender_left",
+  "kind": "component",
+  "price": 180,
+  "mass": 3,
+  "toughness": 0.8,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0.07, 0, -0.5], [0.07, 0, 0.55]],
+    "attachStrength": 700,
+    "looseThreshold": 35,
+    "detachThreshold": 70,
+    "looseDrag": 0.015
+  },
+  "model": "assets/parts/stock/strada_evo/strada_evo_fender_left.glb",
+  "icon": "assets/icons/parts/strada_evo_fender_left.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [0.03, -0.68, -0.79],
+    "max": [0.13, 0.5971, 0.54]
+  },
+  "tier": "stock"
+}

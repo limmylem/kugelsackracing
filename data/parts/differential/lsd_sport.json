@@ -1,0 +1,56 @@
+{
+  "id": "lsd_sport",
+  "name": "Sport LSD (adjustable)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 1100,
+  "mass": 25,
+  "model": "",
+  "icon": "assets/icons/parts/lsd_sport.png",
+  "fits": [
+    ["diff_mount:starter", "diff:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A clutch-type limited-slip differential with adjustable preload and lock.",
+  "differential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m).",
+    "type": "lsd",
+    "preload": 60,
+    "lock": 0.45
+  },
+  "tuning": {
+    "preload": {
+      "label": "preload",
+      "unit": "N·m",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "default": 60,
+      "apply": [
+        {
+          "target": "differential.preload",
+          "op": "set"
+        }
+      ]
+    },
+    "lock": {
+      "label": "lock",
+      "unit": "%",
+      "min": 0,
+      "max": 90,
+      "step": 5,
+      "default": 45,
+      "apply": [
+        {
+          "target": "differential.lock",
+          "op": "set",
+          "scale": 0.01
+        }
+      ]
+    }
+  },
+  "tier": "sport"
+}

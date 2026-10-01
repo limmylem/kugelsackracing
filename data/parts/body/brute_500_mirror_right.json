@@ -1,0 +1,29 @@
+{
+  "id": "brute_500_mirror_right",
+  "name": "Door mirror, right (Brute 500, stock)",
+  "category": "body",
+  "slot": "mirror_right",
+  "kind": "component",
+  "price": 60,
+  "mass": 1,
+  "toughness": 0.5,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 300,
+    "looseThreshold": 20,
+    "detachThreshold": 15
+  },
+  "model": "assets/parts/stock/brute_500/brute_500_mirror_right.glb",
+  "icon": "assets/icons/parts/brute_500_mirror_right.png",
+  "fits": ["car:brute_500"],
+  "requires": ["slot:door_right"],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.18, -0.06, -0.06],
+    "max": [-0.02, 0.04, 0.04]
+  },
+  "tier": "stock"
+}

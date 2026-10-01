@@ -1,0 +1,15 @@
+{
+  "_note": "Finishes for paint and parts. A car's paint is a colour and one of the paint finishes (paint: true); a part can have any finish (its look.finish, or its owner's choice), which replaces its materials' colour, texture and surface. roughness / metalness / clearcoat… are three.js MeshStandardMaterial / MeshPhysicalMaterial settings; reflective finishes get the game's environment map (they look flat without one). gloss is the model's own paint, so a car in its factory gloss looks exactly as modelled.",
+  "finishes": {
+    "gloss": { "name": "Gloss", "paint": true, "roughness": 0.4, "metalness": 0.1 },
+    "matte": { "name": "Matte", "paint": true, "roughness": 0.92, "metalness": 0 },
+    "metallic": { "name": "Metallic", "paint": true, "roughness": 0.3, "metalness": 0.65, "clearcoat": 1, "clearcoatRoughness": 0.06, "reflective": true, "envIntensity": 0.8 },
+    "pearl": { "name": "Pearl", "paint": true, "roughness": 0.32, "metalness": 0.2, "clearcoat": 1, "clearcoatRoughness": 0.04, "iridescence": 0.9, "iridescenceIOR": 1.35, "sheen": 0.6, "sheenColour": "#f4eefc", "sheenRoughness": 0.4, "reflective": true, "envIntensity": 0.8 },
+    "carbon": { "name": "Carbon fibre", "colour": "#1c1e21", "roughness": 0.28, "metalness": 0.35, "clearcoat": 1, "clearcoatRoughness": 0.04, "reflective": true, "envIntensity": 0.7 },
+    "chrome": { "name": "Chrome", "colour": "#f1f3f6", "roughness": 0.05, "metalness": 1, "reflective": true, "envIntensity": 1.2 },
+    "matte_black": { "name": "Matte black", "colour": "#161617", "roughness": 0.85, "metalness": 0.05 },
+    "gloss_black": { "name": "Gloss black", "colour": "#0c0c0d", "roughness": 0.18, "metalness": 0.1, "clearcoat": 1, "clearcoatRoughness": 0.05, "reflective": true, "envIntensity": 0.6 },
+    "raw_metal": { "name": "Raw metal", "colour": "#a3a7ab", "roughness": 0.42, "metalness": 1, "reflective": true, "envIntensity": 1 },
+    "rubber": { "name": "Rubber", "colour": "#1b1b1c", "roughness": 0.62, "metalness": 0.1 }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "transfer_case_2speed",
+  "name": "Two-speed transfer case",
+  "category": "drivetrain",
+  "slot": "transfer_case",
+  "kind": "component",
+  "price": 900,
+  "mass": 34,
+  "model": "",
+  "icon": "assets/icons/parts/transfer_case_2speed.png",
+  "fits": ["transfer_case:4wd"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "transferCase": {
+    "_note": "A part-time 4WD's transfer case: 2H drives the rear wheels only, 4H locks the front and rear together (no centre diff: for loose ground, it scrubs on tarmac), 4L too, through the low range (lowRatio × every gear: crawling, steep climbs). Into or out of 4L only nearly stopped (below shiftBelow m/s).",
+    "lowRatio": 2.72,
+    "modes": ["2H", "4H", "4L"],
+    "mode": "2H",
+    "shiftBelow": 2
+  },
+  "tier": "stock"
+}

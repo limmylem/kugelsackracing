@@ -1,0 +1,34 @@
+{
+  "id": "apex_v8_gearbox",
+  "name": "7-speed paddle-shift (Apex V8, stock)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 1740,
+  "mass": 70,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_gearbox.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["clutch_spline:std"],
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [3.4, 2.4, 1.8, 1.41, 1.14, 0.94, 0.78],
+    "reverse": 3,
+    "finalDrive": 3.6,
+    "shiftTime": 0.07,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 8200,
+    "auto": {
+      "upLight": 2200,
+      "upFull": 7900,
+      "downLight": 1300,
+      "downFull": 4250,
+      "downMargin": 500,
+      "minInterval": 0.3,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "stock"
+}

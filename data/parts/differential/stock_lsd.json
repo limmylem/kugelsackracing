@@ -1,0 +1,22 @@
+{
+  "id": "stock_lsd",
+  "name": "Limited-slip differential (stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/stock_lsd.png",
+  "fits": ["diff_mount:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "_note": "type: 'open' (equal torque to both wheels, so the lighter one can spin up), 'locked' (both wheels at the same speed) or 'lsd' (clutch-type limited slip: it resists a speed difference with up to preload + lock × the torque going through it, N·m).",
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.3
+  },
+  "tier": "stock"
+}

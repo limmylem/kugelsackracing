@@ -1,0 +1,55 @@
+{
+  "id": "catback_race",
+  "name": "Straight-through race exhaust",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 1500,
+  "mass": 8,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "model": "",
+  "modelTodo": "Straight-through race exhaust: the tail pipes (twin 90 mm tips) out of the rear bumper, 20 cm of pipe, origin at the tip.",
+  "icon": "assets/icons/parts/catback_race.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A straight-through race exhaust: the most power, very loud, a hard deep bark (no crackle).",
+  "massOffset": [0, 0, -0.09],
+  "bounds": {
+    "min": [-0.045, -0.045, -0.2],
+    "max": [0.045, 0.045, 0]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.06,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "soundMod.level",
+      "op": "multiply",
+      "value": 1.4
+    },
+    {
+      "target": "soundMod.tone",
+      "op": "multiply",
+      "value": 0.92
+    }
+  ]
+}

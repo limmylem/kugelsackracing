@@ -1,0 +1,34 @@
+{
+  "id": "kaze_gt_canards",
+  "name": "Canards (Kaze GT)",
+  "category": "aero",
+  "slot": "canards",
+  "kind": "component",
+  "tier": "sport",
+  "price": 640,
+  "mass": 1.2,
+  "toughness": 0.8,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Kaze GT canards: two pairs of small carbon dive planes (about 25 × 8 cm each) on the front bumper corners.",
+  "icon": "assets/icons/parts/kaze_gt_canards.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Two pairs of dive planes on the front bumper corners: front downforce for turn-in.",
+  "bounds": {
+    "min": [-0.9, 0, -0.125],
+    "max": [0.9, 0.12, 0.125]
+  },
+  "aeroEffect": {
+    "liftFront": -0.05,
+    "drag": 0.01
+  }
+}

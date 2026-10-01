@@ -1,0 +1,348 @@
+{
+  "name": "Rally stage",
+  "_axes": "World frame: +y up. Metres and degrees. The stage is a closed gravel loop built into the hills (terrain.carve): smoothed, no steeper than maxGrade, flat across, with cuttings and embankments either side and a few crests to jump.",
+  "ground": {
+    "size": [
+      2600,
+      2600
+    ],
+    "thickness": 2,
+    "top": -0.3,
+    "colour": "#557242"
+  },
+  "terrain": {
+    "size": 1400,
+    "cells": 350,
+    "edgeFade": 140,
+    "colour": "#5c7b43",
+    "rockColour": "#7e7566",
+    "waves": [
+      {
+        "amp": 12,
+        "wavelength": 640,
+        "dirDeg": 20,
+        "phase": 0.3
+      },
+      {
+        "amp": 9.5,
+        "wavelength": 430,
+        "dirDeg": 112,
+        "phase": 1.7
+      },
+      {
+        "amp": 5.5,
+        "wavelength": 280,
+        "dirDeg": 64,
+        "phase": 2.9
+      },
+      {
+        "amp": 3.2,
+        "wavelength": 160,
+        "dirDeg": 158,
+        "phase": 0.8
+      },
+      {
+        "amp": 1.6,
+        "wavelength": 74,
+        "dirDeg": 35,
+        "phase": 4.1
+      },
+      {
+        "amp": 1.0,
+        "wavelength": 46,
+        "dirDeg": 128,
+        "phase": 2.2
+      }
+    ],
+    "flat": [
+      {
+        "centre": [
+          0,
+          -560
+        ],
+        "inner": 25,
+        "outer": 90
+      }
+    ],
+    "carve": {
+      "maxGrade": 0.16,
+      "smoothing": 30,
+      "flatMargin": 2,
+      "shoulder": 36
+    }
+  },
+  "surfaces": {
+    "gravel": {
+      "grip": 0.74,
+      "rollingResistance": 0.025,
+      "dust": "#b9a37f",
+      "marks": "#5c4b37",
+      "sound": "gravel"
+    },
+    "grass": {
+      "grip": 0.6,
+      "rollingResistance": 0.045,
+      "dust": "#8b7a57",
+      "marks": "#3f4b2c",
+      "sound": "gravel"
+    }
+  },
+  "offRoad": "grass",
+  "spawn": {
+    "onRoad": {
+      "road": 0,
+      "at": -16
+    }
+  },
+  "roads": [
+    {
+      "name": "Stage",
+      "closed": true,
+      "width": 7,
+      "style": "gravel",
+      "surface": "gravel",
+      "startLine": [
+        0,
+        -560
+      ],
+      "startArch": true,
+      "points": [
+        [
+          0,
+          -560
+        ],
+        [
+          0,
+          -440
+        ],
+        [
+          40,
+          -340
+        ],
+        [
+          130,
+          -295
+        ],
+        [
+          230,
+          -315
+        ],
+        [
+          320,
+          -365
+        ],
+        [
+          410,
+          -345
+        ],
+        [
+          470,
+          -270
+        ],
+        [
+          500,
+          -180
+        ],
+        [
+          570,
+          -120
+        ],
+        [
+          610,
+          -40
+        ],
+        [
+          570,
+          20
+        ],
+        [
+          490,
+          0
+        ],
+        [
+          430,
+          50
+        ],
+        [
+          440,
+          140
+        ],
+        [
+          510,
+          200
+        ],
+        [
+          580,
+          260
+        ],
+        [
+          590,
+          360
+        ],
+        [
+          530,
+          440
+        ],
+        [
+          430,
+          460
+        ],
+        [
+          340,
+          410
+        ],
+        [
+          250,
+          450
+        ],
+        [
+          150,
+          520
+        ],
+        [
+          50,
+          500
+        ],
+        [
+          -40,
+          430
+        ],
+        [
+          -130,
+          450
+        ],
+        [
+          -220,
+          520
+        ],
+        [
+          -320,
+          500
+        ],
+        [
+          -400,
+          430
+        ],
+        [
+          -480,
+          390
+        ],
+        [
+          -570,
+          400
+        ],
+        [
+          -610,
+          320
+        ],
+        [
+          -560,
+          250
+        ],
+        [
+          -470,
+          220
+        ],
+        [
+          -430,
+          140
+        ],
+        [
+          -460,
+          60
+        ],
+        [
+          -540,
+          10
+        ],
+        [
+          -590,
+          -80
+        ],
+        [
+          -560,
+          -170
+        ],
+        [
+          -470,
+          -210
+        ],
+        [
+          -380,
+          -250
+        ],
+        [
+          -300,
+          -320
+        ],
+        [
+          -220,
+          -410
+        ],
+        [
+          -150,
+          -490
+        ],
+        [
+          -120,
+          -580
+        ],
+        [
+          -70,
+          -640
+        ],
+        [
+          -5,
+          -650
+        ],
+        [
+          20,
+          -615
+        ]
+      ],
+      "jumps": [
+        {
+          "at": 140,
+          "height": 1.4,
+          "rise": 12,
+          "fall": 22
+        },
+        {
+          "at": 1428,
+          "height": 1.2,
+          "rise": 10,
+          "fall": 18
+        },
+        {
+          "at": 2784,
+          "height": 1.6,
+          "rise": 12,
+          "fall": 24
+        },
+        {
+          "at": 3900,
+          "height": 1.3,
+          "rise": 12,
+          "fall": 26
+        },
+        {
+          "at": 4160,
+          "height": 1.5,
+          "rise": 12,
+          "fall": 28
+        }
+      ]
+    }
+  ],
+  "trees": {
+    "count": 1700,
+    "seed": 11,
+    "roadClearance": 9,
+    "propClearance": 25,
+    "minSize": 0.9,
+    "maxSize": 1.6,
+    "coniferShare": 0.75,
+    "trunkRadius": 0.25,
+    "trunkHeight": 3
+  }
+}

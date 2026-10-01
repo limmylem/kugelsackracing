@@ -1,0 +1,5 @@
+{
+  "_note": "Class balance (tests/unit/balance.test.mjs, npm run balance-report): every car is its own class (car.json class) stock, and the most powerful build there is for it (tools/content/maxbuild.mjs: every part for sale, every setting) is at most maxClassJump classes higher — except the cars in exempt (the supercar, already at the top).",
+  "maxClassJump": 2,
+  "exempt": ["apex_v8"]
+}

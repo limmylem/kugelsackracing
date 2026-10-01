@@ -1,0 +1,29 @@
+{
+  "id": "rim_multispoke",
+  "name": "17\" multi-spoke wheel, silver",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 260,
+  "mass": 8.5,
+  "toughness": 1,
+  "model": "",
+  "modelTodo": "A multi-spoke rim: ten thin spokes in pairs, a shallow dish, origin at the hub face; one model for every size (scaled).",
+  "icon": "assets/icons/parts/rim_multispoke.png",
+  "fits": ["wheel_hub:std", "rim_fits:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "rim": {
+    "diameter": 17,
+    "width": 7.5,
+    "offset": 40
+  },
+  "bounds": {
+    "min": [-0.07, -0.21589999999999998, -0.21589999999999998],
+    "max": [0.08, 0.21589999999999998, 0.21589999999999998]
+  },
+  "massOffset": [0.012, 0, 0]
+}

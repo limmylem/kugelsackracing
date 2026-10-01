@@ -1,0 +1,22 @@
+{
+  "id": "vortex_r_lsd_front",
+  "name": "Front limited-slip diff (Vortex R)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "tier": "sport",
+  "price": 1150,
+  "mass": 23,
+  "model": "",
+  "icon": "assets/icons/parts/vortex_r_lsd_front.png",
+  "fits": ["car:vortex_r"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A limited-slip front diff made for the Vortex: it pulls out of corners instead of spinning the inside wheel, and tugs at the wheel far less.",
+  "differential": {
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.35
+  }
+}

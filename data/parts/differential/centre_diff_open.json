@@ -1,0 +1,21 @@
+{
+  "id": "centre_diff_open",
+  "name": "Centre differential (open, 50/50)",
+  "category": "differential",
+  "slot": "centre_diff",
+  "kind": "component",
+  "price": 600,
+  "mass": 18,
+  "model": "",
+  "icon": "assets/icons/parts/centre_diff_open.png",
+  "fits": ["centre_diff:awd"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "centreDifferential": {
+    "_note": "How AWD shares the drive front and rear: split is the front's share. type: 'open' (always the split: one spinning axle takes it all), 'viscous' (it resists the axles turning at different speeds, viscous N·m per rad/s of difference), 'lsd' (up to preload + lock × the torque through it) or 'locked' (front and rear turn together). lockable: the driver can lock it.",
+    "type": "open",
+    "split": 0.5
+  },
+  "tier": "stock"
+}

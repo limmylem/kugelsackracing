@@ -1,0 +1,35 @@
+{
+  "id": "apex_v8_aero_kit",
+  "name": "Carbon aero kit (Apex V8)",
+  "category": "aero",
+  "slot": "aero_kit",
+  "kind": "component",
+  "tier": "race",
+  "price": 4200,
+  "mass": 7,
+  "toughness": 0.8,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Apex V8 carbon aero kit: a front splitter (190 cm), two pairs of dive planes, carbon side blades and a big rear diffuser with five strakes — drawn as a frame the car's size.",
+  "icon": "assets/icons/parts/apex_v8_aero_kit.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A carbon front splitter, dive planes and a bigger rear diffuser: downforce at both ends.",
+  "bounds": {
+    "min": [-0.975, -0.05, -2.15],
+    "max": [0.975, 0.2, 2.15]
+  },
+  "aeroEffect": {
+    "liftFront": -0.1,
+    "liftRear": -0.12,
+    "drag": 0.012
+  }
+}

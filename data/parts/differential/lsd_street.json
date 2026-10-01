@@ -1,0 +1,24 @@
+{
+  "id": "lsd_street",
+  "name": "1-way limited-slip differential",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "tier": "street",
+  "price": 600,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/lsd_street.png",
+  "fits": [
+    ["diff_mount:starter", "diff:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A clutch-type LSD for any car's driven axle, locking on the power only: more drive out of corners, the car still turns in freely.",
+  "differential": {
+    "type": "lsd",
+    "preload": 40,
+    "lock": 0.35
+  }
+}

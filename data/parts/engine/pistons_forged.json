@@ -1,0 +1,24 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/pistons_forged.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": ["pistons:forged"],
+  "id": "pistons_forged",
+  "name": "Forged pistons and rods",
+  "category": "engine",
+  "slot": "pistons",
+  "tier": "sport",
+  "price": 1100,
+  "mass": 0,
+  "fits": [],
+  "_note": "Forged pistons and rods for any engine: it takes more over-revving, and the boost of a bigger turbo.",
+  "effects": [
+    {
+      "target": "engine.overRev.blown",
+      "op": "add",
+      "value": 0.07
+    }
+  ]
+}

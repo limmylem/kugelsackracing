@@ -1,0 +1,22 @@
+{
+  "id": "stock_suspension",
+  "name": "Coil springs and dampers (stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 520,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/stock_suspension.png",
+  "fits": ["chassis:starter"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.3,
+    "travel": 0.22,
+    "stiffness": 30000,
+    "damping": 3200
+  },
+  "tier": "stock"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "ridgeback_4x4_suspension",
+  "name": "Springs and dampers (Ridgeback 4x4, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 700,
+  "mass": 90,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_suspension.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.42,
+    "travel": 0.34,
+    "stiffness": 31000,
+    "damping": 3150,
+    "antiRoll": {
+      "front": 6000,
+      "rear": 2000
+    }
+  },
+  "tier": "stock"
+}

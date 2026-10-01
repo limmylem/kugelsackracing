@@ -1,0 +1,148 @@
+{
+  "_note": "The Ridgeback 4x4's 4.0 L V6's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A V6: six even firings a cycle — smoother and fuller than a four, a hollow snarl up high.",
+  "engine": "ridgeback_4x4_engine",
+  "cylinders": 6,
+  "layers": [
+    {
+      "band": "idle",
+      "rpm": 650,
+      "on": "assets/sounds/engines/v6/rpm0650_on.wav",
+      "off": "assets/sounds/engines/v6/rpm0650_off.wav"
+    },
+    {
+      "band": "idle",
+      "rpm": 850,
+      "on": "assets/sounds/engines/v6/rpm0850_on.wav",
+      "off": "assets/sounds/engines/v6/rpm0850_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1100,
+      "on": "assets/sounds/engines/v6/rpm1100_on.wav",
+      "off": "assets/sounds/engines/v6/rpm1100_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1450,
+      "on": "assets/sounds/engines/v6/rpm1450_on.wav",
+      "off": "assets/sounds/engines/v6/rpm1450_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 1950,
+      "on": "assets/sounds/engines/v6/rpm1950_on.wav",
+      "off": "assets/sounds/engines/v6/rpm1950_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 2550,
+      "on": "assets/sounds/engines/v6/rpm2550_on.wav",
+      "off": "assets/sounds/engines/v6/rpm2550_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 3350,
+      "on": "assets/sounds/engines/v6/rpm3350_on.wav",
+      "off": "assets/sounds/engines/v6/rpm3350_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 4400,
+      "on": "assets/sounds/engines/v6/rpm4400_on.wav",
+      "off": "assets/sounds/engines/v6/rpm4400_off.wav"
+    },
+    {
+      "band": "redline",
+      "rpm": 5800,
+      "on": "assets/sounds/engines/v6/rpm5800_on.wav",
+      "off": "assets/sounds/engines/v6/rpm5800_off.wav"
+    }
+  ],
+  "mix": {
+    "blend": 0.5,
+    "level": 0.46,
+    "idleLevel": 0.42,
+    "offLoadLevel": 0.6,
+    "curve": 1.3,
+    "load": [0.04, 0.55],
+    "toneHz": [1300, 8500],
+    "maxShift": 0.3
+  },
+  "intake": {
+    "file": "assets/sounds/engines/v6/intake.wav",
+    "gain": 0.1,
+    "hz": [380, 1900],
+    "q": 0.9,
+    "throttle": [0.45, 1]
+  },
+  "shift": {
+    "file": "assets/sounds/engines/v6/shift.wav",
+    "gain": 0.22
+  },
+  "limiter": {
+    "file": "assets/sounds/engines/v6/limiter.wav",
+    "gain": 0.18,
+    "every": 0.06
+  },
+  "damage": {
+    "bang": "assets/sounds/engines/v6/bang.wav",
+    "bangGain": 1,
+    "bent": "assets/sounds/engines/v6/bent.wav",
+    "bentGain": 0.55,
+    "rough": 0.35
+  },
+  "synth": {
+    "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",
+    "seed": 35,
+    "sampleRate": 32000,
+    "length": 0.9,
+    "cylinders": [1, 0.9, 0.96, 0.92, 1.02, 0.88],
+    "jitter": 0.02,
+    "pulseRise": 0.0003,
+    "pulseDecay": 0.0018,
+    "noiseDecay": 0.0016,
+    "noise": [0.25, 0.8],
+    "direct": 0.2,
+    "highpass": 35,
+    "resonances": [
+      {
+        "name": "boom",
+        "hz": [90, 130],
+        "q": 1.2,
+        "gain": [0.7, 0.5],
+        "offLoad": 0.6
+      },
+      {
+        "name": "tone",
+        "hz": [260, 520],
+        "q": 1.5,
+        "gain": [1.8, 1.2],
+        "offLoad": 1.1
+      },
+      {
+        "name": "rasp",
+        "hz": [1100, 2100],
+        "q": 1.3,
+        "gain": [0.5, 1],
+        "offLoad": 0.2
+      },
+      {
+        "name": "edge",
+        "hz": [2800, 4200],
+        "q": 2,
+        "gain": [0.1, 0.4],
+        "offLoad": 0.03
+      }
+    ],
+    "clip": [0.5, 2.4],
+    "tone": [2000, 8000],
+    "rms": 0.21,
+    "offLoad": {
+      "pulse": 0.4,
+      "burble": 0.3,
+      "noise": 0.06,
+      "clip": 0.2,
+      "tone": [1200, 3200]
+    }
+  }
+}

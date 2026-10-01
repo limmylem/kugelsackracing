@@ -1,0 +1,43 @@
+{
+  "_note": "Strada Evo's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_strada_evo.glb) when it's made.",
+  "paint": "#2a4fa6",
+  "style": "sedan",
+  "length": 4.5,
+  "width": 1.77,
+  "height": 1.45,
+  "clearance": 0.15,
+  "beltline": 0.95,
+  "frontAxle": 1.37,
+  "rearAxle": -1.26,
+  "track": 1.52,
+  "wheel": {
+    "radius": 0.322,
+    "rimDiameter": 17,
+    "width": 0.235
+  },
+  "bonnet": {
+    "rear": 0.7,
+    "front": 0.68,
+    "back": 0.92
+  },
+  "roof": {
+    "front": 0.25,
+    "rear": -1.05,
+    "height": 1.45
+  },
+  "deck": {
+    "front": -1.55,
+    "height": 1
+  },
+  "engine": {
+    "at": [0, 0.5, 1.28],
+    "size": [0.6, 0.5, 0.55]
+  },
+  "seatZ": -0.35,
+  "floor": 0.24,
+  "extraSockets": {
+    "socket_rally_lights": [0, 0.78, 1.95],
+    "socket_mud_flaps": [0, 0.22, -1.72]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_boot", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_diff_front", "socket_centre_diff", "socket_rally_lights", "socket_mud_flaps"]
+}

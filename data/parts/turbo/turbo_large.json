@@ -1,0 +1,48 @@
+{
+  "id": "turbo_large",
+  "name": "Large turbo kit",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 6200,
+  "mass": 30,
+  "model": "",
+  "modelTodo": "A large turbocharger: a snail-shell housing about 30 cm across with its downpipe and intake pipe, sitting beside the engine.",
+  "icon": "assets/icons/parts/turbo_large.png",
+  "fits": [],
+  "requires": ["slot:intercooler", "pistons:forged", "clutch_rating:race"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+  "provides": ["forced_induction:turbo"],
+  "_note": "A large turbo for any engine without one: slow to wake up, then a lot of boost high in the revs. Forged internals and a race clutch to live with it.",
+  "hides": ["socket_intake"],
+  "bounds": {
+    "min": [-0.17, 0, -0.15],
+    "max": [0.17, 0.3, 0.15]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[2500, 0], [3500, 0.15], [4500, 0.55], [5500, 0.9], [6500, 0.95], [7500, 0.85]],
+      "efficiency": 0.85,
+      "max": 1.05
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "whistle": {
+      "fromHz": 1400,
+      "toHz": 5200,
+      "gain": 0.08,
+      "noise": 0.6,
+      "q": 7,
+      "spoolUp": 1.1,
+      "spoolDown": 0.6
+    }
+  }
+}

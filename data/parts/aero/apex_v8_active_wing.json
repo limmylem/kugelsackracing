@@ -1,0 +1,53 @@
+{
+  "id": "apex_v8_active_wing",
+  "name": "Active rear wing (Apex V8)",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "tier": "race",
+  "price": 2400,
+  "mass": 7,
+  "toughness": 0.7,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Apex V8 active wing: a 150 cm carbon aerofoil (30 cm chord) on two hydraulic struts rising from the engine cover (up to 25 cm).",
+  "icon": "assets/icons/parts/apex_v8_active_wing.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A hydraulic wing that works by itself: flat for low drag on the straights, steep in corners, and it stands up as an air brake under hard braking. (Not adjustable: it sets itself.)",
+  "aero": {
+    "point": [0, 0.2, 0],
+    "angle": {
+      "min": 0,
+      "max": 20,
+      "default": 10,
+      "scaleAtMin": 0.3,
+      "scaleAtMax": 1.6
+    },
+    "liftCoefficient": -0.5,
+    "dragCoefficient": 0.035,
+    "active": {
+      "straight": 1,
+      "corner": 12,
+      "braking": 20,
+      "turnG": 0.25,
+      "rate": 40
+    }
+  },
+  "placeholder": {
+    "width": 1.5,
+    "chord": 0.3,
+    "thickness": 0.03,
+    "height": 0.2,
+    "colour": "#1f2226"
+  },
+  "massOffset": [0, 0.1, 0]
+}

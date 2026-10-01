@@ -1,0 +1,57 @@
+{
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "drift",
+  "price": 85,
+  "mass": 10.56,
+  "toughness": 1.5,
+  "fits": ["rim:19"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A hard drift tyre: it lets go early and slides predictably, and lasts — made for smoke.",
+  "tyreSize": {
+    "width": 255,
+    "sidewall": 35,
+    "compound": "drift"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 16,
+      "C": 1.5,
+      "D": 1,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 11,
+      "C": 1.4,
+      "D": 0.79,
+      "E": -0.2
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.012,
+    "wheelSubsteps": 6
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.3
+  },
+  "id": "tyre_drift_255_35r19",
+  "name": "255/35 R19 drift tyre",
+  "model": "",
+  "icon": "assets/icons/parts/tyre_drift_255_35r19.png",
+  "variantOf": "tyre_drift",
+  "generated": {
+    "table": "tyre_drift",
+    "key": "size=255_35r19"
+  },
+  "_generated": "Made by npm run generate-variants from data/variants/tyre_drift.json: change the table, not this file."
+}

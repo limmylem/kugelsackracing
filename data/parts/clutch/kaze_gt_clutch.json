@@ -1,0 +1,27 @@
+{
+  "id": "kaze_gt_clutch",
+  "name": "Clutch (Kaze GT, stock)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 230,
+  "mass": 8,
+  "model": "",
+  "icon": "assets/icons/parts/kaze_gt_clutch.png",
+  "fits": ["clutch_spline:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "clutch": {
+    "maxTorque": 280,
+    "engageTime": 0.15,
+    "releaseTime": 0.2,
+    "antiStallRpm": 550,
+    "auto": {
+      "launchRpm": 4000,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "stock"
+}

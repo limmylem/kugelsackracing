@@ -1,0 +1,22 @@
+{
+  "id": "wheel_spacers_20",
+  "name": "20 mm wheel spacers",
+  "category": "wheels",
+  "slot": "spacers",
+  "kind": "component",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 90,
+  "mass": 0.8,
+  "toughness": 2,
+  "model": "",
+  "icon": "assets/icons/parts/wheel_spacers_20.png",
+  "fits": ["wheel_hub:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim_width:wide"],
+  "_note": "Hub spacers for any car: the wheels 20 mm further out — a wider track, and they fill a widebody's arches.",
+  "spacer": {
+    "thickness": 20
+  }
+}

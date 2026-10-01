@@ -1,0 +1,42 @@
+{
+  "id": "vortex_r_big_turbo",
+  "name": "Big turbo upgrade (Vortex R)",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 2900,
+  "mass": 6,
+  "model": "",
+  "modelTodo": "Vortex R big turbo: a larger turbo (26 cm) with a bigger compressor inlet, at the back of the transverse four.",
+  "icon": "assets/icons/parts/vortex_r_big_turbo.png",
+  "fits": ["engine_family:vortex_i4t"],
+  "requires": ["pistons:forged", "slot:intercooler"],
+  "conflicts": ["forced_induction:supercharger"],
+  "provides": [],
+  "_note": "A bigger turbo in place of the Vortex's own: a lot more top end, a little later.",
+  "bounds": {
+    "min": [-0.15, 0, -0.14],
+    "max": [0.15, 0.26, 0.14]
+  },
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.3,
+      "when": {
+        "rpm": [4000, 7000],
+        "fade": 1500
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.92,
+      "when": {
+        "rpm": [0, 2000],
+        "fade": 500
+      }
+    }
+  ]
+}

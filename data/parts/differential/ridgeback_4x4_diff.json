@@ -1,0 +1,22 @@
+{
+  "id": "ridgeback_4x4_diff",
+  "name": "Rear differential, lockable (Ridgeback 4x4, stock)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "price": 450,
+  "mass": 24,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_diff.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "differential": {
+    "type": "open",
+    "preload": 0,
+    "lock": 0,
+    "lockable": true
+  },
+  "tier": "stock"
+}

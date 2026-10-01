@@ -1,0 +1,36 @@
+{
+  "id": "kaze_gt_bonnet",
+  "name": "Bonnet (Kaze GT, stock)",
+  "category": "body",
+  "slot": "bonnet",
+  "kind": "component",
+  "price": 300,
+  "mass": 14,
+  "toughness": 0.9,
+  "detach": {
+    "_note": "Coming loose and off in a crash (garage/detach.js, physics/looseParts.js): each hit's stress on the part (condition points, by its toughness) adds up; past looseThreshold it comes loose, and one hit past detachThreshold (half that, once loose) tears it off. Loose: hinge parts swing on their origin about hinge.axis within hinge.limits (degrees; pop: rad/s the latch lets go with; open: how much the air at speed lifts it), hanging parts dangle from one of their mounts (socket frame, one picked at random) and drag on the ground; none go straight to torn off. A loose part tears off when it pulls on its fixings harder than attachStrength (N): hitting things, the air at speed, bouncing. While loose it adds looseDrag to the car's drag coefficient; torn off, its mass and aero are gone.",
+    "detachable": true,
+    "looseType": "hinge",
+    "hinge": {
+      "axis": [1, 0, 0],
+      "limits": [-110, 0]
+    },
+    "attachStrength": 2500,
+    "looseThreshold": 10,
+    "detachThreshold": 85,
+    "looseDrag": 0.12,
+    "open": 0.5,
+    "pop": 1.2
+  },
+  "model": "assets/parts/stock/kaze_gt/kaze_gt_bonnet.glb",
+  "icon": "assets/icons/parts/kaze_gt_bonnet.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "bounds": {
+    "min": [-0.73, -0.27, 0],
+    "max": [0.73, 0, 1.37]
+  },
+  "tier": "stock"
+}

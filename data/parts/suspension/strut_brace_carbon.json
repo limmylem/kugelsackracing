@@ -1,0 +1,29 @@
+{
+  "id": "strut_brace_carbon",
+  "name": "Carbon strut brace, front and rear",
+  "category": "suspension",
+  "slot": "strut_brace",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 520,
+  "mass": 3,
+  "model": "",
+  "modelTodo": "A carbon strut brace: a 110 cm carbon bar with alloy end plates (the front one; the rear sits out of sight).",
+  "icon": "assets/icons/parts/strut_brace_carbon.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Carbon braces across the front and rear strut towers: stiffer at both ends, sharper still.",
+  "bounds": {
+    "min": [-0.55, 0, -0.04],
+    "max": [0.55, 0.05, 0.04]
+  },
+  "effects": [
+    {
+      "target": "tyre.lateral.B",
+      "op": "multiply",
+      "value": 1.035
+    }
+  ]
+}

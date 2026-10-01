@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "owned-part.schema.json",
+  "title": "Owned part instance",
+  "type": "object",
+  "required": ["instanceId", "partId", "condition"],
+  "additionalProperties": false,
+  "properties": {
+    "instanceId": { "type": "string", "minLength": 1 },
+    "partId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "condition": { "type": "number", "minimum": 0, "maximum": 100 },
+    "tuning": { "type": "object", "additionalProperties": { "type": "number" }, "description": "Its settings (the part's tuning), by name" },
+    "damage": {
+      "type": "object", "description": "Mechanical damage it carries (garage/mechanical.js): numbers, or per corner (FL…) objects of numbers",
+      "additionalProperties": { "anyOf": [{ "type": "number" }, { "type": "object", "additionalProperties": { "type": "number" } }] }
+    },
+    "paint": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "finish": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "A finish in data/finishes.json" } },
+      "description": "This part's own colour and / or finish, over its definition's look"
+    }
+  }
+}

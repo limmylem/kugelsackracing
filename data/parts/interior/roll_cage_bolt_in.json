@@ -1,0 +1,24 @@
+{
+  "id": "roll_cage_bolt_in",
+  "name": "Bolt-in roll cage",
+  "category": "interior",
+  "slot": "roll_cage",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "safety",
+  "price": 1400,
+  "mass": 28,
+  "model": "",
+  "modelTodo": "A bolt-in roll cage: 40 mm tubes — a main hoop behind the seats, two A-pillar bars, a diagonal and two rear stays, about 130 × 90 × 150 cm.",
+  "icon": "assets/icons/parts/roll_cage_bolt_in.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A bolt-in six-point cage: the shell takes hits far better (chassisToughness), and so does everything bolted to it — for 28 kg.",
+  "chassisToughness": 0.4,
+  "bounds": {
+    "min": [-0.65, -0.45, -0.75],
+    "max": [0.65, 0.45, 0.75]
+  }
+}

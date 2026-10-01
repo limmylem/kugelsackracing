@@ -1,0 +1,30 @@
+{
+  "id": "fog_lights_round",
+  "name": "Round fog lights",
+  "category": "cosmetic",
+  "slot": "fog_lights",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "looks",
+  "price": 220,
+  "mass": 1.5,
+  "model": "",
+  "modelTodo": "Round fog lights: two 10 cm round lamps with chrome bezels, 110 cm apart, low in the front bumper.",
+  "icon": "assets/icons/parts/fog_lights_round.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A pair of round fog lights in the front bumper.",
+  "effects": [
+    {
+      "target": "cosmetic.fog",
+      "op": "set",
+      "value": "#fff3c4"
+    }
+  ],
+  "bounds": {
+    "min": [-0.6, 0, -0.04],
+    "max": [0.6, 0.1, 0.04]
+  }
+}

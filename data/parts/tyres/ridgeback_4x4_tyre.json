@@ -1,0 +1,60 @@
+{
+  "id": "ridgeback_4x4_tyre",
+  "name": "265/70 R17 all-terrain tyre (Ridgeback 4x4, stock)",
+  "category": "tyres",
+  "slot": "tyres",
+  "kind": "component",
+  "price": 177,
+  "mass": 20,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_tyre.png",
+  "fits": ["rim:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "toughness": 1.5,
+  "tyreSize": {
+    "width": 265,
+    "sidewall": 70,
+    "compound": "all_terrain"
+  },
+  "look": {
+    "finish": "rubber"
+  },
+  "tyre": {
+    "longitudinal": {
+      "B": 13,
+      "C": 1.5,
+      "D": 1.05,
+      "E": 0.3
+    },
+    "lateral": {
+      "B": 9,
+      "C": 1.4,
+      "D": 0.8,
+      "E": -0.1
+    },
+    "minSlipSpeed": 1,
+    "lowSpeed": {
+      "blendStart": 0.5,
+      "blendEnd": 2.5,
+      "stiffness": 60000,
+      "damping": 8000
+    },
+    "rollingResistance": 0.016,
+    "wheelSubsteps": 6,
+    "surfaceGrip": {
+      "dirt": 1,
+      "grass": 1.15,
+      "gravel": 1.05,
+      "ice": 1.1,
+      "tarmac": 0.96
+    }
+  },
+  "gripWidth": {
+    "reference": 180,
+    "exponent": 0.2
+  },
+  "purpose": "offroad",
+  "tier": "stock"
+}

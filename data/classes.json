@@ -1,0 +1,57 @@
+{
+  "_note": "Performance rating (garage/rating.js): 100–999 from quick estimates of acceleration (0–100 km/h), top speed, cornering grip and braking. weights: each estimate's share of the rating; ranges: the estimate that scores nothing and the one that scores full marks. classes: the rating each class starts at, lowest first. (Phase 5: C from 460, B 580, A 680, S 740 — so a hot hatch is C, a muscle car or a rally saloon B and a supercar S, as the cars are, and a class-D car fully upgraded is B at most; the starter car stays D.)",
+  "weights": {
+    "acceleration": 0.35,
+    "topSpeed": 0.15,
+    "grip": 0.3,
+    "braking": 0.2
+  },
+  "ranges": {
+    "acceleration": {
+      "worst": 16,
+      "best": 2.5,
+      "unit": "s 0–100 km/h"
+    },
+    "topSpeed": {
+      "worst": 120,
+      "best": 380,
+      "unit": "km/h"
+    },
+    "grip": {
+      "worst": 0.6,
+      "best": 1.8,
+      "unit": "g"
+    },
+    "braking": {
+      "worst": 55,
+      "best": 25,
+      "unit": "m 100–0 km/h"
+    }
+  },
+  "classes": [
+    {
+      "class": "D",
+      "from": 100
+    },
+    {
+      "class": "C",
+      "from": 460
+    },
+    {
+      "class": "B",
+      "from": 580
+    },
+    {
+      "class": "A",
+      "from": 680
+    },
+    {
+      "class": "S",
+      "from": 740
+    },
+    {
+      "class": "X",
+      "from": 850
+    }
+  ]
+}

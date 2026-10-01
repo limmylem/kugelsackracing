@@ -1,0 +1,50 @@
+{
+  "_note": "Ridgeback 4x4's placeholder model (tools/placeholder-car.mjs, tools/content/placeholderCar.mjs): its proportions and socket nodes. Replace it with the real model (npm run import -- incoming/car_ridgeback_4x4.glb) when it's made.",
+  "paint": "#6b7a4a",
+  "style": "suv",
+  "length": 4.75,
+  "width": 1.9,
+  "height": 1.84,
+  "clearance": 0.28,
+  "beltline": 1.2,
+  "frontAxle": 1.45,
+  "rearAxle": -1.34,
+  "track": 1.6,
+  "wheel": {
+    "radius": 0.401,
+    "rimDiameter": 17,
+    "width": 0.265
+  },
+  "bonnet": {
+    "rear": 0.75,
+    "front": 1.05,
+    "back": 1.15
+  },
+  "roof": {
+    "front": 0.45,
+    "rear": -1.9,
+    "height": 1.84
+  },
+  "deck": {
+    "front": -2.2,
+    "height": 1.3
+  },
+  "engine": {
+    "at": [0, 0.8, 1.42],
+    "size": [0.66, 0.55, 0.6]
+  },
+  "seatZ": -0.15,
+  "floor": 0.45,
+  "columnDeg": 24,
+  "extraSockets": {
+    "socket_bull_bar": [0, 0.75, 2.42],
+    "socket_snorkel": [-0.9, 1.35, 0.85],
+    "socket_winch": [0, 0.55, 2.36],
+    "socket_roof_rack": [0, 1.86, -0.6],
+    "socket_light_bar": [0, 1.88, 0.35],
+    "socket_skid_plates": [0, 0.3, 1.1],
+    "socket_rock_sliders": [0, 0.33, 0.05],
+    "socket_lift_kit": [0, 0.55, 0]
+  },
+  "sockets": ["socket_engine", "socket_pistons", "socket_intake", "socket_turbo", "socket_intercooler", "socket_exhaust_tip", "socket_header", "socket_ecu", "socket_gearbox", "socket_clutch", "socket_flywheel", "socket_differential", "socket_suspension", "socket_arb_front", "socket_arb_rear", "socket_brakes", "socket_brake_pads", "socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR", "socket_bonnet", "socket_bumper_front", "socket_bumper_rear", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_spoiler", "socket_weight_rear_seats", "socket_weight_sound_deadening", "socket_supercharger", "socket_radiator", "socket_engine_swap", "socket_shifter", "socket_cage", "socket_harness", "socket_gauges", "socket_strut_brace", "socket_window_tint", "socket_tyre_smoke", "socket_underglow", "socket_fog_lights", "socket_diff_front", "socket_transfer_case", "socket_bull_bar", "socket_snorkel", "socket_winch", "socket_roof_rack", "socket_light_bar", "socket_skid_plates", "socket_rock_sliders", "socket_lift_kit"]
+}

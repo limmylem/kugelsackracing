@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "car.schema.json",
+  "title": "Car definition",
+  "description": "Only what belongs to the body: chassis, dimensions, base aero, drive layout, the car's own controls, aids and cameras, and its sockets with their stock parts. Fields starting with _ are notes.",
+  "type": "object",
+  "required": ["id", "name", "tags", "model", "chassis", "dimensions", "aero", "drivetrain", "wheels", "steering", "pedals", "assists", "camera", "sockets"],
+  "patternProperties": {
+    "^_": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "What it costs at the dealer (with its stock parts)"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Its picture in the dealership (npm run import renders it)"
+    },
+    "todo": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "What's still to be filled in (a car npm run import started from the starter car's file)"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tag"
+      },
+      "description": "What the car offers to parts' fits and requires (e.g. bolt_pattern:4x100)"
+    },
+    "model": {
+      "$ref": "blocks.schema.json#/$defs/model"
+    },
+    "chassis": {
+      "type": "object",
+      "required": ["mass", "centreOfMass", "inertia"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "mass": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "centreOfMass": {
+          "$ref": "blocks.schema.json#/$defs/vec3"
+        },
+        "inertia": {
+          "type": "object",
+          "required": ["xx", "yy", "zz", "xy", "xz", "yz"],
+          "additionalProperties": false,
+          "properties": {
+            "xx": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "yy": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "zz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "xy": {
+              "type": "number"
+            },
+            "xz": {
+              "type": "number"
+            },
+            "yz": {
+              "type": "number"
+            }
+          },
+          "description": "The chassis's inertia tensor about its own centre of mass (kg·m², car frame)"
+        }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "required": ["bodyCollider", "spawnHeight"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "bodyCollider": {
+          "$ref": "blocks.schema.json#/$defs/bodyCollider"
+        },
+        "spawnHeight": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "damageZones": {
+      "type": "object",
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["box", "systems"],
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "type": "object",
+            "required": ["min", "max"],
+            "additionalProperties": false,
+            "properties": {
+              "min": {
+                "$ref": "blocks.schema.json#/$defs/vec3"
+              },
+              "max": {
+                "$ref": "blocks.schema.json#/$defs/vec3"
+              }
+            }
+          },
+          "facing": {
+            "$ref": "blocks.schema.json#/$defs/vec3"
+          },
+          "systems": {
+            "type": "array",
+            "items": {
+              "enum": ["steering", "suspension", "rim", "tyre", "brakeLine", "radiator", "intake", "gearbox", "differential", "exhaust"]
+            }
+          }
+        }
+      },
+      "description": "Where a hit can damage the mechanicals, and which systems (garage/mechanical.js)"
+    },
+    "shell": {
+      "type": "object",
+      "required": ["toughness", "price"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "toughness": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "description": "The body shell (the car without its parts): how well it takes a hit, and the price its repairs come from"
+    },
+    "aero": {
+      "$ref": "blocks.schema.json#/$defs/baseAero"
+    },
+    "drivetrain": {
+      "$ref": "blocks.schema.json#/$defs/drivetrain"
+    },
+    "wheels": {
+      "type": "object",
+      "required": ["front", "rear"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "front": {
+          "$ref": "#/$defs/corners"
+        },
+        "rear": {
+          "$ref": "#/$defs/corners"
+        },
+        "mountHeight": {
+          "type": "object",
+          "required": ["front", "rear"],
+          "additionalProperties": false,
+          "properties": {
+            "front": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "rear": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "description": "Suspension top mounts, m above the model's wheel sockets (which are the wheel centres at ride height)"
+        },
+        "hubInertia": {
+          "type": "number",
+          "minimum": 0,
+          "description": "kg·m² turning with each wheel besides the rim and tyre (hub, brake disc, drive shaft)"
+        },
+        "unsprungBaseline": {
+          "type": "number",
+          "minimum": 0,
+          "description": "kg: each corner's wheel and tyre the suspension was set up with (more or less unsprung mass than this changes how the car sits and loads its tyres)"
+        },
+        "referenceOffset": {
+          "type": "number",
+          "description": "mm: the rim offset (ET) the model's wheel sockets are for"
+        },
+        "maxTyreRadius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "m: the biggest tyre (radius) the arches take; a lift kit makes room for bigger (garage/stats.js)"
+        }
+      }
+    },
+    "steering": {
+      "$ref": "blocks.schema.json#/$defs/steering"
+    },
+    "pedals": {
+      "$ref": "blocks.schema.json#/$defs/pedals"
+    },
+    "assists": {
+      "$ref": "blocks.schema.json#/$defs/assists"
+    },
+    "camera": {
+      "$ref": "blocks.schema.json#/$defs/camera"
+    },
+    "sockets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/socket"
+      }
+    },
+    "socketGroups": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "^socket_"
+        }
+      },
+      "description": "Named sets of sockets (wheels: the four wheel sockets): a part whose slot is a group's name goes in every socket of it"
+    },
+    "paint": {
+      "type": "object",
+      "required": ["colour", "finish"],
+      "additionalProperties": false,
+      "properties": {
+        "colour": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "finish": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        }
+      },
+      "description": "The factory paint (a finish in data/finishes.json)"
+    },
+    "roof": {
+      "$ref": "blocks.schema.json#/$defs/roof",
+      "description": "Its own roof (none: a fixed one; a convertible: none — open — until a roof part goes on)"
+    },
+    "engineCover": {
+      "type": "string",
+      "description": "The socket whose panel opens to show the engine (none: the bonnet or boot nearest the engine)"
+    },
+    "type": {
+      "type": "string",
+      "description": "What kind of car it is (the dealership groups them by it): Sports coupe, Roadster, Off-roader…"
+    },
+    "class": {
+      "enum": ["D", "C", "B", "A", "S", "X"],
+      "description": "The class it's sold in: its stock rating must be in it (the tests check), and its price is the class's (data/economy.json carPrices) × priceFactor"
+    },
+    "priceFactor": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Its price against its class's (none: 1)"
+    },
+    "modelTodo": {
+      "type": "string",
+      "description": "Its model is still a placeholder (tools/placeholder-car.mjs, from data/cars/<id>/design.json): what the real one should be"
+    },
+    "cooling": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "required": ["capacity"],
+      "properties": {
+        "capacity": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "description": "The radiator, sized for the car's own engine: capacity × the starter car's (physics/mechanical.js). A bigger engine swapped in makes more heat than it was sized for: an uprated radiator (a part) raises it"
+    }
+  },
+  "$defs": {
+    "tag": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(:[a-z0-9_.x-]+)?$"
+    },
+    "corners": {
+      "type": "array",
+      "items": {
+        "enum": ["FL", "FR", "RL", "RR"]
+      }
+    },
+    "socket": {
+      "type": "object",
+      "required": ["name", "slot", "required", "position", "pull", "blockedBy", "focus", "stock"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^socket_[a-z0-9_A-Z]+$",
+          "description": "The .glb socket node this is (e.g. socket_turbo)"
+        },
+        "slot": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "The type of part that goes here"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "The car can't drive without something here"
+        },
+        "position": {
+          "$ref": "blocks.schema.json#/$defs/vec3",
+          "description": "Where a part's mass sits (car frame, m)"
+        },
+        "pull": {
+          "$ref": "blocks.schema.json#/$defs/vec3",
+          "description": "Which way a part comes out (car frame), for the remove animation"
+        },
+        "blockedBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^socket_"
+          },
+          "description": "Sockets that have to be empty before this one can be changed"
+        },
+        "focus": {
+          "enum": ["engine_bay", "front", "rear", "underbody", "interior", "roof", "side_left", "side_right", "wheel_FL", "wheel_FR", "wheel_RL", "wheel_RR"]
+        },
+        "node": {
+          "type": "string",
+          "pattern": "^socket_",
+          "description": "The model's socket node its part is drawn at, when that isn't the socket's own name (a tyre on its wheel, the exhaust at its tip)"
+        },
+        "mirrored": {
+          "type": "boolean",
+          "description": "The model's socket is turned 180° round y (a right-hand wheel): a part's massOffset is mirrored (x and z) to match"
+        },
+        "stock": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The factory part (the first) and any factory options"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        }
+      }
+    }
+  }
+}

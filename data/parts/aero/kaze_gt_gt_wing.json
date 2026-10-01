@@ -1,0 +1,61 @@
+{
+  "id": "kaze_gt_gt_wing",
+  "name": "GT wing (Kaze GT)",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "tier": "race",
+  "price": 1700,
+  "mass": 6,
+  "toughness": 0.7,
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "model": "",
+  "modelTodo": "Kaze GT GT wing: a 150 cm carbon aerofoil (30 cm chord) with end plates on two swan-neck uprights 28 cm tall.",
+  "icon": "assets/icons/parts/kaze_gt_gt_wing.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A tall swan-neck GT wing: real rear downforce, and drag.",
+  "aero": {
+    "point": [0, 0.28, 0],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    },
+    "liftCoefficient": -0.42,
+    "dragCoefficient": 0.03
+  },
+  "placeholder": {
+    "width": 1.5,
+    "chord": 0.3,
+    "thickness": 0.03,
+    "height": 0.28,
+    "colour": "#1f2226"
+  },
+  "massOffset": [0, 0.14, 0],
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  }
+}

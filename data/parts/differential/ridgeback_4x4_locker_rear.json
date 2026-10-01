@@ -1,0 +1,24 @@
+{
+  "id": "ridgeback_4x4_locker_rear",
+  "name": "Rear air locker with LSD (Ridgeback 4x4)",
+  "category": "differential",
+  "slot": "differential",
+  "kind": "component",
+  "tier": "sport",
+  "purpose": "offroad",
+  "price": 1200,
+  "mass": 26,
+  "model": "",
+  "icon": "assets/icons/parts/ridgeback_4x4_locker_rear.png",
+  "fits": ["car:ridgeback_4x4"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A rear limited-slip diff that also locks at the flick of a switch: grip on the road, a solid axle off it.",
+  "differential": {
+    "type": "lsd",
+    "preload": 30,
+    "lock": 0.3,
+    "lockable": true
+  }
+}

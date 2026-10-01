@@ -1,0 +1,26 @@
+{
+  "id": "apex_v8_suspension",
+  "name": "Springs and dampers (Apex V8, stock)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 630,
+  "mass": 60,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_suspension.png",
+  "fits": ["car:apex_v8"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "suspension": {
+    "restLength": 0.25,
+    "travel": 0.14,
+    "stiffness": 53500,
+    "damping": 4050,
+    "antiRoll": {
+      "front": 18000,
+      "rear": 14000
+    }
+  },
+  "tier": "stock"
+}

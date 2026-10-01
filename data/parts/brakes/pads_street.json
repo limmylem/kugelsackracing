@@ -1,0 +1,39 @@
+{
+  "kind": "modifier",
+  "model": "",
+  "icon": "assets/icons/parts/pads_street.png",
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "id": "pads_street",
+  "name": "Street brake pads",
+  "category": "brakes",
+  "slot": "brake_pads",
+  "tier": "street",
+  "price": 120,
+  "mass": 0,
+  "fits": [],
+  "_note": "Pads for the fitted discs: 6% more friction, fading 20 °C later. With none fitted, the discs' own pads.",
+  "effects": [
+    {
+      "target": "brakes.front.padMu",
+      "op": "multiply",
+      "value": 1.06
+    },
+    {
+      "target": "brakes.rear.padMu",
+      "op": "multiply",
+      "value": 1.06
+    },
+    {
+      "target": "brakes.fade.startTemp",
+      "op": "add",
+      "value": 20
+    },
+    {
+      "target": "brakes.fade.fullTemp",
+      "op": "add",
+      "value": 20
+    }
+  ]
+}
