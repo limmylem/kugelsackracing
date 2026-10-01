@@ -62,6 +62,7 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   const debris = new DebrisPool(RAPIER, world, debrisRules);
   const setupCar = v => { v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; return v; };
   let vehicle = setupCar(new Vehicle(RAPIER, world, spec, sockets, spawn));
+  vehicle.id = 0;                                        // (yours: 0; others' are their ids)
   // Other cars (AI test cars now; traffic / multiplayer later): { id, vehicle, driver(vehicle, dt) → input }
   const cars = [];
   let nextCarId = 1;
@@ -133,6 +134,7 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     addCar(at, driver, carSpec = spec) {
       const v = setupCar(new Vehicle(RAPIER, world, carSpec, sockets, at));
       const c = { id: nextCarId++, vehicle: v, driver };
+      v.id = c.id;
       cars.push(c);
       current = snapshot();
       return c.id;
@@ -156,6 +158,7 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
       world.removeRigidBody(vehicle.body);
       sockets = carSockets;                    // (cars added after this: the new model's too)
       vehicle = setupCar(new Vehicle(RAPIER, world, carSpec, carSockets, spawn));
+      vehicle.id = 0;
       api.resetCar(pose);
       previous = current = snapshot();
       return vehicle;
@@ -254,7 +257,8 @@ function shiftSnapshot(s, q, move) {
   if (s.wheels) out.wheels = s.wheels.map(w => ({ ...w, origin: w.origin && move(w.origin), contact: w.contact && move(w.contact), force: turn(w.force) }));
   if (s.props) out.props = s.props.map(p => ({ position: move(p.position), rotation: quatMultiply(q, p.rotation) }));
   if (s.others) out.others = s.others.map(o => shiftSnapshot(o, q, move));
-  if (s.debris) out.debris = s.debris.map(p => ({ ...p, position: move(p.position), rotation: quatMultiply(q, p.rotation) }));
+  if (s.debris) out.debris = s.debris.map(p => ({ ...p, position: move(p.position), rotation: quatMultiply(q, p.rotation), contact: p.contact && move(p.contact) }));
+  if (s.partScrape?.position) out.partScrape = { ...s.partScrape, position: move(s.partScrape.position) };
   if (s.looseParts) out.looseParts = s.looseParts.map(p => ({ ...p, position: move(p.position), rotation: quatMultiply(q, p.rotation) }));
   if (s.aero?.arrows) out.aero = { ...s.aero, arrows: s.aero.arrows.map(a => ({ ...a, point: move(a.point), force: turn(a.force) })) };
   return out;

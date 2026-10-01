@@ -7,6 +7,7 @@
   "tier": "sport",
   "price": 720,
   "mass": 3.5,
+  "contactMaterial": "plastic",
   "toughness": 0.7,
   "detach": {
     "detachable": true,

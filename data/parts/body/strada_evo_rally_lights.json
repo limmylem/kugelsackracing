@@ -8,6 +8,7 @@
   "purpose": "gravel",
   "price": 450,
   "mass": 6,
+  "contactMaterial": "plastic",
   "model": "assets/parts/body/strada_evo_rally_lights.glb",
   "icon": "assets/icons/parts/strada_evo_rally_lights.png",
   "fits": ["car:strada_evo"],

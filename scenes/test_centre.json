@@ -16,20 +16,21 @@
     "grass": {
       "grip": 0.72,
       "rollingResistance": 0.04,
-      "dust": "#7d7a55",
+      "effects": { "dust": { "colour": "#7d7a55", "perSpeed": 0.25, "perSlip": 3, "alpha": 0.55 }, "clippings": { "colour": "#5c8a33", "rate": 50 } },
       "marks": "#4a5330",
       "sound": "gravel"
     },
     "dirt": {
       "grip": 0.75,
       "rollingResistance": 0.035,
-      "dust": "#8a7152",
+      "effects": { "spray": { "colour": "#6b5640", "rate": 70, "speed": 0.5 }, "dust": { "colour": "#8a7152", "perSpeed": 0.9, "perSlip": 5, "alpha": 1 } },
       "marks": "#5a4a36",
       "sound": "gravel"
     },
     "ice": {
       "grip": 0.03,
       "rollingResistance": 0.01,
+      "effects": { "smoke": false },
       "sound": "tarmac"
     }
   },

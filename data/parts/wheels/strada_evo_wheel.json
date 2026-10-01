@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 150,
   "mass": 9.5,
+  "contactMaterial": "metal",
   "model": "assets/parts/stock/strada_evo/wheel_FL.glb",
   "icon": "assets/icons/parts/strada_evo_wheel.png",
   "fits": ["car:strada_evo"],

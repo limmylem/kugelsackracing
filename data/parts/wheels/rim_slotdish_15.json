@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 310,
   "mass": 14,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_slotdish_15.glb",
   "icon": "assets/icons/parts/rim_slotdish_15.png",
   "fits": ["wheel_hub:std", "rim_fits:15"],

@@ -8,6 +8,7 @@
   "purpose": "offroad",
   "price": 780,
   "mass": 38,
+  "contactMaterial": "metal",
   "toughness": 3,
   "model": "assets/parts/body/ridgeback_4x4_bull_bar.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_bull_bar.png",

@@ -10,7 +10,7 @@
 // material: what it hit ('concrete', 'metal', 'wood', 'ground' from the world's colliders, 'car',
 // 'plastic' for a loose prop); other: 'world' | 'car' | 'prop'; under: it's under the car (the floor
 // pan: only a hard landing counts). Sliding along something, pressed on, is a scrape: the strongest
-// this step is `scrape` ({ amount 0..1, speed, force, material }, or null).
+// this step is `scrape` ({ amount 0..1, speed, force, material, point, normal (car frame) }, or null).
 //
 // The tyres are rays, not colliders, so driving never touches anything here; the body touching the
 // road (a jump, a crest) is filtered by groundMinSpeed. Nothing here changes the physics.
@@ -102,7 +102,7 @@ export class ImpactSensor {
       const rel = sub(velOf(lin, ang, com), vOther), slide = sub(rel, scale(nWorld, dot(rel, nWorld))), speed = Math.hypot(...slide), force = J / dt;
       if (speed > R.scrapeSpeed && force > R.scrapeForce) {
         const amount = clamp(speed / 20, 0, 1) * Math.sqrt(clamp(force / 8000, 0, 1));
-        if (!this.scrape || amount > this.scrape.amount) this.scrape = { amount, speed, force, material, under, point };
+        if (!this.scrape || amount > this.scrape.amount) this.scrape = { amount, speed, force, material, under, point, normal };
       }
     });
     // (a hit so hard the car bounced straight off, before the window was up: what it built up, now)

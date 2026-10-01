@@ -6,6 +6,7 @@
   "purpose": "looks",
   "price": 380,
   "mass": 11.05,
+  "contactMaterial": "metal",
   "toughness": 1,
   "modelTodo": "A multi-spoke rim: ten thin spokes in pairs, a shallow dish, origin at the hub face; one model for every size (scaled).",
   "fits": ["wheel_hub:std", "rim_fits:20"],

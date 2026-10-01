@@ -14,7 +14,7 @@ import { computeStats } from './stats.js';
 import { checkInstall, checkRemove, validateBuild } from './validate.js';
 import { fingerprint } from './fingerprint.js';
 
-export const SCHEMAS = ['car.schema.json', 'part.schema.json', 'blocks.schema.json', 'owned-part.schema.json', 'build.schema.json', 'garage.schema.json', 'finishes.schema.json', 'condition.schema.json', 'classes.schema.json', 'economy.schema.json', 'profile.schema.json', 'engine-sound.schema.json', 'damage.schema.json', 'crash-sound.schema.json', 'mechanical-sound.schema.json'];
+export const SCHEMAS = ['car.schema.json', 'part.schema.json', 'blocks.schema.json', 'owned-part.schema.json', 'build.schema.json', 'garage.schema.json', 'finishes.schema.json', 'condition.schema.json', 'classes.schema.json', 'economy.schema.json', 'profile.schema.json', 'engine-sound.schema.json', 'damage.schema.json', 'crash-sound.schema.json', 'mechanical-sound.schema.json', 'effects.schema.json'];
 
 // Every car and part, and the finishes, checked against the schemas. Returns { db: { cars, parts,
 // finishes }, problems: [{ file, path, message }] } (problems: files that don't match their schema, ids

@@ -5,6 +5,8 @@
   "tier": "street",
   "price": 95,
   "mass": 10.49,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "fits": ["rim:19"],
   "requires": [],

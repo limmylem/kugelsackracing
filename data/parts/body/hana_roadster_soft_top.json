@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 1200,
   "mass": 18,
+  "contactMaterial": "fabric",
   "model": "assets/parts/stock/hana_roadster/hana_roadster_soft_top.glb",
   "icon": "assets/icons/parts/hana_roadster_soft_top.png",
   "fits": ["car:hana_roadster"],

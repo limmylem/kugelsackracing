@@ -73,6 +73,9 @@ for (const f of soundConfigs) {
   for (const m of Object.values(cfg.materials ?? {})) if (!cfg.impacts?.[m]) problems.push({ file, path: 'materials', message: `sounds like "${m}", which has no impacts` });
 }
 for (const part of Object.values(db.parts)) if (part.engine?.sound && !fs.existsSync(path.join(root, part.engine.sound))) problems.push({ file: `data/parts/${part.category}/${part.id}.json`, path: 'engine.sound', message: `${part.engine.sound} isn't there` });
+// what the outside of the car is made of (the effects: metal sparks, plastic doesn't), and the effects' own settings
+for (const part of Object.values(db.parts)) if (db.damage.exterior.includes(part.category) && !part.contactMaterial) problems.push({ file: `data/parts/${part.category}/${part.id}.json`, path: 'contactMaterial', message: 'a part on the outside of the car says what it\'s made of (metal, plastic, carbon, rubber, fabric)' });
+{ const file = 'data/effects.json', cfg = await readJson(file); for (const e of loaded.validator.validate('effects.schema.json', cfg)) problems.push({ file, path: e.path, message: e.message }); }
 
 for (const car of Object.values(db.cars)) {
   const file = `data/cars/${car.id}/car.json`, names = car.sockets.map(s => s.name);

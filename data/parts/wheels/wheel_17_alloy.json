@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 650,
   "mass": 8.4,
+  "contactMaterial": "metal",
   "toughness": 0.9,
   "model": "assets/parts/stock/starter_car/wheel_stock.glb",
   "icon": "assets/icons/parts/wheel_17_alloy.png",

@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 150,
   "mass": 10,
+  "contactMaterial": "metal",
   "model": "assets/parts/stock/vortex_r/wheel_FL.glb",
   "icon": "assets/icons/parts/vortex_r_wheel.png",
   "fits": ["car:vortex_r"],

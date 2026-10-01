@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 55,
   "mass": 8,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "model": "",
   "icon": "assets/icons/parts/stock_tyre_180_55r15.png",

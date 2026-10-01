@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 186,
   "mass": 11,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "model": "",
   "icon": "assets/icons/parts/apex_v8_tyre.png",
   "fits": ["rim:20"],

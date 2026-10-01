@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 650,
   "mass": 11.9,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_twist5_18.glb",
   "icon": "assets/icons/parts/rim_twist5_18.png",
   "fits": ["wheel_hub:std", "rim_fits:18"],

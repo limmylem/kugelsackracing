@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 150,
   "mass": 12,
+  "contactMaterial": "metal",
   "model": "assets/parts/stock/ridgeback_4x4/wheel_FL.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_wheel.png",
   "fits": ["car:ridgeback_4x4"],

@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 1350,
   "mass": 13.1,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_star7_19.glb",
   "icon": "assets/icons/parts/rim_star7_19.png",
   "fits": ["wheel_hub:std", "rim_fits:19"],

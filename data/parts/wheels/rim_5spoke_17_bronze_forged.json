@@ -4,6 +4,7 @@
   "kind": "component",
   "price": 1290,
   "mass": 6.37,
+  "contactMaterial": "metal",
   "toughness": 1.3,
   "fits": ["bolt_pattern:4x100"],
   "requires": [],

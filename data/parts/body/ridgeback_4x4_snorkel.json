@@ -8,6 +8,7 @@
   "purpose": "offroad",
   "price": 340,
   "mass": 4,
+  "contactMaterial": "plastic",
   "model": "assets/parts/body/ridgeback_4x4_snorkel.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_snorkel.png",
   "fits": ["car:ridgeback_4x4"],

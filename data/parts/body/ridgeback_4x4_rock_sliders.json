@@ -8,6 +8,7 @@
   "purpose": "offroad",
   "price": 480,
   "mass": 20,
+  "contactMaterial": "metal",
   "model": "assets/parts/body/ridgeback_4x4_rock_sliders.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_rock_sliders.png",
   "fits": ["car:ridgeback_4x4"],

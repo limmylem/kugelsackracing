@@ -34,6 +34,21 @@ const PIECE_NO_CARS = (DEBRIS << 16) | (0xffff & ~CAR), PIECE = (DEBRIS << 16) |
 const AIR = 1.2;       // kg/m³ (near enough, for bits of car)
 
 const pose = b => ({ position: fromXYZ(b.translation()), rotation: { ...b.rotation() } });
+// Where a collider touches something fixed (the ground, a wall), if it does: { point (world), material }
+function groundContact(world, collider) {
+  let out = null;
+  world.contactPairsWith(collider, other => {
+    if (out || (other.parent() && !other.parent().isFixed())) return;
+    world.contactPair(collider, other, (m, flipped) => {
+      for (let i = 0; i < m.numContacts() && !out; i++) {
+        if (m.contactDist(i) >= 0.02) continue;
+        const local = fromXYZ(flipped ? m.localContactPoint2(i) : m.localContactPoint1(i));
+        out = { point: add(fromXYZ(collider.translation()), rotate(collider.rotation(), local)), material: other.userData?.material ?? 'concrete' };
+      }
+    });
+  });
+  return out;
+}
 const pointVel = (b, p) => add(fromXYZ(b.linvel()), cross(fromXYZ(b.angvel()), sub(p, fromXYZ(b.worldCom()))));
 
 // A part body: a box (a wheel: a cylinder across the car, def.shape 'wheel', its radius and halfWidth,
@@ -146,15 +161,12 @@ export class LooseParts {
       const spin = Math.hypot(...sub(fromXYZ(b.angvel()), fromXYZ(car.angvel())));
       p.rattle = clamp(spin / 6, 0, 1) * 0.6 + clamp(acc / 80, 0, 1) * 0.5 + clamp(Math.hypot(...pointVel(car, centre)) / 40, 0, 1) * 0.2;
       this.rattle = Math.max(this.rattle, clamp(p.rattle, 0, 1));
-      // on the ground: a scrape as it drags
-      this.world.contactPairsWith(p.collider, other => {
-        if (other.parent() && !other.parent().isFixed()) return;
-        let touching = false;
-        this.world.contactPair(p.collider, other, m2 => { for (let i = 0; i < m2.numContacts(); i++) if (m2.contactDist(i) < 0.02) touching = true; });
-        if (!touching) return;
+      // on the ground: a scrape as it drags (where it touches: for the sparks)
+      const touch = groundContact(this.world, p.collider);
+      if (touch) {
         const speed = Math.hypot(...pointVel(b, centre)), amount = clamp(speed / 20, 0, 1) * 0.8;
-        if (speed > 1 && (!this.scrape || amount > this.scrape.amount)) this.scrape = { amount, speed, material: other.userData?.material ?? 'concrete' };
-      });
+        if (speed > 1 && (!this.scrape || amount > this.scrape.amount)) this.scrape = { amount, speed, material: touch.material, socket: p.socket, position: touch.point };
+      }
     }
   }
 
@@ -194,9 +206,12 @@ export class DebrisPool {
       const b = p.body;
       if (time - p.born > R.maxAge || (near && Math.hypot(...sub(fromXYZ(b.translation()), near)) > R.maxDistance)) { this.#remove(p); continue; }
       if (p.carsFrom != null && time >= p.carsFrom) { p.collider.setCollisionGroups(PIECE); p.carsFrom = null; }
-      if (b.isSleeping()) { p.lastVel = [0, 0, 0]; continue; }
+      if (b.isSleeping()) { p.lastVel = [0, 0, 0]; p.sliding = 0; continue; }
       const v = fromXYZ(b.linvel()), dv = Math.hypot(...sub(v, p.lastVel)) - 9.81 * dt;
       p.lastVel = v;
+      // sliding along the ground (for the effects: a metal part throws sparks)
+      const speed = Math.hypot(v[0], v[2]), touch = speed > 2 ? groundContact(this.world, p.collider) : null;
+      p.sliding = touch ? speed : 0; p.contact = touch?.point ?? null;
       if (dv > R.clatterFrom && time - p.lastClatter > R.clatterEvery && time - p.born > dt * 1.5) {
         p.lastClatter = time;
         this.events.push({ type: 'clatter', id: p.id, key: p.key, strength: dv, position: fromXYZ(b.translation()) });
@@ -205,6 +220,7 @@ export class DebrisPool {
     if (this.events.length > 64) this.events.splice(0, this.events.length - 64);
   }
 
-  // The pieces where they are: [{ id, key, position, rotation, sleeping }]
-  snapshot() { return this.pieces.map(p => ({ id: p.id, key: p.key, ...pose(p.body), sleeping: p.body.isSleeping() })); }
+  // The pieces where they are: [{ id, key, owner (its car's id), position, rotation, sleeping, sliding (m/s
+  // along the ground, 0 if not), contact (where it touches the ground, sliding) }]
+  snapshot() { return this.pieces.map(p => ({ id: p.id, key: p.key, owner: p.owner?.id ?? null, ...pose(p.body), sleeping: p.body.isSleeping(), sliding: p.sliding ?? 0, contact: p.contact ?? null })); }
 }

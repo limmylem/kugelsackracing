@@ -72,6 +72,15 @@
       "type": "number",
       "description": "kg; below 0 for what takes weight out (weight reduction: the rear seats taken out)"
     },
+    "smokeColour": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "Tyres: the colour of their smoke (effects/director.js; none: the effects' default white-grey). A tyre smoke cosmetic part (cosmetic.smoke) sets another"
+    },
+    "contactMaterial": {
+      "enum": ["metal", "plastic", "carbon", "rubber", "fabric"],
+      "description": "What its outside is made of, for the effects (effects/director.js): metal scraping something hard throws sparks; plastic, carbon, rubber and fabric don't. Every part on the outside of the car (the damage rules' exterior categories) says"
+    },
     "toughness": {
       "type": "number",
       "exclusiveMinimum": 0,

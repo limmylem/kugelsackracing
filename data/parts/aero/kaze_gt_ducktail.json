@@ -7,6 +7,7 @@
   "tier": "street",
   "price": 420,
   "mass": 3,
+  "contactMaterial": "plastic",
   "toughness": 0.7,
   "detach": {
     "detachable": true,

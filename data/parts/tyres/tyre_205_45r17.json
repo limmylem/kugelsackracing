@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 110,
   "mass": 9.4,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "model": "",
   "icon": "assets/icons/parts/tyre_205_45r17.png",

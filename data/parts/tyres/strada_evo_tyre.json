@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 170,
   "mass": 10,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "model": "",
   "icon": "assets/icons/parts/strada_evo_tyre.png",
   "fits": ["rim:17"],

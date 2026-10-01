@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 310,
   "mass": 9.7,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_6spoke_16.glb",
   "icon": "assets/icons/parts/rim_6spoke_16.png",
   "fits": ["wheel_hub:std", "rim_fits:16"],

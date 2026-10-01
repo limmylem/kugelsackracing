@@ -6,6 +6,7 @@
   "purpose": "looks",
   "price": 280,
   "mass": 8,
+  "contactMaterial": "metal",
   "toughness": 1.8,
   "modelTodo": "A rally gravel rim: a tough flat six-spoke face with round holes, a plain lip, origin at the hub face; one model for every size (scaled).",
   "fits": ["wheel_hub:std", "rim_fits:15"],

@@ -171,8 +171,9 @@ export function roadSpawn(track) {
   return { position: [p.x, terrainOf(track)?.heightAt(p.x, p.z) ?? 0, p.z], headingDeg: Math.atan2(p.tx, p.tz) * 180 / Math.PI };
 }
 
-// Which surface is where. track.surfaces names the surfaces ({ grip, rollingResistance, dust, marks,
-// sound }); roads say which one they are (road.surface), pads are open areas of one surface
+// Which surface is where. track.surfaces names the surfaces ({ grip, rollingResistance, marks (skid
+// marks' colour), sound, effects: what tyres throw up there — { spray, dust, clippings, smoke: false },
+// effects/director.js }); roads say which one they are (road.surface), pads are open areas of one surface
 // (track.pads: { surface, centre: [x, z], radius } or { surface, centre, halfExtents: [x, z],
 // headingDeg }) and track.offRoad is everything else. Kept in 1 m cells, in 64 m tiles made only where
 // something is painted, so a long straight in a big world costs little.

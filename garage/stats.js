@@ -222,6 +222,8 @@ export function computeStats(build, db) {
       record(path, { step: 'multiply', source: { ...partSource({ part: tyrePart, socket: seen.tyre.socket }), count: seen.tyre.count }, from, to, note: `${tyrePart.tyreSize.width} mm wide` });
     }
   }
+  // the tyres' own smoke colour (a tyre smoke part sets another: a modifier, below)
+  if (tyrePart?.smokeColour) { spec.cosmetic.smoke = tyrePart.smokeColour; record('cosmetic.smoke', { step: 'set', source: { ...partSource({ part: tyrePart, socket: seen.tyre.socket }), count: seen.tyre.count }, from: '', to: tyrePart.smokeColour, note: 'the tyres\' smoke' }); }
   if (errors.length) return { spec: null, totals: null, breakdown, errors, fingerprint: fingerprint(build, db.owned) };
 
   // 3. tuning: every fitted part's settings (a part on a group of sockets: its first one's)

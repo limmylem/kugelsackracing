@@ -67,7 +67,7 @@
     "grass": {
       "grip": 0.72,
       "rollingResistance": 0.04,
-      "dust": "#7d7a55",
+      "effects": { "dust": { "colour": "#7d7a55", "perSpeed": 0.25, "perSlip": 3, "alpha": 0.55 }, "clippings": { "colour": "#5c8a33", "rate": 50 } },
       "marks": "#4a5330",
       "sound": "gravel"
     }

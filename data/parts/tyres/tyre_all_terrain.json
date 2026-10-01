@@ -8,6 +8,8 @@
   "purpose": "offroad",
   "price": 160,
   "mass": 11,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "model": "",
   "icon": "assets/icons/parts/tyre_all_terrain.png",

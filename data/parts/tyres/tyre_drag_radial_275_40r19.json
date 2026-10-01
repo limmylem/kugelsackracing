@@ -6,6 +6,8 @@
   "purpose": "drag",
   "price": 215,
   "mass": 11.65,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "fits": ["rim:19"],
   "requires": [],

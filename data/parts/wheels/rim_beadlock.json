@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 520,
   "mass": 14,
+  "contactMaterial": "metal",
   "toughness": 2.2,
   "model": "assets/parts/wheels/rim_beadlock.glb",
   "icon": "assets/icons/parts/rim_beadlock.png",

@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 90,
   "mass": 0.8,
+  "contactMaterial": "metal",
   "toughness": 2,
   "model": "",
   "icon": "assets/icons/parts/wheel_spacers_20.png",

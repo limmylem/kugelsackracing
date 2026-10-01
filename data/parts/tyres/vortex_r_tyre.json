@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 170,
   "mass": 9.5,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "model": "",
   "icon": "assets/icons/parts/vortex_r_tyre.png",
   "fits": ["rim:18"],

@@ -53,6 +53,7 @@
             "scaleAtMax": 1.5
           }
         },
+        "contactMaterial": "plastic",
         "todo": ["price", "aero"]
       }
     },
@@ -81,6 +82,7 @@
       },
       "template": {
         "fits": ["bolt_pattern:4x100"],
+        "contactMaterial": "metal",
         "todo": ["price", "rim"]
       }
     },
@@ -105,6 +107,7 @@
       "massRange": [4, 30],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -129,6 +132,7 @@
       "massRange": [4, 25],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -153,6 +157,7 @@
       "massRange": [2, 25],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -177,6 +182,7 @@
       "massRange": [2, 25],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -201,6 +207,7 @@
       "massRange": [8, 40],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -225,6 +232,7 @@
       "massRange": [8, 40],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -249,6 +257,7 @@
       "massRange": [1, 15],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -273,6 +282,7 @@
       "massRange": [1, 15],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -297,6 +307,7 @@
       "massRange": [0.5, 12],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
         "todo": ["price", "fits"]
       }
     },
@@ -321,6 +332,7 @@
       "massRange": [0.5, 12],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
         "todo": ["price", "fits"]
       }
     },
@@ -345,6 +357,7 @@
       "massRange": [0.3, 4],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
         "todo": ["price", "fits"]
       }
     },
@@ -369,6 +382,7 @@
       "massRange": [0.3, 4],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
         "todo": ["price", "fits"]
       }
     },
@@ -558,6 +572,7 @@
       "massRange": [4, 25],
       "template": {
         "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
         "todo": ["price", "fits"]
       }
     },
@@ -581,6 +596,7 @@
       "massRange": [5, 45],
       "template": {
         "fits": ["roof:convertible"],
+        "contactMaterial": "plastic",
         "todo": ["price", "fits"]
       }
     },
@@ -838,6 +854,7 @@
       "density": 600,
       "massRange": [1, 10],
       "template": {
+        "contactMaterial": "plastic",
         "todo": ["price", "effects"]
       }
     },
@@ -861,6 +878,7 @@
       "density": 600,
       "massRange": [0.3, 4],
       "template": {
+        "contactMaterial": "plastic",
         "todo": ["price", "effects"]
       }
     },
@@ -884,6 +902,7 @@
       "density": 1100,
       "massRange": [1, 8],
       "template": {
+        "contactMaterial": "rubber",
         "todo": ["price", "effects"]
       }
     },
@@ -907,6 +926,7 @@
       "density": 500,
       "massRange": [2, 25],
       "template": {
+        "contactMaterial": "carbon",
         "todo": ["price", "effects"]
       }
     },
@@ -930,6 +950,7 @@
       "density": 1200,
       "massRange": [8, 70],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },
@@ -953,6 +974,7 @@
       "density": 2500,
       "massRange": [10, 60],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },
@@ -976,6 +998,7 @@
       "density": 400,
       "massRange": [1, 10],
       "template": {
+        "contactMaterial": "plastic",
         "todo": ["price", "effects"]
       }
     },
@@ -999,6 +1022,7 @@
       "density": 600,
       "massRange": [5, 40],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },
@@ -1022,6 +1046,7 @@
       "density": 1200,
       "massRange": [1, 10],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },
@@ -1045,6 +1070,7 @@
       "density": 700,
       "massRange": [2, 15],
       "template": {
+        "contactMaterial": "plastic",
         "todo": ["price", "effects"]
       }
     },
@@ -1068,6 +1094,7 @@
       "density": 2500,
       "massRange": [5, 60],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },
@@ -1091,6 +1118,7 @@
       "density": 1500,
       "massRange": [5, 50],
       "template": {
+        "contactMaterial": "metal",
         "todo": ["price", "effects"]
       }
     },

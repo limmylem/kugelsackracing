@@ -6,6 +6,8 @@
   "purpose": "offroad",
   "price": 220,
   "mass": 12.3,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "fits": ["rim:17"],
   "requires": [],

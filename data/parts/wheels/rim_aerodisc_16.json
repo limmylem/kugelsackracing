@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 650,
   "mass": 13.3,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_aerodisc_16.glb",
   "icon": "assets/icons/parts/rim_aerodisc_16.png",
   "fits": ["wheel_hub:std", "rim_fits:16"],

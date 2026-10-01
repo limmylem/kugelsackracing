@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 360,
   "mass": 4,
+  "contactMaterial": "metal",
   "model": "assets/parts/body/ridgeback_4x4_light_bar.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_light_bar.png",
   "fits": ["car:ridgeback_4x4"],

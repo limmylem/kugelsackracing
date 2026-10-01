@@ -1,0 +1,57 @@
+{
+  "$id": "effects.schema.json",
+  "title": "Visual effects (data/effects.json): the particle budget, the quality levels, each effect's settings and the marks left on the road",
+  "type": "object",
+  "required": ["budget", "default", "quality", "night", "effects", "marks"],
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "$defs": {
+    "n": { "type": "number", "minimum": 0 },
+    "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } },
+    "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "quality": {
+      "type": "object",
+      "required": ["count", "size", "life", "drawDistance", "fullDetail", "soft", "lights", "budget", "marks"],
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "size": { "$ref": "#/$defs/n" }, "life": { "$ref": "#/$defs/n" },
+        "drawDistance": { "$ref": "#/$defs/n" }, "fullDetail": { "$ref": "#/$defs/n" }, "soft": { "type": "boolean" },
+        "lights": { "type": "integer", "minimum": 0, "maximum": 8 }, "budget": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "marks": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": ["style", "limit", "life", "size", "growth", "alpha", "gravity", "drag", "buoyancy", "bounce", "glow"],
+      "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "style": { "enum": ["puff", "spark", "flame", "shard", "chip"] },
+        "limit": { "type": "integer", "minimum": 1 }, "life": { "$ref": "#/$defs/range" }, "size": { "$ref": "#/$defs/range" },
+        "growth": { "$ref": "#/$defs/n" }, "alpha": { "type": "number", "minimum": 0, "maximum": 1 }, "gravity": { "type": "number" }, "drag": { "$ref": "#/$defs/n" },
+        "buoyancy": { "type": "number" }, "bounce": { "type": "number", "minimum": 0, "maximum": 1 }, "glow": { "$ref": "#/$defs/n" },
+        "colour": { "$ref": "#/$defs/colour" }, "hot": { "$ref": "#/$defs/colour" }, "cool": { "$ref": "#/$defs/colour" }, "lightColour": { "$ref": "#/$defs/colour" }
+      }
+    },
+    "drip": { "type": "object", "required": ["colour", "alpha", "fade"], "additionalProperties": false, "properties": { "colour": { "$ref": "#/$defs/colour" }, "alpha": { "$ref": "#/$defs/n" }, "fade": { "$ref": "#/$defs/n" } } }
+  },
+  "properties": {
+    "budget": { "type": "object", "required": ["particles", "marks"], "additionalProperties": false, "properties": { "particles": { "type": "integer", "minimum": 100 }, "marks": { "type": "integer", "minimum": 100 } } },
+    "default": { "enum": ["low", "medium", "high"] },
+    "quality": { "type": "object", "required": ["low", "medium", "high"], "additionalProperties": false, "properties": { "low": { "$ref": "#/$defs/quality" }, "medium": { "$ref": "#/$defs/quality" }, "high": { "$ref": "#/$defs/quality" } } },
+    "night": { "type": "object", "required": ["glow"], "additionalProperties": false, "properties": { "glow": { "$ref": "#/$defs/n" } } },
+    "effects": {
+      "type": "object",
+      "required": ["sparks", "tyreSmoke", "steam", "engineSmoke", "blowSmoke", "flame", "glass", "debris", "crashDust", "spray", "dust", "clippings"],
+      "additionalProperties": { "$ref": "#/$defs/effect" }
+    },
+    "marks": {
+      "type": "object",
+      "required": ["skid", "drips"],
+      "patternProperties": { "^_": { "type": "string" } },
+      "additionalProperties": false,
+      "properties": {
+        "skid": { "type": "object", "required": ["from", "full", "every", "halfWidth", "alpha", "fade", "colour"], "additionalProperties": false, "properties": { "from": { "$ref": "#/$defs/n" }, "full": { "$ref": "#/$defs/n" }, "every": { "$ref": "#/$defs/n" }, "halfWidth": { "$ref": "#/$defs/n" }, "alpha": { "$ref": "#/$defs/n" }, "fade": { "$ref": "#/$defs/n" }, "colour": { "$ref": "#/$defs/colour" } } },
+        "drips": { "type": "object", "required": ["every", "still", "size", "coolant", "oil", "oilBelow", "oilDamage"], "additionalProperties": false, "properties": { "every": { "$ref": "#/$defs/n" }, "still": { "$ref": "#/$defs/n" }, "size": { "$ref": "#/$defs/range" }, "coolant": { "$ref": "#/$defs/drip" }, "oil": { "$ref": "#/$defs/drip" }, "oilBelow": { "$ref": "#/$defs/n" }, "oilDamage": { "$ref": "#/$defs/n" } } }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@
   "purpose": "gravel",
   "price": 120,
   "mass": 3,
+  "contactMaterial": "rubber",
   "model": "assets/parts/body/strada_evo_mud_flaps.glb",
   "icon": "assets/icons/parts/strada_evo_mud_flaps.png",
   "fits": ["car:strada_evo"],

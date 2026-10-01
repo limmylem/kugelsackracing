@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 650,
   "mass": 12.8,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_10spoke_19.glb",
   "icon": "assets/icons/parts/rim_10spoke_19.png",
   "fits": ["wheel_hub:std", "rim_fits:19"],

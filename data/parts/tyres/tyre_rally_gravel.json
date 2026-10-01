@@ -8,6 +8,8 @@
   "purpose": "gravel",
   "price": 170,
   "mass": 9.1,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "model": "",
   "icon": "assets/icons/parts/tyre_rally_gravel.png",

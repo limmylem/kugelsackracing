@@ -6,6 +6,7 @@
   "purpose": "looks",
   "price": 500,
   "mass": 8.74,
+  "contactMaterial": "metal",
   "toughness": 1,
   "modelTodo": "A deep-dish rim: a wide polished lip (8 cm) around a flat five-spoke face, origin at the hub face; one model for every size (scaled).",
   "fits": ["wheel_hub:std", "rim_fits:16"],

@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 1800,
   "mass": 12,
+  "contactMaterial": "plastic",
   "toughness": 0.8,
   "detach": {
     "detachable": true,

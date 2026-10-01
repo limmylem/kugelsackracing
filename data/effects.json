@@ -1,0 +1,75 @@
+{
+  "_note": "Visual effects for driving, crashes and damage (effects/: particles.js, marks.js, director.js; drawn by effects/threeRenderer.js in the test worlds and effects/cesiumRenderer.js in the real world). Particles are pooled (never created while playing): at most budget.particles alive (× the quality's budget), each effect at most its limit (× the quality's count); a new particle past the budget takes the place of an old one. Quality (the player's setting): count scales how many each effect makes, size and life their size and lifetime, drawDistance (m) is how far from the camera a car's effects play at all and fullDetail (m) how far they play in full (fewer in between), soft fades particles where they meet surfaces (the scene's depth), lights is how many small flickering lights sparks may light up, marks scales how many tyre and drip marks stay. Per effect: style (how it's drawn: puff — lit smoke, dust, steam; spark — a glowing streak along its motion; flame — a glowing puff; shard — a glittering chip of glass; chip — a small lit flake: debris, gravel, grass), life [s, + up to s], size [m, + up to m], growth (× its size by the end), alpha, gravity (× g), drag (/s), buoyancy (m/s² up), bounce (what it keeps of its speed hitting the ground; 0: it stops there), glow (how bright a glowing style is, × at night by night), and what each makes and when (see effects/director.js).",
+  "budget": { "particles": 7000, "marks": 6000 },
+  "default": "medium",
+  "quality": {
+    "low": { "count": 0.35, "size": 1.25, "life": 0.65, "drawDistance": 90, "fullDetail": 20, "soft": false, "lights": 0, "budget": 0.35, "marks": 0.4 },
+    "medium": { "count": 0.7, "size": 1.08, "life": 0.85, "drawDistance": 170, "fullDetail": 35, "soft": true, "lights": 0, "budget": 0.6, "marks": 0.7 },
+    "high": { "count": 1, "size": 1, "life": 1, "drawDistance": 280, "fullDetail": 60, "soft": true, "lights": 4, "budget": 1, "marks": 1 }
+  },
+  "night": { "glow": 0.8 },
+  "effects": {
+    "sparks": {
+      "_note": "Metal sliding on something hard: a wall or barrier (the part touching it must be metal: parts' contactMaterial), a loose part dragging on the road, a flat tyre's rim or a torn-off wheel's hub, the floor pan bottoming out, a torn-off metal part sliding. rate: sparks a second at full strength (strength: the scrape's amount, from sliding speed and how hard it's pressed), speed: × the sliding speed they fly off at, spread (m/s) at random, up (m/s), hot and cool: their colour new and as they fade. landing: sparks from a hard landing on the floor pan, × its strength (m/s over the threshold).",
+      "style": "spark", "limit": 1800, "life": [0.3, 0.5], "size": [0.045, 0.03], "growth": 0, "alpha": 1, "gravity": 1, "drag": 0.5, "buoyancy": 0, "bounce": 0.35, "glow": 1.4,
+      "rate": 480, "speed": [0.05, 0.6], "spread": 3.2, "up": 4.5, "hot": "#ffb33a", "cool": "#ff4808", "landing": 18, "debrisFrom": 2
+    },
+    "tyreSmoke": {
+      "_note": "From each wheel spinning or sliding (burnouts, drifts, lock-ups) on grippy ground: from slip m/s of sliding, thicker with more slip (full at full) and speed, rate a second at most per wheel; it drifts with the air (the wind, and a little of the car's motion). Its colour is the tyre part's (smokeColour; a tyre smoke cosmetic part overrides it), else colour.",
+      "style": "puff", "limit": 2200, "life": [1.6, 1.4], "size": [0.45, 0.4], "growth": 3.6, "alpha": 0.28, "gravity": 0, "drag": 1.2, "buoyancy": 0.25, "bounce": 0, "glow": 0,
+      "from": 4, "full": 14, "rate": 36, "carry": 0.25, "colour": "#d8d8d8"
+    },
+    "steam": {
+      "_note": "White steam from the engine bay: a leaking radiator (while there's coolant to leak), or an engine running hot (from warn °C, full at limp). Strongest stopped; moving, it streams back over the car. rate a second at full.",
+      "style": "puff", "limit": 700, "life": [1.1, 1], "size": [0.28, 0.3], "growth": 5, "alpha": 0.42, "gravity": 0, "drag": 2.2, "buoyancy": 1.4, "bounce": 0, "glow": 0,
+      "rate": 45, "colour": "#f3f5f7", "hiss": 1
+    },
+    "engineSmoke": {
+      "_note": "Grey smoke from a damaged engine: from condition below `from` %, more as it drops (rate a second at condition 0).",
+      "style": "puff", "limit": 600, "life": [2.2, 2], "size": [0.35, 0.35], "growth": 4.5, "alpha": 0.4, "gravity": 0, "drag": 1, "buoyancy": 0.9, "bounce": 0, "glow": 0,
+      "from": 60, "rate": 30, "colour": "#77797c"
+    },
+    "blowSmoke": {
+      "_note": "A blown engine: a big dark burst (burst particles), then a lingering trail (trail a second, for trailSeconds, thinning, then wisp a second while it stays blown).",
+      "style": "puff", "limit": 900, "life": [2.5, 2.5], "size": [0.55, 0.6], "growth": 5, "alpha": 0.6, "gravity": 0, "drag": 1.4, "buoyancy": 1.2, "bounce": 0, "glow": 0,
+      "burst": 160, "burstSpeed": 3.5, "trail": 40, "trailSeconds": 8, "wisp": 3, "colour": "#2a2b2d"
+    },
+    "flame": {
+      "_note": "A short burst of flame from the engine bay when the engine blows (no lasting fire): burst particles over seconds.",
+      "style": "flame", "limit": 200, "life": [0.22, 0.35], "size": [0.25, 0.25], "growth": 1.6, "alpha": 0.45, "gravity": 0, "drag": 2.5, "buoyancy": 4, "bounce": 0, "glow": 1.5,
+      "burst": 70, "seconds": 0.45, "hot": "#ffb030", "cool": "#ff2a00"
+    },
+    "glass": {
+      "_note": "A burst of glittering shards when a window (window particles) or a light (light) breaks; they fall, bounce and lie glittering a while.",
+      "style": "shard", "limit": 900, "life": [2.5, 2.5], "size": [0.02, 0.018], "growth": 0, "alpha": 1, "gravity": 1, "drag": 0.3, "buoyancy": 0, "bounce": 0.25, "glow": 0,
+      "window": 70, "light": 28, "speed": 2.2, "colour": "#d6eef5", "lightColour": "#ffe9c2"
+    },
+    "debris": {
+      "_note": "Small bits of plastic and metal at hard impacts: from `from` m/s, perMs bits a m/s over (at most max), coloured from the part hit (its paint, or its finish's colour); a part torn off throws partOff.",
+      "style": "chip", "limit": 700, "life": [3, 3], "size": [0.025, 0.04], "growth": 0, "alpha": 1, "gravity": 1, "drag": 0.4, "buoyancy": 0, "bounce": 0.25, "glow": 0,
+      "from": 4, "perMs": 3.5, "max": 70, "speed": 0.35, "spread": 2.5, "partOff": 18
+    },
+    "crashDust": {
+      "_note": "A dust cloud when a crash happens on loose ground (dirt, gravel, grass: a surface with a dust colour): perMs puffs a m/s of the hit's strength, at most max.",
+      "style": "puff", "limit": 500, "life": [2, 2], "size": [0.7, 0.6], "growth": 4, "alpha": 0.4, "gravity": 0, "drag": 1.8, "buoyancy": 0.3, "bounce": 0, "glow": 0,
+      "perMs": 6, "max": 120, "speed": 2.5
+    },
+    "spray": {
+      "_note": "Dirt and gravel thrown up by tyres spinning or sliding on a surface whose effects have spray (its settings there: rate, colour…; here how the bits fly).",
+      "style": "chip", "limit": 1200, "life": [0.5, 0.5], "size": [0.025, 0.03], "growth": 0, "alpha": 1, "gravity": 1, "drag": 0.8, "buoyancy": 0, "bounce": 0.2, "glow": 0
+    },
+    "dust": {
+      "_note": "A dust trail behind the car on dry loose surfaces (the surface's effects.dust), and the dust off spinning wheels there.",
+      "style": "puff", "limit": 2000, "life": [1.8, 1.8], "size": [0.55, 0.6], "growth": 3.5, "alpha": 0.5, "gravity": 0, "drag": 1.6, "buoyancy": 0.15, "bounce": 0, "glow": 0
+    },
+    "clippings": {
+      "_note": "Grass clippings off tyres spinning or sliding on grass (the surface's effects.clippings): light flakes that flutter down.",
+      "style": "chip", "limit": 600, "life": [0.9, 0.9], "size": [0.02, 0.025], "growth": 0, "alpha": 1, "gravity": 0.45, "drag": 3, "buoyancy": 0, "bounce": 0, "glow": 0
+    }
+  },
+  "marks": {
+    "_note": "Marks left on the road: they stay, slowly fade (fade s, the last third of it fading out) and at most budget.marks (× the quality's marks) stay; the oldest go first. skid: tyres sliding from `from` m/s, darkest at `full`, a piece every `every` m, halfWidth m wide each side, alpha at most; its colour is the surface's marks colour or colour. drips: a leaking car leaves a drop every `every` m it drives (every `still` s standing): coolant from a holed radiator, oil from an engine below oilBelow % or a damaged gearbox or diff (past oilDamage).",
+    "skid": { "from": 1.5, "full": 7, "every": 0.2, "halfWidth": 0.1, "alpha": 0.6, "fade": 120, "colour": "#101010" },
+    "drips": { "every": 0.9, "still": 2.5, "size": [0.05, 0.09], "coolant": { "colour": "#7fcf9a", "alpha": 0.35, "fade": 25 }, "oil": { "colour": "#14110d", "alpha": 0.55, "fade": 90 }, "oilBelow": 35, "oilDamage": 0.5 }
+  }
+}

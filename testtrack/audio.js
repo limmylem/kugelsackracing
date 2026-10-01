@@ -40,7 +40,7 @@ export function createAudio(spec) {
   return {
     ctx, master, engine, turbo, crash, mech, wind, squeal: tyreSqueal(ctx, master), gravel: gravelCrunch(ctx, master),
     // s: the vehicle's snapshot, each frame; extra: { exhaust (0..1: the exhaust loose or torn off),
-    // inside (a cockpit or bonnet camera) }
+    // inside (a cockpit or bonnet camera), steam (0..1: steam from the engine bay, effects/director.js) }
     update(s, dt, extra = {}) {
       const cabin = cabinMix(spec.roof, !!extra.inside, finite(s.speed, 0));
       engine.cabin.gain.setTargetAtTime(cabin.engine, ctx.currentTime, 0.15);
@@ -276,7 +276,7 @@ function gravelCrunch(ctx, out) {
   };
 }
 
-// Mechanical damage sounds (data/sounds/mechanical.json): hiss, flap, grind, whine, and the holed
+// Mechanical damage sounds (data/sounds/mechanical.json): hiss, steam, flap, grind, whine, and the holed
 // exhaust (engineTap: the engine's sound, clipped, band-passed and rattled, mixed back in)
 function mechanicalSounds(ctx, out, engineTap, path = 'data/sounds/mechanical.json') {
   let cfg = null, grindBuf = null, flapBuf = null;
@@ -286,6 +286,9 @@ function mechanicalSounds(ctx, out, engineTap, path = 'data/sounds/mechanical.js
   // hiss: noise → band-pass → level
   const hissBand = new BiquadFilterNode(ctx, { type: 'bandpass', frequency: 3000, Q: 1.4 }), hiss = new GainNode(ctx, { gain: 0 });
   noise().connect(hissBand).connect(hiss).connect(out);
+  // steam: a softer, lower hiss from the engine bay (the effects' steam: a leaking radiator, a hot engine)
+  const steamBand = new BiquadFilterNode(ctx, { type: 'bandpass', frequency: 1800, Q: 0.8 }), steam = new GainNode(ctx, { gain: 0 });
+  noise().connect(steamBand).connect(steam).connect(out);
   // whine: a tone and its octave
   const whineOsc = new OscillatorNode(ctx, { type: 'triangle', frequency: 400 }), whineOct = new OscillatorNode(ctx, { type: 'sine', frequency: 800 }), octGain = new GainNode(ctx, { gain: 0.3 }), whine = new GainNode(ctx, { gain: 0 });
   whineOsc.connect(whine); whineOct.connect(octGain).connect(whine); whine.connect(out);
@@ -309,6 +312,7 @@ function mechanicalSounds(ctx, out, engineTap, path = 'data/sounds/mechanical.js
     const mod = new AudioBufferSourceNode(ctx, { buffer: steps, loop: true });
     mod.connect(rattle.gain); mod.start();
     hissBand.Q.value = c.hiss.q;
+    steamBand.frequency.value = c.steam.hz; steamBand.Q.value = c.steam.q;
     // grind: noise buzzed by gear teeth, dying away; flap: a low thump at the start of a second
     grindBuf = ctx.createBuffer(1, Math.round(sr * c.grind.seconds), sr);
     const g = grindBuf.getChannelData(0);
@@ -349,6 +353,8 @@ function mechanicalSounds(ctx, out, engineTap, path = 'data/sounds/mechanical.js
         flap.gain.setTargetAtTime(fl ? Math.min(1, fl.amount * 1.3) * cfg.flap.gain : 0, t, 0.05);
         if (fl) flapSrc.playbackRate.setTargetAtTime(Math.min(40, Math.max(0.3, fl.rate)), t, 0.03);
       }
+      // steam: as much as the effects make (extra.steam 0..1), wavering a little
+      steam.gain.setTargetAtTime(Math.min(1, finite(extra.steam, 0)) * cfg.steam.gain * (0.85 + 0.15 * Math.random()), t, 0.12);
       // exhaust: holed, or loose / torn off (extra.exhaust)
       exhaust.gain.setTargetAtTime(Math.min(1, Math.max(finite(m.exhaust, 0), finite(extra.exhaust, 0))) * cfg.exhaust.gain, t, 0.08);
     },

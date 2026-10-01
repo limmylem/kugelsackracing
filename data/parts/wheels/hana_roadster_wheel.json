@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 140,
   "mass": 7.5,
+  "contactMaterial": "metal",
   "model": "assets/parts/stock/hana_roadster/wheel_FL.glb",
   "icon": "assets/icons/parts/hana_roadster_wheel.png",
   "fits": ["car:hana_roadster"],

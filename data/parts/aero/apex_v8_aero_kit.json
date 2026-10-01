@@ -7,6 +7,7 @@
   "tier": "race",
   "price": 4200,
   "mass": 7,
+  "contactMaterial": "carbon",
   "toughness": 0.8,
   "detach": {
     "detachable": true,

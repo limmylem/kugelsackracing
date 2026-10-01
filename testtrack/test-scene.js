@@ -25,6 +25,15 @@
 // engine's temperature, the check engine light and lamps for tyres, overheating, limp mode and damaged
 // systems; I opens the damage report; garage.damage(…) sets any of it. What changes while driving (tyre
 // pressures, coolant, clutch wear) is written back to the parts every few seconds.
+//
+// Effects (effects/, data/effects.json): sparks where metal scrapes something hard (a wall, the road
+// under a bottomed-out car, a dragging loose part, a flat tyre's rim, a torn-off part sliding), tyre smoke
+// and skid marks, dirt spray, dust and grass off loose ground (each surface's effects), steam from a
+// leaking radiator or a hot engine (with its hiss), smoke from a damaged engine, a blown engine's burst
+// and flash of flame, glass shards, debris chips and dust clouds in crashes, and drips from a leaking car
+// — for every car, yours and the AI's. Lit by the time of day (settings: night has headlights, and
+// sparks glow), at the quality in the settings (low / medium / high); . opens the effects panel (each
+// effect on demand, and what they cost); garage.pileup(8, 60) throws AI cars into each other.
 
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -49,6 +58,11 @@ import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
 import { ModelCache, createCarVisual, setEnvironment, skyEnvironment } from '../garage/visual.js';
+import { EffectsDirector } from '../effects/director.js';
+import { carEffectsInfo } from '../effects/carInfo.js';
+import { createThreeEffects } from '../effects/threeRenderer.js';
+import { lightAt } from '../effects/lighting.js';
+import { createEffectsPanel } from './effectsPanel.js';
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -56,8 +70,7 @@ const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults
 const FORCE_LINE_M_PER_N = 1 / 4000;           // force arrows: metres of line per newton
 const AERO_LINE_M_PER_N = 1 / 600;             // aero arrows (much smaller forces)
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const SKID_FROM = 1.5, SKID_FULL = 7;          // tyre sliding speed (m/s) where skid marks / squeal start and peak
-const SKID_HALF_WIDTH = 0.1, SKID_ALPHA = 0.6, MAX_SKID = 6000;
+const SKID_FROM = 1.5, SKID_FULL = 7;          // tyre sliding speed (m/s) where the squeal starts and peaks
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 let shared = null, active = null;
@@ -116,7 +129,7 @@ async function createShared() {
   const getJson = async url => (await fetch(url, { cache: 'no-cache' })).json();
   // the car: built from its parts by the garage (data/cars, data/parts); `spec` is the one live object
   // every car drives on, rebuilt in place when parts change (window.garage in the console)
-  const [settings, session] = await Promise.all([getJson('physics/settings.json'), garageSession()]);
+  const [settings, session, effectsCfg] = await Promise.all([getJson('physics/settings.json'), garageSession(), getJson('data/effects.json')]);
   const spec = session.spec;
   const tacho = createTacho(spec.engine), dyno = createDyno(spec.engine), dash = createDash(), report = createDamageReport();
   hud.prepend(tacho.canvas);
@@ -156,7 +169,7 @@ async function createShared() {
   const targets = await getJson(`tests/targets/${session.garage.car.id}.json`).catch(() => ({}));
   tuning.setTests({ results, targets });
   const s = {
-    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false,
+    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
     damageView: false, lastCrash: null,
     models: new ModelCache(), visuals: new Set(), copies: [],
     audio: null, muted: false, gearMode: spec.gearbox.mode, compact: false, telemetry, testTelemetry, graphs, tuning, targets, results, tests: null,
@@ -188,6 +201,12 @@ async function createShared() {
       if (!v.fixedPaint && (v.paint.colour !== paint.colour || v.paint.finish !== paint.finish)) v.setPaint(paint);
     }
   });
+  // the effects' debug panel (.): each effect on demand, and what they cost
+  s.fxPanel = createEffectsPanel(() => active, s);
+  document.body.appendChild(s.fxPanel.el);
+  // (parts, paint or tyre smoke changed: what the effects know about your car)
+  const fxInfo = () => { for (const w of worlds.values()) w.fx.setCar(0, carEffectsInfo(session, s.damageBoxes)); };
+  session.onLook(fxInfo); session.onChange(fxInfo);
   debugCommands(session);
   addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight);
@@ -269,7 +288,8 @@ async function buildWorld(file) {
   scene.background = sky;
   scene.fog = new THREE.Fog(sky, terrain ? 250 : 150, terrain ? 900 : 450);
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 2000);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x556655, 1.1));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x556655, 1.1);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.8);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -327,20 +347,15 @@ async function buildWorld(file) {
   lines.frustumCulled = false;
   scene.add(lines);
 
-  const skids = skidMarks();
-  scene.add(skids.mesh);
-  // Loose surfaces (gravel, grass) throw up dust and leave their own colour of marks
-  const surfaces = Object.fromEntries(Object.entries(track.surfaces || {}).map(([k, v]) => [k, { ...v, dustColour: v.dust && new THREE.Color(v.dust), marksColour: v.marks && new THREE.Color(v.marks) }]));
-  const dust = Object.values(surfaces).some(v => v.dust) ? dustCloud() : null;
-  if (dust) scene.add(dust.points);
-  // Tyre smoke: a wheel spinning or sliding hard on grippy ground (its colour: a tyre smoke part's)
-  const tyreSmoke = dustCloud(1600, { life: [1.8, 1.4], size: [0.6, 0.5], alpha: 0.5, rise: [0.4, 0.5], buoyancy: 0.25, growth: 4.5, drag: 1.2 });
-  scene.add(tyreSmoke.points);
-  // Marks sit just above whatever is drawn on the ground (roads are drawn a few cm above the terrain)
-  const markLift = terrain ? 0.075 : 0.012;
+  // The effects (effects/: sparks, smoke, steam, dust, debris, skid marks…): marks sit just above whatever
+  // is drawn on the ground (roads are drawn a few cm above the terrain); every car's, yours is 0
+  const surfaces = track.surfaces ?? {};
+  const fx = new EffectsDirector(shared.effectsCfg, { level: shared.prefs.effects, surfaces, markLift: terrain ? 0.075 : 0.012 });
+  const fxDraw = createThreeEffects(fx, { renderer: shared.renderer, scene });
+  fx.setCar(0, carEffectsInfo(shared.session, shared.damageBoxes));
 
   return {
-    file, name: track.name, track, sim, scene, camera, sun, car, carVis, wheelVis, details, comMarker, cones, lines, skids, markLift, surfaces, dust, tyreSmoke, heightAt, others: new Map(),
+    file, name: track.name, track, sim, scene, camera, sun, hemi, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
   };
 }
@@ -376,6 +391,7 @@ function frame(w, now) {
     const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
     view = w.sim.advance(paused ? 0 : seconds, input);
     shared.gearMode = v.drivetrain.mode;
+    effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
     engineEvents(w, v);
     crashEvents(w, v);
     partsEvents(w, v);
@@ -402,21 +418,73 @@ function frame(w, now) {
   w.rig.update(w.camera, w.car, b, seconds, CAMERAS[shared.camMode], shared.spec.camera);
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
   if (D.glass) D.glass.opacity = inside ? 0.1 : D.glass.userData.opacity ?? D.glassOpacity;
-  updateSkids(w, a, b, alpha);
-  if (w.dust) updateDust(w, b, seconds);
-  updateTyreSmoke(w, b, seconds);
-  if (w.smoke) updateSmoke(w, b, seconds);
+  const light = daylight(w, P.timeOfDay ?? 13);
+  updateEffects(w, light, T ? 0 : stepsThisFrame * w.sim.dt);
   shared.flash.update(seconds);
-  if (shared.audio) { shared.audio.update(b, seconds, { exhaust: exhaustOff(), inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]) }); updateSqueal(b); }
+  if (shared.audio) { shared.audio.update(b, seconds, { exhaust: exhaustOff(), inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]), steam: w.fx.cars.get(0)?.steam ?? 0 }); updateSqueal(b); }
   shared.tacho.draw(b.engine);
   updateDebug(w, b);
-  w.sun.position.copy(w.car.position).add(new THREE.Vector3(18, 35, 12)); // shadows follow the car
+  w.sun.position.copy(w.car.position).addScaledVector(w.sunDir, 40); // shadows follow the car
   w.sun.target.position.copy(w.car.position);
 
   shared.hudTimer -= seconds;
   if (shared.hudTimer <= 0) { shared.hudTimer = 0.1; updateHud(w, b, stepsThisFrame, sim); updateDash(b); }
   shared.graphs.update(now);
-  shared.renderer.render(w.scene, w.camera);
+  w.fxDraw.render(w.scene, w.camera);
+  shared.fxPanel.update(w, seconds);
+}
+
+// ---------- Effects (effects/director.js, effects/threeRenderer.js) ----------
+
+// Every car's state into the effects: yours (0) and the AI cars' — tyres, steam, smoke, drips, and the
+// scrapes (sparks) worked out from each one's snapshot
+function effectsCars(w, b, dt) {
+  const fx = w.fx;
+  if (fx.level !== shared.prefs.effects) fx.setQuality(shared.prefs.effects);
+  fx.updateCar(0, b, dt);
+  fx.sense(0, b);
+  for (const o of b.others ?? []) {
+    if (!fx.cars.has(o.id)) fx.setCar(o.id, carEffectsInfo(shared.session, shared.damageBoxes, { paint: AI_PAINT }));
+    fx.updateCar(o.id, o, dt);
+    fx.sense(o.id, o);
+  }
+  for (const id of fx.cars.keys()) if (id !== 0 && !b.others?.some(o => o.id === id)) fx.dropCar(id);
+}
+// The light at this time of day (effects/lighting.js): the sun (or the moon), the sky, the fog — set
+// when the time changes; and your car's headlights at night
+function daylight(w, hours) {
+  if (w.hours !== hours) {
+    w.hours = hours;
+    const L = w.light = lightAt(hours);
+    w.sunDir = new THREE.Vector3(...L.key.dir);
+    const srgb = THREE.SRGBColorSpace;            // (lighting.js's colours are as they look on screen)
+    w.sun.color.setRGB(...L.key.colour, srgb); w.sun.intensity = L.key.intensity;
+    w.hemi.color.setRGB(...L.ambient.sky, srgb); w.hemi.groundColor.setRGB(...L.ambient.ground, srgb); w.hemi.intensity = L.ambient.intensity;
+    w.scene.background.setRGB(...L.background, srgb); w.scene.fog.color.setRGB(...L.fog, srgb);
+  }
+  const lamps = w.carVis.headlights;
+  if (lamps) for (const l of lamps) l.intensity = w.light.night * 60;
+  return w.light;
+}
+// Move the effects on and get them ready to draw (seen from the camera, in the world's wind)
+function updateEffects(w, light, dt) {
+  w.fx.setViewer(w.camera.position.toArray());
+  w.fx.setWind(w.track.wind ?? null);
+  w.fx.update(dt);
+  w.fxDraw.update(light, dt);
+}
+// The lit road ahead of your car at night: two headlights (lamps: the model's front lights, if it says
+// where they are)
+function addHeadlights(vis) {
+  const boxes = shared.damageBoxes, front = Object.entries(boxes).filter(([n, b]) => /light|lamp/i.test(n) && !/tail|rear/i.test(n) && (b.min[2] + b.max[2]) > 0);
+  const at = front.length ? front.map(([, b]) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.max[2]]) : [[0.6, 0.65, 2], [-0.6, 0.65, 2]];
+  vis.headlights = at.slice(0, 2).map(p => {
+    const l = new THREE.SpotLight(0xfff2dc, 0, 60, 0.5, 0.45, 1.2);
+    l.position.fromArray(p);
+    l.target.position.set(p[0], p[1] - 1.2, p[2] + 12);
+    vis.group.add(l, l.target);
+    return l;
+  });
 }
 
 // ---------- Automated tests (physics/testSuite.js) in the test centre ----------
@@ -562,7 +630,8 @@ function updateDebug(w, s) {
 // drawing follows through onLook), the sound, the camera's jolt, and a marker in the damage view
 function crashEvents(w, v) {
   const s = shared, impacts = v.sensor.take();
-  for (const c of w.sim.cars) c.vehicle.sensor.take();          // (the AI cars' own hits: not yours)
+  // (the AI cars' own hits: not your damage, but their sparks, bits and dust)
+  for (const c of w.sim.cars) for (const impact of c.vehicle.sensor.take()) w.fx.play(w.fx.impactEvent(c.id, impact, null, groundUnder(c.vehicle)));
   if (!impacts.length) return;
   const rules = s.session.db.damage, C = rules.classes;
   for (const impact of impacts) {
@@ -571,12 +640,17 @@ function crashEvents(w, v) {
     const [lo, hi] = result.class === 'tap' ? [C.tap, C.crunch] : result.class === 'crunch' ? [C.crunch, C.crash] : [C.crash, C.crash * 2.2];
     s.audio?.crash.impact(result.class, impact.material, (result.strength - lo) / (hi - lo));
     for (const b of result.broken) if (!brokenBefore.has(b)) { if (/glass/.test(b)) s.audio?.crash.glass(); else s.audio?.crash.light(); }
+    // the effects: sparks off metal, bits of what was hit, dust on loose ground, glass shards
+    w.fx.play(w.fx.impactEvent(0, impact, result, groundUnder(v)));
+    for (const e of w.fx.breakEvents(0, result.broken, brokenBefore, s.damageBoxes)) w.fx.play(e);
     w.rig.shake(result.class === 'tap' ? 0.05 : Math.min(1, result.strength / 14));
     s.lastCrash = { ...result, at: performance.now() };
     impactMarker(w, result);
     saved.then(r => { if (r && !r.ok) console.warn(`The crash damage wasn't saved: ${r.error}`); });
   }
 }
+// (the surface under a car: its first wheel on the ground's)
+function groundUnder(v) { return v.wheels.find(x => x.grounded && x.surface)?.surface?.name ?? null; }
 // every fitted part's condition, and the body shell's (for the damage view)
 function conditionsNow() {
   const sn = shared.session, parts = sn.garage.state.parts, sockets = {};
@@ -662,6 +736,7 @@ function syncLoose(w, v) {
     }
     pieces.set(socket, { id: pieceId, object });
     s.audio?.crash.tear();
+    w.fx.play({ type: 'partOff', car: 0, socket, point: sdef.position });
   }
   // wheels torn off (garage/mechanical.js): the wheel's pivot off the car, a rolling cylinder in the world
   for (const [socket, k] of wheels) {
@@ -677,6 +752,7 @@ function syncLoose(w, v) {
     if (off) { w.scene.add(off.object); off.object.matrix.copy(w.carVis.group.matrixWorld).multiply(off.inCar); }
     pieces.set(socket, { id, object: off?.object ?? null, offset: off ? new THREE.Matrix4().makeTranslation(-centre[0], -centre[1], -centre[2]).multiply(off.inCar) : null });
     s.audio?.crash.tear();
+    w.fx.play({ type: 'partOff', car: 0, socket, point: centre });
     s.flash.news({ type: 'wheelOff', wheel: k });
   }
 }
@@ -760,7 +836,7 @@ function engineEvents(w, v) {
     // (a money shift: its toll on the gearbox, with full damage)
     if (e.type === 'overRevShift') s.session.mechanical.gearboxWear(e.over * s.session.db.damage.mechanical.effects.gearbox.overRevShift, { mode: s.prefs.damage ?? 'full' });
     if (e.type === 'bent') s.audio?.clunk?.(1);
-    if (e.type === 'blown') { s.audio?.bang?.(); startSmoke(w); }
+    if (e.type === 'blown') { s.audio?.bang?.(); w.fx.play({ type: 'engineBlow', car: 0 }); }
     if (e.type === 'incident') s.session.wearEngine(e.condition, causeOf(e)).then(r => { if (!r.ok) console.warn(`The engine damage wasn't saved: ${r.errors.join(' ')}`); });
   }
 }
@@ -769,23 +845,6 @@ function healthText(h) {
   const c = Math.round(h.condition);
   if (h.blown) return 'engine <b class="off">BLOWN</b> (repair it in the garage)';
   return `engine condition <b class="${c < 70 ? 'off' : ''}">${c}%</b>${h.misfire > 0 ? ` · <b class="off">misfiring</b> (${Math.round(h.misfire * 100)}% of firings)` : ''}${h.floating ? ' · <b class="off">VALVE FLOAT</b>' : ''}`;
-}
-
-// Smoke from the engine bay of a blown engine: thick at first, thinning, and a wisp while it stays blown
-const ENGINE_BAY = new THREE.Vector3(0, 0.75, 1.25);
-function startSmoke(w) {
-  if (!w.smoke) { w.smoke = dustCloud(900, { life: [3, 2.5], size: [0.7, 0.6], alpha: 0.6, rise: [1.2, 1], buoyancy: 0.5, growth: 5, drag: 0.8 }); w.scene.add(w.smoke.points); }
-  w.smoke.left = 8;
-}
-function updateSmoke(w, s, dt) {
-  const sm = w.smoke;
-  sm.material.uniforms.uScale.value = shared.renderer.domElement.height / (2 * Math.tan(w.camera.fov * Math.PI / 360));
-  sm.left = Math.max(0, (sm.left ?? 0) - dt);
-  const rate = sm.left > 0 ? 10 + 70 * (sm.left / 8) ** 2 : s.engine.health.blown ? 3 : 0;
-  sm.carry = (sm.carry || 0) + rate * dt;
-  const at = w.car.localToWorld(ENGINE_BAY.clone()).toArray(), dark = sm.left > 5 ? 0.18 : 0.32;
-  while (sm.carry >= 1) { sm.carry--; sm.emit(at, s.velocity, { r: dark, g: dark, b: dark * 1.05 }, 1); }
-  sm.update(dt);
 }
 
 function updateHud(w, s, steps, sim) {
@@ -853,48 +912,6 @@ function updateHud(w, s, steps, sim) {
 
 // Skid marks: dark see-through strips laid behind sliding tyres. A fixed-size ring buffer, so the
 // oldest marks are reused once it fills up.
-function skidMarks() {
-  const geo = new THREE.BufferGeometry();
-  const idx = new Uint32Array(MAX_SKID * 6);
-  for (let i = 0; i < MAX_SKID; i++) idx.set([i * 4, i * 4 + 2, i * 4 + 1, i * 4, i * 4 + 3, i * 4 + 2], i * 6); // facing up
-  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_SKID * 12), 3).setUsage(THREE.DynamicDrawUsage));
-  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAX_SKID * 16), 4).setUsage(THREE.DynamicDrawUsage));
-  geo.setIndex(new THREE.BufferAttribute(idx, 1));
-  geo.setDrawRange(0, 0);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  mesh.frustumCulled = false;
-  mesh.renderOrder = 1;
-  return { mesh, next: 0, count: 0, prev: {} };
-}
-
-function updateSkids(w, a, b, alpha) {
-  const sk = w.skids, pos = sk.mesh.geometry.attributes.position, col = sk.mesh.geometry.attributes.color;
-  let added = false;
-  b.wheels.forEach((wb, i) => {
-    const wa = a.wheels[i];
-    const strength = wa.grounded && wb.grounded ? smoothstep(SKID_FROM, SKID_FULL, wb.slipSpeed) : 0;
-    if (strength <= 0) { sk.prev[wb.name] = null; return; }
-    const p = wa.contact.map((v, k) => v + (wb.contact[k] - v) * alpha);
-    p[1] += w.markLift;
-    const prev = sk.prev[wb.name];
-    const dx = prev ? p[0] - prev.p[0] : 0, dz = prev ? p[2] - prev.p[2] : 0, len = Math.hypot(dx, dz);
-    if (!prev || len > 4) { sk.prev[wb.name] = { p, strength }; return; } // new mark (or the car was reset)
-    if (len < 0.2) return;                                                  // lay a piece every 20 cm
-    const sx = -dz / len * SKID_HALF_WIDTH, sz = dx / len * SKID_HALF_WIDTH, q = prev.p;
-    const mc = w.surfaces[wb.surface]?.marksColour, [r, g, bl] = mc ? [mc.r, mc.g, mc.b] : [0.06, 0.06, 0.06];
-    pos.array.set([q[0] + sx, q[1], q[2] + sz, q[0] - sx, q[1], q[2] - sz, p[0] - sx, p[1], p[2] - sz, p[0] + sx, p[1], p[2] + sz], sk.next * 12);
-    const a0 = prev.strength * SKID_ALPHA, a1 = strength * SKID_ALPHA;
-    col.array.set([r, g, bl, a0, r, g, bl, a0, r, g, bl, a1, r, g, bl, a1], sk.next * 16);
-    sk.next = (sk.next + 1) % MAX_SKID;
-    sk.count = Math.min(MAX_SKID, sk.count + 1);
-    sk.prev[wb.name] = { p, strength };
-    added = true;
-  });
-  if (!added) return;
-  sk.mesh.geometry.setDrawRange(0, sk.count * 6);
-  pos.needsUpdate = col.needsUpdate = true;
-}
-
 // Tyres: a squeal on tarmac, louder the faster they slide (and the more weight is on them); on loose
 // surfaces a gravel crunch that grows with speed and sliding instead
 function updateSqueal(s) {
@@ -1131,84 +1148,6 @@ function startArch(road, heightAt) {
 
 // Dust: soft round puffs thrown up by tyres on loose ground; they drift, grow and fade (smoke too, with
 // its own life, size, how fast it rises and grows)
-function dustCloud(max = 2400, { life: [life0, lifeVar] = [1.4, 1.2], size: [sizeMin, sizeVar] = [0.5, 0.5], alpha: alphaK = 0.3, rise: [rise0, riseVar] = [0.5, 1.1], buoyancy = 0.15, growth = 3.5, drag: dragK = 1.6 } = {}) {
-  const geo = new THREE.BufferGeometry();
-  const pos = new Float32Array(max * 3), size = new Float32Array(max), alpha = new Float32Array(max), colour = new Float32Array(max * 3);
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1).setUsage(THREE.DynamicDrawUsage));
-  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
-  geo.setAttribute('aColour', new THREE.BufferAttribute(colour, 3).setUsage(THREE.DynamicDrawUsage));
-  const material = new THREE.ShaderMaterial({
-    uniforms: { uScale: { value: 800 } },
-    vertexShader: `attribute float aSize; attribute float aAlpha; attribute vec3 aColour; uniform float uScale; varying float vAlpha; varying vec3 vColour;
-      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSize * uScale / max(0.1, -mv.z); vAlpha = aAlpha; vColour = aColour; }`,
-    fragmentShader: `varying float vAlpha; varying vec3 vColour;
-      void main() { float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(vColour, vAlpha * smoothstep(0.5, 0.05, d)); }`,
-    transparent: true, depthWrite: false,
-  });
-  const points = new THREE.Points(geo, material);
-  points.frustumCulled = false;
-  points.renderOrder = 2;
-  const vel = new Float32Array(max * 3), age = new Float32Array(max).fill(1e9), life = new Float32Array(max).fill(1), size0 = new Float32Array(max), alpha0 = new Float32Array(max);
-  let next = 0;
-  return {
-    points, material, carry: {},
-    emit(p, v, c, strength) {
-      const i = next;
-      next = (next + 1) % max;
-      pos.set([p[0] + (Math.random() - 0.5) * 0.5, p[1] + 0.15, p[2] + (Math.random() - 0.5) * 0.5], i * 3);
-      vel.set([v[0] * 0.25 + (Math.random() - 0.5) * 1.6, rise0 + Math.random() * riseVar, v[2] * 0.25 + (Math.random() - 0.5) * 1.6], i * 3);
-      const shade = 0.9 + Math.random() * 0.2;
-      colour.set([c.r * shade, c.g * shade, c.b * shade], i * 3);
-      age[i] = 0; life[i] = life0 + Math.random() * lifeVar; size0[i] = sizeMin + Math.random() * sizeVar; alpha0[i] = alphaK * strength;
-    },
-    update(dt) {
-      const drag = Math.exp(-dragK * dt);
-      for (let i = 0; i < max; i++) {
-        if (age[i] >= life[i]) { alpha[i] = 0; continue; }
-        age[i] += dt;
-        const k = Math.min(1, age[i] / life[i]);
-        for (let a = 0; a < 3; a++) { pos[i * 3 + a] += vel[i * 3 + a] * dt; vel[i * 3 + a] *= drag; }
-        vel[i * 3 + 1] += buoyancy * dt;
-        size[i] = size0[i] * (1 + growth * k);
-        alpha[i] = alpha0[i] * (1 - k) ** 1.5 * Math.min(1, age[i] * 8);
-      }
-      for (const name of ['position', 'aSize', 'aAlpha', 'aColour']) geo.attributes[name].needsUpdate = true;
-    },
-  };
-}
-
-function updateDust(w, s, dt) {
-  const d = w.dust, speed = Math.hypot(s.velocity[0], s.velocity[2]);
-  d.material.uniforms.uScale.value = shared.renderer.domElement.height / (2 * Math.tan(w.camera.fov * Math.PI / 360));
-  for (const wh of s.wheels) {
-    const surf = wh.grounded && w.surfaces[wh.surface];
-    if (!surf?.dustColour) { d.carry[wh.name] = 0; continue; }
-    const rate = speed * 0.9 + wh.slipSpeed * 5, strength = Math.min(1, speed / 20 + wh.slipSpeed / 6);
-    d.carry[wh.name] = (d.carry[wh.name] || 0) + Math.min(rate, 60) * dt;
-    while (d.carry[wh.name] >= 1) { d.carry[wh.name]--; d.emit(wh.contact, s.velocity, surf.dustColour, strength); }
-  }
-  d.update(dt);
-}
-
-// Tyre smoke: puffs from every wheel spinning or sliding past 5 m/s on grippy ground (loose ground
-// throws up dust instead), more the harder it slips, in the car's smoke colour (spec.cosmetic.smoke)
-const SMOKE = new THREE.Color('#d8d8d8');
-function updateTyreSmoke(w, s, dt) {
-  const d = w.tyreSmoke;
-  if (!d) return;
-  d.material.uniforms.uScale.value = shared.renderer.domElement.height / (2 * Math.tan(w.camera.fov * Math.PI / 360));
-  const hex = shared.spec.cosmetic?.smoke;
-  if (hex !== d.hex) { d.hex = hex; d.colour = hex ? new THREE.Color(hex) : SMOKE; }
-  for (const wh of s.wheels) {
-    const surf = wh.grounded && w.surfaces[wh.surface], slip = wh.grounded && !surf?.dustColour ? wh.slipSpeed : 0;
-    if (slip < 5) { d.carry[wh.name] = 0; continue; }
-    d.carry[wh.name] = (d.carry[wh.name] || 0) + Math.min((slip - 4) * 4, 50) * dt;
-    while (d.carry[wh.name] >= 1) { d.carry[wh.name]--; d.emit(wh.contact, s.velocity, d.colour, Math.min(1, (slip - 4) / 10)); }
-  }
-  d.update(dt);
-}
-
 // Game actions from any input device
 function handleAction(w, act, inp) {
   const s = shared, v = w.sim.vehicle;
@@ -1258,12 +1197,13 @@ function handleAction(w, act, inp) {
       v.mechanical.cool();
       resetCar(w, false);
       w.rig.reset();
-      if (w.smoke) w.smoke.left = 0;
+      w.fx.resetCar(0);
       for (const m of [...(w.markers ?? [])]) { m.removeFromParent(); } w.markers = [];
       s.flash.show('Car reset', 'ok', 1.5, 'repaired (development)');
     });
   }
   if (act === 'sockets') window.garage.sockets();
+  if (act === 'effects') s.fxPanel.toggle();
 }
 
 // Brake lights and the cockpit steering wheel
@@ -1297,6 +1237,7 @@ async function carVisual({ paint } = {}) {
     glass, glassOpacity: glass?.opacity ?? 1,
     steeringWheel: sw ? { node: sw, base: sw.quaternion.toArray(), sign: s.rig.steeringWheel.sign } : null,
   };
+  if (!paint) addHeadlights(vis);
   s.visuals.add(vis);
   return vis;
 }
@@ -1340,6 +1281,7 @@ function debugCommands(session) {
   const current = () => active ?? [...worlds.values()][0];
   session.debug('attached', () => { const w = current(); console.table(w.carVis.list()); console.log(`wheels: ${w.carVis.wheelRadius('FL')?.toFixed(4)} m tyre radius (the physics still rolls on ${shared.spec.wheels.radius} m until Step 4)`); },
     'garage.attached()               what\'s drawn on every socket (the part, its model, loaded / placeholder / made)');
+  session.debug('pileup', (n = 8, kmh = 60) => pileup(current(), n, kmh), 'garage.pileup(8, 60)            8 AI cars driving into each other 45 m ahead at 60 km/h (J takes them away): the effects with many cars');
   session.debug('crash', (kmh = 60, target = 'wall', side = 'front', angleDeg = 0) => crashTest(kmh, target, side, angleDeg), 'garage.crash(60, "wall", "front", 0)   the crash test: into the wall or barrier (front, rear or side on, at an angle) or along the guardrail');
   const attachAs = state => which => {
     const sockets = socketsFor(which), mode = shared.prefs.damage === 'full' ? 'full' : 'visual';
@@ -1396,6 +1338,24 @@ function debugCommands(session) {
   }, 'garage.copies(10)               park 10 copies of your car beside you (0: take them away) and show what that loaded');
 }
 
+const AI_PAINT = { colour: '#c8452f', finish: 'metallic' };
+// A pile-up (garage.pileup(8, 60)): n AI cars on a ring 30 m round a point ahead of you, all driving into
+// the middle at kmh — a big multi-car crash, to see the effects (and what they cost) with many cars at
+// once. J takes them away
+async function pileup(w, n = 8, kmh = 60) {
+  const sim = w.sim, b = sim.vehicle.body, p = b.translation(), q = b.rotation();
+  const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w)), centre = [p.x + fwd.x * 45, p.z + fwd.z * 45];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, x = centre[0] + Math.sin(a) * 30, z = centre[1] + Math.cos(a) * 30;
+    const id = sim.addCar({ position: [x, w.heightAt(x, z), z], headingDeg: (a * 180 / Math.PI + 180) % 360, speed: kmh / 3.6 }, straightLine({ speed: kmh / 3.6 }));
+    sim.cars.find(c => c.id === id).vehicle.mechanical.enabled = false;
+    const vis = await carVisual({ paint: AI_PAINT });
+    w.scene.add(vis.group);
+    w.others.set(id, vis);
+  }
+  return `${n} cars driving into each other at ${kmh} km/h, 45 m ahead`;
+}
+
 // AI car: J puts one on the road ahead of you (or straight ahead), going your speed, then racing
 // along the road the way you're going (physics/ai.js); J again takes it away
 async function toggleAiCar(w) {
@@ -1420,7 +1380,7 @@ async function toggleAiCar(w) {
   }
   const id = sim.addCar(at, driver);
   sim.cars.find(c => c.id === id).vehicle.mechanical.enabled = false;     // (it drives on your car's spec, but not its damage)
-  const vis = await carVisual({ paint: { colour: '#c8452f', finish: 'metallic' } });   // a red one (its own paint)
+  const vis = await carVisual({ paint: AI_PAINT });   // a red one (its own paint)
   w.scene.add(vis.group);
   w.others.set(id, vis);
 }

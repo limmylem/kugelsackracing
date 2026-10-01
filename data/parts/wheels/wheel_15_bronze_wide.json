@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 520,
   "mass": 7.8,
+  "contactMaterial": "metal",
   "toughness": 1,
   "model": "",
   "icon": "assets/icons/parts/wheel_15_bronze_wide.png",

@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 80,
   "mass": 0.6,
+  "contactMaterial": "metal",
   "toughness": 2,
   "model": "",
   "icon": "assets/icons/parts/wheel_spacers_15.png",

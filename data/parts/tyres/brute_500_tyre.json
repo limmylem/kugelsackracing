@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 181,
   "mass": 11,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "model": "",
   "icon": "assets/icons/parts/brute_500_tyre.png",
   "fits": ["rim:19"],

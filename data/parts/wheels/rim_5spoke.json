@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 260,
   "mass": 7.2,
+  "contactMaterial": "metal",
   "toughness": 1,
   "model": "assets/parts/wheels/rim_5spoke.glb",
   "icon": "assets/icons/parts/rim_5spoke.png",

@@ -8,6 +8,7 @@
   "purpose": "offroad",
   "price": 620,
   "mass": 35,
+  "contactMaterial": "metal",
   "model": "assets/parts/body/ridgeback_4x4_winch.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_winch.png",
   "fits": ["car:ridgeback_4x4"],

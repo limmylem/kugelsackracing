@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 280,
   "mass": 8,
+  "contactMaterial": "metal",
   "toughness": 1.8,
   "model": "assets/parts/wheels/rim_rally.glb",
   "icon": "assets/icons/parts/rim_rally.png",

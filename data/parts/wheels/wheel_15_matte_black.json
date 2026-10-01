@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 300,
   "mass": 7,
+  "contactMaterial": "metal",
   "toughness": 1,
   "model": "",
   "icon": "assets/icons/parts/wheel_15_matte_black.png",

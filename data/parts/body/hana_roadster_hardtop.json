@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 1600,
   "mass": 32,
+  "contactMaterial": "plastic",
   "model": "",
   "modelTodo": "Hana Roadster hardtop: a fibreglass hard roof with a glass rear window, about 140 × 30 × 90 cm, over the cockpit.",
   "icon": "assets/icons/parts/hana_roadster_hardtop.png",

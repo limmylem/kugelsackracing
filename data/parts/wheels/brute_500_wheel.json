@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 160,
   "mass": 12,
+  "contactMaterial": "metal",
   "model": "assets/parts/stock/brute_500/wheel_FL.glb",
   "icon": "assets/icons/parts/brute_500_wheel.png",
   "fits": ["car:brute_500"],

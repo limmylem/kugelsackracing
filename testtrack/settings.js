@@ -16,6 +16,8 @@ export function defaultSettings(spec) {
     damage: 'full',
     spoilerAngle: 8,
     altitude: 0,
+    effects: 'medium',          // visual effects quality: low / medium / high (data/effects.json)
+    timeOfDay: 13,              // the test worlds' time of day (hours)
     input: clone(DEFAULT_INPUT), keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL),
   };
 }
@@ -43,6 +45,7 @@ const AID_ROWS = [
   ['revProtection', 'Rev protection', 'Refuses a downshift that would over-rev the engine (a money shift bends valves or blows it)'],
 ];
 
+const clockText = h => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 const bindingText = b => !b ? '—' : b.type === 'button' ? `button ${b.index}` : b.rest == null ? `axis ${b.index}${b.invert ? ' (flipped)' : ''}` : `axis ${b.index}`;
 
 // input: the InputManager (for capturing rebinds); onChange(settings) after any change
@@ -69,6 +72,10 @@ export function createSettingsPanel(settings, spec, input, onChange) {
         <label class="row"><input type="checkbox" data-bool="handbrakeClutch" ${S.handbrakeClutch ? 'checked' : ''}> <span><b>Clutch in with handbrake</b><small>Keeps the engine revving through handbrake turns</small></span></label>
         <h3>Aero and air <small>K fits / removes the spoiler (its angle is its setting: garage.tune("basic_wing", "angle", 12)) · J puts an AI car ahead to slipstream</small></h3>
         <label class="slider">test altitude <input type="range" min="0" max="4000" step="100" data-num="altitude" value="${S.altitude}"> <output>${S.altitude} m</output></label>
+        <h3>Effects <small>. opens the effects panel</small></h3>
+        <label class="slider">quality <select data-str="effects">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.effects ?? 'medium') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <small class="pads">How many particles (smoke, sparks, dust…), how big and how long they last, how far away cars' effects play, soft edges where they meet surfaces (medium and high) and little lights where sparks fly (high).</small>
+        <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
       </section>
       <section><h3>Input</h3>
         <label class="slider">device <select data-str="input.device">${['auto', 'keyboard', 'gamepad', 'wheel'].map(d => `<option ${I.device === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
@@ -93,7 +100,7 @@ export function createSettingsPanel(settings, spec, input, onChange) {
   const set = (path, value) => { const [a, b] = path.split('.'); if (b) settings[a][b] = value; else settings[a] = value; };
   el.addEventListener('input', e => {
     const t = e.target;
-    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.value; }
+    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
   });
   el.addEventListener('change', e => {
     const t = e.target;

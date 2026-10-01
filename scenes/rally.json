@@ -75,14 +75,14 @@
     "gravel": {
       "grip": 0.74,
       "rollingResistance": 0.025,
-      "dust": "#b9a37f",
+      "effects": { "spray": { "colour": "#8c7d66", "rate": 80, "speed": 0.55 }, "dust": { "colour": "#b9a37f", "perSpeed": 0.9, "perSlip": 5, "alpha": 1 } },
       "marks": "#5c4b37",
       "sound": "gravel"
     },
     "grass": {
       "grip": 0.6,
       "rollingResistance": 0.045,
-      "dust": "#8b7a57",
+      "effects": { "dust": { "colour": "#8b7a57", "perSpeed": 0.25, "perSlip": 3, "alpha": 0.55 }, "clippings": { "colour": "#5c8a33", "rate": 50 } },
       "marks": "#3f4b2c",
       "sound": "gravel"
     }

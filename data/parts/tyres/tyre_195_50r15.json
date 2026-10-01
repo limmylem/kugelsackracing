@@ -6,6 +6,8 @@
   "kind": "component",
   "price": 150,
   "mass": 8.5,
+  "contactMaterial": "rubber",
+  "smokeColour": "#d8d8d8",
   "toughness": 1.5,
   "model": "",
   "icon": "assets/icons/parts/tyre_195_50r15.png",

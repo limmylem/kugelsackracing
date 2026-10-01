@@ -1464,7 +1464,7 @@ const scratch = { m4: new C.Matrix4(), m3: new C.Matrix3(), m3b: new C.Matrix3()
 function driveCar(now, dt) {
   if (settleFrames > 0) settleFrames--;
   const pose = physics.update(now, dt, !window.testTrackActive && settleFrames <= 0);
-  if (!pose) return;
+  if (!pose) return null;
   Object.assign(car, { lat: pose.lat, lon: pose.lon, height: pose.height, bearing: pose.bearing, pitch: pose.pitch, v: pose.speed, speedometer: pose.speedometer });
   car.air = pose.snapshot.aero.density / SEA_LEVEL_DENSITY;
   carModel.modelMatrix = C.Matrix4.fromArray(pose.matrix, 0, carModel.modelMatrix);
@@ -1485,6 +1485,39 @@ function driveCar(now, dt) {
     if (++calibTick % 8 === 4) measureAhead();
     if (Math.abs(targetOffset - roadOffset) > 0.005) { roadOffset += (targetOffset - roadOffset) * Math.min(1, dt * 1.5); applyOffset(); }
   }
+  return pose;
+}
+
+// The effects (effects/: sparks, smoke, steam, dust, debris, skid marks…) of the car driven, drawn on the
+// globe (effects/cesiumRenderer.js); they keep pace with the physics (its steps this frame)
+let effects = null, effectsDraw = null;
+async function startEffects(session) {
+  const [{ EffectsDirector }, { createCesiumEffects }, { carEffectsInfo }] = await Promise.all([import('./effects/director.js'), import('./effects/cesiumRenderer.js'), import('./effects/carInfo.js')]);
+  const cfg = await (await fetch('data/effects.json', { cache: 'no-cache' })).json();
+  effects = new EffectsDirector(cfg, { level: physics.prefs.effects ?? cfg.default, markLift: 0.03 });
+  const info = () => effects.setCar(0, carEffectsInfo(session, physics.damageBoxes));
+  info(); session.onLook(info); physics.onCar(info);
+  physics.onShift((q, t) => effects.shift(q, t));          // (the floating origin moved: so do they)
+  effectsDraw = createCesiumEffects(C, effects, { scene, frame: () => physics.frame, time: () => viewer.clock.currentTime });
+}
+function updateEffects(pose, dt) {
+  if (!effects || !pose || !physics.frame) return;
+  if (effects.level !== physics.prefs.effects && physics.prefs.effects) effects.setQuality(physics.prefs.effects);
+  const simDt = pose.steps * physics.sim.dt, cam = scene.camera.positionWC;
+  effects.setViewer(physics.frame.toLocal([cam.x, cam.y, cam.z]));
+  effects.updateCar(0, pose.snapshot, simDt);
+  effects.sense(0, pose.snapshot);
+  effects.update(simDt);
+  effectsDraw.update(dt);
+}
+// what happened to the car this frame (the physics' news): crashes, broken glass, a blown engine
+function effectsNews(n) {
+  if (!effects) return;
+  if (n.type === 'crash' && n.impact) {
+    effects.play(effects.impactEvent(0, n.impact, n.result, null));
+    for (const e of effects.breakEvents(0, n.result.broken ?? [], n.before ?? new Set(), physics.damageBoxes)) effects.play(e);
+  }
+  if (n.type === 'blown') effects.play({ type: 'engineBlow', car: 0 });
 }
 
 const camPos = new C.Cartesian3(), camRel = new C.Cartesian3();
@@ -1706,6 +1739,7 @@ async function start(token) {
   await carParts.applyBuild(session.garage.build, session.garage.view);
   carParts.setDamage(session.damage, session.db.damage);          // (its crash dents and broken glass)
   await showCar(carParts);
+  startEffects(session).catch(err => console.warn(`The effects didn't start: ${err.message ?? err}`));
   // another car (picked in the garage, or a test drive): put together afresh, and shown
   physics.onCar(async () => {
     const next = await createCarVisual({ car: session.garage.car, finishes: session.db.finishes, models: carModels, paint: session.paint });
@@ -1738,11 +1772,12 @@ async function start(token) {
     ground.update(C.Math.toDegrees(car.lat), C.Math.toDegrees(car.lon));
     if (started) {
       followCorrection();
-      driveCar(now, dt);
+      const pose = driveCar(now, dt);
       recordTrail();
       updateCamera(dt);
       syncLocal();
-      for (const n of physics.takeNews()) { if (n.type === 'restored') flash.show('Car reset', 'ok', 1.5, 'repaired (development)'); else flash.news(n); }
+      for (const n of physics.takeNews()) { effectsNews(n); if (n.type === 'restored') { flash.show('Car reset', 'ok', 1.5, 'repaired (development)'); effects?.resetCar(0); } else flash.news(n); }
+      updateEffects(pose, dt);
       flash.update(dt);
       const e = physics.sim.vehicle.drivetrain, o = physics.sim.vehicle.body.translation(), h = e.health;
       // (the speedometer reads the wheels, at their actual size)

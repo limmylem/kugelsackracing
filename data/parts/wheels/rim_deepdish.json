@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 560,
   "mass": 9.5,
+  "contactMaterial": "metal",
   "toughness": 1,
   "model": "assets/parts/wheels/rim_deepdish.glb",
   "icon": "assets/icons/parts/rim_deepdish.png",

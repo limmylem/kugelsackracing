@@ -8,6 +8,7 @@
   "purpose": "looks",
   "price": 420,
   "mass": 18,
+  "contactMaterial": "metal",
   "model": "assets/parts/body/ridgeback_4x4_roof_rack.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_roof_rack.png",
   "fits": ["car:ridgeback_4x4"],

@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 650,
   "mass": 13.7,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_offroad6_18.glb",
   "icon": "assets/icons/parts/rim_offroad6_18.png",
   "fits": ["wheel_hub:std", "rim_fits:18"],

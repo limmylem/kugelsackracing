@@ -65,6 +65,9 @@ export async function createPhysicsCar() {
   const fixedOnly = c => { const p = c.parent(); return !p || p.isFixed(); };
 
   let frame = null, rebases = 0, holding = true, heldAt = null, lastGround = null, liftCheck = false;
+  // (whatever else is in the local frame — the effects — moves with it: fn(rotation, translation))
+  const shiftListeners = new Set();
+  const shifted = (q, t) => { for (const fn of shiftListeners) fn(q, t); };
   // what the engine went through (an over-rev: bent valves, blown), for the page to show; the damage
   // is written to the player's engine as each over-rev ends
   const news = [];
@@ -73,8 +76,9 @@ export async function createPhysicsCar() {
   const crashes = () => {
     for (const impact of v.sensor.take()) {
       // (nothing comes loose or off here yet: the real world draws the car as one model)
+      const before = new Set(session.damage.shell?.broken ?? []);
       const { result, saved } = session.crash(impact, { mode: prefs.damage ?? 'full', boxes: damageBoxes, detach: false });
-      news.push({ type: 'crash', result });
+      news.push({ type: 'crash', result, impact, before });         // (the impact and what was broken before: for the effects)
       saved.then(r => { if (r && !r.ok) console.warn(`The crash damage wasn't saved: ${r.error}`); });
     }
   };
@@ -119,6 +123,7 @@ export async function createPhysicsCar() {
     const p = v.body.translation(), g = frame.localToGeodetic([p.x, p.y, p.z]);
     const next = new LocalFrame(g.lat, g.lon, g.height), T = frame.transformTo(next);
     sim.shiftOrigin(T.rotation, T.translation);
+    shifted(T.rotation, T.translation);
     if (heldAt) heldAt = add(rotate(T.rotation, heldAt), T.translation);
     if (lastGround) lastGround = add(rotate(T.rotation, lastGround), T.translation);
     frame = next;
@@ -160,6 +165,11 @@ export async function createPhysicsCar() {
     // fn() once another car's in place (the page draws the new one)
     onCar(fn) { carListeners.add(fn); return () => carListeners.delete(fn); },
     get frame() { return frame; },
+    // fn(rotation, translation) whenever the local frame moves (the floating origin, a new place)
+    onShift(fn) { shiftListeners.add(fn); return () => shiftListeners.delete(fn); },
+    // where the body's glass and lights are (crash damage, the effects' glass)
+    get damageBoxes() { return damageBoxes; },
+    get session() { return session; },
     rebaseDistance: REBASE_DISTANCE,        // (adjustable, for testing)
     get rebases() { return rebases; },
     get holding() { return holding; },
@@ -170,7 +180,7 @@ export async function createPhysicsCar() {
     // bearing (radians). The frame is centred there; the car waits for ground under it.
     place(lat, lon, height, bearing) {
       const next = new LocalFrame(lat, lon, height);
-      if (frame) { const T = frame.transformTo(next); sim.shiftOrigin(T.rotation, T.translation); }
+      if (frame) { const T = frame.transformTo(next); sim.shiftOrigin(T.rotation, T.translation); shifted(T.rotation, T.translation); }
       frame = next;
       v.altitudeBase = height;
       const d = directionOf(bearing);
@@ -258,7 +268,8 @@ export async function createPhysicsCar() {
     },
 
     // Where to draw the car, between the last two physics states
-    pose({ previous: a, current: b, alpha = 1 }) {
+    pose(view) {
+      const { previous: a, current: b, alpha = 1 } = view;
       const mix = (x, y) => x + (y - x) * alpha;
       const pos = a.position.map((x, i) => mix(x, b.position[i]));
       const qa = a.rotation, qb = b.rotation, sign = qa.x * qb.x + qa.y * qb.y + qa.z * qb.z + qa.w * qb.w < 0 ? -1 : 1;
@@ -280,6 +291,7 @@ export async function createPhysicsCar() {
         speedometer: b.speedometer,
         steeringWheel: mix(a.steering.wheelAngle, b.steering.wheelAngle),
         holding,
+        steps: view.stepsThisFrame ?? 0,
       };
     },
   };

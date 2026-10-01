@@ -6,6 +6,7 @@
   "kind": "component",
   "price": 1350,
   "mass": 15.9,
+  "contactMaterial": "metal",
   "model": "assets/parts/wheels/rim_meshdish_17.glb",
   "icon": "assets/icons/parts/rim_meshdish_17.png",
   "fits": ["wheel_hub:std", "rim_fits:17"],
