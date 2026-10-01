@@ -468,6 +468,48 @@ Rules:
 Save it as exhaust_[name].glb.
 ```
 
+## Engine cover
+
+```text
+Make a low-poly 3D model of a engine cover for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–1.9 m wide (across the car), 0.01–0.5 m tall and 0.2–1.3 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of its front edge (the hinge line), level with its top surface.
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as engine_cover_[name].glb.
+```
+
+## Roof (soft top, hardtop)
+
+```text
+Make a low-poly 3D model of a roof (soft top, hardtop) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 0.9–1.9 m wide (across the car), 0.05–1 m tall and 0.4–1.8 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of the roof, level with its top.
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as roof_[name].glb.
+```
+
 ## A whole car
 
 ```text

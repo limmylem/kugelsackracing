@@ -111,7 +111,8 @@ export async function placeholderCar(D) {
   under('socket_bonnet', 'panel_bonnet', 'paint', extrude([[B.back, B.rear], [B.back - 0.03, B.rear], [B.front - 0.03, front - 0.2], [B.front, front - 0.2]], -half + 0.14, half - 0.14, 'x'));
   under('socket_bumper_front', 'panel_bumper_front', 'paint', box([-half + 0.02, c + 0.04, front - 0.24], [half - 0.02, c + 0.3, front]));
   under('socket_bumper_rear', 'panel_bumper_rear', 'paint', box([-half + 0.02, c + 0.04, rear], [half - 0.02, c + 0.3, rear + 0.2]));
-  const bootTo = rear + 0.18, bootLid = K.front > bootTo + 0.1;
+  // (a boot lid only on a car with a boot socket, long enough to open: a mid engine's lid is its engine cover)
+  const bootTo = rear + 0.18, bootLid = (!D.sockets || D.sockets.includes('socket_boot')) && K.front > bootTo + 0.1;
   if (bootLid) under('socket_boot', 'panel_boot', 'paint', box([-half + 0.1, K.height - 0.04, bootTo], [half - 0.1, K.height, K.front]));
   if (D.engineCover != null) under('socket_engine_cover', 'panel_engine_cover', 'paint', box([-half + 0.14, K.height - 0.04, K.front + 0.05], [half - 0.14, K.height, D.engineCover]));
   for (const [x, n, fender] of [[1, 'left', 'FL'], [-1, 'right', 'FR']]) {

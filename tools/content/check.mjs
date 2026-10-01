@@ -140,7 +140,9 @@ function car(info, { rules, car: def, db, knownSockets = [] }, f) {
   const known = new Set([...R.requiredSockets, ...R.expectedSockets, ...knownSockets]);
 
   // sockets there, and spelled right
-  const missing = R.requiredSockets.filter(n => !names.has(n)), missingExpected = R.expectedSockets.filter(n => !names.has(n));
+  // (an expected socket its car.json has no use for, e.g. a boot on a car without one, isn't missing)
+  const uses = Array.isArray(def?.sockets) ? new Set(def.sockets.map(s => s.name)) : null;
+  const missing = R.requiredSockets.filter(n => !names.has(n)), missingExpected = R.expectedSockets.filter(n => !names.has(n) && (!uses || uses.has(n)));
   const unknown = [...names].filter(n => !known.has(n));
   const typos = unknown.map(n => ({ n, close: closest(n, [...known]) })).filter(x => x.close);
   for (const { n, close } of typos) f.fail('sockets', `"${n}" isn't a socket name the game knows: it's probably ${close} ${close.toLowerCase() === n.toLowerCase() ? '(the capitals are different)' : 'misspelled'}.`, `Rename the node to exactly ${close} (names are case-sensitive).`);
@@ -150,7 +152,7 @@ function car(info, { rules, car: def, db, knownSockets = [] }, f) {
   if (missingOther.length) f.warn('sockets', `No ${list(missingOther)}: parts that go there are drawn where car.json puts the socket instead.`, 'Add an empty for each at the point the part attaches (see docs/MODELLING_GUIDE.md › Sockets).');
   const odd = unknown.filter(n => !typos.some(t => t.n === n));
   if (odd.length) f.warn('sockets', `${list(odd.map(n => `"${n}"`))} ${odd.length > 1 ? "aren't sockets" : "isn't a socket"} the game knows.`, 'Rename it to a socket from the guide, or add the socket to car.json if it\'s a new one.');
-  if (!missing.length && !typos.length) f.pass('sockets', `All ${R.requiredSockets.length} wheel sockets${missingOther.length ? '' : ` and the ${R.expectedSockets.length} part sockets`} are there.`);
+  if (!missing.length && !typos.length) f.pass('sockets', `All ${R.requiredSockets.length} wheel sockets${missingOther.length ? '' : ` and the ${R.expectedSockets.filter(n => !uses || uses.has(n)).length} part sockets`} are there.`);
 
   // which way it faces: the front wheels in front (+z), the left wheels on the left (+x), y up
   const [FL, FR, RL, RR] = ['FL', 'FR', 'RL', 'RR'].map(k => at(`socket_wheel_${k}`));

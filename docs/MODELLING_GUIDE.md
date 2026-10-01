@@ -129,6 +129,8 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 | Turbo | `turbo_…` `turbocharger_…` | turbo / turbo | 0.1–0.6 | 0.1–0.5 | 0.1–0.6 | where it bolts to the exhaust manifold | 2,500 |
 | Intercooler | `intercooler_…` | intercooler / intercooler | 0.3–1 | 0.1–0.5 | 0.03–0.3 | its middle | 1,500 |
 | Exhaust (tip) | `exhaust_…` `exhaust_tip_…` | exhaust / exhaust | 0.03–0.4 | 0.03–0.3 | 0.05–1.6 | the front of the tip, where it meets the pipe (the tip points back, towards −z) | 1,200 |
+| Engine cover | `engine_cover_…` `enginecover_…` | body / engine_cover | 1–1.9 | 0.01–0.5 | 0.2–1.3 | the middle of its front edge (the hinge line), level with its top surface | 1,500 |
+| Roof (soft top, hardtop) | `roof_…` `soft_top_…` `hardtop_…` | body / roof | 0.9–1.9 | 0.05–1 | 0.4–1.8 | the middle of the roof, level with its top | 1,500 |
 
 The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning; over twice it, a failure.
 
