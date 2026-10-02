@@ -1,15 +1,17 @@
 {
   "_note": "How the baker (npm run world:bake) builds the world from the map and the elevation (WORLD_README.md): the tile grid, the terrain's detail levels, colours, railings, trees, buildings. Change a number, bake again.",
-  "version": 4,
+  "version": 6,
   "tileSize": 512,
   "cell": 2,
   "terrain": {
-    "_note": "Terrain meshes cut adaptively (RTIN) from the height grid: the most a level may differ from the grid (m). Level 0 is drawn near the car; the physics uses the grid itself.",
+    "_note": "Terrain meshes cut adaptively (RTIN) from the height grid, in the game: the most a level may differ from the grid (m). Level 0 is drawn near the car; the physics uses the grid itself. underRoad: how far the grid is kept below a road's surface (more than level 0's error, so the drawn ground never shows through a road); skirtDrop: how far a road's edge dips past its side, under the ground.",
     "lodErrors": [
-      0.05,
+      0.04,
       0.5,
       3
     ],
+    "underRoad": 0.07,
+    "skirtDrop": 0.25,
     "rockSlope": 0.9,
     "waterDepth": 0.8
   },

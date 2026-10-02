@@ -1,5 +1,5 @@
 {
-  "_note": "A region of the world (docs/WORLD_DATA.md): its box [west, south, east, north] (degrees), where a new player starts, and where its map comes from. npm run world:build -- --region sf builds assets/world/sf.pmtiles. Overture: a release on its public S3 bucket ('latest' takes the newest); osm: an OpenStreetMap extract (.osm.pbf) for this region, if you have one \u2014 roads, land use, water and details then come from it (with every OSM tag: lanes, sidewalks, trees, street lamps\u2026), buildings from Overture either way. dem: the elevation (tools/world/dem.mjs): a region's own LiDAR elevation files first (local), then Copernicus GLO-30 everywhere (base).",
+  "_note": "A region of the world (docs/WORLD_DATA.md): its box [west, south, east, north] (degrees), where a new player starts, and where its map comes from. npm run world:build -- --region sf builds assets/world/sf.pmtiles. Overture: a release on its public S3 bucket ('latest' takes the newest); osm: an OpenStreetMap extract (.osm.pbf) for this region, if you have one \u2014 roads, land use, water and details then come from it (with every OSM tag: lanes, sidewalks, trees, street lamps\u2026), buildings from Overture either way. dem: the elevation (tools/world/dem.mjs): a region's own LiDAR elevation files first (local), then Copernicus GLO-30 everywhere (base). spots: places to jump to (the test spots: one of each kind of place).",
   "id": "sf",
   "name": "San Francisco",
   "bbox": [
@@ -36,5 +36,71 @@
       }
     ],
     "base": "glo30"
-  }
+  },
+  "spots": [
+    {
+      "id": "city",
+      "name": "Financial District",
+      "kind": "dense city",
+      "lat": 37.793,
+      "lon": -122.4008,
+      "bearing": 270
+    },
+    {
+      "id": "suburb",
+      "name": "Outer Sunset",
+      "kind": "suburb",
+      "lat": 37.7538,
+      "lon": -122.494,
+      "bearing": 0
+    },
+    {
+      "id": "mountain",
+      "name": "Twin Peaks Boulevard",
+      "kind": "mountain road with rails",
+      "lat": 37.7518,
+      "lon": -122.4469,
+      "bearing": 180
+    },
+    {
+      "id": "coast",
+      "name": "Great Highway",
+      "kind": "coast",
+      "lat": 37.758,
+      "lon": -122.5086,
+      "bearing": 0
+    },
+    {
+      "id": "interchange",
+      "name": "Central Freeway / US-101",
+      "kind": "highway interchange",
+      "lat": 37.7688,
+      "lon": -122.4104,
+      "bearing": 200
+    },
+    {
+      "id": "bridge",
+      "name": "Golden Gate Bridge",
+      "kind": "bridge",
+      "lat": 37.8133,
+      "lon": -122.4778,
+      "bearing": 0
+    },
+    {
+      "id": "tunnel",
+      "name": "Broadway Tunnel",
+      "kind": "tunnel",
+      "lat": 37.7964,
+      "lon": -122.4119,
+      "bearing": 270
+    },
+    {
+      "id": "carpark",
+      "name": "Stonestown Galleria",
+      "kind": "big car park",
+      "lat": 37.7277,
+      "lon": -122.4763,
+      "bearing": 0
+    }
+  ]
 }

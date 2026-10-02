@@ -28,7 +28,8 @@
     "crash-test": "node tests/crash.mjs",
     "stress": "node --expose-gc tests/stress.mjs",
     "world:build": "node --max-old-space-size=8192 tools/world/build.mjs",
-    "world:bake": "node --max-old-space-size=8192 tools/world/bake.mjs"
+    "world:bake": "node --max-old-space-size=8192 tools/world/bake.mjs",
+    "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

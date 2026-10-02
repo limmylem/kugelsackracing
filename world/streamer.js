@@ -13,21 +13,25 @@
 //   each frame: W.update(carPosition (sim), velocity, dt) → { shifted: [tx, 0, tz] | null }
 //   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z), W.placeOnGround(x, z, yFrom), W.where(x, z)
 //   W.status (for the overlay), W.toWorld / W.toSim
+//
+// Headless (the streaming tests, in Node): options { headless: true, manifest, loadTile(key, url) →
+// Promise<the worker's message>, now() } — the same planning and physics, nothing drawn, no workers,
+// the clock the test's.
 
 import * as THREE from 'three';
 import { materials, srgbVertexColours, tileObjects } from './tileObjects.js';
-import { barrierBoxes } from './barriers.js';
+import { tileColliders } from './tilePhysics.js';
 import { projection } from './projection.js';
 
 export const REBASE = 1536;
 const DEFAULTS = { loadRadius: 1400, unloadRadius: 2100, physicsRadius: 750, physicsDrop: 1100, lookAhead: 4, maxLoads: 4, workers: 2, budgetMs: 4 };
 
 export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, options = {} }) {
-  const O = { ...DEFAULTS, ...options };
-  const manifest = await (await fetch(manifestUrl, { cache: 'no-cache' })).json();
+  const O = { ...DEFAULTS, ...options }, clock = O.now ?? (() => performance.now());
+  const manifest = O.manifest ?? await (await fetch(manifestUrl, { cache: 'no-cache' })).json();
   const failedAt = new Map();      // key → when its last load failed (tried again after a pause)
   // (relative to the page's base, as fetch resolves it: dev pages set <base href="../">)
-  const base = new URL('.', new URL(manifestUrl, globalThis.document?.baseURI ?? location.href)).href, T = manifest.tileSize, half = T / 2;
+  const base = O.manifest ? '' : new URL('.', new URL(manifestUrl, globalThis.document?.baseURI ?? location.href)).href, T = manifest.tileSize, half = T / 2;
   const P = projection(...manifest.origin);
   const byKey = new Map(manifest.tiles.map(t => [`${t.i}_${t.j}`, t]));
   // the physics' origin, in the world's frame: tile-aligned, at the spawn's tile to begin with
@@ -40,11 +44,11 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   const surfaces = Object.entries(manifest.surfaces).map(([name, s]) => ({ name, ...s }));
 
   // ---------- workers ----------
-  const workers = Array.from({ length: O.workers }, () => new Worker(new URL('./tileWorker.js', import.meta.url), { type: 'module' }));
+  const workers = O.loadTile ? [] : Array.from({ length: O.workers }, () => new Worker(new URL('./tileWorker.js', import.meta.url), { type: 'module' }));
   const waiting = new Map();
   let nextWorker = 0;
   for (const w of workers) w.onmessage = e => { const m = e.data, r = waiting.get(m.key); waiting.delete(m.key); r?.(m); };
-  const fetchTile = t => new Promise(resolve => { const key = `${t.i}_${t.j}`; waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url: `${base}tiles/${key}.dwt`, version: manifest.version }); });
+  const fetchTile = t => { const key = `${t.i}_${t.j}`, url = `${base}tiles/${key}.dwt`; return O.loadTile ? O.loadTile(key, url) : new Promise(resolve => { waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url, version: manifest.version }); }); };
 
   // ---------- the far world: the whole region, drawn wherever detailed tiles haven't come in ----------
   // (a mask of the detailed tiles in, one texel a tile, read by the far meshes' shader to leave a hole
@@ -72,7 +76,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   const far = new THREE.Group();
   far.name = 'far world';
   world.add(far);
-  {
+  if (!O.headless) {
     const M = materials(), mats = { terrain: masked(M.terrain), blocks: masked(srgbVertexColours(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }))), landmark_walls: masked(M.walls.block), landmark_roofs: masked(M.roofs) };
     // the sea, out to the horizon (under everything: the land and the tiles' own water sit on it)
     const [bx, bz] = [(Math.min(...tx) + Math.max(...tx) + 1) * T / 2, (Math.min(...tz) + Math.max(...tz) + 1) * T / 2];
@@ -106,7 +110,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   }
   // ---------- tiles ----------
   const tiles = new Map();          // key → { i, j, state, obj, data, physics, queue, added, ... }
-  const stats = { loaded: 0, fetched: 0, cached: 0, bytes: 0, loadMs: [], errors: 0, lastError: null, colliders: 0, firstDrivable: null, started: performance.now() };
+  const stats = { loaded: 0, fetched: 0, cached: 0, bytes: 0, loadMs: [], errors: 0, lastError: null, colliders: 0, firstDrivable: null, started: clock() };
   const centreOf = t => [(t.i + 0.5) * T, (t.j + 0.5) * T];
   const distTo = (t, x, z) => { const [cx, cz] = centreOf(t); return Math.hypot(Math.max(0, Math.abs(x - cx) - half), Math.max(0, Math.abs(z - cz) - half)); };
   let physicsQueue = [];
@@ -114,20 +118,22 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   function load(t) {
     const key = `${t.i}_${t.j}`, entry = { ...t, key, state: 'loading', obj: null, data: null, physics: null, colliders: 0 };
     tiles.set(key, entry);
-    const t0 = performance.now();
+    const t0 = clock();
     fetchTile(t).then(m => {
       if (tiles.get(key) !== entry) return;
-      if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); failedAt.set(key, performance.now()); return; }
+      if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); failedAt.set(key, clock()); return; }
       entry.data = m.tile; entry.state = 'ready';
-      entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
-      const [cx, cz] = centreOf(t);
-      entry.obj.group.position.set(cx, 0, cz);
-      entry.obj.group.updateMatrixWorld(true);
-      for (const c of entry.obj.group.children) c.updateMatrix?.();
-      world.add(entry.obj.group);
+      if (!O.headless) {
+        entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
+        const [cx, cz] = centreOf(t);
+        entry.obj.group.position.set(cx, 0, cz);
+        entry.obj.group.updateMatrixWorld(true);
+        for (const c of entry.obj.group.children) c.updateMatrix?.();
+        world.add(entry.obj.group);
+      }
       setMask(entry, true);
       stats.loaded++; stats.bytes += m.bytes; m.cached ? stats.cached++ : stats.fetched++;
-      stats.loadMs.push(performance.now() - t0); if (stats.loadMs.length > 50) stats.loadMs.shift();
+      stats.loadMs.push(clock() - t0); if (stats.loadMs.length > 50) stats.loadMs.shift();
     });
   }
   function unload(entry) {
@@ -138,30 +144,11 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   }
 
   // ---------- physics: built a piece at a time ----------
-  // the tile's colliders, in the order the car needs them: ground and roads first
+  // the tile's colliders (world/tilePhysics.js), ground and roads first
   function physicsPieces(entry) {
-    const d = entry.data, out = [];
-    if (d.heightfield) out.push({ desc: RAPIER.ColliderDesc.heightfield(d.heightfield.n, d.heightfield.n, d.heightfield.heights, { x: d.heightfield.size, y: 1, z: d.heightfield.size }), userData: { material: 'ground' } });
-    for (const name of ['roads', 'paved', 'cover']) { const m = d.meshes[name]; if (m) out.push({ desc: RAPIER.ColliderDesc.trimesh(m.positions, m.indices), userData: { material: 'ground' } }); }
-    entry.groundPieces = out.length;          // (the ground and the roads: what the car needs first)
-    // buildings: each convex piece, foot to eaves
-    const H = d.lists.hulls?.data;
-    if (H) for (let k = 0; k < H.length;) {
-      const n = H[k], y0 = H[k + 1], y1 = H[k + 2], pts = new Float32Array(n * 6);
-      for (let q = 0; q < n; q++) { const x = H[k + 3 + q * 2], z = H[k + 4 + q * 2]; pts.set([x, y0, z, x, y1, z], q * 6); }
-      k += 3 + n * 2;
-      const desc = RAPIER.ColliderDesc.convexHull(pts);
-      if (desc) out.push({ desc, userData: { material: 'concrete' } });
-    }
-    // railings and walls: chained boxes, thick and taller than they look
-    const B = manifest.barriers;
-    for (const [name, L] of Object.entries(d.lists)) {
-      if (!name.startsWith('barrier_')) continue;
-      for (const b of barrierBoxes(name.slice(8), L.data, B)) out.push({ desc: RAPIER.ColliderDesc.cuboid(...b.halfExtents).setTranslation(...b.centre).setRotation(b.rotation).setFriction(B.friction).setRestitution(B.restitution), userData: { material: b.material } });
-    }
-    const Tr = d.lists.trees?.data;
-    if (Tr) for (let k = 0; k < Tr.length; k += 5) { const h = Tr[k + 3] * 4 * 0.6; out.push({ desc: RAPIER.ColliderDesc.cylinder(h / 2 + 0.5, 0.25).setTranslation(Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]), userData: { material: 'wood' } }); }
-    return out;
+    const { pieces, ground } = tileColliders(entry.data, RAPIER, manifest.barriers);
+    entry.groundPieces = ground;
+    return pieces;
   }
   function wantPhysics(entry) {
     if (entry.physics || entry.state !== 'ready') return;
@@ -185,14 +172,14 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   function update(pos, vel, dt = 1 / 60) {
     const wx = pos[0] + origin[0], wz = pos[2] + origin[1], speed = Math.hypot(vel[0], vel[2]);
     const ax = wx + vel[0] * O.lookAhead, az = wz + vel[2] * O.lookAhead;   // (where the car will be soon)
-    const now = performance.now();
+    const now = clock();
     if (now - lastPlan > 200) {
       lastPlan = now;
       // what's wanted, nearest (to now, or to soon) first
       const want = manifest.tiles.map(t => ({ t, d: Math.min(distTo(t, wx, wz), distTo(t, ax, az) * 0.8) })).filter(x => x.d < O.loadRadius).sort((a, b) => a.d - b.d);
       const loading = [...tiles.values()].filter(e => e.state === 'loading').length;
       let room = O.maxLoads - loading;
-      for (const { t } of want) { if (room <= 0) break; const k = `${t.i}_${t.j}`; if (!tiles.has(k) && !(performance.now() - (failedAt.get(k) ?? -1e9) < 3000)) { load(t); room--; } }
+      for (const { t } of want) { if (room <= 0) break; const k = `${t.i}_${t.j}`; if (!tiles.has(k) && !(now - (failedAt.get(k) ?? -1e9) < 3000)) { load(t); room--; } }
       for (const e of [...tiles.values()]) if (e.state === 'ready' && Math.min(distTo(e, wx, wz), distTo(e, ax, az)) > O.unloadRadius) unload(e);
     }
     // physics: near now and near soon (further ahead the faster it goes), dropped once well behind
@@ -201,7 +188,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       if (e.state !== 'ready') continue;
       const d = Math.min(distTo(e, wx, wz), distTo(e, ax, az));
       if (d < reach) wantPhysics(e); else if (d > O.physicsDrop + speed * 2) dropPhysics(e);
-      e.obj.setDetail(distTo(e, wx, wz));
+      e.obj?.setDetail(distTo(e, wx, wz));
     }
     // a few milliseconds of colliders, the car's own tile and those ahead first
     physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));

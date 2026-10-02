@@ -36,6 +36,8 @@ export const ACTIONS = [
   { id: 'lockCentre', label: 'Centre diff lock', press: true }, { id: 'roof', label: 'Roof up / down (convertible)', press: true },
   { id: 'effects', label: 'Effects panel (debug)', press: true },
   { id: 'tow', label: 'Tow to the garage (twice)', press: true },
+  { id: 'worldMap', label: 'Map and quick travel (real world)', press: true },
+  { id: 'perfOverlay', label: 'Performance overlay (real world)', press: true },
 ];
 
 export const DEFAULT_KEYS = {
@@ -44,6 +46,7 @@ export const DEFAULT_KEYS = {
   reset: ['KeyR'], camera: ['KeyC'], aids: ['KeyX'], gearbox: ['KeyZ'], hud: ['KeyH'], debug: ['KeyG'], dyno: ['KeyY'], mute: ['KeyM'], settings: ['KeyO'],
   spoiler: ['KeyK'], aiCar: ['KeyJ'], tuning: ['KeyP'], telemetry: ['KeyL'], sockets: ['KeyN'], restore: ['KeyB'], damageView: ['KeyU'], damageReport: ['KeyI'],
   transfer: ['KeyV'], lockFront: ['BracketLeft'], lockRear: ['BracketRight'], lockCentre: ['Backslash'], roof: ['Semicolon'], effects: ['Period'], tow: ['Backspace'],
+  worldMap: ['Tab'], perfOverlay: ['F3'],
 };
 const btn = index => ({ type: 'button', index }), axis = (index, rest, full) => ({ type: 'axis', index, rest, full });
 // Standard gamepad layout (Xbox names): left stick steers, triggers are the pedals
@@ -51,7 +54,7 @@ export const DEFAULT_PAD = {
   steer: axis(0), throttle: btn(7), brake: btn(6), handbrake: btn(2), clutch: btn(1), shiftUp: btn(5), shiftDown: btn(4),
   reset: btn(8), camera: btn(3), aids: btn(13), gearbox: btn(12), hud: btn(15), debug: btn(14), dyno: null, mute: null, settings: btn(9), spoiler: null, aiCar: null,
   tuning: null, telemetry: null, sockets: null, restore: null, damageView: null, damageReport: null,
-  transfer: null, lockFront: null, lockRear: null, lockCentre: null, roof: null, effects: null, tow: null,
+  transfer: null, lockFront: null, lockRear: null, lockCentre: null, roof: null, effects: null, tow: null, worldMap: null, perfOverlay: null,
 };
 // Wheels differ a lot; this is a common layout (pedals as axes resting at +1) — rebind in settings
 export const DEFAULT_WHEEL = {
@@ -98,7 +101,7 @@ export class InputManager {
     // when it happened, for the physics steps (a gear shift is an event at that moment)
     this.timeline.set(e.timeStamp, this.keyboardState());
     if (down && !e.repeat) for (const [id, dir] of [['shiftUp', 1], ['shiftDown', -1]]) if ((this.settings.keys[id] || []).includes(e.code)) this.timeline.event(e.timeStamp, dir);
-    if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+    if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab' || e.code === 'F3') e.preventDefault();
   }
 
   // The car's input from the keyboard alone

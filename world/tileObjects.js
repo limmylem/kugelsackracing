@@ -128,7 +128,7 @@ export function tileObjects(tile, { barriers: B }) {
     return obj;
   };
   const terrain = [0, 1, 2].map(k => mesh(`terrain${k}`, mat.terrain, { normals: true }));
-  const near = [mesh('roads', mat.roads), mesh('paved', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1 })].filter(Boolean);
+  const near = [mesh('roads', mat.roads), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1 })].filter(Boolean);
   mesh('water', mat.water, { normals: true, order: 2 });
   const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true }))].filter(Boolean);
   // trees
@@ -156,15 +156,15 @@ export function tileObjects(tile, { barriers: B }) {
   const rails = new THREE.Group();
   for (const [name, L] of Object.entries(tile.lists)) {
     if (!name.startsWith('barrier_')) continue;
-    const type = name.slice(8), S = barrierShape(type, B), { rails: R, posts } = barrierInstances(type, L.data, B);
+    const type = name.slice(8), S = barrierShape(type, B), { rails: R, posts } = barrierInstances(type, L.data, B, L.stride);
     if (!R.length) continue;
     mat.barrier[type] ??= new THREE.MeshLambertMaterial({ color: S.colour });
     const inst = new THREE.InstancedMesh(railShape(type, S), mat.barrier[type], R.length), m4 = new THREE.Matrix4(), s = new THREE.Vector3(), p = new THREE.Vector3();
-    R.forEach((r, n) => { const q = quatYawPitch(r.yaw, r.pitch); m4.compose(p.set(...r.position), new THREE.Quaternion(q.x, q.y, q.z, q.w), s.set(r.length + 0.02, 1, 1)); inst.setMatrixAt(n, m4); });
+    R.forEach((r, n) => { const q = quatYawPitch(r.yaw, r.pitch); m4.compose(p.set(...r.position), new THREE.Quaternion(q.x, q.y, q.z, q.w), s.set(r.length + 0.02, r.height / S.height, 1)); inst.setMatrixAt(n, m4); });
     inst.castShadow = true; rails.add(inst);
     if (posts.length) {
       const P = new THREE.InstancedMesh(shapes().post, mat.post, posts.length);
-      posts.forEach((pt, n) => { m4.compose(p.set(...pt), new THREE.Quaternion(), s.set(1, S.height * 0.95, 1)); P.setMatrixAt(n, m4); });
+      posts.forEach((pt, n) => { m4.compose(p.set(pt[0], pt[1], pt[2]), new THREE.Quaternion(), s.set(1, pt[3] * 0.95, 1)); P.setMatrixAt(n, m4); });
       rails.add(P);
     }
   }

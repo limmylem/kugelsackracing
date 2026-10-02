@@ -6,7 +6,6 @@
 //
 //   await bakeFar({ P, index, dem, cfg, region, bounds }) → [{ a, b, tile }]   (world/tileFormat.js tiles)
 
-import Martini from '@mapbox/martini';
 import { extrude, heightOf, rgb } from './buildings.mjs';
 import { simplify } from './tiler.mjs';
 import { Raster } from './bakeTile.mjs';
@@ -50,12 +49,15 @@ export async function bakeFar({ P, index, dem, cfg, region, bounds }) {
     for (let q = 0; q < cls.length; q++) cls[q] = classes[R.data[q]];
     // the sea and lakes kept below their water (the water is drawn flat at its level)
     for (let k = 0; k < heights.length; k++) if (cls[k] === 'water' || heights[k] < 0.4) heights[k] = Math.min(heights[k], -1.5);
-    const mesh = new Martini(N1).createTile(heights).getMesh(FAR.error), terrain = new Part();
-    for (let v = 0; v < mesh.vertices.length; v += 2) {
-      const c = mesh.vertices[v], r = mesh.vertices[v + 1], k = r * N1 + c, name = cls[k];
-      terrain.vertex(-half + c * cell, Math.round(heights[k] * 10) / 10, -half + r * cell, name === 'water' ? pal.underwater : pal[name] ?? pal.default);
+    // (the terrain's mesh is cut where the chunk is read, world/terrainMesh.js, from its heights — column by
+    // column, to the decimetre — and each point's colour)
+    const hf = new Float32Array(N1 * N1), grid = new Uint8Array(N1 * N1), palette = [], paletteIndex = new Map();
+    for (let r = 0; r <= n; r++) for (let c = 0; c <= n; c++) {
+      const k = r * N1 + c, name = cls[k], col = name === 'water' ? pal.underwater : pal[name] ?? pal.default, ck = col.join(',');
+      if (!paletteIndex.has(ck)) { paletteIndex.set(ck, palette.length); palette.push(col.slice(0, 3)); }
+      grid[k] = paletteIndex.get(ck);
+      hf[r + c * N1] = Math.round(heights[k] * 10) / 10;
     }
-    for (let t = 0; t < mesh.triangles.length; t += 3) terrain.indices.push(mesh.triangles[t], mesh.triangles[t + 1], mesh.triangles[t + 2]);
     // buildings: tall ones as blocks, landmarks whole (each in the chunk its middle is in)
     const blocks = new Part(), landmarkWalls = new Part(true), landmarkRoofs = new Part(), landmarks = [];
     const groundAt = (x, z) => { const [lat, lon] = P.toLatLon(x + cx, z + cz), h = ground.height(lat, lon); return Number.isFinite(h) ? h : 0; };
@@ -88,8 +90,8 @@ export async function bakeFar({ P, index, dem, cfg, region, bounds }) {
         for (let q = 1; q + 1 < ring.length; q++) blocks.indices.push(tb, tb + q, tb + q + 1);
       }
     }
-    const meshes = { terrain: terrain.out(), ...(!blocks.empty && { blocks: blocks.out() }), ...(!landmarkWalls.empty && { landmark_walls: landmarkWalls.out() }), ...(!landmarkRoofs.empty && { landmark_roofs: landmarkRoofs.out() }) };
-    out.push({ a, b, tile: { header: { region: region.id, key: `far_${a}_${b}`, a, b, size: S, centre: [cx, cz], far: true, landmarks }, meshes, lists: {}, grids: {} } });
+    const meshes = { ...(!blocks.empty && { blocks: blocks.out() }), ...(!landmarkWalls.empty && { landmark_walls: landmarkWalls.out() }), ...(!landmarkRoofs.empty && { landmark_roofs: landmarkRoofs.out() }) };
+    out.push({ a, b, tile: { header: { region: region.id, key: `far_${a}_${b}`, a, b, size: S, centre: [cx, cz], far: true, landmarks, terrain: { palette, lodErrors: [FAR.error] } }, meshes, lists: {}, grids: { terrain: { n: N1, cell, data: grid } }, heightfield: { n, size: S, heights: hf, quantum: 0.1 } } });
   }
   return out;
 }

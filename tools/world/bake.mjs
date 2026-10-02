@@ -12,6 +12,7 @@
 // already baked with the same inputs are kept (--force bakes them all again).
 
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,7 @@ import { bakeTile, BAKE_VERSION } from './bakeTile.mjs';
 import { bakeFar, FAR } from './bakeFar.mjs';
 import { projection } from '../../world/projection.js';
 import { encodeTile, FORMAT_VERSION } from '../../world/tileFormat.js';
+import { simplify } from './tiler.mjs';
 import { ATTRIBUTION } from '../../world/attribution.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -81,7 +83,7 @@ async function context(regionId) {
 async function bakeOne(ctx, i, j, outDir) {
   await MeshoptEncoder.ready;
   const tile = await bakeTile({ i, j, P: ctx.P, index: ctx.index, dem: ctx.dem, cfg: ctx.cfg, regionId: ctx.region.id });
-  const bytes = encodeTile(tile, MeshoptEncoder);
+  const bytes = zlib.gzipSync(encodeTile(tile, MeshoptEncoder), { level: 9 });
   fs.writeFileSync(path.join(outDir, `${i}_${j}.dwt`), bytes);
   return { i, j, bytes: bytes.length, dem: tile.header.dem, stats: tile.header.stats, landmarks: tile.header.landmarks, names: tile.header.names.length };
 }
@@ -140,17 +142,27 @@ if (!isMainThread) {
       }
     });
   }
+  let ctxMain = null;
+  const getCtx = async () => ctxMain ??= await context(regionId);
   // the far world: the whole region, for the distance (unless --no-far)
   let far = old?.inputs === inputs ? old.far ?? null : null;
   if (!args.includes('--no-far') && (!far || force || args.includes('--far'))) {
     console.log('  the far world (the whole region, coarse)…');
-    const t1 = performance.now(), ctx = await context(regionId);
+    const t1 = performance.now(), ctx = await getCtx();
     await MeshoptEncoder.ready;
     const [ax, az1] = P.toXZ(region.bbox[1], region.bbox[0]), [ax1, az] = P.toXZ(region.bbox[3], region.bbox[2]);
     const chunks = await bakeFar({ P, index: ctx.index, dem: ctx.dem, cfg, region, bounds: [ax, az, ax1, az1] });
-    far = { size: FAR.chunk, chunks: chunks.map(c => { const bytes = encodeTile(c.tile, MeshoptEncoder); fs.writeFileSync(path.join(outDir, `far_${c.a}_${c.b}.dwt`), bytes); return { a: c.a, b: c.b, bytes: bytes.length, landmarks: c.tile.header.landmarks.length }; }) };
+    far = { size: FAR.chunk, chunks: chunks.map(c => { const bytes = zlib.gzipSync(encodeTile(c.tile, MeshoptEncoder), { level: 9 }); fs.writeFileSync(path.join(outDir, `far_${c.a}_${c.b}.dwt`), bytes); return { a: c.a, b: c.b, bytes: bytes.length, landmarks: c.tile.header.landmarks.length }; }) };
     console.log(`  far: ${far.chunks.length} chunks, ${(far.chunks.reduce((a, c) => a + c.bytes, 0) / 1e6).toFixed(1)} MB, ${far.chunks.reduce((a, c) => a + c.landmarks, 0)} landmarks (${((performance.now() - t1) / 1000).toFixed(0)} s)`);
   }
+  // the places a driver knows by name (the HUD's suburb and town): their outlines, simplified
+  const ctx = await getCtx(), places = [];
+  for (const f of ctx.index.query(...(() => { const [ax, az1] = P.toXZ(region.bbox[1], region.bbox[0]), [ax1, az] = P.toXZ(region.bbox[3], region.bbox[2]); return [ax, az, ax1, az1]; })())) {
+    if (f.layer !== 'places') continue;
+    const polys = (f.geometry.type === 'Polygon' ? [f.xy] : f.xy).map(p => simplify(p[0], 12).map(([x, z]) => [Math.round(x), Math.round(z)])).filter(r => r.length >= 3);
+    if (polys.length) places.push({ name: f.props.n, kind: f.props.k, rings: polys });
+  }
+  const spots = (region.spots ?? []).map(sp => ({ ...sp, xz: P.toXZ(sp.lat, sp.lon).map(v => +v.toFixed(1)) }));
   const failed = results.filter(r => r.failed);
   const tiles = [...keep.values(), ...results.filter(r => !r.failed)].filter((t, k, a) => a.findIndex(u => u.i === t.i && u.j === t.j) === k).sort((a, b) => a.j - b.j || a.i - b.i);
   const dem = (await openDem(region.dem ?? {}, { cacheDir: path.join(root, '.cache/world'), bbox: [region.bbox[1], region.bbox[0], region.bbox[3], region.bbox[2]] })).describe();
@@ -161,7 +173,7 @@ if (!isMainThread) {
     surfaces: Object.fromEntries(Object.entries(cfg.surfaces).filter(([k]) => !k.startsWith('_'))), barriers: cfg.barriers,
     attribution: [...ATTRIBUTION.sources, ...dem.map(d => ({ name: d.name, licence: d.attribution, url: d.name === GLO30.name ? 'https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model' : 'https://www.usgs.gov/3d-elevation-program' }))],
     dem, map: `assets/world/${regionId}.pmtiles`,
-    far,
+    far, spots, places,
     tiles: tiles.map(t => ({ i: t.i, j: t.j, bytes: t.bytes, dem: t.dem, landmarks: t.landmarks ?? [] })),
   };
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 1) + '\n');

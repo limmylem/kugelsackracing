@@ -81,7 +81,7 @@ import { DentBudget } from '../garage/dents.js';
 import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
 import { drivability, ownedBySocket } from '../garage/repair.js';
 import { createHintCard } from './hintCard.js';
-import { attachRealWorld, hideRealWorld, prepareTrack, realWorldFrame, resetToRoad, showRealWorld } from './realWorld.js';
+import { attachRealWorld, hideRealWorld, prepareTrack, realWorldFrame, resetToRoad, showRealWorld, toggleWorldMap, togglePerf } from './realWorld.js';
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -1328,6 +1328,8 @@ function handleAction(w, act, inp) {
   if (act === 'damageView') setDamageView(!s.damageView);
   if (act === 'damageReport') { s.report.toggle(); updateDash(v.snapshot()); }
   if (act === 'tow') tow(w);
+  if (act === 'worldMap' && w.stream) toggleWorldMap(w);
+  if (act === 'perfOverlay' && w.stream) togglePerf(w);
   if (act === 'restore') {
     // development: every part back to 100% (a blown engine runs again), and back on the road — a test
     // drive's reset; a race keeps its damage (tow to the garage)

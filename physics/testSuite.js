@@ -60,6 +60,9 @@ export const TESTS = [
 ];
 
 // ctx: { RAPIER, settings, spec, sockets, track (the test centre) }
+// Elsewhere (the straight-line tests on a real road, tests/world.mjs): ctx.place() → { strip: { x, z,
+// h, remaining, path? } } instead of the test centre's straight, and ctx.prepare(sim) for each new
+// simulation (its world added)
 export function createRun(ctx, id) {
   const test = TESTS.find(t => t.id === id);
   if (!test) throw new Error(`no test "${id}"`);
@@ -112,6 +115,8 @@ function makePath(points, closed, step) {
   });
   return { points: P, closed, step, length: n * step };
 }
+// an open path through points `step` m apart (x, z), for a road elsewhere (tests/world.mjs)
+export const pathThrough = (points, step = 2) => makePath(points, false, step);
 const pathFromLine = (line, closed, step) => makePath(line.map(p => [p.x, p.z]), closed, step);
 // Straight from (x, z) heading h (radians, 0 = +z; +x is left of +z)
 const straightPath = ([x, z], h, length, step = 2) => makePath(Array.from({ length: Math.ceil(length / step) + 1 }, (_, i) => [x + Math.sin(h) * i * step, z + Math.cos(h) * i * step]), false, step);
@@ -175,18 +180,21 @@ function speedHolder({ gain = 0.35, integral = 0.12, brakeGain = 0.25, brakeMarg
 // ---------- Where things are at the test centre ----------
 
 function place(ctx) {
+  if (ctx.place) return ctx.place(ctx);
   const T = ctx.track.tests, roads = ctx.track.roads;
   const straight = roadLine(roads[T.straight.road]), s0 = straight[Math.round(T.straight.startAt / 2)];
   const strip = { x: s0.x, z: s0.z, h: Math.atan2(s0.tx, s0.tz) };
   strip.remaining = (straight.length - Math.round(T.straight.startAt / 2)) * 2;
   return { strip, T };
 }
+const stripPath = strip => strip.path ?? straightPath([strip.x, strip.z], strip.h, strip.remaining);
 const spawnAt = (x, z, h, speed = 0) => ({ position: [x, 0, z], headingDeg: h * DEG, speed });
 // A fresh simulation for a run. The robot drives like a driver with a steering wheel: the car's own
 // aids (ABS, traction and stability control) as the spec has them, none of the keyboard / gamepad
 // steering assists (the drift assist would also let stability control allow bigger slides)
 const newSim = (ctx, run) => {
   run.sim = createSimulation(ctx.RAPIER, { settings: ctx.settings, spec: ctx.spec, sockets: ctx.sockets, track: ctx.track });
+  ctx.prepare?.(run.sim);
   Object.assign(run.sim.vehicle.aids, { countersteer: false, steering: false, drift: false });
   return run.sim;
 };
@@ -203,7 +211,7 @@ function* launch(ctx, run, done, what) {
   const { strip } = place(ctx), sim = newSim(ctx, run), v = sim.vehicle;
   sim.resetCar(spawnAt(strip.x, strip.z, strip.h));
   yield* settle(sim);
-  const follow = follower(straightPath([strip.x, strip.z], strip.h, strip.remaining), { integral: 0 });
+  const follow = follower(stripPath(strip), { integral: 0 });
   run.status = 'full throttle';
   while (!done(sim.timer) && sim.time < 70) {
     sim.step(wheelInput(v, follow(v, sim.dt), 1, 0));
@@ -226,7 +234,7 @@ function* braking(ctx, run) {
   const { strip } = place(ctx), sim = newSim(ctx, run), v = sim.vehicle;
   sim.resetCar(spawnAt(strip.x, strip.z, strip.h));
   yield* settle(sim);
-  const follow = follower(straightPath([strip.x, strip.z], strip.h, strip.remaining), { integral: 0 }), hold = speedHolder();
+  const follow = follower(stripPath(strip), { integral: 0 }), hold = speedHolder();
   const entry = 108 * KMH;
   run.status = 'up to speed';
   let steady = 0;
@@ -352,7 +360,7 @@ function* topSpeed(ctx, run) {
   const { strip } = place(ctx), sim = newSim(ctx, run), v = sim.vehicle;
   sim.resetCar(spawnAt(strip.x, strip.z, strip.h));
   yield* settle(sim);
-  const follow = follower(straightPath([strip.x, strip.z], strip.h, strip.remaining), { integral: 0 });
+  const follow = follower(stripPath(strip), { integral: 0 });
   const history = [], back = Math.round(15 / sim.dt);
   let top = 0, distance = 0, reason = 'end of the straight', lastShift = 0;
   while (distance < strip.remaining - 250) {
@@ -494,7 +502,7 @@ function* physicsCost(ctx, run) {
     const side = (i % 3 - 1) * 4.5, ahead = 12 + Math.floor(i / 3) * 12;
     sim.addCar(spawnAt(strip.x + Math.cos(strip.h) * side + Math.sin(strip.h) * ahead, strip.z - Math.sin(strip.h) * side + Math.cos(strip.h) * ahead, strip.h), straightLine());
   }
-  const follow = follower(straightPath([strip.x, strip.z], strip.h, strip.remaining), { integral: 0 });
+  const follow = follower(stripPath(strip), { integral: 0 });
   let total = 0, count = 0, worst = 0;
   const cars = 1 + sim.cars.length;
   for (let i = 0; i < 900; i++) {
@@ -515,6 +523,7 @@ function* physicsCost(ctx, run) {
 // A fresh simulation of a test car, the driver aids off (so the drivetrain shows through)
 function testSim(ctx, run, id) {
   run.sim = createSimulation(ctx.RAPIER, { settings: ctx.settings, spec: testCar(ctx.spec, id), sockets: ctx.sockets, track: ctx.track });
+  ctx.prepare?.(run.sim);
   Object.assign(run.sim.vehicle.aids, { abs: true, tc: false, esc: false, countersteer: false, steering: false, drift: false });
   return run.sim;
 }
@@ -542,7 +551,7 @@ function* torqueSteer(ctx, run) {
 function* awdLaunch(ctx, run) {
   const { strip } = place(ctx), out = {};
   for (const id of ['rwdPower', 'awdPower']) {
-    const sim = testSim(ctx, run, id), v = sim.vehicle, follow = follower(straightPath([strip.x, strip.z], strip.h, strip.remaining), { integral: 0 });
+    const sim = testSim(ctx, run, id), v = sim.vehicle, follow = follower(stripPath(strip), { integral: 0 });
     sim.resetCar(spawnAt(strip.x, strip.z, strip.h));
     yield* settle(sim);
     let spin = 0, n = 0;

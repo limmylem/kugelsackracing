@@ -9,21 +9,21 @@
 //  2. Car parks, fuel stations, service areas and driveway areas: a flat plane fitted to the ground
 //     there, the ground flattened to it, a surface and kerbs (open where a road meets it), bay lines.
 //  3. Water: sea at sea level, lakes and ponds at their shore's level, the ground kept below them.
-//  4. The terrain meshes (adaptive: flat ground in few triangles, hills keeping their shape), in
-//     several levels of detail, coloured by land use.
+//  4. The terrain's colours by land use (rock, beach, under water) on its height grid: the game cuts the
+//     meshes from the grid itself (world/terrainMesh.js: flat ground in few triangles, hills keeping
+//     their shape, in several levels of detail).
 //  5. Road markings, buildings, trees, railings and walls (mapped, and where the map usually lacks
 //     them: along bridges, motorways, steep drops), street names and junction signs.
 //  6. A grid of the surface underfoot every 2 m (tarmac, cobbles, gravel, grass, sand…): tyre grip.
 
 import * as THREE from 'three';
-import Martini from '@mapbox/martini';
 import { buildChunk } from '../../realworld/surface.js';
 import { tagsOf } from '../../realworld/mapTiles.js';
 import { DRIVABLE } from '../../world/schema.js';
 import { extrude, rgb } from './buildings.mjs';
 import { clipRing } from './tiler.mjs';
 
-const BAKE_VERSION = 1;
+const BAKE_VERSION = 2;
 const mulberry = a => () => { a |= 0; a = a + 0x6d2b79f5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const ringArea = r => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); return a / 2; };
 function inRing(x, z, r) { let inside = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > z) !== (r[j][1] > z) && x < (r[j][0] - r[i][0]) * (z - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) inside = !inside; return inside; }
@@ -107,7 +107,7 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
     roads.push({ id: f.id, nodes: c.map(coordKey), lat: Float64Array.from(c, p => p[1]), lon: Float64Array.from(c, p => p[0]), tags: tagsOf(f.props), props: f.props });
   }
   const projection = { size: T, toXZ: (lat, lon) => local(P.toXZ(lat, lon)), toLatLon: (x, z) => P.toLatLon(x + cx, z + cz) };
-  const built = buildChunk({ chunk: { key: `${i}_${j}`, latC: P.toLatLon(cx, cz)[0], lonC: P.toLatLon(cx, cz)[1] }, terrain, roads, options: { projection, cell, overlap: 0, keepWays: true, parapet: 0 } });
+  const built = buildChunk({ chunk: { key: `${i}_${j}`, latC: P.toLatLon(cx, cz)[0], lonC: P.toLatLon(cx, cz)[1] }, terrain, roads, options: { projection, cell, overlap: 0, keepWays: true, parapet: 0, sink: cfg.terrain.underRoad, skirtDrop: cfg.terrain.skirtDrop } });
   const heights = built.heightfield.heights, idx = (c, r) => r + c * N1;
   const natural = (x, z) => built.groundAt(x, z);
   // (the ground as baked so far, between grid points)
@@ -232,23 +232,29 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
     const info = w.info, P_ = w.sections, m = w.points.length, kind = info.highway?.replace(/_link$/, '');
     if (info.kind === 'tunnel' && w.tunnel?.some(Boolean)) continue;
     const at = (q, k) => [P_[q * 15 + k * 3], P_[q * 15 + k * 3 + 1] + 0.015, P_[q * 15 + k * 3 + 2]];
+    // a point across the road at q: t 0 at one edge, ½ on the crown, 1 at the other (the camber's two planes)
+    const across = (q, t) => { const [a, b, u] = t < 0.5 ? [at(q, 1), at(q, 2), t * 2] : [at(q, 2), at(q, 3), t * 2 - 1]; return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u]; };
     // (no markings across junctions)
     const s = [0]; for (let q = 1; q < m; q++) s.push(s[q - 1] + Math.hypot(w.points[q][0] - w.points[q - 1][0], w.points[q][2] - w.points[q - 1][2]));
     const junctionS = s.filter((_, q) => w.junctions[q]);
     const clear = sv => !junctionS.some(js => Math.abs(js - sv) < 9);
-    const line = (k, off, col, dashed) => {
+    const stripe = (t, col, dashed) => {
       for (let q = 0; q + 1 < m; q++) {
-        const a = at(q, k), b = at(q + 1, k), mid = (s[q] + s[q + 1]) / 2;
+        const a = across(q, t), b = across(q + 1, t), mid = (s[q] + s[q + 1]) / 2;
         if (!inTile((a[0] + b[0]) / 2, (a[2] + b[2]) / 2) || !clear(mid)) continue;
         if (dashed && (mid % (R.dash + R.gap)) > R.dash) continue;
-        const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, hw = R.line / 2;
-        const A = [a[0] + nx * off, a[1], a[2] + nz * off], B = [b[0] + nx * off, b[1], b[2] + nz * off];
-        markings.quad([A[0] - nx * hw, A[1], A[2] - nz * hw], [B[0] - nx * hw, B[1], B[2] - nz * hw], [B[0] + nx * hw, B[1], B[2] + nz * hw], [A[0] + nx * hw, A[1], A[2] + nz * hw], col);
+        const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1, nx = -dz / l * R.line / 2, nz = dx / l * R.line / 2;
+        markings.quad([a[0] - nx, a[1], a[2] - nz], [b[0] - nx, b[1], b[2] - nz], [b[0] + nx, b[1], b[2] + nz], [a[0] + nx, a[1], a[2] + nz], col);
       }
     };
-    if (R.centreLines.includes(kind) && !info.oneway && info.width >= 5.5) line(2, 0, centreC, kind === 'residential' || kind === 'unclassified');
-    if (R.edgeLines.includes(kind)) { const inset = 0.35; line(1, -inset, lineC, false); line(3, inset, lineC, false); }
-    // (the road's own ground class, for colours and grip)
+    const W = info.width;
+    if (R.centreLines.includes(kind) && !info.oneway && W >= 5.5) stripe(0.5, centreC, kind === 'residential' || kind === 'unclassified');
+    if (R.edgeLines.includes(kind)) { const inset = Math.min(0.35 / W, 0.1); stripe(inset, lineC, false); stripe(1 - inset, lineC, false); }
+    // lanes: a one-way road wide enough for more than one, or a two-way one with more than one each way
+    if (!['residential', 'service', 'unclassified', 'track', 'living_street'].includes(kind)) {
+      if (info.oneway && W >= 6.4) { const n = Math.max(2, Math.round(W / 3.5)); for (let k = 1; k < n; k++) stripe(k / n, lineC, true); }
+      else if (!info.oneway && W >= 12) { const n = Math.round(W / 2 / 3.5); for (let k = 1; k < 2 * n; k++) if (k !== n) stripe(k / (2 * n), lineC, true); }
+    }
   }
   // roads' cells: their surface (ribbons rasterised at their edges)
   const roadCells = new Raster(n, cell, half), roadSurf = new Raster(n, cell, half);
@@ -261,14 +267,33 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
     }
   }
 
-  // ---------- 4. terrain meshes ----------
-  // (the heights to the centimetre, as the file keeps them: the meshes are cut from exactly the grid the
-  // physics gets)
+  // ---------- footpaths: mapped pavements and paths, raised a kerb's height where they're pavements ----------
+  const paths = new Part(false, true), pathC = [186, 183, 175], trackC = [176, 160, 128], PATHS = new Set(['footway', 'path', 'pedestrian', 'cycleway', 'bridleway']);
+  for (const f of near) {
+    if (f.layer !== 'roads' || !PATHS.has(f.props.k) || f.type !== 'line' || f.props.tn || f.props.br || !meets(f)) continue;
+    const pave = f.props.s === 'sidewalk', width = f.props.w ?? (pave ? R.footpath : f.props.k === 'cycleway' ? 2 : 1.8), raise = pave ? R.kerbHeight : 0.05, hw = width / 2;
+    const soft = ['dirt', 'gravel', 'grass', 'sand', 'unpaved', 'compacted'].includes(f.props.sf), col = soft ? trackC : pathC, surf = sCode(soft ? 'gravel' : 'concrete');
+    for (const line of f.xy) for (let q = 0; q + 1 < line.length; q++) {
+      const [ax, az] = local(line[q]), [bx, bz] = local(line[q + 1]), l = Math.hypot(bx - ax, bz - az), parts = Math.max(1, Math.ceil(l / 6));
+      if (l < 0.2) continue;
+      const nx = -(bz - az) / l * hw, nz = (bx - ax) / l * hw;
+      for (let p = 0; p < parts; p++) {
+        const x0 = ax + (bx - ax) * p / parts, z0 = az + (bz - az) * p / parts, x1 = ax + (bx - ax) * (p + 1) / parts, z1 = az + (bz - az) * (p + 1) / parts;
+        if (!inTile((x0 + x1) / 2, (z0 + z1) / 2)) continue;
+        // (not where it crosses or runs onto a road: the road's surface is the crossing)
+        if ([[x0, z0], [x1, z1], [(x0 + x1) / 2, (z0 + z1) / 2]].some(([x, z]) => roadCells.at(x, z) || roadCells.at(x + nx, z + nz) || roadCells.at(x - nx, z - nz))) continue;
+        const y0 = groundAt(x0, z0), y1 = groundAt(x1, z1), A = [x0 - nx, y0 + raise, z0 - nz], B = [x1 - nx, y1 + raise, z1 - nz], Cc = [x1 + nx, y1 + raise, z1 + nz], D = [x0 + nx, y0 + raise, z0 + nz];
+        paths.quad(A, B, Cc, D, col, surf);
+        if (pave) { paths.quad([A[0], y0 - 0.05, A[2]], [B[0], y1 - 0.05, B[2]], B, A, kerbC, sCode('kerb')); paths.quad(D, Cc, [Cc[0], y1 - 0.05, Cc[2]], [D[0], y0 - 0.05, D[2]], kerbC, sCode('kerb')); }
+      }
+    }
+  }
+
+  // ---------- 4. terrain ----------
+  // (the heights to the centimetre, as the file keeps them: the game cuts its meshes from exactly the
+  // grid the physics gets)
   for (let k = 0; k < heights.length; k++) heights[k] = Math.round(heights[k] * 100) / 100;
-  // (the height grid row by row for the mesh cutter: rows south, columns east)
-  const rows = new Float32Array(N1 * N1);
-  for (let c = 0; c <= n; c++) for (let r = 0; r <= n; r++) rows[r * N1 + c] = heights[idx(c, r)];
-  const martini = new Martini(N1), cut = martini.createTile(rows);
+  const waterClass = classes.indexOf('water'), nearWater = (x, z) => waterClass > 0 && [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4], [6, 6], [-6, -6], [6, -6], [-6, 6]].some(([dx, dz]) => ground_.at(x + dx, z + dz) === waterClass);
   const terrainColour = (x, z, c, r) => {
     const k = ground_.at(x, z), name = classes[k];
     let col = pal[name] ?? pal.default;
@@ -279,17 +304,17 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
       if (slope > cfg.terrain.rockSlope) col = pal.rock;
     }
     if (name === 'water') col = pal.underwater;
+    else if (!shaped[idx(c, r)] && heights[idx(c, r)] < 2 && nearWater(x, z)) col = pal.beach;
     return col;
   };
-  const terrainLods = cfg.terrain.lodErrors.map(err => {
-    const { vertices, triangles } = cut.getMesh(err), part = new Part();
-    for (let v = 0; v < vertices.length; v += 2) {
-      const c = vertices[v], r = vertices[v + 1], x = -half + c * cell, z = -half + r * cell;
-      part.vertex(x, heights[idx(c, r)], z, terrainColour(x, z, c, r));
-    }
-    for (let t = 0; t < triangles.length; t += 3) part.tri(triangles[t], triangles[t + 1], triangles[t + 2]);
-    return part;
-  });
+  // (the meshes themselves are cut where the tile is read — world/terrainMesh.js — from the heights and
+  // this grid of each point's colour, an index into the tile's terrain palette)
+  const terrainPalette = [], paletteIndex = new Map(), terrainGrid = new Uint8Array(N1 * N1);
+  for (let r = 0; r <= n; r++) for (let c = 0; c <= n; c++) {
+    const x = -half + c * cell, z = -half + r * cell, col = terrainColour(x, z, c, r), key = col.slice(0, 3).join(',');
+    if (!paletteIndex.has(key)) { paletteIndex.set(key, terrainPalette.length); terrainPalette.push(col.slice(0, 3)); }
+    terrainGrid[r * N1 + c] = paletteIndex.get(key);
+  }
   // tunnel roofs (the ground over a tunnel): drawn as ground, and solid
   const cover = new Part(false, true);
   { const CM = built.meshes.cover; for (let t = 0; t < CM.indices.length / 3; t++) { const ids = []; for (let q = 0; q < 3; q++) { const v = CM.indices[t * 3 + q]; ids.push(cover.vertex(CM.vertices[v * 3], CM.vertices[v * 3 + 1], CM.vertices[v * 3 + 2], pal.default)); } cover.tri(ids[0], ids[2], ids[1], sCode('grass')); } }
@@ -335,7 +360,17 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
 
   // ---------- railings and walls ----------
   const B = cfg.barriers, barriers = {};
-  const addPiece = (type, a, b) => { if (!inTile((a[0] + b[0]) / 2, (a[2] + b[2]) / 2)) return; (barriers[type] ??= []).push(a[0], a[1], a[2], b[0], b[1], b[2]); };
+  // each piece: [x0, y0, z0, x1, y1, z1, h] — its foot at both ends and how tall it stands there
+  const addPiece = (type, a, b, h = B.types[type].height) => { if (!inTile((a[0] + b[0]) / 2, (a[2] + b[2]) / 2)) return; (barriers[type] ??= []).push(a[0], a[1], a[2], b[0], b[1], b[2], h); };
+  // a mapped one on uneven ground: as tall as it is above the higher side (where a car would come off
+  // the top), walls also reaching down to the lower side (no gap under them)
+  const WALLS = new Set(['wall', 'retaining_wall', 'city_wall', 'parapet', 'jersey_barrier']);
+  const onGround = (type, x0, z0, x1, z1) => {
+    const l = Math.hypot(x1 - x0, z1 - z0) || 1, nx = -(z1 - z0) / l, nz = (x1 - x0) / l, d = Math.max(1.2, B.types[type].thickness / 2 + 0.8);
+    const end = (x, z) => { const line = groundAt(x, z), a = groundAt(x + nx * d, z + nz * d), b = groundAt(x - nx * d, z - nz * d); return { foot: WALLS.has(type) ? Math.min(line, a, b) : line, top: Math.max(line, a, b) }; };
+    const A = end(x0, z0), Bb = end(x1, z1), H = B.types[type].height, h = Math.min(H + 4, Math.max(A.top - A.foot, Bb.top - Bb.foot) + H);
+    addPiece(type, [x0, A.foot, z0], [x1, Bb.foot, z1], h);
+  };
   // mapped ones, on the ground, in pieces of at most 4 m (following its rises and dips)
   for (const f of near) {
     if (f.layer !== 'details' || f.type !== 'line' || !B.types[f.props.k] || !meets(f)) continue;
@@ -343,7 +378,7 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
       const [ax, az] = local(line[q]), [bx, bz] = local(line[q + 1]), l = Math.hypot(bx - ax, bz - az), parts = Math.max(1, Math.ceil(l / 4));
       for (let p = 0; p < parts; p++) {
         const x0 = ax + (bx - ax) * p / parts, z0 = az + (bz - az) * p / parts, x1 = ax + (bx - ax) * (p + 1) / parts, z1 = az + (bz - az) * (p + 1) / parts;
-        addPiece(f.props.k, [x0, groundAt(x0, z0), z0], [x1, groundAt(x1, z1), z1]);
+        onGround(f.props.k, x0, z0, x1, z1);
       }
     }
   }
@@ -419,28 +454,31 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
 
   // ---------- the tile ----------
   const meshes = {
-    terrain0: terrainLods[0].out(), terrain1: terrainLods[1].out(), terrain2: terrainLods[2].out(),
-    ...(!roadPart.empty && { roads: roadPart.out() }), ...(!paved.empty && { paved: paved.out() }), ...(!cover.empty && { cover: cover.out() }),
+    ...(!roadPart.empty && { roads: roadPart.out() }), ...(!paved.empty && { paved: paved.out() }), ...(!paths.empty && { paths: paths.out() }), ...(!cover.empty && { cover: cover.out() }),
     ...(!markings.empty && { markings: markings.out() }), ...(!water.empty && { water: water.out() }), ...(!roofs.empty && { roofs: roofs.out() }),
     ...Object.fromEntries(Object.entries(wallsBy).map(([k, p]) => [`walls_${k}`, p.out()])),
   };
   // building colliders: [pointCount, y0, y1, x, z, x, z, …] one after another
   const hullData = [];
   for (const h of hulls) hullData.push(h.points.length / 2, h.y0, h.y1, ...h.points);
+  // (coordinates to 2 cm — counts and name indices are whole numbers, unharmed; labels and signs carry
+  // angles, kept as floats)
+  const Q = 0.02;
   const lists = {
-    trees: { stride: 5, data: Float32Array.from(trees) },
-    hulls: { stride: 1, data: Float32Array.from(hullData) },
+    trees: { stride: 5, quantum: Q, data: Float32Array.from(trees) },
+    hulls: { stride: 1, quantum: Q, data: Float32Array.from(hullData) },
     labels: { stride: 6, data: Float32Array.from(labels) },
     signs: { stride: 6, data: Float32Array.from(signs) },
-    streets: { stride: 6, data: Float32Array.from(streets) },
-    ...Object.fromEntries(Object.entries(barriers).map(([k, v]) => [`barrier_${k}`, { stride: 6, data: Float32Array.from(v) }])),
+    streets: { stride: 6, quantum: Q, data: Float32Array.from(streets) },
+    ...Object.fromEntries(Object.entries(barriers).map(([k, v]) => [`barrier_${k}`, { stride: 7, quantum: 0.01, data: Float32Array.from(v) }])),
   };
   // (the elevation's own resolution at the tile's middle)
   const [latC, lonC] = P.toLatLon(cx, cz);
   const header = {
     region: regionId, key: `${i}_${j}`, i, j, size: T, centre: [cx, cz], bake: BAKE_VERSION, dem: ground.sourceAt(latC, lonC), names, landmarks,
-    stats: { roads: built.stats.roads, buildings: buildingCount, trees: trees.length / 5, barriers: Object.fromEntries(Object.entries(barriers).map(([k, v]) => [k, v.length / 6])), ms: Math.round(performance.now() - t0) },
+    terrain: { palette: terrainPalette, lodErrors: cfg.terrain.lodErrors },
+    stats: { roads: built.stats.roads, buildings: buildingCount, trees: trees.length / 5, barriers: Object.fromEntries(Object.entries(barriers).map(([k, v]) => [k, v.length / 7])), ms: Math.round(performance.now() - t0) },
   };
-  return { header, meshes, lists, grids: { surface: { n, cell, names: surfaceNames, data: surface } }, heightfield: { n, size: T, heights, quantum: 0.01 } };
+  return { header, meshes, lists, grids: { surface: { n, cell, names: surfaceNames, data: surface }, terrain: { n: N1, cell, data: terrainGrid } }, heightfield: { n, size: T, heights, quantum: 0.01 } };
 }
 export { BAKE_VERSION };

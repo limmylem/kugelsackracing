@@ -132,8 +132,8 @@ export function extrude(b, ground, C) {
     for (let i = 0; i < r.length; i++) {
       const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length], l = Math.hypot(bx - ax, bz - az);
       if (l < 0.05) continue;
-      // (each face its own shade: the light reads the shape even before it's lit)
-      const k = 0.9 + 0.1 * ((bx - ax) / l), c = shade(facade, k), ta = wallTop(ax, az), tb = wallTop(bx, bz);
+      // (one colour for the whole building: the lighting shades its faces, and the corners are shared)
+      const c = facade, ta = wallTop(ax, az), tb = wallTop(bx, bz);
       const v0 = walls.vertex(ax, foot, az, c, s / bay, (foot - gC) / storey), v1 = walls.vertex(bx, foot, bz, c, (s + l) / bay, (foot - gC) / storey);
       const v2 = walls.vertex(bx, tb, bz, c, (s + l) / bay, (tb - gC) / storey), v3 = walls.vertex(ax, ta, az, c, s / bay, (ta - gC) / storey);
       walls.tri(v0, v1, v2); walls.tri(v0, v2, v3);

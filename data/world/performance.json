@@ -1,0 +1,20 @@
+{
+  "_about": "What the baked world (low-poly v2) has to manage, and what the tests and the in-game performance overlay (F3 in the real world) measure against. targets: time from opening the world to the car being drivable, a tile's load (fetch or cache, decode, colliders), frame time, draw calls, memory (MB of JS heap; growth over 100 tiles streamed in and out). network: the connection the streaming test assumes (a modest home connection). streaming: the streaming test's run.",
+  "targets": {
+    "timeToDrivableMs": 5000,
+    "tileLoadMs": 800,
+    "tileDecodeMs": 60,
+    "frameMs": 16.7,
+    "drawCalls": 1500,
+    "memoryMB": 900,
+    "memoryGrowthMB": 60
+  },
+  "network": {
+    "megabytesPerSecond": 2.5,
+    "latencyMs": 120
+  },
+  "streaming": {
+    "speedKmh": 200,
+    "routeKm": 20
+  }
+}

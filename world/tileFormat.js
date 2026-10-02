@@ -4,10 +4,13 @@
 // terrain's height grid is both the heightfield and what the terrain meshes are cut from), so what you
 // see and what the car drives on can't drift apart.
 //
-// Layout: "DWT2", the header's length (u32), the header (JSON), padding to 4 bytes, then the buffers.
+// Layout: "DWT2", the header's length (u32), the header (JSON), padding to 4 bytes, then the buffers;
+// the whole gzipped on disk (the baker), unpacked by decodeTile.
 // Each mesh is meshoptimizer-compressed (vertex and index codecs): positions as int16 on a per-mesh
 // scale and offset (about a centimetre), colours as rgba bytes, texture coordinates as int16 / 256;
-// instance lists and physics shapes as float32 lists (vertex codec too, stride 4·k).
+// instance lists and physics shapes as float32 lists, or int16 multiples of a quantum (vertex codec
+// too); byte grids (surfaces underfoot, terrain colours); the height grid as u16 centimetres. The
+// terrain's meshes aren't stored: world/terrainMesh.js cuts them from the height grid.
 //
 //   encodeTile(tile, encoder) → Uint8Array   (Node: meshoptimizer's MeshoptEncoder)
 //   await decodeTile(bytes, decoder) → tile  (the page / worker: meshopt_decoder; Node: meshoptimizer)
@@ -62,9 +65,19 @@ export function encodeTile(tile, E) {
   for (const [name, L] of Object.entries(tile.lists ?? {})) {
     const count = L.data.length / L.stride;
     if (!count) continue;
+    if (L.quantum) {
+      // (as whole multiples of the list's quantum, int16: coordinates to a couple of centimetres)
+      const n = L.data.length + (L.data.length % 2), q = new Int16Array(n);
+      for (let k = 0; k < L.data.length; k++) q[k] = Math.max(-32768, Math.min(32767, Math.round(L.data[k] / L.quantum)));
+      H.lists[name] = { count, stride: L.stride, quantum: L.quantum, length: L.data.length, data: put(E.encodeVertexBuffer(new Uint8Array(q.buffer), n / 2, 4)) };
+      continue;
+    }
     H.lists[name] = { count, stride: L.stride, data: put(E.encodeVertexBuffer(new Uint8Array(L.data.buffer, L.data.byteOffset, L.data.byteLength), count, L.stride * 4)) };
   }
-  for (const [name, G] of Object.entries(tile.grids ?? {})) H.grids[name] = { n: G.n, cell: G.cell, names: G.names, data: put(E.encodeVertexBuffer(G.data, G.data.length / 4, 4)) };
+  for (const [name, G] of Object.entries(tile.grids ?? {})) {
+    const padded = new Uint8Array(align4(G.data.length)); padded.set(G.data);
+    H.grids[name] = { n: G.n, cell: G.cell, names: G.names, length: G.data.length, data: put(E.encodeVertexBuffer(padded, padded.length / 4, 4)) };
+  }
   if (tile.heightfield) {
     const hf = tile.heightfield, q = new Uint16Array(hf.heights.length + (hf.heights.length % 2));
     let lo = Infinity, hi = -Infinity;
@@ -88,9 +101,17 @@ export function encodeTile(tile, E) {
 export const dequantise = (v, scale, offset) => v * scale + offset;
 
 // ---------- reading ----------
+// (tile files are stored gzipped — the codecs' output squeezes by almost half again — and unpacked here
+// with the browser's own (and Node's) DecompressionStream; plain ones are read as they are)
+export const isGzip = u8 => u8.length > 2 && u8[0] === 0x1f && u8[1] === 0x8b;
+export async function gunzip(u8) {
+  if (!isGzip(u8)) return u8;
+  const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
 export async function decodeTile(bytes, D) {
   if (D.ready) await D.ready;
-  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const u8 = await gunzip(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
   if (new TextDecoder().decode(u8.subarray(0, 4)) !== MAGIC) throw new Error('not a baked world tile');
   const len = new DataView(u8.buffer, u8.byteOffset).getUint32(4, true), H = JSON.parse(new TextDecoder().decode(u8.subarray(8, 8 + len)));
   if (H.format !== FORMAT_VERSION) throw new Error(`tile format ${H.format}: this game reads ${FORMAT_VERSION} (bake again)`);
@@ -112,14 +133,22 @@ export async function decodeTile(bytes, D) {
     tile.meshes[name] = { positions, colours, uvs, indices: M.idx32 ? ib : Uint32Array.from(ib), surfaces: M.surfaces ? slice(M.surfaces).slice() : null };
   }
   for (const [name, L] of Object.entries(H.lists)) {
+    if (L.quantum) {
+      const n = L.length + (L.length % 2), q = new Int16Array(n);
+      D.decodeVertexBuffer(new Uint8Array(q.buffer), n / 2, 4, slice(L.data));
+      const data = new Float32Array(L.length);
+      for (let k = 0; k < L.length; k++) data[k] = q[k] * L.quantum;
+      tile.lists[name] = { stride: L.stride, data };
+      continue;
+    }
     const data = new Float32Array(L.count * L.stride);
     D.decodeVertexBuffer(new Uint8Array(data.buffer), L.count, L.stride * 4, slice(L.data));
     tile.lists[name] = { stride: L.stride, data };
   }
   for (const [name, G] of Object.entries(H.grids)) {
-    const data = new Uint8Array(G.n * G.n);
+    const length = G.length ?? G.n * G.n, data = new Uint8Array(align4(length));
     D.decodeVertexBuffer(data, data.length / 4, 4, slice(G.data));
-    tile.grids[name] = { n: G.n, cell: G.cell, names: G.names, data };
+    tile.grids[name] = { n: G.n, cell: G.cell, names: G.names, data: length === data.length ? data : data.slice(0, length) };
   }
   if (H.heightfield) {
     const F = H.heightfield, count = (F.n + 1) * (F.n + 1), q = new Uint16Array(count + (count % 2));

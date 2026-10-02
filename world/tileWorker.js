@@ -1,14 +1,16 @@
 // The baked world's tile loader (a module Web Worker, run by world/streamer.js): fetches a tile, keeps it
 // in IndexedDB under its bake's version (a new bake replaces old copies; a revisited area loads with no
-// download at all), decodes it (world/tileFormat.js, meshoptimizer's decoder) and works out the
-// terrain's smooth normals, then hands the arrays back without copying them. Everything else stays off
-// the page's thread too.
+// download at all), decodes it (world/tileFormat.js, meshoptimizer's decoder), cuts the terrain's
+// meshes from its height grid (world/terrainMesh.js) and works out their smooth normals, then hands
+// the arrays back without copying them. Everything but making the three.js objects stays off the
+// page's thread.
 //
 // Page → worker: { type: 'load', key, url, version }, { type: 'forget' } (empties the cache)
 // Worker → page: { type: 'tile', key, tile, bytes, cached, ms } | { type: 'error', key, error }
 
 import { MeshoptDecoder } from './vendor/meshopt_decoder.module.js';
 import { decodeTile } from './tileFormat.js';
+import { terrainMeshes } from './terrainMesh.js';
 
 const DB = 'drive-world-tiles', STORE = 'tiles';
 let db = null;
@@ -53,6 +55,9 @@ self.onmessage = async e => {
       cachePut(m.url, { version: m.version, bytes });
     }
     const tile = await decodeTile(bytes, MeshoptDecoder), transfer = [];
+    // the terrain's meshes, cut from its height grid (a far chunk's one level as its 'terrain')
+    const ground = terrainMeshes(tile);
+    if (tile.header.far) { if (ground.terrain0) tile.meshes.terrain = ground.terrain0; } else Object.assign(tile.meshes, ground);
     for (const [name, mesh] of Object.entries(tile.meshes)) {
       if (name.startsWith('terrain') || name === 'cover' || name === 'water') mesh.normals = vertexNormals(mesh.positions, mesh.indices);
       for (const a of [mesh.positions, mesh.colours, mesh.uvs, mesh.indices, mesh.surfaces, mesh.normals]) if (a) transfer.push(a.buffer);
