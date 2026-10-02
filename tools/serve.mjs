@@ -1,4 +1,5 @@
-// Development server: serves the game's files (like `python3 -m http.server`) and lets the tuning
+// Development server: serves the game's files (like `python3 -m http.server`, with byte ranges, as a
+// static host or CDN serves the world's .pmtiles map) and lets the tuning
 // panel save back into the data: car definitions, part definitions and tuning presets (PUT, from this
 // machine only).
 //
@@ -20,7 +21,7 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.wasm': 'application/wasm',
-  '.pbf': 'application/x-protobuf', '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.ico': 'image/x-icon',
+  '.pbf': 'application/x-protobuf', '.pmtiles': 'application/vnd.pmtiles', '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.ico': 'image/x-icon',
 };
 const WRITABLE = /^\/data\/(cars\/[a-z0-9_]+\/car|parts\/[a-z0-9_]+\/[a-z0-9_]+|presets\/[A-Za-z0-9][A-Za-z0-9 _.-]{0,60})\.json$/;
 const local = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
@@ -46,13 +47,22 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
 
-  let target = file;
-  try { if (fs.statSync(target).isDirectory()) target = path.join(target, 'index.html'); } catch { return send(res, 404, 'Not found'); }
+  let target = file, stat;
+  try { stat = fs.statSync(target); if (stat.isDirectory()) { target = path.join(target, 'index.html'); stat = fs.statSync(target); } } catch { return send(res, 404, 'Not found'); }
+  // a byte range of a file (the world's map tiles are read this way: world/pmtiles.js)
+  const range = req.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+  if (range && (range[1] || range[2])) {
+    const size = stat.size, start = range[1] ? +range[1] : Math.max(0, size - +range[2]), end = range[1] && range[2] ? Math.min(+range[2], size - 1) : size - 1;
+    if (start >= size || end < start) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end(); }
+    res.writeHead(206, { 'Content-Type': TYPES[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
+    if (req.method === 'HEAD') return res.end();
+    return fs.createReadStream(target, { start, end }).pipe(res);
+  }
   fs.readFile(target, (err, data) => {
     if (err) return send(res, 404, 'Not found');
     const type = TYPES[path.extname(target).toLowerCase()] || 'application/octet-stream';
     // car specs, scenes and code change while tuning: always fetch them fresh
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': data.length, 'Cache-Control': 'no-cache' });
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': data.length, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
     res.end(req.method === 'HEAD' ? undefined : data);
   });
 });

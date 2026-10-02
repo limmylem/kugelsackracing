@@ -1,11 +1,8 @@
-// OpenStreetMap data for the real world's collision: the Overpass query for a chunk's area, reading its
-// answer, and what each road is like (how wide, ground level / bridge / tunnel, which layer). Pure data.
-//
-// Roads come with their full geometry and node ids (so roads that meet share a point); buildings and
-// barriers come along in the same request for the obstacles (Stage D).
-
-export const OSM_VERSION = 1;        // (part of the cache key: bump it when the query changes)
-export const OVERPASS = 'https://overpass-api.de/api/interpreter';
+// OpenStreetMap roads for the real world's collision: what each road is like (how wide, ground level /
+// bridge / tunnel, which layer), from its tags. Pure data. The game reads its map from the world's map
+// tiles (realworld/mapTiles.js, which gives roads in this shape: full geometry, node ids shared where
+// roads meet, tags); nothing asks a map server at run time any more. readOverpass still reads an
+// Overpass API answer saved to a file (the tests' fixtures).
 
 // What a car drives on, and how wide each kind is by default: lanes (both ways together), metres a
 // lane, extra width (shoulders, kerbside), how important it is (rank: which road wins at a junction)
@@ -31,13 +28,6 @@ export const HIGHWAYS = {
   track:          { lanes: 1, lane: 3.0, extra: 0.3, rank: 0 },
 };
 const ONEWAY_BY_DEFAULT = new Set(['motorway', 'motorway_link', 'trunk_link']);
-const BARRIERS = 'wall|fence|guard_rail|retaining_wall|city_wall|jersey_barrier';
-
-// The query for a box (degrees): roads with geometry, buildings and linear barriers
-export function overpassQuery(south, west, north, east) {
-  const b = [south, west, north, east].map(v => v.toFixed(6)).join(',');
-  return `[out:json][timeout:120][bbox:${b}];(way[highway~"^(${Object.keys(HIGHWAYS).join('|')})$"][area!=yes];way[building];relation[building][type=multipolygon];way[barrier~"^(${BARRIERS})$"];);out body geom qt;`;
-}
 
 // The answer, sorted into roads, buildings and barriers. Roads: { id, nodes (OSM node ids), lat, lon
 // (Float64Array, degrees), tags }; buildings: { id, rings: [[lat, lon, lat, lon, …]], tags };

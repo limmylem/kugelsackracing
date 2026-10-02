@@ -1,0 +1,12 @@
+{
+  "_note": "A region of the world (docs/WORLD_DATA.md): its box [west, south, east, north] (degrees), where a new player starts, and where its map comes from. npm run world:build -- --region sf builds assets/world/sf.pmtiles. Overture: a release on its public S3 bucket ('latest' takes the newest); osm: an OpenStreetMap extract (.osm.pbf) for this region, if you have one — roads, land use, water and details then come from it (with every OSM tag: lanes, sidewalks, trees, street lamps…), buildings from Overture either way.",
+  "id": "sf",
+  "name": "San Francisco",
+  "bbox": [-122.5200, 37.7050, -122.3550, 37.8380],
+  "spawn": { "lat": 37.79420, "lon": -122.39540, "bearing": 315, "name": "The Embarcadero" },
+  "sources": {
+    "overture": { "release": "2026-09-23.1" },
+    "osm": null
+  },
+  "output": "assets/world/sf.pmtiles"
+}

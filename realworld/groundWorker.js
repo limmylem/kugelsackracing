@@ -1,6 +1,6 @@
 // The real world's collision, built off the page's thread (a module Web Worker, run by ground.js):
-// for each chunk the page wants, the OpenStreetMap roads round it (from the Overpass API, kept in the
-// browser's cache so each area is only asked for once), the terrain heights round it (the page samples
+// for each chunk the page wants, the OpenStreetMap roads round it (from the world's map tiles, built
+// offline: realworld/mapTiles.js), the terrain heights round it (the page samples
 // Cesium World Terrain, which only it can reach: asked for here in lattice blocks), then
 // surface.js's buildChunk. Chunks are built nearest first, one at a time; the answer goes back with its
 // arrays transferred, the road mesh split into pieces the page can add over several frames.
@@ -11,12 +11,9 @@
 //                { type: 'status', … }
 
 import { OSM_MARGIN, WORK_MARGIN, blocksFor, chunk as chunkOf, chunkAt, chunkSize, latticeSampler, mPerDegLat, mPerDegLon } from './chunks.js';
-import { OSM_VERSION, OVERPASS, overpassQuery, readOverpass } from './osm.js';
+import { createMapReader } from './mapTiles.js';
 import { buildChunk } from './surface.js';
 
-const MAX_FETCHES = 1;               // one at a time: the public Overpass server is shared, and blocks
-                                     // addresses that ask too much
-const CACHE = 'drive-world-osm', CACHE_DAYS = 30;
 const PIECES = 4;                    // the road mesh goes back as PIECES × PIECES parts
 
 let wanted = [], building = false, fetching = 0, blockRequest = 0;
@@ -25,8 +22,8 @@ const failures = new Map();          // key → failed attempts at the map data
 const blocks = new Map(), blockWaits = new Map();
 const done = new Set();              // chunks sent (the page keeps them until it drops them)
 const provisional = new Set();       // ...sent without their roads (the map was slow): sent again with them
-const PROVISIONAL_AFTER = 15000;     // ms to wait for the map before sending a chunk with just its terrain
-const stats = { fetched: 0, cached: 0, built: 0, errors: 0, lastError: null, overpassWait: 0 };
+const PROVISIONAL_AFTER = 4000;      // ms to wait for the map before sending a chunk with just its terrain
+const stats = { fetched: 0, cached: 0, built: 0, errors: 0, lastError: null, overpassWait: 0 };      // (overpassWait: always 0 now)
 
 self.onmessage = e => {
   const m = e.data;
@@ -43,73 +40,40 @@ self.onmessage = e => {
 const status = extra => self.postMessage({ type: 'status', ...stats, fetching, building, queue: wanted.filter(k => !done.has(k)).length, ...extra });
 
 // ---------- the map data ----------
+// From the world's map tiles (realworld/mapTiles.js: a region's .pmtiles file, read in ranges from
+// wherever the game is served) — no map server: a chunk's roads are a few small reads away
+let map = null;
+const mapReady = (async () => {
+  const index = await (await fetch(new URL('../data/world/regions.json', import.meta.url), { cache: 'no-cache' })).json();
+  map = createMapReader({ regions: index.regions, baseUrl: new URL('../', import.meta.url).href });
+  return map;
+})().catch(e => { stats.lastError = `no map regions: ${e.message ?? e}`; map = createMapReader({ regions: [] }); return map; });
 const bboxOf = c => {
   const dLat = OSM_MARGIN / mPerDegLat(c.latC), dLon = OSM_MARGIN / mPerDegLon(c.latC);
   return [c.lat0 - dLat, c.lon0 - dLon, c.lat1 + dLat, c.lon1 + dLon];
 };
-const cacheKey = key => new URL(`/__osm-cache/v${OSM_VERSION}/${key}.json`, self.location.origin).href;
-async function fromCache(key) {
-  try {
-    const hit = await (await caches.open(CACHE)).match(cacheKey(key));
-    if (!hit) return null;
-    if (Date.now() - +(hit.headers.get('x-fetched') || 0) > CACHE_DAYS * 864e5) return null;
-    return await hit.json();
-  } catch { return null; }
-}
-async function toCache(key, text) {
-  try { await (await caches.open(CACHE)).put(cacheKey(key), new Response(text, { headers: { 'content-type': 'application/json', 'x-fetched': String(Date.now()) } })); } catch { /* not kept */ }
-}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-// After the server says no (busy, too many requests, or nothing at all: a refusal comes without the
-// headers the browser needs to show it, so it's just "failed to fetch"), nothing more is asked until
-// overpassFree; the wait doubles each time in a row (10 s … 5 min) and starts again after a success
-let overpassFree = 0, refusals = 0;
-const backOff = retryAfter => { refusals++; overpassFree = Date.now() + Math.max(retryAfter * 1000 || 0, Math.min(300000, 10000 * 2 ** (refusals - 1))); stats.overpassWait = Math.round((overpassFree - Date.now()) / 1000); };
-// (the map is asked for in order: chunks the page wants, nearest first, then the neighbours they're
-// built with)
-const line = new Map();
-const priority = key => { const i = wanted.indexOf(key); if (i >= 0) return i; const j = wanted.findIndex(k => neighbours(k).includes(key)); return j >= 0 ? 1000 + j : 5000; };
-const myTurn = key => { let best = null, bp = Infinity; for (const k of line.keys()) { const p = priority(k); if (p < bp) { bp = p; best = k; } } return best === key; };
-async function fetchOverpass(key, c) {
-  line.set(key, true);
-  try { while (fetching >= MAX_FETCHES || Date.now() < overpassFree || !myTurn(key)) await sleep(500); } finally { line.delete(key); }
-  fetching++;
-  status();
-  try {
-    const [s, w, n, e] = bboxOf(c), ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 150000);
-    let r;
-    try { r = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: overpassQuery(s, w, n, e) }), signal: ctrl.signal }); }
-    catch (err) { backOff(0); throw new Error(`Overpass didn't answer (${err.name === 'AbortError' ? 'timed out' : 'refused'})`); }
-    finally { clearTimeout(timer); }
-    if (r.status === 429 || r.status >= 500) { backOff(+r.headers.get('retry-after')); throw new Error(`Overpass is busy (${r.status})`); }
-    if (!r.ok) throw new Error(`Overpass answered ${r.status}`);
-    const text = await r.text(), json = JSON.parse(text);
-    if (json.remark && /runtime error|timed out|out of memory/i.test(json.remark)) { backOff(0); throw new Error(`Overpass: ${json.remark}`); }
-    refusals = 0; stats.overpassWait = 0;
-    stats.fetched++;
-    toCache(key, text);
-    return json;
-  } finally { fetching--; }
-}
-// The chunk's map data: from the cache, else Overpass (retrying: the public server is often busy)
+// The chunk's map data (the roads round it, buildings, barriers): read from the tiles, retried if a
+// read fails (a dropped connection)
 const asked = new Map();             // key → when its map was first asked for
 const got = new Map();               // key → its map data, once it's here
 function mapData(key) {
   if (!asked.has(key)) asked.set(key, Date.now());
   if (!osm.has(key)) {
     osm.set(key, (async () => {
-      const c = chunkOf(...key.split('/').map(Number));
-      const cached = await fromCache(key);
-      if (cached) { stats.cached++; return readOverpass(cached); }
+      const c = chunkOf(...key.split('/').map(Number)), [s, w, n, e] = bboxOf(c);
       for (let attempt = 0; ; attempt++) {
-        try { return readOverpass(await fetchOverpass(key, c)); }
-        catch (err) {
+        try {
+          fetching++; status();
+          const d = await (await mapReady).area(s, w, n, e);
+          stats.fetched++;
+          return d;
+        } catch (err) {
           failures.set(key, attempt + 1);
           stats.errors++; stats.lastError = String(err.message || err);
-          status();
-          if (!wanted.includes(key)) { osm.delete(key); throw err; }
-          await sleep(1000);                   // (then it queues behind the server's wait)
-        }
+          if (!wanted.includes(key) || attempt >= 5) { osm.delete(key); throw err; }
+          await sleep(500 * 2 ** attempt);
+        } finally { fetching--; status(); }
       }
     })());
     osm.get(key).then(d => { got.set(key, d); if (got.size > 64) got.delete(got.keys().next().value); }, () => {});

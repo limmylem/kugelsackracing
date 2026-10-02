@@ -1,0 +1,1 @@
+{ "_note": "Buildings changed by hand (docs/WORLD_DATA.md): by tile feature id (or Overture id), the fields to set or { \"remove\": true }. The Phase 4 world editor writes this file; npm run world:build applies it.", "buildings": {} }

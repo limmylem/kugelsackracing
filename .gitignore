@@ -6,3 +6,5 @@ reports/
 # models waiting to be imported, and the originals of imported ones (what's imported is in assets/)
 incoming/*
 !incoming/README.md
+.scratch/
+.cache/

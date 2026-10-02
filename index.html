@@ -40,7 +40,7 @@
   #setup input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: none; font-size: 13px; }
   #setup .error { color: #ffb4a8; margin: 10px 0 0; }
   #setup .small { font-size: 12px; opacity: 0.85; margin: 12px 0 0; }
-  @media (max-width: 560px) { #minimap { top: auto; bottom: 150px; width: 140px; height: 140px; } #attr { display: none; } }
+  @media (max-width: 560px) { #minimap { top: auto; bottom: 150px; width: 140px; height: 140px; } #attr { top: auto; bottom: 2px; right: 6px; width: auto; font-size: 9px; } }
   kbd { background: #fff2; border-radius: 3px; padding: 0 4px; }
   .cesium-viewer-bottom { z-index: 5; }
   /* Physics test track (T) */
@@ -221,7 +221,7 @@
 <canvas id="minimap" title="Click or press M to zoom"></canvas>
 <div id="worlds" title="Switch world (T)"></div>
 <div id="backToGarage" class="ui" hidden><button class="btn primary bar" title="Back to the garage with this build"><span class="icon">garage</span>Back to garage</button></div>
-<div id="attr">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Minimap © OpenFreeMap</div>
+<div id="attr">Map data <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a> · <a href="https://overturemaps.org" target="_blank" rel="noopener">© Overture Maps Foundation</a> · Minimap © OpenFreeMap</div>
 <div id="speed" class="box">0 <small>km/h</small></div>
 <div id="help" class="box">
   <kbd>W</kbd>/<kbd>↑</kbd> gas &nbsp; <kbd>S</kbd>/<kbd>↓</kbd> brake / reverse &nbsp; <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>

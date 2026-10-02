@@ -1,0 +1,24 @@
+{
+  "_note": "The regions the world has maps for (written by npm run world:build): the game reads the map tiles of the one it is in.",
+  "regions": [
+    {
+      "id": "sf",
+      "name": "San Francisco",
+      "bbox": [
+        -122.52,
+        37.705,
+        -122.355,
+        37.838
+      ],
+      "spawn": {
+        "lat": 37.7942,
+        "lon": -122.3954,
+        "bearing": 315,
+        "name": "The Embarcadero"
+      },
+      "url": "assets/world/sf.pmtiles",
+      "built": "2026-10-02T21:27:29.989Z",
+      "bytes": 10186564
+    }
+  ]
+}
