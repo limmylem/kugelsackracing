@@ -271,25 +271,29 @@ export function blendDents(mesh, from, to, maxDepth) {
 }
 
 // Denting spread over frames: queue(mesh, dents, maxDepth) (the newest list for a mesh wins), and
-// flush() each frame dents queued meshes until ms milliseconds have gone (at least one a frame).
+// flush() each frame dents queued meshes until ms milliseconds have gone (at least one step a frame);
+// returns the steps taken.
 // stats: { frames, meshes, worstMs, lastMs, waiting }
 export class DentBudget {
   constructor(ms = 2) { this.ms = ms; this.jobs = new Map(); this.stats = { frames: 0, meshes: 0, worstMs: 0, lastMs: 0, waiting: 0 }; }
   queue(mesh, dents, maxDepth) { this.jobs.delete(mesh); this.jobs.set(mesh, { dents, maxDepth }); }
   drop(mesh) { this.jobs.delete(mesh); }
   get pending() { return this.jobs.size; }
+  // (a mesh's first dent is two steps, a frame apart if need be: its own copy made, then the denting)
   flush(ms = this.ms) {
     const t0 = performance.now();
-    let n = 0;
+    let n = 0, dented = 0;
     for (const [mesh, job] of this.jobs) {
       if (n && performance.now() - t0 >= ms) break;
-      this.jobs.delete(mesh);
-      if (mesh.userData.disposed) continue;
-      setDents(mesh, job.dents, job.maxDepth);
+      if (mesh.userData.disposed) { this.jobs.delete(mesh); continue; }
       n++;
+      if (!mesh.userData.dent && job.dents.length) { makeDentable(mesh); continue; }
+      this.jobs.delete(mesh);
+      setDents(mesh, job.dents, job.maxDepth);
+      dented++;
     }
     const took = performance.now() - t0, S = this.stats;
-    S.frames++; S.meshes += n; S.lastMs = took; S.worstMs = Math.max(S.worstMs, took); S.waiting = this.jobs.size;
+    S.frames++; S.meshes += dented; S.lastMs = took; S.worstMs = Math.max(S.worstMs, took); S.waiting = this.jobs.size;
     return n;
   }
 }

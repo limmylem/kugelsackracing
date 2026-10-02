@@ -5,8 +5,8 @@
 //     in Node), the denting spread over frames (garage/dents.js DentBudget: at most budget.dentsMs a
 //     frame) and the effects on medium quality (effects/director.js). Each 60 fps frame's work must stay
 //     within budget.crashFrameMs (physics/settings.json: what's left of the frame is for drawing, which
-//     Node can't measure), and the denting within its own budget (a single mesh can't be split: the
-//     costliest one is shown, and held to budget.dentMeshMs).
+//     Node can't measure), and the denting within its own budget (a single step — a mesh's own copy
+//     made, or its denting — can't be split: the costliest is shown, and held to budget.dentMeshMs).
 //  2. A hundred crashes and repairs, as the game makes them: each crash worked out on the car as it is,
 //     saved through the player's save (garage/player/service.js), drawn; then repaired (mostly quick,
 //     every tenth full) and the repair eased in on the drawing. After every full repair the car's own
@@ -90,14 +90,14 @@ async function pileup({ cars = 10, kmh = 60, seconds = 6, quality = 'medium' } =
     }
     for (const c of looks) { const h = performance.now(); c.vis.setDamage(c.damage.view3d, rules); lookMs.push(performance.now() - h); }
     const t2 = performance.now();
-    // the denting: a mesh at a time, till the frame's budget is used (timed one by one for the record)
+    // the denting: a step at a time (a mesh's copy, or its denting), till the frame's budget is used —
+    // as flush() does, but each step timed for the record
     const before = dents.stats.meshes, d0 = performance.now();
-    while (dents.pending) {
-      if (dents.stats.meshes > before && performance.now() - d0 >= B.dentsMs) break;
-      const m0 = performance.now();
-      if (!dents.flush(0)) break;
-      const took = performance.now() - m0;
-      worstMesh = Math.max(worstMesh, took);
+    for (let steps = 0; dents.pending && !(steps && performance.now() - d0 >= B.dentsMs);) {
+      const m0 = performance.now(), n = dents.flush(0);
+      if (!n) break;
+      steps += n;
+      worstMesh = Math.max(worstMesh, performance.now() - m0);
     }
     dentedMeshes += dents.stats.meshes - before;
     const t3 = performance.now();
@@ -227,8 +227,8 @@ if (only !== 'cycles') {
   console.log(`  the worst frame ${ms(W.total)}: physics ${ms(W.physics)} (${W.steps} steps), damage ${ms(W.damage)}, denting ${ms(W.dents)}, effects ${ms(W.effects)}`);
   expect(P.damaged >= P.cars * 0.8, `most cars hit and damaged (${P.damaged} of ${P.cars})`);
   expect(P.p95 <= B.crashFrameMs, `95% of frames within ${B.crashFrameMs} ms (${ms(P.p95)}; drawing has the rest of the 16.7 ms)`);
-  expect(P.dentsWorst <= B.dentsMs + P.dentMeshWorst + 0.5, `the denting a frame: at most ${B.dentsMs} ms, or one mesh (worst frame ${ms(P.dentsWorst)})`);
-  expect(P.dentMeshWorst <= B.dentMeshMs, `the costliest mesh dented within ${B.dentMeshMs} ms (${ms(P.dentMeshWorst)})`);
+  expect(P.dentsWorst <= B.dentsMs + P.dentMeshWorst + 0.5, `the denting a frame: at most ${B.dentsMs} ms, or one step (worst frame ${ms(P.dentsWorst)})`);
+  expect(P.dentMeshWorst <= B.dentMeshMs, `the costliest step (a mesh copied, or dented) within ${B.dentMeshMs} ms (${ms(P.dentMeshWorst)})`);
   expect(P.waiting === 0, 'every dent drawn by the end');
   console.log('');
 }

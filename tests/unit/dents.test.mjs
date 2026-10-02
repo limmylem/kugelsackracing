@@ -3,7 +3,7 @@
 // copy of its meshes (another car on the same models is untouched), never deeper than the most, and the
 // same wherever a door or the bonnet is; broken lights look broken; a repair puts the shared models
 // back; denting only what changed comes out exactly as denting afresh (a repair's blend too), the
-// normals changing only round the dents; the dent budget takes a mesh at a time; and a hundred and
+// normals changing only round the dents; the dent budget takes a step at a time; and a hundred and
 // fifty crashes stay cheap.
 // npm run test:unit
 import { test } from 'node:test';
@@ -91,7 +91,7 @@ test('denting bit by bit comes out exactly as denting all at once; another list,
   assert.ok(m.geometry.boundingBox.containsBox(F.boundingBox) && m.geometry.boundingSphere.radius >= F.boundingSphere.radius + maxDepth - 1e-9);
 });
 
-test('the dent budget: a mesh at a time till the frame\'s milliseconds are gone (at least one), the newest list for a mesh wins, a mesh taken away is skipped', async () => {
+test('the dent budget: a step at a time (a mesh\'s copy, its denting) till the frame\'s milliseconds are gone (at least one), the newest list for a mesh wins, a mesh taken away is skipped', async () => {
   const { scene } = await loadRealModel('assets/parts/stock/starter_car/bonnet.glb'), [src] = meshesOf(scene);
   const meshes = Array.from({ length: 6 }, () => new THREE.Mesh(src.geometry, src.material)), B = new DentBudget(2);
   if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
@@ -101,8 +101,12 @@ test('the dent budget: a mesh at a time till the frame\'s milliseconds are gone 
   meshes[5].userData.disposed = true;
   B.drop(meshes[4]);
   assert.equal(B.pending, 5);
-  assert.equal(B.flush(0), 1, 'one, however little time');
-  assert.equal(B.pending, 4);
+  // (a mesh's first dent in two steps: its own copy, then the denting — the first queued first; the one
+  // queued again goes to the back)
+  assert.equal(B.flush(0), 1, 'one step, however little time');
+  assert.ok(meshes[1].userData.dent && moved(meshes[1]) === 0 && B.pending === 5, 'copied, not dented yet');
+  assert.equal(B.flush(0), 1);
+  assert.ok(moved(meshes[1]) > 0 && B.pending === 4, 'dented');
   while (B.pending) B.flush();
   const depthOf = m => moved(m);
   assert.ok(Math.abs(depthOf(meshes[0]) - 0.06) < 0.005 && Math.abs(depthOf(meshes[1]) - 0.02) < 0.005, 'the newest list');
