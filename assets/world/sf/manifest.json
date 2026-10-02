@@ -4,7 +4,7 @@
  "name": "San Francisco",
  "version": "1/2/4/2026-09-23.1/2026-10-02",
  "inputs": "1/2/4/2026-09-23.1",
- "baked": "2026-10-02T22:35:29.588Z",
+ "baked": "2026-10-02T23:13:01.385Z",
  "origin": [
   37.7715,
   -122.4375
@@ -225,6 +225,107 @@
   }
  ],
  "map": "assets/world/sf.pmtiles",
+ "far": {
+  "size": 4096,
+  "chunks": [
+   {
+    "a": -2,
+    "b": -2,
+    "bytes": 69872,
+    "landmarks": 0
+   },
+   {
+    "a": -1,
+    "b": -2,
+    "bytes": 48784,
+    "landmarks": 35
+   },
+   {
+    "a": 0,
+    "b": -2,
+    "bytes": 10388,
+    "landmarks": 0
+   },
+   {
+    "a": 1,
+    "b": -2,
+    "bytes": 24632,
+    "landmarks": 1
+   },
+   {
+    "a": -2,
+    "b": -1,
+    "bytes": 31860,
+    "landmarks": 0
+   },
+   {
+    "a": -1,
+    "b": -1,
+    "bytes": 84100,
+    "landmarks": 8
+   },
+   {
+    "a": 0,
+    "b": -1,
+    "bytes": 391392,
+    "landmarks": 310
+   },
+   {
+    "a": 1,
+    "b": -1,
+    "bytes": 26068,
+    "landmarks": 12
+   },
+   {
+    "a": -2,
+    "b": 0,
+    "bytes": 39276,
+    "landmarks": 4
+   },
+   {
+    "a": -1,
+    "b": 0,
+    "bytes": 150080,
+    "landmarks": 33
+   },
+   {
+    "a": 0,
+    "b": 0,
+    "bytes": 92296,
+    "landmarks": 14
+   },
+   {
+    "a": 1,
+    "b": 0,
+    "bytes": 33324,
+    "landmarks": 1
+   },
+   {
+    "a": -2,
+    "b": 1,
+    "bytes": 54664,
+    "landmarks": 0
+   },
+   {
+    "a": -1,
+    "b": 1,
+    "bytes": 88264,
+    "landmarks": 8
+   },
+   {
+    "a": 0,
+    "b": 1,
+    "bytes": 87328,
+    "landmarks": 6
+   },
+   {
+    "a": 1,
+    "b": 1,
+    "bytes": 40324,
+    "landmarks": 5
+   }
+  ]
+ },
  "tiles": [
   {
    "i": 5,

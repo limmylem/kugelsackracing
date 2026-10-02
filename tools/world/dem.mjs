@@ -73,18 +73,23 @@ async function openRaster(file, info) {
   return {
     ...info, crs: crs.name, resolution: info.resolution ?? Math.abs(rx) * (crs.name === 'geographic' ? 111320 * 0.8 : 1),
     // the pixels covering a box [s, w, n, e] (with a pixel's margin), or null if it misses the file
-    async window([s, w, n, e]) {
+    async window([s, w, n, e], resolution = 0) {
       const corners = [[s, w], [s, e], [n, w], [n, e]].map(([a, b]) => pix(a, b));
       const c0 = Math.max(0, Math.floor(Math.min(...corners.map(p => p[0]))) - 2), c1 = Math.min(W, Math.ceil(Math.max(...corners.map(p => p[0]))) + 3);
       const r0 = Math.max(0, Math.floor(Math.min(...corners.map(p => p[1]))) - 2), r1 = Math.min(H, Math.ceil(Math.max(...corners.map(p => p[1]))) + 3);
       if (c1 <= c0 || r1 <= r0) return null;
-      const [data] = await im.readRasters({ window: [c0, r0, c1, r1], samples: [0] });
-      const w_ = c1 - c0, h_ = r1 - r0, bad = v => v === nodata || v < -500 || v > 9000 || Number.isNaN(v);
+      // (coarser than it is, when asked: the file's overviews, much less to read)
+      const k = resolution > 0 ? Math.max(1, Math.floor(resolution / this.resolution)) : 1, ow = Math.max(2, Math.round((c1 - c0) / k)), oh = Math.max(2, Math.round((r1 - r0) / k));
+      // (coarser: the whole file's read picks its best overview for the size asked for)
+      const [data] = k > 1
+        ? await tiff.readRasters({ bbox: [ox + c0 * rx, oy + r1 * ry, ox + c1 * rx, oy + r0 * ry], width: ow, height: oh, samples: [0], resampleMethod: 'bilinear' })
+        : await im.readRasters({ window: [c0, r0, c1, r1], samples: [0] });
+      const w_ = k > 1 ? ow : c1 - c0, h_ = k > 1 ? oh : r1 - r0, sx = (c1 - c0) / w_, sy = (r1 - r0) / h_, bad = v => v === nodata || v < -500 || v > 9000 || Number.isNaN(v);
       return {
         name: info.name,
         // bilinear, NaN where any of the four is missing
         height(lat, lon) {
-          const [fx, fy] = pix(lat, lon), x = fx - c0, y = fy - r0, i = Math.floor(x), j = Math.floor(y);
+          const [fx, fy] = pix(lat, lon), x = (fx - c0 + 0.5) / sx - 0.5, y = (fy - r0 + 0.5) / sy - 0.5, i = Math.floor(x), j = Math.floor(y);
           if (i < 0 || j < 0 || i + 1 >= w_ || j + 1 >= h_) return NaN;
           const tx = x - i, ty = y - j, k = j * w_ + i, a = data[k], b = data[k + 1], c = data[k + w_], d = data[k + w_ + 1];
           if (bad(a) || bad(b) || bad(c) || bad(d)) return NaN;
@@ -102,8 +107,9 @@ export async function openDem(config = {}, { cacheDir = '.cache/world', bbox = n
   if (config.base !== 'none') for (const u of glo30Urls(bbox ?? [-90, -180, 90, 180])) { const file = await localFile(u, cacheDir, log); if (file) rasters.push(await openRaster(file, GLO30)); }
   return {
     describe: () => [...new Map(rasters.map(r => [r.name, { name: r.name, resolution: r.resolution, attribution: r.attribution }])).values()],
-    async sampler(box) {
-      const wins = (await Promise.all(rasters.map(r => r.window(box)))).filter(Boolean);
+    // resolution (m): read no finer than this (0: the files' own)
+    async sampler(box, { resolution = 0 } = {}) {
+      const wins = (await Promise.all(rasters.map(r => r.window(box, resolution)))).filter(Boolean);
       return {
         // the first source (best first) with a height there; the sea where there's none (GLO-30 has no
         // tiles over open sea)

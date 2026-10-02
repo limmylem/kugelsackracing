@@ -27,9 +27,17 @@ function windowTexture(kind) {
   t.flipY = true;
   return t;
 }
+// the baked colours are sRGB (as written in data/world/bake.json): into linear for the lighting
+export function srgbVertexColours(m) {
+  const before = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => { before?.(sh, r); sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = pow(vColor.rgb, vec3(2.2));\n#endif'); };
+  const key = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => `srgb-${key ? key() : ''}`;
+  return m;
+}
 export function materials() {
   if (M) return M;
-  const lambert = o => new THREE.MeshLambertMaterial({ vertexColors: true, ...o });
+  const lambert = o => srgbVertexColours(new THREE.MeshLambertMaterial({ vertexColors: true, ...o }));
   M = {
     terrain: lambert({}),
     roads: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),

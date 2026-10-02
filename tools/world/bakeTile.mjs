@@ -34,7 +34,7 @@ function triangulate(rings) {
 }
 
 // ---------- a 2 m raster over the tile (cell centres at −255, −253, … +255) ----------
-class Raster {
+export class Raster {
   constructor(n, cell, half) { this.n = n; this.cell = cell; this.half = half; this.data = new Uint8Array(n * n); }
   // fill the cells whose centres are inside the polygon (rings: [[x, z]…], tile-local)
   fill(poly, value, only = null) {
@@ -64,7 +64,12 @@ class Part {
   get empty() { return !this.indices.length; }
   vertex(x, y, z, c, u = 0, v = 0) { this.positions.push(x, y, z); this.colours.push(c[0], c[1], c[2], c[3] ?? 255); if (this.uvs) this.uvs.push(u, v); return this.positions.length / 3 - 1; }
   tri(a, b, c, s = 0) { this.indices.push(a, b, c); if (this.surfaces) this.surfaces.push(s); }
-  quad(a, b, c, d, col, s = 0) { const i = [a, b, c, d].map(p => this.vertex(p[0], p[1], p[2], col)); this.tri(i[0], i[1], i[2], s); this.tri(i[0], i[2], i[3], s); }
+  // (a mostly flat quad always faces up; an upright one as given)
+  quad(a, b, c, d, col, s = 0) {
+    const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    if (ny < 0 && Math.abs(ny) > Math.hypot(nx, nz)) [b, d] = [d, b];
+    const i = [a, b, c, d].map(p => this.vertex(p[0], p[1], p[2], col)); this.tri(i[0], i[1], i[2], s); this.tri(i[0], i[2], i[3], s);
+  }
   add(other) { const base = this.positions.length / 3; this.positions.push(...other.positions); this.colours.push(...other.colours); if (this.uvs) this.uvs.push(...(other.uvs ?? new Array(other.positions.length / 3 * 2).fill(0))); for (const k of other.indices) this.indices.push(base + k); }
   // (identical vertices welded into one: quads share their corners)
   out() {
@@ -282,7 +287,7 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
       const c = vertices[v], r = vertices[v + 1], x = -half + c * cell, z = -half + r * cell;
       part.vertex(x, heights[idx(c, r)], z, terrainColour(x, z, c, r));
     }
-    for (let t = 0; t < triangles.length; t += 3) part.tri(triangles[t], triangles[t + 2], triangles[t + 1]);
+    for (let t = 0; t < triangles.length; t += 3) part.tri(triangles[t], triangles[t + 1], triangles[t + 2]);
     return part;
   });
   // tunnel roofs (the ground over a tunnel): drawn as ground, and solid

@@ -15,7 +15,7 @@
 //   W.status (for the overlay), W.toWorld / W.toSim
 
 import * as THREE from 'three';
-import { tileObjects } from './tileObjects.js';
+import { materials, srgbVertexColours, tileObjects } from './tileObjects.js';
 import { barrierBoxes } from './barriers.js';
 import { projection } from './projection.js';
 
@@ -25,7 +25,9 @@ const DEFAULTS = { loadRadius: 1400, unloadRadius: 2100, physicsRadius: 750, phy
 export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, options = {} }) {
   const O = { ...DEFAULTS, ...options };
   const manifest = await (await fetch(manifestUrl, { cache: 'no-cache' })).json();
-  const base = new URL('.', new URL(manifestUrl, location.href)).href, T = manifest.tileSize, half = T / 2;
+  const failedAt = new Map();      // key → when its last load failed (tried again after a pause)
+  // (relative to the page's base, as fetch resolves it: dev pages set <base href="../">)
+  const base = new URL('.', new URL(manifestUrl, globalThis.document?.baseURI ?? location.href)).href, T = manifest.tileSize, half = T / 2;
   const P = projection(...manifest.origin);
   const byKey = new Map(manifest.tiles.map(t => [`${t.i}_${t.j}`, t]));
   // the physics' origin, in the world's frame: tile-aligned, at the spawn's tile to begin with
@@ -44,6 +46,64 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   for (const w of workers) w.onmessage = e => { const m = e.data, r = waiting.get(m.key); waiting.delete(m.key); r?.(m); };
   const fetchTile = t => new Promise(resolve => { const key = `${t.i}_${t.j}`; waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url: `${base}tiles/${key}.dwt`, version: manifest.version }); });
 
+  // ---------- the far world: the whole region, drawn wherever detailed tiles haven't come in ----------
+  // (a mask of the detailed tiles in, one texel a tile, read by the far meshes' shader to leave a hole
+  // for each)
+  const tx = manifest.tiles.map(t => t.i), tz = manifest.tiles.map(t => t.j);
+  const mi0 = Math.min(...tx) - 1, mj0 = Math.min(...tz) - 1, mw = Math.max(...tx) - mi0 + 2, mh = Math.max(...tz) - mj0 + 2;
+  const maskData = new Uint8Array(mw * mh), mask = new THREE.DataTexture(maskData, mw, mh, THREE.RedFormat, THREE.UnsignedByteType);
+  mask.magFilter = mask.minFilter = THREE.NearestFilter; mask.needsUpdate = true;
+  const maskUniforms = { uMask: { value: mask }, uMaskInfo: { value: new THREE.Vector4(mi0, mj0, mw, mh) }, uTile: { value: T }, uOrigin: { value: new THREE.Vector2(...origin) } };
+  const setMask = (e, on) => { const c = e.i - mi0, r = e.j - mj0; if (c >= 0 && r >= 0 && c < mw && r < mh) { maskData[r * mw + c] = on ? 255 : 0; mask.needsUpdate = true; } };
+  const masked = m => {
+    const out = m.clone();
+    const inner = m.onBeforeCompile;
+    out.onBeforeCompile = (sh, r) => {
+      inner?.(sh, r);
+      Object.assign(sh.uniforms, maskUniforms);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFarPos;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFarPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFarPos; uniform sampler2D uMask; uniform vec4 uMaskInfo; uniform float uTile; uniform vec2 uOrigin;')
+        .replace('void main() {', 'void main() {\n  vec2 g = floor((vFarPos.xz + uOrigin) / uTile) - uMaskInfo.xy;\n  if (g.x >= 0.0 && g.y >= 0.0 && g.x < uMaskInfo.z && g.y < uMaskInfo.w && texture2D(uMask, (g + 0.5) / uMaskInfo.zw).r > 0.5) discard;');
+    };
+    out.customProgramCacheKey = () => `far-${m.type}`;
+    return out;
+  };
+  let waitingFar = 0;
+  const far = new THREE.Group();
+  far.name = 'far world';
+  world.add(far);
+  {
+    const M = materials(), mats = { terrain: masked(M.terrain), blocks: masked(srgbVertexColours(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }))), landmark_walls: masked(M.walls.block), landmark_roofs: masked(M.roofs) };
+    // the sea, out to the horizon (under everything: the land and the tiles' own water sit on it)
+    const [bx, bz] = [(Math.min(...tx) + Math.max(...tx) + 1) * T / 2, (Math.min(...tz) + Math.max(...tz) + 1) * T / 2];
+    const sea = new THREE.Mesh(new THREE.CircleGeometry(60000, 48).rotateX(-Math.PI / 2), M.water.clone());
+    sea.material.opacity = 1; sea.material.transparent = false; sea.material.depthWrite = true;
+    sea.position.set(bx, -0.06, bz); sea.renderOrder = -1;
+    far.add(sea);
+    for (const c of manifest.far?.chunks ?? []) {
+      const key = `far_${c.a}_${c.b}`;
+      waitingFar++;
+      new Promise(resolve => { waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url: `${base}tiles/${key}.dwt`, version: manifest.version }); }).then(m => {
+        waitingFar--;
+        if (m.type !== 'tile') return;
+        const g = new THREE.Group();
+        g.position.set((c.a + 0.5) * manifest.far.size, 0, (c.b + 0.5) * manifest.far.size);
+        for (const [name, mesh] of Object.entries(m.tile.meshes)) {
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3));
+          geo.setAttribute('color', new THREE.BufferAttribute(mesh.colours, 4, true));
+          if (mesh.uvs) geo.setAttribute('uv', new THREE.BufferAttribute(mesh.uvs, 2));
+          if (mesh.normals) geo.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3)); else if (name === 'terrain') geo.computeVertexNormals();
+          geo.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+          geo.computeBoundingSphere();
+          const obj = new THREE.Mesh(geo, mats[name] ?? mats.blocks);
+          obj.name = `far ${name}`; obj.matrixAutoUpdate = false; obj.position.set(0, 0, 0);
+          g.add(obj);
+        }
+        far.add(g);
+      });
+    }
+  }
   // ---------- tiles ----------
   const tiles = new Map();          // key → { i, j, state, obj, data, physics, queue, added, ... }
   const stats = { loaded: 0, fetched: 0, cached: 0, bytes: 0, loadMs: [], errors: 0, lastError: null, colliders: 0, firstDrivable: null, started: performance.now() };
@@ -57,7 +117,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     const t0 = performance.now();
     fetchTile(t).then(m => {
       if (tiles.get(key) !== entry) return;
-      if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); return; }
+      if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); failedAt.set(key, performance.now()); return; }
       entry.data = m.tile; entry.state = 'ready';
       entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
       const [cx, cz] = centreOf(t);
@@ -65,11 +125,13 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       entry.obj.group.updateMatrixWorld(true);
       for (const c of entry.obj.group.children) c.updateMatrix?.();
       world.add(entry.obj.group);
+      setMask(entry, true);
       stats.loaded++; stats.bytes += m.bytes; m.cached ? stats.cached++ : stats.fetched++;
       stats.loadMs.push(performance.now() - t0); if (stats.loadMs.length > 50) stats.loadMs.shift();
     });
   }
   function unload(entry) {
+    setMask(entry, false);
     dropPhysics(entry);
     entry.obj?.dispose();
     tiles.delete(entry.key);
@@ -130,7 +192,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       const want = manifest.tiles.map(t => ({ t, d: Math.min(distTo(t, wx, wz), distTo(t, ax, az) * 0.8) })).filter(x => x.d < O.loadRadius).sort((a, b) => a.d - b.d);
       const loading = [...tiles.values()].filter(e => e.state === 'loading').length;
       let room = O.maxLoads - loading;
-      for (const { t } of want) { if (room <= 0) break; if (!tiles.has(`${t.i}_${t.j}`)) { load(t); room--; } }
+      for (const { t } of want) { if (room <= 0) break; const k = `${t.i}_${t.j}`; if (!tiles.has(k) && !(performance.now() - (failedAt.get(k) ?? -1e9) < 3000)) { load(t); room--; } }
       for (const e of [...tiles.values()]) if (e.state === 'ready' && Math.min(distTo(e, wx, wz), distTo(e, ax, az)) > O.unloadRadius) unload(e);
     }
     // physics: near now and near soon (further ahead the faster it goes), dropped once well behind
@@ -158,6 +220,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       sim.shiftOrigin({ x: 0, y: 0, z: 0, w: 1 }, t);
       origin = next;
       world.position.set(-origin[0], 0, -origin[1]);
+      maskUniforms.uOrigin.value.set(...origin);
       shifted = t;
     }
     return { shifted };

@@ -53,8 +53,8 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
   w.RAPIER = RAPIER;
   w.spawning = true;
   hold(w);
-  w.camera.far = 9000; w.camera.updateProjectionMatrix();
-  w.scene.fog.near = 900; w.scene.fog.far = 5200;
+  w.camera.far = 16000; w.camera.updateProjectionMatrix();
+  w.scene.fog.near = 1500; w.scene.fog.far = 13000;
   // every car keeps from tunnelling through anything at speed
   w.sim.vehicle.body.enableCcd(true);
   w.label = el('worldLabel', 'position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:40;font:600 11px/1.4 "JetBrains Mono",monospace;color:#fff;background:rgba(10,14,20,.62);padding:2px 9px;border-radius:9px;pointer-events:none;letter-spacing:.02em');
