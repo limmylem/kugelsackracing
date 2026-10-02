@@ -11,6 +11,11 @@
 //  Dyno: an animated run drawing torque and power, over the run before
 //  Inventory: every part the player has, grouped (a count; open for each copy), with where it is;
 //    install (the parts panel at a socket it goes in), sell, repair
+//  Damage: the damage report (garage/damageReport.js) — a top and side view of the car with each zone
+//    coloured by its worst problem, and every problem in plain words with what it does; clicking one (or a
+//    zone) takes the camera there; each repaired quick or in full, or a spare fitted instead, or all of it
+//    at once — the dents easing out and loose parts going back on as it happens; and the free basic
+//    repair for a player who can't afford to make the car drivable
 //  Shop: every part still sold (buy; "Buy & install" from the parts panel), and the dealership
 //  The top bar: the player's cars and each car's setups (save, save as, rename, delete, switch —
 //    with what's missing and switching anyway), the money, undo / redo, the save (automatic; save now,
@@ -23,6 +28,8 @@ import { needsRepair } from './player/profile.js';
 import { dealerCar, dealerList } from './dealer.js';
 import { Garage } from './data.js';
 import { hasDamage } from './mechanical.js';
+import { ZONE_VIEW } from './damageReport.js';
+import { Hints } from './hints.js';
 
 const PRESETS = [['Arctic White', '#EDEFF0'], ['Cement Grey', '#8C9092'], ['Graphite', '#3A3F45'], ['Midnight Black', '#111316'], ['Signal Red', '#C8202B'], ['Sunburst Orange', '#E3701E'], ['Canary Yellow', '#E8C21C'], ['Lime', '#8DC63F'],
   ['Racing Green', '#1F4D3A'], ['Teal', '#1E7F80'], ['Sky Blue', '#5EA8DB'], ['Deep Blue', '#1D3E8A'], ['Plum', '#5B2A55'], ['Rose', '#C9677E'], ['Bronze', '#8A6A3E'], ['Sand', '#C8B48E'], ['Factory Sage', '#6D9A91']];
@@ -37,7 +44,10 @@ const PART_FINISHES = [
 ];
 const SORTS = [['performance', 'Performance: best first'], ['name', 'Name: A–Z'], ['category', 'Category'], ['price', 'Price: low to high'], ['condition', 'Condition: best first']];
 const FILTERS = [['all', 'All'], ['owned', 'Owned'], ['shop', 'Shop'], ['upgrades', 'Upgrades']];
-const TABS = [['parts', 'Parts', 'build'], ['tuning', 'Tuning', 'tune'], ['paint', 'Paint', 'palette'], ['dyno', 'Dyno', 'monitoring'], ['inventory', 'Inventory', 'inventory_2'], ['shop', 'Shop', 'storefront'], ['dealer', 'Dealership', 'directions_car']];
+const TABS = [['parts', 'Parts', 'build'], ['damage', 'Damage', 'car_crash'], ['tuning', 'Tuning', 'tune'], ['paint', 'Paint', 'palette'], ['dyno', 'Dyno', 'monitoring'], ['inventory', 'Inventory', 'inventory_2'], ['shop', 'Shop', 'storefront'], ['dealer', 'Dealership', 'directions_car']];
+const SEVERITY = { critical: ['Stops the car', 'var(--c-bad)'], major: ['Major', '#F28C28'], minor: ['Minor', 'var(--c-warn)'] };
+const ZONE_WORDS = { front: 'the front', rear: 'the back', left: 'the left side', right: 'the right side', roof: 'the body', engine: 'the engine bay', underbody: 'underneath', FL: 'the front-left wheel', FR: 'the front-right wheel', RL: 'the rear-left wheel', RR: 'the rear-right wheel' };
+const VIEW_WORDS = { front: 'front', rear: 'rear', side_left: 'left side', side_right: 'right side', roof: 'roof', engine_bay: 'engine bay', underbody: 'underside', wheel_FL: 'front-left wheel', wheel_FR: 'front-right wheel', wheel_RL: 'rear-left wheel', wheel_RR: 'rear-right wheel' };
 const INV_FILTERS = [['all', 'All'], ['installed', 'Installed'], ['spare', 'Spare'], ['repair', 'Needs repair']];
 const INV_SORTS = [['name', 'Name: A–Z'], ['category', 'Category'], ['value', 'Value: highest first'], ['condition', 'Condition: worst first']];
 const SHOP_SORTS = [['category', 'Category'], ['price', 'Price: low to high'], ['price-desc', 'Price: high to low'], ['name', 'Name: A–Z']];
@@ -87,7 +97,7 @@ export class GarageScreen {
   // (a fresh visit: the overview, nothing open; the marker labels setting stays)
   reset() {
     this.ui = { tab: 'parts', area: null, view: 'overview', panel: null, socket: null, candidate: null, filter: 'all', sort: 'performance', expanded: 'power', paintEdit: null, dyno: { t: null, overlay: null }, dialog: null, pop: null, toast: null, labels: this.ui?.labels ?? 'hover', wheelCorner: 'FL',
-      inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts' },
+      inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts' }, dmg: { problem: null, zone: null },
       confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null } };
     this.preview = null; this.dynoShown = null; this.ghosting = null; this.tuneBase = null;
   }
@@ -121,6 +131,18 @@ export class GarageScreen {
   }
   // A message to read and close (what loading or importing a save changed)
   notice(title, list) { this.ui.dialog = { kind: 'notices', title, list }; this.render(); }
+  // A first-time hint in the garage (garage/hints.js): once ever (the save keeps it), a card over the screen
+  hint(when) {
+    if (!this.w) return null;
+    this.hints ??= new Hints(this.w.db.hints, { seen: () => this.w.profile.hints, mark: id => this.w.service.markHint(id) });
+    const h = this.hints.note(when, 'garage');
+    if (!h) return null;
+    this.ui.hint = h;
+    clearTimeout(this.hintTimer);
+    this.hintTimer = setTimeout(() => { this.ui.hint = null; this.render(); }, 9000);
+    this.render();
+    return h;
+  }
 
   // ---------- helpers on the workshop's data ----------
   get stats() { return this.w.stats(); }
@@ -157,6 +179,8 @@ export class GarageScreen {
       tab === 'shop' ? this.#shop() : '',
       this.ui.pop === 'settings' ? this.#settingsPop() : this.ui.pop === 'garage' ? this.#garagePop() : '',
       this.ui.toast ? `<div class="g-toast ${this.ui.toast.kind ?? ''}">${icon(this.ui.toast.icon ?? 'info')}<span>${esc(this.ui.toast.text)}</span></div>` : '',
+      this.ui.hint ? `<div class="g-hintcard panel">${icon('lightbulb', 'style="color:var(--c-accent)"')}<div style="flex:1;display:flex;flex-direction:column;gap:2px"><b>${esc(this.ui.hint.title)}</b><span class="secondary-text">${esc(this.ui.hint.text)}</span></div>
+        ${this.ui.hint.when === 'safetyNet' || (this.ui.hint.when === 'damageTab' && this.ui.tab !== 'damage') ? `<button class="btn secondary bar sm" data-act="tab:damage" data-key="hint-go">Damage tab</button>` : ''}<button class="icon-btn flat" data-act="hint-close" data-key="hint-close" title="Close">${icon('close')}</button></div>` : '',
       this.ui.dialog ? this.#dialog() : '',
       this.loading ? `<div class="g-loading">LOADING THE GARAGE…</div>` : '',
     ].join('');
@@ -181,7 +205,7 @@ export class GarageScreen {
   }
   // what the UI covers, for the camera to centre the car in the rest
   #insets(z) {
-    const t = this.ui.tab, wide = WIDE.has(t), panel = t === 'tuning' || t === 'paint' || t === 'dealer' || (t === 'parts' && !!this.ui.panel);
+    const t = this.ui.tab, wide = WIDE.has(t), panel = t === 'tuning' || t === 'paint' || t === 'dealer' || t === 'damage' || (t === 'parts' && !!this.ui.panel);
     if (innerWidth <= 900) return { left: 0, right: 0, top: 128, bottom: 116 + (panel || wide || t === 'dyno' ? innerHeight * 0.55 : 0) };
     // (the inventory and shop: a wide panel on the right, the car in what's left)
     if (wide) return { left: 24 * z, right: (Math.min(1040, innerWidth / z - 520) + 48) * z, top: 72 * z, bottom: 24 * z };
@@ -193,6 +217,7 @@ export class GarageScreen {
     if (this.ui.tab === 'shop') return 'SHOWROOM';
     if (this.ui.tab === 'dealer') return 'DEALERSHIP · TURNTABLE';
     if (this.ui.tab === 'paint') return 'PAINT BOOTH';
+    if (this.ui.tab === 'damage') return `DAMAGE REPORT${this.ui.view !== 'overview' ? ` · ${(VIEW_WORDS[this.ui.view] ?? this.ui.view).toUpperCase()}` : ''}`;
     if (this.ui.tab === 'tuning') return 'SIDE PROFILE';
     if (this.ui.panel === 'systems') return 'SYSTEMS · MODEL GHOSTED';
     const v = this.ui.view;
@@ -280,6 +305,7 @@ export class GarageScreen {
     if (t === 'dealer') return this.#dealer();
     if (t === 'tuning') return this.#tuning();
     if (t === 'paint') return this.#paint();
+    if (t === 'damage') return this.#damagePanel();
     if (t !== 'parts') return '';
     if (this.ui.panel === 'socket') return this.#partsPanel();
     if (this.ui.panel === 'compare') return this.#comparePanel();
@@ -442,6 +468,77 @@ export class GarageScreen {
   #repairAllButton() {
     const w = this.w, cost = w.repairAllCost;
     return cost ? `<button class="btn secondary bar" data-act="repair-all" data-key="repair-all" ${w.money >= cost ? '' : `disabled title="You need ${esc(this.money(cost - w.money))} more"`}>${icon('build')}Repair all · ${esc(this.money(cost))}</button>` : '';
+  }
+
+  // ---------- the damage report ----------
+  #damagePanel() {
+    const w = this.w, r = w.problems(), u = this.ui.dmg, net = w.safetyNet, busy = this.changing || this.scene.busy;
+    const list = r.problems.filter(p => !u.zone || p.zone === u.zone), money = n => esc(this.money(n));
+    const afford = n => w.money >= n ? '' : `disabled title="You need ${money(n - w.money)} more"`;
+    const row = p => {
+      const [sev, colour] = SEVERITY[p.severity], one = p.quick === p.full, sure = this.ui.confirm === `spare:${p.id}`;
+      const spare = p.spares[0] && w.profile.parts[p.spares[0]];
+      return `<div class="g-dmg-row ${u.problem === p.id ? 'on' : ''}" data-act="dmg-focus:${esc(p.id)}" data-key="dmg:${esc(p.id)}" tabindex="0" role="button">
+        <span class="dot" style="background:${colour}" title="${sev}"></span>
+        <div class="info"><div class="t">${esc(p.title)}</div><div class="e">${esc(cap(p.effect))}${p.stops ? ' <span class="badge bad plain">STOPS THE CAR</span>' : ''}</div></div>
+        <div class="acts">
+          ${one ? '' : `<button class="btn ghost bar sm" data-act="dmg-fix:quick:${esc(p.id)}" data-key="dmg-quick:${esc(p.id)}" ${busy ? 'disabled' : afford(p.quick)} title="Quick repair: about ${w.db.economy.repair.quick.condition}%, most of the dents out">Quick · ${money(p.quick)}</button>`}
+          <button class="btn secondary bar sm" data-act="dmg-fix:full:${esc(p.id)}" data-key="dmg-full:${esc(p.id)}" ${busy ? 'disabled' : afford(p.full)} title="${one ? 'Repair it' : 'Full repair: as new'}">${one ? 'Fix' : 'Full'} · ${money(p.full)}</button>
+          ${spare ? `<button class="btn ${sure ? 'primary' : 'ghost'} bar sm" data-act="dmg-spare:${esc(p.id)}" data-key="dmg-spare:${esc(p.id)}" ${busy ? 'disabled' : ''} title="Fit your spare ${esc(w.db.parts[spare.partId]?.name ?? '')} (${Math.round(spare.condition)}%) instead: free; this one goes to the inventory">${sure ? `Fit spare (${Math.round(spare.condition)}%)?` : `${icon('swap_horiz', 'style="font-size:16px"')}Spare`}</button>` : ''}
+        </div></div>`;
+    };
+    const status = r.drivable.ok ? `<div class="note">${icon('check_circle', 'style="color:var(--c-good)"')}<span>${r.problems.length ? 'It can carry on racing like this.' : 'No damage: as good as new.'}</span></div>`
+      : `<div class="note bad">${icon('error')}<span>It can't carry on racing: ${esc(r.drivable.reasons.join(' '))}</span></div>`;
+    const banner = net.offered ? `<div class="g-dmg-net well">${icon('volunteer_activism', 'style="color:var(--c-good)"')}<div style="flex:1;display:flex;flex-direction:column;gap:4px"><b>Free basic repair</b>
+        <span class="secondary-text">Making it drivable would cost ${money(net.cost)}, more than you have. The workshop will patch it up just enough to drive, for nothing.</span></div>
+        <button class="btn primary bar" data-act="dmg-basic" data-key="dmg-basic" ${busy ? 'disabled' : ''}>Patch it up</button></div>`
+      : net.needed ? `<div class="secondary-text" style="font-size:13px">Quick repairs of what stops it: ${money(net.cost)}.</div>` : '';
+    return `<section class="g-side panel g-damage">
+      <div class="panel-head"><div class="grow"><div class="label">${r.problems.length ? `${r.problems.length} problem${r.problems.length > 1 ? 's' : ''}${u.zone ? ` · ${r.problems.filter(p => p.zone === u.zone).length} ${ZONE_WORDS[u.zone] ?? u.zone}` : ''}` : 'Nothing to fix'}</div><div class="panel-title">Damage report</div></div>
+        ${u.zone ? `<button class="chip on" data-act="dmg-zone:${u.zone}" data-key="dmg-zone-clear" title="Show every problem">${esc(cap(ZONE_WORDS[u.zone] ?? u.zone))} ${icon('close', 'style="font-size:16px"')}</button>` : ''}</div>
+      <div class="panel-body" style="gap:14px;padding-top:14px" data-scroll="damage">
+        ${this.#diagram(r)}
+        ${status}${banner}
+        <div class="g-dmg-list">${list.length ? list.map(row).join('') : `<div class="empty-list">${r.problems.length ? 'Nothing wrong there.' : 'Every part is as good as new.'}</div>`}</div>
+      </div>
+      ${r.problems.length ? `<div class="panel-foot" style="flex-direction:column;align-items:stretch;gap:10px">
+        <div class="g-kv"><span>Repair everything</span><span class="mono">quick ${money(r.quick)} · full ${money(r.full)}</span></div>
+        <div style="display:flex;gap:10px"><button class="btn secondary" style="flex:1" data-act="dmg-all:quick" data-key="dmg-all-quick" ${busy ? 'disabled' : afford(r.quick)}>${icon('build')}Quick · ${money(r.quick)}</button>
+          <button class="btn primary" style="flex:1" data-act="dmg-all:full" data-key="dmg-all-full" ${busy ? 'disabled' : afford(r.full)}>${icon('build')}Full · ${money(r.full)}</button></div>
+      </div>` : ''}</section>`;
+  }
+  // The car from above and from the left, each zone coloured by its worst problem (click one: the camera
+  // goes there, the list shows only it)
+  #diagram(r) {
+    const car = this.w.car, bc = car.dimensions.bodyCollider, [hx, hy, hz] = bc.halfExtents, cz = bc.centre[2], top = bc.centre[1] + hy, floor = bc.centre[1] - hy;
+    const colour = z => r.zones[z] ? SEVERITY[r.zones[z]][1] : null, sel = this.ui.dmg.zone;
+    const zone = (z, shape) => `<g class="z ${sel === z ? 'sel' : ''} ${r.zones[z] ? 'hit' : ''}" data-act="dmg-zone:${z}" style="--z:${colour(z) ?? 'var(--c-line-strong)'}"><title>${esc(cap(ZONE_WORDS[z]))}${r.zones[z] ? `: ${SEVERITY[r.zones[z]][0].toLowerCase()}` : ''}</title>${shape}</g>`;
+    const wheel = c => { const s = car.sockets.find(x => x.name === car.model.sockets[c]); return s ? s.position : [c.endsWith('L') ? hx : -hx, 0.3, c.startsWith('F') ? cz + hz * 0.6 : cz - hz * 0.6]; };
+    const k = 40, L = 2 * hz * k, H = (top - floor + 0.08) * k, band = Math.min(0.55, hz * 0.3), engine = car.sockets.find(s => s.slot === 'engine')?.position ?? [0, 0, 1.2];
+    // from above, turned on its side: the front to the right, the car's left at the top
+    const X = z => 14 + (z - (cz - hz)) * k, Y = x => 22 + (hx - x) * k;
+    const rect = (x0, z0, x1, z1, rx = 4) => `<rect x="${Math.min(X(z0), X(z1))}" y="${Math.min(Y(x0), Y(x1))}" width="${Math.abs(X(z1) - X(z0))}" height="${Math.abs(Y(x1) - Y(x0))}" rx="${rx}"/>`;
+    const above = [
+      zone('roof', rect(hx - 0.22, cz + hz - band, -hx + 0.22, cz - hz + band, 6)),
+      zone('front', rect(hx, cz + hz, -hx, cz + hz - band, 12)), zone('rear', rect(hx, cz - hz + band, -hx, cz - hz, 10)),
+      zone('left', rect(hx, cz + hz - band, hx - 0.22, cz - hz + band, 3)), zone('right', rect(-hx + 0.22, cz + hz - band, -hx, cz - hz + band, 3)),
+      zone('engine', rect(0.32, engine[2] + 0.3, -0.32, engine[2] - 0.3, 5)),
+      ...['FL', 'FR', 'RL', 'RR'].map(c => { const p = wheel(c); return zone(c, `<rect x="${X(p[2]) - 13}" y="${Y(p[0]) - 6}" width="26" height="12" rx="4"/>`); }),
+    ].join('');
+    // from the left, below it: the front to the right
+    const oy = 22 + 2 * hx * k + 30, SY = y => oy + (top - y) * k, side = (z0, z1, y0, y1, rx = 4) => `<rect x="${X(Math.min(z0, z1))}" y="${SY(Math.max(y0, y1))}" width="${Math.abs(z1 - z0) * k}" height="${Math.abs(y1 - y0) * k}" rx="${rx}"/>`;
+    const mid = floor + (top - floor) * 0.55;
+    const left = [
+      zone('roof', side(cz - hz * 0.45, cz + hz * 0.35, mid, top, 8)), zone('left', side(cz - hz + band, cz + hz - band, floor + 0.1, mid)),
+      zone('front', side(cz + hz - band, cz + hz, floor + 0.1, mid + 0.05, 8)), zone('rear', side(cz - hz, cz - hz + band, floor + 0.1, mid + 0.05, 8)),
+      zone('underbody', side(cz - hz + 0.2, cz + hz - 0.2, floor - 0.02, floor + 0.1, 3)),
+      ...['FL', 'RL'].map(c => { const p = wheel(c); return zone(c, `<circle cx="${X(p[2])}" cy="${SY(p[1])}" r="${0.3 * k}"/>`); }),
+    ].join('');
+    const w = 28 + L, h = oy + H + 18;
+    return `<div class="g-dmg-diagram well"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Where the car is damaged">
+        <text x="14" y="10">FROM ABOVE · FRONT ▸</text><text x="14" y="${oy - 8}">FROM THE LEFT</text>
+        ${above}${left}</svg>
+      <div class="legend">${Object.entries(SEVERITY).map(([, [n, c]]) => `<span><i style="background:${c}"></i>${n}</span>`).join('')}<span><i style="background:var(--c-line-strong)"></i>Fine</span></div></div>`;
   }
 
   // ---------- tuning ----------
@@ -871,6 +968,7 @@ export class GarageScreen {
         return;
       }
       if (e.key === 'Escape') { e.preventDefault(); this.back(); }
+      else if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('#garage-root [role="button"]')) { e.preventDefault(); e.target.click(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); this.act(e.shiftKey ? 'redo' : 'undo'); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); this.act('redo'); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); this.act('save'); }
@@ -912,6 +1010,7 @@ export class GarageScreen {
       case 'test': return this.actions.testDrive();
       case 'leave': return this.actions.leave();
       case 'dialog-cancel': this.ui.dialog = null; return this.render();
+      case 'hint-close': this.ui.hint = null; return this.render();
       case 'pop': this.ui.pop = this.ui.pop === arg ? null : arg; this.ui.renaming = null; this.ui.confirm = null; return this.render();
       case 'mode': w.mode = arg; this.actions.modeChanged?.(arg); if (this.ui.panel === 'compare' && this.ui.candidate !== 'remove') { const c = this.#cand(this.ui.candidate); this.preview = c ? w.preview(this.ui.socket, c) : null; } return this.render();
       case 'labels': this.ui.labels = arg; return this.render();
@@ -1060,8 +1159,61 @@ export class GarageScreen {
       }
       case 'pf': { const [label, fin] = [rest[0], rest[1]], row = PART_FINISHES.find(r => r.label === label); for (const which of row.which) if (w.garage.fittedIn(which).length && failed(await w.paintPart(which, fin ? { finish: fin } : null))) return; return; }
       case 'dyno-run': return this.runDyno();
+
+      // ---- the damage report ----
+      case 'dmg-focus': {
+        const p = this.#problem(arg);
+        if (!p) return;
+        this.ui.dmg.problem = this.ui.dmg.problem === arg ? null : arg;
+        this.#view(this.ui.dmg.problem ? p.view : this.ui.dmg.zone ? ZONE_VIEW[this.ui.dmg.zone] : 'overview');
+        return this.render();
+      }
+      case 'dmg-zone': {
+        this.ui.dmg.zone = this.ui.dmg.zone === arg ? null : arg; this.ui.dmg.problem = null;
+        this.#view(this.ui.dmg.zone ? ZONE_VIEW[this.ui.dmg.zone] : 'overview');
+        return this.render();
+      }
+      case 'dmg-fix': {
+        const kind = rest[0], p = this.#problem(rest.slice(1).join(':'));
+        if (!p) return;
+        return this.#repairWith(() => w.repairCar({ kind, items: [{ target: p.target, scope: p.scope }] }), r => `${p.title.replace(/ \(.*\)$/, '')}: ${kind === 'quick' && p.quick !== p.full ? 'quick repair' : 'fixed'} · ${this.money(r.cost)}`);
+      }
+      case 'dmg-all': return this.#repairWith(() => w.repairCar({ kind: arg }), r => `${r.repaired} repair${r.repaired === 1 ? '' : 's'} (${arg}) · ${this.money(r.cost)}`);
+      case 'dmg-basic': return this.#repairWith(() => w.basicRepair(), () => 'Patched up, free: it can be driven');
+      case 'dmg-spare': {
+        const p = this.#problem(arg), spare = p?.spares[0];
+        if (!spare || this.changing) return;
+        if (this.ui.confirm !== `spare:${arg}`) return this.#arm(`spare:${arg}`);
+        this.ui.confirm = null; this.changing = true;
+        try {
+          const r = await w.replaceWithSpare(p.socket, spare);
+          if (failed(r)) return;
+          this.render();
+          await this.scene.animateChange(r.ops ?? [], () => this.showCar(), w.car.sockets, w.car.socketGroups, id => w.db.parts[w.profile.parts[id]?.partId]);
+          return this.toast(`Spare fitted · the damaged ${w.db.parts[w.profile.parts[r.replaced]?.partId]?.name ?? 'part'} to the inventory`, 'swap_horiz', 'good');
+        } finally { this.changing = false; this.render(); }
+      }
       case 'overlay': this.ui.dyno.overlay = +arg; return this.render();
     }
+  }
+  // (a problem in the damage report, by its id)
+  #problem(id) { return this.w.problems().problems.find(p => p.id === id) ?? null; }
+  // A repair, shown: the dents ease out and loose parts go back on (the scene), then a toast
+  async #repairWith(ask, said) {
+    if (this.changing) return;
+    const w = this.w, before = w.damage;
+    this.changing = true;
+    this.render();
+    try {
+      const r = await ask();
+      if (!r.ok) { this.toast(this.#words(r.error ?? "That didn't work"), 'error', 'bad'); return; }
+      this.ui.dmg.problem = null;
+      this.sounds.ratchet?.();
+      await this.scene.animateRepair(before, w.damage, { rules: w.db.damage, parts: w.db.parts, sockets: w.car.sockets }).catch(err => console.warn('The repair couldn\'t be shown:', err));
+      await this.showCar();
+      this.sounds.clunk?.();
+      this.toast(said(r), 'build', 'good');
+    } finally { this.changing = false; this.render(); }
   }
   // (a button that asks "are you sure?" by changing: pressed again within a few seconds, it happens)
   #arm(key) {
@@ -1090,6 +1242,7 @@ export class GarageScreen {
     this.scene.clearGhost(); this.scene.setSeeThrough(false);
     if (tab === 'paint') this.#view('side_left');
     else if (WIDE.has(tab) || tab === 'dealer') this.#view('overview');
+    else if (tab === 'damage') { this.ui.dmg = { problem: null, zone: null }; this.#view('overview'); if (this.ui.hint?.when === 'damageTab') this.ui.hint = null; }
     else if (tab === 'dyno') this.#view('overview');
     else if (tab === 'tuning') this.#view('side_left');
     else this.#view(this.ui.area ? this.#areaView(this.ui.area) : 'overview');

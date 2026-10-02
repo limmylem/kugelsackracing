@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hints.schema.json",
+  "title": "First-time hints (data/hints.json)",
+  "type": "object",
+  "required": ["hints"],
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "properties": {
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "when", "where", "title", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_]+$" },
+          "when": { "enum": ["damage", "mechanical", "loose", "undrivable", "replay", "damageTab", "safetyNet"] },
+          "where": { "enum": ["drive", "garage"] },
+          "title": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

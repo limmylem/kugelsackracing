@@ -14,6 +14,9 @@ export function defaultSettings(spec) {
     brakeBias: spec.brakes.bias,
     handbrakeClutch: spec.brakes.handbrake.disengageClutch,
     damage: 'full',
+    session: 'test',            // a test drive or a race (data/sessions.json kinds)
+    collisions: null,           // between cars: full, reduced, off (ghosting); null: the session's own
+    crashReplay: true,          // a slow-motion replay after a big crash (never in a race)
     spoilerAngle: 8,
     altitude: 0,
     effects: 'medium',          // visual effects quality: low / medium / high (data/effects.json)
@@ -67,6 +70,11 @@ export function createSettingsPanel(settings, spec, input, onChange) {
         <h3>Damage</h3>
         <label class="slider">crashes <select data-str="damage">${[['full', 'Full'], ['visual', 'Visual only'], ['off', 'Off']].map(([v, n]) => `<option value="${v}" ${(S.damage ?? 'full') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <small class="pads">Full: dents, broken glass and lights, parts lose condition, and the mechanicals take damage (bent steering and suspension, punctures, a leaking radiator that overheats the engine, a grinding gearbox…; a huge hit can tear a wheel off). Visual only: the dents and breakages, none of the mechanical effects. Off: none (the crash sounds stay).</small>
+        <label class="row"><input type="checkbox" data-bool="crashReplay" ${S.crashReplay !== false ? 'checked' : ''}> <span><b>Crash replay</b><small>A short slow-motion replay after a big crash (any key skips it). Never in a race.</small></span></label>
+        <h3>Session</h3>
+        <label class="slider">kind <select data-str="session">${[['test', 'Test drive'], ['race', 'Race']].map(([v, n]) => `<option value="${v}" ${(S.session ?? 'test') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label class="slider">cars <select data-str="collisions">${[['', 'The session\'s own'], ['full', 'Full damage'], ['reduced', 'Reduced damage from other cars'], ['off', 'No collisions (ghosting)']].map(([v, n]) => `<option value="${v}" ${(S.collisions ?? '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <small class="pads">A test drive: cars hit with full damage, R puts loose parts back on, B repairs everything (development). A race: reduced damage from other cars (public races will be the same), R keeps all the damage (only a wheel torn off goes back on), no free repairs — Backspace twice tows the car to the garage, ending the race.</small>
         <h3>Brakes</h3>
         <label class="slider">front bias <input type="range" min="0.5" max="0.85" step="0.01" data-num="brakeBias" value="${S.brakeBias}"> <output>${Math.round(S.brakeBias * 100)}%</output></label>
         <label class="row"><input type="checkbox" data-bool="handbrakeClutch" ${S.handbrakeClutch ? 'checked' : ''}> <span><b>Clutch in with handbrake</b><small>Keeps the engine revving through handbrake turns</small></span></label>
@@ -106,7 +114,9 @@ export function createSettingsPanel(settings, spec, input, onChange) {
     const t = e.target;
     if (t.dataset.aid) { settings.aids[t.dataset.aid] = t.checked; changed(); }
     if (t.dataset.bool) { settings[t.dataset.bool] = t.checked; changed(); }
-    if (t.dataset.str) { set(t.dataset.str, t.value); changed(); }
+    if (t.dataset.str === 'collisions') { settings.collisions = t.value || null; changed(); }
+    else if (t.dataset.str === 'session') { settings.session = t.value; settings.collisions = null; changed(); }
+    else if (t.dataset.str) { set(t.dataset.str, t.value); changed(); }
   });
   el.addEventListener('click', e => {
     const t = e.target.closest('button');

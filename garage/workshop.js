@@ -385,14 +385,8 @@ export class Workshop {
   repairBody() { return this.service.repairBody(this.carInstanceId); }
   #worn() { return this.sockets().filter(s => s.instance && this.needsRepair(s.instance.instanceId)).map(s => s.instance.instanceId); }
   get repairAllCost() { return this.#worn().reduce((a, id) => a + repairCost(this.db, this.profile.parts[id]), 0) + this.body.cost; }
-  // every part on the car and its body (two changes: the parts, then the body)
-  async repairAll() {
-    const ids = this.#worn(), body = this.body.cost;
-    let cost = 0, repaired = 0;
-    if (ids.length) { const r = await this.service.repairParts(ids); if (!r.ok) return r; cost += r.cost; repaired += r.repaired; }
-    if (body) { const r = await this.service.repairBody(this.carInstanceId); if (!r.ok) return { ...r, cost, repaired }; cost += r.cost; repaired++; }
-    return { ok: true, error: null, cost, repaired };
-  }
+  // every part on the car and its body, in full (one change)
+  repairAll() { return this.service.repairCar(this.carInstanceId, { kind: 'full' }); }
 
   // ---- cars ----
   cars() {

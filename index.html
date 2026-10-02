@@ -1819,14 +1819,16 @@ function drawWorldButtons() {
 }
 // The garage is a world too: you go in with the car as it is, and leave back to where you were; a
 // test drive from it goes to the test centre, with a button back
-let cameFrom = 'real', testDriving = false;
+let cameFrom = 'real', testDriving = false, garageTab = null;
 async function switchWorld(id, nested = false) {
   if (id === currentWorld || (switching && !nested)) return;
   switching = true;
   try {
     const test = await import('./testtrack/test-scene.js');
-    // the tuning panel's tests run in the test centre: let them switch world through here
+    // the tuning panel's tests run in the test centre: let them switch world through here; a tow goes to
+    // the garage, open on the damage report
     test.hooks.switchTo = file => { const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true); };
+    test.hooks.toGarage = () => { garageTab = 'damage'; return switchWorld('garage'); };
     const target = worldList.find(w => w.id === id);
     if (currentWorld === 'garage') {
       (await import('./garage/garage.js')).exit();
@@ -1842,7 +1844,10 @@ async function switchWorld(id, nested = false) {
       document.body.classList.add('test-mode', 'garage-mode');
       currentWorld = id;
       drawWorldButtons();
+      const tab = garageTab;
+      garageTab = null;
       await (await import('./garage/garage.js')).enter({
+        tab,
         leave: () => switchWorld(cameFrom && cameFrom !== 'garage' ? cameFrom : 'real'),
         testDrive: () => { switchWorld(worldList.find(w => w.file === 'scenes/test_centre.json')?.id ?? 'tests').then(() => { testDriving = true; $('backToGarage').hidden = false; }); },
       });

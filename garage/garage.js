@@ -58,7 +58,8 @@ async function create() {
   return { session, renderer, root, scene, screen, sounds, models, rig, last: 0 };
 }
 
-// Into the garage with the player's current car (hooks: { leave(), testDrive() } — how the page switches)
+// Into the garage with the player's current car (hooks: { leave(), testDrive() } — how the page switches;
+// tab: a tab to open on, e.g. 'damage' when the car's been towed in)
 export async function enter(h = {}) {
   hooks = h;
   if (!g) g = await create();
@@ -88,7 +89,13 @@ export async function enter(h = {}) {
   await screen.showCar();
   screen.loading = false;
   scene.focus(screen.ui.view);
+  // (towed in: open on the damage report)
+  if (h.tab) screen.setTab(h.tab);
   screen.render();
+  // the first time the car comes in damaged: what the damage report is for (and, short of money, the
+  // free repair) — once ever (garage/hints.js)
+  if (workshop.problems().problems.length) screen.hint('damageTab');
+  if (workshop.safetyNet.offered) screen.hint('safetyNet');
   // what loading the save changed (a part that's gone from the game, refunded; an old save brought up to date)
   if (!noticesShown && session.notices.length) { noticesShown = true; screen.notice('Your save was brought up to date', session.notices); }
 }

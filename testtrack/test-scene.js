@@ -34,6 +34,17 @@
 // — for every car, yours and the AI's. Lit by the time of day (settings: night has headlights, and
 // sparks glow), at the quality in the settings (low / medium / high); . opens the effects panel (each
 // effect on demand, and what they cost); garage.pileup(8, 60) throws AI cars into each other.
+//
+// Sessions (physics/race.js, data/sessions.json; the settings, O): a test drive or a race. Cars hit each
+// other fully, for reduced damage, or not at all (ghosting); their hits damage both cars (an AI car keeps
+// its own damage, garage/carDamage.js). R (back on the road) keeps the damage — in a race even a part
+// torn off stays off (only a wheel goes back on, bent and flat); B (the development reset, everything
+// repaired) only in a test drive; Backspace twice tows the car to the garage, ending the session, the
+// garage open on the damage report. After a big crash a short slow-motion replay from a cinematic angle
+// (any key skips it; on in the settings, never in a race), from the last seconds of every car's state
+// (physics/replay.js). Denting the meshes is spread over frames (garage/dents.js DentBudget: at most
+// settings.budget.dentsMs a frame). The first time something happens — the first damage, a part hanging
+// off, a car that can't carry on — a short hint says what to do (garage/hints.js).
 
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -63,6 +74,13 @@ import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
 import { lightAt } from '../effects/lighting.js';
 import { createEffectsPanel } from './effectsPanel.js';
+import { createSession } from '../physics/race.js';
+import { ReplayPlayer, ReplayRecorder } from '../physics/replay.js';
+import { CarDamage } from '../garage/carDamage.js';
+import { DentBudget } from '../garage/dents.js';
+import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
+import { drivability, ownedBySocket } from '../garage/repair.js';
+import { createHintCard } from './hintCard.js';
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -79,7 +97,8 @@ const worlds = new Map();
 // (debug.frame(ms) draws one frame by hand, e.g. in a background tab where the browser pauses animation)
 export const debug = { get active() { return active; }, get shared() { return shared; }, frame: now => active && frame(active, now), runTests: (ids, o) => runTests(ids, o) };
 // The page can let the tests switch worlds its own way (so its world buttons follow): switchTo(file)
-export const hooks = { switchTo: null };
+// toGarage(): tow the car to the garage (the page goes there, open on the damage report)
+export const hooks = { switchTo: null, toGarage: null };
 
 export async function enter(file) {
   if (!shared) shared = await createShared();
@@ -154,7 +173,7 @@ async function createShared() {
 
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   const prefs = loadSettings(spec), input = new InputManager(prefs);
-  const panel = createSettingsPanel(prefs, spec, input, () => {});
+  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) shared.play = sessionFrom(prefs, session.db); });
   document.body.appendChild(panel.el);
   // Telemetry: your driving, and the last automated test
   const telemetry = new Telemetry({ seconds: 600, stepHz: settings.stepHz }), testTelemetry = new Telemetry({ seconds: 300, stepHz: settings.stepHz });
@@ -168,13 +187,19 @@ async function createShared() {
   // (the car's test targets, and how hard the test robot drives it: tests/targets/<carId>.json)
   const targets = await getJson(`tests/targets/${session.garage.car.id}.json`).catch(() => ({}));
   tuning.setTests({ results, targets });
+  // the session (a test drive or a race: the settings), the dent budget, the hints
+  const hintCard = createHintCard();
+  document.body.appendChild(hintCard.el);
+  const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
     hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
     damageView: false, lastCrash: null,
+    play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
     models: new ModelCache(), visuals: new Set(), copies: [],
     audio: null, muted: false, gearMode: spec.gearbox.mode, compact: false, telemetry, testTelemetry, graphs, tuning, targets, results, tests: null,
     carId: session.garage.car.id, switching: null,
   };
+  s.play = sessionFrom(prefs, session.db);
   // parts fitted or taken off (garage console, K): every car re-derives, and that's the new saved setup
   session.onChange(() => {
     // (another car: picked in the garage, or a test drive — every world swaps to it)
@@ -216,6 +241,7 @@ async function createShared() {
   const startAudio = () => { if (!s.audio && !s.noAudio && active) try { s.audio = createAudio(spec); s.audioSound = spec.engine?.sound; s.audio.mute(s.muted); } catch { s.noAudio = true; } };
   addEventListener('keydown', e => {
     if (!active) return;
+    if (s.replay) { e.preventDefault(); s.replay.player.skip(); return; }      // (any key skips a crash replay)
     startAudio();
     if (e.code === 'Enter') s.dyno.rerun();
     if (e.code === 'Escape' && panel.open) panel.hide();
@@ -357,6 +383,8 @@ async function buildWorld(file) {
   return {
     file, name: track.name, track, sim, scene, camera, sun, hemi, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
+    aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
+    recorder: new ReplayRecorder(shared.session.db.sessions.replay),
   };
 }
 
@@ -373,6 +401,8 @@ function frame(w, now) {
 
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
+  // a crash replay playing (or due): it's what's drawn, and the world waits
+  if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) return; }
   for (const act of inp.pressed) handleAction(w, act, inp);
   const paused = shared.panel.open;                          // the settings panel pauses the car
   // player settings → the car
@@ -382,6 +412,8 @@ function frame(w, now) {
   if (v.brakes.bias !== P.brakeBias) v.brakes.setBias(P.brakeBias);
   v.handbrakeClutch = P.handbrakeClutch;
   shared.lastInput = inp;
+  // the session's collisions between cars (ghosting: none)
+  if (w.sim.collisions !== shared.play.collisions) w.sim.setCollisions(shared.play.collisions);
   // An automated test running here is what's drawn (your car waits); otherwise your car drives, each
   // physics step with the input from its own moment
   const T = shared.tests?.world === w ? shared.tests : null;
@@ -392,8 +424,9 @@ function frame(w, now) {
     view = w.sim.advance(paused ? 0 : seconds, input);
     shared.gearMode = v.drivetrain.mode;
     effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
+    if (view.stepsThisFrame) w.recorder.record(w.sim.time, view.current);
     engineEvents(w, v);
-    crashEvents(w, v);
+    crashEvents(w, v, now);
     partsEvents(w, v);
     mechanicalEvents(w, v, paused ? 0 : seconds);
   }
@@ -430,8 +463,79 @@ function frame(w, now) {
   shared.hudTimer -= seconds;
   if (shared.hudTimer <= 0) { shared.hudTimer = 0.1; updateHud(w, b, stepsThisFrame, sim); updateDash(b); }
   shared.graphs.update(now);
+  shared.dents.flush();                                     // (denting, at most its budget a frame)
+  shared.hintCard.update(seconds);
   w.fxDraw.render(w.scene, w.camera);
   shared.fxPanel.update(w, seconds);
+}
+
+// ---------- Sessions (physics/race.js), the crash replay (physics/replay.js), hints (garage/hints.js) ----------
+
+// The session the settings ask for: its kind, and the collisions and replay chosen (the kind's own if none)
+function sessionFrom(prefs, db) {
+  const kind = db.sessions.kinds[prefs.session] ? prefs.session : 'test';
+  return createSession(db.sessions, kind, { ...(prefs.collisions && { collisions: prefs.collisions }), replay: db.sessions.kinds[kind].replay && prefs.crashReplay !== false });
+}
+// A hint for something that happened on the road (once ever: the save keeps it)
+function hint(when) {
+  const h = shared.hints.note(when, 'drive');
+  if (h) shared.hintCard.show(h.title, h.text);
+}
+// One frame of the crash replay (or its start, once its wait is up): the cars and torn-off pieces where
+// the recording has them, in slow motion, from the replay's camera; your car's dents as they were before
+// the crash until it happens. Any key, or a button, skips it. Returns whether it drew the frame
+function replayFrame(w, now, seconds, inp) {
+  const s = shared, due = s.replayDue;
+  if (!s.replay) {
+    s.replayDue = null;
+    const frames = w.recorder.window(due.time, s.session.db.sessions.replay.before, s.session.db.sessions.replay.after);
+    if (frames.length < 4) return false;
+    s.replay = { player: new ReplayPlayer(frames, { speed: s.session.db.sessions.replay.speed, at: due.time, focus: due.focus }), before: due.before, crashed: false, world: w };
+    w.carVis.setDamage(due.before, s.session.db.damage);
+    hint('replay');
+  }
+  const R = s.replay;
+  if (R.world !== w || inp.pressed.length) R.player.skip();
+  const { a, b, alpha, done } = R.player.step(seconds);
+  if (!R.crashed && R.player.afterCrash) { R.crashed = true; w.carVis.setDamage(s.session.damage, s.session.db.damage); }
+  if (done) {
+    s.replay = null;
+    w.carVis.setDamage(s.session.damage, s.session.db.damage);
+    w.rig.reset();
+    s.last = now;
+    return false;
+  }
+  // the cars where the recording has them
+  const byId = f => new Map(f.cars.map(c => [c.id, c]));
+  const A = byId(a), B = byId(b);
+  placeCar(w.carVis, A.get(0), B.get(0), alpha);
+  updateCarDetails(w.carVis, A.get(0), B.get(0), alpha);
+  for (const [id, vis] of w.others) { const ca = A.get(id), cb = B.get(id); if (ca && cb) placeCar(vis, ca, cb, alpha); }
+  drawParts(w, { ...B.get(0), debris: b.debris });
+  const cam = R.player.camera();
+  w.camera.position.fromArray(cam.position);
+  w.camera.lookAt(new THREE.Vector3(...cam.target));
+  if (w.camera.fov !== 42) { w.camera.fov = 42; w.camera.updateProjectionMatrix(); }
+  s.dents.flush();
+  s.hintCard.update(seconds);
+  s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
+  daylight(w, s.prefs.timeOfDay ?? 13);
+  w.fxDraw.render(w.scene, w.camera);
+  return true;
+}
+// Backspace twice: the car towed to the garage — the session over (a race back to a test drive), the
+// garage open on the damage report
+function tow(w) {
+  const s = shared, ok = s.play.allows('tow');
+  if (!ok.ok) { s.flash.show('No tow', 'warn', 1.5, ok.why); return; }
+  if (performance.now() - s.towArmed > 2500) { s.towArmed = performance.now(); s.flash.show('Tow to the garage?', 'warn', 2.2, 'Backspace again: ends the session, the car to the garage for repairs'); return; }
+  s.towArmed = 0;
+  if (s.play.race) { s.prefs.session = 'test'; delete s.prefs.collisions; saveSettings(s.prefs); s.play = sessionFrom(s.prefs, s.session.db); }
+  for (const c of [...w.sim.cars]) w.sim.removeCar(c.id);
+  resetCar(w, true);
+  w.rig.reset();
+  s.flash.show('Towed to the garage', 'ok', 1.5, 'the damage report is open');
+  if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page: the car is back at the start');
 }
 
 // ---------- Effects (effects/director.js, effects/threeRenderer.js) ----------
@@ -626,17 +730,33 @@ function updateDebug(w, s) {
 
 // ---------- Crashes (physics/impacts.js, garage/damage.js) ----------
 
-// What the car hit this frame (your car only): the damage (session.crash writes it to the car, and the
-// drawing follows through onLook), the sound, the camera's jolt, and a marker in the damage view
-function crashEvents(w, v) {
-  const s = shared, impacts = v.sensor.take();
-  // (the AI cars' own hits: not your damage, but their sparks, bits and dust)
-  for (const c of w.sim.cars) for (const impact of c.vehicle.sensor.take()) w.fx.play(w.fx.impactEvent(c.id, impact, null, groundUnder(c.vehicle)));
+// What the cars hit this frame: your car's damage (session.crash writes it to the car, and the drawing
+// follows through onLook), the sound, the camera's jolt, and a marker in the damage view; an AI car's
+// its own (garage/carDamage.js) — a hit between two cars damages both, by the session's collisions — and
+// a big one of yours is replayed. now: the frame's time (ms)
+function crashEvents(w, v, now) {
+  const s = shared, impacts = v.sensor.take(), mode = s.prefs.damage ?? 'full', rules = s.session.db.damage;
+  // (the AI cars' own hits: their damage, their sparks, bits and dust)
+  for (const c of w.sim.cars) for (const impact of c.vehicle.sensor.take()) {
+    const cd = w.aiDamage.get(c.id), scale = s.play.scale(impact), r = cd && mode !== 'off' && scale > 0 ? cd.hit(impact, { scale }).result : null;
+    if (r && (r.dents.length || r.broken.length)) w.others.get(c.id)?.setDamage(cd.view3d, rules);
+    w.fx.play(w.fx.impactEvent(c.id, impact, r, groundUnder(c.vehicle)));
+  }
   if (!impacts.length) return;
-  const rules = s.session.db.damage, C = rules.classes;
+  const C = rules.classes;
   for (const impact of impacts) {
-    const brokenBefore = new Set(s.session.damage.shell?.broken ?? []);
-    const { result, saved } = s.session.crash(impact, { mode: s.prefs.damage ?? 'full', boxes: s.damageBoxes });
+    const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
+    const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: s.play.scale(impact) });
+    // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
+    const R = s.session.db.sessions.replay;
+    if (s.play.replay && !s.tests && !s.replay && !s.replayDue && result.strength >= R.threshold && now - (s.lastReplay ?? -Infinity) > R.cooldown * 1000) {
+      const p = v.body.translation();
+      s.replayDue = { at: now + R.wait * 1000, time: w.sim.time, focus: [p.x, p.y, p.z], before };
+      s.lastReplay = now;
+    }
+    // the first damage, a part hanging off, something bent: a hint, once ever
+    for (const e of hintEvents(result, mode)) hint(e);
+    saved.then(() => { if (!drivability(s.session.garage.car, ownedBySocket(s.session.db, s.session.player.profile, s.session.player.profile.currentCar), rules).ok) hint('undrivable'); });
     const [lo, hi] = result.class === 'tap' ? [C.tap, C.crunch] : result.class === 'crunch' ? [C.crunch, C.crash] : [C.crash, C.crash * 2.2];
     s.audio?.crash.impact(result.class, impact.material, (result.strength - lo) / (hi - lo));
     for (const b of result.broken) if (!brokenBefore.has(b)) { if (/glass/.test(b)) s.audio?.crash.glass(); else s.audio?.crash.light(); }
@@ -876,7 +996,8 @@ function updateHud(w, s, steps, sim) {
         <span class="lamp${s.assists ? ' on' : ''}">AIDS ${s.assists ? 'ON' : 'OFF'}</span> <span class="lamp${s.absActive ? ' lit' : ''}">ABS</span> <span class="lamp${s.tcActive ? ' lit' : ''}">TC</span> <span class="lamp${s.escActive ? ' lit' : ''}" title="${s.escMode || ''}">ESC</span></div>
       ${s.lap ? `<div class="timer stage">${w.track.roads.find(r => r.startLine)?.style === 'gravel' ? 'Stage' : 'Lap'} <b>${s.lap.running ? clock(s.lap.t) : '–'}</b>${s.lap.running ? ` <span class="timing">${Math.round(s.lap.progress * 100)}%</span>` : ''} · best <b>${s.lap.best != null ? clock(s.lap.best) : '–'}</b></div>` : ''}
       ${s.aero.slipstream > 0.05 || s.aero.parts.length ? `<div class="engine">${s.aero.parts.length ? 'spoiler on · ' : ''}${s.aero.slipstream > 0.05 ? `<b>slipstream ${Math.round(s.aero.slipstream * 100)}%</b>` : ''}</div>` : ''}
-      <div class="keys"><kbd>H</kbd> full HUD · <kbd>R</kbd> back on the road · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>O</kbd> settings · <kbd>P</kbd> tuning · <kbd>L</kbd> telemetry · <kbd>T</kbd> next world</div>`;
+      <div class="engine">${shared.play.name}${shared.play.collisions !== 'full' ? ` · cars: ${shared.play.collisions === 'off' ? 'ghosting' : 'reduced damage'}` : ''}</div>
+      <div class="keys"><kbd>H</kbd> full HUD · <kbd>R</kbd> back on the road · <kbd>⌫</kbd><kbd>⌫</kbd> tow to the garage · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>O</kbd> settings · <kbd>P</kbd> tuning · <kbd>L</kbd> telemetry · <kbd>T</kbd> next world</div>`;
     return;
   }
   const pf = sim.perf, B = pf.budget, perFrame = pf.stepMs * shared.settings.stepHz / 60, room = B ? Math.floor(B.frameMs / (shared.settings.stepHz / 60) / Math.max(pf.perCarMs, 1e-3)) : null;
@@ -898,6 +1019,7 @@ function updateHud(w, s, steps, sim) {
       · yaw <b>${signed(deg(s.yawRate), 0)}</b>°/s (expected ${signed(deg(s.yawExpected), 0)})</div>
     <div class="sub">aero: front <b>${liftText(s.aero.frontLift)}</b> · rear <b>${liftText(s.aero.rearLift)}</b> · drag <b>${s.aero.drag.toFixed(0)}</b> N · ${s.aero.mixed ? (s.aero.frontLift > 0 ? 'front lifts, rear pressed down' : 'front pressed down, rear lifts') : `balance ${Math.round(s.aero.balance * 100)}% front`}
       · air <b>${s.aero.density.toFixed(3)}</b> kg/m³ at ${Math.round(s.aero.altitude)} m · slipstream <b>${Math.round(s.aero.slipstream * 100)}%</b> · spoiler ${s.aero.parts.find(p => p.slot === 'spoiler') ? `on, ${s.aero.parts.find(p => p.slot === 'spoiler').angle}°` : 'off'}</div>
+    <div class="sub">session <b>${shared.play.describe()}</b>${shared.play.replay ? ' · crash replays on' : ''}${shared.dents.pending ? ` · denting ${shared.dents.pending} mesh${shared.dents.pending > 1 ? 'es' : ''}` : ''}</div>
     ${crashLine()}
     ${garageLine()}
     <div class="sub">physics ${shared.settings.stepHz} Hz, ${steps} step${steps === 1 ? '' : 's'} this frame · ${Math.round(shared.fps)} fps ·
@@ -906,7 +1028,7 @@ function updateHud(w, s, steps, sim) {
     <table><tr><th>wheel</th><th>susp</th><th>load</th><th>slip ratio</th><th>slip angle</th><th colspan="2">grip used</th><th>brake bar</th><th>disc</th><th></th></tr>${rows}</table>
     <div class="keys"><kbd>W</kbd><kbd>S</kbd> throttle / brake-reverse (hold <kbd>Shift</kbd> for half) · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Space</kbd> handbrake ·
     <kbd>Z</kbd> gearbox ${shared.gearMode === 'auto' ? 'auto' : 'manual'} · <kbd>V</kbd> 2H / 4H / 4L · <kbd>[</kbd><kbd>]</kbd><kbd>\\</kbd> diff locks · <kbd>;</kbd> roof · <kbd>Q</kbd><kbd>E</kbd> shift down / up · <kbd>F</kbd> clutch ·
-    <kbd>R</kbd> back on the road (<kbd>Shift</kbd>: to the start) · <kbd>B</kbd> reset car (development: repaired) · <kbd>U</kbd> damage view ${shared.damageView ? 'on' : 'off'} · <kbd>I</kbd> damage report · <kbd>G</kbd> debug lines ${shared.debug ? 'on' : 'off'} · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>P</kbd> tuning &amp; tests · <kbd>L</kbd> telemetry · <kbd>M</kbd> sound ${shared.muted ? 'off' : 'on'} · <kbd>X</kbd> all aids ${s.assists ? 'on' : 'off'} · <kbd>O</kbd> settings &amp; controls · <kbd>K</kbd> spoiler · <kbd>N</kbd> sockets · <kbd>J</kbd> AI car ahead · <kbd>Y</kbd> dyno · <kbd>H</kbd> small HUD · <kbd>T</kbd> next world · gamepads and wheels work too</div>
+    <kbd>R</kbd> back on the road (<kbd>Shift</kbd>: to the start) · ${shared.play.restore ? '<kbd>B</kbd> reset car (development: repaired) · ' : ''}<kbd>⌫</kbd><kbd>⌫</kbd> tow to the garage · <kbd>U</kbd> damage view ${shared.damageView ? 'on' : 'off'} · <kbd>I</kbd> damage report · <kbd>G</kbd> debug lines ${shared.debug ? 'on' : 'off'} · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>P</kbd> tuning &amp; tests · <kbd>L</kbd> telemetry · <kbd>M</kbd> sound ${shared.muted ? 'off' : 'on'} · <kbd>X</kbd> all aids ${s.assists ? 'on' : 'off'} · <kbd>O</kbd> settings &amp; controls · <kbd>K</kbd> spoiler · <kbd>N</kbd> sockets · <kbd>J</kbd> AI car ahead · <kbd>Y</kbd> dyno · <kbd>H</kbd> small HUD · <kbd>T</kbd> next world · gamepads and wheels work too</div>
     ${shared.debug ? '<div class="legend"><span style="color:#f93">drag</span> <span style="color:#f55">lift</span> <span style="color:#59f">downforce</span> <span style="color:#b6f">spoiler</span> · <span style="color:#3f5">ray (grounded)</span> <span style="color:#f43">ray (in air)</span> <span style="color:#f91">spring</span> <span style="color:#ddd">wheel heading</span> tyre force: <span style="color:#4f6">grip</span> <span style="color:#fd3">near limit</span> <span style="color:#f44">sliding</span></div>' : ''}`;
 }
 
@@ -1107,9 +1229,11 @@ function coneMesh(p) {
 const clock = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
 
 // R: put the car back on the nearest bit of road, facing the way it was going (worlds with roads);
-// Shift+R (or no roads): everything back to the start
+// Shift+R (or no roads): everything back to the start. The damage stays: what comes back on is the
+// session's rule (a test drive: every part that came loose or off, as it is; a race: only a wheel torn off)
 function resetCar(w, toStart) {
-  shared.session.attach.reattachAll('reset');        // (parts shaken loose or torn off: back on, as they are)
+  shared.session.attach.reattachAll('reset', { kind: shared.play.kind });
+  w.sim.vehicle.parts.clear();                       // (what's still loose hangs again from where the car is now)
   if (toStart || !w.roadLines.length) { w.sim.reset(); return; }
   const p = w.sim.vehicle.body.translation(), q = w.sim.vehicle.body.rotation();
   const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
@@ -1189,8 +1313,12 @@ function handleAction(w, act, inp) {
   if (act === 'aiCar') toggleAiCar(w);
   if (act === 'damageView') setDamageView(!s.damageView);
   if (act === 'damageReport') { s.report.toggle(); updateDash(v.snapshot()); }
+  if (act === 'tow') tow(w);
   if (act === 'restore') {
-    // development: every part back to 100% (a blown engine runs again), and back on the road
+    // development: every part back to 100% (a blown engine runs again), and back on the road — a test
+    // drive's reset; a race keeps its damage (tow to the garage)
+    const ok = s.play.allows('restore');
+    if (!ok.ok) { s.flash.show('No free repairs', 'warn', 2, ok.why); return; }
     s.session.restoreCar().then(r => {
       if (!r.ok) { console.warn(`Couldn't restore the car: ${r.errors.join(' ')}`); return; }
       v.drivetrain.health.sync();
@@ -1225,7 +1353,9 @@ async function carVisual({ paint } = {}) {
   const vis = await createCarVisual({ car: session.garage.car, finishes: session.db.finishes, models: s.models, paint: paint ?? session.paint });
   await vis.applyBuild(session.garage.build, session.garage.view);
   vis.fixedPaint = !!paint;
-  // (your car shows its crash damage; the finer meshes for dents are worked out in the background)
+  // (your car shows its crash damage; the finer meshes for dents are worked out in the background; the
+  // denting waits its turn in the frame's budget)
+  vis.dentBudget = s.dents;
   if (!paint) { vis.setDamage(session.damage, session.db.damage); vis.warmDents(); }
   vis.wheelVis = Object.fromEntries(Object.entries(s.rig.wheels).map(([k, r]) => [k, { pivot: vis.wheels[k], rig: r }]));
   let taillamp = null, glass = null;
@@ -1348,10 +1478,7 @@ async function pileup(w, n = 8, kmh = 60) {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2, x = centre[0] + Math.sin(a) * 30, z = centre[1] + Math.cos(a) * 30;
     const id = sim.addCar({ position: [x, w.heightAt(x, z), z], headingDeg: (a * 180 / Math.PI + 180) % 360, speed: kmh / 3.6 }, straightLine({ speed: kmh / 3.6 }));
-    sim.cars.find(c => c.id === id).vehicle.mechanical.enabled = false;
-    const vis = await carVisual({ paint: AI_PAINT });
-    w.scene.add(vis.group);
-    w.others.set(id, vis);
+    await aiCarVisual(w, id);
   }
   return `${n} cars driving into each other at ${kmh} km/h, 45 m ahead`;
 }
@@ -1379,17 +1506,24 @@ async function toggleAiCar(w) {
     driver = straightLine();
   }
   const id = sim.addCar(at, driver);
-  sim.cars.find(c => c.id === id).vehicle.mechanical.enabled = false;     // (it drives on your car's spec, but not its damage)
-  const vis = await carVisual({ paint: AI_PAINT });   // a red one (its own paint)
+  await aiCarVisual(w, id);
+}
+// An AI car's look (a red one: its own paint) and its own crash damage — it drives on your car's spec,
+// not its mechanical damage; a crash dents it as the same model as yours, by the same rules
+async function aiCarVisual(w, id) {
+  const sn = shared.session, c = w.sim.cars.find(x => x.id === id);
+  c.vehicle.mechanical.enabled = false;
+  const vis = await carVisual({ paint: AI_PAINT });
   w.scene.add(vis.group);
   w.others.set(id, vis);
+  w.aiDamage.set(id, new CarDamage({ car: sn.garage.car, build: sn.garage.build, view: sn.garage.view, boxes: shared.damageBoxes, rules: sn.db.damage, mode: shared.prefs.damage === 'off' ? 'off' : 'visual' }));
 }
 
 function updateOtherCars(w, a, b, alpha) {
   const byId = new Map((a.others || []).map(o => [o.id, o]));
   for (const [id, vis] of w.others) {
     const ob = b.others?.find(o => o.id === id);
-    if (!ob) { dropCar(vis); w.others.delete(id); continue; }
+    if (!ob) { dropCar(vis); w.others.delete(id); w.aiDamage.delete(id); continue; }
     const oa = byId.get(id) || ob;
     placeCar(vis, oa, ob, alpha);
     updateCarDetails(vis, oa, ob, alpha);

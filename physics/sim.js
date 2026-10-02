@@ -23,6 +23,7 @@ import { ImpactSensor } from './impacts.js';
 import { DebrisPool, LooseParts } from './looseParts.js';
 import { RunTimer } from './runTimer.js';
 import { add, fromXYZ, quatMultiply, rotate, toXYZ } from './math.js';
+import { collisionGroups } from './carCollisions.js';
 
 const now = () => performance.now();
 
@@ -60,7 +61,9 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   // (torn-off parts lying about, every car's; physics/looseParts.js)
   const debrisRules = settings.debris ?? { max: 30, maxDistance: 200, maxAge: 60, ignoreCarFor: 0.5, minMass: 3, linearDamping: 0.05, angularDamping: 0.6, hingeFriction: 0.4, plate: 1.1, clatterFrom: 1.2, clatterEvery: 0.08 };
   const debris = new DebrisPool(RAPIER, world, debrisRules);
-  const setupCar = v => { v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; return v; };
+  // (cars hitting cars: physics/carCollisions.js — 'off' is ghosting, every car passing through the others)
+  let collisions = 'full';
+  const setupCar = v => { v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; v.collider.setCollisionGroups(collisionGroups(collisions)); return v; };
   let vehicle = setupCar(new Vehicle(RAPIER, world, spec, sockets, spawn));
   vehicle.id = 0;                                        // (yours: 0; others' are their ids)
   // Other cars (AI test cars now; traffic / multiplayer later): { id, vehicle, driver(vehicle, dt) → input }
@@ -170,6 +173,10 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     },
     // The car spec was edited (tuning): every car on it works out its derived numbers again
     retune() { for (const v of [vehicle, ...cars.map(c => c.vehicle)]) v.retune(); },
+    // Whether cars hit each other: 'full' and 'reduced' (the damage is the game's business), or 'off'
+    // (ghosting: they pass through each other — every car, and every car added after)
+    get collisions() { return collisions; },
+    setCollisions(mode) { collisions = mode; for (const v of [vehicle, ...cars.map(c => c.vehicle)]) v.collider.setCollisionGroups(collisionGroups(mode)); },
     propDefs,
     // Advance by real elapsed time. Returns the two states to blend and the blend factor.
     // input: an input object for every step this frame, or a function (start, end) → input for each

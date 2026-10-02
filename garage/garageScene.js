@@ -8,6 +8,9 @@
 //  - a part being looked at can be shown as a see-through ghost on its socket(s)
 //  - fitting and taking off parts is animated: the old part slides out along its socket's pull
 //    direction and off towards the inventory, the new one slides in and settles (with sounds)
+//  - the car's crash damage: its dents, broken glass and lights, a part hanging loose where it would
+//    settle and one torn off not there; a repair is animated — the dents ease back out, a loose part
+//    swings back into place and a torn-off one slides back into its socket (animateRepair)
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -209,6 +212,7 @@ export class GarageScene {
     if (paint && (this.vis.paint.colour !== paint.colour || this.vis.paint.finish !== paint.finish)) this.vis.setPaint(paint);
     if (damage && rules) this.vis.setDamage(damage, rules);        // (its dents and broken glass, until they're repaired)
     this.#restHinges();
+    this.vis.showAttach(damage?.attach ?? {}, view?.parts ?? {});   // (loose parts hanging, torn-off ones gone)
   }
   setSpec(spec) { if (spec) this.spec = spec; }
   previewPaint(paint) { if (this.vis && paint) this.vis.setPaint(paint); }
@@ -501,6 +505,36 @@ export class GarageScene {
       for (const it of items) { if (it.temp) disposeStandIn(it.obj); else { it.obj.position.copy(it.rest.position); it.obj.scale.copy(it.rest.scale); } }
       this.sounds?.clunk();
     });
+  }
+
+  // A repair, shown: from the damage before (as setCar takes it: { shell, parts, attach }) to after — the
+  // dents easing out, loose parts swinging back into place, torn-off ones sliding back into their sockets.
+  // parts: the part definitions; sockets: the car's
+  async animateRepair(before, after, { rules, parts = {}, sockets = [], seconds = 0.9 } = {}) {
+    if (!this.vis) return;
+    this.busy++;
+    try {
+      this.clearGhost();
+      const vis = this.vis, blend = vis.blendDamage(before, after, rules), was = before?.attach ?? {}, now = after?.attach ?? {};
+      const back = Object.keys(was).filter(s => (now[s] ?? 'attached') === 'attached');
+      const swing = back.filter(s => was[s] === 'loose' && vis.partState(s) === 'loose'), slide = back.filter(s => was[s] === 'detached');
+      if (blend.meshes || swing.length) {
+        this.sounds?.whoosh(false, 0.25);
+        await animate(seconds, t => {
+          const e = ease(t);
+          blend.set(e);
+          for (const s of swing) vis.setPartPose(s, vis.restingPose(s, parts, 1 - e));
+        });
+      }
+      blend.done();
+      for (const s of swing) vis.reattachPart(s);
+      if (slide.length) {
+        vis.showAttach(Object.fromEntries(Object.entries(now).filter(([s]) => !slide.includes(s))), parts);
+        for (const s of slide) { const o = vis.partObject(s); if (o) o.visible = false; }
+        await this.#slideIn(slide.map(socket => ({ socket, part: vis.attached.get(socket)?.part ?? null })), sockets);
+      }
+      vis.showAttach(now, parts);
+    } finally { this.busy--; }
   }
 
   dispose() { this.clearGhost(); this.vis?.dispose(); this.env.dispose(); }

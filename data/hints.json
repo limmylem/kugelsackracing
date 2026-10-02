@@ -1,0 +1,12 @@
+{
+  "_note": "First-time hints (garage/hints.js): each shown once, the first time what it's about happens (when), where the player is (drive: on the road; garage), and never again (the player's save keeps the ones seen). when — damage: the car's damaged; mechanical: something bent, leaking or worn by a crash; loose: a part hanging loose or torn off; undrivable: it can't carry on racing; replay: a crash replay is playing; damageTab: the garage with a damaged car; safetyNet: the free basic repair is offered.",
+  "hints": [
+    { "id": "firstDamage", "when": "damage", "where": "drive", "title": "Your car is damaged", "text": "Visit the garage to repair it: its Damage tab lists every problem." },
+    { "id": "firstMechanical", "when": "mechanical", "where": "drive", "title": "Something's bent or leaking", "text": "The dashboard lamps show what's wrong, and I opens the damage report. The garage puts it right." },
+    { "id": "firstLoose", "when": "loose", "where": "drive", "title": "A part's hanging off", "text": "It drags, and can fall off. The garage bolts it back on — a part torn off comes back with the car." },
+    { "id": "firstUndrivable", "when": "undrivable", "where": "drive", "title": "The car can't carry on", "text": "Tow it to the garage (Backspace, twice) for repairs." },
+    { "id": "firstReplay", "when": "replay", "where": "drive", "title": "Crash replay", "text": "Any key skips it. Switch replays off in the settings (O)." },
+    { "id": "damageTab", "when": "damageTab", "where": "garage", "title": "Damage report", "text": "Every problem and what it does. Click one to see it on the car. A quick repair is cheaper and leaves it at about 80%; a full one makes it as new." },
+    { "id": "safetyNet", "when": "safetyNet", "where": "garage", "title": "Short of money?", "text": "The workshop will patch your car up just enough to drive, for free: Damage tab." }
+  ]
+}

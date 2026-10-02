@@ -135,6 +135,9 @@ test('the dents land in the same place with the bonnet open (the garage lifts it
   open.forEach((a, k) => { let d = 0; for (let i = 0; i < a.length; i++) d = Math.max(d, Math.abs(a[i] - shut[k][i])); assert.ok(d < 1e-6, `${d}`); });
 });
 
+// (this process's time on the processor, ms: the other test files running alongside don't count)
+const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
+
 test('a hundred and fifty crashes: dent lists stay short, each crash stays cheap, nothing goes deeper than the most', async () => {
   const { vis, g } = await carOf(cache());
   let state = { shell: null, parts: {} }, rnd = 7;
@@ -148,9 +151,9 @@ test('a hundred and fifty crashes: dent lists stay short, each crash stays cheap
     state = applyDamage(state, impactDamage(hit, L, rules), rules, g.build.sockets);
     const parts = {};
     for (const [socket, id] of Object.entries(g.build.sockets)) if (id && state.parts[id]?.dents?.length) parts[socket] = state.parts[id].dents;
-    const t0 = performance.now();
+    const t0 = cpuMs();
     vis.setDamage({ shell: state.shell, parts }, rules);
-    times.push(performance.now() - t0);
+    times.push(cpuMs() - t0);
   }
   for (const p of Object.values(state.parts)) assert.ok(p.dents.length <= rules.dent.maxPerPart);
   assert.ok(state.shell.dents.length <= rules.dent.maxPerPart);

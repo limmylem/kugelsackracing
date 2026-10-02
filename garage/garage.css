@@ -389,3 +389,32 @@
 .g-dealer-swatches .swatch.on { border-color: var(--c-text); box-shadow: 0 0 0 2px var(--c-bg, #111) inset; }
 .badge.class-D { background: #6b7078; color: #fff; } .badge.class-C { background: #3dae6a; color: #fff; } .badge.class-B { background: #2f6fd6; color: #fff; }
 .badge.class-A { background: #6c4bb4; color: #fff; } .badge.class-S { background: #c8202b; color: #fff; } .badge.class-X { background: #1f2226; color: #e8c21c; }
+
+/* the damage report: the car from above and the side, coloured by zone; the problems; the free repair */
+.g-damage .panel-head { align-items: center; }
+.g-dmg-diagram { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; flex: none; }
+.g-dmg-diagram svg { width: 100%; height: auto; max-height: 260px; display: block; }
+.g-dmg-diagram svg text { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.12em; fill: var(--c-text-3); }
+.g-dmg-diagram svg .nose { stroke: var(--c-text-3); stroke-width: 2; }
+.g-dmg-diagram .z { cursor: pointer; }
+.g-dmg-diagram .z rect, .g-dmg-diagram .z circle { fill: color-mix(in srgb, var(--z) 16%, #0B0E11); stroke: color-mix(in srgb, var(--z) 70%, transparent); stroke-width: 1.5; transition: fill 0.15s; }
+.g-dmg-diagram .z.hit rect, .g-dmg-diagram .z.hit circle { fill: color-mix(in srgb, var(--z) 42%, #0B0E11); stroke: var(--z); }
+.g-dmg-diagram .z:hover rect, .g-dmg-diagram .z:hover circle { fill: color-mix(in srgb, var(--z) 60%, #0B0E11); }
+.g-dmg-diagram .z.sel rect, .g-dmg-diagram .z.sel circle { stroke: var(--c-accent); stroke-width: 2.5; }
+.g-dmg-diagram .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--c-text-2); }
+.g-dmg-diagram .legend span { display: flex; align-items: center; gap: 6px; }
+.g-dmg-diagram .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.g-dmg-list { display: flex; flex-direction: column; gap: 6px; }
+.g-dmg-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-card); background: var(--c-card); border: 1px solid var(--c-line-soft); cursor: pointer; }
+.g-dmg-row:hover { background: var(--c-raised); }
+.g-dmg-row.on { border-color: var(--c-accent); background: var(--c-accent-tint-12); }
+.g-dmg-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.g-dmg-row .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.g-dmg-row .t { font-size: 15px; font-weight: 600; }
+.g-dmg-row .e { font-size: 13px; color: var(--c-text-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.g-dmg-row .acts { display: flex; flex-direction: column; align-items: stretch; gap: 4px; flex: none; }
+.g-dmg-row .acts .btn { height: 28px; padding: 0 10px; font-size: 13px !important; white-space: nowrap; }
+.g-dmg-net { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--c-good) 40%, transparent); }
+.g-dmg-net b { font-size: 15px; }
+.g-hintcard { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); width: 560px; max-width: calc(100% - 48px); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; flex-direction: row !important; border-left: 3px solid var(--c-accent); }
+.g-hintcard b { font-size: 15px; }

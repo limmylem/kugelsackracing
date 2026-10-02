@@ -24,7 +24,7 @@
           "replay": { "type": "boolean" },
           "restore": { "type": "boolean", "description": "The development reset (everything repaired, free) is allowed" },
           "reset": { "enum": ["all", "wheels"], "description": "What going back on the road puts back on" },
-          "tow": { "type": "boolean", "description": "Towing to the garage ends the session" }
+          "tow": { "type": "boolean", "description": "The car can be towed to the garage (it ends the session)" }
         }
       }
     },

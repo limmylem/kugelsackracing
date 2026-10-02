@@ -27,10 +27,12 @@
 </head>
 <body>
 <script type="module">
-  import { enter, debug } from './testtrack/test-scene.js';
+  import { enter, debug, hooks } from './testtrack/test-scene.js';
   const q = new URLSearchParams(location.search);
   if (q.get('hud') === '0') document.body.classList.add('nohud');
   window.testWorld = debug;
+  // (a tow: to the development garage, open on the damage report)
+  hooks.toGarage = () => { location.href = 'dev/garage.html?tab=damage'; };
   await enter(`scenes/${q.get('world') ?? 'test_centre'}.json`);
 </script>
 </body>
