@@ -9,7 +9,7 @@
 //     ctx: { car, build, view (the garage's view: parts, owned), boxes (physics/sockets.js nodeBoxes:
 //     the body shell, its glass and lights), rules (data/damage.json), attach ({ socket: { state,
 //     stress } }), mech ({ instanceId: damage block }), damage ({ shell, parts: { instanceId: { condition,
-//     dents } } }) }
+//     dents } } }), layouts (a Map to keep the layouts in between hits, if the build won't change) }
 //     result: impactDamage's (what was hit, the dents, losses, stress, broken) · changes: parts that came
 //     loose or off ([{ socket, from, to, stress, reason }], wheels too) · states: the attach states after ·
 //     mech: impactMechanical's ({ damage: { id: block } changed, effects, wheelOff }) · next: the body
@@ -27,7 +27,14 @@ const torn = attach => Object.fromEntries(Object.entries(attach ?? {}).filter(([
 
 export function crashOutcome(ctx, impact, { mode = 'full', detach = true } = {}) {
   const { car, build, view, boxes = {}, rules } = ctx, attach = ctx.attach ?? {}, off = torn(attach);
-  const result = impactDamage(impact, damageLayout({ car, build: { ...build, attach: off }, db: view, boxes }, rules), rules, { mode });
+  // (where everything is: the same till a part comes off — ctx.layouts, a Map, keeps them between hits)
+  const key = Object.keys(off).sort().join(','), layout = (kind, make) => {
+    if (!ctx.layouts) return make();
+    const k = `${kind}|${key}`;
+    if (!ctx.layouts.has(k)) ctx.layouts.set(k, make());
+    return ctx.layouts.get(k);
+  };
+  const result = impactDamage(impact, layout('damage', () => damageLayout({ car, build: { ...build, attach: off }, db: view, boxes }, rules)), rules, { mode });
   // parts shaken loose or torn off: only those still on the car count, and only those that can come off
   const bySocket = {};
   for (const [socket, id] of Object.entries(build.sockets)) if (id && attach[socket]?.state !== 'detached') bySocket[socket] = view.parts[view.owned[id]?.partId];
@@ -41,7 +48,7 @@ export function crashOutcome(ctx, impact, { mode = 'full', detach = true } = {})
   const none = { damage: {}, effects: [], wheelOff: [], hits: [] };
   let mech = none;
   if (mode === 'full' && rules.mechanical) {
-    const L = mechanicalLayout({ car, build: { ...build, attach: off }, db: view });
+    const L = layout('mechanical', () => mechanicalLayout({ car, build: { ...build, attach: off }, db: view }));
     const wheelAt = Object.fromEntries(CORNERS.map(k => [k, car.sockets.find(s => s.name === car.model.sockets[k])?.position]).filter(([, p]) => p));
     mech = impactMechanical(ctx.mech ?? {}, { ...impact, depth: result.depth }, L, rules.mechanical, { mode, wheelAt });
     if (detach) for (const k of mech.wheelOff) {
@@ -66,6 +73,7 @@ export function crashOutcome(ctx, impact, { mode = 'full', detach = true } = {})
 export class CarDamage {
   constructor({ car, build, view, boxes, rules, mode = 'full' }) {
     Object.assign(this, { car, build, view, boxes, rules, mode });
+    this.layouts = new Map();          // (the car's layouts, by what's torn off: its build never changes)
     this.reset();
   }
   // as new
@@ -79,12 +87,13 @@ export class CarDamage {
   // an impact (scale: a share of it, e.g. reduced damage from other cars) → crashOutcome's, applied
   hit(impact, { scale = 1, detach = true } = {}) {
     const hit = scale === 1 ? impact : { ...impact, strength: impact.strength * scale, closing: impact.closing * scale };
-    const out = crashOutcome({ car: this.car, build: this.build, view: this.view, boxes: this.boxes, rules: this.rules, attach: this.attach, mech: this.mech, damage: this.damage }, hit, { mode: this.mode, detach });
+    const out = crashOutcome({ car: this.car, build: this.build, view: this.view, boxes: this.boxes, rules: this.rules, attach: this.attach, mech: this.mech, damage: this.damage, layouts: this.layouts }, hit, { mode: this.mode, detach });
     this.attach = out.states;
     Object.assign(this.mech, clone(out.mech.damage));
     this.damage = out.next;
     for (const [id, p] of Object.entries(out.next.parts)) this.conditions[id] = p.condition;
     this.log.push(out);
+    if (this.log.length > 16) this.log.shift();          // (the last few: an AI car crashes all race)
     return out;
   }
   // what to draw (garage/visual.js setDamage): { shell, parts: { socket: dents } }

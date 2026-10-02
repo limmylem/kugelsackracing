@@ -736,12 +736,15 @@ function updateDebug(w, s) {
 // a big one of yours is replayed. now: the frame's time (ms)
 function crashEvents(w, v, now) {
   const s = shared, impacts = v.sensor.take(), mode = s.prefs.damage ?? 'full', rules = s.session.db.damage;
-  // (the AI cars' own hits: their damage, their sparks, bits and dust)
+  // (the AI cars' own hits: their damage, their sparks, bits and dust — each car's drawing given its
+  // dents once a frame, however many hits)
+  const looks = new Set();
   for (const c of w.sim.cars) for (const impact of c.vehicle.sensor.take()) {
     const cd = w.aiDamage.get(c.id), scale = s.play.scale(impact), r = cd && mode !== 'off' && scale > 0 ? cd.hit(impact, { scale }).result : null;
-    if (r && (r.dents.length || r.broken.length)) w.others.get(c.id)?.setDamage(cd.view3d, rules);
+    if (r && (r.dents.length || r.broken.length)) looks.add(c.id);
     w.fx.play(w.fx.impactEvent(c.id, impact, r, groundUnder(c.vehicle)));
   }
+  for (const id of looks) w.others.get(id)?.setDamage(w.aiDamage.get(id).view3d, rules);
   if (!impacts.length) return;
   const C = rules.classes;
   for (const impact of impacts) {

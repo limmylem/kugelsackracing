@@ -3,9 +3,12 @@
   "stepHz": 120,
   "maxStepsPerFrame": 8,
   "budget": {
-    "_note": "Physics time allowed per drawn frame (ms) and per car per physics step (ms). The debug HUD shows the cost against these, and the test suite fails if a car costs more than carStepMs, so there's room for many cars (traffic, multiplayer).",
+    "_note": "Physics time allowed per drawn frame (ms) and per car per physics step (ms). The debug HUD shows the cost against these, and the test suite fails if a car costs more than carStepMs, so there's room for many cars (traffic, multiplayer). Crashes (npm run stress): denting the meshes takes at most dentsMs a frame (garage/dents.js DentBudget: the rest waits for the next frames), no single mesh more than dentMeshMs; in a ten-car pile-up on medium effects 95% of frames do their work (physics, damage, denting, effects) within crashFrameMs, the rest of the 16.7 ms being the drawing's.",
     "frameMs": 4,
-    "carStepMs": 0.25
+    "carStepMs": 0.25,
+    "dentsMs": 2,
+    "dentMeshMs": 6,
+    "crashFrameMs": 12
   },
   "impacts": {
     "_note": "Crashes (physics/impacts.js): the car body touching anything counts as an impact from minSpeed m/s into it (groundMinSpeed for what's under the car: a hard landing, not the floor pan brushing the road), measured over window s from the first touch; while it stays in contact, a sudden push of more than spike m/s is a new impact (at most every cooldown s). Sliding along something faster than scrapeSpeed m/s, pressed on with more than scrapeForce N, is a scrape.",

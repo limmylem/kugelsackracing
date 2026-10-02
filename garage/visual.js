@@ -645,9 +645,10 @@ export class CarVisual {
     if (!m) this.own.set(key, m = make());
     return m;
   }
-  // (this car's own materials nothing uses any more)
+  // (this car's own materials nothing uses any more — nor keeps to go back to: a window's whole glass
+  // under its cracked one, a part's look under the condition colours, a loose part's one-sided material)
   #sweep() {
-    const used = new Set(), note = o => { if (o.isMesh) for (const m of [o.material].flat()) used.add(m); };
+    const used = new Set(), note = o => { if (o.isMesh) for (const m of [o.material, o.userData.whole, o.userData.look, o.userData.oneSided].flat()) if (m) used.add(m); };
     this.root.traverse(note);
     for (const x of this.offCar.values()) x.object.traverse(note);
     for (const [key, m] of this.own) if (!used.has(m)) { m.dispose(); this.own.delete(key); }

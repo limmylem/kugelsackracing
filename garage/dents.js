@@ -4,13 +4,14 @@
 // copy of that the first time it's dented (makeDentable), and a repair puts the shared model back
 // (clearDents). A dent pushes the vertices near its point in along its direction, deepest at the point,
 // fading smoothly to nothing at its radius; however many dents, no vertex moves more than maxDepth.
-// The normals are worked out again so the light shows the dent (faces that were flat and sharp-edged
-// stay so where they aren't dented).
+// The normals round a dent are worked out again so the light shows it (everywhere else the model's own
+// stay: faces that were flat and sharp-edged stay so).
 //
 // Dents are given in the mesh's own space: { p: Vector3, d: Vector3 (unit), depth, radius }. The same
 // list always gives the same shape: adding a dent to a list adds to what's there, a different list is
 // worked out again from the undented copy. Only the vertices near a dent are looked at (the copy's
-// vertices sorted along x: a dent visits those within its radius of it there).
+// vertices sorted along x: a dent visits those within its radius of it there), and only they and the
+// normals round them are written: a dent's cost is its size, not the mesh's.
 //
 // Cost: denting is the one heavy thing a crash does to the drawing. A DentBudget spreads it over frames
 // — setDamage hands it the meshes to dent (the newest list for each wins) and flush() each frame dents as
@@ -102,49 +103,98 @@ export function tessellate(source, maxEdge = MAX_EDGE) {
 // The shared finer copy of a model's geometry
 export function finerOf(geometry) {
   let f = finer.get(geometry);
-  if (!f) { finer.set(geometry, f = tessellate(geometry)); f.userData.finerOf = f; }
+  if (!f) { finer.set(geometry, f = tessellate(geometry)); f.userData.finerOf = f; prepare(f); }
   return f;
 }
 
-// This car's own copy of the mesh's geometry, ready to dent (once)
+// This car's own copy of the mesh's geometry, ready to dent (once). Its undented positions are the
+// shared finer copy's (never changed); raw: each vertex's push, before the most it may move; moved: the
+// vertices pushed (flag: 1 each)
 export function makeDentable(mesh) {
   const u = mesh.userData;
   if (u.dent) return u.dent;
-  const shared = mesh.geometry, own = finerOf(shared).clone();
+  const shared = mesh.geometry, f = finerOf(shared), S = prepare(f), own = f.clone(), n = S.count;
   mesh.geometry = own;
-  u.dent = { shared, own, base: Float32Array.from(own.attributes.position.array), raw: new Float32Array(own.attributes.position.array.length), keys: [], ...sortedX(own) };
+  u.dent = { shared, own, finer: f, base: f.attributes.position.array, raw: new Float32Array(n * 3), flag: new Uint8Array(n), moved: [], keys: [], maxDepth: null, S, order: S.order, xs: S.xs };
   return u.dent;
 }
-// (the vertices sorted along x, shared by every car on the model: a dent looks only at those near it)
-const byX = new WeakMap();
-function sortedX(g) {
-  const key = g.userData?.finerOf ?? g;
-  let s = byX.get(key);
-  if (!s) {
-    const a = g.attributes.position.array, n = a.length / 3, order = Uint32Array.from({ length: n }, (_, i) => i).sort((i, j) => a[i * 3] - a[j * 3]);
-    s = { order, xs: Float32Array.from(order, i => a[i * 3]) };
-    byX.set(key, s);
-  }
-  return s;
+// (what denting any copy of a finer mesh needs, worked out once and shared by every car on the model:
+// its vertices sorted along x — a dent looks only at those near it — and each vertex's triangles, so new
+// normals are worked out only round what a dent moved; mark/stamp: a scratch list of vertices seen)
+const prepared = new WeakMap();
+export function prepare(f) {
+  let S = prepared.get(f);
+  if (S) return S;
+  if (!f.attributes.normal) f.computeVertexNormals();
+  const a = f.attributes.position.array, n = a.length / 3, idx = f.index.array;
+  const order = Uint32Array.from({ length: n }, (_, i) => i).sort((i, j) => a[i * 3] - a[j * 3]);
+  const start = new Uint32Array(n + 1), tris = new Uint32Array(idx.length);
+  for (let k = 0; k < idx.length; k++) start[idx[k] + 1]++;
+  for (let v = 0; v < n; v++) start[v + 1] += start[v];
+  const fill = start.slice(0, n);
+  for (let k = 0; k < idx.length; k++) tris[fill[idx[k]]++] = (k / 3) | 0;
+  S = { count: n, order, xs: Float32Array.from(order, i => a[i * 3]), start, tris, mark: new Uint32Array(n), stamp: 0 };
+  prepared.set(f, S);
+  return S;
 }
 const lowerBound = (xs, x) => { let lo = 0, hi = xs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (xs[m] < x) lo = m + 1; else hi = m; } return lo; };
-// Every vertex's push from a list of dents, added into raw (the copy's base positions B)
-function pushIn(D, dents, raw) {
-  const B = D.base, { order, xs } = D;
+// Every vertex's push from a list of dents, added into raw (the copy's base positions B); each vertex it
+// reaches put on `into` once (stamp: this round's mark)
+function pushIn(D, dents, raw, into = [], stamp = ++D.S.stamp) {
+  const B = D.base, { order, xs, mark } = D.S;
   for (const { p, d, depth, radius } of dents) {
     const r2 = radius * radius, to = xs.length;
     for (let k = lowerBound(xs, p.x - radius); k < to && xs[k] <= p.x + radius; k++) {
-      const i = order[k] * 3, dx = B[i] - p.x, dy = B[i + 1] - p.y, dz = B[i + 2] - p.z, q = dx * dx + dy * dy + dz * dz;
+      const v = order[k], i = v * 3, dx = B[i] - p.x, dy = B[i + 1] - p.y, dz = B[i + 2] - p.z, q = dx * dx + dy * dy + dz * dz;
       if (q >= r2) continue;
       const f = (1 - q / r2) ** 2 * depth;
       raw[i] += d.x * f; raw[i + 1] += d.y * f; raw[i + 2] += d.z * f;
+      if (mark[v] !== stamp) { mark[v] = stamp; into.push(v); }
     }
   }
+  return into;
 }
-// (no vertex more than maxDepth from where it was)
-function clampPush(raw, maxDepth) {
-  for (let i = 0; i < raw.length; i += 3) {
-    const l = Math.hypot(raw[i], raw[i + 1], raw[i + 2]);
+// The normals round some vertices: of every vertex on a triangle with one of them, worked out from its
+// triangles (area-weighted, as three.js's computeVertexNormals) where any of those is dented, the
+// model's own where none is
+function normalsNear(D, verts) {
+  const { start, tris, mark } = D.S, stamp = ++D.S.stamp, idx = D.finer.index.array, flag = D.flag, around = [];
+  const P = D.own.attributes.position.array, N = D.own.attributes.normal.array, N0 = D.finer.attributes.normal.array;
+  for (const v of verts) for (let k = start[v]; k < start[v + 1]; k++) {
+    const t = tris[k] * 3;
+    for (let j = 0; j < 3; j++) { const w = idx[t + j]; if (mark[w] !== stamp) { mark[w] = stamp; around.push(w); } }
+  }
+  for (const w of around) {
+    let x = 0, y = 0, z = 0, dented = false;
+    for (let k = start[w]; k < start[w + 1]; k++) {
+      const t = tris[k] * 3, A = idx[t], Bv = idx[t + 1], C = idx[t + 2];
+      dented ||= !!(flag[A] | flag[Bv] | flag[C]);
+      const a = A * 3, b = Bv * 3, c = C * 3;
+      const cx = P[c] - P[b], cy = P[c + 1] - P[b + 1], cz = P[c + 2] - P[b + 2], ax = P[a] - P[b], ay = P[a + 1] - P[b + 1], az = P[a + 2] - P[b + 2];
+      x += cy * az - cz * ay; y += cz * ax - cx * az; z += cx * ay - cy * ax;
+    }
+    const i = w * 3;
+    if (!dented) { N[i] = N0[i]; N[i + 1] = N0[i + 1]; N[i + 2] = N0[i + 2]; continue; }
+    const l = Math.hypot(x, y, z) || 1;
+    N[i] = x / l; N[i + 1] = y / l; N[i + 2] = z / l;
+  }
+  D.own.attributes.normal.needsUpdate = true;
+  return around.length;
+}
+// (the copy's bounds: the model's, grown by the most a dent can move a vertex — set once, not per dent)
+function bounds(D, maxDepth) {
+  if (D.boundsFor === maxDepth) return;
+  D.boundsFor = maxDepth;
+  if (!D.finer.boundingBox) D.finer.computeBoundingBox();
+  if (!D.finer.boundingSphere) D.finer.computeBoundingSphere();
+  D.own.boundingBox = D.finer.boundingBox.clone().expandByScalar(maxDepth);
+  D.own.boundingSphere = D.finer.boundingSphere.clone();
+  D.own.boundingSphere.radius += maxDepth;
+}
+// (no vertex more than maxDepth from where it was: those in verts)
+function clampPush(raw, maxDepth, verts) {
+  for (const v of verts) {
+    const i = v * 3, l = Math.hypot(raw[i], raw[i + 1], raw[i + 2]);
     if (l > maxDepth) { const k = maxDepth / l; raw[i] *= k; raw[i + 1] *= k; raw[i + 2] *= k; }
   }
   return raw;
@@ -162,43 +212,59 @@ export function clearDents(mesh) {
 const keyOf = x => `${x.p.x.toFixed(4)},${x.p.y.toFixed(4)},${x.p.z.toFixed(4)},${x.d.x.toFixed(3)},${x.d.y.toFixed(3)},${x.d.z.toFixed(3)},${x.depth.toFixed(4)},${x.radius.toFixed(4)}`;
 
 // Dent a mesh: dents (its own space) as they should be now; maxDepth: the most any vertex moves (its
-// own units). Returns how many vertices moved.
+// own units). Returns how many vertices moved. Only what changes is worked out: dents added to the list
+// last time push just the vertices near them; a different list takes back the old pushes first (only
+// the vertices those moved). The positions, then the normals round them, are written where they moved.
 export function setDents(mesh, dents, maxDepth) {
   if (!dents.length) { clearDents(mesh); return 0; }
-  const D = makeDentable(mesh), keys = dents.map(keyOf);
-  const same = D.keys.length <= keys.length && D.keys.every((k, i) => k === keys[i]);
-  if (!same) { D.raw.fill(0); D.keys = []; }
-  const B = D.base, raw = D.raw;
-  pushIn(D, dents.slice(D.keys.length), raw);
-  D.keys = keys;
+  const D = makeDentable(mesh), keys = dents.map(keyOf), raw = D.raw, flag = D.flag, stamp = ++D.S.stamp;
+  const same = D.maxDepth === maxDepth && D.keys.length <= keys.length && D.keys.every((k, i) => k === keys[i]);
+  let touched = [];
+  if (!same) {
+    // (the old pushes taken back: those vertices are worked out again)
+    for (const v of D.moved) { raw[v * 3] = raw[v * 3 + 1] = raw[v * 3 + 2] = 0; flag[v] = 0; D.S.mark[v] = stamp; touched.push(v); }
+    D.moved = [];
+  }
+  touched = pushIn(D, same ? dents.slice(D.keys.length) : dents, raw, touched, stamp);
+  D.keys = keys; D.maxDepth = maxDepth;
   // (never more than maxDepth from where it was)
-  const pos = D.own.attributes.position, a = pos.array;
-  let moved = 0;
-  for (let i = 0; i < B.length; i += 3) {
+  const B = D.base, pos = D.own.attributes.position, a = pos.array;
+  for (const v of touched) {
+    const i = v * 3;
     let x = raw[i], y = raw[i + 1], z = raw[i + 2];
     const l = Math.hypot(x, y, z);
-    if (l > 1e-7) { moved++; if (l > maxDepth) { const k = maxDepth / l; x *= k; y *= k; z *= k; } }
+    if (l > maxDepth) { const k = maxDepth / l; x *= k; y *= k; z *= k; }
     a[i] = B[i] + x; a[i + 1] = B[i + 1] + y; a[i + 2] = B[i + 2] + z;
+    if (l > 0 && !flag[v]) { flag[v] = 1; D.moved.push(v); }
   }
   pos.needsUpdate = true;
-  D.own.computeVertexNormals();
-  D.own.computeBoundingSphere(); D.own.computeBoundingBox();
+  normalsNear(D, touched);
+  bounds(D, maxDepth);
+  let moved = 0;
+  for (const v of D.moved) if (Math.hypot(raw[v * 3], raw[v * 3 + 1], raw[v * 3 + 2]) > 1e-7) moved++;
   return moved;
 }
 
 // A mesh between two dent lists (its own space, as setDents): a repair easing the dents out. Returns
-// { set(t) (0: from, 1: to), done() (the mesh as `to` has it) }, or null if neither has any
+// { set(t) (0: from, 1: to), done() (the mesh as `to` has it) }, or null if neither has any. Only the
+// vertices either list moves (and what the mesh had) are worked on
 export function blendDents(mesh, from, to, maxDepth) {
   if (!from.length && !to.length) return null;
-  const D = makeDentable(mesh), n = D.base.length, push = list => { const r = new Float32Array(n); pushIn(D, list, r); return clampPush(r, maxDepth); };
-  const a = push(from), b = push(to);
+  const D = makeDentable(mesh), n = D.base.length, stamp = ++D.S.stamp, a = new Float32Array(n), b = new Float32Array(n);
+  const verts = [];
+  for (const v of D.moved) { D.S.mark[v] = stamp; verts.push(v); }
+  pushIn(D, from, a, verts, stamp); pushIn(D, to, b, verts, stamp);
+  clampPush(a, maxDepth, verts); clampPush(b, maxDepth, verts);
+  // (every vertex here counts as moved: the next setDents takes them all back and works them out afresh)
+  for (const v of verts) if (!D.flag[v]) { D.flag[v] = 1; D.moved.push(v); }
+  D.keys = ['(blending)'];
   const pos = D.own.attributes.position, arr = pos.array, B = D.base;
-  D.keys = [];                 // (the next setDents works it out afresh)
+  bounds(D, maxDepth);
   return {
     set(t) {
-      for (let i = 0; i < n; i++) arr[i] = B[i] + a[i] + (b[i] - a[i]) * t;
+      for (const v of verts) for (let i = v * 3; i < v * 3 + 3; i++) arr[i] = B[i] + a[i] + (b[i] - a[i]) * t;
       pos.needsUpdate = true;
-      D.own.computeVertexNormals();
+      normalsNear(D, verts);
     },
     done() { setDents(mesh, to, maxDepth); },
   };

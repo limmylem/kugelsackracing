@@ -47,3 +47,26 @@ export async function crashContext() {
   };
   return { RAPIER: H.RAPIER, settings: H.settings, track: H.track, db: H.db, socketsOf: H.socketsOf, boxesOf, garage: carId => H.garage(null, carId), targets: load('tests/targets/crash.json') };
 }
+
+// A model as three.js objects from its real meshes, for garage/visual.js's ModelCache in Node (which
+// can't decode the textures, and doesn't need to): the dent tests and the stress tests draw real cars
+export async function loadRealModel(url) {
+  const THREE = await import('three'), { readModel } = await import('../tools/content/io.mjs');
+  const doc = await readModel(path.join(root, url)), scene = new THREE.Group(), made = new Map();
+  const node = n => {
+    if (made.has(n)) return made.get(n);
+    const o = new THREE.Group();
+    o.name = n.getName(); o.position.fromArray(n.getTranslation()); o.quaternion.fromArray(n.getRotation()); o.scale.fromArray(n.getScale());
+    for (const p of n.getMesh()?.listPrimitives() ?? []) {
+      const g = new THREE.BufferGeometry();
+      for (const [sem, name, size] of [['POSITION', 'position', 3], ['NORMAL', 'normal', 3], ['TEXCOORD_0', 'uv', 2]]) { const a = p.getAttribute(sem); if (a) g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(a.getArray()), size)); }
+      if (p.getIndices()) g.setIndex(new THREE.BufferAttribute(new Uint32Array(p.getIndices().getArray()), 1));
+      o.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ name: p.getMaterial()?.getName() ?? '' })));
+    }
+    for (const c of n.listChildren()) o.add(node(c));
+    made.set(n, o);
+    return o;
+  };
+  for (const n of doc.getRoot().getDefaultScene()?.listChildren() ?? doc.getRoot().listScenes()[0].listChildren()) scene.add(node(n));
+  return { scene };
+}

@@ -19,6 +19,7 @@ import { buildOf, garageStateOf, packProfile, repairCost } from '../../garage/pl
 import { carWork, drivability, ownedBySocket, partWork, workCost } from '../../garage/repair.js';
 import { LOG, appendHits, dentsOf, packCrash, packDents, sizeOf, unpackCrash, unpackDents } from '../../garage/damageLog.js';
 import { addDent } from '../../garage/damage.js';
+import { ZONES, ZONE_VIEW, carProblems } from '../../garage/damageReport.js';
 
 const H = await harness(), ctx = await crashContext(), db = H.db, rules = db.damage, E = db.economy, car = db.cars.starter_car, boxes = ctx.boxesOf(car);
 const idle = { device: 'wheel', throttle: 0, brake: 0, steer: 0, handbrake: false };
@@ -79,6 +80,40 @@ test('every problem priced from the config: a repair is cheaper than the part ne
   // (a part's repairs never cost more than maxOfNew of a new one, however bad)
   const wreck = { instanceId: 'x', partId: 'stock_suspension', condition: 0, damage: { FL: { toe: 4, camber: 5 }, FR: { toe: -4, camber: 5 }, RL: { camber: 5 }, RR: { camber: 5 } } };
   assert.ok(workCost(partWork(db, wreck)) <= db.parts.stock_suspension.price * E.repair.maxOfNew + 4);
+});
+
+test('the damage report explains every problem in plain words — what it does, where it is (the camera\'s view of it), how bad, what fixing it costs', async () => {
+  const { service, carId } = await fresh();
+  await crash(service, carId, impactsOf(100, 'front', 30));
+  await service.givePart('stock_bumper_front', 1);
+  const r = carProblems(db, service.profile, carId), ids = r.problems.map(p => p.id), w = carWork(db, service.profile, carId);
+  assert.ok(r.problems.length >= 10, `${r.problems.length} problems`);
+  assert.equal(new Set(ids).size, ids.length);
+  const RANK = { minor: 1, major: 2, critical: 3 };
+  for (const p of r.problems) {
+    assert.ok(p.title && p.effect && !/undefined|NaN|null/.test(p.title + p.effect), `${p.title}: ${p.effect}`);
+    assert.ok(ZONES.includes(p.zone) && p.view === ZONE_VIEW[p.zone], `${p.title} at ${p.zone}`);
+    assert.ok(RANK[p.severity] && p.quick <= p.full && p.full > 0, p.title);
+    assert.ok(RANK[r.zones[p.zone]] >= RANK[p.severity], 'a zone shows its worst');
+  }
+  for (let i = 1; i < r.problems.length; i++) assert.ok(RANK[r.problems[i - 1].severity] >= RANK[r.problems[i].severity], 'the worst first');
+  const say = re => r.problems.find(p => re.test(`${p.title}: ${p.effect}`));
+  assert.ok(say(/^Front-right steering bent: the car pulls (left|right)/), 'steering');
+  assert.ok(say(/^Radiator leaking: the engine will overheat/), 'radiator');
+  assert.ok(say(/^Front bumper torn off/), 'bumper');
+  assert.ok(say(/(Bonnet|wing) (loose|hanging loose)/), 'something hanging');
+  assert.ok(say(/headlight smashed: no light there at night/i), 'a light');
+  assert.ok(say(/^Front-right tyre punctured/), 'a tyre');
+  // the bumper's spare in the inventory is offered; the total is what repairing all of it costs
+  assert.ok(r.problems.filter(p => p.socket === 'socket_bumper_front').some(p => p.spares.length === 1));
+  assert.equal(r.quick, w.quick);
+  assert.equal(r.full, w.full);
+  // fixed: nothing left
+  await service.addMoney(20000);
+  assert.ok((await service.repairCar(carId, { kind: 'full' })).ok);
+  const after = carProblems(db, service.profile, carId);
+  assert.equal(after.problems.length, 0);
+  assert.ok(after.drivable.ok);
 });
 
 test('a quick repair: cheaper, about 80%, most dents out, leaks sealed; a full repair: as new, every dent out', async () => {

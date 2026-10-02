@@ -2,17 +2,18 @@
 // the finer meshes keep every edge short and neighbouring faces joined; a crash dents this car's own
 // copy of its meshes (another car on the same models is untouched), never deeper than the most, and the
 // same wherever a door or the bonnet is; broken lights look broken; a repair puts the shared models
-// back; and a hundred and fifty crashes stay cheap.
+// back; denting only what changed comes out exactly as denting afresh (a repair's blend too), the
+// normals changing only round the dents; the dent budget takes a mesh at a time; and a hundred and
+// fifty crashes stay cheap.
 // npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import * as THREE from 'three';
-import { harness, root } from '../harness.mjs';
-import { readModel } from '../../tools/content/io.mjs';
+import { harness, loadRealModel, root } from '../harness.mjs';
 import { ModelCache, createCarVisual } from '../../garage/visual.js';
-import { MAX_EDGE, tessellate } from '../../garage/dents.js';
+import { DentBudget, MAX_EDGE, blendDents, finerOf, setDents, tessellate } from '../../garage/dents.js';
 import { applyDamage, damageLayout, impactDamage } from '../../garage/damage.js';
 import { nodeBoxes } from '../../physics/sockets.js';
 
@@ -20,28 +21,7 @@ const H = await harness(), rules = H.db.damage, car = H.db.cars.starter_car;
 const glb = (() => { const b = fs.readFileSync(path.join(root, car.model.file)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); })();
 const boxes = nodeBoxes(glb, car.model, [...car.model.breakables.map(b => b.node), 'body_shell']);
 
-// A model as three.js objects from its real meshes (Node can't decode its textures, and doesn't need to)
-async function loadReal(url) {
-  const doc = await readModel(path.join(root, url)), scene = new THREE.Group(), made = new Map();
-  const node = n => {
-    if (made.has(n)) return made.get(n);
-    const o = new THREE.Group();
-    o.name = n.getName(); o.position.fromArray(n.getTranslation()); o.quaternion.fromArray(n.getRotation()); o.scale.fromArray(n.getScale());
-    for (const p of n.getMesh()?.listPrimitives() ?? []) {
-      const g = new THREE.BufferGeometry();
-      for (const [sem, name, size] of [['POSITION', 'position', 3], ['NORMAL', 'normal', 3], ['TEXCOORD_0', 'uv', 2]]) { const a = p.getAttribute(sem); if (a) g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(a.getArray()), size)); }
-      if (p.getIndices()) g.setIndex(new THREE.BufferAttribute(new Uint32Array(p.getIndices().getArray()), 1));
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ name: p.getMaterial()?.getName() ?? '' }));
-      o.add(m);
-    }
-    for (const c of n.listChildren()) o.add(node(c));
-    made.set(n, o);
-    return o;
-  };
-  for (const n of doc.getRoot().getDefaultScene()?.listChildren() ?? doc.getRoot().listScenes()[0].listChildren()) scene.add(node(n));
-  return { scene };
-}
-const cache = () => new ModelCache({ load: loadReal });
+const cache = () => new ModelCache({ load: loadRealModel });
 async function carOf(models) {
   const g = H.garage(), vis = await createCarVisual({ car, finishes: H.db.finishes, models });
   await vis.applyBuild(g.build, g.view);
@@ -60,7 +40,7 @@ function damageFor(g, impacts, state = { shell: null, parts: {} }) {
 }
 
 test('finer meshes: every edge short, attributes kept, neighbouring faces still joined after a dent', async () => {
-  const { scene } = await loadReal('assets/parts/stock/starter_car/bumper_front.glb'), [mesh] = meshesOf(scene);
+  const { scene } = await loadRealModel('assets/parts/stock/starter_car/bumper_front.glb'), [mesh] = meshesOf(scene);
   const fine = tessellate(mesh.geometry), P = fine.attributes.position.array, idx = fine.index.array;
   let longest = 0;
   for (let i = 0; i < idx.length; i += 3) for (const [a, b] of [[idx[i], idx[i + 1]], [idx[i + 1], idx[i + 2]], [idx[i + 2], idx[i]]]) longest = Math.max(longest, Math.hypot(P[a * 3] - P[b * 3], P[a * 3 + 1] - P[b * 3 + 1], P[a * 3 + 2] - P[b * 3 + 2]));
@@ -75,6 +55,60 @@ test('finer meshes: every edge short, attributes kept, neighbouring faces still 
   const corners = new Set(Array.from({ length: P.length / 3 }, (_, i) => key(i)));
   const halfSplit = [...ends.keys()].filter(k => { const [a, b] = k.split('|').map(s => s.split(',').map(Number)); return corners.has(a.map((v, j) => ((v + b[j]) / 2).toFixed(5)).join(',')) && ends.get(k) === 1; });
   assert.ok(halfSplit.length < 0.01 * ends.size, `${halfSplit.length} edges split on one side only`);
+});
+
+test('denting bit by bit comes out exactly as denting all at once; another list, or a repair\'s blend, ends exactly where a fresh denting would; the normals change only round the dents', async () => {
+  const { scene } = await loadRealModel('assets/parts/stock/starter_car/bonnet.glb'), [src] = meshesOf(scene);
+  const g = src.geometry, mesh = () => new THREE.Mesh(g, src.material);
+  if (!g.boundingBox) g.computeBoundingBox();
+  const c = g.boundingBox.getCenter(new THREE.Vector3()), dent = (dx, dz, depth = 0.04) => ({ p: c.clone().add(new THREE.Vector3(dx, 0.05, dz)), d: new THREE.Vector3(0, -1, 0), depth, radius: 0.22 });
+  const L = [dent(-0.3, 0.2), dent(0.25, -0.1, 0.07), dent(0.05, 0.3, 0.05)], maxDepth = 0.08;
+  const state = m => [Array.from(m.geometry.attributes.position.array), Array.from(m.geometry.attributes.normal.array)];
+  const fresh = list => { const m = mesh(); setDents(m, list, maxDepth); return state(m); };
+  const same = (a, b, what) => { for (let k = 0; k < 2; k++) for (let i = 0; i < a[k].length; i++) assert.ok(Math.abs(a[k][i] - b[k][i]) < 1e-6, `${what}: ${['position', 'normal'][k]} ${i}: ${a[k][i]} ≠ ${b[k][i]}`); };
+  const m = mesh();
+  setDents(m, L.slice(0, 1), maxDepth); setDents(m, L.slice(0, 2), maxDepth); setDents(m, L, maxDepth);
+  same(state(m), fresh(L), 'one at a time');
+  setDents(m, L.slice(1), maxDepth);
+  same(state(m), fresh(L.slice(1)), 'the first one gone');
+  // a repair: eased from one list to another, then done
+  const blend = blendDents(m, L.slice(1), [dent(0.25, -0.1, 0.02)], maxDepth);
+  blend.set(0.3); blend.set(0.8); blend.set(1);
+  blend.done();
+  same(state(m), fresh([dent(0.25, -0.1, 0.02)]), 'after a blend');
+  setDents(m, L, maxDepth);
+  same(state(m), fresh(L), 'dented again after the blend');
+  // far from every dent, the model's own normals (flat faces stay flat, sharp edges sharp)
+  const F = finerOf(g), P = F.attributes.position.array, N0 = F.attributes.normal.array, N = m.geometry.attributes.normal.array;
+  let far = 0;
+  for (let i = 0; i < P.length; i += 3) {
+    if (L.some(x => Math.hypot(P[i] - x.p.x, P[i + 1] - x.p.y, P[i + 2] - x.p.z) < x.radius + 2 * MAX_EDGE)) continue;
+    far++;
+    for (let k = 0; k < 3; k++) assert.equal(N[i + k], N0[i + k]);
+  }
+  assert.ok(far > 100, `${far} vertices far from the dents`);
+  // (its bounds hold it however it's dented: the model's, grown by the deepest a dent goes)
+  assert.ok(m.geometry.boundingBox.containsBox(F.boundingBox) && m.geometry.boundingSphere.radius >= F.boundingSphere.radius + maxDepth - 1e-9);
+});
+
+test('the dent budget: a mesh at a time till the frame\'s milliseconds are gone (at least one), the newest list for a mesh wins, a mesh taken away is skipped', async () => {
+  const { scene } = await loadRealModel('assets/parts/stock/starter_car/bonnet.glb'), [src] = meshesOf(scene);
+  const meshes = Array.from({ length: 6 }, () => new THREE.Mesh(src.geometry, src.material)), B = new DentBudget(2);
+  if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
+  const c = src.geometry.boundingBox.getCenter(new THREE.Vector3()), dent = depth => [{ p: c, d: new THREE.Vector3(0, -1, 0), depth, radius: 0.3 }];
+  for (const m of meshes) B.queue(m, dent(0.02), 0.08);
+  B.queue(meshes[0], dent(0.06), 0.08);
+  meshes[5].userData.disposed = true;
+  B.drop(meshes[4]);
+  assert.equal(B.pending, 5);
+  assert.equal(B.flush(0), 1, 'one, however little time');
+  assert.equal(B.pending, 4);
+  while (B.pending) B.flush();
+  const depthOf = m => moved(m);
+  assert.ok(Math.abs(depthOf(meshes[0]) - 0.06) < 0.005 && Math.abs(depthOf(meshes[1]) - 0.02) < 0.005, 'the newest list');
+  assert.ok(!meshes[4].userData.dent && !meshes[5].userData.dent, 'dropped, and taken away: not dented');
+  assert.equal(B.stats.meshes, 4);
+  assert.ok(B.stats.worstMs >= B.stats.lastMs);
 });
 
 test('finer meshes from what the model loader gives: interleaved, quantised attributes', () => {
