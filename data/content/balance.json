@@ -1,5 +1,10 @@
 {
   "_note": "Class balance (tests/unit/balance.test.mjs, npm run balance-report): every car is its own class (car.json class) stock, and the most powerful build there is for it (tools/content/maxbuild.mjs: every part for sale, every setting) is at most maxClassJump classes higher — except the cars in exempt (the supercar, already at the top).",
   "maxClassJump": 2,
-  "exempt": ["apex_v8"]
+  "exempt": ["apex_v8"],
+  "crashEconomy": {
+    "_note": "What crashes cost against what races pay (npm run balance-report; the crash test suite's crashes, garage/crashSuite.js): the average full repair of a crash at each speed (into a wall, and into another car) at most that share of a win (data/economy.json raceRewards) — a scrape stays cheap, a big one costs about a race's winnings — and a quick repair at most quickShare of the full one.",
+    "maxOfWin": { "30": 0.15, "60": 0.75, "100": 1.2, "150": 1.5 },
+    "quickShare": 0.7
+  }
 }

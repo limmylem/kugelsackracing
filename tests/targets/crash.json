@@ -1,0 +1,40 @@
+{
+  "_note": "The crash test suite's targets (garage/crashSuite.js, npm run crash-test): the car driven into the test centre's wall at each speed from each direction (front first, reversing, side-on, a front corner at 30°), and into another car (rear-ending it, T-boning it, head on: both cars at half the speed). Per speed: every crash (every; and per direction or pair) — dents: some; mechanical: at most none / mild (each system no worse than mild) / heavy; loose: none, or the sockets that must be hanging loose; detached: none, or those that must be off; broken: at most that many windows and lights; minCondition: no part or the body below; heavy: heavy damage (something torn off, mechanical past mild, or a part under 50%); drivable: it can carry on (data/damage.json drivable). drivable { min, max }: the share of the crashes at that speed still drivable. cars.both: both cars; fair: two cars the same feel strengths within that share of each other; mass: a heavier car hit by this one at that speed feels less (the lighter feels ratio × more).",
+  "car": "starter_car",
+  "seconds": 2.5,
+  "mild": {
+    "suspension": { "toe": 1.2, "camber": 2, "ride": 0.02, "damper": 0.3 },
+    "brakeLine": { "line": 0.2 },
+    "rim": { "bend": 1.5 },
+    "tyre": { "leak": 0.001 },
+    "radiator": { "leak": 0.001 },
+    "intake": { "boost": 0.2 },
+    "gearbox": { "gears": 0.15 },
+    "differential": { "gears": 0.2 },
+    "exhaust": { "holes": 0.4 },
+    "clutch": { "wear": 0.2 },
+    "engine": { "loss": 15 }
+  },
+  "walls": {
+    "target": "wall",
+    "directions": ["front", "rear", "side", "corner"],
+    "speeds": {
+      "30": { "_note": "dents only, no mechanical damage", "every": { "dents": true, "mechanical": "none", "loose": "none", "broken": 0, "minCondition": 75, "drivable": true } },
+      "60": { "_note": "a loose bumper, maybe mild steering or radiator damage", "every": { "mechanical": "mild", "detached": "none", "drivable": true }, "front": { "loose": ["socket_bumper_front"] }, "rear": { "loose": ["socket_bumper_rear"] } },
+      "100": { "_note": "heavy damage, the car usually still drivable", "every": { "heavy": true }, "drivable": { "min": 0.5 } },
+      "150": { "_note": "likely race-ending", "every": { "heavy": true }, "drivable": { "max": 0.5 } }
+    }
+  },
+  "cars": {
+    "other": "starter_car",
+    "pairs": ["rear-end", "t-bone", "head-on"],
+    "fair": 0.1,
+    "speeds": {
+      "30": { "both": { "mechanical": "none", "loose": "none", "broken": 0, "drivable": true } },
+      "60": { "both": { "mechanical": "none", "detached": "none", "drivable": true }, "t-bone": { "detached": null } },
+      "100": { "both": { "mechanical": "mild", "drivable": true } },
+      "150": { "both": { "heavy": true }, "drivable": { "min": 0.5 } }
+    },
+    "mass": { "heavy": "ridgeback_4x4", "kmh": 60, "pair": "head-on", "ratio": 1.4 }
+  }
+}

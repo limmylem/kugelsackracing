@@ -136,6 +136,28 @@
         }
       }
     },
+    "drivable": {
+      "type": "object",
+      "description": "What a car needs to carry on racing (garage/repair.js drivability)",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "engineCondition": { "type": "number", "minimum": 0, "maximum": 100 },
+        "tyreLeak": { "$ref": "#/$defs/n" },
+        "radiatorLeak": { "$ref": "#/$defs/n" },
+        "coolant": { "type": "number", "minimum": 0, "maximum": 1 },
+        "toe": { "$ref": "#/$defs/n" },
+        "camber": { "$ref": "#/$defs/n" },
+        "bend": { "$ref": "#/$defs/n" },
+        "brakeLine": { "type": "number", "minimum": 0, "maximum": 1 },
+        "gearbox": { "type": "number", "minimum": 0, "maximum": 1 },
+        "differential": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
     "mechanical": {
       "type": "object",
       "required": ["systems", "wheelOff", "effects", "saveEvery"],

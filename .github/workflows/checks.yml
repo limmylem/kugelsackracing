@@ -1,6 +1,7 @@
 # The same checks as the pre-commit hook (.githooks/pre-commit), on every push and pull request: the
-# data against its schemas, every model against the model rules, the unit tests and the headless
-# physics test suite. Any failure fails the run.
+# data against its schemas, every model against the model rules, the unit tests, the headless physics
+# test suite, the crash test suite (the damage balance) and the stress tests (a ten-car pile-up, a
+# hundred crashes and repairs). Any failure fails the run.
 name: checks
 on:
   push:
@@ -25,3 +26,5 @@ jobs:
         run: npm run test:unit
       - name: Physics tests (headless)
         run: npm test
+      - name: Crash test suite (damage balance)
+        run: npm run crash-test

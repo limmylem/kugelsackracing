@@ -8,7 +8,7 @@
     "test": "node tests/run.mjs",
     "check": "node tests/check-data.mjs",
     "test:unit": "node --test tests/unit/",
-    "test:all": "node tests/check-data.mjs && node tools/check-models.mjs --quiet && node --test tests/unit/ && node tests/run.mjs",
+    "test:all": "node tests/check-data.mjs && node tools/check-models.mjs --quiet && node --test tests/unit/ && node tests/run.mjs && node tests/crash.mjs",
     "build:car": "node tools/split-car.mjs",
     "parts": "node tests/parts-report.mjs",
     "check-models": "node tools/check-models.mjs",
@@ -24,7 +24,8 @@
     "playtest": "node tools/playtest.mjs",
     "sounds": "node tools/sounds.mjs",
     "models-todo": "node tools/models-todo.mjs",
-    "generate-parts": "node tools/generate-parts.mjs"
+    "generate-parts": "node tools/generate-parts.mjs",
+    "crash-test": "node tests/crash.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

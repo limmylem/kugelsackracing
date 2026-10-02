@@ -9,7 +9,13 @@
 //
 // Dents are given in the mesh's own space: { p: Vector3, d: Vector3 (unit), depth, radius }. The same
 // list always gives the same shape: adding a dent to a list adds to what's there, a different list is
-// worked out again from the undented copy.
+// worked out again from the undented copy. Only the vertices near a dent are looked at (the copy's
+// vertices sorted along x: a dent visits those within its radius of it there).
+//
+// Cost: denting is the one heavy thing a crash does to the drawing. A DentBudget spreads it over frames
+// — setDamage hands it the meshes to dent (the newest list for each wins) and flush() each frame dents as
+// many as fit in its milliseconds (always at least one), so a big crash, or ten cars crashing at once,
+// never stalls a frame for long. A repair blends between two lists (blendDents: the dents easing out).
 
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -96,7 +102,7 @@ export function tessellate(source, maxEdge = MAX_EDGE) {
 // The shared finer copy of a model's geometry
 export function finerOf(geometry) {
   let f = finer.get(geometry);
-  if (!f) finer.set(geometry, f = tessellate(geometry));
+  if (!f) { finer.set(geometry, f = tessellate(geometry)); f.userData.finerOf = f; }
   return f;
 }
 
@@ -106,8 +112,42 @@ export function makeDentable(mesh) {
   if (u.dent) return u.dent;
   const shared = mesh.geometry, own = finerOf(shared).clone();
   mesh.geometry = own;
-  u.dent = { shared, own, base: Float32Array.from(own.attributes.position.array), raw: new Float32Array(own.attributes.position.array.length), keys: [] };
+  u.dent = { shared, own, base: Float32Array.from(own.attributes.position.array), raw: new Float32Array(own.attributes.position.array.length), keys: [], ...sortedX(own) };
   return u.dent;
+}
+// (the vertices sorted along x, shared by every car on the model: a dent looks only at those near it)
+const byX = new WeakMap();
+function sortedX(g) {
+  const key = g.userData?.finerOf ?? g;
+  let s = byX.get(key);
+  if (!s) {
+    const a = g.attributes.position.array, n = a.length / 3, order = Uint32Array.from({ length: n }, (_, i) => i).sort((i, j) => a[i * 3] - a[j * 3]);
+    s = { order, xs: Float32Array.from(order, i => a[i * 3]) };
+    byX.set(key, s);
+  }
+  return s;
+}
+const lowerBound = (xs, x) => { let lo = 0, hi = xs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (xs[m] < x) lo = m + 1; else hi = m; } return lo; };
+// Every vertex's push from a list of dents, added into raw (the copy's base positions B)
+function pushIn(D, dents, raw) {
+  const B = D.base, { order, xs } = D;
+  for (const { p, d, depth, radius } of dents) {
+    const r2 = radius * radius, to = xs.length;
+    for (let k = lowerBound(xs, p.x - radius); k < to && xs[k] <= p.x + radius; k++) {
+      const i = order[k] * 3, dx = B[i] - p.x, dy = B[i + 1] - p.y, dz = B[i + 2] - p.z, q = dx * dx + dy * dy + dz * dz;
+      if (q >= r2) continue;
+      const f = (1 - q / r2) ** 2 * depth;
+      raw[i] += d.x * f; raw[i + 1] += d.y * f; raw[i + 2] += d.z * f;
+    }
+  }
+}
+// (no vertex more than maxDepth from where it was)
+function clampPush(raw, maxDepth) {
+  for (let i = 0; i < raw.length; i += 3) {
+    const l = Math.hypot(raw[i], raw[i + 1], raw[i + 2]);
+    if (l > maxDepth) { const k = maxDepth / l; raw[i] *= k; raw[i + 1] *= k; raw[i + 2] *= k; }
+  }
+  return raw;
 }
 
 // Back to the model's own geometry (a repair)
@@ -129,15 +169,7 @@ export function setDents(mesh, dents, maxDepth) {
   const same = D.keys.length <= keys.length && D.keys.every((k, i) => k === keys[i]);
   if (!same) { D.raw.fill(0); D.keys = []; }
   const B = D.base, raw = D.raw;
-  for (let j = D.keys.length; j < dents.length; j++) {
-    const { p, d, depth, radius } = dents[j], r2 = radius * radius;
-    for (let i = 0; i < B.length; i += 3) {
-      const dx = B[i] - p.x, dy = B[i + 1] - p.y, dz = B[i + 2] - p.z, q = dx * dx + dy * dy + dz * dz;
-      if (q >= r2) continue;
-      const f = (1 - q / r2) ** 2 * depth;
-      raw[i] += d.x * f; raw[i + 1] += d.y * f; raw[i + 2] += d.z * f;
-    }
-  }
+  pushIn(D, dents.slice(D.keys.length), raw);
   D.keys = keys;
   // (never more than maxDepth from where it was)
   const pos = D.own.attributes.position, a = pos.array;
@@ -152,4 +184,46 @@ export function setDents(mesh, dents, maxDepth) {
   D.own.computeVertexNormals();
   D.own.computeBoundingSphere(); D.own.computeBoundingBox();
   return moved;
+}
+
+// A mesh between two dent lists (its own space, as setDents): a repair easing the dents out. Returns
+// { set(t) (0: from, 1: to), done() (the mesh as `to` has it) }, or null if neither has any
+export function blendDents(mesh, from, to, maxDepth) {
+  if (!from.length && !to.length) return null;
+  const D = makeDentable(mesh), n = D.base.length, push = list => { const r = new Float32Array(n); pushIn(D, list, r); return clampPush(r, maxDepth); };
+  const a = push(from), b = push(to);
+  const pos = D.own.attributes.position, arr = pos.array, B = D.base;
+  D.keys = [];                 // (the next setDents works it out afresh)
+  return {
+    set(t) {
+      for (let i = 0; i < n; i++) arr[i] = B[i] + a[i] + (b[i] - a[i]) * t;
+      pos.needsUpdate = true;
+      D.own.computeVertexNormals();
+    },
+    done() { setDents(mesh, to, maxDepth); },
+  };
+}
+
+// Denting spread over frames: queue(mesh, dents, maxDepth) (the newest list for a mesh wins), and
+// flush() each frame dents queued meshes until ms milliseconds have gone (at least one a frame).
+// stats: { frames, meshes, worstMs, lastMs, waiting }
+export class DentBudget {
+  constructor(ms = 2) { this.ms = ms; this.jobs = new Map(); this.stats = { frames: 0, meshes: 0, worstMs: 0, lastMs: 0, waiting: 0 }; }
+  queue(mesh, dents, maxDepth) { this.jobs.delete(mesh); this.jobs.set(mesh, { dents, maxDepth }); }
+  drop(mesh) { this.jobs.delete(mesh); }
+  get pending() { return this.jobs.size; }
+  flush(ms = this.ms) {
+    const t0 = performance.now();
+    let n = 0;
+    for (const [mesh, job] of this.jobs) {
+      if (n && performance.now() - t0 >= ms) break;
+      this.jobs.delete(mesh);
+      if (mesh.userData.disposed) continue;
+      setDents(mesh, job.dents, job.maxDepth);
+      n++;
+    }
+    const took = performance.now() - t0, S = this.stats;
+    S.frames++; S.meshes += n; S.lastMs = took; S.worstMs = Math.max(S.worstMs, took); S.waiting = this.jobs.size;
+    return n;
+  }
 }

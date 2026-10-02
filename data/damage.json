@@ -25,68 +25,81 @@
     "frontZ": 1
   },
   "wheels": {
-    "from": 5,
+    "from": 9,
     "share": 0.6
   },
   "breakables": {
-    "glass": 7,
-    "light": 4
+    "glass": 12,
+    "light": 9
+  },
+  "drivable": {
+    "_note": "Whether a car can carry on racing (garage/repair.js drivability; the safety net's free repair, the crash test suite): every wheel on, the engine at engineCondition or better, no flat tyre and none losing more than tyreLeak of its pressure a second, the radiator losing no more than radiatorLeak a second (coolant left: at least coolant), no front wheel's toe past toe degrees nor any camber past camber, no rim bent past bend mm, no brake line down by more than brakeLine, the gearbox and diff no worse than gearbox / differential.",
+    "engineCondition": 10,
+    "tyreLeak": 0.003,
+    "radiatorLeak": 0.002,
+    "coolant": 0.25,
+    "toe": 2.5,
+    "camber": 3.5,
+    "bend": 4,
+    "brakeLine": 0.5,
+    "gearbox": 0.4,
+    "differential": 0.75
   },
   "mechanical": {
     "_note": "Mechanical damage (garage/mechanical.js works out what a hit does; physics/mechanical.js drives it). A hit reaches the car's damage zones (car.json damageZones): each zone by how near the contact came to its box (within zoneReach m, plus the dent's depth: a hard hit crumples further in) and, for a zone facing a way, how squarely it came from there. Each system the zone lists takes damage by how far that strength is over its `from` (m/s), per m/s over (…PerMs), at most its max, divided by the toughness of the part carrying it. systems — steering: toe (degrees, + the wheel points left: the car pulls); suspension: camber (degrees: less grip), ride (m lower), damper (share of the damping lost, down to minDamper left); rim: bend (mm: a wobble that grows with speed); tyre: a puncture leaking leakPerMs of the pressure a second per m/s over; brakeLine: share of that corner's brake force lost; radiator: coolant lost a second (a leak); intake: share of the turbo's boost leaking (no turbo, nothing); gearbox, differential, exhaust: damage 0..1. wheelOff: a corner hit from this strength tears the wheel off (for the drive: the reset or the garage puts it back, bent and flat). effects (the physics): toe — hands off, the steering settles centreShare of the way to where the damaged front wheels run straight (the steering wheel sits off-centre, the car still pulls); camber: gripPerDeg of the tyre's grip lost a degree, down to minGrip; rim: wobble N a mm of bend at 100 km/h (by the speed squared); tyre: below flatBelow pressure it's flat (on its rim: rimGrip), above it grip goes from gripAtZero up to full, the tyre sags dropShare of its sidewall at nothing (mostly near flat) and drags flatRolling more; cooling: the engine's heat (heatPerKw °C/s a kW it makes, idleHeat idling) against the radiator (cooling °C/s a °C over ambient × the coolant's share — dryShare with none, full from fullCoolant, lowCoolant up — × airflow: airflowBase standing, full from airflowSpeed m/s — × the thermostat opening round thermostat °C); at warn a warning, at limp limp mode (limpTorque of the torque, limpRpm rev limit, the automatic's shifts scaled down to it) until it's cooled to recover; from cook it loses cookRate condition a second (more the hotter), and can seize; clutch: slipping heats it (heatCapacity J/°C, losing cooling of its heat over ambient a second); past wearFrom °C it wears wearRate a °C a second, and worn it holds capacityLoss × wear less; gearbox: from failFrom damage a gear can fail to go in (up to failMax of the time at full damage; tried again after retry s), grinding from grindFrom; a money shift (an over-rev downshift) costs overRevShift × how far over; differential: bias × damage of the torque to one side, and a surge of ripple × damage once a turn; kerb: a wheel meeting a step up of at least minStep m (a kerb's edge, a bump) at speed goes up at speed × sin of the angle it meets it — past speed (m/s) that's a strike on its corner as hard as the excess × scale (a slope's change of angle counts the same way); landing: a wheel landing faster than speed m/s strikes its corner as hard as the excess × scale; hub: a wheel torn off leaves its hub (radius m) on the road, not rolling: it slides and gouges (grip: of its load), and its drive shaft turns free. saveEvery: s between writing back what changes while driving (tyre pressures, coolant, clutch wear).",
     "zoneReach": 0.35,
     "systems": {
       "steering": {
-        "from": 3,
-        "toePerMs": 0.45,
+        "from": 9,
+        "toePerMs": 0.13,
         "max": 4
       },
       "suspension": {
-        "from": 4,
-        "camberPerMs": 0.25,
+        "from": 9,
+        "camberPerMs": 0.2,
         "maxCamber": 5,
-        "ridePerMs": 0.0025,
+        "ridePerMs": 0.002,
         "maxRide": 0.06,
-        "damperPerMs": 0.035,
+        "damperPerMs": 0.03,
         "minDamper": 0.15
       },
       "rim": {
-        "from": 4,
-        "bendPerMs": 0.35,
+        "from": 9,
+        "bendPerMs": 0.2,
         "max": 8
       },
       "tyre": {
-        "from": 7,
-        "leakPerMs": 0.0015,
+        "from": 10,
+        "leakPerMs": 0.00015,
         "maxLeak": 0.05
       },
       "brakeLine": {
-        "from": 5,
-        "perMs": 0.04,
+        "from": 9,
+        "perMs": 0.02,
         "max": 0.7
       },
       "radiator": {
-        "from": 5,
-        "leakPerMs": 0.0012,
+        "from": 10,
+        "leakPerMs": 0.0001,
         "max": 0.03
       },
       "intake": {
-        "from": 6,
-        "leakPerMs": 0.04,
+        "from": 10,
+        "leakPerMs": 0.015,
         "max": 0.7
       },
       "gearbox": {
         "from": 12,
-        "perMs": 0.025,
+        "perMs": 0.02,
         "max": 1
       },
       "differential": {
-        "from": 9,
+        "from": 12,
         "perMs": 0.03,
         "max": 1
       },
       "exhaust": {
-        "from": 4,
+        "from": 9,
         "perMs": 0.04,
         "max": 1
       }
@@ -96,7 +109,7 @@
     },
     "underbody": {
       "_note": "A landing hard enough to bottom the car out (a wheel strike of at least from) hits its belly too, at share × the strike: the exhaust, gearbox, diff and sump (the radiator: its coolant). Skid plates (a part's protects) keep their share of it off.",
-      "from": 8,
+      "from": 16,
       "share": 0.8,
       "systems": ["exhaust", "gearbox", "differential", "radiator"]
     },
@@ -158,11 +171,11 @@
       "kerb": {
         "minStep": 0.04,
         "speed": 9,
-        "scale": 0.8
+        "scale": 1.8
       },
       "landing": {
         "speed": 5,
-        "scale": 2
+        "scale": 4
       },
       "hub": {
         "radius": 0.12,

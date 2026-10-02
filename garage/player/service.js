@@ -6,20 +6,38 @@
 //
 // LocalPlayerService keeps the profile in this browser (storage.js: IndexedDB). A RemotePlayerService
 // (remote.js) will ask the game's server the same questions instead, with nothing else changing.
+//
+// Crash damage comes in through damageCar (the game reports what a crash did: never better than it was,
+// dents as the hits that made them — the service folds them, garage/damageLog.js) and goes out through
+// the repairs, which cost money (garage/repair.js: a piece at a time or all of it, quick or full, a spare
+// fitted instead, or — for a player who can't afford to make their car drivable — a basic repair free).
+// A session's reset (sessionReset) puts parts back on by the session's rules (data/sessions.json), free;
+// so a server can own all of it later.
 
-import { addCar, addPart, applyGarage, buildOf, carName, carPrice, checkProfile, cleanDamage, cleanDents, clone, garageFor, needsRepair, newProfile, priceOf, repairCost, sellPrice, setSize, shellRepairCost } from './profile.js';
+import { addCar, addPart, applyGarage, buildOf, carName, carPrice, checkProfile, cleanDamage, cleanDents, clone, garageFor, needsRepair, newProfile, packProfile, priceOf, repairCost, sellPrice, setDents, setSize, shellRepairCost, unpackProfile } from './profile.js';
 import { migrate } from './migrations.js';
 import { validateBuild } from '../validate.js';
+import { appendHits } from '../damageLog.js';
+import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
+
+const ATTACH = ['attached', 'loose', 'detached'];
+// (JSON with every object's keys in order: two saves the same whatever order their keys came in)
+const canonical = x => JSON.stringify(x, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(j => [j, v[j]])) : v);
 
 // Every request a player service answers (all async, all → { ok, error, updatedState, …details }):
 export const METHODS = {
   getProfile: 'the profile, and any notices from loading it',
   buyPart: '(partId, { quantity }) a new copy at 100% (a part for a group of sockets: a set)',
   sellPart: '(instanceId) a copy that isn\'t on a car, for its sell price',
-  repairPart: '(instanceId) back to 100%, its dents out and its mechanical damage put right, for its repair cost',
+  repairPart: '(instanceId) back to 100%, its dents out, its mechanical damage put right and bolted back on, for its repair cost',
   repairParts: '([instanceId]) several at once (repair all)',
   repairBody: '(carInstanceId) the body shell: condition, dents, broken glass and lights, for its repair cost',
-  damageCar: '(carInstanceId, { parts: { instanceId: { condition, dents, damage } }, shell: { condition, dents, broken } }, { cause }) crash damage from driving (damage: a part\'s mechanical damage block as it is now, garage/mechanical.js): conditions only go down; allowed while driving',
+  repairCar: '(carInstanceId, { kind: \'quick\' | \'full\', items: [{ target: instanceId | \'shell\', scope: \'all\' | a piece of its damage }] }) repair pieces of a car\'s damage (no items: all of it), quick or full (garage/repair.js), for what they cost',
+  replaceWithSpare: '(carInstanceId, socket, instanceId) fit a spare copy from the inventory in place of a damaged part (which goes to the inventory, as it is)',
+  basicRepair: '(carInstanceId) the safety net: a car that can\'t be driven, whose player can\'t afford to make it drivable, made just drivable, free',
+  damageCar: '(carInstanceId, { parts: { instanceId: { condition, hits, damage, attach } }, shell: { condition, hits, broken } }, { cause }) crash damage from driving (hits: the dents a crash made, garage/damage.js; damage: a part\'s mechanical damage block as it is now, garage/mechanical.js; attach: loose or detached): conditions only go down, parts only come further off; allowed while driving',
+  sessionReset: '(carInstanceId, { kind: \'test\' | \'race\' }) back on the road in a session: what comes back on by its rules (data/sessions.json reset), free',
+  markHint: '(id) a first-time hint seen (garage/hints.js): it isn\'t shown again',
   wearPart: '(instanceId, condition, { cause }) damage from driving (an over-revved engine): the condition only goes down; allowed while driving',
   installPart: '(carInstanceId, instanceId, { socket, auto }) fit a copy the player has (auto: what\'s in the way comes off and goes back)',
   removePart: '(carInstanceId, socket | group | partId, { auto }) take a part off, into the inventory',
@@ -38,7 +56,7 @@ export const METHODS = {
   exportSave: '→ { json } the save as a file',
   importSave: '(json) a save file in place of this one',
   // for development (window.player in the console)
-  addMoney: '(amount)', setUnlimitedMoney: '(on) nothing costs anything (for testing: money isn\'t checked or taken)', givePart: '(partId, quantity)', giveAllParts: '()', setCondition: '(instanceIds, condition)', restoreCar: '(carInstanceId) every part on it and its body as new, free', resetProfile: '() start again',
+  addMoney: '(amount)', setUnlimitedMoney: '(on) nothing costs anything (for testing: money isn\'t checked or taken)', givePart: '(partId, quantity)', giveAllParts: '()', setCondition: '(instanceIds, condition)', restoreCar: '(carInstanceId) every part on it and its body as new, and back on, free', setAttach: '(carInstanceId, { socket: \'attached\' | \'loose\' | \'detached\' }) parts on or off, free', resetHints: '() every hint shown again', resetProfile: '() start again',
 };
 
 export class PlayerService {
@@ -75,15 +93,17 @@ export class LocalPlayerService extends PlayerService {
     else {
       const { profile, notices } = this.#bringIn(saved);
       this.profile = profile; this.notices = notices;
-      changed = notices.length > 0 || JSON.stringify(profile) !== JSON.stringify(saved);
+      changed = notices.length > 0 || canonical(packProfile(profile)) !== canonical(saved);
     }
     // (written back only if loading changed it: a new profile, an old save brought up to date, something put right)
-    if (changed) { this.profile.saved = this.now(); await this.storage.save(this.profile); }
+    if (changed) { this.profile.saved = this.now(); await this.storage.save(packProfile(this.profile)); }
     return { ok: true, error: null, updatedState: clone(this.profile), notices: this.notices };
   }
+  // (a save as stored: brought up to date, its dent logs unpacked, then checked — which folds the logs
+  // into dents again)
   #bringIn(saved) {
     const { save } = migrate(saved, { ...(this.migrations ?? {}), context: { db: this.db } });
-    return checkProfile(save, this.db);
+    return checkProfile(unpackProfile(save), this.db);
   }
   async getProfile() { return { ok: true, error: null, updatedState: clone(this.profile), notices: this.notices }; }
 
@@ -94,9 +114,11 @@ export class LocalPlayerService extends PlayerService {
       let out;
       try { out = fn(draft) ?? {}; } catch (err) { out = { error: `Something went wrong: ${err.message}` }; }
       if (out.error) return { ok: false, error: out.error, updatedState: clone(before), ...(out.detail ?? {}) };
+      // (a part off every car isn't hanging off anything)
+      for (const x of Object.values(draft.parts)) if (!x.installedOn) delete x.attach;
       draft.saved = this.now();
       this.profile = draft;
-      try { await this.storage.save(draft); }
+      try { await this.storage.save(packProfile(draft)); }
       catch (err) { this.profile = before; return { ok: false, error: `Couldn't save: ${err.message ?? err}`, updatedState: clone(before) }; }
       this.emit({ what, profile: this.profile });
       return { ok: true, error: null, updatedState: clone(draft), ...(out.result ?? {}) };
@@ -132,35 +154,107 @@ export class LocalPlayerService extends PlayerService {
       return { result: { amount } };
     });
   }
-  #repair(p, ids) {
-    const list = [...new Set(ids)].map(id => p.parts[id]);
-    if (list.some(x => !x)) return { error: 'That part isn\'t yours.' };
-    const todo = list.filter(needsRepair), cost = todo.reduce((a, x) => a + repairCost(this.db, x), 0);
-    if (!todo.length) return { error: list.length > 1 ? 'Everything\'s in perfect condition already.' : `${this.#name(list[0])} is in perfect condition already.` };
-    const unpaid = this.#pay(p, cost, 'the repair costs');
+  // Repairs (garage/repair.js): items [{ target: instanceId | 'shell', scope }] on a car (target's
+  // copies anywhere: a spare in the inventory too), each priced by its pieces; kind quick or full
+  #repair(p, items, kind = 'full', carInstanceId = null) {
+    const car = carInstanceId && p.cars[carInstanceId], todo = [];
+    if (carInstanceId && !car) return { error: 'That car isn\'t yours.' };
+    for (const it of items) {
+      if (it.target === 'shell') {
+        if (!car) return { error: 'Which car\'s bodywork?' };
+        const work = shellWork(this.db, car).filter(w => it.scope === 'all' || w.scope === it.scope);
+        if (work.length) todo.push({ shell: true, scope: it.scope, cost: workCost(work, kind) });
+        continue;
+      }
+      const x = p.parts[it.target];
+      if (!x) return { error: 'That part isn\'t yours.' };
+      if (car && x.installedOn?.car !== carInstanceId) return { error: `${this.#name(x)} isn't on your ${carName(p, this.db, carInstanceId)}.` };
+      const work = partWork(this.db, x).filter(w => it.scope === 'all' || w.scope === it.scope);
+      if (work.length) todo.push({ x, scope: it.scope, cost: workCost(work, kind) });
+    }
+    if (!todo.length) return { error: items.length > 1 || !items.length ? 'Everything\'s in perfect condition already.' : items[0].target === 'shell' ? 'The bodywork is perfect already.' : `${this.#name(p.parts[items[0].target])} is in perfect condition already.` };
+    const cost = todo.reduce((a, t) => a + t.cost, 0), unpaid = this.#pay(p, cost, `the ${kind === 'quick' ? 'quick ' : ''}repair${todo.length > 1 ? 's' : ''} cost${todo.length > 1 ? '' : 's'}`);
     if (unpaid) return unpaid;
-    for (const x of todo) { x.condition = 100; delete x.dents; delete x.damage; }
-    return { result: { cost, repaired: todo.length } };
+    for (const t of todo) {
+      if (t.shell) { const d = repairShell(this.db, car.damage, { scope: t.scope, kind }); if (d) { car.damage = { condition: d.condition, ...(d.broken?.length && { broken: d.broken }) }; setDents(car.damage, { base: d.dents }, this.db.damage); } else delete car.damage; }
+      else this.#apply(t.x, repairPart(this.db, t.x, { scope: t.scope, kind }));
+    }
+    return { result: { cost, repaired: todo.length, kind } };
+  }
+  // (a repair's fields onto a copy: dents start a new log from what's left)
+  #apply(x, f) {
+    if (f.condition !== undefined) x.condition = f.condition;
+    if (f.dents !== undefined) setDents(x, { base: f.dents }, this.db.damage);
+    if (f.damage !== undefined) { if (Object.keys(f.damage).length) x.damage = f.damage; else delete x.damage; }
+    if (f.attach !== undefined) { if (f.attach && f.attach !== 'attached') x.attach = f.attach; else delete x.attach; }
+  }
+  repairCar(carInstanceId, { kind = 'full', items = null } = {}) {
+    return this.#change('repair', p => {
+      if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
+      if (kind !== 'quick' && kind !== 'full') return { error: `"${kind}" isn't a kind of repair: quick or full.` };
+      const all = items ?? [...Object.values(p.parts).filter(x => x.installedOn?.car === carInstanceId && needsRepair(x)).map(x => ({ target: x.instanceId, scope: 'all' })), { target: 'shell', scope: 'all' }];
+      return this.#repair(p, all.map(it => ({ target: it.target, scope: it.scope ?? 'all' })), kind, carInstanceId);
+    });
   }
   // The body shell: back to 100%, dents out, glass and lights new
   repairBody(carInstanceId) {
     return this.#change('repair', p => {
       const car = p.cars[carInstanceId];
       if (!car) return { error: 'That car isn\'t yours.' };
-      const cost = shellRepairCost(this.db, car);
-      if (!cost) return { error: `Your ${carName(p, this.db, carInstanceId)}'s bodywork is perfect already.` };
-      const unpaid = this.#pay(p, cost, 'the bodywork costs');
-      if (unpaid) return unpaid;
-      delete car.damage;
-      return { result: { cost } };
+      if (!shellRepairCost(this.db, car)) return { error: `Your ${carName(p, this.db, carInstanceId)}'s bodywork is perfect already.` };
+      return this.#repair(p, [{ target: 'shell', scope: 'all' }], 'full', carInstanceId);
     });
   }
-  // Crash damage (the game works it out: garage/damage.js): the parts on this car and its body shell,
-  // their new conditions (never up) and dent lists, glass and lights broken. Free: the repair costs
+  // A spare from the inventory in place of a damaged part: fitted like any part (free); the damaged one
+  // goes to the inventory as it is, to repair or sell
+  replaceWithSpare(carInstanceId, socket, instanceId) {
+    return this.#change('install', p => {
+      const bad = this.#car(p, carInstanceId);
+      if (bad) return bad;
+      const spare = p.parts[instanceId], old = buildOf(p, this.db, carInstanceId)[socket];
+      if (!spare) return { error: 'That part isn\'t yours.' };
+      if (spare.installedOn) return { error: `${this.#name(spare)} isn't a spare: it's on your ${carName(p, this.db, spare.installedOn.car)}.` };
+      if (!old) return { error: 'Nothing\'s fitted there to replace.' };
+      const fitted = this.#install(p, carInstanceId, instanceId, { socket, auto: true });
+      if (fitted.error) return fitted;
+      return { result: { ...fitted.result, replaced: old, cost: 0 } };
+    });
+  }
+  // The safety net: a car that can't carry on (garage/repair.js drivability) whose player can't afford the
+  // quick repairs that would make it drivable, made just drivable — free (data/economy.json safetyNet)
+  basicRepair(carInstanceId) {
+    return this.#change('repair', p => {
+      const car = p.cars[carInstanceId], N = this.db.economy.safetyNet;
+      if (!car) return { error: 'That car isn\'t yours.' };
+      if (!N?.enabled) return { error: 'There are no free repairs.' };
+      const owned = ownedBySocket(this.db, p, carInstanceId), def = this.db.cars[car.carId], d = drivability(def, owned, this.db.damage);
+      if (d.ok) return { error: `Your ${carName(p, this.db, carInstanceId)} can be driven already.` };
+      const cost = this.quickFixCost(p, carInstanceId);
+      if (this.unlimited || p.money >= cost) return { error: `You can afford to make it drivable: quick repairs of what stops it cost ${this.#money(cost)}.` };
+      const plan = basicRepair(this.db, def, owned, this.db.damage);
+      for (const step of plan) this.#apply(p.parts[step.target], step.fields);
+      return { result: { free: true, fixed: plan.length, worth: cost, reasons: d.reasons } };
+    });
+  }
+  // What the quick repairs that would make a car drivable cost (the pieces that stop it)
+  quickFixCost(p = this.profile, carInstanceId = p.currentCar) {
+    const car = p.cars[carInstanceId], owned = ownedBySocket(this.db, p, carInstanceId), { blocking } = drivability(this.db.cars[car.carId], owned, this.db.damage);
+    const seen = new Set();
+    return blocking.reduce((a, b) => { const key = `${b.target}|${b.scope}`; if (seen.has(key)) return a; seen.add(key); return a + workCost(partWork(this.db, p.parts[b.target]), 'quick', [b.scope]); }, 0);
+  }
+  // Crash damage (the game works it out: garage/carDamage.js): the parts on this car and its body shell —
+  // their new conditions (never up), the hits that dented them (folded into their dents here; a whole
+  // dent list instead, as dents, starts a new log), mechanical damage blocks as they are now, parts come
+  // loose or off (never back on: a repair or a session's reset does that) — and glass and lights broken.
+  // Free: the repair costs
   damageCar(carInstanceId, { parts = {}, shell = null } = {}, { cause } = {}) {
     return this.#change('damage', p => {
-      const car = p.cars[carInstanceId], most = this.db.damage?.dent.maxPerPart ?? 16;
+      const car = p.cars[carInstanceId], most = this.db.damage?.dent.maxPerPart ?? 16, rules = this.db.damage;
       if (!car) return { error: 'That car isn\'t yours.' };
+      const dents = (target, d) => {
+        if (d.hits !== undefined) setDents(target, appendHits(target.dentLog ?? { base: target.dents }, cleanDents(d.hits, 256), rules), rules);
+        else if (d.dents !== undefined) setDents(target, { base: cleanDents(d.dents, most) }, rules);
+      };
       for (const [id, d] of Object.entries(parts)) {
         const x = p.parts[id];
         if (!x || x.installedOn?.car !== carInstanceId) return { error: `${x ? this.#name(x) : `"${id}"`} isn't on that car.` };
@@ -168,21 +262,56 @@ export class LocalPlayerService extends PlayerService {
           if (!(d.condition >= 0 && d.condition <= 100)) return { error: 'Condition goes from 0 to 100.' };
           x.condition = Math.min(x.condition, Math.round(d.condition * 10) / 10);
         }
-        if (d.dents !== undefined) { const dents = cleanDents(d.dents, most); if (dents.length) x.dents = dents; else delete x.dents; }
+        dents(x, d);
         // (mechanical damage: the part's whole block as it is now — garage/mechanical.js works it out)
         if (d.damage !== undefined) { const m = cleanDamage(d.damage); if (Object.keys(m).length) x.damage = m; else delete x.damage; }
+        if (d.attach !== undefined) {
+          const part = this.db.parts[x.partId];
+          if (!ATTACH.includes(d.attach)) return { error: `"${d.attach}" isn't how a part can be: attached, loose or detached.` };
+          if (d.attach !== 'attached' && !part.detach?.detachable && part.slot !== 'wheels') return { error: `${part.name} can't come off.` };
+          if (ATTACH.indexOf(d.attach) > ATTACH.indexOf(x.attach ?? 'attached')) x.attach = d.attach;
+        }
       }
       if (shell) {
         const was = car.damage ?? { condition: 100 }, names = new Set((this.db.cars[car.carId].model.breakables ?? []).map(b => b.node));
         const condition = shell.condition !== undefined ? Math.min(was.condition ?? 100, Math.max(0, Math.round(shell.condition * 10) / 10)) : was.condition ?? 100;
-        const dents = shell.dents !== undefined ? cleanDents(shell.dents, most) : was.dents ?? [];
+        const next = { condition, dentLog: was.dentLog, dents: was.dents };
+        dents(next, shell);
+        if (!next.dentLog) delete next.dentLog;
+        if (!next.dents) delete next.dents;
         const broken = [...new Set([...(was.broken ?? []), ...(shell.broken ?? []).filter(n => names.has(n))])];
-        if (condition < 100 || dents.length || broken.length) car.damage = { condition, ...(dents.length && { dents }), ...(broken.length && { broken }) };
+        if (condition < 100 || next.dents?.length || broken.length) car.damage = { ...next, ...(broken.length && { broken }) };
       }
       return { result: { cause: cause ?? null } };
     });
   }
-  repairPart(instanceId) { return this.#change('repair', p => this.#repair(p, [instanceId])); }
+  // Back on the road in a session (data/sessions.json kinds): a test drive puts every part that came
+  // loose or off back on, a race only a wheel torn off (bent and flat, as it came off). Free
+  sessionReset(carInstanceId, { kind = 'test' } = {}) {
+    return this.#change('reset', p => {
+      if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
+      const rule = this.db.sessions?.kinds[kind]?.reset;
+      if (!rule) return { error: `There's no session "${kind}".` };
+      const back = [];
+      for (const x of Object.values(p.parts)) {
+        if (x.installedOn?.car !== carInstanceId || !x.attach) continue;
+        if (rule === 'wheels' && this.db.parts[x.partId]?.slot !== 'wheels') continue;
+        delete x.attach;
+        back.push(x.installedOn.socket);
+      }
+      return { result: { reattached: back } };
+    });
+  }
+  // A first-time hint seen (garage/hints.js): kept, so it isn't shown again
+  markHint(id) {
+    return this.#change('hint', p => {
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_]+$/.test(id)) return { error: 'A hint id, please.' };
+      if (p.hints?.includes(id)) return {};
+      p.hints = [...(p.hints ?? []), id];
+      return {};
+    });
+  }
+  repairPart(instanceId) { return this.#change('repair', p => this.#repair(p, [{ target: instanceId, scope: 'all' }])); }
   // Damage from driving (the game reports it: an over-rev bent the valves, blew the engine): the
   // condition only ever goes down this way, and it's free — the repair is what costs
   wearPart(instanceId, condition, { cause } = {}) {
@@ -196,7 +325,7 @@ export class LocalPlayerService extends PlayerService {
       return { result: { from, condition: x.condition, cause: cause ?? null, blown: x.condition <= 0 && !!this.db.parts[x.partId]?.engine } };
     });
   }
-  repairParts(instanceIds) { return this.#change('repair', p => this.#repair(p, instanceIds)); }
+  repairParts(instanceIds) { return this.#change('repair', p => this.#repair(p, [...new Set(instanceIds)].map(id => ({ target: id, scope: 'all' })))); }
 
   // ---------- fitting parts ----------
   #install(p, carInstanceId, instanceId, { socket, auto = true } = {}) {
@@ -418,7 +547,7 @@ export class LocalPlayerService extends PlayerService {
   // ---------- the save ----------
   save() { return this.#change('save', () => ({})); }
   async exportSave() {
-    return { ok: true, error: null, updatedState: clone(this.profile), json: JSON.stringify({ game: 'drive-world', exported: this.now(), profile: this.profile }, null, 2) };
+    return { ok: true, error: null, updatedState: clone(this.profile), json: JSON.stringify({ game: 'drive-world', exported: this.now(), profile: packProfile(this.profile) }, null, 2) };
   }
   importSave(json) {
     return this.#change('import', p => {
@@ -451,16 +580,31 @@ export class LocalPlayerService extends PlayerService {
       return { result: { instanceIds: ids } };
     });
   }
-  // development: every part on a car at 100% with no dents, and its body shell as new
+  // development: every part on a car at 100% with no dents, back on, and its body shell as new
   restoreCar(carInstanceId) {
     return this.#change('dev', p => {
       const car = p.cars[carInstanceId];
       if (!car) return { error: 'That car isn\'t yours.' };
-      for (const x of Object.values(p.parts)) if (x.installedOn?.car === carInstanceId) { x.condition = 100; delete x.dents; delete x.damage; }
+      for (const x of Object.values(p.parts)) if (x.installedOn?.car === carInstanceId) { x.condition = 100; delete x.dents; delete x.dentLog; delete x.damage; delete x.attach; }
       delete car.damage;
       return {};
     });
   }
+  // development: parts on a car on or off, free (the test worlds' debug commands): { socket: state }
+  setAttach(carInstanceId, states) {
+    return this.#change('dev', p => {
+      if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
+      const build = buildOf(p, this.db, carInstanceId);
+      for (const [socket, state] of Object.entries(states ?? {})) {
+        const x = p.parts[build[socket]];
+        if (!x) return { error: `Nothing's fitted in ${socket}.` };
+        if (!ATTACH.includes(state)) return { error: `"${state}" isn't how a part can be: attached, loose or detached.` };
+        if (state === 'attached') delete x.attach; else x.attach = state;
+      }
+      return {};
+    });
+  }
+  resetHints() { return this.#change('dev', p => { delete p.hints; return {}; }); }
   setCondition(instanceIds, condition) {
     return this.#change('dev', p => {
       if (!(condition >= 0 && condition <= 100)) return { error: 'Condition goes from 0 to 100.' };

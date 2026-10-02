@@ -1,16 +1,18 @@
 // A build's fingerprint: a hash of everything that decides its physics — the car, the part in each
-// socket, each part's condition, tuning and mechanical damage (not its paint or finish, which only
-// change how it looks).
+// socket, each part's condition, tuning and mechanical damage, and whether it's hanging loose or torn
+// off (not its paint or finish, which only change how it looks).
 // The same fingerprint means the same physics spec. Plain JavaScript, the same in the page and Node.
 
-// owned: the garage's owned parts ({ instanceId: { partId, condition, tuning, damage } })
+// owned: the garage's owned parts ({ instanceId: { partId, condition, tuning, damage, attach } })
 export function fingerprint(build, owned) {
   const sockets = Object.keys(build.sockets || {}).sort().map(s => {
     const inst = build.sockets[s] ? owned[build.sockets[s]] : null;
     if (!inst) return [s, null];
     const tuning = Object.keys(inst.tuning || {}).sort().map(k => [k, inst.tuning[k]]);
-    // (mechanical damage too, when it has any: a copy with none hashes as it always has)
-    return inst.damage && Object.keys(inst.damage).length ? [s, inst.partId, inst.condition ?? 100, tuning, sorted(inst.damage)] : [s, inst.partId, inst.condition ?? 100, tuning];
+    // (mechanical damage too, and loose or torn off, when it has any: a copy with none hashes as it always has)
+    const out = inst.damage && Object.keys(inst.damage).length ? [s, inst.partId, inst.condition ?? 100, tuning, sorted(inst.damage)] : [s, inst.partId, inst.condition ?? 100, tuning];
+    if (inst.attach && inst.attach !== 'attached') out.push(inst.attach);
+    return out;
   });
   return hash(JSON.stringify([build.carId, sockets]));
 }

@@ -14,7 +14,7 @@ import { computeStats } from './stats.js';
 import { checkInstall, checkRemove, validateBuild } from './validate.js';
 import { fingerprint } from './fingerprint.js';
 
-export const SCHEMAS = ['car.schema.json', 'part.schema.json', 'blocks.schema.json', 'owned-part.schema.json', 'build.schema.json', 'garage.schema.json', 'finishes.schema.json', 'condition.schema.json', 'classes.schema.json', 'economy.schema.json', 'profile.schema.json', 'engine-sound.schema.json', 'damage.schema.json', 'crash-sound.schema.json', 'mechanical-sound.schema.json', 'effects.schema.json'];
+export const SCHEMAS = ['car.schema.json', 'part.schema.json', 'blocks.schema.json', 'owned-part.schema.json', 'build.schema.json', 'garage.schema.json', 'finishes.schema.json', 'condition.schema.json', 'classes.schema.json', 'economy.schema.json', 'profile.schema.json', 'engine-sound.schema.json', 'damage.schema.json', 'crash-sound.schema.json', 'mechanical-sound.schema.json', 'effects.schema.json', 'sessions.schema.json'];
 
 // Every car and part, and the finishes, checked against the schemas. Returns { db: { cars, parts,
 // finishes }, problems: [{ file, path, message }] } (problems: files that don't match their schema, ids
@@ -23,12 +23,13 @@ export async function loadGarageData(readJson) {
   const schemas = Object.fromEntries(await Promise.all(SCHEMAS.map(async f => [f, await readJson(`data/schemas/${f}`)])));
   const validator = createValidator(schemas), problems = [], cars = {}, parts = {};
   const check = (file, schema, data) => { for (const e of validator.validate(schema, data)) problems.push({ file, path: e.path, message: e.message }); };
-  const [carIndex, partIndex, finishFile, condition, classes, economy, damage] = await Promise.all(['data/cars/index.json', 'data/parts/index.json', 'data/finishes.json', 'data/condition.json', 'data/classes.json', 'data/economy.json', 'data/damage.json'].map(f => readJson(f)));
+  const [carIndex, partIndex, finishFile, condition, classes, economy, damage, sessions] = await Promise.all(['data/cars/index.json', 'data/parts/index.json', 'data/finishes.json', 'data/condition.json', 'data/classes.json', 'data/economy.json', 'data/damage.json', 'data/sessions.json'].map(f => readJson(f)));
   check('data/finishes.json', 'finishes.schema.json', finishFile);
   check('data/economy.json', 'economy.schema.json', economy);
   check('data/condition.json', 'condition.schema.json', condition);
   check('data/classes.json', 'classes.schema.json', classes);
   check('data/damage.json', 'damage.schema.json', damage);
+  check('data/sessions.json', 'sessions.schema.json', sessions);
   const finishes = finishFile.finishes || {};
   await Promise.all([
     ...carIndex.cars.map(async rel => {
@@ -67,7 +68,7 @@ export async function loadGarageData(readJson) {
       if (!(t.min <= t.default && t.default <= t.max)) problems.push({ file, path: `tuning.${name}`, message: `its default ${t.default} isn't within ${t.min}–${t.max}` });
   }
   if (!cars[economy.startingCar]) problems.push({ file: 'data/economy.json', path: 'startingCar', message: `there's no car "${economy.startingCar}"` });
-  return { db: { cars, parts, finishes, condition, classes, economy, damage }, problems, validator };
+  return { db: { cars, parts, finishes, condition, classes, economy, damage, sessions }, problems, validator };
 }
 
 // ---------- The garage ----------

@@ -23,13 +23,15 @@
 // centre), spin (rad/s about the axle) } — a cylinder that rolls away.
 
 import { add, cross, dot, fromXYZ, rotate, scale, sub, toXYZ } from './math.js';
+import { CAR, DEBRIS, collisionGroups } from './carCollisions.js';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const conj = q => ({ x: -q.x, y: -q.y, z: -q.z, w: q.w });
 const quatMul = (a, b) => ({ w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z, x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x, z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w });
-// collision groups (membership << 16 | filter): cars, and torn-off pieces that don't touch cars yet
-export const CAR = 0x0002, DEBRIS = 0x0004;
-export const CAR_GROUPS = (CAR << 16) | 0xffff;
+// collision groups (membership << 16 | filter): cars (physics/carCollisions.js: ghosting cars don't
+// touch each other), and torn-off pieces that don't touch cars yet
+export { CAR, DEBRIS };
+export const CAR_GROUPS = collisionGroups('full');
 const PIECE_NO_CARS = (DEBRIS << 16) | (0xffff & ~CAR), PIECE = (DEBRIS << 16) | 0xffff;
 const AIR = 1.2;       // kg/m³ (near enough, for bits of car)
 

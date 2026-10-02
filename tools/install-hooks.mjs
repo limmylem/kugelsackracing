@@ -10,5 +10,5 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (!fs.existsSync(path.join(root, '.git'))) { console.log('(not a git repository yet: the pre-commit checks switch on after git init and npm run hooks)'); process.exit(0); }
 try {
   execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
-  console.log('git hooks on: every commit runs npm run check, npm run check-models and npm test first');
+  console.log('git hooks on: every commit runs npm run check, npm run check-models, npm test and npm run crash-test first');
 } catch (err) { console.log(`couldn't switch the git hooks on: ${err.message}`); }

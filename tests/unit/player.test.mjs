@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { harness } from '../harness.mjs';
 import { LocalPlayerService, METHODS, PlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
-import { MIGRATIONS, migrate } from '../../garage/player/migrations.js';
+import { CURRENT_VERSION, MIGRATIONS, migrate } from '../../garage/player/migrations.js';
 import { buildOf, clone, repairCost, sellPrice, setupChanges } from '../../garage/player/profile.js';
 
 const H = await harness(), db = H.db;
@@ -217,18 +217,18 @@ test('an old save (version 1, before the shop) loads; migrations run one step at
   const g = H.garage(v1); g.install(g.acquire('cold_air_intake').instanceId);
   const old = clone(g.state);
   const { profile, notices } = await fresh(old);
-  assert.equal(profile.version, 2);
+  assert.equal(profile.version, CURRENT_VERSION);
   assert.equal(profile.money, db.economy.startingMoney);
   assert.equal(at(profile, 'socket_intake'), 'cold_air_intake');
   assert.ok(copyOf(profile, 'stock_airbox'), 'the part it replaced is in the inventory');
   assert.equal(Object.values(profile.cars[profile.currentCar].setups)[0].sockets.socket_intake, buildOf(profile, db, profile.currentCar).socket_intake);
   assert.deepEqual(notices, []);
-  // a pretend version 3 (money becomes pennies... in a field called "cash"): a version 1 save goes
-  // through both steps in order
-  const v3 = { ...MIGRATIONS, 2: save => ({ ...save, cash: save.money * 100 }) };
-  const m = migrate(old, { migrations: v3, current: 3, context: { db } });
-  assert.deepEqual(m.steps, ['1 → 2', '2 → 3']);
-  assert.equal(m.save.version, 3);
+  // a pretend next version (money becomes pennies... in a field called "cash"): a version 1 save goes
+  // through every step in order
+  const next = CURRENT_VERSION + 1, later = { ...MIGRATIONS, [CURRENT_VERSION]: save => ({ ...save, cash: save.money * 100 }) };
+  const m = migrate(old, { migrations: later, current: next, context: { db } });
+  assert.deepEqual(m.steps, Array.from({ length: next - 1 }, (_, i) => `${i + 1} → ${i + 2}`));
+  assert.equal(m.save.version, next);
   assert.equal(m.save.cash, db.economy.startingMoney * 100);
   assert.throws(() => migrate({ ...old, version: 9 }), /newer version/);
 });

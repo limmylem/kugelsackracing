@@ -1,11 +1,18 @@
 // A player's profile — the save — and what's worked out from it. Pure data (no storage, no page), so
 // the same code can run in the browser, in the tests and, later, on a server.
 //
-//   profile: { version, money, nextId, currentCar, created, saved,
-//     cars: { carInstanceId: { carInstanceId, carId, price, paint?, activeSetup, setups: { setupId:
-//       { setupId, name, sockets: { socket: partInstanceId | null }, partIds: { socket: partId } } } } },
-//     parts: { instanceId: { instanceId, partId, condition, price, tuning?, paint?, dents?, damage?,
-//       installedOn: { car, socket } | null } } }
+//   profile: { version, money, nextId, currentCar, created, saved, hints?: [hint ids seen],
+//     cars: { carInstanceId: { carInstanceId, carId, price, paint?, damage?: { condition, dents,
+//       dentLog, broken }, activeSetup, setups: { setupId: { setupId, name, sockets: { socket:
+//       partInstanceId | null }, partIds: { socket: partId } } } } },
+//     parts: { instanceId: { instanceId, partId, condition, price, tuning?, paint?, dents?, dentLog?,
+//       damage?, attach?: 'loose' | 'detached', installedOn: { car, socket } | null } } }
+//
+// Crash damage is kept per part copy (and the car's body shell): its condition, its mechanical damage
+// block, whether it's hanging loose or torn off, and its dents as an impact list (dentLog: the base the
+// older hits folded into, and the hits since — garage/damageLog.js); dents is what that folds to,
+// worked out again whenever the log changes and never saved. Saved, the logs are packed (packProfile:
+// 16 bytes a dent) and a save loaded folds them again exactly (unpackProfile, checkProfile).
 //
 // Where a part is, is its installedOn: a car's build is the parts installed on it. A setup is a saved
 // build (socket → part copy; partIds keeps what each was, to name it if it's gone), and a car's
@@ -14,9 +21,11 @@
 import { Garage } from '../data.js';
 import { fingerprint } from '../fingerprint.js';
 import { takes, validateBuild } from '../validate.js';
-import { hasDamage, prune } from '../mechanical.js';
+import { prune } from '../mechanical.js';
+import { dentsOf, packLog, unpackDents } from '../damageLog.js';
+import { needsWork, partWork, shellWork, workCost } from '../repair.js';
 
-export const PROFILE_VERSION = 2;
+export const PROFILE_VERSION = 3;
 export const clone = x => JSON.parse(JSON.stringify(x));
 export const newId = (profile, prefix) => `${prefix}_${String(profile.nextId++).padStart(6, '0')}`;
 
@@ -36,24 +45,14 @@ export function carPrice(db, def) {
 }
 // A part's price: its definition's, or (if that's gone) what was paid for it
 export const priceOf = (db, instance) => db.parts[instance.partId]?.price ?? instance.price ?? 0;
-// What a copy sells for, and what it costs to put back to 100%
+// What a copy sells for, and what it costs to put back to 100% (garage/repair.js: its condition and
+// dents, its mechanical damage — bent, leaking, worn — and bolting it back on if it came loose or off)
 export const sellPrice = (db, instance) => Math.round(priceOf(db, instance) * db.economy.sell.ratio * curve(db.economy.sell.conditionCurve, instance.condition));
-// (mechanical damage — bent, leaking, worn: garage/mechanical.js — costs repair.mechanical of its price more)
-export function repairCost(db, instance) {
-  const R = db.economy.repair, broken = hasDamage(instance.damage), mech = broken ? Math.max(R.minimum, priceOf(db, instance) * (R.mechanical ?? 0)) : 0;
-  if (instance.condition >= 100) return Math.round(mech || (instance.dents?.length ? R.minimum : 0));
-  return Math.round(Math.max(R.minimum, priceOf(db, instance) * R.perPoint * (100 - instance.condition)) + mech);
-}
-// Whether a copy needs the workshop: worn, dented or mechanically damaged
-export const needsRepair = instance => !!instance && (instance.condition < 100 || !!instance.dents?.length || hasDamage(instance.damage));
+export const repairCost = (db, instance, kind = 'full') => workCost(partWork(db, instance), kind);
+// Whether a copy needs the workshop: worn, dented, mechanically damaged, loose or torn off
+export const needsRepair = needsWork;
 // The body shell's repair (a car's crash damage: its condition, dents and broken glass and lights)
-export function shellRepairCost(db, car) {
-  const d = car?.damage, R = db.economy.repair;
-  if (!d) return 0;
-  const condition = d.condition ?? 100, broken = d.broken?.length ?? 0, price = db.cars[car.carId]?.shell?.price ?? 0;
-  if (condition >= 100 && !d.dents?.length && !broken) return 0;
-  return Math.round(Math.max(R.minimum, price * R.perPoint * (100 - condition)) + broken * (R.breakable ?? 0));
-}
+export const shellRepairCost = (db, car, kind = 'full') => workCost(shellWork(db, car), kind);
 // (a mechanical damage block as it should be: numbers, or corners of numbers; nothing that means "fine")
 export function cleanDamage(block) {
   if (!block || typeof block !== 'object' || Array.isArray(block)) return {};
@@ -66,6 +65,33 @@ export function cleanDamage(block) {
 }
 // (a dent list as it should be: numbers, at most `most` of them)
 export const cleanDents = (list, most = 64) => Array.isArray(list) ? list.filter(x => [...(x?.p ?? []), ...(x?.d ?? []), x?.s].length === 7 && [...x.p, ...x.d, x.s].every(Number.isFinite)).slice(0, most).map(x => ({ p: x.p.slice(), d: x.d.slice(), s: x.s, ...(x.w > 0 && x.w < 1 && { w: x.w }) })) : [];
+// A copy's (or the shell's) dents from its log: dentLog as it should be (its base and hits, numbers),
+// and dents what it folds to; neither if there are none. rules: data/damage.json
+export function setDents(target, log, rules) {
+  const base = cleanDents(log?.base, 64), hits = cleanDents(log?.hits, 256);
+  if (!base.length && !hits.length) { delete target.dentLog; delete target.dents; return target; }
+  target.dentLog = { base, hits };
+  const dents = rules ? dentsOf(target.dentLog, rules) : [...base, ...hits];
+  if (dents.length) target.dents = dents; else delete target.dents;
+  return target;
+}
+
+// ---------- the save as stored ----------
+// The profile as it's written: each dent log packed (garage/damageLog.js), the dents it folds to left out
+export function packProfile(profile) {
+  const out = clone(profile), pack = x => { if (x?.dentLog) x.dentLog = packLog(x.dentLog); if (x) delete x.dents; };
+  for (const p of Object.values(out.parts ?? {})) pack(p);
+  for (const c of Object.values(out.cars ?? {})) pack(c.damage);
+  return out;
+}
+// …and back: each packed log unpacked (checkProfile folds them into dents again). A log already
+// unpacked, or a version 2 save's dents, are left for checkProfile and the migrations
+export function unpackProfile(save) {
+  const out = clone(save), unpack = x => { const L = x?.dentLog; if (L && !Array.isArray(L.base) && !Array.isArray(L.hits)) x.dentLog = { base: unpackDents(L.b), hits: unpackDents(L.h) }; };
+  for (const p of Object.values(out.parts ?? {})) unpack(p);
+  for (const c of Object.values(out.cars ?? {})) unpack(c.damage);
+  return out;
+}
 // How many copies make one of a part (a part for a group of sockets — wheels, tyres — comes as a set)
 export function setSize(db, part, carId = null) {
   const cars = carId ? [db.cars[carId]] : Object.values(db.cars);
@@ -119,11 +145,14 @@ export const carName = (profile, db, carInstanceId) => {
 export function garageStateOf(profile, db) {
   const parts = {}, cars = {};
   for (const p of Object.values(profile.parts)) {
-    parts[p.instanceId] = { instanceId: p.instanceId, partId: p.partId, condition: p.condition, ...(p.tuning ? { tuning: clone(p.tuning) } : {}), ...(p.paint ? { paint: clone(p.paint) } : {}), ...(p.damage ? { damage: clone(p.damage) } : {}) };
+    parts[p.instanceId] = { instanceId: p.instanceId, partId: p.partId, condition: p.condition, ...(p.tuning ? { tuning: clone(p.tuning) } : {}), ...(p.paint ? { paint: clone(p.paint) } : {}), ...(p.damage ? { damage: clone(p.damage) } : {}), ...(p.attach ? { attach: p.attach } : {}) };
   }
   for (const c of Object.values(profile.cars)) {
     if (!db.cars[c.carId]) continue;
     const build = { carId: c.carId, carInstanceId: c.carInstanceId, sockets: buildOf(profile, db, c.carInstanceId) };
+    // (parts hanging loose or torn off: what the stats calculator leaves off or adds drag for)
+    const attach = Object.fromEntries(Object.entries(build.sockets).filter(([, id]) => id && parts[id].attach).map(([s, id]) => [s, parts[id].attach]));
+    if (Object.keys(attach).length) build.attach = attach;
     build.fingerprint = fingerprint(build, parts);
     cars[c.carInstanceId] = { carInstanceId: c.carInstanceId, carId: c.carId, build, ...(c.paint ? { paint: clone(c.paint) } : {}) };
   }
@@ -183,15 +212,18 @@ export function checkProfile(input, db) {
     notices.push(`A car you had ("${car.carId}") isn't in the game any more: it's gone${price ? `, and its ${money(price)} refunded` : ''}. Its parts are in your inventory.`);
     delete profile.cars[id];
   }
-  // the body shells' crash damage, as it should be
+  // the body shells' crash damage, as it should be (its dents folded from its log again)
   for (const car of Object.values(profile.cars)) {
     const d = car.damage;
     if (!d) continue;
-    const condition = Math.min(100, Math.max(0, Number.isFinite(d.condition) ? d.condition : 100)), dents = cleanDents(d.dents), names = new Set((db.cars[car.carId].model.breakables ?? []).map(b => b.node));
+    const condition = Math.min(100, Math.max(0, Number.isFinite(d.condition) ? d.condition : 100)), names = new Set((db.cars[car.carId].model.breakables ?? []).map(b => b.node));
+    const dents = setDents({}, d.dentLog ?? { base: d.dents }, db.damage);
     const broken = [...new Set(Array.isArray(d.broken) ? d.broken.filter(n => names.has(n)) : [])];
-    if (condition >= 100 && !dents.length && !broken.length) delete car.damage;
-    else car.damage = { condition, ...(dents.length && { dents }), ...(broken.length && { broken }) };
+    if (condition >= 100 && !dents.dentLog && !broken.length) delete car.damage;
+    else car.damage = { condition, ...dents, ...(broken.length && { broken }) };
   }
+  // the hints the player has seen (garage/hints.js)
+  if (profile.hints !== undefined) { profile.hints = Array.isArray(profile.hints) ? [...new Set(profile.hints.filter(h => typeof h === 'string' && /^[a-zA-Z0-9_]+$/.test(h)))] : []; if (!profile.hints.length) delete profile.hints; }
   // parts whose definition is gone
   const gone = new Map();
   for (const [id, p] of Object.entries(profile.parts)) {
@@ -207,20 +239,23 @@ export function checkProfile(input, db) {
   for (const p of Object.values(profile.parts)) {
     const def = db.parts[p.partId];
     p.condition = Math.min(100, Math.max(0, Number.isFinite(p.condition) ? p.condition : 100));
-    if (p.dents !== undefined) { p.dents = cleanDents(p.dents); if (!p.dents.length) delete p.dents; }
+    if (p.dentLog !== undefined || p.dents !== undefined) setDents(p, p.dentLog ?? { base: p.dents }, db.damage);
     if (p.damage !== undefined) { p.damage = cleanDamage(p.damage); if (!Object.keys(p.damage).length) delete p.damage; }
+    // (hanging loose or torn off: only a part on a car, and only one that can come off — or a wheel)
+    if (p.attach !== undefined && !(['loose', 'detached'].includes(p.attach) && p.installedOn && (def.detach?.detachable || ['wheels', 'wheel'].includes(def.slot)))) delete p.attach;
     if (!Number.isFinite(p.price)) p.price = def.price;
     if (p.tuning) {
       for (const [k, v] of Object.entries(p.tuning)) { const t = def.tuning?.[k]; if (!t || !Number.isFinite(v)) delete p.tuning[k]; else p.tuning[k] = Math.min(t.max, Math.max(t.min, v)); }
       if (!Object.keys(p.tuning).length) delete p.tuning;
     }
     if (p.paint?.finish && !db.finishes[p.paint.finish]) delete p.paint;
-    if (!p.installedOn) { p.installedOn = null; continue; }
+    if (!p.installedOn) { p.installedOn = null; delete p.attach; continue; }
     const car = profile.cars[p.installedOn.car], cdef = car && db.cars[car.carId], socket = cdef?.sockets.find(s => s.name === p.installedOn.socket);
     const where = `${p.installedOn.car}/${p.installedOn.socket}`;
     if (!socket || taken.has(where) || !takes(cdef, socket, def)) {
       if (car) notices.push(`${def.name} can't go where it was on your ${cdef?.name ?? 'car'} any more: it's in your inventory.`);
       p.installedOn = null;
+      delete p.attach;
     } else taken.add(where);
   }
   // each car's build must hold together (bar empty sockets, fine in the garage): what makes it not,

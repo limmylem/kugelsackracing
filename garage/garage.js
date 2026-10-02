@@ -65,8 +65,10 @@ export async function enter(h = {}) {
   const { session, renderer, root, scene, screen } = g;
   // (back from a test drive of a dealer's car: the player's own car again)
   if (session.testDriving) session.endTestDrive();
-  // (parts shaken loose or torn off out there: back on, as they are, ready to repair)
-  session.attach.reattachAll('garage');
+  // (parts shaken loose with visual-only damage: back on; with full damage they stay loose or off, as the
+  // save has them, for the damage report — a repair puts them back)
+  session.attach.dropTransient('garage');
+  session.attach.sync();
   if (!workshop) {
     let mode = 'quick';
     try { mode = localStorage.getItem(MODE_KEY) || 'quick'; } catch { /* default */ }

@@ -22,20 +22,24 @@
 //  - hides: sockets (whatever's in them) or model nodes hidden while a part is fitted.
 //  - showSockets(): every socket as a small labelled axis gizmo.
 //  - Crash damage (setDamage): the dents on each part and on the body shell (garage/damage.js keeps
-//    them; garage/dents.js pushes the vertices in, on this car's own copy of the meshes), and the glass
-//    and lights broken (cracked). showCondition() colours every part by its condition (a debug view).
+//    them; garage/dents.js pushes the vertices in, on this car's own copy of the meshes — spread over
+//    frames if the car has a dentBudget), and the glass and lights broken (cracked). A repair can ease the
+//    dents out (blendDamage). showCondition() colours every part by its condition (a debug view).
 //  - Parts shaken loose or torn off (loosenPart, detachPart, reattachPart): a loose part hangs off the
 //    car where the physics has it (setPartPose); a torn-off one is taken off the car to lie in the world
 //    (the game places it: pieceMatrix), dents and all, until it's put back. Both show both sides. A
-//    wheel torn off (detachWheel, reattachWheel) takes its whole pivot: rim, tyre and spacer.
+//    wheel torn off (detachWheel, reattachWheel) takes its whole pivot: rim, tyre and spacer. With no
+//    physics (the garage), showAttach hangs a loose part where it would settle and leaves a torn-off one
+//    off, till it's repaired.
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { carFrameToModel, wheelPivotName } from '../physics/sockets.js';
 import { tyreFit } from './tyres.js';
-import { clearDents, finerOf, setDents } from './dents.js';
+import { blendDents, clearDents, finerOf, setDents } from './dents.js';
 import { dentSize } from './damage.js';
+import { bodyDef } from './detach.js';
 import { KEEPS_LOOK, partShape } from './partShape.js';
 
 const TEXTURE_SLOTS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap'];
@@ -385,6 +389,7 @@ export class CarVisual {
     this.tokens = new Map();          // socket → the latest change asked for (older loads are dropped)
     this.hiddenNodes = new Set();
     this.damage = null;               // { shell: { dents, broken }, parts: { socket: dents } } (setDamage)
+    this.dentBudget = null;           // a DentBudget (garage/dents.js): dents spread over frames (none: at once)
     this.offCar = new Map();          // socket → a loose or torn-off part: { object, state, restCar, origin }
     this.overlay = null;              // the condition colours showing (showCondition)
     this.gizmos = null;
@@ -596,7 +601,7 @@ export class CarVisual {
     this.offCar.delete(socket);
     if (!e.object) return;
     for (const w of e.object.userData.atWheels ?? []) { w.object.removeFromParent(); this.models.release(w.url); disposeOwned(w.object); }
-    e.object.traverse(o => { if (o.isMesh) clearDents(o); });
+    e.object.traverse(o => { if (o.isMesh) { this.dentBudget?.drop(o); clearDents(o); } });
     e.object.removeFromParent();
     if (e.url) this.models.release(e.url);
     disposeOwned(e.object);
@@ -677,6 +682,29 @@ export class CarVisual {
     this.#dentBody();
     for (const socket of this.attached.keys()) this.#dentPart(socket);
     this.#applyBroken();
+    this.#sweep();                      // (a repair: the cracked glass and lights' own materials go)
+  }
+  // A repair, eased in: the dents from `from` to `to` (each as setDamage takes it) over the steps of
+  // set(t), 0 → 1; done() leaves the car as `to` has it. Meshes neither dents stay as they are
+  blendDamage(from, to, rules = this.damageRules) {
+    const R = rules, jobs = [], add = (meshes, a, b, origin) => {
+      for (const mesh of meshes) {
+        const x = this.#localDents(mesh, a ?? [], origin), y = this.#localDents(mesh, b ?? [], origin);
+        if (!x.list.length && !y.list.length) continue;
+        this.dentBudget?.drop(mesh);
+        const j = blendDents(mesh, x.list, y.list, R.dent.maxDepth * x.k);
+        if (j) jobs.push(j);
+      }
+    };
+    add(this.#bodyMeshes(), from?.shell?.dents, to?.shell?.dents, [0, 0, 0]);
+    for (const [socket, e] of this.attached) {
+      const s = this.car.sockets.find(x => x.name === socket);
+      if (!e?.object || !s || e.kind === 'tyre' || this.pivots.has(s.node ?? s.name)) continue;
+      const meshes = [];
+      e.object.traverse(o => { if (o.isMesh) meshes.push(o); });
+      add(meshes, from?.parts?.[socket], to?.parts?.[socket], s.position);
+    }
+    return { set: t => { for (const j of jobs) j.set(t); }, done: () => { this.setDamage(to, R); }, meshes: jobs.length };
   }
   // Work out the finer meshes now (once per model), a mesh at a time between frames, so the first dent
   // costs nothing: the game calls this once the car's drawn
@@ -702,24 +730,31 @@ export class CarVisual {
     this.#dentMeshes(meshes, this.damage?.parts?.[socket] ?? [], s.position);
   }
   // dents (car frame, from origin) into each mesh's own space; a mesh no dent reaches keeps (or goes
-  // back to) the shared model
+  // back to) the shared model. With a dent budget the denting waits its turn (a mesh going back undented
+  // is cheap: at once)
   #dentMeshes(meshes, dents, origin) {
     const R = this.damageRules;
     if (!R) return;
     for (const mesh of meshes) {
-      const rel = this.#restToCar(mesh), inv = rel.clone().invert(), k = 1 / (rel.getMaxScaleOnAxis() || 1);
-      const g = mesh.userData.dent?.shared ?? mesh.geometry;
-      if (!g.boundingBox) g.computeBoundingBox();
-      const box = g.boundingBox;
-      const local = [];
-      for (const x of dents) {
-        // (car frame, as the rest matrices are)
-        const { depth, radius } = dentSize(R, x.s), p = new THREE.Vector3(origin[0] + x.p[0], origin[1] + x.p[1], origin[2] + x.p[2]).applyMatrix4(inv);
-        if (box.distanceToPoint(p) > radius * k) continue;
-        local.push({ p, d: new THREE.Vector3(...x.d).transformDirection(inv), depth: depth * (x.w ?? 1) * k, radius: radius * k });
-      }
-      if (local.length) setDents(mesh, local, R.dent.maxDepth * k); else clearDents(mesh);
+      const { list, k } = this.#localDents(mesh, dents, origin);
+      if (!list.length) { this.dentBudget?.drop(mesh); clearDents(mesh); }
+      else if (this.dentBudget) this.dentBudget.queue(mesh, list, R.dent.maxDepth * k);
+      else setDents(mesh, list, R.dent.maxDepth * k);
     }
+  }
+  // (one mesh's dents in its own space, and its scale: { list, k })
+  #localDents(mesh, dents, origin) {
+    const R = this.damageRules, rel = this.#restToCar(mesh), inv = rel.clone().invert(), k = 1 / (rel.getMaxScaleOnAxis() || 1);
+    const g = mesh.userData.dent?.shared ?? mesh.geometry;
+    if (!g.boundingBox) g.computeBoundingBox();
+    const box = g.boundingBox, list = [];
+    for (const x of dents) {
+      // (car frame, as the rest matrices are)
+      const { depth, radius } = dentSize(R, x.s), p = new THREE.Vector3(origin[0] + x.p[0], origin[1] + x.p[1], origin[2] + x.p[2]).applyMatrix4(inv);
+      if (box.distanceToPoint(p) > radius * k) continue;
+      list.push({ p, d: new THREE.Vector3(...x.d).transformDirection(inv), depth: depth * (x.w ?? 1) * k, radius: radius * k });
+    }
+    return { list, k };
   }
   // a mesh's place in the car at rest: the model's own node positions, each part on its socket as fitted
   #restToCar(mesh) {
@@ -793,6 +828,39 @@ export class CarVisual {
     return true;
   }
   partState(socket) { return this.offCar.get(socket)?.state ?? 'attached'; }
+  // Where a loose part settles with nothing moving it (the garage): its origin's place in the car frame —
+  // a hinged panel open a little on its hinge, a hanging one swung down from one of its mounts. parts:
+  // the part definitions; open: 0 (on) … 1 (as settled)
+  restingPose(socket, parts, open = 1) {
+    const s = this.car.sockets.find(x => x.name === socket), e = this.attached.get(socket);
+    if (!s || !e?.part) return null;
+    const def = bodyDef(e.part, s, parts, () => 0, this.car.id), at = new THREE.Vector3(...s.position), m = new THREE.Matrix4().makeTranslation(at.x, at.y, at.z);
+    if (def.type === 'hinge') {
+      const [lo, hi] = def.limits, side = Math.abs(lo) > Math.abs(hi) ? lo : hi, angle = Math.sign(side) * Math.min(Math.abs(side), 0.3) * open;
+      return new THREE.Matrix4().makeTranslation(at.x, at.y, at.z).multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(...def.axis).normalize(), angle));
+    }
+    if (def.type !== 'hanging') return m;
+    // (down about the mount, the far end lower: the axis across the line from the mount through the middle)
+    const pivot = at.clone().add(new THREE.Vector3(...def.mount)), far = at.clone().sub(new THREE.Vector3(...def.mount)), axis = new THREE.Vector3(0, 1, 0).cross(far.clone().sub(pivot)).normalize();
+    const turn = a => new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z).multiply(new THREE.Matrix4().makeRotationAxis(axis, a)).multiply(new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
+    const a = 0.35 * open, down = far.clone().applyMatrix4(turn(a)).y < far.y ? a : -a;
+    return turn(down).multiply(m);
+  }
+  // Parts loose or torn off with nothing moving them (the garage): states { socket: 'loose' | 'detached' }
+  // (the rest on), parts: the part definitions. A loose part hangs at its resting pose, a torn-off one
+  // (or wheel) is off the car, not drawn
+  showAttach(states = {}, parts = {}) {
+    const wheels = new Map(Object.entries(this.car.model.sockets).filter(([k]) => /^(FL|FR|RL|RR)$/.test(k)).map(([k, n]) => [n, k]));
+    for (const s of this.car.sockets) {
+      const want = states[s.name] ?? 'attached', k = wheels.get(s.name);
+      if (k) { if (want === 'detached') this.detachWheel(k); else this.reattachWheel(k); continue; }
+      const have = this.partState(s.name);
+      if (want === have) { if (want === 'loose') this.setPartPose(s.name, this.restingPose(s.name, parts)); continue; }
+      if (want === 'attached') this.reattachPart(s.name);
+      else if (want === 'loose') { if (have === 'detached') this.reattachPart(s.name); if (this.loosenPart(s.name)) this.setPartPose(s.name, this.restingPose(s.name, parts)); }
+      else this.detachPart(s.name);
+    }
+  }
   // A wheel torn off (FL…): its pivot (rim, tyre, spacer) off the car, for the game to put in the world:
   // returns it with where it sat in the car frame (a Matrix4; place it with its matrix), or null
   detachWheel(k) {
@@ -905,6 +973,7 @@ export class CarVisual {
 
   dispose() {
     this.disposed = true;
+    this.root.traverse(o => { if (o.isMesh) this.dentBudget?.drop(o); });
     for (const s of [...this.attached.keys()]) this.#detach(s);
     this.showSockets(false);
     this.models.release(this.car.model.file);

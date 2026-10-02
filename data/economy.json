@@ -8,10 +8,45 @@
     "conditionCurve": [[0, 0.1], [40, 0.45], [70, 0.8], [100, 1]]
   },
   "repair": {
+    "_note": "garage/repair.js. A car's damage is repaired a piece at a time (the damage report's problems) or all at once. full: back to 100%, every dent out, the mechanical damage gone. quick: share of the full price; condition up to quick.condition (never down), each dent dentScale as hard (those left shallower than dentMin m gone), leaks sealed and tyres pumped up, bends and wear mechanicalKept of what they were. Mechanical damage: the part's price × its system's share (systems; mechanical for any not listed) — a corner of a per-wheel system (suspension, brake lines) a quarter of it — at least minimum, from severity of it for a slight one up to all of it at the worst. reattach: of the part's price, bolting a part that came loose or off back on (the same either way). A part's repairs together never cost more than maxOfNew of a new one. Fitting a spare from the inventory instead is free, like fitting any part.",
     "perPoint": 0.006,
     "minimum": 20,
     "breakable": 60,
-    "mechanical": 0.2
+    "mechanical": 0.2,
+    "systems": {
+      "suspension": 0.24,
+      "brakeLine": 0.16,
+      "rim": 0.45,
+      "tyre": 0.3,
+      "radiator": 0.07,
+      "intake": 0.15,
+      "gearbox": 0.25,
+      "differential": 0.25,
+      "clutch": 0.35,
+      "exhaust": 0.3
+    },
+    "severity": 0.5,
+    "reattach": 0.08,
+    "maxOfNew": 0.85,
+    "quick": {
+      "share": 0.55,
+      "condition": 80,
+      "dentScale": 0.25,
+      "dentMin": 0.02,
+      "mechanicalKept": 0.15
+    }
+  },
+  "safetyNet": {
+    "_note": "garage/repair.js basicRepair. A car that can't carry on (data/damage.json drivable) whose player can't afford the quick repairs that would make it drivable gets a basic repair free: only what stops it, each value put inside its limit (margin of it), a wheel back on, a blown engine running again at engineCondition.",
+    "enabled": true,
+    "margin": 0.75,
+    "engineCondition": 30
+  },
+  "raceRewards": {
+    "_note": "Placeholder prize money (races come later): what the balance report weighs crash repairs against.",
+    "win": 1500,
+    "podium": 900,
+    "finish": 350
   },
   "carPrices": {
     "D": 12000,

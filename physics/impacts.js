@@ -6,7 +6,9 @@
 // reached, which says what's low or tall enough to be hit; extent: the box round them, how wide: a
 // wall touches the whole front, a pole one spot); normal: out of the car toward what it hit
 // (car frame); closing: how fast the car was going into it along the normal before the step (m/s);
-// strength: that, less for something light (a cone moves out of the way: the push it took says so);
+// strength: the change in the car's velocity it made (physics/carCollisions.js impactStrength): into
+// something fixed, the closing speed; less for something light (a cone moves out of the way: the push it
+// took says so); into another car, its share by the two cars' masses (each feels the same push);
 // material: what it hit ('concrete', 'metal', 'wood', 'ground' from the world's colliders, 'car',
 // 'plastic' for a loose prop); other: 'world' | 'car' | 'prop'; under: it's under the car (the floor
 // pan: only a hard landing counts). Sliding along something, pressed on, is a scrape: the strongest
@@ -16,6 +18,7 @@
 // road (a jump, a crest) is filtered by groundMinSpeed. Nothing here changes the physics.
 
 import { add, cross, dot, fromXYZ, rotate, scale, sub } from './math.js';
+import { impactStrength } from './carCollisions.js';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const conj = q => ({ x: -q.x, y: -q.y, z: -q.z, w: q.w });
@@ -72,10 +75,10 @@ export class ImpactSensor {
       const vOtherPre = !dyn ? [0, 0, 0] : oPre ? velOf(oPre.lin, oPre.ang, oPre.com) : velOf(fromXYZ(ob.linvel()), fromXYZ(ob.angvel()), fromXYZ(ob.worldCom()));
       const vOther = !dyn ? [0, 0, 0] : velOf(fromXYZ(ob.linvel()), fromXYZ(ob.angvel()), fromXYZ(ob.worldCom()));
       const closing = dot(sub(velOf(pre.lin, pre.ang, pre.com), vOtherPre), nWorld);
-      const mRed = dyn ? mass * ob.mass() / (mass + ob.mass()) : mass;
+      const otherMass = dyn ? ob.mass() : Infinity, mRed = dyn ? mass * otherMass / (mass + otherMass) : mass;
       const under = nWorld[1] < -R.groundUp, material = materialOf(other), kind = otherCar ? 'car' : dyn ? 'prop' : 'world';
       let s = this.pairs.get(other.handle);
-      const shape = { point, normal, yRange: [yMin, yMax], extent: { min: lo, max: hi }, material, other: kind, under, mRed };
+      const shape = { point, normal, yRange: [yMin, yMax], extent: { min: lo, max: hi }, material, other: kind, under, mRed, mass, otherMass };
       const impact = (cl, imp) => impactOf(time, shape, cl, imp);
       if (!s || time - s.lastSeen > 0.1) {
         s = { start: time, closing, J: 0, emitted: false, lastEvent: s?.lastEvent ?? -Infinity, lastSeen: time };
@@ -122,7 +125,8 @@ export class ImpactSensor {
 function impactOf(time, sh, closing, impulse) {
   return {
     time, point: sh.point, normal: sh.normal, yRange: sh.yRange, extent: sh.extent, closing, impulse,
-    strength: closing * clamp(impulse / (sh.mRed * Math.max(closing, 1e-3)), 0, 1), material: sh.material, other: sh.other, under: sh.under,
+    strength: impactStrength({ closing, impulse, mass: sh.mass, otherMass: sh.otherMass }), material: sh.material, other: sh.other, under: sh.under,
+    ...(sh.other === 'car' && { otherMass: sh.otherMass }),
   };
 }
 

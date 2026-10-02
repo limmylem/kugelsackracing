@@ -65,21 +65,22 @@ test('a corner hit: toe the way the blow twists the wheel, camber, ride, damper,
   const g = H.garage(), L = layoutOf(g), S = M.systems;
   // from the side, ahead of the front-left wheel's centre: it's turned to the right (toe −)
   const hit = s => impactMechanical({}, { point: [0.85, 0.4, 1.4], normal: [1, 0, 0], strength: s }, L, M, { wheelAt });
-  const r = hit(10), sus = r.damage[L.carriers.suspension].FL, over = 10 - S.steering.from;
+  const r = hit(14), sus = r.damage[L.carriers.suspension].FL, over = 14 - S.steering.from;
   assert.ok(Math.abs(sus.toe - -over * S.steering.toePerMs) < 1e-3, `${sus.toe}`);
   assert.ok(sus.camber > 0 && sus.ride > 0 && sus.damper > 0);
   assert.ok(r.damage[L.carriers.rim.FL].bend > 0 && r.damage[L.carriers.tyre.FL].leak > 0 && r.damage[L.carriers.brakeLine].FL.line > 0);
   assert.deepEqual(Object.keys(r.damage[L.carriers.suspension]), ['FL'], 'only the corner hit');
   assert.equal(r.wheelOff.length, 0);
   // behind the wheel's centre: turned the other way
-  assert.ok(impactMechanical({}, { point: [0.85, 0.4, 1.0], normal: [1, 0, 0], strength: 10 }, L, M, { wheelAt }).damage[L.carriers.suspension].FL.toe > 0);
+  assert.ok(impactMechanical({}, { point: [0.85, 0.4, 1.0], normal: [1, 0, 0], strength: 14 }, L, M, { wheelAt }).damage[L.carriers.suspension].FL.toe > 0);
   // it adds up, to the most there is
   const twice = applyHits(r.damage, r.hits, L, M, { toe: { FL: -1 } }).damage[L.carriers.suspension].FL;
   assert.ok(twice.camber > sus.camber && twice.toe >= -S.steering.max);
   // a tougher tyre (the stock one: 1.5) loses less than a rim (1.3) would at the same toughness
-  assert.ok(Math.abs(r.damage[L.carriers.tyre.FL].leak - (10 - S.tyre.from) * S.tyre.leakPerMs / L.toughness[L.carriers.tyre.FL]) < 1e-4);
-  // a light tap: nothing
+  assert.ok(Math.abs(r.damage[L.carriers.tyre.FL].leak - (14 - S.tyre.from) * S.tyre.leakPerMs / L.toughness[L.carriers.tyre.FL]) < 1e-4);
+  // a light tap — or a 30 km/h one: nothing
   assert.deepEqual(hit(2.5).damage, {});
+  assert.deepEqual(hit(8.3).damage, {});
   // huge: torn off
   assert.deepEqual(hit(M.wheelOff.from + 1).wheelOff, ['FL']);
   // the front: the radiator leaks, the gearbox takes a hard one; no turbo, so no boost to leak
@@ -92,10 +93,10 @@ test('a corner hit: toe the way the blow twists the wheel, camber, ride, damper,
 
 test('kerbs and landings strike a corner; debug settings; what\'s kept is only what isn\'t fine', () => {
   const g = H.garage(), L = layoutOf(g);
-  const k = strikeMechanical({}, 'RR', 9, L, M);
+  const k = strikeMechanical({}, 'RR', 12, L, M);
   assert.ok(k.damage[L.carriers.suspension].RR.camber > 0 && k.damage[L.carriers.rim.RR].bend > 0);
   assert.equal(k.damage[L.carriers.suspension].RR.toe, undefined, 'no steering at the back');
-  assert.deepEqual(strikeMechanical({}, 'RR', 9, L, M, { mode: 'visual' }).damage, {});
+  assert.deepEqual(strikeMechanical({}, 'RR', 12, L, M, { mode: 'visual' }).damage, {});
   const s = setMechanical({}, 'toe', 2, 'FL', L);
   assert.deepEqual(s.damage, { [L.carriers.suspension]: { FL: { toe: 2 } } });
   assert.deepEqual(setMechanical(s.damage, 'toe', null, 'FL', L).damage, { [L.carriers.suspension]: {} });
@@ -305,7 +306,7 @@ test('the session: a crash damages the mechanicals (full damage only); a huge on
     assert.ok(partOn('socket_suspension').damage.FL.camber > 0 && partOn('socket_wheel_FL').damage.bend > 0);
     assert.ok(sn.spec.damage.wheels.FL.camber > 0, 'into the physics');
     // a kerb strike, and the physics' live values written back
-    await sn.mechanical.strike('RR', 8, { kind: 'kerb' }).saved;
+    await sn.mechanical.strike('RR', 12, { kind: 'kerb' }).saved;
     assert.ok(partOn('socket_suspension').damage.RR.camber > 0);
     await sn.mechanical.writeBack({ pressure: { RL: 0.62 }, coolant: 0.8, clutch: 0.05 });
     assert.equal(partOn('socket_tyre_RL').damage.pressure, 0.62);

@@ -20,9 +20,8 @@ import { LocalPlayerService } from './player/service.js';
 import { IdbStorage, MemoryStorage } from './player/storage.js';
 import { garageStateOf, inInventory, carName, sellPrice } from './player/profile.js';
 import { PLAYTEST_TESTS, PlaytestLog } from './playtest.js';
-import { applyDamage, damageLayout, impactDamage } from './damage.js';
-import { attachAfterImpact } from './detach.js';
-import { CORNERS, DEBUG_KINDS, damageReport, impactMechanical, mechanicalLayout, prune, setMechanical, strikeMechanical } from './mechanical.js';
+import { crashOutcome } from './carDamage.js';
+import { CORNERS, DEBUG_KINDS, damageReport, mechanicalLayout, prune, setMechanical, strikeMechanical } from './mechanical.js';
 import { fingerprint } from './fingerprint.js';
 
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -67,15 +66,18 @@ async function create() {
   // development: unlimited money (kept in this browser, not in the save)
   const UNLIMITED = 'driveWorld.dev.unlimitedMoney';
   try { if (store?.getItem(UNLIMITED) === '1') player.setUnlimitedMoney(true); } catch { /* not kept */ }
-  // parts shaken loose or torn off in this drive (garage/detach.js): { socket: { state, stress, perf } }
-  // — perf: it counts for the car's performance (full damage); every change also an event
-  const attach = { states: {}, events: [], listeners: new Set() };
+  // parts shaken loose or torn off (garage/detach.js): { socket: { state, stress, perf } } — perf: it
+  // counts for the car's performance (full damage: kept in the save too, on the part, until a repair or
+  // a session's reset puts it back; visual only: for this drive). Every change also an event. pending:
+  // sockets whose change is on its way to the save (the save's word doesn't count for them till it's there)
+  const attach = { states: {}, events: [], listeners: new Set(), pending: new Map() };
   // a test drive (the dealership): a dealer's stock car in place of the player's, driven and not kept —
   // { carId, name } while one's on (testDrive(), endTestDrive())
   let trial = null;
+  // (the build the car drives as: the drive's own states say what's off — the save's are in them)
   const attachBuild = () => {
-    const a = Object.fromEntries(Object.entries(attach.states).filter(([, x]) => x.perf && x.state !== 'attached').map(([k, x]) => [k, x.state]));
-    return Object.keys(a).length ? { ...garage.build, attach: a } : garage.build;
+    const a = Object.fromEntries(Object.entries(attach.states).filter(([, x]) => x.perf && x.state !== 'attached').map(([k, x]) => [k, x.state])), { attach: _, ...build } = garage.build;
+    return Object.keys(a).length ? { ...build, attach: a } : build;
   };
   let current = garage.stats(attachBuild());
   const spec = clone(current.spec), listeners = new Set(), lookListeners = new Set();
@@ -97,9 +99,44 @@ async function create() {
   player.on(({ profile }) => {
     if (trial) return;                    // (the player's own car is back when the test drive ends)
     garage.state = garageStateOf(profile, db);
-    if (garage.build.fingerprint !== fingerprintNow || look !== lookOf()) { fingerprintNow = garage.build.fingerprint; applyStats(); }
+    const moved = syncAttach('save');
+    if (moved || garage.build.fingerprint !== fingerprintNow || look !== lookOf()) { fingerprintNow = garage.build.fingerprint; applyStats(); }
     if (look !== lookOf()) { look = lookOf(); lookChanged(); }
   });
+  // The save's parts loose or off into the drive's states (and a part the save has back on — repaired, a
+  // session's reset — back on here), but for those with a change of their own on the way
+  function syncAttach(reason) {
+    if (trial) return false;
+    const p = player.profile, want = {};
+    for (const [socket, id] of Object.entries(garage.build.sockets)) { const a = id && p.parts[id]?.attach; if (a) want[socket] = a; }
+    let moved = false;
+    for (const socket of new Set([...Object.keys(want), ...Object.keys(attach.states)])) {
+      const have = attach.states[socket], to = want[socket] ?? 'attached', was = have?.state ?? 'attached';
+      if (attach.pending.has(socket) || was === to || (to === 'attached' && !have?.perf)) continue;
+      if (to === 'attached') delete attach.states[socket]; else attach.states[socket] = { state: to, stress: have?.stress ?? 0, perf: true };
+      note(socket, was, to, reason);
+      moved = true;
+    }
+    return moved;
+  }
+  // (an attach change: an event, for the listeners and syncing)
+  function note(socket, from, state, reason) {
+    const id = garage.build.sockets[socket], e = { time: new Date().toISOString(), car: carNow(), socket, instanceId: id, partId: garage.state.parts[id]?.partId ?? null, from, state, reason };
+    attach.events.push(e);
+    if (attach.events.length > 500) attach.events.splice(0, attach.events.length - 500);
+    for (const fn of attach.listeners) fn(e);
+    return e;
+  }
+  // (every part back on in the drive only: a dealer's car coming or going — the save's stay as they are)
+  function clearAttach(reason) {
+    for (const socket of Object.keys(attach.states)) { const was = attach.states[socket].state; delete attach.states[socket]; note(socket, was, 'attached', reason); }
+  }
+  // (an attach change on its way to the save)
+  function pend(sockets, promise) {
+    const mark = {};
+    for (const s of sockets) attach.pending.set(s, mark);
+    return promise.then(r => { for (const s of sockets) if (attach.pending.get(s) === mark) attach.pending.delete(s); if (syncAttach('save')) applyStats(); return r; });
+  }
 
   // print what a change did
   const report = (title, r, before) => {
@@ -171,13 +208,6 @@ async function create() {
       }
       return blocks;
     },
-    hit(impact, result, { mode, tearOff = true }) {
-      if (mode !== 'full' || !db.damage?.mechanical) return { damage: {}, effects: [], wheelOff: [], hits: [] };
-      const L = mechanical.layout(), wheelAt = Object.fromEntries(CORNERS.map(k => [k, garage.car.sockets.find(s => s.name === garage.car.model.sockets[k])?.position]).filter(([, p]) => p));
-      const r = impactMechanical(mechanical.state(), { ...impact, depth: result.depth }, L, db.damage.mechanical, { mode, wheelAt });
-      if (r.wheelOff.length && tearOff) Object.assign(r.damage, mechanical.tearOff(r.wheelOff, mode, `a ${result.strength.toFixed(0)} m/s hit`));
-      return r;
-    },
     strike(corner, strength, { mode = 'full', kind = 'kerb', tearOff = true } = {}) {
       const r = strikeMechanical(mechanical.state(), corner, strength, mechanical.layout(), db.damage?.mechanical, { mode, kind });
       if (r.wheelOff.length && tearOff) Object.assign(r.damage, mechanical.tearOff(r.wheelOff, mode, `a ${kind} at ${strength.toFixed(0)} m/s`));
@@ -206,6 +236,10 @@ async function create() {
       return mechanical.write(r.damage, 'debug').then(x => ({ ok: !!x?.ok, errors: x?.error ? [x.error] : [] }));
     },
   };
+
+  // (the drive starts with the save's parts loose or off)
+  syncAttach('save');
+  applyStats();
 
   const api = {
     db, garage, spec, problems, player,
@@ -264,29 +298,30 @@ async function create() {
     },
     //  the car driven's crash damage (for the drawing), and what a crash does to it: impact from
     //  physics/impacts.js, mode 'full' | 'visual' | 'off', boxes: the body's glass and lights
-    //  (physics/sockets.js nodeBoxes). Written to the player's car at once, whatever the gates say (it
-    //  happened on the road). Returns garage/damage.js's result (what was hit, dents, losses, broken)
+    //  (physics/sockets.js nodeBoxes), scale: the share of it the car takes (reduced damage from other
+    //  cars: physics/carCollisions.js). Worked out as every car's is (garage/carDamage.js) and written to
+    //  the player's car at once, whatever the gates say (it happened on the road): the hits that dented
+    //  each part, conditions, mechanical damage, parts loose or off. Returns the impact's result (what was
+    //  hit, dents, losses, broken, attach, mechanical) and next (the body damage after)
     get damage() { return damageOf(); },
-    crash(impact, { mode = 'full', boxes = {}, detach = true } = {}) {
-      const torn = Object.fromEntries(Object.entries(attach.states).filter(([, x]) => x.state === 'detached').map(([k]) => [k, 'detached']));
-      const rules = db.damage, layout = damageLayout({ car: garage.car, build: { ...garage.build, attach: torn }, db: garage.view, boxes }, rules);
-      const result = impactDamage(impact, layout, rules, { mode });
-      // (parts shaken loose or torn off: only those on the car still count)
-      const bySocket = {};
-      for (const [socket, id] of Object.entries(garage.build.sockets)) if (id && attach.states[socket]?.state !== 'detached') bySocket[socket] = db.parts[garage.state.parts[id]?.partId];
-      const { changes } = detach ? attachAfterImpact(attach.states, result.stress, bySocket, { mode }) : { changes: [] };
-      for (const c of changes) api.attach.set(c.socket, c.to, { mode, reason: c.reason, stress: c.stress });
-      result.attach = changes;
-      // the mechanicals in the zones it reached (full damage only): bent, leaking, a wheel torn off
-      const mech = mechanical.hit(impact, result, { mode, tearOff: detach });
+    crash(impact, { mode = 'full', boxes = {}, detach = true, scale = 1 } = {}) {
+      const hit = scale === 1 ? impact : { ...impact, strength: impact.strength * scale, closing: (impact.closing ?? impact.strength) * scale };
+      const p = player.profile, sockets = garage.build.sockets, car = !trial && p.cars[carNow()];
+      const out = crashOutcome({
+        car: garage.car, build: garage.build, view: garage.view, boxes, rules: db.damage, attach: attach.states, mech: mechanical.state(),
+        damage: { shell: car ? car.damage ?? null : null, parts: Object.fromEntries(Object.values(sockets).filter(Boolean).map(id => [id, { condition: garage.state.parts[id]?.condition ?? 100, dents: (car && p.parts[id]?.dents) || [] }])) },
+      }, hit, { mode, detach });
+      const { result, mech, next } = out;
+      // (parts shaken loose or torn off — a wheel too: kept in the save, with full damage)
+      for (const c of out.changes) api.attach.set(c.socket, c.to, { mode, reason: c.reason, stress: c.stress });
+      result.attach = out.changes;
       result.mechanical = mech;
-      if (mode === 'off' || trial || (!result.dents.length && !result.losses.length && !result.broken.length && !Object.keys(mech.damage).length)) return { result, saved: Promise.resolve(null) };
-      const p = player.profile, car = p.cars[carNow()], sockets = garage.build.sockets;
-      const state = { shell: car.damage ?? null, parts: Object.fromEntries(Object.values(sockets).filter(Boolean).map(id => [id, { condition: p.parts[id].condition, dents: p.parts[id].dents ?? [] }])) };
-      const next = applyDamage(state, result, rules, sockets), touched = new Set([...result.dents.map(d => sockets[d.target]), ...result.losses.map(l => l.instanceId)].filter(Boolean));
-      const parts = Object.fromEntries([...touched].map(id => [id, next.parts[id]]));
+      if (mode === 'off' || trial || (!result.dents.length && !result.losses.length && !result.broken.length && !Object.keys(mech.damage).length)) return { result, next, saved: Promise.resolve(null) };
+      const parts = {}, hitsOf = target => result.dents.filter(d => d.target === target).map(({ target: _, ...d }) => d);
+      for (const id of out.touched) { const socket = Object.keys(sockets).find(k => sockets[k] === id); parts[id] = { condition: next.parts[id].condition, ...(socket && { hits: hitsOf(socket) }) }; }
       for (const [id, block] of Object.entries(mech.damage)) parts[id] = { ...(parts[id] ?? {}), damage: block };
-      const saved = mechanical.save(player.damageCar(carNow(), { parts, shell: next.shell }, { cause: `${result.class} into ${result.material}` }), mech.damage);
+      const shell = { condition: next.shell.condition, hits: hitsOf('shell'), broken: next.shell.broken };
+      const saved = mechanical.save(player.damageCar(carNow(), { parts, shell }, { cause: `${result.class} into ${result.material}` }), mech.damage);
       return { result, next, saved };
     },
     //  mechanical damage (garage/mechanical.js): what the car carries, a kerb strike or heavy landing
@@ -308,25 +343,40 @@ async function create() {
       get events() { return attach.events; },
       stateOf: socket => attach.states[socket]?.state ?? 'attached',
       on(fn) { attach.listeners.add(fn); return () => attach.listeners.delete(fn); },
-      // (mode: the damage setting — full: it counts for the performance; visual: looks only; off: nothing)
+      // (mode: the damage setting — full: it counts for the performance, and it's kept in the save; visual:
+      // looks only, for this drive; off: nothing)
       set(socket, state, { mode = 'full', reason = null, stress } = {}) {
-        const was = attach.states[socket]?.state ?? 'attached', id = garage.build.sockets[socket], part = id && db.parts[garage.state.parts[id]?.partId];
+        const had = attach.states[socket], was = had?.state ?? 'attached', id = garage.build.sockets[socket], part = id && db.parts[garage.state.parts[id]?.partId];
         if (mode === 'off' || !part || state === was) return false;
         if (state !== 'attached' && !part.detach?.detachable && !wheelSockets().includes(socket)) return false;   // (a wheel: torn off by a huge hit)
         if (state === 'attached') delete attach.states[socket];
-        else attach.states[socket] = { state, stress: stress ?? attach.states[socket]?.stress ?? 0, perf: mode === 'full' };
-        const e = { time: new Date().toISOString(), car: carNow(), socket, instanceId: id, partId: part.id, from: was, state, reason };
-        attach.events.push(e);
-        if (attach.events.length > 500) attach.events.splice(0, attach.events.length - 500);
+        else attach.states[socket] = { state, stress: stress ?? had?.stress ?? 0, perf: mode === 'full' || !!had?.perf };
+        // (into the save: off further with full damage; back on — the debug commands — free)
+        if (!trial && (state === 'attached' ? had?.perf : mode === 'full')) pend([socket], state === 'attached' ? player.setAttach(carNow(), { [socket]: 'attached' }) : player.damageCar(carNow(), { parts: { [id]: { attach: state } } }, { cause: reason ?? 'crash' }));
+        note(socket, was, state, reason);
         applyStats();
-        for (const fn of attach.listeners) fn(e);
         return true;
       },
-      reattachAll(reason = 'reset') {
-        const sockets = Object.keys(attach.states);
-        for (const socket of sockets) api.attach.set(socket, 'attached', { reason });
-        return sockets.length;
+      // Back on the road (or a test drive starting): what a session's reset puts back on (kind: data/
+      // sessions.json — a test drive: every part; a race: only a wheel torn off), in the drive and the save,
+      // free. Returns how many came back on
+      reattachAll(reason = 'reset', { kind = 'test' } = {}) {
+        const wheels = wheelSockets(), back = Object.keys(attach.states).filter(s => db.sessions?.kinds[kind]?.reset !== 'wheels' || wheels.includes(s));
+        for (const socket of back) { const was = attach.states[socket].state; delete attach.states[socket]; note(socket, was, 'attached', reason); }
+        if (back.length && !trial) pend(back, player.sessionReset(carNow(), { kind }));
+        if (back.length) applyStats();
+        return back.length;
       },
+      // Into the garage: what came loose or off with visual-only damage (looks, for that drive) back on;
+      // with full damage it stays as it is, for the damage report and the repairs
+      dropTransient(reason = 'garage') {
+        const back = Object.entries(attach.states).filter(([, x]) => !x.perf).map(([s]) => s);
+        for (const socket of back) { const was = attach.states[socket].state; delete attach.states[socket]; note(socket, was, 'attached', reason); }
+        if (back.length) applyStats();
+        return back.length;
+      },
+      // (the save's states into the drive: after a repair, a reset or another car)
+      sync: () => { const moved = syncAttach('save'); if (moved) applyStats(); return moved; },
     },
     //  a fitted part's condition (0–100) and its settings (which: a socket, socket group or part id)
     setCondition(which, value, opts = {}) { return change(`condition of ${which} → ${value}`, () => player.setCondition(copiesIn(which), value), opts.quiet); },
@@ -340,7 +390,7 @@ async function create() {
     // nothing on it changes (a gate says why) and nothing it does is kept (damage, wear)
     testDrive(carId) {
       if (!db.cars[carId]) return { ok: false, errors: [`There's no car "${carId}".`] };
-      api.attach.reattachAll('test drive');
+      clearAttach('test drive');
       trial = { carId, name: db.cars[carId].name };
       garage.state = Garage.freshState(db, carId);
       fingerprintNow = garage.build.fingerprint; look = lookOf();
@@ -349,10 +399,11 @@ async function create() {
     },
     endTestDrive() {
       if (!trial) return { ok: false, errors: ['Not on a test drive.'] };
-      api.attach.reattachAll('test drive over');
+      clearAttach('test drive over');
       trial = null;
       garage.state = garageStateOf(player.profile, db);
       fingerprintNow = garage.build.fingerprint; look = lookOf();
+      syncAttach('save');
       applyStats(); lookChanged();
       return { ok: true, errors: [] };
     },

@@ -13,6 +13,8 @@ import { takes } from './validate.js';
 import { dyno } from '../physics/engine.js';
 import { angleScale } from '../physics/parts.js';
 import { buildOf, carName, carPrice, garageStateOf, inInventory, needsRepair, repairCost, sellPrice, setSize, setupChanges, shellRepairCost } from './player/profile.js';
+import { carProblems } from './damageReport.js';
+import { cornerWord } from './repair.js';
 
 const clone = x => JSON.parse(JSON.stringify(x));
 const HP_PER = 1 / 7120.9;       // hp = N·m × rpm / 7120.9
@@ -111,7 +113,12 @@ export class Workshop {
     if (key) { if (this.statsCache.size > 100) this.statsCache.clear(); this.statsCache.set(key, stats); }
     return stats;
   }
-  get drivable() { return this.garage.drivable(); }
+  // whether the car can be driven out of the garage, and if not why (a wheel torn off: not till it's back on)
+  get drivable() {
+    const d = this.garage.drivable(), off = Object.entries(this.build.attach ?? {}).filter(([s, a]) => a === 'detached' && Object.values(this.carDef.model.sockets).includes(s) && /wheel/.test(s));
+    for (const [s] of off) d.reasons.push(`The ${cornerWord(Object.entries(this.carDef.model.sockets).find(([, n]) => n === s)[0])} wheel is off: put it back on in the Damage tab.`);
+    return { ok: !d.reasons.length, reasons: d.reasons };
+  }
 
   // Every socket with what's in it: { name, def, label, instance, part, condition, empty, required, area, system }
   sockets() {
@@ -344,12 +351,35 @@ export class Workshop {
   repairParts(instanceIds) { return this.service.repairParts(instanceIds); }
   // (a copy that needs a repair: worn, or dented)
   needsRepair(instanceId) { return needsRepair(this.profile.parts[instanceId]); }
-  // This car's crash damage, for the drawing: { shell, parts: { socket: dents } }
+  // This car's crash damage, for the drawing: { shell, parts: { socket: dents }, attach: { socket: 'loose' | 'detached' } }
   get damage() {
-    const parts = {};
-    for (const [socket, id] of Object.entries(this.build.sockets)) if (id && this.profile.parts[id]?.dents?.length) parts[socket] = this.profile.parts[id].dents;
-    return { shell: this.profile.cars[this.carInstanceId]?.damage ?? null, parts };
+    const parts = {}, attach = {};
+    for (const [socket, id] of Object.entries(this.build.sockets)) {
+      if (id && this.profile.parts[id]?.dents?.length) parts[socket] = this.profile.parts[id].dents;
+      if (id && this.profile.parts[id]?.attach) attach[socket] = this.profile.parts[id].attach;
+    }
+    return { shell: this.profile.cars[this.carInstanceId]?.damage ?? null, parts, attach };
   }
+  // ---- the damage report (garage/damageReport.js) and its repairs (garage/repair.js) ----
+  // every problem, in words, with where it is and what fixing it costs
+  problems() {
+    const key = `${this.carInstanceId}|${this.profile.saved}|${this.profile.money}`;
+    if (this.problemsCache?.key !== key) this.problemsCache = { key, value: carProblems(this.db, this.profile, this.carInstanceId) };
+    return this.problemsCache.value;
+  }
+  // repair problems (items: [{ target, scope }], none: everything), quick or full
+  repairCar({ kind = 'full', items = null } = {}) { return this.service.repairCar(this.carInstanceId, { kind, items }); }
+  // a spare in place of a damaged part (it can be undone, like fitting any part)
+  replaceWithSpare(socket, instanceId) { return this.#change(`${this.db.parts[this.profile.parts[instanceId]?.partId]?.name ?? 'spare'} fitted`, 'parts', () => this.service.replaceWithSpare(this.carInstanceId, socket, instanceId)); }
+  // The safety net: { needed (the car can't carry on), cost (of the quick repairs that would fix that),
+  // offered (the player can't afford them: a free basic repair) }
+  get safetyNet() {
+    const d = this.problems().drivable, N = this.db.economy.safetyNet;
+    if (d.ok || !N?.enabled) return { needed: !d.ok, cost: 0, offered: false };
+    const cost = this.service.quickFixCost?.(this.profile, this.carInstanceId) ?? 0;
+    return { needed: true, cost, offered: this.money < cost, reasons: d.reasons };
+  }
+  basicRepair() { return this.service.basicRepair(this.carInstanceId); }
   // The body shell (the car without its parts): its crash damage and what repairing it costs
   get body() { const car = this.profile.cars[this.carInstanceId], d = car?.damage; return { condition: d?.condition ?? 100, dents: d?.dents?.length ?? 0, broken: d?.broken ?? [], cost: shellRepairCost(this.db, car) }; }
   repairBody() { return this.service.repairBody(this.carInstanceId); }

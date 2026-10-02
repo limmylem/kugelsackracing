@@ -36,3 +36,14 @@ export function harness() {
     return { RAPIER, db, problems, settings, track, socketsOf, run, garage: (state, carId) => new Garage(db, state, carId), TESTS };
   })();
 }
+
+// The crash test suite's context (garage/crashSuite.js): the test centre, every car stock, where each
+// car's body shell, glass and lights are, and the targets (tests/targets/crash.json)
+export async function crashContext() {
+  const H = await harness(), { nodeBoxes } = await import('../physics/sockets.js'), boxes = new Map();
+  const boxesOf = car => {
+    if (!boxes.has(car.id)) { const b = fs.readFileSync(path.join(root, car.model.file)); boxes.set(car.id, nodeBoxes(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), car.model, [...(car.model.breakables ?? []).map(x => x.node), 'body_shell'])); }
+    return boxes.get(car.id);
+  };
+  return { RAPIER: H.RAPIER, settings: H.settings, track: H.track, db: H.db, socketsOf: H.socketsOf, boxesOf, garage: carId => H.garage(null, carId), targets: load('tests/targets/crash.json') };
+}

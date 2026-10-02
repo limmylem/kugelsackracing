@@ -32,6 +32,15 @@ export const MIGRATIONS = {
     }
     return out;
   },
+  // 2 → 3: crash damage kept as impact lists (garage/damageLog.js): each part copy's and body shell's
+  // dents become the base of its log (no hits since), saved packed from now on; parts can be hanging
+  // loose or torn off (attach), and the hints seen are kept (hints) — none yet in an old save
+  2(save) {
+    const out = clone(save), move = x => { if (x?.dents?.length && !x.dentLog) x.dentLog = { base: x.dents, hits: [] }; };
+    for (const p of Object.values(out.parts ?? {})) move(p);
+    for (const c of Object.values(out.cars ?? {})) move(c.damage);
+    return out;
+  },
 };
 
 // A save of any version brought up to `current`: { save, steps: ['1 → 2', …] }. A save from a newer

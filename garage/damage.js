@@ -25,7 +25,7 @@ const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const norm = a => { const l = Math.hypot(...a) || 1; return scale(a, 1 / l); };
-const round = (a, d = 4) => a.map(x => +x.toFixed(d));
+const round = (a, d = 4) => a.map(x => +x.toFixed(d) + 0);           // (+ 0: never −0, which a save would lose)
 export function curveAt(curve, x) {
   if (x <= curve[0][0]) return curve[0][1];
   for (let i = 1; i < curve.length; i++) if (x <= curve[i][0]) { const [x0, y0] = curve[i - 1], [x1, y1] = curve[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
@@ -33,6 +33,9 @@ export function curveAt(curve, x) {
 }
 export const dentSize = (rules, s) => ({ depth: curveAt(rules.dent.depth, s), radius: curveAt(rules.dent.radius, s) });
 export const strengthClass = (rules, s) => s >= rules.classes.crash ? 'crash' : s >= rules.classes.crunch ? 'crunch' : 'tap';
+// (a dent's strength never goes past this: it packs into 16 bits in a save — garage/damageLog.js — and
+// the curves are flat long before it)
+export const MAX_STRENGTH = 65.535;
 
 // (boxes)
 const boxOf = (origin, b) => ({ min: add(origin, b.min), max: add(origin, b.max) });
@@ -124,7 +127,7 @@ export function impactDamage(impact, layout, rules, { mode = 'full' } = {}) {
       if (t.wheel) continue;                         // (wheels spin: no dents drawn on them)
       centres.forEach((q, i) => {
         if (!((t === hit && centres.length === 1) || boxDistance(q, t.box) <= radius)) return;
-        out.dents.push({ target: t.target, p: round(sub(q, t.origin)), d: inward, s: +s.toFixed(3), ...(weights[i] < 0.999 && { w: +weights[i].toFixed(3) }) });
+        out.dents.push({ target: t.target, p: round(sub(q, t.origin)), d: inward, s: +Math.min(MAX_STRENGTH, s).toFixed(3), ...(weights[i] < 0.999 && { w: +weights[i].toFixed(3) }) });
       });
     }
     for (const b of layout.breakables) if (near(b) <= radius * 0.9 && s >= rules.breakables[b.kind]) out.broken.push(b.node);
@@ -170,7 +173,7 @@ export function addDent(list, dent, rules) {
   const near = best >= 0 && bestD <= rules.dent.merge * Math.max(r, dentSize(rules, out[best].s).radius);
   if (!near && out.length < rules.dent.maxPerPart) { out.push({ p: dent.p, d: dent.d, s: dent.s, ...(dent.w != null && { w: dent.w }) }); return out; }
   const o = out[best], a = o.s ** 2, b = dent.s ** 2, w = Math.max(o.w ?? 1, dent.w ?? 1);
-  out[best] = { p: round(scale(add(scale(o.p, a), scale(dent.p, b)), 1 / (a + b))), d: round(norm(add(scale(o.d, a), scale(dent.d, b)))), s: +Math.sqrt(a + b).toFixed(3), ...(w < 0.999 && { w }) };
+  out[best] = { p: round(scale(add(scale(o.p, a), scale(dent.p, b)), 1 / (a + b))), d: round(norm(add(scale(o.d, a), scale(dent.d, b)))), s: +Math.min(MAX_STRENGTH, Math.sqrt(a + b)).toFixed(3), ...(w < 0.999 && { w }) };
   return out;
 }
 

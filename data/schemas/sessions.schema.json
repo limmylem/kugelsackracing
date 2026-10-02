@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sessions.schema.json",
+  "title": "Driving sessions: test drives and races (data/sessions.json)",
+  "type": "object",
+  "required": ["kinds", "collisions", "replay"],
+  "additionalProperties": false,
+  "patternProperties": { "^_": { "type": "string" } },
+  "$defs": {
+    "mode": { "enum": ["full", "reduced", "off"] },
+    "n": { "type": "number", "minimum": 0 }
+  },
+  "properties": {
+    "kinds": {
+      "type": "object",
+      "required": ["test", "race"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "collisions", "replay", "restore", "reset", "tow"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "collisions": { "$ref": "#/$defs/mode" },
+          "replay": { "type": "boolean" },
+          "restore": { "type": "boolean", "description": "The development reset (everything repaired, free) is allowed" },
+          "reset": { "enum": ["all", "wheels"], "description": "What going back on the road puts back on" },
+          "tow": { "type": "boolean", "description": "Towing to the garage ends the session" }
+        }
+      }
+    },
+    "collisions": {
+      "type": "object",
+      "required": ["reduced", "public"],
+      "additionalProperties": false,
+      "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "reduced": { "type": "number", "minimum": 0, "maximum": 1 },
+        "public": { "$ref": "#/$defs/mode" }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "required": ["record", "rate", "threshold", "wait", "before", "after", "speed", "cooldown"],
+      "additionalProperties": false,
+      "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "record": { "type": "number", "exclusiveMinimum": 0 },
+        "rate": { "type": "number", "exclusiveMinimum": 0 },
+        "threshold": { "$ref": "#/$defs/n" },
+        "wait": { "$ref": "#/$defs/n" },
+        "before": { "$ref": "#/$defs/n" },
+        "after": { "$ref": "#/$defs/n" },
+        "speed": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "cooldown": { "$ref": "#/$defs/n" }
+      }
+    }
+  }
+}

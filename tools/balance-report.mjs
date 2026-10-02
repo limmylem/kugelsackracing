@@ -2,9 +2,11 @@
 // value for money — as a spreadsheet per car (reports/balance-<car>.csv), with outliers and unfinished
 // parts flagged here and in the file's flags column; and each car's class, stock and fully upgraded,
 // against the class rules (data/content/balance.json: its own class stock, at most maxClassJump
-// classes higher fully upgraded). See tools/content/balance.mjs.
+// classes higher fully upgraded). See tools/content/balance.mjs. And what crashes cost: the crash test
+// suite's crashes (garage/crashSuite.js) at each speed, fixed quick and in full, against the race rewards
+// (data/economy.json raceRewards), flagged past balance.json crashEconomy.
 //
-//   npm run balance-report  [-- --car starter_car] [--out reports]
+//   npm run balance-report  [-- --car starter_car] [--out reports] [--no-crashes]
 //   exits with code 1 if anything is flagged (--no-fail: 0 anyway)
 
 import path from 'node:path';
@@ -34,6 +36,20 @@ for (const carId of only ? [only] : Object.keys(db.cars)) {
   for (const x of flagged) console.log(`  ${x.id.padEnd(30)} ${x.flags.join(' · ')}`);
   for (const c of classes) console.log(`  class: ${c}`);
   flaggedAll += flagged.length + classes.length;
+}
+// what crashes cost to fix, against what a race pays
+if (!args.includes('--no-crashes')) {
+  const { crashContext } = await import('../tests/harness.mjs'), { crashEconomy, crashRuns, runCrash } = await import('../garage/crashSuite.js');
+  const ctx = await crashContext(), T = ctx.targets, results = crashRuns(T).filter(r => !r.mass).map(run => runCrash(ctx, run, T)), E = rules.crashEconomy ?? {}, R = db.economy.raceRewards ?? {};
+  const money = n => `${db.economy.currency}${Math.round(n).toLocaleString('en-GB')}`, rows = crashEconomy(results, db);
+  console.log(`\nCrash repairs (${db.cars[T.car].name}; the crash test suite) against the race rewards: win ${money(R.win ?? 0)} · podium ${money(R.podium ?? 0)} · finish ${money(R.finish ?? 0)}`);
+  for (const e of rows) {
+    const flags = [];
+    if (E.maxOfWin?.[e.kmh] != null && e.ofWin > E.maxOfWin[e.kmh]) flags.push(`a full repair is ${Math.round(e.ofWin * 100)}% of a win (at most ${Math.round(E.maxOfWin[e.kmh] * 100)}%)`);
+    if (E.quickShare != null && e.quick > e.full * E.quickShare) flags.push(`a quick repair is ${Math.round(e.quick / e.full * 100)}% of a full one (at most ${Math.round(E.quickShare * 100)}%)`);
+    console.log(`  ${(e.kind === 'wall' ? 'into a wall' : 'into a car').padEnd(12)} ${String(e.kmh).padStart(3)} km/h: quick ${money(e.quick).padStart(7)} · full ${money(e.full).padStart(7)} · ${Math.round(e.ofWin * 100)}% of a win, ${(e.full / Math.max(1, R.finish ?? 1)).toFixed(1)} finishes · ${Math.round(e.drivable * 100)}% still drivable${flags.length ? `\n      ✘ ${flags.join(' · ')}` : ''}`);
+    flaggedAll += flags.length;
+  }
 }
 console.log(flaggedAll ? `\n${flaggedAll} problem${flaggedAll > 1 ? 's' : ''} flagged.` : '\nNothing flagged: no outliers, nothing to do, every car in its class.');
 process.exit(flaggedAll && !args.includes('--no-fail') ? 1 : 0);

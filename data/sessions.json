@@ -1,0 +1,23 @@
+{
+  "_note": "Driving sessions (physics/race.js): a test drive in the test worlds, or a race. Each kind: collisions — between cars: full (they hit and take all the damage), reduced (they hit, but take collisions.reduced of the damage from another car; walls as ever) or off (ghosting: they pass through each other); replay — show a slow-motion replay after a big crash (the player's setting, this the default); restore — the development reset (repairs everything, free) is allowed; reset — what going back on the road puts back on: all (every part that came loose or off: a test drive) or wheels (only a wheel torn off, bent and flat, so the car can move: a race; everything else stays as it is); tow — towing to the garage ends the session (and the garage opens on the damage report).",
+  "kinds": {
+    "test": { "name": "Test drive", "collisions": "full", "replay": true, "restore": true, "reset": "all", "tow": false },
+    "race": { "name": "Race", "collisions": "reduced", "replay": false, "restore": false, "reset": "wheels", "tow": true }
+  },
+  "collisions": {
+    "_note": "reduced: the share of the damage from another car a car takes; public: the mode public races will use",
+    "reduced": 0.4,
+    "public": "reduced"
+  },
+  "replay": {
+    "_note": "The crash replay (physics/replay.js): the last record s of every car's state kept, rate times a second; a crash at least threshold m/s strong (a big one) plays, after wait s (to see what happened next), the before s up to it and after s after it at speed × real time, from a cinematic angle; skippable straight away, and at most once every cooldown s.",
+    "record": 6,
+    "rate": 30,
+    "threshold": 15,
+    "wait": 1,
+    "before": 2.2,
+    "after": 1.5,
+    "speed": 0.3,
+    "cooldown": 6
+  }
+}
