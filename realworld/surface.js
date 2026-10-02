@@ -83,22 +83,26 @@ class Heap {
 // Returns { frame: { lat, lon, height } (degrees, m), heightfield: { n, size, heights (Float32Array,
 // column-major, columns east, rows south) }, meshes: { roads, walls, cover: { vertices, indices,
 // surfaces? } }, surfaces (names by code), stats }
+//
+// options.projection: build a square of a flat frame instead (the baked world, world/projection.js):
+// { size (m), toXZ(lat, lon), toLatLon(x, z) — both relative to the square's middle — and heights as
+// they are (no curve) }. The chunk then needs only its { key, latC, lonC }.
 export function buildChunk({ chunk, terrain, roads, options = {} }) {
-  const O = { ...SURFACE, ...options }, t0 = now();
+  const O = { ...SURFACE, ...options }, t0 = now(), PJ = options.projection;
   const cell = options.cell ?? CELL, overlap = options.overlap ?? OVERLAP, workMargin = options.workMargin ?? WORK_MARGIN;
-  const { latC, lonC } = chunk, { width, height } = chunkSize(chunk);
+  const { latC, lonC } = chunk, { width, height } = PJ ? { width: PJ.size, height: PJ.size } : chunkSize(chunk);
   const S = Math.ceil((Math.max(width, height) + 2 * overlap) / cell) * cell, n = Math.round(S / cell), half = S / 2, work = half + workMargin;
-  const h0 = Math.round(terrain(latC, lonC) * 10) / 10;
-  const frame = new LocalFrame(latC * RAD, lonC * RAD, h0), mLatC = mPerDegLat(latC), tanC = Math.tan(latC * RAD);
+  const h0 = PJ ? 0 : Math.round(terrain(latC, lonC) * 10) / 10;
+  const frame = PJ ? null : new LocalFrame(latC * RAD, lonC * RAD, h0), mLatC = mPerDegLat(latC), tanC = Math.tan(latC * RAD);
 
   // ---- local frame ↔ map ----
-  const toXZ = (lat, lon) => { const p = frame.geodeticToLocal(lat * RAD, lon * RAD, h0); return [p[0], p[2]]; };
-  const toLatLon = (x, z) => { const lat = latC + (-z - x * x * tanC / (2 * R_CURVE)) / mLatC; return [lat, lonC + x / mPerDegLon(lat)]; };
-  const localY = (h, x, z) => h - h0 - (x * x + z * z) / (2 * R_CURVE);     // (the ground curves away from the tangent plane)
+  const toXZ = PJ ? PJ.toXZ : (lat, lon) => { const p = frame.geodeticToLocal(lat * RAD, lon * RAD, h0); return [p[0], p[2]]; };
+  const toLatLon = PJ ? PJ.toLatLon : (x, z) => { const lat = latC + (-z - x * x * tanC / (2 * R_CURVE)) / mLatC; return [lat, lonC + x / mPerDegLon(lat)]; };
+  const localY = PJ ? h => h : (h, x, z) => h - h0 - (x * x + z * z) / (2 * R_CURVE);     // (the ground curves away from the tangent plane)
   // (far out along a bridge or tunnel there may be no terrain: NaN)
   const terrainAt = (lat, lon) => { try { return terrain(lat, lon); } catch { return NaN; } };
   const groundAt = (x, z) => { const [la, lo] = toLatLon(x, z); return localY(terrainAt(la, lo), x, z); };
-  const mine = (x, z) => { const [la, lo] = toLatLon(x, z); return chunkAt(la, lo).key === chunk.key; };
+  const mine = PJ ? (x, z) => x >= -half && x < half && z >= -half && z < half : (x, z) => { const [la, lo] = toLatLon(x, z); return chunkAt(la, lo).key === chunk.key; };
 
   // ---------- 1. the road network ----------
   const V = { x: [], z: [], T: [], ways: [], adj: [] };      // points: position, terrain height, ways through it, neighbours [id, length, way]
@@ -497,6 +501,10 @@ export function buildChunk({ chunk, terrain, roads, options = {} }) {
       ms: { profile: Math.round(profileTime - t0), ribbons: Math.round(ribbonTime - profileTime), terrain: Math.round(terrainTime - ribbonTime) } },
     // (for the tests and the debug view: every road's points and heights, in the local frame)
     debug: options.debug ? { ways: ways.map(w => ({ id: w.id, info: w.info, points: w.verts.map(v => [V.x[v], h[v], V.z[v]]), terrain: w.verts.map(v => V.T[v]), bounds: w.verts.map(v => [LB[v], UB[v]]) })), groundAt } : undefined,
+    // (the baked world: each road as it was laid — its points, heights, cross-sections — and the ground
+    // as it was before the roads, for the railings, markings, labels and kerbs built along them)
+    ways: options.keepWays ? ways.map((w, k) => ({ id: w.id, info: w.info, points: w.verts.map(v => [V.x[v], h[v], V.z[v]]), junctions: w.verts.map(v => V.adj[v].length >= 3 ? 1 : 0), sections: sections[k], natural: w.verts.map(v => V.T[v]), tunnel: covered[k] })) : undefined,
+    groundAt: options.keepWays ? groundAt : undefined,
   };
 }
 

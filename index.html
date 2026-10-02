@@ -4,9 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Real World Drive</title>
-<script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/';</script>
-<script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
+<script>
+  // The old photorealistic map's library (Cesium, several MB) only behind its debug flag: ?photoreal=1
+  window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/';
+  if (new URLSearchParams(location.search).has('photoreal')) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"><\/script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">');
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
@@ -1458,7 +1462,8 @@ async function showCar(parts) {
   if (!carModel) carModel = next;
 }
 
-const scratch = { m4: new C.Matrix4(), m3: new C.Matrix3(), m3b: new C.Matrix3(), v3: new C.Cartesian3() }, UNIT_SCALE = new C.Cartesian3(1, 1, 1);
+// (Cesium's objects only with the old photorealistic map loaded: ?photoreal=1)
+const scratch = C ? { m4: new C.Matrix4(), m3: new C.Matrix3(), m3b: new C.Matrix3(), v3: new C.Cartesian3() } : {}, UNIT_SCALE = C ? new C.Cartesian3(1, 1, 1) : null;
 // Drive the physics car one frame and draw it: the body from its earth-fixed matrix, the wheels
 // turning, steering and riding the suspension, the steering wheel turning
 function driveCar(now, dt) {
@@ -1520,7 +1525,7 @@ function effectsNews(n) {
   if (n.type === 'blown') effects.play({ type: 'engineBlow', car: 0 });
 }
 
-const camPos = new C.Cartesian3(), camRel = new C.Cartesian3();
+const camPos = C ? new C.Cartesian3() : null, camRel = C ? new C.Cartesian3() : null;
 let camInit = false, trail = [];
 // Where the car has been (last ~80 m), for the chase camera to follow
 function recordTrail() {
@@ -1805,8 +1810,15 @@ function groundLine() {
 }
 
 // ---------- Worlds: the real world plus test worlds (buttons at the top, or T to cycle) ----------
-let worldList = [{ id: 'real', name: 'Real world', icon: '🌍' }], currentWorld = 'real', switching = false;
-fetch('scenes/worlds.json').then(r => r.json()).then(list => { worldList = list; drawWorldButtons(); }).catch(() => drawWorldButtons());
+// The real world is the baked low-poly one (scenes/real_world.json, a streamed test world). The old
+// photorealistic map (Cesium, Google's 3D tiles) only with ?photoreal=1 in the address: a debug flag
+const PHOTOREAL = new URLSearchParams(location.search).has('photoreal');
+let worldList = [{ id: 'real', name: 'Real world', icon: '🌍', file: 'scenes/real_world.json' }], currentWorld = PHOTOREAL ? 'photoreal' : null, switching = false;
+fetch('scenes/worlds.json').then(r => r.json()).then(list => {
+  worldList = PHOTOREAL ? [...list, { id: 'photoreal', name: 'Photoreal (old)', icon: '🛰️' }] : list;
+  drawWorldButtons();
+  if (!PHOTOREAL) switchWorld('real');
+}).catch(() => { drawWorldButtons(); if (!PHOTOREAL) switchWorld('real'); });
 function drawWorldButtons() {
   $('worlds').innerHTML = '';
   for (const w of worldList) {
@@ -1819,7 +1831,7 @@ function drawWorldButtons() {
 }
 // The garage is a world too: you go in with the car as it is, and leave back to where you were; a
 // test drive from it goes to the test centre, with a button back
-let cameFrom = 'real', testDriving = false, garageTab = null;
+let cameFrom = 'real', testDriving = false, garageTab = null;   // ('real': the low-poly world)
 async function switchWorld(id, nested = false) {
   if (id === currentWorld || (switching && !nested)) return;
   switching = true;
@@ -1903,8 +1915,9 @@ $('search').onsubmit = async e => {
   } catch (err) { statusEl.textContent = 'Search failed — try again'; }
 };
 
-const saved = store.get();
-if (saved) start(saved); else { statusEl.textContent = 'Waiting for Cesium ion token'; showSetup(); }
+// (the old photorealistic map starts only behind its debug flag)
+if (PHOTOREAL) { const saved = store.get(); if (saved) start(saved); else { statusEl.textContent = 'Waiting for Cesium ion token'; showSetup(); } }
+else document.body.classList.add('test-mode');
 </script>
 </body>
 </html>

@@ -15,13 +15,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { overtureRows, latestRelease } from './overture.mjs';
-import { THEMES, featuresFrom } from './fromOverture.mjs';
-import { osmFeatures } from './fromOsm.mjs';
+import { latestRelease } from './overture.mjs';
+import { collectFeatures } from './features.mjs';
 import { tileFeatures } from './tiler.mjs';
 import { encodeTile } from '../../world/mvt.js';
 import { writePmtiles } from '../../world/pmtiles.js';
-import { LAYERS, SCHEMA_VERSION, idOf } from '../../world/schema.js';
+import { LAYERS, SCHEMA_VERSION } from '../../world/schema.js';
 import { ATTRIBUTION } from '../../world/attribution.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -39,41 +38,7 @@ const log = (m, progress = false) => { if (progress && !tty) return; process.std
 
 log(`Building ${region.name} (${regionId}): ${bbox.join(', ')}`);
 log(`  Overture ${release}${osmFile ? `, OpenStreetMap from ${osmFile}` : ''}`);
-// (a margin round the box: roads and areas reaching in from outside it are cut at its edge, not lost)
-const margin = 0.004, wide = [bbox[0] - margin, bbox[1] - margin, bbox[2] + margin, bbox[3] + margin];
-const features = [];
-const counts = {};
-for (const [type, T] of Object.entries(THEMES)) {
-  // with an OSM extract, only the buildings (and the ocean, land cover) come from Overture
-  if (osmFile && !['building', 'building_part', 'land_cover', 'water'].includes(type)) continue;
-  const t = performance.now();
-  const rows = await overtureRows({ release, theme: T.theme, type: T.type, bbox: wide, columns: T.columns, cacheDir, log });
-  let fs_ = featuresFrom(type, rows);
-  if (osmFile && type === 'water') fs_ = fs_.filter(f => f.props.k === 'ocean' || f.props.k === 'sea' || f.props.k === 'bay');
-  for (const f of fs_) features.push(f);
-  counts[type] = { rows: rows.length, features: fs_.length };
-  log(`  ${type}: ${rows.length.toLocaleString('en-GB')} rows → ${fs_.length.toLocaleString('en-GB')} features (${((performance.now() - t) / 1000).toFixed(1)} s)`);
-}
-if (osmFile) {
-  const t = performance.now(), fs_ = await osmFeatures(path.resolve(osmFile), { bbox: wide, log });
-  for (const f of fs_) features.push(f);
-  counts.osm = { features: fs_.length };
-  log(`  OpenStreetMap: ${fs_.length.toLocaleString('en-GB')} features (${((performance.now() - t) / 1000).toFixed(1)} s)`);
-}
-
-// hand-made changes to buildings (by tile feature id, or the source's id)
-const overridesFile = path.join(root, 'data/world/overrides', `${regionId}.json`);
-if (fs.existsSync(overridesFile)) {
-  const O = JSON.parse(fs.readFileSync(overridesFile, 'utf8')).buildings ?? {}, byId = new Map(Object.entries(O).map(([k, v]) => [/^\d+$/.test(k) ? +k : idOf(k), v]));
-  let changed = 0;
-  for (let i = features.length - 1; i >= 0; i--) {
-    const f = features[i], o = f.layer === 'buildings' && byId.get(f.id);
-    if (!o) continue;
-    if (o.remove) features.splice(i, 1); else Object.assign(f.props, o);
-    changed++;
-  }
-  if (byId.size) log(`  overrides: ${changed} of ${byId.size} buildings changed`);
-}
+const { features, counts } = await collectFeatures({ region, bbox, release, osmFile, cacheDir, root, log });
 
 // the tiles
 const t1 = performance.now();

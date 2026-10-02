@@ -27,12 +27,13 @@
 //   details   points tree, lamp, signals, crossing, stop, give_way, bollard, gate, hydrant
 //             lines  tree_row, fence, wall, hedge, guard_rail, retaining_wall, jersey_barrier, kerb,
 //                    city_wall (h height where tagged)
+//   places    areas  k (locality: the town or city, borough, neighborhood, microhood, county…), n name
 //
 // Feature ids: a 52-bit hash of the source's id (OSM "w123", an Overture GERS id), the same every
 // build, so a building can be pointed at (the manual override file, the world editor).
 
 export const SCHEMA_VERSION = 1;
-export const LAYERS = ['water', 'cover', 'landuse', 'paved', 'roads', 'rail', 'buildings', 'details'];
+export const LAYERS = ['water', 'cover', 'landuse', 'paved', 'roads', 'rail', 'buildings', 'details', 'places'];
 
 export const ROAD_KINDS = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential', 'living_street', 'service', 'track', 'busway', 'raceway', 'road', 'escape',
   'pedestrian', 'footway', 'path', 'cycleway', 'steps', 'bridleway']);
@@ -188,7 +189,7 @@ export function classifyOsm(t, shape) {
 export const ZOOM_RULES = {
   14: { extent: 8192, simplify: 0.5 },
   12: { extent: 4096, simplify: 1, roads: p => DRIVABLE.has(p.k) && !['parking_aisle', 'driveway', 'alley', 'drive-through', 'emergency_access'].includes(p.s) && p.k !== 'track', rail: p => p.k !== 'tram',
-    minArea: { buildings: 200, landuse: 2000, cover: 20000, water: 500, paved: 1500 }, details: () => false, keep: { roads: ['k', 's', 'br', 'tn', 'ly', 'w', 'ln', 'ow'], buildings: ['h', 'mh', 'fl', 'b', 'rs', 'fc', 'rc', 'pt', 'hp'] } },
+    minArea: { buildings: 200, landuse: 2000, cover: 20000, water: 500, paved: 1500 }, details: () => false, places: p => p.k !== 'microhood', keep: { roads: ['k', 's', 'br', 'tn', 'ly', 'w', 'ln', 'ow'], buildings: ['h', 'mh', 'fl', 'b', 'rs', 'fc', 'rc', 'pt', 'hp'] } },
   10: { extent: 4096, simplify: 1.5, roads: p => ['motorway', 'trunk', 'primary', 'secondary'].includes(p.k), rail: p => p.k === 'rail', minArea: { buildings: 400, landuse: 40000, cover: 200000, water: 20000, paved: 20000 },
-    details: () => false, buildings: p => (p.h ?? (p.fl ?? 0) * 3) >= 25, keep: { roads: ['k', 'br', 'tn', 'ly'], buildings: ['h', 'mh', 'fl', 'b', 'fc', 'rc', 'pt', 'hp'] } },
+    details: () => false, buildings: p => (p.h ?? (p.fl ?? 0) * 3) >= 25, places: p => ['county', 'locality', 'localadmin', 'borough'].includes(p.k), keep: { roads: ['k', 'br', 'tn', 'ly'], buildings: ['h', 'mh', 'fl', 'b', 'fc', 'rc', 'pt', 'hp'] } },
 };

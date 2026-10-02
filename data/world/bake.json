@@ -1,0 +1,486 @@
+{
+  "_note": "How the baker (npm run world:bake) builds the world from the map and the elevation (WORLD_README.md): the tile grid, the terrain's detail levels, colours, railings, trees, buildings. Change a number, bake again.",
+  "version": 4,
+  "tileSize": 512,
+  "cell": 2,
+  "terrain": {
+    "_note": "Terrain meshes cut adaptively (RTIN) from the height grid: the most a level may differ from the grid (m). Level 0 is drawn near the car; the physics uses the grid itself.",
+    "lodErrors": [
+      0.05,
+      0.5,
+      3
+    ],
+    "rockSlope": 0.9,
+    "waterDepth": 0.8
+  },
+  "colours": {
+    "_note": "Ground colours by land use / cover (#rrggbb), and the default for ground nobody mapped.",
+    "default": "#8aa36b",
+    "grass": "#86a85f",
+    "park": "#7fae5a",
+    "garden": "#7fae5a",
+    "meadow": "#9cb06a",
+    "pitch": "#6faa4f",
+    "golf": "#79b35a",
+    "playground": "#c9b48a",
+    "sports": "#8fa86a",
+    "forest": "#4f7a3c",
+    "wood": "#4f7a3c",
+    "scrub": "#6f8a4e",
+    "heath": "#8b8a5a",
+    "shrub": "#6f8a4e",
+    "farmland": "#b7b06d",
+    "farmyard": "#a99d70",
+    "orchard": "#8faa5c",
+    "vineyard": "#9aa35e",
+    "allotments": "#93a35f",
+    "crop": "#b7b06d",
+    "residential": "#a5a796",
+    "commercial": "#b0aca2",
+    "retail": "#b4ada0",
+    "industrial": "#a29f97",
+    "construction": "#a89c84",
+    "brownfield": "#a39a82",
+    "education": "#b2ad96",
+    "hospital": "#b5aea0",
+    "railway": "#9b958b",
+    "military": "#a3a08e",
+    "cemetery": "#8ea578",
+    "urban": "#a8a79c",
+    "sand": "#d8c99a",
+    "beach": "#e0d3a3",
+    "rock": "#9a9488",
+    "scree": "#a59f92",
+    "bare": "#a8a08e",
+    "barren": "#a8a08e",
+    "glacier": "#e8eef0",
+    "snow": "#eef2f4",
+    "wetland": "#7d9468",
+    "moss": "#7d9468",
+    "mangrove": "#5d7a4e",
+    "quarry": "#a39d90",
+    "paved": "#8f8f8c",
+    "parking": "#7c7d7b",
+    "plaza": "#b9b2a5",
+    "water": "#3f7fb0",
+    "underwater": "#6f8f88"
+  },
+  "surfaces": {
+    "_note": "What a tyre drives on, by the map's surface tags (tyre grip as in physics; sounds and effects as the test worlds have them).",
+    "tarmac": {
+      "grip": 1,
+      "rollingResistance": 0.012,
+      "sound": "tarmac"
+    },
+    "concrete": {
+      "grip": 0.97,
+      "rollingResistance": 0.012,
+      "sound": "tarmac"
+    },
+    "cobbles": {
+      "grip": 0.85,
+      "rollingResistance": 0.018,
+      "sound": "tarmac"
+    },
+    "kerb": {
+      "grip": 0.95,
+      "rollingResistance": 0.015,
+      "sound": "tarmac"
+    },
+    "gravel": {
+      "grip": 0.7,
+      "rollingResistance": 0.03,
+      "effects": {
+        "spray": {
+          "colour": "#8d8577",
+          "rate": 60,
+          "speed": 0.5
+        },
+        "dust": {
+          "colour": "#a39b8c",
+          "perSpeed": 0.8,
+          "perSlip": 4,
+          "alpha": 0.9
+        }
+      },
+      "marks": "#6e675b",
+      "sound": "gravel"
+    },
+    "dirt": {
+      "grip": 0.75,
+      "rollingResistance": 0.035,
+      "effects": {
+        "spray": {
+          "colour": "#6b5640",
+          "rate": 70,
+          "speed": 0.5
+        },
+        "dust": {
+          "colour": "#8a7152",
+          "perSpeed": 0.9,
+          "perSlip": 5,
+          "alpha": 1
+        }
+      },
+      "marks": "#5a4a36",
+      "sound": "gravel"
+    },
+    "grass": {
+      "grip": 0.72,
+      "rollingResistance": 0.04,
+      "effects": {
+        "dust": {
+          "colour": "#7d7a55",
+          "perSpeed": 0.25,
+          "perSlip": 3,
+          "alpha": 0.55
+        },
+        "clippings": {
+          "colour": "#5c8a33",
+          "rate": 50
+        }
+      },
+      "marks": "#4a5330",
+      "sound": "gravel"
+    },
+    "sand": {
+      "grip": 0.6,
+      "rollingResistance": 0.08,
+      "effects": {
+        "dust": {
+          "colour": "#d8c99a",
+          "perSpeed": 0.9,
+          "perSlip": 5,
+          "alpha": 0.9
+        }
+      },
+      "marks": "#b8a878",
+      "sound": "gravel"
+    }
+  },
+  "roadSurfaces": {
+    "asphalt": "tarmac",
+    "paved": "tarmac",
+    "concrete": "concrete",
+    "paving_stones": "cobbles",
+    "sett": "cobbles",
+    "cobblestone": "cobbles",
+    "metal": "concrete",
+    "wood": "concrete",
+    "gravel": "gravel",
+    "compacted": "gravel",
+    "unpaved": "dirt",
+    "dirt": "dirt",
+    "grass": "grass",
+    "sand": "sand"
+  },
+  "groundSurfaces": {
+    "sand": "sand",
+    "beach": "sand",
+    "rock": "gravel",
+    "scree": "gravel",
+    "bare": "dirt",
+    "barren": "dirt",
+    "quarry": "gravel",
+    "construction": "dirt",
+    "brownfield": "dirt",
+    "farmyard": "dirt"
+  },
+  "roads": {
+    "_note": "Markings and kerbs: line width (m), dash and gap (m), kerb height (m), footpath width (m) where a sidewalk's mapped.",
+    "line": 0.12,
+    "dash": 3,
+    "gap": 6,
+    "edgeLines": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary"
+    ],
+    "centreLines": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential"
+    ],
+    "lineColour": "#f2f0e8",
+    "centreColour": "#e8c34a",
+    "asphalt": "#4a4c4f",
+    "concrete": "#8d8b86",
+    "cobbles": "#7b746a",
+    "gravel": "#9a9182",
+    "dirt": "#8a7356",
+    "kerbHeight": 0.12,
+    "footpath": 2.2
+  },
+  "barriers": {
+    "_note": "Railings and walls: how they look (height, thickness, colour) and their collider, which is always at least minThickness thick and taller than what's drawn so a car can't hop or slip through. auto: railings the map often doesn't have \u2014 on both sides of every bridge, along motorway edges, and beside a road where the ground drops away (more than drop m within reach m of its edge, for at least minRun m).",
+    "minThickness": 0.35,
+    "extraHeight": 0.35,
+    "friction": 0.25,
+    "restitution": 0.05,
+    "types": {
+      "guard_rail": {
+        "height": 0.8,
+        "thickness": 0.35,
+        "colour": "#b9bec2",
+        "post": 2.0,
+        "material": "metal"
+      },
+      "jersey_barrier": {
+        "height": 0.85,
+        "thickness": 0.6,
+        "colour": "#c9c6bd",
+        "material": "concrete"
+      },
+      "parapet": {
+        "height": 1.05,
+        "thickness": 0.4,
+        "colour": "#bdb8ad",
+        "material": "concrete"
+      },
+      "wall": {
+        "height": 1.8,
+        "thickness": 0.35,
+        "colour": "#a89a86",
+        "material": "concrete"
+      },
+      "retaining_wall": {
+        "height": 1.0,
+        "thickness": 0.45,
+        "colour": "#a29c90",
+        "material": "concrete"
+      },
+      "city_wall": {
+        "height": 3.0,
+        "thickness": 0.8,
+        "colour": "#a89a86",
+        "material": "concrete"
+      },
+      "fence": {
+        "height": 1.5,
+        "thickness": 0.35,
+        "colour": "#7d7466",
+        "post": 2.5,
+        "material": "wood"
+      },
+      "hedge": {
+        "height": 1.3,
+        "thickness": 0.9,
+        "colour": "#4c6e3a",
+        "material": "wood"
+      }
+    },
+    "auto": {
+      "bridges": true,
+      "motorways": [
+        "motorway"
+      ],
+      "drop": 2.5,
+      "reach": 4,
+      "minRun": 12,
+      "offset": 0.7,
+      "skipNearJunction": 30
+    }
+  },
+  "trees": {
+    "_note": "Trees: every mapped tree, tree rows every spacing m, and woods and parks filled at density trees a hectare (none in a car park or on a road).",
+    "spacing": 9,
+    "density": {
+      "forest": 120,
+      "wood": 120,
+      "park": 18,
+      "garden": 10,
+      "cemetery": 10,
+      "scrub": 30,
+      "golf": 6
+    },
+    "maxPerTile": 4000,
+    "trunkRadius": 0.25
+  },
+  "buildings": {
+    "_note": "Buildings: a storey's height (m), the height when nothing's known (by kind, else by footprint area), palettes by kind (facade, roof), the window pattern by kind, and the landmarks drawn at every distance.",
+    "storey": 3.0,
+    "defaultHeight": {
+      "house": 6,
+      "detached": 6,
+      "semidetached_house": 7,
+      "terrace": 8,
+      "residential": 9,
+      "apartments": 15,
+      "garage": 3,
+      "garages": 3,
+      "shed": 2.5,
+      "roof": 4,
+      "industrial": 9,
+      "warehouse": 9,
+      "retail": 6,
+      "commercial": 12,
+      "office": 20,
+      "church": 14,
+      "school": 9,
+      "hospital": 18,
+      "parking": 12,
+      "hotel": 24,
+      "*": 8
+    },
+    "byArea": [
+      [
+        60,
+        4
+      ],
+      [
+        150,
+        7
+      ],
+      [
+        600,
+        9
+      ],
+      [
+        2500,
+        12
+      ]
+    ],
+    "palettes": {
+      "house": {
+        "facade": [
+          "#e6dccb",
+          "#d9cbb4",
+          "#efe8dc",
+          "#c9b79b",
+          "#b7a48a",
+          "#e3d6c3",
+          "#cfd3d6"
+        ],
+        "roof": [
+          "#7a4a3a",
+          "#5b5552",
+          "#8a5a42",
+          "#6b6b68"
+        ]
+      },
+      "apartments": {
+        "facade": [
+          "#d8cfc2",
+          "#c7bba8",
+          "#e2dacd",
+          "#b9aa94",
+          "#a89584",
+          "#d4d8db"
+        ],
+        "roof": [
+          "#6f6c68",
+          "#5f5c58"
+        ]
+      },
+      "office": {
+        "facade": [
+          "#9fb4c7",
+          "#8aa0b4",
+          "#b7c6d3",
+          "#c9d0d6",
+          "#8fb0ae",
+          "#a8b6c2"
+        ],
+        "roof": [
+          "#8d9296",
+          "#7d8286"
+        ]
+      },
+      "industrial": {
+        "facade": [
+          "#b5b2aa",
+          "#a7a49c",
+          "#c2bcae",
+          "#9ca3a6"
+        ],
+        "roof": [
+          "#8f8f8a",
+          "#7f8a8e"
+        ]
+      },
+      "civic": {
+        "facade": [
+          "#d9ccb0",
+          "#cdbf9f",
+          "#e1d7c2"
+        ],
+        "roof": [
+          "#7d6e5a",
+          "#5f6a6e"
+        ]
+      },
+      "default": {
+        "facade": [
+          "#d6cfc4",
+          "#c9c2b6",
+          "#bfb5a6",
+          "#dcd6cc"
+        ],
+        "roof": [
+          "#6e6b67",
+          "#7a5446"
+        ]
+      }
+    },
+    "style": {
+      "house": "house",
+      "detached": "house",
+      "semidetached_house": "house",
+      "terrace": "house",
+      "residential": "apartments",
+      "apartments": "apartments",
+      "dormitory": "apartments",
+      "hotel": "office",
+      "office": "office",
+      "commercial": "office",
+      "retail": "civic",
+      "industrial": "industrial",
+      "warehouse": "industrial",
+      "garage": "industrial",
+      "garages": "industrial",
+      "shed": "industrial",
+      "parking": "industrial",
+      "church": "civic",
+      "cathedral": "civic",
+      "chapel": "civic",
+      "school": "civic",
+      "university": "civic",
+      "hospital": "civic",
+      "public": "civic",
+      "government": "civic",
+      "civic": "civic",
+      "transportation": "civic",
+      "train_station": "civic",
+      "stadium": "civic"
+    },
+    "windows": {
+      "house": "house",
+      "apartments": "block",
+      "office": "tower",
+      "industrial": "plain",
+      "civic": "block",
+      "default": "block"
+    },
+    "landmark": {
+      "height": 70,
+      "kinds": [
+        "church",
+        "cathedral",
+        "stadium",
+        "tower",
+        "train_station",
+        "chapel"
+      ],
+      "minArea": 400
+    }
+  },
+  "labels": {
+    "every": 220,
+    "minLength": 60
+  }
+}

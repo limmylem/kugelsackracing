@@ -1,5 +1,5 @@
 [
-  {"id": "real", "name": "Real world", "icon": "🌍"},
+  {"id": "real", "name": "Real world", "icon": "🌍", "file": "scenes/real_world.json"},
   {"id": "proving", "name": "Proving ground", "icon": "🏁", "file": "scenes/proving_ground.json"},
   {"id": "tests", "name": "Test centre", "icon": "⏱️", "file": "scenes/test_centre.json"},
   {"id": "rally", "name": "Rally stage", "icon": "🌲", "file": "scenes/rally.json"},

@@ -81,6 +81,7 @@ import { DentBudget } from '../garage/dents.js';
 import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
 import { drivability, ownedBySocket } from '../garage/repair.js';
 import { createHintCard } from './hintCard.js';
+import { attachRealWorld, hideRealWorld, prepareTrack, realWorldFrame, resetToRoad, showRealWorld } from './realWorld.js';
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -110,6 +111,7 @@ export async function enter(file) {
     worlds.set(file, await buildWorld(file));
   }
   active = worlds.get(file);
+  if (active.stream) showRealWorld(active); else hideRealWorld();
   // record this world's car; the gearbox mode carries over between worlds
   shared.stopTelemetry?.();
   shared.stopTelemetry = shared.telemetry.attach(active.sim);
@@ -123,6 +125,7 @@ export async function enter(file) {
 
 export function exit() {
   active = null;
+  hideRealWorld();
   if (!shared) return;
   shared.renderer.domElement.style.display = 'none';
   shared.hud.style.display = 'none';
@@ -305,6 +308,8 @@ function restartAudio() {
 
 async function buildWorld(file) {
   const track = await (await fetch(file)).json();
+  // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
+  if (track.streamed) await prepareTrack(track);
   const { settings, spec, sockets, glb } = shared;
   const sim = createSimulation(RAPIER, { settings, spec, sockets, track });
   const terrain = terrainOf(track);
@@ -380,12 +385,14 @@ async function buildWorld(file) {
   const fxDraw = createThreeEffects(fx, { renderer: shared.renderer, scene });
   fx.setCar(0, carEffectsInfo(shared.session, shared.damageBoxes));
 
-  return {
+  const w = {
     file, name: track.name, track, sim, scene, camera, sun, hemi, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
     aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
   };
+  if (track.streamed) await attachRealWorld(w, shared, { RAPIER });
+  return w;
 }
 
 function loop(now) {
@@ -404,7 +411,10 @@ function frame(w, now) {
   // a crash replay playing (or due): it's what's drawn, and the world waits
   if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) return; }
   for (const act of inp.pressed) handleAction(w, act, inp);
-  const paused = shared.panel.open;                          // the settings panel pauses the car
+  // the real world: its ground streamed round the car; it waits while the ground ahead is loading
+  const rw = w.stream ? realWorldFrame(w, shared, seconds) : null;
+  if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
+  const paused = shared.panel.open || !!rw?.hold;           // the settings panel pauses the car
   // player settings → the car
   Object.assign(v.aids, P.aids);
   v.mechanical.enabled = (P.damage ?? 'full') === 'full';        // (visual only, off: it drives as new)
@@ -1237,6 +1247,7 @@ const clock = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')
 function resetCar(w, toStart) {
   shared.session.attach.reattachAll('reset', { kind: shared.play.kind });
   w.sim.vehicle.parts.clear();                       // (what's still loose hangs again from where the car is now)
+  if (w.stream) { resetToRoad(w); return; }          // (the real world: onto the nearest road)
   if (toStart || !w.roadLines.length) { w.sim.reset(); return; }
   const p = w.sim.vehicle.body.translation(), q = w.sim.vehicle.body.rotation();
   const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));

@@ -1,12 +1,40 @@
 {
-  "_note": "A region of the world (docs/WORLD_DATA.md): its box [west, south, east, north] (degrees), where a new player starts, and where its map comes from. npm run world:build -- --region sf builds assets/world/sf.pmtiles. Overture: a release on its public S3 bucket ('latest' takes the newest); osm: an OpenStreetMap extract (.osm.pbf) for this region, if you have one — roads, land use, water and details then come from it (with every OSM tag: lanes, sidewalks, trees, street lamps…), buildings from Overture either way.",
+  "_note": "A region of the world (docs/WORLD_DATA.md): its box [west, south, east, north] (degrees), where a new player starts, and where its map comes from. npm run world:build -- --region sf builds assets/world/sf.pmtiles. Overture: a release on its public S3 bucket ('latest' takes the newest); osm: an OpenStreetMap extract (.osm.pbf) for this region, if you have one \u2014 roads, land use, water and details then come from it (with every OSM tag: lanes, sidewalks, trees, street lamps\u2026), buildings from Overture either way. dem: the elevation (tools/world/dem.mjs): a region's own LiDAR elevation files first (local), then Copernicus GLO-30 everywhere (base).",
   "id": "sf",
   "name": "San Francisco",
-  "bbox": [-122.5200, 37.7050, -122.3550, 37.8380],
-  "spawn": { "lat": 37.79420, "lon": -122.39540, "bearing": 315, "name": "The Embarcadero" },
+  "bbox": [
+    -122.52,
+    37.705,
+    -122.355,
+    37.838
+  ],
+  "spawn": {
+    "lat": 37.7942,
+    "lon": -122.3954,
+    "bearing": 315,
+    "name": "The Embarcadero"
+  },
   "sources": {
-    "overture": { "release": "2026-09-23.1" },
+    "overture": {
+      "release": "2026-09-23.1"
+    },
     "osm": null
   },
-  "output": "assets/world/sf.pmtiles"
+  "output": "assets/world/sf.pmtiles",
+  "dem": {
+    "local": [
+      {
+        "name": "USGS 3DEP 1 m (CA_SanFrancisco_B23)",
+        "resolution": 1,
+        "attribution": "USGS 3D Elevation Program (public domain)",
+        "files": [
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x54y418_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x54y419_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x55y418_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x55y419_CA_SanFrancisco_B23.tif"
+        ]
+      }
+    ],
+    "base": "glo30"
+  }
 }

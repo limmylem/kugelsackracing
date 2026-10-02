@@ -16,7 +16,10 @@ export const THEMES = {
   water: { theme: 'base', type: 'water', columns: ['id', 'subtype', 'class', 'source_tags', 'level', 'is_intermittent'] },
   land: { theme: 'base', type: 'land', columns: ['id', 'subtype', 'class', 'source_tags', 'level'] },
   land_cover: { theme: 'base', type: 'land_cover', columns: ['id', 'subtype'] },
+  division: { theme: 'divisions', type: 'division_area', columns: ['id', 'subtype', 'class', 'names', 'is_land'] },
 };
+// the places a driver knows by name: the town or city, its districts and neighbourhoods
+const PLACES = new Set(['county', 'localadmin', 'locality', 'borough', 'macrohood', 'neighborhood', 'microhood']);
 
 const shapeOf = g => g.type === 'Point' || g.type === 'MultiPoint' ? 'point' : g.type === 'LineString' || g.type === 'MultiLineString' ? 'line' : 'area';
 const r1 = v => v == null ? undefined : +(+v).toFixed(1);
@@ -126,6 +129,7 @@ export function featuresFrom(type, rows) {
     if (type === 'building') { const b = building(row); if (b) out.push(b); }
     else if (type === 'building_part') { const b = building(row, true); if (b) out.push(b); }
     else if (type === 'segment') out.push(...segment(row));
+    else if (type === 'division') { if (PLACES.has(row.subtype) && row.names?.primary && row.geometry && row.is_land !== false) out.push({ layer: 'places', id: idOf(row.id), geometry: row.geometry, props: { k: row.subtype, n: row.names.primary } }); }
     else out.push(...base(type, row));
   }
   return out;

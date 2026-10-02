@@ -1,0 +1,213 @@
+// The baked world, streamed round the car (the game side of tools/world/bake.mjs): which tiles are wanted
+// (all within a radius, nearest first, and ahead of the car by how fast it's going), loading them in Web
+// Workers (world/tileWorker.js: fetch or the IndexedDB cache, decode), adding what they look like
+// (world/tileObjects.js) and their collision — the heightfield, the road, car park and tunnel-roof meshes,
+// each building's convex pieces, every railing's chained boxes, the tree trunks: the same baked arrays —
+// to the physics a few milliseconds' worth a frame, and dropping tiles left far behind.
+//
+// The physics runs near its origin (Phase 1 Step 7's floating origin): when the car is more than
+// REBASE m out, the origin moves a whole number of tiles to the car's tile and the simulation is
+// re-expressed there between two steps (physics/sim.js shiftOrigin); the drawn world moves with it.
+//
+//   const W = await createWorldStream({ manifestUrl, scene, sim, RAPIER })
+//   each frame: W.update(carPosition (sim), velocity, dt) → { shifted: [tx, 0, tz] | null }
+//   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z), W.placeOnGround(x, z, yFrom), W.where(x, z)
+//   W.status (for the overlay), W.toWorld / W.toSim
+
+import * as THREE from 'three';
+import { tileObjects } from './tileObjects.js';
+import { barrierBoxes } from './barriers.js';
+import { projection } from './projection.js';
+
+export const REBASE = 1536;
+const DEFAULTS = { loadRadius: 1400, unloadRadius: 2100, physicsRadius: 750, physicsDrop: 1100, lookAhead: 4, maxLoads: 4, workers: 2, budgetMs: 4 };
+
+export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, options = {} }) {
+  const O = { ...DEFAULTS, ...options };
+  const manifest = await (await fetch(manifestUrl, { cache: 'no-cache' })).json();
+  const base = new URL('.', new URL(manifestUrl, location.href)).href, T = manifest.tileSize, half = T / 2;
+  const P = projection(...manifest.origin);
+  const byKey = new Map(manifest.tiles.map(t => [`${t.i}_${t.j}`, t]));
+  // the physics' origin, in the world's frame: tile-aligned, at the spawn's tile to begin with
+  const [sx, sz] = manifest.spawn.xz;
+  let origin = [Math.floor(sx / T) * T, Math.floor(sz / T) * T];
+  const world = new THREE.Group();
+  world.name = 'baked world';
+  world.position.set(-origin[0], 0, -origin[1]);
+  scene.add(world);
+  const surfaces = Object.entries(manifest.surfaces).map(([name, s]) => ({ name, ...s }));
+
+  // ---------- workers ----------
+  const workers = Array.from({ length: O.workers }, () => new Worker(new URL('./tileWorker.js', import.meta.url), { type: 'module' }));
+  const waiting = new Map();
+  let nextWorker = 0;
+  for (const w of workers) w.onmessage = e => { const m = e.data, r = waiting.get(m.key); waiting.delete(m.key); r?.(m); };
+  const fetchTile = t => new Promise(resolve => { const key = `${t.i}_${t.j}`; waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url: `${base}tiles/${key}.dwt`, version: manifest.version }); });
+
+  // ---------- tiles ----------
+  const tiles = new Map();          // key → { i, j, state, obj, data, physics, queue, added, ... }
+  const stats = { loaded: 0, fetched: 0, cached: 0, bytes: 0, loadMs: [], errors: 0, lastError: null, colliders: 0, firstDrivable: null, started: performance.now() };
+  const centreOf = t => [(t.i + 0.5) * T, (t.j + 0.5) * T];
+  const distTo = (t, x, z) => { const [cx, cz] = centreOf(t); return Math.hypot(Math.max(0, Math.abs(x - cx) - half), Math.max(0, Math.abs(z - cz) - half)); };
+  let physicsQueue = [];
+
+  function load(t) {
+    const key = `${t.i}_${t.j}`, entry = { ...t, key, state: 'loading', obj: null, data: null, physics: null, colliders: 0 };
+    tiles.set(key, entry);
+    const t0 = performance.now();
+    fetchTile(t).then(m => {
+      if (tiles.get(key) !== entry) return;
+      if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); return; }
+      entry.data = m.tile; entry.state = 'ready';
+      entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
+      const [cx, cz] = centreOf(t);
+      entry.obj.group.position.set(cx, 0, cz);
+      entry.obj.group.updateMatrixWorld(true);
+      for (const c of entry.obj.group.children) c.updateMatrix?.();
+      world.add(entry.obj.group);
+      stats.loaded++; stats.bytes += m.bytes; m.cached ? stats.cached++ : stats.fetched++;
+      stats.loadMs.push(performance.now() - t0); if (stats.loadMs.length > 50) stats.loadMs.shift();
+    });
+  }
+  function unload(entry) {
+    dropPhysics(entry);
+    entry.obj?.dispose();
+    tiles.delete(entry.key);
+  }
+
+  // ---------- physics: built a piece at a time ----------
+  // the tile's colliders, in the order the car needs them: ground and roads first
+  function physicsPieces(entry) {
+    const d = entry.data, out = [];
+    if (d.heightfield) out.push({ desc: RAPIER.ColliderDesc.heightfield(d.heightfield.n, d.heightfield.n, d.heightfield.heights, { x: d.heightfield.size, y: 1, z: d.heightfield.size }), userData: { material: 'ground' } });
+    for (const name of ['roads', 'paved', 'cover']) { const m = d.meshes[name]; if (m) out.push({ desc: RAPIER.ColliderDesc.trimesh(m.positions, m.indices), userData: { material: 'ground' } }); }
+    entry.groundPieces = out.length;          // (the ground and the roads: what the car needs first)
+    // buildings: each convex piece, foot to eaves
+    const H = d.lists.hulls?.data;
+    if (H) for (let k = 0; k < H.length;) {
+      const n = H[k], y0 = H[k + 1], y1 = H[k + 2], pts = new Float32Array(n * 6);
+      for (let q = 0; q < n; q++) { const x = H[k + 3 + q * 2], z = H[k + 4 + q * 2]; pts.set([x, y0, z, x, y1, z], q * 6); }
+      k += 3 + n * 2;
+      const desc = RAPIER.ColliderDesc.convexHull(pts);
+      if (desc) out.push({ desc, userData: { material: 'concrete' } });
+    }
+    // railings and walls: chained boxes, thick and taller than they look
+    const B = manifest.barriers;
+    for (const [name, L] of Object.entries(d.lists)) {
+      if (!name.startsWith('barrier_')) continue;
+      for (const b of barrierBoxes(name.slice(8), L.data, B)) out.push({ desc: RAPIER.ColliderDesc.cuboid(...b.halfExtents).setTranslation(...b.centre).setRotation(b.rotation).setFriction(B.friction).setRestitution(B.restitution), userData: { material: b.material } });
+    }
+    const Tr = d.lists.trees?.data;
+    if (Tr) for (let k = 0; k < Tr.length; k += 5) { const h = Tr[k + 3] * 4 * 0.6; out.push({ desc: RAPIER.ColliderDesc.cylinder(h / 2 + 0.5, 0.25).setTranslation(Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]), userData: { material: 'wood' } }); }
+    return out;
+  }
+  function wantPhysics(entry) {
+    if (entry.physics || entry.state !== 'ready') return;
+    const [cx, cz] = centreOf(entry);
+    entry.physics = sim.addStatic({ position: [cx - origin[0], 0, cz - origin[1]] }, []);
+    entry.pieces = physicsPieces(entry); entry.added = 0;
+    physicsQueue.push(entry);
+  }
+  function dropPhysics(entry) {
+    if (!entry.physics) return;
+    sim.removeStatic(entry.physics);
+    stats.colliders -= entry.added ?? 0;
+    entry.physics = null; entry.pieces = null; entry.added = 0;
+    physicsQueue = physicsQueue.filter(e => e !== entry);
+  }
+  const groundReady = entry => !!entry?.physics && entry.added >= entry.groundPieces;
+  const entryAt = (wx, wz) => tiles.get(`${Math.floor(wx / T)}_${Math.floor(wz / T)}`);
+
+  // ---------- each frame ----------
+  let lastPlan = -Infinity;
+  function update(pos, vel, dt = 1 / 60) {
+    const wx = pos[0] + origin[0], wz = pos[2] + origin[1], speed = Math.hypot(vel[0], vel[2]);
+    const ax = wx + vel[0] * O.lookAhead, az = wz + vel[2] * O.lookAhead;   // (where the car will be soon)
+    const now = performance.now();
+    if (now - lastPlan > 200) {
+      lastPlan = now;
+      // what's wanted, nearest (to now, or to soon) first
+      const want = manifest.tiles.map(t => ({ t, d: Math.min(distTo(t, wx, wz), distTo(t, ax, az) * 0.8) })).filter(x => x.d < O.loadRadius).sort((a, b) => a.d - b.d);
+      const loading = [...tiles.values()].filter(e => e.state === 'loading').length;
+      let room = O.maxLoads - loading;
+      for (const { t } of want) { if (room <= 0) break; if (!tiles.has(`${t.i}_${t.j}`)) { load(t); room--; } }
+      for (const e of [...tiles.values()]) if (e.state === 'ready' && Math.min(distTo(e, wx, wz), distTo(e, ax, az)) > O.unloadRadius) unload(e);
+    }
+    // physics: near now and near soon (further ahead the faster it goes), dropped once well behind
+    const reach = O.physicsRadius + speed * 2;
+    for (const e of tiles.values()) {
+      if (e.state !== 'ready') continue;
+      const d = Math.min(distTo(e, wx, wz), distTo(e, ax, az));
+      if (d < reach) wantPhysics(e); else if (d > O.physicsDrop + speed * 2) dropPhysics(e);
+      e.obj.setDetail(distTo(e, wx, wz));
+    }
+    // a few milliseconds of colliders, the car's own tile and those ahead first
+    physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));
+    const end = performance.now() + O.budgetMs;
+    while (physicsQueue.length && performance.now() < end) {
+      const e = physicsQueue[0];
+      if (!e.physics) { physicsQueue.shift(); continue; }
+      const piece = e.pieces[e.added];
+      if (piece) { sim.addToStatic(e.physics, [piece]); e.added++; stats.colliders++; }
+      if (e.added >= e.pieces.length) physicsQueue.shift();
+    }
+    // the floating origin: a whole number of tiles, to the car's
+    let shifted = null;
+    if (Math.hypot(pos[0], pos[2]) > REBASE) {
+      const next = [Math.floor(wx / T) * T, Math.floor(wz / T) * T], t = [origin[0] - next[0], 0, origin[1] - next[1]];
+      sim.shiftOrigin({ x: 0, y: 0, z: 0, w: 1 }, t);
+      origin = next;
+      world.position.set(-origin[0], 0, -origin[1]);
+      shifted = t;
+    }
+    return { shifted };
+  }
+
+  return {
+    manifest, projection: P, world, stats, update,
+    get origin() { return origin; },
+    toWorld: (x, z) => [x + origin[0], z + origin[1]],
+    toSim: (x, z) => [x - origin[0], z - origin[1]],
+    // is there solid ground (terrain, roads) everywhere within r m of a place (sim frame)?
+    readyAround(x, z, r = 0) {
+      const wx = x + origin[0], wz = z + origin[1];
+      for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) { const e = entryAt(wx + dx, wz + dz); if (!e) { if (!byKey.has(`${Math.floor((wx + dx) / T)}_${Math.floor((wz + dz) / T)}`)) continue; return false; } if (!groundReady(e)) return false; }
+      return true;
+    },
+    // tyre grip there: { name, grip, rollingResistance, … }
+    surfaceAt(x, z) {
+      const wx = x + origin[0], wz = z + origin[1], e = entryAt(wx, wz), G = e?.data?.grids.surface;
+      if (!G) return surfaces[0];
+      const lx = wx - (e.i * T), lz = wz - (e.j * T), c = Math.min(G.n - 1, Math.max(0, Math.floor(lx / G.cell))), r = Math.min(G.n - 1, Math.max(0, Math.floor(lz / G.cell)));
+      const name = G.names[G.data[r * G.n + c]];
+      return surfaces.find(s => s.name === name) ?? surfaces[0];
+    },
+    // where a place is, for the HUD: its tile, the elevation data there, the nearest named road
+    where(x, z) {
+      const wx = x + origin[0], wz = z + origin[1], e = entryAt(wx, wz), out = { tile: [Math.floor(wx / T), Math.floor(wz / T)], dem: e?.data?.header.dem ?? null, road: null, latLon: P.toLatLon(wx, wz) };
+      const S = e?.data?.lists.streets?.data, names = e?.data?.header.names;
+      if (S) {
+        let best = 25;
+        const lx = wx - (e.i + 0.5) * T, lz = wz - (e.j + 0.5) * T;
+        for (let k = 0; k < S.length; k += 6) {
+          const ax = S[k], az = S[k + 1], dx = S[k + 2] - ax, dz = S[k + 3] - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((lx - ax) * dx + (lz - az) * dz) / l2)), d = Math.hypot(lx - ax - dx * t, lz - az - dz * t);
+          if (d < best) { best = d; out.road = names[S[k + 4]]; }
+        }
+      }
+      return out;
+    },
+    // the first solid surface below a point (sim frame), or null
+    groundBelow(x, z, fromY, reach = 600) {
+      const hit = sim.vehicle.world.castRay(new RAPIER.Ray({ x, y: fromY, z }, { x: 0, y: -1, z: 0 }), reach, true, undefined, undefined, undefined, sim.vehicle.body);
+      return hit ? fromY - hit.timeOfImpact : null;
+    },
+    get status() {
+      const list = [...tiles.values()], ms = stats.loadMs.slice().sort((a, b) => a - b);
+      return { tiles: list.filter(e => e.state === 'ready').length, loading: list.filter(e => e.state === 'loading').length, physics: list.filter(e => e.physics).length, building: physicsQueue.length,
+        colliders: stats.colliders, bytes: stats.bytes, fetched: stats.fetched, cached: stats.cached, tileMs: ms.length ? ms[ms.length >> 1] : null, errors: stats.errors, lastError: stats.lastError };
+    },
+    // the tiles in the physics (the tests)
+    get tiles() { return tiles; },
+    dispose() { for (const e of [...tiles.values()]) unload(e); for (const w of workers) w.terminate(); world.removeFromParent(); },
+  };
+}

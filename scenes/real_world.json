@@ -1,0 +1,6 @@
+{
+  "name": "San Francisco",
+  "_about": "The real world, low-poly v2: no scene of its own — its ground, roads, buildings and railings stream in from the baked tiles (npm run world:bake; WORLD_README.md). streamed.manifest: which baked region.",
+  "streamed": { "manifest": "assets/world/sf/manifest.json" },
+  "roads": []
+}

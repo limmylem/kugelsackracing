@@ -27,16 +27,20 @@
     "generate-parts": "node tools/generate-parts.mjs",
     "crash-test": "node tests/crash.mjs",
     "stress": "node --expose-gc tests/stress.mjs",
-    "world:build": "node --max-old-space-size=8192 tools/world/build.mjs"
+    "world:build": "node --max-old-space-size=8192 tools/world/build.mjs",
+    "world:bake": "node --max-old-space-size=8192 tools/world/bake.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
     "@gltf-transform/core": "^4.5.0",
     "@gltf-transform/extensions": "^4.5.0",
     "@gltf-transform/functions": "^4.5.0",
+    "@mapbox/martini": "^0.2.0",
     "@mapbox/vector-tile": "^3.0.0",
+    "geotiff": "^3.0.5",
     "hyparquet": "^1.31.2",
     "hyparquet-compressors": "^1.1.2",
+    "maplibre-gl": "^6.11.2",
     "meshoptimizer": "^0.22.0",
     "pbf": "^5.1.2",
     "pmtiles": "^4.5.0",
