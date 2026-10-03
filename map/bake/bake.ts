@@ -92,7 +92,7 @@ export async function bake({ regionId, area = null as string | null, out = null 
 
   // 5. the tiles, the far layer, the graph
   await MeshoptEncoder.ready;
-  const TB = tileBuilder({ region, grid, cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, mesh: R.mesh, marks: R.marks, segs: R.segs, buildings, barriers: bar, trees: tr, labels: lb, bays });
+  const TB = tileBuilder({ region, grid, cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, mesh: R.mesh, marks: R.marks, segs: R.segs, buildings, barriers: bar, trees: tr, labels: lb, bays });
   const tiles: any[] = [];
   for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) {
     const t = TB.tile(i, j), bytes = zlib.gzipSync(encodeTile(t, MeshoptEncoder), { level: 9 });

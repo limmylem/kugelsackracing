@@ -92,10 +92,10 @@ export async function bakeElevation({ region, grid, P, cacheDir, mask = null as 
     const calc = (expr: string, inputs: Record<string, string>, file: string, type = 'Float32', nodata = NODATA) => gdal('gdal_calc.py', ['--quiet', '--overwrite', '--hideNoData', ...Object.entries(inputs).flatMap(([k, f]) => [`-${k}`, f]), `--outfile=${file}`, `--calc=${expr}`, `--type=${type}`, `--NoDataValue=${nodata}`, '--co=COMPRESS=DEFLATE', '--co=TILED=YES']);
     // Copernicus: the sea is 0; under buildings and roads, filled again from round them (a surface
     // model there is roofs and tree tops)
-    const cop = path.join(dir, 'cop-fixed.tif');
+    const tag = hash(key), cop = path.join(dir, `cop-fixed-${tag}.tif`);
     if (files.cop) {
       if (mask) {
-        const m = path.join(dir, 'mask.tif');
+        const m = path.join(dir, `mask-${tag}.tif`);
         gdal('gdal_rasterize', ['-q', '-burn', '1', '-init', '0', '-te', ...te.map(String), '-ts', ...ts.map(String), '-ot', 'Byte', '-a_srs', P.proj4, mask, m]);
         calc(`where(B>0,${NODATA},where(A<=${NODATA + 1},0,A))`, { A: files.cop, B: m }, cop);
         gdal('gdal_fillnodata.py', ['-q', '-md', '60', '-si', '1', cop, cop + '.f.tif']);
@@ -104,10 +104,11 @@ export async function bakeElevation({ region, grid, P, cacheDir, mask = null as 
     }
     if (files.lidar) {
       // how far inside its coverage each point is (the blend's weight), then the blend
-      const valid = path.join(dir, 'lidar-valid.tif'), dist = path.join(dir, 'lidar-dist.tif'), band = region.dem.blendBand;
+      const valid = path.join(dir, `lidar-valid-${tag}.tif`), dist = path.join(dir, `lidar-dist-${tag}.tif`), band = region.dem.blendBand;
+      if (fs.existsSync(dist)) fs.rmSync(dist);
       calc(`A>${NODATA + 1}`, { A: files.lidar }, valid, 'Byte', 255);
       // (the edge is where the LiDAR meets Copernicus over land; at the shore there's nothing to blend into)
-      const edge = path.join(dir, 'lidar-edge.tif');
+      const edge = path.join(dir, `lidar-edge-${tag}.tif`);
       if (files.cop) calc('(A==0)*(B!=0)', { A: valid, B: cop }, edge, 'Byte', 255); else calc('A*0', { A: valid }, edge, 'Byte', 255);
       gdal('gdal_proximity.py', ['-q', edge, dist, '-values', '1', '-distunits', 'GEO', '-maxdist', String(band), '-nodata', String(band), '-ot', 'Float32']);
       const w = `minimum(C/${band},1)*(B==1)`;

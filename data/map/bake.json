@@ -178,9 +178,9 @@
     }
   },
   "barriers": {
-    "_note": "Railings and walls: how they look (height, thickness, colour) and their collider, which is always at least minThickness thick and taller than what's drawn so a car can't hop or slip through. auto: railings the map often doesn't have \u2014 on both sides of every bridge, along motorway edges, and beside a road where the ground drops away (more than drop m within reach m of its edge, for at least minRun m). A type's own extraHeight (rails and parapets beside drops: 1.2 m) keeps even a car launched at 300 km/h from vaulting it.",
+    "_note": "Railings and walls: how they look (height, thickness, colour) and their collider \u2014 always at least minThickness thick and extraHeight taller than what's drawn (1.2 m: even a car launched off a 300 km/h hit can't vault one). auto: railings OSM often lacks (marked estimated).",
     "minThickness": 0.35,
-    "extraHeight": 0.35,
+    "extraHeight": 1.2,
     "friction": 0.25,
     "restitution": 0.05,
     "types": {
@@ -189,22 +189,19 @@
         "thickness": 0.35,
         "colour": "#b9bec2",
         "post": 2.0,
-        "material": "metal",
-        "extraHeight": 1.2
+        "material": "metal"
       },
       "jersey_barrier": {
         "height": 0.85,
         "thickness": 0.6,
         "colour": "#c9c6bd",
-        "material": "concrete",
-        "extraHeight": 1.2
+        "material": "concrete"
       },
       "parapet": {
         "height": 1.05,
         "thickness": 0.4,
         "colour": "#bdb8ad",
-        "material": "concrete",
-        "extraHeight": 1.2
+        "material": "concrete"
       },
       "wall": {
         "height": 1.8,

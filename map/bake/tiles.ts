@@ -47,7 +47,7 @@ const bucketKey = (i: number, j: number) => `${i}_${j}`;
 
 export function tileBuilder(D: {
   region: any; grid: Grid; cfg: any; heights: Float32Array; classes: Uint8Array; classNames: string[]; roadSurface: Uint8Array; surfaceNames: string[]; cover: Float32Array; demSource: Uint8Array; demSources: any[];
-  water: any[]; parking: any[]; mesh: Mesh; marks: Mesh; segs: Seg[]; buildings: Building[]; barriers: Record<string, number[]>; trees: number[]; labels: { labels: number[]; signs: number[]; names: string[] }; bays: { x: number; z: number }[][];
+  water: any[]; parking: any[]; parkingCell: Uint8Array; mesh: Mesh; marks: Mesh; segs: Seg[]; buildings: Building[]; barriers: Record<string, number[]>; trees: number[]; labels: { labels: number[]; signs: number[]; names: string[] }; bays: { x: number; z: number }[][];
 }) {
   const { grid: g, cfg } = D, T = g.tileSize, per = T / g.cell, N1 = per + 1;
   const pal = Object.fromEntries(Object.entries(cfg.colours).filter(([k]) => !k.startsWith('_')).map(([k, v]) => [k, rgb(v as string)]));
@@ -92,6 +92,9 @@ export function tileBuilder(D: {
       if (!palIdx.has(ck)) { palIdx.set(ck, palette.length); palette.push(col.slice(0, 3)); }
       terrain[r * N1 + c] = palIdx.get(ck)!;
     }
+    // which elevation source each point's from (0 sea, 1 LiDAR, 2 Copernicus, 3 the blend between)
+    const demGrid = new Uint8Array(N1 * N1);
+    for (let r = 0; r < N1; r++) for (let c = 0; c < N1; c++) demGrid[r * N1 + c] = D.demSource[at(c, r)];
     const surface = new Uint8Array(per * per);
     for (let r = 0; r < per; r++) for (let c = 0; c < per; c++) { const k = at(c, r), rs = D.roadSurface[k]; surface[r * per + c] = SURF_NAMES.indexOf(rs ? roadSurfName(rs) : groundSurf(D.classNames[D.classes[k]])); }
     // ---- roads, junctions, markings (their triangles whose middles are here)
@@ -109,14 +112,21 @@ export function tileBuilder(D: {
     const paved = new Part(false, true), cover = new Part(false, true), water = new Part();
     const pk = pal.parking ?? [110, 110, 110], kerbC = [190, 188, 182], bayC = [230, 230, 224];
     for (const p of D.parking) {
-      const [a, bb, c0] = p.plane, y = (x: number, z: number) => a * x + bb * z + c0 + 0.02;
-      const rings = p.rings.map(r => clipRing(r.map(q => [q.x, q.z]), x0, z0, x0 + T, z0 + T)).filter(r => r.length >= 3);
-      if (rings.length && rings[0].length >= 3 && p.rings[0].length) {
-        const flat = rings.flat(), holes: number[] = []; let n = 0;
-        rings.forEach((r, k) => { if (k) holes.push(n); n += r.length; });
-        const tris = earcut(flat.flat(), holes);
-        const ids = flat.map(q => paved.vertex(q[0] - cx, y(q[0], q[1]), q[1] - cz, pk));
-        for (let t = 0; t < tris.length; t += 3) paved.upTri(ids[tris[t]], ids[tris[t + 1]], ids[tris[t + 2]], SURF_NAMES.indexOf('tarmac'));
+      const [a, bb, pc] = p.plane, y = (x: number, z: number) => a * x + bb * z + pc + 0.02;
+      p.bayY = y;
+      // its surface: the grid's cells inside it (on its plane, 2 cm over the ground flattened to it), but not
+      // where a road runs through it (the road's surface is the one there)
+      let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+      for (const q of p.rings[0]) { bx0 = Math.min(bx0, q.x); bx1 = Math.max(bx1, q.x); bz0 = Math.min(bz0, q.z); bz1 = Math.max(bz1, q.z); }
+      if (bx1 < x0 || bx0 > x0 + T || bz1 < z0 || bz0 > z0 + T) continue;
+      const c0 = Math.max(0, Math.floor((bx0 - x0) / g.cell)), c1 = Math.min(per - 1, Math.ceil((bx1 - x0) / g.cell)), r0 = Math.max(0, Math.floor((bz0 - z0) / g.cell)), r1 = Math.min(per - 1, Math.ceil((bz1 - z0) / g.cell));
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+        const x = x0 + (c + 0.5) * g.cell, z = z0 + (r + 0.5) * g.cell;
+        if (!inPoly(x, z, p.rings)) continue;
+        const ks = [at(c, r), at(c + 1, r), at(c + 1, r + 1), at(c, r + 1)];
+        if (ks.some(k => D.roadSurface[k] && !D.parkingCell[k])) continue;
+        const v = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([dc, dr]) => { const X = x0 + (c + dc) * g.cell, Z = z0 + (r + dr) * g.cell; return paved.vertex(X - cx, y(X, Z), Z - cz, pk); });
+        paved.upTri(v[0], v[1], v[2], SURF_NAMES.indexOf('tarmac')); paved.upTri(v[0], v[2], v[3], SURF_NAMES.indexOf('tarmac'));
       }
       // kerbs round it (0.12 m high, 0.25 wide), open where a road comes in
       const ring = p.rings[0];
@@ -125,7 +135,7 @@ export function tileBuilder(D: {
         for (let s = 0; s < l; s += 2) {
           const t0 = s / l, t1 = Math.min(1, (s + 2) / l), xa = A.x + (Bp.x - A.x) * t0, za = A.z + (Bp.z - A.z) * t0, xb = A.x + (Bp.x - A.x) * t1, zb = A.z + (Bp.z - A.z) * t1, mx = (xa + xb) / 2, mz = (za + zb) / 2;
           if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue;
-          const cc = Math.round((mx - g.x0) / g.cell), rr = Math.round((mz - g.z0) / g.cell), onRoad = D.roadSurface[rr * g.W + cc] && !inPoly(mx, mz, p.rings);
+          const cc = Math.round((mx - g.x0) / g.cell), rr = Math.round((mz - g.z0) / g.cell), onRoad = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => { const k = (rr + dr) * g.W + cc + dc; return D.roadSurface[k] && !D.parkingCell[k]; });
           if (onRoad) continue;
           const nx = -(zb - za) / (l * (t1 - t0) || 1) * 0.125, nz = (xb - xa) / (l * (t1 - t0) || 1) * 0.125, ya = y(xa, za), yb = y(xb, zb);
           const v = [[xa - nx, ya + 0.12, za - nz], [xb - nx, yb + 0.12, zb - nz], [xb + nx, yb + 0.12, zb + nz], [xa + nx, ya + 0.12, za + nz]].map(p3 => paved.vertex(p3[0] - cx, p3[1], p3[2] - cz, kerbC));
@@ -193,7 +203,7 @@ export function tileBuilder(D: {
     for (const [name, p] of [['roads', roads], ['markings', marks], ['paved', paved], ['cover', cover], ['water', water], ['roofs', roofs], ...Object.entries(wallsBy).map(([k, p]) => [`walls_${k}`, p])] as [string, Part][]) if (!p.empty) meshes[name] = p.out();
     return {
       header: {
-        region: D.region.id, key, i, j, size: T, centre: [cx, cz], names, landmarks,
+        region: D.region.id, key, i, j, size: T, centre: [cx, cz], names, landmarks, positionQuantum: 0.01,
         terrain: { palette, lodErrors: cfg.terrain.lodErrors },
         dem: { ...dem, share: { lidar: srcCount[1] / (N1 * N1), copernicus: srcCount[2] / (N1 * N1), blend: srcCount[3] / (N1 * N1), sea: srcCount[0] / (N1 * N1) } },
         stats: { buildings: buildingCount, estimatedHeights, roads: b.segs.size, trees: trees.length / 5, barriers: Object.fromEntries(Object.entries(b.barriers as Record<string, number[]>).map(([t, l]) => [t, l.length])), estimatedBarriers: Object.entries(b.barriers as Record<string, number[]>).reduce((n, [t, ks]) => n + ks.filter(k => D.barriers[t][k + 7] === 1).length, 0) },
@@ -204,7 +214,7 @@ export function tileBuilder(D: {
         labels: { stride: 6, data: Float32Array.from(labels) }, signs: { stride: 6, data: Float32Array.from(signs) }, roads: { stride: 7, quantum: 0.02, data: Float32Array.from(roadList) },
         ...barrierLists,
       },
-      grids: { surface: { n: per, cell: g.cell, names: SURF_NAMES, data: surface }, terrain: { n: N1, cell: g.cell, data: terrain } },
+      grids: { surface: { n: per, cell: g.cell, names: SURF_NAMES, data: surface }, terrain: { n: N1, cell: g.cell, data: terrain }, dem: { n: N1, cell: g.cell, names: ['sea', 'lidar', 'copernicus', 'blend'], data: demGrid } },
       heightfield: { n: per, size: T, heights, quantum: 0.01 },
     };
   }

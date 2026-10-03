@@ -154,7 +154,13 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     if (g.structure !== 'ground') g.h = g.s.map(s => { const t = s / L, e = t * t * (3 - 2 * t) * 0.5 + t * 0.5; return ha + (hb - ha) * e; });
     else { const da = ha - g.smooth[0], db = hb - g.smooth[g.smooth.length - 1]; g.h = g.smooth.map((v, k) => v + da + (db - da) * (g.s[k] / L)); }
   }
-  for (const n of nodes) n.junction = n.segs.length >= 3 || (n.segs.length === 2 && Math.abs(segs[n.segs[0]].width - segs[n.segs[1]].width) > 0.3);
+  // (a junction: three roads or more; or two of different widths; or two that both leave the same way — a fork)
+  const away = (k: number, g: Seg) => { const a = g.from === k ? 0 : g.xs.length - 1, b = g.from === k ? Math.min(1, g.xs.length - 1) : Math.max(0, g.xs.length - 2), dx = g.xs[b] - g.xs[a], dz = g.zs[b] - g.zs[a], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
+  nodes.forEach((n, k) => {
+    const two = n.segs.length === 2 ? n.segs.map(i => segs[i]) : null;
+    const fork = two && (two[0] === two[1] || (() => { const a = away(k, two[0]), b = away(k, two[1]); return a[0] * b[0] + a[1] * b[1] > 0; })());
+    n.junction = n.segs.length >= 3 || (!!two && (Math.abs(two[0].width - two[1].width) > 0.3 || fork));
+  });
   return { nodes, segs, ...buildSurface(nodes, segs, cfg) };
 }
 
@@ -216,6 +222,10 @@ function buildSurface(nodes: RNode[], segs: Seg[], cfg: RoadCfg) {
     if (c0 > 0) out.push(at(c0));
     for (let k = 0; k < g.xs.length; k++) if (g.s[k] > c0 + 0.05 && g.s[k] < L - c1 - 0.05 || (c0 === 0 && k === 0) || (c1 === 0 && k === g.xs.length - 1)) out.push({ s: g.s[k], x: g.xs[k], z: g.zs[k], side: sides[k] });
     if (c1 > 0) out.push(at(L - c1));
+    // (a road that ends — a dead end — runs half a metre past its last node, so the node's on it)
+    const deadEnd = (nk: number) => nodes[nk].segs.length === 1;
+    if (deadEnd(g.from) && out.length) { const p = pointAt(g, 0.01); out.unshift({ s: -0.5, x: g.xs[0] - p.dx * 0.5, z: g.zs[0] - p.dz * 0.5, side: out[0].side }); }
+    if (deadEnd(g.to) && out.length) { const p = pointAt(g, L - 0.01); out.push({ s: L + 0.5, x: g.xs[g.xs.length - 1] + p.dx * 0.5, z: g.zs[g.zs.length - 1] + p.dz * 0.5, side: out[out.length - 1].side }); }
     return out;
   };
   // the cross-section at a row: [skirt L, edge L, crown, edge R, skirt R] (x, y, z)
@@ -277,14 +287,22 @@ function buildSurface(nodes: RNode[], segs: Seg[], cfg: RoadCfg) {
       // (the two edge points, ordered round the node)
       const [a, b] = [sec[1], sec[3]], ca = Math.atan2(a[2] - n.z, a[0] - n.x), cb = Math.atan2(b[2] - n.z, b[0] - n.x);
       const da = ((ca - ang + 3 * Math.PI) % (2 * Math.PI)) - Math.PI, db = ((cb - ang + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
-      return { ang, pts: da < db ? [a, b] : [b, a], g };
+      // (its crown too: along each road's centre line the joined surface follows that road's profile)
+      return { ang, pts: da < db ? [a, sec[2], b] : [b, sec[2], a], g };
     }).filter(Boolean).sort((p, q) => p.ang - q.ang);
     if (arms.length < 2) continue;
+    // (the arms all to one side — a fork's tip: a point behind the node too, so the fan surrounds it)
+    let gapAt = -1, gap = 0;
+    for (let q = 0; q < arms.length; q++) { const a = arms[q].ang, b = q + 1 < arms.length ? arms[q + 1].ang : arms[0].ang + 2 * Math.PI; if (b - a > gap) { gap = b - a; gapAt = q; } }
+    if (gap > Math.PI * 0.9) {
+      const mid = arms[gapAt].ang + gap / 2, r = Math.min(...arms.map(a => a.g.width / 2)) * 0.6, p = [n.x + Math.cos(mid) * r, n.h - cfg.camber * r, n.z + Math.sin(mid) * r];
+      arms.splice(gapAt + 1, 0, { ang: mid, pts: [p, p, p], g: arms[gapAt].g });
+    }
     const ring = arms.flatMap(a => a.pts), g0 = arms[0].g, col = colourOf(g0), sf = SURF[g0.surface] ?? 0;
     const c = vtx(mesh, n.x, n.h, n.z, col), ids = ring.map(p => vtx(mesh, p[0], p[1], p[2], col));
     for (let q = 0; q < ids.length; q++) tri(mesh, c, ids[q], ids[(q + 1) % ids.length], sf, g0.id);
     // the edges between arms: skirts down under the ground
-    for (let q = 1; q < ring.length; q += 2) {
+    for (let q = 2; q < ring.length; q += 3) {
       const a = ring[q], b = ring[(q + 1) % ring.length], dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1;
       let ox = dz / l, oz = -dx / l;
       if ((a[0] + b[0]) / 2 + ox - n.x < 0 === (a[0] + b[0]) / 2 - n.x < 0 && Math.hypot((a[0] + b[0]) / 2 + ox - n.x, (a[2] + b[2]) / 2 + oz - n.z) < Math.hypot((a[0] + b[0]) / 2 - n.x, (a[2] + b[2]) / 2 - n.z)) { ox = -ox; oz = -oz; }

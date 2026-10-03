@@ -40,7 +40,17 @@ export function encodeTile(tile, E) {
             if (m.positions[i] > hi[k])
                 hi[k] = m.positions[i];
         }
-        const scale = lo.map((l, k) => Math.max((hi[k] - l) / 65000, 1e-4)), offset = lo.map((l, k) => l + 32500 * scale[k]);
+        let scale = lo.map((l, k) => Math.max((hi[k] - l) / 65000, 1e-4)), offset = lo.map((l, k) => l + 32500 * scale[k]);
+        // (Map v3: on one fixed grid — `positionQuantum` m, offsets whole multiples of it — so a point two
+        // tiles share comes back exactly the same from both: no cracks where a mesh is split between tiles)
+        const q = tile.header.positionQuantum;
+        if (q) {
+            const fixed = [q, q, q], off = lo.map((l, k) => Math.round((l + hi[k]) / 2 / q) * q);
+            if (lo.every((l, k) => Math.abs(l - off[k]) / q < 32000 && Math.abs(hi[k] - off[k]) / q < 32000)) {
+                scale = fixed;
+                offset = off;
+            }
+        }
         const hasC = !!m.colours, hasUV = !!m.uvs, stride = 8 + (hasC ? 4 : 0) + (hasUV ? 4 : 0);
         const vb = new Uint8Array(n * stride), dv = new DataView(vb.buffer);
         for (let v = 0; v < n; v++) {

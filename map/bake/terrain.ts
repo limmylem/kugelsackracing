@@ -157,8 +157,10 @@ export function shapeTerrain({ grid: g, dem, osm, nodes, segs, junctions, cfg }:
   // to the centimetre (what the tiles store, exactly)
   for (let k = 0; k < N; k++) { h[k] = Math.round(h[k] * 100) / 100; if (cover[k] === cover[k]) cover[k] = Math.round(cover[k] * 100) / 100; }
   // (what's underfoot: the road's surface on roads, tarmac in car parks; 0 elsewhere — the land use decides)
-  for (const pk of parking) fillPolygon(g, pk.rings, (c, r) => { const k = r * g.W + c; hardSurf[k] ||= 1; });
-  return { heights: h, classes, classNames: CLASSES, cover, water, parking, roadSurface: hardSurf, surfaceNames: ['none', ...Object.keys(SURF)] };
+  // (which points are car park, not road: the car park's surface is drawn there, the road's elsewhere)
+  const parkingCell = new Uint8Array(N);
+  for (const pk of parking) fillPolygon(g, pk.rings, (c, r) => { const k = r * g.W + c; if (!hardSurf[k]) parkingCell[k] = 1; hardSurf[k] ||= 1; });
+  return { parkingCell, heights: h, classes, classNames: CLASSES, cover, water, parking, roadSurface: hardSurf, surfaceNames: ['none', ...Object.keys(SURF)] };
 }
 
 export function sampleGrid(g: Grid, a: Float32Array, x: number, z: number) {
