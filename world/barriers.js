@@ -24,7 +24,7 @@ const quatYawPitch = (yaw, pitch) => {
 // the shape of a type: what's drawn, and the collider round it
 export function barrierShape(type, cfg) {
   const T = cfg.types[type] ?? cfg.types.wall;
-  return { height: T.height, thickness: T.thickness, colliderThickness: Math.max(cfg.minThickness, T.thickness), colliderHeight: T.height + cfg.extraHeight, colour: T.colour, post: T.post ?? 0, material: T.material ?? 'concrete' };
+  return { height: T.height, thickness: T.thickness, colliderThickness: Math.max(cfg.minThickness, T.thickness), colliderHeight: T.height + (T.extraHeight ?? cfg.extraHeight), extra: T.extraHeight ?? cfg.extraHeight, colour: T.colour, post: T.post ?? 0, material: T.material ?? 'concrete' };
 }
 
 export function barrierBoxes(type, pieces, cfg, stride = 7) {
@@ -35,7 +35,7 @@ export function barrierBoxes(type, pieces, cfg, stride = 7) {
     if (flat < 0.05) continue;
     const len = Math.hypot(flat, y1 - y0), yaw = Math.atan2(-dz, dx), pitch = Math.atan2(y1 - y0, flat);
     // (sunk a little into the ground, so nothing slides under it on uneven ground)
-    const sink = 0.25, hy = (h + cfg.extraHeight + sink) / 2;
+    const sink = 0.25, hy = (h + S.extra + sink) / 2;
     out.push({ centre: [(x0 + x1) / 2, (y0 + y1) / 2 - sink + hy, (z0 + z1) / 2], halfExtents: [len / 2 + S.colliderThickness, hy, S.colliderThickness / 2], rotation: quatYawPitch(yaw, pitch), material: S.material });
   }
   return out;

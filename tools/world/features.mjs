@@ -13,7 +13,7 @@ import { THEMES, featuresFrom } from './fromOverture.mjs';
 import { osmFeatures } from './fromOsm.mjs';
 import { idOf } from '../../world/schema.js';
 
-export const FEATURES_VERSION = 2;          // (part of the cache key: bump when the adapters change)
+export const FEATURES_VERSION = 3;          // (part of the cache key: bump when the adapters change)
 
 export async function collectFeatures({ region, bbox, release, osmFile = null, cacheDir, root, log = () => {} }) {
   const key = [FEATURES_VERSION, region.id, release, osmFile ? path.basename(osmFile) + fs.statSync(osmFile).mtimeMs : 'no-osm', bbox.map(v => v.toFixed(5)).join(',')].join('|');

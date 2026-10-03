@@ -28,8 +28,13 @@ export async function worldHarness(region = 'sf') {
     if (!have.has(key)) return null;
     // (with its terrain meshes, cut as the game's tile worker cuts them)
     if (!cache.has(key)) cache.set(key, decodeTile(new Uint8Array(fs.readFileSync(path.join(dir, 'tiles', `${key}.dwt`))), MeshoptDecoder).then(d => (Object.assign(d.meshes, terrainMeshes(d)), d)));
-    return cache.get(key);
+    const d = await cache.get(key);
+    done.set(key, d);
+    return d;
   };
+  // (a tile already decoded, synchronously, or null)
+  const done = new Map();
+  const cached = (i, j) => done.get(`${i}_${j}`) ?? null;
   const tileKeyAt = (x, z) => [Math.floor(x / T), Math.floor(z / T)];
 
   async function simAround(x, z, { radius = 600, spec = H.garage().stats().spec } = {}) {
@@ -68,5 +73,5 @@ export async function worldHarness(region = 'sf') {
     };
     return S;
   }
-  return { H, manifest, P, T, tile, tileKeyAt, simAround, root, dir };
+  return { H, manifest, P, T, tile, cached, tileKeyAt, simAround, root, dir };
 }

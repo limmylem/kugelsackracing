@@ -17,6 +17,8 @@ export const THEMES = {
   land: { theme: 'base', type: 'land', columns: ['id', 'subtype', 'class', 'source_tags', 'level'] },
   land_cover: { theme: 'base', type: 'land_cover', columns: ['id', 'subtype'] },
   division: { theme: 'divisions', type: 'division_area', columns: ['id', 'subtype', 'class', 'names', 'is_land'] },
+  // (neighbourhoods are mostly mapped as points, a few as areas)
+  division_point: { theme: 'divisions', type: 'division', columns: ['id', 'subtype', 'class', 'names'] },
 };
 // the places a driver knows by name: the town or city, its districts and neighbourhoods
 const PLACES = new Set(['county', 'localadmin', 'locality', 'borough', 'macrohood', 'neighborhood', 'microhood']);
@@ -129,6 +131,7 @@ export function featuresFrom(type, rows) {
     if (type === 'building') { const b = building(row); if (b) out.push(b); }
     else if (type === 'building_part') { const b = building(row, true); if (b) out.push(b); }
     else if (type === 'segment') out.push(...segment(row));
+    else if (type === 'division_point') { if (['neighborhood', 'macrohood', 'microhood', 'borough', 'locality'].includes(row.subtype) && row.names?.primary && row.geometry?.type === 'Point') out.push({ layer: 'places', id: idOf(row.id), geometry: row.geometry, props: { k: row.subtype, n: row.names.primary } }); }
     else if (type === 'division') { if (PLACES.has(row.subtype) && row.names?.primary && row.geometry && row.is_land !== false) out.push({ layer: 'places', id: idOf(row.id), geometry: row.geometry, props: { k: row.subtype, n: row.names.primary } }); }
     else out.push(...base(type, row));
   }

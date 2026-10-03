@@ -72,9 +72,10 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
   w.perf = { frameMs: 16.7, worstMs: 0, worstAt: 0, targets: null };
   fetch('data/world/performance.json', { cache: 'no-cache' }).then(r => r.json()).then(p => { w.perf.targets = p.targets; }).catch(() => {});
   // the neighbourhoods and the city, for where you are (smallest first)
-  w.places = (stream.manifest.places ?? []).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
+  w.places = (stream.manifest.places ?? []).filter(p => p.rings).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
+  w.placePoints = (stream.manifest.places ?? []).filter(p => p.point && p.kind !== 'locality');
   // the maps (MapLibre from its CDN: without it, no minimap — the world doesn't need it)
-  createWorldMaps({ manifest: stream.manifest, base: new URL(w.track.streamed.manifest, document.baseURI).href, onTravel: spot => travelTo(w, spot) })
+  createWorldMaps({ manifest: stream.manifest, base: document.baseURI, onTravel: spot => travelTo(w, spot) })
     .then(m => { w.maps = m; if (!w.shown) m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));
   w.shown = true;
   return stream;
@@ -83,10 +84,12 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
 // where a place is (world frame): its neighbourhood and its city, from the manifest's places
 const inRing = (x, z, r) => { let inside = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > z) !== (r[j][1] > z) && x < (r[j][0] - r[i][0]) * (z - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) inside = !inside; return inside; };
 function placeOf(w, x, z) {
-  let area = null, city = null;
+  let area = null, city = null, best = 1500;
+  // the neighbourhood: the nearest one's middle (most are mapped as points), else an area round it
+  for (const p of w.placePoints) { const d = Math.hypot(p.point[0] - x, p.point[1] - z) * (p.kind === 'microhood' ? 1.6 : 1); if (d < best) { best = d; area = p.name; } }
   for (const p of w.places) {
     if (x < p.box[0] || x > p.box[2] || z < p.box[1] || z > p.box[3] || !p.rings.some(r => inRing(x, z, r))) continue;
-    if (!area && ['neighborhood', 'microhood', 'macrohood', 'borough'].includes(p.kind)) area = p.name;
+    if (!area && ['neighborhood', 'macrohood', 'borough'].includes(p.kind)) area = p.name;
     if (!city && ['locality', 'localadmin', 'county'].includes(p.kind)) city = p.name;
   }
   return { area, city: city ?? w.stream.manifest.name };

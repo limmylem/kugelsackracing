@@ -367,7 +367,10 @@ export async function bakeTile({ i, j, P, index, dem, cfg, regionId }) {
   const WALLS = new Set(['wall', 'retaining_wall', 'city_wall', 'parapet', 'jersey_barrier']);
   const onGround = (type, x0, z0, x1, z1) => {
     const l = Math.hypot(x1 - x0, z1 - z0) || 1, nx = -(z1 - z0) / l, nz = (x1 - x0) / l, d = Math.max(1.2, B.types[type].thickness / 2 + 0.8);
-    const end = (x, z) => { const line = groundAt(x, z), a = groundAt(x + nx * d, z + nz * d), b = groundAt(x - nx * d, z - nz * d); return { foot: WALLS.has(type) ? Math.min(line, a, b) : line, top: Math.max(line, a, b) }; };
+    // (a wall holds the ground back: its high side is looked for further out, where the mapped line and
+    // the step in the elevation data don't quite agree)
+    const reach = WALLS.has(type) ? [d, 2.5, 4] : [d];
+    const end = (x, z) => { const line = groundAt(x, z), sides = reach.flatMap(r => [groundAt(x + nx * r, z + nz * r), groundAt(x - nx * r, z - nz * r)]); return { foot: WALLS.has(type) ? Math.min(line, ...sides.slice(0, 2)) : line, top: Math.max(line, ...sides) }; };
     const A = end(x0, z0), Bb = end(x1, z1), H = B.types[type].height, h = Math.min(H + 4, Math.max(A.top - A.foot, Bb.top - Bb.foot) + H);
     addPiece(type, [x0, A.foot, z0], [x1, Bb.foot, z1], h);
   };

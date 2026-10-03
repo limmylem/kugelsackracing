@@ -102,29 +102,29 @@ function groundRay(S, x, z, fromY, reach = 50) {
   const hit = S.sim.vehicle.world.castRay(new R.Ray({ x: sx, y: fromY, z: sz }, { x: 0, y: -1, z: 0 }), reach, true, undefined, undefined, undefined, S.sim.vehicle.body, groundOnly);
   return hit ? fromY - hit.timeOfImpact : null;
 }
-// random points on a place's roads (upward faces of the road meshes within `radius`), area-weighted
+// random points on a place's roads: on the named streets within `radius` (length-weighted), up to
+// 1.5 m either side of the centre line, at the drawn road's surface there (the top one: a bridge over
+// a street is what's seen)
 async function roadPoints(S, [x, z], count, rnd, radius = 250) {
-  const tris = [];
+  const segs = [];
   for (const key of S.loaded.keys()) {
-    const [i, j] = key.split('_').map(Number), d = await W.tile(i, j), m = d.meshes.roads;
-    if (!m) continue;
-    const P = m.positions, I = m.indices, ox = (i + 0.5) * T, oz = (j + 0.5) * T;
-    for (let t = 0; t < I.length; t += 3) {
-      const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
-      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
-      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz);
-      if (l < 1e-4 || Math.abs(ny) / l < 0.95) continue;
-      if (Math.hypot((P[a] + P[b] + P[c]) / 3 + ox - x, (P[a + 2] + P[b + 2] + P[c + 2]) / 3 + oz - z) > radius) continue;
-      tris.push({ i, j, a, b, c, P, area: l / 2 });
+    const [i, j] = key.split('_').map(Number), d = await W.tile(i, j), L = d.lists.streets?.data;
+    if (!L || !d.meshes.roads) continue;
+    for (let q = 0; q < L.length; q += 6) {
+      const ax = L[q] + (i + 0.5) * T, az = L[q + 1] + (j + 0.5) * T, bx = L[q + 2] + (i + 0.5) * T, bz = L[q + 3] + (j + 0.5) * T, l = Math.hypot(bx - ax, bz - az);
+      if (l > 0.5 && Math.hypot((ax + bx) / 2 - x, (az + bz) / 2 - z) < radius) segs.push({ ax, az, bx, bz, l });
     }
   }
-  const total = tris.reduce((s, t) => s + t.area, 0), out = [];
-  for (let n = 0; n < count && tris.length; n++) {
-    let r = rnd() * total, t = tris[tris.length - 1];
-    for (const q of tris) { r -= q.area; if (r <= 0) { t = q; break; } }
-    let u = rnd(), v = rnd(); if (u + v > 1) { u = 1 - u; v = 1 - v; }
-    const P = t.P, at = k => P[t.a + k] + u * (P[t.b + k] - P[t.a + k]) + v * (P[t.c + k] - P[t.a + k]);
-    out.push({ x: at(0) + (t.i + 0.5) * T, y: at(1), z: at(2) + (t.j + 0.5) * T, tile: [t.i, t.j] });
+  const total = segs.reduce((s, q) => s + q.l, 0), out = [];
+  for (let tries = 0; out.length < count && segs.length && tries < count * 20; tries++) {
+    let r = rnd() * total, g = segs[segs.length - 1];
+    for (const q of segs) { r -= q.l; if (r <= 0) { g = q; break; } }
+    const t = rnd(), side = (rnd() * 2 - 1) * 1.5, ux = (g.bx - g.ax) / g.l, uz = (g.bz - g.az) / g.l;
+    const px = g.ax + (g.bx - g.ax) * t - uz * side, pz = g.az + (g.bz - g.az) * t + ux * side, k = tileOf(px, pz), d = await W.tile(...k);
+    if (!d?.meshes.roads) continue;
+    const ys = meshHeights(d.meshes.roads, ...local(px, pz, k));
+    if (!ys.length) continue;
+    out.push({ x: px, y: Math.max(...ys), z: pz, tile: k, heading: Math.atan2(ux, uz) * 180 / Math.PI });
   }
   return out;
 }
@@ -162,6 +162,8 @@ const quantile = (a, q) => { const s = a.slice().sort((x, y) => x - y); return s
 const rotate = (q, [x, y, z]) => { const v = new THREE.Vector3(x, y, z).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w)); return [v.x, v.y, v.z]; };
 
 // ---------- height ----------
+// (the drawn ground may sit as far under a road as the road's edge dips: the skirt hides the gap)
+const skirt = JSON.parse(fs.readFileSync(path.join(W.root, 'data/world/bake.json'), 'utf8')).terrain.skirtDrop + 0.02;
 async function heightTest() {
   console.log('\nHeights: the drawn roads, the physics and the ground at every test spot');
   const rnd = rng(20261002);
@@ -188,7 +190,7 @@ async function heightTest() {
     // a car put down on the first five: on four tyres, each on what's drawn
     for (const p of pts.slice(0, 5)) {
       const v = S.sim.vehicle;
-      S.sim.resetCar({ position: [...S.toSim(p.x, p.z)].flatMap((c, k) => k === 0 ? [c, p.y + 0.05] : [c]), headingDeg: await streetHeading(p.x, p.z) });
+      S.sim.resetCar({ position: [...S.toSim(p.x, p.z)].flatMap((c, k) => k === 0 ? [c, p.y + 0.05] : [c]), headingDeg: p.heading });
       for (let s = 0; s < 1.5 / S.sim.dt; s++) S.sim.step(IDLE);        // (parked: the hold keeps it still)
       const four = v.wheels.every(w => w.grounded), moved = Math.hypot(v.body.translation().x - S.toSim(p.x, p.z)[0], v.body.translation().z - S.toSim(p.x, p.z)[1]);
       if (!four || moved > 0.6) { settledBad++; note(`${spot.name}: the car at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}: ${v.wheels.map(w => w.grounded ? 'on' : 'OFF').join(' ')}, moved ${moved.toFixed(2)} m`); }
@@ -198,7 +200,7 @@ async function heightTest() {
       }
     }
     const dem = demDiff.length ? ` · roads against the elevation data: median ${quantile(demDiff.map(Math.abs), 0.5).toFixed(2)} m, most ${Math.max(...demDiff.map(Math.abs)).toFixed(1)} m` : '';
-    const pass = physWorst <= 0.1 && over <= 0.02 && under <= 0.15 && tyreWorst <= 0.1 && !settledBad;
+    const pass = physWorst <= 0.1 && over <= 0.02 && under <= skirt && tyreWorst <= 0.1 && !settledBad;
     report('height', `${spot.name} (${spot.kind})`, pass, `physics vs drawn ≤ ${physWorst.toFixed(3)} m · the drawn ground ${under.toFixed(2)} m under the road at most${over > 0 ? `, ${over.toFixed(2)} m over it` : ''} (${onBridge} on bridges, ${covered} in tunnels) · tyres on the drawn surface within ${tyreWorst.toFixed(3)} m${settledBad ? ` · ${settledBad} of 5 cars didn't settle` : ''}${dem}`);
   }
 }
@@ -230,22 +232,52 @@ async function railRuns(S, [x, z], min = 30) {
   }
   return runs.sort((p, q) => p.dist - q.dist);
 }
+// the tyre surface at a place (world frame), from its tile's surface grid
+function surfaceNameAt(x, z) {
+  const k = tileOf(x, z), d = W.cached?.(k[0], k[1]), G = d?.grids.surface;
+  if (!G) return null;
+  const lx = x - k[0] * T, lz = z - k[1] * T, c = Math.min(G.n - 1, Math.max(0, Math.floor(lx / G.cell))), r = Math.min(G.n - 1, Math.max(0, Math.floor(lz / G.cell)));
+  return G.names[G.data[r * G.n + c]];
+}
+// a run's foot at its middle: the piece there
+async function railFoot(run) {
+  const k = tileOf(run.mid[0], run.mid[2]), d = await W.tile(...k), L = d?.lists[`barrier_${run.type}`];
+  if (!L) return null;
+  let best = null, bd = 3;
+  for (let q = 0; q + 5 < L.data.length; q += L.stride) {
+    const x = (L.data[q] + L.data[q + 3]) / 2 + (k[0] + 0.5) * T, z = (L.data[q + 2] + L.data[q + 5]) / 2 + (k[1] + 0.5) * T, dd = Math.hypot(x - run.mid[0], z - run.mid[2]);
+    if (dd < bd) { bd = dd; best = { foot: (L.data[q + 1] + L.data[q + 4]) / 2, h: L.stride > 6 ? L.data[q + 6] : barrierShape(run.type, manifest.barriers).height }; }
+  }
+  return best;
+}
 async function railTest() {
   console.log('\nRailings: hit at speed, shallow and steep — never through');
   const ctx = (await import('./harness.mjs')).crashContext, cc = await ctx(), car = H.db.cars[CAR];
   // (one run of each kind, the ones along roads first)
-  const kinds = ['guard_rail', 'parapet', 'jersey_barrier', 'wall', 'retaining_wall', 'fence'], found = new Map();
+  // (one run of each kind: guard rails on the mountain road, parapets on the bridge, concrete barriers
+  // at the interchange where there are; the nearest a car could actually drive into)
+  const kinds = ['guard_rail', 'parapet', 'jersey_barrier', 'wall', 'retaining_wall', 'fence'], candidates = new Map(kinds.map(k => [k, []]));
+  const prefer = { guard_rail: 'mountain', parapet: 'bridge', jersey_barrier: 'interchange' };
   for (const spot of spots) {
     const S = await W.simAround(...spot.xz, { radius: 600 });
-    for (const r of await railRuns(S, spot.xz)) if (kinds.includes(r.type) && !found.has(r.type)) found.set(r.type, { ...r, spot });
+    for (const r of await railRuns(S, spot.xz)) if (kinds.includes(r.type)) candidates.get(r.type).push({ ...r, spot, rank: (prefer[r.type] === spot.id ? 0 : 1e6) + (r.type === 'parapet' ? -r.mid[1] * 100 : r.dist) });   // (a bridge's parapets: the highest deck)
   }
-  const picks = kinds.filter(k => found.has(k)).map(k => found.get(k));
-  if (!picks.length) { report('rails', 'railings', false, 'no straight run of railing at any test spot'); return; }
   const half = spec.bodyCollider.halfExtents, centre = spec.bodyCollider.centre;
-  for (const run of picks) {
+  let tested = 0;
+  for (const type of kinds) for (const run of candidates.get(type).sort((p, q) => p.rank - q.rank).slice(0, 12)) {
     const S = await W.simAround(run.mid[0], run.mid[2], { radius: 300 }), sh = barrierShape(run.type, manifest.barriers);
-    // from each side there's ground to come from (not off a drop more than a few metres below it)
-    const sides = [1, -1].filter(sd => { const y = groundRay(S, run.mid[0] - run.u[1] * 3 * sd, run.mid[2] + run.u[0] * 3 * sd, run.mid[1] + 6, 12); return y != null && y > run.mid[1] - 3; });
+    // the side a car would come from: road beside it, level, the railing standing well above it
+    const at = await railFoot(run);
+    if (!at) continue;
+    const sideAt = (sd, d) => [run.mid[0] - run.u[1] * d * sd, run.mid[2] + run.u[0] * d * sd];
+    // (a drawn road at the railing's own level: on a bridge the deck, not what's under it)
+    const roadSide = sd => [2, 3.5, 5].some(d => { const [x, z] = sideAt(sd, d), k = tileOf(x, z), t = W.cached(...k); return !!t?.meshes.roads && meshHeights(t.meshes.roads, ...local(x, z, k)).some(y => Math.abs(y - at.foot) < 1.2); });
+    const approach = sd => { const ys = [1.5, 3, 5].map(d => groundRay(S, ...sideAt(sd, d), at.foot + at.h + 6, 30)); return ys.every(y => y != null && Math.abs(y - ys[0]) < 0.8) && at.foot + at.h - ys[0] > 0.7; };
+    const sides = [1, -1].filter(sd => roadSide(sd) && approach(sd));
+    note(`${run.type} at ${run.spot.name} (${run.mid.map(v => v.toFixed(0)).join(', ')}): road ${[1, -1].map(roadSide)}, approach ${[1, -1].map(approach)}, foot ${at.foot.toFixed(1)} h ${at.h.toFixed(2)}`);
+    if (!sides.length) continue;
+    const foot = at.foot;
+    tested++;
     let worst = 0, through = 0, unhit = 0, undamaged = 0, n_ = 0;
     const lines = [];
     for (const side of sides) for (const kmh of [50, 100, 200, 300]) for (const [label, deg] of [['shallow', 15], ['steep', 60]]) {
@@ -254,7 +286,7 @@ async function railTest() {
       // heading into the rail at that angle, aimed at the run's middle, the body just clear of it
       const dir = [run.u[0] * Math.cos(a) - n[0] * Math.sin(a), run.u[1] * Math.cos(a) - n[1] * Math.sin(a)];
       const reach = half[0] * Math.cos(a) + half[2] * Math.sin(a) + sh.colliderThickness / 2 + 0.3, back = reach / Math.sin(a);
-      const sx = run.mid[0] - dir[0] * back, sz = run.mid[2] - dir[1] * back, y = groundRay(S2, sx, sz, run.mid[1] + 6, 12) ?? run.mid[1];
+      const sx = run.mid[0] - dir[0] * back, sz = run.mid[2] - dir[1] * back, y = groundRay(S2, sx, sz, foot + 6, 12) ?? foot;
       const [px, pz] = S2.toSim(sx, sz);
       S2.sim.resetCar({ position: [px, y + 0.05, pz], headingDeg: Math.atan2(dir[0], dir[1]) * 180 / Math.PI, speed: kmh * KMH });
       const damage = new CarDamage({ car, build: garage.build, view: garage.view, boxes: cc.boxesOf(car), rules: H.db.damage });
@@ -284,14 +316,16 @@ async function railTest() {
     }
     for (const l of lines) note(`${run.type} at ${run.spot.name}: ${l}`);
     report('rails', `${run.type.replace('_', ' ')} (${run.spot.name}, ${run.len.toFixed(0)} m run)`, !through && !unhit && !undamaged,
-      `${n_} hits at 50–300 km/h, 15° and 60°, from ${sides.length === 2 ? 'both sides' : 'its open side'}: ${through ? `${through} THROUGH` : 'none through'}, deepest corner ${worst.toFixed(2)} m into it${unhit ? `, ${unhit} never touched it` : ''}${undamaged ? `, ${undamaged} left no damage` : ', every hit damaged the car'}`);
+      `${n_} hits at 50–300 km/h, 15° and 60°, from ${sides.length === 2 ? 'both sides' : 'the road side'}: ${through ? `${through} THROUGH` : 'none through'}, deepest corner ${worst.toFixed(2)} m into it${unhit ? `, ${unhit} never touched it` : ''}${undamaged ? `, ${undamaged} left no damage` : ', every hit damaged the car'}`);
+    break;
   }
+  if (!tested) report('rails', 'railings', false, 'no railing beside a road at any test spot');
 }
 
 // ---------- streaming and memory ----------
 // a route through the test spots (straight lines between them), the first `km` of it, points every 2 m
 function spotRoute(km) {
-  const order = ['city', 'tunnel', 'interchange', 'mountain', 'suburb', 'coast', 'carpark', 'bridge'], pts = [manifest.spawn.xz, ...order.map(k => spots.find(s => s.kind === k)?.xz).filter(Boolean)];
+  const order = ['city', 'tunnel', 'interchange', 'mountain', 'suburb', 'coast', 'carpark', 'bridge'], pts = [manifest.spawn.xz, ...order.map(k => spots.find(s => s.id === k)?.xz).filter(Boolean)];
   const out = [];
   for (let q = 0; q + 1 < pts.length; q++) {
     const [ax, az] = pts[q], [bx, bz] = pts[q + 1], l = Math.hypot(bx - ax, bz - az);
@@ -373,7 +407,7 @@ async function streamingTest() {
 
 // ---------- the Phase 1 tests on a real road ----------
 async function physicsTest() {
-  const spot = spots.find(s => s.kind === 'coast') ?? spots[0];
+  const spot = spots.find(s => s.id === 'coast') ?? spots[0];
   console.log(`\nThe straight-line tests on a real road: ${spot.name}`);
   // the longest straight-ish stretch of the named road there
   const S0 = await W.simAround(...spot.xz, { radius: 1200 }), segs = [];
@@ -392,6 +426,19 @@ async function physicsTest() {
   // resampled every 2 m, in the simulations' frame (origin at the start's tile)
   const pts = [];
   for (let q = 0, s = 0; q + 1 < road.length; q++) { const [a, b] = [road[q], road[q + 1]], l = Math.hypot(b[0] - a[0], b[1] - a[1]); for (; s < l; s += 2) pts.push([a[0] + (b[0] - a[0]) * s / l, a[1] + (b[1] - a[1]) * s / l]); s -= l; }
+  // (only the part that's baked, its longest unbroken stretch)
+  const baked = ([x, z]) => { const [i, j] = tileOf(x, z); return manifest.tiles.some(t => t.i === i && t.j === j); };
+  let bestRun = [], cur = [];
+  for (const p of pts) { if (baked(p)) { cur.push(p); if (cur.length > bestRun.length) bestRun = cur; } else cur = []; }
+  // (and of that, the longest stretch within a metre of a straight line: these are straight-line tests)
+  let best = [0, 0];
+  for (let a = 0, b = 1; b < bestRun.length; b++) {
+    const off = (a_, b_) => { const [ax, az] = bestRun[a_], [bx, bz] = bestRun[b_], l = Math.hypot(bx - ax, bz - az) || 1; let m = 0; for (let q = a_; q <= b_; q += 3) m = Math.max(m, Math.abs((bestRun[q][0] - ax) * (bz - az) - (bestRun[q][1] - az) * (bx - ax)) / l); return m; };
+    while (a < b && off(a, b) > 1) a++;
+    if (b - a > best[1] - best[0]) best = [a, b];
+  }
+  pts.length = 0; pts.push(...bestRun.slice(best[0], best[1] + 1));
+  if (pts.length * 2 < 900) { report('physics', 'a real road', false, `only ${pts.length * 2} m of ${spot.name} baked`); return; }
   const origin = [Math.floor(pts[0][0] / T) * T, Math.floor(pts[0][1] / T) * T], simPts = pts.map(([x, z]) => [x - origin[0], z - origin[1]]);
   const path_ = pathThrough(simPts, 2), h = Math.atan2(path_.points[0].tx, path_.points[0].tz);
   const strip = { x: simPts[0][0], z: simPts[0][1], h, remaining: pts.length * 2, path: path_ };
@@ -402,6 +449,9 @@ async function physicsTest() {
   const prepare = sim => {
     for (const { i, j, d } of decoded) sim.addStatic({ position: [(i + 0.5) * T - origin[0], 0, (j + 0.5) * T - origin[1]] }, tileColliders(d, H.RAPIER, manifest.barriers).pieces);
     sim.step(IDLE);
+    // tyre grip from the tiles' surface grid, as the game's streamer gives it
+    const surfaces = Object.entries(manifest.surfaces).map(([name, v]) => ({ name, ...v }));
+    sim.vehicle.surfaceAt = (x, z) => { const n = surfaceNameAt(x + origin[0], z + origin[1]); return surfaces.find(q => q.name === n) ?? surfaces[0]; };
     const reset = sim.resetCar.bind(sim), R = H.RAPIER;
     sim.resetCar = pose => {
       const [x, , z] = pose.position, hit = sim.vehicle.world.castRay(new R.Ray({ x, y: 900, z }, { x: 0, y: -1, z: 0 }), 2000, true, undefined, undefined, undefined, sim.vehicle.body, groundOnly);
@@ -413,7 +463,7 @@ async function physicsTest() {
   const ctx = { RAPIER: H.RAPIER, settings: H.settings, spec, sockets: H.socketsOf(spec), track, place: () => ({ strip }), prepare, pace: targets.pace };
   for (const id of ['zeroTo100', 'quarterMile', 'braking', 'framerate']) {
     const run = createRun(ctx, id);
-    while (!run.done) run.next(5000);
+    while (!run.done) { run.next(process.env.TRACE ? 60 : 5000); if (process.env.TRACE && run.sim) { const b = run.sim.vehicle.body, p = b.translation(), l = b.linvel(); note(`${id} t ${run.sim.time.toFixed(1)} pos ${p.x.toFixed(1)},${p.y.toFixed(2)},${p.z.toFixed(1)} v ${l.x.toFixed(1)},${l.y.toFixed(1)},${l.z.toFixed(1)} wheels ${run.sim.vehicle.wheels.map(w => w.grounded ? w.surface?.name : "-").join(",")} kmh ${(run.sim.vehicle.forwardSpeed() * 3.6).toFixed(0)}`); } }
     const row = evaluate([run.result], targets)[0], t = row.target;
     const value = row.value == null ? (row.pass ? 'yes' : 'no') : `${row.value.toFixed(row.digits)} ${row.unit}`;
     report('physics', `${row.name} on ${spot.name}`, row.pass, `${value}${t ? ` (target ${t.min ?? ''}–${t.max ?? ''})` : ''} ${row.detail ?? ''}`);

@@ -85,23 +85,31 @@ function mergeBoxes(list) {
   return out;
 }
 
-// ---------- text (street names, signs): one texture per name ----------
-const texts = new Map();
-function textTexture(text, { bg = null, fg = '#ffffff', outline = '#1d1f22', h = 64 } = {}) {
-  const key = `${text}|${bg}|${fg}`;
-  if (texts.has(key)) return texts.get(key);
-  const c = document.createElement('canvas'), g = c.getContext('2d'), font = `600 ${h * 0.62}px Barlow, system-ui, sans-serif`;
+// ---------- text (street names, signs): one atlas a tile ----------
+// items: [{ text, plate }] → { texture, rects: Map('text|road' or 'text|plate' → { u0, v0, u1, v1, aspect }) }
+function textAtlas(items) {
+  const h = 48, W = 1024, font = `600 ${h * 0.62}px Barlow, system-ui, sans-serif`, c = document.createElement('canvas'), g = c.getContext('2d');
   g.font = font;
-  const w = Math.min(1024, Math.ceil(g.measureText(text).width + h * 0.6));
-  c.width = w; c.height = h;
+  const unique = [...new Map(items.map(i => [`${i.text}|${i.plate ? 'plate' : 'road'}`, i])).entries()];
+  let x = 0, y = 0;
+  const placed = unique.map(([key, i]) => {
+    const w = Math.min(W, Math.ceil(g.measureText(i.text).width + h * 0.6));
+    if (x + w > W) { x = 0; y += h; }
+    const at = { key, i, x, y, w };
+    x += w;
+    return at;
+  });
+  c.width = W; c.height = Math.max(h, 2 ** Math.ceil(Math.log2(y + h)));
   g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
-  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); }
-  else { g.lineWidth = h * 0.12; g.strokeStyle = outline; g.strokeText(text, w / 2, h / 2); }
-  g.fillStyle = fg; g.fillText(text, w / 2, h / 2);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const v = { texture: t, aspect: w / h };
-  texts.set(key, v);
-  return v;
+  const rects = new Map();
+  for (const { key, i, x: px, y: py, w } of placed) {
+    if (i.plate) { g.fillStyle = '#1f6b3a'; g.fillRect(px, py, w, h); g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.strokeRect(px + 2, py + 2, w - 4, h - 4); }
+    else { g.lineWidth = h * 0.12; g.strokeStyle = '#1d1f22'; g.strokeText(i.text, px + w / 2, py + h / 2); }
+    g.fillStyle = '#ffffff'; g.fillText(i.text, px + w / 2, py + h / 2);
+    rects.set(key, { u0: px / W, u1: (px + w) / W, v0: 1 - (py + h) / c.height, v1: 1 - py / c.height, aspect: w / h });
+  }
+  const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 8;
+  return { texture, rects };
 }
 
 function geometryOf(m, { normals = false } = {}) {
@@ -173,29 +181,45 @@ export function tileObjects(tile, { barriers: B }) {
   let labels = null;
   const makeLabels = () => {
     labels = new THREE.Group();
-    const names = tile.header.names, Lb = tile.lists.labels?.data ?? [];
+    const names = tile.header.names, Lb = tile.lists.labels?.data ?? [], Sg = tile.lists.signs?.data ?? [];
+    // every text the tile shows, in one atlas: one mesh of names on the roads, one of sign plates
+    const want = [];
+    for (let k = 0; k < Lb.length; k += 6) want.push({ text: names[Lb[k + 4]] });
+    for (let k = 0; k < Sg.length; k += 6) want.push({ text: names[Sg[k + 4]], plate: true }, { text: names[Sg[k + 5]], plate: true });
+    const atlas = textAtlas(want);
+    const quads = (list, flat) => {
+      const pos = [], uv = [], idx = [];
+      for (const q of list) {
+        const r = atlas.rects.get(q.key), c = Math.cos(q.yaw), sn = Math.sin(q.yaw), base = pos.length / 3;
+        for (const [lx, ly] of [[-q.w / 2, -q.h / 2], [q.w / 2, -q.h / 2], [q.w / 2, q.h / 2], [-q.w / 2, q.h / 2]]) {
+          // flat on the road (the text's up along −z before turning), or standing (its up along +y)
+          const x = flat ? lx : lx, y = flat ? 0 : ly, z = flat ? -ly : 0;
+          pos.push(q.at[0] + x * c + z * sn, q.at[1] + y, q.at[2] - x * sn + z * c);
+        }
+        uv.push(r.u0, r.v0, r.u1, r.v0, r.u1, r.v1, r.u0, r.v1);
+        idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere();
+      return g;
+    };
+    const roadNames = [], plates = [];
     for (let k = 0; k < Lb.length; k += 6) {
-      const t = textTexture(names[Lb[k + 4]]), w = Math.min(Lb[k + 5] * 2 * 0.8, 3.2) * t.aspect / 1.5, h = Math.min(Lb[k + 5] * 2 * 0.8, 3.2) / 1.5;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(w, 40), h), new THREE.MeshBasicMaterial({ map: t.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
-      m.position.set(Lb[k], Lb[k + 1] + 0.03, Lb[k + 2]);
-      m.rotation.set(-Math.PI / 2, 0, Lb[k + 3], 'YXZ');
-      m.rotation.order = 'YXZ'; m.rotation.y = Lb[k + 3]; m.rotation.x = -Math.PI / 2; m.rotation.z = 0;
-      m.renderOrder = 3;
-      labels.add(m);
+      const key = `${names[Lb[k + 4]]}|road`, r = atlas.rects.get(key), size = Math.min(Lb[k + 5] * 2 * 0.8, 3.2) / 1.5;
+      roadNames.push({ key, at: [Lb[k], Lb[k + 1] + 0.03, Lb[k + 2]], yaw: Lb[k + 3], w: Math.min(size * r.aspect, 40), h: size });
     }
-    const Sg = tile.lists.signs?.data ?? [];
-    for (let k = 0; k < Sg.length; k += 6) {
-      const post = new THREE.Mesh(shapes().post, mat.signPost);
-      post.position.set(Sg[k], Sg[k + 1], Sg[k + 2]); post.scale.set(0.8, 3, 0.8);
-      labels.add(post);
-      [[Sg[k + 4], 0], [Sg[k + 5], Math.PI / 2]].forEach(([nameIdx, turn], level) => {
-        const t = textTexture(names[nameIdx], { bg: '#1f6b3a', fg: '#ffffff' }), w = 0.38 * t.aspect;
-        const plate = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.38), new THREE.MeshBasicMaterial({ map: t.texture, side: THREE.DoubleSide }));
-        plate.position.set(Sg[k], Sg[k + 1] + 2.75 - level * 0.42, Sg[k + 2]);
-        plate.rotation.y = Sg[k + 3] + turn;
-        labels.add(plate);
-      });
+    for (let k = 0; k < Sg.length; k += 6) [[Sg[k + 4], 0], [Sg[k + 5], Math.PI / 2]].forEach(([n, turn], level) => {
+      const key = `${names[n]}|plate`;
+      plates.push({ key, at: [Sg[k], Sg[k + 1] + 2.75 - level * 0.42, Sg[k + 2]], yaw: Sg[k + 3] + turn, w: 0.38 * atlas.rects.get(key).aspect, h: 0.38 });
+    });
+    if (roadNames.length) { const m = new THREE.Mesh(quads(roadNames, true), new THREE.MeshBasicMaterial({ map: atlas.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 })); m.renderOrder = 3; labels.add(m); }
+    if (plates.length) labels.add(new THREE.Mesh(quads(plates, false), new THREE.MeshBasicMaterial({ map: atlas.texture, side: THREE.DoubleSide, alphaTest: 0.5, transparent: false })));
+    if (Sg.length) {
+      const posts = new THREE.InstancedMesh(shapes().post, mat.signPost, Sg.length / 6), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(0.8, 3, 0.8), p = new THREE.Vector3();
+      for (let k = 0; k < Sg.length; k += 6) posts.setMatrixAt(k / 6, m4.compose(p.set(Sg[k], Sg[k + 1], Sg[k + 2]), q, sc));
+      labels.add(posts);
     }
+    labels.userData.atlas = atlas.texture;
     group.add(labels);
   };
   return {
@@ -214,7 +238,8 @@ export function tileObjects(tile, { barriers: B }) {
     dispose() {
       for (const g of owned) g.dispose();
       trees.traverse(o => o.dispose?.()); rails.traverse(o => o.dispose?.());
-      labels?.traverse(o => { o.geometry?.dispose?.(); if (o.material?.map) o.material.dispose(); });
+      labels?.traverse(o => { if (!o.isInstancedMesh) o.geometry?.dispose?.(); if (o.material?.map) o.material.dispose(); });
+      labels?.userData.atlas?.dispose();
       group.removeFromParent();
     },
   };

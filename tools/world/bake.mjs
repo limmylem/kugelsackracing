@@ -159,6 +159,7 @@ if (!isMainThread) {
   const ctx = await getCtx(), places = [];
   for (const f of ctx.index.query(...(() => { const [ax, az1] = P.toXZ(region.bbox[1], region.bbox[0]), [ax1, az] = P.toXZ(region.bbox[3], region.bbox[2]); return [ax, az, ax1, az1]; })())) {
     if (f.layer !== 'places') continue;
+    if (f.geometry.type === 'Point') { places.push({ name: f.props.n, kind: f.props.k, point: f.xy.map(v => Math.round(v)) }); continue; }
     const polys = (f.geometry.type === 'Polygon' ? [f.xy] : f.xy).map(p => simplify(p[0], 12).map(([x, z]) => [Math.round(x), Math.round(z)])).filter(r => r.length >= 3);
     if (polys.length) places.push({ name: f.props.n, kind: f.props.k, rings: polys });
   }

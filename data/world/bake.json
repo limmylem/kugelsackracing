@@ -1,6 +1,6 @@
 {
   "_note": "How the baker (npm run world:bake) builds the world from the map and the elevation (WORLD_README.md): the tile grid, the terrain's detail levels, colours, railings, trees, buildings. Change a number, bake again.",
-  "version": 6,
+  "version": 7,
   "tileSize": 512,
   "cell": 2,
   "terrain": {
@@ -219,7 +219,7 @@
     "footpath": 2.2
   },
   "barriers": {
-    "_note": "Railings and walls: how they look (height, thickness, colour) and their collider, which is always at least minThickness thick and taller than what's drawn so a car can't hop or slip through. auto: railings the map often doesn't have \u2014 on both sides of every bridge, along motorway edges, and beside a road where the ground drops away (more than drop m within reach m of its edge, for at least minRun m).",
+    "_note": "Railings and walls: how they look (height, thickness, colour) and their collider, which is always at least minThickness thick and taller than what's drawn so a car can't hop or slip through. auto: railings the map often doesn't have — on both sides of every bridge, along motorway edges, and beside a road where the ground drops away (more than drop m within reach m of its edge, for at least minRun m). A type's own extraHeight (rails and parapets beside drops: 1.2 m) keeps even a car launched at 300 km/h from vaulting it.",
     "minThickness": 0.35,
     "extraHeight": 0.35,
     "friction": 0.25,
@@ -230,19 +230,22 @@
         "thickness": 0.35,
         "colour": "#b9bec2",
         "post": 2.0,
-        "material": "metal"
+        "material": "metal",
+        "extraHeight": 1.2
       },
       "jersey_barrier": {
         "height": 0.85,
         "thickness": 0.6,
         "colour": "#c9c6bd",
-        "material": "concrete"
+        "material": "concrete",
+        "extraHeight": 1.2
       },
       "parapet": {
         "height": 1.05,
         "thickness": 0.4,
         "colour": "#bdb8ad",
-        "material": "concrete"
+        "material": "concrete",
+        "extraHeight": 1.2
       },
       "wall": {
         "height": 1.8,

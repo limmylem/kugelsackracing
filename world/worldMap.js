@@ -34,7 +34,7 @@ function maplibre() {
 // the map's look: the schema's layers (world/schema.js), quiet colours, roads by class, names
 function style(tilesUrl, header) {
   const src = 'world', road = (k, fill) => ['match', ['get', 'k'], ...k.flatMap(([kinds, v]) => [kinds, v]), fill];
-  const width = (base) => ['interpolate', ['exponential', 1.6], ['zoom'], 12, ['*', base, 0.35], 16, ['*', base, 2.2], 19, ['*', base, 9]];
+  const width = (base, add = 0) => ['interpolate', ['exponential', 1.6], ['zoom'], 12, ['+', add, ['*', base, 0.35]], 16, ['+', add, ['*', base, 2.2]], 19, ['+', add, ['*', base, 9]]];
   const major = ['motorway', 'trunk'], main = ['primary', 'secondary'], minor = ['tertiary', 'unclassified', 'residential', 'living_street', 'road', 'busway'];
   const drivable = ['in', ['get', 'k'], ['literal', [...major, ...main, ...minor, 'service', 'track']]];
   return {
@@ -51,7 +51,7 @@ function style(tilesUrl, header) {
       { id: 'paths', type: 'line', source: src, 'source-layer': 'roads', minzoom: 15, filter: ['in', ['get', 'k'], ['literal', ['footway', 'path', 'cycleway', 'pedestrian', 'steps']]], paint: { 'line-color': '#ffffff', 'line-width': 1, 'line-dasharray': [2, 1.5] } },
       { id: 'rail', type: 'line', source: src, 'source-layer': 'rail', filter: ['!=', ['get', 'tn'], 1], paint: { 'line-color': '#a3a3a3', 'line-width': 1.2, 'line-dasharray': [3, 2] } },
       { id: 'roads-casing', type: 'line', source: src, 'source-layer': 'roads', filter: ['all', drivable, ['!=', ['get', 'tn'], 1]], layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['case', ['==', ['get', 'br'], 1], 2, 0] },
-        paint: { 'line-color': '#b3aa9c', 'line-width': ['+', 1.2, width(road([[major, 4.5], [main, 3.6], [minor, 2.4]], 1.4))] } },
+        paint: { 'line-color': '#b3aa9c', 'line-width': width(road([[major, 4.5], [main, 3.6], [minor, 2.4]], 1.4), 1.2) } },
       { id: 'roads', type: 'line', source: src, 'source-layer': 'roads', filter: ['all', drivable, ['!=', ['get', 'tn'], 1]], layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['case', ['==', ['get', 'br'], 1], 2, 0] },
         paint: { 'line-color': road([[major, '#f1a35c'], [main, '#f8d27f'], [minor, '#ffffff']], '#f7f5f1'), 'line-width': width(road([[major, 4.5], [main, 3.6], [minor, 2.4]], 1.4)) } },
       { id: 'tunnels', type: 'line', source: src, 'source-layer': 'roads', filter: ['all', drivable, ['==', ['get', 'tn'], 1]], paint: { 'line-color': '#c9c2b5', 'line-width': width(2.4), 'line-dasharray': [1, 1] } },
