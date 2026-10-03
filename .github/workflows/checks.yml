@@ -2,7 +2,8 @@
 # data against its schemas, every model against the model rules, the unit tests, the headless physics
 # test suite and the crash test suite (the damage balance) — and here also the stress tests (a ten-car
 # pile-up within its frame budget, a hundred crashes and repairs without growing memory or slowing
-# down), and the baked real world's tests (WORLD_README.md). Any failure fails the run.
+# down), the baked real world's tests (WORLD_README.md) and Map v3's
+# typecheck, unit tests and baked-map tests (MAP_README.md; Node 22 runs its TypeScript directly). Any failure fails the run.
 name: checks
 on:
   push:
@@ -14,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Data (schemas and cross-checks)
@@ -33,3 +34,9 @@ jobs:
         run: npm run stress
       - name: Baked world tests (heights, railings at 50–300 km/h, 20 km streaming at 200 km/h, memory, physics on a real road)
         run: npm run test:world
+      - name: Map v3 typecheck
+        run: npm run map:typecheck
+      - name: Map v3 unit tests (projection, grid, tile format, terrain skirts, road graph)
+        run: node --test tests/map/unit.test.ts
+      - name: Map v3 baked-map tests (roads, heights, seams, datum, railings, streaming, memory, determinism, physics)
+        run: npm run test:map

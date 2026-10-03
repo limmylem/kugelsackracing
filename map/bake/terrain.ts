@@ -19,7 +19,7 @@ import type { Grid } from '../format/grid.ts';
 import type { Area, OsmData } from './osmData.ts';
 import { type RNode, type Seg, profileAt } from './roads.ts';
 
-export interface TerrainCfg { sink: number; core: number; slope: number; maxBlend: number; bridgeClearance: number; tunnelCover: number; waterDepth: number; parkingMargin: number }
+export interface TerrainCfg { sink: number; core: number; slope: number; maxBlend: number; bridgeClearance: number; tunnelCover: number; waterDepth: number; parkingMargin: number; wallReach?: number }
 
 const smoothstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -144,6 +144,43 @@ export function shapeTerrain({ grid: g, dem, osm, nodes, segs, junctions, cfg }:
   for (let k = 0; k < N; k++) {
     if (hardKey[k] !== Infinity) h[k] = hardT[k];
     else if (soft[k] > 0) h[k] = h[k] + (softT[k] - h[k]) * soft[k];
+  }
+  // ---- walls and fences: no lip of ground along them. A LiDAR DTM often keeps some of a thin wall as a
+  // ridge (the filter that takes buildings out misses it), and a median wall between two carriageways
+  // keeps the ground of the strip the roads were cut down through — either way a lip a car hits before
+  // the wall. Each side's shaped ground, taken clear of it (cfg.wallReach and half as far again out) and
+  // carried in to the line, is as high as the ground near it may be: a ridge is cut away, a retaining
+  // wall's real step kept (each side its own level, the step at the line). Only ever down; never a road.
+  const reach = cfg.wallReach ?? 3, shaped = Float32Array.from(h);
+  for (const w of osm.lines) {
+    if (!w.tags.barrier) continue;
+    for (let k = 0; k + 1 < w.nodes.length; k++) {
+      const p = w.nodes[k], q = w.nodes[k + 1], len = Math.hypot(q.x - p.x, q.z - p.z);
+      if (len < 0.01) continue;
+      const ux = (q.x - p.x) / len, uz = (q.z - p.z) / len, nx = -uz, nz = ux;
+      forBox(g, Math.min(p.x, q.x) - reach, Math.min(p.z, q.z) - reach, Math.max(p.x, q.x) + reach, Math.max(p.z, q.z) + reach, (c, r) => {
+        const x = xOf(c), z = zOf(r), along = (x - p.x) * ux + (z - p.z) * uz, d = (x - p.x) * nx + (z - p.z) * nz;
+        if (along < 0 || along > len || Math.abs(d) >= reach) return;
+        const bx = p.x + ux * along, bz = p.z + uz * along;
+        // (that side's ground carried in, its slope no steeper than the terrain's own limit)
+        const side = (sd: number) => {
+          const h1 = sampleGrid(g, shaped, bx + nx * sd * reach, bz + nz * sd * reach), h2 = sampleGrid(g, shaped, bx + nx * sd * reach * 1.5, bz + nz * sd * reach * 1.5);
+          return h1 + Math.max(-cfg.slope, Math.min(cfg.slope, (h1 - h2) / (reach * 0.5))) * (reach - Math.abs(d));
+        };
+        // (within a cell of the line, where a road runs along the low side: the lower side's level. A step
+        // can only be as sharp as the grid; its slope then lies behind the wall, under its collider, not
+        // as a ramp in front of it where cars come from. Elsewhere — a sea wall, a terrace — each side
+        // keeps its own.)
+        let target = side(d < 0 ? -1 : 1);
+        if (Math.abs(d) < g.cell) {
+          const a = side(-1), b = side(1), low = a < b ? -1 : 1;
+          const road = [2, 4, 6].some(t => { const cc = Math.round((bx + nx * low * t - g.x0) / g.cell), rr = Math.round((bz + nz * low * t - g.z0) / g.cell); return cc >= 0 && rr >= 0 && cc < g.W && rr < g.H && hardKey[rr * g.W + cc] !== Infinity; });
+          if (road) target = Math.min(a, b);
+        }
+        const i = r * g.W + c;
+        if (hardKey[i] === Infinity && h[i] > target) h[i] = target;
+      });
+    }
   }
   // (bridges again: nothing the slopes raised may come through a deck)
   for (const sg of segs) if (sg.structure === 'bridge') for (let q = 0; q + 1 < sg.xs.length; q++) {

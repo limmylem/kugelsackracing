@@ -5,7 +5,7 @@
 //
 //   const M = await mapHarness('sf', dir?)
 //   M.tile(i, j), M.cached(i, j), M.graph(), M.P (projection), M.T
-//   const S = await M.simAround(x, z, { radius })  → { sim, origin, toSim, loaded, ground(x, z, fromY, onlyGround) }
+//   const S = await M.simAround(x, z, { radius })  → { sim, origin, toSim, loaded, ground(x, z, fromY, onlyGround), free() }
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,6 +58,8 @@ export async function mapHarness(region = 'sf', dir = path.join(root, 'assets/ma
     const toSim = (wx: number, wz: number) => [wx - origin[0], wz - origin[1]];
     return {
       sim, origin, toSim, loaded,
+      // its Rapier world's memory back (WASM memory isn't collected: a test making many frees each)
+      free() { sim.vehicle.world.free(); },
       // the first solid surface below a place (world frame), from fromY; only the ground's colliders if asked
       ground(wx: number, wz: number, fromY = 900, onlyGround = false, reachDown = 2000) {
         const [sx, sz] = toSim(wx, wz), R = H.RAPIER;

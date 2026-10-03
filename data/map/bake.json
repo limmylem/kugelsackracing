@@ -24,7 +24,7 @@
     "bridgeClearance": 0.4,
     "tunnelCover": 5,
     "waterDepth": 0.8,
-    "parkingMargin": 5,
+    "parkingMargin": 5, "wallReach": 3,
     "lodErrors": [
       0.04,
       0.5,

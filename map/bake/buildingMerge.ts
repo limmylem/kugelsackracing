@@ -59,20 +59,22 @@ export function mergeBuildings(osm: OsmData, overture: any[], P: Projection, cfg
   const known: { x: number; z: number; h: number }[] = [];
   for (const b of out) {
     const p = b.props;
+    if (p._hs) { b.hs = p._hs; continue; }      // (a multipolygon's parts share their props)
     if (p.h > 0) b.hs = b.source === 'osm' && p._tagH ? 'tag' : 'overture';
     else if (p.fl > 0) { p.h = p.fl * cfg.storey + (p.rs && p.rs !== 'flat' ? 1.5 : 0); b.hs = 'floors'; }
+    if (b.hs) p._hs = b.hs;
     if (p.h > 0) { const c = b.rings[0].reduce((s, q) => [s[0] + q[0] / b.rings[0].length, s[1] + q[1] / b.rings[0].length], [0, 0]); known.push({ x: c[0], z: c[1], h: p.h }); }
   }
   const NB = new Map<string, number[]>(), NC = cfg.nearby.radius;
   known.forEach((q, k) => { const kk = `${Math.floor(q.x / NC)},${Math.floor(q.z / NC)}`; (NB.get(kk) ?? NB.set(kk, []).get(kk)!).push(k); });
   for (const b of out) {
     const p = b.props;
-    if (p.h > 0) continue;
+    if (p.h > 0) { b.hs ||= p._hs; b.estimated ||= !!p._est; continue; }
     const c = b.rings[0].reduce((s, q) => [s[0] + q[0] / b.rings[0].length, s[1] + q[1] / b.rings[0].length], [0, 0]), near: number[] = [];
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) for (const k of NB.get(`${Math.floor(c[0] / NC) + dx},${Math.floor(c[1] / NC) + dz}`) ?? []) if (Math.hypot(known[k].x - c[0], known[k].z - c[1]) <= NC) near.push(known[k].h);
     if (near.length >= cfg.nearby.min && !(p.b && cfg.defaultHeight[p.b] != null && ['garage', 'garages', 'shed', 'roof', 'carport'].includes(p.b))) { near.sort((a, q) => a - q); p.h = near[near.length >> 1]; b.hs = 'nearby'; }
     else { p.h = heightOf({ ...p, h: 0, fl: 0 }, area(b.rings[0]), cfg); b.hs = 'default'; }
-    b.estimated = true;
+    b.estimated = true; p._hs = b.hs; p._est = true;
   }
   return out.sort((a, b) => a.id - b.id);
 }

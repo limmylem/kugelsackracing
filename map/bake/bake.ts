@@ -112,7 +112,15 @@ export async function bake({ regionId, area = null as string | null, out = null 
 
   // 6. the manifest
   const spots = (region.spots ?? []).map(sp => {
-    if (sp.auto === 'roundabout') { const r = osm.roads.find(w => w.tags.junction === 'roundabout' && DRIVABLE.has(w.tags.highway)); if (!r) return null; const c = r.nodes[0]; return { ...sp, name: r.tags.name ? `Roundabout, ${r.tags.name}` : 'Roundabout', lat: c.lat, lon: c.lon }; }
+    if (sp.auto === 'roundabout') {
+      const r = osm.roads.find(w => w.tags.junction === 'roundabout' && DRIVABLE.has(w.tags.highway));
+      if (r) { const c = r.nodes[0]; return { ...sp, name: r.tags.name ? `Roundabout, ${r.tags.name}` : 'Roundabout', lat: c.lat, lon: c.lon }; }
+      // (no junction tag — Overture's copy of OSM doesn't carry it): the roundest short one-way loop
+      const f = roundaboutByShape(R.segs);
+      if (!f) return null;
+      const [lat, lon] = P.toLatLon(f.x, f.z);
+      return { ...sp, name: f.name ? `Roundabout, ${f.name}` : 'Roundabout', lat, lon, bearing: f.bearing, estimated: true };
+    }
     return sp;
   }).filter(Boolean).map(sp => ({ ...sp, xz: P.toXZ(sp.lat, sp.lon).map(v => +v.toFixed(1)) })).filter(sp => sp.xz[0] >= grid.x0 && sp.xz[0] <= grid.x0 + (grid.W - 1) * grid.cell && sp.xz[1] >= grid.z0 && sp.xz[1] <= grid.z0 + (grid.H - 1) * grid.cell);
   const places = osm.points.filter(p => ['city', 'town', 'borough', 'suburb', 'neighbourhood', 'quarter', 'village'].includes(p.tags.place) && p.tags.name).map(p => ({ name: p.tags.name, kind: p.tags.place, xz: [Math.round(p.x), Math.round(p.z)] }));
@@ -162,4 +170,37 @@ async function planetilerJar(log) {
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('map/bake/bake.ts')) {
   bake({ regionId: opt('--region') ?? 'sf', area: opt('--area'), out: opt('--out') }).catch(e => { console.error(e); process.exit(1); });
+}
+
+// a roundabout found by its shape: a loop of one-way roads 40–250 m round, at most 6 segments, nearly a
+// circle (4πA/P² ≥ 0.75). The roundest wins (then the lowest segment id): the same answer every bake.
+function roundaboutByShape(segs: any[]) {
+  const out = new Map<number, { seg: any; fwd: boolean; to: number }[]>();
+  for (const sg of segs) {
+    if (!sg.oneway || sg.structure !== 'ground') continue;
+    const fwd = sg.oneway > 0, from = fwd ? sg.from : sg.to, to = fwd ? sg.to : sg.from;
+    (out.get(from) ?? out.set(from, []).get(from)!).push({ seg: sg, fwd, to });
+  }
+  const len = (sg: any) => sg.s[sg.s.length - 1];
+  let best: any = null;
+  for (const [start, edges] of [...out].sort((p, q) => p[0] - q[0])) for (const e0 of edges) {
+    const walk = (node: number, path: any[], L: number) => {
+      if (L > 250 || path.length > 6) return;
+      if (node === start && path.length) {
+        if (L < 40) return;
+        const pts: number[][] = [];
+        for (const e of path) { const n = e.seg.xs.length; for (let k = 0; k < n - 1; k++) { const q = e.fwd ? k : n - 1 - k; pts.push([e.seg.xs[q], e.seg.zs[q]]); } }
+        let A = 0; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) A += (pts[j][0] - pts[i][0]) * (pts[j][1] + pts[i][1]);
+        const Q = 4 * Math.PI * Math.abs(A / 2) / (L * L), id = Math.min(...path.map(e => e.seg.id));
+        if (Q >= 0.75 && (!best || Q > best.Q + 1e-9 || (Math.abs(Q - best.Q) <= 1e-9 && id < best.id))) {
+          const b1 = pts[1] ?? pts[0];
+          best = { Q, id, x: pts[0][0], z: pts[0][1], bearing: Math.round((Math.atan2(b1[0] - pts[0][0], -(b1[1] - pts[0][1])) * 180 / Math.PI + 360) % 360), name: path.map(e => e.seg.name).find(Boolean) ?? null };
+        }
+        return;
+      }
+      for (const e of out.get(node) ?? []) if (!path.includes(e)) walk(e.to, [...path, e], L + len(e.seg));
+    };
+    walk(e0.to, [e0], len(e0.seg));
+  }
+  return best;
 }

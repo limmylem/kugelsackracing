@@ -53,11 +53,12 @@ function meshHeights(m, x: number, z: number) {
   const P_ = m.positions, I = m.indices, n = m.skirtFrom ?? I.length;
   for (let t = 0; t < n; t += 3) {
     const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
-    if (Math.max(P_[a], P_[b], P_[c]) < x || Math.min(P_[a], P_[b], P_[c]) > x || Math.max(P_[a + 2], P_[b + 2], P_[c + 2]) < z || Math.min(P_[a + 2], P_[b + 2], P_[c + 2]) > z) continue;
+    // (0.1 mm slack: the positions are float32, the point float64 — a point on a vertex is in its triangles)
+    if (Math.max(P_[a], P_[b], P_[c]) < x - 1e-4 || Math.min(P_[a], P_[b], P_[c]) > x + 1e-4 || Math.max(P_[a + 2], P_[b + 2], P_[c + 2]) < z - 1e-4 || Math.min(P_[a + 2], P_[b + 2], P_[c + 2]) > z + 1e-4) continue;
     const d = (P_[b + 2] - P_[c + 2]) * (P_[a] - P_[c]) + (P_[c] - P_[b]) * (P_[a + 2] - P_[c + 2]);
     if (Math.abs(d) < 1e-9) continue;
     const l1 = ((P_[b + 2] - P_[c + 2]) * (x - P_[c]) + (P_[c] - P_[b]) * (z - P_[c + 2])) / d, l2 = ((P_[c + 2] - P_[a + 2]) * (x - P_[c]) + (P_[a] - P_[c]) * (z - P_[c + 2])) / d, l3 = 1 - l1 - l2;
-    if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+    if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
     out.push(l1 * P_[a + 1] + l2 * P_[b + 1] + l3 * P_[c + 1]);
   }
   return out;
@@ -88,12 +89,20 @@ async function roadsTest() {
     n++; if (d > worst) { worst = d; worstAt = `${s.name ?? s.class} (OSM node ${id})`; }
     // the drawn road through it: a vertex of the road surface there (a ribbon's crown, or the junction's middle)
     if (rnd() < 0.05) {
-      const t = tileOf(x, z), tile = await M.tile(t[0], t[1]), R = tile?.meshes.roads;
-      if (!R) continue;
-      const [lx, lz] = local(x, z, t);
-      let best = Infinity;
-      for (let v = 0; v < R.positions.length; v += 3) best = Math.min(best, Math.hypot(R.positions[v] - lx, R.positions[v + 2] - lz));
-      const inJunction = meshHeights(R, lx, lz).length > 0 && best > 0.5;
+      // (a road triangle is in the tile its middle's in: near an edge, the neighbour's)
+      const t = tileOf(x, z);
+      let best = Infinity, covered = false, any = false;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        const tt = [t[0] + di, t[1] + dj], R = (await M.tile(tt[0], tt[1]))?.meshes.roads;
+        if (!R) continue;
+        const [lx, lz] = local(x, z, tt);
+        if (Math.abs(lx) > T / 2 + 60 || Math.abs(lz) > T / 2 + 60) continue;
+        any = true;
+        for (let v = 0; v < R.positions.length; v += 3) best = Math.min(best, Math.hypot(R.positions[v] - lx, R.positions[v + 2] - lz));
+        covered ||= meshHeights(R, lx, lz).length > 0;
+      }
+      if (!any) continue;
+      const inJunction = covered && best > 0.5;
       if (!inJunction) { meshWorst = Math.max(meshWorst, best); meshN++; }
     }
   }
@@ -133,8 +142,9 @@ async function heightTest() {
     note(`${p.s.name ?? p.s.class} (seg ${p.s.id}, ${p.s.structure}, at ${p.x}, ${p.z}): profile ${p.h.toFixed(2)}, drawn ${vis?.toFixed(3)}, physics ${phys?.toFixed(3)}`);
     const hf = tile.heightfield, N1 = hf.n + 1, c = Math.round((lx + T / 2) / (T / hf.n)), r = Math.round((lz + T / 2) / (T / hf.n));
     if (p.s.structure === 'ground') dem.push(p.h - hf.heights[Math.min(N1 - 1, r) + Math.min(N1 - 1, c) * N1]);
-    if (sims.size > 30) sims.clear();
+    if (sims.size > 8) { for (const x of sims.values()) x.free(); sims.clear(); }
   }
+  for (const x of sims.values()) x.free();
   const pass = worstVis <= 0.1 && worstPhys <= 0.1;
   report('height', `${pts.length - edgeSkips} road points${edgeSkips ? ` (${edgeSkips} at the bake's edge left out)` : ''}`, pass, `drawn road ≤ ${worstVis.toFixed(3)} m from the profile, physics ≤ ${worstPhys.toFixed(3)} m${pass ? '' : ` (worst on ${worstAt})`} · ground under the road ${quantile(dem, 0.5)?.toFixed(2)} m below it (median)`);
 }
@@ -168,22 +178,29 @@ async function seamsTest() {
 async function datumTest() {
   console.log('\nElevation: one datum, and no step where LiDAR meets Copernicus');
   // across the blend: at each point where the source changes, the change in slope there (a step shows as
-  // a kink in the second difference), against the same anywhere else
-  let boundary = 0, worstKink = 0, baseline: number[] = [];
+  // a kink in the second difference), against the same on the ground round about (the same tiles' LiDAR
+  // and blend away from the boundary: real cliffs kink too, so it's the spread that's compared — a step
+  // would fatten the boundary's tail). The sea's level edges are left out.
+  const atEdge: number[] = [], near: number[] = [];
+  let worstKink = 0;
   for (const t of manifest.tiles) {
     const d = await M.tile(t.i, t.j), Gd = d.grids.dem, hf = d.heightfield, N1 = hf.n + 1, H_ = hf.heights;
     if (!Gd) continue;
     const src = (c: number, r: number) => Gd.data[r * N1 + c], h = (c: number, r: number) => H_[r + c * N1];
+    const wet = (c: number, r: number) => h(c, r) <= 0.05;   // (the sea and its shore: shaped to its level)
+    const here: number[] = [], rest: number[] = [];
     for (let r = 1; r < N1 - 1; r += 1) for (let c = 1; c < N1 - 1; c++) {
+      if (!src(c, r) || !src(c + 1, r) || !src(c - 1, r) || wet(c - 1, r) || wet(c, r) || wet(c + 1, r)) continue;
       const kink = Math.abs(h(c + 1, r) - 2 * h(c, r) + h(c - 1, r));
       const edge = (src(c, r) === 3) !== (src(c + 1, r) === 3) || (src(c, r) === 1 && src(c + 1, r) === 2) || (src(c, r) === 2 && src(c + 1, r) === 1);
-      if (edge && src(c, r) && src(c + 1, r)) { boundary++; worstKink = Math.max(worstKink, kink); }
-      else if (src(c, r) === 2 && baseline.length < 200000 && (c * 7 + r) % 13 === 0) baseline.push(kink);
+      if (edge) here.push(kink);
+      else if (src(c, r) !== 2 && (c * 7 + r) % 5 === 0) rest.push(kink);
     }
+    if (here.length) { atEdge.push(...here); near.push(...rest); worstKink = Math.max(worstKink, ...here); }
   }
-  const p99 = quantile(baseline, 0.99) ?? 0;
-  if (!boundary) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (the slice is all LiDAR or sea)', true);
-  else report('datum', `LiDAR ↔ Copernicus blend (${boundary} boundary points)`, worstKink <= Math.max(0.5, 2 * p99), `largest kink across the boundary ${worstKink.toFixed(2)} m, against ${p99.toFixed(2)} m (99th percentile) inside Copernicus alone: no step`);
+  const p99 = quantile(near, 0.99) ?? 0, e99 = quantile(atEdge, 0.99) ?? 0, e50 = quantile(atEdge, 0.5) ?? 0, n50 = quantile(near, 0.5) ?? 0;
+  if (!atEdge.length) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (the slice is all LiDAR or sea)', true);
+  else report('datum', `LiDAR ↔ Copernicus blend (${atEdge.length} boundary points)`, e99 <= 1.5 * p99 + 0.1 && e50 <= 2 * n50 + 0.05, `change in slope across the boundary: ${e50.toFixed(2)} m median, ${e99.toFixed(2)} m 99th percentile (largest ${worstKink.toFixed(2)} m, on cliffs), against ${n50.toFixed(2)} m and ${p99.toFixed(2)} m on the ground round about: no step`);
   // the datum: both sources in EGM2008 should agree on open ground (Copernicus is a surface model, so a
   // median over open land, not every point)
   const dir = path.join(M.root, '.cache/map', region, 'dem'), files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
@@ -194,10 +211,14 @@ async function datumTest() {
   const read = async (f: string) => (await (await (await fromFile(path.join(dir, f))).getImage()).readRasters() as any)[0];
   const A = await read(lidar), B = await read(cop), diffs: number[] = [];
   for (let k = 0; k < A.length; k += 97) if (A[k] > -9000 && B[k] > -9000 && B[k] !== 0 && A[k] > 1) diffs.push(B[k] - A[k]);
-  // (the open ground: Copernicus' lowest readings over the LiDAR's bare earth — its roofs and trees are
-  // only ever above; a datum mismatch would shift these too)
-  const med = quantile(diffs, 0.5) ?? 0, p5 = quantile(diffs, 0.05) ?? 0, p10 = quantile(diffs, 0.1) ?? 0;
-  report('datum', 'one vertical datum (EGM2008)', Math.abs(p5) < 1.0, `${shifts} · where both cover the ground, Copernicus − LiDAR: ${p5.toFixed(2)} m (5th percentile: open ground), ${p10.toFixed(2)} m (10th), ${med.toFixed(2)} m (median: roofs, trees)`);
+  // (open ground is where most points agree: the histogram's peak. Copernicus' roofs and trees only ever
+  // add to the right of it, shorelines and cuttings spread it either way; a datum mismatch moves the peak)
+  const bins = new Map<number, number>();
+  for (const v of diffs) if (Math.abs(v) < 5) { const b = Math.round(v * 10); bins.set(b, (bins.get(b) ?? 0) + 1); }
+  let mode = 0, best = -1;
+  for (const [b, n] of bins) if (n > best) { best = n; mode = b / 10; }
+  const med = quantile(diffs, 0.5) ?? 0;
+  report('datum', 'one vertical datum (EGM2008)', Math.abs(mode) <= 0.5, `${shifts} · where both cover the ground, Copernicus − LiDAR peaks at ${mode.toFixed(1)} m (open ground; ${diffs.length} points), median ${med.toFixed(2)} m (roofs, trees)`);
 }
 
 // ---------- rails ----------
@@ -246,24 +267,38 @@ async function railTest() {
   for (const spot of places) {
     const S = await M.simAround(spot.xz[0], spot.xz[1], { radius: 600 });
     for (const r of await railRuns(S, spot.xz)) if (kinds.includes(r.type)) candidates.get(r.type)!.push({ ...r, spot, rank: (prefer[r.type] === spot.id ? 0 : 1e6) + (r.type === 'parapet' ? -r.mid[1] * 100 : r.dist) });
+    S.free();
   }
   const half = spec.bodyCollider.halfExtents, centre = spec.bodyCollider.centre;
   let tested = 0;
   for (const type of kinds) for (const run of candidates.get(type)!.sort((p, q) => p.rank - q.rank).slice(0, 12)) {
     const S = await M.simAround(run.mid[0], run.mid[2], { radius: 300 }), sh = barrierShape(run.type, manifest.barriers), at = await railFoot(run);
-    if (!at) continue;
+    if (!at) { S.free(); continue; }
     const sideAt = (sd: number, d: number) => [run.mid[0] - run.u[1] * d * sd, run.mid[2] + run.u[0] * d * sd];
     const roadSide = (sd: number) => [2, 3.5, 5].some(d => { const [x, z] = sideAt(sd, d), k = tileOf(x, z), t = M.cached(k[0], k[1]); return !!t?.meshes.roads && meshHeights(t.meshes.roads, ...local(x, z, k) as [number, number]).some(y => Math.abs(y - at.foot) < 1.2); });
     const approach = (sd: number) => { const ys = [1.5, 3, 5].map(d => S.ground(...sideAt(sd, d) as [number, number], at.foot + at.h + 6, true, 30)); return ys.every(y => y != null && Math.abs(y - ys[0]) < 0.8) && at.foot + at.h - ys[0] > 0.7; };
-    const sides = [1, -1].filter(sd => roadSide(sd) && approach(sd));
+    // where the car starts for a hit from a side at an angle (its corner just short of the railing)
+    const pose = (side: number, deg: number) => {
+      const n = [-run.u[1] * side, run.u[0] * side], a = deg * Math.PI / 180;
+      const dir = [run.u[0] * Math.cos(a) - n[0] * Math.sin(a), run.u[1] * Math.cos(a) - n[1] * Math.sin(a)];
+      const reach = half[0] * Math.cos(a) + half[2] * Math.sin(a) + sh.colliderThickness / 2 + 0.3, back = reach / Math.sin(a);
+      return { n, dir, sx: run.mid[0] - dir[0] * back, sz: run.mid[2] - dir[1] * back, heading: Math.atan2(dir[0], dir[1]) };
+    };
+    // (a fair test starts the car in the clear: nothing but the ground in its box — not another wall)
+    const clear = (side: number) => [15, 60].every(deg => {
+      const q = pose(side, deg), y = S.ground(q.sx, q.sz, at.foot + 6, true, 12) ?? at.foot, [px, pz] = S.toSim(q.sx, q.sz), R = H.RAPIER;
+      let hit = false;
+      S.sim.vehicle.world.intersectionsWithShape({ x: px, y: y + 0.3 + half[1], z: pz }, { x: 0, y: Math.sin(q.heading / 2), z: 0, w: Math.cos(q.heading / 2) }, new R.Cuboid(half[0], half[1], half[2]), c => { if (c.userData?.material !== 'ground' && c.parent() !== S.sim.vehicle.body) { hit = true; return false; } return true; });
+      return !hit;
+    });
+    const sides = [1, -1].filter(sd => roadSide(sd) && approach(sd) && clear(sd));
+    S.free();
     if (!sides.length) continue;
     tested++;
     let worst = 0, through = 0, unhit = 0, undamaged = 0, n_ = 0;
     for (const side of sides) for (const kmh of [50, 100, 200, 300]) for (const deg of [15, 60]) {
-      const n = [-run.u[1] * side, run.u[0] * side], S2 = await M.simAround(run.mid[0], run.mid[2], { radius: 300 }), v = S2.sim.vehicle, a = deg * Math.PI / 180;
-      const dir = [run.u[0] * Math.cos(a) - n[0] * Math.sin(a), run.u[1] * Math.cos(a) - n[1] * Math.sin(a)];
-      const reach = half[0] * Math.cos(a) + half[2] * Math.sin(a) + sh.colliderThickness / 2 + 0.3, back = reach / Math.sin(a);
-      const sx = run.mid[0] - dir[0] * back, sz = run.mid[2] - dir[1] * back, y = S2.ground(sx, sz, at.foot + 6, true, 12) ?? at.foot;
+      const S2 = await M.simAround(run.mid[0], run.mid[2], { radius: 300 }), v = S2.sim.vehicle, { n, dir, sx, sz } = pose(side, deg);
+      const y = S2.ground(sx, sz, at.foot + 6, true, 12) ?? at.foot;
       const [px, pz] = S2.toSim(sx, sz);
       S2.sim.resetCar({ position: [px, y + 0.05, pz], headingDeg: Math.atan2(dir[0], dir[1]) * 180 / Math.PI, speed: kmh * KMH });
       const damage = new CarDamage({ car, build: garage.build, view: garage.view, boxes: cc.boxesOf(car), rules: H.db.damage });
@@ -281,11 +316,12 @@ async function railTest() {
       const p = v.body.translation(), wx = p.x + S2.origin[0], wz = p.z + S2.origin[1], along = (wx - run.mid[0]) * run.u[0] + (wz - run.mid[2]) * run.u[1];
       const centreThrough = (wx - run.mid[0]) * n[0] + (wz - run.mid[2]) * n[1] < -sh.colliderThickness / 2 && Math.abs(along) < run.len / 2;
       const hurt = (damage.damage.shell?.condition ?? 100) < 100 || Object.values<any>(damage.owned).some(x => x.condition < 100 || Object.keys(x.damage ?? {}).length);
+      S2.free();
       n_++; worst = Math.max(worst, deepest);
       if (centreThrough || deepest > 0.6) through++;
       if (!hits) unhit++;
       if (kmh >= 100 && !hurt) undamaged++;
-      note(`${type} side ${side}, ${kmh} km/h ${deg}°: ${hits} hits, deepest ${deepest.toFixed(2)} m${centreThrough ? ' THROUGH' : ''}`);
+      note(`${type} side ${side}, ${kmh} km/h ${deg}°: ${hits} hits, deepest ${deepest.toFixed(2)} m${centreThrough ? ' THROUGH' : ''} · start ${sx.toFixed(1)}, ${y.toFixed(2)}, ${sz.toFixed(1)}, foot ${at.foot.toFixed(2)} h ${at.h} · ends ${along.toFixed(1)} along, ${((wx - run.mid[0]) * n[0] + (wz - run.mid[2]) * n[1]).toFixed(2)} out, y ${(p.y).toFixed(2)}`);
     }
     report('rails', `${type.replace('_', ' ')}${run.estimated ? ' (estimated)' : ''} at ${run.spot.name}`, !through && !unhit && !undamaged, `${n_} hits, 50–300 km/h at 15° and 60°: ${through ? `${through} THROUGH` : 'none through'}, deepest corner ${worst.toFixed(2)} m into it${unhit ? `, ${unhit} missed it` : ''}${undamaged ? `, ${undamaged} left no damage` : ', every hit reached the damage model'}`);
     break;
