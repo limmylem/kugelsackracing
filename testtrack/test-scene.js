@@ -74,7 +74,7 @@ import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
 import { lightAt } from '../effects/lighting.js';
 import { createEffectsPanel } from './effectsPanel.js';
-import { createSession } from '../physics/race.js';
+import { createSession, MODES } from '../physics/race.js';
 import { ReplayPlayer, ReplayRecorder } from '../physics/replay.js';
 import { CarDamage } from '../garage/carDamage.js';
 import { DentBudget } from '../garage/dents.js';
@@ -528,7 +528,7 @@ function frame(w, now) {
 // The session the settings ask for: its kind, and the collisions and replay chosen (the kind's own if none)
 function sessionFrom(prefs, db) {
   const kind = db.sessions.kinds[prefs.session] ? prefs.session : 'test';
-  return createSession(db.sessions, kind, { ...(prefs.collisions && { collisions: prefs.collisions }), replay: db.sessions.kinds[kind].replay && prefs.crashReplay !== false });
+  return createSession(db.sessions, kind, { ...(MODES.includes(prefs.collisions) && { collisions: prefs.collisions }), replay: db.sessions.kinds[kind].replay && prefs.crashReplay !== false });
 }
 // A hint for something that happened on the road (once ever: the save keeps it)
 function hint(when) {

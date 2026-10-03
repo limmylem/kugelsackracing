@@ -29,7 +29,12 @@ export function loadSettings(spec) {
   const s = defaultSettings(spec);
   try {
     const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-    if (saved) for (const k of Object.keys(s)) if (saved[k] !== undefined) s[k] = typeof s[k] === 'object' ? { ...s[k], ...saved[k] } : saved[k];
+    // (groups of settings merge into their defaults; a single value — null is one, not a group — is taken
+    // as saved)
+    const group = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+    if (saved) for (const k of Object.keys(s)) if (saved[k] !== undefined) s[k] = group(s[k]) ? (group(saved[k]) ? { ...s[k], ...saved[k] } : s[k]) : saved[k];
+    // (an earlier version saved a value as an object here: the session's own then)
+    if (s.collisions !== null && typeof s.collisions !== 'string') s.collisions = null;
   } catch { /* storage unavailable: defaults */ }
   return s;
 }
