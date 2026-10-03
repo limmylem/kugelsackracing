@@ -106,13 +106,17 @@ export const debug = { get active() { return active; }, get shared() { return sh
 export const hooks = { switchTo: null, toGarage: null };
 
 export async function enter(file) {
-  if (!shared) shared = await createShared();
+  if (!shared) {
+    try { shared = await createShared(); }
+    catch (e) { startup?.fail(e); throw e; }
+  }
   shared.hud.style.display = 'block';
   shared.audio?.mute(shared.muted);
   shared.input.enabled = true;
   if (!worlds.has(file)) {
     shared.info.textContent = 'Building world…';
-    worlds.set(file, await buildWorld(file));
+    try { worlds.set(file, await buildWorld(file)); }
+    catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
   hideRealWorlds();
@@ -144,13 +148,38 @@ export function exit() {
   shared.flash.hide();
 }
 
+// Starting up, on screen: which step it's on, a note if one takes long, and what went wrong if it
+// fails (never a silent 'Loading physics…' for ever)
+let startup = null;
+function startupStatus(hud, info) {
+  let name = '', since = performance.now();
+  const show = () => { info.textContent = `Loading physics… (${name})${performance.now() - since > 15000 ? ' — still waiting. If this doesn\'t move, the browser console (⌥⌘J / Ctrl+Shift+J) says why.' : ''}`; };
+  const timer = setInterval(show, 1000);
+  return {
+    hud,
+    step(n) { name = n; since = performance.now(); show(); },
+    done() { clearInterval(timer); },
+    fail(e) {
+      clearInterval(timer);
+      console.error(`Couldn't start (${name}):`, e);
+      info.innerHTML = '';
+      const t = document.createElement('div');
+      t.style.cssText = 'color:#ff8a80;white-space:pre-wrap;max-width:420px';
+      t.textContent = `Couldn't start — ${name}: ${e?.message ?? e}\n(reload to try again; the browser console has the details)`;
+      info.appendChild(t);
+    },
+  };
+}
+
 // Things every world shares: the screen, HUD, controls, the car spec and model, the physics engine
 async function createShared() {
+  startup?.hud.remove();     // (an earlier try that failed)
   const hud = document.createElement('div'), info = document.createElement('div');
   hud.id = 'testHud';
-  info.textContent = 'Loading physics…';
   hud.appendChild(info);
   document.body.appendChild(hud);
+  startup = startupStatus(hud, info);
+  startup.step('settings and car');
   const flash = engineFlash();
   document.body.appendChild(flash.el);
   const getJson = async url => (await fetch(url, { cache: 'no-cache' })).json();
@@ -164,12 +193,17 @@ async function createShared() {
   document.body.appendChild(report.el);
   document.body.appendChild(dyno.el);
   // the car's body model: where its sockets are (the physics) and how its wheels turn (the drawing)
-  const glb = await (await fetch(spec.model.file)).arrayBuffer();
+  startup.step(`car model ${spec.model.file}`);
+  const glbRes = await fetch(spec.model.file);
+  if (!glbRes.ok) throw new Error(`${spec.model.file}: HTTP ${glbRes.status}`);
+  const glb = await glbRes.arrayBuffer();
   const sockets = socketsFromGlb(glb, spec.model), rig = modelRig(glb, spec.model);
   // (where the body shell, its glass and its lights are, for crash damage)
   const damageBoxes = nodeBoxes(glb, spec.model, [...(session.garage.car.model.breakables ?? []).map(b => b.node), 'body_shell']);
+  startup.step('physics engine (Rapier)');
   await RAPIER.init();
 
+  startup.step('graphics (WebGL)');
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   // what chrome, metallic paint and the like reflect (only those finishes use it)
   setEnvironment(skyEnvironment(renderer));
@@ -180,6 +214,7 @@ async function createShared() {
   document.body.appendChild(renderer.domElement);
 
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
+  startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
   const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) shared.play = sessionFrom(prefs, session.db); });
   document.body.appendChild(panel.el);
@@ -193,6 +228,7 @@ async function createShared() {
   const tuning = createTuningPanel({ spec, carId: session.garage.car.id, save: (edited, put) => session.saveEdits(edited, put), onChange: retuned, tests: { list: TESTS, run: (ids, o) => runTests(ids, o), stop: () => { if (shared.tests) shared.tests.queue.length = 0, shared.tests.stopped = true; }, crash: (kmh, target) => crashTest(kmh, target) } });
   document.body.appendChild(tuning.el);
   // (the car's test targets, and how hard the test robot drives it: tests/targets/<carId>.json)
+  startup.step('car test targets');
   const targets = await getJson(`tests/targets/${session.garage.car.id}.json`).catch(() => ({}));
   tuning.setTests({ results, targets });
   // the session (a test drive or a race: the settings), the dent budget, the hints
@@ -256,6 +292,7 @@ async function createShared() {
     else if (e.code === 'Escape' && s.tests) { s.tests.queue.length = 0; s.tests.stopped = true; }
   });
   addEventListener('pointerdown', startAudio);
+  startup.done();
   return s;
 }
 
