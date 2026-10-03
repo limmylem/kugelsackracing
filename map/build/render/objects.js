@@ -296,7 +296,11 @@ export function tileObjects(tile, { barriers: B }) {
         for (let k = 0; k < Sg.length; k += 6)
             [[Sg[k + 4], 0], [Sg[k + 5], Math.PI / 2]].forEach(([n, turn], level) => {
                 const key = `${names[n]}|plate`;
-                plates.push({ key, at: [Sg[k], Sg[k + 1] + 2.75 - level * 0.42, Sg[k + 2]], yaw: Sg[k + 3] + turn, w: 0.38 * atlas.rects.get(key).aspect, h: 0.38 });
+                // (a face each way, back to back: the text reads right from both sides, never mirrored)
+                for (const back of [0, Math.PI]) {
+                    const yaw = Sg[k + 3] + turn + back;
+                    plates.push({ key, at: [Sg[k] + Math.sin(yaw) * 0.01, Sg[k + 1] + 2.75 - level * 0.42, Sg[k + 2] + Math.cos(yaw) * 0.01], yaw, w: 0.38 * atlas.rects.get(key).aspect, h: 0.38 });
+                }
             });
         if (roadNames.length) {
             const m = new THREE.Mesh(quads(roadNames, true), new THREE.MeshBasicMaterial({ map: atlas.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
@@ -304,7 +308,7 @@ export function tileObjects(tile, { barriers: B }) {
             labels.add(m);
         }
         if (plates.length)
-            labels.add(new THREE.Mesh(quads(plates, false), new THREE.MeshBasicMaterial({ map: atlas.texture, side: THREE.DoubleSide, alphaTest: 0.5, transparent: false })));
+            labels.add(new THREE.Mesh(quads(plates, false), new THREE.MeshBasicMaterial({ map: atlas.texture, alphaTest: 0.5, transparent: false })));
         if (Sg.length) {
             const posts = new THREE.InstancedMesh(shapes().post, mat.signPost, Sg.length / 6), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(0.8, 3, 0.8), p = new THREE.Vector3();
             for (let k = 0; k < Sg.length; k += 6)

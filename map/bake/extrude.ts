@@ -138,7 +138,7 @@ export function extrude(b, ground, C) {
       const c = facade, ta = wallTop(ax, az), tb = wallTop(bx, bz);
       const v0 = walls.vertex(ax, foot, az, c, s / bay, (foot - gC) / storey), v1 = walls.vertex(bx, foot, bz, c, (s + l) / bay, (foot - gC) / storey);
       const v2 = walls.vertex(bx, tb, bz, c, (s + l) / bay, (tb - gC) / storey), v3 = walls.vertex(ax, ta, az, c, s / bay, (ta - gC) / storey);
-      walls.tri(v0, v1, v2); walls.tri(v0, v2, v3);
+      walls.tri(v0, v2, v1); walls.tri(v0, v3, v2);      // (facing out: anticlockwise seen from outside)
       s += l;
     }
   }
@@ -178,7 +178,7 @@ export function extrude(b, ground, C) {
     if (shape === 'hipped') { face([E[1], E[2], R1], 0.9); face([E[3], E[0], R0], 0.88); }
     else for (const [a, b2, r] of [[E[1], E[2], R1], [E[3], E[0], R0]]) {
       const c = shade(facade, 0.92), ia = walls.vertex(...a, c, 0, (eave - gC) / storey), ib = walls.vertex(...b2, c, 2 * Wd / bay, (eave - gC) / storey), ir = walls.vertex(...r, c, Wd / bay, (top - gC) / storey);
-      walls.tri(ia, ib, ir);
+      walls.tri(ia, ir, ib);
     }
   }
   // the collider: convex pieces of the footprint, from the foot to most of the roof

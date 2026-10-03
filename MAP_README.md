@@ -236,6 +236,10 @@ npm run map:typecheck                           # TypeScript
 
 ## Notes
 
+- **Browser tile cache.** The game keeps tiles in IndexedDB under the manifest's `version`. That is the
+  bake's inputs plus a hash of every tile it wrote, so any re-bake that changes a tile (new data, or new
+  bake code with the same data) replaces the cached copies on the next visit.
+
 - **Where the data came from in this bake.** Geofabrik, the OSM planet mirrors and Overpass couldn't be
   reached from the machine it was baked on, so the San Francisco bake's OSM data came from Overture's
   copy of OpenStreetMap (`sources.osm.source: "overture"` in the manifest). With network access to

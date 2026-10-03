@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 import { MeshoptEncoder } from 'meshoptimizer';
 import { transverseMercator } from '../format/projection.ts';
 import { gridFor } from '../format/grid.ts';
@@ -93,10 +94,11 @@ export async function bake({ regionId, area = null as string | null, out = null 
   // 5. the tiles, the far layer, the graph
   await MeshoptEncoder.ready;
   const TB = tileBuilder({ region, grid, cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, mesh: R.mesh, marks: R.marks, segs: R.segs, buildings, barriers: bar, trees: tr, labels: lb, bays });
-  const tiles: any[] = [];
+  const tiles: any[] = [], output = crypto.createHash('sha256');
   for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) {
     const t = TB.tile(i, j), bytes = zlib.gzipSync(encodeTile(t, MeshoptEncoder), { level: 9 });
     fs.writeFileSync(path.join(outDir, 'tiles', `${i}_${j}.m3t`), bytes);
+    output.update(`${i}_${j}`).update(bytes);
     tiles.push({ i, j, bytes: bytes.length, dem: t.header.dem.name, resolution: t.header.dem.resolution, landmarks: t.header.landmarks.length });
   }
   lap(`  tiles: ${tiles.length}, ${(tiles.reduce((a, t) => a + t.bytes, 0) / 1e6).toFixed(1)} MB`);
@@ -104,6 +106,7 @@ export async function bake({ regionId, area = null as string | null, out = null 
   for (let b = Math.floor(grid.z0 / FA); b <= Math.floor((grid.z0 + (grid.H - 1) * grid.cell) / FA); b++) for (let a = Math.floor(grid.x0 / FA); a <= Math.floor((grid.x0 + (grid.W - 1) * grid.cell) / FA); a++) {
     const t = TB.far(a, b), bytes = zlib.gzipSync(encodeTile(t, MeshoptEncoder), { level: 9 });
     fs.writeFileSync(path.join(outDir, 'far', `${a}_${b}.m3t`), bytes);
+    output.update(`far_${a}_${b}`).update(bytes);
     farChunks.push({ a, b, bytes: bytes.length, landmarks: t.header.landmarks.length });
   }
   const graph = encodeGraph(region.id, R.nodes, R.segs);
@@ -126,10 +129,12 @@ export async function bake({ regionId, area = null as string | null, out = null 
   const places = osm.points.filter(p => ['city', 'town', 'borough', 'suburb', 'neighbourhood', 'quarter', 'village'].includes(p.tags.place) && p.tags.name).map(p => ({ name: p.tags.name, kind: p.tags.place, xz: [Math.round(p.x), Math.round(p.z)] }));
   const cities = osm.areas.filter(a => a.tags.boundary === 'administrative' && ['6', '8'].includes(a.tags.admin_level) && a.tags.name).map(a => ({ name: a.tags.name, level: +a.tags.admin_level, rings: a.parts.map(p => p[0].filter((_, k, arr) => k % Math.max(1, Math.floor(arr.length / 120)) === 0).map(q => [Math.round(q.x), Math.round(q.z)])) }));
   const [sx, sz] = P.toXZ(region.spawn.lat, region.spawn.lon);
+  // (and what came out: the browsers' tile caches are kept under this, so a bake that changes any tile —
+  // new code, same inputs — replaces their copies)
   const inputs = `${BAKE_VERSION}/${FORMAT_VERSION}/${cfg.version}/${osmSrc.source}:${osmSrc.date}/${region.overture.release}`;
   const manifest = {
     _note: 'Map v3 (MAP_README.md): what this baked region holds. Tiles: tiles/<i>_<j>.m3t (map/format/tileFormat.ts, gzipped), tile (i, j) covering x ∈ [i·tileSize, (i+1)·tileSize), z (south) likewise, in the projection below.',
-    map: 'v3', region: region.id, name: region.name, version: `${inputs}`, format: FORMAT_VERSION, graphVersion: GRAPH_VERSION, baked: new Date().toISOString().slice(0, 10),
+    map: 'v3', region: region.id, name: region.name, version: `${inputs}#${output.digest("hex").slice(0, 12)}`, format: FORMAT_VERSION, graphVersion: GRAPH_VERSION, baked: new Date().toISOString().slice(0, 10),
     projection: { type: 'transverse-mercator', lat0: P.lat0, lon0: P.lon0, ellipsoid: 'WGS84', proj4: P.proj4, axes: 'x east, z south, y up (metres)' },
     grid: { tileSize: grid.tileSize, cell: grid.cell, i0: grid.i0, j0: grid.j0, i1: grid.i1, j1: grid.j1 }, bbox: region.bbox,
     spawn: { ...region.spawn, xz: [+sx.toFixed(1), +sz.toFixed(1)] },

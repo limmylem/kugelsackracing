@@ -63,3 +63,25 @@ test('the road graph: OSM nodes kept with their ids and coordinates; nearest seg
   assert.equal(nearestSeg(G, 5, 3)?.seg.name, 'Main St');
   assert.equal(nearestSeg(G, 5, 80), null);
 });
+
+test('buildings: walls face out and roofs up, whichever way round the footprint is drawn', async () => {
+  const { extrude } = await import('../../map/bake/extrude.ts');
+  const cfg = JSON.parse((await import('node:fs')).readFileSync(new URL('../../data/map/bake.json', import.meta.url), 'utf8')).buildings;
+  const square = [[0, 0], [20, 0], [20, 12], [0, 12]];
+  for (const ring of [square, [...square].reverse()]) for (const rs of [undefined, 'gabled']) {
+    const e: any = extrude({ id: 1, rings: [ring.map(p => [...p])], props: { h: 10, rs, rh: 3 } }, () => 0, cfg);
+    const check = (m, wantOut: boolean) => {
+      const P = m.positions, I = m.indices;
+      for (let k = 0; k < I.length; k += 3) {
+        const a = I[k] * 3, b = I[k + 1] * 3, c = I[k + 2] * 3;
+        const u = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], v = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
+        const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        // (three.js draws anticlockwise faces: the normal must point away from the building's middle)
+        const mid = [(P[a] + P[b] + P[c]) / 3 - 10, (P[a + 1] + P[b + 1] + P[c + 1]) / 3, (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - 6];
+        if (wantOut) assert.ok(n[0] * mid[0] + n[2] * mid[2] > 0 || Math.hypot(n[0], n[2]) < 1e-9, `a wall faces in (${rs ?? 'flat'})`);
+        else assert.ok(n[1] >= -1e-9, `a roof faces down (${rs ?? 'flat'})`);
+      }
+    };
+    check(e.walls, true); check(e.roof, false);
+  }
+});
