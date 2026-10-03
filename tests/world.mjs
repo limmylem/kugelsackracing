@@ -383,10 +383,11 @@ async function streamingTest() {
     if (!S.readyAround(px, pz, 0)) notReady++;
     else if (S.groundBelow(px, pz, 900, 2000) == null) falls++;
     // how far ahead along the route the ground is ready
-    if (frames % 15 === 0) {
+    if (frames % 15 === 0 && frames > 120 && k < route.length - 200) {          // (after the start's first two seconds, before the last 400 m)
       let ahead = 0;
       for (let q = k; q < route.length && ahead < 400; q += 10, ahead += 20) if (!S.readyAround(...S.toSim(...route[q]), 0)) break;
       worstAhead = Math.min(worstAhead, ahead);
+      if (ahead < 100) { const [ax, az] = route[Math.min(route.length - 1, k + ahead / 2)], e = S.tiles.get(tileOf(ax, az).join('_')); note(`only ${ahead} m ready ahead at ${(along / 1000).toFixed(2)} km: tile ${tileOf(ax, az)} ${e ? `${e.state}, ${e.added ?? 0}/${e.groundPieces ?? '?'} ground pieces in` : 'not loading'}, ${S.status.loading} loading`); }
     }
     for (const key of S.tiles.keys()) seen.add(key);
     dropped = seen.size - S.tiles.size;

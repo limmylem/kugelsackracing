@@ -194,11 +194,12 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));
     const end = performance.now() + O.budgetMs;
     while (physicsQueue.length && performance.now() < end) {
-      const e = physicsQueue[0];
+      // (every waiting tile's ground and roads before anyone's buildings and railings)
+      const e = physicsQueue.find(q => q.physics && q.added < q.groundPieces) ?? physicsQueue[0];
       if (!e.physics) { physicsQueue.shift(); continue; }
       const piece = e.pieces[e.added];
       if (piece) { sim.addToStatic(e.physics, [piece]); e.added++; stats.colliders++; }
-      if (e.added >= e.pieces.length) physicsQueue.shift();
+      if (e.added >= e.pieces.length) physicsQueue.splice(physicsQueue.indexOf(e), 1);
     }
     // the floating origin: a whole number of tiles, to the car's
     let shifted = null;

@@ -86,7 +86,11 @@ const inRing = (x, z, r) => { let inside = false; for (let i = 0, j = r.length -
 function placeOf(w, x, z) {
   let area = null, city = null, best = 1500;
   // the neighbourhood: the nearest one's middle (most are mapped as points), else an area round it
-  for (const p of w.placePoints) { const d = Math.hypot(p.point[0] - x, p.point[1] - z) * (p.kind === 'microhood' ? 1.6 : 1); if (d < best) { best = d; area = p.name; } }
+  // (a neighbourhood if one's near; the small ones — often a plaza — only if not)
+  for (const kinds of [['neighborhood', 'macrohood', 'borough'], ['microhood']]) {
+    for (const p of w.placePoints) { if (!kinds.includes(p.kind)) continue; const d = Math.hypot(p.point[0] - x, p.point[1] - z); if (d < best) { best = d; area = p.name; } }
+    if (area) break;
+  }
   for (const p of w.places) {
     if (x < p.box[0] || x > p.box[2] || z < p.box[1] || z > p.box[3] || !p.rings.some(r => inRing(x, z, r))) continue;
     if (!area && ['neighborhood', 'macrohood', 'borough'].includes(p.kind)) area = p.name;
@@ -180,18 +184,21 @@ export function realWorldFrame(w, shared, seconds) {
     w.label.textContent = `World: low-poly v2 (tile ${where.tile[0]}/${where.tile[1]})${dem ? ` · DEM ${dem.resolution} m (${dem.name.replace(/ \(.*\)$/, '')})` : where.dem === 'sea' ? ' · DEM: sea' : ''}`;
     w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
   }
-  // the performance overlay (F3)
+  // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
+  // after the scene), counted here and started again
+  const info = shared.renderer?.info;
+  if (info) { info.autoReset = false; w.perf.calls = info.render.calls; w.perf.triangles = info.render.triangles; info.reset(); }
   const ms = seconds * 1000, now = performance.now();
   w.perf.frameMs += (ms - w.perf.frameMs) * 0.05;
   if (ms > w.perf.worstMs || now - w.perf.worstAt > 2000) { w.perf.worstMs = ms; w.perf.worstAt = now; }
   if (w.perfBox.style.display !== 'none' && (w.perfTimer = (w.perfTimer ?? 0) - seconds) <= 0) {
     w.perfTimer = 0.5;
-    const T = w.perf.targets ?? {}, st = S.status, info = shared.renderer?.info, mem = performance.memory?.usedJSHeapSize;
+    const T = w.perf.targets ?? {}, st = S.status, mem = performance.memory?.usedJSHeapSize;
     const row = (name, value, target, unit, fmt = v => v.toFixed(0)) => `<div><span style="color:${value == null || target == null ? '#ccc' : value <= target ? '#7ee08a' : '#ff8a7a'}">●</span> ${name.padEnd(17)} ${value == null ? '—' : fmt(value)}${unit}${target != null ? ` <span style="opacity:.6">/ ${target}${unit}</span>` : ''}</div>`;
     w.perfBox.innerHTML = '<b>World performance</b> <span style="opacity:.6">(F3)</span>'
       + row('time to drivable', S.stats.firstDrivable, T.timeToDrivableMs, ' ms') + (S.stats.lastDrivable !== S.stats.firstDrivable ? row(' after travel', S.stats.lastDrivable, T.timeToDrivableMs, ' ms') : '')
       + row('tile load', st.tileMs, T.tileLoadMs, ' ms') + row('frame', w.perf.frameMs, T.frameMs, ' ms', v => v.toFixed(1)) + row(' worst (2 s)', w.perf.worstMs, null, ' ms', v => v.toFixed(1))
-      + row('draw calls', info?.render.calls ?? null, T.drawCalls, '') + row('triangles', info ? info.render.triangles / 1000 : null, null, 'k')
+      + row('draw calls', w.perf.calls ?? null, T.drawCalls, '') + row('triangles', w.perf.triangles != null ? w.perf.triangles / 1000 : null, null, 'k')
       + row('JS memory', mem != null ? mem / 1e6 : null, T.memoryMB, ' MB') + row('GPU objects', info ? info.memory.geometries + info.memory.textures : null, null, '')
       + `<div style="opacity:.75">tiles ${st.tiles} in · ${st.loading} coming · ${st.physics} solid · ${st.colliders} colliders<br>${st.fetched} downloaded (${(st.bytes / 1e6).toFixed(1)} MB) · ${st.cached} from the cache${st.errors ? ` · ${st.errors} failed` : ''}</div>`;
   }

@@ -2,7 +2,7 @@
 # data against its schemas, every model against the model rules, the unit tests, the headless physics
 # test suite and the crash test suite (the damage balance) — and here also the stress tests (a ten-car
 # pile-up within its frame budget, a hundred crashes and repairs without growing memory or slowing
-# down). Any failure fails the run.
+# down), and the baked real world's tests (WORLD_README.md). Any failure fails the run.
 name: checks
 on:
   push:
@@ -31,3 +31,5 @@ jobs:
         run: npm run crash-test
       - name: Stress tests (a ten-car pile-up, a hundred crashes and repairs)
         run: npm run stress
+      - name: Baked world tests (heights, railings at 50–300 km/h, 20 km streaming at 200 km/h, memory, physics on a real road)
+        run: npm run test:world
