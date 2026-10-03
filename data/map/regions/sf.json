@@ -1,0 +1,129 @@
+{
+  "_note": "A Map v3 region (MAP_README.md). bbox [west, south, east, north] in degrees; the projection is a transverse Mercator centred on it. osm: the OpenStreetMap extract to clip it from (Geofabrik), and the fallback when that can't be downloaded (Overture's OSM-derived data, rebuilt as an .osm.pbf). dem: elevation sources, best first; each a bare-earth DTM (never a surface model) with its horizontal and vertical datum, converted to EGM2008 heights; blendBand: metres over which a better source fades into the next. spots: quick-travel places (auto: found in the data).",
+  "id": "sf",
+  "name": "San Francisco",
+  "bbox": [
+    -122.52,
+    37.705,
+    -122.355,
+    37.838
+  ],
+  "tileSize": 512,
+  "cell": 2,
+  "spawn": {
+    "lat": 37.7942,
+    "lon": -122.3954,
+    "bearing": 315,
+    "name": "The Embarcadero"
+  },
+  "osm": {
+    "extract": "https://download.geofabrik.de/north-america/us/california/norcal-latest.osm.pbf",
+    "fallback": "overture"
+  },
+  "overture": {
+    "release": "2026-09-23.1"
+  },
+  "dem": {
+    "datum": "EGM2008",
+    "blendBand": 80,
+    "sources": [
+      {
+        "name": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+        "kind": "lidar-dtm",
+        "resolution": 1,
+        "crs": "EPSG:26910+5703",
+        "datum": "NAD83 / UTM 10N, NAVD88 heights (GEOID18)",
+        "licence": "Public domain (USGS)",
+        "attribution": "U.S. Geological Survey, 3D Elevation Program",
+        "files": [
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x54y418_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x54y419_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x55y418_CA_SanFrancisco_B23.tif",
+          "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1m/Projects/CA_SanFrancisco_B23/TIFF/USGS_1M_10_x55y419_CA_SanFrancisco_B23.tif"
+        ]
+      },
+      {
+        "name": "Copernicus GLO-30",
+        "kind": "dsm",
+        "resolution": 30,
+        "crs": "EPSG:4326+3855",
+        "datum": "WGS84, EGM2008 heights",
+        "licence": "Copernicus DEM licence (free, attribution)",
+        "attribution": "Copernicus DEM \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA",
+        "glo30": true
+      }
+    ]
+  },
+  "spots": [
+    {
+      "id": "city",
+      "name": "Financial District",
+      "kind": "dense city",
+      "lat": 37.793,
+      "lon": -122.4008,
+      "bearing": 270
+    },
+    {
+      "id": "suburb",
+      "name": "Outer Sunset",
+      "kind": "suburb",
+      "lat": 37.7538,
+      "lon": -122.494,
+      "bearing": 0
+    },
+    {
+      "id": "mountain",
+      "name": "Twin Peaks Boulevard",
+      "kind": "mountain road with rails",
+      "lat": 37.7518,
+      "lon": -122.4469,
+      "bearing": 180
+    },
+    {
+      "id": "coast",
+      "name": "Great Highway",
+      "kind": "coast",
+      "lat": 37.758,
+      "lon": -122.5086,
+      "bearing": 0
+    },
+    {
+      "id": "interchange",
+      "name": "Central Freeway / US-101",
+      "kind": "highway interchange",
+      "lat": 37.7688,
+      "lon": -122.4104,
+      "bearing": 200
+    },
+    {
+      "id": "bridge",
+      "name": "Golden Gate Bridge",
+      "kind": "bridge",
+      "lat": 37.8133,
+      "lon": -122.4778,
+      "bearing": 0
+    },
+    {
+      "id": "tunnel",
+      "name": "Broadway Tunnel",
+      "kind": "tunnel",
+      "lat": 37.7964,
+      "lon": -122.4119,
+      "bearing": 270
+    },
+    {
+      "id": "carpark",
+      "name": "Stonestown Galleria",
+      "kind": "big car park",
+      "lat": 37.7277,
+      "lon": -122.4763,
+      "bearing": 0
+    },
+    {
+      "id": "roundabout",
+      "name": "(the first roundabout found)",
+      "kind": "roundabout",
+      "auto": "roundabout"
+    }
+  ]
+}

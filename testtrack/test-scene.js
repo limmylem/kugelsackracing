@@ -81,7 +81,11 @@ import { DentBudget } from '../garage/dents.js';
 import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
 import { drivability, ownedBySocket } from '../garage/repair.js';
 import { createHintCard } from './hintCard.js';
-import { attachRealWorld, hideRealWorld, prepareTrack, realWorldFrame, resetToRoad, showRealWorld, toggleWorldMap, togglePerf } from './realWorld.js';
+import * as RW2 from './realWorld.js';
+import * as MapV3 from '../map/build/render/game.js';
+// the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
+const rwOf = w => (w?.track?.mapV3 ? MapV3 : RW2);
+const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); };
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -111,7 +115,8 @@ export async function enter(file) {
     worlds.set(file, await buildWorld(file));
   }
   active = worlds.get(file);
-  if (active.stream) showRealWorld(active); else hideRealWorld();
+  hideRealWorlds();
+  if (active.stream) rwOf(active).showRealWorld(active);
   // record this world's car; the gearbox mode carries over between worlds
   shared.stopTelemetry?.();
   shared.stopTelemetry = shared.telemetry.attach(active.sim);
@@ -125,7 +130,7 @@ export async function enter(file) {
 
 export function exit() {
   active = null;
-  hideRealWorld();
+  hideRealWorlds();
   if (!shared) return;
   shared.renderer.domElement.style.display = 'none';
   shared.hud.style.display = 'none';
@@ -309,7 +314,8 @@ function restartAudio() {
 async function buildWorld(file) {
   const track = await (await fetch(file)).json();
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
-  if (track.streamed) await prepareTrack(track);
+  if (track.streamed) await RW2.prepareTrack(track);
+  if (track.mapV3) await MapV3.prepareTrack(track);
   const { settings, spec, sockets, glb } = shared;
   const sim = createSimulation(RAPIER, { settings, spec, sockets, track });
   const terrain = terrainOf(track);
@@ -391,7 +397,8 @@ async function buildWorld(file) {
     aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
   };
-  if (track.streamed) await attachRealWorld(w, shared, { RAPIER });
+  if (track.streamed) await RW2.attachRealWorld(w, shared, { RAPIER });
+  if (track.mapV3) await MapV3.attachRealWorld(w, shared, { RAPIER });
   return w;
 }
 
@@ -412,7 +419,7 @@ function frame(w, now) {
   if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) return; }
   for (const act of inp.pressed) handleAction(w, act, inp);
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
-  const rw = w.stream ? realWorldFrame(w, shared, seconds) : null;
+  const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold;           // the settings panel pauses the car
   // player settings → the car
@@ -1247,7 +1254,7 @@ const clock = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')
 function resetCar(w, toStart) {
   shared.session.attach.reattachAll('reset', { kind: shared.play.kind });
   w.sim.vehicle.parts.clear();                       // (what's still loose hangs again from where the car is now)
-  if (w.stream) { resetToRoad(w); return; }          // (the real world: onto the nearest road)
+  if (w.stream) { rwOf(w).resetToRoad(w); return; }          // (the real world: onto the nearest road)
   if (toStart || !w.roadLines.length) { w.sim.reset(); return; }
   const p = w.sim.vehicle.body.translation(), q = w.sim.vehicle.body.rotation();
   const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
@@ -1328,8 +1335,8 @@ function handleAction(w, act, inp) {
   if (act === 'damageView') setDamageView(!s.damageView);
   if (act === 'damageReport') { s.report.toggle(); updateDash(v.snapshot()); }
   if (act === 'tow') tow(w);
-  if (act === 'worldMap' && w.stream) toggleWorldMap(w);
-  if (act === 'perfOverlay' && w.stream) togglePerf(w);
+  if (act === 'worldMap' && w.stream) rwOf(w).toggleWorldMap(w);
+  if (act === 'perfOverlay' && w.stream) rwOf(w).togglePerf(w);
   if (act === 'restore') {
     // development: every part back to 100% (a blown engine runs again), and back on the road — a test
     // drive's reset; a race keeps its damage (tow to the garage)

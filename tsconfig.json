@@ -1,0 +1,19 @@
+{
+  "//": "Map v3 (MAP_README.md): map/format (the data format, shared), map/bake (the offline pipeline, Node), map/render (the game side, browser). `npm run map:typecheck` checks all of it; `npm run map:build` compiles format + render for the browser into map/build/ (the bake and the tests run the .ts files directly in Node).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["map/format/**/*.ts", "map/bake/**/*.ts", "map/render/**/*.ts", "tests/map/**/*.ts"]
+}

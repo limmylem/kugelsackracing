@@ -1813,8 +1813,10 @@ function groundLine() {
 // The real world is the baked low-poly one (scenes/real_world.json, a streamed test world). The old
 // photorealistic map (Cesium, Google's 3D tiles) only with ?photoreal=1 in the address: a debug flag
 const PHOTOREAL = new URLSearchParams(location.search).has('photoreal');
-let worldList = [{ id: 'real', name: 'Real world', icon: '🌍', file: 'scenes/real_world.json' }], currentWorld = PHOTOREAL ? 'photoreal' : null, switching = false;
+let worldList = [{ id: 'real', name: 'Real world', icon: '🌍', file: 'scenes/map_v3.json' }], currentWorld = PHOTOREAL ? 'photoreal' : null, switching = false;
 fetch('scenes/worlds.json').then(r => r.json()).then(list => {
+  // (debug: ?map=v2 runs the previous low-poly map instead of Map v3; ?photoreal=1 the Cesium one)
+  if (new URLSearchParams(location.search).get('map') === 'v2') list = list.map(w => w.id === 'real' ? { ...w, file: 'scenes/real_world.json', name: 'Real world (v2)' } : w);
   worldList = PHOTOREAL ? [...list, { id: 'photoreal', name: 'Photoreal (old)', icon: '🛰️' }] : list;
   drawWorldButtons();
   if (!PHOTOREAL) switchWorld('real');

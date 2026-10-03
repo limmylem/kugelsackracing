@@ -1,0 +1,6 @@
+{
+  "//": "The browser's part of Map v3 (format + render), compiled to map/build/ (plain ES modules, served as they are).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "outDir": "map/build", "rootDir": "map", "declaration": false, "sourceMap": false },
+  "include": ["map/format/**/*.ts", "map/render/**/*.ts"]
+}

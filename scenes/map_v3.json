@@ -1,0 +1,6 @@
+{
+  "name": "San Francisco",
+  "_about": "Map v3 (MAP_README.md): no scene of its own — its ground, roads, buildings and railings stream in from the baked tiles (node map/bake/bake.ts). mapV3.manifest: which baked region.",
+  "mapV3": { "manifest": "assets/map/sf/manifest.json" },
+  "roads": []
+}

@@ -29,6 +29,10 @@
     "stress": "node --expose-gc tests/stress.mjs",
     "world:build": "node --max-old-space-size=8192 tools/world/build.mjs",
     "world:bake": "node --max-old-space-size=8192 tools/world/bake.mjs",
+    "map:bake": "node --max-old-space-size=12000 map/bake/bake.ts",
+    "map:build": "tsc -p tsconfig.render.json && node -e \"require('fs').cpSync('map/vendor','map/build/vendor',{recursive:true})\"",
+    "map:typecheck": "tsc -p tsconfig.json",
+    "test:map": "node --expose-gc --max-old-space-size=8192 tests/map/map.test.ts",
     "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs"
   },
   "devDependencies": {
@@ -38,6 +42,8 @@
     "@gltf-transform/functions": "^4.5.0",
     "@mapbox/martini": "^0.2.0",
     "@mapbox/vector-tile": "^3.0.0",
+    "@types/node": "^22.20.5",
+    "@types/three": "^0.160.0",
     "geotiff": "^3.0.5",
     "hyparquet": "^1.31.2",
     "hyparquet-compressors": "^1.1.2",
@@ -46,6 +52,7 @@
     "pbf": "^5.1.2",
     "pmtiles": "^4.5.0",
     "sharp": "^0.35.5",
-    "three": "0.160.0"
+    "three": "0.160.0",
+    "typescript": "5.9"
   }
 }

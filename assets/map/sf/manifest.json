@@ -1,0 +1,6995 @@
+{
+ "_note": "Map v3 (MAP_README.md): what this baked region holds. Tiles: tiles/<i>_<j>.m3t (map/format/tileFormat.ts, gzipped), tile (i, j) covering x ∈ [i·tileSize, (i+1)·tileSize), z (south) likewise, in the projection below.",
+ "map": "v3",
+ "region": "sf",
+ "name": "San Francisco",
+ "version": "1/3/1/overture:2026-10-03/2026-09-23.1",
+ "format": 3,
+ "graphVersion": 1,
+ "baked": "2026-10-03",
+ "projection": {
+  "type": "transverse-mercator",
+  "lat0": 37.7715,
+  "lon0": -122.4375,
+  "ellipsoid": "WGS84",
+  "proj4": "+proj=tmerc +lat_0=37.7715 +lon_0=-122.4375 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0 +units=m +no_defs +type=crs",
+  "axes": "x east, z south, y up (metres)"
+ },
+ "grid": {
+  "tileSize": 512,
+  "cell": 2,
+  "i0": 5,
+  "j0": -7,
+  "i1": 9,
+  "j1": -3
+ },
+ "bbox": [
+  -122.52,
+  37.705,
+  -122.355,
+  37.838
+ ],
+ "spawn": {
+  "lat": 37.7942,
+  "lon": -122.3954,
+  "bearing": 315,
+  "name": "The Embarcadero",
+  "xz": [
+   3708.1,
+   -2520.4
+  ]
+ },
+ "sources": {
+  "osm": {
+   "source": "overture",
+   "url": "https://overturemaps-us-west-2.s3.amazonaws.com/release/2026-09-23.1/",
+   "date": "2026-10-03",
+   "note": "OpenStreetMap data as published by Overture Maps (its transportation and base themes keep OSM geometry and tags); a Geofabrik extract replaces it when reachable"
+  },
+  "overture": {
+   "release": "2026-09-23.1",
+   "used": "building heights, floors, roof shapes and colours; buildings OSM lacks"
+  },
+  "elevation": [
+   {
+    "name": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+    "kind": "lidar-dtm",
+    "resolution": 1,
+    "datum": "NAD83 / UTM 10N, NAVD88 heights (GEOID18)",
+    "licence": "Public domain (USGS)",
+    "attribution": "U.S. Geological Survey, 3D Elevation Program",
+    "shift": -0.3588,
+    "conversion": "EPSG:5703 → EGM2008 (EPSG:3855) via PROJ: GEOID18 (us_noaa_g2018u0.tif) + EGM2008 (us_nga_egm08_25.tif)"
+   },
+   {
+    "name": "Copernicus GLO-30",
+    "kind": "dsm",
+    "resolution": 30,
+    "datum": "WGS84, EGM2008 heights",
+    "licence": "Copernicus DEM licence (free, attribution)",
+    "attribution": "Copernicus DEM © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA",
+    "shift": 0,
+    "conversion": "EGM2008 already (no shift)"
+   }
+  ],
+  "verticalDatum": "EGM2008 (EPSG:3855)",
+  "blendBand": 80,
+  "tools": {
+   "planetiler": "0.8.4",
+   "gdal": "GDAL 3.8.4, released 2024/02/08",
+   "osmium": "osmium version 1.16.0"
+  }
+ },
+ "attribution": [
+  {
+   "name": "OpenStreetMap contributors",
+   "url": "https://www.openstreetmap.org/copyright",
+   "licence": "ODbL 1.0"
+  },
+  {
+   "name": "Overture Maps Foundation",
+   "url": "https://overturemaps.org",
+   "licence": "ODbL 1.0 (OSM-derived themes), CDLA Permissive 2.0 (buildings)"
+  },
+  {
+   "name": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "url": null,
+   "licence": "Public domain (USGS)",
+   "text": "U.S. Geological Survey, 3D Elevation Program"
+  },
+  {
+   "name": "Copernicus GLO-30",
+   "url": null,
+   "licence": "Copernicus DEM licence (free, attribution)",
+   "text": "Copernicus DEM © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA"
+  }
+ ],
+ "surfaces": {
+  "tarmac": {
+   "grip": 1,
+   "rollingResistance": 0.012,
+   "sound": "tarmac"
+  },
+  "concrete": {
+   "grip": 0.97,
+   "rollingResistance": 0.012,
+   "sound": "tarmac"
+  },
+  "cobbles": {
+   "grip": 0.85,
+   "rollingResistance": 0.018,
+   "sound": "tarmac"
+  },
+  "kerb": {
+   "grip": 0.95,
+   "rollingResistance": 0.015,
+   "sound": "tarmac"
+  },
+  "gravel": {
+   "grip": 0.7,
+   "rollingResistance": 0.03,
+   "effects": {
+    "spray": {
+     "colour": "#8d8577",
+     "rate": 60,
+     "speed": 0.5
+    },
+    "dust": {
+     "colour": "#a39b8c",
+     "perSpeed": 0.8,
+     "perSlip": 4,
+     "alpha": 0.9
+    }
+   },
+   "marks": "#6e675b",
+   "sound": "gravel"
+  },
+  "dirt": {
+   "grip": 0.75,
+   "rollingResistance": 0.035,
+   "effects": {
+    "spray": {
+     "colour": "#6b5640",
+     "rate": 70,
+     "speed": 0.5
+    },
+    "dust": {
+     "colour": "#8a7152",
+     "perSpeed": 0.9,
+     "perSlip": 5,
+     "alpha": 1
+    }
+   },
+   "marks": "#5a4a36",
+   "sound": "gravel"
+  },
+  "grass": {
+   "grip": 0.72,
+   "rollingResistance": 0.04,
+   "effects": {
+    "dust": {
+     "colour": "#7d7a55",
+     "perSpeed": 0.25,
+     "perSlip": 3,
+     "alpha": 0.55
+    },
+    "clippings": {
+     "colour": "#5c8a33",
+     "rate": 50
+    }
+   },
+   "marks": "#4a5330",
+   "sound": "gravel"
+  },
+  "sand": {
+   "grip": 0.6,
+   "rollingResistance": 0.08,
+   "effects": {
+    "dust": {
+     "colour": "#d8c99a",
+     "perSpeed": 0.9,
+     "perSlip": 5,
+     "alpha": 0.9
+    }
+   },
+   "marks": "#b8a878",
+   "sound": "gravel"
+  }
+ },
+ "barriers": {
+  "_note": "Railings and walls: how they look (height, thickness, colour) and their collider, which is always at least minThickness thick and taller than what's drawn so a car can't hop or slip through. auto: railings the map often doesn't have — on both sides of every bridge, along motorway edges, and beside a road where the ground drops away (more than drop m within reach m of its edge, for at least minRun m). A type's own extraHeight (rails and parapets beside drops: 1.2 m) keeps even a car launched at 300 km/h from vaulting it.",
+  "minThickness": 0.35,
+  "extraHeight": 0.35,
+  "friction": 0.25,
+  "restitution": 0.05,
+  "types": {
+   "guard_rail": {
+    "height": 0.8,
+    "thickness": 0.35,
+    "colour": "#b9bec2",
+    "post": 2,
+    "material": "metal",
+    "extraHeight": 1.2
+   },
+   "jersey_barrier": {
+    "height": 0.85,
+    "thickness": 0.6,
+    "colour": "#c9c6bd",
+    "material": "concrete",
+    "extraHeight": 1.2
+   },
+   "parapet": {
+    "height": 1.05,
+    "thickness": 0.4,
+    "colour": "#bdb8ad",
+    "material": "concrete",
+    "extraHeight": 1.2
+   },
+   "wall": {
+    "height": 1.8,
+    "thickness": 0.35,
+    "colour": "#a89a86",
+    "material": "concrete"
+   },
+   "retaining_wall": {
+    "height": 1,
+    "thickness": 0.45,
+    "colour": "#a29c90",
+    "material": "concrete"
+   },
+   "city_wall": {
+    "height": 3,
+    "thickness": 0.8,
+    "colour": "#a89a86",
+    "material": "concrete"
+   },
+   "fence": {
+    "height": 1.5,
+    "thickness": 0.35,
+    "colour": "#7d7466",
+    "post": 2.5,
+    "material": "wood"
+   },
+   "hedge": {
+    "height": 1.3,
+    "thickness": 0.9,
+    "colour": "#4c6e3a",
+    "material": "wood"
+   }
+  },
+  "auto": {
+   "_note": "Railings OSM often lacks, added and marked estimated: both sides of bridges, motorway edges and the median between a motorway's carriageways, and road edges where the ground drops more than drop m within reach m (for at least minRun m), away from junctions.",
+   "bridges": true,
+   "motorways": [
+    "motorway"
+   ],
+   "medians": true,
+   "drop": 2.5,
+   "reach": 4,
+   "minRun": 12,
+   "offset": 0.6,
+   "skipNearJunction": 25
+  }
+ },
+ "files": {
+  "graph": "graph.json.gz",
+  "map": "map.pmtiles"
+ },
+ "far": {
+  "size": 4096,
+  "chunks": [
+   {
+    "a": 0,
+    "b": -1,
+    "bytes": 153964,
+    "landmarks": 262
+   },
+   {
+    "a": 1,
+    "b": -1,
+    "bytes": 12669,
+    "landmarks": 7
+   }
+  ]
+ },
+ "spots": [
+  {
+   "id": "city",
+   "name": "Financial District",
+   "kind": "dense city",
+   "lat": 37.793,
+   "lon": -122.4008,
+   "bearing": 270,
+   "xz": [
+    3232.5,
+    -2387
+   ]
+  }
+ ],
+ "places": [
+  {
+   "name": "Potrero Terrace",
+   "kind": "neighbourhood",
+   "xz": [
+    3581,
+    1951
+   ]
+  },
+  {
+   "name": "Golden Gate Heights",
+   "kind": "neighbourhood",
+   "xz": [
+    -2944,
+    1876
+   ]
+  },
+  {
+   "name": "Forest Knolls",
+   "kind": "neighbourhood",
+   "xz": [
+    -1890,
+    1912
+   ]
+  },
+  {
+   "name": "Midtown Terrace",
+   "kind": "neighbourhood",
+   "xz": [
+    -1295,
+    2257
+   ]
+  },
+  {
+   "name": "Forest Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    -2299,
+    2671
+   ]
+  },
+  {
+   "name": "Noe Valley",
+   "kind": "quarter",
+   "xz": [
+    478,
+    2210
+   ]
+  },
+  {
+   "name": "Diamond Heights",
+   "kind": "neighbourhood",
+   "xz": [
+    -151,
+    3243
+   ]
+  },
+  {
+   "name": "West Portal",
+   "kind": "neighbourhood",
+   "xz": [
+    -2544,
+    3458
+   ]
+  },
+  {
+   "name": "Saint Francis Wood",
+   "kind": "neighbourhood",
+   "xz": [
+    -2691,
+    4089
+   ]
+  },
+  {
+   "name": "Balboa Terrace",
+   "kind": "neighbourhood",
+   "xz": [
+    -2739,
+    4416
+   ]
+  },
+  {
+   "name": "Sunnyside",
+   "kind": "neighbourhood",
+   "xz": [
+    -299,
+    4430
+   ]
+  },
+  {
+   "name": "Glen Park",
+   "kind": "quarter",
+   "xz": [
+    267,
+    4131
+   ]
+  },
+  {
+   "name": "St. Mary's Park",
+   "kind": "neighbourhood",
+   "xz": [
+    1156,
+    4263
+   ]
+  },
+  {
+   "name": "Silver Terrace",
+   "kind": "neighbourhood",
+   "xz": [
+    3303,
+    4178
+   ]
+  },
+  {
+   "name": "Bernal Heights",
+   "kind": "quarter",
+   "xz": [
+    2052,
+    3385
+   ]
+  },
+  {
+   "name": "Bayview District",
+   "kind": "suburb",
+   "xz": [
+    4067,
+    4150
+   ]
+  },
+  {
+   "name": "Hunters Point",
+   "kind": "neighbourhood",
+   "xz": [
+    5812,
+    4962
+   ]
+  },
+  {
+   "name": "Portola",
+   "kind": "quarter",
+   "xz": [
+    2552,
+    5008
+   ]
+  },
+  {
+   "name": "Westwood Park",
+   "kind": "neighbourhood",
+   "xz": [
+    -1827,
+    4874
+   ]
+  },
+  {
+   "name": "Mount Davidson Manor",
+   "kind": "neighbourhood",
+   "xz": [
+    -2333,
+    4796
+   ]
+  },
+  {
+   "name": "Ingleside Terraces",
+   "kind": "neighbourhood",
+   "xz": [
+    -2702,
+    5203
+   ]
+  },
+  {
+   "name": "Ingleside",
+   "kind": "quarter",
+   "xz": [
+    -1627,
+    5501
+   ]
+  },
+  {
+   "name": "Excelsior",
+   "kind": "quarter",
+   "xz": [
+    187,
+    5517
+   ]
+  },
+  {
+   "name": "Outer Mission",
+   "kind": "neighbourhood",
+   "xz": [
+    -929,
+    6400
+   ]
+  },
+  {
+   "name": "Ocean View",
+   "kind": "neighbourhood",
+   "xz": [
+    -1762,
+    6421
+   ]
+  },
+  {
+   "name": "Top of the Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    -2154,
+    7337
+   ]
+  },
+  {
+   "name": "Crocker-Amazon",
+   "kind": "quarter",
+   "xz": [
+    -96,
+    6895
+   ]
+  },
+  {
+   "name": "Bayshore",
+   "kind": "neighbourhood",
+   "xz": [
+    2134,
+    7234
+   ]
+  },
+  {
+   "name": "Visitacion Valley",
+   "kind": "quarter",
+   "xz": [
+    2450,
+    6589
+   ]
+  },
+  {
+   "name": "Little Hollywood",
+   "kind": "neighbourhood",
+   "xz": [
+    3384,
+    6637
+   ]
+  },
+  {
+   "name": "Parkmerced",
+   "kind": "neighbourhood",
+   "xz": [
+    -3654,
+    6029
+   ]
+  },
+  {
+   "name": "Parkside",
+   "kind": "neighbourhood",
+   "xz": [
+    -4402,
+    3231
+   ]
+  },
+  {
+   "name": "Sunset District",
+   "kind": "suburb",
+   "xz": [
+    -5089,
+    1992
+   ]
+  },
+  {
+   "name": "Outer Sunset",
+   "kind": "quarter",
+   "xz": [
+    -6050,
+    1924
+   ]
+  },
+  {
+   "name": "Seacliff",
+   "kind": "neighbourhood",
+   "xz": [
+    -4353,
+    -1893
+   ]
+  },
+  {
+   "name": "Outer Richmond",
+   "kind": "quarter",
+   "xz": [
+    -5311,
+    -426
+   ]
+  },
+  {
+   "name": "Inner Sunset",
+   "kind": "quarter",
+   "xz": [
+    -2656,
+    1115
+   ]
+  },
+  {
+   "name": "Castro District",
+   "kind": "quarter",
+   "xz": [
+    224,
+    1181
+   ]
+  },
+  {
+   "name": "Cole Valley",
+   "kind": "neighbourhood",
+   "xz": [
+    -1098,
+    631
+   ]
+  },
+  {
+   "name": "Duboce Triangle",
+   "kind": "neighbourhood",
+   "xz": [
+    464,
+    484
+   ]
+  },
+  {
+   "name": "Lower Haight",
+   "kind": "neighbourhood",
+   "xz": [
+    395,
+    -84
+   ]
+  },
+  {
+   "name": "Haight-Ashbury",
+   "kind": "quarter",
+   "xz": [
+    -835,
+    163
+   ]
+  },
+  {
+   "name": "Inner Richmond",
+   "kind": "quarter",
+   "xz": [
+    -2351,
+    -790
+   ]
+  },
+  {
+   "name": "Richmond District",
+   "kind": "suburb",
+   "xz": [
+    -3092,
+    -1015
+   ]
+  },
+  {
+   "name": "Jordan Park",
+   "kind": "neighbourhood",
+   "xz": [
+    -1686,
+    -1460
+   ]
+  },
+  {
+   "name": "Laurel Heights",
+   "kind": "neighbourhood",
+   "xz": [
+    -1193,
+    -1410
+   ]
+  },
+  {
+   "name": "Anza Vista",
+   "kind": "neighbourhood",
+   "xz": [
+    -498,
+    -1036
+   ]
+  },
+  {
+   "name": "Lower Pacific Heights",
+   "kind": "neighbourhood",
+   "xz": [
+    -124,
+    -1583
+   ]
+  },
+  {
+   "name": "Japantown",
+   "kind": "neighbourhood",
+   "xz": [
+    677,
+    -1563
+   ]
+  },
+  {
+   "name": "Fillmore District",
+   "kind": "neighbourhood",
+   "xz": [
+    405,
+    -1282
+   ]
+  },
+  {
+   "name": "Hayes Valley",
+   "kind": "neighbourhood",
+   "xz": [
+    1283,
+    -576
+   ]
+  },
+  {
+   "name": "Hayes Valley",
+   "kind": "neighbourhood",
+   "xz": [
+    915,
+    -545
+   ]
+  },
+  {
+   "name": "Alamo Square",
+   "kind": "neighbourhood",
+   "xz": [
+    246,
+    -539
+   ]
+  },
+  {
+   "name": "Western Addition",
+   "kind": "suburb",
+   "xz": [
+    677,
+    -895
+   ]
+  },
+  {
+   "name": "North of Panhandle",
+   "kind": "neighbourhood",
+   "xz": [
+    -427,
+    -597
+   ]
+  },
+  {
+   "name": "Panhandle",
+   "kind": "neighbourhood",
+   "xz": [
+    -674,
+    -234
+   ]
+  },
+  {
+   "name": "5th Street Plaza",
+   "kind": "quarter",
+   "xz": [
+    3725,
+    -248
+   ]
+  },
+  {
+   "name": "Piazza Angelo",
+   "kind": "quarter",
+   "xz": [
+    2132,
+    -753
+   ]
+  },
+  {
+   "name": "West SoMa",
+   "kind": "neighbourhood",
+   "xz": [
+    2560,
+    -590
+   ]
+  },
+  {
+   "name": "Civic Center",
+   "kind": "quarter",
+   "xz": [
+    1824,
+    -899
+   ]
+  },
+  {
+   "name": "United Nations Plaza",
+   "kind": "quarter",
+   "xz": [
+    2098,
+    -959
+   ]
+  },
+  {
+   "name": "Little Saigon",
+   "kind": "neighbourhood",
+   "xz": [
+    1754,
+    -1365
+   ]
+  },
+  {
+   "name": "Hallidie Plaza",
+   "kind": "quarter",
+   "xz": [
+    2563,
+    -1413
+   ]
+  },
+  {
+   "name": "Tenderloin",
+   "kind": "quarter",
+   "xz": [
+    2071,
+    -1415
+   ]
+  },
+  {
+   "name": "Yerba Buena Public Square",
+   "kind": "quarter",
+   "xz": [
+    3211,
+    -1320
+   ]
+  },
+  {
+   "name": "303 Second Street Plaza",
+   "kind": "quarter",
+   "xz": [
+    3678,
+    -1510
+   ]
+  },
+  {
+   "name": "South of Market",
+   "kind": "neighbourhood",
+   "xz": [
+    3220,
+    -1043
+   ]
+  },
+  {
+   "name": "Rincon Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    3972,
+    -1627
+   ]
+  },
+  {
+   "name": "South Beach",
+   "kind": "neighbourhood",
+   "xz": [
+    4083,
+    -924
+   ]
+  },
+  {
+   "name": "Mission Bay",
+   "kind": "quarter",
+   "xz": [
+    4082,
+    80
+   ]
+  },
+  {
+   "name": "Margaret Douglas Plaza",
+   "kind": "quarter",
+   "xz": [
+    1485,
+    94
+   ]
+  },
+  {
+   "name": "Eagle Plaza",
+   "kind": "quarter",
+   "xz": [
+    2131,
+    152
+   ]
+  },
+  {
+   "name": "Mission",
+   "kind": "suburb",
+   "xz": [
+    1618,
+    1284
+   ]
+  },
+  {
+   "name": "Potrero Hill",
+   "kind": "quarter",
+   "xz": [
+    3478,
+    1314
+   ]
+  },
+  {
+   "name": "Pier 70",
+   "kind": "neighbourhood",
+   "xz": [
+    4586,
+    1114
+   ]
+  },
+  {
+   "name": "Dogpatch",
+   "kind": "neighbourhood",
+   "xz": [
+    4256,
+    1198
+   ]
+  },
+  {
+   "name": "Fisherman's Wharf",
+   "kind": "neighbourhood",
+   "xz": [
+    1841,
+    -4066
+   ]
+  },
+  {
+   "name": "North Beach",
+   "kind": "quarter",
+   "xz": [
+    2510,
+    -3294
+   ]
+  },
+  {
+   "name": "Financial District",
+   "kind": "quarter",
+   "xz": [
+    3396,
+    -2459
+   ]
+  },
+  {
+   "name": "A.P. Giannini Plaza",
+   "kind": "quarter",
+   "xz": [
+    3036,
+    -2313
+   ]
+  },
+  {
+   "name": "Bush Plaza",
+   "kind": "quarter",
+   "xz": [
+    3282,
+    -2119
+   ]
+  },
+  {
+   "name": "50 Beale Street Plaza",
+   "kind": "quarter",
+   "xz": [
+    3569,
+    -2234
+   ]
+  },
+  {
+   "name": "560 Mission Street Plaza",
+   "kind": "quarter",
+   "xz": [
+    3373,
+    -1941
+   ]
+  },
+  {
+   "name": "Foundry Square",
+   "kind": "quarter",
+   "xz": [
+    3658,
+    -1892
+   ]
+  },
+  {
+   "name": "Union Square",
+   "kind": "neighbourhood",
+   "xz": [
+    2673,
+    -1778
+   ]
+  },
+  {
+   "name": "San Francisco",
+   "kind": "city",
+   "xz": [
+    2641,
+    -1825
+   ]
+  },
+  {
+   "name": "Union Square",
+   "kind": "quarter",
+   "xz": [
+    2641,
+    -1825
+   ]
+  },
+  {
+   "name": "Apple Mini Park",
+   "kind": "quarter",
+   "xz": [
+    2668,
+    -1930
+   ]
+  },
+  {
+   "name": "Lower Nob Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    1964,
+    -1878
+   ]
+  },
+  {
+   "name": "Polk Gulch",
+   "kind": "neighbourhood",
+   "xz": [
+    1473,
+    -2143
+   ]
+  },
+  {
+   "name": "Nob Hill",
+   "kind": "quarter",
+   "xz": [
+    1930,
+    -2551
+   ]
+  },
+  {
+   "name": "Chinatown",
+   "kind": "quarter",
+   "xz": [
+    2741,
+    -2531
+   ]
+  },
+  {
+   "name": "Portsmouth Square",
+   "kind": "quarter",
+   "xz": [
+    2825,
+    -2590
+   ]
+  },
+  {
+   "name": "Telegraph Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    2942,
+    -3251
+   ]
+  },
+  {
+   "name": "Russian Hill",
+   "kind": "neighbourhood",
+   "xz": [
+    1797,
+    -3172
+   ]
+  },
+  {
+   "name": "Cow Hollow",
+   "kind": "neighbourhood",
+   "xz": [
+    110,
+    -2859
+   ]
+  },
+  {
+   "name": "Pacific Heights",
+   "kind": "quarter",
+   "xz": [
+    163,
+    -2355
+   ]
+  },
+  {
+   "name": "Presidio Heights",
+   "kind": "neighbourhood",
+   "xz": [
+    -1368,
+    -1915
+   ]
+  },
+  {
+   "name": "Presidio Terrace",
+   "kind": "neighbourhood",
+   "xz": [
+    -2063,
+    -1857
+   ]
+  },
+  {
+   "name": "Marina District",
+   "kind": "quarter",
+   "xz": [
+    3,
+    -3495
+   ]
+  }
+ ],
+ "cities": [
+  {
+   "name": "Brisbane",
+   "level": 8,
+   "rings": [
+    [
+     [
+      5416,
+      7022
+     ],
+     [
+      2781,
+      7225
+     ],
+     [
+      2702,
+      7451
+     ],
+     [
+      2237,
+      7756
+     ],
+     [
+      2290,
+      7835
+     ],
+     [
+      2272,
+      7885
+     ],
+     [
+      2253,
+      7938
+     ],
+     [
+      2082,
+      8179
+     ],
+     [
+      2062,
+      8178
+     ],
+     [
+      2040,
+      8176
+     ],
+     [
+      2018,
+      8172
+     ],
+     [
+      1996,
+      8167
+     ],
+     [
+      1975,
+      8161
+     ],
+     [
+      1565,
+      8014
+     ],
+     [
+      1549,
+      8010
+     ],
+     [
+      1533,
+      8008
+     ],
+     [
+      1517,
+      8007
+     ],
+     [
+      1500,
+      8008
+     ],
+     [
+      1484,
+      8010
+     ],
+     [
+      1468,
+      8013
+     ],
+     [
+      1430,
+      8027
+     ],
+     [
+      1423,
+      8031
+     ],
+     [
+      1409,
+      8039
+     ],
+     [
+      1396,
+      8049
+     ],
+     [
+      1384,
+      8059
+     ],
+     [
+      1372,
+      8071
+     ],
+     [
+      1362,
+      8084
+     ],
+     [
+      1351,
+      8102
+     ],
+     [
+      1268,
+      8306
+     ],
+     [
+      1258,
+      8320
+     ],
+     [
+      1247,
+      8332
+     ],
+     [
+      1235,
+      8344
+     ],
+     [
+      1223,
+      8355
+     ],
+     [
+      1209,
+      8364
+     ],
+     [
+      1195,
+      8373
+     ],
+     [
+      1180,
+      8380
+     ],
+     [
+      1164,
+      8386
+     ],
+     [
+      1148,
+      8390
+     ],
+     [
+      1132,
+      8394
+     ],
+     [
+      1000,
+      8475
+     ],
+     [
+      973,
+      8688
+     ],
+     [
+      971,
+      8696
+     ],
+     [
+      971,
+      8705
+     ],
+     [
+      972,
+      8713
+     ],
+     [
+      974,
+      8720
+     ],
+     [
+      978,
+      8728
+     ],
+     [
+      983,
+      8734
+     ],
+     [
+      988,
+      8740
+     ],
+     [
+      995,
+      8744
+     ],
+     [
+      1039,
+      8762
+     ],
+     [
+      1056,
+      8769
+     ],
+     [
+      1071,
+      8778
+     ],
+     [
+      1138,
+      8821
+     ],
+     [
+      1244,
+      8893
+     ],
+     [
+      1263,
+      8910
+     ],
+     [
+      1281,
+      8927
+     ],
+     [
+      1298,
+      8946
+     ],
+     [
+      1320,
+      8974
+     ],
+     [
+      1331,
+      8989
+     ],
+     [
+      1344,
+      9003
+     ],
+     [
+      1358,
+      9016
+     ],
+     [
+      1372,
+      9028
+     ],
+     [
+      1389,
+      9040
+     ],
+     [
+      1406,
+      9050
+     ],
+     [
+      1424,
+      9060
+     ],
+     [
+      1443,
+      9069
+     ],
+     [
+      1462,
+      9076
+     ],
+     [
+      1501,
+      9089
+     ],
+     [
+      1513,
+      9094
+     ],
+     [
+      1525,
+      9101
+     ],
+     [
+      1535,
+      9109
+     ],
+     [
+      1545,
+      9118
+     ],
+     [
+      1554,
+      9128
+     ],
+     [
+      1562,
+      9139
+     ],
+     [
+      1582,
+      9180
+     ],
+     [
+      1588,
+      9191
+     ],
+     [
+      1595,
+      9202
+     ],
+     [
+      1603,
+      9212
+     ],
+     [
+      1612,
+      9221
+     ],
+     [
+      1623,
+      9230
+     ],
+     [
+      1634,
+      9237
+     ],
+     [
+      1681,
+      9264
+     ],
+     [
+      1698,
+      9276
+     ],
+     [
+      1715,
+      9289
+     ],
+     [
+      1731,
+      9302
+     ],
+     [
+      1773,
+      9347
+     ],
+     [
+      1846,
+      9424
+     ],
+     [
+      1857,
+      9432
+     ],
+     [
+      1868,
+      9440
+     ],
+     [
+      1879,
+      9446
+     ],
+     [
+      1892,
+      9450
+     ],
+     [
+      1905,
+      9454
+     ],
+     [
+      2039,
+      9475
+     ],
+     [
+      2050,
+      9478
+     ],
+     [
+      2061,
+      9482
+     ],
+     [
+      2105,
+      9553
+     ],
+     [
+      2118,
+      9558
+     ],
+     [
+      2132,
+      9561
+     ],
+     [
+      2147,
+      9564
+     ],
+     [
+      2161,
+      9565
+     ],
+     [
+      2176,
+      9564
+     ],
+     [
+      2191,
+      9563
+     ],
+     [
+      2205,
+      9559
+     ],
+     [
+      2219,
+      9555
+     ],
+     [
+      2232,
+      9549
+     ],
+     [
+      2273,
+      9523
+     ],
+     [
+      2294,
+      9510
+     ],
+     [
+      2315,
+      9498
+     ],
+     [
+      2337,
+      9488
+     ],
+     [
+      2378,
+      9470
+     ],
+     [
+      2410,
+      9462
+     ],
+     [
+      2597,
+      9851
+     ],
+     [
+      2597,
+      9898
+     ],
+     [
+      2598,
+      10127
+     ],
+     [
+      2601,
+      10216
+     ],
+     [
+      2602,
+      10316
+     ],
+     [
+      2602,
+      10446
+     ],
+     [
+      2728,
+      10650
+     ],
+     [
+      2906,
+      10649
+     ],
+     [
+      3120,
+      10648
+     ],
+     [
+      3458,
+      10647
+     ],
+     [
+      3610,
+      10646
+     ],
+     [
+      3673,
+      10847
+     ],
+     [
+      4084,
+      10913
+     ],
+     [
+      4149,
+      11073
+     ],
+     [
+      4388,
+      11071
+     ],
+     [
+      4776,
+      11072
+     ],
+     [
+      16398,
+      11058
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Berkeley",
+   "level": 8,
+   "rings": [
+    [
+     [
+      10690,
+      -12127
+     ],
+     [
+      6275,
+      -10202
+     ],
+     [
+      9449,
+      -7728
+     ],
+     [
+      11499,
+      -8292
+     ],
+     [
+      12031,
+      -8445
+     ],
+     [
+      12558,
+      -8587
+     ],
+     [
+      12652,
+      -8605
+     ],
+     [
+      12772,
+      -8640
+     ],
+     [
+      12808,
+      -8652
+     ],
+     [
+      12996,
+      -8700
+     ],
+     [
+      13320,
+      -8783
+     ],
+     [
+      13466,
+      -8767
+     ],
+     [
+      13549,
+      -8788
+     ],
+     [
+      13567,
+      -8719
+     ],
+     [
+      13591,
+      -8653
+     ],
+     [
+      13624,
+      -8617
+     ],
+     [
+      13670,
+      -8536
+     ],
+     [
+      13688,
+      -8439
+     ],
+     [
+      13873,
+      -8416
+     ],
+     [
+      14223,
+      -8325
+     ],
+     [
+      14626,
+      -8332
+     ],
+     [
+      14810,
+      -8423
+     ],
+     [
+      14830,
+      -8581
+     ],
+     [
+      15274,
+      -8984
+     ],
+     [
+      15305,
+      -9006
+     ],
+     [
+      15472,
+      -9016
+     ],
+     [
+      15770,
+      -9066
+     ],
+     [
+      15865,
+      -9095
+     ],
+     [
+      16053,
+      -9128
+     ],
+     [
+      16198,
+      -9136
+     ],
+     [
+      16214,
+      -9139
+     ],
+     [
+      16220,
+      -9069
+     ],
+     [
+      16232,
+      -8932
+     ],
+     [
+      16279,
+      -8821
+     ],
+     [
+      16363,
+      -8849
+     ],
+     [
+      16498,
+      -8887
+     ],
+     [
+      16564,
+      -8887
+     ],
+     [
+      16799,
+      -8910
+     ],
+     [
+      16942,
+      -8921
+     ],
+     [
+      17064,
+      -8931
+     ],
+     [
+      17716,
+      -8981
+     ],
+     [
+      17886,
+      -9006
+     ],
+     [
+      17886,
+      -9097
+     ],
+     [
+      17865,
+      -9333
+     ],
+     [
+      17856,
+      -9437
+     ],
+     [
+      17667,
+      -9581
+     ],
+     [
+      17498,
+      -9570
+     ],
+     [
+      17341,
+      -9556
+     ],
+     [
+      17218,
+      -9546
+     ],
+     [
+      17170,
+      -9578
+     ],
+     [
+      17122,
+      -9676
+     ],
+     [
+      17033,
+      -9718
+     ],
+     [
+      16992,
+      -10137
+     ],
+     [
+      16965,
+      -10448
+     ],
+     [
+      16941,
+      -10741
+     ],
+     [
+      16936,
+      -10793
+     ],
+     [
+      16924,
+      -10924
+     ],
+     [
+      16875,
+      -11461
+     ],
+     [
+      16848,
+      -11754
+     ],
+     [
+      16800,
+      -12279
+     ],
+     [
+      16773,
+      -12515
+     ],
+     [
+      16773,
+      -12573
+     ],
+     [
+      16533,
+      -13105
+     ],
+     [
+      16561,
+      -13323
+     ],
+     [
+      16469,
+      -13571
+     ],
+     [
+      16308,
+      -13576
+     ],
+     [
+      16257,
+      -13648
+     ],
+     [
+      16278,
+      -13735
+     ],
+     [
+      16204,
+      -13848
+     ],
+     [
+      16071,
+      -13890
+     ],
+     [
+      15974,
+      -13862
+     ],
+     [
+      15940,
+      -13922
+     ],
+     [
+      15964,
+      -14143
+     ],
+     [
+      15921,
+      -14230
+     ],
+     [
+      15881,
+      -14263
+     ],
+     [
+      15846,
+      -14246
+     ],
+     [
+      15633,
+      -14268
+     ],
+     [
+      15597,
+      -14261
+     ],
+     [
+      15538,
+      -14243
+     ],
+     [
+      15510,
+      -14298
+     ],
+     [
+      15507,
+      -14426
+     ],
+     [
+      15489,
+      -14445
+     ],
+     [
+      15388,
+      -14482
+     ],
+     [
+      15337,
+      -14589
+     ],
+     [
+      15273,
+      -14682
+     ],
+     [
+      15217,
+      -14694
+     ],
+     [
+      15182,
+      -14712
+     ],
+     [
+      15143,
+      -14754
+     ],
+     [
+      15002,
+      -14776
+     ],
+     [
+      14957,
+      -14763
+     ],
+     [
+      14896,
+      -14718
+     ],
+     [
+      14849,
+      -14717
+     ],
+     [
+      14776,
+      -14754
+     ],
+     [
+      14750,
+      -14779
+     ],
+     [
+      14768,
+      -14809
+     ],
+     [
+      14589,
+      -14978
+     ],
+     [
+      14395,
+      -14814
+     ],
+     [
+      14303,
+      -14703
+     ],
+     [
+      14118,
+      -14648
+     ],
+     [
+      14047,
+      -14574
+     ],
+     [
+      14090,
+      -14467
+     ],
+     [
+      14018,
+      -14406
+     ],
+     [
+      13897,
+      -14358
+     ],
+     [
+      13799,
+      -14347
+     ],
+     [
+      13676,
+      -14314
+     ],
+     [
+      13608,
+      -14295
+     ],
+     [
+      13498,
+      -14210
+     ],
+     [
+      13388,
+      -14160
+     ],
+     [
+      13263,
+      -14109
+     ],
+     [
+      13628,
+      -13308
+     ],
+     [
+      13655,
+      -12811
+     ],
+     [
+      13619,
+      -12615
+     ],
+     [
+      13671,
+      -12626
+     ],
+     [
+      13684,
+      -12561
+     ],
+     [
+      13616,
+      -12373
+     ],
+     [
+      13555,
+      -12324
+     ],
+     [
+      13497,
+      -12325
+     ],
+     [
+      13437,
+      -12317
+     ],
+     [
+      13372,
+      -12321
+     ],
+     [
+      13278,
+      -12324
+     ],
+     [
+      13228,
+      -12337
+     ],
+     [
+      13167,
+      -12360
+     ],
+     [
+      13099,
+      -12378
+     ],
+     [
+      12959,
+      -12387
+     ],
+     [
+      12907,
+      -12402
+     ],
+     [
+      12855,
+      -12392
+     ],
+     [
+      12815,
+      -12392
+     ],
+     [
+      12772,
+      -12374
+     ],
+     [
+      12706,
+      -12392
+     ],
+     [
+      12603,
+      -12349
+     ],
+     [
+      12549,
+      -12353
+     ],
+     [
+      12396,
+      -12437
+     ],
+     [
+      12327,
+      -12416
+     ],
+     [
+      12235,
+      -12379
+     ],
+     [
+      12129,
+      -12372
+     ],
+     [
+      11882,
+      -12314
+     ],
+     [
+      11774,
+      -12292
+     ],
+     [
+      11710,
+      -12288
+     ],
+     [
+      11622,
+      -12280
+     ],
+     [
+      11522,
+      -12267
+     ],
+     [
+      11430,
+      -12251
+     ],
+     [
+      10917,
+      -12184
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "San Mateo County",
+   "level": 6,
+   "rings": [
+    [
+     [
+      -2940,
+      7020
+     ],
+     [
+      1630,
+      58817
+     ],
+     [
+      11648,
+      70145
+     ],
+     [
+      16160,
+      64549
+     ],
+     [
+      25370,
+      59751
+     ],
+     [
+      25254,
+      53562
+     ],
+     [
+      24875,
+      53162
+     ],
+     [
+      24142,
+      52547
+     ],
+     [
+      24262,
+      52375
+     ],
+     [
+      24341,
+      52201
+     ],
+     [
+      24252,
+      52155
+     ],
+     [
+      24308,
+      51987
+     ],
+     [
+      24378,
+      51780
+     ],
+     [
+      24313,
+      51732
+     ],
+     [
+      24187,
+      51698
+     ],
+     [
+      24043,
+      51672
+     ],
+     [
+      23959,
+      51552
+     ],
+     [
+      23804,
+      51191
+     ],
+     [
+      23682,
+      51055
+     ],
+     [
+      23634,
+      50966
+     ],
+     [
+      23381,
+      50879
+     ],
+     [
+      23068,
+      50904
+     ],
+     [
+      22427,
+      51125
+     ],
+     [
+      22242,
+      50572
+     ],
+     [
+      21664,
+      50257
+     ],
+     [
+      22906,
+      49383
+     ],
+     [
+      23074,
+      49177
+     ],
+     [
+      22713,
+      48769
+     ],
+     [
+      22427,
+      48310
+     ],
+     [
+      22311,
+      48015
+     ],
+     [
+      22023,
+      47749
+     ],
+     [
+      21693,
+      47371
+     ],
+     [
+      21398,
+      46734
+     ],
+     [
+      21298,
+      46509
+     ],
+     [
+      21092,
+      46145
+     ],
+     [
+      20896,
+      45832
+     ],
+     [
+      20817,
+      45321
+     ],
+     [
+      20827,
+      45250
+     ],
+     [
+      20841,
+      45206
+     ],
+     [
+      20869,
+      45079
+     ],
+     [
+      20893,
+      45026
+     ],
+     [
+      20907,
+      44937
+     ],
+     [
+      20882,
+      44759
+     ],
+     [
+      20908,
+      44436
+     ],
+     [
+      21088,
+      44094
+     ],
+     [
+      21310,
+      43782
+     ],
+     [
+      21527,
+      43301
+     ],
+     [
+      21876,
+      42705
+     ],
+     [
+      21905,
+      42007
+     ],
+     [
+      21785,
+      41387
+     ],
+     [
+      21825,
+      41351
+     ],
+     [
+      21787,
+      41292
+     ],
+     [
+      21775,
+      41223
+     ],
+     [
+      21769,
+      41165
+     ],
+     [
+      21732,
+      41118
+     ],
+     [
+      21728,
+      41046
+     ],
+     [
+      21727,
+      40979
+     ],
+     [
+      21717,
+      40904
+     ],
+     [
+      21716,
+      40848
+     ],
+     [
+      21705,
+      40777
+     ],
+     [
+      21694,
+      40717
+     ],
+     [
+      21682,
+      40674
+     ],
+     [
+      21658,
+      40624
+     ],
+     [
+      21629,
+      40569
+     ],
+     [
+      21628,
+      40508
+     ],
+     [
+      21600,
+      40463
+     ],
+     [
+      21557,
+      40406
+     ],
+     [
+      21538,
+      40347
+     ],
+     [
+      21545,
+      40277
+     ],
+     [
+      21568,
+      40083
+     ],
+     [
+      21575,
+      39999
+     ],
+     [
+      21570,
+      39922
+     ],
+     [
+      21601,
+      39866
+     ],
+     [
+      21645,
+      39827
+     ],
+     [
+      21689,
+      39807
+     ],
+     [
+      21718,
+      39771
+     ],
+     [
+      21726,
+      39719
+     ],
+     [
+      21715,
+      39686
+     ],
+     [
+      22177,
+      39420
+     ],
+     [
+      22072,
+      39025
+     ],
+     [
+      21938,
+      38148
+     ],
+     [
+      21867,
+      37713
+     ],
+     [
+      22093,
+      37529
+     ],
+     [
+      22327,
+      37464
+     ],
+     [
+      22484,
+      37090
+     ],
+     [
+      22659,
+      36806
+     ],
+     [
+      22850,
+      36722
+     ],
+     [
+      22808,
+      36642
+     ],
+     [
+      23101,
+      36560
+     ],
+     [
+      23197,
+      36442
+     ],
+     [
+      23292,
+      36232
+     ],
+     [
+      23412,
+      36135
+     ],
+     [
+      23518,
+      35993
+     ],
+     [
+      23694,
+      35923
+     ],
+     [
+      23759,
+      35965
+     ],
+     [
+      23884,
+      35722
+     ],
+     [
+      23955,
+      35535
+     ],
+     [
+      24062,
+      35513
+     ],
+     [
+      24152,
+      35336
+     ],
+     [
+      24225,
+      35345
+     ],
+     [
+      24251,
+      35294
+     ],
+     [
+      24302,
+      35220
+     ],
+     [
+      24488,
+      35215
+     ],
+     [
+      24528,
+      35122
+     ],
+     [
+      24660,
+      35214
+     ],
+     [
+      24749,
+      35251
+     ],
+     [
+      24810,
+      35207
+     ],
+     [
+      24882,
+      35170
+     ],
+     [
+      24961,
+      35118
+     ],
+     [
+      24937,
+      35002
+     ],
+     [
+      25082,
+      34952
+     ],
+     [
+      25229,
+      34780
+     ],
+     [
+      25290,
+      34854
+     ],
+     [
+      25534,
+      34841
+     ],
+     [
+      25762,
+      34891
+     ],
+     [
+      25837,
+      34743
+     ],
+     [
+      26075,
+      34748
+     ],
+     [
+      26311,
+      34954
+     ],
+     [
+      26600,
+      35145
+     ],
+     [
+      26997,
+      35187
+     ],
+     [
+      28303,
+      33942
+     ],
+     [
+      19695,
+      30638
+     ],
+     [
+      13514,
+      21715
+     ],
+     [
+      4970,
+      11470
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Daly City",
+   "level": 8,
+   "rings": [
+    [
+     [
+      -5196,
+      7702
+     ],
+     [
+      -5497,
+      8331
+     ],
+     [
+      -5255,
+      9448
+     ],
+     [
+      -5140,
+      10562
+     ],
+     [
+      -5176,
+      11650
+     ],
+     [
+      -5135,
+      11759
+     ],
+     [
+      -4951,
+      11928
+     ],
+     [
+      -4775,
+      12093
+     ],
+     [
+      -4667,
+      12243
+     ],
+     [
+      -4443,
+      12274
+     ],
+     [
+      -4229,
+      12184
+     ],
+     [
+      -4201,
+      11804
+     ],
+     [
+      -4137,
+      11654
+     ],
+     [
+      -3990,
+      11648
+     ],
+     [
+      -3859,
+      11754
+     ],
+     [
+      -3465,
+      12154
+     ],
+     [
+      -3187,
+      12704
+     ],
+     [
+      -2976,
+      13205
+     ],
+     [
+      -2988,
+      13583
+     ],
+     [
+      -2839,
+      13485
+     ],
+     [
+      -2756,
+      13445
+     ],
+     [
+      -2603,
+      13468
+     ],
+     [
+      -2237,
+      13477
+     ],
+     [
+      -2038,
+      13505
+     ],
+     [
+      -1823,
+      13513
+     ],
+     [
+      -1690,
+      13498
+     ],
+     [
+      -1609,
+      13454
+     ],
+     [
+      -1521,
+      13469
+     ],
+     [
+      -1609,
+      13001
+     ],
+     [
+      -2294,
+      12187
+     ],
+     [
+      -2187,
+      12075
+     ],
+     [
+      -2010,
+      11622
+     ],
+     [
+      -2063,
+      11550
+     ],
+     [
+      -2251,
+      11337
+     ],
+     [
+      -2282,
+      11304
+     ],
+     [
+      -2926,
+      10366
+     ],
+     [
+      -2943,
+      10307
+     ],
+     [
+      -2950,
+      9992
+     ],
+     [
+      -2555,
+      9845
+     ],
+     [
+      -2740,
+      9431
+     ],
+     [
+      -2743,
+      9407
+     ],
+     [
+      -2753,
+      9385
+     ],
+     [
+      -2766,
+      9369
+     ],
+     [
+      -2766,
+      9363
+     ],
+     [
+      -2734,
+      9330
+     ],
+     [
+      -2578,
+      9169
+     ],
+     [
+      -2470,
+      9353
+     ],
+     [
+      -2252,
+      9391
+     ],
+     [
+      -2178,
+      9463
+     ],
+     [
+      -2014,
+      9488
+     ],
+     [
+      -2003,
+      9495
+     ],
+     [
+      -1989,
+      9498
+     ],
+     [
+      -1975,
+      9494
+     ],
+     [
+      -1974,
+      9468
+     ],
+     [
+      -2045,
+      9385
+     ],
+     [
+      -2050,
+      9168
+     ],
+     [
+      -1878,
+      9332
+     ],
+     [
+      -1937,
+      9514
+     ],
+     [
+      -1565,
+      9175
+     ],
+     [
+      -768,
+      9617
+     ],
+     [
+      -1127,
+      9024
+     ],
+     [
+      -1602,
+      8678
+     ],
+     [
+      -1523,
+      8581
+     ],
+     [
+      -1434,
+      8545
+     ],
+     [
+      -1395,
+      8520
+     ],
+     [
+      -1360,
+      8490
+     ],
+     [
+      -1329,
+      8454
+     ],
+     [
+      -1259,
+      8137
+     ],
+     [
+      -1241,
+      8105
+     ],
+     [
+      -1230,
+      8070
+     ],
+     [
+      -763,
+      7674
+     ],
+     [
+      -725,
+      7697
+     ],
+     [
+      -555,
+      7754
+     ],
+     [
+      -518,
+      7763
+     ],
+     [
+      -481,
+      7765
+     ],
+     [
+      -459,
+      7787
+     ],
+     [
+      -277,
+      7833
+     ],
+     [
+      -330,
+      7633
+     ],
+     [
+      -318,
+      7579
+     ],
+     [
+      -228,
+      7526
+     ],
+     [
+      -24,
+      7483
+     ],
+     [
+      53,
+      7450
+     ],
+     [
+      257,
+      7452
+     ],
+     [
+      407,
+      7460
+     ],
+     [
+      436,
+      7460
+     ],
+     [
+      520,
+      7458
+     ],
+     [
+      589,
+      7404
+     ],
+     [
+      619,
+      7409
+     ],
+     [
+      650,
+      7407
+     ],
+     [
+      711,
+      7387
+     ],
+     [
+      728,
+      7384
+     ],
+     [
+      749,
+      7389
+     ],
+     [
+      752,
+      7393
+     ],
+     [
+      749,
+      7407
+     ],
+     [
+      748,
+      7426
+     ],
+     [
+      763,
+      7501
+     ],
+     [
+      789,
+      7560
+     ],
+     [
+      801,
+      7577
+     ],
+     [
+      1126,
+      7862
+     ],
+     [
+      1337,
+      7936
+     ],
+     [
+      1362,
+      7963
+     ],
+     [
+      1390,
+      7985
+     ],
+     [
+      1414,
+      7999
+     ],
+     [
+      1428,
+      8013
+     ],
+     [
+      1432,
+      8023
+     ],
+     [
+      1458,
+      8016
+     ],
+     [
+      1491,
+      8009
+     ],
+     [
+      1526,
+      8007
+     ],
+     [
+      1562,
+      8013
+     ],
+     [
+      1996,
+      8167
+     ],
+     [
+      2044,
+      8177
+     ],
+     [
+      2089,
+      8157
+     ],
+     [
+      2282,
+      7855
+     ],
+     [
+      2655,
+      7435
+     ],
+     [
+      -2940,
+      7020
+     ],
+     [
+      -4299,
+      7040
+     ],
+     [
+      -4292,
+      7056
+     ],
+     [
+      -4317,
+      7307
+     ],
+     [
+      -4439,
+      7577
+     ],
+     [
+      -4608,
+      7587
+     ],
+     [
+      -5221,
+      7642
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Oakland",
+   "level": 8,
+   "rings": [
+    [
+     [
+      16633,
+      4833
+     ],
+     [
+      19027,
+      15076
+     ],
+     [
+      20054,
+      6688
+     ],
+     [
+      21562,
+      6044
+     ],
+     [
+      21874,
+      5928
+     ],
+     [
+      21876,
+      5927
+     ],
+     [
+      21877,
+      5925
+     ],
+     [
+      21879,
+      5923
+     ],
+     [
+      21880,
+      5920
+     ],
+     [
+      21881,
+      5918
+     ],
+     [
+      21881,
+      5912
+     ],
+     [
+      21881,
+      5911
+     ],
+     [
+      21880,
+      5908
+     ],
+     [
+      21879,
+      5906
+     ],
+     [
+      21850,
+      5874
+     ],
+     [
+      21136,
+      5116
+     ],
+     [
+      21387,
+      4960
+     ],
+     [
+      21741,
+      4776
+     ],
+     [
+      21953,
+      4747
+     ],
+     [
+      22287,
+      4995
+     ],
+     [
+      22427,
+      5074
+     ],
+     [
+      22639,
+      5058
+     ],
+     [
+      22803,
+      5106
+     ],
+     [
+      23070,
+      5104
+     ],
+     [
+      23318,
+      4934
+     ],
+     [
+      23509,
+      4818
+     ],
+     [
+      23239,
+      4482
+     ],
+     [
+      23602,
+      4327
+     ],
+     [
+      23442,
+      4019
+     ],
+     [
+      24291,
+      3797
+     ],
+     [
+      24894,
+      3562
+     ],
+     [
+      25483,
+      3353
+     ],
+     [
+      25633,
+      3208
+     ],
+     [
+      25764,
+      3260
+     ],
+     [
+      25920,
+      3491
+     ],
+     [
+      26140,
+      3734
+     ],
+     [
+      26202,
+      3897
+     ],
+     [
+      26315,
+      4462
+     ],
+     [
+      26569,
+      4262
+     ],
+     [
+      26795,
+      4106
+     ],
+     [
+      27062,
+      4255
+     ],
+     [
+      27013,
+      4526
+     ],
+     [
+      27384,
+      4607
+     ],
+     [
+      27510,
+      4632
+     ],
+     [
+      27565,
+      4655
+     ],
+     [
+      27626,
+      4670
+     ],
+     [
+      27777,
+      4579
+     ],
+     [
+      28005,
+      4377
+     ],
+     [
+      28382,
+      3618
+     ],
+     [
+      28451,
+      3388
+     ],
+     [
+      28396,
+      2431
+     ],
+     [
+      28136,
+      1913
+     ],
+     [
+      27464,
+      468
+     ],
+     [
+      27081,
+      -83
+     ],
+     [
+      26713,
+      -668
+     ],
+     [
+      26007,
+      -1622
+     ],
+     [
+      25906,
+      -2199
+     ],
+     [
+      25718,
+      -2274
+     ],
+     [
+      24722,
+      -2810
+     ],
+     [
+      24490,
+      -2918
+     ],
+     [
+      24295,
+      -3359
+     ],
+     [
+      23827,
+      -3823
+     ],
+     [
+      23691,
+      -3270
+     ],
+     [
+      23057,
+      -3444
+     ],
+     [
+      22836,
+      -3640
+     ],
+     [
+      23017,
+      -3996
+     ],
+     [
+      23063,
+      -4058
+     ],
+     [
+      23154,
+      -4415
+     ],
+     [
+      22069,
+      -5610
+     ],
+     [
+      22332,
+      -6992
+     ],
+     [
+      21594,
+      -7642
+     ],
+     [
+      20838,
+      -8456
+     ],
+     [
+      19142,
+      -10378
+     ],
+     [
+      19428,
+      -10960
+     ],
+     [
+      19081,
+      -11457
+     ],
+     [
+      17273,
+      -12385
+     ],
+     [
+      16778,
+      -12547
+     ],
+     [
+      16807,
+      -12212
+     ],
+     [
+      16897,
+      -11212
+     ],
+     [
+      16936,
+      -10793
+     ],
+     [
+      16962,
+      -10483
+     ],
+     [
+      17003,
+      -9998
+     ],
+     [
+      17128,
+      -9632
+     ],
+     [
+      17218,
+      -9546
+     ],
+     [
+      17475,
+      -9569
+     ],
+     [
+      17714,
+      -9586
+     ],
+     [
+      17866,
+      -9333
+     ],
+     [
+      17886,
+      -9006
+     ],
+     [
+      17212,
+      -8943
+     ],
+     [
+      16852,
+      -8915
+     ],
+     [
+      16554,
+      -8883
+     ],
+     [
+      16363,
+      -8849
+     ],
+     [
+      16238,
+      -8871
+     ],
+     [
+      16210,
+      -9114
+     ],
+     [
+      16164,
+      -9131
+     ],
+     [
+      15865,
+      -9095
+     ],
+     [
+      15643,
+      -9045
+     ],
+     [
+      15304,
+      -8982
+     ],
+     [
+      14831,
+      -8577
+     ],
+     [
+      14626,
+      -8332
+     ],
+     [
+      13885,
+      -8418
+     ],
+     [
+      13698,
+      -8477
+     ],
+     [
+      13623,
+      -8620
+     ],
+     [
+      13567,
+      -8719
+     ],
+     [
+      13480,
+      -8771
+     ],
+     [
+      13093,
+      -8721
+     ],
+     [
+      13130,
+      -8562
+     ],
+     [
+      13173,
+      -8371
+     ],
+     [
+      13223,
+      -8180
+     ],
+     [
+      13272,
+      -7985
+     ],
+     [
+      13362,
+      -7634
+     ],
+     [
+      13427,
+      -7379
+     ],
+     [
+      13466,
+      -7250
+     ],
+     [
+      13657,
+      -7293
+     ],
+     [
+      13734,
+      -7248
+     ],
+     [
+      14032,
+      -7278
+     ],
+     [
+      13996,
+      -6359
+     ],
+     [
+      8001,
+      -4366
+     ],
+     [
+      13237,
+      -2439
+     ],
+     [
+      14482,
+      -2108
+     ],
+     [
+      16163,
+      -1635
+     ],
+     [
+      16574,
+      -1601
+     ],
+     [
+      16966,
+      -1141
+     ],
+     [
+      17274,
+      -364
+     ],
+     [
+      17942,
+      94
+     ],
+     [
+      18704,
+      693
+     ],
+     [
+      18815,
+      1307
+     ],
+     [
+      18596,
+      2558
+     ],
+     [
+      18443,
+      4878
+     ],
+     [
+      16679,
+      4895
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "San Francisco",
+   "level": 6,
+   "rings": [
+    [
+     [
+      -7489,
+      -5949
+     ],
+     [
+      -7493,
+      -5948
+     ],
+     [
+      -5916,
+      -5502
+     ],
+     [
+      -5916,
+      -5503
+     ],
+     [
+      -5917,
+      -5507
+     ],
+     [
+      -5921,
+      -5512
+     ],
+     [
+      -5925,
+      -5514
+     ],
+     [
+      -5928,
+      -5516
+     ],
+     [
+      -5931,
+      -5518
+     ],
+     [
+      -5932,
+      -5520
+     ],
+     [
+      -5931,
+      -5525
+     ],
+     [
+      -5930,
+      -5529
+     ],
+     [
+      -5931,
+      -5531
+     ],
+     [
+      -5931,
+      -5537
+     ],
+     [
+      -5930,
+      -5544
+     ],
+     [
+      -5928,
+      -5553
+     ],
+     [
+      -5926,
+      -5559
+     ],
+     [
+      -5922,
+      -5563
+     ],
+     [
+      -5919,
+      -5565
+     ],
+     [
+      -5916,
+      -5565
+     ],
+     [
+      -5911,
+      -5568
+     ],
+     [
+      -5906,
+      -5573
+     ],
+     [
+      -5903,
+      -5576
+     ],
+     [
+      -5904,
+      -5579
+     ],
+     [
+      -5909,
+      -5583
+     ],
+     [
+      -5930,
+      -5597
+     ],
+     [
+      -5936,
+      -5598
+     ],
+     [
+      -5954,
+      -5598
+     ],
+     [
+      -5960,
+      -5598
+     ],
+     [
+      -5965,
+      -5599
+     ],
+     [
+      -5970,
+      -5601
+     ],
+     [
+      -5974,
+      -5606
+     ],
+     [
+      -5975,
+      -5614
+     ],
+     [
+      -5976,
+      -5619
+     ],
+     [
+      -5979,
+      -5621
+     ],
+     [
+      -5985,
+      -5624
+     ],
+     [
+      -5991,
+      -5625
+     ],
+     [
+      -5992,
+      -5627
+     ],
+     [
+      -5991,
+      -5630
+     ],
+     [
+      -5989,
+      -5634
+     ],
+     [
+      -5990,
+      -5637
+     ],
+     [
+      -5995,
+      -5641
+     ],
+     [
+      -6003,
+      -5647
+     ],
+     [
+      -6008,
+      -5650
+     ],
+     [
+      -6010,
+      -5653
+     ],
+     [
+      -6010,
+      -5657
+     ],
+     [
+      -6010,
+      -5662
+     ],
+     [
+      -6006,
+      -5665
+     ],
+     [
+      -5997,
+      -5670
+     ],
+     [
+      -5987,
+      -5673
+     ],
+     [
+      -5981,
+      -5676
+     ],
+     [
+      -5979,
+      -5677
+     ],
+     [
+      -5978,
+      -5680
+     ],
+     [
+      -5978,
+      -5685
+     ],
+     [
+      -5981,
+      -5690
+     ],
+     [
+      -5985,
+      -5700
+     ],
+     [
+      -5988,
+      -5709
+     ],
+     [
+      -5992,
+      -5713
+     ],
+     [
+      -6010,
+      -5723
+     ],
+     [
+      -6019,
+      -5730
+     ],
+     [
+      -6035,
+      -5743
+     ],
+     [
+      -6057,
+      -5760
+     ],
+     [
+      -6066,
+      -5766
+     ],
+     [
+      -6086,
+      -5771
+     ],
+     [
+      -6095,
+      -5774
+     ],
+     [
+      -6105,
+      -5780
+     ],
+     [
+      -6115,
+      -5785
+     ],
+     [
+      -6127,
+      -5790
+     ],
+     [
+      -6145,
+      -5795
+     ],
+     [
+      -6154,
+      -5800
+     ],
+     [
+      -6164,
+      -5803
+     ],
+     [
+      -6181,
+      -5806
+     ],
+     [
+      -6190,
+      -5807
+     ],
+     [
+      -6206,
+      -5810
+     ],
+     [
+      -6219,
+      -5813
+     ],
+     [
+      -6228,
+      -5814
+     ],
+     [
+      -6235,
+      -5816
+     ],
+     [
+      -6241,
+      -5820
+     ],
+     [
+      -6253,
+      -5827
+     ],
+     [
+      -6262,
+      -5833
+     ],
+     [
+      -6270,
+      -5837
+     ],
+     [
+      -6278,
+      -5838
+     ],
+     [
+      -6289,
+      -5838
+     ],
+     [
+      -6301,
+      -5840
+     ],
+     [
+      -6306,
+      -5841
+     ],
+     [
+      -6317,
+      -5846
+     ],
+     [
+      -6331,
+      -5857
+     ],
+     [
+      -6351,
+      -5865
+     ],
+     [
+      -6391,
+      -5877
+     ],
+     [
+      -6410,
+      -5880
+     ],
+     [
+      -6422,
+      -5882
+     ],
+     [
+      -6435,
+      -5884
+     ],
+     [
+      -6448,
+      -5889
+     ],
+     [
+      -6483,
+      -5895
+     ],
+     [
+      -6503,
+      -5900
+     ],
+     [
+      -6507,
+      -5903
+     ],
+     [
+      -6527,
+      -5903
+     ],
+     [
+      -6534,
+      -5900
+     ],
+     [
+      -6556,
+      -5896
+     ],
+     [
+      -6561,
+      -5895
+     ],
+     [
+      -6564,
+      -5890
+     ],
+     [
+      -6564,
+      -5884
+     ],
+     [
+      -6566,
+      -5878
+     ],
+     [
+      -6569,
+      -5874
+     ],
+     [
+      -6573,
+      -5872
+     ],
+     [
+      -6577,
+      -5869
+     ],
+     [
+      -6580,
+      -5865
+     ],
+     [
+      -6585,
+      -5864
+     ],
+     [
+      -6589,
+      -5865
+     ],
+     [
+      -6590,
+      -5871
+     ],
+     [
+      -6593,
+      -5884
+     ],
+     [
+      -6598,
+      -5889
+     ],
+     [
+      -6612,
+      -5895
+     ],
+     [
+      -6622,
+      -5899
+     ],
+     [
+      -6628,
+      -5899
+     ],
+     [
+      -6654,
+      -5902
+     ],
+     [
+      -6663,
+      -5907
+     ],
+     [
+      -6698,
+      -5935
+     ],
+     [
+      -6707,
+      -5936
+     ],
+     [
+      -6737,
+      -5948
+     ],
+     [
+      -6754,
+      -5952
+     ],
+     [
+      -6774,
+      -5958
+     ],
+     [
+      -6797,
+      -5969
+     ],
+     [
+      -6805,
+      -5972
+     ],
+     [
+      -6813,
+      -5973
+     ],
+     [
+      -6828,
+      -5974
+     ],
+     [
+      -6870,
+      -5976
+     ],
+     [
+      -6885,
+      -5977
+     ],
+     [
+      -6894,
+      -5979
+     ],
+     [
+      -6905,
+      -5981
+     ],
+     [
+      -6913,
+      -5982
+     ],
+     [
+      -6922,
+      -5980
+     ],
+     [
+      -6930,
+      -5978
+     ],
+     [
+      -6937,
+      -5973
+     ],
+     [
+      -6945,
+      -5966
+     ],
+     [
+      -6955,
+      -5963
+     ],
+     [
+      -6962,
+      -5958
+     ],
+     [
+      -6968,
+      -5952
+     ],
+     [
+      -6972,
+      -5946
+     ],
+     [
+      -6975,
+      -5940
+     ],
+     [
+      -6977,
+      -5932
+     ],
+     [
+      -6981,
+      -5922
+     ],
+     [
+      -6986,
+      -5916
+     ],
+     [
+      -6988,
+      -5911
+     ],
+     [
+      -6991,
+      -5906
+     ],
+     [
+      -6994,
+      -5902
+     ],
+     [
+      -6999,
+      -5900
+     ],
+     [
+      -7003,
+      -5900
+     ],
+     [
+      -7006,
+      -5903
+     ],
+     [
+      -7007,
+      -5906
+     ],
+     [
+      -7012,
+      -5936
+     ],
+     [
+      -7013,
+      -5944
+     ],
+     [
+      -7016,
+      -5950
+     ],
+     [
+      -7021,
+      -5955
+     ],
+     [
+      -7025,
+      -5958
+     ],
+     [
+      -7029,
+      -5960
+     ],
+     [
+      -7037,
+      -5961
+     ],
+     [
+      -7048,
+      -5962
+     ],
+     [
+      -7055,
+      -5963
+     ],
+     [
+      -7060,
+      -5965
+     ],
+     [
+      -7068,
+      -5969
+     ],
+     [
+      -7075,
+      -5975
+     ],
+     [
+      -7088,
+      -5981
+     ],
+     [
+      -7093,
+      -5983
+     ],
+     [
+      -7099,
+      -5984
+     ],
+     [
+      -7104,
+      -5984
+     ],
+     [
+      -7110,
+      -5983
+     ],
+     [
+      -7117,
+      -5982
+     ],
+     [
+      -7126,
+      -5977
+     ],
+     [
+      -7142,
+      -5975
+     ],
+     [
+      -7154,
+      -5977
+     ],
+     [
+      -7163,
+      -5978
+     ],
+     [
+      -7171,
+      -5977
+     ],
+     [
+      -7177,
+      -5976
+     ],
+     [
+      -7182,
+      -5973
+     ],
+     [
+      -7185,
+      -5970
+     ],
+     [
+      -7194,
+      -5952
+     ],
+     [
+      -7200,
+      -5944
+     ],
+     [
+      -7204,
+      -5940
+     ],
+     [
+      -7211,
+      -5940
+     ],
+     [
+      -7214,
+      -5941
+     ],
+     [
+      -7219,
+      -5945
+     ],
+     [
+      -7222,
+      -5946
+     ],
+     [
+      -7228,
+      -5949
+     ],
+     [
+      -7232,
+      -5949
+     ],
+     [
+      -7237,
+      -5950
+     ],
+     [
+      -7239,
+      -5952
+     ],
+     [
+      -7240,
+      -5954
+     ],
+     [
+      -7240,
+      -5957
+     ],
+     [
+      -7241,
+      -5960
+     ],
+     [
+      -7247,
+      -5964
+     ],
+     [
+      -7250,
+      -5966
+     ],
+     [
+      -7256,
+      -5966
+     ],
+     [
+      -7261,
+      -5966
+     ],
+     [
+      -7269,
+      -5966
+     ],
+     [
+      -7275,
+      -5966
+     ],
+     [
+      -7281,
+      -5968
+     ],
+     [
+      -7287,
+      -5967
+     ],
+     [
+      -7293,
+      -5966
+     ],
+     [
+      -7300,
+      -5967
+     ],
+     [
+      -7305,
+      -5968
+     ],
+     [
+      -7320,
+      -5969
+     ],
+     [
+      -7333,
+      -5969
+     ],
+     [
+      -7344,
+      -5967
+     ],
+     [
+      -7350,
+      -5967
+     ],
+     [
+      -7357,
+      -5964
+     ],
+     [
+      -7368,
+      -5960
+     ],
+     [
+      -7374,
+      -5955
+     ],
+     [
+      -7385,
+      -5951
+     ],
+     [
+      -7393,
+      -5949
+     ],
+     [
+      -7403,
+      -5949
+     ],
+     [
+      -7415,
+      -5949
+     ],
+     [
+      -7420,
+      -5952
+     ],
+     [
+      -7430,
+      -5956
+     ],
+     [
+      -7436,
+      -5957
+     ],
+     [
+      -7444,
+      -5958
+     ],
+     [
+      -7453,
+      -5956
+     ],
+     [
+      -7473,
+      -5948
+     ],
+     [
+      -7480,
+      -5949
+     ],
+     [
+      -7489,
+      -5949
+     ]
+    ],
+    [
+     [
+      -5867,
+      -5494
+     ],
+     [
+      -5875,
+      -5491
+     ],
+     [
+      -5583,
+      -5408
+     ],
+     [
+      -5585,
+      -5414
+     ],
+     [
+      -5589,
+      -5422
+     ],
+     [
+      -5594,
+      -5428
+     ],
+     [
+      -5607,
+      -5438
+     ],
+     [
+      -5614,
+      -5449
+     ],
+     [
+      -5616,
+      -5454
+     ],
+     [
+      -5622,
+      -5459
+     ],
+     [
+      -5628,
+      -5465
+     ],
+     [
+      -5652,
+      -5483
+     ],
+     [
+      -5662,
+      -5494
+     ],
+     [
+      -5665,
+      -5499
+     ],
+     [
+      -5665,
+      -5502
+     ],
+     [
+      -5663,
+      -5507
+     ],
+     [
+      -5659,
+      -5512
+     ],
+     [
+      -5642,
+      -5528
+     ],
+     [
+      -5640,
+      -5531
+     ],
+     [
+      -5639,
+      -5535
+     ],
+     [
+      -5639,
+      -5540
+     ],
+     [
+      -5641,
+      -5547
+     ],
+     [
+      -5644,
+      -5552
+     ],
+     [
+      -5654,
+      -5559
+     ],
+     [
+      -5660,
+      -5561
+     ],
+     [
+      -5666,
+      -5560
+     ],
+     [
+      -5671,
+      -5560
+     ],
+     [
+      -5680,
+      -5557
+     ],
+     [
+      -5684,
+      -5555
+     ],
+     [
+      -5687,
+      -5551
+     ],
+     [
+      -5688,
+      -5547
+     ],
+     [
+      -5688,
+      -5542
+     ],
+     [
+      -5687,
+      -5535
+     ],
+     [
+      -5686,
+      -5531
+     ],
+     [
+      -5687,
+      -5528
+     ],
+     [
+      -5688,
+      -5527
+     ],
+     [
+      -5691,
+      -5526
+     ],
+     [
+      -5697,
+      -5526
+     ],
+     [
+      -5705,
+      -5526
+     ],
+     [
+      -5709,
+      -5524
+     ],
+     [
+      -5719,
+      -5520
+     ],
+     [
+      -5727,
+      -5515
+     ],
+     [
+      -5732,
+      -5510
+     ],
+     [
+      -5743,
+      -5500
+     ],
+     [
+      -5750,
+      -5494
+     ],
+     [
+      -5757,
+      -5488
+     ],
+     [
+      -5767,
+      -5485
+     ],
+     [
+      -5778,
+      -5483
+     ],
+     [
+      -5786,
+      -5482
+     ],
+     [
+      -5797,
+      -5484
+     ],
+     [
+      -5805,
+      -5487
+     ],
+     [
+      -5809,
+      -5490
+     ],
+     [
+      -5810,
+      -5492
+     ],
+     [
+      -5810,
+      -5495
+     ],
+     [
+      -5808,
+      -5497
+     ],
+     [
+      -5804,
+      -5499
+     ],
+     [
+      -5801,
+      -5502
+     ],
+     [
+      -5800,
+      -5505
+     ],
+     [
+      -5801,
+      -5509
+     ],
+     [
+      -5804,
+      -5512
+     ],
+     [
+      -5807,
+      -5513
+     ],
+     [
+      -5812,
+      -5513
+     ],
+     [
+      -5827,
+      -5511
+     ],
+     [
+      -5835,
+      -5508
+     ],
+     [
+      -5845,
+      -5502
+     ],
+     [
+      -5854,
+      -5497
+     ],
+     [
+      -5861,
+      -5495
+     ],
+     [
+      -5867,
+      -5494
+     ]
+    ],
+    [
+     [
+      -5474,
+      -5377
+     ],
+     [
+      -5477,
+      -5378
+     ],
+     [
+      -5473,
+      -5377
+     ],
+     [
+      -5474,
+      -5377
+     ]
+    ],
+    [
+     [
+      -5427,
+      -5391
+     ],
+     [
+      -5430,
+      -5387
+     ],
+     [
+      -3622,
+      -5977
+     ],
+     [
+      -3629,
+      -5981
+     ],
+     [
+      -3646,
+      -5999
+     ],
+     [
+      -3670,
+      -5995
+     ],
+     [
+      -3679,
+      -5993
+     ],
+     [
+      -3709,
+      -5989
+     ],
+     [
+      -3732,
+      -5996
+     ],
+     [
+      -3745,
+      -6000
+     ],
+     [
+      -3763,
+      -6002
+     ],
+     [
+      -3774,
+      -6006
+     ],
+     [
+      -3782,
+      -6013
+     ],
+     [
+      -3795,
+      -6026
+     ],
+     [
+      -3813,
+      -6036
+     ],
+     [
+      -3835,
+      -6040
+     ],
+     [
+      -3850,
+      -6046
+     ],
+     [
+      -3879,
+      -6052
+     ],
+     [
+      -3891,
+      -6054
+     ],
+     [
+      -3903,
+      -6055
+     ],
+     [
+      -3913,
+      -6050
+     ],
+     [
+      -3920,
+      -6044
+     ],
+     [
+      -3933,
+      -6041
+     ],
+     [
+      -3936,
+      -6039
+     ],
+     [
+      -3939,
+      -6034
+     ],
+     [
+      -3940,
+      -6030
+     ],
+     [
+      -3944,
+      -6025
+     ],
+     [
+      -3950,
+      -6021
+     ],
+     [
+      -3959,
+      -6020
+     ],
+     [
+      -3967,
+      -6019
+     ],
+     [
+      -3975,
+      -6019
+     ],
+     [
+      -3995,
+      -6018
+     ],
+     [
+      -4008,
+      -6017
+     ],
+     [
+      -4016,
+      -6018
+     ],
+     [
+      -4019,
+      -6021
+     ],
+     [
+      -4022,
+      -6027
+     ],
+     [
+      -4023,
+      -6034
+     ],
+     [
+      -4024,
+      -6043
+     ],
+     [
+      -4026,
+      -6053
+     ],
+     [
+      -4031,
+      -6066
+     ],
+     [
+      -4034,
+      -6077
+     ],
+     [
+      -4033,
+      -6086
+     ],
+     [
+      -4034,
+      -6094
+     ],
+     [
+      -4040,
+      -6107
+     ],
+     [
+      -4044,
+      -6118
+     ],
+     [
+      -4050,
+      -6121
+     ],
+     [
+      -4058,
+      -6122
+     ],
+     [
+      -4120,
+      -6149
+     ],
+     [
+      -4138,
+      -6150
+     ],
+     [
+      -4147,
+      -6150
+     ],
+     [
+      -4159,
+      -6147
+     ],
+     [
+      -4165,
+      -6141
+     ],
+     [
+      -4169,
+      -6137
+     ],
+     [
+      -4171,
+      -6130
+     ],
+     [
+      -4175,
+      -6118
+     ],
+     [
+      -4179,
+      -6111
+     ],
+     [
+      -4184,
+      -6108
+     ],
+     [
+      -4190,
+      -6106
+     ],
+     [
+      -4195,
+      -6107
+     ],
+     [
+      -4200,
+      -6108
+     ],
+     [
+      -4204,
+      -6104
+     ],
+     [
+      -4213,
+      -6096
+     ],
+     [
+      -4222,
+      -6090
+     ],
+     [
+      -4228,
+      -6089
+     ],
+     [
+      -4251,
+      -6090
+     ],
+     [
+      -4258,
+      -6089
+     ],
+     [
+      -4272,
+      -6079
+     ],
+     [
+      -4284,
+      -6076
+     ],
+     [
+      -4288,
+      -6076
+     ],
+     [
+      -4296,
+      -6078
+     ],
+     [
+      -4306,
+      -6082
+     ],
+     [
+      -4316,
+      -6083
+     ],
+     [
+      -4326,
+      -6083
+     ],
+     [
+      -4333,
+      -6082
+     ],
+     [
+      -4339,
+      -6083
+     ],
+     [
+      -4347,
+      -6087
+     ],
+     [
+      -4352,
+      -6091
+     ],
+     [
+      -4359,
+      -6095
+     ],
+     [
+      -4364,
+      -6096
+     ],
+     [
+      -4381,
+      -6098
+     ],
+     [
+      -4399,
+      -6098
+     ],
+     [
+      -4409,
+      -6101
+     ],
+     [
+      -4452,
+      -6120
+     ],
+     [
+      -4464,
+      -6126
+     ],
+     [
+      -4469,
+      -6129
+     ],
+     [
+      -4474,
+      -6131
+     ],
+     [
+      -4483,
+      -6131
+     ],
+     [
+      -4530,
+      -6128
+     ],
+     [
+      -4547,
+      -6128
+     ],
+     [
+      -4558,
+      -6130
+     ],
+     [
+      -4569,
+      -6135
+     ],
+     [
+      -4574,
+      -6136
+     ],
+     [
+      -4587,
+      -6138
+     ],
+     [
+      -4597,
+      -6138
+     ],
+     [
+      -4609,
+      -6136
+     ],
+     [
+      -4645,
+      -6122
+     ],
+     [
+      -4661,
+      -6118
+     ],
+     [
+      -4714,
+      -6108
+     ],
+     [
+      -4729,
+      -6103
+     ],
+     [
+      -4740,
+      -6098
+     ],
+     [
+      -4747,
+      -6093
+     ],
+     [
+      -4754,
+      -6087
+     ],
+     [
+      -4757,
+      -6081
+     ],
+     [
+      -4760,
+      -6074
+     ],
+     [
+      -4760,
+      -6070
+     ],
+     [
+      -4760,
+      -6063
+     ],
+     [
+      -4758,
+      -6056
+     ],
+     [
+      -4757,
+      -6049
+     ],
+     [
+      -4757,
+      -6040
+     ],
+     [
+      -4758,
+      -6034
+     ],
+     [
+      -4761,
+      -6023
+     ],
+     [
+      -4769,
+      -6010
+     ],
+     [
+      -4782,
+      -5992
+     ],
+     [
+      -4788,
+      -5987
+     ],
+     [
+      -4792,
+      -5983
+     ],
+     [
+      -4795,
+      -5976
+     ],
+     [
+      -4797,
+      -5968
+     ],
+     [
+      -4798,
+      -5958
+     ],
+     [
+      -4801,
+      -5946
+     ],
+     [
+      -4804,
+      -5940
+     ],
+     [
+      -4812,
+      -5932
+     ],
+     [
+      -4822,
+      -5923
+     ],
+     [
+      -4828,
+      -5921
+     ],
+     [
+      -4845,
+      -5921
+     ],
+     [
+      -4851,
+      -5919
+     ],
+     [
+      -4857,
+      -5915
+     ],
+     [
+      -4864,
+      -5914
+     ],
+     [
+      -4873,
+      -5914
+     ],
+     [
+      -4877,
+      -5912
+     ],
+     [
+      -4902,
+      -5898
+     ],
+     [
+      -4907,
+      -5896
+     ],
+     [
+      -4908,
+      -5892
+     ],
+     [
+      -4912,
+      -5874
+     ],
+     [
+      -4914,
+      -5860
+     ],
+     [
+      -4923,
+      -5842
+     ],
+     [
+      -4926,
+      -5829
+     ],
+     [
+      -4929,
+      -5821
+     ],
+     [
+      -4937,
+      -5813
+     ],
+     [
+      -4954,
+      -5803
+     ],
+     [
+      -4961,
+      -5798
+     ],
+     [
+      -4988,
+      -5767
+     ],
+     [
+      -4997,
+      -5761
+     ],
+     [
+      -5004,
+      -5759
+     ],
+     [
+      -5011,
+      -5755
+     ],
+     [
+      -5017,
+      -5751
+     ],
+     [
+      -5022,
+      -5746
+     ],
+     [
+      -5036,
+      -5723
+     ],
+     [
+      -5049,
+      -5701
+     ],
+     [
+      -5054,
+      -5690
+     ],
+     [
+      -5058,
+      -5682
+     ],
+     [
+      -5062,
+      -5676
+     ],
+     [
+      -5070,
+      -5671
+     ],
+     [
+      -5084,
+      -5661
+     ],
+     [
+      -5124,
+      -5633
+     ],
+     [
+      -5141,
+      -5616
+     ],
+     [
+      -5147,
+      -5612
+     ],
+     [
+      -5150,
+      -5612
+     ],
+     [
+      -5153,
+      -5613
+     ],
+     [
+      -5159,
+      -5618
+     ],
+     [
+      -5163,
+      -5625
+     ],
+     [
+      -5166,
+      -5633
+     ],
+     [
+      -5170,
+      -5649
+     ],
+     [
+      -5174,
+      -5653
+     ],
+     [
+      -5179,
+      -5655
+     ],
+     [
+      -5185,
+      -5656
+     ],
+     [
+      -5193,
+      -5655
+     ],
+     [
+      -5212,
+      -5648
+     ],
+     [
+      -5222,
+      -5648
+     ],
+     [
+      -5231,
+      -5649
+     ],
+     [
+      -5240,
+      -5650
+     ],
+     [
+      -5246,
+      -5652
+     ],
+     [
+      -5253,
+      -5653
+     ],
+     [
+      -5260,
+      -5653
+     ],
+     [
+      -5265,
+      -5653
+     ],
+     [
+      -5271,
+      -5651
+     ],
+     [
+      -5276,
+      -5649
+     ],
+     [
+      -5283,
+      -5649
+     ],
+     [
+      -5294,
+      -5650
+     ],
+     [
+      -5299,
+      -5651
+     ],
+     [
+      -5306,
+      -5652
+     ],
+     [
+      -5313,
+      -5651
+     ],
+     [
+      -5334,
+      -5646
+     ],
+     [
+      -5349,
+      -5645
+     ],
+     [
+      -5357,
+      -5646
+     ],
+     [
+      -5363,
+      -5648
+     ],
+     [
+      -5368,
+      -5649
+     ],
+     [
+      -5391,
+      -5647
+     ],
+     [
+      -5400,
+      -5644
+     ],
+     [
+      -5411,
+      -5638
+     ],
+     [
+      -5415,
+      -5638
+     ],
+     [
+      -5421,
+      -5638
+     ],
+     [
+      -5428,
+      -5635
+     ],
+     [
+      -5446,
+      -5626
+     ],
+     [
+      -5471,
+      -5606
+     ],
+     [
+      -5486,
+      -5595
+     ],
+     [
+      -5502,
+      -5569
+     ],
+     [
+      -5504,
+      -5561
+     ],
+     [
+      -5505,
+      -5553
+     ],
+     [
+      -5503,
+      -5546
+     ],
+     [
+      -5496,
+      -5536
+     ],
+     [
+      -5495,
+      -5533
+     ],
+     [
+      -5495,
+      -5530
+     ],
+     [
+      -5496,
+      -5515
+     ],
+     [
+      -5498,
+      -5507
+     ],
+     [
+      -5499,
+      -5499
+     ],
+     [
+      -5498,
+      -5494
+     ],
+     [
+      -5496,
+      -5490
+     ],
+     [
+      -5484,
+      -5478
+     ],
+     [
+      -5479,
+      -5473
+     ],
+     [
+      -5476,
+      -5469
+     ],
+     [
+      -5472,
+      -5458
+     ],
+     [
+      -5470,
+      -5450
+     ],
+     [
+      -5468,
+      -5443
+     ],
+     [
+      -5465,
+      -5439
+     ],
+     [
+      -5461,
+      -5434
+     ],
+     [
+      -5452,
+      -5430
+     ],
+     [
+      -5431,
+      -5417
+     ],
+     [
+      -5430,
+      -5412
+     ],
+     [
+      -5428,
+      -5405
+     ],
+     [
+      -5426,
+      -5396
+     ],
+     [
+      -5427,
+      -5391
+     ]
+    ],
+    [
+     [
+      -3582,
+      -6010
+     ],
+     [
+      -3582,
+      -6009
+     ],
+     [
+      -3211,
+      -6802
+     ],
+     [
+      -3219,
+      -6832
+     ],
+     [
+      -3219,
+      -6893
+     ],
+     [
+      -3226,
+      -6905
+     ],
+     [
+      -3244,
+      -6914
+     ],
+     [
+      -3301,
+      -6908
+     ],
+     [
+      -3316,
+      -6906
+     ],
+     [
+      -3338,
+      -6909
+     ],
+     [
+      -3355,
+      -6909
+     ],
+     [
+      -3371,
+      -6906
+     ],
+     [
+      -3390,
+      -6904
+     ],
+     [
+      -3413,
+      -6906
+     ],
+     [
+      -3453,
+      -6909
+     ],
+     [
+      -3478,
+      -6899
+     ],
+     [
+      -3519,
+      -6878
+     ],
+     [
+      -3533,
+      -6870
+     ],
+     [
+      -3562,
+      -6860
+     ],
+     [
+      -3575,
+      -6847
+     ],
+     [
+      -3581,
+      -6836
+     ],
+     [
+      -3581,
+      -6818
+     ],
+     [
+      -3581,
+      -6808
+     ],
+     [
+      -3579,
+      -6793
+     ],
+     [
+      -3576,
+      -6786
+     ],
+     [
+      -3554,
+      -6761
+     ],
+     [
+      -3554,
+      -6759
+     ],
+     [
+      -3551,
+      -6753
+     ],
+     [
+      -3542,
+      -6732
+     ],
+     [
+      -3542,
+      -6693
+     ],
+     [
+      -3543,
+      -6681
+     ],
+     [
+      -3547,
+      -6663
+     ],
+     [
+      -3565,
+      -6640
+     ],
+     [
+      -3604,
+      -6604
+     ],
+     [
+      -3614,
+      -6594
+     ],
+     [
+      -3634,
+      -6542
+     ],
+     [
+      -3647,
+      -6502
+     ],
+     [
+      -3650,
+      -6482
+     ],
+     [
+      -3651,
+      -6461
+     ],
+     [
+      -3650,
+      -6454
+     ],
+     [
+      -3648,
+      -6444
+     ],
+     [
+      -3643,
+      -6430
+     ],
+     [
+      -3628,
+      -6413
+     ],
+     [
+      -3622,
+      -6393
+     ],
+     [
+      -3620,
+      -6369
+     ],
+     [
+      -3623,
+      -6345
+     ],
+     [
+      -3626,
+      -6327
+     ],
+     [
+      -3631,
+      -6309
+     ],
+     [
+      -3636,
+      -6302
+     ],
+     [
+      -3637,
+      -6295
+     ],
+     [
+      -3629,
+      -6288
+     ],
+     [
+      -3628,
+      -6276
+     ],
+     [
+      -3636,
+      -6258
+     ],
+     [
+      -3639,
+      -6249
+     ],
+     [
+      -3639,
+      -6240
+     ],
+     [
+      -3628,
+      -6225
+     ],
+     [
+      -3628,
+      -6222
+     ],
+     [
+      -3633,
+      -6209
+     ],
+     [
+      -3633,
+      -6189
+     ],
+     [
+      -3629,
+      -6174
+     ],
+     [
+      -3631,
+      -6154
+     ],
+     [
+      -3631,
+      -6143
+     ],
+     [
+      -3628,
+      -6137
+     ],
+     [
+      -3624,
+      -6132
+     ],
+     [
+      -3618,
+      -6125
+     ],
+     [
+      -3609,
+      -6116
+     ],
+     [
+      -3604,
+      -6109
+     ],
+     [
+      -3602,
+      -6102
+     ],
+     [
+      -3601,
+      -6087
+     ],
+     [
+      -3601,
+      -6073
+     ],
+     [
+      -3600,
+      -6059
+     ],
+     [
+      -3595,
+      -6044
+     ],
+     [
+      -3589,
+      -6028
+     ],
+     [
+      -3582,
+      -6010
+     ]
+    ],
+    [
+     [
+      4089,
+      7020
+     ],
+     [
+      4973,
+      7021
+     ],
+     [
+      5563,
+      6971
+     ],
+     [
+      4454,
+      5242
+     ],
+     [
+      6354,
+      6143
+     ],
+     [
+      6899,
+      5806
+     ],
+     [
+      6364,
+      5084
+     ],
+     [
+      7095,
+      4753
+     ],
+     [
+      5446,
+      4293
+     ],
+     [
+      5371,
+      3683
+     ],
+     [
+      5775,
+      3803
+     ],
+     [
+      6167,
+      3691
+     ],
+     [
+      5488,
+      2734
+     ],
+     [
+      3930,
+      2672
+     ],
+     [
+      5441,
+      2528
+     ],
+     [
+      4446,
+      855
+     ],
+     [
+      4903,
+      -349
+     ],
+     [
+      3421,
+      110
+     ],
+     [
+      4666,
+      -1764
+     ],
+     [
+      2385,
+      -4437
+     ],
+     [
+      -2263,
+      -3726
+     ],
+     [
+      -3549,
+      -4382
+     ],
+     [
+      -4328,
+      -2070
+     ],
+     [
+      -6802,
+      -1071
+     ],
+     [
+      -5735,
+      7018
+     ],
+     [
+      -5710,
+      7018
+     ],
+     [
+      -4987,
+      7018
+     ],
+     [
+      -4322,
+      7018
+     ],
+     [
+      -2940,
+      7020
+     ],
+     [
+      1104,
+      7020
+     ],
+     [
+      2757,
+      7020
+     ],
+     [
+      2854,
+      7020
+     ],
+     [
+      3700,
+      7019
+     ],
+     [
+      4089,
+      7020
+     ]
+    ],
+    [
+     [
+      5647,
+      -6754
+     ],
+     [
+      5144,
+      -6141
+     ],
+     [
+      5695,
+      -4365
+     ],
+     [
+      6649,
+      -3950
+     ],
+     [
+      6921,
+      -4806
+     ],
+     [
+      5888,
+      -4964
+     ],
+     [
+      6567,
+      -5677
+     ],
+     [
+      5647,
+      -6754
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "Marin County",
+   "level": 6,
+   "rings": [
+    [
+     [
+      -3219,
+      -6832
+     ],
+     [
+      -7000,
+      -12736
+     ],
+     [
+      -3522,
+      -19005
+     ],
+     [
+      -4937,
+      -37659
+     ],
+     [
+      -6132,
+      -38370
+     ],
+     [
+      -6609,
+      -39913
+     ],
+     [
+      -7098,
+      -40831
+     ],
+     [
+      -7825,
+      -41458
+     ],
+     [
+      -8469,
+      -41897
+     ],
+     [
+      -8969,
+      -42406
+     ],
+     [
+      -9493,
+      -42968
+     ],
+     [
+      -10059,
+      -42912
+     ],
+     [
+      -10586,
+      -43437
+     ],
+     [
+      -10029,
+      -44018
+     ],
+     [
+      -10668,
+      -44094
+     ],
+     [
+      -11086,
+      -44569
+     ],
+     [
+      -11465,
+      -45002
+     ],
+     [
+      -11226,
+      -45679
+     ],
+     [
+      -11705,
+      -46168
+     ],
+     [
+      -11770,
+      -45900
+     ],
+     [
+      -12029,
+      -45781
+     ],
+     [
+      -12255,
+      -46102
+     ],
+     [
+      -12558,
+      -45980
+     ],
+     [
+      -12691,
+      -46242
+     ],
+     [
+      -12985,
+      -46219
+     ],
+     [
+      -13327,
+      -46099
+     ],
+     [
+      -13528,
+      -46123
+     ],
+     [
+      -13765,
+      -46293
+     ],
+     [
+      -14293,
+      -45950
+     ],
+     [
+      -14683,
+      -45411
+     ],
+     [
+      -15120,
+      -45495
+     ],
+     [
+      -15623,
+      -45632
+     ],
+     [
+      -16118,
+      -45580
+     ],
+     [
+      -16509,
+      -45597
+     ],
+     [
+      -16681,
+      -45296
+     ],
+     [
+      -16920,
+      -45232
+     ],
+     [
+      -17244,
+      -45198
+     ],
+     [
+      -17797,
+      -45414
+     ],
+     [
+      -18342,
+      -45501
+     ],
+     [
+      -18761,
+      -45694
+     ],
+     [
+      -19232,
+      -46040
+     ],
+     [
+      -19688,
+      -46076
+     ],
+     [
+      -20015,
+      -46304
+     ],
+     [
+      -20372,
+      -46460
+     ],
+     [
+      -20834,
+      -46370
+     ],
+     [
+      -21310,
+      -46487
+     ],
+     [
+      -21651,
+      -46782
+     ],
+     [
+      -21799,
+      -46934
+     ],
+     [
+      -22145,
+      -46981
+     ],
+     [
+      -22539,
+      -47052
+     ],
+     [
+      -23019,
+      -47152
+     ],
+     [
+      -23376,
+      -47421
+     ],
+     [
+      -23709,
+      -47279
+     ],
+     [
+      -23914,
+      -47509
+     ],
+     [
+      -24110,
+      -47640
+     ],
+     [
+      -24292,
+      -47877
+     ],
+     [
+      -24625,
+      -48212
+     ],
+     [
+      -26988,
+      -48816
+     ],
+     [
+      -40402,
+      -60589
+     ],
+     [
+      -40757,
+      -60555
+     ],
+     [
+      -41297,
+      -60384
+     ],
+     [
+      -41134,
+      -60801
+     ],
+     [
+      -41407,
+      -61112
+     ],
+     [
+      -41846,
+      -61018
+     ],
+     [
+      -42250,
+      -60509
+     ],
+     [
+      -41912,
+      -60150
+     ],
+     [
+      -42266,
+      -59770
+     ],
+     [
+      -42563,
+      -60087
+     ],
+     [
+      -42995,
+      -60182
+     ],
+     [
+      -43380,
+      -60019
+     ],
+     [
+      -43657,
+      -59932
+     ],
+     [
+      -43404,
+      -60268
+     ],
+     [
+      -43730,
+      -60122
+     ],
+     [
+      -44250,
+      -60165
+     ],
+     [
+      -44673,
+      -60054
+     ],
+     [
+      -45437,
+      -60356
+     ],
+     [
+      -48486,
+      -59435
+     ],
+     [
+      -34181,
+      -34604
+     ],
+     [
+      -47962,
+      -26122
+     ],
+     [
+      -41401,
+      -31077
+     ],
+     [
+      -18788,
+      -14461
+     ],
+     [
+      -8015,
+      -4961
+     ],
+     [
+      -8036,
+      -5072
+     ],
+     [
+      -8085,
+      -5197
+     ],
+     [
+      -8044,
+      -5271
+     ],
+     [
+      -8057,
+      -5406
+     ],
+     [
+      -7877,
+      -5506
+     ],
+     [
+      -7793,
+      -5498
+     ],
+     [
+      -7765,
+      -5558
+     ],
+     [
+      -7740,
+      -5640
+     ],
+     [
+      -7654,
+      -5686
+     ],
+     [
+      -7625,
+      -5807
+     ],
+     [
+      -7591,
+      -5912
+     ],
+     [
+      -7532,
+      -5946
+     ],
+     [
+      -7350,
+      -5967
+     ],
+     [
+      -7239,
+      -5952
+     ],
+     [
+      -7126,
+      -5977
+     ],
+     [
+      -7012,
+      -5936
+     ],
+     [
+      -6930,
+      -5978
+     ],
+     [
+      -6628,
+      -5899
+     ],
+     [
+      -6527,
+      -5903
+     ],
+     [
+      -6253,
+      -5827
+     ],
+     [
+      -6035,
+      -5743
+     ],
+     [
+      -6003,
+      -5647
+     ],
+     [
+      -5909,
+      -5583
+     ],
+     [
+      -5925,
+      -5514
+     ],
+     [
+      -5804,
+      -5499
+     ],
+     [
+      -5697,
+      -5526
+     ],
+     [
+      -5639,
+      -5535
+     ],
+     [
+      -5477,
+      -5378
+     ],
+     [
+      -5484,
+      -5478
+     ],
+     [
+      -5415,
+      -5638
+     ],
+     [
+      -5253,
+      -5653
+     ],
+     [
+      -5124,
+      -5633
+     ],
+     [
+      -4926,
+      -5829
+     ],
+     [
+      -4798,
+      -5958
+     ],
+     [
+      -4740,
+      -6098
+     ],
+     [
+      -4409,
+      -6101
+     ],
+     [
+      -4228,
+      -6089
+     ],
+     [
+      -4050,
+      -6121
+     ],
+     [
+      -3950,
+      -6021
+     ],
+     [
+      -3745,
+      -6000
+     ],
+     [
+      -3609,
+      -6116
+     ],
+     [
+      -3631,
+      -6309
+     ],
+     [
+      -3542,
+      -6693
+     ],
+     [
+      -3371,
+      -6906
+     ]
+    ]
+   ]
+  }
+ ],
+ "stats": {
+  "buildings": 3954,
+  "buildingHeights": {
+   "floors": 417,
+   "tag": 3285,
+   "nearby": 223,
+   "overture": 14,
+   "default": 15
+  },
+  "roads": 42465,
+  "junctions": 20074
+ },
+ "tiles": [
+  {
+   "i": 5,
+   "j": -7,
+   "bytes": 328418,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 6,
+   "j": -7,
+   "bytes": 94592,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 7,
+   "j": -7,
+   "bytes": 5210,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 8,
+   "j": -7,
+   "bytes": 1137,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 9,
+   "j": -7,
+   "bytes": 650,
+   "dem": "sea",
+   "resolution": null,
+   "landmarks": 0
+  },
+  {
+   "i": 5,
+   "j": -6,
+   "bytes": 236150,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 7
+  },
+  {
+   "i": 6,
+   "j": -6,
+   "bytes": 153624,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 13
+  },
+  {
+   "i": 7,
+   "j": -6,
+   "bytes": 87865,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 6
+  },
+  {
+   "i": 8,
+   "j": -6,
+   "bytes": 1929,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 9,
+   "j": -6,
+   "bytes": 14414,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 2
+  },
+  {
+   "i": 5,
+   "j": -5,
+   "bytes": 224841,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 79
+  },
+  {
+   "i": 6,
+   "j": -5,
+   "bytes": 154647,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 53
+  },
+  {
+   "i": 7,
+   "j": -5,
+   "bytes": 155081,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 25
+  },
+  {
+   "i": 8,
+   "j": -5,
+   "bytes": 43765,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 2
+  },
+  {
+   "i": 9,
+   "j": -5,
+   "bytes": 17911,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 5,
+   "j": -4,
+   "bytes": 148689,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 14
+  },
+  {
+   "i": 6,
+   "j": -4,
+   "bytes": 165196,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 37
+  },
+  {
+   "i": 7,
+   "j": -4,
+   "bytes": 209781,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 18
+  },
+  {
+   "i": 8,
+   "j": -4,
+   "bytes": 146755,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 3
+  },
+  {
+   "i": 9,
+   "j": -4,
+   "bytes": 9543,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 5,
+   "j": -3,
+   "bytes": 142851,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 3
+  },
+  {
+   "i": 6,
+   "j": -3,
+   "bytes": 182053,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 2
+  },
+  {
+   "i": 7,
+   "j": -3,
+   "bytes": 240977,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 1
+  },
+  {
+   "i": 8,
+   "j": -3,
+   "bytes": 108428,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  },
+  {
+   "i": 9,
+   "j": -3,
+   "bytes": 2046,
+   "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
+   "resolution": 1,
+   "landmarks": 0
+  }
+ ]
+}

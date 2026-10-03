@@ -1,0 +1,120 @@
+# Map v3's vector map (the minimap and the full map: map/render/maps.ts), made by Planetiler from the
+# region's OpenStreetMap extract (map/bake/sources.ts) into one PMTiles file. Only what the maps draw,
+# with short attribute names: k kind, n name, br bridge, tn tunnel, ow one way, l layer.
+#   java -jar planetiler.jar generate-custom --schema=map/bake/planetiler.yml --osm_path=<x.osm.pbf> --output=<x.pmtiles>
+schema_name: Kugelsack Map v3
+schema_description: Roads, railways, buildings, water, land use and places for the game's maps
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a> · <a href="https://overturemaps.org" target="_blank">&copy; Overture Maps Foundation</a>
+args:
+  osm_path: data.osm.pbf
+sources:
+  osm:
+    type: osm
+    local_path: '${ args.osm_path }'
+layers:
+  - id: water
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 8
+        include_when:
+          natural: water
+          waterway: [riverbank, dock, canal]
+          landuse: [reservoir, basin]
+          leisure: swimming_pool
+        attributes:
+          - key: k
+            value: '${ coalesce(feature.tags.water, feature.tags.leisure, feature.tags.landuse, "water") }'
+      - source: osm
+        geometry: line
+        min_zoom: 12
+        include_when:
+          waterway: [river, stream, canal, drain, ditch]
+        attributes:
+          - key: k
+            tag_value: waterway
+  - id: landuse
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 10
+        include_when:
+          landuse: __any__
+          leisure: [park, garden, golf_course, pitch, playground, nature_reserve, recreation_ground]
+          natural: [wood, scrub, grassland, heath, beach, sand, bare_rock, wetland]
+          amenity: [parking, fuel, school, university, hospital]
+        exclude_when:
+          landuse: [reservoir, basin]
+        attributes:
+          - key: k
+            value: '${ coalesce(feature.tags.landuse, feature.tags.leisure, feature.tags.natural, feature.tags.amenity) }'
+  - id: buildings
+    features:
+      - source: osm
+        geometry: polygon
+        min_zoom: 13
+        include_when:
+          building: __any__
+        attributes:
+          - key: k
+            tag_value: building
+          - key: h
+            tag_value: height
+            type: double
+  - id: rail
+    features:
+      - source: osm
+        geometry: line
+        min_zoom: 11
+        include_when:
+          railway: [rail, light_rail, tram, subway, narrow_gauge, monorail, funicular]
+        attributes:
+          - key: k
+            tag_value: railway
+          - key: tn
+            value: 1
+            include_when:
+              tunnel: [yes, building_passage]
+          - key: br
+            value: 1
+            include_when:
+              bridge: __any__
+  - id: roads
+    features:
+      - source: osm
+        geometry: line
+        min_zoom: 8
+        include_when:
+          highway: [motorway, trunk, primary, secondary, tertiary, motorway_link, trunk_link, primary_link, secondary_link, tertiary_link, unclassified, residential, living_street, service, road, track, busway, pedestrian, footway, path, cycleway, steps]
+        attributes:
+          - key: k
+            tag_value: highway
+          - key: n
+            tag_value: name
+          - key: ow
+            value: 1
+            include_when:
+              oneway: [yes, '1', '-1']
+          - key: br
+            value: 1
+            include_when:
+              bridge: __any__
+          - key: tn
+            value: 1
+            include_when:
+              tunnel: [yes, building_passage]
+          - key: l
+            tag_value: layer
+            type: integer
+  - id: places
+    features:
+      - source: osm
+        geometry: point
+        min_zoom: 10
+        include_when:
+          place: [city, town, borough, suburb, neighbourhood, quarter, village, hamlet]
+        attributes:
+          - key: k
+            tag_value: place
+          - key: n
+            tag_value: name
