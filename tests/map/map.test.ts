@@ -108,6 +108,26 @@ async function roadsTest() {
   }
   report('roads', 'baked centre lines vs OpenStreetMap', worst < 0.5 && n > 0, `${n.toLocaleString('en-GB')} OSM nodes ${osmNode ? '(re-read from the OSM extract)' : '(the graph\'s own copy: no extract here)'}: largest difference ${(worst * 100).toFixed(1)} cm${worstAt ? ` at ${worstAt}` : ''}`);
   report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
+  // connected: no road ends on another (same layer and structure) without joining it — that's a step or
+  // a gap where they meet
+  const deg = new Map<number, number>();
+  for (const s of G.segs) for (const n of [s.from, s.to]) deg.set(n, (deg.get(n) ?? 0) + 1);
+  const C = 25, cells = new Map<string, [any, number][]>();
+  for (const s of G.segs) for (let k = 0; k + 3 < s.points.length; k += 3) { const kk = `${Math.floor(s.points[k] / C)},${Math.floor(s.points[k + 1] / C)}`; (cells.get(kk) ?? cells.set(kk, []).get(kk)!).push([s, k]); }
+  let loose = 0, unjoined = 0; const where: string[] = [];
+  for (const s of G.segs) for (const [end, n] of [[0, s.from], [s.points.length - 3, s.to]]) {
+    if (deg.get(n) !== 1) continue;
+    loose++;
+    const x = s.points[end], z = s.points[end + 1];
+    let hit = null;
+    for (let a = -2; a <= 2 && !hit; a++) for (let b = -2; b <= 2 && !hit; b++) for (const [o, k] of cells.get(`${Math.floor(x / C) + a},${Math.floor(z / C) + b}`) ?? []) {
+      if (o.way === s.way || o.structure !== s.structure || o.layer !== s.layer) continue;
+      const P = o.points, ax = P[k], az = P[k + 1], dx = P[k + 3] - ax, dz = P[k + 4] - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+      if (Math.hypot(x - ax - dx * t, z - az - dz * t) < o.width / 2 - 0.5) { hit = o; break; }
+    }
+    if (hit) { unjoined++; if (where.length < 3) where.push(`${s.name ?? s.class} on ${hit.name ?? hit.class} at ${x.toFixed(0)}, ${z.toFixed(0)}`); }
+  }
+  report('roads', 'roads that meet are joined', unjoined === 0, `${G.segs.length.toLocaleString('en-GB')} segments, ${loose} dead ends: ${unjoined ? `${unjoined} lie on another road without joining it (${where.join('; ')})` : 'none of them lies on another road of its layer without joining it'}`);
 }
 
 const edgeOfBake = (t: number[]) => [-1, 0, 1].some(di => [-1, 0, 1].some(dj => !baked.has(`${t[0] + di}_${t[1] + dj}`)));

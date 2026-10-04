@@ -76,7 +76,7 @@ export async function bake({ regionId, area = null as string | null, out = null 
 
   // 3. roads, then the terrain round them
   const R = buildRoads(osm.roads, demAt, cfg.roads);
-  lap(`  roads: ${R.nodes.length} nodes, ${R.segs.length} segments, ${R.junctions.length} junctions, ${(R.mesh.indices.length / 3 / 1e6).toFixed(2)} M triangles`);
+  lap(`  roads: ${R.nodes.length} nodes, ${R.segs.length} segments, ${R.junctions.length} junctions (${R.joins.merged} nodes merged with one they touch, ${R.joins.joined} loose ends joined, ${R.joins.inserted} nodes added), ${(R.mesh.indices.length / 3 / 1e6).toFixed(2)} M triangles`);
   const Tn = shapeTerrain({ grid, dem: E.heights, osm, nodes: R.nodes, segs: R.segs, junctions: R.junctions, cfg: cfg.terrain });
   lap(`  terrain shaped: ${Tn.water.length} water areas, ${Tn.parking.length} car parks`);
 

@@ -88,6 +88,18 @@ Copernicus GLO-30 ───┴─ GDAL: warp to the grid, → EGM2008, blend, DS
    - **The graph.** Nodes where ways meet or end, segments between them, with name, class, lanes, one
      way, speed limit, width, bridge, tunnel and layer. Lanes and width are marked estimated when OSM
      doesn't say.
+   - **Width for the game.** Every road is drawn wider than its real width (`roads.widthScale`, 1.4×,
+     at least `roads.minWidth`, 5 m), so it's easier to stay on. The centre line stays exactly
+     OpenStreetMap's; the graph's `width` is the drawn width.
+   - **Roads that meet.** Overture's copy of OSM loses some junction nodes, so roads that meet didn't
+     always join.
+     - Nodes within 0.5 m of each other become one. This covers a road's end and its continuation,
+       including onto a bridge, and an end on another road's shape point at the same layer.
+     - A loose end lying on another road (within `roads.joinOnto`, 1 m, of its edge), or stopping short
+       of it and pointing at it (within `roads.joinPointing`, 6 m), is joined to it. A node is put into
+       the other road there.
+     - Only the same layer and structure are joined this way, so a road under a viaduct stays under it.
+       A road running alongside another is left alone. The bake log counts each kind of join.
    - **Height profiles.** The elevation sampled along each way, spikes removed, then smoothed (still
      following real hills). Every junction has one height that all its roads meet. Bridge and tunnel
      decks run smoothly between the ground heights at their ends.
@@ -220,7 +232,7 @@ npm run map:typecheck                           # TypeScript
 - **Quick travel:** Financial District, Outer Sunset, Twin Peaks Boulevard, Great Highway, Central
   Freeway / US-101, Golden Gate Bridge, Broadway Tunnel, Stonestown Galleria (the big car park), and a
   roundabout in the Presidio (estimated).
-- **Tests (`npm run test:map`): 18 of 18 pass.**
+- **Tests (`npm run test:map`): 19 of 19 pass.**
   - The baked centre lines are within 0.7 cm of OpenStreetMap.
   - The drawn road is within 1.1 cm of the elevation profile, and physics within 9.6 cm.
   - Tile seams are identical in physics.

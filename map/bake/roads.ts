@@ -32,6 +32,7 @@ const LINK = { motorway_link: 'motorway', trunk_link: 'trunk', primary_link: 'pr
 export interface RoadCfg {
   densify: number; corner: number; smooth: number; median: number; camber: number; skirt: number; skirtDrop: number; markingWidth: number;
   dash: number; gap: number; minJunctionCut: number;
+  widthScale?: number; minWidth?: number; joinOnto?: number; joinPointing?: number;
 }
 export interface RNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; h: number; junction: boolean; ground: boolean }
 export interface Seg {
@@ -78,18 +79,124 @@ function densified(nodes: { x: number; z: number }[], cfg: RoadCfg) {
   return out;
 }
 
+// a way's lanes and width: OSM's when tagged (lanes, width), else its class's (marked estimated); then
+// the game's widening (cfg.widthScale, at least cfg.minWidth: easier to stay on — the centre line stays
+// exactly OpenStreetMap's)
+function sizeOf(t: Record<string, string>, cfg: RoadCfg) {
+  const base = LINK[t.highway] ?? t.highway, C = CLASS[base] ?? CLASS.road;
+  const oneway = t.oneway === 'yes' || t.oneway === '1' || t.junction === 'roundabout' || (base === 'motorway' && t.oneway !== 'no') ? 1 : t.oneway === '-1' ? -1 : 0;
+  const lanesTag = num(t.lanes), lanes = lanesTag ?? (t.highway.endsWith('_link') ? 1 : oneway ? Math.max(1, Math.ceil(C.lanes / 2)) : C.lanes);
+  const widthTag = num(t.width), real = widthTag && widthTag >= 2 && widthTag <= 60 ? widthTag : lanes * C.lane + 2 * C.shoulder;
+  return { base, C, oneway, lanesTag, lanes, widthTag, width: Math.max(cfg.minWidth ?? 0, real * (cfg.widthScale ?? 1)) };
+}
+
+// Roads that meet where OSM doesn't say so: a way's loose end that lies on another road (or within
+// cfg.joinOnto of its edge), or stops short of it pointing at it (within cfg.joinPointing), is joined to
+// it — a node put into the other way there (one already within 1.5 m is used), the end carried to it.
+// Overture's copy of OSM loses the junction node where a side road meets a main road between its shape
+// points, which left T-junctions unjoined: a gap, or a road lying on another at its own height. Only
+// the same layer and structure; a road running alongside (not pointing at it) is left alone.
+// First: points that are one point (within 0.5 m) but two nodes — Overture's segments meet at
+// coordinates a few millimetres apart, so a road and its continuation (onto a bridge too) came out as
+// two loose ends. A way's end and another way's end become one node (any layer: that's how a road goes
+// onto a bridge); a way's end on another's shape point of the same layer and structure too. One node
+// per group (union-find, the lowest id), so two ends can't swap.
+function mergeCloseNodes(ways: Way[]) {
+  const R = 0.5, parent = new Map<number, number>(), byId = new Map<number, any>();
+  const find = (id: number): number => { let r = id; while (parent.has(r) && parent.get(r) !== r) r = parent.get(r)!; return r; };
+  const unite = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(Math.max(ra, rb), Math.min(ra, rb)); };
+  const kind = (t: Record<string, string>) => `${t.layer ?? 0}|${t.bridge && t.bridge !== 'no' ? 'b' : t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'culvert' ? 't' : 'g'}`;
+  const C = 2, grid = new Map<string, { p: any; end: boolean; k: string; wi: number }[]>();
+  ways.forEach((w, wi) => w.nodes.forEach((p, i) => {
+    byId.set(p.id, p);
+    const key = `${Math.floor(p.x / C)},${Math.floor(p.z / C)}`;
+    (grid.get(key) ?? grid.set(key, []).get(key)!).push({ p, end: i === 0 || i === w.nodes.length - 1, k: kind(w.tags), wi });
+  }));
+  for (const [key, list] of grid) {
+    const [cx, cz] = key.split(',').map(Number);
+    for (const e of list) {
+      if (!e.end) continue;
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const o of grid.get(`${cx + a},${cz + b}`) ?? []) {
+        if (o.wi === e.wi || o.p.id === e.p.id || Math.hypot(o.p.x - e.p.x, o.p.z - e.p.z) > R) continue;
+        if (o.end || o.k === e.k) unite(e.p.id, o.p.id);
+      }
+    }
+  }
+  let n = 0;
+  for (const w of ways) w.nodes = w.nodes.map(p => { const r = find(p.id); if (r !== p.id) { n++; return byId.get(r); } return p; });
+  // (a way that now visits one node twice in a row: once)
+  for (const w of ways) w.nodes = w.nodes.filter((p, i) => i === 0 || p.id !== w.nodes[i - 1].id);
+  return n;
+}
+
+export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
+  const onto = cfg.joinOnto ?? 1, pointing = cfg.joinPointing ?? 6, reach = 30;
+  const merged = mergeCloseNodes(ways);
+  const uses = new Map<number, number>();
+  for (const w of ways) w.nodes.forEach((p, i) => uses.set(p.id, (uses.get(p.id) ?? 0) + (i === 0 || i === w.nodes.length - 1 ? 2 : 1)));
+  const kind = (t: Record<string, string>) => `${t.layer ?? 0}|${t.bridge && t.bridge !== 'no' ? 'b' : t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'culvert' ? 't' : 'g'}`;
+  const C = 25, grid = new Map<string, [number, number][]>(), cell = (x: number, z: number) => `${Math.floor(x / C)},${Math.floor(z / C)}`;
+  ways.forEach((w, wi) => { for (let i = 0; i + 1 < w.nodes.length; i++) { const k = cell((w.nodes[i].x + w.nodes[i + 1].x) / 2, (w.nodes[i].z + w.nodes[i + 1].z) / 2); (grid.get(k) ?? grid.set(k, []).get(k)!).push([wi, i]); } });
+  const half = ways.map(w => sizeOf(w.tags, cfg).width / 2), kinds = ways.map(w => kind(w.tags));
+  const inserts = new Map<number, { i: number; t: number; p: any }[]>(), joins: { wi: number; atStart: boolean; p: any }[] = [];
+  let nextId = 9e15;
+  ways.forEach((w, wi) => {
+    if (w.nodes.length < 2) return;
+    for (const atStart of [true, false]) {
+      const e = atStart ? w.nodes[0] : w.nodes[w.nodes.length - 1], prev = atStart ? w.nodes[1] : w.nodes[w.nodes.length - 2];
+      if (uses.get(e.id) !== 2) continue;                    // (joined already, or a way's two ends at one node)
+      const ux = e.x - prev.x, uz = e.z - prev.z, ul = Math.hypot(ux, uz) || 1;
+      let best: any = null;
+      const [cx, cz] = [Math.floor(e.x / C), Math.floor(e.z / C)];
+      for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (const [oi, i] of grid.get(`${cx + a},${cz + b}`) ?? []) {
+        if (oi === wi || kinds[oi] !== kinds[wi]) continue;
+        const o = ways[oi], A = o.nodes[i], B = o.nodes[i + 1], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1e-9;
+        const t = Math.max(0, Math.min(1, ((e.x - A.x) * dx + (e.z - A.z) * dz) / L2)), px = A.x + dx * t, pz = A.z + dz * t, d = Math.hypot(e.x - px, e.z - pz);
+        if (d > reach) continue;
+        const edge = d - half[oi], cos = d < 1e-6 ? 1 : (ux * (px - e.x) + uz * (pz - e.z)) / (ul * d);
+        if (!(edge <= onto || (cos > 0.7 && edge <= pointing))) continue;
+        if (!best || d < best.d) best = { d, oi, i, t, px, pz, A, B };
+      }
+      if (!best) continue;
+      const { oi, i, t, A, B } = best, o = ways[oi];
+      // (the other way's own end, if the meeting point is within its half width of it — no stub left
+      // beyond the junction; else a node of it within 1.5 m; else a new one on its line)
+      const ends = [o.nodes[0], o.nodes[o.nodes.length - 1]];
+      let p = ends.find(q => Math.hypot(q.x - best.px, q.z - best.pz) < Math.max(1.5, half[oi])) ?? [A, B].find(q => Math.hypot(q.x - best.px, q.z - best.pz) < 1.5) ?? null;
+      if (!p) {
+        p = { id: nextId++, x: best.px, z: best.pz, lat: A.lat + (B.lat - A.lat) * t, lon: A.lon + (B.lon - A.lon) * t, joined: true };
+        (inserts.get(oi) ?? inserts.set(oi, []).get(oi)!).push({ i, t, p });
+      }
+      if (o.nodes.some(q => q.id === e.id)) continue;
+      joins.push({ wi, atStart, p });
+    }
+  });
+  for (const [oi, list] of inserts) {
+    list.sort((a, b) => b.i - a.i || b.t - a.t);              // (from the far end, so earlier indices hold)
+    for (const { i, p } of list) ways[oi].nodes.splice(i + 1, 0, p);
+  }
+  for (const { wi, atStart, p } of joins) {
+    const w = ways[wi], e = atStart ? w.nodes[0] : w.nodes[w.nodes.length - 1];
+    if (e === p) continue;
+    const same = Math.hypot(e.x - p.x, e.z - p.z) < 0.05;
+    if (atStart) same ? (w.nodes[0] = p) : w.nodes.unshift(p);
+    else same ? (w.nodes[w.nodes.length - 1] = p) : w.nodes.push(p);
+  }
+  return { merged, joined: joins.length, inserted: [...inserts.values()].reduce((a, l) => a + l.length, 0) };
+}
+
 export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => number, cfg: RoadCfg) {
-  const ways = roads.filter(w => DRIVABLE.has(w.tags.highway) && w.tags.area !== 'yes');
+  // (copies: the joins add nodes to ways, and the caller's OSM data stays as read)
+  let ways = roads.filter(w => DRIVABLE.has(w.tags.highway) && w.tags.area !== 'yes').map(w => ({ ...w, nodes: [...w.nodes] }));
+  const joinStats = joinLooseEnds(ways, cfg);
+  ways = ways.filter(w => w.nodes.length >= 2);      // (a way shorter than the merge distance: gone into its node)
   // nodes shared by ways (or met twice), and every way's ends: the graph's nodes
   const uses = new Map<number, number>();
   for (const w of ways) w.nodes.forEach((p, i) => uses.set(p.id, (uses.get(p.id) ?? 0) + (i === 0 || i === w.nodes.length - 1 ? 2 : 1)));
   const nodes: RNode[] = [], nodeIdx = new Map<number, number>(), segs: Seg[] = [];
   const nodeOf = (p) => { let k = nodeIdx.get(p.id); if (k === undefined) { k = nodes.length; nodeIdx.set(p.id, k); nodes.push({ id: p.id, x: p.x, z: p.z, lat: p.lat, lon: p.lon, segs: [], h: 0, junction: false, ground: false }); } return k; };
   for (const w of ways) {
-    const t = w.tags, base = LINK[t.highway] ?? t.highway, C = CLASS[base] ?? CLASS.road;
-    const oneway = t.oneway === 'yes' || t.oneway === '1' || t.junction === 'roundabout' || (base === 'motorway' && t.oneway !== 'no') ? 1 : t.oneway === '-1' ? -1 : 0;
-    const lanesTag = num(t.lanes), lanes = lanesTag ?? (t.highway.endsWith('_link') ? 1 : oneway ? Math.max(1, Math.ceil(C.lanes / 2)) : C.lanes);
-    const widthTag = num(t.width), width = widthTag && widthTag >= 2 && widthTag <= 60 ? widthTag : lanes * C.lane + 2 * C.shoulder;
+    const t = w.tags, { base, C, oneway, lanesTag, lanes, widthTag, width } = sizeOf(t, cfg);
     const structure = t.bridge && t.bridge !== 'no' ? 'bridge' : t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'culvert' ? 'tunnel' : 'ground';
     const surf = { paving_stones: 'cobbles', sett: 'cobbles', cobblestone: 'cobbles', concrete: 'concrete', gravel: 'gravel', fine_gravel: 'gravel', unpaved: 'gravel', compacted: 'gravel', dirt: 'dirt', ground: 'dirt', grass: 'grass', sand: 'sand' }[t.surface] ?? (base === 'track' ? 'gravel' : 'tarmac');
     const dense = densified(w.nodes, cfg);
@@ -161,7 +268,7 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     const fork = two && (two[0] === two[1] || (() => { const a = away(k, two[0]), b = away(k, two[1]); return a[0] * b[0] + a[1] * b[1] > 0; })());
     n.junction = n.segs.length >= 3 || (!!two && (Math.abs(two[0].width - two[1].width) > 0.3 || fork));
   });
-  return { nodes, segs, ...buildSurface(nodes, segs, cfg) };
+  return { nodes, segs, joins: joinStats, ...buildSurface(nodes, segs, cfg) };
 }
 
 // the height of a segment at arc length s (its profile, linear between points)

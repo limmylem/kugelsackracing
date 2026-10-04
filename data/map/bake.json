@@ -1,7 +1,7 @@
 {
   "_note": "Map v3's bake settings (MAP_README.md). Bump version after changing anything: the next bake redoes every tile and the game's tile cache drops the old ones.",
   "version": 1,
-  "roads": {
+  "roads": { "widthScale": 1.4, "minWidth": 5, "joinOnto": 1, "joinPointing": 6,
     "_note": "densify: m between points added on curves (never moving OSM's own nodes); corner: a turn sharper than this (\u00b0) stays a corner; smooth: the height profile's Gaussian (m); median: points either side in the spike filter; camber: crossfall from the crown; skirt / skirtDrop: how far past its edge a road dips under the ground; markings; minJunctionCut: m a road stops short of a junction beyond its width",
     "densify": 5,
     "corner": 40,
