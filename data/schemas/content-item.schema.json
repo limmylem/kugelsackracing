@@ -1,0 +1,88 @@
+{
+  "$id": "content-item.schema.json",
+  "title": "A piece of world content: a marker in the world (a quest's start, a point of interest, a spawn point). content/schema.js checks this (the shape); content/quests.js says in plain words what a quest still needs.",
+  "type": "object",
+  "required": ["id", "version", "kind", "name", "location", "status", "author", "created", "updated"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z]+_[0-9a-z]{4,40}$" },
+    "version": { "const": 2 },
+    "kind": { "enum": ["quest", "poi", "spawn"] },
+    "name": { "type": "string", "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "icon": { "type": "string", "pattern": "^[a-z_]{1,32}$" },
+    "location": { "$ref": "#/$defs/place" },
+    "road": {
+      "description": "The road it was snapped to, when it was (snap: the OSM road graph). Null otherwise.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "class": { "type": ["string", "null"] },
+        "source": { "enum": ["graph", "tiles"] },
+        "segment": { "type": ["integer", "null"] },
+        "intersection": { "type": ["object", "null"], "additionalProperties": false, "properties": { "name": { "type": "string" }, "distanceM": { "type": "number", "minimum": 0 } } }
+      }
+    },
+    "status": { "enum": ["draft", "published", "archived"] },
+    "author": { "type": "string", "maxLength": 80 },
+    "created": { "type": "string", "pattern": "^\\d{4}-\\d\\d-\\d\\dT" },
+    "updated": { "type": "string", "pattern": "^\\d{4}-\\d\\d-\\d\\dT" },
+    "publishedAt": { "type": ["string", "null"] },
+    "type": { "enum": ["sprint", "time_trial", "checkpoint", "drift", "delivery", "pink_slip"] },
+    "route": { "description": "A route's id (Phase 4 Step 2). Null until then.", "type": ["string", "null"] },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "classes": { "description": "Car classes let in (data/classes.json); empty: any.", "type": "array", "items": { "type": "string", "pattern": "^[A-Z]$" } },
+        "maxPowerKw": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "minWeightKg": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "maxWeightKg": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "maxKwPerTonne": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "minLevel": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    },
+    "fee": { "description": "Entry fee (the economy's currency).", "type": "number", "minimum": 0 },
+    "rewards": {
+      "description": "Which of the economy's reward tiers (data/economy.json quests.tiers): the money and xp are worked out from it, never stored.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier"],
+      "properties": { "tier": { "type": "string", "pattern": "^[a-z_]+$" } }
+    },
+    "npc": { "description": "Rivals and traffic (Phase 4 Step 4).", "type": "object" },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeOfDay": { "enum": ["any", "dawn", "day", "dusk", "night"] },
+        "weather": { "enum": ["any", "clear", "cloudy", "rain", "fog"] }
+      }
+    },
+    "enabled": { "description": "Offered to players once published (off: kept but not offered).", "type": "boolean" },
+    "params": { "description": "What this type of quest needs (content/quests.js TYPES).", "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "quest" } } },
+      "then": { "required": ["type", "route", "entry", "fee", "rewards", "npc", "conditions", "enabled", "params"] },
+      "else": { "not": { "anyOf": [{ "required": ["type"] }, { "required": ["entry"] }, { "required": ["rewards"] }, { "required": ["params"] }] } }
+    }
+  ],
+  "$defs": {
+    "place": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat", "lon", "alt", "heading"],
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "alt": { "description": "Metres above sea level (EGM2008, as the baked world's heights).", "type": "number" },
+        "heading": { "description": "Facing, degrees clockwise from north.", "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
+        "altFrom": { "description": "What the height came from: the road surface, the ground, the map's terrain, or a guess (no terrain there).", "enum": ["road", "ground", "terrain", "estimate"] }
+      }
+    }
+  }
+}

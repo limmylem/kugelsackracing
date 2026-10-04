@@ -33,7 +33,8 @@
     "map:build": "tsc -p tsconfig.render.json && node -e \"require('fs').cpSync('map/vendor','map/build/vendor',{recursive:true})\"",
     "map:typecheck": "tsc -p tsconfig.json",
     "test:map": "node --expose-gc --max-old-space-size=8192 tests/map/map.test.ts",
-    "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs"
+    "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs",
+    "stress:content": "node --expose-gc tests/content-stress.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

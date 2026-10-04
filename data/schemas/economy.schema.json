@@ -3,7 +3,13 @@
   "$id": "economy.schema.json",
   "title": "Money in the game: starting money, selling and repairs",
   "type": "object",
-  "required": ["currency", "startingMoney", "startingCar", "sell", "repair"],
+  "required": [
+    "currency",
+    "startingMoney",
+    "startingCar",
+    "sell",
+    "repair"
+  ],
   "additionalProperties": false,
   "patternProperties": {
     "^_": {
@@ -26,7 +32,10 @@
     },
     "sell": {
       "type": "object",
-      "required": ["ratio", "conditionCurve"],
+      "required": [
+        "ratio",
+        "conditionCurve"
+      ],
       "additionalProperties": false,
       "properties": {
         "ratio": {
@@ -54,9 +63,16 @@
     },
     "repair": {
       "type": "object",
-      "required": ["perPoint", "minimum"],
+      "required": [
+        "perPoint",
+        "minimum"
+      ],
       "additionalProperties": false,
-      "patternProperties": { "^_": { "type": "string" } },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
       "properties": {
         "perPoint": {
           "type": "number",
@@ -79,7 +95,10 @@
         },
         "systems": {
           "type": "object",
-          "additionalProperties": { "type": "number", "minimum": 0 },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          },
           "description": "Each mechanical system's share of its part's price to put right (a per-wheel one's corner: a quarter)"
         },
         "severity": {
@@ -100,34 +119,90 @@
         },
         "quick": {
           "type": "object",
-          "required": ["share", "condition", "dentScale", "dentMin", "mechanicalKept"],
+          "required": [
+            "share",
+            "condition",
+            "dentScale",
+            "dentMin",
+            "mechanicalKept"
+          ],
           "additionalProperties": false,
           "properties": {
-            "share": { "type": "number", "minimum": 0, "maximum": 1, "description": "Of the full repair's price" },
-            "condition": { "type": "number", "minimum": 0, "maximum": 100, "description": "Condition after (never lower than it was)" },
-            "dentScale": { "type": "number", "minimum": 0, "maximum": 1, "description": "Each dent this much as hard after" },
-            "dentMin": { "type": "number", "minimum": 0, "description": "Dents left shallower than this (m, × their share of the depth) are gone" },
-            "mechanicalKept": { "type": "number", "minimum": 0, "maximum": 1, "description": "Bends and wear: this share of what they were (leaks are sealed)" }
+            "share": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Of the full repair's price"
+            },
+            "condition": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Condition after (never lower than it was)"
+            },
+            "dentScale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Each dent this much as hard after"
+            },
+            "dentMin": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Dents left shallower than this (m, × their share of the depth) are gone"
+            },
+            "mechanicalKept": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Bends and wear: this share of what they were (leaks are sealed)"
+            }
           }
         }
       }
     },
     "safetyNet": {
       "type": "object",
-      "required": ["enabled", "margin", "engineCondition"],
+      "required": [
+        "enabled",
+        "margin",
+        "engineCondition"
+      ],
       "additionalProperties": false,
-      "patternProperties": { "^_": { "type": "string" } },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
       "description": "The free basic repair for a player who can't afford to make their car drivable (garage/repair.js basicRepair)",
       "properties": {
-        "enabled": { "type": "boolean" },
-        "margin": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "Each value put this share of its limit (data/damage.json drivable)" },
-        "engineCondition": { "type": "number", "minimum": 0, "maximum": 100 }
+        "enabled": {
+          "type": "boolean"
+        },
+        "margin": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Each value put this share of its limit (data/damage.json drivable)"
+        },
+        "engineCondition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
     "raceRewards": {
       "type": "object",
-      "patternProperties": { "^_": { "type": "string" } },
-      "additionalProperties": { "type": "number", "minimum": 0 },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      },
       "description": "Prize money by result (placeholders: what the balance report weighs crash repairs against)"
     },
     "carPrices": {
@@ -137,6 +212,111 @@
         "minimum": 0
       },
       "description": "A new car's price by its class (× the car's priceFactor)"
+    },
+    "quests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "tiers",
+        "byType",
+        "byClass",
+        "fee"
+      ],
+      "properties": {
+        "_note": {
+          "type": "string"
+        },
+        "base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "money",
+            "xp"
+          ],
+          "properties": {
+            "money": {
+              "type": "number",
+              "minimum": 0
+            },
+            "xp": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "tiers": {
+          "type": "object",
+          
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "byType": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sprint",
+            "time_trial",
+            "checkpoint",
+            "drift",
+            "delivery",
+            "pink_slip"
+          ],
+          "properties": {
+            "sprint": {
+              "type": "number",
+              "minimum": 0
+            },
+            "time_trial": {
+              "type": "number",
+              "minimum": 0
+            },
+            "checkpoint": {
+              "type": "number",
+              "minimum": 0
+            },
+            "drift": {
+              "type": "number",
+              "minimum": 0
+            },
+            "delivery": {
+              "type": "number",
+              "minimum": 0
+            },
+            "pink_slip": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "byClass": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "fee": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "maxShareOfReward"
+          ],
+          "properties": {
+            "maxShareOfReward": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "roundTo": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
     }
   }
 }

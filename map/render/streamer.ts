@@ -225,6 +225,14 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) { const e = entryAt(wx + dx, wz + dz); if (!e) { if (!byKey.has(`${Math.floor((wx + dx) / T)}_${Math.floor((wz + dz) / T)}`)) continue; return false; } if (!groundReady(e)) return false; }
       return true;
     },
+    // the ground's height there (sim frame; the tile's heightfield, bilinear), null where it isn't in yet
+    heightAt(x, z) {
+      const wx = x + origin[0], wz = z + origin[1], e = entryAt(wx, wz), hf = e?.data?.heightfield;
+      if (!hf) return null;
+      const N1 = hf.n + 1, cell = T / hf.n, fc = Math.min(hf.n - 1e-6, Math.max(0, (wx - e.i * T) / cell)), fr = Math.min(hf.n - 1e-6, Math.max(0, (wz - e.j * T) / cell));
+      const c = Math.floor(fc), r = Math.floor(fr), tx = fc - c, tz = fr - r, H = hf.heights, h = (cc, rr) => H[rr + cc * N1];
+      return (h(c, r) * (1 - tx) + h(c + 1, r) * tx) * (1 - tz) + (h(c, r + 1) * (1 - tx) + h(c + 1, r + 1) * tx) * tz;
+    },
     // tyre grip there: { name, grip, rollingResistance, … }
     surfaceAt(x, z) {
       const wx = x + origin[0], wz = z + origin[1], e = entryAt(wx, wz), G = e?.data?.grids.surface;

@@ -1821,6 +1821,27 @@ fetch('scenes/worlds.json').then(r => r.json()).then(list => {
   drawWorldButtons();
   if (!PHOTOREAL) switchWorld('real');
 }).catch(() => { drawWorldButtons(); if (!PHOTOREAL) switchWorld('real'); });
+// ---------- The world editor (F2): development builds and editor accounts (editor/access.js) ----------
+let editor = null, editorAllowed = false;
+import('./editor/access.js').then(m => { editorAllowed = m.editorAccess().allowed; drawWorldButtons(); }).catch(() => {});
+async function editorNow() {
+  if (editor) return editor;
+  const [{ createEditor }, test] = await Promise.all([import('./editor/editor.js'), import('./testtrack/test-scene.js')]);
+  editor = createEditor({ game: {
+    hooks: test.editorHooks,
+    pause: on => test.editorPause(on),
+    canvas: () => test.debug.shared?.renderer?.domElement ?? null,
+    // the editor's 3D view is the baked world: it goes there first (out of the garage too)
+    async ensureRealWorld() { if (currentWorld !== 'real' && !PHOTOREAL) await switchWorld('real'); return test.activeWorld(); },
+  } });
+  window.worldEditor = editor;          // (the console)
+  return editor;
+}
+addEventListener('keydown', async e => {
+  if (e.code !== 'F2' || e.repeat) return;
+  e.preventDefault();
+  try { (await editorNow()).toggle(); } catch (err) { console.error(err); }
+});
 function drawWorldButtons() {
   $('worlds').innerHTML = '';
   for (const w of worldList) {
@@ -1828,6 +1849,12 @@ function drawWorldButtons() {
     b.textContent = `${w.icon} ${w.name}`;
     b.className = w.id === currentWorld ? 'on' : '';
     b.onclick = () => { b.blur(); switchWorld(w.id); };
+    $('worlds').appendChild(b);
+  }
+  if (editorAllowed) {
+    const b = document.createElement('button');
+    b.textContent = '✎ Editor'; b.title = 'World editor (F2)';
+    b.onclick = async () => { b.blur(); (await editorNow()).enter(); };
     $('worlds').appendChild(b);
   }
 }
@@ -1884,7 +1911,7 @@ async function switchWorld(id, nested = false) {
 }
 $('backToGarage').onclick = e => { e.currentTarget.blur(); switchWorld('garage'); };
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.repeat || currentWorld === 'garage') return;
+  if (e.target.tagName === 'INPUT' || e.repeat || currentWorld === 'garage' || editor?.active) return;
   if (e.code !== 'KeyT') return;
   const i = worldList.findIndex(w => w.id === currentWorld);
   switchWorld(worldList[(i + 1) % worldList.length].id);

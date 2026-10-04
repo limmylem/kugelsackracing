@@ -48,6 +48,7 @@
 
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { createContentLayer } from '../play/contentLayer.js';
 import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
@@ -85,7 +86,7 @@ import * as RW2 from './realWorld.js';
 import * as MapV3 from '../map/build/render/game.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.track?.mapV3 ? MapV3 : RW2);
-const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); };
+const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 
@@ -105,6 +106,25 @@ export const debug = { get active() { return active; }, get shared() { return sh
 // toGarage(): tow the car to the garage (the page goes there, open on the damage report)
 export const hooks = { switchTo: null, toGarage: null };
 
+// The world editor (editor/editor.js) over the world on screen: play pauses safely — nothing is simulated
+// (the car holds where it is, mid-air or not), the game's controls and sound are off, an automated test
+// running stops, the HUD and panels are hidden — and each frame the editor moves its own camera and the
+// world is drawn from it. Off again: play carries on from exactly where it was.
+export const editorHooks = { active: false, frame: null, camera: null, hidden: false };
+export function editorPause(on) {
+  editorHooks.active = on;
+  if (!shared) return;
+  active?.content?.show(!on);          // (the editor draws its own markers, drafts too)
+  if (on && shared.tests) { shared.tests.queue.length = 0; shared.tests.stopped = true; }
+  shared.input.enabled = !on && !!active;
+  shared.hud.style.display = on || !active ? 'none' : 'block';
+  for (const p of [shared.panel, shared.tuning, shared.graphs]) if (on) p.hide?.();
+  shared.dyno?.hide?.(); shared.report?.hide?.();
+  shared.audio?.mute(on || shared.muted);
+  if (!on) shared.last = performance.now();
+}
+export const activeWorld = () => active;
+
 export async function enter(file) {
   if (!shared) {
     try { shared = await createShared(); }
@@ -120,7 +140,7 @@ export async function enter(file) {
   }
   active = worlds.get(file);
   hideRealWorlds();
-  if (active.stream) rwOf(active).showRealWorld(active);
+  if (active.stream) { rwOf(active).showRealWorld(active); active.content?.show(true); }
   // record this world's car; the gearbox mode carries over between worlds
   shared.stopTelemetry?.();
   shared.stopTelemetry = shared.telemetry.attach(active.sim);
@@ -292,6 +312,8 @@ async function createShared() {
     else if (e.code === 'Escape' && s.tests) { s.tests.queue.length = 0; s.tests.stopped = true; }
   });
   addEventListener('pointerdown', startAudio);
+  // (a click on a marker in the world: its card)
+  renderer.domElement.addEventListener('click', e => { if (active?.content && !editorHooks.active) active.content.click(e, active.camera, renderer.domElement); });
   startup.done();
   return s;
 }
@@ -435,7 +457,11 @@ async function buildWorld(file) {
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
   };
   if (track.streamed) await RW2.attachRealWorld(w, shared, { RAPIER });
-  if (track.mapV3) await MapV3.attachRealWorld(w, shared, { RAPIER });
+  if (track.mapV3) {
+    await MapV3.attachRealWorld(w, shared, { RAPIER });
+    // the world's published content: quest starts and the rest, in the world and on the maps
+    w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; } });
+  }
   return w;
 }
 
@@ -449,6 +475,8 @@ function frame(w, now) {
   const seconds = Math.min(Math.max((now - shared.last) / 1000, 0), 0.25);
   shared.last = now;
   shared.fps += ((seconds > 0 ? 1 / seconds : 0) - shared.fps) * 0.05;
+  // the editor's on: it flies its camera, nothing else moves
+  if (editorHooks.active) { editorHooks.frame?.(w, seconds, now); if (!editorHooks.hidden) w.fxDraw.render(w.scene, editorHooks.camera ?? w.camera); return; }
 
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
@@ -457,6 +485,7 @@ function frame(w, now) {
   for (const act of inp.pressed) handleAction(w, act, inp);
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
+  if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold;           // the settings panel pauses the car
   // player settings → the car

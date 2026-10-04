@@ -7,6 +7,10 @@
 //   const maps = await createWorldMaps({ manifest, base, onTravel(spot) })
 //   maps.update(lat, lon, bearingDeg, speed)  each frame (redrawn only when the car has moved or turned)
 //   maps.toggle() → open?, maps.open, maps.show(on), maps.dispose()
+//   maps.setContent(features, onPick)  world content near the player (play/contentLayer.js): marked on both,
+//   clustered on the full map when zoomed out; onPick(id) when one's clicked
+//
+// Also for the editor (editor/mapView.js): maplibre() loads MapLibre, regionStyle() the region's map style.
 var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExtension) || function (path, preserveJsx) {
     if (typeof path === "string" && /^\.\.?\//.test(path)) {
         return path.replace(/\.(tsx)$|((?:\.d)?)((?:\.[^./]+?)?)\.([cm]?)ts$/i, function (m, tsx, d, ext, cm) {
@@ -21,7 +25,7 @@ const GLYPHS = 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf', FO
 const files = new Map();
 let lib = null;
 // MapLibre, once (its stylesheet too), with the world's PMTiles protocol: wpm://<file url>/{z}/{x}/{y}
-function maplibre() {
+export function maplibre() {
     return lib ??= (async () => {
         if (!document.getElementById('maplibreCss')) {
             const l = document.createElement('link');
@@ -43,7 +47,7 @@ function maplibre() {
     })();
 }
 // the map's look: the schema's layers (world/schema.js), quiet colours, roads by class, names
-function style(tilesUrl, header) {
+export function style(tilesUrl, header) {
     // (the layers map/bake/planetiler.yml makes: water, landuse, buildings, rail, roads, places — k kind, n name)
     const src = 'world', byKind = (pairs, fallback) => ['match', ['get', 'k'], ...pairs.flatMap(([kinds, v]) => [kinds, v]), fallback];
     const width = (base, add = 0) => ['interpolate', ['exponential', 1.6], ['zoom'], 12, ['+', add, ['*', base, 0.35]], 16, ['+', add, ['*', base, 2.2]], 19, ['+', add, ['*', base, 9]]];
@@ -83,6 +87,55 @@ const css = `
 #worldFullSide small { opacity: .7; }
 .worldCarMarker { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 20px solid #e2462f; filter: drop-shadow(0 1px 2px #000a); }
 @media (max-width: 560px) { #worldMini { width: 130px; height: 130px; } #worldFullSide { width: 180px; } }`;
+// the region's map style (its own PMTiles), for any MapLibre map
+export async function regionStyle(manifest, base) {
+    await maplibre();
+    const fileUrl = new URL(manifest.files.map, base).href;
+    if (!files.has(fileUrl))
+        files.set(fileUrl, openPmtiles(httpSource(fileUrl)));
+    const pm = await files.get(fileUrl);
+    return style(`wpm://${encodeURIComponent(fileUrl)}/{z}/{x}/{y}`, pm.header);
+}
+// World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
+// the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
+const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', '#ccc'];
+export function contentLayers(map, { cluster = true, labels = true, prefix = 'content' } = {}) {
+    const src = `${prefix}-src`, empty = { type: 'FeatureCollection', features: [] };
+    let data = empty, pick = null;
+    const add = () => {
+        if (map.getSource(src))
+            return;
+        map.addSource(src, { type: 'geojson', data, cluster, clusterRadius: 44, clusterMaxZoom: 14 });
+        map.addLayer({ id: `${prefix}-clusters`, type: 'circle', source: src, filter: ['has', 'point_count'], paint: { 'circle-color': '#ffb02e', 'circle-opacity': 0.85, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-radius': ['step', ['get', 'point_count'], 13, 10, 17, 100, 22, 1000, 28] } });
+        map.addLayer({ id: `${prefix}-count`, type: 'symbol', source: src, filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': FONT, 'text-size': 12, 'text-allow-overlap': true }, paint: { 'text-color': '#1b1b1b' } });
+        map.addLayer({ id: `${prefix}-points`, type: 'circle', source: src, filter: ['!', ['has', 'point_count']], paint: { 'circle-color': KIND_COLOUR, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 16, 9], 'circle-stroke-color': ['case', ['boolean', ['get', 'selected'], false], '#ff3d3d', '#ffffff'], 'circle-stroke-width': ['case', ['boolean', ['get', 'selected'], false], 3.5, 2], 'circle-opacity': ['case', ['==', ['get', 'status'], 'draft'], 0.75, 1] } });
+        if (labels)
+            map.addLayer({ id: `${prefix}-labels`, type: 'symbol', source: src, minzoom: 13, filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#1b1b1b', 'text-halo-color': '#fff', 'text-halo-width': 1.6 } });
+        map.on('click', `${prefix}-points`, (e) => { const f = e.features?.[0]; if (f && pick)
+            pick(f.properties.id); });
+        map.on('click', `${prefix}-clusters`, (e) => { const f = e.features?.[0]; if (!f)
+            return; map.getSource(src).getClusterExpansionZoom(f.properties.cluster_id).then((z) => map.easeTo({ center: f.geometry.coordinates, zoom: z })).catch(() => map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2 })); });
+        for (const l of [`${prefix}-points`, `${prefix}-clusters`]) {
+            map.on('mouseenter', l, () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', l, () => { map.getCanvas().style.cursor = ''; });
+        }
+    };
+    if (map.isStyleLoaded())
+        add();
+    else
+        map.once('load', add);
+    map.on('styledata', () => { if (map.isStyleLoaded() && !map.getSource(src))
+        add(); });
+    return {
+        set(features, onPick) {
+            data = { type: 'FeatureCollection', features };
+            if (onPick)
+                pick = onPick;
+            map.getSource(src)?.setData(data);
+        },
+        get layers() { return [`${prefix}-points`, `${prefix}-clusters`]; },
+    };
+}
 export async function createWorldMaps({ manifest, base, onTravel }) {
     if (!document.getElementById('worldMapCss')) {
         const s = document.createElement('style');
@@ -102,6 +155,8 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
     mini.innerHTML = '<div id="worldMiniCar"></div><div id="worldMiniN">N</div>';
     document.body.appendChild(mini);
     const miniMap = new ml.Map({ container: mini, style: st, center: [lon0, lat0], zoom: 16, interactive: false, attributionControl: false, fadeDuration: 0, pitchWithRotate: false });
+    const miniContent = contentLayers(miniMap, { cluster: false, labels: false, prefix: 'mini' });
+    let fullContent = null, contentNow = [], onPickNow = null;
     const north = mini.querySelector('#worldMiniN');
     // the full map: north up, the car marked, the test spots to travel to
     const full = document.createElement('div');
@@ -142,6 +197,8 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
                 set(false);
                 onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng });
             } });
+            fullContent = contentLayers(fullMap, { prefix: 'full' });
+            fullContent.set(contentNow, id => { set(false); onPickNow?.(id); });
             const el = document.createElement('div');
             el.className = 'worldCarMarker';
             carMarker = new ml.Marker({ element: el, rotationAlignment: 'map' }).setLngLat(last ? [last.lon, last.lat] : [lon0, lat0]).addTo(fullMap);
@@ -167,6 +224,15 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
             if (open)
                 carMarker?.setLngLat([lon, lat]).setRotation(bearing);
         },
+        // world content near the player (GeoJSON point features: id, kind, name, status)
+        setContent(features, onPick) {
+            contentNow = features;
+            if (onPick)
+                onPickNow = onPick;
+            miniContent.set(features);
+            fullContent?.set(features, id => { set(false); onPickNow?.(id); });
+        },
+        get miniMap() { return miniMap; },
         dispose() { removeEventListener('keydown', keys); miniMap.remove(); fullMap?.remove(); mini.remove(); full.remove(); },
     };
 }

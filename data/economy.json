@@ -5,7 +5,24 @@
   "startingCar": "starter_car",
   "sell": {
     "ratio": 0.6,
-    "conditionCurve": [[0, 0.1], [40, 0.45], [70, 0.8], [100, 1]]
+    "conditionCurve": [
+      [
+        0,
+        0.1
+      ],
+      [
+        40,
+        0.45
+      ],
+      [
+        70,
+        0.8
+      ],
+      [
+        100,
+        1
+      ]
+    ]
   },
   "repair": {
     "_note": "garage/repair.js. A car's damage is repaired a piece at a time (the damage report's problems) or all at once. full: back to 100%, every dent out, the mechanical damage gone. quick: share of the full price; condition up to quick.condition (never down), each dent dentScale as hard (those left shallower than dentMin m gone), leaks sealed and tyres pumped up, bends and wear mechanicalKept of what they were. Mechanical damage: the part's price × its system's share (systems; mechanical for any not listed) — a corner of a per-wheel system (suspension, brake lines) a quarter of it — at least minimum, from severity of it for a slight one up to all of it at the worst. reattach: of the part's price, bolting a part that came loose or off back on (the same either way). A part's repairs together never cost more than maxOfNew of a new one. Fitting a spare from the inventory instead is free, like fitting any part.",
@@ -55,5 +72,38 @@
     "A": 70000,
     "S": 160000,
     "X": 300000
+  },
+  "quests": {
+    "_note": "World quests' rewards and entry fees (content/rewards.js). A quest never stores money: it names a reward tier, and the reward is base × the tier × its type × the best car class it lets in (classes it allows, highest). xp the same way from base.xp. Entry fees are set by the quest's author, at most fee.maxShareOfReward of its reward (the editor says so in plain words). Pink slips are for cars, not money: no money reward, no fee; the winner takes the loser's car.",
+    "base": {
+      "money": 800,
+      "xp": 100
+    },
+    "tiers": {
+      "easy": 0.6,
+      "standard": 1,
+      "hard": 1.6,
+      "extreme": 2.5
+    },
+    "byType": {
+      "sprint": 1,
+      "time_trial": 0.9,
+      "checkpoint": 1.15,
+      "drift": 1.1,
+      "delivery": 1.25,
+      "pink_slip": 0
+    },
+    "byClass": {
+      "D": 1,
+      "C": 1.6,
+      "B": 2.4,
+      "A": 3.4,
+      "S": 5,
+      "X": 7
+    },
+    "fee": {
+      "maxShareOfReward": 0.5
+    },
+    "roundTo": 50
   }
 }

@@ -1,0 +1,64 @@
+/* The world editor's screen (editor/editor.js): a frame and banner so it's never mistaken for play, the
+   toolbar along the top, the area's content on the left, the selected item's properties on the right. */
+#editor { position: fixed; inset: 0; z-index: 60; pointer-events: none; font: 13px/1.4 Barlow, system-ui, sans-serif; color: #f2f4f7; }
+#editor * { box-sizing: border-box; }
+#editor .ed-frame { position: fixed; inset: 0; border: 4px solid #ff7a1a; pointer-events: none; z-index: 1; }
+#editor .ed-banner { position: fixed; top: 0; left: 50%; transform: translateX(-50%); background: #ff7a1a; color: #1b1205; font: 700 11px/1 "JetBrains Mono", monospace; letter-spacing: .12em; padding: 4px 12px 5px; border-radius: 0 0 8px 8px; z-index: 2; }
+#edMap { position: fixed; inset: 0; z-index: 59; display: none; background: #dfe6ec; }
+#editor .ed-panel { position: fixed; pointer-events: auto; background: rgba(14, 18, 26, .9); border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; box-shadow: 0 6px 22px rgba(0, 0, 0, .35); backdrop-filter: blur(6px); }
+#edTop { top: 24px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; }
+#edTop .sep { width: 1px; height: 22px; background: rgba(255, 255, 255, .15); margin: 0 2px; }
+#editor button, #editor .ed-btn { font: 600 12px Barlow, system-ui, sans-serif; color: #f2f4f7; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1); border-radius: 7px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+#editor button:hover { background: rgba(94, 200, 255, .25); }
+#editor button.on { background: #2f7fd1; border-color: #5ea9ff; }
+#editor button.warn { background: #8a2f22; }
+#editor button.go { background: #2e8b4f; }
+#editor button:disabled { opacity: .4; cursor: default; }
+#editor kbd { font: 600 10px "JetBrains Mono", monospace; opacity: .7; margin-left: 4px; }
+#editor input, #editor select, #editor textarea { font: 13px Barlow, system-ui, sans-serif; color: #f2f4f7; background: rgba(0, 0, 0, .35); border: 1px solid rgba(255, 255, 255, .15); border-radius: 6px; padding: 4px 7px; }
+#editor input[type=checkbox] { width: auto; }
+#edSearch { width: 230px; }
+#edWhere { font: 11px "JetBrains Mono", monospace; opacity: .8; margin-left: auto; }
+#edLeft { top: var(--edTop, 76px); left: 12px; width: 270px; bottom: 44px; display: flex; flex-direction: column; }
+#edRight { top: var(--edTop, 76px); right: 12px; width: 340px; bottom: 44px; overflow: auto; padding: 10px 12px; }
+#edLeft header, #edRight h3 { padding: 8px 10px 4px; font: 700 13px Barlow, system-ui, sans-serif; margin: 0; }
+#edLeft .filters { display: flex; gap: 4px; padding: 0 10px 6px; flex-wrap: wrap; align-items: center; }
+#edLeft .filters button { padding: 3px 7px; font-size: 11px; }
+#edList { overflow: auto; flex: 1; padding: 0 6px 6px; }
+#edList .row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 7px; cursor: pointer; }
+#edList .row:hover { background: rgba(255, 255, 255, .07); }
+#edList .row.sel { background: rgba(47, 127, 209, .45); }
+#edList .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; border: 2px solid #fff; }
+#edList .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#edList .meta { font-size: 11px; opacity: .65; white-space: nowrap; }
+.ed-badge { font: 700 9px "JetBrains Mono", monospace; letter-spacing: .05em; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; }
+.ed-badge.draft { background: #5b6370; } .ed-badge.published { background: #2e8b4f; } .ed-badge.changed { background: #b07a12; } .ed-badge.archived { background: #6d3b3b; }
+#edRight label { display: block; margin: 7px 0 2px; font-size: 11px; opacity: .75; text-transform: uppercase; letter-spacing: .04em; }
+#edRight input:not([type=checkbox]), #edRight select, #edRight textarea { width: 100%; }
+#edRight .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#edRight .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+#edRight .actions { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 4px; }
+#edRight .section { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .1); }
+#edRight .section > b { font-size: 12px; }
+#edRight .road { font-size: 12px; background: rgba(255, 255, 255, .06); border-radius: 7px; padding: 6px 8px; margin-top: 6px; }
+#edRight .money { font: 600 12px "JetBrains Mono", monospace; color: #9be38f; }
+#edProblems { margin-top: 10px; }
+#edProblems .p { padding: 5px 8px; border-radius: 6px; margin: 4px 0; font-size: 12px; }
+#edProblems .p.error { background: rgba(214, 69, 50, .3); border-left: 3px solid #ff6a55; }
+#edProblems .p.warning { background: rgba(214, 160, 50, .22); border-left: 3px solid #ffbd4a; }
+#edProblems .ok { color: #8fe08a; font-size: 12px; }
+#edRight .field-error { border-color: #ff6a55 !important; }
+#edRight .hint { font-size: 12px; opacity: .7; }
+#edStatus { left: 12px; right: 12px; bottom: 8px; height: 28px; display: flex; align-items: center; gap: 14px; padding: 0 10px; font-size: 12px; }
+#edStatus .saved { color: #8fe08a; } #edStatus .saving { color: #ffbd4a; }
+#edStatus .tip { opacity: .7; margin-left: auto; }
+#edMenu { position: fixed; z-index: 70; pointer-events: auto; min-width: 230px; max-height: 60vh; overflow: auto; padding: 5px; }
+#edMenu .item { padding: 6px 9px; border-radius: 6px; cursor: pointer; }
+#edMenu .item:hover { background: rgba(94, 200, 255, .25); }
+#edMenu .item small { display: block; opacity: .6; }
+#edToast { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 72; pointer-events: none; padding: 8px 14px; border-radius: 9px; background: rgba(14, 18, 26, .94); border: 1px solid rgba(255, 255, 255, .12); max-width: 70vw; font-size: 13px; opacity: 0; transition: opacity .2s; }
+#edToast.show { opacity: 1; }
+#edToast.bad { border-color: #ff6a55; }
+#edPickNote { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none; padding: 6px 12px; background: #2f7fd1; border-radius: 8px; font-weight: 600; display: none; }
+body.editor-on #worldMini, body.editor-on #worldFull, body.editor-on #map3Where, body.editor-on #worlds, body.editor-on #contentCard { display: none !important; }
+@media (max-width: 900px) { #edLeft { width: 200px; } #edRight { width: 260px; } #edSearch { width: 140px; } }
