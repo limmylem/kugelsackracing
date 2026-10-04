@@ -4,7 +4,7 @@
 // Pure: the editor, the game, the tests and a server use it alike.
 //
 //   newItem(kind, { id, location, author, now, type }) → a draft item
-//   rewardsOf(item, economy) → { money, xp, tier, … }        feeLimit(item, economy)
+//   rewardsOf(item, economy) → { money, xp, fee, tier, … }        feeOf(item, economy)   tierOf(item, economy)
 //   problems(item, { economy, classes, cars }) → [{ field, level: 'error' | 'warning', message }]
 //   entryCheck(item, car: { className, kw, kg }, level) → [{ ok, text }]
 //
@@ -14,13 +14,14 @@
 
 import { newRoute } from '../route/model.js';
 
-export const CONTENT_VERSION = 3;
+export const CONTENT_VERSION = 4;
 
 export const KINDS = {
   quest: { label: 'Quest start', icon: 'flag', colour: '#ffb02e' },
   poi: { label: 'Point of interest', icon: 'star', colour: '#4fc3f7' },
   spawn: { label: 'Spawn point', icon: 'car', colour: '#7ee08a' },
   route: { label: 'Route', icon: 'route', colour: '#e05cff' },
+  series: { label: 'Quest series', icon: 'series', colour: '#ffd166' },
 };
 // the kinds players see as markers (a route is seen through its quests)
 export const MARKER_KINDS = ['quest', 'poi', 'spawn'];
@@ -105,9 +106,10 @@ export function newItem(kind, { id, location, author = 'editor', now = new Date(
   };
   if (kind === 'quest') Object.assign(item, {
     type, route: null, entry: { classes: [], maxPowerKw: null, minWeightKg: null, maxWeightKg: null, maxKwPerTonne: null, minLevel: 1 },
-    fee: 0, rewards: { tier: 'standard' }, npc: {}, conditions: { timeOfDay: 'any', weather: 'any' }, enabled: true, params: clone(TYPES[type].params),
+    rating: null, npc: {}, conditions: { timeOfDay: 'any', weather: 'any' }, enabled: true, params: clone(TYPES[type].params),
   });
   if (kind === 'route') item.course = newRoute(region, routeKind);
+  if (kind === 'series') item.quests = [];
   return item;
 }
 
@@ -125,18 +127,40 @@ function rewardClass(item, economy) {
   const allowed = (item.entry?.classes ?? []).filter(c => order.includes(c));
   return allowed.length ? allowed.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : order[0];
 }
-
-export function rewardsOf(item, economy) {
-  const Q = economy?.quests;
-  if (!Q || item.kind !== 'quest') return { money: 0, xp: 0, tier: null };
-  const tier = item.rewards?.tier, t = Q.tiers[tier];
-  if (t === undefined) return { money: 0, xp: 0, tier, unknownTier: true };
-  const cls = rewardClass(item, economy), round = Q.roundTo ?? 1;
-  const money = Math.round(Q.base.money * t * (Q.byType[item.type] ?? 1) * (Q.byClass[cls] ?? 1) / round) * round;
-  return { money, xp: Math.round(Q.base.xp * t), tier, rewardClass: cls, car: item.type === 'pink_slip' ? item.params?.opponentCar ?? null : null };
+// the highest class a quest lets in (any: the highest there is): a pink slip's stakes
+function topClass(item, economy) {
+  const order = Object.keys(economy.quests.byClass), allowed = (item.entry?.classes ?? []).filter(c => order.includes(c));
+  return allowed.length ? allowed.sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] : null;
 }
 
-export const feeLimit = (item, economy) => Math.floor(rewardsOf(item, economy).money * (economy?.quests?.fee.maxShareOfReward ?? 1));
+// A quest's tier (1–5, data/economy.json quests.tiers): from its stars and the lowest class it lets in
+export function tierOf(item, economy) {
+  const Q = economy.quests, stars = item.rating?.stars ?? Q.defaults?.stars ?? 2, ct = Q.tierOfClass?.[rewardClass(item, economy)] ?? 1;
+  const n = Math.max(1, Math.min(Q.tiers.length, Math.floor((stars + ct) / 2)));
+  return Q.tiers.find(t => t.tier === n) ?? Q.tiers[0];
+}
+
+// What a quest is worth, from the economy's rules and its rating (stars, km): never stored with it.
+// → { money (a gold run's, the fee back included), xp, fee, core, tier, tierName, unlockLevel, stars, km,
+//     rewardClass, car (a pink slip's prize), stakeMaxClass }
+export function rewardsOf(item, economy) {
+  const Q = economy?.quests;
+  if (!Q || item.kind !== 'quest') return { money: 0, xp: 0, fee: 0, tier: null };
+  const R = item.rating ?? {}, stars = Math.max(1, Math.min(5, R.stars ?? Q.defaults?.stars ?? 2)), km = Math.min(Q.maxKm ?? Infinity, R.km ?? Q.defaults?.km ?? 3);
+  const cls = rewardClass(item, economy), round = Q.roundTo ?? 1, T = tierOf(item, economy);
+  const rivals = item.type === 'pink_slip' ? 1 : Math.max(0, item.npc?.count ?? 0), sk = item.npc?.skill ?? [0.4, 0.8];
+  const crowd = 1 + rivals * (Q.npc?.perRival ?? 0) * ((Q.npc?.skillFloor ?? 0.5) + (sk[0] + sk[1]) / 2);
+  const s = Q.byStars[stars - 1] ?? 1, type = Q.byType[item.type] ?? 1;
+  const core = (Q.base.money + Q.perKm.money * km) * s * type * (Q.byClass[cls] ?? 1) * crowd;
+  const fee = item.type === 'pink_slip' ? 0 : Math.round(core * (T.feeShare ?? 0) / round) * round;
+  const money = item.type === 'pink_slip' ? 0 : Math.round((core + fee * (Q.fee?.back ?? 1)) / round) * round;
+  const xp = Math.round((Q.base.xp + Q.perKm.xp * km) * s * crowd);
+  return { money, xp, fee, core: Math.round(core), tier: T.tier, tierName: T.name, unlockLevel: T.level, stars, km, rewardClass: cls, stakeMaxClass: T.stakeMaxClass ?? null, rated: !!item.rating,
+    car: item.type === 'pink_slip' ? item.params?.opponentCar ?? null : null };
+}
+// a quest's entry fee (its tier's share of its reward)
+export const feeOf = (item, economy) => rewardsOf(item, economy).fee ?? 0;
+
 
 const money = (n, economy) => `${economy?.currency ?? '$'}${Math.round(n).toLocaleString('en-GB')}`;
 const validPlace = p => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
@@ -149,6 +173,7 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   if (!(item.location?.heading >= 0 && item.location?.heading < 360)) out.push(err('location.heading', 'The facing must be from 0° to 359°.'));
   if (item.location?.altFrom === 'estimate') out.push(warn('location.alt', 'Its height is a guess (no ground there): place it in the 3D view to set it from the road.'));
   if (item.kind === 'route') return [...out, ...routeProblems(item)];
+  if (item.kind === 'series') return [...out, ...seriesProblems(item)];
   if (item.kind !== 'quest') return out;
   const T = TYPES[item.type];
   if (!T) { out.push(err('type', `There's no quest type "${item.type}".`)); return out; }
@@ -166,16 +191,25 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   if (E.minWeightKg && E.maxWeightKg && E.minWeightKg > E.maxWeightKg) out.push(err('entry.minWeightKg', `The minimum weight (${E.minWeightKg} kg) is more than the maximum (${E.maxWeightKg} kg).`));
   if (E.maxPowerKw != null && E.maxPowerKw < 30) out.push(warn('entry.maxPowerKw', `A ${E.maxPowerKw} kW power limit lets almost no car in.`));
   if (!(Number.isInteger(E.minLevel) && E.minLevel >= 1 && E.minLevel <= 100)) out.push(err('entry.minLevel', 'The minimum level is a whole number from 1 to 100.'));
-  // money: the rewards are the economy's; the fee the author's, within reason
+  // money: the rewards and the fee are the economy's, from the quest's rating and tier (nothing to set)
   if (economy) {
-    const r = rewardsOf(item, economy);
-    if (r.unknownTier) out.push(err('rewards.tier', `There's no reward tier "${item.rewards?.tier}" (${Object.keys(economy.quests.tiers).join(', ')}).`));
-    else if (item.type === 'pink_slip') { if (item.fee > 0) out.push(err('fee', 'A pink slip has no entry fee: the cars are the stakes.')); }
-    else if (item.fee > r.money) out.push(err('fee', `Entry fee (${money(item.fee, economy)}) is higher than the reward (${money(r.money, economy)}).`));
-    else if (item.fee > feeLimit(item, economy)) out.push(err('fee', `Entry fee (${money(item.fee, economy)}) is more than ${Math.round(economy.quests.fee.maxShareOfReward * 100)}% of the reward (${money(r.money, economy)}): at most ${money(feeLimit(item, economy), economy)}.`));
+    const r = rewardsOf(item, economy), order = Object.keys(economy.quests.byClass);
+    if (!item.rating) out.push(warn('rating', 'Not rated yet: pick its route and save, and its difficulty and reward are worked out.'));
+    // (a pink slip's stakes: both cars at most the tier's class)
+    const rival = item.type === 'pink_slip' ? cars?.[item.params?.opponentCar] : null;
+    if (rival?.class && r.stakeMaxClass && order.indexOf(rival.class) > order.indexOf(r.stakeMaxClass)) out.push(err('params.opponentCar', `A ${r.tierName} pink slip stakes cars up to class ${r.stakeMaxClass}: the rival's car is class ${rival.class}.`));
   }
-  if (!(item.fee >= 0)) out.push(err('fee', 'The entry fee can\'t be negative.'));
   if (!item.enabled) out.push(warn('enabled', 'It\'s switched off: once published it won\'t be offered to players.'));
+  return out;
+}
+
+// a series: 3 to 6 quests, none twice (that they exist and are published: the editor checks, it can look)
+export const SERIES_SIZE = [3, 6];
+export function seriesProblems(item) {
+  const q = item.quests ?? [], out = [];
+  if (q.length < SERIES_SIZE[0]) out.push(err('quests', `A series needs at least ${SERIES_SIZE[0]} quests (it has ${q.length}).`));
+  if (q.length > SERIES_SIZE[1]) out.push(err('quests', `A series has at most ${SERIES_SIZE[1]} quests (it has ${q.length}).`));
+  if (new Set(q).size !== q.length) out.push(err('quests', 'A quest is in the series twice.'));
   return out;
 }
 

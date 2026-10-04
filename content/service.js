@@ -45,7 +45,7 @@ const boxesMeet = (a, b) => a[0] <= b[2] && a[2] >= b[0] && (b[1] <= b[3] ? a[1]
 const cellOf = loc => encode(loc.lat, loc.lon, CELL_PRECISION);
 const randomId = kind => `${kind}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-export function createLocalContentService({ storage, check, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, autosaveMs = 300 } = {}) {
+export function createLocalContentService({ storage, check, rate = null, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, autosaveMs = 300 } = {}) {
   let index = null;                       // { layout, ids: { id: cell }, cells: { view: { cell: count } } }
   const nonEmpty = {};                    // view → how many cells have anything (kept as they change)
   const coarse = {};                      // view → Map(3-letter prefix → Set of its cells with anything): wide areas found fast
@@ -58,6 +58,12 @@ export function createLocalContentService({ storage, check, author = 'editor', n
 
   // one request at a time (a move between cells is several reads and writes)
   const serial = fn => { const r = queue.then(fn, fn); queue = r.catch(() => {}); return r; };
+  // a quest rated from its route (content/rating.js: its difficulty, so its reward) as it's saved
+  const rated = async item => {
+    if (!rate || item.kind !== 'quest') return item;
+    const route = item.route ? (await readItem(item.route, 'draft')) ?? (await readItem(item.route, 'published')) : null;
+    return rate(item, { route });
+  };
   const ready = async () => {
     if (index) return;
     index = await storage.getIndex() ?? { layout: 1, ids: {}, cells: Object.fromEntries(VIEWS.map(v => [v, {}])) };
@@ -196,7 +202,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
 
     create: input => serial(async () => {
       await ready();
-      const t = now(), item = { ...clone(input), id: input.id && !index.ids[input.id] ? input.id : newId(input.kind), version: CONTENT_VERSION, status: 'draft', author: input.author ?? author, created: t, updated: t, publishedAt: null };
+      const t = now(), item = await rated({ ...clone(input), id: input.id && !index.ids[input.id] ? input.id : newId(input.kind), version: CONTENT_VERSION, status: 'draft', author: input.author ?? author, created: t, updated: t, publishedAt: null });
       const shape = check.shape(item);
       if (shape.length) return { ok: false, error: shape[0].message, problems: shape };
       await putState(item.id, { draft: item, published: null, archived: null });
@@ -207,7 +213,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       await ready();
       const old = await readItem(id, 'draft');
       if (!old) return { ok: false, error: (await readItem(id, 'archived')) ? 'It\'s archived: restore it to edit it.' : 'There\'s no such item.' };
-      const item = { ...old, ...clone(input), id, version: CONTENT_VERSION, created: old.created, author: old.author, status: old.status, publishedAt: old.publishedAt, updated: now() };
+      const item = await rated({ ...old, ...clone(input), id, version: CONTENT_VERSION, created: old.created, author: old.author, status: old.status, publishedAt: old.publishedAt, updated: now() });
       const shape = check.shape(item);
       if (shape.length) return { ok: false, error: shape[0].message, problems: shape };
       const state = await stateOf(id);
@@ -224,7 +230,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       const route = routeId ? (await readItem(routeId, 'draft')) ?? (await readItem(routeId, 'published')) ?? null : undefined;
       const errors = blocking(check(draft, routeId ? { route } : {}));
       if (errors.length) return { ok: false, error: `Can't publish "${draft.name || 'it'}" yet: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`, problems: errors };
-      const t = now(), item = { ...draft, status: 'published', publishedAt: t };
+      const t = now(), item = { ...(rate && draft.kind === 'quest' ? rate(draft, { route }) : draft), status: 'published', publishedAt: t };
       const state = await stateOf(id);
       await putState(id, { ...state, draft: item, published: clone(item) });
       let routeItem = null;

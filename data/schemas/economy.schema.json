@@ -218,10 +218,12 @@
       "additionalProperties": false,
       "required": [
         "base",
+        "perKm",
+        "byStars",
         "tiers",
         "byType",
         "byClass",
-        "fee"
+        "tierOfClass"
       ],
       "properties": {
         "_note": {
@@ -246,11 +248,41 @@
           }
         },
         "tiers": {
-          "type": "object",
-          
-          "additionalProperties": {
-            "type": "number",
-            "minimum": 0
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tier",
+              "name",
+              "level",
+              "feeShare"
+            ],
+            "properties": {
+              "tier": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "name": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "feeShare": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "stakeMaxClass": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
           }
         },
         "byType": {
@@ -301,20 +333,138 @@
         "fee": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "maxShareOfReward"
-          ],
           "properties": {
-            "maxShareOfReward": {
+            "back": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 1
+              "minimum": 0
             }
           }
         },
         "roundTo": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "perKm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "money",
+            "xp"
+          ],
+          "properties": {
+            "money": {
+              "type": "number",
+              "minimum": 0
+            },
+            "xp": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "maxKm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "byStars": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "npc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "perRival": {
+              "type": "number",
+              "minimum": 0
+            },
+            "skillFloor": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "tierOfClass": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "farming": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windowHours",
+            "freeRuns",
+            "decay",
+            "floor"
+          ],
+          "properties": {
+            "windowHours": {
+              "type": "number",
+              "minimum": 0
+            },
+            "freeRuns": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "decay": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "floor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "defaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "_note": {
+              "type": "string"
+            },
+            "stars": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "km": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "moneyShare",
+        "xpShare"
+      ],
+      "properties": {
+        "_note": {
+          "type": "string"
+        },
+        "moneyShare": {
+          "type": "number",
+          "minimum": 0
+        },
+        "xpShare": {
+          "type": "number",
+          "minimum": 0
         }
       }
     }

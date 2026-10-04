@@ -5,7 +5,8 @@
 // type as "questType", and its reward as money ("reward": a number, set by hand). Version 2 keeps the
 // place in "location", calls it "name", and names one of the economy's reward tiers instead of money, so
 // rewards follow the economy's rules (data/economy.json quests). Version 3 adds routes (kind 'route', with
-// their course) and laps on more quest types; a version 2 item is a version 3 one as it is.
+// their course) and laps on more quest types; a version 2 item is a version 3 one as it is. Version 4
+// (Phase 4 Step 5) drops the chosen reward tier and entry fee: they follow from the quest's rating.
 
 import { CONTENT_VERSION, TYPES, newItem } from './quests.js';
 
@@ -29,6 +30,9 @@ const STEPS = {
     return { ...out, version: 2 };
   },
   2: v2 => ({ ...v2, version: 3 }),
+  // 3 → 4: a quest's money is no longer chosen (a reward tier, an entry fee): it follows from its rating
+  // (worked out when it's next saved or published, and by bulk validation)
+  3: v3 => { const { fee, rewards, ...rest } = v3; return { ...rest, ...(v3.kind === 'quest' ? { rating: v3.rating ?? null } : {}), version: 4 }; },
 };
 
 // → { item, from, notes } or { error }

@@ -20,6 +20,7 @@ import { validateBuild } from '../validate.js';
 import { appendHits } from '../damageLog.js';
 import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quests.js';
 import { entryReasons, CAR_CODES } from '../../quest/rules.js';
+import { feeOf } from '../../content/quests.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
 
 const ATTACH = ['attached', 'loose', 'detached'];
@@ -322,7 +323,7 @@ export class LocalPlayerService extends PlayerService {
       const bad = this.#car(p, carInstanceId ?? p.currentCar);
       if (bad) return bad;
       if (p.questPending) delete p.questPending;    // (one left over: its fee's spent, as a quit's is)
-      const fee = restart && cfg.restart?.free ? 0 : Math.max(0, quest.fee ?? 0);
+      const fee = restart && cfg.restart?.free ? 0 : feeOf(quest, this.db.economy);
       const id = carInstanceId ?? p.currentCar, own = p.cars[id];
       const drivable = drivability(this.db.cars[own.carId], ownedBySocket(this.db, p, id), this.db.damage);
       const reasons = entryReasons({ quest, car: { ...(car ?? {}), drivable }, player: { money: p.money, xp: p.xp ?? 0, unlimited: this.unlimited }, fee, config: cfg, economy: this.db.economy })
@@ -338,12 +339,14 @@ export class LocalPlayerService extends PlayerService {
   refundQuest(attemptId) {
     return this.#change('quest', p => { const r = refundAttempt(p, attemptId); return r.error ? r : { result: r }; });
   }
-  async finishQuest(result, { quest, course, recording = null } = {}) {
+  // series: the series this quest is in, each with its quests ({ item, quests: [quest items] }): finishing the
+  // last of one pays its bonus
+  async finishQuest(result, { quest, course, recording = null, series = [] } = {}) {
     const cfg = this.quests?.config;
     // (the recording goes in its own store first: the save only keeps its id, if it's the best run)
     const recordingId = recording ? `rec_${quest.id}_${result.attemptId}` : null;
     const old = this.profile.quests?.[quest.id]?.recording ?? null;
-    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId }) }));
+    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series }) }));
     const store = this.quests?.recordings;
     if (out.ok && out.valid && out.pb && recording && store) {
       await store.put(recordingId, recording);

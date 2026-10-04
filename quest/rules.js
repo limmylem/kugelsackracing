@@ -4,8 +4,9 @@
 //
 //   medalTargets(quest, course, config) → { kind: 'time' | 'score', gold, silver, bronze }
 //   medalOf(targets, { time, score }) → 'gold' | 'silver' | 'bronze' | null
-//   earnings({ quest, outcome, progress, economy, config }) → { money, xp, tiers, repeat, lines }
-//   levelOf(xp, config) → level      entryReasons({ quest, car, player, fee, config }) → [reason]
+//   earnings({ quest, outcome, progress, economy, config, now }) → { money, xp, tiers, repeat, lines, farming }
+//   levelOf(xp, config) → level      levelProgress(xp, config)      farmingFactor(recent, now, economy)
+//   entryReasons({ quest, car, player, fee, config, economy }) → [reason]
 //   carsThatQualify(quest, cars) → [car]
 
 import { rewardsOf, TYPES } from '../content/quests.js';
@@ -51,15 +52,27 @@ export function medalOfPlace(place, config) {
   return ['gold', 'silver', 'bronze'].find(t => M[t] === place) ?? null;
 }
 
-// What a finished run earns. Each tier pays its share of the quest's reward the first time it's reached
-// (reaching a higher tier pays the difference to the best already paid); finishing without a medal pays
-// the finish share once; a run reaching nothing new pays the repeat share. A delivery's money loses its
-// damage penalty. Pink slips pay no money.
-export function earnings({ quest, outcome, progress = {}, economy, config }) {
-  const R = config.rewards, base = rewardsOf(quest, economy), lines = [];
+// The anti-farming cut: a quest finished more than freeRuns times in the last windowHours pays
+// decay^(the runs past that) of what it would (at least floor). recent: ISO times of its finishes.
+export function farmingFactor(recent = [], now, economy) {
+  const F = economy?.quests?.farming;
+  if (!F || !now) return 1;
+  const t = Date.parse(now), within = recent.filter(x => t - Date.parse(x) < F.windowHours * 3600e3).length;
+  const over = within + 1 - F.freeRuns;
+  return over > 0 ? Math.max(F.floor, F.decay ** over) : 1;
+}
+
+// What a finished run earns. Money: each tier pays its share of the quest's reward the first time it's
+// reached (reaching a higher tier pays the difference to the best already paid); finishing without a
+// medal pays the finish share once; a run reaching nothing new pays the repeat share. xp: every finish
+// earns the share for what it reached — in full the first time, then × xp.repeat. A race's place below
+// the medals scales both. A delivery's money loses its damage penalty. Pink slips pay no money. Run again
+// and again within the farming window, both are cut (farmingFactor).
+export function earnings({ quest, outcome, progress = {}, economy, config, now = null }) {
+  const R = config.rewards, X = R.xp ?? R, base = rewardsOf(quest, economy), lines = [];
   const paid = progress.paidShare ?? 0, finishPaid = !!progress.finishPaid;
   let share = 0, tiers = [], repeat = false;
-  if (outcome.status !== 'finished' || quest.type === 'pink_slip') return { money: 0, xp: 0, tiers, repeat, lines, base };
+  if (outcome.status !== 'finished') return { money: 0, xp: 0, tiers, repeat, lines, base, farming: 1 };
   const reach = outcome.medal ? R[outcome.medal] : 0;
   if (reach > paid) {
     share = reach - paid;
@@ -72,32 +85,56 @@ export function earnings({ quest, outcome, progress = {}, economy, config }) {
     share = R.repeat; repeat = true;
     lines.push({ what: 'Again', share });
   }
+  // xp: what this run reached, in full the first time it's reached
+  let xpShare = outcome.medal ? X[outcome.medal] : X.finish;
+  if (repeat) xpShare *= X.repeat ?? 0.35;
   // (a race: below the medals, what the place pays)
   if (outcome.place != null && (repeat || !outcome.medal)) {
     const ps = config.race?.placeShare?.[outcome.place - 1] ?? 0.2;
-    share *= ps;
+    share *= ps; xpShare *= ps;
     lines.push({ what: `${ordinal(outcome.place)} place`, share });
   }
-  let m = base.money * share, xp = base.xp * share;
+  const farming = farmingFactor(progress.recent ?? [], now, economy);
+  if (farming < 1) lines.push({ what: `Run again soon (×${Math.round(farming * 100) / 100})`, share: share * farming });
+  let m = quest.type === 'pink_slip' ? 0 : base.money * share * farming, xp = base.xp * xpShare * farming;
   if (quest.type === 'delivery' && outcome.cargoLost > 0) {
     const cut = Math.min(1, (quest.params?.damagePenalty ?? 0.5) * outcome.cargoLost);
     lines.push({ what: `Cargo damage (${Math.round(outcome.cargoLost * 100)}% lost)`, money: -Math.round(m * cut) });
     m *= 1 - cut;
   }
   const round = economy.quests?.roundTo ?? 1;
-  return { money: Math.max(0, Math.round(m / round) * round), xp: Math.round(xp), tiers, repeat, share, lines, base };
+  return { money: Math.max(0, Math.round(m / round) * round), xp: Math.round(xp), tiers, repeat, share, lines, base, farming };
 }
 
-export const levelOf = (xp, config) => 1 + Math.floor((xp ?? 0) / (config.levels?.xpPerLevel ?? 1000));
+// A player's level from their xp (data/quests.json levels): reaching level L takes base × ((L − 1) +
+// growth × (L − 1)(L − 2) / 2) xp in all
+export const xpForLevel = (L, config) => { const V = config.levels ?? {}, b = V.base ?? V.xpPerLevel ?? 1000, g = V.base ? V.growth ?? 0 : 0, n = L - 1; return Math.round(b * (n + g * n * (n - 1) / 2)); };
+export function levelOf(xp, config) {
+  const max = config.levels?.max ?? 100;
+  let L = 1;
+  while (L < max && (xp ?? 0) >= xpForLevel(L + 1, config)) L++;
+  return L;
+}
+// → { level, xp, from (this level's xp), to (the next's), share (0–1 of the way there) }
+export function levelProgress(xp, config) {
+  const level = levelOf(xp, config), from = xpForLevel(level, config), to = xpForLevel(level + 1, config);
+  return { level, xp: xp ?? 0, from, to, share: to > from ? Math.min(1, ((xp ?? 0) - from) / (to - from)) : 1 };
+}
 const hp = kw => Math.round(kw * 1.341);
 
 // Why a player can't enter, in plain words (none: they can). car: { name, className, kw, kg, drivable:
 // { ok, reasons } }; player: { money, xp }
-export function entryReasons({ quest, car, player, fee = quest.fee ?? 0, config, economy = null }) {
-  const out = [], E = quest.entry ?? {};
+export function entryReasons({ quest, car, player, fee = null, config, economy = null }) {
+  const out = [], E = quest.entry ?? {}, terms = economy ? rewardsOf(quest, economy) : null;
+  fee ??= terms?.fee ?? 0;
   if (!car) { out.push({ code: 'car', text: 'You need a car.' }); return out; }
   // (a pink slip stakes the car: never the starter car)
   if (quest.type === 'pink_slip' && car.carId && car.carId === (economy?.startingCar ?? 'starter_car')) out.push({ code: 'stake', text: 'You can\'t race your starter car for pink slips: pick another car.' });
+  // (and the stakes follow the tier: a car of at most its class)
+  else if (quest.type === 'pink_slip' && terms?.stakeMaxClass && car.className) {
+    const order = Object.keys(economy.quests.byClass);
+    if (order.indexOf(car.className) > order.indexOf(terms.stakeMaxClass)) out.push({ code: 'stake', text: `A ${terms.tierName} pink slip stakes cars up to class ${terms.stakeMaxClass}: yours is class ${car.className}.` });
+  }
   if (E.classes?.length && !E.classes.includes(car.className)) out.push({ code: 'class', text: `Needs a class ${E.classes.join(' or ')} car (yours is class ${car.className ?? '?'}).` });
   if (E.maxPowerKw && car.kw > E.maxPowerKw) out.push({ code: 'power', text: `Needs a car under ${hp(E.maxPowerKw)} hp (yours has ${hp(car.kw)} hp).` });
   if (E.minWeightKg && car.kg < E.minWeightKg) out.push({ code: 'weight', text: `Needs a car of at least ${E.minWeightKg} kg (yours is ${Math.round(car.kg)} kg).` });
@@ -105,7 +142,9 @@ export function entryReasons({ quest, car, player, fee = quest.fee ?? 0, config,
   if (E.maxKwPerTonne && car.kw / (car.kg / 1000) > E.maxKwPerTonne) out.push({ code: 'ratio', text: `Needs at most ${hp(E.maxKwPerTonne)} hp per tonne (yours has ${hp(car.kw / (car.kg / 1000))}).` });
   if (car.drivable && !car.drivable.ok) out.push({ code: 'damage', text: `Car too damaged: repair first (${(car.drivable.reasons ?? []).slice(0, 2).join('; ') || 'it can\'t be driven'}).` });
   const level = levelOf(player?.xp, config);
-  if (E.minLevel > 1 && level < E.minLevel) out.push({ code: 'level', text: `Needs level ${E.minLevel} (you're level ${level}).` });
+  // (its tier opens at a level; the author can ask for more)
+  const need = Math.max(E.minLevel ?? 1, terms?.unlockLevel ?? 1);
+  if (player && need > 1 && level < need) out.push({ code: 'level', text: need > (E.minLevel ?? 1) ? `${terms.tierName} quests open at level ${need} (you're level ${level}).` : `Needs level ${need} (you're level ${level}).` });
   if (fee > 0 && player && !player.unlimited && player.money < fee) out.push({ code: 'money', text: `Entry fee ${money(fee, economy?.currency)}: you have ${money(player.money, economy?.currency)}.` });
   return out;
 }
