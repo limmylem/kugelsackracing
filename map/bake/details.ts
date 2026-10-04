@@ -24,7 +24,23 @@ export function barriers({ osm, nodes, segs, grid, heights, dem, cfg }: { osm: O
   const ground = (x: number, z: number) => sampleGrid(grid, heights, x, z);
   const natural = (x: number, z: number) => sampleGrid(grid, dem, x, z);
   const add = (type: string, a: number[], b: number[], h: number, flags: number) => (out[type] ??= []).push(a[0], a[1], a[2], b[0], b[1], b[2], h, flags);
-  // mapped ones
+  // the roads' drawn surfaces (wider than many streets are): no railing, wall or fence stands on one
+  const RC = 24, roadGrid = new Map<string, [Seg, number][]>();
+  for (const g of segs) for (let k = 0; k + 1 < g.xs.length; k++) {
+    for (let i = Math.floor(Math.min(g.xs[k], g.xs[k + 1]) / RC); i <= Math.floor(Math.max(g.xs[k], g.xs[k + 1]) / RC); i++) for (let j = Math.floor(Math.min(g.zs[k], g.zs[k + 1]) / RC); j <= Math.floor(Math.max(g.zs[k], g.zs[k + 1]) / RC); j++) { const key = `${i},${j}`; (roadGrid.get(key) ?? roadGrid.set(key, []).get(key)!).push([g, k]); }
+  }
+  const onOtherRoad = (x: number, z: number, y: number, own: Seg | null) => {
+    for (const [o, k] of roadGrid.get(`${Math.floor(x / RC)},${Math.floor(z / RC)}`) ?? []) {
+      if (o === own) continue;
+      const ax = o.xs[k], az = o.zs[k], dx = o.xs[k + 1] - ax, dz = o.zs[k + 1] - az, L2 = dx * dx + dz * dz || 1e-9;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+      if (Math.hypot(x - ax - dx * t, z - az - dz * t) > o.width / 2 + 0.3) continue;
+      if (Math.abs(o.h[k] + (o.h[k + 1] - o.h[k]) * t - y) < 2.5) return true;
+    }
+    return false;
+  };
+  // mapped ones (but not across a road: a fence drawn over a street, a gate's opening, a wall the road's
+  // drawn width now covers)
   for (const w of osm.lines) {
     const type = w.tags.barrier;
     if (!type || !B.types[type]) continue;
@@ -36,12 +52,15 @@ export function barriers({ osm, nodes, segs, grid, heights, dem, cfg }: { osm: O
         const nx = -(z1 - z0) / (l / parts || 1), nz = (x1 - x0) / (l / parts || 1), reach = WALLS.has(type) ? [1.2, 2.5, 4] : [1.2];
         const end = (x: number, z: number) => { const line = ground(x, z), sides = reach.flatMap(r => [ground(x + nx * r, z + nz * r), ground(x - nx * r, z - nz * r)]); return { foot: WALLS.has(type) ? Math.min(line, sides[0], sides[1]) : line, top: Math.max(line, ...sides) }; };
         const A = end(x0, z0), Bb = end(x1, z1), h = Math.min(T.height + 4, Math.max(A.top - A.foot, Bb.top - Bb.foot) + T.height);
+        if (onOtherRoad((x0 + x1) / 2, (z0 + z1) / 2, (A.foot + Bb.foot) / 2, null)) continue;
         add(type, [x0, A.foot, z0], [x1, Bb.foot, z1], h, 0);
       }
     }
   }
-  // estimated ones, along road edges
+  // estimated ones, along road edges — never standing on another road (where a slip road or another
+  // bridge joins, the edge runs across its lanes: no wall there)
   const A = B.auto, junctionAt = nodes.map(n => n.segs.length >= 3);
+
   for (const g of segs) {
     const L = g.s[g.s.length - 1];
     if (L < A.minRun && g.structure !== 'bridge') continue;
@@ -68,7 +87,7 @@ export function barriers({ osm, nodes, segs, grid, heights, dem, cfg }: { osm: O
             const x = g.xs[q] - dz / l * side * o, z = g.zs[q] + dx / l * side * o, y = g.structure === 'bridge' ? g.h[q] - 0.02 * g.width / 2 : Math.max(ground(x, z), g.h[q] - 0.3);
             return [x, y, z];
           };
-          for (let q = k0; q < k - 1; q++) add(type, edge(q), edge(q + 1), B.types[type].height, ESTIMATED);
+          for (let q = k0; q < k - 1; q++) { const a = edge(q), b = edge(q + 1); if (!onOtherRoad((a[0] + b[0]) / 2, (a[2] + b[2]) / 2, (a[1] + b[1]) / 2, g)) add(type, a, b, B.types[type].height, ESTIMATED); }
         }
         k0 = k;
       }
@@ -77,9 +96,17 @@ export function barriers({ osm, nodes, segs, grid, heights, dem, cfg }: { osm: O
   return out;
 }
 
-export function trees({ osm, grid, heights, classes, hardRoad, cfg }: { osm: OsmData; grid: Grid; heights: Float32Array; classes: Uint8Array; hardRoad: Uint8Array; cfg: any }) {
+export function trees({ osm, grid, heights, classes, hardRoad, segs = [], cfg }: { osm: OsmData; grid: Grid; heights: Float32Array; classes: Uint8Array; hardRoad: Uint8Array; segs?: Seg[]; cfg: any }) {
   const T = cfg.trees, out: number[] = [], ground = (x: number, z: number) => sampleGrid(grid, heights, x, z);
-  const free = (x: number, z: number) => { const c = Math.round((x - grid.x0) / grid.cell), r = Math.round((z - grid.z0) / grid.cell); if (c < 0 || r < 0 || c >= grid.W || r >= grid.H) return false; const k = r * grid.W + c; return !hardRoad[k]; };
+  // (never on a road: off its surface in the grid, and clear of its drawn width — wider than the street
+  // often is — by a metre; a tree on a bridge's or tunnel's line is under or over it: those don't count)
+  const RC = 24, roadGrid = new Map<string, [number, number, number, number, number][]>();
+  for (const g of segs) if (g.structure === 'ground') for (let k = 0; k + 1 < g.xs.length; k++) {
+    const p: [number, number, number, number, number] = [g.xs[k], g.zs[k], g.xs[k + 1], g.zs[k + 1], g.width / 2 + 1];
+    for (let i = Math.floor((Math.min(p[0], p[2]) - p[4]) / RC); i <= Math.floor((Math.max(p[0], p[2]) + p[4]) / RC); i++) for (let j = Math.floor((Math.min(p[1], p[3]) - p[4]) / RC); j <= Math.floor((Math.max(p[1], p[3]) + p[4]) / RC); j++) { const key = `${i},${j}`; (roadGrid.get(key) ?? roadGrid.set(key, []).get(key)!).push(p); }
+  }
+  const onRoad = (x: number, z: number) => (roadGrid.get(`${Math.floor(x / RC)},${Math.floor(z / RC)}`) ?? []).some(([ax, az, bx, bz, r]) => { const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)); return Math.hypot(x - ax - dx * t, z - az - dz * t) < r; });
+  const free = (x: number, z: number) => { const c = Math.round((x - grid.x0) / grid.cell), r = Math.round((z - grid.z0) / grid.cell); if (c < 0 || r < 0 || c >= grid.W || r >= grid.H) return false; const k = r * grid.W + c; return !hardRoad[k] && !onRoad(x, z); };
   for (const p of osm.points) if (p.tags.natural === 'tree' && free(p.x, p.z)) { const R = rng(p.id); out.push(p.x, ground(p.x, p.z), p.z, 0.85 + R() * 0.4, 0); }
   for (const w of osm.lines) if (w.tags.natural === 'tree_row') {
     const R = rng(w.id);

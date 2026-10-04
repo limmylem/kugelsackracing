@@ -52,6 +52,51 @@ export function tileBuilder(D: {
   const { grid: g, cfg } = D, T = g.tileSize, per = T / g.cell, N1 = per + 1;
   const pal = Object.fromEntries(Object.entries(cfg.colours).filter(([k]) => !k.startsWith('_')).map(([k, v]) => [k, rgb(v as string)]));
   const ground = (x: number, z: number) => sampleGrid(g, D.heights, x, z);
+  // where roads run (every few metres of every centreline, its surface's height): a building a road runs
+  // through — a passage under it, a covered street — is solid only above the road's clearance
+  const roadPts = new Map<string, number[]>(), RC = 32;
+  for (const sg of D.segs) {
+    for (let q = 0; q + 1 < sg.xs.length; q++) {
+      const L = Math.hypot(sg.xs[q + 1] - sg.xs[q], sg.zs[q + 1] - sg.zs[q]), n = Math.max(1, Math.ceil(L / 3));
+      for (let k = 0; k < n; k++) { const t = k / n, x = sg.xs[q] + (sg.xs[q + 1] - sg.xs[q]) * t, z = sg.zs[q] + (sg.zs[q + 1] - sg.zs[q]) * t, key = `${Math.floor(x / RC)},${Math.floor(z / RC)}`; (roadPts.get(key) ?? roadPts.set(key, []).get(key)!).push(x, z, sg.h[q] + (sg.h[q + 1] - sg.h[q]) * t); }
+    }
+  }
+  const inRing = (x: number, z: number, r: number[][]) => { let inside = false; for (let a = 0, b = r.length - 1; a < r.length; b = a++) if ((r[a][1] > z) !== (r[b][1] > z) && x < (r[b][0] - r[a][0]) * (z - r[a][1]) / (r[b][1] - r[a][1]) + r[a][0]) inside = !inside; return inside; };
+  // (the heights of the road surfaces inside a footprint)
+  const roadThrough = (ring: number[][]) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    const hs: number[] = [];
+    for (const [x, z] of ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    for (let i = Math.floor(x0 / RC); i <= Math.floor(x1 / RC); i++) for (let j = Math.floor(z0 / RC); j <= Math.floor(z1 / RC); j++) {
+      const L = roadPts.get(`${i},${j}`); if (!L) continue;
+      for (let k = 0; k < L.length; k += 3) if (L[k] > x0 && L[k] < x1 && L[k + 1] > z0 && L[k + 1] < z1 && inRing(L[k], L[k + 1], ring)) hs.push(L[k + 2]);
+    }
+    return hs;
+  };
+  const PASSAGE = cfg.buildings?.passageClearance ?? 4.5;
+  // the ground roads' edges (drawn widths: wider than the street often is), for buildings that stand on
+  // them: their corners back to the road's edge, so the road's drivable all across
+  const edgeGrid = new Map<string, [number, number, number, number, number][]>(), EC = 32;
+  for (const sg of D.segs) {
+    if (sg.structure !== 'ground') continue;
+    for (let q = 0; q + 1 < sg.xs.length; q++) {
+      const piece: [number, number, number, number, number] = [sg.xs[q], sg.zs[q], sg.xs[q + 1], sg.zs[q + 1], sg.width / 2 + 0.3];
+      for (let i = Math.floor((Math.min(piece[0], piece[2]) - piece[4]) / EC); i <= Math.floor((Math.max(piece[0], piece[2]) + piece[4]) / EC); i++) for (let j = Math.floor((Math.min(piece[1], piece[3]) - piece[4]) / EC); j <= Math.floor((Math.max(piece[1], piece[3]) + piece[4]) / EC); j++) { const key = `${i},${j}`; (edgeGrid.get(key) ?? edgeGrid.set(key, []).get(key)!).push(piece); }
+    }
+  }
+  const offRoad = (x: number, z: number): [number, number] => {
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const [ax, az, bx, bz, hw] of edgeGrid.get(`${Math.floor(x / EC)},${Math.floor(z / EC)}`) ?? []) {
+        const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+        const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz);
+        if (d >= hw || d < 1e-6) continue;
+        x = px + (x - px) / d * hw; z = pz + (z - pz) / d * hw; moved = true;
+      }
+      if (!moved) break;
+    }
+    return [x, z];
+  };
   // ---- everything bucketed by the tile its middle's in
   const tileOf = (x: number, z: number) => bucketKey(Math.floor(x / T), Math.floor(z / T));
   const buckets = new Map<string, any>();
@@ -178,13 +223,23 @@ export function tileBuilder(D: {
     const bCfg = cfg.buildings;
     let buildingCount = 0, estimatedHeights = 0;
     for (const k of b.buildings) {
-      const bd = D.buildings[k], rings = bd.rings.map(r => r.map(q => [q[0] - cx, q[1] - cz]));
+      const bd = D.buildings[k];
+      // (a footprint the road runs right through is a passage, below: only corners standing on its edge move)
+      const corner = (q: number[]) => { const [x, z] = offRoad(q[0], q[1]); return [x - cx, z - cz]; };
+      const rings = bd.rings.map(r => r.map(q => corner(q)));
       const e = extrude({ id: bd.id, rings, props: bd.props }, (x: number, z: number) => ground(x + cx, z + cz), bCfg);
       if (!e) continue;
       buildingCount++; if (bd.estimated) estimatedHeights++;
       (wallsBy[e.windows] ??= new Part(true)).add(e.walls, 0, 0);
       roofs.add(e.roof, 0, 0);
-      for (const h of e.hulls) hulls.push(h.points.length / 2, h.y0, h.y1, ...h.points);
+      // (a road through it: solid only from its clearance up)
+      const through = roadThrough(bd.rings[0]);
+      for (const h of e.hulls) {
+        // (a road passing through its height — not one far above it on a bridge, nor in a tunnel below)
+        const inside = through.filter(y => y > h.y0 - 3 && y < h.y1 - 0.5);
+        const y0 = inside.length ? Math.max(h.y0, Math.max(...inside) + PASSAGE) : h.y0;
+        if (h.y1 - y0 > 0.5) hulls.push(h.points.length / 2, y0, h.y1, ...h.points);
+      }
       if (e.landmark) landmarks.push({ id: bd.id, centre: [e.centre[0] + cx, e.centre[1] + cz], top: e.top, height: e.height, name: bd.props.name ?? null });
     }
     // ---- lists

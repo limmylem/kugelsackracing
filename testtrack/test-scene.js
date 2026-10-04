@@ -49,6 +49,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
+import { createRouteRun } from '../play/testDrive.js';
 import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
@@ -124,6 +125,38 @@ export function editorPause(on) {
   if (!on) shared.last = performance.now();
 }
 export const activeWorld = () => active;
+
+// A route's test drive from the editor (play/testDrive.js): the player's car on a trial (the session keeps
+// nothing of it: no damage, no wear; no money either way), on the route's grid, its tracker and HUD on.
+// F2 ends it (or the finish, a moment after); onDone(result) is the editor's — back to where it was.
+let routeRun = null;
+export async function testDriveRoute({ compiled, item, laps = 1, carId = null, autopilot = false, onDone }) {
+  const w = active;
+  if (!w?.stream || !shared) { onDone?.(null); return { ok: false, error: 'Test drives are in the baked world.' }; }
+  routeRun?.end();
+  // (your car as it is, or a dealer's car, stock: either way a trial — the session keeps nothing)
+  const other = carId && carId !== shared.session.garage.car.id;
+  const trial = other ? shared.session.testDrive(carId) : shared.session.testDriveOwn();
+  if (trial.ok && other) for (let k = 0; k < 200 && shared.carId !== carId; k++) await new Promise(r => setTimeout(r, 50));
+  if (!trial.ok) { onDone?.(null); return { ok: false, error: trial.errors[0] }; }
+  const onKey = e => {
+    if (!routeRun) return;
+    if (e.code === 'F2') { e.preventDefault(); e.stopImmediatePropagation(); routeRun.end(); }
+    else if (e.code === 'KeyT') e.stopImmediatePropagation();          // (not the next world, mid-drive)
+  };
+  addEventListener('keydown', onKey, true);
+  routeRun = createRouteRun({ THREE, w, rw: rwOf(w), compiled, course: item.course, laps, autopilot,
+    // (a reset: what came loose goes back on, as the session's rules say — the damage stays)
+    resetCar: () => { shared.session.attach.reattachAll('reset', { kind: shared.play.kind }); w.sim.vehicle.parts.clear(); },
+    onEnd: result => {
+      removeEventListener('keydown', onKey, true);
+      routeRun = null;
+      shared.session.endTestDrive();
+      onDone?.(result);
+    } });
+  return { ok: true };
+}
+export const routeRunNow = () => routeRun;
 
 export async function enter(file) {
   if (!shared) {
@@ -503,7 +536,7 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
     view = w.sim.advance(paused ? 0 : seconds, input);
     shared.gearMode = v.drivetrain.mode;
     effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
@@ -514,6 +547,8 @@ function frame(w, now) {
     mechanicalEvents(w, v, paused ? 0 : seconds);
   }
   const { previous: a, current: b, alpha, stepsThisFrame } = view, sim = T?.sim ?? w.sim;
+  // (the route's clock: the time simulated — a slow frame that couldn't keep up doesn't count extra)
+  routeRun?.frame(paused || T ? 0 : stepsThisFrame * w.sim.dt);
 
   // Draw everything part-way between the last two physics states
   const place = (obj, pa, pb) => {
@@ -1367,6 +1402,7 @@ function handleAction(w, act, inp) {
   if (act === 'tuning') s.tuning.toggle();
   if (act === 'telemetry') s.graphs.toggle();
   if (s.tests?.world === w) return;                   // a test is driving
+  if (act === 'reset' && routeRun) { routeRun.resetNow(); return; }          // (a route: back to its last checkpoint)
   if (act === 'reset') {
     const toStart = !!(s.input.keys.ShiftLeft || s.input.keys.ShiftRight);
     resetCar(w, toStart);

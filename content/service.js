@@ -1,4 +1,4 @@
-// World content (quest starts, points of interest, spawn points) changes here and nowhere else, as the
+// World content (quest starts, points of interest, spawn points, routes) changes here and nowhere else, as the
 // player's profile does through PlayerService. The editor and the game only ever ask a world content
 // service; it checks each request, makes the change, saves (drafts are kept as they're edited), and answers
 // { ok, error, … } — error: plain words. Listeners (on) hear of every change.
@@ -25,7 +25,7 @@ export const METHODS = {
   get: '(id, { view }) → { item } (null: none)',
   create: '(item) → { item } a new draft (its id, author and times are the service\'s)',
   update: '(id, item) → { item } the draft changed (moved, turned, edited)',
-  publish: '(id) → { item } the draft as players see it (not while it has errors: { problems })',
+  publish: '(id) → { item, route } the draft as players see it (not while it has errors: { problems }); a quest\'s route is checked with it and published with it',
   unpublish: '(id) → { item } players no longer see it; the draft stays',
   remove: '(id, { confirm }) a draft that was never published: gone. A published one: archived (kept), only with confirm: true ({ needsConfirm } otherwise)',
   restore: '(id) an archived item back as a draft',
@@ -219,14 +219,26 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       await ready();
       const draft = await readItem(id, 'draft');
       if (!draft) return { ok: false, error: 'There\'s no such draft.' };
-      const errors = blocking(check(draft));
+      // (a quest's route: checked with it, and published with it)
+      const routeId = draft.kind === 'quest' ? draft.route : null;
+      const route = routeId ? (await readItem(routeId, 'draft')) ?? (await readItem(routeId, 'published')) ?? null : undefined;
+      const errors = blocking(check(draft, routeId ? { route } : {}));
       if (errors.length) return { ok: false, error: `Can't publish "${draft.name || 'it'}" yet: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`, problems: errors };
       const t = now(), item = { ...draft, status: 'published', publishedAt: t };
       const state = await stateOf(id);
       await putState(id, { ...state, draft: item, published: clone(item) });
+      let routeItem = null;
+      if (route) {
+        const rs = await stateOf(routeId), bare = x => x && { ...x, status: null, publishedAt: null, updated: null };
+        if (rs.draft && (!rs.published || !same(bare(rs.draft), bare(rs.published)))) {
+          routeItem = { ...rs.draft, status: 'published', publishedAt: t };
+          await putState(routeId, { ...rs, draft: routeItem, published: clone(routeItem) });
+        }
+      }
       await save();                                   // (what players see is saved at once, not in a moment)
+      if (routeItem) emit({ type: 'publish', id: routeId, item: clone(routeItem) });
       emit({ type: 'publish', id, item: clone(item) });
-      return { ok: true, item: clone(item) };
+      return { ok: true, item: clone(item), route: routeItem ? clone(routeItem) : null };
     }),
     unpublish: id => serial(async () => {
       await ready();

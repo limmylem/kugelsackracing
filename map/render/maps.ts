@@ -89,7 +89,7 @@ export async function regionStyle(manifest: any, base: string) {
 
 // World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
 // the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
-const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', '#ccc'];
+const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', '#ccc'];
 export function contentLayers(map: any, { cluster = true, labels = true, prefix = 'content' } = {}) {
   const src = `${prefix}-src`, empty = { type: 'FeatureCollection', features: [] };
   let data: any = empty, pick: ((id: string) => void) | null = null;

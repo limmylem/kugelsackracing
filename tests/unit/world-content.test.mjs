@@ -49,7 +49,7 @@ test('the quest format: every type is valid in shape, and says in plain words wh
     assert.ok(errors.length >= 1, `a new ${type} isn't complete yet`);
     for (const e of errors) assert.match(e.message, /^[A-Z].*[.)]$/, 'a sentence');
   }
-  assert.ok(problems(sprint(), { economy }).some(p => p.message === 'Sprint needs a finish line.'));
+  assert.ok(problems(sprint(), { economy }).some(p => p.message === 'Sprint needs a route (or a finish line).'));
   const q = finished(); q.fee = 5000;
   assert.ok(problems(q, { economy }).some(p => /Entry fee \(\$5,000\) is higher than the reward \(\$800\)/.test(p.message)));
   q.fee = 600;
@@ -88,7 +88,7 @@ test('the service: drafts, publishing, the game sees only what is published (and
   assert.equal((await S.query({ ...SF, km: 1 })).items.length, 1);
   assert.equal((await S.query({ ...SF, km: 1, view: 'published' })).items.length, 0, 'the game sees nothing yet');
   const bad = await S.publish(id);
-  assert.ok(!bad.ok && /Sprint needs a finish line/.test(bad.error), bad.error);
+  assert.ok(!bad.ok && /Sprint needs a route \(or a finish line\)/.test(bad.error), bad.error);
   await S.update(id, { params: finished().params });
   const pub = await S.publish(id);
   assert.ok(pub.ok, pub.error);
@@ -167,13 +167,14 @@ test('export and import: a round trip, one area or everything, version checks, v
   assert.match((await B.importContent({ ...doc, version: 9 })).error, /newer version of the game/);
   assert.match((await B.importContent({ format: 'something-else' })).error, /isn't a world content file/);
   assert.match((await B.importContent('{ not json')).error, /isn't a world content file/);
-  // an older file (version 1: flat places, money set by hand) comes in as version 2, on a tier
+  // an older file (version 1: flat places, money set by hand) comes in as version 3, on a tier
   const v1 = { format: 'world-content', version: 1, entries: [{ draft: { id: 'quest_old00001', version: 1, kind: 'quest', title: 'Old drift', lat: SF.lat, lon: SF.lon, heading: -90, questType: 'drift', reward: 1500, fee: 100, author: 'early', created: '2025-01-01T00:00:00Z' } }] };
   const m = await B.importContent(v1);
   assert.ok(m.ok && m.imported === 1 && m.migrated === 1, JSON.stringify(m));
   const old = (await B.get('quest_old00001')).item;
-  assert.equal(old.version, 2); assert.equal(old.name, 'Old drift'); assert.equal(old.type, 'drift'); assert.deepEqual(old.rewards, { tier: 'hard' }); assert.equal(old.location.heading, 270);
-  assert.equal(migrate({ version: 3 }).error.includes('newer version'), true);
+  assert.equal(old.version, 3); assert.equal(old.name, 'Old drift'); assert.equal(old.type, 'drift'); assert.deepEqual(old.rewards, { tier: 'hard' }); assert.equal(old.location.heading, 270);
+  assert.equal(migrate({ version: 4 }).error.includes('newer version'), true);
+  assert.deepEqual(migrate({ ...old, version: 2 }), { item: old, from: 2, migrated: true }, 'version 2 → 3: as it is');
   // a broken entry is skipped with its reason, the rest come in
   const mixed = await B.importContent({ ...doc, entries: [{ draft: { ...doc.entries[0].draft, location: { lat: 200, lon: 0, alt: 0, heading: 0 } } }, doc.entries[2]] });
   assert.equal(mixed.imported, 1); assert.equal(mixed.skipped.length, 1);

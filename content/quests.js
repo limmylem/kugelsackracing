@@ -7,40 +7,54 @@
 //   rewardsOf(item, economy) → { money, xp, tier, … }        feeLimit(item, economy)
 //   problems(item, { economy, classes, cars }) → [{ field, level: 'error' | 'warning', message }]
 //   entryCheck(item, car: { className, kw, kg }, level) → [{ ok, text }]
+//
+// A route (kind 'route', Phase 4 Step 2) is content too: the line a quest is driven along, its grid and
+// checkpoints (its `course`: route/model.js). A quest names its route by id; one route can serve several
+// quests. problems(quest, { route }) checks the two fit (a loop for laps, a point-to-point for a delivery).
 
-export const CONTENT_VERSION = 2;
+import { newRoute } from '../route/model.js';
+
+export const CONTENT_VERSION = 3;
 
 export const KINDS = {
   quest: { label: 'Quest start', icon: 'flag', colour: '#ffb02e' },
   poi: { label: 'Point of interest', icon: 'star', colour: '#4fc3f7' },
   spawn: { label: 'Spawn point', icon: 'car', colour: '#7ee08a' },
+  route: { label: 'Route', icon: 'route', colour: '#e05cff' },
 };
+// the kinds players see as markers (a route is seen through its quests)
+export const MARKER_KINDS = ['quest', 'poi', 'spawn'];
 
 // Each quest type: its name, its own fields (params: their defaults, and how the editor shows them), and
 // what it must have before it can be published
 export const TYPES = {
   sprint: {
     label: 'Sprint', icon: 'flag', blurb: 'From the start to a finish line, first one there wins.',
-    params: { finish: null },
-    fields: [{ key: 'finish', label: 'Finish line', kind: 'place' }],
-    check: p => p.finish ? [] : [err('params.finish', 'Sprint needs a finish line.')],
+    params: { finish: null, laps: 1 },
+    fields: [{ key: 'finish', label: 'Finish line (no route)', kind: 'place' }, { key: 'laps', label: 'Laps (a loop route)', kind: 'int', min: 1, max: 50 }],
+    check: (p, ctx) => [
+      ...(p.finish || ctx.route ? [] : [err('params.finish', 'Sprint needs a route (or a finish line).')]),
+      ...laps(p),
+    ],
   },
   time_trial: {
     label: 'Time trial', icon: 'timer', blurb: 'Against the clock: beat the target time.',
     params: { finish: null, laps: 1, targetSeconds: null },
-    fields: [{ key: 'finish', label: 'Finish line', kind: 'place' }, { key: 'laps', label: 'Laps', kind: 'int', min: 1, max: 50 }, { key: 'targetSeconds', label: 'Target time (s)', kind: 'number', min: 1 }],
-    check: p => [
-      ...(p.finish ? [] : [err('params.finish', 'Time trial needs a finish line (put it on the start for a lap).')]),
+    fields: [{ key: 'finish', label: 'Finish line (no route)', kind: 'place' }, { key: 'laps', label: 'Laps (a loop route)', kind: 'int', min: 1, max: 50 }, { key: 'targetSeconds', label: 'Target time (s)', kind: 'number', min: 1 }],
+    check: (p, ctx) => [
+      ...(p.finish || ctx.route ? [] : [err('params.finish', 'Time trial needs a route (or a finish line: put it on the start for a lap).')]),
       ...(p.targetSeconds > 0 ? [] : [err('params.targetSeconds', 'Time trial needs a target time.')]),
-      ...(Number.isInteger(p.laps) && p.laps >= 1 ? [] : [err('params.laps', 'Laps must be a whole number, at least 1.')]),
+      ...laps(p),
     ],
   },
   checkpoint: {
     label: 'Checkpoint run', icon: 'checkpoint', blurb: 'Through every checkpoint in order before time runs out.',
-    params: { checkpoints: [], timeLimitSeconds: null },
-    fields: [{ key: 'checkpoints', label: 'Checkpoints', kind: 'places' }, { key: 'timeLimitSeconds', label: 'Time limit (s)', kind: 'number', min: 1 }],
-    check: p => [
-      ...((p.checkpoints?.length ?? 0) >= 2 ? [] : [err('params.checkpoints', `Checkpoint run needs at least 2 checkpoints (it has ${p.checkpoints?.length ?? 0}).`)]),
+    params: { checkpoints: [], timeLimitSeconds: null, laps: 1 },
+    fields: [{ key: 'checkpoints', label: 'Checkpoints (no route)', kind: 'places' }, { key: 'timeLimitSeconds', label: 'Time limit (s)', kind: 'number', min: 1 }, { key: 'laps', label: 'Laps (a loop route)', kind: 'int', min: 1, max: 50 }],
+    check: (p, ctx) => [
+      ...(ctx.route ? (ctx.route.unknown || (ctx.route.course?.checkpoints?.length ?? 0) >= 2 ? [] : [err('route', `Checkpoint run needs a route with at least 2 checkpoints (it has ${ctx.route.course?.checkpoints?.length ?? 0}).`)])
+        : (p.checkpoints?.length ?? 0) >= 2 ? [] : [err('params.checkpoints', `Checkpoint run needs at least 2 checkpoints (it has ${p.checkpoints?.length ?? 0}).`)]),
+      ...laps(p),
       ...(p.timeLimitSeconds > 0 ? [] : [err('params.timeLimitSeconds', 'Checkpoint run needs a time limit.')]),
     ],
   },
@@ -55,8 +69,8 @@ export const TYPES = {
     params: { cargo: { name: '', massKg: 50, fragile: false }, destination: null, damagePenalty: 0.5, timeLimitSeconds: null },
     fields: [{ key: 'cargo.name', label: 'Cargo', kind: 'text' }, { key: 'cargo.massKg', label: 'Cargo mass (kg)', kind: 'number', min: 0 }, { key: 'cargo.fragile', label: 'Fragile', kind: 'bool' },
       { key: 'destination', label: 'Destination', kind: 'place' }, { key: 'damagePenalty', label: 'Reward lost at full damage (0–1)', kind: 'number', min: 0, max: 1 }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 1 }],
-    check: p => [
-      ...(p.destination ? [] : [err('params.destination', 'Delivery needs a destination.')]),
+    check: (p, ctx) => [
+      ...(p.destination || ctx.route ? [] : [err('params.destination', 'Delivery needs a route (or a destination).')]),
       ...(p.cargo?.name?.trim() ? [] : [err('params.cargo.name', 'Delivery needs cargo: say what\'s carried.')]),
       ...(p.damagePenalty >= 0 && p.damagePenalty <= 1 ? [] : [err('params.damagePenalty', 'The damage penalty is a share of the reward, from 0 to 1.')]),
     ],
@@ -67,7 +81,7 @@ export const TYPES = {
     fields: [{ key: 'opponentCar', label: 'Rival\'s car', kind: 'car' }, { key: 'finish', label: 'Finish line', kind: 'place' }],
     check: (p, ctx) => [
       ...(p.opponentCar ? (ctx.cars && !ctx.cars[p.opponentCar] ? [err('params.opponentCar', `There's no car "${p.opponentCar}".`)] : []) : [err('params.opponentCar', 'Pink slip needs the rival\'s car.')]),
-      ...(p.finish ? [] : [err('params.finish', 'Pink slip needs a finish line.')]),
+      ...(p.finish || ctx.route ? [] : [err('params.finish', 'Pink slip needs a route (or a finish line).')]),
     ],
   },
 };
@@ -75,10 +89,13 @@ export const TYPE_IDS = Object.keys(TYPES);
 export const TIMES = ['any', 'dawn', 'day', 'dusk', 'night'], WEATHER = ['any', 'clear', 'cloudy', 'rain', 'fog'];
 
 function err(field, message) { return { field, level: 'error', message }; }
+function laps(p) { return p.laps === undefined || (Number.isInteger(p.laps) && p.laps >= 1) ? [] : [err('params.laps', 'Laps must be a whole number, at least 1.')]; }
+// what each type of quest needs of its route: a point-to-point one (a delivery goes somewhere), or either
+export const ROUTE_KINDS = { sprint: ['p2p', 'loop'], time_trial: ['p2p', 'loop'], checkpoint: ['p2p', 'loop'], drift: ['p2p', 'loop'], delivery: ['p2p'], pink_slip: ['p2p', 'loop'] };
 function warn(field, message) { return { field, level: 'warning', message }; }
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 
-export function newItem(kind, { id, location, author = 'editor', now = new Date().toISOString(), type = 'sprint', name } = {}) {
+export function newItem(kind, { id, location, author = 'editor', now = new Date().toISOString(), type = 'sprint', name, region = null, routeKind = 'p2p' } = {}) {
   if (!KINDS[kind]) throw new Error(`no kind of content "${kind}"`);
   const item = {
     id, version: CONTENT_VERSION, kind, name: name ?? (kind === 'quest' ? `New ${TYPES[type].label.toLowerCase()}` : `New ${KINDS[kind].label.toLowerCase()}`),
@@ -90,6 +107,7 @@ export function newItem(kind, { id, location, author = 'editor', now = new Date(
     type, route: null, entry: { classes: [], maxPowerKw: null, minWeightKg: null, maxWeightKg: null, maxKwPerTonne: null, minLevel: 1 },
     fee: 0, rewards: { tier: 'standard' }, npc: {}, conditions: { timeOfDay: 'any', weather: 'any' }, enabled: true, params: clone(TYPES[type].params),
   });
+  if (kind === 'route') item.course = newRoute(region, routeKind);
   return item;
 }
 
@@ -124,18 +142,23 @@ const money = (n, economy) => `${economy?.currency ?? '$'}${Math.round(n).toLoca
 const validPlace = p => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
 
 // What an item still needs, in plain words: errors stop it being published, warnings don't
-export function problems(item, { economy = null, classes = null, cars = null } = {}) {
+export function problems(item, { economy = null, classes = null, cars = null, route = undefined } = {}) {
   const out = [];
   if (!item.name?.trim()) out.push(err('name', `Give the ${KINDS[item.kind]?.label.toLowerCase() ?? 'item'} a name.`));
   if (!validPlace(item.location)) out.push(err('location', 'It needs a place on the map.'));
   if (!(item.location?.heading >= 0 && item.location?.heading < 360)) out.push(err('location.heading', 'The facing must be from 0° to 359°.'));
   if (item.location?.altFrom === 'estimate') out.push(warn('location.alt', 'Its height is a guess (no ground there): place it in the 3D view to set it from the road.'));
+  if (item.kind === 'route') return [...out, ...routeProblems(item)];
   if (item.kind !== 'quest') return out;
   const T = TYPES[item.type];
   if (!T) { out.push(err('type', `There's no quest type "${item.type}".`)); return out; }
-  out.push(...T.check(item.params ?? {}, { cars }));
-  for (const f of T.fields) if (f.kind === 'place' && item.params?.[f.key] && !validPlace(item.params[f.key])) out.push(err(`params.${f.key}`, `The ${f.label.toLowerCase()} isn't a place on the map.`));
-  if (!item.route) out.push(warn('route', 'No route yet: routes are drawn in Phase 4 Step 2.'));
+  // (its route: given — the item, or null when there's none by that id — or not looked up: undefined)
+  const R = item.route && route ? route : null;
+  out.push(...T.check(item.params ?? {}, { cars, route: R ?? (item.route && route === undefined ? { unknown: true } : null) }));
+  for (const f of T.fields) if (f.kind === 'place' && item.params?.[f.key] && !validPlace(item.params[f.key])) out.push(err(`params.${f.key}`, `The ${f.label.toLowerCase().replace(/ \(.*\)/, '')} isn't a place on the map.`));
+  if (!item.route) out.push(warn('route', 'No route yet: draw one with the route tool (4) and pick it here.'));
+  else if (route === null) out.push(err('route', `Its route "${item.route}" doesn't exist (any more).`));
+  else if (R) out.push(...linkProblems(item, R));
   // entry requirements
   const E = item.entry ?? {}, known = classes ? classes.map(c => c.class) : null;
   for (const c of E.classes ?? []) if (known && !known.includes(c)) out.push(err('entry.classes', `There's no car class "${c}" (${known.join(', ')}).`));
@@ -156,6 +179,38 @@ export function problems(item, { economy = null, classes = null, cars = null } =
 }
 
 export const blocking = list => list.filter(p => p.level === 'error');
+
+// a route's own problems, from what's stored with it (the editor works them out with the road map and
+// keeps them in course.problems when it saves; a server can check them with route/model.js the same way)
+export function routeProblems(item) {
+  const c = item.course, out = [];
+  if (!c) return [err('course', 'The route has no course: draw it in the editor.')];
+  if ((c.waypoints?.length ?? 0) < 2 || !c.path) out.push(err('course.waypoints', 'Draw the route: click the map to add at least two waypoints.'));
+  for (const p of c.problems ?? []) out.push({ field: `course.${p.field ?? ''}`.replace(/\.$/, ''), level: p.level, message: p.message });
+  if (c.review?.needed) {
+    const names = list => [...new Set(list.map(m => m.name ?? 'an unnamed road'))].slice(0, 3).join(', ');
+    if (c.review.missing?.length) out.push(err('course.roadData', `Route uses a road that no longer exists in OSM data (${names(c.review.missing)}): redraw that part in the editor.`));
+    else out.push(err('course.roadData', `The roads under this route changed in the OSM data (${names(c.review.altered ?? [])}): check it in the editor and save it again.`));
+  }
+  return out;
+}
+
+// a quest and its route: they fit (laps need a loop; a delivery goes somewhere), the route is fit to drive,
+// and the quest starts where the route does
+export function linkProblems(quest, route) {
+  const out = [], c = route.course ?? {}, laps = quest.params?.laps ?? 1, kinds = ROUTE_KINDS[quest.type] ?? ['p2p', 'loop'];
+  if (route.kind !== 'route') return [err('route', `"${route.name}" isn't a route.`)];
+  if (route.status === 'archived') out.push(err('route', `Its route "${route.name}" is archived: restore it or pick another.`));
+  if (!kinds.includes(c.kind)) out.push(err('route', `A ${TYPES[quest.type].label.toLowerCase()} needs a point-to-point route: "${route.name}" is a loop.`));
+  if (laps > 1 && c.kind !== 'loop') out.push(err('params.laps', `${laps} laps need a loop route: "${route.name}" is point to point.`));
+  if (blocking(routeProblems(route)).length) out.push(err('route', `Its route "${route.name}" has problems to fix first: ${blocking(routeProblems(route))[0].message}`));
+  if (validPlace(quest.location) && validPlace(route.location)) {
+    const R = 6371000, toRad = Math.PI / 180, dLat = (route.location.lat - quest.location.lat) * toRad, dLon = (route.location.lon - quest.location.lon) * toRad;
+    const m = 2 * R * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(quest.location.lat * toRad) * Math.cos(route.location.lat * toRad) * Math.sin(dLon / 2) ** 2));
+    if (m > 300) out.push(warn('route', `The quest starts ${m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`} from its route's start: move one to the other.`));
+  }
+  return out;
+}
 
 // Can this car (and player) enter? Each requirement, met or not — for the info card
 export function entryCheck(item, car = null, level = null) {

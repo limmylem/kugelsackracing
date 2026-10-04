@@ -19,7 +19,8 @@ const plain = e => {
 export function contentChecker(schemaJson, ctx = {}) {
   const v = createValidator({ [SCHEMA_ID]: schemaJson });
   const shape = item => v.validate(SCHEMA_ID, item).map(plain);
-  const check = item => { const s = shape(item); return [...s, ...problems(item, ctx)]; };
+  // (extra: { route } — a quest's route item, or null when there's none by its id)
+  const check = (item, extra = {}) => { const s = shape(item); return [...s, ...problems(item, { ...ctx, ...extra })]; };
   check.shape = shape;
   check.ctx = ctx;
   return check;

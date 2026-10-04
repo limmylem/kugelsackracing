@@ -10,6 +10,7 @@
 //   const V = createWorldView({ THREE, world, canvas })   world: the game's Map v3 world (w.stream, w.scene)
 //   V.frame(dt)   V.ray(clientX, clientY) → { lat, lon, alt, altFrom, normal } | null   V.pick(clientX, clientY) → id
 //   V.lookAt(lat, lon, alt)   V.where() → { lat, lon, alt, heading }   V.covers(lat, lon)   V.setItems(items)   V.dispose()
+//   V.pose() / V.setPose(pose)   the camera, kept and put back (a test drive and back)
 
 import { createMarkers3d } from './markers3d.js';
 
@@ -104,6 +105,9 @@ export function createWorldView({ THREE, world: w, canvas }) {
       const [wx, wz] = toWorld(camera.position.x, camera.position.z), [lat, lon] = P.toLatLon(wx, wz);
       return { lat, lon, alt: camera.position.y, heading: ((-yaw * 180 / Math.PI) % 360 + 360) % 360 };
     },
+    // where the camera is and how it looks (the world's frame: kept through a test drive) — and back there
+    pose() { const [wx, wz] = toWorld(camera.position.x, camera.position.z); return { wx, wz, y: camera.position.y, yaw, pitch }; },
+    setPose(p) { const [x, z] = S.toSim(p.wx, p.wz); camera.position.set(x, p.y, z); yaw = p.yaw; pitch = p.pitch; },
     covers(lat, lon) {
       const [x, z] = P.toXZ(lat, lon), T = S.manifest.grid.tileSize, i = Math.floor(x / T), j = Math.floor(z / T);
       return S.manifest.tiles.some(t => t.i === i && t.j === j);

@@ -100,9 +100,19 @@ Copernicus GLO-30 ───┴─ GDAL: warp to the grid, → EGM2008, blend, DS
        the other road there.
      - Only the same layer and structure are joined this way, so a road under a viaduct stays under it.
        A road running alongside another is left alone. The bake log counts each kind of join.
+   - **One copy of each road.** Overture can carry an OSM way twice (one copy with its level, one
+     without), which baked as two decks one over the other. The same geometry, and two segments between
+     the same junctions of the same length, are kept once (the copy that knows its layer).
    - **Height profiles.** The elevation sampled along each way, spikes removed, then smoothed (still
-     following real hills). Every junction has one height that all its roads meet. Bridge and tunnel
-     decks run smoothly between the ground heights at their ends.
+     following real hills). Every junction has one height that all its roads meet, and no road between
+     two junctions is steeper than `roads.maxGrade` (35%; junctions a few metres apart on roads at
+     different levels are drawn together). Bridge and tunnel decks run smoothly between the ground
+     heights at their ends, and are smoothed along their whole length.
+   - **Roads side by side** whose drawn surfaces overlap (a slip road running in, a bridge's end beside
+     the road it comes down to) get the greater road's height there, eased over 30 m: no kerb between
+     them. Not a tunnel under a road, and not one road crossing over another.
+   - **Bridges over roads** are raised to clear what's under them (`roads.overpassClearance`, 5.2 m),
+     eased to their own ends, no steeper than 15%.
    - **Surface.** A ribbon per segment (crown, camber, edges skirted under the ground), cut back at
      junctions. Each junction, roundabout entry or fork is one fan of triangles joining the cut ends,
      each road's crown included. One joined surface: no overlaps, gaps or steps. Line markings run along
@@ -112,7 +122,9 @@ Copernicus GLO-30 ───┴─ GDAL: warp to the grid, → EGM2008, blend, DS
    - Car parks and fuel stations are flattened to their best-fitting plane.
    - The ground under each road's corridor sits just below the road surface, then slopes back to the
      natural ground (cuttings and embankments). Junctions get the same treatment under their fan.
-   - Under bridges the ground is not flattened; it's only kept clear of the deck.
+   - Under bridges the ground is not flattened; it's only kept clear of the deck — by up to 5 m away from
+     its ends, as a surface model (Copernicus) often has the deck as ground. A junction on a bridge
+     shapes nothing on the ground.
    - Along OSM walls and fences, no lip of ground. A LiDAR DTM often keeps part of a thin wall as a
      ridge, and the strip between two carriageways keeps the ground the roads were cut down through. Near
      a wall, the ground is cut down to each side's own level, so a retaining wall's real step stays
@@ -130,9 +142,13 @@ Copernicus GLO-30 ───┴─ GDAL: warp to the grid, → EGM2008, blend, DS
 7. **Details** (`map/bake/details.ts`):
    - **Railings.** From OSM barrier tags, plus estimated ones (flagged in the data) on both sides of
      bridges, along motorway edges and medians, and beside steep drops in the elevation. Thresholds are in
-     `data/map/bake.json`.
+     `data/map/bake.json`. None stands on a road's drawn surface: a fence mapped across a street, a
+     parapet where another road merges, a wall the wider drawn road now covers.
    - **Trees.** Mapped trees and tree rows, and woods and parks filled in, placed deterministically from
-     feature ids.
+     feature ids. None within a drawn road's width and a metre.
+   - **Buildings and roads.** A building a road runs through (a passage, a covered street) is solid only
+     from the road's clearance up; a footprint's corner standing on a drawn road is moved back to its
+     edge.
    - **Street names** along roads, and signs at junctions.
 8. **Tiles.** 512 m squares, each with a 257 × 257 heightfield (centimetres), terrain colours, tyre
    surfaces, the elevation source of each point, road/junction/car-park/water/building meshes, railing

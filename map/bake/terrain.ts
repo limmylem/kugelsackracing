@@ -19,7 +19,7 @@ import type { Grid } from '../format/grid.ts';
 import type { Area, OsmData } from './osmData.ts';
 import { type RNode, type Seg, profileAt } from './roads.ts';
 
-export interface TerrainCfg { sink: number; core: number; slope: number; maxBlend: number; bridgeClearance: number; tunnelCover: number; waterDepth: number; parkingMargin: number; wallReach?: number }
+export interface TerrainCfg { sink: number; core: number; slope: number; maxBlend: number; bridgeClearance: number; tunnelCover: number; waterDepth: number; parkingMargin: number; wallReach?: number; underBridge?: number }
 
 const smoothstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -133,8 +133,10 @@ export function shapeTerrain({ grid: g, dem, osm, nodes, segs, junctions, cfg }:
       });
     }
   }
-  // junctions: under the joined surface (its fan from the node to the ring)
-  for (const j of junctions) {
+  // junctions: under the joined surface (its fan from the node to the ring) — on the ground only: a
+  // junction on a bridge (a slip road joining on the deck) or in a tunnel is no shape for the ground
+  for (const j of junctions as { node?: number; ring: number[][]; centre: number[] }[]) {
+    if (j.node != null && nodes[j.node] && !nodes[j.node].ground) continue;
     const [cx, cy, cz] = j.centre;
     for (let q = 0; q < j.ring.length; q++) {
       const a = j.ring[q], b = j.ring[(q + 1) % j.ring.length];
@@ -182,14 +184,22 @@ export function shapeTerrain({ grid: g, dem, osm, nodes, segs, junctions, cfg }:
       });
     }
   }
-  // (bridges again: nothing the slopes raised may come through a deck)
-  for (const sg of segs) if (sg.structure === 'bridge') for (let q = 0; q + 1 < sg.xs.length; q++) {
-    const ax = sg.xs[q], az = sg.zs[q], bx = sg.xs[q + 1], bz = sg.zs[q + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9, reach = sg.width / 2 + 1.5;
-    forBox(g, Math.min(ax, bx) - reach, Math.min(az, bz) - reach, Math.max(ax, bx) + reach, Math.max(az, bz) + reach, (c, r) => {
-      const x = xOf(c), z = zOf(r), t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
-      if (Math.hypot(x - ax - dx * t, z - az - dz * t) > reach) return;
-      const k = r * g.W + c; h[k] = Math.min(h[k], profileAt(sg, sg.s[q] + (sg.s[q + 1] - sg.s[q]) * t) - cfg.bridgeClearance);
-    });
+  // (bridges again: nothing the slopes raised may come through a deck. And under a deck, away from its
+  // ends, a clear space: the elevation there is often the deck itself — a surface model sees bridges —
+  // which would stand as a bank beside a road passing under. Road surfaces under it only keep clear.)
+  const under = cfg.underBridge ?? 5;
+  for (const sg of segs) if (sg.structure === 'bridge') {
+    const L = sg.s[sg.s.length - 1], fromGround = nodes[sg.from]?.ground, toGround = nodes[sg.to]?.ground;
+    for (let q = 0; q + 1 < sg.xs.length; q++) {
+      const ax = sg.xs[q], az = sg.zs[q], bx = sg.xs[q + 1], bz = sg.zs[q + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9, reach = sg.width / 2 + 1.5;
+      forBox(g, Math.min(ax, bx) - reach, Math.min(az, bz) - reach, Math.max(ax, bx) + reach, Math.max(az, bz) + reach, (c, r) => {
+        const x = xOf(c), z = zOf(r), t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+        if (Math.hypot(x - ax - dx * t, z - az - dz * t) > reach) return;
+        const s = sg.s[q] + (sg.s[q + 1] - sg.s[q]) * t, end = Math.min(fromGround ? s : Infinity, toGround ? L - s : Infinity);
+        const k = r * g.W + c, clear = hardKey[k] !== Infinity ? cfg.bridgeClearance : Math.max(cfg.bridgeClearance, Math.min(under, end * 0.35));
+        h[k] = Math.min(h[k], profileAt(sg, s) - clear);
+      });
+    }
   }
   // to the centimetre (what the tiles store, exactly)
   for (let k = 0; k < N; k++) { h[k] = Math.round(h[k] * 100) / 100; if (cover[k] === cover[k]) cover[k] = Math.round(cover[k] * 100) / 100; }

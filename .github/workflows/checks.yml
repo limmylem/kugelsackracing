@@ -36,9 +36,13 @@ jobs:
         run: npm run test:world
       - name: World content at scale (50,000 markers: queries, per-frame work, memory)
         run: npm run stress:content
+      - name: Routes at scale (a 60 km route: routing, edits, the tracker, dressing memory)
+        run: npm run perf:route
       - name: Map v3 typecheck
         run: npm run map:typecheck
       - name: Map v3 unit tests (projection, grid, tile format, terrain skirts, road graph)
         run: node --test tests/map/unit.test.ts
       - name: Map v3 baked-map tests (roads, heights, seams, datum, railings, streaming, memory, determinism, physics)
         run: npm run test:map
+      - name: Routes on real roads (six regions, five countries: routed, then driven to the finish in the physics)
+        run: npm run test:routes

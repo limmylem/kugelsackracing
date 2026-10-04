@@ -3,7 +3,7 @@
  "map": "v3",
  "region": "sf",
  "name": "San Francisco",
- "version": "1/3/1/overture:2026-10-03/2026-09-23.1#9a481a8f852a",
+ "version": "1/3/1/overture:2026-10-03/2026-09-23.1#df082d6f2272",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-04",
@@ -278,7 +278,7 @@
    {
     "a": -2,
     "b": -2,
-    "bytes": 37709,
+    "bytes": 37703,
     "landmarks": 0
    },
    {
@@ -296,79 +296,79 @@
    {
     "a": 1,
     "b": -2,
-    "bytes": 16000,
+    "bytes": 15453,
     "landmarks": 2
    },
    {
     "a": -2,
     "b": -1,
-    "bytes": 28616,
+    "bytes": 28639,
     "landmarks": 0
    },
    {
     "a": -1,
     "b": -1,
-    "bytes": 87381,
+    "bytes": 87296,
     "landmarks": 8
    },
    {
     "a": 0,
     "b": -1,
-    "bytes": 287019,
+    "bytes": 286882,
     "landmarks": 313
    },
    {
     "a": 1,
     "b": -1,
-    "bytes": 19266,
+    "bytes": 19280,
     "landmarks": 16
    },
    {
     "a": -2,
     "b": 0,
-    "bytes": 42633,
+    "bytes": 42634,
     "landmarks": 4
    },
    {
     "a": -1,
     "b": 0,
-    "bytes": 101986,
+    "bytes": 101998,
     "landmarks": 34
    },
    {
     "a": 0,
     "b": 0,
-    "bytes": 89584,
+    "bytes": 89013,
     "landmarks": 14
    },
    {
     "a": 1,
     "b": 0,
-    "bytes": 32132,
+    "bytes": 32136,
     "landmarks": 1
    },
    {
     "a": -2,
     "b": 1,
-    "bytes": 35272,
+    "bytes": 35277,
     "landmarks": 0
    },
    {
     "a": -1,
     "b": 1,
-    "bytes": 88685,
+    "bytes": 88645,
     "landmarks": 8
    },
    {
     "a": 0,
     "b": 1,
-    "bytes": 76116,
+    "bytes": 76096,
     "landmarks": 6
    },
    {
     "a": 1,
     "b": 1,
-    "bytes": 31632,
+    "bytes": 31622,
     "landmarks": 5
    }
   ]
@@ -6966,14 +6966,14 @@
    "overture": 1475,
    "nearby": 8010
   },
-  "roads": 42365,
-  "junctions": 20558
+  "roads": 39756,
+  "junctions": 18186
  },
  "tiles": [
   {
    "i": -15,
    "j": -15,
-   "bytes": 57264,
+   "bytes": 57252,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -6981,7 +6981,7 @@
   {
    "i": -14,
    "j": -15,
-   "bytes": 67406,
+   "bytes": 67382,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -6997,7 +6997,7 @@
   {
    "i": -12,
    "j": -15,
-   "bytes": 65331,
+   "bytes": 65309,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7005,7 +7005,7 @@
   {
    "i": -11,
    "j": -15,
-   "bytes": 90467,
+   "bytes": 89911,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7013,7 +7013,7 @@
   {
    "i": -10,
    "j": -15,
-   "bytes": 61150,
+   "bytes": 61141,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7021,7 +7021,7 @@
   {
    "i": -9,
    "j": -15,
-   "bytes": 108507,
+   "bytes": 108440,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7029,7 +7029,7 @@
   {
    "i": -8,
    "j": -15,
-   "bytes": 126583,
+   "bytes": 126290,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 1
@@ -7037,7 +7037,7 @@
   {
    "i": -7,
    "j": -15,
-   "bytes": 97814,
+   "bytes": 97877,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7213,7 +7213,7 @@
   {
    "i": -15,
    "j": -14,
-   "bytes": 73944,
+   "bytes": 73898,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7221,7 +7221,7 @@
   {
    "i": -14,
    "j": -14,
-   "bytes": 85914,
+   "bytes": 85927,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7229,7 +7229,7 @@
   {
    "i": -13,
    "j": -14,
-   "bytes": 74913,
+   "bytes": 74853,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7237,7 +7237,7 @@
   {
    "i": -12,
    "j": -14,
-   "bytes": 77116,
+   "bytes": 77046,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7245,7 +7245,7 @@
   {
    "i": -11,
    "j": -14,
-   "bytes": 84311,
+   "bytes": 84154,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7253,7 +7253,7 @@
   {
    "i": -10,
    "j": -14,
-   "bytes": 82343,
+   "bytes": 82368,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7261,7 +7261,7 @@
   {
    "i": -9,
    "j": -14,
-   "bytes": 88912,
+   "bytes": 88681,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7269,7 +7269,7 @@
   {
    "i": -8,
    "j": -14,
-   "bytes": 170990,
+   "bytes": 164449,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7277,7 +7277,7 @@
   {
    "i": -7,
    "j": -14,
-   "bytes": 103629,
+   "bytes": 103061,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7453,7 +7453,7 @@
   {
    "i": -15,
    "j": -13,
-   "bytes": 89099,
+   "bytes": 89018,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7461,7 +7461,7 @@
   {
    "i": -14,
    "j": -13,
-   "bytes": 71507,
+   "bytes": 71237,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7469,7 +7469,7 @@
   {
    "i": -13,
    "j": -13,
-   "bytes": 67078,
+   "bytes": 67033,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7477,7 +7477,7 @@
   {
    "i": -12,
    "j": -13,
-   "bytes": 73278,
+   "bytes": 73220,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7485,7 +7485,7 @@
   {
    "i": -11,
    "j": -13,
-   "bytes": 76970,
+   "bytes": 76966,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7493,7 +7493,7 @@
   {
    "i": -10,
    "j": -13,
-   "bytes": 87996,
+   "bytes": 87914,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7501,7 +7501,7 @@
   {
    "i": -9,
    "j": -13,
-   "bytes": 96413,
+   "bytes": 96394,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7509,7 +7509,7 @@
   {
    "i": -8,
    "j": -13,
-   "bytes": 141219,
+   "bytes": 122706,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7589,7 +7589,7 @@
   {
    "i": 2,
    "j": -13,
-   "bytes": 44226,
+   "bytes": 43225,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7653,7 +7653,7 @@
   {
    "i": 10,
    "j": -13,
-   "bytes": 103778,
+   "bytes": 103697,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7661,7 +7661,7 @@
   {
    "i": 11,
    "j": -13,
-   "bytes": 101522,
+   "bytes": 100945,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7709,7 +7709,7 @@
   {
    "i": -13,
    "j": -12,
-   "bytes": 40341,
+   "bytes": 40327,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7717,7 +7717,7 @@
   {
    "i": -12,
    "j": -12,
-   "bytes": 61579,
+   "bytes": 61571,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7725,7 +7725,7 @@
   {
    "i": -11,
    "j": -12,
-   "bytes": 65783,
+   "bytes": 65747,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -7749,7 +7749,7 @@
   {
    "i": -8,
    "j": -12,
-   "bytes": 64678,
+   "bytes": 48819,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 32
@@ -7829,7 +7829,7 @@
   {
    "i": 2,
    "j": -12,
-   "bytes": 32456,
+   "bytes": 32304,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7893,7 +7893,7 @@
   {
    "i": 10,
    "j": -12,
-   "bytes": 94546,
+   "bytes": 94549,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7901,7 +7901,7 @@
   {
    "i": 11,
    "j": -12,
-   "bytes": 108441,
+   "bytes": 108237,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7909,7 +7909,7 @@
   {
    "i": 12,
    "j": -12,
-   "bytes": 59538,
+   "bytes": 59508,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7989,7 +7989,7 @@
   {
    "i": -8,
    "j": -11,
-   "bytes": 30690,
+   "bytes": 13928,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -7997,7 +7997,7 @@
   {
    "i": -7,
    "j": -11,
-   "bytes": 2411,
+   "bytes": 2346,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8141,7 +8141,7 @@
   {
    "i": 11,
    "j": -11,
-   "bytes": 96946,
+   "bytes": 96938,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8149,7 +8149,7 @@
   {
    "i": 12,
    "j": -11,
-   "bytes": 60304,
+   "bytes": 60053,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8165,7 +8165,7 @@
   {
    "i": 14,
    "j": -11,
-   "bytes": 53301,
+   "bytes": 33169,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8229,7 +8229,7 @@
   {
    "i": -8,
    "j": -10,
-   "bytes": 13722,
+   "bytes": 7605,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8237,7 +8237,7 @@
   {
    "i": -7,
    "j": -10,
-   "bytes": 35289,
+   "bytes": 22751,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 31
@@ -8381,7 +8381,7 @@
   {
    "i": 11,
    "j": -10,
-   "bytes": 58489,
+   "bytes": 58565,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8389,7 +8389,7 @@
   {
    "i": 12,
    "j": -10,
-   "bytes": 34004,
+   "bytes": 31077,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8397,7 +8397,7 @@
   {
    "i": 13,
    "j": -10,
-   "bytes": 95229,
+   "bytes": 70110,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -8405,7 +8405,7 @@
   {
    "i": 14,
    "j": -10,
-   "bytes": 26570,
+   "bytes": 16652,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8477,7 +8477,7 @@
   {
    "i": -7,
    "j": -9,
-   "bytes": 85711,
+   "bytes": 67300,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8557,7 +8557,7 @@
   {
    "i": 3,
    "j": -9,
-   "bytes": 49079,
+   "bytes": 49085,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8565,7 +8565,7 @@
   {
    "i": 4,
    "j": -9,
-   "bytes": 49800,
+   "bytes": 49799,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8621,7 +8621,7 @@
   {
    "i": 11,
    "j": -9,
-   "bytes": 105200,
+   "bytes": 104988,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8629,7 +8629,7 @@
   {
    "i": 12,
    "j": -9,
-   "bytes": 254343,
+   "bytes": 222152,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8637,7 +8637,7 @@
   {
    "i": 13,
    "j": -9,
-   "bytes": 38018,
+   "bytes": 36858,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8717,7 +8717,7 @@
   {
    "i": -7,
    "j": -8,
-   "bytes": 209873,
+   "bytes": 197818,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8725,7 +8725,7 @@
   {
    "i": -6,
    "j": -8,
-   "bytes": 138942,
+   "bytes": 138202,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8749,7 +8749,7 @@
   {
    "i": -3,
    "j": -8,
-   "bytes": 81179,
+   "bytes": 80877,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8757,7 +8757,7 @@
   {
    "i": -2,
    "j": -8,
-   "bytes": 147833,
+   "bytes": 147829,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8765,7 +8765,7 @@
   {
    "i": -1,
    "j": -8,
-   "bytes": 174646,
+   "bytes": 174520,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8773,7 +8773,7 @@
   {
    "i": 0,
    "j": -8,
-   "bytes": 145629,
+   "bytes": 145674,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8781,7 +8781,7 @@
   {
    "i": 1,
    "j": -8,
-   "bytes": 162092,
+   "bytes": 160935,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8789,7 +8789,7 @@
   {
    "i": 2,
    "j": -8,
-   "bytes": 172226,
+   "bytes": 171203,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8797,7 +8797,7 @@
   {
    "i": 3,
    "j": -8,
-   "bytes": 202511,
+   "bytes": 202292,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8805,7 +8805,7 @@
   {
    "i": 4,
    "j": -8,
-   "bytes": 204454,
+   "bytes": 204592,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8813,7 +8813,7 @@
   {
    "i": 5,
    "j": -8,
-   "bytes": 139038,
+   "bytes": 138809,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8821,7 +8821,7 @@
   {
    "i": 6,
    "j": -8,
-   "bytes": 38312,
+   "bytes": 38176,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8861,7 +8861,7 @@
   {
    "i": 11,
    "j": -8,
-   "bytes": 26101,
+   "bytes": 16264,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -8869,7 +8869,7 @@
   {
    "i": 12,
    "j": -8,
-   "bytes": 38672,
+   "bytes": 36808,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8949,7 +8949,7 @@
   {
    "i": -8,
    "j": -7,
-   "bytes": 45275,
+   "bytes": 45260,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8957,7 +8957,7 @@
   {
    "i": -7,
    "j": -7,
-   "bytes": 142909,
+   "bytes": 142791,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8965,7 +8965,7 @@
   {
    "i": -6,
    "j": -7,
-   "bytes": 213217,
+   "bytes": 184035,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8973,7 +8973,7 @@
   {
    "i": -5,
    "j": -7,
-   "bytes": 158068,
+   "bytes": 154055,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8981,7 +8981,7 @@
   {
    "i": -4,
    "j": -7,
-   "bytes": 166795,
+   "bytes": 166541,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8989,7 +8989,7 @@
   {
    "i": -3,
    "j": -7,
-   "bytes": 219580,
+   "bytes": 201894,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -8997,7 +8997,7 @@
   {
    "i": -2,
    "j": -7,
-   "bytes": 257053,
+   "bytes": 256432,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9005,7 +9005,7 @@
   {
    "i": -1,
    "j": -7,
-   "bytes": 313506,
+   "bytes": 313515,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9013,7 +9013,7 @@
   {
    "i": 0,
    "j": -7,
-   "bytes": 203274,
+   "bytes": 203237,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9021,7 +9021,7 @@
   {
    "i": 1,
    "j": -7,
-   "bytes": 245489,
+   "bytes": 245614,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9029,7 +9029,7 @@
   {
    "i": 2,
    "j": -7,
-   "bytes": 239217,
+   "bytes": 238491,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9037,7 +9037,7 @@
   {
    "i": 3,
    "j": -7,
-   "bytes": 300835,
+   "bytes": 298216,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9045,7 +9045,7 @@
   {
    "i": 4,
    "j": -7,
-   "bytes": 327873,
+   "bytes": 327646,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9053,7 +9053,7 @@
   {
    "i": 5,
    "j": -7,
-   "bytes": 322677,
+   "bytes": 320504,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9061,7 +9061,7 @@
   {
    "i": 6,
    "j": -7,
-   "bytes": 94507,
+   "bytes": 94510,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9093,7 +9093,7 @@
   {
    "i": 10,
    "j": -7,
-   "bytes": 17901,
+   "bytes": 10906,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -9101,7 +9101,7 @@
   {
    "i": 11,
    "j": -7,
-   "bytes": 11237,
+   "bytes": 6568,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9189,7 +9189,7 @@
   {
    "i": -8,
    "j": -6,
-   "bytes": 87866,
+   "bytes": 87781,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9197,7 +9197,7 @@
   {
    "i": -7,
    "j": -6,
-   "bytes": 116958,
+   "bytes": 116969,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9205,7 +9205,7 @@
   {
    "i": -6,
    "j": -6,
-   "bytes": 139967,
+   "bytes": 138236,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9213,7 +9213,7 @@
   {
    "i": -5,
    "j": -6,
-   "bytes": 145531,
+   "bytes": 145443,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9221,7 +9221,7 @@
   {
    "i": -4,
    "j": -6,
-   "bytes": 158806,
+   "bytes": 158641,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9229,7 +9229,7 @@
   {
    "i": -3,
    "j": -6,
-   "bytes": 162350,
+   "bytes": 162243,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9237,7 +9237,7 @@
   {
    "i": -2,
    "j": -6,
-   "bytes": 252635,
+   "bytes": 252579,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9245,7 +9245,7 @@
   {
    "i": -1,
    "j": -6,
-   "bytes": 272908,
+   "bytes": 273084,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9253,7 +9253,7 @@
   {
    "i": 0,
    "j": -6,
-   "bytes": 274975,
+   "bytes": 274791,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9261,7 +9261,7 @@
   {
    "i": 1,
    "j": -6,
-   "bytes": 265894,
+   "bytes": 265994,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9269,7 +9269,7 @@
   {
    "i": 2,
    "j": -6,
-   "bytes": 251093,
+   "bytes": 250869,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9277,7 +9277,7 @@
   {
    "i": 3,
    "j": -6,
-   "bytes": 357676,
+   "bytes": 355766,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -9285,7 +9285,7 @@
   {
    "i": 4,
    "j": -6,
-   "bytes": 328110,
+   "bytes": 327131,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9293,7 +9293,7 @@
   {
    "i": 5,
    "j": -6,
-   "bytes": 230485,
+   "bytes": 230099,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 7
@@ -9301,7 +9301,7 @@
   {
    "i": 6,
    "j": -6,
-   "bytes": 147717,
+   "bytes": 147789,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 13
@@ -9309,7 +9309,7 @@
   {
    "i": 7,
    "j": -6,
-   "bytes": 87862,
+   "bytes": 87785,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 6
@@ -9325,7 +9325,7 @@
   {
    "i": 9,
    "j": -6,
-   "bytes": 14612,
+   "bytes": 8747,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -9333,7 +9333,7 @@
   {
    "i": 10,
    "j": -6,
-   "bytes": 15509,
+   "bytes": 9056,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9421,7 +9421,7 @@
   {
    "i": -9,
    "j": -5,
-   "bytes": 25245,
+   "bytes": 25234,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9429,7 +9429,7 @@
   {
    "i": -8,
    "j": -5,
-   "bytes": 163903,
+   "bytes": 163993,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9437,7 +9437,7 @@
   {
    "i": -7,
    "j": -5,
-   "bytes": 141886,
+   "bytes": 141757,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9445,7 +9445,7 @@
   {
    "i": -6,
    "j": -5,
-   "bytes": 119776,
+   "bytes": 116653,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9453,7 +9453,7 @@
   {
    "i": -5,
    "j": -5,
-   "bytes": 99963,
+   "bytes": 99873,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9461,7 +9461,7 @@
   {
    "i": -4,
    "j": -5,
-   "bytes": 134645,
+   "bytes": 134564,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9469,7 +9469,7 @@
   {
    "i": -3,
    "j": -5,
-   "bytes": 168687,
+   "bytes": 168340,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9477,7 +9477,7 @@
   {
    "i": -2,
    "j": -5,
-   "bytes": 238777,
+   "bytes": 238665,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9485,7 +9485,7 @@
   {
    "i": -1,
    "j": -5,
-   "bytes": 246286,
+   "bytes": 246447,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9493,7 +9493,7 @@
   {
    "i": 0,
    "j": -5,
-   "bytes": 274981,
+   "bytes": 275026,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9501,7 +9501,7 @@
   {
    "i": 1,
    "j": -5,
-   "bytes": 210463,
+   "bytes": 210440,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9509,7 +9509,7 @@
   {
    "i": 2,
    "j": -5,
-   "bytes": 200603,
+   "bytes": 200573,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9517,7 +9517,7 @@
   {
    "i": 3,
    "j": -5,
-   "bytes": 308734,
+   "bytes": 308136,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -9525,7 +9525,7 @@
   {
    "i": 4,
    "j": -5,
-   "bytes": 257153,
+   "bytes": 256033,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 5
@@ -9533,7 +9533,7 @@
   {
    "i": 5,
    "j": -5,
-   "bytes": 219719,
+   "bytes": 219169,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 79
@@ -9541,7 +9541,7 @@
   {
    "i": 6,
    "j": -5,
-   "bytes": 149042,
+   "bytes": 148459,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 53
@@ -9549,7 +9549,7 @@
   {
    "i": 7,
    "j": -5,
-   "bytes": 150248,
+   "bytes": 148925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 25
@@ -9557,7 +9557,7 @@
   {
    "i": 8,
    "j": -5,
-   "bytes": 42377,
+   "bytes": 36646,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -9565,7 +9565,7 @@
   {
    "i": 9,
    "j": -5,
-   "bytes": 19779,
+   "bytes": 11836,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9645,7 +9645,7 @@
   {
    "i": -11,
    "j": -4,
-   "bytes": 74433,
+   "bytes": 74354,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9653,7 +9653,7 @@
   {
    "i": -10,
    "j": -4,
-   "bytes": 120462,
+   "bytes": 119494,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9661,7 +9661,7 @@
   {
    "i": -9,
    "j": -4,
-   "bytes": 249965,
+   "bytes": 249737,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9669,7 +9669,7 @@
   {
    "i": -8,
    "j": -4,
-   "bytes": 184868,
+   "bytes": 184671,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9677,7 +9677,7 @@
   {
    "i": -7,
    "j": -4,
-   "bytes": 186987,
+   "bytes": 186230,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9685,7 +9685,7 @@
   {
    "i": -6,
    "j": -4,
-   "bytes": 159164,
+   "bytes": 157904,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9693,7 +9693,7 @@
   {
    "i": -5,
    "j": -4,
-   "bytes": 211753,
+   "bytes": 211706,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9701,7 +9701,7 @@
   {
    "i": -4,
    "j": -4,
-   "bytes": 255945,
+   "bytes": 256044,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9709,7 +9709,7 @@
   {
    "i": -3,
    "j": -4,
-   "bytes": 264847,
+   "bytes": 264610,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9717,7 +9717,7 @@
   {
    "i": -2,
    "j": -4,
-   "bytes": 286950,
+   "bytes": 286941,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9725,7 +9725,7 @@
   {
    "i": -1,
    "j": -4,
-   "bytes": 288033,
+   "bytes": 287802,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9733,7 +9733,7 @@
   {
    "i": 0,
    "j": -4,
-   "bytes": 284869,
+   "bytes": 284215,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9741,7 +9741,7 @@
   {
    "i": 1,
    "j": -4,
-   "bytes": 243793,
+   "bytes": 243566,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9749,7 +9749,7 @@
   {
    "i": 2,
    "j": -4,
-   "bytes": 186062,
+   "bytes": 186031,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -9757,7 +9757,7 @@
   {
    "i": 3,
    "j": -4,
-   "bytes": 193667,
+   "bytes": 193582,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9765,7 +9765,7 @@
   {
    "i": 4,
    "j": -4,
-   "bytes": 169863,
+   "bytes": 169773,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 7
@@ -9773,7 +9773,7 @@
   {
    "i": 5,
    "j": -4,
-   "bytes": 144712,
+   "bytes": 143696,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 14
@@ -9781,7 +9781,7 @@
   {
    "i": 6,
    "j": -4,
-   "bytes": 160868,
+   "bytes": 159026,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 37
@@ -9789,7 +9789,7 @@
   {
    "i": 7,
    "j": -4,
-   "bytes": 200569,
+   "bytes": 183925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 18
@@ -9797,7 +9797,7 @@
   {
    "i": 8,
    "j": -4,
-   "bytes": 143280,
+   "bytes": 132852,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -9869,7 +9869,7 @@
   {
    "i": -13,
    "j": -3,
-   "bytes": 126575,
+   "bytes": 126600,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9877,7 +9877,7 @@
   {
    "i": -12,
    "j": -3,
-   "bytes": 172646,
+   "bytes": 172479,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9885,7 +9885,7 @@
   {
    "i": -11,
    "j": -3,
-   "bytes": 133916,
+   "bytes": 133953,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9893,7 +9893,7 @@
   {
    "i": -10,
    "j": -3,
-   "bytes": 214969,
+   "bytes": 214904,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9901,7 +9901,7 @@
   {
    "i": -9,
    "j": -3,
-   "bytes": 303148,
+   "bytes": 303182,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9909,7 +9909,7 @@
   {
    "i": -8,
    "j": -3,
-   "bytes": 301514,
+   "bytes": 301445,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9917,7 +9917,7 @@
   {
    "i": -7,
    "j": -3,
-   "bytes": 283813,
+   "bytes": 283866,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9925,7 +9925,7 @@
   {
    "i": -6,
    "j": -3,
-   "bytes": 288666,
+   "bytes": 288418,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -9933,7 +9933,7 @@
   {
    "i": -5,
    "j": -3,
-   "bytes": 274522,
+   "bytes": 274495,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9941,7 +9941,7 @@
   {
    "i": -4,
    "j": -3,
-   "bytes": 223566,
+   "bytes": 223511,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9949,7 +9949,7 @@
   {
    "i": -3,
    "j": -3,
-   "bytes": 286315,
+   "bytes": 285973,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9957,7 +9957,7 @@
   {
    "i": -2,
    "j": -3,
-   "bytes": 260764,
+   "bytes": 259765,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9965,7 +9965,7 @@
   {
    "i": -1,
    "j": -3,
-   "bytes": 233920,
+   "bytes": 234030,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -9973,7 +9973,7 @@
   {
    "i": 0,
    "j": -3,
-   "bytes": 176530,
+   "bytes": 174669,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -9981,7 +9981,7 @@
   {
    "i": 1,
    "j": -3,
-   "bytes": 206181,
+   "bytes": 205470,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -9989,7 +9989,7 @@
   {
    "i": 2,
    "j": -3,
-   "bytes": 170435,
+   "bytes": 170159,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 8
@@ -9997,7 +9997,7 @@
   {
    "i": 3,
    "j": -3,
-   "bytes": 185155,
+   "bytes": 184710,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10005,7 +10005,7 @@
   {
    "i": 4,
    "j": -3,
-   "bytes": 175251,
+   "bytes": 175099,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -10013,7 +10013,7 @@
   {
    "i": 5,
    "j": -3,
-   "bytes": 143698,
+   "bytes": 142404,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -10021,7 +10021,7 @@
   {
    "i": 6,
    "j": -3,
-   "bytes": 178889,
+   "bytes": 169791,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -10029,7 +10029,7 @@
   {
    "i": 7,
    "j": -3,
-   "bytes": 228913,
+   "bytes": 210685,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10037,7 +10037,7 @@
   {
    "i": 8,
    "j": -3,
-   "bytes": 102549,
+   "bytes": 102266,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10101,7 +10101,7 @@
   {
    "i": -14,
    "j": -2,
-   "bytes": 37343,
+   "bytes": 37329,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10109,7 +10109,7 @@
   {
    "i": -13,
    "j": -2,
-   "bytes": 192277,
+   "bytes": 192399,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10117,7 +10117,7 @@
   {
    "i": -12,
    "j": -2,
-   "bytes": 284723,
+   "bytes": 284752,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10125,7 +10125,7 @@
   {
    "i": -11,
    "j": -2,
-   "bytes": 266227,
+   "bytes": 266303,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10133,7 +10133,7 @@
   {
    "i": -10,
    "j": -2,
-   "bytes": 222982,
+   "bytes": 223164,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10141,7 +10141,7 @@
   {
    "i": -9,
    "j": -2,
-   "bytes": 295100,
+   "bytes": 295218,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10149,7 +10149,7 @@
   {
    "i": -8,
    "j": -2,
-   "bytes": 282120,
+   "bytes": 282033,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10157,7 +10157,7 @@
   {
    "i": -7,
    "j": -2,
-   "bytes": 256137,
+   "bytes": 256252,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10165,7 +10165,7 @@
   {
    "i": -6,
    "j": -2,
-   "bytes": 269732,
+   "bytes": 269657,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10173,7 +10173,7 @@
   {
    "i": -5,
    "j": -2,
-   "bytes": 244617,
+   "bytes": 244626,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10181,7 +10181,7 @@
   {
    "i": -4,
    "j": -2,
-   "bytes": 251696,
+   "bytes": 251738,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10189,7 +10189,7 @@
   {
    "i": -3,
    "j": -2,
-   "bytes": 191018,
+   "bytes": 190687,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10197,7 +10197,7 @@
   {
    "i": -2,
    "j": -2,
-   "bytes": 247153,
+   "bytes": 247120,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10205,7 +10205,7 @@
   {
    "i": -1,
    "j": -2,
-   "bytes": 281607,
+   "bytes": 281531,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10213,7 +10213,7 @@
   {
    "i": 0,
    "j": -2,
-   "bytes": 222764,
+   "bytes": 222496,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10221,7 +10221,7 @@
   {
    "i": 1,
    "j": -2,
-   "bytes": 224460,
+   "bytes": 224400,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10229,7 +10229,7 @@
   {
    "i": 2,
    "j": -2,
-   "bytes": 194921,
+   "bytes": 194785,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10237,7 +10237,7 @@
   {
    "i": 3,
    "j": -2,
-   "bytes": 136929,
+   "bytes": 136661,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 7
@@ -10245,7 +10245,7 @@
   {
    "i": 4,
    "j": -2,
-   "bytes": 193329,
+   "bytes": 192573,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -10253,7 +10253,7 @@
   {
    "i": 5,
    "j": -2,
-   "bytes": 205666,
+   "bytes": 198080,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10261,7 +10261,7 @@
   {
    "i": 6,
    "j": -2,
-   "bytes": 235799,
+   "bytes": 206159,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10269,7 +10269,7 @@
   {
    "i": 7,
    "j": -2,
-   "bytes": 154532,
+   "bytes": 154251,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10277,7 +10277,7 @@
   {
    "i": 8,
    "j": -2,
-   "bytes": 71352,
+   "bytes": 70260,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 3
@@ -10349,7 +10349,7 @@
   {
    "i": -13,
    "j": -1,
-   "bytes": 199481,
+   "bytes": 199382,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10357,7 +10357,7 @@
   {
    "i": -12,
    "j": -1,
-   "bytes": 294940,
+   "bytes": 295006,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10365,7 +10365,7 @@
   {
    "i": -11,
    "j": -1,
-   "bytes": 274719,
+   "bytes": 274615,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10373,7 +10373,7 @@
   {
    "i": -10,
    "j": -1,
-   "bytes": 252596,
+   "bytes": 252721,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10381,7 +10381,7 @@
   {
    "i": -9,
    "j": -1,
-   "bytes": 278910,
+   "bytes": 278957,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10389,7 +10389,7 @@
   {
    "i": -8,
    "j": -1,
-   "bytes": 260411,
+   "bytes": 260460,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10397,7 +10397,7 @@
   {
    "i": -7,
    "j": -1,
-   "bytes": 255068,
+   "bytes": 254999,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10405,7 +10405,7 @@
   {
    "i": -6,
    "j": -1,
-   "bytes": 210914,
+   "bytes": 210896,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10413,7 +10413,7 @@
   {
    "i": -5,
    "j": -1,
-   "bytes": 179383,
+   "bytes": 179237,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10421,7 +10421,7 @@
   {
    "i": -4,
    "j": -1,
-   "bytes": 178977,
+   "bytes": 178979,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10429,7 +10429,7 @@
   {
    "i": -3,
    "j": -1,
-   "bytes": 234092,
+   "bytes": 233929,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10437,7 +10437,7 @@
   {
    "i": -2,
    "j": -1,
-   "bytes": 252248,
+   "bytes": 252147,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10445,7 +10445,7 @@
   {
    "i": -1,
    "j": -1,
-   "bytes": 258578,
+   "bytes": 258122,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10453,7 +10453,7 @@
   {
    "i": 0,
    "j": -1,
-   "bytes": 284104,
+   "bytes": 283728,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10461,7 +10461,7 @@
   {
    "i": 1,
    "j": -1,
-   "bytes": 282526,
+   "bytes": 282272,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10469,7 +10469,7 @@
   {
    "i": 2,
    "j": -1,
-   "bytes": 221585,
+   "bytes": 221675,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10477,7 +10477,7 @@
   {
    "i": 3,
    "j": -1,
-   "bytes": 162408,
+   "bytes": 162314,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 5
@@ -10485,7 +10485,7 @@
   {
    "i": 4,
    "j": -1,
-   "bytes": 171730,
+   "bytes": 171426,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10493,7 +10493,7 @@
   {
    "i": 5,
    "j": -1,
-   "bytes": 244642,
+   "bytes": 212142,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10501,7 +10501,7 @@
   {
    "i": 6,
    "j": -1,
-   "bytes": 198936,
+   "bytes": 182088,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10509,7 +10509,7 @@
   {
    "i": 7,
    "j": -1,
-   "bytes": 115611,
+   "bytes": 114289,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10517,7 +10517,7 @@
   {
    "i": 8,
    "j": -1,
-   "bytes": 146777,
+   "bytes": 146361,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -10525,7 +10525,7 @@
   {
    "i": 9,
    "j": -1,
-   "bytes": 40348,
+   "bytes": 39804,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10589,7 +10589,7 @@
   {
    "i": -13,
    "j": 0,
-   "bytes": 104863,
+   "bytes": 104489,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10597,7 +10597,7 @@
   {
    "i": -12,
    "j": 0,
-   "bytes": 96041,
+   "bytes": 96063,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10605,7 +10605,7 @@
   {
    "i": -11,
    "j": 0,
-   "bytes": 97835,
+   "bytes": 97783,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10613,7 +10613,7 @@
   {
    "i": -10,
    "j": 0,
-   "bytes": 92925,
+   "bytes": 92930,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10621,7 +10621,7 @@
   {
    "i": -9,
    "j": 0,
-   "bytes": 86189,
+   "bytes": 86199,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10629,7 +10629,7 @@
   {
    "i": -8,
    "j": 0,
-   "bytes": 106334,
+   "bytes": 105140,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10637,7 +10637,7 @@
   {
    "i": -7,
    "j": 0,
-   "bytes": 102978,
+   "bytes": 102964,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10645,7 +10645,7 @@
   {
    "i": -6,
    "j": 0,
-   "bytes": 110599,
+   "bytes": 110482,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10653,7 +10653,7 @@
   {
    "i": -5,
    "j": 0,
-   "bytes": 110777,
+   "bytes": 110320,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10661,7 +10661,7 @@
   {
    "i": -4,
    "j": 0,
-   "bytes": 116201,
+   "bytes": 115670,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10669,7 +10669,7 @@
   {
    "i": -3,
    "j": 0,
-   "bytes": 242254,
+   "bytes": 241801,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10677,7 +10677,7 @@
   {
    "i": -2,
    "j": 0,
-   "bytes": 283796,
+   "bytes": 283945,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10685,7 +10685,7 @@
   {
    "i": -1,
    "j": 0,
-   "bytes": 214839,
+   "bytes": 214867,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10693,7 +10693,7 @@
   {
    "i": 0,
    "j": 0,
-   "bytes": 277703,
+   "bytes": 277644,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10701,7 +10701,7 @@
   {
    "i": 1,
    "j": 0,
-   "bytes": 269418,
+   "bytes": 269184,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10709,7 +10709,7 @@
   {
    "i": 2,
    "j": 0,
-   "bytes": 258711,
+   "bytes": 252862,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10717,7 +10717,7 @@
   {
    "i": 3,
    "j": 0,
-   "bytes": 257877,
+   "bytes": 235252,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10725,7 +10725,7 @@
   {
    "i": 4,
    "j": 0,
-   "bytes": 217043,
+   "bytes": 189106,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10733,7 +10733,7 @@
   {
    "i": 5,
    "j": 0,
-   "bytes": 278020,
+   "bytes": 204165,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10741,7 +10741,7 @@
   {
    "i": 6,
    "j": 0,
-   "bytes": 165646,
+   "bytes": 144046,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10749,7 +10749,7 @@
   {
    "i": 7,
    "j": 0,
-   "bytes": 162761,
+   "bytes": 147500,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10757,7 +10757,7 @@
   {
    "i": 8,
    "j": 0,
-   "bytes": 109105,
+   "bytes": 108915,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10829,7 +10829,7 @@
   {
    "i": -13,
    "j": 1,
-   "bytes": 107197,
+   "bytes": 107259,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10837,7 +10837,7 @@
   {
    "i": -12,
    "j": 1,
-   "bytes": 167953,
+   "bytes": 167947,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10845,7 +10845,7 @@
   {
    "i": -11,
    "j": 1,
-   "bytes": 200333,
+   "bytes": 198000,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10853,7 +10853,7 @@
   {
    "i": -10,
    "j": 1,
-   "bytes": 205293,
+   "bytes": 204921,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10861,7 +10861,7 @@
   {
    "i": -9,
    "j": 1,
-   "bytes": 199037,
+   "bytes": 199174,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10869,7 +10869,7 @@
   {
    "i": -8,
    "j": 1,
-   "bytes": 216102,
+   "bytes": 216301,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10877,7 +10877,7 @@
   {
    "i": -7,
    "j": 1,
-   "bytes": 231046,
+   "bytes": 231081,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10885,7 +10885,7 @@
   {
    "i": -6,
    "j": 1,
-   "bytes": 228503,
+   "bytes": 228468,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10893,7 +10893,7 @@
   {
    "i": -5,
    "j": 1,
-   "bytes": 278428,
+   "bytes": 278537,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10901,7 +10901,7 @@
   {
    "i": -4,
    "j": 1,
-   "bytes": 236782,
+   "bytes": 236328,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10909,7 +10909,7 @@
   {
    "i": -3,
    "j": 1,
-   "bytes": 319008,
+   "bytes": 318957,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10917,7 +10917,7 @@
   {
    "i": -2,
    "j": 1,
-   "bytes": 333403,
+   "bytes": 332878,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10925,7 +10925,7 @@
   {
    "i": -1,
    "j": 1,
-   "bytes": 279202,
+   "bytes": 279182,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10933,7 +10933,7 @@
   {
    "i": 0,
    "j": 1,
-   "bytes": 296153,
+   "bytes": 296027,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10941,7 +10941,7 @@
   {
    "i": 1,
    "j": 1,
-   "bytes": 219108,
+   "bytes": 218626,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -10949,7 +10949,7 @@
   {
    "i": 2,
    "j": 1,
-   "bytes": 222422,
+   "bytes": 221717,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 2
@@ -10957,7 +10957,7 @@
   {
    "i": 3,
    "j": 1,
-   "bytes": 178300,
+   "bytes": 177925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10965,7 +10965,7 @@
   {
    "i": 4,
    "j": 1,
-   "bytes": 135997,
+   "bytes": 135455,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10973,7 +10973,7 @@
   {
    "i": 5,
    "j": 1,
-   "bytes": 219359,
+   "bytes": 208841,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10981,7 +10981,7 @@
   {
    "i": 6,
    "j": 1,
-   "bytes": 159464,
+   "bytes": 159414,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10989,7 +10989,7 @@
   {
    "i": 7,
    "j": 1,
-   "bytes": 246139,
+   "bytes": 218336,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -10997,7 +10997,7 @@
   {
    "i": 8,
    "j": 1,
-   "bytes": 108304,
+   "bytes": 108186,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11069,7 +11069,7 @@
   {
    "i": -13,
    "j": 2,
-   "bytes": 129219,
+   "bytes": 129060,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11077,7 +11077,7 @@
   {
    "i": -12,
    "j": 2,
-   "bytes": 257951,
+   "bytes": 258097,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11085,7 +11085,7 @@
   {
    "i": -11,
    "j": 2,
-   "bytes": 231009,
+   "bytes": 231305,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11093,7 +11093,7 @@
   {
    "i": -10,
    "j": 2,
-   "bytes": 238452,
+   "bytes": 238514,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11101,7 +11101,7 @@
   {
    "i": -9,
    "j": 2,
-   "bytes": 233384,
+   "bytes": 233390,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11109,7 +11109,7 @@
   {
    "i": -8,
    "j": 2,
-   "bytes": 275990,
+   "bytes": 276056,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11117,7 +11117,7 @@
   {
    "i": -7,
    "j": 2,
-   "bytes": 290354,
+   "bytes": 289854,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11125,7 +11125,7 @@
   {
    "i": -6,
    "j": 2,
-   "bytes": 264223,
+   "bytes": 264304,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11133,7 +11133,7 @@
   {
    "i": -5,
    "j": 2,
-   "bytes": 248391,
+   "bytes": 248338,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11141,7 +11141,7 @@
   {
    "i": -4,
    "j": 2,
-   "bytes": 167647,
+   "bytes": 167500,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11149,7 +11149,7 @@
   {
    "i": -3,
    "j": 2,
-   "bytes": 220310,
+   "bytes": 220333,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11157,7 +11157,7 @@
   {
    "i": -2,
    "j": 2,
-   "bytes": 321410,
+   "bytes": 320914,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11165,7 +11165,7 @@
   {
    "i": -1,
    "j": 2,
-   "bytes": 325972,
+   "bytes": 325516,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11173,7 +11173,7 @@
   {
    "i": 0,
    "j": 2,
-   "bytes": 290898,
+   "bytes": 290954,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11181,7 +11181,7 @@
   {
    "i": 1,
    "j": 2,
-   "bytes": 223479,
+   "bytes": 223461,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11189,7 +11189,7 @@
   {
    "i": 2,
    "j": 2,
-   "bytes": 249282,
+   "bytes": 249381,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11197,7 +11197,7 @@
   {
    "i": 3,
    "j": 2,
-   "bytes": 226632,
+   "bytes": 226381,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11205,7 +11205,7 @@
   {
    "i": 4,
    "j": 2,
-   "bytes": 187772,
+   "bytes": 187667,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11213,7 +11213,7 @@
   {
    "i": 5,
    "j": 2,
-   "bytes": 245602,
+   "bytes": 245618,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11221,7 +11221,7 @@
   {
    "i": 6,
    "j": 2,
-   "bytes": 249474,
+   "bytes": 249402,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11229,7 +11229,7 @@
   {
    "i": 7,
    "j": 2,
-   "bytes": 235942,
+   "bytes": 229608,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11237,7 +11237,7 @@
   {
    "i": 8,
    "j": 2,
-   "bytes": 159784,
+   "bytes": 163367,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11245,7 +11245,7 @@
   {
    "i": 9,
    "j": 2,
-   "bytes": 71818,
+   "bytes": 70925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11309,7 +11309,7 @@
   {
    "i": -13,
    "j": 3,
-   "bytes": 99646,
+   "bytes": 99436,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11317,7 +11317,7 @@
   {
    "i": -12,
    "j": 3,
-   "bytes": 211308,
+   "bytes": 210555,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11325,7 +11325,7 @@
   {
    "i": -11,
    "j": 3,
-   "bytes": 199270,
+   "bytes": 199514,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11333,7 +11333,7 @@
   {
    "i": -10,
    "j": 3,
-   "bytes": 194721,
+   "bytes": 194852,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11341,7 +11341,7 @@
   {
    "i": -9,
    "j": 3,
-   "bytes": 159697,
+   "bytes": 159751,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11349,7 +11349,7 @@
   {
    "i": -8,
    "j": 3,
-   "bytes": 168273,
+   "bytes": 168267,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11357,7 +11357,7 @@
   {
    "i": -7,
    "j": 3,
-   "bytes": 257220,
+   "bytes": 257133,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11365,7 +11365,7 @@
   {
    "i": -6,
    "j": 3,
-   "bytes": 261514,
+   "bytes": 261222,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11373,7 +11373,7 @@
   {
    "i": -5,
    "j": 3,
-   "bytes": 198691,
+   "bytes": 198620,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11381,7 +11381,7 @@
   {
    "i": -4,
    "j": 3,
-   "bytes": 183779,
+   "bytes": 184319,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11389,15 +11389,15 @@
   {
    "i": -3,
    "j": 3,
-   "bytes": 224384,
+   "bytes": 223423,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
-   "landmarks": 26
+   "landmarks": 22
   },
   {
    "i": -2,
    "j": 3,
-   "bytes": 197030,
+   "bytes": 194628,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11405,7 +11405,7 @@
   {
    "i": -1,
    "j": 3,
-   "bytes": 302840,
+   "bytes": 301885,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11413,7 +11413,7 @@
   {
    "i": 0,
    "j": 3,
-   "bytes": 285407,
+   "bytes": 284910,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11421,7 +11421,7 @@
   {
    "i": 1,
    "j": 3,
-   "bytes": 287306,
+   "bytes": 287133,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11429,7 +11429,7 @@
   {
    "i": 2,
    "j": 3,
-   "bytes": 260830,
+   "bytes": 260627,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11437,7 +11437,7 @@
   {
    "i": 3,
    "j": 3,
-   "bytes": 233813,
+   "bytes": 233756,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11445,7 +11445,7 @@
   {
    "i": 4,
    "j": 3,
-   "bytes": 260136,
+   "bytes": 260059,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11453,7 +11453,7 @@
   {
    "i": 5,
    "j": 3,
-   "bytes": 234515,
+   "bytes": 233749,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11461,7 +11461,7 @@
   {
    "i": 6,
    "j": 3,
-   "bytes": 234894,
+   "bytes": 235024,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11469,7 +11469,7 @@
   {
    "i": 7,
    "j": 3,
-   "bytes": 196602,
+   "bytes": 169316,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11477,7 +11477,7 @@
   {
    "i": 8,
    "j": 3,
-   "bytes": 135147,
+   "bytes": 135096,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11485,7 +11485,7 @@
   {
    "i": 9,
    "j": 3,
-   "bytes": 64127,
+   "bytes": 64000,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11549,7 +11549,7 @@
   {
    "i": -13,
    "j": 4,
-   "bytes": 60173,
+   "bytes": 59559,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11557,7 +11557,7 @@
   {
    "i": -12,
    "j": 4,
-   "bytes": 192869,
+   "bytes": 192682,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11565,7 +11565,7 @@
   {
    "i": -11,
    "j": 4,
-   "bytes": 158820,
+   "bytes": 158831,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11573,7 +11573,7 @@
   {
    "i": -10,
    "j": 4,
-   "bytes": 171813,
+   "bytes": 171680,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11581,7 +11581,7 @@
   {
    "i": -9,
    "j": 4,
-   "bytes": 182668,
+   "bytes": 182658,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11589,7 +11589,7 @@
   {
    "i": -8,
    "j": 4,
-   "bytes": 171292,
+   "bytes": 171281,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11597,7 +11597,7 @@
   {
    "i": -7,
    "j": 4,
-   "bytes": 279365,
+   "bytes": 279247,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11605,7 +11605,7 @@
   {
    "i": -6,
    "j": 4,
-   "bytes": 255746,
+   "bytes": 255639,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11613,7 +11613,7 @@
   {
    "i": -5,
    "j": 4,
-   "bytes": 231818,
+   "bytes": 231737,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11621,7 +11621,7 @@
   {
    "i": -4,
    "j": 4,
-   "bytes": 185940,
+   "bytes": 185993,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11629,7 +11629,7 @@
   {
    "i": -3,
    "j": 4,
-   "bytes": 219017,
+   "bytes": 219034,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11637,7 +11637,7 @@
   {
    "i": -2,
    "j": 4,
-   "bytes": 204906,
+   "bytes": 204721,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11645,7 +11645,7 @@
   {
    "i": -1,
    "j": 4,
-   "bytes": 280573,
+   "bytes": 276712,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11653,7 +11653,7 @@
   {
    "i": 0,
    "j": 4,
-   "bytes": 275040,
+   "bytes": 275280,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11661,7 +11661,7 @@
   {
    "i": 1,
    "j": 4,
-   "bytes": 311613,
+   "bytes": 311576,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11669,7 +11669,7 @@
   {
    "i": 2,
    "j": 4,
-   "bytes": 283903,
+   "bytes": 283602,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11677,7 +11677,7 @@
   {
    "i": 3,
    "j": 4,
-   "bytes": 275121,
+   "bytes": 273844,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11685,7 +11685,7 @@
   {
    "i": 4,
    "j": 4,
-   "bytes": 290538,
+   "bytes": 290242,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11693,7 +11693,7 @@
   {
    "i": 5,
    "j": 4,
-   "bytes": 272023,
+   "bytes": 247631,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11701,7 +11701,7 @@
   {
    "i": 6,
    "j": 4,
-   "bytes": 199823,
+   "bytes": 199065,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11709,7 +11709,7 @@
   {
    "i": 7,
    "j": 4,
-   "bytes": 179289,
+   "bytes": 159614,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11717,7 +11717,7 @@
   {
    "i": 8,
    "j": 4,
-   "bytes": 112144,
+   "bytes": 112055,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11725,7 +11725,7 @@
   {
    "i": 9,
    "j": 4,
-   "bytes": 99223,
+   "bytes": 97375,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11733,7 +11733,7 @@
   {
    "i": 10,
    "j": 4,
-   "bytes": 38776,
+   "bytes": 38780,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11789,7 +11789,7 @@
   {
    "i": -13,
    "j": 5,
-   "bytes": 36223,
+   "bytes": 36235,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11797,7 +11797,7 @@
   {
    "i": -12,
    "j": 5,
-   "bytes": 216567,
+   "bytes": 216456,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11805,7 +11805,7 @@
   {
    "i": -11,
    "j": 5,
-   "bytes": 170968,
+   "bytes": 171156,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11813,7 +11813,7 @@
   {
    "i": -10,
    "j": 5,
-   "bytes": 190440,
+   "bytes": 190414,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11821,7 +11821,7 @@
   {
    "i": -9,
    "j": 5,
-   "bytes": 255038,
+   "bytes": 255049,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11829,7 +11829,7 @@
   {
    "i": -8,
    "j": 5,
-   "bytes": 199418,
+   "bytes": 199452,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11837,7 +11837,7 @@
   {
    "i": -7,
    "j": 5,
-   "bytes": 299213,
+   "bytes": 299227,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11845,7 +11845,7 @@
   {
    "i": -6,
    "j": 5,
-   "bytes": 256970,
+   "bytes": 256481,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11853,7 +11853,7 @@
   {
    "i": -5,
    "j": 5,
-   "bytes": 246582,
+   "bytes": 245535,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11861,7 +11861,7 @@
   {
    "i": -4,
    "j": 5,
-   "bytes": 233441,
+   "bytes": 233444,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11869,7 +11869,7 @@
   {
    "i": -3,
    "j": 5,
-   "bytes": 215101,
+   "bytes": 215055,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11877,7 +11877,7 @@
   {
    "i": -2,
    "j": 5,
-   "bytes": 234905,
+   "bytes": 234737,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11885,7 +11885,7 @@
   {
    "i": -1,
    "j": 5,
-   "bytes": 212518,
+   "bytes": 212315,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11893,7 +11893,7 @@
   {
    "i": 0,
    "j": 5,
-   "bytes": 272758,
+   "bytes": 272616,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11901,7 +11901,7 @@
   {
    "i": 1,
    "j": 5,
-   "bytes": 307003,
+   "bytes": 306878,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11909,7 +11909,7 @@
   {
    "i": 2,
    "j": 5,
-   "bytes": 286349,
+   "bytes": 286224,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11917,7 +11917,7 @@
   {
    "i": 3,
    "j": 5,
-   "bytes": 299053,
+   "bytes": 298644,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -11925,7 +11925,7 @@
   {
    "i": 4,
    "j": 5,
-   "bytes": 266289,
+   "bytes": 266201,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11933,7 +11933,7 @@
   {
    "i": 5,
    "j": 5,
-   "bytes": 261286,
+   "bytes": 257503,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11941,7 +11941,7 @@
   {
    "i": 6,
    "j": 5,
-   "bytes": 126040,
+   "bytes": 125987,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11949,7 +11949,7 @@
   {
    "i": 7,
    "j": 5,
-   "bytes": 185646,
+   "bytes": 155448,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11957,7 +11957,7 @@
   {
    "i": 8,
    "j": 5,
-   "bytes": 106861,
+   "bytes": 103194,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11965,7 +11965,7 @@
   {
    "i": 9,
    "j": 5,
-   "bytes": 107112,
+   "bytes": 107083,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11973,7 +11973,7 @@
   {
    "i": 10,
    "j": 5,
-   "bytes": 60580,
+   "bytes": 60598,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -11981,7 +11981,7 @@
   {
    "i": 11,
    "j": 5,
-   "bytes": 15081,
+   "bytes": 15045,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12037,7 +12037,7 @@
   {
    "i": -12,
    "j": 6,
-   "bytes": 216005,
+   "bytes": 215500,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12045,7 +12045,7 @@
   {
    "i": -11,
    "j": 6,
-   "bytes": 217842,
+   "bytes": 217465,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12053,7 +12053,7 @@
   {
    "i": -10,
    "j": 6,
-   "bytes": 227937,
+   "bytes": 228032,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12061,7 +12061,7 @@
   {
    "i": -9,
    "j": 6,
-   "bytes": 268229,
+   "bytes": 268236,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12069,7 +12069,7 @@
   {
    "i": -8,
    "j": 6,
-   "bytes": 290409,
+   "bytes": 290325,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12077,7 +12077,7 @@
   {
    "i": -7,
    "j": 6,
-   "bytes": 280628,
+   "bytes": 279956,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12085,7 +12085,7 @@
   {
    "i": -6,
    "j": 6,
-   "bytes": 265175,
+   "bytes": 265078,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12093,7 +12093,7 @@
   {
    "i": -5,
    "j": 6,
-   "bytes": 262932,
+   "bytes": 262956,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12101,7 +12101,7 @@
   {
    "i": -4,
    "j": 6,
-   "bytes": 230725,
+   "bytes": 230578,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12109,7 +12109,7 @@
   {
    "i": -3,
    "j": 6,
-   "bytes": 231997,
+   "bytes": 231992,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12117,7 +12117,7 @@
   {
    "i": -2,
    "j": 6,
-   "bytes": 203068,
+   "bytes": 202594,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12125,7 +12125,7 @@
   {
    "i": -1,
    "j": 6,
-   "bytes": 179077,
+   "bytes": 179105,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12133,7 +12133,7 @@
   {
    "i": 0,
    "j": 6,
-   "bytes": 231346,
+   "bytes": 231291,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12141,7 +12141,7 @@
   {
    "i": 1,
    "j": 6,
-   "bytes": 302828,
+   "bytes": 302360,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12149,7 +12149,7 @@
   {
    "i": 2,
    "j": 6,
-   "bytes": 284611,
+   "bytes": 284451,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12157,7 +12157,7 @@
   {
    "i": 3,
    "j": 6,
-   "bytes": 312183,
+   "bytes": 311858,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12165,7 +12165,7 @@
   {
    "i": 4,
    "j": 6,
-   "bytes": 243955,
+   "bytes": 243797,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12173,7 +12173,7 @@
   {
    "i": 5,
    "j": 6,
-   "bytes": 173628,
+   "bytes": 167305,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12181,7 +12181,7 @@
   {
    "i": 6,
    "j": 6,
-   "bytes": 116441,
+   "bytes": 109896,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12189,7 +12189,7 @@
   {
    "i": 7,
    "j": 6,
-   "bytes": 138658,
+   "bytes": 132519,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12197,7 +12197,7 @@
   {
    "i": 8,
    "j": 6,
-   "bytes": 156185,
+   "bytes": 156160,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12205,7 +12205,7 @@
   {
    "i": 9,
    "j": 6,
-   "bytes": 133644,
+   "bytes": 133282,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12213,7 +12213,7 @@
   {
    "i": 10,
    "j": 6,
-   "bytes": 121244,
+   "bytes": 120813,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12221,7 +12221,7 @@
   {
    "i": 11,
    "j": 6,
-   "bytes": 52909,
+   "bytes": 52836,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12269,7 +12269,7 @@
   {
    "i": -13,
    "j": 7,
-   "bytes": 15432,
+   "bytes": 15434,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12277,7 +12277,7 @@
   {
    "i": -12,
    "j": 7,
-   "bytes": 199071,
+   "bytes": 198752,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12285,7 +12285,7 @@
   {
    "i": -11,
    "j": 7,
-   "bytes": 203917,
+   "bytes": 203866,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12293,7 +12293,7 @@
   {
    "i": -10,
    "j": 7,
-   "bytes": 227843,
+   "bytes": 227829,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12301,7 +12301,7 @@
   {
    "i": -9,
    "j": 7,
-   "bytes": 189432,
+   "bytes": 189120,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12309,7 +12309,7 @@
   {
    "i": -8,
    "j": 7,
-   "bytes": 196036,
+   "bytes": 196052,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12317,7 +12317,7 @@
   {
    "i": -7,
    "j": 7,
-   "bytes": 199502,
+   "bytes": 199433,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12325,7 +12325,7 @@
   {
    "i": -6,
    "j": 7,
-   "bytes": 225990,
+   "bytes": 226028,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12333,7 +12333,7 @@
   {
    "i": -5,
    "j": 7,
-   "bytes": 211816,
+   "bytes": 211913,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12341,7 +12341,7 @@
   {
    "i": -4,
    "j": 7,
-   "bytes": 215579,
+   "bytes": 215543,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12349,7 +12349,7 @@
   {
    "i": -3,
    "j": 7,
-   "bytes": 222335,
+   "bytes": 222406,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12357,7 +12357,7 @@
   {
    "i": -2,
    "j": 7,
-   "bytes": 256875,
+   "bytes": 256869,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12365,7 +12365,7 @@
   {
    "i": -1,
    "j": 7,
-   "bytes": 218159,
+   "bytes": 218028,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12373,7 +12373,7 @@
   {
    "i": 0,
    "j": 7,
-   "bytes": 303057,
+   "bytes": 302804,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12381,7 +12381,7 @@
   {
    "i": 1,
    "j": 7,
-   "bytes": 286563,
+   "bytes": 285503,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12389,7 +12389,7 @@
   {
    "i": 2,
    "j": 7,
-   "bytes": 241916,
+   "bytes": 241582,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12397,7 +12397,7 @@
   {
    "i": 3,
    "j": 7,
-   "bytes": 284199,
+   "bytes": 284188,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12405,7 +12405,7 @@
   {
    "i": 4,
    "j": 7,
-   "bytes": 280281,
+   "bytes": 269772,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12413,7 +12413,7 @@
   {
    "i": 5,
    "j": 7,
-   "bytes": 296187,
+   "bytes": 239787,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12421,7 +12421,7 @@
   {
    "i": 6,
    "j": 7,
-   "bytes": 261419,
+   "bytes": 246508,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12429,7 +12429,7 @@
   {
    "i": 7,
    "j": 7,
-   "bytes": 239469,
+   "bytes": 239117,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12437,7 +12437,7 @@
   {
    "i": 8,
    "j": 7,
-   "bytes": 256139,
+   "bytes": 256224,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12445,7 +12445,7 @@
   {
    "i": 9,
    "j": 7,
-   "bytes": 186578,
+   "bytes": 186375,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12453,7 +12453,7 @@
   {
    "i": 10,
    "j": 7,
-   "bytes": 92048,
+   "bytes": 91953,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12517,7 +12517,7 @@
   {
    "i": -12,
    "j": 8,
-   "bytes": 144383,
+   "bytes": 144176,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12525,7 +12525,7 @@
   {
    "i": -11,
    "j": 8,
-   "bytes": 193984,
+   "bytes": 193621,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12533,7 +12533,7 @@
   {
    "i": -10,
    "j": 8,
-   "bytes": 229088,
+   "bytes": 227615,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12541,7 +12541,7 @@
   {
    "i": -9,
    "j": 8,
-   "bytes": 197037,
+   "bytes": 197119,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12549,7 +12549,7 @@
   {
    "i": -8,
    "j": 8,
-   "bytes": 188701,
+   "bytes": 188749,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12557,7 +12557,7 @@
   {
    "i": -7,
    "j": 8,
-   "bytes": 222326,
+   "bytes": 222538,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12565,7 +12565,7 @@
   {
    "i": -6,
    "j": 8,
-   "bytes": 205366,
+   "bytes": 205495,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12573,7 +12573,7 @@
   {
    "i": -5,
    "j": 8,
-   "bytes": 250671,
+   "bytes": 250686,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12581,7 +12581,7 @@
   {
    "i": -4,
    "j": 8,
-   "bytes": 273468,
+   "bytes": 273236,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12589,7 +12589,7 @@
   {
    "i": -3,
    "j": 8,
-   "bytes": 263495,
+   "bytes": 263556,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12597,7 +12597,7 @@
   {
    "i": -2,
    "j": 8,
-   "bytes": 262701,
+   "bytes": 262953,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12605,7 +12605,7 @@
   {
    "i": -1,
    "j": 8,
-   "bytes": 267752,
+   "bytes": 267175,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12613,7 +12613,7 @@
   {
    "i": 0,
    "j": 8,
-   "bytes": 304921,
+   "bytes": 289141,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12621,7 +12621,7 @@
   {
    "i": 1,
    "j": 8,
-   "bytes": 295386,
+   "bytes": 287163,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12629,7 +12629,7 @@
   {
    "i": 2,
    "j": 8,
-   "bytes": 274644,
+   "bytes": 270787,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12637,7 +12637,7 @@
   {
    "i": 3,
    "j": 8,
-   "bytes": 226832,
+   "bytes": 221342,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12645,7 +12645,7 @@
   {
    "i": 4,
    "j": 8,
-   "bytes": 272880,
+   "bytes": 258482,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12653,7 +12653,7 @@
   {
    "i": 5,
    "j": 8,
-   "bytes": 321216,
+   "bytes": 287070,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12661,7 +12661,7 @@
   {
    "i": 6,
    "j": 8,
-   "bytes": 295637,
+   "bytes": 295799,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12669,7 +12669,7 @@
   {
    "i": 7,
    "j": 8,
-   "bytes": 292362,
+   "bytes": 292329,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12677,7 +12677,7 @@
   {
    "i": 8,
    "j": 8,
-   "bytes": 273922,
+   "bytes": 273733,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12693,7 +12693,7 @@
   {
    "i": 10,
    "j": 8,
-   "bytes": 161580,
+   "bytes": 161626,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12701,7 +12701,7 @@
   {
    "i": 11,
    "j": 8,
-   "bytes": 64906,
+   "bytes": 64908,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12709,7 +12709,7 @@
   {
    "i": 12,
    "j": 8,
-   "bytes": 40903,
+   "bytes": 40908,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12757,7 +12757,7 @@
   {
    "i": -12,
    "j": 9,
-   "bytes": 119001,
+   "bytes": 118912,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12765,7 +12765,7 @@
   {
    "i": -11,
    "j": 9,
-   "bytes": 66997,
+   "bytes": 66994,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12773,7 +12773,7 @@
   {
    "i": -10,
    "j": 9,
-   "bytes": 109111,
+   "bytes": 109121,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12781,7 +12781,7 @@
   {
    "i": -9,
    "j": 9,
-   "bytes": 93372,
+   "bytes": 93364,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12797,7 +12797,7 @@
   {
    "i": -7,
    "j": 9,
-   "bytes": 217173,
+   "bytes": 217400,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12805,7 +12805,7 @@
   {
    "i": -6,
    "j": 9,
-   "bytes": 224565,
+   "bytes": 224678,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12813,7 +12813,7 @@
   {
    "i": -5,
    "j": 9,
-   "bytes": 278093,
+   "bytes": 277750,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12821,7 +12821,7 @@
   {
    "i": -4,
    "j": 9,
-   "bytes": 234185,
+   "bytes": 234143,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12829,7 +12829,7 @@
   {
    "i": -3,
    "j": 9,
-   "bytes": 154808,
+   "bytes": 154883,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12837,7 +12837,7 @@
   {
    "i": -2,
    "j": 9,
-   "bytes": 226886,
+   "bytes": 225408,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12845,7 +12845,7 @@
   {
    "i": -1,
    "j": 9,
-   "bytes": 313765,
+   "bytes": 311407,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12853,7 +12853,7 @@
   {
    "i": 0,
    "j": 9,
-   "bytes": 340379,
+   "bytes": 340246,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12861,7 +12861,7 @@
   {
    "i": 1,
    "j": 9,
-   "bytes": 284487,
+   "bytes": 284740,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12869,7 +12869,7 @@
   {
    "i": 2,
    "j": 9,
-   "bytes": 269851,
+   "bytes": 269872,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12877,7 +12877,7 @@
   {
    "i": 3,
    "j": 9,
-   "bytes": 223930,
+   "bytes": 223769,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12885,7 +12885,7 @@
   {
    "i": 4,
    "j": 9,
-   "bytes": 196447,
+   "bytes": 196303,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12893,7 +12893,7 @@
   {
    "i": 5,
    "j": 9,
-   "bytes": 242092,
+   "bytes": 241606,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -12901,7 +12901,7 @@
   {
    "i": 6,
    "j": 9,
-   "bytes": 224925,
+   "bytes": 223648,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12909,7 +12909,7 @@
   {
    "i": 7,
    "j": 9,
-   "bytes": 201610,
+   "bytes": 200000,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12917,7 +12917,7 @@
   {
    "i": 8,
    "j": 9,
-   "bytes": 218307,
+   "bytes": 218304,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12925,7 +12925,7 @@
   {
    "i": 9,
    "j": 9,
-   "bytes": 179991,
+   "bytes": 179921,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12933,7 +12933,7 @@
   {
    "i": 10,
    "j": 9,
-   "bytes": 120274,
+   "bytes": 120089,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12941,7 +12941,7 @@
   {
    "i": 11,
    "j": 9,
-   "bytes": 156435,
+   "bytes": 156398,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12949,7 +12949,7 @@
   {
    "i": 12,
    "j": 9,
-   "bytes": 106810,
+   "bytes": 106777,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12957,7 +12957,7 @@
   {
    "i": 13,
    "j": 9,
-   "bytes": 60657,
+   "bytes": 60668,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -12997,7 +12997,7 @@
   {
    "i": -12,
    "j": 10,
-   "bytes": 84111,
+   "bytes": 84180,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13005,7 +13005,7 @@
   {
    "i": -11,
    "j": 10,
-   "bytes": 45952,
+   "bytes": 45925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13013,7 +13013,7 @@
   {
    "i": -10,
    "j": 10,
-   "bytes": 87812,
+   "bytes": 87799,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13021,7 +13021,7 @@
   {
    "i": -9,
    "j": 10,
-   "bytes": 93955,
+   "bytes": 93946,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13029,7 +13029,7 @@
   {
    "i": -8,
    "j": 10,
-   "bytes": 180274,
+   "bytes": 179287,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13037,7 +13037,7 @@
   {
    "i": -7,
    "j": 10,
-   "bytes": 202240,
+   "bytes": 202223,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13045,7 +13045,7 @@
   {
    "i": -6,
    "j": 10,
-   "bytes": 209701,
+   "bytes": 209669,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13053,7 +13053,7 @@
   {
    "i": -5,
    "j": 10,
-   "bytes": 243202,
+   "bytes": 243180,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13061,7 +13061,7 @@
   {
    "i": -4,
    "j": 10,
-   "bytes": 247729,
+   "bytes": 247848,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13069,7 +13069,7 @@
   {
    "i": -3,
    "j": 10,
-   "bytes": 210522,
+   "bytes": 210445,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13077,7 +13077,7 @@
   {
    "i": -2,
    "j": 10,
-   "bytes": 168343,
+   "bytes": 165793,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13085,7 +13085,7 @@
   {
    "i": -1,
    "j": 10,
-   "bytes": 271993,
+   "bytes": 271131,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13093,7 +13093,7 @@
   {
    "i": 0,
    "j": 10,
-   "bytes": 296068,
+   "bytes": 296211,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13101,7 +13101,7 @@
   {
    "i": 1,
    "j": 10,
-   "bytes": 277174,
+   "bytes": 277178,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13109,7 +13109,7 @@
   {
    "i": 2,
    "j": 10,
-   "bytes": 181676,
+   "bytes": 181300,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13117,7 +13117,7 @@
   {
    "i": 3,
    "j": 10,
-   "bytes": 188956,
+   "bytes": 188916,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13125,7 +13125,7 @@
   {
    "i": 4,
    "j": 10,
-   "bytes": 174430,
+   "bytes": 174158,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13133,7 +13133,7 @@
   {
    "i": 5,
    "j": 10,
-   "bytes": 230757,
+   "bytes": 229990,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13141,7 +13141,7 @@
   {
    "i": 6,
    "j": 10,
-   "bytes": 217327,
+   "bytes": 215590,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13149,7 +13149,7 @@
   {
    "i": 7,
    "j": 10,
-   "bytes": 175612,
+   "bytes": 175583,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13157,7 +13157,7 @@
   {
    "i": 8,
    "j": 10,
-   "bytes": 120910,
+   "bytes": 120904,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13181,7 +13181,7 @@
   {
    "i": 11,
    "j": 10,
-   "bytes": 76556,
+   "bytes": 76541,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13245,7 +13245,7 @@
   {
    "i": -11,
    "j": 11,
-   "bytes": 87986,
+   "bytes": 87924,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13253,7 +13253,7 @@
   {
    "i": -10,
    "j": 11,
-   "bytes": 27514,
+   "bytes": 27523,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13261,7 +13261,7 @@
   {
    "i": -9,
    "j": 11,
-   "bytes": 92299,
+   "bytes": 92317,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13269,7 +13269,7 @@
   {
    "i": -8,
    "j": 11,
-   "bytes": 176785,
+   "bytes": 176846,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13277,7 +13277,7 @@
   {
    "i": -7,
    "j": 11,
-   "bytes": 215334,
+   "bytes": 215138,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13285,7 +13285,7 @@
   {
    "i": -6,
    "j": 11,
-   "bytes": 255081,
+   "bytes": 255076,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13293,7 +13293,7 @@
   {
    "i": -5,
    "j": 11,
-   "bytes": 269786,
+   "bytes": 269170,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13301,7 +13301,7 @@
   {
    "i": -4,
    "j": 11,
-   "bytes": 255522,
+   "bytes": 255360,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13309,7 +13309,7 @@
   {
    "i": -3,
    "j": 11,
-   "bytes": 290009,
+   "bytes": 289968,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13317,7 +13317,7 @@
   {
    "i": -2,
    "j": 11,
-   "bytes": 280670,
+   "bytes": 276123,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13325,7 +13325,7 @@
   {
    "i": -1,
    "j": 11,
-   "bytes": 282095,
+   "bytes": 282036,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13333,7 +13333,7 @@
   {
    "i": 0,
    "j": 11,
-   "bytes": 290986,
+   "bytes": 290803,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13341,7 +13341,7 @@
   {
    "i": 1,
    "j": 11,
-   "bytes": 269847,
+   "bytes": 269814,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13349,7 +13349,7 @@
   {
    "i": 2,
    "j": 11,
-   "bytes": 122028,
+   "bytes": 122001,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13357,7 +13357,7 @@
   {
    "i": 3,
    "j": 11,
-   "bytes": 116559,
+   "bytes": 116558,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13365,7 +13365,7 @@
   {
    "i": 4,
    "j": 11,
-   "bytes": 143316,
+   "bytes": 143268,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13373,7 +13373,7 @@
   {
    "i": 5,
    "j": 11,
-   "bytes": 266427,
+   "bytes": 266358,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13381,7 +13381,7 @@
   {
    "i": 6,
    "j": 11,
-   "bytes": 248908,
+   "bytes": 243003,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13389,7 +13389,7 @@
   {
    "i": 7,
    "j": 11,
-   "bytes": 234364,
+   "bytes": 234079,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13397,7 +13397,7 @@
   {
    "i": 8,
    "j": 11,
-   "bytes": 177905,
+   "bytes": 177913,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13405,7 +13405,7 @@
   {
    "i": 9,
    "j": 11,
-   "bytes": 82183,
+   "bytes": 82056,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13413,7 +13413,7 @@
   {
    "i": 10,
    "j": 11,
-   "bytes": 31978,
+   "bytes": 31973,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13421,7 +13421,7 @@
   {
    "i": 11,
    "j": 11,
-   "bytes": 49475,
+   "bytes": 49482,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13429,7 +13429,7 @@
   {
    "i": 12,
    "j": 11,
-   "bytes": 65122,
+   "bytes": 65118,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13485,7 +13485,7 @@
   {
    "i": -11,
    "j": 12,
-   "bytes": 102014,
+   "bytes": 102032,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13493,7 +13493,7 @@
   {
    "i": -10,
    "j": 12,
-   "bytes": 73408,
+   "bytes": 73411,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13501,7 +13501,7 @@
   {
    "i": -9,
    "j": 12,
-   "bytes": 70787,
+   "bytes": 70797,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13509,7 +13509,7 @@
   {
    "i": -8,
    "j": 12,
-   "bytes": 146220,
+   "bytes": 146192,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13517,7 +13517,7 @@
   {
    "i": -7,
    "j": 12,
-   "bytes": 189835,
+   "bytes": 189518,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13525,7 +13525,7 @@
   {
    "i": -6,
    "j": 12,
-   "bytes": 226432,
+   "bytes": 223254,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13533,7 +13533,7 @@
   {
    "i": -5,
    "j": 12,
-   "bytes": 235159,
+   "bytes": 234928,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13541,7 +13541,7 @@
   {
    "i": -4,
    "j": 12,
-   "bytes": 216278,
+   "bytes": 216328,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13549,7 +13549,7 @@
   {
    "i": -3,
    "j": 12,
-   "bytes": 243243,
+   "bytes": 241086,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13557,7 +13557,7 @@
   {
    "i": -2,
    "j": 12,
-   "bytes": 310979,
+   "bytes": 310755,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13565,7 +13565,7 @@
   {
    "i": -1,
    "j": 12,
-   "bytes": 300117,
+   "bytes": 299706,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13573,7 +13573,7 @@
   {
    "i": 0,
    "j": 12,
-   "bytes": 298318,
+   "bytes": 298396,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -13581,7 +13581,7 @@
   {
    "i": 1,
    "j": 12,
-   "bytes": 115169,
+   "bytes": 115179,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13589,7 +13589,7 @@
   {
    "i": 2,
    "j": 12,
-   "bytes": 130752,
+   "bytes": 130685,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13597,7 +13597,7 @@
   {
    "i": 3,
    "j": 12,
-   "bytes": 164778,
+   "bytes": 164764,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13605,7 +13605,7 @@
   {
    "i": 4,
    "j": 12,
-   "bytes": 259673,
+   "bytes": 259207,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13613,7 +13613,7 @@
   {
    "i": 5,
    "j": 12,
-   "bytes": 284846,
+   "bytes": 284935,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13621,7 +13621,7 @@
   {
    "i": 6,
    "j": 12,
-   "bytes": 288413,
+   "bytes": 283901,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13629,7 +13629,7 @@
   {
    "i": 7,
    "j": 12,
-   "bytes": 142047,
+   "bytes": 141234,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13637,7 +13637,7 @@
   {
    "i": 8,
    "j": 12,
-   "bytes": 122921,
+   "bytes": 122762,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13645,7 +13645,7 @@
   {
    "i": 9,
    "j": 12,
-   "bytes": 94912,
+   "bytes": 94925,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13653,7 +13653,7 @@
   {
    "i": 10,
    "j": 12,
-   "bytes": 30603,
+   "bytes": 30599,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13725,7 +13725,7 @@
   {
    "i": -11,
    "j": 13,
-   "bytes": 93464,
+   "bytes": 93496,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13733,7 +13733,7 @@
   {
    "i": -10,
    "j": 13,
-   "bytes": 96678,
+   "bytes": 96715,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13741,7 +13741,7 @@
   {
    "i": -9,
    "j": 13,
-   "bytes": 106462,
+   "bytes": 106465,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13749,7 +13749,7 @@
   {
    "i": -8,
    "j": 13,
-   "bytes": 123893,
+   "bytes": 123876,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13757,7 +13757,7 @@
   {
    "i": -7,
    "j": 13,
-   "bytes": 74573,
+   "bytes": 74572,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13765,7 +13765,7 @@
   {
    "i": -6,
    "j": 13,
-   "bytes": 226150,
+   "bytes": 218410,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13773,7 +13773,7 @@
   {
    "i": -5,
    "j": 13,
-   "bytes": 265980,
+   "bytes": 265059,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13781,7 +13781,7 @@
   {
    "i": -4,
    "j": 13,
-   "bytes": 282454,
+   "bytes": 276708,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13789,7 +13789,7 @@
   {
    "i": -3,
    "j": 13,
-   "bytes": 301576,
+   "bytes": 301244,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13797,7 +13797,7 @@
   {
    "i": -2,
    "j": 13,
-   "bytes": 247944,
+   "bytes": 248144,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13805,7 +13805,7 @@
   {
    "i": -1,
    "j": 13,
-   "bytes": 261057,
+   "bytes": 260817,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13813,7 +13813,7 @@
   {
    "i": 0,
    "j": 13,
-   "bytes": 297942,
+   "bytes": 297679,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13821,7 +13821,7 @@
   {
    "i": 1,
    "j": 13,
-   "bytes": 255697,
+   "bytes": 255066,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13829,7 +13829,7 @@
   {
    "i": 2,
    "j": 13,
-   "bytes": 229433,
+   "bytes": 229370,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13837,7 +13837,7 @@
   {
    "i": 3,
    "j": 13,
-   "bytes": 229355,
+   "bytes": 229329,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13845,7 +13845,7 @@
   {
    "i": 4,
    "j": 13,
-   "bytes": 206456,
+   "bytes": 206362,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13853,7 +13853,7 @@
   {
    "i": 5,
    "j": 13,
-   "bytes": 181162,
+   "bytes": 181147,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13861,7 +13861,7 @@
   {
    "i": 6,
    "j": 13,
-   "bytes": 167359,
+   "bytes": 167195,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13869,7 +13869,7 @@
   {
    "i": 7,
    "j": 13,
-   "bytes": 123804,
+   "bytes": 121732,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13877,7 +13877,7 @@
   {
    "i": 8,
    "j": 13,
-   "bytes": 73058,
+   "bytes": 72989,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13885,7 +13885,7 @@
   {
    "i": 9,
    "j": 13,
-   "bytes": 49772,
+   "bytes": 49769,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -13965,7 +13965,7 @@
   {
    "i": -11,
    "j": 14,
-   "bytes": 60126,
+   "bytes": 60110,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -13973,7 +13973,7 @@
   {
    "i": -10,
    "j": 14,
-   "bytes": 82518,
+   "bytes": 82462,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -13981,7 +13981,7 @@
   {
    "i": -9,
    "j": 14,
-   "bytes": 139627,
+   "bytes": 139558,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -13989,7 +13989,7 @@
   {
    "i": -8,
    "j": 14,
-   "bytes": 207130,
+   "bytes": 207100,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -13997,7 +13997,7 @@
   {
    "i": -7,
    "j": 14,
-   "bytes": 200943,
+   "bytes": 200715,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14005,7 +14005,7 @@
   {
    "i": -6,
    "j": 14,
-   "bytes": 254379,
+   "bytes": 236585,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 1
@@ -14013,7 +14013,7 @@
   {
    "i": -5,
    "j": 14,
-   "bytes": 239284,
+   "bytes": 239473,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 1
@@ -14021,7 +14021,7 @@
   {
    "i": -4,
    "j": 14,
-   "bytes": 257023,
+   "bytes": 257059,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14029,7 +14029,7 @@
   {
    "i": -3,
    "j": 14,
-   "bytes": 240971,
+   "bytes": 240977,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14037,7 +14037,7 @@
   {
    "i": -2,
    "j": 14,
-   "bytes": 202429,
+   "bytes": 201639,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14045,7 +14045,7 @@
   {
    "i": -1,
    "j": 14,
-   "bytes": 157759,
+   "bytes": 157528,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14053,7 +14053,7 @@
   {
    "i": 0,
    "j": 14,
-   "bytes": 148251,
+   "bytes": 148259,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14061,7 +14061,7 @@
   {
    "i": 1,
    "j": 14,
-   "bytes": 130264,
+   "bytes": 130272,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14069,7 +14069,7 @@
   {
    "i": 2,
    "j": 14,
-   "bytes": 155263,
+   "bytes": 155031,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14077,7 +14077,7 @@
   {
    "i": 3,
    "j": 14,
-   "bytes": 187235,
+   "bytes": 186990,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14085,7 +14085,7 @@
   {
    "i": 4,
    "j": 14,
-   "bytes": 139404,
+   "bytes": 139549,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -14093,7 +14093,7 @@
   {
    "i": 5,
    "j": 14,
-   "bytes": 83287,
+   "bytes": 82906,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0
@@ -14101,7 +14101,7 @@
   {
    "i": 6,
    "j": 14,
-   "bytes": 82945,
+   "bytes": 82780,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0
@@ -14109,7 +14109,7 @@
   {
    "i": 7,
    "j": 14,
-   "bytes": 65369,
+   "bytes": 65293,
    "dem": "USGS 3DEP 1 m DTM (CA_SanFrancisco_B23)",
    "resolution": 1,
    "landmarks": 0

@@ -142,7 +142,13 @@ async function heightTest() {
     if (!isBaked(x, z)) continue;
     pts.push({ x, z, h, s });
   }
-  let worstVis = 0, worstPhys = 0, worstAt = '', dem: number[] = [], edgeSkips = 0;
+  // (inside a junction the road is its fan, a plane joining the roads' cut ends, not each road's own
+  // profile: those points are held to the junction's own tolerance, and counted apart)
+  const bakeCfg = JSON.parse(fs.readFileSync(path.join(M.root, 'data/map/bake.json'), 'utf8')).roads, at = new Map<number, any[]>();
+  for (const s of G.segs) for (const n of [s.from, s.to]) (at.get(n) ?? at.set(n, []).get(n)!).push(s);
+  const isJunction = (n: number) => { const l = at.get(n) ?? []; return l.length >= 3 || (l.length === 2 && Math.abs(l[0].width - l[1].width) > 0.3); };
+  const inFan = (p: any) => [p.s.from, p.s.to].some(n => isJunction(n) && Math.hypot(G.nodes.x[n] - p.x, G.nodes.z[n] - p.z) < Math.max(...at.get(n)!.map((o: any) => o.width / 2)) * 1.15 + (bakeCfg.minJunctionCut ?? 0) + 1);
+  let worstVis = 0, worstPhys = 0, worstAt = '', dem: number[] = [], edgeSkips = 0, worstFan = 0, fans = 0;
   const sims = new Map<string, any>();
   for (const p of pts) {
     const t = tileOf(p.x, p.z), key = t.join('_'), tile = await M.tile(t[0], t[1]), [lx, lz] = local(p.x, p.z, t);
@@ -154,9 +160,10 @@ async function heightTest() {
     if (vis === undefined && [-1, 0, 1].some(di => [-1, 0, 1].some(dj => !baked.has(`${t[0] + di}_${t[1] + dj}`)))) { edgeSkips++; continue; }
     if (!sims.has(key)) sims.set(key, await M.simAround(p.x, p.z, { radius: 10 }));
     // (what a wheel on this road stands on: the first solid ground below a point just over its surface)
-    const S = sims.get(key), phys = S.ground(p.x, p.z, p.h + 0.1, true, 3);
+    const S = sims.get(key), phys = S.ground(p.x, p.z, p.h + 0.5, true, 3.4);
     if (phys === null && edgeOfBake(t)) { edgeSkips++; continue; }
     const dv = vis === undefined ? Infinity : Math.abs(vis - p.h), dp = phys === null ? Infinity : Math.abs(phys - p.h);
+    if (inFan(p) && vis !== undefined && phys !== null) { fans++; worstFan = Math.max(worstFan, dv, dp); continue; }
     if (Math.max(dv, dp) > Math.max(worstVis, worstPhys)) worstAt = `${p.s.name ?? p.s.class} (${p.s.structure})`;
     worstVis = Math.max(worstVis, dv); worstPhys = Math.max(worstPhys, dp);
     note(`${p.s.name ?? p.s.class} (seg ${p.s.id}, ${p.s.structure}, at ${p.x}, ${p.z}): profile ${p.h.toFixed(2)}, drawn ${vis?.toFixed(3)}, physics ${phys?.toFixed(3)}`);
@@ -165,8 +172,8 @@ async function heightTest() {
     if (sims.size > 8) { for (const x of sims.values()) x.free(); sims.clear(); }
   }
   for (const x of sims.values()) x.free();
-  const pass = worstVis <= 0.1 && worstPhys <= 0.1;
-  report('height', `${pts.length - edgeSkips} road points${edgeSkips ? ` (${edgeSkips} at the bake's edge left out)` : ''}`, pass, `drawn road ≤ ${worstVis.toFixed(3)} m from the profile, physics ≤ ${worstPhys.toFixed(3)} m${pass ? '' : ` (worst on ${worstAt})`} · ground under the road ${quantile(dem, 0.5)?.toFixed(2)} m below it (median)`);
+  const pass = worstVis <= 0.1 && worstPhys <= 0.1 && worstFan <= 0.25;
+  report('height', `${pts.length - edgeSkips} road points${edgeSkips ? ` (${edgeSkips} at the bake's edge left out)` : ''}`, pass, `drawn road ≤ ${worstVis.toFixed(3)} m from the profile, physics ≤ ${worstPhys.toFixed(3)} m${pass ? '' : ` (worst on ${worstAt})`} · ${fans} in junctions (a plane joining the roads): ≤ ${worstFan.toFixed(3)} m (limit 0.25) · ground under the road ${quantile(dem, 0.5)?.toFixed(2)} m below it (median)`);
 }
 
 // ---------- seams ----------

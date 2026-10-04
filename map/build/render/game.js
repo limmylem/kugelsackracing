@@ -128,8 +128,11 @@ function placeOf(w, x, z) {
 }
 // travel: the car held high over a place (lat/lon or the world frame's xz) until its ground is in, then
 // put down on its nearest road, as at the start
+// (place.heading given: put down exactly there, facing that way — a start grid's slot — not on the
+// nearest road)
 export function travelTo(w, place) {
     const S = w.stream, [wx, wz] = place.xz ?? S.projection.toXZ(place.lat, place.lon), [x, z] = S.toSim(wx, wz);
+    w.landAt = place.heading != null ? { wx, wz, heading: place.heading } : null;
     hold(w);
     w.held.linvel = { x: 0, y: 0, z: 0 };
     w.held.angvel = { x: 0, y: 0, z: 0 };
@@ -184,6 +187,10 @@ function land(w, x, z, headingDeg) {
     w.rig.reset();
     return true;
 }
+// the car held still (a countdown) and let go
+// (pinned: held until let go, whatever the streaming would do)
+export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; }
+export function releaseCar(w) { w.pinned = false; release(w, false); }
 export function resetToRoad(w) {
     const p = w.sim.vehicle.body.translation(), r = onRoad(w, p.x, p.z);
     if (r)
@@ -206,9 +213,10 @@ export function realWorldFrame(w, shared, seconds) {
         waiting = true;
         // on the nearest road to the spawn, once its ground is in
         if (S.readyAround(p.x, p.z, 60)) {
-            const r = onRoad(w, p.x, p.z);
+            const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading }; })() : onRoad(w, p.x, p.z);
             if (r && land(w, r.x, r.z, r.heading)) {
                 w.spawning = false;
+                w.landAt = null;
                 waiting = false;
                 S.stats.lastDrivable = performance.now() - w.startedAt;
                 S.stats.firstDrivable ??= S.stats.lastDrivable;
@@ -220,7 +228,7 @@ export function realWorldFrame(w, shared, seconds) {
     // (held where it is while the world catches up; carrying on as it was once it has)
     if (waiting && !w.spawning)
         hold(w);
-    else if (!waiting && !w.spawning)
+    else if (!waiting && !w.spawning && !w.pinned)
         release(w);
     // a short note when the world's waiting
     w.loading.style.display = waiting ? 'block' : 'none';

@@ -86,7 +86,7 @@ export async function bake({ regionId, area = null as string | null, out = null 
   const hs: Record<string, number> = {}; for (const b of buildings) hs[b.hs] = (hs[b.hs] ?? 0) + 1;
   lap(`  buildings: ${buildings.length} (${buildings.filter(b => b.source === 'osm').length} OSM footprints, ${buildings.filter(b => b.source === 'overture').length} Overture-only); heights from ${Object.entries(hs).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   const bar = barriers({ osm, nodes: R.nodes, segs: R.segs, grid, heights: Tn.heights, dem: E.heights, cfg });
-  const tr = trees({ osm, grid, heights: Tn.heights, classes: Tn.classes, hardRoad: Tn.roadSurface, cfg });
+  const tr = trees({ osm, grid, heights: Tn.heights, classes: Tn.classes, hardRoad: Tn.roadSurface, segs: R.segs, cfg });
   const lb = labels({ nodes: R.nodes, segs: R.segs, cfg });
   const bays = osm.areas.filter(a => a.tags.amenity === 'parking_space').map(a => a.parts[0][0]);
   lap(`  railings: ${Object.entries(bar).map(([k, v]) => `${k} ${v.length / 8}`).join(', ')}; trees ${tr.length / 5}; labels ${lb.labels.length / 6}, signs ${lb.signs.length / 6}`);

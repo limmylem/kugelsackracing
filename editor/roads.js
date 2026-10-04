@@ -18,7 +18,7 @@ const GRID = 50;                   // m: the graph's lookup grid
 const wrap = d => ((d % 360) + 360) % 360;
 const turnBetween = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 
-async function gunzipJson(res) {
+export async function gunzipJson(res) {
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return JSON.parse(new TextDecoder().decode(bytes));        // (the server unzipped it already)
   if (typeof DecompressionStream !== 'undefined') return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());

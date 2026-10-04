@@ -398,6 +398,20 @@ async function create() {
       applyStats(); lookChanged();
       return { ok: true, errors: [] };
     },
+    // A route's test drive from the editor: the player's own car as it is now (or a dealer's car, stock),
+    // on a trial like the dealer's — whatever happens to it isn't kept — and the player's car as it was
+    // after endTestDrive()
+    testDriveOwn() {
+      const p = player.profile, carId = p?.currentCar;
+      if (!carId) return { ok: false, errors: ['No car to drive.'] };
+      const state = clone(garage.state);
+      clearAttach('test drive');
+      trial = { carId, name: p.cars[carId]?.name ?? db.cars[p.cars[carId]?.model]?.name ?? 'your car', own: true };
+      garage.state = state;
+      fingerprintNow = garage.build.fingerprint; look = lookOf();
+      applyStats(); lookChanged();
+      return { ok: true, errors: [] };
+    },
     endTestDrive() {
       if (!trial) return { ok: false, errors: ['Not on a test drive.'] };
       clearAttach('test drive over');

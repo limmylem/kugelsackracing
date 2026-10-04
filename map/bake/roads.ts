@@ -32,7 +32,7 @@ const LINK = { motorway_link: 'motorway', trunk_link: 'trunk', primary_link: 'pr
 export interface RoadCfg {
   densify: number; corner: number; smooth: number; median: number; camber: number; skirt: number; skirtDrop: number; markingWidth: number;
   dash: number; gap: number; minJunctionCut: number;
-  widthScale?: number; minWidth?: number; joinOnto?: number; joinPointing?: number;
+  widthScale?: number; minWidth?: number; joinOnto?: number; joinPointing?: number; overpassClearance?: number; sideBySideEase?: number; maxGrade?: number;
 }
 export interface RNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; h: number; junction: boolean; ground: boolean }
 export interface Seg {
@@ -188,6 +188,20 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
 export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => number, cfg: RoadCfg) {
   // (copies: the joins add nodes to ways, and the caller's OSM data stays as read)
   let ways = roads.filter(w => DRIVABLE.has(w.tags.highway) && w.tags.area !== 'yes').map(w => ({ ...w, nodes: [...w.nodes] }));
+  // (the same road twice — Overture can carry one OSM way as two segments, one with its level and one
+  // without — would be baked as two decks one over the other: once, the copy that knows its layer)
+  {
+    const keyOf = (w: Way) => { const f = w.nodes.map(p => `${p.x.toFixed(1)},${p.z.toFixed(1)}`), b = [...f].reverse(); const a = f.join(';'), r = b.join(';'); return a < r ? a : r; };
+    const kept = new Map<string, number>();
+    ways.forEach((w, i) => {
+      const k = keyOf(w), j = kept.get(k);
+      if (j === undefined) { kept.set(k, i); return; }
+      const score = (x: Way) => Math.abs(num(x.tags.layer) ?? 0) * 2 + (x.tags.bridge || x.tags.tunnel ? 1 : 0);
+      if (score(w) > score(ways[j])) kept.set(k, i);
+    });
+    const keep = new Set(kept.values());
+    ways = ways.filter((_, i) => keep.has(i));
+  }
   const joinStats = joinLooseEnds(ways, cfg);
   ways = ways.filter(w => w.nodes.length >= 2);      // (a way shorter than the merge distance: gone into its node)
   // nodes shared by ways (or met twice), and every way's ends: the graph's nodes
@@ -221,6 +235,28 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
       start = q;
     }
   }
+  // (two segments between the same two junctions, the same length near enough: one road given twice —
+  // part of a way and the whole of another, both bridges, say. One deck, the copy that knows its layer)
+  {
+    const len = (g: Seg) => g.s[g.s.length - 1], best = new Map<string, Seg>(), drop = new Set<Seg>();
+    const score = (g: Seg) => Math.abs(g.layer) * 2 + (g.structure !== 'ground' ? 1 : 0) + g.xs.length * 1e-6;
+    for (const g of segs) {
+      if (g.from === g.to) continue;
+      const k = g.from < g.to ? `${g.from}:${g.to}` : `${g.to}:${g.from}`, o = best.get(k);
+      if (!o) { best.set(k, g); continue; }
+      if (Math.abs(len(o) - len(g)) > Math.max(1, 0.1 * len(o)) || o.structure !== g.structure) continue;
+      // (the same line, not two roads between one pair of junctions: their middles together)
+      const mid = (x: Seg) => { const k2 = x.xs.length >> 1; return [x.xs[k2], x.zs[k2]]; }, [ax, az] = mid(o), [bx, bz] = mid(g);
+      if (Math.hypot(ax - bx, az - bz) > 3 && o.xs.length > 2 && g.xs.length > 2) continue;
+      if (score(g) > score(o)) { drop.add(o); best.set(k, g); } else drop.add(g);
+    }
+    if (drop.size) {
+      const kept = segs.filter(g => !drop.has(g));
+      segs.length = 0;
+      for (const n of nodes) n.segs = [];
+      for (const g of kept) { g.id = segs.length; segs.push(g); nodes[g.from].segs.push(g.id); nodes[g.to].segs.push(g.id); }
+    }
+  }
   // ---------- 3: heights ----------
   for (const g of segs) {
     g.raw = g.xs.map((x, k) => heightAt(x, g.zs[k]));
@@ -234,6 +270,24 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     n.ground = ground.length > 0;
     const hs = ground.map(g => (nodes[g.from] === n ? g.smooth[0] : g.smooth[g.smooth.length - 1]));
     n.h = hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length : heightAt(n.x, n.z);
+  }
+  // no road steeper between its junctions than a road can be: two junctions close together whose own roads
+  // put them at very different heights (a short link between a road on a hillside and one below it) are
+  // drawn together until the piece between them is at most maxGrade, each moving half the excess
+  const maxGrade = cfg.maxGrade ?? 0.35;
+  for (let pass = 0; pass < 60; pass++) {
+    let worst = 0;
+    for (const g of segs) {
+      if (g.structure !== 'ground') continue;
+      const a = nodes[g.from], b = nodes[g.to];
+      if (!a.ground || !b.ground || a === b) continue;
+      const L = g.s[g.s.length - 1], allow = maxGrade * L + 0.1, diff = a.h - b.h, excess = Math.abs(diff) - allow;
+      if (excess <= 0.005) continue;
+      worst = Math.max(worst, excess);
+      const m = Math.sign(diff) * excess / 2;
+      a.h -= m; b.h += m;
+    }
+    if (worst < 0.01) break;
   }
   // bridges and tunnels: their inner nodes from the ground nodes they're anchored to (by distance along
   // the structure), so the deck runs smoothly from end to end
@@ -261,6 +315,12 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     if (g.structure !== 'ground') g.h = g.s.map(s => { const t = s / L, e = t * t * (3 - 2 * t) * 0.5 + t * 0.5; return ha + (hb - ha) * e; });
     else { const da = ha - g.smooth[0], db = hb - g.smooth[g.smooth.length - 1]; g.h = g.smooth.map((v, k) => v + da + (db - da) * (g.s[k] / L)); }
   }
+  // bridges over roads: a deck eased between its ends can pass just over (or through) a road beneath —
+  // its ends are at the ground's height, the road below often in a cutting. Each deck is lifted to clear
+  // what crosses under it, a smooth hump that stays within the structure (no step where it meets the ground)
+  matchSideBySide(nodes, segs, cfg.sideBySideEase ?? 30);
+  liftBridges(nodes, segs, cfg.overpassClearance ?? 5.2);
+  smoothStructures(nodes, segs);
   // (a junction: three roads or more; or two of different widths; or two that both leave the same way — a fork)
   const away = (k: number, g: Seg) => { const a = g.from === k ? 0 : g.xs.length - 1, b = g.from === k ? Math.min(1, g.xs.length - 1) : Math.max(0, g.xs.length - 2), dx = g.xs[b] - g.xs[a], dz = g.zs[b] - g.zs[a], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   nodes.forEach((n, k) => {
@@ -269,6 +329,142 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     n.junction = n.segs.length >= 3 || (!!two && (Math.abs(two[0].width - two[1].width) > 0.3 || fork));
   });
   return { nodes, segs, joins: joinStats, ...buildSurface(nodes, segs, cfg) };
+}
+
+// roads side by side whose surfaces overlap (a slip road running into a motorway, two carriageways close
+// together, a road beside another before they join): each profile came from its own line through the
+// elevation, so where they overlap one can stand a step above the other — a kerb a car trips on. The
+// lesser road takes the greater's height there (rank, then width), eased in and out along it, its
+// junctions with it moving too so nothing else steps.
+function matchSideBySide(nodes: RNode[], segs: Seg[], ease: number) {
+  // (on the ground, in tunnels, on bridges — a bridge's end beside the road it comes down to, too)
+  const ground = segs;
+  const C = 30, grid = new Map<string, [Seg, number][]>();
+  for (const g of ground) for (let k = 0; k + 1 < g.xs.length; k++) {
+    for (let i = Math.floor(Math.min(g.xs[k], g.xs[k + 1]) / C); i <= Math.floor(Math.max(g.xs[k], g.xs[k + 1]) / C); i++) for (let j = Math.floor(Math.min(g.zs[k], g.zs[k + 1]) / C); j <= Math.floor(Math.max(g.zs[k], g.zs[k + 1]) / C); j++) { const key = `${i},${j}`; (grid.get(key) ?? grid.set(key, []).get(key)!).push([g, k]); }
+  }
+  const over = (o: Seg, g: Seg) => (o.rank ?? 0) > (g.rank ?? 0) || ((o.rank ?? 0) === (g.rank ?? 0) && (o.width > g.width + 0.01 || (Math.abs(o.width - g.width) <= 0.01 && o.id < g.id)));
+  // each lesser road's change where it overlaps a greater one
+  const own = new Map<Seg, { d: Float64Array; hit: Uint8Array }>();
+  for (const g of ground) {
+    let any = false;
+    const d = new Float64Array(g.xs.length), hit = new Uint8Array(g.xs.length);
+    for (let q = 0; q < g.xs.length; q++) {
+      const x = g.xs[q], z = g.zs[q];
+      let best: { e: number; h: number } | null = null;
+      for (const [o, k] of grid.get(`${Math.floor(x / C)},${Math.floor(z / C)}`) ?? []) {
+        // (a tunnel under a road is stacked, however close the heights it was given: tunnels only with tunnels)
+        if (o === g || !over(o, g) || ((o.structure === 'tunnel') !== (g.structure === 'tunnel'))) continue;
+        const ax = o.xs[k], az = o.zs[k], dx = o.xs[k + 1] - ax, dz = o.zs[k + 1] - az, L2 = dx * dx + dz * dz || 1e-9;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)), e = Math.hypot(x - ax - dx * t, z - az - dz * t);
+        if (e > (g.width + o.width) / 2 - 0.3 || (best && e >= best.e)) continue;
+        // (beyond the other road's end: its continuation past a junction, or a road meeting it — not alongside)
+        if ((k === 0 && t <= 0) || (k === o.xs.length - 2 && t >= 1)) continue;
+        // (a bridge and a road, or two layers: only alongside — a bridge's end coming down beside a road —
+        // not one crossing over the other)
+        if (o.structure !== g.structure || o.layer !== g.layer) {
+          const ga = Math.max(0, q - 1), gb = Math.min(g.xs.length - 1, q + 1), ux = g.xs[gb] - g.xs[ga], uz = g.zs[gb] - g.zs[ga];
+          if (Math.abs(ux * dx + uz * dz) < 0.8 * Math.hypot(ux, uz) * Math.sqrt(L2)) continue;
+        }
+        best = { e, h: o.h[k] + (o.h[k + 1] - o.h[k]) * t };
+      }
+      // (2.5 m or more apart: one over the other, stacked; less, they can't both be there)
+      if (best && Math.abs(best.h - g.h[q]) > 0.03 && Math.abs(best.h - g.h[q]) < 2.5) { d[q] = best.h - g.h[q]; hit[q] = 1; any = true; }
+    }
+    if (any) own.set(g, { d, hit });
+  }
+  if (!own.size) return;
+  // eased along each road: away from where it overlaps, the change fades over `ease` m
+  const fade = (g: Seg, d: Float64Array, hit: Uint8Array) => g.s.map((s, q) => {
+    if (hit[q]) return d[q];
+    let v = 0, wbest = 0;
+    for (let p = 0; p < g.s.length; p++) if (hit[p]) { const w = 1 - Math.min(1, Math.abs(g.s[p] - s) / ease), f = w * w * (3 - 2 * w); if (f > wbest) { wbest = f; v = d[p] * f; } }
+    return v;
+  });
+  const delta = new Map<Seg, number[]>();
+  for (const [g, { d, hit }] of own) delta.set(g, fade(g, d, hit));
+  // the junctions they move: the same change for every road there, faded from that end
+  const nodeD = new Map<number, number>();
+  // (only where it overlaps right at the junction: a road that meets the greater one there already
+  // shares its height at it, and moving the junction would move the greater road too)
+  for (const [g, dl] of delta) { const { hit } = own.get(g)!; for (const [nk, v, h] of [[g.from, dl[0], hit[0]], [g.to, dl[dl.length - 1], hit[hit.length - 1]]] as [number, number, number][]) if (h && Math.abs(v) > Math.abs(nodeD.get(nk) ?? 0)) nodeD.set(nk, v); }
+  for (const g of segs) {
+    const L = g.s[g.s.length - 1], a = nodeD.get(g.from) ?? 0, b = nodeD.get(g.to) ?? 0, dl = delta.get(g);
+    if (!dl && !a && !b) continue;
+    g.h = g.h.map((h, q) => {
+      const s = g.s[q], fa = Math.max(0, 1 - s / Math.min(ease, L)), fb = Math.max(0, 1 - (L - s) / Math.min(ease, L));
+      const ends = a * fa * fa * (3 - 2 * fa) + b * fb * fb * (3 - 2 * fb);
+      if (!dl) return h + ends;
+      // (its own change, the ends' where that's none: the ends' set exactly at the ends)
+      const v = q === 0 ? a : q === g.s.length - 1 ? b : (Math.abs(dl[q]) > 1e-6 ? dl[q] : ends);
+      return h + v;
+    });
+  }
+  for (const [nk, v] of nodeD) nodes[nk].h += v;
+}
+
+function liftBridges(nodes: RNode[], segs: Seg[], clearance: number) {
+  const under = segs.filter(g => g.structure !== 'bridge');
+  if (!segs.some(g => g.structure === 'bridge')) return;
+  // (the roads that might be under: a coarse grid of their pieces)
+  const C = 40, grid = new Map<string, [Seg, number][]>();
+  for (const g of under) for (let k = 0; k + 1 < g.xs.length; k++) {
+    for (let i = Math.floor(Math.min(g.xs[k], g.xs[k + 1]) / C); i <= Math.floor(Math.max(g.xs[k], g.xs[k + 1]) / C); i++) for (let j = Math.floor(Math.min(g.zs[k], g.zs[k + 1]) / C); j <= Math.floor(Math.max(g.zs[k], g.zs[k + 1]) / C); j++) { const key = `${i},${j}`; (grid.get(key) ?? grid.set(key, []).get(key)!).push([g, k]); }
+  }
+  // each bridge (its segments joined through nodes off the ground), on its own: its ends where it meets the
+  // ground stay put; over what it crosses, it's raised to clear it, eased to its ends (at most 15% a side)
+  const seen = new Set<number>();
+  for (const g0 of segs) {
+    if (g0.structure !== 'bridge' || seen.has(g0.id)) continue;
+    const comp: Seg[] = [], stack = [g0];
+    seen.add(g0.id);
+    while (stack.length) { const g = stack.pop()!; comp.push(g); for (const nk of [g.from, g.to]) if (!nodes[nk].ground) for (const si of nodes[nk].segs) { const o = segs[si]; if (o.structure === 'bridge' && !seen.has(o.id)) { seen.add(o.id); stack.push(o); } } }
+    const ends = [...new Set(comp.flatMap(g => [g.from, g.to]))].filter(k => nodes[k].ground).map(k => nodes[k]);
+    const crossings: { x: number; z: number; need: number; reach: number }[] = [];
+    for (const b of comp) for (let q = 0; q < b.xs.length; q++) {
+      const x = b.xs[q], z = b.zs[q], deck = b.h[q];
+      for (const [g, k] of grid.get(`${Math.floor(x / C)},${Math.floor(z / C)}`) ?? []) {
+        if (g.from === b.from || g.from === b.to || g.to === b.from || g.to === b.to) continue;
+        const ax = g.xs[k], az = g.zs[k], dx = g.xs[k + 1] - ax, dz = g.zs[k + 1] - az, L2 = dx * dx + dz * dz || 1e-9;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)), d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+        if (d > (g.width + b.width) / 2) continue;
+        const below = g.h[k] + (g.h[k + 1] - g.h[k]) * t, need = below + clearance - deck;
+        // (only what's under it: a road far above or below the deck isn't the one it crosses)
+        if (need <= 0 || need > clearance + 3) continue;
+        let reach = Infinity;
+        for (const n of ends) reach = Math.min(reach, Math.hypot(n.x - x, n.z - z));
+        if (!Number.isFinite(reach)) reach = 120;
+        crossings.push({ x, z, need: Math.min(need, reach * 0.15), reach: Math.min(120, reach) });
+      }
+    }
+    if (!crossings.length) continue;
+    const lift = (x: number, z: number) => { let m = 0; for (const c of crossings) { const d = Math.hypot(x - c.x, z - c.z); if (d >= c.reach) continue; const u = 1 - d / c.reach, f = u * u * (3 - 2 * u); m = Math.max(m, c.need * Math.min(1, f * 1.6)); } return m; };
+    for (const b of comp) b.h = b.h.map((h, q) => (q === 0 && nodes[b.from].ground) || (q === b.h.length - 1 && nodes[b.to].ground) ? h : h + lift(b.xs[q], b.zs[q]));
+    for (const k of new Set(comp.flatMap(g => [g.from, g.to]))) if (!nodes[k].ground) nodes[k].h += lift(nodes[k].x, nodes[k].z);
+  }
+}
+
+// bridges and tunnels, smoothed along their whole length: each piece was eased between its own two ends,
+// so where pieces meet the deck could kink (a crest that throws a car). Their points relaxed towards their
+// neighbours' heights a few times, the ends where they meet the ground held
+function smoothStructures(nodes: RNode[], segs: Seg[], passes = 40) {
+  const st = segs.filter(g => g.structure !== 'ground');
+  if (!st.length) return;
+  for (let pass = 0; pass < passes; pass++) {
+    // (each inner node: the average of the points either side of it, on every piece that meets there)
+    const sum = new Map<number, [number, number]>();
+    for (const g of st) for (const [nk, q] of [[g.from, 1], [g.to, g.h.length - 2]] as [number, number][]) {
+      if (nodes[nk].ground || q < 0 || q >= g.h.length) continue;
+      const a = sum.get(nk) ?? [0, 0]; a[0] += g.h[q]; a[1]++; sum.set(nk, a);
+    }
+    for (const [nk, [t, n]] of sum) nodes[nk].h = nodes[nk].h * 0.5 + (t / n) * 0.5;
+    for (const g of st) {
+      const h = g.h, out = h.slice();
+      for (let q = 1; q < h.length - 1; q++) out[q] = h[q] * 0.5 + (h[q - 1] + h[q + 1]) * 0.25;
+      out[0] = nodes[g.from].h; out[out.length - 1] = nodes[g.to].h;
+      g.h = out;
+    }
+  }
 }
 
 // the height of a segment at arc length s (its profile, linear between points)

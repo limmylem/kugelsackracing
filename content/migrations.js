@@ -4,7 +4,8 @@
 // Version 1 (the first draft of the format): a flat place (lat, lon, alt, heading), a "title", the quest
 // type as "questType", and its reward as money ("reward": a number, set by hand). Version 2 keeps the
 // place in "location", calls it "name", and names one of the economy's reward tiers instead of money, so
-// rewards follow the economy's rules (data/economy.json quests).
+// rewards follow the economy's rules (data/economy.json quests). Version 3 adds routes (kind 'route', with
+// their course) and laps on more quest types; a version 2 item is a version 3 one as it is.
 
 import { CONTENT_VERSION, TYPES, newItem } from './quests.js';
 
@@ -27,6 +28,7 @@ const STEPS = {
     }
     return { ...out, version: 2 };
   },
+  2: v2 => ({ ...v2, version: 3 }),
 };
 
 // → { item, from, notes } or { error }

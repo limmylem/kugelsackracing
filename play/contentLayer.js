@@ -12,7 +12,7 @@
 
 import { worldContent } from '../content/client.js';
 import { createMarkers3d } from '../editor/markers3d.js';
-import { KINDS, TYPES, rewardsOf, entryCheck } from '../content/quests.js';
+import { KINDS, TYPES, MARKER_KINDS, rewardsOf, entryCheck } from '../content/quests.js';
 import { distanceKm } from '../content/geo.js';
 
 const RADIUS_KM = 3, REQUERY_M = 250, CARD_M = 22, CARD_LEAVE_M = 60;
@@ -43,7 +43,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null }) {
     if (!C || querying) return;
     querying = true;
     try {
-      const r = await C.service.query({ lat, lon, km: RADIUS_KM, view: 'published', offered: true, limit: 2000 });
+      const r = await C.service.query({ lat, lon, km: RADIUS_KM, view: 'published', offered: true, kinds: MARKER_KINDS, limit: 2000 });
       items = r.items.map(x => x.item); byId = new Map(items.map(it => [it.id, it]));
       markers.setItems(items);
       toMaps();

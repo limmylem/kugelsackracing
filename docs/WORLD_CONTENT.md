@@ -1,7 +1,8 @@
 # World content and the world editor
 
-Phase 4 Step 1. The editor places world content (quest starts, points of interest, spawn points)
-anywhere on Earth and fills in the details. The game shows what's published near the player. Everything
+Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)
+anywhere on Earth and fills in the details, and draws routes on the region's real roads (Step 2:
+[ROUTES.md](ROUTES.md) — the route tool, checkpoints and shortcuts, test drives). The game shows what's published near the player. Everything
 goes through one interface, `WorldContentService` (`content/service.js`). For now a local backend keeps
 it in the browser. A server with PostGIS can take over later with no change to the editor or the game
 (see the design note below).
@@ -30,7 +31,7 @@ it in the browser. A server with PostGIS can take over later with no change to t
   - coordinates in any form (`37.7936, -122.3965`, or degrees, minutes and seconds).
 - **Bookmarks** (★): add the current place; right-click one to remove it.
 - **Place** with the tools: **1** quest start, **2** point of interest, **3** spawn point. Then click the
-  world or the map.
+  world or the map. **4** draws a route ([ROUTES.md](ROUTES.md)).
   - In 3D, the click lands on the road surface first, then the ground, buildings and the rest. The exact
     latitude, longitude and height are stored.
   - **Snap to road** (**N**, on by default) moves the marker onto the nearest road and faces it along the
@@ -60,28 +61,32 @@ it in the browser. A server with PostGIS can take over later with no change to t
   - Imports are checked: the format, its version (older versions are brought up to date; a file from a
     newer game is refused), and each item. Bad items are skipped with the reason.
 
-## The format (version 2)
+## The format (version 3)
 
 `data/schemas/content-item.schema.json` defines the shape. `content/quests.js` checks the rest in plain
 words.
 
 - **Every item:**
-  - `id`, `version`, `kind` (`quest` | `poi` | `spawn`), `name`, `description`, `icon`;
+  - `id`, `version`, `kind` (`quest` | `poi` | `spawn` | `route`), `name`, `description`, `icon`;
   - `location` { `lat`, `lon`, `alt` (metres above sea level, EGM2008, as the baked world's heights),
     `heading` (degrees from north), `altFrom` (`road` | `ground` | `terrain` | `estimate`) };
   - `road` (the road it was snapped to), `status`, `author`, `created`, `updated`, `publishedAt`.
 - **Quests also have:**
   - `type`: `sprint` | `time_trial` | `checkpoint` | `drift` | `delivery` | `pink_slip`;
-  - `route`: a route's id, null until Step 2;
+  - `route`: a route's id (an item of kind `route`), or null. One route can serve several quests;
   - `entry` { `classes`, `maxPowerKw`, `minWeightKg`, `maxWeightKg`, `maxKwPerTonne`, `minLevel` };
   - `fee`;
   - `rewards` { `tier` };
   - `npc`: filled in Step 4;
   - `conditions` { `timeOfDay`, `weather` };
   - `enabled`;
-  - `params`: the type's own fields. A sprint has its finish line; a time trial its finish, laps and
-    target time; a checkpoint run its checkpoints and time limit; a drift its score target; a delivery
-    its cargo, destination and damage penalty; a pink slip the rival's car and its finish.
+  - `params`: the type's own fields. A sprint has its finish line and laps; a time trial its finish, laps
+    and target time; a checkpoint run its checkpoints, time limit and laps; a drift its score target; a
+    delivery its cargo, destination and damage penalty; a pink slip the rival's car and its finish. With
+    a route, the route's finish and checkpoints stand in for those; laps need a loop route.
+- **Routes also have** `course`: the waypoints, road options, the baked centreline, the OSM road segments
+  used, grid, checkpoints and the rest ([ROUTES.md](ROUTES.md#saved-data-in-the-route-items-course)).
+  Their `location` is the start line. The game shows routes through their quests, not as markers.
 - **Rewards are never stored as money.** A quest names a reward tier, and the money and xp come from the
   economy's rules (`data/economy.json` `quests`):
   - money = base × tier × type × the lowest car class the quest lets in;
@@ -91,7 +96,8 @@ words.
   `fee.maxShareOfReward` of the reward.
 - **Migrations** (`content/migrations.js`) bring older items up one version at a time. Version 1 (the
   first draft) had flat coordinates and hard-coded reward money. It becomes version 2 with the nearest
-  reward tier.
+  reward tier. Version 3 added routes and laps on more quest types; a version 2 item is a version 3 one
+  as it is.
 
 ## The service
 
@@ -217,5 +223,6 @@ CREATE TABLE editor_account (account_id uuid PRIMARY KEY REFERENCES account(id),
     undo and redo of every action.
   - `tests/unit/editor.test.mjs`: snapping on San Francisco's road graph; who may open the editor; the
     3D markers.
+  - `tests/unit/route.test.mjs`: routes ([ROUTES.md](ROUTES.md#tests)).
 - **`npm run stress:content`**: 50,000 markers. Query times, the content's work per frame while flying
   and driving, memory over hundreds of cells, and 5,000 markers within 3 km.

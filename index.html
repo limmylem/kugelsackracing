@@ -1833,8 +1833,11 @@ async function editorNow() {
     canvas: () => test.debug.shared?.renderer?.domElement ?? null,
     // the editor's 3D view is the baked world: it goes there first (out of the garage too)
     async ensureRealWorld() { if (currentWorld !== 'real' && !PHOTOREAL) await switchWorld('real'); return test.activeWorld(); },
+    // a route's test drive (play/testDrive.js): play resumes with the route on; onDone when it ends
+    testDriveRoute: opts => test.testDriveRoute(opts),
   } });
   window.worldEditor = editor;          // (the console)
+  window.__testScene = test;            // (the browser tests: the route run)
   return editor;
 }
 addEventListener('keydown', async e => {
