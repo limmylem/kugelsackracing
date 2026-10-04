@@ -90,7 +90,7 @@ extra grip, power or force. Any car can be driven by the player or by an AI.
 | reaction time | 0.45 → 0.15 s |
 | consistency | its pace varies 5% → 0.8% lap to lap |
 | mistake rate | 1.2 → 0.12 a minute |
-| throttle commitment | the most throttle it uses (70% → 100%) |
+| throttle commitment | the most throttle it uses once on the move (55% → 100%, all of it from a skill of 0.9) |
 
 **Mistakes:**
 - **running wide:** cornering on more grip than it has;
@@ -114,8 +114,9 @@ and how fast. This is a list, not raycasts.
 - **Following:** it never runs into the back of the car ahead. Its gap is its caution × its speed, plus
   5 m.
 - **Overtaking:** it goes for a gap on the inside of the next bend, or the outside if that's where the
-  room is. More aggressive drivers try more often. It holds the move until it's past, or gives up after
-  8 s.
+  room is (a car's width and a metre to spare beyond the car it passes). Not while crawling up a steep
+  climb, unless the car ahead is stopped. More aggressive drivers try more often. It holds the move
+  until it's past, or gives up after 8 s.
 - **Defending:** one move, to the inside of the next bend. Never with a car alongside, and at most one
   move in 10 s.
 - **A car alongside:** it leaves the room, never steering into it.
@@ -127,11 +128,14 @@ three short rays ahead, 20 times a second. They push the driver away from the si
 
 - **Stuck** (hardly moving for 2.5 s when it should be going): it backs out for 1.8 s. The automatic
   gearbox goes into reverse when the brake is held at a stop, as the player's does. It steers to
-  straighten up.
+  straighten up. Stalled on a climb steeper than 12%, it backs straight down it instead (15 m, at most
+  5 s) for a run-up. It never backs up faster than 3 m/s.
 - **Turned round** (spun): it straightens up the same way.
 - **Still stuck after 3 tries**, on its roof, or more than 25 m off the route: the route's reset. It is
   put back at its last reset point (or further back), never within 7 m of another car, and faded out
   and in.
+- **Put back at the same place a fourth time:** it can't get past there, and retires (DNF, stuck)
+  rather than going round in circles.
 
 ## NPC cars
 

@@ -126,10 +126,13 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
       if (o.du < 0 && o.du > -25 && (!behind || o.du > behind.du)) behind = o;
     }
     S.overtakeTimer += dt;
+    // (crawling up a steep climb: no side-by-side — off the line there, a kerb stops it dead and it can't
+    // pull away again)
+    const up = P[wrap(S.k + Math.round(15 / step))], climb = (up.h - here.h) / Math.max(1, Math.abs(up.s - here.s)), steepSlow = climb > 0.12 && speed < 10;
     // a pass: on now, until clear ahead (or given up)
     if (S.tactic?.kind === 'pass') {
       const other = near.find(o => o.id === S.tactic.on);
-      if (!other || other.du < -7 || S.t > S.tacticUntil) S.tactic = null;
+      if (!other || other.du < -7 || S.t > S.tacticUntil || (steepSlow && other.v > 2.5)) S.tactic = null;
       // (alongside it, a car's width and a bit to the side it chose: from the centreline, then from the line)
       else want = fit(myD + other.dd + S.tactic.side * 2.9);
     }
@@ -148,12 +151,12 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
       // going for a gap: inside of the next bend if there's room, else whichever side has more — at once
       // past a car that's stopped or crawling (stuck, crashed), however unaggressive
       const blocked = front.v < 2.5 && front.du < 25;
-      if (front.du < desired + 15 && closing > -1 && (S.overtakeTimer > K.overtakeEvery || (blocked && S.overtakeTimer > 1)) && S.t > 3) {
+      if (front.du < desired + 15 && closing > -1 && (!steepSlow || blocked) && (S.overtakeTimer > K.overtakeEvery || (blocked && S.overtakeTimer > 1)) && S.t > 3) {
         S.overtakeTimer = 0;
         if (blocked || rng() < 0.35 + 0.6 * K.aggression) {
           const bend = Math.sign(P[wrap(S.k + Math.round(40 / step))].k || 1);
           const theirD = myD + front.dd;
-          const sides = [bend, -bend].filter(sd => fit(theirD + sd * 2.9) === theirD + sd * 2.9);
+          const sides = [bend, -bend].filter(sd => fit(theirD + sd * 3.9) === theirD + sd * 3.9);     // (a metre of road to spare beyond)
           if (sides.length) { S.tactic = { kind: 'pass', on: front.id, side: sides[0] }; S.tacticUntil = S.t + 8; }
         }
       }
@@ -209,7 +212,12 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
     if (S.upside > 1.5 || S.dist > R.farFromRoute) { S.wantsReset = true; return idle; }
     if (S.mode === 'reverse') {
       S.reverseFor -= dt;
-      if (S.reverseFor <= 0) S.mode = 'race';
+      // (a run-up: backed far enough down the hill to have another go with some speed)
+      if (S.runUp != null && S.u < S.runUp - 15) S.reverseFor = 0;
+      if (S.reverseFor <= 0) { S.mode = 'race'; S.runUp = null; }
+      // (never fast backwards: past 3 m/s, the throttle — in reverse, the brake — holds it)
+      if (speed < -3) return { device: 'wheel', wheelRange: wr, steer: S.runUp != null ? 0 : -S.turnWay, throttle: 0.6, brake: 0, handbrake: false };
+      if (S.runUp != null) return { device: 'wheel', wheelRange: wr, steer: 0, throttle: 0, brake: 0.8, handbrake: false };
       // (backing out: the wheels the other way to the way it wants to point; the automatic box goes
       // into reverse held on the brake at a standstill, and the brake then drives it back)
       // (a three-point turn: backing up with the wheels the other way to the way it has to turn swings
@@ -222,7 +230,10 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
     if (S.stuck > R.stuckSeconds) {
       S.stuck = 0; S.tries++; S.stuckAt = S.u;
       if (S.tries > R.tries) { S.wantsReset = true; return idle; }
-      S.mode = 'reverse'; S.reverseFor = R.reverseSeconds;
+      S.mode = 'reverse'; S.reverseFor = R.reverseSeconds; S.runUp = null;
+      // (stalled on a steep climb — too steep to pull away on: straight back down it for a run-up)
+      { const a = P[S.k], b = P[wrap(S.k + Math.round(10 / step))], grade = (b.h - a.h) / Math.max(1, Math.abs(b.s - a.s));
+        if (grade > 0.12 && facing > 0.5) { S.runUp = S.u; S.reverseFor = 5; } }
       // (which way it has to turn: towards a point of the line a little ahead; turned right round, the
       // way back to facing along the road)
       { const ahead = P[wrap(S.k + Math.round(8 / step))], [ox, oz] = frame.toWorld(0, 0), aim = pursue(vehicle, ahead.x - ox, ahead.z - oz); S.turnWay = Math.sign(aim.curve || 1); }
@@ -309,12 +320,6 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
     // (throttle commitment: a less skilled driver doesn't use all of it once it's on the move — pulling
     // away and up a hill, everyone uses it all)
     throttle = Math.min(throttle, 1 - (1 - (K.throttle ?? 1)) * clamp((speed - 8) / 10, 0, 1));
-    // (wheelspin at a standstill — a steep hill start: feathered, as a driver would)
-    if (Math.abs(speed) < 2 && throttle > 0.3) {
-      let spin = 0;
-      for (const w of vehicle.wheels) spin = Math.max(spin, w.slipRatio ?? 0);
-      if (spin > 0.4) throttle *= clamp(1 - (spin - 0.4) * 0.8, 0.45, 1);
-    }
     if (m?.kind === 'spin' && cornering) { vehicle.aids.tc = false; vehicle.aids.esc = false; throttle = 1; }
     // smooth hands and feet (faster the better it reacts)
     const rate = dt / Math.max(0.05, K.reactionTime * 0.35);

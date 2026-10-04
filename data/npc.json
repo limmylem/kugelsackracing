@@ -8,7 +8,7 @@
     "reactionTime": [0.45, 0.15],
     "consistency": [0.05, 0.008],
     "mistakeRate": [1.2, 0.12],
-    "throttle": [0.7, 1],
+    "throttle": [0.55, 1.05],
     "levels": { "low": 0.2, "medium": 0.55, "high": 0.9 }
   },
   "mistakes": {
@@ -49,13 +49,13 @@
     "retireBelow": 25
   },
   "recovery": {
-    "_note": "Stuck: hardly moving for stuckSeconds while it should be going → reverse out for reverseSeconds (and again, up to tries). Turned round (spun): straighten up. Still stuck, or further than farFromRoute m off the route: the route's reset (fade out, put back on the route at the last reset point, never into another car: clearance m).",
+    "_note": "Stuck: hardly moving for stuckSeconds while it should be going → reverse out for reverseSeconds (and again, up to tries). Turned round (spun): straighten up. Still stuck, or further than farFromRoute m off the route: the route's reset (fade out, put back on the route at the last reset point, never into another car: clearance m). Put back at the same place (within 40 m) more than sameSpotResets times: it retires (stuck).",
     "stuckSeconds": 2.5,
     "reverseSeconds": 1.8,
     "tries": 3,
     "farFromRoute": 25,
     "clearance": 7,
-    "fadeSeconds": 0.6
+    "fadeSeconds": 0.6, "sameSpotResets": 3
   },
   "rubberBand": {
     "_note": "Small changes to how an NPC drives by its gap to the player (never its car or the physics): ahead of the player by more than deadZone s, a little more careful (cornerMargin and brakingPoint down by up to strength × gap / range, at most cap); behind, a little bolder (up, at most cap, never past the skill's own top). Off for pink slips and time-based leaderboards, and when the player turns it off.",

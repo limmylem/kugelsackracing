@@ -203,6 +203,12 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   function resetNpc(r, point, why) {
     if (r.retired) return;
     const C = cfg.recovery;
+    // (put back at the same place again and again: it can't get past there — it retires, as a driver
+    // would, rather than going round in circles)
+    const here = point.u ?? point.s ?? 0;
+    r.resetSpots = (r.resetSpots ?? []).filter(u => Math.abs(u - here) < 40);
+    r.resetSpots.push(here);
+    if (r.resetSpots.length > (C.sameSpotResets ?? 3)) { retire(r, 'stuck'); return; }
     let pt = point;
     for (let tries = 0; tries < 6; tries++) {
       const clear = racers.every(o => o === r || o.status === 'retired' || (() => { const p = posOf(o); return Math.hypot(p.x - pt.x, p.z - pt.z) > C.clearance; })());
