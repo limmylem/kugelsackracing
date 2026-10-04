@@ -363,6 +363,7 @@ export class LocalPlayerService extends PlayerService {
     return this.#change('car', p => {
       if (!p.questPending?.pinkSlip || p.questPending.attemptId !== attemptId) return { error: 'A car only changes hands in a pink-slip race.' };
       if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
+      if (p.cars[carInstanceId].carId === this.db.economy.startingCar) return { error: 'The starter car can\'t be staked.' };
       if (Object.keys(p.cars).length < 2) return { error: 'You can\'t race your only car for pink slips.' };
       for (const [id, x] of Object.entries(p.parts)) if (x.installedOn?.car === carInstanceId) delete p.parts[id];
       delete p.cars[carInstanceId];
@@ -370,11 +371,18 @@ export class LocalPlayerService extends PlayerService {
       return { result: { lost: carInstanceId } };
     });
   }
-  awardCar(carId, { attemptId } = {}) {
+  // (parts: the rival's upgrades, fitted as they were on its car)
+  awardCar(carId, { attemptId, parts = [] } = {}) {
     return this.#change('car', p => {
       if (!p.questPending?.pinkSlip || p.questPending.attemptId !== attemptId) return { error: 'A car only changes hands in a pink-slip race.' };
       if (!this.db.cars[carId]) return { error: `There's no car "${carId}".` };
-      return { result: { won: addCar(p, this.db, carId) } };
+      const id = addCar(p, this.db, carId), fitted = [];
+      for (const partId of parts) {
+        if (!this.db.parts[partId]) continue;
+        const copy = addPart(p, this.db, partId), g = garageFor(p, this.db, id);
+        if (g.install(copy, { auto: true }).ok && !applyGarage(p, g, id).length) fitted.push(partId);
+      }
+      return { result: { won: id, fitted } };
     });
   }
   // A first-time hint seen (garage/hints.js): kept, so it isn't shown again

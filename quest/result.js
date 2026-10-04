@@ -25,6 +25,8 @@ export function buildResult({ quest, course, outcome, car = {}, recordingId = nu
     damage: { taken: Math.round((outcome.damage?.taken ?? 0) * 100) / 100, events: outcome.damage?.events ?? [] },
     ...(outcome.cargo != null ? { cargo: outcome.cargo, cargoLost: outcome.cargoLost } : {}),
     resets: outcome.resets ?? 0,
+    // (a race: the place, and everyone's times — a server can check the place against them)
+    ...(outcome.place != null ? { place: outcome.place, field: (outcome.field ?? []).map(f => ({ id: f.id, name: f.name, player: !!f.player, status: f.status, time: f.time != null ? r3(f.time) : null, estimated: !!f.estimated })) } : {}),
     recording: recordingId,
   };
 }

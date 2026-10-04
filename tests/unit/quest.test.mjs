@@ -286,7 +286,7 @@ test('entry: plain-English reasons, and which cars would do', () => {
   assert.match(text, /Entry fee/);
   const cars = [{ id: 'a', className: 'C', kw: 100, kg: 1100 }, { id: 'b', className: 'C', kw: 200, kg: 1100 }, { id: 'c', className: 'D', kw: 90, kg: 900, drivable: { ok: false, reasons: [] } }];
   assert.deepEqual(carsThatQualify(q, cars, config).map(c => c.id), ['a']);
-  assert.match(entryReasons({ quest: quest('pink_slip'), car: cars[0], player: { money: 0, xp: 0 }, config })[0].text, /rival drivers/);
+  assert.match(entryReasons({ quest: quest('pink_slip'), car: { ...cars[0], carId: 'starter_car' }, player: { money: 0, xp: 0 }, config })[0].text, /starter car/);
 });
 
 test('result validation: in order, possible, the right route version; impossible pays nothing', () => {
@@ -324,9 +324,10 @@ test('recording: compact, deterministic, decodes to the run', () => {
   assert.ok(Math.abs(f[600].q[1] - Math.sin(30 * 0.3 / 2) * Math.sign(Math.cos(30 * 0.3 / 2))) < 1e-4);
 });
 
-test('pink slip: framework only, can\'t start, confirmations say the car will be lost', () => {
+test('pink slip: a race (its rival: race/race.js), confirmations say the car will be lost', () => {
   const course = straight(), Q = createQuestSession({ quest: quest('pink_slip', { opponentCar: 'x' }), course, config });
-  assert.throws(() => Q.begin(), /rival drivers/);
+  Q.begin({ intro: false });
+  assert.equal(Q.state.state, 'countdown');
   const c = pinkSlipConfirmations({ name: 'Hatchback', value: 12000 }, 'Rival');
   assert.equal(c.length, 3);
   assert.match(c[1].text, /gone for good/);

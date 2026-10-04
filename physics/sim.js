@@ -29,6 +29,10 @@ const now = () => performance.now();
 
 export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   const world = new RAPIER.World({ x: settings.gravity[0], y: settings.gravity[1], z: settings.gravity[2] });
+  // (Rapier's world.step ends by sweeping every body and collider for ones made inside the engine — only
+  // soft bodies do, and there are none: bodies and colliders made and removed through the API are mapped
+  // there. On a big world, tens of thousands of colliders, the sweep was most of a step's cost.)
+  if (typeof world.mapNewSoftBodies === 'function') world.mapNewSoftBodies = () => {};
   const dt = 1 / settings.stepHz;
   world.timestep = dt;
 
@@ -95,14 +99,15 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     if (cars.length) wakes();
     vehicle.step(dt, input);
     const t1 = now();
-    for (const c of cars) c.vehicle.step(dt, c.driver(c.vehicle, dt));
+    // (a car off the physics — an NPC far away, run along its racing line instead: race/race.js — skips it)
+    for (const c of cars) if (!c.offPhysics) c.vehicle.step(dt, c.driver(c.vehicle, dt));
     const t2 = now();
     vehicle.sensor.before(); vehicle.parts.before();
-    for (const c of cars) { c.vehicle.sensor.before(); c.vehicle.parts.before(); }
+    for (const c of cars) if (!c.offPhysics) { c.vehicle.sensor.before(); c.vehicle.parts.before(); }
     world.step();
     const t = (steps + 1) * dt;
     vehicle.sensor.after(dt, t); vehicle.parts.after(dt);
-    for (const c of cars) { c.vehicle.sensor.after(dt, t); c.vehicle.parts.after(dt); }
+    for (const c of cars) if (!c.offPhysics) { c.vehicle.sensor.after(dt, t); c.vehicle.parts.after(dt); }
     if (debris.count) debris.after(dt, t, fromXYZ(vehicle.body.translation()));
     const t3 = now();
     timer.update(dt, vehicle.forwardSpeed(), vehicle.brake);
@@ -133,9 +138,10 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     step,
     // fn(sim, stepNumber) after every step; returns a function that stops it
     onStep(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    // Add a car driven by `driver` at spawn ({ position, headingDeg, speed? }); returns its id
-    addCar(at, driver, carSpec = spec) {
-      const v = setupCar(new Vehicle(RAPIER, world, carSpec, sockets, at));
+    // Add a car driven by `driver` at spawn ({ position, headingDeg, speed? }); returns its id. Another
+    // model: its own spec and sockets (an NPC's car, built from its parts)
+    addCar(at, driver, carSpec = spec, carSockets = sockets) {
+      const v = setupCar(new Vehicle(RAPIER, world, carSpec, carSockets, at));
       const c = { id: nextCarId++, vehicle: v, driver };
       v.id = c.id;
       cars.push(c);

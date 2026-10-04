@@ -1,0 +1,94 @@
+{
+  "_note": "NPC racers (Phase 4 Step 4: ai/, race/, docs/NPC_RACERS.md). Placeholder values: balancing is Phase 4 Step 5.",
+  "skill": {
+    "_note": "A driver's skill (0–1) and its seven settings, each from its value at skill 0 to its value at skill 1 (a driver can set any of them on its own). lineAccuracy: how far off the racing line it wanders (m); brakingPoint: the share of the car's braking it plans with (lower: brakes earlier); cornerMargin: the share of the car's grip it corners at; reactionTime: s before it reacts to other cars and to its own errors; consistency: how much its pace varies lap to lap (share); mistakeRate: mistakes a minute; throttle: the most throttle it uses (less skilled drivers don't commit to full power).",
+    "lineAccuracy": [1.4, 0.15],
+    "brakingPoint": [0.62, 0.93],
+    "cornerMargin": [0.7, 0.97],
+    "reactionTime": [0.45, 0.15],
+    "consistency": [0.05, 0.008],
+    "mistakeRate": [1.2, 0.12],
+    "throttle": [0.7, 1],
+    "levels": { "low": 0.2, "medium": 0.55, "high": 0.9 }
+  },
+  "mistakes": {
+    "_note": "What a mistake is, and how often each kind (weights). runWide: corners on that much more grip than it has (it runs wide); lateBrake: brakes that many metres late; lockUp: stamps on the brake for a moment with ABS off; spin: too much throttle out of a corner with traction control off (rare).",
+    "runWide": { "weight": 4, "extraGrip": 0.08, "seconds": 2.5 },
+    "lateBrake": { "weight": 3, "metres": [8, 20] },
+    "lockUp": { "weight": 2, "seconds": 0.45 },
+    "spin": { "weight": 0.4, "seconds": 0.9 }
+  },
+  "personality": {
+    "_note": "aggression (0–1): how often it goes for a gap and how close it'll go; it defends with one move, never into a car alongside. caution (0–1): how much gap it keeps in traffic (seconds of following distance from followGap[0] to [1]). onHit: calm (carries on), angry (more aggressive for a while), rattled (more careful, a little slower for a while).",
+    "followGap": [0.35, 0.9],
+    "overtakeEvery": [12, 2.5],
+    "defendChance": [0.15, 0.7],
+    "onHitSeconds": 20
+  },
+  "drivers": [
+    { "id": "mara_voss", "name": "Mara Voss", "from": "DE", "skill": 0.92, "aggression": 0.55, "caution": 0.4, "onHit": "calm", "car": "strada_evo", "colour": "#2b6cd4", "bio": "Former touring-car champion. Precise, hard to pass." },
+    { "id": "kenji_arai", "name": "Kenji Arai", "from": "JP", "skill": 0.86, "aggression": 0.75, "caution": 0.25, "onHit": "angry", "car": "kaze_gt", "colour": "#d43a2b", "bio": "Mountain-pass legend; late on the brakes." },
+    { "id": "lou_bennett", "name": "Lou Bennett", "from": "GB", "skill": 0.7, "aggression": 0.4, "caution": 0.6, "onHit": "rattled", "car": "hana_roadster", "colour": "#2e9e5b", "bio": "Club racer. Tidy, careful in traffic." },
+    { "id": "rico_salas", "name": "Rico Salas", "from": "ES", "skill": 0.62, "aggression": 0.9, "caution": 0.15, "onHit": "angry", "car": "brute_500", "colour": "#e0a020", "bio": "All attack. Makes mistakes, makes up for them." },
+    { "id": "ines_moreau", "name": "Inès Moreau", "from": "FR", "skill": 0.8, "aggression": 0.5, "caution": 0.5, "onHit": "calm", "car": "vortex_r", "colour": "#8e44ad", "bio": "Rally convert; never gives up a place easily." },
+    { "id": "sam_okafor", "name": "Sam Okafor", "from": "NG", "skill": 0.5, "aggression": 0.35, "caution": 0.7, "onHit": "rattled", "car": "starter_car", "colour": "#16a3b5", "bio": "Weekend racer, learning fast." },
+    { "id": "petra_novak", "name": "Petra Novak", "from": "CZ", "skill": 0.75, "aggression": 0.65, "caution": 0.35, "onHit": "calm", "car": "kaze_gt", "colour": "#c0392b", "bio": "Consistent to the hundredth." },
+    { "id": "dev_kapoor", "name": "Dev Kapoor", "from": "IN", "skill": 0.42, "aggression": 0.55, "caution": 0.45, "onHit": "angry", "car": "starter_car", "colour": "#f06292", "bio": "Quick in a straight line, wild in the bends." },
+    { "id": "ana_lima", "name": "Ana Lima", "from": "BR", "skill": 0.97, "aggression": 0.6, "caution": 0.3, "onHit": "calm", "car": "apex_v8", "colour": "#27ae60", "bio": "The one to beat." },
+    { "id": "tom_hale", "name": "Tom Hale", "from": "US", "skill": 0.3, "aggression": 0.3, "caution": 0.8, "onHit": "rattled", "car": "ridgeback_4x4", "colour": "#7f8c8d", "bio": "Here for the views." }
+  ],
+  "cars": {
+    "_note": "NPC cars are built from the parts system (ai/npcCars.js): a model the quest lets in, upgraded part by part towards the performance target — the rating the quest's class allows × target (1: as fast as the class allows; under 1: a little slower), never past the quest's limits.",
+    "target": 0.94,
+    "tolerance": 25,
+    "maxParts": 10
+  },
+  "damage": {
+    "_note": "NPCs take damage by the player's rules (garage/carDamage.js, data/damage.json). Badly damaged (condition under slowFrom %), they go slower in step with it; undrivable, or under retireBelow %, they retire (DNF).",
+    "slowFrom": 75,
+    "retireBelow": 25
+  },
+  "recovery": {
+    "_note": "Stuck: hardly moving for stuckSeconds while it should be going → reverse out for reverseSeconds (and again, up to tries). Turned round (spun): straighten up. Still stuck, or further than farFromRoute m off the route: the route's reset (fade out, put back on the route at the last reset point, never into another car: clearance m).",
+    "stuckSeconds": 2.5,
+    "reverseSeconds": 1.8,
+    "tries": 3,
+    "farFromRoute": 25,
+    "clearance": 7,
+    "fadeSeconds": 0.6
+  },
+  "rubberBand": {
+    "_note": "Small changes to how an NPC drives by its gap to the player (never its car or the physics): ahead of the player by more than deadZone s, a little more careful (cornerMargin and brakingPoint down by up to strength × gap / range, at most cap); behind, a little bolder (up, at most cap, never past the skill's own top). Off for pink slips and time-based leaderboards, and when the player turns it off.",
+    "deadZone": 1.5,
+    "range": 12,
+    "strength": 0.04,
+    "cap": 0.035
+  },
+  "lod": {
+    "_note": "AI level of detail: NPCs within fullWithin m of the player, or in view within visibleWithin m, drive in the full physics; further and out of view for coolDown s, they run along their racing line on their speed plan (no physics) and come back to full physics before switchBack m away — matching place, speed and damage.",
+    "fullWithin": 220,
+    "visibleWithin": 650,
+    "cheapBeyond": 300,
+    "coolDown": 2,
+    "fovMargin": 1.15
+  },
+  "race": {
+    "_note": "maxNpcs: the most rivals a quest can have; namesOverCars: the drivers' names over their cars (the player can turn them off). What each place pays: data/quests.json race.",
+    "maxNpcs": 7,
+    "namesOverCars": true
+  },
+  "spread": {
+    "_note": "The tests' target: lap time of a low-skill driver against a high-skill one in the same car (a share slower) — min and max.",
+    "lowVsHigh": [0.05, 0.25],
+    "mediumVsHigh": [0.02, 0.14]
+  },
+  "defaults": {
+    "_note": "A quest's npc settings when it has none (content/quests.js params): count, skill range, drivers ('random' or ids), carClass (null: the quest's own), aggression (null: each driver's own), rubberBand.",
+    "count": 3,
+    "skill": [0.4, 0.8],
+    "drivers": "random",
+    "carClass": null,
+    "aggression": null,
+    "rubberBand": true
+  }
+}

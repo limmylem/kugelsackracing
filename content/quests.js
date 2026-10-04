@@ -155,6 +155,7 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   // (its route: given — the item, or null when there's none by that id — or not looked up: undefined)
   const R = item.route && route ? route : null;
   out.push(...T.check(item.params ?? {}, { cars, route: R ?? (item.route && route === undefined ? { unknown: true } : null) }));
+  out.push(...rivalProblems(item));
   for (const f of T.fields) if (f.kind === 'place' && item.params?.[f.key] && !validPlace(item.params[f.key])) out.push(err(`params.${f.key}`, `The ${f.label.toLowerCase().replace(/ \(.*\)/, '')} isn't a place on the map.`));
   if (!item.route) out.push(warn('route', 'No route yet: draw one with the route tool (4) and pick it here.'));
   else if (route === null) out.push(err('route', `Its route "${item.route}" doesn't exist (any more).`));
@@ -178,6 +179,14 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   return out;
 }
 
+// rivals on a quest type that has none (they race in sprints and pink slips)
+export function rivalProblems(item) {
+  const n = item.npc?.count ?? 0, out = [];
+  if (n > 0 && !['sprint', 'pink_slip'].includes(item.type)) out.push(warn('npc.count', `A ${TYPES[item.type]?.label.toLowerCase() ?? item.type} has no rivals: the ${n} set are ignored (they race in sprints and pink slips).`));
+  const sk = item.npc?.skill;
+  if (sk && !(sk[0] >= 0 && sk[1] <= 1 && sk[0] <= sk[1])) out.push(err('npc.skill', 'Rivals\' skill goes from 0 to 1, the first no more than the second.'));
+  return out;
+}
 export const blocking = list => list.filter(p => p.level === 'error');
 
 // a route's own problems, from what's stored with it (the editor works them out with the road map and
@@ -204,6 +213,9 @@ export function linkProblems(quest, route) {
   if (!kinds.includes(c.kind)) out.push(err('route', `A ${TYPES[quest.type].label.toLowerCase()} needs a point-to-point route: "${route.name}" is a loop.`));
   if (laps > 1 && c.kind !== 'loop') out.push(err('params.laps', `${laps} laps need a loop route: "${route.name}" is point to point.`));
   if (blocking(routeProblems(route)).length) out.push(err('route', `Its route "${route.name}" has problems to fix first: ${blocking(routeProblems(route))[0].message}`));
+  // rivals: one car to each grid slot, the player's first
+  const rivals = quest.type === 'pink_slip' ? 1 : quest.npc?.count ?? 0, slots = c.grid?.count ?? 8;
+  if (rivals > slots - 1) out.push(err('npc.count', `${rivals} rivals need a grid of ${rivals + 1} slots: "${route.name}" has ${slots}. Fewer rivals, or more grid slots on the route.`));
   if (validPlace(quest.location) && validPlace(route.location)) {
     const R = 6371000, toRad = Math.PI / 180, dLat = (route.location.lat - quest.location.lat) * toRad, dLon = (route.location.lon - quest.location.lon) * toRad;
     const m = 2 * R * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(quest.location.lat * toRad) * Math.cos(route.location.lat * toRad) * Math.sin(dLon / 2) ** 2));

@@ -51,6 +51,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
 import { createRouteRun } from '../play/testDrive.js';
 import { createQuestPlay } from '../play/questUi.js';
+import { createRace } from '../race/race.js';
 import { worldContent } from '../content/client.js';
 import { garageFor } from '../garage/player/profile.js';
 import { carWork } from '../garage/repair.js';
@@ -170,6 +171,7 @@ export const questPlayNow = () => active?.quests ?? null;
 // let go at GO, reset to a checkpoint, and read every physics tick
 function questGame(w) {
   const s = shared, S = w.stream, db = s.session.db, player = s.session.player;
+  fetch('data/npc.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { G.npcCfg = j; }).catch(e => console.warn(`No NPC racers: ${e.message}`));
   let content = null, network = null;
   const car = () => w.sim.vehicle;
   const summary = id => {
@@ -191,8 +193,8 @@ function questGame(w) {
   const recheck = () => { const p = player.profile, id = p.currentCar; if (!p.cars[id]) return; drivableNow = drivability(db.cars[p.cars[id].carId], ownedBySocket(db, p, id), db.damage).ok; conditionNow = condition(); };
   recheck();
   player.on(recheck);
-  return {
-    player, db, config: player.quests.config, economy: db.economy, currency: db.economy.currency, projection: S.projection,
+  const G = {
+    player, db, config: player.quests.config, get prefs() { return s.prefs; }, economy: db.economy, currency: db.economy.currency, projection: S.projection,
     carInstanceId: () => player.profile.currentCar,
     carSummary: summary,
     ownedCars: () => Object.keys(player.profile.cars).map(summary),
@@ -212,6 +214,35 @@ function questGame(w) {
     openSettings: () => s.panel.show?.() ?? s.panel.toggle(),
     toGarage: () => { w.sim.vehicle.parts.clear(); if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page'); },
     say: (text, kind = 'ok') => s.flash.show(text, kind, 2),
+    // ---------- races against NPCs (race/race.js) ----------
+    npcCfg: null,
+    // an NPC's car model: its sockets, wheels and damage boxes (from its glb)
+    async prepareNpc(n) {
+      const glb = await glbOf(n.spec.model.file), car = db.cars[n.build.carId];
+      Object.assign(n, { sockets: socketsFromGlb(glb, n.spec.model), rig: modelRig(glb, n.spec.model), boxes: nodeBoxes(glb, n.spec.model, [...(car.model.breakables ?? []).map(b => b.node), 'body_shell']) });
+    },
+    startRace({ quest, course, npcs, playerSession, seed, rubberBand }) {
+      const frustum = new THREE.Frustum(), m = new THREE.Matrix4();
+      const isVisible = (x, z) => { const [sx, sz] = S.toSim(x, z), y = car().body.translation().y; m.multiplyMatrices(w.camera.projectionMatrix, w.camera.matrixWorldInverse); frustum.setFromProjectionMatrix(m); return frustum.containsPoint(new THREE.Vector3(sx, y, sz)); };
+      const race = createRace({ sim: w.sim, frame: { toWorld: S.toWorld, toSim: S.toSim }, course, quest, qcfg: player.quests.config, cfg: this.npcCfg, db, sessionRules: db.sessions, playerSession, npcs, seed, collisions: s.play.collisions, rubberBand, isVisible });
+      w.npcRace = race;
+      // their looks: each its own model and build, in its driver's colour
+      for (const r of race.npcs) npcVisual(w, r).catch(e => console.warn(`NPC car ${r.name}: ${e.message}`));
+      return race;
+    },
+    endRace(race) {
+      for (const r of race.npcs) { const vis = w.others.get(r.carId); if (vis) { dropCar(vis); w.others.delete(r.carId); } }
+      race.dispose();
+      if (w.npcRace === race) w.npcRace = null;
+    },
+    // where an NPC's car is on screen (its name over it), or null
+    screenOf(r) {
+      const p = r.car.vehicle.body.translation(), v = new THREE.Vector3(p.x, p.y + 1.6, p.z), cam = w.camera.position, dist = cam.distanceTo(v);
+      if (r.cheap || dist > 220) return null;
+      v.project(w.camera);
+      if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
+      return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, dist };
+    },
     adapters() {
       let wantHold = false, detachers = [], spin = null;
       return {
@@ -241,6 +272,38 @@ function questGame(w) {
       };
     },
   };
+  return G;
+}
+// a car model's glb (kept: NPCs share models)
+const glbs = new Map();
+const glbOf = file => { if (!glbs.has(file)) glbs.set(file, fetch(file).then(r => r.arrayBuffer())); return glbs.get(file); };
+// An NPC's car as drawn: its own model and build (from the parts system), in its driver's colour, its
+// wheels and lamps like any car's, its dents from its own crash damage
+async function npcVisual(w, r) {
+  const s = shared, db = s.session.db, G = r.build.garage;
+  const vis = await createCarVisual({ car: G.car, finishes: db.finishes, models: s.models, paint: { colour: r.profile.colour ?? '#c8452f', finish: 'metallic' } });
+  await vis.applyBuild(G.build, G.view);
+  vis.fixedPaint = true;
+  vis.wheelVis = Object.fromEntries(Object.entries(r.rig?.wheels ?? s.rig.wheels).map(([k, rig]) => [k, { pivot: vis.wheels[k], rig }]));
+  vis.details = { taillamp: null, lampOff: 1, lampOn: 1, glass: null, glassOpacity: 1, steeringWheel: null };
+  if (!w.npcRace || !w.npcRace.npcs.includes(r)) { dropCar(vis); return; }     // (the race was over before it loaded)
+  w.scene.add(vis.group);
+  w.others.set(r.carId, vis);
+}
+// a race's goings-on each frame: crashes (sparks, sounds, dents), resets (a quick fade)
+function npcRaceEvents(w) {
+  const race = w.npcRace;
+  if (!race) return;
+  for (const e of race.drain()) {
+    const r = race.racers.find(x => x.id === e.id), vis = r && w.others.get(r.carId);
+    if (e.type === 'impact' && r) {
+      w.fx.play(w.fx.impactEvent(r.carId, e.impact, e.result, groundUnder(r.car.vehicle)));
+      if (vis && e.result && (e.result.dents?.length || e.result.broken?.length)) vis.setDamage(r.damage.view3d, shared.session.db.damage);
+    } else if (e.type === 'npc-reset' && vis) {
+      vis.group.visible = false;
+      setTimeout(() => { vis.group.visible = true; }, (e.fade ?? 0.6) * 1000);
+    }
+  }
 }
 
 export async function enter(file) {
@@ -640,6 +703,7 @@ function frame(w, now) {
   routeRun?.frame(paused || T ? 0 : stepsThisFrame * w.sim.dt);
   // (a quest's own clock is the physics' ticks: this is its intro, HUD and the like)
   w.quests?.frame(T ? 0 : seconds);
+  npcRaceEvents(w);
 
   // Draw everything part-way between the last two physics states
   const place = (obj, pa, pb) => {

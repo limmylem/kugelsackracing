@@ -20,6 +20,7 @@ import { compileRoute, saveCourse, reviewRoute, lineOf, GUIDES } from '../route/
 import { buildRoute } from '../route/build.js';
 import { at, project, decodeLine, withS } from '../route/geometry.js';
 import { STARTER_CAR } from '../route/stats.js';
+import { racingLine, speedPlan, STARTER_CAPS } from '../route/racingLine.js';
 import { transverseMercator } from '../map/build/format/projection.js';
 import { gunzipJson } from './roads.js';
 
@@ -35,7 +36,7 @@ export function createRouteTool({ THREE, api }) {
   let item = null, compiled = null, compiledKey = null, preview = null;   // preview: a course being dragged (not saved)
   let selWp = null, selCp = null, lockMode = false, map = null, drag = null, run = null, quietRoute = null, testCar = '';
   let world = null, group = null;
-  let consumed = false;
+  let consumed = false, racingFor = null;      // (the racing line drawn, for the route as it was)
 
   // ---------- the road network (the region's graph) ----------
   async function network() {
@@ -77,7 +78,7 @@ export function createRouteTool({ THREE, api }) {
 
   function features() {
     const course = current();
-    const F = { path: [], review: [], test: [], cut: [], gate: [], slot: [], mid: [], wp: [] };
+    const F = { path: [], review: [], racing: [], test: [], cut: [], gate: [], slot: [], mid: [], wp: [] };
     if (!course || !N) return F;
     const quiet = !item;
     // (while dragging: just the route — the grid, checkpoints and shortcuts are worked out when let go)
@@ -103,6 +104,13 @@ export function createRouteTool({ THREE, api }) {
     c.gates.forEach((g, k) => F.gate.push(gate(g, { kind: g.required ? 'cp' : 'bonus', id: g.id, n: k + 1, sel: g.id === selCp })));
     // the shortcuts: a dashed line across the gap (red: nothing stops it)
     for (const cut of c.shortcuts) { const a = at(c.line, cut.a, c.loop), b = at(c.line, cut.b, c.loop); F.cut.push({ type: 'Feature', properties: { covered: !!cut.covered, kind: cut.kind }, geometry: { type: 'LineString', coordinates: [ll(a.x, a.z), ll(b.x, b.z)] } }); }
+    // the racing line and its speeds (made again when the route changes)
+    const rk = keyOf(course);
+    if (racingFor?.key !== rk) {
+      const rl = racingLine(c.line, { loop: c.loop }), v = speedPlan(rl, STARTER_CAPS, { loop: c.loop, corner: 0.88, braking: 0.83 });
+      racingFor = { key: rk, rl, v };
+    }
+    for (let k = 3; k < racingFor.rl.points.length; k += 3) { const p = racingFor.rl.points[k - 3], q = racingFor.rl.points[k]; F.racing.push({ type: 'Feature', properties: { v: racingFor.v[k] * 3.6 }, geometry: { type: 'LineString', coordinates: [ll(p.x, p.z), ll(q.x, q.z)] } }); }
     // a test drive's line, coloured by speed
     if (run?.line?.length > 1) for (let k = 1; k < run.line.length; k++) { const p = run.line[k - 1], q = run.line[k]; F.test.push({ type: 'Feature', properties: { v: q.v * 3.6 }, geometry: { type: 'LineString', coordinates: [ll(p.x, p.z), ll(q.x, q.z)] } }); }
     return F;
@@ -114,9 +122,11 @@ export function createRouteTool({ THREE, api }) {
     map = m;
     const add = () => {
       if (map.getSource('rt-path')) return;
-      for (const s of ['path', 'review', 'test', 'cut', 'gate', 'slot', 'mid', 'wp']) map.addSource(`rt-${s}`, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      for (const s of ['path', 'review', 'racing', 'test', 'cut', 'gate', 'slot', 'mid', 'wp']) map.addSource(`rt-${s}`, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'rt-path-casing', type: 'line', source: 'rt-path', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['case', ['get', 'quiet'], 5, 9], 'line-opacity': 0.85 } });
       map.addLayer({ id: 'rt-path', type: 'line', source: 'rt-path', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#b23cd9', 'line-width': ['case', ['get', 'quiet'], 3, 5], 'line-opacity': ['case', ['get', 'quiet'], 0.6, 0.95] } });
+      // the racing line (route/racingLine.js), coloured by the speed the starter car can carry (medium skill)
+      map.addLayer({ id: 'rt-racing', type: 'line', source: 'rt-racing', layout: { 'line-cap': 'round' }, paint: { 'line-width': 2.5, 'line-opacity': 0.9, 'line-color': ['interpolate', ['linear'], ['get', 'v'], 0, '#2c7bb6', 40, '#00c2a0', 80, '#ffd400', 120, '#ff7a1a', 180, '#e0002a'] } });
       map.addLayer({ id: 'rt-review', type: 'line', source: 'rt-review', paint: { 'line-color': '#ff8c1a', 'line-width': 9, 'line-opacity': 0.8 } });
       map.addLayer({ id: 'rt-test', type: 'line', source: 'rt-test', layout: { 'line-cap': 'round' }, paint: { 'line-width': 4, 'line-color': ['interpolate', ['linear'], ['get', 'v'], 0, '#2c7bb6', 40, '#00c2a0', 80, '#ffd400', 120, '#ff7a1a', 180, '#e0002a'] } });
       map.addLayer({ id: 'rt-cut', type: 'line', source: 'rt-cut', paint: { 'line-color': ['case', ['get', 'covered'], '#9aa3ad', '#ff2d2d'], 'line-width': 3, 'line-dasharray': [2, 1.5] } });

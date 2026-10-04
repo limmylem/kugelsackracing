@@ -9,12 +9,12 @@
 //   profile.questPending         { attemptId, questId, fee, started, pinkSlip? } the run under way (its fee paid)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
 
-import { earnings, medalOf, medalTargets, tierRank } from '../../quest/rules.js';
+import { earnings, medalOf, medalOfPlace, medalTargets, tierRank } from '../../quest/rules.js';
 import { validateResult } from '../../quest/validate.js';
 
 export const LOG_SIZE = 50;
 export const progressOf = (profile, questId) => profile.quests?.[questId] ?? null;
-const blank = () => ({ attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
+const blank = () => ({ bestPlace: null, attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
 const progress = (p, questId) => ((p.quests ??= {})[questId] ??= blank());
 const log = (p, entry) => { (p.questLog ??= []).push(entry); if (p.questLog.length > LOG_SIZE) p.questLog.splice(0, p.questLog.length - LOG_SIZE); };
 
@@ -63,8 +63,9 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
     return { valid: false, problems, money: 0, xp: 0, medal: null, pb: false, lines: [] };
   }
   // the medal worked out again here from the result's numbers (not the game's say-so)
-  const medal = medalOf(medalTargets(quest, course, config), { time: result.time, score: result.score });
-  const outcome = { status: 'finished', medal, cargoLost: result.cargoLost ?? 0 };
+  // (a race: the place is the medal)
+  const medal = result.place != null ? medalOfPlace(result.place, config) : medalOf(medalTargets(quest, course, config), { time: result.time, score: result.score });
+  const outcome = { status: 'finished', medal, cargoLost: result.cargoLost ?? 0, place: result.place ?? null };
   const pay = earnings({ quest, outcome, progress: { paidShare: q.paidShare, finishPaid: q.finishPaid }, economy, config });
   p.money += pay.money;
   p.xp = (p.xp ?? 0) + pay.xp;
@@ -82,7 +83,8 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
     if (recordingId) q.recording = recordingId;
   }
   if (result.time != null && scored && (q.bestTime == null || result.time < q.bestTime)) q.bestTime = result.time;
-  log(p, { at: now, attemptId: result.attemptId, questId: quest.id, status: 'finished', time: result.time, score: result.score, money: pay.money, xp: pay.xp, medal, valid: true });
+  log(p, { at: now, attemptId: result.attemptId, questId: quest.id, status: 'finished', time: result.time, score: result.score, ...(result.place != null ? { place: result.place } : {}), money: pay.money, xp: pay.xp, medal, valid: true });
+  if (result.place != null && (q.bestPlace == null || result.place < q.bestPlace)) q.bestPlace = result.place;
   return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat };
 }
 
@@ -97,7 +99,7 @@ export function checkQuests(profile) {
       const b = blank();
       out[id] = {
         ...b, attempts: Math.max(0, num(q.attempts) ?? 0) | 0, finishes: Math.max(0, num(q.finishes) ?? 0) | 0, dnfs: Math.max(0, num(q.dnfs) ?? 0) | 0,
-        completed: !!q.completed, medal: ['bronze', 'silver', 'gold'].includes(q.medal) ? q.medal : null,
+        bestPlace: Number.isInteger(q.bestPlace) && q.bestPlace > 0 ? q.bestPlace : null, completed: !!q.completed, medal: ['bronze', 'silver', 'gold'].includes(q.medal) ? q.medal : null,
         bestTime: num(q.bestTime), bestScore: num(q.bestScore), bestSplits: Array.isArray(q.bestSplits) ? q.bestSplits.filter(Number.isFinite) : null, bestLaps: Array.isArray(q.bestLaps) ? q.bestLaps.filter(Number.isFinite) : null,
         paidShare: Math.max(0, Math.min(1, num(q.paidShare) ?? 0)), finishPaid: !!q.finishPaid, recording: typeof q.recording === 'string' ? q.recording : null, lastPlayed: typeof q.lastPlayed === 'string' ? q.lastPlayed : null,
       };

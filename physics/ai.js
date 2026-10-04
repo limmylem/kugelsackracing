@@ -18,16 +18,16 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const G = 9.81;
 
 // No keyboard / gamepad assists (the drift assist would also let stability control allow big slides)
-const useWheelAids = v => Object.assign(v.aids, { countersteer: false, steering: false, drift: false });
+export const useWheelAids = v => Object.assign(v.aids, { countersteer: false, steering: false, drift: false });
 
-function steerInput(vehicle, road) {
+export function steerInput(vehicle, road) {
   const St = vehicle.spec.steering, range = St.maxWheelRotation / 2 * Math.PI / 180;
   return clamp(road * St.ratio / range, -1, 1);
 }
 
 // Pure pursuit to a point (x, z): the arc from the car to it (curve, 1/m, + = left) and the road wheel
 // angle that drives that arc
-function pursue(vehicle, x, z) {
+export function pursue(vehicle, x, z) {
   const b = vehicle.body, p = b.translation(), q = b.rotation();
   const fw = rotate(q, [0, 0, 1]), lf = rotate(q, [1, 0, 0]);
   const dx = x - p.x, dz = z - p.z, lx = dx * lf[0] + dz * lf[2], lz = dx * fw[0] + dz * fw[2];
@@ -37,7 +37,7 @@ function pursue(vehicle, x, z) {
 
 // Direction the front axle is going, against where the car points (rad, + = left): front wheels set
 // to this roll straight along (no slip angle)
-function frontDirection(vehicle) {
+export function frontDirection(vehicle) {
   const b = vehicle.body, v = b.linvel(), w = b.angvel(), q = b.rotation(), fw = rotate(q, [0, 0, 1]), lf = rotate(q, [1, 0, 0]);
   const r = rotate(q, [0, 0, vehicle.wheelbase / 2]);
   const vx = v.x + w.y * r[2] - w.z * r[1], vz = v.z + w.x * r[1] - w.y * r[0];     // v + ω × r (horizontal)
@@ -46,9 +46,9 @@ function frontDirection(vehicle) {
 }
 
 // Height of the fixed ground at (x, z), from a ray straight down (null if there's none)
-function groundHeight(vehicle, x, z) {
-  const R = vehicle.R, fixedOnly = c => { const p = c.parent(); return !p || p.isFixed(); };
-  const hit = vehicle.world.castRay(new R.Ray({ x, y: 3000, z }, { x: 0, y: -1, z: 0 }), 6000, true, undefined, undefined, undefined, vehicle.body, fixedOnly);
+export function groundHeight(vehicle, x, z) {
+  const R = vehicle.R;
+  const hit = vehicle.world.castRay(new R.Ray({ x, y: 3000, z }, { x: 0, y: -1, z: 0 }), 6000, true, 6, undefined, undefined, vehicle.body);
   return hit ? 3000 - hit.timeOfImpact : null;
 }
 

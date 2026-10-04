@@ -25,6 +25,11 @@
     "gold": 1.0,
     "repeat": 0.1
   },
+  "race": {
+    "_note": "Races against NPCs (Phase 4 Step 4): the place is the medal (medalByPlace: 1st gold, 2nd silver, 3rd bronze), paid once per tier as above; a place below them pays the finish share once, then the repeat — each × placeShare for that place (1st, 2nd, …). A DNF pays nothing. Pink slips pay no money: the winner takes the loser's car.",
+    "medalByPlace": { "gold": 1, "silver": 2, "bronze": 3 },
+    "placeShare": [1, 0.75, 0.6, 0.48, 0.38, 0.3, 0.24, 0.2]
+  },
   "drift": {
     "_note": "quest/drift.js. A drift: the car's slip angle (between where it points and where it goes) over minAngle at over minKmh. Points a second: pointsPerSecond × (angle / 30°, at most 2) × (speed / 60 km/h, at most 2). Points go into the combo pot. Every comboEvery s of drifting the multiplier goes up by one (to comboMax). A new drift within comboGrace s of the last keeps the combo going; otherwise the pot × the multiplier is banked into the score. A wall hit (a crash harder than wallHit: its strength, the closing speed in m/s, as physics/impacts.js gives it) or spinning out (angle past spinAngle) loses the pot and ends the combo.",
     "minAngle": 12,

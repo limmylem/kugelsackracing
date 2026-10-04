@@ -25,6 +25,8 @@ import { fmtTime, fmtDelta } from '../quest/timing.js';
 import { questState } from '../garage/player/quests.js';
 import { pinkSlipConfirmations } from '../quest/types/pinkSlip.js';
 import { TYPE_MODULES } from '../quest/types/index.js';
+import { npcSettings, setupNpcs } from '../race/setup.js';
+import { hashSeed } from '../ai/rng.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
@@ -159,26 +161,37 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (run && !restart) return { ok: false, error: 'A quest is under way.' };
     const c = await courseOf(item);
     if (!c) { game.say('This quest has no route to drive', 'warn'); return { ok: false, error: 'no route' }; }
-    if (item.type === 'pink_slip' && !(await confirmPinkSlip(item))) return { ok: false, error: 'not confirmed' };
     const id = game.carInstanceId(), car = { ...game.carSummary(id), instanceId: id };
+    // rivals (race/setup.js): who, and their cars from the parts system — before anything's paid
+    const N = game.npcCfg ? npcSettings(item, game.npcCfg) : { count: 0 };
+    let setup = [];
+    const seed = hashSeed(item.id, game.player.profile.quests?.[item.id]?.attempts ?? 0, Date.now());
+    if (N.count > 0) {
+      setup = setupNpcs({ db: game.db, quest: item, course: c.course, cfg: game.npcCfg, qcfg: cfg, seed, playerRating: car.rating ?? null, count: N.count });
+      for (const n of setup) await game.prepareNpc(n);
+    }
+    if (item.type === 'pink_slip' && !(await confirmPinkSlip(item, setup[0]))) return { ok: false, error: 'not confirmed' };
     const prog = game.player.profile.quests?.[item.id];
     // (the run under way first: quit, a DNF — its ending its own, not this one's)
     const prev = run;
     if (prev && ['intro', 'countdown', 'racing'].includes(prev.controller.state)) await prev.controller.quit();
     const A = game.adapters(), me = {};
-    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A,
+    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null,
       best: prog ? { splits: prog.bestSplits, laps: prog.bestLaps, time: prog.bestTime, score: prog.bestScore } : null,
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: createRouteDressing({ THREE, parent: S.world, compiled: c.course, guides: c.course.guides }), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
-    if (prev) { prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
+    if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
     guide = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
     if (!r.ok) { if (run === me) { game.say(r.error, 'warn'); stop(); } return r; }
     run.fee = r.fee;
+    // the race: the NPCs on the grid behind, their countdown the player's (no rubber-banding for a pink
+    // slip, or when the player's turned it off)
+    if (setup.length) me.race = game.startRace({ quest: item, course: c.course, npcs: setup, playerSession: controller.session, seed, rubberBand: N.rubberBand && hudSettings.rubberBand !== false && game.prefs?.rubberBand !== false && item.type !== 'pink_slip' });
     return r;
   }
-  async function confirmPinkSlip(item) {
-    const car = game.carSummary(game.carInstanceId()), steps = pinkSlipConfirmations({ name: car?.name ?? 'car', value: car?.value ?? 0, currency: game.currency }, game.db.cars[item.params?.opponentCar]?.name);
+  async function confirmPinkSlip(item, rival) {
+    const car = game.carSummary(game.carInstanceId()), steps = pinkSlipConfirmations({ name: car?.name ?? 'car', value: car?.value ?? 0, currency: game.currency }, rival ? `${rival.profile.name} (${game.db.cars[rival.build.carId]?.name ?? rival.build.carId})` : game.db.cars[item.params?.opponentCar]?.name);
     for (const st of steps) {
       const ok = await new Promise(res => {
         showScreen(`<h2>${esc(st.title)}</h2><p>${esc(st.text)}</p>${st.typed ? '<input data-typed style="width:100%;font:16px Barlow;padding:6px">' : ''}<div class="buttons"><button class="danger" data-ok ${st.typed ? 'disabled' : ''}>${esc(st.accept)}</button><button data-no>Don't race</button></div>`, {
@@ -240,12 +253,38 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     hudEl.innerHTML = st === 'intro' ? `<div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · Space to skip</div>` : `
       <div class="top"><div class="clock ${H.timeLeft != null && H.timeLeft < 10 && H.running ? 'low' : ''}">${fmtTime(Math.max(0, clock), H.running ? 2 : 3)}</div>
         <div class="row">${H.checkpoints ? `Checkpoint ${Math.min(H.checkpoint, H.checkpoints)} / ${H.checkpoints}` : ''}${H.penalty ? ` · +${H.penalty}s penalty` : ''}</div>${lap}${sp}</div>
-      <div class="side"><div class="pos"><div class="k">Position</div><div class="v">${ord(H.position.place)} / ${H.position.of}</div></div></div>
+      <div class="side">${raceSide(H)}</div>
       ${panelHtml ? `<div class="panel">${panelHtml}</div>` : ''}
       ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudSettings.scale})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? '#ff7a6a' : '#ffd24a'}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
       <div class="speed">${Math.round(car.kmh)}<small> km/h</small> · ${esc(car.gear ?? '')}</div>
       ${st === 'countdown' && H.count ? `<div class="count">${H.count}</div>` : ''}
       ${msg && st !== 'countdown' ? `<div class="msg ${msg.cls}">${esc(msg.text)}</div>` : ''}`;
+  }
+
+  // the race's side of the HUD: my place, the gaps either side, the standings (names, gaps); no race: the
+  // position placeholder
+  function raceSide(H) {
+    const R = run?.race;
+    if (!R) return `<div class="pos"><div class="k">Position</div><div class="v">${ord(H.position.place)} / ${H.position.of}</div></div>`;
+    const st = R.standings(), me = st.find(x => x.player), gap = g => g == null ? '' : `${g.toFixed(1)}s`;
+    const rows = st.map(x => `<div class="row" style="font:600 13px 'JetBrains Mono',monospace;${x.player ? 'color:#ffd24a' : ''}${x.status === 'retired' ? ';opacity:.5' : ''}">${x.place}. ${esc(x.player ? 'You' : x.name)}${x.status === 'retired' ? ' DNF' : x.status === 'finished' ? ' ✓' : ''}</div>`).join('');
+    return `<div class="k">Position</div><div class="v" style="opacity:1">${ord(me?.place ?? 1)} / ${st.length}</div>
+      <div class="row" style="font:600 13px 'JetBrains Mono',monospace">${me?.gapAhead != null ? `▲ ${gap(me.gapAhead)}` : ''} ${me?.gapBehind != null ? `▼ ${gap(me.gapBehind)}` : ''}</div>
+      <div style="margin-top:6px">${rows}</div>`;
+  }
+  // the drivers' names over their cars (a setting)
+  let labelEl = null;
+  function labels() {
+    const R = run?.race, show = R && hudSettings.names !== false && game.prefs?.npcNames !== false && hudSettings.visible;
+    if (!show) { if (labelEl) labelEl.innerHTML = ''; return; }
+    if (!labelEl) { labelEl = document.createElement('div'); labelEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:40;font:700 13px Barlow,system-ui,sans-serif;color:#fff;text-shadow:0 1px 4px #000'; document.body.appendChild(labelEl); }
+    const st = R.standings();
+    labelEl.innerHTML = R.npcs.map(r => {
+      const at = game.screenOf(r);
+      if (!at) return '';
+      const s = st.find(x => x.id === r.id);
+      return `<div style="position:absolute;left:${at.x}px;top:${at.y}px;transform:translate(-50%,-100%);white-space:nowrap;opacity:${Math.max(0.35, Math.min(1, 1.6 - at.dist / 160))}"><span style="color:${esc(r.profile.colour ?? '#fff')}">●</span> ${s?.place ?? ''}. ${esc(r.name)}</div>`;
+    }).join('');
   }
 
   // ---------- screens: results, pause, confirmations ----------
@@ -277,7 +316,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       : !pay.valid ? `<h3>Reward</h3><div class="bad">This result couldn't be verified, so it pays nothing: ${esc((pay.problems ?? []).join(' '))}</div>`
         : `<h3>Reward</h3>${(pay.lines ?? []).map(l => `<div>${esc(l.what)}${l.money != null ? ` <span class="bad">${money(l.money)}</span>` : ''}</div>`).join('')}<div class="money">+${money(pay.money)} · +${pay.xp} xp</div>`;
     const fee = cfg.restart?.free || !item.fee ? '' : ` (${money(item.fee)})`;
-    showScreen(`<h2>${title}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${splits}${laps}${damage}${earned}
+    const field = res.field?.length ? `<h3>Standings</h3><table>${res.field.map(f => `<tr style="${f.player ? 'color:#ffd24a' : ''}"><td>${f.place}. ${esc(f.player ? 'You' : f.name)}${f.car ? ` <span style="opacity:.6">${esc(f.car)}</span>` : ''}</td><td>${f.status === 'retired' || f.status === 'dnf' ? `DNF${f.why ? ` (${esc(f.why)})` : ''}` : f.time != null ? `${fmtTime(f.time)}${f.estimated ? ' *' : ''}` : '—'}</td></tr>`).join('')}</table>${res.field.some(f => f.estimated) ? '<div style="font-size:12px;opacity:.7">* still racing when you finished: their time from their pace</div>' : ''}` : '';
+    const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
+    showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
       <div class="buttons"><button class="primary" data-retry>Retry${fee}</button><button data-roam>Free roam</button><button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
       retry: () => start(item, { restart: true }), roam: () => stop(), garage: () => { stop(); game.toGarage(); } });
   }
@@ -291,6 +332,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       <div class="buttons"><button class="primary" data-resume>Resume</button><button data-restart>Restart (${esc(fee)})</button><button class="danger" data-quit>Quit (did not finish)</button></div>
       <h3>Settings</h3><label>HUD size <input type="range" min="0.6" max="1.6" step="0.05" value="${hudSettings.scale}" data-scale></label>
       <label><input type="checkbox" ${hudSettings.visible ? 'checked' : ''} data-visible> Show the race HUD</label>
+      <label><input type="checkbox" ${hudSettings.names !== false ? 'checked' : ''} data-names> Drivers' names over their cars</label>
+      <label><input type="checkbox" ${hudSettings.rubberBand !== false ? 'checked' : ''} data-rubber> Rubber-banding (rivals ease off or push a little by the gap to you; from the next race)</label>
       <div class="buttons"><button data-settings>All settings…</button></div>`, {
       resume: () => pause(false),
       restart: () => { pause(false); start(run.item, { restart: true }); },
@@ -299,14 +342,17 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     });
     screen.querySelector('[data-scale]').oninput = e => { hudSettings.scale = +e.target.value; saveHudSettings(hudSettings); hud(); };
     screen.querySelector('[data-visible]').onchange = e => { hudSettings.visible = e.target.checked; saveHudSettings(hudSettings); hud(); };
+    screen.querySelector('[data-names]').onchange = e => { hudSettings.names = e.target.checked; saveHudSettings(hudSettings); labels(); };
+    screen.querySelector('[data-rubber]').onchange = e => { hudSettings.rubberBand = e.target.checked; saveHudSettings(hudSettings); };
   }
 
   function stop() {
     if (!run) return;
     const r = run; run = null; paused = false;
     if (r.controller.state === 'racing' || r.controller.state === 'countdown' || r.controller.state === 'intro') r.controller.quit();
+    if (r.race) game.endRace(r.race);
     r.dressing.dispose(); r.adapters.dispose(); r.controller.dispose();
-    game.pause(false); hideScreen(); hud(); preview = null; setLines();
+    game.pause(false); hideScreen(); hud(); labels(); preview = null; setLines();
   }
 
   function onKey(e) {
@@ -355,7 +401,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       run.dressing.update(car.x, car.z);
       run.controller.frame(paused ? 0 : realDt);
       run.messageFor -= realDt; if (run.messageFor <= 0) run.message = null;
-      hud();
+      hud(); labels();
     },
     // the intro's camera, flying along the route (null: the game's own camera)
     camera(camera) {

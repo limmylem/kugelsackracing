@@ -18,6 +18,7 @@ import { buildRoute, routeOptions } from './build.js';
 import { encodeLine, decodeLine, withS } from './geometry.js';
 import { routeStats } from './stats.js';
 import { placeGrid, gateAt, GRID } from './grid.js';
+import { racingLine, withPoints, referenceLine, encodeOffsets, decodeOffsets } from './racingLine.js';
 import { findShortcuts, autoCheckpoints, reattach, isCovered, mergeCuts, CHECKPOINTS } from './checkpoints.js';
 import { validateRoute, checkRoadData } from './validate.js';
 
@@ -75,7 +76,24 @@ export function bakeRoute(N, route, compiled = compileRoute(N, route)) {
   for (const s of c.built.segments) if (!seen.has(s.key)) seen.set(s.key, { key: s.key, length: s.length, name: s.name ?? null });
   next.roadData = { region: N.region, version: N.version, osmDate: N.osmDate ?? null, segments: [...seen.values()] };
   next.review = null;
+  // the racing line, for this path (made again whenever the path changes)
+  next.racing = bakeRacing(next, P);
   return next;
+}
+
+// the racing line stored with a course: its offsets, and the path they were made for
+export function bakeRacing(course, P, margin = 1.1) {
+  const line = lineOf(course, P);
+  if (line.length < 5) return null;
+  const rl = racingLine(line, { loop: course.kind === 'loop', margin });
+  return { key: pathKey(course.path), d: encodeOffsets(rl.d), margin };
+}
+const pathKey = path => { const k = JSON.stringify(path); let h = 0x811c9dc5; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
+// a course's racing line as stored (or made now, if it's missing or was made for another path)
+export function racingOf(course, line, P) {
+  const loop = course.kind === 'loop';
+  if (course.racing?.key === pathKey(course.path)) { const ref = referenceLine(line, loop); return withPoints(ref, decodeOffsets(course.racing.d, ref.length), loop, course.racing.margin ?? 1.1); }
+  return racingLine(line, { loop, margin: course.racing?.margin ?? 1.1 });
 }
 
 export function lineOf(route, P) {
@@ -116,7 +134,8 @@ export function viewCourse(course, P) {
   const checkpoints = (course.checkpoints ?? []).filter(c => loop || (c.s > grid.startS && c.s < grid.finishS)).map(c => ({ ...c })).sort((a, b) => order(a.s) - order(b.s));
   const gates = checkpoints.map(c => ({ ...gateAt(line, c.s, { width: c.width ?? null, loop }), id: c.id, required: c.required !== false, timeExtension: c.timeExtension ?? 0 }));
   const start = gateAt(line, grid.startS, { loop }), finish = loop ? start : gateAt(line, grid.finishS, { loop });
-  return { line, loop, length: L, grid, checkpoints, gates, start, finish, stats: course.stats ?? null, referenceTime: course.referenceTime ?? null, guides: course.guides ?? GUIDES, corridor: course.corridor ?? { margin: 8 }, version: routeVersionOf(course) };
+  return { line, loop, length: L, grid, checkpoints, gates, start, finish, stats: course.stats ?? null, referenceTime: course.referenceTime ?? null, guides: course.guides ?? GUIDES, corridor: course.corridor ?? { margin: 8 }, version: routeVersionOf(course),
+    racing: racingOf(course, line, P), aiTimes: course.aiTimes ?? null };
 }
 
 // A route's version as a run was made on it: its line, checkpoints, grid and kind (a short hash). A

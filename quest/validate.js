@@ -52,6 +52,11 @@ export function validateResult(result, { quest, course, config }) {
     const D = config.drift, most = D ? D.pointsPerSecond * 4 * D.comboMax * total : Infinity;
     if (!(result.score >= 0) || result.score > most) bad(`Impossible score: ${result.score}.`);
   }
+  // a race: the place is what the times say (everyone who finished faster, ahead; then the player)
+  if (result.place != null) {
+    const ahead = (result.field ?? []).filter(f => !f.player && f.status === 'finished' && f.time != null && f.time < result.time).length;
+    if (result.place !== ahead + 1) bad(`The place (${result.place}) isn't what the times say (${ahead + 1}).`);
+  }
   if (result.cargoLost != null && !(result.cargoLost >= 0 && result.cargoLost <= 1)) bad('Impossible cargo condition.');
   return { ok: problems.length === 0, problems };
 }

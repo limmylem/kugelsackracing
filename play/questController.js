@@ -17,15 +17,18 @@
 //   await C.start({ restart, intro })  → { ok, error, reasons }   (the fee: taken here, refunded if it fails)
 //   C.frame(realDt)  (the intro's clock)   C.skipIntro()   C.introCamera() → { x, y, z, lookX, lookY, lookZ }
 //   await C.quit()   a DNF        await C.restart()   quit + start again (a fee again unless config says free)
-//   C.session  C.state  C.results  (once it's over: { outcome, result, pay, pb })   C.dispose()
+//   C.session  C.state  C.results  (once it's over: { outcome, result, pay, pb, field })   C.dispose()
+//   race: () → the race against NPCs (race/race.js), if there is one: the place and the field go in the
+//   result, and a pink slip's car changes hands (PlayerService awardCar / forfeitCar) before it's paid
 
 import { createQuestSession } from '../quest/session.js';
 import { createRecorder } from '../quest/recording.js';
 import { buildResult } from '../quest/result.js';
+import { medalOfPlace } from '../quest/rules.js';
 import { at } from '../route/geometry.js';
 import { headingOf } from '../route/grid.js';
 
-export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {} }) {
+export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {}, race = null }) {
   let Q = null, rec = null, detach = null, attemptId = null, placed = false, ending = null, results = null, disposed = false;
 
   function handle(e) {
@@ -63,14 +66,27 @@ export function createQuestController({ quest, course, config, player, car = {},
   async function finishUp(outcome) {
     detach?.(); detach = null;
     const recording = outcome.status === 'finished' && rec ? rec.finish() : null;
-    let pay = null, result = null;
+    let pay = null, result = null, transfer = null;
+    // a race: the NPCs still going get their times worked out; the place and everyone's times
+    const R = race?.();
+    if (R) {
+      R.finishUp();
+      outcome.field = R.results();
+      if (outcome.status === 'finished') { outcome.place = outcome.field.find(f => f.player)?.place ?? null; outcome.medal = medalOfPlace(outcome.place, config); }
+      // a pink slip: the winner takes the loser's car, through PlayerService
+      if (quest.type === 'pink_slip') {
+        const rival = R.npcs[0], won = outcome.status === 'finished' && outcome.place === 1;
+        transfer = won ? await player.awardCar(rival.build.carId, { attemptId, parts: rival.build.parts }) : await player.forfeitCar(car.instanceId, { attemptId });
+        outcome.pinkSlip = { won, rival: rival.name, car: rival.build.carId, ok: !!transfer?.ok, error: transfer?.error ?? null };
+      }
+    }
     if (outcome.status === 'finished') {
       result = buildResult({ quest, course, outcome, car, attemptId });
       pay = await player.finishQuest(result, { quest, course, recording });
     } else {
       pay = await player.failQuest(attemptId, { questId: quest.id, status: outcome.status, reason: outcome.reason });
     }
-    results = { outcome, result, pay, pb: !!pay?.pb, recording };
+    results = { outcome, result, pay, pb: !!pay?.pb, recording, field: outcome.field ?? null, transfer };
     onEnd(results);
     return results;
   }

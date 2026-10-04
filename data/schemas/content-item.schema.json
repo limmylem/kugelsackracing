@@ -208,7 +208,7 @@
       }
     },
     "npc": {
-      "description": "Rivals and traffic (Phase 4 Step 4).",
+      "description": "Rivals (Phase 4 Step 4, race/npcSettings.js): { count, skill: [min, max], drivers: [ids] | 'random', carClass, aggression, rubberBand }",
       "type": "object"
     },
     "conditions": {
@@ -244,7 +244,7 @@
       "type": "object"
     },
     "course": {
-      "description": "A route's course (route/model.js): its waypoints and road options, and what's worked out from them on the region's road map when it's saved \u2014 the centreline (path), the OSM road segments used (roadData, to notice the map changing), the grid, checkpoints, numbers and problems.",
+      "description": "A route's course (route/model.js): its waypoints and road options, and what's worked out from them on the region's road map when it's saved — the centreline (path), the OSM road segments used (roadData, to notice the map changing), the grid, checkpoints, numbers and problems.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -467,7 +467,7 @@
           }
         },
         "path": {
-          "description": "The centreline, delta-coded (route/geometry.js encodeLine): lat/lon at 1e-6\u00b0, heights in cm, widths in dm.",
+          "description": "The centreline, delta-coded (route/geometry.js encodeLine): lat/lon at 1e-6°, heights in cm, widths in dm.",
           "oneOf": [
             {
               "type": "null"
@@ -649,6 +649,42 @@
               "message": {
                 "type": "string"
               }
+            }
+          }
+        },
+        "racing": {
+          "description": "The racing line (route/racingLine.js): offsets across the road from the centreline, decimetres delta-coded; key: the path it was made for (made again when the route changes)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "d": {
+              "type": "string"
+            },
+            "margin": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "key",
+            "d"
+          ],
+          "additionalProperties": false
+        },
+        "aiTimes": {
+          "description": "AI reference times (s) by quest class (its highest allowed class, or 'open'): { low, medium, high } — from the editor's AI test race (race/aiTest.js); medal targets use them",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
             }
           }
         }

@@ -44,6 +44,8 @@ export function createEditor({ game }) {
   let active = false, view = 'map', tool = 'select', snap = localStorageGet('kugelsack.editor.snap') !== 'off', selected = null, current = null, published = null;
   let items = [], publishedById = new Map(), showArchived = false, filter = 'all', picking = null, lastType = 'sprint', roadNote = null, typing = null, refreshTimer = null, rafId = 0, lastT = 0, loading = null;
   let questRoute;            // the selected quest's route item (null: none by its id; undefined: not looked up)
+  let npcCfg = null, npcLoading = null;   // data/npc.json (the rivals' roster and settings)
+  const loadNpcCfg = () => npcLoading ??= fetch('data/npc.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { npcCfg = j; return j; });
   // the route tool: drawn on the map and in 3D, its edits through edit() like every other
   const routeTool = createRouteTool({ THREE, api: {
     regionManifest: () => region, regionBase: () => new URL(REGION, document.baseURI).href,
@@ -346,9 +348,57 @@ export function createEditor({ game }) {
       <div class="section"><b>Conditions</b>
         <div class="row2"><div><label>Time of day</label>${select('conditions.timeOfDay', it.conditions?.timeOfDay ?? 'any', TIMES.map(t => [t, t]))}</div><div><label>Weather</label>${select('conditions.weather', it.conditions?.weather ?? 'any', WEATHER.map(t => [t, t]))}</div></div>
         <label style="text-transform:none"><input type="checkbox" data-field="enabled" ${it.enabled ? 'checked' : ''}> Offered to players once published</label>
-        <label>Rivals and traffic</label><div class="hint">Set in Step 4.</div>
-      </div>`;
+      </div>${rivalFields(it)}`;
     return h;
+  }
+  // Rivals (Phase 4 Step 4: race/setup.js): how many NPCs, their skill range, who (picked or at random),
+  // their cars' class, aggression, rubber-banding; and the AI test race (race/aiTest.js)
+  function rivalFields(it) {
+    if (!['sprint', 'pink_slip'].includes(it.type)) return `<div class="section"><b>Rivals</b><div class="hint">Rivals race in sprints (and pink slips, one rival).</div></div>`;
+    const cfg = npcCfg, N = { ...(cfg?.defaults ?? {}), ...(it.npc ?? {}) }, pink = it.type === 'pink_slip';
+    if (!cfg) { loadNpcCfg().then(() => renderProps()); return '<div class="section"><b>Rivals</b><div class="hint">Loading…</div></div>'; }
+    const picked = Array.isArray(N.drivers) ? N.drivers : [], course = questRoute?.course;
+    const times = course?.aiTimes ? Object.entries(course.aiTimes).map(([k, v]) => `${k} ${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, '0')}`).join(' · ') : null;
+    return `<div class="section"><b>Rivals</b>
+      <div class="row2"><div><label>How many (0–${cfg.race.maxNpcs})</label>${pink ? '<div class="hint">1 (head to head)</div>' : num('npc.count', N.count ?? 0, `min="0" max="${cfg.race.maxNpcs}"`)}</div>
+        <div><label>Car class</label>${select('npc.carClass', N.carClass ?? '', [['', 'the quest\'s'], ...C.classes.map(c => [c.class, c.class])])}</div></div>
+      <div class="row2"><div><label>Skill from (0–1)</label>${num('npc.skill.0', N.skill?.[0] ?? 0.4, 'min="0" max="1" step="0.05"')}</div><div><label>to</label>${num('npc.skill.1', N.skill?.[1] ?? 0.8, 'min="0" max="1" step="0.05"')}</div></div>
+      <div class="row2"><div><label>Aggression (empty: each driver's own)</label>${num('npc.aggression', N.aggression ?? '', 'min="0" max="1" step="0.05"')}</div>
+        <div><label style="text-transform:none;margin-top:18px"><input type="checkbox" data-field="npc.rubberBand" ${N.rubberBand && !pink ? 'checked' : ''} ${pink ? 'disabled' : ''}> Rubber-banding</label></div></div>
+      <label>Drivers (none ticked: random)</label><div>${cfg.drivers.map(d => `<label style="display:inline-block;margin-right:8px;text-transform:none" title="${esc(d.bio ?? '')}"><input type="checkbox" data-driver="${esc(d.id)}" ${picked.includes(d.id) ? 'checked' : ''}> ${esc(d.name)} <span class="hint">${Math.round(d.skill * 100)}</span></label>`).join('')}</div>
+      <div class="actions"><button data-act="aiTest" ${questRoute ? '' : 'disabled title="Pick a route first"'}>AI test race</button><button data-act="aiTestFast" ${questRoute ? '' : 'disabled'}>AI test race (fast)</button></div>
+      <div class="hint">${times ? `AI reference times: ${esc(times)} (medal targets use them)` : 'An AI test race sets the AI reference times per skill (used for the medal times) and marks any spot where the AIs crash, leave the route or get stuck.'}</div>
+      <div id="edAiTest"></div></div>`;
+  }
+  // The AI test race (editor/aiTestRace.js): on the map, then the route's AI reference times saved
+  // (one undoable step) and the problem spots listed (click: go there)
+  let aiRun = null;
+  async function runAiTest(fast) {
+    aiRun?.stop(); aiRun = null;
+    if (view !== 'map') setView('map');
+    const quest = clone(current), route = clone(questRoute), out = () => ui.right?.querySelector('#edAiTest');
+    const say = html => { const el = out(); if (el) el.innerHTML = html; };
+    say('<div class="hint">Loading the route\'s world and building the rivals\' cars…</div>');
+    try {
+      const { startAiTestRace } = await import('./aiTestRace.js');
+      aiRun = await startAiTestRace({ map: mapView.map, quest, route, manifest: region, base: new URL(REGION, document.baseURI).href, fast,
+        onUpdate: ({ phase, report, cars }) => say(`<div class="hint">${phase === 'race' ? `Racing${fast ? ' (fast)' : ''}: ${cars.map(c => `${c.place}. ${esc(c.name)}`).join(' · ')}` : 'Reference laps (low, medium, high skill)…'}${report.spots.length ? ` · ${report.spots.length} problem spot${report.spots.length > 1 ? 's' : ''}` : ''}</div>`),
+        onDone: async rep => {
+          const times = rep.aiTimes, cls = rep.carClass;
+          if (Object.keys(times).length) {
+            const fresh = (await C.service.get(route.id)).item ?? route;
+            await H.run(`AI reference times — ${fresh.name || fresh.id}`, [fresh.id], () => C.service.update(fresh.id, { ...fresh, course: { ...fresh.course, aiTimes: { ...(fresh.course.aiTimes ?? {}), [cls]: times } } }));
+            questRoute = (await C.service.get(route.id)).item ?? questRoute;
+          }
+          aiRun?.clearCars();
+          renderProps();
+          const t = v => v == null ? '—' : `${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, '0')}`;
+          say(`<div class="hint"><b>AI test race done.</b> ${rep.standings.map(f => `${f.place}. ${esc(f.name)} ${f.status === 'retired' ? 'DNF' : t(f.time)}`).join(' · ')}<br>
+            Reference times (class ${esc(cls)}): low ${t(times.low)} · medium ${t(times.medium)} · high ${t(times.high)}</div>
+            ${rep.spots.length ? rep.spots.map(s => `<div class="p warning" data-spot="${s.lat},${s.lon}">⚠ ${esc(s.message)}</div>`).join('') : '<div class="ok">✔ No problem spots: no AI crashed, left the route or got stuck.</div>'}`);
+          out()?.querySelectorAll('[data-spot]').forEach(el => el.onclick = () => { const [lat, lon] = el.dataset.spot.split(',').map(Number); mapView.flyTo(lat, lon, 18); });
+        } });
+    } catch (e) { say(`<div class="p error">✖ The AI test race couldn't run: ${esc(e.message)}</div>`); console.error(e); }
   }
   function renderRoad() {
     const el = ui.right?.querySelector('#edRoad'); if (!el || !current) return;
@@ -361,6 +411,18 @@ export function createEditor({ game }) {
     const el = e.target;
     if (!current || current.status === 'archived') return;
     if (el.dataset.rt) return routeTool.action(el.dataset.rt, el);
+    if (el.dataset.driver) { const set = new Set(Array.isArray(current.npc?.drivers) ? current.npc.drivers : []); el.checked ? set.add(el.dataset.driver) : set.delete(el.dataset.driver); const ids = npcCfg.drivers.map(d => d.id).filter(d => set.has(d)); return edit('Rival drivers', it => { it.npc = { ...(it.npc ?? {}), drivers: ids.length ? ids : 'random' }; }); }
+    if (el.dataset.field?.startsWith('npc.')) {
+      const path = el.dataset.field, key = path.split('.')[1];
+      let v = el.type === 'checkbox' ? el.checked : el.value === '' ? null : Number(el.value);
+      return edit(`Rivals: ${key}`, it => {
+        const N = it.npc = { ...(npcCfg?.defaults ?? {}), ...(it.npc ?? {}) };
+        if (key === 'skill') { const i = +path.split('.')[2], sk = [...(N.skill ?? [0.4, 0.8])]; sk[i] = Math.max(0, Math.min(1, v ?? sk[i])); if (sk[0] > sk[1]) sk.reverse(); N.skill = sk; }
+        else if (key === 'carClass') N.carClass = el.value || null;
+        else if (key === 'count') N.count = Math.max(0, Math.min(npcCfg.race.maxNpcs, Math.round(v ?? 0)));
+        else N[key] = v;
+      }, { merge: `edit:${current.id}:${path}` });
+    }
     if (el.dataset.class) { const set = new Set(current.entry.classes ?? []); el.checked ? set.add(el.dataset.class) : set.delete(el.dataset.class); const classes = C.classes.map(c => c.class).filter(c => set.has(c)); return edit('Entry classes', it => { it.entry.classes = classes; }); }
     const path = el.dataset.field; if (!path) return;
     if (el.tagName !== 'SELECT' && el.type !== 'checkbox' && (el.type === 'text' || el.tagName === 'TEXTAREA')) return commitTyping();
@@ -413,6 +475,7 @@ export function createEditor({ game }) {
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
     else if (act === 'goto') focusOn(current.location);
     else if (act === 'openRoute' && questRoute) pickItem(questRoute.id);
+    else if ((act === 'aiTest' || act === 'aiTestFast') && questRoute && current?.kind === 'quest') runAiTest(act === 'aiTestFast');
     else if (act === 'snapNow' || act === 'faceRoad') {
       const s = await roads.snap(current.location.lat, current.location.lon, { heading: current.location.heading });
       if (!s || s.error) return flash(s?.error ?? 'No road within 60 m.', true);

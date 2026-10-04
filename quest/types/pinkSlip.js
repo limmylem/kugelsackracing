@@ -1,14 +1,9 @@
-// Pink slip: race a rival for keeps, the loser's car to the winner. The framework only — it needs rival
-// drivers (Phase 4 Step 4), so it can't be started yet. What's here: the stake (which car, what it's
-// worth), the confirmation screens that say plainly that the car will be lost, and what the outcome does:
-// the car changes hands through PlayerService (forfeitCar / awardCar), never anywhere else.
+// Pink slip: race a rival (an NPC, race/race.js) for keeps, head to head: the loser's car to the winner.
+// The confirmation screens say plainly that the car will be lost; the outcome (who crossed first: the
+// race's place) moves the car through PlayerService (awardCar / forfeitCar: play/questController.js),
+// never anywhere else. No rubber-banding. The starter car can't be staked (quest/rules.js).
 export default {
   id: 'pink_slip',
-  enabled: false,
-  disabledReason: 'Pink slips need rival drivers: they come with Phase 4 Step 4.',
-  init: () => ({ rival: null }),
-  // (with rivals: who crossed first. Until then a finish is a win against no one, and transfers nothing)
-  finish: (S, status) => ({ pinkSlip: { won: status === 'finished' && S.rival?.finished !== true, rival: S.rival?.car ?? S.quest.params?.opponentCar ?? null, transfer: !!S.rival } }),
   hud: S => ({ kind: 'pinkSlip', rival: S.quest.params?.opponentCar ?? null }),
 };
 

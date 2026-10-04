@@ -14,6 +14,10 @@ import { breathing } from './engine.js';
 import { CAR_GROUPS } from './looseParts.js';
 import { Mechanical } from './mechanical.js';
 
+// ray queries against the fixed world only (Rapier QueryFilterFlags EXCLUDE_KINEMATIC | EXCLUDE_DYNAMIC: no
+// JS callback per collider)
+export const FIXED_ONLY = 6;
+
 const WHEELS = ['FL', 'FR', 'RL', 'RR'];
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
@@ -278,9 +282,8 @@ export class Vehicle {
     const lin = fromXYZ(b.linvel()), ang = fromXYZ(b.angvel()), com = fromXYZ(b.worldCom());
     const velAt = p => add(lin, cross(ang, sub(p, com)));
     const push = (force, point) => b.applyImpulseAtPoint(toXYZ(scale(force, dt)), toXYZ(point), true);
-    // Wheels only stand on fixed ground: loose props (cones) are rolled over / knocked by the body,
-    // not stood on — otherwise a wheel pins a fallen cone to the ground and it jams under the car
-    const fixedOnly = collider => { const p = collider.parent(); return !p || p.isFixed(); };
+    // Wheels only stand on fixed ground (FIXED_ONLY): loose props (cones) are rolled over / knocked by the
+    // body, not stood on — otherwise a wheel pins a fallen cone to the ground and it jams under the car
     const speed = dot(lin, fwd);
     const g = fromXYZ(this.world.gravity);
     // mechanical damage: each wheel's toe, ride height, damping, grip, radius, brake force (none: as new)
@@ -327,7 +330,7 @@ export class Vehicle {
     let extraOnTyres = 0;
     for (const w of this.wheels) {
       const origin = add(pos, rotate(q, w.socket));
-      const hit = this.world.castRayAndGetNormal(new R.Ray(toXYZ(origin), toXYZ(down)), w.rest + w.radius, true, undefined, undefined, undefined, b, fixedOnly);
+      const hit = this.world.castRayAndGetNormal(new R.Ray(toXYZ(origin), toXYZ(down)), w.rest + w.radius, true, FIXED_ONLY, undefined, undefined, b);
       w.origin = origin;
       w.steerAngle = this.wheelSteer(w) + w.toe + (w.front ? this.torqueSteer : 0);
       if (!hit) {
