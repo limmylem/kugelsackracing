@@ -13,6 +13,31 @@
     "currentCar": { "type": ["string", "null"], "description": "The car being driven / in the garage" },
     "created": { "type": "string" },
     "saved": { "type": "string", "description": "When it was last saved (ISO time)" },
+    "hints": { "type": "array", "items": { "type": "string", "pattern": "^[a-zA-Z0-9_]+$" }, "description": "First-time hints seen (garage/hints.js)" },
+    "xp": { "type": "integer", "minimum": 0, "description": "All the xp earned (quests): the level is 1 + xp / data/quests.json levels.xpPerLevel" },
+    "quests": {
+      "type": "object",
+      "description": "Each quest played (garage/player/quests.js)",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attempts": { "type": "integer", "minimum": 0 }, "finishes": { "type": "integer", "minimum": 0 }, "dnfs": { "type": "integer", "minimum": 0 },
+          "completed": { "type": "boolean" }, "medal": { "enum": ["bronze", "silver", "gold", null] },
+          "bestTime": { "type": ["number", "null"] }, "bestScore": { "type": ["number", "null"] },
+          "bestSplits": { "type": ["array", "null"], "items": { "type": "number" } }, "bestLaps": { "type": ["array", "null"], "items": { "type": "number" } },
+          "paidShare": { "type": "number", "minimum": 0, "maximum": 1, "description": "The share of the quest's reward paid for medals so far" },
+          "finishPaid": { "type": "boolean" },
+          "recording": { "type": ["string", "null"], "description": "The best run's recording, kept in its own store (quest/recordStore.js)" },
+          "lastPlayed": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "questLog": { "type": "array", "maxItems": 50, "items": { "type": "object" }, "description": "The last runs handed in: what each paid, and invalid results (paid nothing) with why" },
+    "questPending": {
+      "type": "object", "required": ["attemptId", "questId", "fee"], "description": "The run under way (its fee paid)",
+      "properties": { "attemptId": { "type": "string" }, "questId": { "type": "string" }, "fee": { "type": "number", "minimum": 0 }, "started": { "type": "string" }, "pinkSlip": { "type": "boolean" } }
+    },
     "cars": {
       "type": "object",
       "additionalProperties": {

@@ -103,3 +103,27 @@ export function saveCourse(N, route) {
   }
   return { course, location, compiled: c };
 }
+
+// A stored route as the game drives it, without the road graph: its baked line, grid, checkpoints, start
+// and finish gates (route/grid.js), and the numbers kept with it. (The editor's compileRoute works it all
+// out again from the roads; this only reads what was saved.)
+export function viewCourse(course, P) {
+  const line = lineOf(course, P), loop = course.kind === 'loop';
+  if (line.length < 2) return null;
+  const L = line.at(-1).s;
+  const grid = placeGrid(line, { count: course.grid?.count ?? GRID.count, loop, startS: course.grid?.at ?? course.grid?.startS ?? null, finishS: course.grid?.finish ?? null, adjust: course.grid?.adjust ?? {} });
+  const order = s => loop ? (((s - grid.startS) % L) + L) % L : s;
+  const checkpoints = (course.checkpoints ?? []).filter(c => loop || (c.s > grid.startS && c.s < grid.finishS)).map(c => ({ ...c })).sort((a, b) => order(a.s) - order(b.s));
+  const gates = checkpoints.map(c => ({ ...gateAt(line, c.s, { width: c.width ?? null, loop }), id: c.id, required: c.required !== false, timeExtension: c.timeExtension ?? 0 }));
+  const start = gateAt(line, grid.startS, { loop }), finish = loop ? start : gateAt(line, grid.finishS, { loop });
+  return { line, loop, length: L, grid, checkpoints, gates, start, finish, stats: course.stats ?? null, referenceTime: course.referenceTime ?? null, guides: course.guides ?? GUIDES, corridor: course.corridor ?? { margin: 8 }, version: routeVersionOf(course) };
+}
+
+// A route's version as a run was made on it: its line, checkpoints, grid and kind (a short hash). A
+// result made on another version of the route is no result for this one.
+export function routeVersionOf(course) {
+  const key = JSON.stringify([course.kind, course.path, (course.checkpoints ?? []).map(c => [c.id, Math.round(c.s), c.required !== false]), course.grid?.at ?? course.grid?.startS ?? null, course.grid?.finish ?? null, course.grid?.count ?? null]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36).padStart(7, '0');
+}

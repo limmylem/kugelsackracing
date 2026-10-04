@@ -36,7 +36,8 @@
     "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs",
     "stress:content": "node --expose-gc tests/content-stress.mjs",
     "test:routes": "node --expose-gc --max-old-space-size=8192 tests/map/routes.test.ts",
-    "perf:route": "node --expose-gc --max-old-space-size=4096 tests/route-perf.mjs"
+    "perf:route": "node --expose-gc --max-old-space-size=4096 tests/route-perf.mjs",
+    "test:quests": "node --expose-gc --max-old-space-size=8192 tests/map/quests.test.ts"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

@@ -1,7 +1,8 @@
 // A player's profile — the save — and what's worked out from it. Pure data (no storage, no page), so
 // the same code can run in the browser, in the tests and, later, on a server.
 //
-//   profile: { version, money, nextId, currentCar, created, saved, hints?: [hint ids seen],
+//   profile: { version, money, nextId, currentCar, created, saved, hints?: [hint ids seen], xp?, quests?,
+//     questLog?, questPending? (garage/player/quests.js),
 //     cars: { carInstanceId: { carInstanceId, carId, price, paint?, damage?: { condition, dents,
 //       dentLog, broken }, activeSetup, setups: { setupId: { setupId, name, sockets: { socket:
 //       partInstanceId | null }, partIds: { socket: partId } } } } },
@@ -24,6 +25,7 @@ import { takes, validateBuild } from '../validate.js';
 import { prune } from '../mechanical.js';
 import { dentsOf, packLog, unpackDents } from '../damageLog.js';
 import { needsWork, partWork, shellWork, workCost } from '../repair.js';
+import { checkQuests } from './quests.js';
 
 export const PROFILE_VERSION = 3;
 export const clone = x => JSON.parse(JSON.stringify(x));
@@ -224,6 +226,8 @@ export function checkProfile(input, db) {
   }
   // the hints the player has seen (garage/hints.js)
   if (profile.hints !== undefined) { profile.hints = Array.isArray(profile.hints) ? [...new Set(profile.hints.filter(h => typeof h === 'string' && /^[a-zA-Z0-9_]+$/.test(h)))] : []; if (!profile.hints.length) delete profile.hints; }
+  // the quests played (garage/player/quests.js)
+  checkQuests(profile);
   // parts whose definition is gone
   const gone = new Map();
   for (const [id, p] of Object.entries(profile.parts)) {

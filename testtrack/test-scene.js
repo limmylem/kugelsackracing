@@ -50,6 +50,12 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
 import { createRouteRun } from '../play/testDrive.js';
+import { createQuestPlay } from '../play/questUi.js';
+import { worldContent } from '../content/client.js';
+import { garageFor } from '../garage/player/profile.js';
+import { carWork } from '../garage/repair.js';
+import { createNetwork } from '../route/network.js';
+import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
@@ -157,6 +163,85 @@ export async function testDriveRoute({ compiled, item, laps = 1, carId = null, a
   return { ok: true };
 }
 export const routeRunNow = () => routeRun;
+export const questPlayNow = () => active?.quests ?? null;
+
+// What the quests need of the game (play/questUi.js, play/questController.js): the player and their cars,
+// the route items, the road graph (Set route), and the car — put on a grid slot, held for the countdown,
+// let go at GO, reset to a checkpoint, and read every physics tick
+function questGame(w) {
+  const s = shared, S = w.stream, db = s.session.db, player = s.session.player;
+  let content = null, network = null;
+  const car = () => w.sim.vehicle;
+  const summary = id => {
+    const p = player.profile, c = p.cars[id];
+    if (!c) return null;
+    const totals = id === p.currentCar ? s.session.stats?.totals : garageFor(p, db, id).stats().totals;
+    return { instanceId: id, carId: c.carId, name: db.cars[c.carId]?.name ?? c.carId, className: totals?.rating?.class ?? null, kw: totals?.peakPower?.kw ?? 0, kg: totals?.mass ?? 0,
+      topSpeed: (totals?.rating?.estimates?.topSpeed ?? 250) / 3.6, value: c.price ?? 0, fingerprint: id === p.currentCar ? s.session.garage.build.fingerprint : null,
+      drivable: drivability(db.cars[c.carId], ownedBySocket(db, p, id), db.damage) };
+  };
+  // the car's condition overall: its body's and every part's on it, averaged (what a delivery's cargo feels)
+  const condition = () => {
+    const p = player.profile, id = p.currentCar, parts = Object.values(p.parts).filter(x => x.installedOn?.car === id);
+    const all = [p.cars[id]?.damage?.condition ?? 100, ...parts.map(x => x.condition ?? 100)];
+    return all.reduce((a, b) => a + b, 0) / all.length;
+  };
+  // (whether the car can carry on, and its condition: worked out again only when the save changes — a crash)
+  let drivableNow = true, conditionNow = 100;
+  const recheck = () => { const p = player.profile, id = p.currentCar; if (!p.cars[id]) return; drivableNow = drivability(db.cars[p.cars[id].carId], ownedBySocket(db, p, id), db.damage).ok; conditionNow = condition(); };
+  recheck();
+  player.on(recheck);
+  return {
+    player, db, config: player.quests.config, economy: db.economy, currency: db.economy.currency, projection: S.projection,
+    carInstanceId: () => player.profile.currentCar,
+    carSummary: summary,
+    ownedCars: () => Object.keys(player.profile.cars).map(summary),
+    routeItem: async id => { content ??= await worldContent(); return (await content.service.get(id, { view: 'published' })).item ?? (await content.service.get(id)).item; },
+    network: () => network ??= (async () => {
+      const url = new URL(w.track.mapV3.manifest, document.baseURI), manifest = await (await fetch(url)).json();
+      const G = await gunzipJson(await fetch(new URL(manifest.files.graph, url)));
+      return createNetwork(G, { P: S.projection, region: manifest.region ?? manifest.id, version: manifest.version });
+    })(),
+    carNow() {
+      const b = car().body, p = b.translation(), q = b.rotation(), v = b.linvel(), [x, z] = S.toWorld(p.x, p.z);
+      const fx = 2 * (q.x * q.z + q.w * q.y), fz = 1 - 2 * (q.x * q.x + q.y * q.y), m = Math.hypot(fx, fz) || 1, g = car().drivetrain.gear;
+      return { x, z, heading: Math.atan2(fx, fz) * 180 / Math.PI, kmh: Math.hypot(v.x, v.z) * 3.6, forward: (v.x * fx + v.z * fz) / m, gear: g > 0 ? String(g) : g === 0 ? 'N' : 'R' };
+    },
+    repairEstimate: () => { const p = player.profile; return p.cars[p.currentCar] ? carWork(db, p, p.currentCar).full : 0; },
+    pause(on) { if (!on) s.last = performance.now(); },
+    openSettings: () => s.panel.show?.() ?? s.panel.toggle(),
+    toGarage: () => { w.sim.vehicle.parts.clear(); if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page'); },
+    say: (text, kind = 'ok') => s.flash.show(text, kind, 2),
+    adapters() {
+      let wantHold = false, detachers = [], spin = null;
+      return {
+        onStep: fn => { const d = w.sim.onStep(sim => fn(sim.time, sim.dt)); detachers.push(d); return d; },
+        place: pt => { MapV3.travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading }); },
+        hold: () => { wantHold = true; },
+        release: ({ speed = 0 } = {}) => {
+          wantHold = false; MapV3.releaseCar(w);
+          if (speed > 0) { const b = car().body, q = b.rotation(), fx = 2 * (q.x * q.z + q.w * q.y), fz = 1 - 2 * (q.x * q.x + q.y * q.y), m = Math.hypot(fx, fz) || 1; b.setLinvel({ x: fx / m * speed, y: 0, z: fz / m * speed }, true); spin = speed; }
+        },
+        resetTo: pt => {
+          s.session.attach.reattachAll('reset', { kind: s.play.kind });
+          car().parts.clear();
+          MapV3.travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading });
+          w.rig.reset();
+        },
+        ready: () => !w.spawning,
+        carState() {
+          const b = car().body, p = b.translation(), q = b.rotation(), l = b.linvel(), [x, z] = S.toWorld(p.x, p.z);
+          const fx = 2 * (q.x * q.z + q.w * q.y), fz = 1 - 2 * (q.x * q.x + q.y * q.y), m = Math.hypot(fx, fz) || 1;
+          return { x, y: p.y, z, q: [q.x, q.y, q.z, q.w], vx: l.x, vy: l.y, vz: l.z, fx: fx / m, fz: fz / m, throttle: s.lastInput?.throttle ?? 0,
+            drivable: drivableNow, condition: conditionNow, impulse: w.quests.takeHit() };
+        },
+        // each frame: the car held on its slot once it's down on the road
+        frame() { if (wantHold && !w.spawning && !w.pinned) MapV3.holdCar(w); },
+        dispose() { for (const d of detachers) d(); detachers = []; if (w.pinned) MapV3.releaseCar(w); },
+      };
+    },
+  };
+}
 
 export async function enter(file) {
   if (!shared) {
@@ -493,7 +578,11 @@ async function buildWorld(file) {
   if (track.mapV3) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
     // the world's published content: quest starts and the rest, in the world and on the maps
-    w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; } });
+    // and its quests (play/questUi.js): the card, starting one, the run, the results
+    w.quests = createQuestPlay({ THREE, w, game: questGame(w), autopilot: new URLSearchParams(location.search).has('questBot') });
+    w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
+      questCard: (it, el) => w.quests.card(it, el), stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
+    shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
   }
   return w;
 }
@@ -520,7 +609,7 @@ function frame(w, now) {
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
-  const paused = shared.panel.open || !!rw?.hold;           // the settings panel pauses the car
+  const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car
   Object.assign(v.aids, P.aids);
   v.mechanical.enabled = (P.damage ?? 'full') === 'full';        // (visual only, off: it drives as new)
@@ -536,7 +625,7 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
     view = w.sim.advance(paused ? 0 : seconds, input);
     shared.gearMode = v.drivetrain.mode;
     effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
@@ -549,6 +638,8 @@ function frame(w, now) {
   const { previous: a, current: b, alpha, stepsThisFrame } = view, sim = T?.sim ?? w.sim;
   // (the route's clock: the time simulated — a slow frame that couldn't keep up doesn't count extra)
   routeRun?.frame(paused || T ? 0 : stepsThisFrame * w.sim.dt);
+  // (a quest's own clock is the physics' ticks: this is its intro, HUD and the like)
+  w.quests?.frame(T ? 0 : seconds);
 
   // Draw everything part-way between the last two physics states
   const place = (obj, pa, pb) => {
@@ -567,6 +658,7 @@ function frame(w, now) {
 
   b.bonnetUp = T ? 0 : bonnetUp(b);
   w.rig.update(w.camera, w.car, b, seconds, CAMERAS[shared.camMode], shared.spec.camera);
+  w.quests?.camera(w.camera);                               // (a quest's intro flies its own camera)
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
   if (D.glass) D.glass.opacity = inside ? 0.1 : D.glass.userData.opacity ?? D.glassOpacity;
   const light = daylight(w, P.timeOfDay ?? 13);
@@ -866,6 +958,7 @@ function crashEvents(w, v, now) {
   if (!impacts.length) return;
   const C = rules.classes;
   for (const impact of impacts) {
+    w.quests?.noteHit(impact.strength);                     // (a quest: a drift's wall hit, the cargo's damage)
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
     const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: s.play.scale(impact) });
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
@@ -1403,6 +1496,7 @@ function handleAction(w, act, inp) {
   if (act === 'telemetry') s.graphs.toggle();
   if (s.tests?.world === w) return;                   // a test is driving
   if (act === 'reset' && routeRun) { routeRun.resetNow(); return; }          // (a route: back to its last checkpoint)
+  if (act === 'reset' && w.quests?.active) { w.quests.resetNow(); return; }   // (a quest: the same)
   if (act === 'reset') {
     const toStart = !!(s.input.keys.ShiftLeft || s.input.keys.ShiftRight);
     resetCar(w, toStart);

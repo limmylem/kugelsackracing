@@ -18,6 +18,8 @@ import { addCar, addPart, applyGarage, buildOf, carName, carPrice, checkProfile,
 import { migrate } from './migrations.js';
 import { validateBuild } from '../validate.js';
 import { appendHits } from '../damageLog.js';
+import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quests.js';
+import { entryReasons, CAR_CODES } from '../../quest/rules.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
 
 const ATTACH = ['attached', 'loose', 'detached'];
@@ -52,6 +54,13 @@ export const METHODS = {
   renameSetup: '(carInstanceId, setupId, name)',
   deleteSetup: '(carInstanceId, setupId)',
   switchSetup: '(carInstanceId, setupId, { force }) a saved setup onto the car (parts it needs that are gone or on another car: listed, or with force, stock / empty)',
+  startQuest: '(quest, { carInstanceId, car: { className, kw, kg }, restart }) the entry fee taken and the attempt counted, if the player may enter (→ attemptId, fee); config.restart.free: a restart is free',
+  refundQuest: '(attemptId) the game couldn\'t start the quest: the fee back, the attempt not counted',
+  finishQuest: '(result, { quest, course, recording }) a finished run checked (quest/validate.js) and paid (once per medal tier, then a repeat); an invalid one pays nothing and is logged; the best run\'s recording kept',
+  failQuest: '(attemptId, { questId, status, reason }) a run that didn\'t finish (quit: a DNF, wrecked, out of time): counted, nothing paid',
+  getRecording: '(recordingId) → { recording } a best run kept for ghost replays',
+  forfeitCar: '(carInstanceId, { attemptId }) a pink slip lost: the car and everything on it gone (only with a pink-slip run under way)',
+  awardCar: '(carId, { attemptId }) a pink slip won: the rival\'s car, stock (only with a pink-slip run under way)',
   save: 'save now (every change is saved anyway)',
   exportSave: '→ { json } the save as a file',
   importSave: '(json) a save file in place of this one',
@@ -69,9 +78,11 @@ for (const name of Object.keys(METHODS)) PlayerService.prototype[name] = async f
 
 export class LocalPlayerService extends PlayerService {
   // db: loadGarageData's (cars, parts, finishes, economy); storage: storage.js; migrations: for tests
-  constructor({ db, storage, now = () => new Date().toISOString(), migrations } = {}) {
+  // quests: { config (data/quests.json), recordings (quest/recordStore.js) }
+  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null } = {}) {
     super();
     this.db = db; this.storage = storage; this.now = now; this.migrations = migrations;
+    this.quests = quests;
     this.profile = null; this.notices = []; this.queue = Promise.resolve();
     this.unlimited = false;       // (development: unlimited money)
   }
@@ -300,6 +311,70 @@ export class LocalPlayerService extends PlayerService {
         back.push(x.installedOn.socket);
       }
       return { result: { reattached: back } };
+    });
+  }
+  // ---------- quests (garage/player/quests.js) ----------
+  // Starting a quest: may the player enter (the car rules, their level, the fee), then the fee's taken
+  startQuest(quest, { carInstanceId, car = null, restart = false, attemptId = null } = {}) {
+    return this.#change('quest', p => {
+      const cfg = this.quests?.config;
+      if (!cfg) return { error: 'Quests aren\'t set up.' };
+      const bad = this.#car(p, carInstanceId ?? p.currentCar);
+      if (bad) return bad;
+      if (p.questPending) delete p.questPending;    // (one left over: its fee's spent, as a quit's is)
+      const fee = restart && cfg.restart?.free ? 0 : Math.max(0, quest.fee ?? 0);
+      const id = carInstanceId ?? p.currentCar, own = p.cars[id];
+      const drivable = drivability(this.db.cars[own.carId], ownedBySocket(this.db, p, id), this.db.damage);
+      const reasons = entryReasons({ quest, car: { ...(car ?? {}), drivable }, player: { money: p.money, xp: p.xp ?? 0, unlimited: this.unlimited }, fee, config: cfg, economy: this.db.economy })
+        .filter(r => car || !CAR_CODES.has(r.code) || r.code === 'damage');
+      if (reasons.length) return { error: reasons[0].text, detail: { reasons } };
+      const unpaid = this.#pay(p, fee, 'the entry fee is');
+      if (unpaid) return unpaid;
+      const aid = attemptId ?? `att_${String(p.nextId++).padStart(6, '0')}`;
+      startAttempt(p, { quest, fee: this.unlimited ? 0 : fee, attemptId: aid, now: this.now() });
+      return { result: { attemptId: aid, fee: this.unlimited ? 0 : fee } };
+    });
+  }
+  refundQuest(attemptId) {
+    return this.#change('quest', p => { const r = refundAttempt(p, attemptId); return r.error ? r : { result: r }; });
+  }
+  async finishQuest(result, { quest, course, recording = null } = {}) {
+    const cfg = this.quests?.config;
+    // (the recording goes in its own store first: the save only keeps its id, if it's the best run)
+    const recordingId = recording ? `rec_${quest.id}_${result.attemptId}` : null;
+    const old = this.profile.quests?.[quest.id]?.recording ?? null;
+    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId }) }));
+    const store = this.quests?.recordings;
+    if (out.ok && out.valid && out.pb && recording && store) {
+      await store.put(recordingId, recording);
+      if (old && old !== recordingId) await store.delete(old);
+    }
+    return out;
+  }
+  failQuest(attemptId, { questId, status = 'dnf', reason = null } = {}) {
+    return this.#change('quest', p => { failAttempt(p, { attemptId, questId, status, reason, now: this.now() }); return {}; });
+  }
+  async getRecording(recordingId) {
+    const rec = recordingId ? await this.quests?.recordings?.get(recordingId) : null;
+    return { ok: !!rec, error: rec ? null : 'There\'s no recording of that run.', updatedState: clone(this.profile), recording: rec };
+  }
+  // A pink slip's stake changing hands (only with a pink-slip run under way: Phase 4 Step 4's rivals)
+  forfeitCar(carInstanceId, { attemptId } = {}) {
+    return this.#change('car', p => {
+      if (!p.questPending?.pinkSlip || p.questPending.attemptId !== attemptId) return { error: 'A car only changes hands in a pink-slip race.' };
+      if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
+      if (Object.keys(p.cars).length < 2) return { error: 'You can\'t race your only car for pink slips.' };
+      for (const [id, x] of Object.entries(p.parts)) if (x.installedOn?.car === carInstanceId) delete p.parts[id];
+      delete p.cars[carInstanceId];
+      if (p.currentCar === carInstanceId) p.currentCar = Object.keys(p.cars)[0];
+      return { result: { lost: carInstanceId } };
+    });
+  }
+  awardCar(carId, { attemptId } = {}) {
+    return this.#change('car', p => {
+      if (!p.questPending?.pinkSlip || p.questPending.attemptId !== attemptId) return { error: 'A car only changes hands in a pink-slip race.' };
+      if (!this.db.cars[carId]) return { error: `There's no car "${carId}".` };
+      return { result: { won: addCar(p, this.db, carId) } };
     });
   }
   // A first-time hint seen (garage/hints.js): kept, so it isn't shown again

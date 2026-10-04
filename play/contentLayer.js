@@ -5,9 +5,12 @@
 // moves on and whenever something's published, so nothing far away is kept.
 //
 // Driving up to one (or clicking it, on the map or in the world) shows its card: what it is, what it
-// asks of the car and what it pays. Starting a quest comes in Phase 4 Step 3.
+// asks of the car and what it pays. A quest's card is the quests' own (play/questUi.js: start it, set a
+// route to it), and its marker shows how far the player's got with it (new, attempted, completed and
+// its medal: stateOf).
 //
-//   const L = createContentLayer({ THREE, world, carNow })    world: the game's Map v3 world
+//   const L = createContentLayer({ THREE, world, carNow, questCard(item, el) → drew it?, stateOf(id), busy() })
+//     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
 //   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
 
 import { worldContent } from '../content/client.js';
@@ -29,7 +32,7 @@ const CSS = `
 #contentCard .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .7; }
 #contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }`;
 
-export function createContentLayer({ THREE, world: w, carNow = () => null }) {
+export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, stateOf = null, busy = () => false }) {
   const S = w.stream, P = S.projection;
   let C = null, items = [], byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
@@ -37,7 +40,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null }) {
 
   if (!document.getElementById('contentCardCss')) { const s = document.createElement('style'); s.id = 'contentCardCss'; s.textContent = CSS; document.head.appendChild(s); }
   card = document.createElement('div'); card.id = 'contentCard'; document.body.appendChild(card);
-  card.addEventListener('click', e => { if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } });
+  card.addEventListener('click', e => { if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } else if (e.target.closest('[data-start]:not(:disabled)')) { cardDismissed = cardFor; hideCard(); } });
 
   async function query(lat, lon) {
     if (!C || querying) return;
@@ -57,12 +60,14 @@ export function createContentLayer({ THREE, world: w, carNow = () => null }) {
   function toMaps() {
     if (!w.maps) return;
     mapsFed = w.maps;
-    w.maps.setContent(items.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published' } })), id => showCard(byId.get(id), true));
+    w.maps.setContent(items.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published', ...(it.kind === 'quest' && stateOf ? stateOf(it.id) : {}) } })), id => showCard(byId.get(id), true));
   }
 
   function showCard(it, pinned = false) {
     if (!it) return;
     cardFor = it.id;
+    card.dataset.pinned = pinned ? '1' : '';
+    if (questCard?.(it, card)) { card.style.display = shown ? 'block' : 'none'; return; }
     const car = carNow(), r = C && it.kind === 'quest' ? rewardsOf(it, C.economy) : null, cur = C?.economy.currency ?? '$';
     const req = it.kind === 'quest' ? entryCheck(it, car) : [];
     card.innerHTML = `<div class="kind">${esc(it.kind === 'quest' ? `Quest · ${TYPES[it.type]?.label ?? it.type}` : KINDS[it.kind]?.label)}</div><h4>${esc(it.name)}</h4>
@@ -91,6 +96,9 @@ export function createContentLayer({ THREE, world: w, carNow = () => null }) {
     get items() { return items; },
     frame(dt, pos, camera) {
       if (!shown) return;
+      // (a quest under way: its marker and the others out of the way)
+      markers.group.visible = !busy();
+      if (busy() && cardFor) hideCard();
       const [wx, wz] = S.toWorld(pos[0], pos[2]), [lat, lon] = P.toLatLon(wx, wz);
       if (dirty || !queriedAt || distanceKm(queriedAt, { lat, lon }) * 1000 > REQUERY_M) query(lat, lon);
       if (w.maps && w.maps !== mapsFed && queriedAt) toMaps();
@@ -99,11 +107,13 @@ export function createContentLayer({ THREE, world: w, carNow = () => null }) {
       // driving up to one: its card (until driven away from, or closed)
       let near = null, nd = Infinity;
       for (const it of items) { const [x, z] = P.toXZ(it.location.lat, it.location.lon), d = Math.hypot(x - wx, z - wz); if (d < nd) { nd = d; near = it; } }
-      if (near && nd < CARD_M && cardFor !== near.id && cardDismissed !== near.id) showCard(near);
+      if (near && nd < CARD_M && !busy() && cardFor !== near.id && cardDismissed !== near.id) showCard(near);
       if (cardFor && card.dataset.pinned !== '1') { const it = byId.get(cardFor), [x, z] = it ? P.toXZ(it.location.lat, it.location.lon) : [Infinity, Infinity]; if (Math.hypot(x - wx, z - wz) > CARD_LEAVE_M) hideCard(); }
       if (cardDismissed && (near?.id !== cardDismissed || nd > CARD_LEAVE_M)) cardDismissed = null;
     },
     click,
+    refresh() { toMaps(); if (cardFor && byId.get(cardFor)) showCard(byId.get(cardFor), card.dataset.pinned === '1'); },
+    hideCard,
     show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
     dispose() { markers.dispose(); card.remove(); },
   };

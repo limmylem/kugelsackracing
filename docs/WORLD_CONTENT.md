@@ -148,8 +148,10 @@ words.
   distance.
 - **On the maps:** markers appear on the minimap, and on the full map (Tab), clustered when zoomed out.
 - **Info card:** driving up to a marker, or clicking it in the world or on the map, shows a card. It has
-  the name, the type, whether your car meets each requirement, the reward and the fee. Starting a quest
-  comes in Step 3.
+  the name, the type, whether your car meets each requirement, the reward and the fee. A quest's card is
+  the quests' own (start it, set a route to it): see [QUESTS.md](QUESTS.md).
+- **Quest states:** each quest's marker on the maps shows new, attempted or completed (in its medal's
+  colour).
 
 ## Design note: a server with PostGIS
 

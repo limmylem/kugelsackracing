@@ -1,0 +1,51 @@
+{
+  "_note": "How quests run (quest/, docs/QUESTS.md). Money is the economy's (data/economy.json quests: a quest's reward); these say how much of it a run earns, how medals are set, and each quest type's own rules. Placeholder values: balancing is Phase 4 Step 5.",
+  "start": {
+    "_note": "countdown: seconds of 3-2-1 before GO. A standing start holds the car until GO; throttle past jumpThrottle within jumpWindow seconds before GO is a jump start, jumpPenalty seconds on the time. A rolling start puts the car rollingDistance m behind the start line at rollingKmh, the clock starting as it crosses the line.",
+    "countdown": 3,
+    "jumpThrottle": 0.5,
+    "jumpWindow": 0.6,
+    "jumpPenalty": 2,
+    "rollingKmh": 60,
+    "rollingDistance": 60
+  },
+  "intro": { "seconds": 6, "height": 28, "behind": 40 },
+  "restart": { "_note": "free: restarting doesn't charge the entry fee again", "free": false },
+  "wreck": { "_note": "seconds the car must have been undrivable (data/damage.json drivable) before the quest ends as Wrecked", "seconds": 1.5 },
+  "medals": {
+    "_note": "Times: the route's reference time (a test drive's, else its estimate for the starter car) × these; at most that long for the medal. A quest can set its own (params.medalTimes / params.medalScores).",
+    "time": { "gold": 1.0, "silver": 1.12, "bronze": 1.3 },
+    "score": { "gold": 1.0, "silver": 0.7, "bronze": 0.4 }
+  },
+  "rewards": {
+    "_note": "Of the quest's reward (economy): each medal tier pays up to its share the first time it's reached (a higher one: the difference); finishing without a medal pays finish once; any later run that reaches nothing new pays repeat. xp the same way.",
+    "finish": 0.3,
+    "bronze": 0.5,
+    "silver": 0.75,
+    "gold": 1.0,
+    "repeat": 0.1
+  },
+  "drift": {
+    "_note": "quest/drift.js. A drift: the car's slip angle (between where it points and where it goes) over minAngle at over minKmh. Points a second: pointsPerSecond × (angle / 30°, at most 2) × (speed / 60 km/h, at most 2). Points go into the combo pot. Every comboEvery s of drifting the multiplier goes up by one (to comboMax). A new drift within comboGrace s of the last keeps the combo going; otherwise the pot × the multiplier is banked into the score. A wall hit (a crash harder than wallHit: its strength, the closing speed in m/s, as physics/impacts.js gives it) or spinning out (angle past spinAngle) loses the pot and ends the combo.",
+    "minAngle": 12,
+    "minKmh": 25,
+    "pointsPerSecond": 100,
+    "comboEvery": 2,
+    "comboMax": 5,
+    "comboGrace": 1.2,
+    "spinAngle": 105,
+    "wallHit": 3
+  },
+  "delivery": {
+    "_note": "The cargo takes the damage the car takes: cargo condition = 100 − car damage taken (the drop in its overall condition, %) × (fragile ? fragileFactor : 1). The payout loses the quest's damagePenalty × the share of the cargo lost. At 0% the cargo is destroyed: failed.",
+    "fragileFactor": 2
+  },
+  "validation": {
+    "_note": "A result faster than the route allows is impossible: each stretch at least its length at the car's top speed × topSpeedSlack (a little in hand for tows and downhills).",
+    "topSpeedSlack": 1.15,
+    "minTopSpeedKmh": 120
+  },
+  "recording": { "_note": "The best run kept for ghost replays: the car's state every 1/hz s of simulated time, delta-coded.", "hz": 20 },
+  "levels": { "_note": "a player's level: 1 + xp / xpPerLevel (quests can need a level)", "xpPerLevel": 1000 },
+  "hud": { "_note": "the race HUD's defaults (the player can scale or hide it in settings)", "scale": 1, "visible": true }
+}

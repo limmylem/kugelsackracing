@@ -8,7 +8,9 @@
 //   maps.update(lat, lon, bearingDeg, speed)  each frame (redrawn only when the car has moved or turned)
 //   maps.toggle() → open?, maps.open, maps.show(on), maps.dispose()
 //   maps.setContent(features, onPick)  world content near the player (play/contentLayer.js): marked on both,
-//   clustered on the full map when zoomed out; onPick(id) when one's clicked
+//   clustered on the full map when zoomed out; onPick(id) when one's clicked; a quest's state (properties
+//   state: new | attempted | completed, medal) in its colour and mark
+//   maps.setLines(features)  a quest's route and the guide line to its start, on both
 //
 // Also for the editor (editor/mapView.js): maplibre() loads MapLibre, regionStyle() the region's map style.
 
@@ -90,6 +92,9 @@ export async function regionStyle(manifest: any, base: string) {
 // World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
 // the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
 const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', '#ccc'];
+// a quest's colour by how far the player's got with it: new (bright), tried, done (its medal's colour)
+const MEDAL_COLOUR = ['match', ['get', 'medal'], 'gold', '#f2c230', 'silver', '#c9d1d9', 'bronze', '#cd7f32', '#8fd18a'];
+const POINT_COLOUR = ['case', ['==', ['get', 'state'], 'completed'], MEDAL_COLOUR, ['==', ['get', 'state'], 'attempted'], '#c7832a', KIND_COLOUR];
 export function contentLayers(map: any, { cluster = true, labels = true, prefix = 'content' } = {}) {
   const src = `${prefix}-src`, empty = { type: 'FeatureCollection', features: [] };
   let data: any = empty, pick: ((id: string) => void) | null = null;
@@ -98,7 +103,9 @@ export function contentLayers(map: any, { cluster = true, labels = true, prefix 
     map.addSource(src, { type: 'geojson', data, cluster, clusterRadius: 44, clusterMaxZoom: 14 });
     map.addLayer({ id: `${prefix}-clusters`, type: 'circle', source: src, filter: ['has', 'point_count'], paint: { 'circle-color': '#ffb02e', 'circle-opacity': 0.85, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-radius': ['step', ['get', 'point_count'], 13, 10, 17, 100, 22, 1000, 28] } });
     map.addLayer({ id: `${prefix}-count`, type: 'symbol', source: src, filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': FONT, 'text-size': 12, 'text-allow-overlap': true }, paint: { 'text-color': '#1b1b1b' } });
-    map.addLayer({ id: `${prefix}-points`, type: 'circle', source: src, filter: ['!', ['has', 'point_count']], paint: { 'circle-color': KIND_COLOUR, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 16, 9], 'circle-stroke-color': ['case', ['boolean', ['get', 'selected'], false], '#ff3d3d', '#ffffff'], 'circle-stroke-width': ['case', ['boolean', ['get', 'selected'], false], 3.5, 2], 'circle-opacity': ['case', ['==', ['get', 'status'], 'draft'], 0.75, 1] } });
+    map.addLayer({ id: `${prefix}-points`, type: 'circle', source: src, filter: ['!', ['has', 'point_count']], paint: { 'circle-color': POINT_COLOUR, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 16, 9], 'circle-stroke-color': ['case', ['boolean', ['get', 'selected'], false], '#ff3d3d', '#ffffff'], 'circle-stroke-width': ['case', ['boolean', ['get', 'selected'], false], 3.5, 2], 'circle-opacity': ['case', ['==', ['get', 'status'], 'draft'], 0.75, 1] } });
+    // (a quest's state: ✓ done, its medal's colour; • tried)
+    map.addLayer({ id: `${prefix}-marks`, type: 'symbol', source: src, filter: ['all', ['!', ['has', 'point_count']], ['has', 'state'], ['!=', ['get', 'state'], 'new']], layout: { 'text-field': ['match', ['get', 'state'], 'completed', '✓', '•'], 'text-font': FONT, 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 16, 13], 'text-allow-overlap': true }, paint: { 'text-color': '#1b1b1b' } });
     if (labels) map.addLayer({ id: `${prefix}-labels`, type: 'symbol', source: src, minzoom: 13, filter: ['!', ['has', 'point_count']], layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#1b1b1b', 'text-halo-color': '#fff', 'text-halo-width': 1.6 } });
     map.on('click', `${prefix}-points`, (e: any) => { const f = e.features?.[0]; if (f && pick) pick(f.properties.id); });
     map.on('click', `${prefix}-clusters`, (e: any) => { const f = e.features?.[0]; if (!f) return; map.getSource(src).getClusterExpansionZoom(f.properties.cluster_id).then((z: number) => map.easeTo({ center: f.geometry.coordinates, zoom: z })).catch(() => map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2 })); });
@@ -116,6 +123,22 @@ export function contentLayers(map: any, { cluster = true, labels = true, prefix 
   };
 }
 
+// Lines on a map: a quest's route (its colour) and the guide to its start ("Set route": dashed)
+export function lineLayers(map: any, prefix = 'lines') {
+  const src = `${prefix}-src`;
+  let data: any = { type: 'FeatureCollection', features: [] };
+  const add = () => {
+    if (map.getSource(src)) return;
+    map.addSource(src, { type: 'geojson', data });
+    const before = map.getLayer(`${prefix.replace(/-lines$/, '')}-points`) ? `${prefix.replace(/-lines$/, '')}-points` : undefined;
+    map.addLayer({ id: `${prefix}-route`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e05cff', 'line-width': 4, 'line-opacity': 0.85 } }, before);
+    map.addLayer({ id: `${prefix}-guide`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'guide'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1fb6ff', 'line-width': 4, 'line-dasharray': [1.2, 1] } }, before);
+  };
+  if (map.isStyleLoaded()) add(); else map.once('load', add);
+  map.on('styledata', () => { if (map.isStyleLoaded() && !map.getSource(src)) add(); });
+  return { set(features: any[]) { data = { type: 'FeatureCollection', features }; map.getSource(src)?.setData(data); } };
+}
+
 export async function createWorldMaps({ manifest, base, onTravel }: { manifest: any; base: string; onTravel?: (spot: any) => void }) {
   if (!document.getElementById('worldMapCss')) { const s = document.createElement('style'); s.id = 'worldMapCss'; s.textContent = css; document.head.appendChild(s); }
   const ml = await maplibre(), fileUrl = new URL(manifest.files.map, base).href;
@@ -129,6 +152,8 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   document.body.appendChild(mini);
   const miniMap = new ml.Map({ container: mini, style: st, center: [lon0, lat0], zoom: 16, interactive: false, attributionControl: false, fadeDuration: 0, pitchWithRotate: false });
   const miniContent = contentLayers(miniMap, { cluster: false, labels: false, prefix: 'mini' });
+  const miniLines = lineLayers(miniMap, 'mini-lines');
+  let fullLines: any = null, linesNow: any[] = [];
   let fullContent: any = null, contentNow: any[] = [], onPickNow: any = null;
   const north = mini.querySelector('#worldMiniN') as HTMLElement;
   // the full map: north up, the car marked, the test spots to travel to
@@ -160,6 +185,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
       fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
       fullMap.on('click', e => { if (e.originalEvent.shiftKey) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); } });
       fullContent = contentLayers(fullMap, { prefix: 'full' });
+      fullLines = lineLayers(fullMap, 'full-lines'); fullLines.set(linesNow);
       fullContent.set(contentNow, id => { set(false); onPickNow?.(id); });
       const el = document.createElement('div'); el.className = 'worldCarMarker';
       carMarker = new ml.Marker({ element: el, rotationAlignment: 'map' }).setLngLat(last ? [last.lon, last.lat] : [lon0, lat0]).addTo(fullMap);
@@ -184,6 +210,8 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
       miniContent.set(features);
       fullContent?.set(features, id => { set(false); onPickNow?.(id); });
     },
+    // lines on both maps (GeoJSON LineStrings with kind: 'route' | 'guide'): a quest's route, the way to its start
+    setLines(features: any[]) { linesNow = features; miniLines.set(features); fullLines?.set(features); },
     get miniMap() { return miniMap; },
     dispose() { removeEventListener('keydown', keys); miniMap.remove(); fullMap?.remove(); mini.remove(); full.remove(); },
   };

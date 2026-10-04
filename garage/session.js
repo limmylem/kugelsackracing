@@ -14,6 +14,7 @@
 //  - saveEdits: tuning-panel edits written back to the car or part file each value comes from.
 
 import { Garage, loadGarageData } from './data.js';
+import { recordStore } from '../quest/recordStore.js';
 import { changes, changesText, explain, labelOf, num, totalsText } from './report.js';
 import { getPath } from './stats.js';
 import { LocalPlayerService } from './player/service.js';
@@ -49,11 +50,13 @@ async function create() {
 
   // the player's profile (money, cars, parts, setups), kept in this browser by the player service —
   // the only thing that changes it (garage/player)
-  let player = new LocalPlayerService({ db, storage: new IdbStorage() }), loaded;
+  // (quests: their rules, and the best runs' recordings kept apart from the save — quest/recordStore.js)
+  const quests = { config: await readJson('data/quests.json'), recordings: recordStore() };
+  let player = new LocalPlayerService({ db, storage: new IdbStorage(), quests }), loaded;
   try { loaded = await player.init(); }
   catch (err) {
     console.warn(`The save in this browser can't be opened (${err.message ?? err}): playing without saving this time.`);
-    player = new LocalPlayerService({ db, storage: new MemoryStorage() });
+    player = new LocalPlayerService({ db, storage: new MemoryStorage(), quests });
     loaded = await player.init();
   }
   if (loaded.notices.length) console.warn(`Your save was brought up to date:\n${loaded.notices.map(n => `  · ${n}`).join('\n')}`);
