@@ -24,7 +24,8 @@ import { crashOutcome } from './carDamage.js';
 import { CORNERS, DEBUG_KINDS, damageReport, mechanicalLayout, prune, setMechanical, strikeMechanical } from './mechanical.js';
 import { fingerprint } from './fingerprint.js';
 
-const clone = x => JSON.parse(JSON.stringify(x));
+// (a value that isn't there stays not there: JSON has no undefined, and parsing nothing throws)
+const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 let session = null;
 
 export function garageSession() { return session ??= create(); }
