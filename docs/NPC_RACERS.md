@@ -254,21 +254,23 @@ colliders) that sweep was 5 ms a step on its own; an 8-car race is now 1.2–3.1
 
 `npm run test:npc` on the six sample routes:
 - **Passing:** every route at low, medium and high skill finishes cleanly; fairness (speed, cornering,
-  braking within the car's physics); the finishing order changes with the seed; the same seed gives the
-  same race; an 8-car race within the frame budget with the detail switches unseen; 100 races without
-  memory growth.
-- **The skill spread is under the config's target:** low skill is about 4.6% slower than high (target
-  5–25%) and medium about 1.2% (target 2–14%). On Monaco the low-skill AI is quicker than the high (its
-  laps there are set by the narrow places, not by its margins). Balancing is Step 5.
-- **8-car races: every car finishes, but not without a reset.** Each route has 0–7 stuck-and-reset
-  incidents a race and a few moments off the road, where the test wants none. Most are at spots where the
-  baked world is not what the road is:
+  braking within the car's physics); the skill spread (low about 8% slower than high over the routes,
+  medium about 2.5%: on the config's targets, though on Monaco and Tokyo the levels are close); 8-car
+  races on Tokyo, Munich and San Francisco with no one stuck or off the road; the finishing order
+  changes with the seed; the same seed gives the same race; an 8-car race within the frame budget with
+  the detail switches unseen; 100 races without memory growth.
+- **8-car races on Monaco, Stelvio and Milton Keynes:** every car finishes, but with stuck-and-reset
+  incidents (3, 9 and 1 in the test's race), where the test wants none, and some moments off the road.
+  Most are at spots where the baked world is not what the road is, or where it has no barrier:
   - **Monaco 450–470 m:** the route goes down a ramp beside a road that stays level; the bake leaves the
     level road's surface up to 1.3 m above the ramp inside the ramp's mapped width, so the drivable
     trench is 2–3.5 m wide. Solo, the AI threads it (its line fitted to the world, see above); in traffic,
-    a car pushed over hits the ledge.
-  - **Tokyo 170–180 m:** a 26–36% climb. A car slowed to walking pace in traffic there can't pull away
-    again (the player's couldn't either), so it rolls back and is reset.
-  - The rest are traffic at narrow bends, and fast cars running wide off Munich's motorway.
-  The fix for the first two belongs in the world bake (the ramp's surface; the climb's gradient).
-
+    a car pushed over hits the ledge. Monaco's hairpin exit (about 890 m) is also a steep climb taken at
+    walking pace.
+  - **Stelvio:** the outside of the mountain road falls away with no barrier; a car pushed wide in the
+    pack goes over the edge and is reset.
+  - **Tokyo 170–180 m** (passing now): a 26–36% climb. NPCs no longer pass side by side while crawling
+    up it, and back down for a run-up if they stall.
+  Results at these spots are sensitive: small changes to the driving move which car meets them. The
+  lasting fix for the first two belongs in the world bake (the ramp's surface; barriers at drops).
+- **The player's bot wins most test races** (it starts on pole, and passing is hard on these roads).
