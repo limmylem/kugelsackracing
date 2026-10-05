@@ -153,7 +153,7 @@ backdrop — chosen by the seed and the **theme**, and part of the track's ident
   **Redress**), another theme the same layout in another place. Version-1 codes still make their
   original, undressed tracks.
 - **The speed** (what sizes everything): the Phase 4 racing line and speed plan (`route/racingLine.js`,
-  now in exact arithmetic) for a quick reference race car. **Corners** are found from the curvature —
+  in exact arithmetic while dressing: `withExactMath`) for a quick reference race car. **Corners** are found from the curvature —
   their entry, apex and exit speeds, where braking starts, hairpins, sweepers, chicanes (a pair of quick
   opposite bends) — and numbered from the start.
 - **Kerbs** where the racing line runs to the road's edge: the apex's inside, the exit's outside, most

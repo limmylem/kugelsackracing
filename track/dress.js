@@ -3,7 +3,7 @@
 // grandstands, marshal posts, light towers, advertising, trees, rocks and buildings — chosen by the
 // track's seed and its theme. Part of a version-2 track's identity, like its layout: it uses only exact
 // arithmetic (track/det.js: + − × ÷, square roots, the seeded random numbers; the Phase 4 racing line and
-// speed plan, route/racingLine.js, likewise), so the same track code gives the same dressing on every
+// speed plan, route/racingLine.js, in its withExactMath), so the same track code gives the same dressing on every
 // machine. Its rules are frozen with the generator version that uses them (DRESS_VERSION 1: generator
 // version 2); the themes' dressing settings (data/tracks.json themes.*.dress) are part of it too — the
 // pinned tracks (tests/fixtures/tracks-v2.json) say if they change. How it looks (colours, sky) isn't.
@@ -21,7 +21,7 @@
 import { rng, mix, sqrt, fix, fnv, PI } from './det.js';
 import { frameOf, freeSpace, pointGrid } from './gen/space.js';
 import { PIT, pitSpan } from './gen/v2.js';
-import { racingLine, speedPlan } from '../route/racingLine.js';
+import { racingLine, speedPlan, withExactMath } from '../route/racingLine.js';
 
 export const DRESS_VERSION = 1;
 export const RUNOFF = ['grass', 'gravel', 'asphalt', 'sand'];
@@ -50,8 +50,7 @@ export function dressTrack(gen, cfg) {
   // ---------- the speed: the Phase 4 racing line and speed plan, for the reference car ----------
   const line = [];
   for (let i = 0; i < n; i++) line.push({ x: T.x[i], z: T.z[i], h: T.h[i], w: T.width });
-  const rl = racingLine(line, { loop: closed });
-  const v = speedPlan(rl, REF, { loop: closed, corner: 1, braking: 1, start: closed ? null : 0 });
+  const { rl, v } = withExactMath(() => { const rl = racingLine(line, { loop: closed }); return { rl, v: speedPlan(rl, REF, { loop: closed, corner: 1, braking: 1, start: closed ? null : 0 }) }; });
   const m = rl.points.length, map = i => m === n ? i : Math.min(m - 1, Math.round(i * (m - 1) / Math.max(1, n - 1)));
   const speed = new Float32Array(n), off = new Float32Array(n);
   for (let i = 0; i < n; i++) { speed[i] = fix(v[map(i)] * 3.6, 10); off[i] = fix(rl.points[map(i)].d, 100); }

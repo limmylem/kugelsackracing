@@ -10,9 +10,15 @@
 //   lapTime(rl, v) → s     encodeOffsets(d) / decodeOffsets(str, n)
 
 const G = 9.81, RHO = 1.225;
-// (exact arithmetic only — + − × ÷ and square roots, the same bits in every browser — so a generated
-// track's dressing, sized from this speed plan, comes out the same everywhere: track/dress.js)
-const hyp = (x, z) => Math.sqrt(x * x + z * z), sq = x => x * x;
+// (a generated track's dressing is sized from this speed plan and must come out the same in every browser:
+// inside withExactMath(fn) only exact arithmetic is used — + − × ÷ and square roots — track/dress.js; elsewhere
+// the platform's own, as the routes and races were tuned with)
+let hyp = Math.hypot, sq = x => x ** 2;
+export function withExactMath(fn) {
+  const h = hyp, q = sq;
+  hyp = (x, z) => Math.sqrt(x * x + z * z); sq = x => x * x;
+  try { return fn(); } finally { hyp = h; sq = q; }
+}
 
 // the curvature at each point of a polyline (1/m, + left): from the turn between its neighbours `span` away
 function curvatures(pts, loop, span = 2) {
