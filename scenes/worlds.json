@@ -4,5 +4,6 @@
   {"id": "tests", "name": "Test centre", "icon": "⏱️", "file": "scenes/test_centre.json"},
   {"id": "rally", "name": "Rally stage", "icon": "🌲", "file": "scenes/rally.json"},
   {"id": "lab", "name": "Physics lab", "icon": "🧪", "file": "scenes/test_track.json"},
+  {"id": "track", "name": "Track", "icon": "🏎️", "track": true},
   {"id": "garage", "name": "Garage", "icon": "🔧", "garage": true}
 ]

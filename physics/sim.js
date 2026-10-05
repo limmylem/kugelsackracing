@@ -45,6 +45,11 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
       const t = s.terrain;
       world.createCollider(RAPIER.ColliderDesc.heightfield(t.n, t.n, t.heights, { x: t.size, y: 1, z: t.size }), ground).userData = { material: 'ground' };
       continue;
+    } else if (s.kind === 'trimesh') {
+      // (a generated track's road: drawn from the same arrays. Its triangles' edges smoothed over: a car's
+      // floor scraping the road at speed slides, rather than catching on the edge between two triangles)
+      world.createCollider(RAPIER.ColliderDesc.trimesh(s.positions, s.indices, RAPIER.TriMeshFlags?.FIX_INTERNAL_EDGES), ground).userData = { material: s.material ?? 'ground' };
+      continue;
     } else throw new Error(`unknown shape ${s.kind}`);
     const c = world.createCollider(desc.setTranslation(...s.centre).setRotation(s.rotation), ground);
     c.userData = { material: s.material ?? (s.tree ? 'wood' : s.ground ? 'ground' : 'concrete') };     // (what a crash into it sounds like)

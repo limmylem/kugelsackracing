@@ -94,9 +94,14 @@ import { drivability, ownedBySocket } from '../garage/repair.js';
 import { createHintCard } from './hintCard.js';
 import * as RW2 from './realWorld.js';
 import * as MapV3 from '../map/build/render/game.js';
+// generated tracks (Phase 5): a world of their own — world file 'track:<code>' (track/scene.js)
+import * as TrackScene from '../track/scene.js';
+import { loadTrack } from '../track/client.js';
+import { trackWorld } from '../track/build.js';
+import { trackMarkings } from '../track/render.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
-const rwOf = w => (w?.track?.mapV3 ? MapV3 : RW2);
-const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
+const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
+const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); TrackScene.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 // the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
@@ -283,16 +288,16 @@ function questGame(w) {
       let wantHold = false, detachers = [], spin = null;
       return {
         onStep: fn => { const d = w.sim.onStep(sim => fn(sim.time, sim.dt)); detachers.push(d); return d; },
-        place: pt => { MapV3.travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading }); },
+        place: pt => { rwOf(w).travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading }); },
         hold: () => { wantHold = true; },
         release: ({ speed = 0 } = {}) => {
-          wantHold = false; MapV3.releaseCar(w);
+          wantHold = false; rwOf(w).releaseCar(w);
           if (speed > 0) { const b = car().body, q = b.rotation(), fx = 2 * (q.x * q.z + q.w * q.y), fz = 1 - 2 * (q.x * q.x + q.y * q.y), m = Math.hypot(fx, fz) || 1; b.setLinvel({ x: fx / m * speed, y: 0, z: fz / m * speed }, true); spin = speed; }
         },
         resetTo: pt => {
           s.session.attach.reattachAll('reset', { kind: s.play.kind });
           car().parts.clear();
-          MapV3.travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading });
+          rwOf(w).travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading });
           w.rig.reset();
         },
         ready: () => !w.spawning,
@@ -303,8 +308,8 @@ function questGame(w) {
             drivable: drivableNow, condition: conditionNow, impulse: w.quests.takeHit() };
         },
         // each frame: the car held on its slot once it's down on the road
-        frame() { if (wantHold && !w.spawning && !w.pinned) MapV3.holdCar(w); },
-        dispose() { for (const d of detachers) d(); detachers = []; if (w.pinned) MapV3.releaseCar(w); },
+        frame() { if (wantHold && !w.spawning && !w.pinned) rwOf(w).holdCar(w); },
+        dispose() { for (const d of detachers) d(); detachers = []; if (w.pinned) rwOf(w).releaseCar(w); },
       };
     },
   };
@@ -591,7 +596,10 @@ function restartAudio() {
 async function buildWorld(file) {
   // (a baked region of the real world: scenes/map_v3.json?region=<id> — fast travel to its quests)
   const [path, query] = file.split('?'), region = new URLSearchParams(query ?? '').get('region');
-  const track = await (await fetch(path)).json();
+  // (a generated track: made, or from this browser's cache — track/client.js)
+  const trackData = path.startsWith('track:') ? await loadTrack({ code: path.slice(6) }, { onProgress: (step, share) => { shared.info.textContent = `Making the track… ${step} ${Math.round(share * 100)}%`; } }) : null;
+  if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); try { other.sim.vehicle.world.free(); } catch { /* gone */ } }     // (one generated track kept at a time)
+  const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
   if (track.streamed) await RW2.prepareTrack(track);
@@ -617,7 +625,19 @@ async function buildWorld(file) {
   const trees = [];
   for (const s of trackShapes(track)) {
     if (s.tree) { trees.push(s.tree); continue; }
-    if (s.kind === 'heightfield') { scene.add(terrainMesh(s.terrain, s.colour, track.terrain.rockColour)); continue; }
+    if (s.kind === 'heightfield') { scene.add(terrainMesh(s.terrain, s.colour, track.terrain?.rockColour ?? '#8a7d66')); continue; }
+    if (s.kind === 'trimesh') {
+      // (a generated track's road: the same arrays as its collider)
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(s.positions, 3));
+      if (s.colours) geo.setAttribute('color', new THREE.BufferAttribute(s.colours, 3, true));
+      geo.setIndex(new THREE.BufferAttribute(s.indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: !!s.colours, color: s.colours ? 0xffffff : 0x404246, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      continue;
+    }
     let geo;
     if (s.kind === 'box') geo = new THREE.BoxGeometry(s.halfExtents[0] * 2, s.halfExtents[1] * 2, s.halfExtents[2] * 2);
     else geo = new THREE.CapsuleGeometry(s.radius, s.halfHeight * 2, 6, 16);
@@ -678,6 +698,13 @@ async function buildWorld(file) {
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
   };
   if (track.streamed) await RW2.attachRealWorld(w, shared, { RAPIER });
+  if (trackData) {
+    TrackScene.attachTrackWorld(w, trackData, { THREE, RAPIER });
+    w.stream.world.add(trackMarkings(THREE, trackData));
+    const span = trackData.terrain.size;
+    w.camera.far = Math.max(2000, span * 1.2); w.camera.updateProjectionMatrix();
+    scene.fog.near = 600; scene.fog.far = Math.max(1600, span);
+  }
   if (track.mapV3) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
     // the world's published content: quest starts and the rest, in the world and on the maps

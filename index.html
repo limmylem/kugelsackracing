@@ -1819,8 +1819,13 @@ fetch('scenes/worlds.json').then(r => r.json()).then(list => {
   if (new URLSearchParams(location.search).get('map') === 'v2') list = list.map(w => w.id === 'real' ? { ...w, file: 'scenes/real_world.json', name: 'Real world (v2)' } : w);
   worldList = PHOTOREAL ? [...list, { id: 'photoreal', name: 'Photoreal (old)', icon: '🛰️' }] : list;
   drawWorldButtons();
-  if (!PHOTOREAL) switchWorld('real');
+  if (!PHOTOREAL) switchWorld(new URLSearchParams(location.search).has('track') ? 'track' : 'real');
 }).catch(() => { drawWorldButtons(); if (!PHOTOREAL) switchWorld('real'); });
+// The Track world (Phase 5): a generated track — ?track=<code>, else the last one made or opened on the
+// track generator page (dev/tracks.html keeps it), else a fast flowing circuit. Its own scene: no world
+// tiles load, and the real world waits where you left it
+const DEFAULT_TRACK = '04028-CG81C-D1K00-00R00-0001H-C';
+const trackCode = () => { const q = new URLSearchParams(location.search).get('track'); if (q) return q; try { return localStorage.getItem('driveWorld.track.code') || DEFAULT_TRACK; } catch { return DEFAULT_TRACK; } };
 // ---------- The world editor (F2): development builds and editor accounts (editor/access.js) ----------
 let editor = null, editorAllowed = false;
 import('./editor/access.js').then(m => { editorAllowed = m.editorAccess().allowed; drawWorldButtons(); }).catch(() => {});
@@ -1895,7 +1900,7 @@ async function switchWorld(id, nested = false) {
         leave: () => switchWorld(cameFrom && cameFrom !== 'garage' ? cameFrom : 'real'),
         testDrive: () => { switchWorld(worldList.find(w => w.file === 'scenes/test_centre.json')?.id ?? 'tests').then(() => { testDriving = true; $('backToGarage').hidden = false; }); },
       });
-    } else if (!target.file) {
+    } else if (!target.file && !target.track) {
       test.exit();
       window.testTrackActive = false;
       document.body.classList.remove('test-mode');
@@ -1905,7 +1910,7 @@ async function switchWorld(id, nested = false) {
       for (const k in keys) keys[k] = false;
       if (viewer) viewer.useDefaultRenderLoop = false; // pause the real world while away
       document.body.classList.add('test-mode');
-      await test.enter(target.file);
+      await test.enter(target.track ? `track:${trackCode()}` : target.file);
     }
     currentWorld = id;
     $('backToGarage').hidden = !testDriving;

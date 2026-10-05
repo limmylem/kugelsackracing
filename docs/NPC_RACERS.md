@@ -256,11 +256,13 @@ colliders) that sweep was 5 ms a step on its own; an 8-car race is now 1.2–3.1
 - **Passing:** every route at low, medium and high skill finishes cleanly; fairness (speed, cornering,
   braking within the car's physics); the skill spread (low about 8% slower than high over the routes,
   medium about 2.5%: on the config's targets, though on Monaco and Tokyo the levels are close); 8-car
-  races on Tokyo, Munich and San Francisco with no one stuck or off the road; the finishing order
+  races on Tokyo, Munich, San Francisco and Milton Keynes with no one stuck or off the road; the finishing order
   changes with the seed; the same seed gives the same race; an 8-car race within the frame budget with
   the detail switches unseen; 100 races without memory growth.
-- **8-car races on Monaco, Stelvio and Milton Keynes:** every car finishes, but with stuck-and-reset
-  incidents (3, 9 and 1 in the test's race), where the test wants none, and some moments off the road.
+- **8-car races on Monaco and Stelvio:** every car finishes, but with stuck-and-reset incidents (3 and
+  10 in the test's race), where the test wants none, and some moments off the road. (Milton Keynes now
+  passes: an NPC coming back from the cheap run is put down at its ride height, not dropped from 35 cm —
+  a drop at speed bottomed its suspension and the floor caught the road.)
   Most are at spots where the baked world is not what the road is, or where it has no barrier:
   - **Monaco 450–470 m:** the route goes down a ramp beside a road that stays level; the bake leaves the
     level road's surface up to 1.3 m above the ramp inside the ramp's mapped width, so the drivable

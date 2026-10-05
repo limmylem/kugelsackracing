@@ -9,11 +9,16 @@
 // No rendering library; the same numbers come out in the page, a Web Worker or on a server.
 
 import { add, rotate, quatFromAxisAngle, quatFromEulerDeg, quatMultiply, scale } from './math.js';
-import { carveRoads, makeTerrain } from './terrain.js';
+import { carveRoads, makeTerrain, terrainFromHeights } from './terrain.js';
 
 const ROAD_STEP = 2;   // m between centre-line points used for carving and placing things on roads
 const cache = new WeakMap(), lines = new WeakMap();
 export function terrainOf(track) {
+  // (a generated track's ground: its height grid, made by track/build.js)
+  if (track.generated?.terrain) {
+    if (!cache.has(track)) { const T = track.generated.terrain; cache.set(track, terrainFromHeights(T.n, T.size, T.heights)); }
+    return cache.get(track);
+  }
   if (!track.terrain) return null;
   if (!cache.has(track)) {
     const t = makeTerrain(track.terrain);
@@ -101,7 +106,12 @@ export function trackShapes(track) {
   const shapes = [], g = track.ground, terrain = terrainOf(track);
   const top = g?.top ?? 0, th = g?.thickness, flat = { x: 0, y: 0, z: 0, w: 1 };
   const groundBox = (cx, cz, hx, hz) => shapes.push({ kind: 'box', name: 'ground', centre: [cx, top - th / 2, cz], halfExtents: [hx, th / 2, hz], rotation: flat, colour: g.colour, ground: true });
-  if (!g) { /* no fixed ground: the world streams its own (the real world) */ }
+  if (track.generated) {
+    // a generated track (track/build.js): its ground and its road — the very arrays it's drawn from
+    const G = track.generated;
+    shapes.push({ kind: 'heightfield', name: 'terrain', terrain, colour: G.colours?.ground ?? '#6f8a55' });
+    shapes.push({ kind: 'trimesh', name: 'road', positions: G.road.positions, indices: G.road.indices, colours: G.road.colours, ground: true, material: 'ground' });
+  } else if (!g) { /* no fixed ground: the world streams its own (the real world) */ }
   else if (!terrain) groundBox(0, 0, g.size[0] / 2, g.size[1] / 2);
   else {
     // Flat ground only *around* the terrain (a slab underneath would poke up through its valleys)
@@ -209,6 +219,17 @@ function buildSurfaceMap(track) {
           const dx = cellCentre(x) - px, dz = cellCentre(z) - pz, u = dx * Math.cos(h) - dz * Math.sin(h), w = dx * Math.sin(h) + dz * Math.cos(h);
           if (Math.abs(u) <= hx && Math.abs(w) <= hz) paint(cellCentre(x), cellCentre(z), id);
         }
+    }
+  }
+  // painted along a line: [{ surface, points: [x, z, …] (flat), half (m either side of it) }] (a generated
+  // track's road and verges, widest first so the road paints over its verges)
+  for (const pl of track.paintLines || []) {
+    const id = list.push({ name: pl.surface, ...S[pl.surface] }) - 1, r = pl.half, P = pl.points;
+    for (let k = 0; k + 1 < P.length; k += 2) {
+      const px = P[k], pz = P[k + 1];
+      for (let x = Math.floor((px - r) / res); x <= Math.floor((px + r) / res); x++)
+        for (let z = Math.floor((pz - r) / res); z <= Math.floor((pz + r) / res); z++)
+          if (Math.hypot(cellCentre(x) - px, cellCentre(z) - pz) <= r) paint(cellCentre(x), cellCentre(z), id);
     }
   }
   for (const road of track.roads || []) {

@@ -1,0 +1,174 @@
+{
+ "_note": "Generator version 1's tracks as they were made when it was released (Phase 5 Step 1): each code must always make this exact track (its hash). Never regenerate this file: if a code stops matching, version 1 has changed — put it back, and make the change a new version (track/gen/v2.js).",
+ "version": 1,
+ "tracks": [
+  {
+   "preset": "short_technical",
+   "seed": 0,
+   "code": "04114-6G91G-B0S00-00000-00000-W",
+   "hash": "e9365cf2",
+   "length": 2041.002,
+   "attempts": 4
+  },
+  {
+   "preset": "short_technical",
+   "seed": 7,
+   "code": "04114-6G91G-B0S00-00000-0007R-G",
+   "hash": "1dd5bdc9",
+   "length": 2110.905,
+   "attempts": 4
+  },
+  {
+   "preset": "short_technical",
+   "seed": 2026,
+   "code": "04114-6G91G-B0S00-00000-01ZAT-R",
+   "hash": "a5bbdd58",
+   "length": 2019.944,
+   "attempts": 3
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 0,
+   "code": "04028-CG81C-D1K00-00R00-00006-8",
+   "hash": "0d1f1a96",
+   "length": 3905.888,
+   "attempts": 1
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 7,
+   "code": "04028-CG81C-D1K00-00R00-0007V-4",
+   "hash": "d0ad8012",
+   "length": 3934.105,
+   "attempts": 1
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 2026,
+   "code": "04028-CG81C-D1K00-00R00-01ZAQ-C",
+   "hash": "d3ea0bfc",
+   "length": 4164.611,
+   "attempts": 1
+  },
+  {
+   "preset": "high_speed",
+   "seed": 0,
+   "code": "0422G-E0614-E0Z00-01000-00007-R",
+   "hash": "3cb774ea",
+   "length": 4717.202,
+   "attempts": 2
+  },
+  {
+   "preset": "high_speed",
+   "seed": 7,
+   "code": "0422G-E0614-E0Z00-01000-0007N-M",
+   "hash": "487bfee9",
+   "length": 5085.371,
+   "attempts": 3
+  },
+  {
+   "preset": "high_speed",
+   "seed": 2026,
+   "code": "0422G-E0614-E0Z00-01000-01ZAD-W",
+   "hash": "9e210a27",
+   "length": 4093.838,
+   "attempts": 1
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 0,
+   "code": "0432C-D0B1W-D1X00-00G00-0000B-R",
+   "hash": "8f5a8f3d",
+   "length": 3865.212,
+   "attempts": 2
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 7,
+   "code": "0432C-D0B1W-D1X00-00G00-0007S-M",
+   "hash": "b7949a4b",
+   "length": 4085.967,
+   "attempts": 1
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 2026,
+   "code": "0432C-D0B1W-D1X00-00G00-01ZA9-W",
+   "hash": "6963d87a",
+   "length": 3921.997,
+   "attempts": 13
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 0,
+   "code": "0430W-5G614-A0H00-00000-0000V-W",
+   "hash": "dc1493da",
+   "length": 2177.099,
+   "attempts": 2
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 7,
+   "code": "0430W-5G614-A0H00-00000-0007K-G",
+   "hash": "d2169ec5",
+   "length": 2121.206,
+   "attempts": 4
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 2026,
+   "code": "0430W-5G614-A0H00-00000-01ZAZ-R",
+   "hash": "83932f50",
+   "length": 1568.334,
+   "attempts": 23
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 0,
+   "code": "045HR-AGC28-82H05-00000-00006-4",
+   "hash": "1d6adc3c",
+   "length": 3537.809,
+   "attempts": 4
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 7,
+   "code": "045HR-AGC28-82H05-00000-0007H-8",
+   "hash": "07d59769",
+   "length": 2831.25,
+   "attempts": 3
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 2026,
+   "code": "045HR-AGC28-82H05-00000-01ZA8-0",
+   "hash": "56c07469",
+   "length": 4198.898,
+   "attempts": 4
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 0,
+   "code": "044HW-CG91M-91X00-M0C00-0000T-G",
+   "hash": "f129baa0",
+   "length": 4728.116,
+   "attempts": 1
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 7,
+   "code": "044HW-CG91M-91X00-M0C00-00072-W",
+   "hash": "c8b7163a",
+   "length": 3065.632,
+   "attempts": 1
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 2026,
+   "code": "044HW-CG91M-91X00-M0C00-01ZAQ-M",
+   "hash": "7fac571b",
+   "length": 4089.838,
+   "attempts": 1
+  }
+ ]
+}

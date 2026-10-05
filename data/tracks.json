@@ -1,0 +1,201 @@
+{
+  "_note": "Generated race tracks (Phase 5: track/). A track is its seed + its parameters + the generator's version: the same three always make the same track (track/generate.js). presets: what the track generator page and the Track scene offer. How each style builds its layout and the limits every track keeps to (the tightest corner, run-off, gradients, banking…) belong to a generator version and never change with it: track/gen/v1.js STYLES and LIMITS. build: the road and ground made from a track (track/build.js; not part of a track's identity). surfaces: the road, its verges and the ground round it (as Map v3's: the tyres and the effects).",
+  "version": 1,
+  "params": {
+    "_note": "type: circuit (a closed loop) or p2p (a sprint or hillclimb). lengthKm: [min, max]. corners: [min, max] corner groups (a chicane or esses count as one). style: flowing, technical, fast or mixed. width: m. elevation: m from the lowest point to the highest. climb (p2p): m from start to finish (negative: downhill). banking: the most banking in fast corners, degrees (0: none). crests: sharper rises and dips allowed. bridges: the track may cross itself on a bridge (not yet built: always false).",
+    "type": [
+      "circuit",
+      "p2p"
+    ],
+    "style": [
+      "flowing",
+      "technical",
+      "fast",
+      "mixed"
+    ]
+  },
+  "presets": [
+    {
+      "id": "short_technical",
+      "name": "Short technical circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          1.8,
+          2.6
+        ],
+        "corners": [
+          9,
+          12
+        ],
+        "style": "technical",
+        "width": 11,
+        "elevation": 12,
+        "banking": 0,
+        "crests": false
+      }
+    },
+    {
+      "id": "fast_flowing",
+      "name": "Fast flowing circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          3.6,
+          5
+        ],
+        "corners": [
+          8,
+          11
+        ],
+        "style": "flowing",
+        "width": 13,
+        "elevation": 25,
+        "banking": 6,
+        "crests": false
+      }
+    },
+    {
+      "id": "high_speed",
+      "name": "High-speed circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          4,
+          5.6
+        ],
+        "corners": [
+          6,
+          9
+        ],
+        "style": "fast",
+        "width": 14,
+        "elevation": 15,
+        "banking": 8,
+        "crests": false
+      }
+    },
+    {
+      "id": "mixed_gp",
+      "name": "Grand prix circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          3.8,
+          5.2
+        ],
+        "corners": [
+          11,
+          15
+        ],
+        "style": "mixed",
+        "width": 13,
+        "elevation": 30,
+        "banking": 4,
+        "crests": false
+      }
+    },
+    {
+      "id": "club_circuit",
+      "name": "Club circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          1.4,
+          2.2
+        ],
+        "corners": [
+          6,
+          9
+        ],
+        "style": "mixed",
+        "width": 10,
+        "elevation": 8,
+        "banking": 0,
+        "crests": false
+      }
+    },
+    {
+      "id": "mountain_hillclimb",
+      "name": "Mountain hillclimb",
+      "params": {
+        "type": "p2p",
+        "lengthKm": [
+          2.8,
+          4.2
+        ],
+        "corners": [
+          12,
+          18
+        ],
+        "style": "technical",
+        "width": 8,
+        "elevation": 40,
+        "climb": 160,
+        "banking": 0,
+        "crests": true
+      }
+    },
+    {
+      "id": "coastal_sprint",
+      "name": "Coastal sprint",
+      "params": {
+        "type": "p2p",
+        "lengthKm": [
+          3,
+          5
+        ],
+        "corners": [
+          9,
+          13
+        ],
+        "style": "flowing",
+        "width": 9,
+        "elevation": 30,
+        "climb": 20,
+        "banking": 3,
+        "crests": true
+      }
+    }
+  ],
+  "build": {
+    "_note": "The road and the ground (track/build.js). step: m between cross-sections of the road mesh. verge: m of flat run-off either side, the same height as the road's edge, left for kerbs and barriers (Phase 5 Step 2). margin: m of ground round the track. cell: the ground grid's spacing (m, at least; bigger tracks: bigger cells, at most maxCells across). blend: m over which the ground meets the land round it.",
+    "step": 2,
+    "verge": 5,
+    "margin": 260,
+    "cell": 4,
+    "maxCells": 420,
+    "blend": 55
+  },
+  "surfaces": {
+    "tarmac": {
+      "grip": 1,
+      "rollingResistance": 0.012,
+      "sound": "tarmac"
+    },
+    "verge": {
+      "grip": 0.85,
+      "rollingResistance": 0.02,
+      "sound": "tarmac",
+      "marks": "#3b3b3b"
+    },
+    "grass": {
+      "grip": 0.72,
+      "rollingResistance": 0.04,
+      "effects": {
+        "dust": {
+          "colour": "#7d7a55",
+          "perSpeed": 0.25,
+          "perSlip": 3,
+          "alpha": 0.55
+        },
+        "clippings": {
+          "colour": "#5c8a33",
+          "rate": 50
+        }
+      },
+      "marks": "#3f4b2c",
+      "sound": "gravel"
+    }
+  }
+}

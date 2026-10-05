@@ -27,13 +27,25 @@
 </head>
 <body>
 <script type="module">
-  import { enter, debug, hooks } from './testtrack/test-scene.js';
+  import { enter, debug, hooks, testDriveRoute } from './testtrack/test-scene.js';
   const q = new URLSearchParams(location.search);
   if (q.get('hud') === '0') document.body.classList.add('nohud');
   window.testWorld = debug;
   // (a tow: to the development garage, open on the damage report)
   hooks.toGarage = () => { location.href = 'dev/garage.html?tab=damage'; };
-  await enter(`scenes/${q.get('world') ?? 'test_centre'}.json`);
+  // a generated track (Phase 5): ?world=track&code=<track code>; &drive=1 starts the route test drive on
+  // it (countdown, checkpoints, timing, resets — the editor's, Phase 4 Step 2); &laps=N; F2 ends it
+  if (q.get('world') === 'track') {
+    const code = q.get('code');
+    await enter(`track:${code}`);
+    if (q.get('drive') === '1') {
+      const { viewCourse } = await import('./route/model.js'), { trackProjection } = await import('./track/build.js');
+      const course = debug.active.trackData.course, laps = +(q.get('laps') ?? 1);
+      const drive = () => testDriveRoute({ compiled: viewCourse(course, trackProjection), item: { course }, laps, autopilot: q.has('autopilot'), onDone: r => { window.__trackDrive = r; if (q.get('again') !== '0') setTimeout(drive, 1500); } });
+      window.__trackDrive = null;
+      drive();
+    }
+  } else await enter(`scenes/${q.get('world') ?? 'test_centre'}.json`);
 </script>
 </body>
 </html>

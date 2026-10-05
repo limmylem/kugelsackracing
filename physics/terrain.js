@@ -24,6 +24,13 @@ export function makeTerrain(t) {
   const heights = new Float32Array((n + 1) * (n + 1));
   for (let col = 0; col <= n; col++)
     for (let row = 0; row <= n; row++) heights[row + col * (n + 1)] = shape(-half + col * cell, -half + row * cell);
+  return terrainFromHeights(n, size, heights);
+}
+
+// A terrain from a height grid made elsewhere (a generated track's ground: track/build.js), laid out as
+// above: (n + 1)² heights, column-major, size m square, centred on the origin
+export function terrainFromHeights(n, size, heights) {
+  const cell = size / n, half = size / 2;
   const at = (col, row) => heights[row + col * (n + 1)];
 
   // Height of the (triangulated) ground at any point — what the car's wheels actually touch

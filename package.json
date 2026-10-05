@@ -42,7 +42,9 @@
     "economy-sim": "node tools/economy-sim.mjs",
     "validate-content": "node tools/validate-content.mjs",
     "stress:quests": "node --expose-gc --max-old-space-size=8192 tests/quest-stress.mjs",
-    "test:newplayer": "node --expose-gc --max-old-space-size=8192 tests/map/newplayer.test.ts"
+    "test:newplayer": "node --expose-gc --max-old-space-size=8192 tests/map/newplayer.test.ts",
+    "test:tracks": "node tests/tracks.mjs",
+    "test:track-drive": "node --expose-gc --max-old-space-size=8192 tests/track-drive.ts"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

@@ -83,6 +83,30 @@ Also:
 - **The finder** works on every quest in every region on the main thread; a server should answer its
   filters and "Recommended" (Phase 6).
 
+### Generated tracks (Phase 5 Step 1, docs/TRACKS.md)
+
+- **Phase 1's lap robot weaves on high-speed generated circuits**: its steering was tuned on the test
+  centre's circuit and oscillates in 130–150 km/h sweepers until it spins (with or without banking). The
+  route test driver and the Phase 4 AI drive those tracks cleanly, so `npm run test:track-drive` runs the
+  Phase 1 tests on a grand prix circuit; the robot's controller needs a look before it laps fast tracks.
+- **Cross-browser determinism was checked in Chromium only** (210 of 210 hashes identical to Node's).
+  Firefox and Safari weren't available here: open `dev/tracks.html?determinism=30` in each and compare.
+- **One generated track's world is kept at a time**: opening another frees the last (its build stays in
+  the cache, so going back takes tens of milliseconds plus the colliders).
+- **No bridges or crossings**: a track never comes near itself (figure-of-eight layouts are rejected).
+- **No world edge**: the ground stops 260 m beyond the track and there's no wall at its edge yet; a
+  car driven that far falls off (a reset, R, puts it back on the road). Step 2's barriers will keep cars in.
+- **8-car NPC races on generated tracks**: in `npm run test:track-drive`'s ten races every car finishes,
+  but one NPC (in one race, on a fast flowing circuit) is stuck-and-reset after contact in the pack — the
+  Phase 4 AI's racing in traffic (docs/NPC_RACERS.md's known limits), where the test wants none.
+- **Cars have no bump stops** (Phase 1's suspension stops at its travel and pushes no harder): braking
+  hard from 170 km/h or more, with the aero load on top, the front bottoms out and the floor touches the
+  road. On a generated track the road's collider has its internal edges smoothed, so it scrapes and
+  slides; on the baked real-world roads a floor can still catch on a triangle edge (one cause of NPCs
+  spinning at speed). A progressive bump stop in the car model is the lasting fix.
+- **Hillclimbs' land can be steep** beside the road where the road cuts across a slope: the ground blends
+  to the road's height over 55 m, which on a big climb makes banks steeper than real land.
+
 ### Smaller things
 
 - **A forced finish in a test** (`session.finish` outside a physics tick) needs the controller to drain

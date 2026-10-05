@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- (data loads relative to the project's root, like index.html) -->
+<base href="../">
+<title>Track generator</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<link rel="stylesheet" href="ui/theme.css">
+<style>
+  /* The track generator's test page (Phase 5 Step 1): pick a preset or set the parameters, a seed, and
+     generate — a top-down map, the elevation profile and the stats; Random seed, Copy track code, Fly
+     camera and Test drive. dev/tracks.html?code=<track code> opens one; ?determinism=200 prints hashes
+     of 200 seeds of every preset (the cross-browser check: tests/tracks/README in docs/TRACKS.md). */
+  html, body { margin: 0; height: 100%; background: #0b0e11; color: #e9ecef; font: 13px/1.45 Barlow, system-ui, sans-serif; }
+  #app { display: grid; grid-template-columns: 320px 1fr; height: 100%; }
+  #side { padding: 14px 16px; overflow: auto; border-right: 1px solid #242b33; background: #0e1114; }
+  h1 { font: 700 20px Barlow, system-ui, sans-serif; margin: 0 0 10px; }
+  h3 { margin: 14px 0 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #a3abb5; }
+  label { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 6px; margin: 4px 0; }
+  input, select { font: 13px Barlow, system-ui, sans-serif; background: #0b0e11; color: #e9ecef; border: 1px solid #333c46; border-radius: 6px; padding: 4px 6px; min-width: 0; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  button { font: 600 13px Barlow, system-ui, sans-serif; color: #e9ecef; background: #1b2127; border: 1px solid #333c46; border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+  button.primary { background: #36b3f5; color: #04121b; border-color: #36b3f5; }
+  button:disabled { opacity: .45; cursor: default; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  #code { font: 600 13px "JetBrains Mono", monospace; width: 100%; box-sizing: border-box; }
+  #main { display: grid; grid-template-rows: 1fr 170px auto; min-height: 0; }
+  #view { position: relative; min-height: 0; }
+  #map, #fly { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #profile { width: 100%; height: 170px; display: block; border-top: 1px solid #242b33; }
+  #stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 14px; padding: 8px 14px; border-top: 1px solid #242b33; font: 12px "JetBrains Mono", monospace; }
+  #stats b { color: #a3abb5; font-weight: 500; display: block; font: 10px Barlow, system-ui, sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+  #progress { height: 4px; background: #242b33; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  #progress i { display: block; height: 100%; width: 0; background: #36b3f5; transition: width .15s; }
+  #status { font-size: 12px; color: #a3abb5; min-height: 2.6em; }
+  #attempts { font-size: 11px; color: #a3abb5; max-height: 130px; overflow: auto; }
+  #legend { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: #a3abb5; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <h1>Track generator</h1>
+    <label>Preset <select id="preset"></select></label>
+    <label>Seed <input id="seed" value="1"></label>
+    <h3>Parameters</h3>
+    <label>Type <select id="type"><option value="circuit">Circuit (closed loop)</option><option value="p2p">Point to point</option></select></label>
+    <label>Style <select id="style"><option>flowing</option><option>technical</option><option>fast</option><option>mixed</option></select></label>
+    <label>Length (km) <span class="pair"><input id="l0" type="number" step="0.1"><input id="l1" type="number" step="0.1"></span></label>
+    <label>Corners <span class="pair"><input id="c0" type="number"><input id="c1" type="number"></span></label>
+    <label>Width (m) <input id="width" type="number" step="0.5"></label>
+    <label>Elevation (m) <input id="elevation" type="number"></label>
+    <label>Climb (m) <input id="climb" type="number" title="point to point: start to finish (negative: downhill)"></label>
+    <label>Banking (°) <input id="banking" type="number"></label>
+    <label>Crests <input id="crests" type="checkbox" style="justify-self:start"></label>
+    <div class="buttons"><button class="primary" id="go">Generate</button><button id="random">Random seed</button></div>
+    <h3>Track code</h3>
+    <input id="code" placeholder="paste a code and press Enter">
+    <div class="buttons"><button id="copy" disabled>Copy track code</button><button id="flyBtn" disabled>Fly camera</button><button id="drive" disabled>Test drive</button></div>
+    <div id="progress"><i></i></div>
+    <div id="status"></div>
+    <h3>Attempts</h3>
+    <div id="attempts"></div>
+  </div>
+  <div id="main">
+    <div id="view"><canvas id="map"></canvas><canvas id="fly" hidden></canvas><div id="legend">colour: corner tightness (blue: straight · red: tightest) · ▲ start · ● checkpoints</div></div>
+    <canvas id="profile"></canvas>
+    <div id="stats"></div>
+  </div>
+</div>
+<script type="module" src="dev/tracks.js"></script>
+</body>
+</html>

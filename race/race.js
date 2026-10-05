@@ -90,7 +90,9 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   function placeOnGround(r, x, z, heading, speed) {
     const v = r.car.vehicle, [sx, sz] = frame.toSim(x, z);
     const y = groundHeight(v, sx, sz) ?? 0;
-    v.reset({ position: [sx, y + 0.35, sz], headingDeg: heading, speed });
+    // (put down moving — back from the cheap run — at its ride height, not dropped: a drop at speed
+    // bottoms the suspension and the floor catches the road, spinning it)
+    v.reset({ position: [sx, y + (speed > 1 ? 0.05 : 0.35), sz], headingDeg: heading, speed });
   }
   const posOf = r => {
     if (r.player) { const b = sim.vehicle.body, p = b.translation(), l = b.linvel(); const [x, z] = frame.toWorld(p.x, p.z); return { x, z, vx: l.x, vz: l.z }; }

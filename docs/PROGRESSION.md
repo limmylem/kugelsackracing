@@ -4,7 +4,7 @@ How quests are made quickly, what they pay and why, how players move up through 
 and how all of that is checked: the balance simulation, the stress tests and the new player's end-to-end
 test. The run itself (the quest session, timing, the HUD, results, validation) is [QUESTS.md](QUESTS.md);
 drawing routes is [ROUTES.md](ROUTES.md); the editor and the content service are
-[WORLD_CONTENT.md](WORLD_CONTENT.md). What still needs work: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+[WORLD_CONTENT.md](WORLD_CONTENT.md); generated race tracks are [TRACKS.md](TRACKS.md). What still needs work: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Making quests, series and routes (the editor, F2)
 

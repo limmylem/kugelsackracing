@@ -58,6 +58,10 @@ jobs:
         run: npm run stress:quests
       - name: A new player end to end (find, race NPCs, crash, repair, earn, buy a part, a series, the next tier)
         run: npm run test:newplayer
+      - name: Generated tracks (1,000 seeds twice, 10,000 seeds checked, every version's pinned tracks)
+        run: npm run test:tracks
+      - name: Generated tracks driven (Phase 1 physics tests, 100 tracks by the test driver and the AI, 8-car races)
+        run: npm run test:track-drive
       - name: NPC racers on real roads (every route at three skills, skill spread, fairness, 8-car races, determinism, budget, 100 races)
         # (known failures — the skill spread, and stuck-and-reset incidents in 8-car races at baked-world
         # spots: docs/NPC_RACERS.md "Known limits". Reported, not yet blocking.)
