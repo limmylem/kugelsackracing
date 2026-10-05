@@ -257,7 +257,7 @@
         }
       },
       "marks": "#3f4b2c",
-      "sound": "gravel"
+      "sound": "grass"
     },
     "_note": "What the tyres drive on (physics/vehicle.js): grip, rollingResistance (also what a car must push past to move off: in a gravel trap more than its tyres can, so a car that stops there is beached), plough (a gravel trap's drag on a wheel ploughing through it, a share of its load: physics/vehicle.js), marks (skid marks), sound, effects (what tyres throw up), rumble (a kerb's: the sound's rattle).",
     "kerb": {
@@ -1022,7 +1022,22 @@
     "loadSeconds": 3,
     "cachedMs": 400,
     "drawCalls": 160,
-    "physicsMs8Cars": 6
+    "physicsMs8Cars": 6,
+    "detail": {
+      "_note": "The track detail setting (Phase 5 Step 4: the player's, in the settings — track/renderDress.js dressMeshes detail, testtrack/test-scene.js): scenery — the share of trees and rocks drawn; treeNear — metres within which trees are drawn in full; spectators — the grandstands' crowd; shadows — whether the dressing casts them, and the sun's shadow map (0: none); pixelRatio — the most of the screen's own. Its targets (tests/track-perf.ts, the browser's track perf check): loadSeconds — each of 50 tracks in a row made, built and drawn; memoryGrowthMb — the heap from the 10th load to the 50th; cpuFrameMs — the CPU's share of a frame in an 8-car race on the busiest theme (physics, the dressing's updates, the replay's recording: tests/track-perf.ts); frameMs — the whole frame there, the 95th percentile, in a browser (tools/track-perf-browser.mjs); drawCalls — the dressed world.",
+      "default": "high",
+      "levels": {
+        "low": { "scenery": 0.35, "treeNear": 140, "spectators": "off", "shadows": false, "shadowMap": 0, "pixelRatio": 1 },
+        "medium": { "scenery": 0.7, "treeNear": 220, "spectators": "low", "shadows": true, "shadowMap": 1024, "pixelRatio": 1.25 },
+        "high": { "scenery": 1, "treeNear": 320, "spectators": "high", "shadows": true, "shadowMap": 2048, "pixelRatio": 2 }
+      },
+      "targets": {
+        "low": { "loadSeconds": 3, "cpuFrameMs": 8, "frameMs": 22, "drawCalls": 120 },
+        "medium": { "loadSeconds": 3, "cpuFrameMs": 9, "frameMs": 28, "drawCalls": 150 },
+        "high": { "loadSeconds": 3, "cpuFrameMs": 10, "frameMs": 33, "drawCalls": 170 },
+        "memoryGrowthMb": 40
+      }
+    }
   },
   "conditions": {
     "_note": "Time of day and weather (Phase 5 Step 4: track/renderDress.js themeEnvironment, track/weather.js). A track event's conditions (quest conditions.timeOfDay / weather; 'any': its theme's) or the theme's own. times: each time of day's hour (effects/lighting.js lightAt) and warmth (the sky's and sun's tint toward gold); a quest's dawn / day / dusk / night: event (day: the theme's own if it's daytime). weather: sunScale (the sun's strength), grey (the sky toward grey), fogScale (the fog's distances), rain (streaks: drops a second near the camera), wet (the road darker and shinier) and grip (the tyres' grip on a wet road: used only if applyGrip — the hook for when the weather system changes grip; until then it's how it looks). floodlit: a circuit at night (or dusk) lit by floodlights — the light towers lit, masts at the marshal posts where a theme has no towers, and the lighting's own: the ambient light's colour and strength and a key light from above.",

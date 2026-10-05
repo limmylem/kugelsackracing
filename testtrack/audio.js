@@ -19,7 +19,8 @@
 // and lights break with their own sounds.
 //
 // Tyres: band-passed noise plus a faint wavering screech, louder the faster the tyres slide; on
-// gravel a crunch of stones (random clicks through a band-pass) that speeds up with the car.
+// gravel a crunch of stones (random clicks through a band-pass) that speeds up with the car; on grass a
+// soft swish; across a kerb a rumble at the rate its stripes go by (soundMix.js tyreMix).
 //
 // Mechanical damage (data/sounds/mechanical.json, physics/mechanical.js; made as it plays): a boost
 // leak hisses more the more boost there is; a soft or flat tyre flaps once a turn (flat, its rim scrapes:
@@ -38,7 +39,7 @@ export function createAudio(spec) {
   master.connect(ctx.destination);
   const engine = engineSound(ctx, master, spec), turbo = turboWhistle(ctx, master), crash = crashSounds(ctx, master), mech = mechanicalSounds(ctx, master, engine.tap), wind = windNoise(ctx, master);
   return {
-    ctx, master, engine, turbo, crash, mech, wind, squeal: tyreSqueal(ctx, master), gravel: gravelCrunch(ctx, master),
+    ctx, master, engine, turbo, crash, mech, wind, squeal: tyreSqueal(ctx, master), gravel: gravelCrunch(ctx, master), tyres: tyreSurfaces(ctx, master),
     // s: the vehicle's snapshot, each frame; extra: { exhaust (0..1: the exhaust loose or torn off),
     // inside (a cockpit or bonnet camera), steam (0..1: steam from the engine bay, effects/director.js) }
     update(s, dt, extra = {}) {
@@ -272,6 +273,27 @@ function gravelCrunch(ctx, out) {
       level.gain.setTargetAtTime(amount * 0.35, t, 0.05);
       src.playbackRate.setTargetAtTime(0.7 + Math.min(1.2, speed / 25), t, 0.1);
       band.frequency.setTargetAtTime(600 + Math.min(900, speed * 25), t, 0.1);
+    },
+  };
+}
+
+// Grass and kerbs (Phase 5 Step 4): a soft swish of low noise on grass; a kerb's rumble, a square wave at
+// the rate its stripes pass, low-passed to a buzz you feel more than hear
+function tyreSurfaces(ctx, out) {
+  const sr = ctx.sampleRate, buf = ctx.createBuffer(1, sr * 2, sr), d = buf.getChannelData(0);
+  let pink = 0;
+  for (let i = 0; i < d.length; i++) { pink = pink * 0.9 + (Math.random() * 2 - 1) * 0.1; d[i] = pink * 4; }
+  const swish = new AudioBufferSourceNode(ctx, { buffer: buf, loop: true }), swishBand = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 700, Q: 0.5 }), swishLevel = new GainNode(ctx, { gain: 0 });
+  swish.connect(swishBand).connect(swishLevel).connect(out);
+  const buzz = new OscillatorNode(ctx, { type: 'square', frequency: 20 }), buzzLow = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 240, Q: 1.2 }), buzzLevel = new GainNode(ctx, { gain: 0 });
+  buzz.connect(buzzLow).connect(buzzLevel).connect(out);
+  swish.start(); buzz.start();
+  return {
+    set(m) {
+      const t = ctx.currentTime;
+      swishLevel.gain.setTargetAtTime(finite(m.grass, 0) * 0.28, t, 0.06);
+      buzzLevel.gain.setTargetAtTime(finite(m.rumble, 0) * 0.22, t, 0.03);
+      buzz.frequency.setTargetAtTime(Math.max(6, finite(m.rumbleRate, 20)), t, 0.05);
     },
   };
 }

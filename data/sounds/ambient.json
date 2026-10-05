@@ -1,0 +1,13 @@
+{
+  "_note": "A generated track's ambience (Phase 5 Step 4: testtrack/trackAudio.js, the mix testtrack/soundMix.js ambienceMix): each theme's layers 0–1 (birds: chirps now and then; wind: gusting noise; sea: waves breaking on a slow swell; city: traffic's low rumble and a distant horn), all quieter the faster you go and inside the car (inside); the crowd: its murmur at level up to near metres from a grandstand, fading out by far, and its cheer (overtakes, crashes) up to cheer.",
+  "inside": 0.45,
+  "themes": {
+    "countryside": { "birds": 0.7, "wind": 0.25, "sea": 0, "city": 0 },
+    "forest": { "birds": 1, "wind": 0.35, "sea": 0, "city": 0 },
+    "desert": { "birds": 0.1, "wind": 0.8, "sea": 0, "city": 0 },
+    "coastal": { "birds": 0.3, "wind": 0.45, "sea": 0.9, "city": 0 },
+    "mountain": { "birds": 0.25, "wind": 1, "sea": 0, "city": 0 },
+    "street": { "birds": 0.1, "wind": 0.1, "sea": 0, "city": 0.9 }
+  },
+  "crowd": { "level": 0.55, "near": 25, "far": 280, "cheer": 0.9, "cheerFade": 2.2, "overtake": 0.55, "crash": 0.9 }
+}

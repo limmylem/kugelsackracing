@@ -2,6 +2,9 @@
 
 > **Racing them (Phase 5 Step 3):** race venues, track events, the daily and weekly tracks, the track
 > library, reference times, records and rewards, and the multiplayer hash are in [TRACK_EVENTS.md](TRACK_EVENTS.md).
+> **Variety, quality and polish (Phase 5 Step 4):** generator version 3, signature features, the quality
+> score and its gates, the variety and problem-seed reports, names, conditions, TV cameras and replays,
+> sound, detail levels, and how to add a theme or a track element are in [TRACK_GENERATOR.md](TRACK_GENERATOR.md).
 
 Race tracks made from a seed, in a scene of their own: not part of the real world's streaming (no
 tiles load), with the same car, physics, damage and HUD. A track is its **seed + parameters +

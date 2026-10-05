@@ -100,6 +100,8 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
         <h3>Effects <small>. opens the effects panel</small></h3>
         <label class="slider">quality <select data-str="effects">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.effects ?? 'medium') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <small class="pads">How many particles (smoke, sparks, dust…), how big and how long they last, how far away cars' effects play, soft edges where they meet surfaces (medium and high) and little lights where sparks fly (high).</small>
+        <label class="slider">track detail <select data-str="trackDetail">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.trackDetail ?? 'high') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <small class="pads">Generated tracks: how many trees and rocks, the crowd in the grandstands, shadows and screen sharpness (data/tracks.json performance.detail). Takes effect on the next track.</small>
         <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
         <h3>Accessibility</h3>
         <label class="slider">colours <select data-str="palette">${Object.entries(PALETTES).map(([v, p]) => `<option value="${v}" ${(S.palette ?? 'standard') === v ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>

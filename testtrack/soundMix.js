@@ -87,3 +87,38 @@ export function cabinMix(roof, inside, speed) {
   if (!inside) return { engine: 1, wind: 0.12 * air };
   return roofOpen(roof) ? { engine: 1.35, wind: air } : { engine: 1, wind: 0.15 * air };
 }
+
+// ---------- tyres on each surface (Phase 5 Step 4) ----------
+// What the tyres sound like on what they're on (data/tracks.json surfaces' sound and rumble): on tarmac a
+// squeal as they slide; across a kerb a rumble at the rate its stripes pass (and the squeal still, if
+// sliding); on grass a soft swish; on gravel and sand a crunch of stones — each by the weight on the wheel.
+//   tyreMix(wheels, surfaces, speed) → { squeal, pitch, crunch, grass, rumble, rumbleRate (Hz) }
+export const SKID_FROM = 1.5, SKID_FULL = 7;      // tyre sliding speed (m/s) where the squeal starts and peaks
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export function tyreMix(wheels, surfaces, speed) {
+  let squeal = 0, crunch = 0, grass = 0, rumble = 0, fastest = 0;
+  const v = Math.abs(speed);
+  for (const wh of wheels ?? []) {
+    if (!wh.grounded) continue;
+    const S = surfaces?.[wh.surface] ?? {}, weight = Math.min(1, (wh.load ?? 0) / 3000), slide = smooth(SKID_FROM, SKID_FULL, wh.slipSpeed ?? 0);
+    if (S.sound === 'gravel') crunch = Math.max(crunch, Math.min(1, smooth(0.5, 25, v) * 0.7 + smooth(1, 8, wh.slipSpeed ?? 0) * 0.6) * weight);
+    else if (S.sound === 'grass') grass = Math.max(grass, Math.min(1, smooth(1, 30, v) * 0.8 + slide * 0.4) * weight);
+    else { squeal = Math.max(squeal, slide * weight); fastest = Math.max(fastest, wh.slipSpeed ?? 0); }
+    if (S.rumble) rumble = Math.max(rumble, Math.min(1, S.rumble * smooth(2, 20, v)) * Math.max(0.4, weight));
+  }
+  // (a kerb's stripes about a metre apart: the rumble's rate the stripes going by)
+  return { squeal, pitch: Math.min(1, fastest / 15), crunch, grass, rumble, rumbleRate: Math.min(60, v / 1.0) };
+}
+
+// ---------- a track's ambience and its crowd (Phase 5 Step 4: data/sounds/ambient.json) ----------
+// The theme's own sounds (birds, wind, the sea, the city), quieter the faster the car goes and inside it;
+// the crowd louder the nearer a grandstand, a cheer swelling when something happens and dying away.
+//   ambienceMix(cfg, theme, { stand (m to the nearest grandstand, or null), speed, inside, cheer (0..1) }) →
+//   { layers: { birds, wind, sea, city }, crowd, cheer }
+export function ambienceMix(cfg, theme, { stand = null, speed = 0, inside = false, cheer = 0 } = {}) {
+  const T = cfg.themes?.[theme] ?? cfg.themes?.countryside ?? {}, masked = (1 - Math.min(0.7, Math.abs(speed) / 60)) * (inside ? cfg.inside ?? 0.45 : 1);
+  const layers = {};
+  for (const k of ['birds', 'wind', 'sea', 'city']) layers[k] = (T[k] ?? 0) * masked;
+  const C = cfg.crowd ?? {}, near = stand == null ? 0 : 1 - smooth(C.near ?? 20, C.far ?? 260, stand);
+  return { layers, crowd: (C.level ?? 0.5) * near * (inside ? cfg.inside ?? 0.45 : 1), cheer: Math.min(1, cheer) * near * (C.cheer ?? 0.9) };
+}

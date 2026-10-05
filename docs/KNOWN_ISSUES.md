@@ -1,6 +1,6 @@
 # Known issues, and what to revisit before Phase 6
 
-As of the end of Phase 4 (Step 5). Each with what was seen and where; the tests named reproduce them.
+As of the end of Phase 5 (Step 4); the Phase 4 entries as they were at its end. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
 ## Known issues
@@ -94,8 +94,8 @@ Also:
   `dev/tracks.html?determinism=30&dress` in each and compare.
 - **One generated track's world is kept at a time**: opening another frees the last (its build stays in
   the cache, so going back takes tens of milliseconds plus the colliders).
-- **No bridges or crossings**: a track never comes near itself (figure-of-eight layouts are rejected), so
-  the dressing has no bridges where a track crosses itself — only a footbridge over a straight sometimes.
+- **Crossovers only in version 3, and only on two presets**: a figure of eight with one bridge (Step 4)
+  is a signature feature of the mixed_gp and fast_flowing presets (`bridges`); versions 1 and 2 never cross.
 - **Version-1 tracks are undressed** (as they were made): no barriers, so a car can still drive off the
   ground's edge 260 m out. Version-2 tracks are closed in by their barriers.
 - **8-car NPC races on generated tracks**: in `npm run test:track-drive`'s ten races every car finishes,
@@ -117,12 +117,48 @@ Also:
 - **The AI's racing line stays off the kerbs**: Phase 4's line keeps a margin from the road's edge (built
   for real roads); `npm run test:dress-drive` shows the AI can use the kerbs on a wider line, but NPCs
   don't by default.
-- **A dressed track's theme sets the time of day and weather** (the player's time-of-day setting doesn't
-  apply there), and there's no rain, night or wet surfaces yet.
+- **A dressed track's time of day and weather are the event's or the theme's** (Step 4); the player's
+  time-of-day setting doesn't apply there.
 - **The garages are solid boxes** behind their fronts (no pit stops yet: the pit lane is drivable, the
   boxes aren't).
 - **Hillclimbs' land can be steep** beside the road where the road cuts across a slope: the ground blends
   to the road's height over 55 m, which on a big climb makes banks steeper than real land.
+
+### Generated tracks: variety, quality and polish (Phase 5 Step 4, docs/TRACK_GENERATOR.md)
+
+- **AI-only races rarely see a pass**: in `npm run test:track-events -- --only close` (six NPCs of similar
+  skill on the day's, the week's and quick tracks) there are 0–2 passes a race on most tracks; the cars
+  mostly finish in grid order, a few seconds apart. The Phase 4 AI's passing (`ai/driver.js` tactics)
+  starts a move but rarely completes one between cars of similar pace — it never out-brakes. So the
+  quality score's AI part mostly measures how bunched the field stays. The tracks' overtaking chances are
+  scored from their layout (long straights into heavy braking: every v3 preset's median is full marks);
+  better AI racecraft (late braking, a switchback) is the fix.
+- **Two Phase 4 race bugs found and fixed here**: a finished NPC was seen by the others as stopped on the
+  finish line (its progress stops there) — they queued behind it, and on a sprint never finished; and in
+  the editor's AI test race the world's own idle car sat on the pole slot, unseen by the NPCs, which piled
+  into it at the start. AI test results and closeness scores from before this step were pessimistic.
+- **Rain is visual only**: rain, a dark wet road, greyer light; the grip hook (`conditions.applyGrip`, rain
+  0.82) is off. Turned on, the AI's speed plans don't yet know the grip is lower.
+- **Replays show the cars' bodies only**: the recording is the Phase 4 ghost format (position, rotation,
+  velocity at 20 Hz), so in a replay the wheels don't turn or steer and the cars carry the damage they
+  have now. A replay is kept until the next run (not saved, not shareable).
+- **Frame times weren't measured on a GPU**: this container renders in software, so the browser's frame
+  times (`tools/track-perf-browser.mjs`) mean nothing here. The CPU's share of a frame (3.0–3.7 ms at the
+  three levels, `npm run test:track-perf`) and the draw calls (30–33) are well inside budget; run the
+  browser tool on real hardware before relying on the frameMs targets. The track detail setting applies
+  to the next track loaded.
+- **The ambience is synthesised** (no recorded sounds): birds, wind, sea and city from noise and
+  oscillators, the crowd from filtered noise, not placed in 3D (the nearest grandstand sets its level).
+- **The problem seeds are the scan's**: the seeds noted by hand during Step 1 weren't recorded where this
+  step could find them; `tests/fixtures/problem-seeds.json` has 16 from `tools/problem-seeds.mjs` (the
+  worst version-2 seeds of each preset). Add the noted ones with `source: "noted"`.
+- **The day's tracks changed from 2026-10-01** (version 3 with the quality gate, by the rule in
+  `data/trackEvents.json`): released before anyone played them, but from now on a change to the gate or
+  the generator for the day's tracks must be a new rule with a later date.
+- **Flat circuits score lower on elevation** (the part's median 6–21% on circuits): fine for the gates
+  (weight 0.6), but a hillier circuit preset would lift it.
+- **A sprint's standing start can leave an NPC stuck on a steep grid** (one reset seen in the close-race
+  test on a hillclimb).
 
 ### Smaller things
 
@@ -157,5 +193,12 @@ Also:
   the browser; the server should migrate on read too, with the same fixtures (`tests/fixtures/saves/`).
 - **Hints seen, settings**: hints are in the profile already (moves with it); the accessibility and
   input settings are per browser (localStorage) — decide whether they follow the account.
+- **The day's and the week's tracks are worked out in the browser** from the date (`track/events/model.js`:
+  the rules, the quality gate, the skipped seeds, the similarity to recent days). The server should work
+  them out once (the same code and config version) and publish them; the track records and event
+  leaderboards (`track/events/records.js`, per code / version / class) must be the server's, with the
+  run's recording checked against the track's hash before a record counts.
+- **Race replays are in memory only**: with accounts, a run's recording (already sent for checking) could
+  be kept for the replay and for others to watch; the other cars' recordings would need storing too.
 - **Fast travel regions** come from `data/map/baked.json`; with a server, the regions a player can reach
   (and their quests) should come from it.

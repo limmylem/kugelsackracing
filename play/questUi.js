@@ -355,11 +355,10 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
   function hideScreen() { screen?.remove(); screen = null; }
 
-  function results(res) {
+  function results(res, { again = false } = {}) {
     if (!run) return;
-    run.controller.showResults();
-    sounds.results(res);
-    if (res.outcome.status === 'finished') hint('medal');
+    // (again: back from its replay — the same screen, not its fanfare)
+    if (!again) { run.controller.showResults(); sounds.results(res); if (res.outcome.status === 'finished') hint('medal'); }
     const o = res.outcome, pay = res.pay ?? {}, cur = game.currency, item = run.item, prog = game.player.profile.quests?.[item.id];
     const money = n => `${cur}${Math.round(n).toLocaleString('en-GB')}`;
     const title = o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
@@ -382,8 +381,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
     showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
       ${trackLine(pay)}
-      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button><button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
-      retry: () => start(item, { restart: true }), roam: () => stop(), leave: () => { stop(); game.leaveTrack(); }, garage: () => { stop(); game.leaveTrack ? game.leaveTrack().then(() => game.toGarage()) : game.toGarage(); } });
+      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button>${game.canReplay?.() ? '<button data-replay>Watch replay</button>' : ''}<button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
+      retry: () => start(item, { restart: true }), roam: () => stop(),
+      replay: () => { const me = run; hideScreen(); if (!game.watchReplay({ onEnd: () => { if (run === me) results(res, { again: true }); } })) results(res, { again: true }); }, leave: () => { stop(); game.leaveTrack(); }, garage: () => { stop(); game.leaveTrack ? game.leaveTrack().then(() => game.toGarage()) : game.toGarage(); } });
   }
 
   // (a generated track: its record for the car's class, and the event's leaderboard — track/events/records.js)
@@ -428,7 +428,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
 
   function onKey(e) {
-    if (!run) return;
+    if (!run || game.replaying?.()) return;      // (the race replay's keys are its own)
     const st = run.controller.state;
     if (e.code === 'Escape') {
       e.preventDefault(); e.stopImmediatePropagation();

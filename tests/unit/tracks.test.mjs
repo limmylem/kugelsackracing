@@ -11,6 +11,7 @@ import { rng, sin, cos, seedOf, mix } from '../../track/det.js';
 import { encode, decode, normalise } from '../../track/code.js';
 import { generateTrack, LATEST, VERSIONS } from '../../track/generate.js';
 import { LIMITS } from '../../track/gen/v1.js';
+import { LIMITS as LIMITS3 } from '../../track/gen/v3.js';
 import { checkTrack } from '../../track/validate.js';
 import { buildTrack, trackWorld, trackProjection } from '../../track/build.js';
 import { viewCourse } from '../../route/model.js';
@@ -68,12 +69,15 @@ test('every preset: a valid track every time, passing every check measured again
   for (const p of cfg.presets) for (let seed = 100; seed < 130; seed++) {
     const g = generateTrack({ seed, params: p.params });
     assert.ok(g.ok, `${p.id} seed ${seed}: ${g.error}`);
-    assert.deepEqual(checkTrack(g.track, g.params, LIMITS), [], `${p.id} seed ${seed}`);
+    assert.deepEqual(checkTrack(g.track, g.params, g.version >= 3 ? LIMITS3 : LIMITS), [], `${p.id} seed ${seed}`);
     attempts[p.id] = (attempts[p.id] ?? 0) + g.attempts.length;
     // every failed attempt says why
     for (const a of g.attempts.slice(0, -1)) assert.ok(a.reason, 'a reason for each rejected attempt');
   }
-  for (const [id, n] of Object.entries(attempts)) assert.ok(n / 30 < 12, `${id}: ${n / 30} attempts a track`);
+  // (version 3's flow and run-off rules turn down more layouts — a short technical circuit's most: its
+  // speed is held by test:tracks, 99% of layouts within 500 ms)
+  const most = generateTrack({ seed: 1, params: cfg.presets[0].params }).version >= 3 ? 60 : 12;
+  for (const [id, n] of Object.entries(attempts)) assert.ok(n / 30 < most, `${id}: ${n / 30} attempts a track`);
 });
 
 test('the checker catches broken tracks: a kink, a corner too tight, a gap, a crossing, too steep, unasked-for banking, a sudden twist', () => {

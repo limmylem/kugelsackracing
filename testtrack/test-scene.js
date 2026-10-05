@@ -87,6 +87,10 @@ import { lightAt } from '../effects/lighting.js';
 import { createEffectsPanel } from './effectsPanel.js';
 import { createSession, MODES } from '../physics/race.js';
 import { ReplayPlayer, ReplayRecorder } from '../physics/replay.js';
+import { tvCameras, nearestCamera, zoom as tvZoom } from '../track/cameras.js';
+import { tyreMix } from './soundMix.js';
+import { createTrackAmbience } from './trackAudio.js';
+import { createRaceRecording, createRacePlayer } from '../race/raceReplay.js';
 import { CarDamage } from '../garage/carDamage.js';
 import { DentBudget } from '../garage/dents.js';
 import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
@@ -122,7 +126,6 @@ const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\
 const FORCE_LINE_M_PER_N = 1 / 4000;           // force arrows: metres of line per newton
 const AERO_LINE_M_PER_N = 1 / 600;             // aero arrows (much smaller forces)
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const SKID_FROM = 1.5, SKID_FULL = 7;          // tyre sliding speed (m/s) where the squeal starts and peaks
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 let shared = null, active = null;
@@ -266,6 +269,10 @@ function questGame(w) {
     // polish: the game's mute, first-time hints (data/hints.json), a setting changed from the quest's pause menu
     muted: () => s.muted,
     hint: when => hint(when),
+    // the race replay (race/raceReplay.js): whether the last run has one, and watching it
+    canReplay: () => !!(w.raceRec?.duration > 2 || w.raceRecording),
+    watchReplay: opts => watchReplay(w, opts),
+    replaying: () => shared.raceReplay?.w === w,
     setPref(k, v) { s.prefs[k] = v; saveSettings(s.prefs); applyHudScale(); },
     // ---------- races against NPCs (race/race.js) ----------
     npcCfg: null,
@@ -298,6 +305,8 @@ function questGame(w) {
     },
     adapters() {
       let wantHold = false, detachers = [], spin = null;
+      // the run recorded, every car in it (race/raceReplay.js: the race replay after it)
+      startRaceRecording(w, detachers);
       return {
         onStep: fn => { const d = w.sim.onStep(sim => fn(sim.time, sim.dt)); detachers.push(d); return d; },
         place: pt => { rwOf(w).travelTo(w, { xz: [pt.x, pt.z], heading: pt.heading }); },
@@ -350,6 +359,7 @@ function npcRaceEvents(w) {
   for (const e of race.drain()) {
     const r = race.racers.find(x => x.id === e.id), vis = r && w.others.get(r.carId);
     if (e.type === 'impact' && r) {
+      if (e.impact?.strength > 5) { w.ambience?.cheer('crash', Math.min(1, e.impact.strength / 20)); w.raceRec?.note(w.sim.time, 'crash', { id: r.carId }); }
       w.fx.play(w.fx.impactEvent(r.carId, e.impact, e.result, groundUnder(r.car.vehicle)));
       if (vis && e.result && (e.result.dents?.length || e.result.broken?.length)) vis.setDamage(r.damage.view3d, shared.session.db.damage);
     } else if (e.type === 'npc-reset' && vis) {
@@ -357,6 +367,104 @@ function npcRaceEvents(w) {
       setTimeout(() => { vis.group.visible = true; }, (e.fade ?? 0.6) * 1000);
     }
   }
+}
+
+// ---------- the race replay (Phase 5 Step 4: race/raceReplay.js) ----------
+// A run recorded from its start, every car in it (yours: 0; the NPCs by their cars' ids): their poses on
+// the recording's beat, the overtakes (the order once a second) and big hits noted to skip to
+function startRaceRecording(w, detachers) {
+  const R = w.raceRec = createRaceRecording({ hz: 20 }), car = () => w.sim.vehicle;
+  w.raceRecording = null;
+  let next = -Infinity, order = null, orderAt = -Infinity;
+  const pose = (b, extra) => { const p = b.translation(), q = b.rotation(), v = b.linvel(); return { x: p.x, y: p.y, z: p.z, q: [q.x, q.y, q.z, q.w], vx: v.x, vy: v.y, vz: v.z, ...extra }; };
+  const d = w.sim.onStep(sim => {
+    if (w.raceRec !== R || sim.time < next) return;
+    next = sim.time + 1 / 20 - 1e-6;
+    const race = w.npcRace, list = [pose(car().body, { id: 0, player: true, name: 'You' })];
+    for (const r of race?.npcs ?? []) list.push(pose(r.car.vehicle.body, { id: r.carId, name: r.name, colour: r.profile?.colour ?? null }));
+    R.sample(sim.time, list);
+    // (a place changed hands: noted, the car that gained it the one to watch)
+    if (race && sim.time - orderAt >= 1) {
+      orderAt = sim.time;
+      const now = race.standings().map(x => x.player ? 0 : race.racers.find(y => y.id === x.id)?.carId);
+      if (order) now.forEach((id, k) => { const was = order.indexOf(id); if (was > k) { R.note(sim.time, 'overtake', { id }); w.ambience?.cheer('overtake'); } });
+      order = now;
+    }
+  });
+  detachers.push(d);
+}
+// the recording so far, finished (once: what the replay plays)
+function raceRecording(w) {
+  if (!w.raceRec) return w.raceRecording;
+  if (w.raceRec.duration > 2) w.raceRecording = w.raceRec.finish();
+  w.raceRec = null;
+  return w.raceRecording;
+}
+// The replay: the world held, every car where the recording has it, the view the player's (TV cameras on
+// a generated track, chase, in-car); its controls on screen and on the keyboard. onEnd: when it's closed
+function watchReplay(w, { onEnd = null } = {}) {
+  const rec = raceRecording(w);
+  if (!rec || shared.raceReplay) return false;
+  const P = createRacePlayer(rec, { cameras: w.tvCams, data: w.trackData ?? null });
+  const ui = document.createElement('div');
+  ui.id = 'raceReplay';
+  ui.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);font:600 13px/1.2 "JetBrains Mono",monospace;color:#fff;background:rgba(10,14,20,.78);padding:8px 12px;border-radius:12px';
+  const btn = (k, label, title) => `<button data-k="${k}" title="${title}" style="font:inherit;color:#fff;background:#2a3340;border:0;border-radius:7px;padding:5px 9px;cursor:pointer">${label}</button>`;
+  ui.innerHTML = `<span data-tag style="color:#ffd24a;margin-right:4px">REPLAY</span>${btn('back', '⏪ 10s', 'Back 10 s (←)')}${btn('play', '⏯', 'Play / pause (Space)')}${btn('on', '10s ⏩', 'On 10 s (→)')}${btn('event', 'Next action ⏭', 'The next overtake or crash (N)')}${btn('slower', '−', 'Slower (−)')}<span data-speed></span>${btn('faster', '+', 'Faster (+)')}${btn('cam', 'TV', 'Camera: TV / chase / in-car (C)')}${btn('car', 'Car ▸', 'Watch another car (Tab)')}<span data-time style="min-width:110px;text-align:center"></span>${btn('exit', 'Close', 'Close the replay (Esc)')}`;
+  document.body.appendChild(ui);
+  // (the race's HUD and everything else on screen hidden while it plays: the picture and its controls)
+  if (!document.getElementById('raceReplayCss')) { const st = document.createElement('style'); st.id = 'raceReplayCss'; st.textContent = 'body.replaying > *:not(canvas):not(#raceReplay):not(#trackLabel):not(style):not(script) { visibility: hidden !important; }'; document.head.appendChild(st); }
+  document.body.classList.add('replaying');
+  const act = k => {
+    if (k === 'back') P.skip(-10); else if (k === 'on') P.skip(10); else if (k === 'play') P.toggle(); else if (k === 'event') P.nextEvent();
+    else if (k === 'slower') P.faster(-1); else if (k === 'faster') P.faster(1); else if (k === 'cam') P.cycleMode(); else if (k === 'car') P.nextCar(1); else if (k === 'exit') close();
+  };
+  ui.onclick = e => { const k = e.target.closest('[data-k]')?.dataset.k; if (k) act(k); };
+  const keys = { Space: 'play', ArrowLeft: 'back', ArrowRight: 'on', KeyN: 'event', Minus: 'slower', NumpadSubtract: 'slower', Equal: 'faster', NumpadAdd: 'faster', KeyC: 'cam', Tab: 'car', Escape: 'exit' };
+  const onKey = e => { const k = keys[e.code]; if (!k) return; e.preventDefault(); e.stopImmediatePropagation(); act(k); };
+  addEventListener('keydown', onKey, true);
+  function close() {
+    if (shared.raceReplay?.P !== P) return;
+    shared.raceReplay = null;
+    removeEventListener('keydown', onKey, true); ui.remove(); document.body.classList.remove('replaying');
+    for (const vis of w.others.values()) vis.group.visible = true;
+    w.rig.reset(); shared.last = performance.now();
+    onEnd?.();
+  }
+  shared.raceReplay = { P, w, ui, close };
+  return true;
+}
+function raceReplayFrame(w, now, seconds) {
+  const RR = shared.raceReplay;
+  if (RR.w !== w) { RR.close(); return false; }
+  const P = RR.P;
+  P.step(seconds);
+  // the cars where they were (one not yet recorded, or gone: hidden)
+  for (const c of P.cars) {
+    const vis = c.player ? w.carVis : w.others.get(c.id);
+    if (!vis) continue;
+    const p = P.pose(c.id);
+    vis.group.visible = !!p;
+    if (!p) continue;
+    vis.group.position.fromArray(p.position);
+    vis.group.quaternion.set(p.rotation.x, p.rotation.y, p.rotation.z, p.rotation.w);
+  }
+  const cam = P.camera();
+  if (cam) {
+    w.camera.position.fromArray(cam.position);
+    w.camera.lookAt(new THREE.Vector3(...cam.target));
+    if (Math.abs(w.camera.fov - cam.fov) > 0.01) { w.camera.fov = cam.fov; w.camera.updateProjectionMatrix(); }
+  }
+  const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`, focus = P.cars.find(c => c.id === P.focus);
+  RR.ui.querySelector('[data-time]').textContent = `${fmt(P.t)} / ${fmt(P.end)}`;
+  RR.ui.querySelector('[data-speed]').textContent = `×${P.speed}`;
+  RR.ui.querySelector('[data-k="cam"]').textContent = { tv: `TV${cam?.kind === 'tv' ? ` · ${cam.name}` : ''}`, chase: 'Chase', incar: 'In-car' }[P.mode];
+  RR.ui.querySelector('[data-k="car"]').textContent = `${focus?.player ? 'You' : focus?.name ?? '?'} ▸`;
+  RR.ui.querySelector('[data-tag]').textContent = P.paused ? 'PAUSED' : 'REPLAY';
+  daylight(w, shared.prefs.timeOfDay ?? 13);
+  w.rain?.update(w.camera, seconds); floodFrame(w);
+  w.fxDraw.render(w.scene, w.camera);
+  return true;
 }
 
 // ---------- generated tracks from the real world (Phase 5 Step 3) ----------
@@ -474,6 +582,8 @@ export async function enter(file) {
     catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
+  // (a track's own detail on the renderer; any other world the game's usual sharpness)
+  shared.renderer.setPixelRatio(Math.min(devicePixelRatio, active.detail?.pixelRatio ?? 2));
   hideRealWorlds();
   if (active.stream) { rwOf(active).showRealWorld(active); active.content?.show(true); }
   // record this world's car; the gearbox mode carries over between worlds
@@ -709,6 +819,8 @@ function restartAudio() {
 // A world let go of (a generated track's, for the next one): its physics, its quests, and what it drew on
 // the GPU — nothing of it kept
 function disposeWorld(w) {
+  try { w.ambience?.dispose(); } catch { /* gone */ }
+  if (shared.raceReplay?.w === w) shared.raceReplay.close();
   try { w.quests?.dispose(); } catch { /* gone */ }
   try { w.questGame?.dispose(); } catch { /* gone */ }
   try { w.sim.vehicle.world.free(); } catch { /* gone */ }
@@ -838,6 +950,8 @@ async function buildWorld(file) {
   if (trackData) {
     TrackScene.attachTrackWorld(w, trackData, { THREE, RAPIER });
     w.stream.world.add(trackMarkings(THREE, trackData));
+    // its TV cameras (track/cameras.js): the race replay's, and a crash replay's here
+    w.tvCams = trackData.dress ? tvCameras(trackData) : null;
     const span = trackData.terrain.size;
     w.camera.far = Math.max(2000, span * 1.2); w.camera.updateProjectionMatrix();
     scene.fog.near = 600; scene.fog.far = Math.max(1600, span);
@@ -845,7 +959,10 @@ async function buildWorld(file) {
     // theme's sky, light and weather; the start lights following the countdown
     if (trackData.dress) {
       w.trackCfg = (await trackConfigs()).tracks;
-      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high', floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false });
+      // (at the player's track detail: low, medium, high — data/tracks.json performance.detail)
+      const DT = w.trackCfg.performance?.detail, level = DT?.levels?.[shared.prefs.trackDetail] ? shared.prefs.trackDetail : DT?.default ?? 'high', detail = w.detail = { level, ...(DT?.levels?.[level] ?? {}) };
+      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high', floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false, detail });
+      applyDetail(w);
       w.stream.world.add(w.trackDress.group);
       w.roadMesh = roadMesh;
       w.camera.far = Math.max(2000, span * 6); w.camera.updateProjectionMatrix();
@@ -902,6 +1019,8 @@ function frame(w, now) {
 
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
+  // the race replay (after a race): it's what's drawn, and the world waits
+  if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) return; }
   // a crash replay playing (or due): it's what's drawn, and the world waits
   if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) return; }
   for (const act of inp.pressed) handleAction(w, act, inp);
@@ -970,7 +1089,7 @@ function frame(w, now) {
   const light = daylight(w, P.timeOfDay ?? 13);
   updateEffects(w, light, T ? 0 : stepsThisFrame * w.sim.dt);
   shared.flash.update(seconds);
-  if (shared.audio) { shared.audio.update(b, seconds, { exhaust: exhaustOff(), inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]), steam: w.fx.cars.get(0)?.steam ?? 0 }); updateSqueal(b); }
+  if (shared.audio) { shared.audio.update(b, seconds, { exhaust: exhaustOff(), inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]), steam: w.fx.cars.get(0)?.steam ?? 0 }); updateSqueal(b); trackAmbience(w, b, seconds); }
   shared.tacho.draw(b.engine);
   updateDebug(w, b);
   w.sun.position.copy(w.car.position).addScaledVector(w.sunDir, 40); // shadows follow the car
@@ -1013,7 +1132,10 @@ function replayFrame(w, now, seconds, inp) {
     s.replayDue = null;
     const frames = w.recorder.window(due.time, s.session.db.sessions.replay.before, s.session.db.sessions.replay.after);
     if (frames.length < 4) return false;
-    s.replay = { player: new ReplayPlayer(frames, { speed: s.session.db.sessions.replay.speed, at: due.time, focus: due.focus }), before: due.before, crashed: false, world: w };
+    s.replay = { player: new ReplayPlayer(frames, { speed: s.session.db.sessions.replay.speed, at: due.time, focus: due.focus }), before: due.before, crashed: false, world: w,
+      // (on a generated track: filmed from its nearest TV camera, zoomed on the car)
+      tv: w.tvCams ? nearestCamera(w.tvCams, ...due.focus) : null };
+    w.raceRec?.note(due.time, 'crash', { id: 0 });
     w.carVis.setDamage(due.before, s.session.db.damage);
     hint('replay');
   }
@@ -1036,9 +1158,14 @@ function replayFrame(w, now, seconds, inp) {
   for (const [id, vis] of w.others) { const ca = A.get(id), cb = B.get(id); if (ca && cb) placeCar(vis, ca, cb, alpha); }
   drawParts(w, { ...B.get(0), debris: b.debris });
   const cam = R.player.camera();
+  if (R.tv) {
+    const c0 = A.get(0), c1 = B.get(0), at = [0, 1, 2].map(k => c0.position[k] + (c1.position[k] - c0.position[k]) * alpha);
+    cam.position = [R.tv.x, R.tv.y, R.tv.z]; cam.target = [at[0], at[1] + 0.6, at[2]]; cam.fov = tvZoom(Math.hypot(R.tv.x - at[0], R.tv.y - at[1], R.tv.z - at[2]));
+  }
   w.camera.position.fromArray(cam.position);
   w.camera.lookAt(new THREE.Vector3(...cam.target));
-  if (w.camera.fov !== 42) { w.camera.fov = 42; w.camera.updateProjectionMatrix(); }
+  const fov = cam.fov ?? 42;
+  if (w.camera.fov !== fov) { w.camera.fov = fov; w.camera.updateProjectionMatrix(); }
   s.dents.flush();
   s.hintCard.update(seconds);
   s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
@@ -1082,6 +1209,14 @@ function effectsCars(w, b, dt) {
 // A generated track's conditions (Phase 5 Step 4): its time of day and weather — an event's (quest
 // conditions), else its theme's — the sky, sun, fog and floodlights (a circuit at night), rain and a wet road,
 // and the grip hook (data/tracks.json conditions.applyGrip: off, until the weather system changes grip)
+// a track's detail level on the renderer and the sun: its shadows (and their map's size), the screen's sharpness
+function applyDetail(w) {
+  const D = w.detail;
+  if (!D) return;
+  w.sun.castShadow = !!D.shadowMap;
+  if (D.shadowMap && w.sun.shadow.mapSize.x !== D.shadowMap) { w.sun.shadow.mapSize.set(D.shadowMap, D.shadowMap); w.sun.shadow.map?.dispose(); w.sun.shadow.map = null; }
+  shared.renderer.setPixelRatio(Math.min(devicePixelRatio, D.pixelRatio ?? 2));
+}
 function applyConditions(w, cond = null) {
   const D = w.trackData, C = w.trackCfg?.conditions;
   if (!D?.look) return;
@@ -1326,6 +1461,7 @@ function crashEvents(w, v, now) {
     w.quests?.noteHit(impact.strength);                     // (a quest: a drift's wall hit, the cargo's damage)
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
     const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: s.play.scale(impact) });
+    if (impact.strength > 5) w.ambience?.cheer('crash', Math.min(1, impact.strength / 20));
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
     const R = s.session.db.sessions.replay;
     if (s.play.replay && !s.tests && !s.replay && !s.replayDue && result.strength >= R.threshold && now - (s.lastReplay ?? -Infinity) > R.cooldown * 1000) {
@@ -1613,20 +1749,28 @@ function updateHud(w, s, steps, sim) {
 
 // Skid marks: dark see-through strips laid behind sliding tyres. A fixed-size ring buffer, so the
 // oldest marks are reused once it fills up.
-// Tyres: a squeal on tarmac, louder the faster they slide (and the more weight is on them); on loose
-// surfaces a gravel crunch that grows with speed and sliding instead
-function updateSqueal(s) {
-  const w = active;
-  let squeal = 0, crunch = 0, fastest = 0;
-  const speed = Math.abs(s.speed);
-  for (const wh of s.wheels) {
-    if (!wh.grounded) continue;
-    const weight = Math.min(1, wh.load / 3000);
-    if (w?.surfaces[wh.surface]?.sound === 'gravel') crunch = Math.max(crunch, Math.min(1, smoothstep(0.5, 25, speed) * 0.7 + smoothstep(1, 8, wh.slipSpeed) * 0.6) * weight);
-    else { squeal = Math.max(squeal, smoothstep(SKID_FROM, SKID_FULL, wh.slipSpeed) * weight); fastest = Math.max(fastest, wh.slipSpeed); }
+// A generated track's ambience (testtrack/trackAudio.js): its theme's sounds and the grandstands' crowd,
+// heard from the camera; made once the game's sound is on (after a first key press)
+let ambientCfg = null;
+function trackAmbience(w, b, dt) {
+  const D = w.trackData;
+  if (!D?.dress) return;
+  if (!w.ambience) {
+    if (!ambientCfg) { ambientCfg = fetch('data/sounds/ambient.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => null); return; }
+    if (ambientCfg.then) { ambientCfg.then(c => { ambientCfg = c ?? { themes: {} }; }); ambientCfg = { pending: ambientCfg }; return; }
+    if (ambientCfg.pending) return;
+    const stands = (D.objects ?? []).filter(o => o.k === 'grandstand').map(o => ({ x: o.x, y: (D.centre.h[o.i] ?? 0) + 4, z: o.z }));
+    w.ambience = createTrackAmbience(shared.audio.ctx, shared.audio.master, { cfg: ambientCfg, theme: D.theme, grandstands: stands });
   }
-  shared.audio.squeal.set(squeal, Math.min(1, fastest / 15));
-  shared.audio.gravel.set(crunch, speed);
+  w.ambience.update({ listener: w.camera.position.toArray(), speed: b.speed, inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]) }, dt);
+}
+// Tyres: what they're on, heard (testtrack/soundMix.js tyreMix): a squeal on tarmac as they slide, a
+// rumble across a kerb, a swish on grass, a crunch of stones on gravel
+function updateSqueal(s) {
+  const m = tyreMix(s.wheels, active?.surfaces, s.speed), A = shared.audio;
+  A.squeal.set(m.squeal, m.pitch);
+  A.gravel.set(m.crunch, Math.abs(s.speed));
+  A.tyres?.set(m);
 }
 
 // ---------- World pieces ----------

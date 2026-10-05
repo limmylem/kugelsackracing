@@ -52,7 +52,11 @@ export function eventConditions(q, look, conditions) {
   return { time, weather };
 }
 
-export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true } = {}) {
+// detail (data/tracks.json detail.levels, the player's track detail setting): scenery (the share of trees and
+// rocks drawn — the same ones always), treeNear (m: trees drawn in full within it), shadows (the dressing's)
+export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true, detail = null } = {}) {
+  const scenery = detail?.scenery ?? 1, treeNear = detail?.treeNear ?? 320, shadows = detail?.shadows ?? true;
+  spectators = detail?.spectators ?? spectators;
   const look = D.look, root = new THREE.Group(); root.name = 'track-dressing';
   const layers = {};
   for (const k of ['kerbs', 'barriers', 'scenery', 'start', 'pits', 'signs', 'crowd', 'backdrop']) { const g = new THREE.Group(); g.name = `dress-${k}`; layers[k] = g; root.add(g); }
@@ -92,7 +96,7 @@ export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true }
   const mat = (x, y, z, yaw = 0, sx = 1, sy = 1, sz = 1, pitch = 0) => new THREE.Matrix4().compose(V.set(x, y, z).clone(), Q.setFromEuler(E.set(pitch, yaw, 0, 'YXZ')).clone(), S.set(sx, sy, sz).clone());
   const BOX = new THREE.BoxGeometry(1, 1, 1), CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 8), CYL6 = new THREE.CylinderGeometry(0.5, 0.5, 1, 6), CONE = new THREE.ConeGeometry(0.5, 1, 7), ICO = new THREE.IcosahedronGeometry(0.5, 0), DOD = new THREE.DodecahedronGeometry(0.5, 0);
   disposables.push(BOX, CYL, CYL6, CONE, ICO, DOD);
-  const addMesh = (layer, geo, material = palette, { shadow = false, name } = {}) => { const m = new THREE.Mesh(geo, material); m.castShadow = shadow; m.receiveShadow = true; if (name) m.name = name; layers[layer].add(m); disposables.push(geo); return m; };
+  const addMesh = (layer, geo, material = palette, { shadow = false, name } = {}) => { const m = new THREE.Mesh(geo, material); m.castShadow = shadow && shadows; m.receiveShadow = true; if (name) m.name = name; layers[layer].add(m); disposables.push(geo); return m; };
   const addInstanced = (layer, geo, material, mats, colours = null, { shadow = false, name } = {}) => {
     if (!mats.length) return null;
     const m = new THREE.InstancedMesh(geo, material, mats.length);
@@ -100,7 +104,7 @@ export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true }
     if (colours) colours.forEach((c, i) => m.setColorAt(i, C.set(c)));
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
     m.computeBoundingSphere?.();
-    m.castShadow = shadow; m.receiveShadow = true; if (name) m.name = name;
+    m.castShadow = shadow && shadows; m.receiveShadow = true; if (name) m.name = name;
     layers[layer].add(m); disposables.push(geo);
     return m;
   };
@@ -184,7 +188,9 @@ export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true }
   }
 
   const objs = D.objects ?? [];
-  const of = k => objs.filter(o => o.k === k);
+  // (trees and rocks thinned at lower detail: a fixed share of them by their place in the list)
+  const keep = j => scenery >= 1 || ((Math.imul(j + 1, 2654435761) >>> 0) / 4294967296) < scenery;
+  const of = k => objs.filter((o, j) => o.k === k && (k !== 'tree' && k !== 'rock' || keep(j)));
   // (the centreline point nearest a place, at about a height: a crossover's two passes told apart)
   const nearestCentre = (x, z, y) => { let b = 0, bd = Infinity; for (let i = 0; i < D.centre.x.length; i++) { const d = (D.centre.x[i] - x) ** 2 + (D.centre.z[i] - z) ** 2 + 9 * (D.centre.h[i] - y) ** 2; if (d < bd) { bd = d; b = i; } } return b; };
   const C0 = D.centre, at = (i, u) => { const n = C0.x.length, a = (i - 1 + n) % n, b = (i + 1) % n, dx = C0.x[b] - C0.x[a], dz = C0.z[b] - C0.z[a], m = Math.hypot(dx, dz) || 1; return [C0.x[i] + dz / m * u, C0.z[i] - dx / m * u, dx / m, dz / m]; };
@@ -380,7 +386,7 @@ export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true }
         let a = 0, b = 0;
         for (let i = 0; i < P.length; i++) {
           const d2 = (P[i][0] - last[0]) ** 2 + (P[i][1] - last[1]) ** 2;
-          if (d2 < 320 * 320) { near.setMatrixAt(a, mats[i]); near.setColorAt(a++, C.set(tint[i])); } else { away.setMatrixAt(b, mats[i]); away.setColorAt(b++, C.set(tint[i])); }
+          if (d2 < treeNear * treeNear) { near.setMatrixAt(a, mats[i]); near.setColorAt(a++, C.set(tint[i])); } else { away.setMatrixAt(b, mats[i]); away.setColorAt(b++, C.set(tint[i])); }
         }
         near.count = a; away.count = b;
         near.instanceMatrix.needsUpdate = away.instanceMatrix.needsUpdate = true; near.instanceColor.needsUpdate = away.instanceColor.needsUpdate = true;
