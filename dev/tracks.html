@@ -46,6 +46,13 @@
   #legend { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: #a3abb5; pointer-events: none; }
   label.chk { display: inline-flex; grid-template-columns: none; gap: 4px; margin: 0 8px 0 0; font-size: 12px; }
   #legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: -1px; }
+#quality{padding:6px 14px 14px;font-size:13px;color:#d6dbe1}
+#quality h3{margin:6px 0;font-size:14px}
+#quality .bar{display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center;margin:3px 0}
+#quality .bar i{display:block;height:9px;border-radius:4px;background:#36b3f5}
+#quality .bar span.t{background:rgba(255,255,255,.08);border-radius:4px;display:block}
+#quality .notes{color:#ffb86b;margin-top:4px}
+#quality small{color:#a3abb5}
 </style>
 </head>
 <body>
@@ -68,6 +75,8 @@
     <label>Theme <select id="theme"><option value="auto">auto (by the seed)</option><option>countryside</option><option>forest</option><option>desert</option><option>coastal</option><option>mountain</option><option>street</option></select></label>
     <label>Pit lane <input id="pitLane" type="checkbox" style="justify-self:start" title="a circuit: a pit lane beside the main straight"></label>
     <label>Sausage kerbs <input id="sausages" type="checkbox" style="justify-self:start" title="raised kerbs at chicanes"></label>
+    <label>Signature features <input id="signatures" type="checkbox" checked style="justify-self:start" title="version 3: a long hairpin, fast esses, a banked corner, a big crest or a crossover, by the seed"></label>
+    <label>Crossover allowed <input id="bridges" type="checkbox" style="justify-self:start" title="version 3, circuits: a figure of eight, one pass on a bridge over the other"></label>
     <label>Dressing <span class="pair"><input id="dressing" type="number" min="0" max="63" value="0" title="another dressing of the same layout (0–63)"><button id="redress" title="the same layout, another dressing">Redress</button></span></label>
     <h3>Layers</h3>
     <div id="layers" class="buttons" style="margin:4px 0"><label class="chk"><input type="checkbox" data-layer="kerbs" checked> kerbs</label><label class="chk"><input type="checkbox" data-layer="runoff" checked> run-off</label><label class="chk"><input type="checkbox" data-layer="barriers" checked> barriers</label><label class="chk"><input type="checkbox" data-layer="scenery" checked> scenery</label></div>
@@ -84,6 +93,7 @@
     <div id="view"><canvas id="map"></canvas><canvas id="fly" hidden></canvas><div id="legend"></div></div>
     <canvas id="profile"></canvas>
     <div id="stats"></div>
+    <div id="quality"></div>
   </div>
 </div>
 <script type="module" src="dev/tracks.js"></script>

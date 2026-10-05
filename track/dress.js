@@ -357,6 +357,8 @@ function placeScenery(plan, T, F, rules, r, cfg) {
     for (let i = start; i < n - Math.round(60 / ds); i += Math.round(20 / ds)) {
       let ok = true;
       for (let j = i - Math.round(25 / ds); j <= i + Math.round(25 / ds) && ok; j++) if (Math.abs(T.k[wrap(j)]) > 1 / 900) ok = false;
+      // (not near a crossover's bridge)
+      if (T.crossing && [T.crossing.i, T.crossing.j].some(c => Math.min(Math.abs(i - c), n - Math.abs(i - c)) * ds < 120)) ok = false;
       if (ok && plan.runoff.L[i] <= W + 30 && plan.runoff.R[i] <= W + 30) tries.push(i);
     }
     while (tries.length) {
@@ -367,6 +369,14 @@ function placeScenery(plan, T, F, rules, r, cfg) {
         break;
       }
     }
+  }
+
+  // ---------- a crossover's bridge (version 3): the upper pass's deck over the lower ----------
+  if (T.crossing) {
+    const X = T.crossing, j = X.j, i = X.i, sinA = Math.max(0.3, Math.sin(X.angle * Math.PI / 180));
+    // (the deck spans the lower road and its run-off, and a little more, along the upper pass)
+    const lowerHalf = Math.max(plan.runoff.L[i], plan.runoff.R[i]) + 3, half = lowerHalf / sinA;
+    add({ k: 'bridge', i: j, lower: i, x: T.x[j], z: T.z[j], fx: F.tx[j], fz: F.tz[j], lx: F.tx[i], lz: F.tz[i], y: T.h[j], ground: T.h[i], half, width: Math.max(plan.runoff.L[j], plan.runoff.R[j]) * 2 + 1.2, angle: X.angle });
   }
 
   // ---------- buildings: a street circuit's city blocks along it; elsewhere a few, well away ----------

@@ -96,8 +96,8 @@ export async function runTrackAiTest({ item, fast = true, onUpdate = () => {} })
     const sim = createSimulation(RAPIER, { settings, spec, sockets: await socketsOf(spec), track: world });
     sim.vehicle.body.enableCcd(true);
     const reset = sim.resetCar.bind(sim);
-    sim.resetCar = pose => { const [x, , z] = pose.position; reset({ ...pose, position: [x, nearestOnTrack(data, x, z).h + 0.6, z] }); };
-    return { sim, frame: { toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z] }, free: () => sim.vehicle.world.free() };
+    sim.resetCar = pose => { const [x, y, z] = pose.position; reset({ ...pose, position: [x, nearestOnTrack(data, x, z, y || null).h + 0.6, z] }); };
+    return { sim, frame: { toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z], probeAbove: data.crossing ? 4 : null }, free: () => sim.vehicle.world.free() };
   };
   const quest = { ...item, type: item.type === 'hot_lap' ? 'circuit_race' : item.type, npc: { ...(item.npc ?? {}), count: Math.max(3, item.npc?.count ?? 0) } };
   const test = createAiTest({ makeSim, socketsOf, course, quest, db, cfg: npcCfg, qcfg, sessionRules: db.sessions, seed: 4242, count: Math.max(3, Math.min(7, item.npc?.count ?? 5)), soloLaps: course.loop ? 2 : 1 });

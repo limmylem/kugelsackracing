@@ -13,7 +13,8 @@
 //   R.group (world frame) · R.layers: { kerbs, barriers, scenery, start, pits, signs, crowd, backdrop } (THREE.Group each)
 //   R.update(camera)  each frame (levels of detail)      R.setLights({ red, green })  (track/lights.js)
 //   R.stats() → { drawCalls, triangles, instances }      R.dispose()
-//   themeEnvironment(look) → { sky, fog: { colour, near, far }, sun: { dir, colour, intensity }, hemi: { sky, ground, intensity } }
+//   themeEnvironment(look, { time, weather, conditions, closed }) → { sky, fog, sun, hemi, hours, warm, sunScale, grey, rain, wet, grip, floodlit, night }
+//   eventConditions(quest.conditions, look, conditions) → { time, weather }   R.setNight(on) (floodlights: lamps lit, masts shown)
 
 import { quatYawPitch } from '../map/build/format/barriers.js';
 import { PIT } from './gen/v2.js';
@@ -23,21 +24,35 @@ const HOURS = { morning: 9.5, midday: 13, afternoon: 15.5, evening: 17.2 };
 const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; };
 const rand = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
-export function themeEnvironment(look) {
+// look: a theme's; time / weather: the event's (else the theme's own); conditions: data/tracks.json conditions
+export function themeEnvironment(look, { time = null, weather = null, conditions = null, closed = true } = {}) {
   const el = (look.sun?.elevation ?? 40) * Math.PI / 180, az = (look.sun?.azimuth ?? 200) * Math.PI / 180;
+  const tm = time ?? look.time, wx = weather ?? look.weather, Ct = conditions?.times?.[tm], W = conditions?.weather?.[wx];
+  const fogScale = W?.fogScale ?? (wx === 'hazy' ? 0.7 : 1);
+  const night = tm === 'night', floodlit = closed && (night || tm === 'dusk') && !!conditions?.floodlit;
   return {
     sky: look.sky, horizon: look.horizon ?? look.sky,
-    fog: { colour: look.horizon ?? look.sky, near: look.fog?.[0] ?? 600, far: look.fog?.[1] ?? 3000 },
+    fog: { colour: look.horizon ?? look.sky, near: (look.fog?.[0] ?? 600) * fogScale, far: (look.fog?.[1] ?? 3000) * fogScale },
     sun: { dir: [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)], colour: look.sun?.colour ?? '#ffffff', intensity: look.sun?.intensity ?? 1.8 },
     hemi: { sky: look.hemi?.[0] ?? '#ffffff', ground: look.hemi?.[1] ?? '#556655', intensity: look.hemi?.[2] ?? 1.1 },
-    // (the game's day, effects/lighting.js: the hour the theme's time of day is; its weather: the sun
-    // dimmer and the sky greyer under cloud, the fog nearer in haze)
-    time: look.time, hours: HOURS[look.time] ?? 13, weather: look.weather,
-    sunScale: look.weather === 'overcast' ? 0.55 : look.weather === 'hazy' ? 0.85 : 1, grey: look.weather === 'overcast' ? 0.45 : look.weather === 'hazy' ? 0.2 : 0,
+    // (the game's day, effects/lighting.js: the hour the time of day is; its weather: the sun dimmer and the
+    // sky greyer under cloud and rain, the fog nearer in haze and fog; dawn and dusk warmer)
+    time: tm, hours: Ct?.hours ?? HOURS[tm] ?? 13, warm: Ct?.warm ?? 0, weather: wx,
+    sunScale: W?.sunScale ?? (wx === 'overcast' ? 0.55 : wx === 'hazy' ? 0.85 : 1), grey: W?.grey ?? (wx === 'overcast' ? 0.45 : wx === 'hazy' ? 0.2 : 0),
+    rain: W?.rain ?? 0, wet: !!W?.wet, grip: W?.grip ?? 1, applyGrip: !!conditions?.applyGrip,
+    floodlit: floodlit ? conditions.floodlit : null, night,
   };
 }
+// An event's conditions (quest conditions: timeOfDay any / dawn / day / dusk / night, weather any / clear /
+// cloudy / rain / fog) as a theme's time of day and weather (null: the theme's own)
+export function eventConditions(q, look, conditions) {
+  const t = q?.timeOfDay && q.timeOfDay !== 'any' ? (conditions?.event?.[q.timeOfDay] ?? null) : null;
+  const time = q?.timeOfDay === 'day' ? (['dawn', 'dusk', 'night'].includes(look.time) ? 'midday' : look.time) : t;
+  const weather = q?.weather && q.weather !== 'any' ? q.weather : null;
+  return { time, weather };
+}
 
-export function dressMeshes(THREE, D, { spectators = 'high' } = {}) {
+export function dressMeshes(THREE, D, { spectators = 'high', floodMasts = true } = {}) {
   const look = D.look, root = new THREE.Group(); root.name = 'track-dressing';
   const layers = {};
   for (const k of ['kerbs', 'barriers', 'scenery', 'start', 'pits', 'signs', 'crowd', 'backdrop']) { const g = new THREE.Group(); g.name = `dress-${k}`; layers[k] = g; root.add(g); }
@@ -170,6 +185,8 @@ export function dressMeshes(THREE, D, { spectators = 'high' } = {}) {
 
   const objs = D.objects ?? [];
   const of = k => objs.filter(o => o.k === k);
+  // (the centreline point nearest a place, at about a height: a crossover's two passes told apart)
+  const nearestCentre = (x, z, y) => { let b = 0, bd = Infinity; for (let i = 0; i < D.centre.x.length; i++) { const d = (D.centre.x[i] - x) ** 2 + (D.centre.z[i] - z) ** 2 + 9 * (D.centre.h[i] - y) ** 2; if (d < bd) { bd = d; b = i; } } return b; };
   const C0 = D.centre, at = (i, u) => { const n = C0.x.length, a = (i - 1 + n) % n, b = (i + 1) % n, dx = C0.x[b] - C0.x[a], dz = C0.z[b] - C0.z[a], m = Math.hypot(dx, dz) || 1; return [C0.x[i] + dz / m * u, C0.z[i] - dx / m * u, dx / m, dz / m]; };
 
   // ---------- the start: the gantry and its lights, the timing tower ----------
@@ -281,6 +298,25 @@ export function dressMeshes(THREE, D, { spectators = 'high' } = {}) {
       fb.push({ geo: BOX, matrix: mat(cx, top + 1.2, cz, yaw + Math.PI / 2, o.left + o.right + 1.4, 1.4, 2.4), colour: '#ffffff' });
     }
     if (fb.length) addMesh('scenery', merge(fb), palette, { name: 'footbridge', shadow: true });
+    // a crossover's bridge (version 3): the deck's underside and edge beams under the upper pass (its road
+    // is the deck's top: the same mesh as its collider), its abutments either side of the road below
+    const br = [];
+    for (const o of of('bridge')) {
+      const yaw = Math.atan2(o.fx, o.fz), len = o.half * 2 + 6;
+      // (the deck follows the pass's own heights: pieces along it)
+      const steps = 8;
+      for (let q = 0; q < steps; q++) {
+        const a = -len / 2 + (q + 0.5) * len / steps, x = o.x + o.fx * a, z = o.z + o.fz * a, i = nearestCentre(x, z, o.y);
+        const y = C0.h[i];
+        br.push({ geo: BOX, matrix: mat(x, y - 0.75, z, yaw, o.width, 1.3, len / steps + 0.05), colour: '#9a978f' });
+        for (const e of [-1, 1]) br.push({ geo: BOX, matrix: mat(x + o.fz * e * o.width / 2, y - 0.45, z - o.fx * e * o.width / 2, yaw, 0.5, 1.9, len / steps + 0.05), colour: '#b8b5ad' });
+      }
+      for (const e of [-1, 1]) {
+        const x = o.x + o.fx * e * (o.half + 1.5), z = o.z + o.fz * e * (o.half + 1.5), h = Math.max(1, o.y - o.ground);
+        br.push({ geo: BOX, matrix: mat(x, o.ground - 1 + h / 2, z, yaw, o.width, h, 3), colour: '#a9a69e' });
+      }
+    }
+    if (br.length) addMesh('scenery', merge(br), palette, { name: 'bridge', shadow: true });
   }
 
   // ---------- buildings ----------
@@ -394,9 +430,28 @@ export function dressMeshes(THREE, D, { spectators = 'high' } = {}) {
     bd.receiveShadow = false;
   }
 
+  // ---------- floodlights (at night): the light towers' lamps lit; where the theme has none, masts at
+  // the marshal posts (drawn only); lampsAt: where the light comes from (the scene's light pools) ----------
+  const flood = new THREE.Group(); flood.name = 'floodlights'; flood.visible = false; layers.scenery.add(flood);
+  const lampsAt = [];
+  {
+    const lit = new THREE.MeshBasicMaterial({ color: '#fff6d8' }); disposables.push(lit);
+    const heads = [];
+    for (const o of of('light')) { const y = (o.y ?? 0) + 26.3, yaw = yawOf(o); heads.push(mat(o.x + Math.sin(yaw) * 0.85, y, o.z + Math.cos(yaw) * 0.85, yaw, 3.6, 1.4, 0.06)); lampsAt.push([o.x, y, o.z]); }
+    if (!of('light').length && floodMasts) {
+      const mast = merge([{ geo: CYL, matrix: mat(0, 9, 0, 0, 0.35, 18, 0.35), colour: '#8f959c' }, { geo: BOX, matrix: mat(0, 18.2, 0.4, 0, 2.4, 1.2, 0.5), colour: '#c9cdd2' }]);
+      const ms = [];
+      for (const o of of('marshal')) { const yaw = yawOf(o), x = o.x - Math.sin(yaw) * 2.5, z = o.z - Math.cos(yaw) * 2.5; ms.push(mat(x, o.y ?? 0, z, yaw)); heads.push(mat(x + Math.sin(yaw) * 0.68, (o.y ?? 0) + 18.2, z + Math.cos(yaw) * 0.68, yaw, 2.2, 1.0, 0.06)); lampsAt.push([x, (o.y ?? 0) + 18, z]); }
+      if (ms.length) { const m = new THREE.InstancedMesh(mast, palette, ms.length); ms.forEach((x, i) => m.setMatrixAt(i, x)); m.castShadow = false; flood.add(m); disposables.push(mast); }
+    }
+    if (heads.length) { const m = new THREE.InstancedMesh(BOX.clone(), lit, heads.length); heads.forEach((x, i) => m.setMatrixAt(i, x)); flood.add(m); }
+  }
+
   return {
-    group: root, layers,
+    group: root, layers, lampsAt,
     update(camera) { for (const u of updaters) u(camera); },
+    // floodlights on or off (a circuit at night: track/renderDress.js themeEnvironment floodlit)
+    setNight(on) { flood.visible = !!on; },
     setLights({ red = 0, green = false } = {}) {
       lamps.red.forEach((m, i) => m.material.color.set(i < red ? '#ff2a1a' : '#3a0a0a'));
       lamps.green?.material.color.set(green ? '#37ff6a' : '#0b2a12');

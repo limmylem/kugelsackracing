@@ -93,7 +93,7 @@ export async function runRace(R: any, { npcs = 7 as number | any[], seed = 1, co
   // (the player's own car as it's built, when given: its parts in the physics)
   const pStats = H.garage(garageState, playerCar).stats();
   const S = given ?? await M.simAround(R.around.cx, R.around.cz, { radius: R.around.radius, spec: pStats.spec });
-  const sim = S.sim, frame = { toWorld: (x: number, z: number) => [x + S.origin[0], z + S.origin[1]], toSim: (x: number, z: number) => [x - S.origin[0], z - S.origin[1]] };
+  const sim = S.sim, frame = { toWorld: (x: number, z: number) => [x + S.origin[0], z + S.origin[1]], toSim: (x: number, z: number) => [x - S.origin[0], z - S.origin[1]], probeAbove: S.probeAbove ?? null };
   const player = givenPlayer ?? await playerService(H);
   const A = nodeAdapters(S, sim);
   let race: any = null;

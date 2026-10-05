@@ -1,0 +1,350 @@
+{
+ "_note": "Seeds that were bad or felt wrong (Phase 5 Step 4), with what was wrong: each a preset and seed whose version-2 track had the problem (its code and hash: version 2 still makes it). Generator version 3 makes a good track from the same seed and preset (tests/unit/problemSeeds.test.mjs). source: scan — found by tools/problem-seeds.mjs, the worst of 300 version-2 seeds by the quality score; noted — found driving or testing (Steps 1-3), with what was seen.",
+ "seeds": [
+  {
+   "id": "short_technical-24506617",
+   "source": "scan",
+   "preset": "short_technical",
+   "seed": 24506617,
+   "version": 2,
+   "code": "09114-6G91G-B1500-0400Q-BW7SN-C",
+   "hash": "8ce25eaf",
+   "wrong": [
+    "no fast corners",
+    "3 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 41.9,
+   "parts": {
+    "variety": 0.706,
+    "flow": 0.167,
+    "overtaking": 0,
+    "elevation": 0.07,
+    "safety": 1
+   }
+  },
+  {
+   "id": "short_technical-1885153",
+   "source": "scan",
+   "preset": "short_technical",
+   "seed": 1885153,
+   "version": 2,
+   "code": "08114-6G91G-B1500-04001-SGZ1T-0",
+   "hash": "30c82814",
+   "wrong": [
+    "no fast corners",
+    "no real overtaking chance"
+   ],
+   "gate": 44.9,
+   "parts": {
+    "variety": 0.264,
+    "flow": 0.773,
+    "overtaking": 0,
+    "elevation": 0.187,
+    "safety": 1
+   }
+  },
+  {
+   "id": "fast_flowing-4712836",
+   "source": "scan",
+   "preset": "fast_flowing",
+   "seed": 4712836,
+   "version": 2,
+   "code": "09028-CG81C-D1X00-02R04-FTC4J-G",
+   "hash": "5222f317",
+   "wrong": [
+    "2 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 52.2,
+   "parts": {
+    "variety": 0.851,
+    "flow": 0.5,
+    "overtaking": 0,
+    "elevation": 0.062,
+    "safety": 1
+   }
+  },
+  {
+   "id": "fast_flowing-6912145",
+   "source": "scan",
+   "preset": "fast_flowing",
+   "seed": 6912145,
+   "version": 2,
+   "code": "0A028-CG81C-D1X00-02R06-JY4HA-8",
+   "hash": "935399db",
+   "wrong": [
+    "no slow corners",
+    "no real overtaking chance"
+   ],
+   "gate": 54.5,
+   "parts": {
+    "variety": 0.672,
+    "flow": 0.773,
+    "overtaking": 0,
+    "elevation": 0.149,
+    "safety": 1
+   }
+  },
+  {
+   "id": "high_speed-5969584",
+   "source": "scan",
+   "preset": "high_speed",
+   "seed": 5969584,
+   "version": 2,
+   "code": "0822G-E0614-E1900-03005-P5NGN-C",
+   "hash": "f1fc6b7d",
+   "wrong": [
+    "no slow corners",
+    "no real overtaking chance"
+   ],
+   "gate": 46.3,
+   "parts": {
+    "variety": 0.189,
+    "flow": 1,
+    "overtaking": 0,
+    "elevation": 0.071,
+    "safety": 1
+   }
+  },
+  {
+   "id": "high_speed-26182281",
+   "source": "scan",
+   "preset": "high_speed",
+   "seed": 26182281,
+   "version": 2,
+   "code": "09J2G-E0614-E1900-0300R-Z0M9Z-C",
+   "hash": "2dc451e0",
+   "wrong": [
+    "no slow corners",
+    "no real overtaking chance"
+   ],
+   "gate": 47.9,
+   "parts": {
+    "variety": 0.244,
+    "flow": 1,
+    "overtaking": 0,
+    "elevation": 0.088,
+    "safety": 1
+   }
+  },
+  {
+   "id": "mixed_gp-19898541",
+   "source": "scan",
+   "preset": "mixed_gp",
+   "seed": 19898541,
+   "version": 2,
+   "code": "0A32C-D0B1W-D2700-06G0J-Z85DX-C",
+   "hash": "4f7dced6",
+   "wrong": [
+    "2 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 52.8,
+   "parts": {
+    "variety": 0.792,
+    "flow": 0.615,
+    "overtaking": 0,
+    "elevation": 0.033,
+    "safety": 1
+   }
+  },
+  {
+   "id": "mixed_gp-22726224",
+   "source": "scan",
+   "preset": "mixed_gp",
+   "seed": 22726224,
+   "version": 2,
+   "code": "0932C-D0B1W-D2700-06G0N-NHJGY-M",
+   "hash": "1d44bae1",
+   "wrong": [
+    "2 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 54.1,
+   "parts": {
+    "variety": 0.705,
+    "flow": 0.615,
+    "overtaking": 0,
+    "elevation": 0.316,
+    "safety": 1
+   }
+  },
+  {
+   "id": "club_circuit-4293920",
+   "source": "scan",
+   "preset": "club_circuit",
+   "seed": 4293920,
+   "version": 2,
+   "code": "0830W-5G614-A0X00-06004-31900-8",
+   "hash": "fdf209b7",
+   "wrong": [
+    "no fast corners",
+    "2 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 40.5,
+   "parts": {
+    "variety": 0.569,
+    "flow": 0.286,
+    "overtaking": 0,
+    "elevation": 0.031,
+    "safety": 1
+   }
+  },
+  {
+   "id": "club_circuit-30371441",
+   "source": "scan",
+   "preset": "club_circuit",
+   "seed": 30371441,
+   "version": 2,
+   "code": "09K0W-5G614-A0X00-0600W-YVKHE-C",
+   "hash": "34264b4b",
+   "wrong": [
+    "no fast corners",
+    "2 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 40.9,
+   "parts": {
+    "variety": 0.672,
+    "flow": 0.167,
+    "overtaking": 0,
+    "elevation": 0.049,
+    "safety": 1
+   }
+  },
+  {
+   "id": "mountain_hillclimb-7540519",
+   "source": "scan",
+   "preset": "mountain_hillclimb",
+   "seed": 7540519,
+   "version": 2,
+   "code": "0A5HR-AGC28-82H05-00007-63S72-M",
+   "hash": "5899c3b2",
+   "wrong": [
+    "no fast corners",
+    "3 stop-start sections",
+    "no real overtaking chance",
+    "311 m along: another part of the track just beyond a fast stretch"
+   ],
+   "gate": 47.1,
+   "parts": {
+    "variety": 0.561,
+    "flow": 0.423,
+    "overtaking": 0,
+    "elevation": 0.6,
+    "safety": 0.85
+   }
+  },
+  {
+   "id": "mountain_hillclimb-7016874",
+   "source": "scan",
+   "preset": "mountain_hillclimb",
+   "seed": 7016874,
+   "version": 2,
+   "code": "0A5HR-AGC28-82H05-00006-P4DAC-R",
+   "hash": "093f2de7",
+   "wrong": [
+    "no fast corners",
+    "6 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 48.5,
+   "parts": {
+    "variety": 0.7,
+    "flow": 0.118,
+    "overtaking": 0,
+    "elevation": 0.7,
+    "safety": 1
+   }
+  },
+  {
+   "id": "coastal_sprint-29114693",
+   "source": "scan",
+   "preset": "coastal_sprint",
+   "seed": 29114693,
+   "version": 2,
+   "code": "09MHW-CG91M-91X00-M0C0V-RGA5G-8",
+   "hash": "5f9aea1b",
+   "wrong": [
+    "no fast corners",
+    "no real overtaking chance"
+   ],
+   "gate": 47.9,
+   "parts": {
+    "variety": 0.385,
+    "flow": 0.773,
+    "overtaking": 0,
+    "elevation": 0.187,
+    "safety": 1
+   }
+  },
+  {
+   "id": "coastal_sprint-17280316",
+   "source": "scan",
+   "preset": "coastal_sprint",
+   "seed": 17280316,
+   "version": 2,
+   "code": "09MHW-CG91M-91X00-M0C0G-FB9WD-0",
+   "hash": "e84f48bb",
+   "wrong": [
+    "no slow corners",
+    "no real overtaking chance"
+   ],
+   "gate": 52.9,
+   "parts": {
+    "variety": 0.396,
+    "flow": 1,
+    "overtaking": 0,
+    "elevation": 0.197,
+    "safety": 1
+   }
+  },
+  {
+   "id": "street_circuit-25134991",
+   "source": "scan",
+   "preset": "street_circuit",
+   "seed": 25134991,
+   "version": 2,
+   "code": "0AH1G-90A1R-B0S00-0600Q-Z1WFG-C",
+   "hash": "94e1f9a7",
+   "wrong": [
+    "no fast corners",
+    "4 stop-start sections",
+    "no real overtaking chance",
+    "1638 m along: another part of the track just beyond a fast stretch"
+   ],
+   "gate": 37.6,
+   "parts": {
+    "variety": 0.597,
+    "flow": 0.231,
+    "overtaking": 0,
+    "elevation": 0.073,
+    "safety": 0.85
+   }
+  },
+  {
+   "id": "street_circuit-22621495",
+   "source": "scan",
+   "preset": "street_circuit",
+   "seed": 22621495,
+   "version": 2,
+   "code": "0AH1G-90A1R-B0S00-0600N-JB9Q3-C",
+   "hash": "d75a0ee3",
+   "wrong": [
+    "no fast corners",
+    "4 stop-start sections",
+    "no real overtaking chance"
+   ],
+   "gate": 40.9,
+   "parts": {
+    "variety": 0.722,
+    "flow": 0.091,
+    "overtaking": 0,
+    "elevation": 0.075,
+    "safety": 1
+   }
+  }
+ ]
+}

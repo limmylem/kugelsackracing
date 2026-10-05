@@ -8,6 +8,8 @@
 // THEMES' index — the list only ever grows at its end), a pit lane, sausage kerbs at chicanes, and the
 // dressing variant (6 bits: 0–63 — "redress" picks another; the layout stays). A version-1 code has those
 // bits clear and its parameters don't have them: it decodes, and makes its track, exactly as before.
+// Version 3 (Phase 5 Step 4) uses the bridges bit (a crossover allowed, on a circuit) and the width byte's
+// spare bit (set: no signature features).
 //
 //   normalise(params, { version }) → params (clamped, rounded)       encode({ version, seed, params }) → code
 //   decode(code) → { version, seed, params } | throws (plain words)    themeOf(seed, theme) → a theme id
@@ -49,6 +51,10 @@ export function normalise(p = {}, { version = null } = {}) {
   out.pitLane = type === 'circuit' && !!p.pitLane;
   out.sausages = !!p.sausages;
   out.dressing = clamp(Math.round(num(p.dressing, 0)), 0, 63);
+  if (version === 2) return out;
+  // (version 3: a crossover allowed — a circuit's figure of eight, on a bridge — and signature features)
+  out.bridges = type === 'circuit' && !!p.bridges;
+  out.signatures = p.signatures !== false;
   return out;
 }
 
@@ -65,6 +71,7 @@ export function encode({ version, seed, params }) {
     b[10] |= (p.pitLane ? 16 : 0) | (p.sausages ? 32 : 0) | (d & 3) << 6;
     b[4] |= ((d >> 2) & 3) << 6; b[5] |= ((d >> 4) & 3) << 6;
   }
+  if (version >= 3 && !p.signatures) b[6] |= 128;     // (signatures off: the width's spare bit)
   b.push(check(b));
   // 128 bits → 26 characters (5 bits each; the last has 3)
   let out = '', acc = 0, bits = 0;
@@ -83,5 +90,6 @@ export function decode(code) {
   const version = b[0], climb = ((b[8] << 8) | b[9]) - 32768, seed = ((b[11] << 24) | (b[12] << 16) | (b[13] << 8) | b[14]) >>> 0;
   const raw = { type: TYPES[b[1] & 1], style: STYLES[(b[1] >> 1) & 3], crests: !!(b[1] & 8), bridges: !!(b[1] & 16), lengthKm: [b[2] / 10, b[3] / 10], corners: [b[4] & 63, b[5] & 63], width: (b[6] & 127) / 2, elevation: b[7], climb, banking: b[10] & 15 };
   if (version >= 2) Object.assign(raw, { theme: THEMES[(b[1] >> 5) & 7] ?? THEMES[0], pitLane: !!(b[10] & 16), sausages: !!(b[10] & 32), dressing: (b[10] >> 6) | ((b[4] >> 6) << 2) | ((b[5] >> 6) << 4) });
+  if (version >= 3) raw.signatures = !(b[6] & 128);
   return { version, seed, params: normalise(raw, { version }) };
 }

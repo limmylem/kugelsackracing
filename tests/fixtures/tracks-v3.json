@@ -1,0 +1,366 @@
+{
+ "_note": "Generator version 3's tracks as they were made when it was released (Phase 5 Step 4): each code must always make this exact layout (hash) and dressing (dressHash). Never regenerate this file: if a code stops matching, version 3 has changed — put it back, and make the change a new version.",
+ "version": 3,
+ "tracks": [
+  {
+   "preset": "short_technical",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "none",
+   "code": "0DH14-6G91G-B1500-04000-00008-W",
+   "hash": "3a8b99ec",
+   "dressHash": "727191db",
+   "length": 2080.491
+  },
+  {
+   "preset": "short_technical",
+   "seed": 7,
+   "theme": "countryside",
+   "signature": "none",
+   "code": "0C114-6G91G-B1500-04000-0007W-G",
+   "hash": "7aa44b67",
+   "dressHash": "4950db3c",
+   "length": 1925.197
+  },
+  {
+   "preset": "short_technical",
+   "seed": 2026,
+   "theme": "desert",
+   "signature": "fast_esses",
+   "code": "0D114-6G91G-B1500-04000-01ZAE-R",
+   "hash": "4abcea36",
+   "dressHash": "df88c808",
+   "length": 2438.109
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "fast_esses",
+   "code": "0DR28-CG81C-D1X00-02R00-0000N-C",
+   "hash": "39114393",
+   "dressHash": "374a48c2",
+   "length": 4093.68
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 7,
+   "theme": "countryside",
+   "signature": "banked_corner",
+   "code": "0C828-CG81C-D1X00-02R00-0007R-0",
+   "hash": "1ca38540",
+   "dressHash": "4bc67c17",
+   "length": 4338.106
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 2026,
+   "theme": "desert",
+   "signature": "long_hairpin",
+   "code": "0D828-CG81C-D1X00-02R00-01ZAY-8",
+   "hash": "ee5c7a19",
+   "dressHash": "d43250d3",
+   "length": 4293.798
+  },
+  {
+   "preset": "high_speed",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "banked_corner",
+   "code": "0DJ2G-E0614-E1900-03000-00008-C",
+   "hash": "1f3b4cb6",
+   "dressHash": "9c9e3f22",
+   "length": 5104.584
+  },
+  {
+   "preset": "high_speed",
+   "seed": 7,
+   "theme": "countryside",
+   "signature": "banked_corner",
+   "code": "0C22G-E0614-E1900-03000-0007V-0",
+   "hash": "dbc08f79",
+   "dressHash": "e11ada98",
+   "length": 4505.119
+  },
+  {
+   "preset": "high_speed",
+   "seed": 2026,
+   "theme": "desert",
+   "signature": "big_crest",
+   "code": "0D22G-E0614-E1900-03000-01ZAZ-8",
+   "hash": "c764448f",
+   "dressHash": "69cb0285",
+   "length": 4258.264
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "long_hairpin",
+   "code": "0DV2C-D0B1W-D2700-06G00-00004-M",
+   "hash": "c9bc4549",
+   "dressHash": "3aa3144c",
+   "length": 5190.839
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 7,
+   "theme": "countryside",
+   "signature": "fast_esses",
+   "code": "0CB2C-D0B1W-D2700-06G00-0007T-R",
+   "hash": "a6863167",
+   "dressHash": "294a8346",
+   "length": 4483.352
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 2026,
+   "theme": "desert",
+   "signature": "big_crest",
+   "code": "0DB2C-D0B1W-D2700-06G00-01ZA7-G",
+   "hash": "12c3825b",
+   "dressHash": "41d78d60",
+   "length": 3839.398
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "long_hairpin",
+   "code": "0DK0W-5G614-A0X00-06000-00008-W",
+   "hash": "78b5dd0b",
+   "dressHash": "b55c4650",
+   "length": 2153.327
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 7,
+   "theme": "countryside",
+   "signature": "fast_esses",
+   "code": "0C30W-5G614-A0X00-06000-0007W-G",
+   "hash": "57a683ca",
+   "dressHash": "af7faef5",
+   "length": 2028.788
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 2026,
+   "theme": "desert",
+   "signature": "big_crest",
+   "code": "0D30W-5G614-A0X00-06000-01ZAE-R",
+   "hash": "fd08edb1",
+   "dressHash": "e085f9bf",
+   "length": 2053.388
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 0,
+   "theme": "mountain",
+   "signature": "long_hairpin",
+   "code": "0E5HR-AGC28-82H05-00000-0000C-W",
+   "hash": "0028369c",
+   "dressHash": "4e920288",
+   "length": 3003.706
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 7,
+   "theme": "mountain",
+   "signature": "long_hairpin",
+   "code": "0E5HR-AGC28-82H05-00000-00074-G",
+   "hash": "1c2b59ab",
+   "dressHash": "a96bdf5f",
+   "length": 4033.026
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 2026,
+   "theme": "mountain",
+   "signature": "fast_esses",
+   "code": "0E5HR-AGC28-82H05-00000-01ZAE-R",
+   "hash": "3eb53088",
+   "dressHash": "2b023cdb",
+   "length": 3905.299
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 0,
+   "theme": "coastal",
+   "signature": "fast_esses",
+   "code": "0DMHW-CG91M-91X00-M0C00-00003-8",
+   "hash": "2a6137e2",
+   "dressHash": "523ff8b5",
+   "length": 3975.791
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 7,
+   "theme": "coastal",
+   "signature": "fast_esses",
+   "code": "0DMHW-CG91M-91X00-M0C00-0007R-4",
+   "hash": "18f3bea9",
+   "dressHash": "fcb38df2",
+   "length": 4744.459
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 2026,
+   "theme": "coastal",
+   "signature": "long_hairpin",
+   "code": "0DMHW-CG91M-91X00-M0C00-01ZAT-C",
+   "hash": "1a3e2013",
+   "dressHash": "129962a0",
+   "length": 3926.278
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 0,
+   "theme": "street",
+   "signature": "long_hairpin",
+   "code": "0EH1G-90A1R-B0S00-06000-0000J-G",
+   "hash": "bb51bd71",
+   "dressHash": "a7634fa2",
+   "length": 3252.709
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 7,
+   "theme": "street",
+   "signature": "long_hairpin",
+   "code": "0EH1G-90A1R-B0S00-06000-0007T-W",
+   "hash": "852a24ba",
+   "dressHash": "a18ff2eb",
+   "length": 3556.638
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 2026,
+   "theme": "street",
+   "signature": "fast_esses",
+   "code": "0EH1G-90A1R-B0S00-06000-01ZAZ-M",
+   "hash": "033669ea",
+   "dressHash": "693726f6",
+   "length": 3451.96
+  },
+  {
+   "preset": "short_technical",
+   "seed": 99,
+   "theme": "countryside",
+   "signature": "fast_esses",
+   "code": "0C114-6G91G-B1500-04000-0033M-0",
+   "hash": "2bc556db",
+   "dressHash": "38c14604",
+   "length": 2492.937
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 100,
+   "theme": "forest",
+   "signature": "banked_corner",
+   "code": "0CR28-CM81C-D1X00-0AR00-00344-W",
+   "hash": "f8f5b715",
+   "dressHash": "0788c626",
+   "length": 4484.485
+  },
+  {
+   "preset": "high_speed",
+   "seed": 101,
+   "theme": "desert",
+   "signature": "banked_corner",
+   "code": "0D22G-E0694-E1900-0K000-00350-R",
+   "hash": "61f34820",
+   "dressHash": "859ee558",
+   "length": 4347.66
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 102,
+   "theme": "coastal",
+   "signature": "big_crest",
+   "code": "0DV2C-D4B9W-D2700-0YG00-0036D-W",
+   "hash": "d65c97e4",
+   "dressHash": "a4999a90",
+   "length": 4836.458
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 103,
+   "theme": "mountain",
+   "signature": "long_hairpin",
+   "code": "0E30W-5J6H4-A0X00-06000-00378-G",
+   "hash": "48477503",
+   "dressHash": "63419133",
+   "length": 2001.929
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 104,
+   "theme": "street",
+   "signature": "long_hairpin",
+   "code": "0ENHR-APCJ8-82H05-08000-0038B-W",
+   "hash": "0158d365",
+   "dressHash": "83e6e06c",
+   "length": 3063.764
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 1,
+   "theme": "street",
+   "signature": "fast_esses",
+   "code": "0EV2C-D0B1W-D2700-06G00-00011-G",
+   "hash": "03604c86",
+   "dressHash": "38546fbe",
+   "length": 4216.536
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 1,
+   "theme": "street",
+   "signature": "banked_corner",
+   "code": "0ER28-CG81C-D1X00-02R00-0001J-8",
+   "hash": "c128c624",
+   "dressHash": "5e62858d",
+   "length": 3944.98
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 3,
+   "theme": "countryside",
+   "signature": "crossover",
+   "code": "0CB2C-D0B1W-D2700-06G00-00037-8",
+   "hash": "bf9c15a5",
+   "dressHash": "f098e1cf",
+   "length": 4139.224
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 3,
+   "theme": "countryside",
+   "signature": "long_hairpin",
+   "code": "0C828-CG81C-D1X00-02R00-00034-G",
+   "hash": "dca5a15f",
+   "dressHash": "99c34485",
+   "length": 4757.476
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 4,
+   "theme": "countryside",
+   "signature": "big_crest",
+   "code": "0CB2C-D0B1W-D2700-06G00-0004W-4",
+   "hash": "efb0b1a2",
+   "dressHash": "e00a36f0",
+   "length": 4085.894
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 3,
+   "theme": "countryside",
+   "signature": "none",
+   "code": "0CB2C-D0B1Y-D2700-06G00-0003Q-8",
+   "hash": "749beabf",
+   "dressHash": "379849f6",
+   "length": 3968.24
+  }
+ ]
+}

@@ -51,7 +51,7 @@ function assignDeep(target, source) {
 export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRules, playerSession, npcs, seed = 1, collisions = 'full', rubberBand = false, isVisible = null, playerName = 'You' }) {
   const L = course.length, loop = course.loop;
   // (a finished NPC's cool-down lap: its speeds at 60%)
-  const COOL_DOWN = { corner: -0.64, braking: 0 };
+  const COOL_DOWN = { corner: -0.64, braking: 0 }, RUN_OUT = 80;
   // (the racing line fitted to the world's kerbs and walls, now they're loaded)
   const RL = fittedRacing(course, sim, frame);
   const laps = loop ? Math.max(1, quest.params?.laps ?? 1) : 1;
@@ -64,6 +64,9 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   // the player: its session's tracker is its progress (none: an AI test race, NPCs only)
   const player = playerSession ? { id: 0, player: true, name: playerName, session: playerSession, passes: [], status: 'racing', finishTime: null } : null;
   if (player) racers.push(player);
+  // (none: the world's own car, wherever it was put — a track's pole slot — taken out of the physics for
+  // the race, not left there for the NPCs to run into unseen)
+  else sim.vehicle.body.setEnabled(false);
 
   // NPCs: on their grid slots, each a car in the physics with its driver and session
   const npcQuest = { ...quest, type: 'sprint', params: { ...(quest.params ?? {}), laps, start: 'standing' } };
@@ -74,14 +77,15 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     const plan = speedPlan(RL, caps, { loop, corner: n.params.cornerMargin, braking: n.params.brakingPoint, start: 0 });
     const racer = { id, player: false, name: n.profile.name, profile: n.profile, params: n.params, build: n.build, spec: n.spec, caps, plan, basePlan: plan, slot, passes: [], status: 'grid', finishTime: null, adjust: { corner: 0, braking: 0 }, lod: 'full', lodSince: 0, damage: null, condition: 100, retired: false, resets: 0, cheap: null };
     racer.driver = createAiDriver({ id, rl: RL, line: course.line, loop, plan, caps, params: n.params, rng: r, frame, config: cfg,
-      // (on a circuit, a finished NPC drives on — a cool-down lap, slower — rather than stopping on the line
-      // in the way of everyone still racing)
-      ctx: { started: () => racer.session?.state.state === 'racing' || (loop && racer.status === 'finished'), near: me => near(me), adjust: me => byId(me)?.adjust } });
+      // (a finished NPC drives on, slower, rather than stopping on the line in the way of everyone still
+      // racing: on a circuit a cool-down lap; on a sprint down the road beyond the finish, stopping short of
+      // its end — where the road ends at the finish, at once, as it always did)
+      ctx: { started: () => racer.session?.state.state === 'racing' || (racer.status === 'finished' && (loop || (racer.driver?.state.u ?? Infinity) < RL.length - RUN_OUT)), near: me => near(me), adjust: me => byId(me)?.adjust } });
     const [sx, sz] = frame.toSim(slot.x, slot.z);
     const carId = sim.addCar({ position: [sx, 0, sz], headingDeg: slot.heading, speed: 0 }, racer.driver, n.spec, n.sockets);
     racer.carId = carId;
     racer.car = sim.cars.find(c => c.id === carId);
-    placeOnGround(racer, slot.x, slot.z, slot.heading, 0);
+    placeOnGround(racer, slot.x, slot.z, slot.heading, 0, slot.h);
     racer.car.vehicle.mechanical.enabled = true;
     racer.damage = new CarDamage({ car: n.build.garage.car, build: n.build.garage.build, view: n.build.garage.view, boxes: n.boxes ?? {}, rules: db.damage, mode: 'full' });
     racer.session = createQuestSession({ quest: npcQuest, course, config: qcfg, car: { topSpeed: caps.topSpeed } });
@@ -91,9 +95,11 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   }
   const npcList = racers.filter(r => !r.player);
 
-  function placeOnGround(r, x, z, heading, speed) {
+  // (h: the route's height there, if known — with frame.probeAbove, the ground is looked for just above
+  // it: a generated track's crossover, where the bridge passes over the road)
+  function placeOnGround(r, x, z, heading, speed, h = null) {
     const v = r.car.vehicle, [sx, sz] = frame.toSim(x, z);
-    const y = groundHeight(v, sx, sz) ?? 0;
+    const y = (h != null && frame.probeAbove != null ? groundHeight(v, sx, sz, h + frame.probeAbove) : groundHeight(v, sx, sz)) ?? 0;
     // (put down moving — back from the cheap run — at its ride height, not dropped: a drop at speed
     // bottoms the suspension and the floor catches the road, spinning it)
     v.reset({ position: [sx, y + (speed > 1 ? 0.05 : 0.35), sz], headingDeg: heading, speed });
@@ -112,17 +118,20 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     const self = byId(me), u0 = uOf(self), d0 = dOf(self), out = [];
     for (const o of racers) {
       if (o === self || o.status === 'retired' || o.cheap) continue;
-      let du = uOf(o) - u0;
-      if (loop) { const lapLen = L; du = ((du % lapLen) + lapLen * 1.5) % lapLen - lapLen / 2; }
+      // (a finished car's progress stops at the line, but it drives on: where it really is, then — both
+      // along the racing line, by their drivers — not a car stopped on the line in everyone's way)
+      const real = o.status === 'finished' && o.driver && self.driver, lapLen = real ? RL.length : L;
+      let du = real ? o.driver.state.u - self.driver.state.u : uOf(o) - u0;
+      if (loop) du = ((du % lapLen) + lapLen * 1.5) % lapLen - lapLen / 2;
       if (du < -60 || du > 90) continue;
       const p = posOf(o);
-      out.push({ id: o.id, du, dd: dOf(o) - d0, v: Math.hypot(p.vx, p.vz) });
+      out.push({ id: o.id, du, dd: real ? o.driver.state.d - self.driver.state.d : dOf(o) - d0, v: Math.hypot(p.vx, p.vz) });
     }
     return out;
   }
 
   // ---------- each tick ----------
-  let t = 0, started = false;
+  let t = 0, started = false, disposed = false;
   const detach = sim.onStep(s => tick(s.time, s.dt));
   function tick(time, dt) {
     t = time;
@@ -139,7 +148,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
       for (const e of r.session.drain()) {
         if (e.type === 'reset') { emit({ type: 'npc-off', id: r.id, x: p.x, z: p.z, u: uOf(r) }); resetNpc(r, e.point, 'off route'); }
         else if (e.type === 'leave') emit({ type: 'npc-leave', id: r.id, x: p.x, z: p.z, u: uOf(r) });
-        else if (e.type === 'finish') { r.status = 'finished'; r.finishTime = e.outcome.time; r.outcome = e.outcome; if (loop) r.adjust = COOL_DOWN; emit({ type: 'npc-finish', id: r.id, time: r.finishTime }); }
+        else if (e.type === 'finish') { r.status = 'finished'; r.finishTime = e.outcome.time; r.outcome = e.outcome; r.adjust = COOL_DOWN; emit({ type: 'npc-finish', id: r.id, time: r.finishTime }); }
         else if (e.type === 'fail') retire(r, e.outcome.text ?? 'failed');
       }
       r.driver.tick(dt);
@@ -224,7 +233,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     }
     if (r.cheap) leaveCheap(r);
     r.car.vehicle.parts.clear();
-    placeOnGround(r, pt.x, pt.z, pt.heading, 0);
+    placeOnGround(r, pt.x, pt.z, pt.heading, 0, pt.h);
     r.session.noteReset(pt);
     r.driver.placed(nearestK(pt.x, pt.z));
     r.resets++;
@@ -242,7 +251,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     if (!player) return;
     const B = cfg.rubberBand, pu = uOf(player);
     for (const r of npcList) {
-      if (r.status !== 'racing') { r.adjust = r.status === 'finished' && loop ? COOL_DOWN : { corner: 0, braking: 0 }; continue; }
+      if (r.status !== 'racing') { r.adjust = r.status === 'finished' ? COOL_DOWN : { corner: 0, braking: 0 }; continue; }
       // (how far ahead in time, + ahead: ahead, how long ago it was where the player is now; behind, how
       // long ago the player was where it is now)
       const u = uOf(r), ta = u >= pu ? timeAt(r, pu) : timeAt(player, u);
@@ -310,7 +319,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     r.cheap = null;
     r.car.offPhysics = false;
     r.car.vehicle.body.setEnabled(true);
-    placeOnGround(r, C.x, C.z, C.heading, C.v);
+    placeOnGround(r, C.x, C.z, C.heading, C.v, C.h);
     r.driver.placed(C.k);
     r.lod = 'full'; r.lodSince = 0;
     // (where it is now and how fast, against the cheap run's: the same, or the switch would show)
@@ -367,7 +376,10 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
       return standings().map(s => ({ ...s, time: s.time != null ? Math.round(s.time * 1000) / 1000 : null }));
     },
     dispose() {
+      if (disposed) return;              // (once: the world may be gone by a second time)
+      disposed = true;
       detach();
+      if (!player) sim.vehicle.body.setEnabled(true);
       for (const r of npcList) { r.car.vehicle.parts.clear(); sim.removeCar(r.carId); }
       events.length = 0;
     },

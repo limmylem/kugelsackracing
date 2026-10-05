@@ -99,7 +99,8 @@ import * as TrackScene from '../track/scene.js';
 import { loadTrack } from '../track/client.js';
 import { trackWorld } from '../track/build.js';
 import { trackMarkings } from '../track/render.js';
-import { dressMeshes, themeEnvironment } from '../track/renderDress.js';
+import { dressMeshes, themeEnvironment, eventConditions } from '../track/renderDress.js';
+import { createRain, wetRoad } from '../track/weather.js';
 import { startLights } from '../track/lights.js';
 // gameplay on generated tracks (Phase 5 Step 3): race venues, track events, the library, the trip there and back
 import { createTrackUi } from '../play/trackUi.js';
@@ -276,7 +277,7 @@ function questGame(w) {
     startRace({ quest, course, npcs, playerSession, seed, rubberBand }) {
       const frustum = new THREE.Frustum(), m = new THREE.Matrix4();
       const isVisible = (x, z) => { const [sx, sz] = S.toSim(x, z), y = car().body.translation().y; m.multiplyMatrices(w.camera.projectionMatrix, w.camera.matrixWorldInverse); frustum.setFromProjectionMatrix(m); return frustum.containsPoint(new THREE.Vector3(sx, y, sz)); };
-      const race = createRace({ sim: w.sim, frame: { toWorld: S.toWorld, toSim: S.toSim }, course, quest, qcfg: player.quests.config, cfg: this.npcCfg, db, sessionRules: db.sessions, playerSession, npcs, seed, collisions: quest.params?.collisions ?? s.play.collisions, rubberBand, isVisible });
+      const race = createRace({ sim: w.sim, frame: { toWorld: S.toWorld, toSim: S.toSim, probeAbove: S.probeAbove ?? null }, course, quest, qcfg: player.quests.config, cfg: this.npcCfg, db, sessionRules: db.sessions, playerSession, npcs, seed, collisions: quest.params?.collisions ?? s.play.collisions, rubberBand, isVisible });
       w.npcRace = race;
       // their looks: each its own model and build, in its driver's colour
       for (const r of race.npcs) npcVisual(w, r).catch(e => console.warn(`NPC car ${r.name}: ${e.message}`));
@@ -388,8 +389,8 @@ async function trackGame(game) {
         const sim = createSimulation(RAPIER, { settings: s.settings, spec, sockets: await socketsOf(spec), track: h.w.track });
         sim.vehicle.body.enableCcd(true);
         const reset = sim.resetCar.bind(sim);
-        sim.resetCar = pose => { const [x, , z] = pose.position; reset({ ...pose, position: [x, TrackScene.nearestOnTrack(h.data, x, z).h + 0.6, z] }); };
-        return { sim, frame: { toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z] }, free: () => sim.vehicle.world.free() };
+        sim.resetCar = pose => { const [x, y, z] = pose.position; reset({ ...pose, position: [x, TrackScene.nearestOnTrack(h.data, x, z, y || null).h + 0.6, z] }); };
+        return { sim, frame: { toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z], probeAbove: h.data.crossing ? 4 : null }, free: () => sim.vehicle.world.free() };
       };
       return referenceTimes({ data: h.data, carClass, makeSim, socketsOf, db, npcCfg: C.npc, qcfg: s.session.player.quests.config, sessionRules: db.sessions, cache: refCache, cfg: C.events, onProgress });
     },
@@ -397,6 +398,8 @@ async function trackGame(game) {
       await switchWorld(h.file);
       const w = worlds.get(h.file);
       // the race: the event on its grid (its course, hash and rating: track/events/prepare.js), a ghost if asked
+      // its conditions: the event's time of day and weather (its theme's where it says 'any')
+      if (w.trackData?.look) applyConditions(w, eventConditions(prepared.event.conditions, w.trackData.look, w.trackCfg?.conditions));
       const ghost = s.trackUi.ghostWanted ? await bestLapGhost(prepared.event) : null;
       const r = await w.quests.start(prepared.event, { ghost });
       if (!r.ok) s.flash.show(r.error ?? 'Couldn\'t start', 'warn', 3);
@@ -754,6 +757,7 @@ async function buildWorld(file) {
 
   // Fixed shapes (same as the colliders)
   const trees = [];
+  let roadMesh = null;
   for (const s of trackShapes(track)) {
     if (s.tree) { trees.push(s.tree); continue; }
     if (s.hidden) continue;                          // (a dressed track's barriers, kerbs, scenery: track/render.js draws them)
@@ -768,6 +772,7 @@ async function buildWorld(file) {
       const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: !!s.colours, color: s.colours ? 0xffffff : 0x404246, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
       mesh.receiveShadow = true;
       scene.add(mesh);
+      if (trackData) roadMesh = mesh;          // (the weather: wet, darker — track/weather.js)
       continue;
     }
     let geo;
@@ -839,11 +844,13 @@ async function buildWorld(file) {
     // dressed (Phase 5 Step 2): kerbs, barriers, the start and pits, scenery (track/renderDress.js); its
     // theme's sky, light and weather; the start lights following the countdown
     if (trackData.dress) {
-      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high' });
+      w.trackCfg = (await trackConfigs()).tracks;
+      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high', floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false });
       w.stream.world.add(w.trackDress.group);
-      w.theme = themeEnvironment(trackData.look);
+      w.roadMesh = roadMesh;
       w.camera.far = Math.max(2000, span * 6); w.camera.updateProjectionMatrix();
-      scene.fog.near = w.theme.fog.near; scene.fog.far = Math.max(w.theme.fog.far, span * 1.5);
+      // its time of day and weather: the theme's (an event's own when one starts: applyConditions)
+      applyConditions(w, null);
       w.lightsNow = () => {
         const r = routeRun?.state;
         if (r?.phase === 'countdown') return startLights({ phase: 'countdown', left: r.count, total: 3 });
@@ -902,8 +909,11 @@ function frame(w, now) {
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
   shared.trackUi?.frame(!!w.trackData && shared.trip?.state === 'track', !!w.quests?.active);
+  // (a generated track's weather and floodlights)
+  if (w.rain) w.rain.update(w.camera, seconds);
+  if (w.trackData) floodFrame(w);
   if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
-  if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
+  if (w.stream) w.sim.vehicle.surfaceAt = w.gripScale && w.gripScale !== 1 ? wetSurfaces(w) : w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car
   Object.assign(v.aids, P.aids);
@@ -1069,6 +1079,43 @@ function effectsCars(w, b, dt) {
 }
 // The light at this time of day (effects/lighting.js): the sun (or the moon), the sky, the fog — set
 // when the time changes; and your car's headlights at night
+// A generated track's conditions (Phase 5 Step 4): its time of day and weather — an event's (quest
+// conditions), else its theme's — the sky, sun, fog and floodlights (a circuit at night), rain and a wet road,
+// and the grip hook (data/tracks.json conditions.applyGrip: off, until the weather system changes grip)
+function applyConditions(w, cond = null) {
+  const D = w.trackData, C = w.trackCfg?.conditions;
+  if (!D?.look) return;
+  w.theme = themeEnvironment(D.look, { ...(cond ?? {}), conditions: C, closed: D.closed });
+  const span = D.terrain?.size ?? 2000;
+  w.scene.fog.near = w.theme.fog.near; w.scene.fog.far = Math.max(w.theme.fog.far, w.theme.fog.far < 600 ? 0 : span * 1.5);
+  w.hours = null;                          // (the light worked out again: daylight)
+  wetRoad(w.roadMesh?.material, w.theme.wet);
+  w.trackDress?.setNight(!!w.theme.floodlit);
+  if (w.theme.rain) { w.rain?.dispose(); w.rain = createRain(THREE, w.scene, { rate: w.theme.rain }); } else { w.rain?.dispose(); w.rain = null; }
+  w.gripScale = w.theme.applyGrip ? w.theme.grip : 1;
+  // the floodlights' pools of light: the few lamps nearest the camera (moved as it goes)
+  for (const l of w.floodPools ?? []) l.removeFromParent();
+  w.floodPools = w.theme.floodlit && w.trackDress?.lampsAt?.length ? [0, 1, 2, 3].map(() => { const l = new THREE.SpotLight(0xfff1d6, 0, 140, 0.95, 0.6, 1.4); w.scene.add(l, l.target); return l; }) : [];
+}
+export function trackConditions(cond) { if (active?.trackData) applyConditions(active, cond); }
+// the grip hook: every surface's grip × the weather's (each surface copied once)
+function wetSurfaces(w) {
+  if (w.wetAt?.scale === w.gripScale) return w.wetAt.fn;
+  const copies = new Map(), base = w.stream.surfaceAt, k = w.gripScale;
+  const fn = (x, z) => { const s = base(x, z); if (!s) return s; let c = copies.get(s); if (!c) copies.set(s, c = { ...s, grip: (s.grip ?? 1) * k }); return c; };
+  w.wetAt = { scale: k, fn };
+  return fn;
+}
+// the nearest lamps' pools (every half second)
+function floodFrame(w) {
+  if (!w.floodPools?.length) return;
+  const now = performance.now();
+  if (now - (w.floodAt ?? 0) < 500) return;
+  w.floodAt = now;
+  const c = w.camera.position, lamps = w.trackDress.lampsAt.map(p => [p, (p[0] - c.x) ** 2 + (p[2] - c.z) ** 2]).sort((a, b) => a[1] - b[1]);
+  w.floodPools.forEach((l, k) => { const L = lamps[k]?.[0]; if (!L) { l.intensity = 0; return; } l.position.set(L[0], L[1], L[2]); l.target.position.set(L[0], L[1] - 20, L[2]); l.intensity = 2600 * (w.light?.night ?? 1); });
+}
+
 function daylight(w, hours) {
   // (a dressed track: its theme's time of day and weather — track/renderDress.js themeEnvironment)
   if (w.theme) hours = w.theme.hours;
@@ -1081,9 +1128,17 @@ function daylight(w, hours) {
     w.hemi.color.setRGB(...L.ambient.sky, srgb); w.hemi.groundColor.setRGB(...L.ambient.ground, srgb); w.hemi.intensity = L.ambient.intensity;
     w.scene.background.setRGB(...L.background, srgb); w.scene.fog.color.setRGB(...L.fog, srgb);
     if (w.theme) {
-      const T = w.theme, day = 1 - L.night, sky = new THREE.Color(T.sky), hz = new THREE.Color(T.horizon), grey = new THREE.Color('#9ea4aa');
+      const T = w.theme, day = 1 - L.night, sky = new THREE.Color(T.sky), hz = new THREE.Color(T.horizon), grey = new THREE.Color('#9ea4aa').multiplyScalar(0.1 + 0.9 * day);   // (cloud by night: dark)
       w.scene.background.lerp(sky, 0.65 * day).lerp(grey, T.grey); w.scene.fog.color.lerp(hz, 0.65 * day).lerp(grey, T.grey);
       w.sun.intensity *= T.sunScale; w.sun.color.lerp(new THREE.Color(T.sun.colour), 0.4);
+      // (dawn and dusk: warmer — the sun and the sky's edge toward gold)
+      if (T.warm) { const gold = new THREE.Color('#ffae5e'); w.sun.color.lerp(gold, T.warm * 0.6); w.scene.fog.color.lerp(gold, T.warm * 0.35 * day); w.scene.background.lerp(new THREE.Color('#f0a070'), T.warm * 0.25 * day); }
+      // (a floodlit circuit after dark: the lights' own — a cool ambient, a key from above)
+      if (T.floodlit && L.night > 0.3) {
+        const F = T.floodlit;
+        w.hemi.color.set(F.ambient); w.hemi.groundColor.set('#40444c'); w.hemi.intensity = F.ambientIntensity * L.night + w.hemi.intensity * (1 - L.night);
+        w.sun.color.set(F.key); w.sun.intensity = F.keyIntensity; w.sunDir = new THREE.Vector3(0.25, 1, 0.15).normalize();
+      }
     }
   }
   const lamps = w.carVis.headlights;

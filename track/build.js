@@ -187,7 +187,7 @@ function nearestIndex(T, x, z) { let best = 0, bd = Infinity; for (let i = 0; i 
 // the scene description the simulation and the renderer take (physics/track.js: trackShapes, surfaceMap)
 export function trackWorld(data) {
   return {
-    name: `Track ${data.code}`, generated: data, surfaces: data.surfaces, offRoad: 'grass', paintLines: data.paintLines, paintQuads: data.paintQuads ?? [],
+    name: data.names?.track ?? `Track ${data.code}`, generated: data, surfaces: data.surfaces, offRoad: 'grass', paintLines: data.paintLines, paintQuads: data.paintQuads ?? [],
     spawn: data.spawn, roads: [], props: [],
   };
 }

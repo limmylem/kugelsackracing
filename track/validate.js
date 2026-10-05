@@ -6,6 +6,12 @@
 //     closes (a circuit: no gap, no kink, the same height), the tightest corner, how fast the curvature
 //     changes, clearance from itself, its length, gradients, gradient changes, banking and how fast it twists
 
+// (two points of a crossover's passes near its crossing: they meet there, one over the other)
+function crossingPair(t, i, j, ds, n) {
+  const X = t.crossing, near = (a, c) => Math.min(Math.abs(a - c), n - Math.abs(a - c)) * ds <= (70);
+  return (near(i, X.i) && near(j, X.j)) || (near(i, X.j) && near(j, X.i));
+}
+
 export function checkTrack(t, p, L) {
   const out = [], n = t.n, closed = t.closed, X = t.x, Z = t.z, H = t.h, ds = t.length / (closed ? n : n - 1);
   const idx = i => closed ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i));
@@ -38,6 +44,8 @@ export function checkTrack(t, p, L) {
     const ci = Math.floor(X[i] / cell), cj = Math.floor(Z[i] / cell);
     for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const j of grid.get(key(ci + a, cj + b)) ?? []) {
       if (j <= i) continue;
+      // (a crossover, version 3: the two passes meet at its bridge, one over the other)
+      if (t.crossing && crossingPair(t, i, j, ds, n)) continue;
       let along = (j - i) * ds; if (closed) along = Math.min(along, t.length - along);
       const need = Math.min(D, L.legRatio * along) - 2 * ds, d = Math.hypot(X[i] - X[j], Z[i] - Z[j]);
       if (need > 0 && d < need) { out.push(`it comes within ${d.toFixed(1)} m of itself at ${Math.round(i * ds)} m / ${Math.round(j * ds)} m`); break clear; }
@@ -47,13 +55,18 @@ export function checkTrack(t, p, L) {
   if (t.length < p.lengthKm[0] * 1000 - 1 || t.length > p.lengthKm[1] * 1000 + 1) out.push(`${(t.length / 1000).toFixed(3)} km long (${p.lengthKm.join('–')} wanted)`);
   // gradients, their changes, and a circuit back at its own height
   const glim = p.crests ? L.crestGradeChange : L.maxGradeChange;
+  // (version 3: its crest's and bridge's zones change gradient as fast as a crest may)
+  const zoneAt = i => (t.zones ?? []).some(z => i >= z.from && i <= z.to);
   let g = 0, gc = 0, prev = null;
-  for (let i = 1; i < (closed ? n + 1 : n); i++) { const gi = (H[idx(i)] - H[i - 1]) / ds; g = Math.max(g, Math.abs(gi)); if (prev != null) gc = Math.max(gc, Math.abs(gi - prev) / ds); prev = gi; }
+  for (let i = 1; i < (closed ? n + 1 : n); i++) { const gi = (H[idx(i)] - H[i - 1]) / ds; g = Math.max(g, Math.abs(gi)); if (prev != null) gc = Math.max(gc, Math.abs(gi - prev) / ds * glim / (zoneAt(idx(i)) ? Math.max(glim, L.crestGradeChange) : glim)); prev = gi; }
   if (g > L.maxGrade + 0.003) out.push(`a ${(g * 100).toFixed(1)}% gradient (at most ${L.maxGrade * 100}%)`);
   if (gc > glim * 1.2) out.push(`its gradient changes at ${gc.toFixed(5)} /m (at most ${glim})`);
   let b = 0; for (let i = 0; i < n; i++) b = Math.max(b, Math.abs(t.bank[i]));
-  if (b > Math.min(p.banking, L.maxBanking) + 0.011) out.push(`${b.toFixed(2)}° of banking (at most ${Math.min(p.banking, L.maxBanking)}°)`);
-  if (!p.banking && b > 0) out.push('banking where none was asked for');
+  const bmax = Math.max(Math.min(p.banking, L.maxBanking), t.bankMax ?? 0);     // (version 3: a banked corner's own)
+  if (b > bmax + 0.011) out.push(`${b.toFixed(2)}° of banking (at most ${bmax}°)`);
+  if (!p.banking && !t.bankMax && b > 0) out.push('banking where none was asked for');
+  // a crossover: the bridge high enough over the road below
+  if (t.crossing && t.h[t.crossing.j] - t.h[t.crossing.i] < (L.bridgeClear ?? 7) - 0.01) out.push(`the bridge is only ${(t.h[t.crossing.j] - t.h[t.crossing.i]).toFixed(1)} m over the road below`);
   // the road never twisting faster than its edge's limit against the middle
   if (L.bankEdgeGrade) {
     let tw = 0;

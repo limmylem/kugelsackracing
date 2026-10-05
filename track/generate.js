@@ -4,7 +4,8 @@
 // generator never changes once released: a better one is a new version (track/gen/vN.js). Version 2
 // (Phase 5 Step 2) dresses its tracks (track/dress.js, when the world is built); its parameters add the
 // theme ('auto': chosen by the seed here, so the code holds a real one), a pit lane, sausage kerbs and
-// the dressing variant.
+// the dressing variant. Version 3 (Phase 5 Step 4) chooses its elements for quality and variety
+// (track/gen/v3.js): a mix of corner speeds, flow, overtaking, elevation, room for run-off, signature features.
 //
 //   generateTrack({ code } | { seed, params, version }) → { ok, code, version, seed, params, track, attempts, hash, ms }
 //   hashOf(track) → the track's fingerprint (8 hex characters: its centreline, heights and banking)
@@ -12,10 +13,11 @@
 
 import * as v1 from './gen/v1.js';
 import * as v2 from './gen/v2.js';
+import * as v3 from './gen/v3.js';
 import { normalise, encode, decode, themeOf, THEMES } from './code.js';
 import { seedOf, fnv } from './det.js';
 
-const GENERATORS = { 1: v1, 2: v2 };
+const GENERATORS = { 1: v1, 2: v2, 3: v3 };
 export const VERSIONS = Object.keys(GENERATORS).map(Number);
 export const LATEST = Math.max(...VERSIONS);
 

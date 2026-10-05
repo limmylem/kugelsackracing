@@ -14,8 +14,9 @@ import { generateTrack, VERSIONS } from '../track/generate.js';
 import { checkTrack } from '../track/validate.js';
 import * as v1 from '../track/gen/v1.js';
 import * as v2 from '../track/gen/v2.js';
+import * as v3 from '../track/gen/v3.js';
 
-const LIMITS_OF = { 1: v1.LIMITS, 2: v2.LIMITS };
+const LIMITS_OF = { 1: v1.LIMITS, 2: v2.LIMITS, 3: v3.LIMITS };
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? +args[i + 1] : d; };
 const cfg = JSON.parse(fs.readFileSync(new URL('../data/tracks.json', import.meta.url), 'utf8')), P = cfg.presets;
 let failed = 0;
@@ -43,13 +44,13 @@ const pct = (a, p) => [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.f
     ms.push(g.ms);
     const s = (per[pr.id] ??= { n: 0, attempts: 0, most: 0 });
     s.n++;
-    if (!g.ok) { none++; continue; }
+    if (!g.ok) { none++; if (none <= 5) console.log(`        ${pr.id} seed ${seed}: ${g.error}`); continue; }
     s.attempts += g.attempts.length; s.most = Math.max(s.most, g.attempts.length);
     for (const a of g.attempts) if (a.reason) { const r = a.reason.replace(/[-0-9.×%]+/g, '#'); reasons[r] = (reasons[r] ?? 0) + 1; }
     const problems = checkTrack(g.track, g.params, LIMITS_OF[g.version]);
     if (problems.length) { bad++; if (bad <= 5) console.log(`        ${pr.id} seed ${seed} (${g.code}): ${problems.join('; ')}`); }
   }
-  report(bad === 0 && none === 0, `validity: ${N} seeds over ${P.length} presets`, `${N - bad - none} valid, ${bad} failing a check, ${none} with no valid track in ${v1.LIMITS.attempts} attempts`);
+  report(bad === 0 && none === 0, `validity: ${N} seeds over ${P.length} presets`, `${N - bad - none} valid, ${bad} failing a check, ${none} with no valid track`);
   for (const [id, s] of Object.entries(per)) console.log(`        ${id.padEnd(20)} ${(s.attempts / Math.max(1, s.n)).toFixed(2)} attempts a track (most ${s.most})`);
   const total = Object.values(per).reduce((a, s) => a + s.attempts, 0);
   console.log(`        on average ${(total / N).toFixed(2)} attempts a track; why attempts failed:`);

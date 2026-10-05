@@ -39,7 +39,7 @@
         ],
         "style": "technical",
         "width": 11,
-        "elevation": 12,
+        "elevation": 18,
         "banking": 0,
         "crests": false,
         "theme": "auto",
@@ -62,11 +62,11 @@
         ],
         "style": "flowing",
         "width": 13,
-        "elevation": 25,
+        "elevation": 30,
         "banking": 6,
         "crests": false,
         "theme": "auto",
-        "pitLane": true,
+        "bridges": true, "pitLane": true,
         "sausages": false
       }
     },
@@ -85,7 +85,7 @@
         ],
         "style": "fast",
         "width": 14,
-        "elevation": 15,
+        "elevation": 20,
         "banking": 8,
         "crests": false,
         "theme": "auto",
@@ -108,11 +108,11 @@
         ],
         "style": "mixed",
         "width": 13,
-        "elevation": 30,
+        "elevation": 35,
         "banking": 4,
         "crests": false,
         "theme": "auto",
-        "pitLane": true,
+        "bridges": true, "pitLane": true,
         "sausages": true
       }
     },
@@ -131,7 +131,7 @@
         ],
         "style": "mixed",
         "width": 10,
-        "elevation": 8,
+        "elevation": 14,
         "banking": 0,
         "crests": false,
         "theme": "auto",
@@ -202,7 +202,7 @@
         ],
         "style": "technical",
         "width": 11,
-        "elevation": 10,
+        "elevation": 12,
         "banking": 0,
         "crests": false,
         "theme": "street",
@@ -1023,5 +1023,47 @@
     "cachedMs": 400,
     "drawCalls": 160,
     "physicsMs8Cars": 6
+  },
+  "conditions": {
+    "_note": "Time of day and weather (Phase 5 Step 4: track/renderDress.js themeEnvironment, track/weather.js). A track event's conditions (quest conditions.timeOfDay / weather; 'any': its theme's) or the theme's own. times: each time of day's hour (effects/lighting.js lightAt) and warmth (the sky's and sun's tint toward gold); a quest's dawn / day / dusk / night: event (day: the theme's own if it's daytime). weather: sunScale (the sun's strength), grey (the sky toward grey), fogScale (the fog's distances), rain (streaks: drops a second near the camera), wet (the road darker and shinier) and grip (the tyres' grip on a wet road: used only if applyGrip — the hook for when the weather system changes grip; until then it's how it looks). floodlit: a circuit at night (or dusk) lit by floodlights — the light towers lit, masts at the marshal posts where a theme has no towers, and the lighting's own: the ambient light's colour and strength and a key light from above.",
+    "times": { "dawn": { "hours": 6.3, "warm": 0.5 }, "morning": { "hours": 9.5, "warm": 0.1 }, "midday": { "hours": 13, "warm": 0 }, "afternoon": { "hours": 15.5, "warm": 0.1 }, "evening": { "hours": 17.2, "warm": 0.35 }, "dusk": { "hours": 17.8, "warm": 0.6 }, "night": { "hours": 22.5, "warm": 0 } },
+    "event": { "dawn": "dawn", "day": null, "dusk": "dusk", "night": "night" },
+    "weather": {
+      "clear": { "sunScale": 1, "grey": 0, "fogScale": 1 },
+      "hazy": { "sunScale": 0.85, "grey": 0.2, "fogScale": 0.7 },
+      "overcast": { "sunScale": 0.55, "grey": 0.45, "fogScale": 0.8 },
+      "cloudy": { "sunScale": 0.55, "grey": 0.45, "fogScale": 0.8 },
+      "rain": { "sunScale": 0.35, "grey": 0.6, "fogScale": 0.45, "rain": 2600, "wet": true, "grip": 0.82 },
+      "fog": { "sunScale": 0.5, "grey": 0.5, "fogScale": 0.16 }
+    },
+    "applyGrip": false,
+    "floodlit": { "ambient": "#c8d2e6", "ambientIntensity": 1.25, "key": "#fff4dc", "keyIntensity": 1.1, "masts": true }
+  },
+  "variety": {
+    "_note": "The variety report (npm run track-variety: tools/track-variety.mjs, docs/TRACKS.md 'Variety'): per tracks of every preset made and measured; similarity: sample tracks' layouts compared pair by pair, a pair more alike than duplicate is a near-duplicate. targets (all: every preset's; a preset's own over them): failed (seeds with no track, at most), gateP10 / gateP50 (the quality gate's 10th percentile and median, at least), passQuick (the share reaching the quick races' gate), allThree (the share with slow, medium and fast corners), signature (the share with a signature feature), lengthCover (p10–p90 of length against the preset's range), themeMin (a preset on auto: every theme, the rarest at least this share), duplicates (near-duplicate pairs, at most), elevationP50 (m, median).",
+    "per": 10000,
+    "similarity": { "sample": 400, "duplicate": 0.92 },
+    "targets": {
+      "all": { "failed": 0, "gateP10": 50, "gateP50": 70, "passQuick": 0.85, "signature": 0.45, "lengthCover": 0.55, "themeMin": 0.12, "duplicates": 0.005 },
+      "short_technical": { "allThree": 0.3 },
+      "club_circuit": { "allThree": 0.3 },
+      "street_circuit": { "allThree": 0.3 },
+      "mountain_hillclimb": { "allThree": 0.3, "elevationP50": 40 },
+      "fast_flowing": { "allThree": 0.5 },
+      "high_speed": { "allThree": 0.4 },
+      "mixed_gp": { "allThree": 0.6 },
+      "coastal_sprint": { "allThree": 0.5 }
+    }
+  },
+  "quality": {
+    "_note": "A generated track's quality score (Phase 5 Step 4: track/quality.js, docs/TRACKS.md 'Quality'). Each part 0-1, the score their weighted mean × 100. variety: corners by apex speed (the race car's speed plan: slow under slowBelow km/h, fast from fastFrom), their mix (entropy) and how often a corner is the same as the last (radius within sameRadius, turn within sameTurn °; repeatFull: that share counts as none at all); enough corners for full marks. flow: braking zones (a drop of brakeDrop km/h or more); a heavy one (heavyDrop) after a run of under minRun m from the last is stop-start; allow (or share of the zones) of them is no flow at all. overtaking: a braking zone from at least minTop km/h, dropping minDrop, after a run of minRun m: want of them on a circuit (wantShort on one under shortTrack m), wantSprint on a sprint. elevation: crests and dips (a local high or low over ± window m, prominence m above or below), corners with a grade of cornerGrade at the apex, the range; each's share of the part and how many make full marks. safety: the run-off outside each corner's apex against what its speed asks for (share of the speed rule, at most capMetres), weighted by speed²; a corner with an apex of fastApex km/h or more and under dangerRatio of it is a dangerous spot, as is a stretch of 20 m or more at closeKmh or faster with another part of the track within closeMetres beyond its edge; each costs dangerCost. ai: an NPC race's closeness — the finishers' spread (fullSpread of the race time: none at all) and overtakes (passesPerCar each: full marks); bunched: its share. weights: each part's. min: the gate score (the deterministic parts) the day's, week's and quick tracks must reach (track/events/model.js).",
+    "weights": { "variety": 1.2, "flow": 1, "overtaking": 1.1, "elevation": 0.6, "safety": 1, "ai": 0.8 },
+    "variety": { "slowBelow": 110, "fastFrom": 175, "sameRadius": 0.15, "sameTurn": 15, "repeatFull": 0.6, "mix": 0.7, "enough": 6 },
+    "flow": { "brakeDrop": 25, "heavyDrop": 60, "minRun": 120, "allow": 2, "share": 0.4 },
+    "overtaking": { "minTop": 170, "minDrop": 70, "minRun": 220, "want": 2, "wantSprint": 1, "wantShort": 1, "shortTrack": 2600 },
+    "elevation": { "window": 80, "prominence": 1.5, "cornerGrade": 0.03, "wantCrests": 4, "wantSloped": 3, "wantRange": 25, "crests": 0.4, "corners": 0.35, "range": 0.25 },
+    "safety": { "share": 1, "capMetres": 40, "fastApex": 150, "dangerRatio": 0.6, "dangerCost": 0.15, "closeKmh": 160, "closeMetres": 22 },
+    "ai": { "cars": 6, "laps": 2, "skill": [0.6, 0.8], "fullSpread": 0.12, "passesPerCar": 1, "bunched": 0.6, "maxSpread": 0.1 },
+    "min": { "daily": 60, "weekly": 65, "quick": 55 }
   }
 }

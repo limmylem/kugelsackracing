@@ -19,6 +19,7 @@
 import { dressTrack, RUNOFF, BARRIERS } from './dress.js';
 import { PIT } from './gen/v2.js';
 import { landGrid, heightAtOf, courseOf, fixWinding, BUILD_VERSION } from './build.js';
+import { trackName, cornerNames } from './names.js';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -44,6 +45,12 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
   const surf = (i, u) => { const a = Math.abs(u); return a <= W ? T.h[i] + u * tanB[i] : edgeH(i, u > 0 ? 1 : -1) - fall * (a - W); };
   const at = (i, u) => [T.x[i] + tz[i] * u, T.z[i] - tx[i] * u];
 
+  // (a crossover's bridge, version 3: the upper pass's deck — the ground under it the lower pass's, the
+  // deck's sides no skirt down to the ground)
+  const X = T.crossing ?? null, bridge = plan.objects.find(o => o.k === 'bridge');
+  const deckHalf = bridge ? bridge.half + 8 : 0;
+  const onDeck = i => !!X && Math.min(Math.abs(i - X.j), n - Math.abs(i - X.j)) * ds <= deckHalf;
+
   // ---------- the ground: flat under the run-off, blending into the land beyond the barriers ----------
   progress('ground', 0.25);
   const land = landGrid(T, B), { N, cell, half, heights, idx } = land;
@@ -51,6 +58,7 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
   for (let i = 0; i < n; i++) oMax = Math.max(oMax, plan.runoff.L[i], plan.runoff.R[i]);
   const G = (N + 1) * (N + 1), reach = oMax + B.blend + 60, nearest = new Float32Array(G).fill(Infinity), near = new Int32Array(G).fill(-1);
   for (let i = 0; i < n; i++) {
+    if (onDeck(i)) continue;
     const c0 = Math.max(0, Math.floor((T.x[i] - reach + half) / cell)), c1 = Math.min(N, Math.ceil((T.x[i] + reach + half) / cell));
     const q0 = Math.max(0, Math.floor((T.z[i] - reach + half) / cell)), q1 = Math.min(N, Math.ceil((T.z[i] + reach + half) / cell));
     for (let c = c0; c <= c1; c++) { const vx = -half + c * cell - T.x[i]; for (let r = q0; r <= q1; r++) { const vz = -half + r * cell - T.z[i], d = vx * vx + vz * vz, k = idx(c, r); if (d < nearest[k]) { nearest[k] = d; near[k] = i; } } }
@@ -85,7 +93,7 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
       const [x, z] = at(i, u), k = (j * C + c) * 3, a = Math.abs(u);
       const sk = s && a > O(s)[i] + 0.5;
       positions[k] = x; positions[k + 2] = z;
-      positions[k + 1] = sk ? Math.min(surf(i, s * O(s)[i]), terrainAt(x, z) + 0.02) : surf(i, u);
+      positions[k + 1] = sk ? (onDeck(i) ? surf(i, s * O(s)[i]) - 0.9 : Math.min(surf(i, s * O(s)[i]), terrainAt(x, z) + 0.02)) : surf(i, u);
       const name = s ? RUNOFF[(s > 0 ? plan.surface.L : plan.surface.R)[i]] : 'road';
       colours.set(a <= W + 0.001 ? COL.road : sk ? COL.ground : a <= lipOf(O(s)[i]) + 0.001 ? (name === 'asphalt' ? COL.asphalt : COL.verge) : COL[name], k);
     });
@@ -142,7 +150,7 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
     const u = (x - T.x[i]) * tz[i] - (z - T.z[i]) * tx[i], s = u >= 0 ? 1 : -1;
     return Math.abs(u) <= O(s)[i] + 0.4 ? surf(i, u) : terrainAt(x, z);
   };
-  const objects = plan.objects.map(o => ({ ...o, y: Math.round(groundAt(o.x, o.z) * 100) / 100 }));
+  const objects = plan.objects.map(o => o.k === 'bridge' ? { ...o } : ({ ...o, y: Math.round(groundAt(o.x, o.z) * 100) / 100 }));
   const colliders = [], box = (x, y, z, sx, sy, sz, yaw, material = 'concrete') => colliders.push({ kind: 'box', name: 'scenery', centre: [x, y + sy / 2, z], halfExtents: [sx / 2, sy / 2, sz / 2], rotation: quatY(yaw), material, hidden: true });
   for (const o of objects) {
     const yaw = Math.atan2(o.fx ?? 0, o.fz ?? 1);
@@ -154,6 +162,12 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
       case 'building': box(o.x, o.y, o.z, o.w, o.h, o.d, yaw); break;
       case 'tree': { const r = (o.kind === 'palm' ? 0.18 : 0.24) * o.size, hh = 2.2 * o.size; colliders.push({ kind: 'capsule', name: 'tree', centre: [o.x, o.y + hh + r, o.z], radius: r, halfHeight: hh, rotation: { x: 0, y: 0, z: 0, w: 1 }, material: 'wood', hidden: true }); break; }
       case 'rock': { const s = o.kind === 'mesa' ? 6 * o.size : o.kind === 'crag' ? 2.4 * o.size : 1.3 * o.size; box(o.x, o.y - s * 0.3, o.z, s * 1.4, s * (o.kind === 'crag' ? 2.2 : 1.1), s * 1.2, o.turn, 'concrete'); break; }
+      case 'bridge': {
+        // its abutments: either side of the road below, under the deck's ends (the deck itself is the road)
+        const yaw = Math.atan2(o.fx, o.fz);
+        for (const e of [-1, 1]) { const x = o.x + o.fx * e * (o.half + 1.5), z = o.z + o.fz * e * (o.half + 1.5); box(x, o.ground - 1, z, o.width, Math.max(1, o.y - o.ground - 0.3), 3, yaw); }
+        break;
+      }
       case 'gantry': case 'finish': case 'footbridge': {
         const i = o.i;
         for (const [s, d] of [[1, o.left], [-1, o.right]]) { const [x, z] = at(i, s * d); box(x, groundAt(x, z), z, 1.0, 7.5, 1.0, Math.atan2(tx[i], tz[i]), 'metal'); }
@@ -195,6 +209,9 @@ export function buildDressed(gen, cfg, { progress = () => {} } = {}) {
     paintLines, paintQuads, surfaces: cfg.surfaces,
     barriers: { runs, fences, cfg: cfg.barriers },
     objects, colliders,
+    ...(X ? { crossing: { ...X } } : {}),
+    // (its name and its notable corners': from the seed, the same everywhere — track/names.js)
+    names: { track: trackName(gen.seed ?? 0, { theme: P.theme, layout: closed ? 'loop' : 'p2p' }), corners: cornerNames(gen, plan, { theme: P.theme }) },
     dress: { version: P.version, theme: P.theme, variant: P.variant, hash: P.hash, start: P.start, finish: P.finish, corners: P.corners, kerbs: P.kerbs, pit: P.pit, runoff: P.runoff, surface: P.surface, barrier: P.barrier, fence: P.fence, speed: P.speed, line: P.line, brands: cfg.brands },
     spawn: { position: [slot.x, surf(nearestI(slot.x, slot.z), 0) + 0.6, slot.z], headingDeg: slot.heading },
     start: { s: gr.startS, slots: gr.slots.map(s => ({ x: s.x, z: s.z, h: s.h, heading: s.heading })) }, finish: { s: gr.finishS },

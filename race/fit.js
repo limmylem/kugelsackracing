@@ -17,7 +17,9 @@ export function fittedRacing(course, sim, frame) {
   const R = v.R, world = v.world;
   const probe = {
     ground(x, z, h) {
-      const [sx, sz] = frame.toSim(x, z), top = h + 25;
+      // (from 25 m above the route's height; a generated track with a crossover: just above its road —
+      // under the bridge it's the road below that counts)
+      const [sx, sz] = frame.toSim(x, z), top = h + (frame.probeAbove ?? 25);
       const hit = world.castRay(new R.Ray({ x: sx, y: top, z: sz }, { x: 0, y: -1, z: 0 }), 60, true, 6);
       return hit ? top - hit.timeOfImpact : null;
     },

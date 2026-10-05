@@ -21,22 +21,13 @@
 import { generateTrack, LATEST } from '../generate.js';
 import { normalise } from '../code.js';
 import { fnv32, mix } from '../det.js';
+import { dressTrack } from '../dress.js';
+import { qualityOf, layoutSignature, similarity } from '../quality.js';
 import { TYPES, CONTENT_VERSION } from '../../content/quests.js';
 
-// ---------- names ----------
-const FIRST = {
-  countryside: ['Ashby', 'Brookfield', 'Hollins', 'Marley', 'Thornbury', 'Wexcombe', 'Ferris', 'Linden', 'Oakmere', 'Halden'],
-  forest: ['Pinewood', 'Black Fir', 'Elkhorn', 'Mossgrove', 'Ravenwood', 'Hemlock', 'Deepwold', 'Larchmont', 'Bracken', 'Owlsden'],
-  desert: ['Red Mesa', 'Sandvale', 'Dry Creek', 'Sunreach', 'Cactus Flat', 'Copperstone', 'Dune Point', 'Saltpan', 'Mirage', 'Dustbowl'],
-  coastal: ['Saltmarsh', 'Gull Point', 'Bayview', 'Cliffhaven', 'Seacombe', 'Driftwood', 'Port Avel', 'Harbourside', 'Tidewater', 'Shellbay'],
-  mountain: ['Highcrest', 'Eagle Pass', 'Stoneridge', 'Frostpeak', 'Granite', 'Col du Roc', 'Snowline', 'Alpenhorn', 'Summit', 'Windgap'],
-  street: ['Downtown', 'Harbour City', 'Old Town', 'Midtown', 'Riverside', 'Union Square', 'Canal Street', 'Arsenal', 'Market', 'Neon Quarter'],
-};
-const LOOP = ['Park', 'Ring', 'Circuit', 'Raceway', 'Motor Park', 'Speedway'], P2P = ['Hillclimb', 'Pass', 'Climb', 'Sprint', 'Road', 'Run'];
-export function trackName(seed, { theme = 'countryside', layout = 'loop' } = {}) {
-  const A = FIRST[theme] ?? FIRST.countryside, B = layout === 'p2p' ? P2P : theme === 'street' && layout === 'loop' ? ['Street Circuit', 'Grand Prix', 'Circuit', 'Street Race'] : LOOP;
-  return `${A[mix(seed >>> 0, 0x4e41) % A.length]} ${B[mix(seed >>> 0, 0x4e42) % B.length]}`;
-}
+// (names: track/names.js — the track's, by its theme; its notable corners')
+export { trackName } from '../names.js';
+import { trackName } from '../names.js';
 
 // ---------- the date's tracks ----------
 const pad = n => String(n).padStart(2, '0');
@@ -47,17 +38,59 @@ export function weekKey(date) {
   const week = 1 + Math.round((thursday.getTime() - (first - fday * 864e5 + 3 * 864e5)) / (7 * 864e5));
   return `${y}-W${pad(week)}`;
 }
-// (the first seed from the key that makes a track: a generator can give up on one, rarely)
-function fromKey(kind, key, C, tracksCfg) {
-  const base = fnv32(`${C.salt}:${kind}:${key}`), P = tracksCfg.presets;
+// The rules for a date's track (data/trackEvents.json daily / weekly `rules`, by the date they start from:
+// a rule never changes the tracks of the days before it): the generator version, and whether its tracks
+// must reach the quality score (track/quality.js gate ≥ data/tracks.json quality.min) and differ from the
+// recent days' (layoutSignature similarity under `similar`)
+function rulesFor(C, key) {
+  const day = key.includes('W') ? weekStart(key) : key;
+  const list = (C.rules ?? [{ from: '0000', version: C.version, quality: false }]).filter(x => x.from <= day);
+  return list.at(-1) ?? { version: C.version, quality: false };
+}
+function weekStart(key) {
+  const [y, w] = key.split('-W').map(Number), jan4 = Date.UTC(y, 0, 4), d = (new Date(jan4).getUTCDay() + 6) % 7;
+  return dayKey(jan4 - d * 864e5 + (w - 1) * 7 * 864e5);
+}
+// a candidate made and scored (the gate: the deterministic parts — the same everywhere)
+function scored(gen, tracksCfg) {
+  const plan = dressTrack(gen, tracksCfg);
+  return qualityOf(gen, plan, tracksCfg);
+}
+const memo = new Map();
+// The track for a key: the first seed derived from it that makes a track — and, by the rules, reaches the
+// quality gate and isn't too like the last few days' (their first good seeds: no chain back for ever)
+function fromKey(kind, key, C, tracksCfg, { similar = true } = {}) {
+  const id = `${kind}:${key}:${similar}`;
+  if (memo.has(id)) return memo.get(id);
+  const R = rulesFor(C, key), base = fnv32(`${C.salt}:${kind}:${key}`), P = tracksCfg.presets, min = tracksCfg.quality?.min?.[kind] ?? 0;
   const preset = P.find(p => p.id === C.presets[mix(base, 0x5e1) % C.presets.length]) ?? P[0];
-  for (let k = 0; k < 12; k++) {
+  const recent = R.quality && similar && R.similar ? previousKeys(kind, key, R.similar.recent).map(k => { try { return layoutSignature(fromKey(kind, k, C, tracksCfg, { similar: false }).gen); } catch { return null; } }).filter(Boolean) : [];
+  const skipped = [];
+  for (let k = 0; k < (R.quality ? 40 : 12); k++) {
     const seed = k ? mix(base, 0x5e2 + k) : base;
-    const params = normalise({ ...preset.params, dressing: mix(seed, 0x5e3) % 4 }, { version: C.version });
-    const gen = generateTrack({ seed, params, version: C.version });
-    if (gen.ok) return describe({ kind, key, seed, gen, preset: preset.id });
+    const params = normalise({ ...preset.params, dressing: mix(seed, 0x5e3) % 4 }, { version: R.version });
+    const gen = generateTrack({ seed, params, version: R.version });
+    if (!gen.ok) { skipped.push({ seed, why: 'no track' }); continue; }
+    let quality = null;
+    if (R.quality) {
+      quality = scored(gen, tracksCfg);
+      if (quality.gate < min) { skipped.push({ seed, why: `score ${quality.gate} (under ${min})` }); continue; }
+      const like = recent.map(r => similarity(layoutSignature(gen), r)).reduce((a, b) => Math.max(a, b), 0);
+      if (like > R.similar.max) { skipped.push({ seed, why: `too like a recent track (${like})` }); continue; }
+    }
+    const out = { ...describe({ kind, key, seed, gen, preset: preset.id }), quality, skipped };
+    memo.set(id, out);
+    if (memo.size > 64) memo.delete(memo.keys().next().value);
+    return out;
   }
   throw new Error(`No ${kind} track could be made for ${key}.`);
+}
+// the keys before this one (days, or ISO weeks)
+function previousKeys(kind, key, count) {
+  const out = [];
+  if (kind === 'daily') { const t = Date.parse(`${key}T00:00:00Z`); for (let k = 1; k <= count; k++) out.push(dayKey(t - k * 864e5)); }
+  else { const t = Date.parse(`${weekStart(key)}T00:00:00Z`); for (let k = 1; k <= count; k++) out.push(weekKey(t - k * 7 * 864e5)); }
+  return out;
 }
 function describe({ kind, key = null, seed, gen, preset = null }) {
   const info = trackInfo(gen);
@@ -65,12 +98,19 @@ function describe({ kind, key = null, seed, gen, preset = null }) {
 }
 export const dailyTrack = (date, cfg, tracksCfg) => fromKey('daily', dayKey(date), cfg.daily, tracksCfg);
 export const weeklyTrack = (date, cfg, tracksCfg) => fromKey('weekly', weekKey(date), cfg.weekly, tracksCfg);
+// A quick race's track: a random seed's, from a preset — the first derived seed that reaches the quick
+// races' quality gate (the same seed always gives the same track)
 export function quickTrack(presetId, seed, tracksCfg) {
-  const preset = tracksCfg.presets.find(p => p.id === presetId) ?? tracksCfg.presets[0];
-  for (let k = 0; k < 12; k++) {
+  const preset = tracksCfg.presets.find(p => p.id === presetId) ?? tracksCfg.presets[0], min = tracksCfg.quality?.min?.quick ?? 0;
+  let fallback = null;
+  for (let k = 0; k < 24; k++) {
     const s = k ? mix(seed >>> 0, 0x9c1 + k) : seed >>> 0, gen = generateTrack({ seed: s, params: preset.params, version: LATEST });
-    if (gen.ok) return describe({ kind: 'quick', seed: s, gen, preset: preset.id });
+    if (!gen.ok) continue;
+    const quality = scored(gen, tracksCfg);
+    if (quality.gate >= min) return { ...describe({ kind: 'quick', seed: s, gen, preset: preset.id }), quality };
+    if (!fallback || quality.gate > fallback.quality.gate) fallback = { ...describe({ kind: 'quick', seed: s, gen, preset: preset.id }), quality };
   }
+  if (fallback) return fallback;
   throw new Error('No track could be made from that preset.');
 }
 export function sharedTrack(code) {

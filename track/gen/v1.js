@@ -288,6 +288,10 @@ function attempt(r, p) {
     if (Math.abs(q.k0) > 1 / LIMITS.minRadius + 1e-9 || Math.abs(q.k1) > 1 / LIMITS.minRadius + 1e-9) return { ok: false, reason: 'a corner tighter than the minimum radius' };
     if (q.L > 0 && Math.abs(q.k1 - q.k0) / q.L > LIMITS.maxCurvatureRate * 1.001) return { ok: false, reason: 'the curvature changes too suddenly' };
   }
+  // (far too long — a closing that stretched a straight out of all reason — turned down before it's
+  // drawn out, point by point: the same reason, the same attempts, as when it was)
+  const length = ps.reduce((a, q) => a + Math.max(0, q.L), 0);
+  if (!(length < Lmax * 1.5)) return { ok: false, reason: `${(length / 1000).toFixed(2)} km long (${p.lengthKm[0]}–${p.lengthKm[1]} km wanted)` };
   const dense = integrate(ps);
   const { pts, L, ds } = resampleClosed(dense, closed, LIMITS.step);
   if (L < Lmin || L > Lmax) return { ok: false, reason: `${(L / 1000).toFixed(2)} km long (${p.lengthKm[0]}–${p.lengthKm[1]} km wanted)` };

@@ -15,9 +15,10 @@ import { dressTrack } from '../dress.js';
 import { barrierRuns } from '../build2.js';
 import { LIMITS as L1 } from '../gen/v1.js';
 import { LIMITS as L2 } from '../gen/v2.js';
+import { LIMITS as L3 } from '../gen/v3.js';
 import { trackHash } from './hash.js';
 
-const LIMITS = { 1: L1, 2: L2 };
+const LIMITS = { 1: L1, 2: L2, 3: L3 };
 
 export function trackChecks(gen, cfg) {
   if (!gen?.ok) return { trackOk: false, problems: [gen?.error ?? 'The track couldn\'t be made.'] };

@@ -7,7 +7,7 @@
 //     inside the run-off, kerbs on the right side, where the racing line goes)
 //   - run-off sized to the corners' speed: the faster the corner, the more run-off outside it
 //   - speed: making and building a dressed track within the load target
-//   - version 2's pinned tracks: the same layout and the same dressing
+//   - every dressed version's pinned tracks (2 and 3): the same layout and the same dressing
 //
 //   node tests/track-dress.mjs [--seeds 1000] [--determinism 1000]
 
@@ -72,11 +72,11 @@ const spec = k => ({ seed: 7907 * k + 13, params: { ...P[k % P.length].params, t
   report(pct(ms, 0.9) <= PERF.loadSeconds * 1000, 'speed: making and building a dressed track', `median ${(pct(ms, 0.5) / 1000).toFixed(2)} s, 90% within ${(pct(ms, 0.9) / 1000).toFixed(2)} s, slowest ${(Math.max(...ms) / 1000).toFixed(2)} s (target ${PERF.loadSeconds} s)`);
 }
 
-// ---------- version 2's pinned tracks ----------
-{
-  const F = JSON.parse(fs.readFileSync(new URL('./fixtures/tracks-v2.json', import.meta.url), 'utf8'));
+// ---------- every dressed version's pinned tracks (2 on) ----------
+for (const v of [2, 3]) {
+  const F = JSON.parse(fs.readFileSync(new URL(`./fixtures/tracks-v${v}.json`, import.meta.url), 'utf8'));
   const wrong = F.tracks.filter(t => { const g = generateTrack({ code: t.code }); return g.hash !== t.hash || dressTrack(g, cfg).hash !== t.dressHash; });
-  report(!wrong.length, 'version 2: its pinned tracks unchanged', `${F.tracks.length - wrong.length} of ${F.tracks.length} identical, layout and dressing${wrong.length ? ` (changed: ${wrong.map(t => `${t.preset} ${t.seed}`).join(', ')})` : ''}`);
+  report(!wrong.length, `version ${v}: its pinned tracks unchanged`, `${F.tracks.length - wrong.length} of ${F.tracks.length} identical, layout and dressing${wrong.length ? ` (changed: ${wrong.map(t => `${t.preset} ${t.seed}`).join(', ')})` : ''}`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');

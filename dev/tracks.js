@@ -11,10 +11,11 @@ import { decode, generateTrack, LATEST } from '../track/generate.js';
 import { viewCourse } from '../route/model.js';
 import { trackProjection } from '../track/build.js';
 import { dressTrack, RUNOFF } from '../track/dress.js';
+import { qualityOf, aiCloseness } from '../track/quality.js';
 
 const $ = id => document.getElementById(id);
 const cfg = await (await fetch('data/tracks.json', { cache: 'no-cache' })).json();
-const FIELDS = ['type', 'style', 'l0', 'l1', 'c0', 'c1', 'width', 'elevation', 'climb', 'banking', 'crests', 'theme', 'pitLane', 'sausages', 'dressing'];
+const FIELDS = ['type', 'style', 'l0', 'l1', 'c0', 'c1', 'width', 'elevation', 'climb', 'banking', 'crests', 'theme', 'pitLane', 'sausages', 'dressing', 'signatures', 'bridges'];
 const layerOn = k => document.querySelector(`#layers [data-layer="${k}"]`)?.checked !== false;
 let data = null, flying = null, busy = false;
 
@@ -24,9 +25,10 @@ function setParams(p) {
   $('type').value = p.type; $('style').value = p.style; $('l0').value = p.lengthKm[0]; $('l1').value = p.lengthKm[1]; $('c0').value = p.corners[0]; $('c1').value = p.corners[1];
   $('width').value = p.width; $('elevation').value = p.elevation; $('climb').value = p.climb ?? 0; $('banking').value = p.banking ?? 0; $('crests').checked = !!p.crests;
   $('theme').value = p.theme ?? 'auto'; $('pitLane').checked = !!p.pitLane; $('sausages').checked = !!p.sausages; $('dressing').value = p.dressing ?? 0;
+  $('signatures').checked = p.signatures !== false; $('bridges').checked = !!p.bridges;
 }
 const params = () => ({ type: $('type').value, style: $('style').value, lengthKm: [+$('l0').value, +$('l1').value], corners: [+$('c0').value, +$('c1').value], width: +$('width').value, elevation: +$('elevation').value, climb: +$('climb').value, banking: +$('banking').value, crests: $('crests').checked,
-  theme: $('theme').value, pitLane: $('pitLane').checked, sausages: $('sausages').checked, dressing: +$('dressing').value });
+  theme: $('theme').value, pitLane: $('pitLane').checked, sausages: $('sausages').checked, dressing: +$('dressing').value, signatures: $('signatures').checked, bridges: $('bridges').checked });
 $('preset').onchange = () => { const p = cfg.presets.find(x => x.id === $('preset').value); if (p) setParams(p.params); };
 for (const f of FIELDS) $(f).addEventListener('change', () => { $('preset').value = 'custom'; });
 setParams(cfg.presets[1].params); $('preset').value = cfg.presets[1].id;
@@ -108,6 +110,12 @@ function draw() {
   const st = course.start, h = st.heading * Math.PI / 180;
   g.fillStyle = '#3ccf7a'; g.beginPath(); g.moveTo(X(st.x + Math.sin(h) * 18), Z(st.z + Math.cos(h) * 18)); g.lineTo(X(st.x + Math.cos(h) * 9), Z(st.z - Math.sin(h) * 9)); g.lineTo(X(st.x - Math.cos(h) * 9), Z(st.z + Math.sin(h) * 9)); g.fill();
   if (!D.closed) { const f = course.finish; g.fillStyle = '#ff6b6b'; g.fillRect(X(f.x) - 5 * dpr, Z(f.z) - 5 * dpr, 10 * dpr, 10 * dpr); }
+  // the notable corners' names (track/names.js), and the track's
+  if (D.names) {
+    g.font = `600 ${12 * dpr}px Barlow`; g.textAlign = 'left';
+    for (const c of D.names.corners) { const x = X(c.x), y = Z(c.z); g.fillStyle = 'rgba(10,14,20,.75)'; const w = g.measureText(`T${c.n} ${c.name}`).width; g.fillRect(x + 6 * dpr, y - 9 * dpr, w + 8 * dpr, 16 * dpr); g.fillStyle = '#ffd166'; g.fillText(`T${c.n} ${c.name}`, x + 10 * dpr, y + 3 * dpr); }
+    g.font = `700 ${16 * dpr}px Barlow`; g.fillStyle = '#fff'; g.fillText(D.names.track, 14 * dpr, 24 * dpr);
+  }
   $('legend').innerHTML = Dr ? `run-off: <i style="background:${RO.grass}"></i>grass<i style="background:${RO.gravel}"></i>gravel<i style="background:${RO.asphalt}"></i>asphalt<i style="background:${RO.sand}"></i>sand · barriers: <i style="background:#c8ccd0"></i>armco<i style="background:#f2efe6"></i>concrete<i style="background:#ff8a3d"></i>tyres<i style="background:#7fb2ff"></i>pits · <i style="background:#e53935"></i>kerbs <i style="background:#ffd23f"></i>sausage · ▲ start · ● checkpoints`
     : 'colour: corner tightness (blue: straight · red: tightest) · ▲ start · ● checkpoints';
   // a scale bar
@@ -142,6 +150,47 @@ function draw() {
     if (flying?.stats) rows.push(['Drawn', `${flying.stats.drawCalls} draw calls · ${(flying.stats.triangles / 1000).toFixed(0)}k triangles`]);
   }
   $('stats').innerHTML = rows.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
+  showQuality();
+}
+
+// ---------- the quality score (Phase 5 Step 4: track/quality.js) ----------
+// its parts as bars, what was measured, what's wrong; the AI races' closeness when one's been raced here
+let quality = null, aiRaced = null;
+function showQuality() {
+  if (!data || data.version < 2) { $('quality').innerHTML = ''; return; }
+  const gen = generateTrack({ code: data.code });
+  if (aiRaced?.code !== data.code) aiRaced = null;
+  quality = qualityOf(gen, dressTrack(gen, cfg), cfg, { ai: aiRaced?.ai ?? null });
+  window.__quality = quality;
+  const Q = quality, M = Q.measures, min = cfg.quality.min, label = { variety: 'Corner variety', flow: 'Flow', overtaking: 'Overtaking', elevation: 'Elevation', safety: 'Safety', ai: 'AI closeness' };
+  const detail = {
+    variety: `${M.corners.slow} slow · ${M.corners.medium} medium · ${M.corners.fast} fast · ${Math.round(M.corners.repeat * 100)}% repeats`,
+    flow: `${M.flow.brakingZones} braking zones · ${M.flow.stopStart} stop-start`,
+    overtaking: `${M.overtaking.chances} chance${M.overtaking.chances === 1 ? '' : 's'}${M.overtaking.best ? ` (biggest drop ${M.overtaking.best} km/h)` : ''}`,
+    elevation: `${M.elevation.crests} crests · ${M.elevation.dips} dips · ${M.elevation.slopedCorners} corners on a slope · ${M.elevation.range} m`,
+    safety: `run-off ${Math.round(M.safety.runoffShare * 100)}% of what speed asks · ${M.safety.dangerous.length} dangerous spot${M.safety.dangerous.length === 1 ? '' : 's'}`,
+    ai: aiRaced ? `${aiRaced.cars} cars · spread ${aiRaced.spread.toFixed(1)} s · ${aiRaced.overtakes} overtakes` : '',
+  };
+  const sig = gen.track.signature;
+  $('quality').innerHTML = `<h3>Quality ${Q.score} <small>· gate ${Q.gate} (the day's tracks need ${min.daily}, the week's ${min.weekly}, quick races ${min.quick})${sig ? ` · signature: ${sig.kind.replace(/_/g, ' ')}` : ''}</small></h3>
+    ${Object.entries(Q.parts).map(([k, v]) => `<div class="bar"><span>${label[k]}</span><span class="t"><i style="width:${Math.round(v * 100)}%;background:${v < 0.4 ? '#ff7a6a' : v < 0.7 ? '#ffbd4a' : '#3ccf7a'}"></i></span><span>${Math.round(v * 100)}</span></div><div style="margin:-2px 0 4px 118px"><small>${detail[k]}</small></div>`).join('')}
+    ${Q.notes.length ? `<div class="notes">⚠ ${Q.notes.join(' · ')}</div>` : ''}
+    <div class="buttons" style="margin-top:6px"><button id="aiRace">${aiRaced ? 'Race the AI again' : 'Race the AI (closeness)'}</button><span id="aiStatus" style="margin-left:8px;color:#a3abb5"></span></div>`;
+  $('aiRace').onclick = raceAi;
+}
+// a headless race of NPCs on the track (race/aiTest.js, as the editor's test race): their spread and overtakes
+async function raceAi() {
+  const code = data.code;
+  $('aiRace').disabled = true;
+  try {
+    const { runTrackAiTest } = await import('../editor/trackEvent.js');
+    const ev = { id: 'dev', type: data.closed ? 'circuit_race' : 'hillclimb', params: { laps: data.closed ? 2 : 1 }, npc: { count: 7, skill: [0.5, 0.9] }, entry: { classes: [] }, track: { code } };
+    const out = await runTrackAiTest({ item: ev, fast: true, onUpdate: u => { const el = $('aiStatus'); if (el) el.textContent = u.text; } });
+    const R = out.report, done = R.standings.filter(f => f.status === 'finished' && f.time != null).map(f => f.time).sort((a, b) => a - b);
+    aiRaced = { code, ai: aiCloseness(R.standings, { raceTime: R.raceTime, overtakes: R.overtakes, cars: R.standings.length }, cfg), cars: R.standings.length, spread: done.length > 1 ? done.at(-1) - done[0] : 0, overtakes: R.overtakes };
+    window.__aiRaced = aiRaced;
+  } catch (e) { $('aiStatus').textContent = `Couldn't race: ${e.message}`; return; }
+  showQuality();
 }
 
 // the dressing on the map: kerbs, barriers (by type), the pits, grandstands, buildings, trees, signs

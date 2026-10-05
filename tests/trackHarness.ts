@@ -6,6 +6,7 @@
 //   const S = trackSimOf(H, T, spec)  → { sim, origin, toSim, ground, free }   (runRace's S)
 //   const R = await trackReference(H, T, carClass, { cache })  → reference.js's result
 //   const out = await raceEvent(H, T, quest, { npcs, seed, playerSkill, player })  → runRace's out
+//   const A = await aiRace(H, T, { cars, laps, seed })  → the AI racers on their own (race/aiTest.js): { report, closeness }
 
 import fs from 'node:fs';
 import { generateTrack } from '../track/generate.js';
@@ -16,6 +17,8 @@ import { createSimulation } from '../physics/sim.js';
 import { referenceTimes, withAiTimes } from '../track/events/reference.js';
 import { trackHash } from '../track/events/hash.js';
 import { runRace, qcfg, ncfg, sessionRules } from './map/raceHarness.ts';
+import { createAiTest } from '../race/aiTest.js';
+import { aiCloseness } from '../track/quality.js';
 
 export const tracksCfg = JSON.parse(fs.readFileSync(new URL('../data/tracks.json', import.meta.url), 'utf8'));
 export const eventsCfg = JSON.parse(fs.readFileSync(new URL('../data/trackEvents.json', import.meta.url), 'utf8'));
@@ -32,16 +35,17 @@ export function simOn(H: any, T: any, spec: any) {
   const sim = createSimulation(H.RAPIER, { settings: H.settings, spec, sockets: H.socketsOf(spec), track: T.track });
   sim.vehicle.body.enableCcd(true);
   const reset = sim.resetCar.bind(sim);
-  sim.resetCar = (pose: any) => { const [x, , z] = pose.position; reset({ ...pose, position: [x, nearestOnTrack(T.data, x, z).h + 0.6, z] }); };
+  sim.resetCar = (pose: any) => { const [x, y, z] = pose.position; reset({ ...pose, position: [x, nearestOnTrack(T.data, x, z, y || null).h + 0.6, z] }); };
   return sim;
 }
 export function trackSimOf(H: any, T: any, spec: any) {
   const sim = simOn(H, T, spec);
-  return { sim, origin: [0, 0], toSim: (x: number, z: number) => [x, z], ground: (x: number, z: number) => nearestOnTrack(T.data, x, z).h, free() { sim.vehicle.world.free(); } };
+  return { sim, origin: [0, 0], toSim: (x: number, z: number) => [x, z], probeAbove: T.data.crossing ? 4 : null, ground: (x: number, z: number, hint: number | null = null) => nearestOnTrack(T.data, x, z, hint != null ? hint - 30 : null).h, free() { sim.vehicle.world.free(); } };
 }
+const makeSimOn = (H: any, T: any) => async (spec: any) => { const sim = simOn(H, T, spec); return { sim, frame: { toWorld: (x: number, z: number) => [x, z], toSim: (x: number, z: number) => [x, z], probeAbove: T.data.crossing ? 4 : null }, free: () => sim.vehicle.world.free() }; };
 // the AI reference times, the solo laps in a world of their own
 export async function trackReference(H: any, T: any, carClass = 'open', { cache = null as any } = {}) {
-  const makeSim = async (spec: any) => { const sim = simOn(H, T, spec); return { sim, frame: { toWorld: (x: number, z: number) => [x, z], toSim: (x: number, z: number) => [x, z] }, free: () => sim.vehicle.world.free() }; };
+  const makeSim = makeSimOn(H, T);
   const R = await referenceTimes({ data: T.data, course: T.course, carClass, makeSim, socketsOf: H.socketsOf, db: H.db, npcCfg: ncfg, qcfg, sessionRules, cache, cfg: eventsCfg, budgetMs: 1e9 });
   withAiTimes(T.course, carClass, R);
   return R;
@@ -55,4 +59,16 @@ export async function raceEvent(H: any, T: any, quest: any, { npcs = null as any
   const out: any = await runRace(R, { npcs: npcs ?? quest.npc?.count ?? 0, seed, playerSkill, S, quest, player, limit: limit ?? Math.max(300, (T.data.course.stats.estimatedTime ?? 100) * laps * 3), collisions: quest.params?.collisions ?? 'full' });
   S.free();
   return out;
+}
+// The AI racers on their own (the editor's AI test race, race/aiTest.js — its race only, not its reference
+// laps): how close their race was (track/quality.js aiCloseness: finishers bunched, places changing)
+export async function aiRace(H: any, T: any, { cars = tracksCfg.quality.ai.cars, laps = tracksCfg.quality.ai.laps, seed = 4242, skill = tracksCfg.quality.ai.skill as number[] } = {}) {
+  const type = T.course.loop ? 'circuit_race' : 'hillclimb', quest: any = { id: 'trk_ai_race', type, params: T.course.loop ? { laps } : {}, npc: { count: cars, skill, drivers: 'random' }, carClass: null };
+  const test = createAiTest({ makeSim: makeSimOn(H, T), socketsOf: H.socketsOf, course: T.course, quest, db: H.db, cfg: ncfg, qcfg, sessionRules, seed, count: cars });
+  await test.start();
+  while (test.phase === 'race') await test.step(1 / 60, { fast: true, budgetMs: 1e9 });
+  const report = test.report();
+  test.dispose();
+  const results = report.standings.map((r: any) => ({ status: r.status, time: r.time ?? null }));
+  return { report, results, closeness: aiCloseness(results, { raceTime: report.raceTime, overtakes: report.overtakes, cars }, tracksCfg) };
 }

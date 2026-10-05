@@ -9,12 +9,16 @@
 //   - a shared code: the identical track, hash for hash, made again and sent baked
 //   - the AI reference times: the same run after run; the medal targets from them by the rules
 //   - the economy simulation with track events in it: every target met (data/economy.json simulation.targets)
+//   - close AI races (Phase 5 Step 4): the AI racers on the day's, the week's and quick races' tracks, on
+//     their own — the race's closeness in the quality score (track/quality.js), the whole score through the gate
 //
-//   node --expose-gc tests/track-events.ts [--tracks 20] [--trips 100] [--only events,trips,dates,codes,reference,economy]
+//   node --expose-gc tests/track-events.ts [--tracks 20] [--trips 100] [--only events,trips,dates,codes,reference,economy,close]
 
 import fs from 'node:fs';
 import { harness } from './harness.mjs';
-import { makeTrack, simOn, trackReference, raceEvent, tracksCfg as TC, eventsCfg as E } from './trackHarness.ts';
+import { makeTrack, simOn, trackReference, raceEvent, aiRace, tracksCfg as TC, eventsCfg as E } from './trackHarness.ts';
+import { qualityOf } from '../track/quality.js';
+import { dressTrack } from '../track/dress.js';
 import { playerService, qcfg } from './map/raceHarness.ts';
 import { newTrackEvent, dailyTrack, weeklyTrack, sharedTrack, quickTrack, trackInfo, trackName } from '../track/events/model.js';
 import { readyEvent, eventCourse } from '../track/events/prepare.js';
@@ -172,6 +176,35 @@ if (want('reference')) {
   for (const r of rows) console.log(`        ${r}`);
   report(same === n, 'reference times: the same run after run', `${same} of ${n} tracks timed twice: the same to the tenth`);
   report(rules === n, 'medal targets: from the reference laps, by the rules', `${rules} of ${n}: gold the high skill's, silver the medium's, bronze the low's (a race: the standing lap + flying laps; a hot lap: a flying lap)`);
+}
+
+// ---------- close AI races on the day's, the week's and quick races' tracks ----------
+if (want('close')) {
+  const rows: string[] = [], A = TC.quality.ai;
+  let finished = 0, through = 0, n = 0, closeSum = 0, passes = 0;
+  const spreads: number[] = [];
+  const day = Date.parse('2026-10-05T12:00:00Z');
+  const tracks: any[] = [
+    ...[0, 1, 2].map(d => ['daily', dailyTrack(day + d * 864e5, E, TC)]), ['weekly', weeklyTrack(day, E, TC)],
+    ...[['club_circuit', 3], ['mixed_gp', 9], ['coastal_sprint', 5]].map(([p, s]) => ['quick', quickTrack(p as string, s as number, TC)]),
+  ];
+  for (const [kind, t] of tracks) {
+    const T: any = makeTrack({ code: t.code }), t0 = performance.now();
+    const R = await aiRace(H, T, { seed: 4242 });
+    const q = qualityOf(T.gen, dressTrack(T.gen, TC), TC, { ai: R.closeness }), min = TC.quality.min[kind];
+    const done = R.results.filter((r: any) => r.status === 'finished').length;
+    n++; closeSum += R.closeness;
+    if (done >= R.results.length - 1) finished++;
+    if (q.score >= min) through++;
+    const times = R.results.filter((r: any) => r.time != null).map((r: any) => r.time);
+    spreads.push((Math.max(...times) - Math.min(...times)) / Math.min(...times)); passes += R.report.overtakes;
+    rows.push(`${kind.padEnd(6)} ${t.name} (${t.info.km} km): ${done} of ${R.results.length} finished, ${(Math.max(...times) - Math.min(...times)).toFixed(1)} s first to last of ${R.report.raceTime.toFixed(0)} s, ${R.report.overtakes} passes · closeness ${R.closeness} · score ${q.score} (gate ${q.gate}, ${kind} ${min}) · ${((performance.now() - t0) / 1000).toFixed(0)} s`);
+  }
+  for (const r of rows) console.log(`        ${r}`);
+  report(finished === n, 'close races: the AI racers finish', `${finished} of ${n} races with every car (or all but one) home`);
+  report(through === n, 'close races: the whole score through the gate', `${through} of ${n} tracks' scores, the AI race's closeness in them (${(closeSum / n).toFixed(2)} on average), at least their kind's minimum`);
+  const mid = spreads.sort((a, b) => a - b)[Math.floor(spreads.length / 2)];
+  report(mid <= A.maxSpread, 'close races: the field together', `first to last ${(mid * 100).toFixed(1)}% of the winner's time (median; at most ${A.maxSpread * 100}%) · ${passes} passes in ${n} races`);
 }
 
 // ---------- the economy with track events ----------

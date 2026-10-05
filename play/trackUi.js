@@ -16,6 +16,8 @@ import { TYPES, rewardsOf } from '../content/quests.js';
 import { starsText, difficultyOf } from '../quest/difficulty.js';
 import { routeFeatures } from '../route/stats.js';
 import { generateTrack } from '../track/generate.js';
+import { dressTrack } from '../track/dress.js';
+import { cornerNames } from '../track/names.js';
 import { dailyTrack, weeklyTrack, quickTrack, sharedTrack, eventsFor, trackInfo, trackName, recordKey } from '../track/events/model.js';
 import { decode } from '../track/code.js';
 
@@ -98,7 +100,10 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
         const line = []; for (let i = 0; i < T.n; i += 4) line.push({ x: T.x[i], z: T.z[i], h: T.h[i], w: T.width });
         let s0 = 0; line.forEach((q, k) => { if (k) s0 += Math.hypot(q.x - line[k - 1].x, q.z - line[k - 1].z); q.s = s0; });
         const features = routeFeatures(line, { loop: T.closed });
-        res({ svg: `<svg viewBox="0 0 120 80"><polyline points="${pts.join(' ')}${T.closed ? ` ${pts[0]}` : ''}" fill="none" stroke="#ffb02e" stroke-width="2.2" stroke-linejoin="round"/><circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3" fill="#fff"/></svg>`, info: trackInfo(g), features });
+        // (its notable corners, named: the same names the map and the track show — track/names.js)
+        const corners = cornerNames(g, dressTrack(g, TC)), P = c => [(6 + (c.x - x0) / s * 108).toFixed(1), (6 + (c.z - z0) / s * 68).toFixed(1)];
+        const dots = corners.slice(0, 4).map(c => { const [cx, cy] = P(c); return `<circle cx="${cx}" cy="${cy}" r="2.2" fill="#ffd166"><title>T${c.n} ${esc(c.name)}</title></circle>`; }).join('');
+        res({ svg: `<svg viewBox="0 0 120 80"><polyline points="${pts.join(' ')}${T.closed ? ` ${pts[0]}` : ''}" fill="none" stroke="#ffb02e" stroke-width="2.2" stroke-linejoin="round"/><circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3" fill="#fff"/>${dots}</svg>`, info: trackInfo(g), features, corners });
       } catch { res(null); }
     }, 0));
     previews.set(code, p);
@@ -146,7 +151,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
       if (!list.length) { box.innerHTML = '<small>No events here yet.</small>'; return; }
       const feats = await Promise.all(list.map(ev => preview(ev.track.code).then(p => p?.features ?? null)));
       const pv = await preview(list[0].track.code);
-      box.innerHTML = `${pv ? `<div style="display:flex;gap:8px;align-items:center;margin:4px 0">${pv.svg.replace('<svg', '<svg style="width:96px;height:64px"')}<small>${esc(list[0].track.name ?? '')}<br>${pv.info.km} km · ${pv.info.corners} corners · ${esc(pv.info.theme ?? '')}</small></div>` : ''}${list.map((ev, k) => eventLine(ev, feats[k])).join('')}`;
+      box.innerHTML = `${pv ? `<div style="display:flex;gap:8px;align-items:center;margin:4px 0">${pv.svg.replace('<svg', '<svg style="width:96px;height:64px"')}<small>${esc(list[0].track.name ?? '')}<br>${pv.info.km} km · ${pv.info.corners} corners · ${esc(pv.info.theme ?? '')}${pv.corners?.length ? `<br>${pv.corners.slice(0, 3).map(c => esc(c.name)).join(' · ')}` : ''}</small></div>` : ''}${list.map((ev, k) => eventLine(ev, feats[k])).join('')}`;
       for (const b of box.querySelectorAll('[data-go]')) b.onclick = () => go(list.find(e => e.id === b.dataset.go));
     }).catch(e => { const box = el.querySelector('.evs'); if (box) box.innerHTML = `<small>The events couldn't be loaded: ${esc(e.message)}</small>`; });
     return true;
@@ -245,7 +250,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
         if (!p) return;
         el.querySelector('.pv').innerHTML = p.svg;
         const stars = Math.max(0, ...item.events.map(e => starsOf(e, p.features) ?? 0));
-        el.querySelector('.info').innerHTML = `${p.info.km} km · ${p.info.corners} corners · ${esc(p.info.theme ?? '')} · ${p.info.layout === 'loop' ? 'circuit' : 'point to point'}${stars ? ` · <span class="stars">${starsText(stars)}</span>` : ''}`;
+        el.querySelector('.info').innerHTML = `${p.info.km} km · ${p.info.corners} corners · ${esc(p.info.theme ?? '')} · ${p.info.layout === 'loop' ? 'circuit' : 'point to point'}${stars ? ` · <span class="stars">${starsText(stars)}</span>` : ''}${p.corners?.length ? `<br>Notable: ${p.corners.slice(0, 4).map(c => `T${c.n} ${esc(c.name)}`).join(' · ')}` : ''}`;
       });
     }
   }

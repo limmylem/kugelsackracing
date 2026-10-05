@@ -46,10 +46,12 @@ export function frontDirection(vehicle) {
 }
 
 // Height of the fixed ground at (x, z), from a ray straight down (null if there's none)
-export function groundHeight(vehicle, x, z) {
+// (from: the height to look down from — high above everything, unless there's something overhead to
+// look under, a bridge)
+export function groundHeight(vehicle, x, z, from = 3000) {
   const R = vehicle.R;
-  const hit = vehicle.world.castRay(new R.Ray({ x, y: 3000, z }, { x: 0, y: -1, z: 0 }), 6000, true, 6, undefined, undefined, vehicle.body);
-  return hit ? 3000 - hit.timeOfImpact : null;
+  const hit = vehicle.world.castRay(new R.Ray({ x, y: from, z }, { x: 0, y: -1, z: 0 }), from + 3000, true, 6, undefined, undefined, vehicle.body);
+  return hit ? from - hit.timeOfImpact : null;
 }
 
 // The same road the other way round (points in reverse, tangents and bends flipped)

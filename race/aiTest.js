@@ -7,7 +7,7 @@
 //   const T = createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg, sessionRules, seed, playerRating })
 //     makeSim(spec) → Promise<{ sim, frame, free() }> a physics world with the route's ground in it
 //   await T.start()   T.step(seconds) (real time × speed; 'fast': as much as fits in budgetMs)   T.done
-//   T.cars() → [{ id, name, x, z, colour, status, place }]   T.report() → { standings, spots, aiTimes, carClass, laps }
+//   T.cars() → [{ id, name, x, z, colour, status, place }]   T.report() → { standings, spots, aiTimes, carClass, laps, overtakes, raceTime }
 
 import { createRace } from './race.js';
 import { setupNpcs } from './setup.js';
@@ -27,7 +27,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
   // (the solo laps: the quest's laps, or soloLaps — a generated track's reference laps: track/events/reference.js)
   const soloQuest = { ...quest, type: 'sprint', params: { ...(quest.params ?? {}), laps: soloLaps ?? quest.params?.laps ?? 1 } };
   const maxTime = limit ?? Math.max(120, est * Math.max(laps, soloLaps ?? 1) * 3);
-  let carClass = null, refBuild = null;
+  let carClass = null, refBuild = null, overtakes = 0, prevOrder = null, lastOrder = -1, raceTime = 0;
 
   async function start() {
     const setup = setupNpcs({ db, quest: { ...quest, npc: { ...(quest.npc ?? {}), count: count ?? Math.max(1, quest.npc?.count ?? cfg.defaults.count) } }, course, cfg, qcfg, seed, playerRating });
@@ -70,16 +70,20 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
     start,
     get phase() { return phase; },
     get done() { return phase === 'done'; },
+    get race() { return race; },               // (its race, while it's on: for the tests)
     // real seconds × speed (the race), or as much as budgetMs allows (fast)
     async step(seconds, { fast = false, budgetMs = 30 } = {}) {
       if (phase === 'race') {
         const sim = world.sim, t0 = performance.now();
-        if (fast) { while (performance.now() - t0 < budgetMs && !race.done && elapsed < maxTime) { sim.step(idle); elapsed += sim.dt; } }
-        else { sim.advance(seconds, idle); elapsed += seconds; }
+        // (places changing hands: each car past another, counted once a second of the race's own time —
+        // the race's closeness)
+        const passes = () => { if (race.time - lastOrder < 1) return; lastOrder = race.time; const order = race.standings().map(x => x.id); if (prevOrder) order.forEach((id, k) => { const was = prevOrder.indexOf(id); if (was > k) overtakes += was - k; }); prevOrder = order; };
+        if (fast) { while (performance.now() - t0 < budgetMs && !race.done && elapsed < maxTime) { sim.step(idle); elapsed += sim.dt; passes(); } }
+        else { const before = race.time; sim.advance(seconds, idle); elapsed += race.time - before; passes(); }
         for (const e of race.drain()) note(e);
         if (race.done || elapsed >= maxTime) {
           race.finishUp();
-          field.push(...race.results());
+          field.push(...race.results()); raceTime = race.time;
           race.dispose(); lvl = 0;
           await startSolo();
         }
@@ -109,7 +113,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
       }
       const flagged = spots.filter(s => s.count > 1 || s.kinds.stuck || s.kinds['crashed out']).map(s => ({ x: Math.round(s.x), z: Math.round(s.z), u: Math.round(s.u ?? 0), count: s.count, cars: s.cars.size, kinds: s.kinds,
         message: `AIs ${Object.entries(s.kinds).map(([k, n]) => `${k}${n > 1 ? ` ×${n}` : ''}`).join(', ')} ${Math.round((s.u ?? 0))} m along the route.` }));
-      return { standings: field, spots: flagged, incidents: incidents.slice(), aiTimes: { ...aiTimes }, aiLaps: { ...aiLaps }, carClass, laps, soloResets: { ...soloResets } };
+      return { standings: field, spots: flagged, incidents: incidents.slice(), aiTimes: { ...aiTimes }, aiLaps: { ...aiLaps }, carClass, laps, soloResets: { ...soloResets }, overtakes, raceTime };
     },
     dispose() { solo?.detach?.(); race?.dispose?.(); world?.free?.(); world = null; },
   };
