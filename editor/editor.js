@@ -24,6 +24,9 @@ import { createHistory } from '../content/history.js';
 import { newItem, withType, rewardsOf, KINDS, TYPES, TYPE_IDS, TIMES, WEATHER } from '../content/quests.js';
 import { medalTargets } from '../quest/rules.js';
 import { seriesBonus } from '../garage/player/quests.js';
+import { applyTemplate } from '../content/templates.js';
+import { validateAll } from '../content/bulk.js';
+import { suggestRoutes } from '../route/suggest.js';
 import { offset } from '../content/geo.js';
 import { createRoadFinder } from './roads.js';
 import { createMapView } from './mapView.js';
@@ -190,6 +193,7 @@ export function createEditor({ game }) {
       <button data-act="redo" ${H?.canRedo ? '' : 'disabled'} title="${esc(H?.redoLabel ? `Redo ${H.redoLabel}` : 'Nothing to redo')} (Ctrl+Shift+Z)">↷ Redo</button>
       <span class="sep"></span>
       <button data-act="publish" class="go" ${sel ? '' : 'disabled'} title="Publish the selected item: players see it">Publish</button>
+      <button data-act="suggest" title="Good racing roads near here, from the road graph: make them into draft routes and quests">Suggest routes</button><button data-act="checkAll" title="Check every quest, route and series again (after a rebake or a rules change)">Check everything</button>
       <button data-act="export" title="Save content as a JSON file">Export ▾</button><button data-act="import" title="Load content from a JSON file">Import</button>
       <span class="sep"></span>
       <input id="edSearch" placeholder="Find a place, or lat, lon…" autocomplete="off"><button data-act="bookmarks" title="Bookmarks">★ ▾</button>
@@ -216,6 +220,8 @@ export function createEditor({ game }) {
       { label: 'Published only', detail: 'what players see', fn: () => exportContent('published') },
     ]);
     else if (act === 'import') importContent();
+    else if (act === 'suggest') suggestHere();
+    else if (act === 'checkAll') checkEverything();
     else if (act === 'bookmarks') bookmarkMenu(b);
     else if (act === 'exit') exit();
   }
@@ -293,6 +299,7 @@ export function createEditor({ game }) {
   const select = (path, value, options) => `<select data-field="${path}">${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   function renderProps() {
     if (!ui.right) return;
+    if (toolsPanel && !current) return renderToolsPanel();
     const it = current;
     if (!it) { ui.right.innerHTML = `<h3>Nothing selected</h3><p class="hint">Pick a tool along the top — <b>1</b> a quest start, <b>2</b> a point of interest, <b>3</b> a spawn point — and click the ${view === '3d' ? 'world' : 'map'} to place one. Click a marker to select it.</p><p class="hint">Find any place on Earth with the search box (or type <i>lat, lon</i>). The 3D view (M) flies over the baked world: <b>W A S D</b>, <b>Q / E</b> down and up, right-drag to look, the wheel for speed.</p>`; return; }
     const archived = it.status === 'archived', pub = published, changed = pub && !sameContent(it, pub);
@@ -335,6 +342,8 @@ export function createEditor({ game }) {
   }
   function questFields(it) {
     const T = TYPES[it.type], r = rewardsOf(it, C.economy), cur = C.economy.currency ?? '$', E = it.entry;
+    // (a template: its type, rivals and fields in one go — loaded the first time it's needed)
+    const tplSelect = templates ? `<label>Apply a template</label>${select('_template', '', [['', '— choose —'], ...templates.map(t => [t.id, t.name])])}` : (loadTemplates().then(() => renderProps()), '');
     // (the medal times it gets with no times of its own: the AI's, else the route's estimate)
     const medalsNow = questRoute?.course && C.quests ? medalTargets({ ...it, params: { ...it.params, medalTimes: null } }, { ...questRoute.course, loop: questRoute.course.kind === 'loop' }, C.quests) : null;
     let h = `<div class="section"><b>Quest</b>
@@ -351,6 +360,7 @@ export function createEditor({ game }) {
     }
     const routes = items.map(x => x.item).filter(r => r.kind === 'route' && r.status !== 'archived');
     if (it.route && !routes.some(r => r.id === it.route)) routes.unshift(questRoute ?? { id: it.route, name: `${it.route} (not near)` });
+    h += tplSelect;
     h += `<label>Route</label>${select('route', it.route ?? '', [['', '— none —'], ...routes.map(r => [r.id, `${r.name}${r.course ? ` · ${r.course.kind === 'loop' ? 'loop' : 'A to B'} · ${((r.course.length ?? 0) / 1000).toFixed(1)} km` : ''}`])])}
       <div class="hint">${questRoute ? `${esc(questRoute.name)}: ${questRoute.course?.kind === 'loop' ? 'a loop' : 'point to point'}, ${((questRoute.course?.length ?? 0) / 1000).toFixed(2)} km (faint on the map). <button data-act="openRoute">Open the route</button>` : 'Draw one with the route tool (4), then pick it here. One route can serve several quests.'}</div></div>
       <div class="section"><b>Entry</b>
@@ -455,6 +465,8 @@ export function createEditor({ game }) {
     if (path === 'entry.minLevel' && v != null) v = Math.round(v);
     if (path === 'params.opponentCar' && v === '') v = null;
     if (path === 'route') { await edit('Pick route', it => { it.route = v || null; }); return loadSelected(); }
+    if (path === '_template') { const t = templates?.find(x => x.id === v); if (t) await edit(`Template: ${t.name}`, it => Object.assign(it, applyTemplate(it, t, { road: questRoute?.course?.stats?.roads?.[0] ?? it.road?.name ?? null }))); return; }
+    if (path === '_sugTemplate') { sugTemplate = v; return; }
     if (path === '_seriesAdd') { if (v) await edit('Add quest to series', it => { it.quests = [...(it.quests ?? []), v]; }); return; }
     await edit(`Edit ${path.split('.').at(-1)}`, it => setPath(it, path, v), { merge: `edit:${current.id}:${path}` });
     if (path === 'location.lat' || path === 'location.lon') { refresh(); }
@@ -493,6 +505,9 @@ export function createEditor({ game }) {
     if (b.dataset.remove) return edit('Remove checkpoint', it => getPath(it, b.dataset.remove).splice(+b.dataset.k, 1));
     if (b.dataset.sq === 'remove') return edit('Remove quest from series', it => { it.quests.splice(+b.dataset.k, 1); });
     if (b.dataset.sq === 'up') return edit('Move quest up', it => { const k = +b.dataset.k; [it.quests[k - 1], it.quests[k]] = [it.quests[k], it.quests[k - 1]]; });
+    if (b.dataset.sug != null) return makeFromSuggestion(+b.dataset.sug, b.dataset.with === 'quest');
+    if (b.dataset.check) return pickItem(b.dataset.check);
+    if (b.dataset.tools === 'close') { toolsPanel = null; routeTool.showSuggestions([]); return renderProps(); }
     const act = b.dataset.act;
     if (act === 'publish') publish(); else if (act === 'unpublish') unpublish(); else if (act === 'duplicate') duplicate(); else if (act === 'delete') remove(); else if (act === 'restore') restore();
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
@@ -504,6 +519,66 @@ export function createEditor({ game }) {
       if (!s || s.error) return flash(s?.error ?? 'No road within 60 m.', true);
       if (act === 'faceRoad') return edit('Face along road', it => { it.location.heading = s.heading; });
       edit('Snap to road', it => { it.location = { ...it.location, lat: s.lat, lon: s.lon, heading: s.heading, ...(s.alt != null ? { alt: s.alt, altFrom: s.altFrom } : {}) }; it.road = s.road; });
+    }
+  }
+
+  // ---------- content tools (Phase 4 Step 5): templates, route suggestions, checking everything ----------
+  let templates = null, toolsPanel = null, sugTemplate = 'mountain_sprint';
+  const loadTemplates = async () => { templates ??= (await (await fetch('data/content/quest-templates.json', { cache: 'no-cache' })).json()).templates; return templates; };
+  // route suggestions: the loaded region's road graph scanned for good racing roads (route/suggest.js),
+  // each made into a draft route — and a draft quest from a template — only when asked (never published)
+  async function suggestHere() {
+    let N = routeTool.N;
+    if (!N) { try { N = await routeTool.network(); } catch (e) { return flash(`Suggestions come from a baked region's road graph: ${e.message}`, true); } }
+    flash('Looking for good roads…');
+    await loadTemplates();
+    const list = suggestRoutes(N, { count: 12 });
+    deselect(); toolsPanel = { kind: 'suggest', list, region: N.region }; renderProps();
+    routeTool.showSuggestions(list.map(x => x.line));
+  }
+  async function makeFromSuggestion(k, withQuest) {
+    const sgg = toolsPanel?.list?.[k], N = routeTool.N;
+    if (!sgg || !N) return;
+    const start = sgg.waypoints[0], base = newItem('route', { location: { ...start, alt: 0, heading: 0 }, region: N.region });
+    const { author: _, id: _id, ...route } = base;
+    route.name = `${sgg.roads[0] ?? 'Road'} route`; route.course.waypoints = sgg.waypoints;
+    const saved = routeTool.save(route.course);
+    route.course = saved.course; if (saved.location) route.location = saved.location;
+    const r = await H.run(`Suggested route: ${route.name}`, [], () => C.service.create(route));
+    if (!r.ok) return flash(r.error, true);
+    let made = r.item;
+    if (withQuest) {
+      const t = templates?.find(x => x.id === sugTemplate) ?? templates?.[0];
+      const { author: _a, id: _i, ...q0 } = newItem('quest', { location: made.location, type: 'sprint' });
+      const q = { ...applyTemplate(q0, t, { road: sgg.roads[0] }), route: made.id };
+      const rq = await H.run(`Suggested quest: ${q.name}`, [], () => C.service.create(q));
+      if (!rq.ok) return flash(rq.error, true);
+      made = rq.item;
+    }
+    toolsPanel.made = [...(toolsPanel.made ?? []), k];
+    flash(`Made a draft: ${made.name}. Review it, test drive it and publish when it's right.`);
+    refresh(); renderProps();
+  }
+  // check everything: every item exported, checked again (content/bulk.js), the list of what needs a look
+  async function checkEverything() {
+    await commitTyping(); await C.service.flush();
+    const doc = JSON.parse((await C.service.exportContent({})).json), N = routeTool.N;
+    const list = validateAll(doc.entries ?? [], { check: C.check, rate: C.rate, networks: N ? { [N.region]: N } : {} });
+    deselect(); toolsPanel = { kind: 'check', list, count: doc.entries?.length ?? 0 }; renderProps();
+  }
+  function renderToolsPanel() {
+    const T = toolsPanel;
+    if (T.kind === 'suggest') {
+      ui.right.innerHTML = `<h3>Suggested routes · ${esc(T.region)}</h3><p class="hint">Twisty roads with few junctions and a good length, best first, from the road graph. Each becomes a draft only when you ask: review it, test drive it, then publish.</p>
+        <label>Quest template</label>${select('_sugTemplate', sugTemplate, (templates ?? []).map(t => [t.id, t.name]))}
+        ${T.list.map((x, k) => `<div class="section"><b>${k + 1}. ${esc(x.roads.slice(0, 2).join(' / ') || 'Unnamed road')}</b> <span class="hint">score ${x.score}</span><div class="hint">${esc(x.why.join(' · '))}</div>
+          <div class="actions">${T.made?.includes(k) ? '<span class="hint">✔ made</span>' : `<button data-sug="${k}">Draft route</button><button data-sug="${k}" data-with="quest">Draft route + quest</button>`}</div></div>`).join('') || '<p class="hint">No good racing roads found here.</p>'}
+        <div class="actions"><button data-tools="close">Close</button></div>`;
+    } else {
+      const icon = l => l === 'error' ? '✖' : l === 'warning' ? '⚠' : '·';
+      ui.right.innerHTML = `<h3>Check everything</h3><p class="hint">${T.count} item${T.count === 1 ? '' : 's'} checked: ${T.list.length ? `${T.list.length} need a look` : 'nothing needs a look'}. Routes in other regions than the one loaded aren't checked against their roads (npm run validate-content checks every region).</p>
+        ${T.list.map(x => `<div class="section"><b>${esc(x.name || x.id)}</b> <span class="hint">${esc(x.kind)} · ${esc(x.view)}</span>${x.reasons.map(r => `<div class="p ${r.level}">${icon(r.level)} ${esc(r.text)}</div>`).join('')}<div class="actions"><button data-check="${esc(x.id)}">Open</button></div></div>`).join('')}
+        <div class="actions"><button data-tools="close">Close</button></div>`;
     }
   }
 

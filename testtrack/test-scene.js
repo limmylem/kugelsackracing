@@ -102,6 +102,7 @@ const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults
 // the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
 let baked = null;
 const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
+const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
 const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
 
 // Display / sound only (not physics):
@@ -212,7 +213,8 @@ function questGame(w) {
       const r = regionOf(item.location, await bakedRegions());
       if (!r) { G.say?.('That quest isn\'t in a baked region', 'warn'); return false; }
       let to = w;
-      if (r.id !== regionIdOf(w)) { await (hooks.switchTo ? hooks.switchTo(`scenes/map_v3.json?region=${r.id}`) : enter(`scenes/map_v3.json?region=${r.id}`)); to = active; }
+      // (another region of the real world: the same world button on the page, so straight in)
+      if (r.id !== regionIdOf(w)) { await enter(regionFile(r.id)); to = active; }
       if (!to?.stream) return false;
       await to.quests?.preload(item);
       MapV3.travelTo(to, { lat: item.location.lat, lon: item.location.lon, heading: item.location.heading ?? 0 });
@@ -221,7 +223,7 @@ function questGame(w) {
       to.content?.openCard(item);
       return true;
     },
-    travelToRegion: async id => { await (hooks.switchTo ? hooks.switchTo(`scenes/map_v3.json?region=${id}`) : enter(`scenes/map_v3.json?region=${id}`)); },
+    travelToRegion: async id => { await enter(regionFile(id)); },
     seriesOf: async quest => {
       content ??= await worldContent();
       const near = (await content.service.query({ lat: quest.location.lat, lon: quest.location.lon, km: 25, view: 'published', kinds: ['series'], limit: 50 })).items ?? [];

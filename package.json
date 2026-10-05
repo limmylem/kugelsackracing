@@ -39,7 +39,8 @@
     "perf:route": "node --expose-gc --max-old-space-size=4096 tests/route-perf.mjs",
     "test:quests": "node --expose-gc --max-old-space-size=8192 tests/map/quests.test.ts",
     "test:npc": "node --expose-gc --max-old-space-size=8192 tests/map/npc.test.ts",
-    "economy-sim": "node tools/economy-sim.mjs"
+    "economy-sim": "node tools/economy-sim.mjs",
+    "validate-content": "node tools/validate-content.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

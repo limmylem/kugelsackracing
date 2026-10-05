@@ -37,6 +37,7 @@ export function createRouteTool({ THREE, api }) {
   let selWp = null, selCp = null, lockMode = false, map = null, drag = null, run = null, quietRoute = null, testCar = '';
   let world = null, group = null;
   let consumed = false, racingFor = null;      // (the racing line drawn, for the route as it was)
+  let suggestions = [];                        // (route suggestions shown on the map: lines, numbered)
 
   // ---------- the road network (the region's graph) ----------
   async function network() {
@@ -78,7 +79,12 @@ export function createRouteTool({ THREE, api }) {
 
   function features() {
     const course = current();
-    const F = { path: [], review: [], racing: [], test: [], cut: [], gate: [], slot: [], mid: [], wp: [] };
+    const F = { path: [], review: [], racing: [], test: [], cut: [], gate: [], slot: [], mid: [], wp: [], sug: [], sugn: [] };
+    if (N) suggestions.forEach((line, n) => {
+      F.sug.push({ type: 'Feature', properties: { n: n + 1 }, geometry: { type: 'LineString', coordinates: line.map(p => ll(p.x, p.z)) } });
+      const m = line[Math.floor(line.length / 2)];
+      F.sugn.push({ type: 'Feature', properties: { n: String(n + 1) }, geometry: { type: 'Point', coordinates: ll(m.x, m.z) } });
+    });
     if (!course || !N) return F;
     const quiet = !item;
     // (while dragging: just the route — the grid, checkpoints and shortcuts are worked out when let go)
@@ -122,7 +128,11 @@ export function createRouteTool({ THREE, api }) {
     map = m;
     const add = () => {
       if (map.getSource('rt-path')) return;
-      for (const s of ['path', 'review', 'racing', 'test', 'cut', 'gate', 'slot', 'mid', 'wp']) map.addSource(`rt-${s}`, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      for (const s of ['sug', 'sugn', 'path', 'review', 'racing', 'test', 'cut', 'gate', 'slot', 'mid', 'wp']) map.addSource(`rt-${s}`, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      // route suggestions (editor tools): drafts to look at, numbered as in the panel
+      map.addLayer({ id: 'rt-sug', type: 'line', source: 'rt-sug', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1f9bd1', 'line-width': 5, 'line-opacity': 0.75, 'line-dasharray': [2, 1] } });
+      map.addLayer({ id: 'rt-sugn', type: 'circle', source: 'rt-sugn', paint: { 'circle-radius': 10, 'circle-color': '#1f9bd1', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
+      if (map.getStyle()?.glyphs) map.addLayer({ id: 'rt-sugn-label', type: 'symbol', source: 'rt-sugn', layout: { 'text-field': ['get', 'n'], 'text-size': 12, 'text-allow-overlap': true }, paint: { 'text-color': '#ffffff' } });
       map.addLayer({ id: 'rt-path-casing', type: 'line', source: 'rt-path', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['case', ['get', 'quiet'], 5, 9], 'line-opacity': 0.85 } });
       map.addLayer({ id: 'rt-path', type: 'line', source: 'rt-path', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#b23cd9', 'line-width': ['case', ['get', 'quiet'], 3, 5], 'line-opacity': ['case', ['get', 'quiet'], 0.6, 0.95] } });
       // the racing line (route/racingLine.js), coloured by the speed the starter car can carry (medium skill)
@@ -372,6 +382,8 @@ export function createRouteTool({ THREE, api }) {
     compile: course => compile(course),
     save: course => saveCourse(N, course),
     setRun(r) { run = r; draw(); api.renderProps(); },
+    // route suggestions on the map (lines of {x, z}); [] clears them
+    showSuggestions(lines) { suggestions = lines ?? []; draw(); if (map && suggestions.length) { let w = 180, s = 90, e = -180, n = -90; for (const l of suggestions) for (const p of l) { const [lon, lat] = ll(p.x, p.z); w = Math.min(w, lon); e = Math.max(e, lon); s = Math.min(s, lat); n = Math.max(n, lat); } map.fitBounds([[w, s], [e, n]], { padding: 60, duration: 600 }); } },
     get run() { return run; },
     get item() { return item; },
     get N() { return N; }, get P() { return P; },
