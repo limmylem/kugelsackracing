@@ -234,7 +234,7 @@ function questGame(w) {
     network: () => network ??= (async () => {
       const url = new URL(w.track.mapV3.manifest, document.baseURI), manifest = await (await fetch(url)).json();
       const G = await gunzipJson(await fetch(new URL(manifest.files.graph, url)));
-      return createNetwork(G, { P: S.projection, region: manifest.region ?? manifest.id, version: manifest.version });
+      return createNetwork(G, { P: S.projection, region: manifest.region ?? manifest.id, version: manifest.version, bbox: manifest.bbox ?? null });
     })(),
     carNow() {
       const b = car().body, p = b.translation(), q = b.rotation(), v = b.linvel(), [x, z] = S.toWorld(p.x, p.z);
@@ -246,6 +246,10 @@ function questGame(w) {
     openSettings: () => s.panel.show?.() ?? s.panel.toggle(),
     toGarage: () => { w.sim.vehicle.parts.clear(); if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page'); },
     say: (text, kind = 'ok') => s.flash.show(text, kind, 2),
+    // polish: the game's mute, first-time hints (data/hints.json), a setting changed from the quest's pause menu
+    muted: () => s.muted,
+    hint: when => hint(when),
+    setPref(k, v) { s.prefs[k] = v; saveSettings(s.prefs); applyHudScale(); },
     // ---------- races against NPCs (race/race.js) ----------
     npcCfg: null,
     // an NPC's car model: its sockets, wheels and damage boxes (from its glb)
@@ -340,7 +344,7 @@ function npcRaceEvents(w) {
 
 export async function enter(file) {
   if (!shared) {
-    try { shared = await createShared(); }
+    try { shared = await createShared(); applyHudScale(); }
     catch (e) { startup?.fail(e); throw e; }
   }
   shared.hud.style.display = 'block';
@@ -449,7 +453,8 @@ async function createShared() {
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
-  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) shared.play = sessionFrom(prefs, session.db); });
+  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); } },
+    { onRehint: () => { session.player.resetHints?.(); if (shared) shared.hints.shown.clear(); } });
   document.body.appendChild(panel.el);
   // Telemetry: your driving, and the last automated test
   const telemetry = new Telemetry({ seconds: 600, stepHz: settings.stepHz }), testTelemetry = new Telemetry({ seconds: 300, stepHz: settings.stepHz });
@@ -789,8 +794,15 @@ function sessionFrom(prefs, db) {
   const kind = db.sessions.kinds[prefs.session] ? prefs.session : 'test';
   return createSession(db.sessions, kind, { ...(MODES.includes(prefs.collisions) && { collisions: prefs.collisions }), replay: db.sessions.kinds[kind].replay && prefs.crashReplay !== false });
 }
+// The HUDs' size (Accessibility: prefs.hudScale): the driving HUD here, the quest HUD its own (play/questUi.js)
+function applyHudScale() {
+  if (!shared) return;
+  const k = shared.prefs.hudScale ?? 1;
+  Object.assign(shared.hud.style, { transform: k === 1 ? '' : `scale(${k})`, transformOrigin: 'top left' });
+}
 // A hint for something that happened on the road (once ever: the save keeps it)
 function hint(when) {
+  if (shared.prefs.hints === false) return;
   const h = shared.hints.note(when, 'drive');
   if (h) shared.hintCard.show(h.title, h.text);
 }

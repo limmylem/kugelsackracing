@@ -112,7 +112,7 @@ words.
 | `publish(id)` / `unpublish(id)` | what players see (refused while it has errors) |
 | `remove(id, { confirm })` / `restore(id)` | delete a draft; archive a published item (only with `confirm`) |
 | `getState(id)` / `setState(id, state)` | an item's whole state, for undo |
-| `exportContent({ area, views })` / `importContent(json, { onConflict })` | JSON files |
+| `exportContent({ area, views, as })` / `importContent(json, { onConflict })` | JSON files (`as: 'entries'`: the items, no file) |
 
 - **Views:**
   - `draft` is the editor's working copies;
@@ -122,6 +122,14 @@ words.
 - **Cells:** content is kept by geohash cell (precision 5, about 4.9 × 4.9 km at the equator), so only
   the cells near the camera or the player are loaded. Wide areas use a coarser prefix index; cells not
   used lately leave memory.
+- **Memory:** a route's course (its line, its roads, its racing line) is kept as text once loaded, and
+  parsed only when something reads it — quests share cells with their routes, and a packed city's courses
+  parsed would be most of memory. `stats()` reports the cells loaded and their weight (a route counts as
+  20 markers); `maxWeight` can cap it (off by default: below what the places in use need, it reloads
+  them). `query` with a `limit` finds the nearest that many without sorting everything.
+- **Exports:** `exportContent({ as: 'entries' })` gives the items themselves, a cell at a time (what
+  *Check everything* uses, at any size); one JSON file of everything has a size limit and says so past it.
+- **At 50,000 quests with routes:** `npm run stress:quests` (docs/PROGRESSION.md, docs/KNOWN_ISSUES.md).
 - **Local backend:**
   - IndexedDB (database `world-content`): one record per cell per view, and an index (which cells have
     content, which cell each item is in).

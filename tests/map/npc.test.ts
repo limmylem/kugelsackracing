@@ -16,7 +16,7 @@
 
 import { fittedRacing } from '../../race/fit.js';
 import fs from 'node:fs';
-import { regionRoute, runRace, ncfg, qcfg } from './raceHarness.ts';
+import { regionRoute, densestTileRoute, runRace, ncfg, qcfg } from './raceHarness.ts';
 import { createAiDriver } from '../../ai/driver.js';
 import { driverParams } from '../../ai/skill.js';
 import { rng, hashSeed } from '../../ai/rng.js';
@@ -149,6 +149,17 @@ if (want('perf')) {
   const limitMs = (budget.physicsMs ?? budget.frameMs ?? 4) * 2;
   report(frameMs <= limitMs, '8-car race within the frame budget', `${frameMs.toFixed(2)} ms of physics and AI a frame at 60 fps (budget ${limitMs} ms), worst step ${out.worstFrame.toFixed(1)} ms, ${lods.length} detail switches`);
   report(backs.every((e: any) => (e.speed ?? 0) >= 0) && lods.every((e: any) => e.dist == null || e.dist > ncfg.lod.fullWithin - 1), 'AI detail switches out of sight, no jumps', `${lods.filter((e: any) => e.to === 'cheap').length} to the cheap run, ${backs.length} back to full physics${backs.length ? `, largest place change ${Math.max(...backs.map((e: any) => e.jump ?? 0)).toFixed(2)} m, speed ${Math.max(...backs.map((e: any) => e.speedJump ?? 0)).toFixed(2)} m/s` : ''}`);
+  out.race.dispose(); out.S.free();
+}
+// the densest city tile (Phase 4 Step 5 stress): 8 cars through San Francisco's biggest tile — the most
+// buildings, props and roads in one place — within the same frame budget
+if (want('perf') || want('dense')) {
+  const R = await densestTileRoute('sf');
+  const out = await runRace(R, { npcs: 7, seed: 4, limit: 240, keepSim: true });
+  const frameMs = out.ms / out.steps * 2;
+  const budget = JSON.parse(fs.readFileSync(new URL('../../physics/settings.json', import.meta.url), 'utf8')).budget ?? { frameMs: 4 };
+  const limitMs = (budget.physicsMs ?? budget.frameMs ?? 4) * 2;
+  report(frameMs <= limitMs && out.worstFrame <= limitMs * 6, '8-car race in the densest city tile, in budget', `sf tile ${R.tile.i}_${R.tile.j} (${(R.tile.bytes / 1024).toFixed(0)} KB), ${(R.course.length / 1000).toFixed(2)} km: ${frameMs.toFixed(2)} ms of physics and AI a frame at 60 fps (budget ${limitMs} ms), worst step ${out.worstFrame.toFixed(1)} ms; ${out.standings.filter((s: any) => s.status === 'finished').length}/8 finished`);
   out.race.dispose(); out.S.free();
 }
 if (want('memory')) {

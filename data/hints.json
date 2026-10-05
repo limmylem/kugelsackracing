@@ -1,5 +1,5 @@
 {
-  "_note": "First-time hints (garage/hints.js): each shown once, the first time what it's about happens (when), where the player is (drive: on the road; garage), and never again (the player's save keeps the ones seen). when — damage: the car's damaged; mechanical: something bent, leaking or worn by a crash; loose: a part hanging loose or torn off; undrivable: it can't carry on racing; replay: a crash replay is playing; damageTab: the garage with a damaged car; safetyNet: the free basic repair is offered.",
+  "_note": "First-time hints (garage/hints.js): each shown once, the first time what it's about happens (when), where the player is (drive: on the road; garage), and never again (the player's save keeps the ones seen). when — damage: the car's damaged; mechanical: something bent, leaking or worn by a crash; loose: a part hanging loose or torn off; undrivable: it can't carry on racing; replay: a crash replay is playing; damageTab: the garage with a damaged car; safetyNet: the free basic repair is offered; questCard: a quest's card opened; medal: the first results with medals to win; npcRace: the first race against rivals, on the grid; pinkSlip: a pink slip's card; fastTravel: the quest finder on the full map.",
   "hints": [
     { "id": "firstDamage", "when": "damage", "where": "drive", "title": "Your car is damaged", "text": "Visit the garage to repair it: its Damage tab lists every problem." },
     { "id": "firstMechanical", "when": "mechanical", "where": "drive", "title": "Something's bent or leaking", "text": "The dashboard lamps show what's wrong, and I opens the damage report. The garage puts it right." },
@@ -7,6 +7,11 @@
     { "id": "firstUndrivable", "when": "undrivable", "where": "drive", "title": "The car can't carry on", "text": "Tow it to the garage (Backspace, twice) for repairs." },
     { "id": "firstReplay", "when": "replay", "where": "drive", "title": "Crash replay", "text": "Any key skips it. Switch replays off in the settings (O)." },
     { "id": "damageTab", "when": "damageTab", "where": "garage", "title": "Damage report", "text": "Every problem and what it does. Click one to see it on the car. A quick repair is cheaper and leaves it at about 80%; a full one makes it as new." },
-    { "id": "safetyNet", "when": "safetyNet", "where": "garage", "title": "Short of money?", "text": "The workshop will patch your car up just enough to drive, for free: Damage tab." }
+    { "id": "safetyNet", "when": "safetyNet", "where": "garage", "title": "Short of money?", "text": "The workshop will patch your car up just enough to drive, for free: Damage tab." },
+    { "id": "firstQuest", "when": "questCard", "where": "drive", "title": "A quest", "text": "Start pays the entry fee and puts you on the grid. Set route draws the way there on the maps. Harder quests (more stars) pay more." },
+    { "id": "firstMedal", "when": "medal", "where": "drive", "title": "Medals", "text": "Beat the gold, silver or bronze target for a medal. Your first medal on a quest pays the most; repeats pay less, and much less if you farm one quest." },
+    { "id": "firstRace", "when": "npcRace", "where": "drive", "title": "Racing rivals", "text": "Finish ahead of them: your place sets your medal. The gaps to the cars either side are on the right." },
+    { "id": "firstPinkSlip", "when": "pinkSlip", "where": "drive", "title": "Pink slip", "text": "Winner takes the loser's car — yours too. You'll be asked to confirm before it starts." },
+    { "id": "firstFastTravel", "when": "fastTravel", "where": "drive", "title": "Finding quests", "text": "Filter quests here, or try Recommended. Go fast-travels to any quest in a baked region and opens its card when you arrive." }
   ]
 }

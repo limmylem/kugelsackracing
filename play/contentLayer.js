@@ -34,7 +34,7 @@ const CSS = `
 
 export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, stateOf = null, busy = () => false }) {
   const S = w.stream, P = S.projection;
-  let C = null, items = [], byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
+  let C = null, items = [], places = new Float64Array(0), byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
   worldContent().then(c => { C = c; c.service.on(ev => { if (['publish', 'unpublish', 'archive', 'restore', 'state', 'import'].includes(ev.type)) dirty = true; }); }).catch(e => console.warn(`No world content: ${e.message}`));
 
@@ -48,6 +48,9 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     try {
       const r = await C.service.query({ lat, lon, km: RADIUS_KM, view: 'published', offered: true, kinds: MARKER_KINDS, limit: 2000 });
       items = r.items.map(x => x.item); byId = new Map(items.map(it => [it.id, it]));
+      // (each one's place in the world, worked out once: the nearest is looked for every frame)
+      places = new Float64Array(items.length * 2);
+      items.forEach((it, k) => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); places[2 * k] = x; places[2 * k + 1] = z; });
       markers.setItems(items);
       toMaps();
       queriedAt = { lat, lon }; dirty = false;
@@ -106,7 +109,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       markers.update({ x: cam[0], y: camera?.position.y ?? pos[1], z: cam[1] });
       // driving up to one: its card (until driven away from, or closed)
       let near = null, nd = Infinity;
-      for (const it of items) { const [x, z] = P.toXZ(it.location.lat, it.location.lon), d = Math.hypot(x - wx, z - wz); if (d < nd) { nd = d; near = it; } }
+      for (let k = 0; k < items.length; k++) { const d = Math.hypot(places[2 * k] - wx, places[2 * k + 1] - wz); if (d < nd) { nd = d; near = items[k]; } }
       if (near && nd < CARD_M && !busy() && cardFor !== near.id && cardDismissed !== near.id) showCard(near);
       if (cardFor && card.dataset.pinned !== '1') { const it = byId.get(cardFor), [x, z] = it ? P.toXZ(it.location.lat, it.location.lon) : [Infinity, Infinity]; if (Math.hypot(x - wx, z - wz) > CARD_LEAVE_M) hideCard(); }
       if (cardDismissed && (near?.id !== cardDismissed || nd > CARD_LEAVE_M)) cardDismissed = null;
@@ -115,7 +118,11 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     refresh() { toMaps(); if (cardFor && byId.get(cardFor)) showCard(byId.get(cardFor), card.dataset.pinned === '1'); },
     hideCard,
     // (fast travel: the quest's card, pinned, once it's arrived)
-    openCard(it) { if (it) { if (!byId.has(it.id)) { items.push(it); byId.set(it.id, it); } showCard(it, true); } },
+    openCard(it) {
+      if (!it) return;
+      if (!byId.has(it.id)) { items.push(it); byId.set(it.id, it); const [x, z] = P.toXZ(it.location.lat, it.location.lon), a2 = new Float64Array(items.length * 2); a2.set(places); a2[a2.length - 2] = x; a2[a2.length - 1] = z; places = a2; }
+      showCard(it, true);
+    },
     show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
     dispose() { markers.dispose(); card.remove(); },
   };

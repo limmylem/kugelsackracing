@@ -14,6 +14,11 @@
     "height": 28,
     "behind": 40
   },
+  "camera": {
+    "_note": "the camera between a quest's views (play/cameraBlend.js): seconds to glide from one to the next (from>to; roam: free roam, intro: the fly-along, race: on the grid and racing, results: the orbit round the car), and the results' orbit; cut: a view further than this (metres) is cut to, not glided to",
+    "transitions": { "cut": 400, "default": 0.9, "roam>intro": 1.1, "intro>race": 1.2, "race>results": 1.4, "results>roam": 1, "results>race": 0.8, "roam>race": 0.6 },
+    "orbit": { "radius": 8.5, "height": 2.6, "speed": 0.18, "start": 35, "fov": 50 }
+  },
   "restart": {
     "_note": "free: restarting doesn't charge the entry fee again",
     "free": false

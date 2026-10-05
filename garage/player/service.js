@@ -67,7 +67,7 @@ export const METHODS = {
   exportSave: '→ { json } the save as a file',
   importSave: '(json) a save file in place of this one',
   // for development (window.player in the console)
-  addMoney: '(amount)', setUnlimitedMoney: '(on) nothing costs anything (for testing: money isn\'t checked or taken)', givePart: '(partId, quantity)', giveAllParts: '()', setCondition: '(instanceIds, condition)', restoreCar: '(carInstanceId) every part on it and its body as new, and back on, free', setAttach: '(carInstanceId, { socket: \'attached\' | \'loose\' | \'detached\' }) parts on or off, free', resetHints: '() every hint shown again', resetProfile: '() start again',
+  addMoney: '(amount)', addXp: '(amount) xp (a higher level: its tiers of quests open)', setUnlimitedMoney: '(on) nothing costs anything (for testing: money isn\'t checked or taken)', givePart: '(partId, quantity)', giveAllParts: '()', setCondition: '(instanceIds, condition)', restoreCar: '(carInstanceId) every part on it and its body as new, and back on, free', setAttach: '(carInstanceId, { socket: \'attached\' | \'loose\' | \'detached\' }) parts on or off, free', resetHints: '() every hint shown again', resetProfile: '() start again',
 };
 
 export class PlayerService {
@@ -654,6 +654,7 @@ export class LocalPlayerService extends PlayerService {
 
   // ---------- development ----------
   addMoney(amount) { return this.#change('dev', p => Number.isFinite(amount) ? (p.money = Math.max(0, p.money + amount), {}) : { error: 'An amount of money, please.' }); }
+  addXp(amount) { return this.#change('dev', p => Number.isFinite(amount) ? (p.xp = Math.max(0, Math.round((p.xp ?? 0) + amount)), {}) : { error: 'An amount of xp, please.' }); }
   givePart(partId, quantity) {
     return this.#change('dev', p => {
       const part = this.db.parts[partId];

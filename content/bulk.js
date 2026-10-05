@@ -5,10 +5,11 @@
 //   validateAll(entries, { check, rate, networks }) → [{ id, kind, name, view, reasons: [{ level, text }] }]
 //     entries: an export's entries ([{ draft, published, archived }]); check: content/schema.js's checker;
 //     rate: content/rating.js makeRater(…); networks: { region: road network } (routes in other regions
-//     can't be checked against their roads, and say so)
+//     can't be checked against their roads, and say so; a network made with its map's bbox and projection
+//     also finds routes past the baked map's edge)
 
 import { blocking, CONTENT_VERSION } from './quests.js';
-import { reviewRoute, routeVersionOf } from '../route/model.js';
+import { reviewRoute, routeVersionOf, lineOf } from '../route/model.js';
 import { migrate } from './migrations.js';
 
 const live = e => e.archived ? null : e.draft ?? e.published;
@@ -29,6 +30,9 @@ export function validateAll(entries, { check, rate = null, networks = {} } = {})
       else {
         const r = reviewRoute(N, it.course);
         if (r?.review?.needed) add('error', `The roads under it changed when the map was baked again (${r.review.missing.length} gone, ${r.review.altered.length} altered): check its line and save it again.`);
+        // (a map baked again smaller, or a route saved before the edge was checked)
+        const off = N.bbox && N.P && it.course?.path ? N.outsideOf(lineOf(it.course, N.P)) : null;
+        if (off?.at != null && !(it.course.problems ?? []).some(p => /edge of the baked map/.test(p.message))) add('error', `${Math.max(1, Math.round(off.metres))} m of it is past the edge of the baked map, where there's no ground: move it inside and save it again.`);
       }
       for (const p of (it.course?.problems ?? []).filter(p => p.level === 'error')) add('error', `Its course: ${p.message}`);
     }

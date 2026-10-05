@@ -562,7 +562,8 @@ export function createEditor({ game }) {
   // check everything: every item exported, checked again (content/bulk.js), the list of what needs a look
   async function checkEverything() {
     await commitTyping(); await C.service.flush();
-    const doc = JSON.parse((await C.service.exportContent({})).json), N = routeTool.N;
+    // (the items as they are, not one JSON string: tens of thousands of routes are too much for one)
+    const doc = await C.service.exportContent({ as: 'entries' }), N = routeTool.N;
     const list = validateAll(doc.entries ?? [], { check: C.check, rate: C.rate, networks: N ? { [N.region]: N } : {} });
     deselect(); toolsPanel = { kind: 'check', list, count: doc.entries?.length ?? 0 }; renderProps();
   }
@@ -789,6 +790,7 @@ export function createEditor({ game }) {
     await commitTyping(); await C.service.flush();
     const at = view === '3d' && worldView ? { ...worldView.where(), km: 3 } : mapView.where();
     const r = await C.service.exportContent(scope === 'area' ? { area: { lat: at.lat, lon: at.lon, km: Math.max(0.3, Math.min(200, at.km)) } } : scope === 'published' ? { views: ['published'] } : {});
+    if (!r.ok) return flash(r.error, true);
     const blob = new Blob([r.json], { type: 'application/json' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = `world-content-${scope}-${new Date().toISOString().slice(0, 10)}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);

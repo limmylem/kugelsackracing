@@ -13,6 +13,10 @@
 //   Q.card(item, el) → true (it drew the card)    Q.start(item)    Q.frame(realDt)    Q.camera(camera)
 //   Q.active  Q.paused  Q.auto (the browser tests' autopilot)  Q.autoInput()  Q.noteHit(strength)
 //   Q.resetNow()   Q.stateOf(questId) → { state, medal } (for the maps)   Q.preload(item) (fast travel)
+//
+// Polish (Phase 4 Step 5): the quest's sounds (play/questSounds.js); the camera gliding between free roam,
+// the intro, the race and the results' orbit (play/cameraBlend.js); first-time hints (game.hint(when):
+// data/hints.json); and the accessibility settings (game.prefs: palette, guides, hudScale — play/palette.js).
 
 import { createQuestController } from './questController.js';
 import { createRouteDressing } from './routeDressing.js';
@@ -28,35 +32,43 @@ import { pinkSlipConfirmations } from '../quest/types/pinkSlip.js';
 import { TYPE_MODULES } from '../quest/types/index.js';
 import { npcSettings, setupNpcs } from '../race/setup.js';
 import { hashSeed } from '../ai/rng.js';
+import { createQuestSounds } from './questSounds.js';
+import { createCameraBlend, orbitPose } from './cameraBlend.js';
+import { paletteOf, guideStyle } from './palette.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
 const ord = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 const HUD_KEY = 'driveWorld.questHud';
+// the palette's colours as CSS variables (the HUD, the screens and the card use them)
+function applyPalette(P) {
+  const r = document.documentElement.style;
+  r.setProperty('--q-good', P.good); r.setProperty('--q-bad', P.bad); r.setProperty('--q-warn', P.warn);
+}
 
 const CSS = `
 #questHud{position:fixed;inset:0;pointer-events:none;z-index:41;font:600 15px Barlow,system-ui,sans-serif;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.65)}
 #questHud .top{position:absolute;top:70px;left:50%;transform:translateX(-50%) scale(var(--qs,1));transform-origin:top center;text-align:center}
 #questHud .clock{font:700 36px "JetBrains Mono",monospace;letter-spacing:.02em}
-#questHud .clock.low{color:#ff8a7a}
+#questHud .clock.low{color:var(--q-bad,#ff7a6a)}
 #questHud .row{opacity:.92;margin-top:2px}
 #questHud .split{font:700 16px "JetBrains Mono",monospace;margin-top:4px}
-#questHud .good{color:#7ee08a}#questHud .bad{color:#ff7a6a}
+#questHud .good{color:var(--q-good,#7ee08a)}#questHud .bad{color:var(--q-bad,#ff7a6a)}
 #questHud .side{position:absolute;top:290px;right:18px;transform:scale(var(--qs,1));transform-origin:top right;text-align:right;min-width:150px}
 #questHud .side .k{font:700 10px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
 #questHud .side .v{font:700 22px "JetBrains Mono",monospace;margin-bottom:6px}
 #questHud .pos .v{opacity:.55}
 #questHud .panel{position:absolute;top:70px;left:18px;transform:scale(var(--qs,1));transform-origin:top left;background:rgba(14,18,26,.55);border-radius:10px;padding:8px 12px;min-width:150px}
 #questHud .panel .big{font:700 30px "JetBrains Mono",monospace}
-#questHud .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:4px}#questHud .bar i{display:block;height:100%;background:#7ee08a}
-#questHud .arrow{position:absolute;top:178px;left:50%;width:46px;height:46px;margin-left:-23px;transform-origin:50% 50%;transform:scale(var(--qs,1))}
+#questHud .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:4px}#questHud .bar i{display:block;height:100%;background:var(--q-good,#7ee08a)}
+#questHud .arrow{position:absolute;top:178px;left:50%;width:var(--qa,46px);height:var(--qa,46px);margin-left:calc(var(--qa,46px) / -2);transform-origin:50% 50%;transform:scale(var(--qs,1))}
 #questHud .arrow svg{width:100%;height:100%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
 #questHud .speed{position:absolute;bottom:26px;right:24px;transform:scale(var(--qs,1));transform-origin:bottom right;text-align:right;font:700 30px "JetBrains Mono",monospace}
 #questHud .speed small{font-size:13px;opacity:.75}
 #questHud .msg{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);font:800 40px Barlow,system-ui,sans-serif;letter-spacing:.04em;white-space:nowrap}
-#questHud .msg.warn{color:#ffbd4a}#questHud .msg.bad{color:#ff5a4a}#questHud .msg.go{color:#7ee08a}
+#questHud .msg.warn{color:var(--q-warn,#ffbd4a)}#questHud .msg.bad{color:var(--q-bad,#ff7a6a)}#questHud .msg.go{color:var(--q-good,#7ee08a)}
 #questHud .count{position:absolute;top:34%;left:50%;transform:translate(-50%,-50%);font:800 110px Barlow,system-ui,sans-serif;color:#fff;-webkit-text-stroke:2px rgba(0,0,0,.55)}
-#questHud .count.go{color:#7ee08a}
+#questHud .count.go{color:var(--q-good,#7ee08a)}
 #questHud .intro{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);text-align:center}
 #questHud .intro b{font-size:28px;display:block}
 #questHud.hidden .top,#questHud.hidden .side,#questHud.hidden .panel,#questHud.hidden .speed,#questHud.hidden .arrow{display:none}
@@ -65,7 +77,7 @@ const CSS = `
 .questScreen h2{margin:0 0 4px;font-size:24px}.questScreen h3{margin:12px 0 4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;opacity:.7}
 .questScreen .medal{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:-3px;margin-right:6px;border:2px solid rgba(255,255,255,.6)}
 .questScreen table{width:100%;border-collapse:collapse;font:13px "JetBrains Mono",monospace}.questScreen td{padding:2px 4px}.questScreen td:last-child{text-align:right}
-.questScreen .good{color:#7ee08a}.questScreen .bad{color:#ff7a6a}.questScreen .money{color:#9be38f;font:700 18px "JetBrains Mono",monospace}
+.questScreen .good{color:var(--q-good,#7ee08a)}.questScreen .bad{color:var(--q-bad,#ff7a6a)}.questScreen .money{color:#9be38f;font:700 18px "JetBrains Mono",monospace}
 .questScreen .buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .questScreen button,#contentCard .qbtn{font:600 14px Barlow,system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 14px;cursor:pointer;pointer-events:auto}
 .questScreen button.primary,#contentCard .qbtn.primary{background:#2f7d43;border-color:#3f9a57}
@@ -76,7 +88,7 @@ const CSS = `
 #contentCard .qbest{font:600 12px "JetBrains Mono",monospace;opacity:.9}
 #contentCard .qbtns{display:flex;gap:6px;margin-top:8px}
 #contentCard .stars{color:#ffd166;letter-spacing:1px}
-#contentCard .qwarn{color:#ffbd4a;font-size:12px;margin:4px 0}
+#contentCard .qwarn{color:var(--q-warn,#ffbd4a);font-size:12px;margin:4px 0}
 #contentCard .qold{color:#9aa3ad;font-size:11px}
 .questScreen .levelup{color:#ffd166;font-weight:700}`;
 
@@ -91,6 +103,24 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   const hudSettings = { ...{ scale: cfg.hud?.scale ?? 1, visible: cfg.hud?.visible !== false }, ...loadHudSettings() };
   let run = null;          // { item, course, controller, adapters, dressing, hud, pilot, message, … }
   let paused = false, screen = null, guide = null, hit = 0;
+  // polish: sounds, the camera's glides, the accessibility settings (applied as they change)
+  const sounds = createQuestSounds({ muted: () => !!game.muted?.() });
+  const blend = createCameraBlend(cfg.camera?.transitions), orbit = cfg.camera?.orbit ?? {};
+  let frameDt = 0, resultsT = 0, look = { palette: null, guides: null };
+  const prefs = () => game.prefs ?? {};
+  const palette = () => paletteOf(prefs().palette), style = () => guideStyle(prefs().guides);
+  const hudScale = () => prefs().hudScale ?? hudSettings.scale;
+  const hint = when => game.hint?.(when);
+  function dressingFor(course) { return createRouteDressing({ THREE, parent: S.world, compiled: course, guides: course.guides, palette: palette(), style: style() }); }
+  // the settings changed (palette or guides): the colours, the route's dressing and the maps' lines again
+  function restyle() {
+    const p = prefs().palette ?? 'standard', g = prefs().guides ?? 'normal';
+    if (look.palette === p && look.guides === g) return;
+    look = { palette: p, guides: g };
+    applyPalette(palette());
+    if (run) { run.dressing.dispose(); run.dressing = dressingFor(run.course); }
+    setLines();
+  }
   const courses = new Map();
 
   // ---------- the course (the quest's route, loaded once) ----------
@@ -102,7 +132,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     courses.set(item.route, course ? { course, route } : null);
     return courses.get(item.route);
   }
-  const lineFeature = (line, kind) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return [lon, lat]; }) }, properties: { kind } });
+  // (the line's colour and width: the accessibility settings — map/render/maps.ts reads them)
+  const lineFeature = (line, kind) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return [lon, lat]; }) }, properties: { kind, colour: palette()[kind], width: style().lineWidth } });
   function setLines() {
     const f = [];
     if (run?.course) f.push(lineFeature(run.course.line, 'route'));
@@ -120,6 +151,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
   function card(item, el) {
     if (item.kind !== 'quest') { preview = null; setLines(); return false; }
+    hint(item.type === 'pink_slip' ? 'pinkSlip' : 'questCard');
     const draw = (c = null) => {
       const p = game.player.profile, prog = p.quests?.[item.id], cur = game.currency;
       const reasons = run ? [{ code: 'busy', text: 'Finish or quit the quest you\'re in first.' }] : reasonsFor(item);
@@ -195,7 +227,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null,
       best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
-    run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: createRouteDressing({ THREE, parent: S.world, compiled: c.course, guides: c.course.guides }), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
+    run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
     guide = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
@@ -203,7 +235,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     run.fee = r.fee;
     // the race: the NPCs on the grid behind, their countdown the player's (no rubber-banding for a pink
     // slip, or when the player's turned it off)
-    if (setup.length) me.race = game.startRace({ quest: item, course: c.course, npcs: setup, playerSession: controller.session, seed, rubberBand: N.rubberBand && hudSettings.rubberBand !== false && game.prefs?.rubberBand !== false && item.type !== 'pink_slip' });
+    if (setup.length) { me.race = game.startRace({ quest: item, course: c.course, npcs: setup, playerSession: controller.session, seed, rubberBand: N.rubberBand && hudSettings.rubberBand !== false && game.prefs?.rubberBand !== false && item.type !== 'pink_slip' }); hint('npcRace'); }
     return r;
   }
   async function confirmPinkSlip(item, rival) {
@@ -225,6 +257,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   function say(text, cls = '', secs = 2) { if (run) { run.message = { text, cls }; run.messageFor = secs; } }
   function event(e) {
     if (!run) return;
+    sounds.event(e);
     if (e.type === 'go') say('GO', 'go', 0.8);
     else if (e.type === 'jump') say(`Jump start +${e.penalty}s`, 'bad', 2);
     else if (e.type === 'checkpoint') say(`${e.number} / ${e.of}  ${fmtTime(e.time)}${e.delta != null ? `  ${fmtDelta(e.delta)}` : ''}${e.extension ? `  +${e.extension}s` : ''}`, e.delta == null || e.delta <= 0 ? 'go' : 'warn', 1.6);
@@ -248,7 +281,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   let hudEl = null;
   function hud() {
     if (!hudEl) { hudEl = document.createElement('div'); hudEl.id = 'questHud'; document.body.appendChild(hudEl); }
-    hudEl.style.setProperty('--qs', hudSettings.scale);
+    hudEl.style.setProperty('--qs', hudScale());
+    hudEl.style.setProperty('--qa', `${style().hudArrow}px`);
     hudEl.classList.toggle('hidden', !hudSettings.visible);
     if (!run) { hudEl.innerHTML = ''; return; }
     const Q = run.controller.session;
@@ -271,7 +305,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         <div class="row">${H.checkpoints ? `Checkpoint ${Math.min(H.checkpoint, H.checkpoints)} / ${H.checkpoints}` : ''}${H.penalty ? ` · +${H.penalty}s penalty` : ''}</div>${lap}${sp}</div>
       <div class="side">${raceSide(H)}</div>
       ${panelHtml ? `<div class="panel">${panelHtml}</div>` : ''}
-      ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudSettings.scale})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? '#ff7a6a' : '#ffd24a'}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
+      ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudScale()})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? palette().arrowMissed : palette().arrow}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
       <div class="speed">${Math.round(car.kmh)}<small> km/h</small> · ${esc(car.gear ?? '')}</div>
       ${st === 'countdown' && H.count ? `<div class="count">${H.count}</div>` : ''}
       ${msg && st !== 'countdown' ? `<div class="msg ${msg.cls}">${esc(msg.text)}</div>` : ''}`;
@@ -317,6 +351,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   function results(res) {
     if (!run) return;
     run.controller.showResults();
+    sounds.results(res);
+    if (res.outcome.status === 'finished') hint('medal');
     const o = res.outcome, pay = res.pay ?? {}, cur = game.currency, item = run.item, prog = game.player.profile.quests?.[item.id];
     const money = n => `${cur}${Math.round(n).toLocaleString('en-GB')}`;
     const title = o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
@@ -349,7 +385,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const cur = game.currency, runFee = rewardsOf(run.item, game.economy).fee, fee = cfg.restart?.free || !runFee ? 'free' : `${cur}${runFee.toLocaleString('en-GB')} entry again`;
     showScreen(`<h2>Paused</h2><div>${esc(run.item.name)} · ${esc(typeLabel(run.item.type))}</div>
       <div class="buttons"><button class="primary" data-resume>Resume</button><button data-restart>Restart (${esc(fee)})</button><button class="danger" data-quit>Quit (did not finish)</button></div>
-      <h3>Settings</h3><label>HUD size <input type="range" min="0.6" max="1.6" step="0.05" value="${hudSettings.scale}" data-scale></label>
+      <h3>Settings</h3><label>HUD size <input type="range" min="0.6" max="1.6" step="0.05" value="${hudScale()}" data-scale></label>
       <label><input type="checkbox" ${hudSettings.visible ? 'checked' : ''} data-visible> Show the race HUD</label>
       <label><input type="checkbox" ${hudSettings.names !== false ? 'checked' : ''} data-names> Drivers' names over their cars</label>
       <label><input type="checkbox" ${hudSettings.rubberBand !== false ? 'checked' : ''} data-rubber> Rubber-banding (rivals ease off or push a little by the gap to you; from the next race)</label>
@@ -359,7 +395,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       quit: async () => { pause(false); await run.controller.quit(); },
       settings: () => game.openSettings(),
     });
-    screen.querySelector('[data-scale]').oninput = e => { hudSettings.scale = +e.target.value; saveHudSettings(hudSettings); hud(); };
+    screen.querySelector('[data-scale]').oninput = e => { hudSettings.scale = +e.target.value; saveHudSettings(hudSettings); game.setPref?.('hudScale', +e.target.value); hud(); };
     screen.querySelector('[data-visible]').onchange = e => { hudSettings.visible = e.target.checked; saveHudSettings(hudSettings); hud(); };
     screen.querySelector('[data-names]').onchange = e => { hudSettings.names = e.target.checked; saveHudSettings(hudSettings); labels(); };
     screen.querySelector('[data-rubber]').onchange = e => { hudSettings.rubberBand = e.target.checked; saveHudSettings(hudSettings); };
@@ -416,6 +452,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       return true;
     },
     frame(realDt) {
+      frameDt = realDt;
+      restyle();
       if (!run) return;
       run.adapters.frame?.();
       const car = game.carNow();
@@ -424,14 +462,32 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       run.messageFor -= realDt; if (run.messageFor <= 0) run.message = null;
       hud(); labels();
     },
-    // the intro's camera, flying along the route (null: the game's own camera)
+    // The quest's camera, after the game's own has been placed: the intro flies along the route, the
+    // results circle the car, and every change between those and the game's camera (free roam, the race)
+    // glides (play/cameraBlend.js). Returns whether it moved the camera
     camera(camera) {
-      const c = run?.controller.introCamera();
-      if (!c) return false;
-      const p = S.world.localToWorld(new THREE.Vector3(c.x, c.y, c.z)), look = S.world.localToWorld(new THREE.Vector3(c.lookX, c.lookY, c.lookZ));
-      camera.position.copy(p); camera.lookAt(look);
+      const st = run?.controller.state, dt = frameDt;
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      const own = { p: camera.position.toArray(), look: camera.position.clone().addScaledVector(fwd, 20).toArray(), fov: camera.fov };
+      let source = 'roam', pose = own;
+      if (st === 'intro') {
+        const c = run.controller.introCamera();
+        const p = S.world.localToWorld(new THREE.Vector3(c.x, c.y, c.z)), lk = S.world.localToWorld(new THREE.Vector3(c.lookX, c.lookY, c.lookZ));
+        source = 'intro'; pose = { p: p.toArray(), look: lk.toArray(), fov: camera.fov };
+      } else if (st === 'countdown' || st === 'racing') source = 'race';
+      else if (run && (st === 'finished' || st === 'failed' || st === 'results') && run.results?.outcome.status !== 'dnf') {
+        if (blend.source !== 'results') resultsT = 0;
+        resultsT += dt;
+        const car = w.car.position, e = new THREE.Euler().setFromQuaternion(w.car.quaternion, 'YXZ');
+        source = 'results'; pose = orbitPose({ x: car.x, y: car.y, z: car.z, heading: e.y * 180 / Math.PI }, resultsT, orbit);
+      }
+      const out = blend.view(source, pose, dt);
+      // (the game's own camera, not gliding: left as the game placed it, its roll and all)
+      if (out === own) return false;
+      camera.position.fromArray(out.p); camera.up.set(0, 1, 0); camera.lookAt(new THREE.Vector3().fromArray(out.look));
+      if (out.fov && Math.abs(camera.fov - out.fov) > 0.01) { camera.fov = out.fov; camera.updateProjectionMatrix(); }
       return true;
     },
-    dispose() { stop(); removeEventListener('keydown', onKey, true); hudEl?.remove(); },
+    dispose() { stop(); sounds.dispose(); removeEventListener('keydown', onKey, true); hudEl?.remove(); },
   };
 }

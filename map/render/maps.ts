@@ -132,8 +132,8 @@ export function lineLayers(map: any, prefix = 'lines') {
     if (map.getSource(src)) return;
     map.addSource(src, { type: 'geojson', data });
     const before = map.getLayer(`${prefix.replace(/-lines$/, '')}-points`) ? `${prefix.replace(/-lines$/, '')}-points` : undefined;
-    map.addLayer({ id: `${prefix}-route`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e05cff', 'line-width': 4, 'line-opacity': 0.85 } }, before);
-    map.addLayer({ id: `${prefix}-guide`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'guide'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1fb6ff', 'line-width': 4, 'line-dasharray': [1.2, 1] } }, before);
+    map.addLayer({ id: `${prefix}-route`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#e05cff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-opacity': 0.85 } }, before);
+    map.addLayer({ id: `${prefix}-guide`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'guide'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#1fb6ff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-dasharray': [1.2, 1] } }, before);
   };
   if (map.isStyleLoaded()) add(); else map.once('load', add);
   map.on('styledata', () => { if (map.isStyleLoaded() && !map.getSource(src)) add(); });
@@ -219,7 +219,8 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
       miniContent.set(features);
       fullContent?.set(features, id => { set(false); onPickNow?.(id); });
     },
-    // lines on both maps (GeoJSON LineStrings with kind: 'route' | 'guide'): a quest's route, the way to its start
+    // lines on both maps (GeoJSON LineStrings with kind: 'route' | 'guide', and optionally colour and width — the
+    // accessibility settings): a quest's route, the way to its start
     setLines(features: any[]) { linesNow = features; miniLines.set(features); fullLines?.set(features); },
     get miniMap() { return miniMap; },
     dispose() { removeEventListener('keydown', keys); miniMap.remove(); fullMap?.remove(); mini.remove(); full.remove(); },

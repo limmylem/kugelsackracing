@@ -41,6 +41,25 @@ export async function regionRoute(region: string) {
   return out;
 }
 
+// A route through a region's densest tile (its biggest baked tile: the most buildings, roads and props),
+// corner to corner through its middle and a little beyond — the 8-car race's worst case for the frame budget
+export async function densestTileRoute(region: string) {
+  const key = `${region}:densest`;
+  if (regions.has(key)) return regions.get(key);
+  const M = await mapHarness(region), T = M.manifest.grid.tileSize, dir = new URL(`../../assets/map/${region}/tiles/`, import.meta.url);
+  const tile = fs.readdirSync(dir).filter(f => f.endsWith('.m3t')).map(f => ({ f, size: fs.statSync(new URL(f, dir)).size })).sort((a, b) => b.size - a.size)[0];
+  const [i, j] = tile.f.replace('.m3t', '').split('_').map(Number);
+  const ll = (fx: number, fz: number) => { const [lat, lon] = M.P.toLatLon((i + fx) * T, (j + fz) * T); return { lat, lon }; };
+  const N = createNetwork(M.graph(), { P: M.P, region, version: M.manifest.version, bbox: M.manifest.bbox });
+  const { course: stored } = saveCourse(N, { ...newRoute(region, 'p2p'), waypoints: [ll(-0.25, -0.25), ll(0.5, 0.5), ll(1.25, 1.25)] });
+  const course: any = viewCourse(stored, M.P);
+  const xs = course.line.map(p => p.x), zs = course.line.map(p => p.z);
+  const around = { cx: (Math.min(...xs) + Math.max(...xs)) / 2, cz: (Math.min(...zs) + Math.max(...zs)) / 2, radius: Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 300 };
+  const out = { region, M, course, stored, around, laps: 1, tile: { i, j, bytes: tile.size } };
+  regions.set(key, out);
+  return out;
+}
+
 // the quest controller's adapters for the Node physics (tests/map/quests.test.ts's)
 export function nodeAdapters(S: any, sim: any) {
   let held = false, throttle = 0;
@@ -68,16 +87,17 @@ export async function playerService(H: any) {
 }
 
 // One race: the player's car (the starter car) driven by a bot driver of playerSkill, NPCs from data/npc.json
-export async function runRace(R: any, { npcs = 7 as number | any[], seed = 1, collisions = 'full', rubberBand = false, playerSkill = 0.6, fps = 0, limit = 900, quest: q = null, keepSim = false, onStep = null as any, playerCar = 'starter_car', S: given = null as any } = {}) {
+export async function runRace(R: any, { npcs = 7 as number | any[], seed = 1, collisions = 'full', rubberBand = false, playerSkill = 0.6, fps = 0, limit = 900, quest: q = null, keepSim = false, onStep = null as any, playerCar = 'starter_car', S: given = null as any, player: givenPlayer = null as any, garageState = null as any, series = null as any } = {}) {
   const { M, course } = R, H = M.H;
   const quest: any = q ?? { id: `q_race_${R.region}`, kind: 'quest', type: 'sprint', version: 3, updated: '2026-01-01T00:00:00Z', route: 'r', fee: 0, rewards: { tier: 'standard' }, entry: { classes: [], minLevel: 1 }, params: { laps: R.laps }, npc: { count: typeof npcs === 'number' ? npcs : npcs.length, skill: [0.3, 0.95], drivers: 'random', rubberBand } };
-  const pStats = H.garage(null, playerCar).stats();
+  // (the player's own car as it's built, when given: its parts in the physics)
+  const pStats = H.garage(garageState, playerCar).stats();
   const S = given ?? await M.simAround(R.around.cx, R.around.cz, { radius: R.around.radius, spec: pStats.spec });
   const sim = S.sim, frame = { toWorld: (x: number, z: number) => [x + S.origin[0], z + S.origin[1]], toSim: (x: number, z: number) => [x - S.origin[0], z - S.origin[1]] };
-  const player = await playerService(H);
+  const player = givenPlayer ?? await playerService(H);
   const A = nodeAdapters(S, sim);
   let race: any = null;
-  const C = createQuestController({ quest, course, config: qcfg, player, car: { instanceId: player.profile.currentCar, carId: playerCar, topSpeed: 60 }, adapters: A, race: () => race });
+  const C = createQuestController({ quest, course, config: qcfg, player, car: { instanceId: player.profile.currentCar, carId: playerCar, topSpeed: 60 }, adapters: A, race: () => race, series });
   const st = await C.start({ intro: false });
   if (!st.ok) throw new Error(st.error);
   // the NPCs: drivers, cars from the parts system, on the grid behind the player
@@ -92,6 +112,7 @@ export async function runRace(R: any, { npcs = 7 as number | any[], seed = 1, co
   const input = () => { const i = bot(sim.vehicle, sim.dt); A.setThrottle(C.state === 'racing' ? i.throttle : 0); return C.state === 'racing' ? i : { device: 'wheel', throttle: 0, brake: 1, steer: 0, handbrake: false }; };
   const events: any[] = [];
   let t = 0, steps = 0, ms = 0, worstFrame = 0, botResets = 0;
+  const resetsAt: any[] = [];
   const frameDt = fps ? 1 / fps : sim.dt;
   for (; t < limit && !C.ending; t += frameDt) {
     const t0 = performance.now();
@@ -100,13 +121,13 @@ export async function runRace(R: any, { npcs = 7 as number | any[], seed = 1, co
     ms += dtm; worstFrame = Math.max(worstFrame, dtm); steps++;
     for (const e of race.drain()) events.push({ ...e, t: race.time });
     // (the bot's own recovery: the route's reset, as the player's R)
-    if (bot.state.wantsReset && C.state === 'racing') { const Q = C.session, pt = Q.tracker.resetPoint(); A.resetTo(pt); Q.noteReset(pt); bot.placed(0); botResets++; }
+    if (bot.state.wantsReset && C.state === 'racing') { const Q = C.session, pt = Q.tracker.resetPoint(); resetsAt.push({ t: Math.round(t), s: Math.round(Q.tracker.state.s ?? 0), why: bot.state.why ?? null }); A.resetTo(pt); Q.noteReset(pt); bot.placed(0); botResets++; }
     onStep?.({ sim, race, C, t });
   }
   const res = C.ending ? await C.ending : null;
   race.finishUp();
   const standings = race.results();
-  const out = { standings, res, events, ms, steps, worstFrame, botResets, race, C, S, sim, player, setup, t };
+  const out = { standings, res, events, ms, steps, worstFrame, botResets, resetsAt, race, C, S, sim, player, setup, t };
   if (!keepSim) { race.dispose(); A.free(); C.dispose(); if (!given) S.free(); }
   return out;
 }

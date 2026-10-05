@@ -8,6 +8,7 @@
 //   const F = createQuestFinder({ w, game, content, regions, notices: () => on? })
 //     game: questUi's game (player, economy, config, carSummary, carInstanceId, fastTravel(item), regionId)
 //   F.frame(dt, carLatLon, busy)   F.dispose()
+//   loadAll(service, regions) → every published quest in the baked regions (no cap: tests/quest-stress.mjs, 50,000)
 
 import { worldContent } from '../content/client.js';
 import { FILTERS, defaultFilters, filterQuests, recommend, createNotifier, regionOf } from '../quest/finder.js';
@@ -29,11 +30,21 @@ const CSS = `
 #questNotice{position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:43;background:rgba(14,18,26,.86);color:#f2f4f7;border:1px solid rgba(255,209,102,.45);border-radius:10px;padding:7px 14px;font:600 14px Barlow,system-ui,sans-serif;display:none;pointer-events:none}
 #questNotice .stars{color:#ffd166}`;
 
+// every published quest in every baked region, however many (each region's bbox, from its middle)
+export async function loadAll(service, regions) {
+  const seen = new Map();
+  for (const r of regions) {
+    const [w0, s0, e0, n0] = r.bbox, mid = { lat: (s0 + n0) / 2, lon: (w0 + e0) / 2 }, km = Math.hypot((e0 - w0) * 111 * Math.cos(mid.lat * Math.PI / 180), (n0 - s0) * 111) / 2 + 1;
+    for (const { item } of (await service.query({ ...mid, km, view: 'published', offered: true, kinds: ['quest'], limit: Infinity })).items) seen.set(item.id, item);
+  }
+  return [...seen.values()];
+}
+
 export function createQuestFinder({ w, game, content, regions = [], notices = () => true }) {
   if (!document.getElementById('questFinderCss')) { const s = document.createElement('style'); s.id = 'questFinderCss'; s.textContent = CSS; document.head.appendChild(s); }
   let filters = defaultFilters();
   try { filters = { ...filters, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* the defaults */ }
-  let all = [], loadedAt = 0, panel = null, offOpen = null, at = null, tNotice = 0, check = 0;
+  let all = [], counts = new Map(), loadedAt = 0, panel = null, offOpen = null, at = null, tNotice = 0, check = 0;
   const notice = document.createElement('div'); notice.id = 'questNotice'; document.body.appendChild(notice);
   const ctx = () => ({ profile: game.player.profile, car: game.carSummary(game.carInstanceId()), economy: game.economy, config: game.config, at });
   const notifier = createNotifier({ get profile() { return game.player.profile; }, config: game.config });
@@ -41,12 +52,9 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
   // every published quest in every baked region (asked again when the map opens, at most every 20 s)
   async function load() {
     if (performance.now() - loadedAt < 20000 && all.length) return all;
-    const C = await worldContent(), seen = new Map();
-    for (const r of regions) {
-      const [w0, s0, e0, n0] = r.bbox, mid = { lat: (s0 + n0) / 2, lon: (w0 + e0) / 2 }, km = Math.hypot((e0 - w0) * 111 * Math.cos(mid.lat * Math.PI / 180), (n0 - s0) * 111) / 2 + 1;
-      for (const { item } of (await C.service.query({ ...mid, km, view: 'published', offered: true, kinds: ['quest'], limit: 5000 })).items) seen.set(item.id, item);
-    }
-    all = [...seen.values()]; loadedAt = performance.now();
+    all = await loadAll((await worldContent()).service, regions); loadedAt = performance.now();
+    counts = new Map(regions.map(r => [r.id, 0]));
+    for (const q of all) { const r = regionOf(q.location, regions); if (r) counts.set(r.id, counts.get(r.id) + 1); }
     return all;
   }
 
@@ -63,14 +71,14 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
     panel.innerHTML = `<h4>Recommended for you</h4>${rec.length ? rec.map(x => row(x)).join('') : '<small>Nothing right now: the filters below show everything.</small>'}
       <h4>Find quests</h4><div class="filters">${sel('type', 'Type')}${sel('stars', 'Difficulty')}${sel('distance', 'Distance')}${sel('status', 'Done')}${sel('medal', 'Medal')}${sel('car', 'Car')}</div>
       <div>${shown.slice(0, 60).map(x => row(x)).join('') || '<small>No quests match.</small>'}${shown.length > 60 ? `<small>…and ${shown.length - 60} more: narrow the filters.</small>` : ''}</div>
-      <h4>Regions</h4>${regions.map(r => `<div class="r"><span class="${r.id === game.regionId?.() ? 'here' : ''}">${esc(r.name)}${r.id === game.regionId?.() ? ' · you\'re here' : ''} <small>${all.filter(q => regionOf(q.location, [r])).length} quests</small></span>${r.id === game.regionId?.() ? '' : `<button data-region="${esc(r.id)}">Travel</button>`}</div>`).join('')}`;
+      <h4>Regions</h4>${regions.map(r => `<div class="r"><span class="${r.id === game.regionId?.() ? 'here' : ''}">${esc(r.name)}${r.id === game.regionId?.() ? ' · you\'re here' : ''} <small>${counts.get(r.id) ?? 0} quests</small></span>${r.id === game.regionId?.() ? '' : `<button data-region="${esc(r.id)}">Travel</button>`}</div>`).join('')}`;
   }
   function attach() {
     const maps = w.maps;
     if (!maps?.side || offOpen) return;
     panel = document.createElement('div'); panel.id = 'questFinder';
     maps.side.appendChild(panel);
-    offOpen = maps.onOpen(on => { if (on) render(); });
+    offOpen = maps.onOpen(on => { if (on) { render(); game.hint?.('fastTravel'); } });
     panel.addEventListener('change', e => { const k = e.target.dataset?.filter; if (!k) return; filters[k] = e.target.value; try { localStorage.setItem(KEY, JSON.stringify(filters)); } catch { /* not kept */ } render(); });
     panel.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;

@@ -3,6 +3,7 @@
 // (localStorage) so they survive a reload. The panel opens with O (or the gamepad's Menu button).
 
 import { ACTIONS, DEFAULT_INPUT, DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_WHEEL } from './input.js';
+import { PALETTES } from '../play/palette.js';
 
 const STORE = 'driveWorld.settings.v1';
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -21,6 +22,12 @@ export function defaultSettings(spec) {
     altitude: 0,
     effects: 'medium',          // visual effects quality: low / medium / high (data/effects.json)
     timeOfDay: 13,              // the test worlds' time of day (hours)
+    // accessibility (play/palette.js): the quests' colours, how visible the route guides are, the HUDs' size,
+    // and the first-time hints
+    palette: 'standard',        // standard / colourblind
+    guides: 'normal',           // normal / bold
+    hudScale: 1,                // 0.6–1.6
+    hints: true,
     input: clone(DEFAULT_INPUT), keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL),
   };
 }
@@ -56,8 +63,9 @@ const AID_ROWS = [
 const clockText = h => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 const bindingText = b => !b ? '—' : b.type === 'button' ? `button ${b.index}` : b.rest == null ? `axis ${b.index}${b.invert ? ' (flipped)' : ''}` : `axis ${b.index}`;
 
-// input: the InputManager (for capturing rebinds); onChange(settings) after any change
-export function createSettingsPanel(settings, spec, input, onChange) {
+// input: the InputManager (for capturing rebinds); onChange(settings) after any change; onRehint(): every
+// first-time hint unseen again
+export function createSettingsPanel(settings, spec, input, onChange, { onRehint = null } = {}) {
   const el = document.createElement('div');
   el.id = 'settings';
   el.hidden = true;
@@ -93,6 +101,14 @@ export function createSettingsPanel(settings, spec, input, onChange) {
         <label class="slider">quality <select data-str="effects">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.effects ?? 'medium') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <small class="pads">How many particles (smoke, sparks, dust…), how big and how long they last, how far away cars' effects play, soft edges where they meet surfaces (medium and high) and little lights where sparks fly (high).</small>
         <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
+        <h3>Accessibility</h3>
+        <label class="slider">colours <select data-str="palette">${Object.entries(PALETTES).map(([v, p]) => `<option value="${v}" ${(S.palette ?? 'standard') === v ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
+        <small class="pads">Checkpoint gates, splits (ahead / behind), warnings and the route on the maps. Colour-blind friendly: blue for ahead, orange for behind, and gates and guides told apart by brightness as well as colour.</small>
+        <label class="slider">route guides <select data-str="guides">${[['normal', 'Normal'], ['bold', 'More visible']].map(([v, n]) => `<option value="${v}" ${(S.guides ?? 'normal') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <small class="pads">More visible: bigger, brighter arrows on the road, taller gates that glow at night, a thicker route line on the maps and a bigger checkpoint arrow.</small>
+        <label class="slider">HUD size <input type="range" min="0.6" max="1.6" step="0.05" data-num="hudScale" value="${S.hudScale ?? 1}"> <output>${Math.round((S.hudScale ?? 1) * 100)}%</output></label>
+        <label class="row"><input type="checkbox" data-bool="hints" ${S.hints !== false ? 'checked' : ''}> <span><b>First-time hints</b><small>A short tip the first time you meet something new (quests, medals, rivals, pink slips, fast travel, damage). Click one to dismiss it.</small></span></label>
+        <button data-rehint>Show the hints again</button>
       </section>
       <section><h3>Input</h3>
         <label class="slider">device <select data-str="input.device">${['auto', 'keyboard', 'gamepad', 'wheel'].map(d => `<option ${I.device === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
@@ -117,7 +133,7 @@ export function createSettingsPanel(settings, spec, input, onChange) {
   const set = (path, value) => { const [a, b] = path.split('.'); if (b) settings[a][b] = value; else settings[a] = value; };
   el.addEventListener('input', e => {
     const t = e.target;
-    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
+    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') || t.dataset.num === 'hudScale' ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
   });
   el.addEventListener('change', e => {
     const t = e.target;
@@ -131,6 +147,7 @@ export function createSettingsPanel(settings, spec, input, onChange) {
     const t = e.target.closest('button');
     if (!t) return;
     if (t.dataset.reset !== undefined) { Object.assign(settings, defaultSettings(spec)); changed(); return; }
+    if (t.dataset.rehint !== undefined) { onRehint?.(); t.textContent = 'They\'ll show again'; return; }
     const [group, id] = (t.dataset.bind || '').split('.');
     if (!group) return;
     t.textContent = id === 'steer' ? 'turn left…' : 'press…';

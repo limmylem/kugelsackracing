@@ -1,7 +1,9 @@
 // The road network routes are found on: a baked region's road graph (map/format/graph.ts — OpenStreetMap's
 // drivable ways, cut at junctions, with heights and widths), ready for shortest paths. Pure.
 //
-//   const N = createNetwork(graph, { P, region, version })      P: the region's projection (toXZ / toLatLon)
+//   const N = createNetwork(graph, { P, region, version, bbox })      P: the region's projection (toXZ / toLatLon)
+//     bbox: [west, south, east, north] — the baked map's (its manifest's). The graph reaches past it (whole
+//     OSM ways), but the ground doesn't: N.inside(x, z), N.outsideOf(line) → { metres, at } of a line beyond it
 //   N.nearest(x, z, options, reach) → { seg, s, x, z, h, d }   the nearest road a route may use
 //   N.path(a, b, options) → { pieces: [{ seg, s0, s1 }], length } | { error }   a → b (positions on roads)
 //   N.allowed(seg, forward, options)   N.keyOf(seg) → 'way:fromNode:toNode' (OSM's ids: stable between bakes)
@@ -21,7 +23,7 @@ export class Heap {
   get size() { return this.a.length; }
 }
 
-export function createNetwork(G, { P = null, region = null, version = null } = {}) {
+export function createNetwork(G, { P = null, region = null, version = null, bbox = null } = {}) {
   const segs = G.segs, nodes = G.nodes, n = nodes.x.length;
   // each segment's length and the distance along it at each of its points
   for (const sg of segs) {
@@ -158,5 +160,33 @@ export function createNetwork(G, { P = null, region = null, version = null } = {
     return { pieces: pieces.filter(p => Math.abs(p.s1 - p.s0) > 1e-6 || pieces.length === 1), length: best };
   }
 
-  return { G, P, region, version, segs, nodes, degree, adj, keyOf, byKey, allowed, usable, pointOn, nearest, candidates, path, osmNode, mainPart };
+  // the baked map's edge (no bbox or projection: everywhere's inside). Most points are well inside: a box
+  // in metres inside the map's edge (its edges sampled, projected) answers those without the projection
+  let core = null;
+  if (bbox && P) {
+    const [w, so, e, n] = bbox, xs = { w: [], e: [] }, zs = { s: [], n: [] };
+    for (let k = 0; k <= 16; k++) {
+      const lat = so + (n - so) * k / 16, lon = w + (e - w) * k / 16;
+      xs.w.push(P.toXZ(lat, w)[0]); xs.e.push(P.toXZ(lat, e)[0]);
+      zs.s.push(P.toXZ(so, lon)[1]); zs.n.push(P.toXZ(n, lon)[1]);
+    }
+    // (z grows southwards: north is the smaller z) — 2 m in from the edge, for the curvature between samples
+    core = { x0: Math.max(...xs.w) + 2, x1: Math.min(...xs.e) - 2, z0: Math.max(...zs.n) + 2, z1: Math.min(...zs.s) - 2 };
+  }
+  function inside(x, z) {
+    if (!bbox || !P) return true;
+    if (x > core.x0 && x < core.x1 && z > core.z0 && z < core.z1) return true;
+    const [lat, lon] = P.toLatLon(x, z);
+    return lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3];
+  }
+  function outsideOf(line) {
+    let metres = 0, at = null;
+    for (let k = 0; k < line.length; k++) {
+      if (inside(line[k].x, line[k].z)) continue;
+      at ??= k;
+      if (k > 0) metres += Math.hypot(line[k].x - line[k - 1].x, line[k].z - line[k - 1].z);
+    }
+    return { metres, at };
+  }
+  return { G, P, region, version, bbox, segs, nodes, degree, adj, keyOf, byKey, allowed, usable, pointOn, nearest, candidates, path, osmNode, mainPart, inside, outsideOf };
 }

@@ -1,5 +1,8 @@
 # Quests at run time: finding, racing, results
 
+(What quests pay, difficulty, levels and tiers, the finder and fast travel, the sounds, camera, hints and
+accessibility options, and the balance and scale tests: [PROGRESSION.md](PROGRESSION.md).)
+
 Phase 4 Step 3. A published quest (Step 1, [WORLD_CONTENT.md](WORLD_CONTENT.md)) on a route (Step 2,
 [ROUTES.md](ROUTES.md)) can be found in the world, entered, raced and finished. The money and progress go
 through PlayerService, and the rules are in `data/quests.json`.
@@ -154,7 +157,9 @@ PlayerService, so a server can take the checks over later.
 | `delivery.fragileFactor` | how much more a fragile cargo feels the damage |
 | `validation` | top-speed slack, the lowest top speed assumed |
 | `recording.hz` | the recording's rate |
-| `levels.xpPerLevel` | xp per level |
+| `levels` | xp for each level: base, growth and the highest level (PROGRESSION.md) |
+| `camera` | the camera's glides between free roam, the intro, the race and the results (seconds), and the results' orbit |
+| `finding` | the nearby notice and "Recommended for you" (PROGRESSION.md) |
 | `hud` | the HUD's default size and visibility |
 
 ## Tests

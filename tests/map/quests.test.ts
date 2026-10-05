@@ -17,6 +17,7 @@ import { LocalPlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
 import { MemoryRecordStore } from '../../quest/recordStore.js';
 import { validateResult } from '../../quest/validate.js';
+import { rewardsOf } from '../../content/quests.js';
 import { REAL_ROUTES } from './realRoutes.ts';
 import fs from 'node:fs';
 
@@ -131,7 +132,11 @@ if (!only || only.includes('fps')) {
 }
 
 if (!only || only.includes('restarts')) {
-  const player = await playerService(), quest = { ...base, id: 'q_restart', name: 'restart', type: 'sprint', params: { laps: 1 }, fee: 150 };
+  // (a Club-tier quest, so its entry costs something: the fee comes from its tier — data/economy.json — and
+  // the player is levelled up to it)
+  const player = await playerService(), quest: any = { ...base, id: 'q_restart', name: 'restart', type: 'sprint', params: { laps: 1 }, rating: { stars: 4, km: 1.15 } };
+  const fee = rewardsOf(quest, player.db.economy).fee;
+  await player.addXp(5000);
   const A = adapters(), m0 = player.profile.money;
   const C = createQuestController({ quest, course, config, player, car: { instanceId: player.profile.currentCar, topSpeed: 70 }, adapters: A });
   const gc = (globalThis as any).gc;
@@ -148,7 +153,7 @@ if (!only || only.includes('restarts')) {
   const h1 = heap(), listeners = (sim as any).onStep(() => {}); listeners();
   const P = player.profile.quests[quest.id];
   // 51 starts (the first and 50 more), every one charged (restarts aren't free in the config)
-  report(m0 - player.profile.money === 51 * 150 && P.attempts === 51 && P.dnfs === 51, '50 restarts and quits: fees and attempts right', `paid ${m0 - player.profile.money} for 51 starts, ${P.attempts} attempts, ${P.dnfs} DNFs`);
+  report(fee > 0 && m0 - player.profile.money === 51 * fee && P.attempts === 51 && P.dnfs === 51, '50 restarts and quits: fees and attempts right', `paid ${m0 - player.profile.money} for 51 starts (${fee} each), ${P.attempts} attempts, ${P.dnfs} DNFs`);
   report(h1 - h0 < 4e6, '50 restarts and quits: no memory growth', `heap ${((h1 - h0) / 1e6).toFixed(2)} MB from restart 10 to 50${gc ? '' : ' (run with --expose-gc)'}`);
   A.free(); C.dispose();
 }

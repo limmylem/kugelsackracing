@@ -1,7 +1,7 @@
 // The economy simulation (Phase 4 Step 5): a bot at each skill level (data/economy.json simulation.skills)
 // plays for hours from a fresh start — quests, crashes and repairs, upgrades and cars — on the game's own
 // rules, and the targets (simulation.targets) are checked: the balance report as text here and in
-// reports/economy.txt, and as a page with charts in reports/economy.html. docs/ECONOMY.md says how to read
+// reports/economy.txt, and as a page with charts in reports/economy.html. docs/PROGRESSION.md says how to read
 // it and what to tune.
 //
 //   npm run economy-sim [-- --hours 8] [--seed 7] [--out reports] [--no-fail]

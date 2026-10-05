@@ -15,7 +15,7 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "pattern": "^[a-zA-Z0-9_]+$" },
-          "when": { "enum": ["damage", "mechanical", "loose", "undrivable", "replay", "damageTab", "safetyNet"] },
+          "when": { "enum": ["damage", "mechanical", "loose", "undrivable", "replay", "damageTab", "safetyNet", "questCard", "medal", "npcRace", "pinkSlip", "fastTravel"] },
           "where": { "enum": ["drive", "garage"] },
           "title": { "type": "string", "minLength": 1 },
           "text": { "type": "string", "minLength": 1 }

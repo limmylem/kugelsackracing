@@ -35,6 +35,9 @@ export function compileRoute(N, route) {
   const out = { built, line, loop, length: L, grid: null, checkpoints: [], gates: [], shortcuts: [], allShortcuts: [], stats: null, roadCheck: route.roadData ? checkRoadData(N, route.roadData) : null, lostCheckpoints: [], problems: [] };
   if (route.region && N.region && route.region !== N.region) built.problems.push({ level: 'error', field: 'region', message: `This route is in another region (${route.region}).` });
   if (line.length < 2) { out.problems = validateRoute(out); return out; }
+  // (the road graph reaches past the baked map; the ground doesn't)
+  const off = N.outsideOf?.(line);
+  if (off?.at != null) built.problems.push({ level: 'error', field: 'waypoints', message: `${Math.max(1, Math.round(off.metres))} m of this route is past the edge of the baked map, where there's no ground to drive on: keep it inside the map.` });
   out.grid = placeGrid(line, { count: route.grid?.count ?? GRID.count, loop, nodes: built.nodes, startS: route.grid?.startS ?? null, adjust: route.grid?.adjust ?? {} });
   out.allShortcuts = findShortcuts(N, built, { loop });
   if ((route.checkpointMode ?? 'auto') === 'auto') {
@@ -134,8 +137,13 @@ export function viewCourse(course, P) {
   const checkpoints = (course.checkpoints ?? []).filter(c => loop || (c.s > grid.startS && c.s < grid.finishS)).map(c => ({ ...c })).sort((a, b) => order(a.s) - order(b.s));
   const gates = checkpoints.map(c => ({ ...gateAt(line, c.s, { width: c.width ?? null, loop }), id: c.id, required: c.required !== false, timeExtension: c.timeExtension ?? 0 }));
   const start = gateAt(line, grid.startS, { loop }), finish = loop ? start : gateAt(line, grid.finishS, { loop });
-  return { line, loop, length: L, grid, checkpoints, gates, start, finish, stats: course.stats ?? null, referenceTime: course.referenceTime ?? null, guides: course.guides ?? GUIDES, corridor: course.corridor ?? { margin: 8 }, version: routeVersionOf(course),
-    racing: racingOf(course, line, P), aiTimes: course.aiTimes ?? null };
+  const out = { line, loop, length: L, grid, checkpoints, gates, start, finish, stats: course.stats ?? null, referenceTime: course.referenceTime ?? null, guides: course.guides ?? GUIDES, corridor: course.corridor ?? { margin: 8 }, version: routeVersionOf(course),
+    aiTimes: course.aiTimes ?? null };
+  // (the racing line: worked out when something drives it — a quest's card only shows the route, and pops
+  // up as the player drives past at speed)
+  let racing;
+  Object.defineProperty(out, 'racing', { enumerable: true, get: () => racing ??= racingOf(course, line, P), set: v => { racing = v; } });
+  return out;
 }
 
 // A route's version as a run was made on it: its line, checkpoints, grid and kind (a short hash). A

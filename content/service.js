@@ -31,9 +31,9 @@ export const METHODS = {
   restore: '(id) an archived item back as a draft',
   getState: '(id) → { state: { draft, published, archived } } everything kept for an item (for undo)',
   setState: '(id, state) put an item\'s whole state back (undo / redo)',
-  exportContent: '({ area: { lat, lon, km } | { cell } | null, views }) → { json, count } (null area: everything)',
+  exportContent: '({ area: { lat, lon, km } | { cell } | null, views, as }) → { json, count } (null area: everything; as: \'entries\' → { entries, count }, not made into one JSON string — what checking everything at once needs, at any size)',
   importContent: '(json, { onConflict: \'replace\' | \'skip\' }) → { imported, migrated, skipped: [{ id, why }] }',
-  stats: '() → { draft, published, archived, cells, loadedCells }',
+  stats: '() → { draft, published, archived, cells, loadedCells, loadedWeight }',
   flush: '() save now (changes are saved anyway, a moment after they\'re made)',
 };
 
@@ -45,14 +45,40 @@ const boxesMeet = (a, b) => a[0] <= b[2] && a[2] >= b[0] && (b[1] <= b[3] ? a[1]
 const cellOf = loc => encode(loc.lat, loc.lon, CELL_PRECISION);
 const randomId = kind => `${kind}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-export function createLocalContentService({ storage, check, rate = null, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, autosaveMs = 300 } = {}) {
+// (how much of memory an item takes, roughly: a route carries its whole course — its line, its roads, its racing
+// line — about twenty markers' worth parsed; kept as text until read, much less)
+const weightOf = it => it?.kind === 'route' ? 20 : 1;
+
+// A route's course as loaded: kept as its JSON text until something reads it (and then parsed once). The
+// quests near the player share their cells with their routes, and a packed city's courses parsed would be
+// most of memory — and most of the collector's work. Written out (JSON or structured clone) it's the same.
+function lazyCourse(it) {
+  if (it?.kind !== 'route' || !it.course || typeof it.course !== 'object') return it;
+  let raw = JSON.stringify(it.course), parsed = null;
+  Object.defineProperty(it, 'course', { enumerable: true, configurable: true, get: () => parsed ??= JSON.parse(raw), set: v => { parsed = v; raw = null; } });
+  // (written out as JSON: the text parsed for the moment, not kept parsed)
+  Object.defineProperty(it, 'toJSON', { enumerable: false, configurable: true, value() { const { toJSON: _, ...rest } = Object.getOwnPropertyDescriptors(this); const out = {}; for (const k of Object.keys(rest)) out[k] = k === 'course' ? (parsed ?? (raw != null ? JSON.parse(raw) : null)) : this[k]; return out; } });
+  return it;
+}
+
+// maxCells, maxWeight: what's kept in memory at most — cells, and their items' weight (weightOf: a marker 1, a
+// route 20; stats() reports it). The cells are 5 km across, so a packed city can be one heavy cell: a weight
+// cap bounds memory however content bunches up, but below what the places in use need it reloads them again
+// and again — no cap by default. (Routes kept apart from the quests' cells is the lasting answer: a server's
+// routes table, docs/KNOWN_ISSUES.md.)
+export function createLocalContentService({ storage, check, rate = null, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, maxWeight = Infinity, autosaveMs = 300 } = {}) {
   let index = null;                       // { layout, ids: { id: cell }, cells: { view: { cell: count } } }
   const nonEmpty = {};                    // view → how many cells have anything (kept as they change)
   const coarse = {};                      // view → Map(3-letter prefix → Set of its cells with anything): wide areas found fast
   const P3 = 3;
   const coarseAdd = (view, cell) => { const k = cell.slice(0, P3); (coarse[view].get(k) ?? coarse[view].set(k, new Set()).get(k)).add(cell); };
   const coarseDrop = (view, cell) => { const k = cell.slice(0, P3), set = coarse[view].get(k); if (set) { set.delete(cell); if (!set.size) coarse[view].delete(k); } };
-  const cache = new Map();                // `${view}/${cell}` → { items: Map(id → item), dirty, used }
+  const cache = new Map();                // `${view}/${cell}` → { items: Map(id → item), dirty, used, weight }
+  let held = 0;                           // the cached cells' weight, in all
+  const keep = (k, e) => { if (cache.has(k)) held -= cache.get(k).weight; cache.set(k, e); held += e.weight; };
+  const forget = k => { const e = cache.get(k); if (e) { held -= e.weight; cache.delete(k); } };
+  const put = (e, id, it) => { const was = e.items.get(id); e.weight += weightOf(it) - (was ? weightOf(was) : 0); held += weightOf(it) - (was ? weightOf(was) : 0); e.items.set(id, it); };
+  const take = (e, id) => { const was = e.items.get(id); if (!was) return false; e.weight -= weightOf(was); held -= weightOf(was); e.items.delete(id); return true; };
   let tick = 0, queue = Promise.resolve(), saveTimer = null, indexDirty = false, saving = null;
   const listeners = new Set();
 
@@ -71,21 +97,23 @@ export function createLocalContentService({ storage, check, rate = null, author 
   };
 
   async function cells(view, list) {
+    const since = tick;
     const missing = list.filter(c => !cache.has(`${view}/${c}`) && index.cells[view][c]);
     if (missing.length) {
       const got = await storage.getCells(missing.map(c => `${view}/${c}`)), older = [];
       for (const [k, rec] of got) {
         // (items saved by an older version of the game: brought up to date as they load, and saved so)
-        const e = { items: new Map(), dirty: false, used: 0 };
+        const e = { items: new Map(), dirty: false, used: 0, weight: 0 };
         for (const i of rec?.items ?? []) {
           const m = i.version === CONTENT_VERSION ? null : migrate(i);
           if (m?.item) { e.items.set(i.id, m.item); e.dirty = true; if (m.item.kind === 'quest' && !m.item.rating) older.push([e, m.item]); }
-          else e.items.set(i.id, i);
+          else e.items.set(i.id, lazyCourse(i));
+          e.weight += weightOf(m?.item ?? i);
         }
-        cache.set(k, e);
+        keep(k, e);
       }
       // (a quest from before ratings: rated from its route now, so its reward follows the rules)
-      for (const [e, it] of older) e.items.set(it.id, await rated(it));
+      for (const [e, it] of older) put(e, it.id, await rated(it));
       if (older.length || [...got].some(([k]) => cache.get(k)?.dirty)) schedule();
     }
     const out = [];
@@ -93,23 +121,27 @@ export function createLocalContentService({ storage, check, rate = null, author 
       const e = cache.get(`${view}/${c}`);
       if (e) { e.used = ++tick; out.push(e); }
     }
-    evict();
+    evict(since);
     return out;
   }
   async function cellFor(view, cell) {
     const key = `${view}/${cell}`;
     if (!cache.has(key)) {
       if (index.cells[view][cell]) await cells(view, [cell]);
-      if (!cache.has(key)) cache.set(key, { items: new Map(), dirty: false, used: 0 });
+      if (!cache.has(key)) keep(key, { items: new Map(), dirty: false, used: 0, weight: 0 });
     }
     const e = cache.get(key); e.used = ++tick; return e;
   }
   // (cells not used lately, and saved, leave memory: only what's near is kept)
-  function evict() {
-    if (cache.size <= maxCells) return;
-    // (down to three quarters at a time, so it isn't sorting on every request)
-    const clean = [...cache.entries()].filter(([, e]) => !e.dirty).sort((a, b) => a[1].used - b[1].used);
-    for (const [k] of clean.slice(0, cache.size - Math.floor(maxCells * 0.75))) cache.delete(k);
+  // (since: cells used after that tick are the request's own, and stay)
+  function evict(since = Infinity) {
+    if (cache.size <= maxCells && held <= maxWeight) return;
+    // (down to three quarters at a time, so it isn't sorting on every request; the least lately used first)
+    const clean = [...cache.entries()].filter(([, e]) => !e.dirty && e.used <= since).sort((a, b) => a[1].used - b[1].used);
+    for (const [k] of clean) {
+      if (cache.size <= Math.floor(maxCells * 0.75) && held <= maxWeight * 0.75) break;
+      forget(k);
+    }
   }
 
   async function readItem(id, view) {
@@ -121,7 +153,7 @@ export function createLocalContentService({ storage, check, rate = null, author 
     const cell = cellOf(item.location);
     if (oldCell && oldCell !== cell) await dropItem(view, item.id, oldCell);
     const e = await cellFor(view, cell), had = e.items.has(item.id);
-    e.items.set(item.id, item); e.dirty = true;
+    put(e, item.id, item); e.dirty = true;
     if (!had) { if (!index.cells[view][cell]) { nonEmpty[view]++; coarseAdd(view, cell); } index.cells[view][cell] = (index.cells[view][cell] ?? 0) + 1; }
     indexDirty = true;
     return cell;
@@ -129,7 +161,7 @@ export function createLocalContentService({ storage, check, rate = null, author 
   async function dropItem(view, id, cell) {
     if (!cell || !index.cells[view][cell]) return;
     const e = await cellFor(view, cell);
-    if (!e.items.delete(id)) return;
+    if (!take(e, id)) return;
     e.dirty = true; indexDirty = true;
     if (--index.cells[view][cell] <= 0) { delete index.cells[view][cell]; nonEmpty[view]--; coarseDrop(view, cell); }
   }
@@ -178,6 +210,23 @@ export function createLocalContentService({ storage, check, rate = null, author 
     return out;
   }
   const offeredOnly = (it, offered) => !offered || it.kind !== 'quest' || it.enabled !== false;
+  // the nearest `limit`, nearest first: when that's far fewer than there are (a crowded place), the cut-off
+  // distance is found first (quickselect) and only those within it are sorted
+  function nearest(out, limit) {
+    if (out.length <= limit) return out.sort((a, b) => a.km - b.km);
+    if (limit <= 0) return [];
+    const d = Float64Array.from(out, x => x.km);
+    let lo = 0, hi = d.length - 1;
+    const k = limit - 1;
+    while (lo < hi) {
+      const pivot = d[(lo + hi) >> 1];
+      let i = lo, j = hi;
+      while (i <= j) { while (d[i] < pivot) i++; while (d[j] > pivot) j--; if (i <= j) { const t = d[i]; d[i] = d[j]; d[j] = t; i++; j--; } }
+      if (k <= j) hi = j; else if (k >= i) lo = i; else break;
+    }
+    const cut = d[k], keep = out.filter(x => x.km <= cut).sort((a, b) => a.km - b.km);
+    return keep.length > limit ? keep.slice(0, limit) : keep;
+  }
 
   const api = {
     METHODS,
@@ -191,11 +240,12 @@ export function createLocalContentService({ storage, check, rate = null, author 
         for (const it of e.items.values()) {
           if (kinds && !kinds.includes(it.kind)) continue;
           if (!offeredOnly(it, offered)) continue;
+          // (outside the circle's box: no need for the exact distance)
+          if (!inBox(box, it.location.lat, it.location.lon)) continue;
           const d = distanceKm(at, it.location);
           if (d <= km) out.push({ item: it, km: d });
         }
-      out.sort((a, b) => a.km - b.km);
-      return { ok: true, items: out.length > limit ? out.slice(0, limit) : out };
+      return { ok: true, items: nearest(out, limit) };
     }),
     inCell: (cell, { view = 'draft', offered = false } = {}) => serial(async () => {
       await ready();
@@ -302,22 +352,29 @@ export function createLocalContentService({ storage, check, rate = null, author 
       return { ok: true };
     }),
 
-    exportContent: ({ area = null, views = VIEWS } = {}) => serial(async () => {
+    exportContent: ({ area = null, views = VIEWS, as = 'json' } = {}) => serial(async () => {
       await ready();
       const box = area?.cell ? decode(area.cell).box : area ? boxAround(area.lat, area.lon, area.km) : null;
-      const ids = new Set();
+      // (a cell at a time — each loaded once, however many items: a packed cell is heavy)
+      const byId = new Map();
       for (const v of views) {
         const list = box ? cellsFor(v, box) : Object.keys(index.cells[v]);
-        for (const c of list) for (const it of (await cellFor(v, c)).items.values()) {
-          if (area?.cell ? !inBox(box, it.location.lat, it.location.lon) : area ? distanceKm(area, it.location) > area.km : false) continue;
-          ids.add(it.id);
+        for (const c of list) {
+          for (const it of (await cellFor(v, c)).items.values()) {
+            if (area?.cell ? !inBox(box, it.location.lat, it.location.lon) : area ? distanceKm(area, it.location) > area.km : false) continue;
+            (byId.get(it.id) ?? byId.set(it.id, {}).get(it.id))[v] = clone(it);
+          }
+          evict();
         }
-        evict();
       }
-      const entries = [];
-      for (const id of [...ids].sort()) { const s = await stateOf(id); entries.push(Object.fromEntries(views.filter(v => s[v]).map(v => [v, s[v]]))); }
+      // (an item in the area in one view: its other views too, wherever they are — a draft moved away)
+      for (const [id, e] of byId) for (const v of views) if (!e[v]) { const it = await readItem(id, v); if (it) e[v] = clone(it); }
+      const entries = [...byId.keys()].sort().map(id => Object.fromEntries(views.filter(v => byId.get(id)[v]).map(v => [v, byId.get(id)[v]])));
+      if (as === 'entries') return { ok: true, entries, count: entries.length };
       const doc = { format: EXPORT_FORMAT, version: CONTENT_VERSION, exported: now(), area: area ?? 'everything', views, count: entries.length, entries };
-      return { ok: true, json: JSON.stringify(doc, null, 1), count: entries.length };
+      // (a big export without the indenting; one too big for a single file says so, rather than failing)
+      try { return { ok: true, json: JSON.stringify(doc, null, entries.length > 2000 ? 0 : 1), count: entries.length }; }
+      catch (e) { if (e instanceof RangeError) return { ok: false, error: `Too much to export in one file (${entries.length.toLocaleString('en-GB')} items): export an area at a time.` }; throw e; }
     }),
     importContent: (json, { onConflict = 'replace' } = {}) => serial(async () => {
       await ready();
@@ -362,11 +419,11 @@ export function createLocalContentService({ storage, check, rate = null, author 
     stats: () => serial(async () => {
       await ready();
       const count = v => Object.values(index.cells[v]).reduce((a, n) => a + n, 0);
-      return { ok: true, draft: count('draft'), published: count('published'), archived: count('archived'), cells: Object.keys(index.cells.draft).length, loadedCells: cache.size, ids: Object.keys(index.ids).length };
+      return { ok: true, draft: count('draft'), published: count('published'), archived: count('archived'), cells: Object.keys(index.cells.draft).length, loadedCells: cache.size, loadedWeight: held, ids: Object.keys(index.ids).length };
     }),
     flush: () => serial(async () => { await ready(); clearTimeout(saveTimer); saveTimer = null; await save(); return { ok: true }; }),
     // (for the tests: forget what's in memory, as a restarted game would)
-    _forget: () => serial(async () => { await save(); cache.clear(); index = null; return { ok: true }; }),
+    _forget: () => serial(async () => { await save(); cache.clear(); held = 0; index = null; return { ok: true }; }),
     get loadedCells() { return cache.size; },
   };
   return api;

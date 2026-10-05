@@ -25,6 +25,14 @@ export const FILTERS = {
 export const defaultFilters = () => Object.fromEntries(Object.keys(FILTERS).map(k => [k, 'any']));
 
 const progressOf = (profile, id) => profile?.quests?.[id] ?? null;
+// a quest's terms (content/quests.js rewardsOf), worked out once for each item as loaded: the finder runs over
+// every quest in every region (tens of thousands) each time a filter changes
+const termsMemo = new WeakMap();
+export function termsOf(item, economy) {
+  let m = termsMemo.get(item);
+  if (!m || m.economy !== economy) termsMemo.set(item, m = { economy, terms: rewardsOf(item, economy) });
+  return m.terms;
+}
 export function stateOf(profile, id) {
   const q = progressOf(profile, id);
   return !q?.attempts ? 'new' : q.completed ? 'completed' : 'attempted';
@@ -42,7 +50,7 @@ export function filterQuests(quests, filters, ctx) {
   const F = { ...defaultFilters(), ...filters }, out = [];
   for (const item of quests) {
     if (item.kind !== 'quest') continue;
-    const terms = rewardsOf(item, ctx.economy), km = ctx.at ? distanceKm(ctx.at, item.location) : null, state = stateOf(ctx.profile, item.id), medal = progressOf(ctx.profile, item.id)?.medal ?? null;
+    const terms = termsOf(item, ctx.economy), km = ctx.at ? distanceKm(ctx.at, item.location) : null, state = stateOf(ctx.profile, item.id), medal = progressOf(ctx.profile, item.id)?.medal ?? null;
     if (F.type !== 'any' && item.type !== F.type) continue;
     if (F.stars !== 'any' && terms.stars !== +F.stars) continue;
     if (F.distance !== 'any' && km != null && km > +F.distance) continue;
@@ -55,7 +63,9 @@ export function filterQuests(quests, filters, ctx) {
     if (F.car === 'suits my car' && !suitsCar(item, ctx.car, ctx)) continue;
     out.push({ item, km, terms, state, medal });
   }
-  return out.sort((a, b) => (a.km ?? 0) - (b.km ?? 0));
+  // (nearest first: sorted by a typed array of the distances — tens of thousands of quests, every filter change)
+  const d = Float64Array.from(out, x => x.km ?? 0), idx = Uint32Array.from(out, (_, k) => k).sort((a, b) => d[a] - d[b]);
+  return Array.from(idx, k => out[k]);
 }
 
 // "Recommended for you": quests the player can enter now (tier open, a car of theirs that suits it),
@@ -67,8 +77,8 @@ export function recommend(quests, ctx) {
   const suits = Math.max(1, R.levelForStars.filter(l => level >= l).length);
   const out = [];
   for (const item of quests) {
-    if (item.kind !== 'quest' || item.enabled === false) continue;
-    const terms = rewardsOf(item, ctx.economy);
+    if (item.kind !== 'quest' || item.enabled === false || progressOf(ctx.profile, item.id)?.medal === 'gold') continue;
+    const terms = termsOf(item, ctx.economy);
     if ((terms.unlockLevel ?? 1) > level || (item.entry?.minLevel ?? 1) > level || terms.fee > money) continue;
     if (!suitsCar(item, ctx.car, ctx)) continue;
     const km = ctx.at ? distanceKm(ctx.at, item.location) : 0, state = stateOf(ctx.profile, item.id), medal = progressOf(ctx.profile, item.id)?.medal;
@@ -93,7 +103,11 @@ export function createNotifier(ctx) {
     check(quests, at, now, busy = false) {
       if (busy || now - last < N.everySeconds) return null;
       let best = null, bd = Infinity;
+      // (a quick look first: anything further north, south, east or west than the radius isn't near)
+      const dLat = N.radiusM / 111000, dLon = dLat / Math.max(0.01, Math.cos(at.lat * Math.PI / 180));
       for (const item of quests) {
+        const L = item.location;
+        if (Math.abs(L.lat - at.lat) > dLat || Math.abs(L.lon - at.lon) > dLon) continue;
         if (item.kind !== 'quest' || seen.has(item.id) || stateOf(ctx.profile, item.id) !== 'new') continue;
         const d = distanceKm(at, item.location) * 1000;
         if (d < N.radiusM && d < bd) { bd = d; best = item; }

@@ -13,6 +13,7 @@ import { contentChecker } from '../content/schema.js';
 import { makeRater } from '../content/rating.js';
 import { validateAll } from '../content/bulk.js';
 import { createNetwork } from '../route/network.js';
+import { transverseMercator } from '../map/build/format/projection.js';
 
 const ROOT = new URL('..', import.meta.url).pathname, read = p => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
 const args = process.argv.slice(2), opt = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
@@ -27,7 +28,7 @@ const networks = {};
 for (const r of read('data/map/baked.json').regions) {
   const dir = path.join(ROOT, path.dirname(r.manifest)), manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
   const used = (doc.entries ?? []).some(e => (e.draft ?? e.published)?.course?.region === r.id);
-  if (used) networks[r.id] = createNetwork(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, manifest.files.graph))).toString()), { region: r.id, version: manifest.version });
+  if (used) networks[r.id] = createNetwork(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, manifest.files.graph))).toString()), { P: transverseMercator(manifest.projection.lat0, manifest.projection.lon0), region: r.id, version: manifest.version, bbox: manifest.bbox ?? null });
 }
 const list = validateAll(doc.entries ?? [], { check, rate, networks });
 const n = doc.entries?.length ?? 0;

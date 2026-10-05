@@ -33,7 +33,14 @@ const turn = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; wh
 export function suggestRoutes(N, { count = 12, minKm, maxKm, seeds = 600, rules = {} } = {}) {
   const R = { ...SUGGEST_DEFAULTS, ...rules, weights: { ...SUGGEST_DEFAULTS.weights, ...(rules.weights ?? {}) } };
   minKm ??= R.minKm; maxKm ??= R.maxKm;
-  const O = DEFAULT_OPTIONS, main = N.mainPart(O), ok = (sg, fw) => N.allowed(sg, fw, O) && sg.class !== 'service' && !sg.link;
+  // (only roads on the baked map: the graph reaches past its edge)
+  const mapped = new Map(), onMap = sg => {
+    if (!N.inside) return true;
+    let v = mapped.get(sg);
+    if (v === undefined) { v = true; const p = sg.points; for (let k = 0; k < p.length && v; k += 3) v = N.inside(p[k], p[k + 1]); mapped.set(sg, v); }
+    return v;
+  };
+  const O = DEFAULT_OPTIONS, main = N.mainPart(O), ok = (sg, fw) => N.allowed(sg, fw, O) && sg.class !== 'service' && !sg.link && onMap(sg);
   // seeds: the curviest stretches of road first (their turning per metre), then the longest
   const curv = sg => { const p = sg.points; let t = 0; for (let k = 6; k < p.length; k += 3) t += turn(Math.atan2(p[k - 3] - p[k - 6], p[k - 2] - p[k - 5]), Math.atan2(p[k] - p[k - 3], p[k + 1] - p[k - 2])); return t / Math.max(20, sg.length); };
   const pool = N.segs.filter(sg => sg.length > 30 && ok(sg, true) && (!main || (main[sg.from] && main[sg.to]))).map(sg => ({ sg, c: curv(sg) })).sort((a, b) => b.c - a.c).slice(0, seeds);

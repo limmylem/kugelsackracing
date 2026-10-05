@@ -47,7 +47,7 @@ export function createRouteTool({ THREE, api }) {
       if (!manifest) throw new Error('no baked region to draw routes on');
       P = transverseMercator(manifest.projection.lat0, manifest.projection.lon0);
       const G = await gunzipJson(await fetch(new URL(manifest.files.graph, api.regionBase()).href));
-      N = createNetwork(G, { P, region: manifest.region ?? manifest.id ?? 'sf', version: manifest.version });
+      N = createNetwork(G, { P, region: manifest.region ?? manifest.id ?? 'sf', version: manifest.version, bbox: manifest.bbox ?? null });
       N.osmDate = manifest.sources?.osm?.date ?? null;
       return N;
     })();
