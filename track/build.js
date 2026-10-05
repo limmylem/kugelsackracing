@@ -26,14 +26,17 @@ import { autoCheckpoints, CHECKPOINTS } from '../route/checkpoints.js';
 import { routeStats } from '../route/stats.js';
 import { routeOptions } from '../route/build.js';
 import { bakeRacing, GUIDES } from '../route/model.js';
+import { buildDressed } from './build2.js';
 
-export const BUILD_VERSION = 1;
+export const BUILD_VERSION = 2;
 export const trackProjection = transverseMercator(0, 0);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const r1 = x => Math.round(x * 10) / 10;
 
 export function buildTrack(gen, cfg, { progress = () => {} } = {}) {
+  // (version 2 on: dressed — kerbs, run-off, barriers, the pits, scenery: track/build2.js)
+  if (gen.version >= 2) return buildDressed(gen, cfg, { progress });
   const T = gen.track, B = cfg.build, n = T.n, closed = T.closed, W = T.width / 2, V = B.verge;
   // ---------- the centreline's frame: along, left, the banking's tilt ----------
   const tx = new Float64Array(n), tz = new Float64Array(n), tanB = new Float64Array(n);
@@ -47,24 +50,10 @@ export function buildTrack(gen, cfg, { progress = () => {} } = {}) {
 
   // ---------- the ground ----------
   progress('ground', 0);
-  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, hsum = 0;
-  for (let i = 0; i < n; i++) { x0 = Math.min(x0, T.x[i]); x1 = Math.max(x1, T.x[i]); z0 = Math.min(z0, T.z[i]); z1 = Math.max(z1, T.z[i]); hsum += T.h[i]; }
-  const span = Math.max(x1 - x0, z1 - z0) + 2 * B.margin + 2 * Math.max(Math.abs(x1 + x0), Math.abs(z1 + z0)) / 2;
-  const cellWanted = Math.max(B.cell, span / B.maxCells), N = Math.ceil(span / cellWanted), size = N * cellWanted, cell = cellWanted, half = size / 2;
-  const G = (N + 1) * (N + 1), heights = new Float32Array(G), meanH = hsum / n;
-  // the land: the track's own heights, weighted by nearness (a gentle landscape that follows it)
-  const wsum = new Float32Array(G), hw = new Float32Array(G), reachLand = 320, step = Math.max(1, Math.round(8 / T.step));
-  const idx = (c, r) => r + c * (N + 1);
-  for (let i = 0; i < n; i += step) {
-    const c0 = Math.max(0, Math.floor((T.x[i] - reachLand + half) / cell)), c1 = Math.min(N, Math.ceil((T.x[i] + reachLand + half) / cell));
-    const q0 = Math.max(0, Math.floor((T.z[i] - reachLand + half) / cell)), q1 = Math.min(N, Math.ceil((T.z[i] + reachLand + half) / cell));
-    for (let c = c0; c <= c1; c++) { const vx = -half + c * cell - T.x[i]; for (let r = q0; r <= q1; r++) { const vz = -half + r * cell - T.z[i], d2 = vx * vx + vz * vz; if (d2 > reachLand * reachLand) continue; const w = 1 / (d2 + 900); wsum[idx(c, r)] += w; hw[idx(c, r)] += w * T.h[i]; } }
-  }
-  const w0 = 1 / (reachLand * reachLand) * 4;
-  for (let k = 0; k < G; k++) heights[k] = (hw[k] + w0 * meanH) / (wsum[k] + w0);
+  const { x0, x1, z0, z1, N, size, cell, half, heights, idx } = landGrid(T, B);
   progress('ground', 0.4);
   // near the track: the nearest centreline point to each grid point
-  const reach = W + V + B.blend + 40, nearest = new Float32Array(G).fill(Infinity), near = new Int32Array(G).fill(-1);
+  const G = (N + 1) * (N + 1), reach = W + V + B.blend + 40, nearest = new Float32Array(G).fill(Infinity), near = new Int32Array(G).fill(-1);
   for (let i = 0; i < n; i++) {
     const c0 = Math.max(0, Math.floor((T.x[i] - reach + half) / cell)), c1 = Math.min(N, Math.ceil((T.x[i] + reach + half) / cell));
     const q0 = Math.max(0, Math.floor((T.z[i] - reach + half) / cell)), q1 = Math.min(N, Math.ceil((T.z[i] + reach + half) / cell));
@@ -80,13 +69,7 @@ export function buildTrack(gen, cfg, { progress = () => {} } = {}) {
     const land = heights[k], blend = B.blend + Math.min(60, Math.abs(land - edge) * 1.5);
     heights[k] = edge - 0.05 + (land - (edge - 0.05)) * smoothstep(W + V, W + V + blend, d);
   }
-  const terrainAt = (x, z) => {
-    const gx = (x + half) / cell, gz = (z + half) / cell;
-    if (gx < 0 || gz < 0 || gx > N || gz > N) return meanH;
-    const c = Math.min(N - 1, Math.floor(gx)), r = Math.min(N - 1, Math.floor(gz)), fx = gx - c, fz = gz - r;
-    const h00 = heights[idx(c, r)], h10 = heights[idx(c + 1, r)], h01 = heights[idx(c, r + 1)], h11 = heights[idx(c + 1, r + 1)];
-    return fx + fz <= 1 ? h00 + (h10 - h00) * fx + (h01 - h00) * fz : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
-  };
+  const terrainAt = heightAtOf({ N, cell, half, heights });
   progress('road', 0.6);
 
   // ---------- the road: five columns a cross-section ----------
@@ -120,23 +103,7 @@ export function buildTrack(gen, cfg, { progress = () => {} } = {}) {
   progress('course', 0.75);
 
   // ---------- the course (Phase 4's route format) ----------
-  const P = trackProjection;
-  const line = withS(Array.from({ length: rows }, (_, j) => { const i = j % n; return { x: T.x[i], z: T.z[i], h: T.h[i], w: T.width }; }));
-  const startS = closed ? clamp(T.start.straight * 0.45, 60, 220) : null;
-  const grid = placeGrid(line, { count: GRID.count, loop: closed, startS });
-  const checkpoints = autoCheckpoints(line, { loop: closed, startS: grid.startS, finishS: grid.finishS });
-  const stats = routeStats(line, { loop: closed });
-  const course = {
-    kind: closed ? 'loop' : 'p2p', region: 'track', generated: { code: gen.code, version: gen.version, hash: gen.hash },
-    waypoints: [], options: routeOptions(), grid: { count: GRID.count, adjust: {}, startS, at: r1(grid.startS), finish: r1(grid.finishS) },
-    checkpointMode: 'auto', spacing: CHECKPOINTS.spacing,
-    checkpoints: checkpoints.map(cp => { const g = gateAt(line, cp.s, { loop: closed }), [lat, lon] = P.toLatLon(g.x, g.z); return { id: cp.id, s: r1(cp.s), lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6, width: null, required: cp.required !== false, timeExtension: 0, auto: true }; }),
-    guides: { ...GUIDES }, roads: 'closed', corridor: { margin: Math.round(V + 6) },
-    path: encodeLine(line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return { lat, lon, h: p.h, w: p.w }; })),
-    length: Math.round(line.at(-1).s), stats, referenceTime: null, roadData: null, review: null,
-  };
-  progress('racing line', 0.85);
-  course.racing = bakeRacing(course, P);
+  const { course, grid } = courseOf(gen, { margin: Math.round(V + 6) }, progress);
   const slot = grid.slots[0];
   progress('done', 1);
   return {
@@ -152,8 +119,62 @@ export function buildTrack(gen, cfg, { progress = () => {} } = {}) {
   };
 }
 
+// ---------- shared with the dressed build (track/build2.js) ----------
+// the land round a track: a height grid (physics/terrain.js's layout), the track's own heights weighted by
+// nearness — a gentle landscape that follows it
+export function landGrid(T, B) {
+  const n = T.n;
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, hsum = 0;
+  for (let i = 0; i < n; i++) { x0 = Math.min(x0, T.x[i]); x1 = Math.max(x1, T.x[i]); z0 = Math.min(z0, T.z[i]); z1 = Math.max(z1, T.z[i]); hsum += T.h[i]; }
+  const span = Math.max(x1 - x0, z1 - z0) + 2 * B.margin + 2 * Math.max(Math.abs(x1 + x0), Math.abs(z1 + z0)) / 2;
+  const cellWanted = Math.max(B.cell, span / B.maxCells), N = Math.ceil(span / cellWanted), size = N * cellWanted, cell = cellWanted, half = size / 2;
+  const G = (N + 1) * (N + 1), heights = new Float32Array(G), meanH = hsum / n;
+  const wsum = new Float32Array(G), hw = new Float32Array(G), reachLand = 320, step = Math.max(1, Math.round(8 / T.step));
+  const idx = (c, r) => r + c * (N + 1);
+  for (let i = 0; i < n; i += step) {
+    const c0 = Math.max(0, Math.floor((T.x[i] - reachLand + half) / cell)), c1 = Math.min(N, Math.ceil((T.x[i] + reachLand + half) / cell));
+    const q0 = Math.max(0, Math.floor((T.z[i] - reachLand + half) / cell)), q1 = Math.min(N, Math.ceil((T.z[i] + reachLand + half) / cell));
+    for (let c = c0; c <= c1; c++) { const vx = -half + c * cell - T.x[i]; for (let r = q0; r <= q1; r++) { const vz = -half + r * cell - T.z[i], d2 = vx * vx + vz * vz; if (d2 > reachLand * reachLand) continue; const w = 1 / (d2 + 900); wsum[idx(c, r)] += w; hw[idx(c, r)] += w * T.h[i]; } }
+  }
+  const w0 = 1 / (reachLand * reachLand) * 4;
+  for (let k = 0; k < G; k++) heights[k] = (hw[k] + w0 * meanH) / (wsum[k] + w0);
+  return { x0, x1, z0, z1, N, size, cell, half, heights, meanH, idx };
+}
+export function heightAtOf({ N, cell, half, heights }) {
+  const idx = (c, r) => r + c * (N + 1);
+  return (x, z) => {
+    const gx = clamp((x + half) / cell, 0, N), gz = clamp((z + half) / cell, 0, N);
+    const c = Math.min(N - 1, Math.floor(gx)), r = Math.min(N - 1, Math.floor(gz)), fx = gx - c, fz = gz - r;
+    const h00 = heights[idx(c, r)], h10 = heights[idx(c + 1, r)], h01 = heights[idx(c, r + 1)], h11 = heights[idx(c + 1, r + 1)];
+    return fx + fz <= 1 ? h00 + (h10 - h00) * fx + (h01 - h00) * fz : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+  };
+}
+// the course (Phase 4's route format): opts.margin (the corridor), opts.finishS (a sprint's finish line),
+// opts.gateWidth(s) (a checkpoint's width there: a dressed track's take in its run-off)
+export function courseOf(gen, { margin, finishS = null, gateWidth = null }, progress = () => {}) {
+  const T = gen.track, n = T.n, closed = T.closed, rows = closed ? n + 1 : n, P = trackProjection;
+  const line = withS(Array.from({ length: rows }, (_, j) => { const i = j % n; return { x: T.x[i], z: T.z[i], h: T.h[i], w: T.width }; }));
+  const startS = closed ? clamp(T.start.straight * 0.45, 60, 220) : null;
+  const grid = placeGrid(line, { count: GRID.count, loop: closed, startS, finishS });
+  const checkpoints = autoCheckpoints(line, { loop: closed, startS: grid.startS, finishS: grid.finishS });
+  const stats = routeStats(line, { loop: closed });
+  const course = {
+    kind: closed ? 'loop' : 'p2p', region: 'track', generated: { code: gen.code, version: gen.version, hash: gen.hash },
+    waypoints: [], options: routeOptions(), grid: { count: GRID.count, adjust: {}, startS, at: r1(grid.startS), finish: r1(grid.finishS) },
+    checkpointMode: 'auto', spacing: CHECKPOINTS.spacing,
+    checkpoints: checkpoints.map(cp => { const g = gateAt(line, cp.s, { loop: closed }), [lat, lon] = P.toLatLon(g.x, g.z); return { id: cp.id, s: r1(cp.s), lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6, width: gateWidth ? r1(gateWidth(cp.s)) : null, required: cp.required !== false, timeExtension: 0, auto: true }; }),
+    guides: { ...GUIDES }, roads: 'closed', corridor: { margin },
+    path: encodeLine(line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return { lat, lon, h: p.h, w: p.w }; })),
+    length: Math.round(line.at(-1).s), stats, referenceTime: null, roadData: null, review: null,
+  };
+  if (finishS != null) course.grid.finishS = r1(finishS);
+  progress('racing line', 0.85);
+  course.racing = bakeRacing(course, P);
+  return { course, grid, line };
+}
+
 // every triangle facing up (+y): flipped where the cross product says otherwise
-function fixWinding(P, I) {
+export function fixWinding(P, I) {
   for (let t = 0; t < I.length; t += 3) {
     const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
     const ux = P[b] - P[a], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vz = P[c + 2] - P[a + 2];
@@ -166,7 +187,7 @@ function nearestIndex(T, x, z) { let best = 0, bd = Infinity; for (let i = 0; i 
 // the scene description the simulation and the renderer take (physics/track.js: trackShapes, surfaceMap)
 export function trackWorld(data) {
   return {
-    name: `Track ${data.code}`, generated: data, surfaces: data.surfaces, offRoad: 'grass', paintLines: data.paintLines,
+    name: `Track ${data.code}`, generated: data, surfaces: data.surfaces, offRoad: 'grass', paintLines: data.paintLines, paintQuads: data.paintQuads ?? [],
     spawn: data.spawn, roads: [], props: [],
   };
 }

@@ -45,14 +45,14 @@ export function attachTrackWorld(w, data, { THREE, RAPIER }) {
     projection: trackProjection, world: group, origin: [0, 0],
     toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z],
     surfaceAt: w.sim.vehicle.surfaceAt,
-    // (the ground: the road's surface or the land's, whichever's under a point)
-    groundBelow: (x, z) => { const t = nearestOnTrack(data, x, z); return t.d < data.width / 2 + data.verge ? t.h : null; },
+    // (the ground: the road's surface or the land's, whichever's under a point — out to a dressed track's barriers)
+    groundBelow: (x, z) => { const t = nearestOnTrack(data, x, z), reach = data.dress ? Math.max(data.dress.runoff.L[t.i], data.dress.runoff.R[t.i]) : data.width / 2 + data.verge; return t.d < reach ? t.h : null; },
   };
   w.spawning = false;
   w.sim.vehicle.body.enableCcd(true);
   w.label = document.getElementById('trackLabel') ?? Object.assign(document.body.appendChild(document.createElement('div')), { id: 'trackLabel' });
   w.label.style.cssText = 'position:fixed;left:8px;bottom:6px;z-index:40;font:600 11px/1.4 "JetBrains Mono",monospace;color:#fff;background:rgba(10,14,20,.62);padding:2px 9px;border-radius:9px;pointer-events:none';
-  w.label.textContent = `Track ${data.code} · ${(data.length / 1000).toFixed(2)} km · ${data.closed ? 'circuit' : 'point to point'} · generator v${data.version}`;
+  w.label.textContent = `Track ${data.code} · ${(data.length / 1000).toFixed(2)} km · ${data.closed ? 'circuit' : 'point to point'}${data.theme ? ` · ${data.theme}` : ''} · generator v${data.version}`;
   return w.stream;
 }
 
@@ -75,8 +75,12 @@ export function resetToRoad(w) {
   const p = w.sim.vehicle.body.translation(), t = nearestOnTrack(w.trackData, p.x, p.z);
   travelTo(w, { xz: [t.x, t.z], heading: t.heading });
 }
-// each frame, before the physics: nothing to load — the track's all there
-export function realWorldFrame() { return { waiting: false, hold: false }; }
+// each frame, before the physics: nothing to load — the track's all there; a dressed track's levels of
+// detail and its start lights (w.lightsNow: what the countdown says they show)
+export function realWorldFrame(w) {
+  if (w?.trackDress) { w.trackDress.update(w.camera); if (w.lightsNow) w.trackDress.setLights(w.lightsNow()); }
+  return { waiting: false, hold: false };
+}
 export const trackFrame = realWorldFrame;
 export function hideRealWorld(w) { const e = document.getElementById('trackLabel'); if (e) e.style.display = 'none'; if (w) w.shown = false; }
 export function showRealWorld(w) { if (w.label) w.label.style.display = ''; w.shown = true; }

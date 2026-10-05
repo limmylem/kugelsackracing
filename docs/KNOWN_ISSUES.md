@@ -83,19 +83,21 @@ Also:
 - **The finder** works on every quest in every region on the main thread; a server should answer its
   filters and "Recommended" (Phase 6).
 
-### Generated tracks (Phase 5 Step 1, docs/TRACKS.md)
+### Generated tracks (Phase 5 Steps 1 and 2, docs/TRACKS.md)
 
 - **Phase 1's lap robot weaves on high-speed generated circuits**: its steering was tuned on the test
   centre's circuit and oscillates in 130–150 km/h sweepers until it spins (with or without banking). The
   route test driver and the Phase 4 AI drive those tracks cleanly, so `npm run test:track-drive` runs the
   Phase 1 tests on a grand prix circuit; the robot's controller needs a look before it laps fast tracks.
-- **Cross-browser determinism was checked in Chromium only** (210 of 210 hashes identical to Node's).
-  Firefox and Safari weren't available here: open `dev/tracks.html?determinism=30` in each and compare.
+- **Cross-browser determinism was checked in Chromium only** (210 of 210 layouts, and 240 of 240
+  dressings, identical to Node's). Firefox and Safari weren't available here: open
+  `dev/tracks.html?determinism=30&dress` in each and compare.
 - **One generated track's world is kept at a time**: opening another frees the last (its build stays in
   the cache, so going back takes tens of milliseconds plus the colliders).
-- **No bridges or crossings**: a track never comes near itself (figure-of-eight layouts are rejected).
-- **No world edge**: the ground stops 260 m beyond the track and there's no wall at its edge yet; a
-  car driven that far falls off (a reset, R, puts it back on the road). Step 2's barriers will keep cars in.
+- **No bridges or crossings**: a track never comes near itself (figure-of-eight layouts are rejected), so
+  the dressing has no bridges where a track crosses itself — only a footbridge over a straight sometimes.
+- **Version-1 tracks are undressed** (as they were made): no barriers, so a car can still drive off the
+  ground's edge 260 m out. Version-2 tracks are closed in by their barriers.
 - **8-car NPC races on generated tracks**: in `npm run test:track-drive`'s ten races every car finishes,
   but one NPC (in one race, on a fast flowing circuit) is stuck-and-reset after contact in the pack — the
   Phase 4 AI's racing in traffic (docs/NPC_RACERS.md's known limits), where the test wants none.
@@ -104,6 +106,21 @@ Also:
   road. On a generated track the road's collider has its internal edges smoothed, so it scrapes and
   slides; on the baked real-world roads a floor can still catch on a triangle edge (one cause of NPCs
   spinning at speed). A progressive bump stop in the car model is the lasting fix.
+- **Run-off isn't enough everywhere**: straight on at the racing line's speed (a quick race car's) a car
+  stops or hits slowly at 92% of corners in `npm run test:dress-drive`; the rest are mostly street
+  circuits (walls close on purpose) and corners where another part of the track leaves no room.
+- **A tyre wall's softness is in the damage, not the physics**: it doesn't bounce and its hits reach the
+  damage model at 55% (physics/settings.json impacts.materials), but the car still stops as fast as at a
+  concrete wall — Rapier has no per-collider compliance.
+- **A car stopped in a gravel trap is beached**: it can't drive out (by design); the AI's and the
+  tracker's resets (5 s off the route, or stuck) put it back — there are no marshals or recovery vehicles.
+- **The AI's racing line stays off the kerbs**: Phase 4's line keeps a margin from the road's edge (built
+  for real roads); `npm run test:dress-drive` shows the AI can use the kerbs on a wider line, but NPCs
+  don't by default.
+- **A dressed track's theme sets the time of day and weather** (the player's time-of-day setting doesn't
+  apply there), and there's no rain, night or wet surfaces yet.
+- **The garages are solid boxes** behind their fronts (no pit stops yet: the pit lane is drivable, the
+  boxes aren't).
 - **Hillclimbs' land can be steep** beside the road where the road cuts across a slope: the ground blends
   to the road's height over 55 m, which on a big climb makes banks steeper than real land.
 

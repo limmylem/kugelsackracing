@@ -1824,7 +1824,7 @@ fetch('scenes/worlds.json').then(r => r.json()).then(list => {
 // The Track world (Phase 5): a generated track — ?track=<code>, else the last one made or opened on the
 // track generator page (dev/tracks.html keeps it), else a fast flowing circuit. Its own scene: no world
 // tiles load, and the real world waits where you left it
-const DEFAULT_TRACK = '04028-CG81C-D1K00-00R00-0001H-C';
+const DEFAULT_TRACK = '08028-CG81C-D1K00-02R00-0003M-8';          // (a dressed fast flowing circuit, countryside)
 const trackCode = () => { const q = new URLSearchParams(location.search).get('track'); if (q) return q; try { return localStorage.getItem('driveWorld.track.code') || DEFAULT_TRACK; } catch { return DEFAULT_TRACK; } };
 // ---------- The world editor (F2): development builds and editor accounts (editor/access.js) ----------
 let editor = null, editorAllowed = false;

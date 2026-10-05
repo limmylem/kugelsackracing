@@ -99,6 +99,8 @@ import * as TrackScene from '../track/scene.js';
 import { loadTrack } from '../track/client.js';
 import { trackWorld } from '../track/build.js';
 import { trackMarkings } from '../track/render.js';
+import { dressMeshes, themeEnvironment } from '../track/renderDress.js';
+import { startLights } from '../track/lights.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); TrackScene.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
@@ -625,6 +627,7 @@ async function buildWorld(file) {
   const trees = [];
   for (const s of trackShapes(track)) {
     if (s.tree) { trees.push(s.tree); continue; }
+    if (s.hidden) continue;                          // (a dressed track's barriers, kerbs, scenery: track/render.js draws them)
     if (s.kind === 'heightfield') { scene.add(terrainMesh(s.terrain, s.colour, track.terrain?.rockColour ?? '#8a7d66')); continue; }
     if (s.kind === 'trimesh') {
       // (a generated track's road: the same arrays as its collider)
@@ -704,6 +707,21 @@ async function buildWorld(file) {
     const span = trackData.terrain.size;
     w.camera.far = Math.max(2000, span * 1.2); w.camera.updateProjectionMatrix();
     scene.fog.near = 600; scene.fog.far = Math.max(1600, span);
+    // dressed (Phase 5 Step 2): kerbs, barriers, the start and pits, scenery (track/renderDress.js); its
+    // theme's sky, light and weather; the start lights following the countdown
+    if (trackData.dress) {
+      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high' });
+      w.stream.world.add(w.trackDress.group);
+      w.theme = themeEnvironment(trackData.look);
+      w.camera.far = Math.max(2000, span * 6); w.camera.updateProjectionMatrix();
+      scene.fog.near = w.theme.fog.near; scene.fog.far = Math.max(w.theme.fog.far, span * 1.5);
+      w.lightsNow = () => {
+        const r = routeRun?.state;
+        if (r?.phase === 'countdown') return startLights({ phase: 'countdown', left: r.count, total: 3 });
+        if (r?.phase === 'driving') return startLights({ phase: 'go', since: r.sinceGo ?? 99 });
+        return startLights();
+      };
+    }
   }
   if (track.mapV3) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
@@ -909,6 +927,8 @@ function effectsCars(w, b, dt) {
 // The light at this time of day (effects/lighting.js): the sun (or the moon), the sky, the fog — set
 // when the time changes; and your car's headlights at night
 function daylight(w, hours) {
+  // (a dressed track: its theme's time of day and weather — track/renderDress.js themeEnvironment)
+  if (w.theme) hours = w.theme.hours;
   if (w.hours !== hours) {
     w.hours = hours;
     const L = w.light = lightAt(hours);
@@ -917,6 +937,11 @@ function daylight(w, hours) {
     w.sun.color.setRGB(...L.key.colour, srgb); w.sun.intensity = L.key.intensity;
     w.hemi.color.setRGB(...L.ambient.sky, srgb); w.hemi.groundColor.setRGB(...L.ambient.ground, srgb); w.hemi.intensity = L.ambient.intensity;
     w.scene.background.setRGB(...L.background, srgb); w.scene.fog.color.setRGB(...L.fog, srgb);
+    if (w.theme) {
+      const T = w.theme, day = 1 - L.night, sky = new THREE.Color(T.sky), hz = new THREE.Color(T.horizon), grey = new THREE.Color('#9ea4aa');
+      w.scene.background.lerp(sky, 0.65 * day).lerp(grey, T.grey); w.scene.fog.color.lerp(hz, 0.65 * day).lerp(grey, T.grey);
+      w.sun.intensity *= T.sunScale; w.sun.color.lerp(new THREE.Color(T.sun.colour), 0.4);
+    }
   }
   const lamps = w.carVis.headlights;
   if (lamps) for (const l of lamps) l.intensity = w.light.night * 60;

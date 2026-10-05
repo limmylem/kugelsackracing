@@ -44,7 +44,9 @@
     "stress:quests": "node --expose-gc --max-old-space-size=8192 tests/quest-stress.mjs",
     "test:newplayer": "node --expose-gc --max-old-space-size=8192 tests/map/newplayer.test.ts",
     "test:tracks": "node tests/tracks.mjs",
-    "test:track-drive": "node --expose-gc --max-old-space-size=8192 tests/track-drive.ts"
+    "test:track-drive": "node --expose-gc --max-old-space-size=8192 tests/track-drive.ts",
+    "test:dress": "node tests/track-dress.mjs",
+    "test:dress-drive": "node --expose-gc --max-old-space-size=8192 tests/track-dress-drive.ts"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

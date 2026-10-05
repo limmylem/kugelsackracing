@@ -1,0 +1,276 @@
+{
+ "_note": "Generator version 2's tracks as they were made when it was released (Phase 5 Step 2): each code must always make this exact layout (hash) and dressing (dressHash: every kerb, run-off, barrier and object — track/dress.js and the themes' dress settings in data/tracks.json). Never regenerate this file: if a code stops matching, version 2 has changed — put it back, and make the change a new version.",
+ "version": 2,
+ "tracks": [
+  {
+   "preset": "short_technical",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09H14-6G91G-B0S00-04000-0000M-0",
+   "hash": "e9365cf2",
+   "dressHash": "cabd86c0",
+   "length": 2041.002
+  },
+  {
+   "preset": "short_technical",
+   "seed": 7,
+   "theme": "countryside",
+   "code": "08114-6G91G-B0S00-04000-0007S-C",
+   "hash": "1dd5bdc9",
+   "dressHash": "2f75c936",
+   "length": 2110.905
+  },
+  {
+   "preset": "short_technical",
+   "seed": 2026,
+   "theme": "desert",
+   "code": "09114-6G91G-B0S00-04000-01ZAW-4",
+   "hash": "a5bbdd58",
+   "dressHash": "4ba42de7",
+   "length": 2019.944
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09G28-CG81C-D1K00-02R00-00009-M",
+   "hash": "0d1f1a96",
+   "dressHash": "1f582091",
+   "length": 3905.888
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 7,
+   "theme": "countryside",
+   "code": "08028-CG81C-D1K00-02R00-00077-R",
+   "hash": "d0ad8012",
+   "dressHash": "eea5fc64",
+   "length": 3934.105
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 2026,
+   "theme": "desert",
+   "code": "09028-CG81C-D1K00-02R00-01ZAE-G",
+   "hash": "d3ea0bfc",
+   "dressHash": "a606ece3",
+   "length": 4164.611
+  },
+  {
+   "preset": "high_speed",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09J2G-E0614-E0Z00-03000-0000W-4",
+   "hash": "3cb774ea",
+   "dressHash": "3148be61",
+   "length": 4717.202
+  },
+  {
+   "preset": "high_speed",
+   "seed": 7,
+   "theme": "countryside",
+   "code": "0822G-E0614-E0Z00-03000-0007K-8",
+   "hash": "487bfee9",
+   "dressHash": "82b40e3c",
+   "length": 5085.371
+  },
+  {
+   "preset": "high_speed",
+   "seed": 2026,
+   "theme": "desert",
+   "code": "0922G-E0614-E0Z00-03000-01ZAJ-0",
+   "hash": "9e210a27",
+   "dressHash": "f8f53379",
+   "length": 4093.838
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09K2C-D0B1W-D1X00-06G00-0000R-4",
+   "hash": "8f5a8f3d",
+   "dressHash": "4f635906",
+   "length": 3865.212
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 7,
+   "theme": "countryside",
+   "code": "0832C-D0B1W-D1X00-06G00-0007Q-8",
+   "hash": "b7949a4b",
+   "dressHash": "9d22e24b",
+   "length": 4085.967
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 2026,
+   "theme": "desert",
+   "code": "0932C-D0B1W-D1X00-06G00-01ZAE-0",
+   "hash": "6963d87a",
+   "dressHash": "4a3d524f",
+   "length": 3921.997
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09K0W-5G614-A0H00-06000-00009-0",
+   "hash": "dc1493da",
+   "dressHash": "dd657468",
+   "length": 2177.099
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 7,
+   "theme": "countryside",
+   "code": "0830W-5G614-A0H00-06000-0007E-C",
+   "hash": "d2169ec5",
+   "dressHash": "92f7b2a1",
+   "length": 2121.206
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 2026,
+   "theme": "desert",
+   "code": "0930W-5G614-A0H00-06000-01ZA3-4",
+   "hash": "83932f50",
+   "dressHash": "77373c0d",
+   "length": 1568.334
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 0,
+   "theme": "mountain",
+   "code": "0A5HR-AGC28-82H05-00000-0000V-R",
+   "hash": "1d6adc3c",
+   "dressHash": "a067dd89",
+   "length": 3537.809
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 7,
+   "theme": "mountain",
+   "code": "0A5HR-AGC28-82H05-00000-00079-M",
+   "hash": "07d59769",
+   "dressHash": "1d2a8e76",
+   "length": 2831.25
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 2026,
+   "theme": "mountain",
+   "code": "0A5HR-AGC28-82H05-00000-01ZAS-W",
+   "hash": "56c07469",
+   "dressHash": "2dabeda7",
+   "length": 4198.898
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 0,
+   "theme": "coastal",
+   "code": "09MHW-CG91M-91X00-M0C00-00002-C",
+   "hash": "f129baa0",
+   "dressHash": "6ac7df5d",
+   "length": 4728.116
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 7,
+   "theme": "coastal",
+   "code": "09MHW-CG91M-91X00-M0C00-00071-0",
+   "hash": "c8b7163a",
+   "dressHash": "365ae38d",
+   "length": 3065.632
+  },
+  {
+   "preset": "coastal_sprint",
+   "seed": 2026,
+   "theme": "coastal",
+   "code": "09MHW-CG91M-91X00-M0C00-01ZAX-8",
+   "hash": "7fac571b",
+   "dressHash": "74c75ac6",
+   "length": 4089.838
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 0,
+   "theme": "street",
+   "code": "0AH1G-90A1R-B0N00-06000-0000F-C",
+   "hash": "691a4d1d",
+   "dressHash": "6f40e3e4",
+   "length": 2688.299
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 7,
+   "theme": "street",
+   "code": "0AH1G-90A1R-B0N00-06000-0007E-0",
+   "hash": "18c58ff0",
+   "dressHash": "3bf2276f",
+   "length": 2563.325
+  },
+  {
+   "preset": "street_circuit",
+   "seed": 2026,
+   "theme": "street",
+   "code": "0AH1G-90A1R-B0N00-06000-01ZAM-8",
+   "hash": "9343aa76",
+   "dressHash": "be484a05",
+   "length": 2736.246
+  },
+  {
+   "preset": "short_technical",
+   "seed": 99,
+   "theme": "countryside",
+   "code": "08114-6G91G-B0S00-04000-00330-W",
+   "hash": "6ff0b45e",
+   "dressHash": "7db879ff",
+   "length": 2058.737
+  },
+  {
+   "preset": "fast_flowing",
+   "seed": 100,
+   "theme": "forest",
+   "code": "08G28-CM81C-D1K00-0AR00-00341-4",
+   "hash": "f7c97a5c",
+   "dressHash": "b66de3cd",
+   "length": 4841.819
+  },
+  {
+   "preset": "high_speed",
+   "seed": 101,
+   "theme": "desert",
+   "code": "0922G-E0694-E0Z00-0K000-0035N-G",
+   "hash": "8aea65e2",
+   "dressHash": "929fd5d4",
+   "length": 4631.321
+  },
+  {
+   "preset": "mixed_gp",
+   "seed": 102,
+   "theme": "coastal",
+   "code": "09K2C-D4B9W-D1X00-0YG00-0036A-C",
+   "hash": "341ad2f4",
+   "dressHash": "73636039",
+   "length": 4479.393
+  },
+  {
+   "preset": "club_circuit",
+   "seed": 103,
+   "theme": "mountain",
+   "code": "0A30W-5J6H4-A0H00-06000-00372-C",
+   "hash": "6ee87cd6",
+   "dressHash": "1fc74528",
+   "length": 1880.202
+  },
+  {
+   "preset": "mountain_hillclimb",
+   "seed": 104,
+   "theme": "street",
+   "code": "0ANHR-APCJ8-82H05-08000-00382-R",
+   "hash": "92248f7d",
+   "dressHash": "6c967e9a",
+   "length": 3434.367
+  }
+ ]
+}

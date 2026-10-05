@@ -444,6 +444,10 @@ export class Vehicle {
       const vc = velAt(w.contact);
       w.vLong = dot(vc, w.along);
       w.vLat = dot(vc, w.side);
+      // a gravel trap (a surface's plough): the wheel ploughing through it is dragged back, a share of its
+      // load, against its motion over the ground — whatever its tyre is doing (fading out at a crawl)
+      const pl = w.surface?.plough;
+      if (pl) { const vh = sub(vc, scale(nrm, dot(vc, nrm))), sp = length(vh); if (sp > 0.05) push(scale(vh, -pl * w.load * Math.min(1, sp / 1.5) / sp), w.contact); }
     }
     const slipOf = (w, om) => (om * w.radius - w.vLong) / Math.max(Math.abs(w.vLong), Ty.minSlipSpeed);
     // Brakes (and rolling resistance) slow a wheel down but never spin it the other way

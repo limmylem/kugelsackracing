@@ -11,7 +11,7 @@
     "crashFrameMs": 12
   },
   "impacts": {
-    "_note": "Crashes (physics/impacts.js): the car body touching anything counts as an impact from minSpeed m/s into it (groundMinSpeed for what's under the car: a hard landing, not the floor pan brushing the road), measured over window s from the first touch; while it stays in contact, a sudden push of more than spike m/s is a new impact (at most every cooldown s). Sliding along something faster than scrapeSpeed m/s, pressed on with more than scrapeForce N, is a scrape.",
+    "_note": "Crashes (physics/impacts.js): the car body touching anything counts as an impact from minSpeed m/s into it (groundMinSpeed for what's under the car: a hard landing, not the floor pan brushing the road), measured over window s from the first touch; while it stays in contact, a sudden push of more than spike m/s is a new impact (at most every cooldown s). Sliding along something faster than scrapeSpeed m/s, pressed on with more than scrapeForce N, is a scrape. materials: how much of a hit's strength reaches the car by what it hit (a tyre wall gives: Phase 5 Step 2's track barriers); anything not named takes all of it.",
     "minSpeed": 1.2,
     "groundMinSpeed": 6,
     "groundUp": 0.7,
@@ -19,7 +19,8 @@
     "spike": 1.5,
     "cooldown": 0.25,
     "scrapeSpeed": 1.5,
-    "scrapeForce": 400
+    "scrapeForce": 400,
+    "materials": { "tyres": 0.55 }
   },
   "debris": {
     "_note": "Loose and torn-off parts (physics/looseParts.js). At most max pieces lie about (the oldest go first), none further than maxDistance m from the car or older than maxAge s; a piece settled on the ground sleeps. Torn off, a piece passes through the car it came from for ignoreCarFor s (no jitter). A part body weighs at least minMass kg (joints stay steady against the car); loose, it swings with hingeFriction and angularDamping, the air pushing on it as a flat plate (plate × dynamic pressure). A piece that changes speed by more than clatterFrom m/s in a step has hit something (a clatter, at most every clatterEvery s).",

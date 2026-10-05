@@ -16,7 +16,9 @@
 <style>
   /* The track generator's test page (Phase 5 Step 1): pick a preset or set the parameters, a seed, and
      generate — a top-down map, the elevation profile and the stats; Random seed, Copy track code, Fly
-     camera and Test drive. dev/tracks.html?code=<track code> opens one; ?determinism=200 prints hashes
+     camera and Test drive; Phase 5 Step 2's dressing — a theme, a pit lane, sausage kerbs, another dressing
+     of the same layout (Redress), the layers (kerbs, run-off, barriers, scenery) on and off, run-off and
+     barrier types on the map. dev/tracks.html?code=<track code> opens one; ?determinism=200 prints hashes
      of 200 seeds of every preset (the cross-browser check: tests/tracks/README in docs/TRACKS.md). */
   html, body { margin: 0; height: 100%; background: #0b0e11; color: #e9ecef; font: 13px/1.45 Barlow, system-ui, sans-serif; }
   #app { display: grid; grid-template-columns: 320px 1fr; height: 100%; }
@@ -42,6 +44,8 @@
   #status { font-size: 12px; color: #a3abb5; min-height: 2.6em; }
   #attempts { font-size: 11px; color: #a3abb5; max-height: 130px; overflow: auto; }
   #legend { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: #a3abb5; pointer-events: none; }
+  label.chk { display: inline-flex; grid-template-columns: none; gap: 4px; margin: 0 8px 0 0; font-size: 12px; }
+  #legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: -1px; }
 </style>
 </head>
 <body>
@@ -60,6 +64,13 @@
     <label>Climb (m) <input id="climb" type="number" title="point to point: start to finish (negative: downhill)"></label>
     <label>Banking (°) <input id="banking" type="number"></label>
     <label>Crests <input id="crests" type="checkbox" style="justify-self:start"></label>
+    <h3>Dressing</h3>
+    <label>Theme <select id="theme"><option value="auto">auto (by the seed)</option><option>countryside</option><option>forest</option><option>desert</option><option>coastal</option><option>mountain</option><option>street</option></select></label>
+    <label>Pit lane <input id="pitLane" type="checkbox" style="justify-self:start" title="a circuit: a pit lane beside the main straight"></label>
+    <label>Sausage kerbs <input id="sausages" type="checkbox" style="justify-self:start" title="raised kerbs at chicanes"></label>
+    <label>Dressing <span class="pair"><input id="dressing" type="number" min="0" max="63" value="0" title="another dressing of the same layout (0–63)"><button id="redress" title="the same layout, another dressing">Redress</button></span></label>
+    <h3>Layers</h3>
+    <div id="layers" class="buttons" style="margin:4px 0"><label class="chk"><input type="checkbox" data-layer="kerbs" checked> kerbs</label><label class="chk"><input type="checkbox" data-layer="runoff" checked> run-off</label><label class="chk"><input type="checkbox" data-layer="barriers" checked> barriers</label><label class="chk"><input type="checkbox" data-layer="scenery" checked> scenery</label></div>
     <div class="buttons"><button class="primary" id="go">Generate</button><button id="random">Random seed</button></div>
     <h3>Track code</h3>
     <input id="code" placeholder="paste a code and press Enter">
@@ -70,7 +81,7 @@
     <div id="attempts"></div>
   </div>
   <div id="main">
-    <div id="view"><canvas id="map"></canvas><canvas id="fly" hidden></canvas><div id="legend">colour: corner tightness (blue: straight · red: tightest) · ▲ start · ● checkpoints</div></div>
+    <div id="view"><canvas id="map"></canvas><canvas id="fly" hidden></canvas><div id="legend"></div></div>
     <canvas id="profile"></canvas>
     <div id="stats"></div>
   </div>

@@ -23,5 +23,10 @@ self.onmessage = async e => {
 };
 
 export function transfers(d) {
-  return [d.road.positions.buffer, d.road.indices.buffer, d.road.colours.buffer, d.terrain.heights.buffer, d.centre.x.buffer, d.centre.z.buffer, d.centre.h.buffer, d.centre.bank.buffer];
+  const out = [d.road.positions.buffer, d.road.indices.buffer, d.road.colours.buffer, d.terrain.heights.buffer, d.centre.x.buffer, d.centre.z.buffer, d.centre.h.buffer, d.centre.bank.buffer];
+  // (a dressed track's too: kerbs, barriers, surfaces)
+  if (d.kerbs) out.push(d.kerbs.positions.buffer, d.kerbs.indices.buffer, d.kerbs.render.positions.buffer, d.kerbs.render.colours.buffer, d.kerbs.render.indices.buffer);
+  for (const r of d.barriers?.runs ?? []) out.push(r.pieces.buffer);
+  for (const q of d.paintQuads ?? []) out.push(q.quads.buffer);
+  return [...new Set(out)];
 }

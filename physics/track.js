@@ -10,6 +10,7 @@
 
 import { add, rotate, quatFromAxisAngle, quatFromEulerDeg, quatMultiply, scale } from './math.js';
 import { carveRoads, makeTerrain, terrainFromHeights } from './terrain.js';
+import { barrierBoxes } from '../map/build/format/barriers.js';
 
 const ROAD_STEP = 2;   // m between centre-line points used for carving and placing things on roads
 const cache = new WeakMap(), lines = new WeakMap();
@@ -109,8 +110,16 @@ export function trackShapes(track) {
   if (track.generated) {
     // a generated track (track/build.js): its ground and its road — the very arrays it's drawn from
     const G = track.generated;
-    shapes.push({ kind: 'heightfield', name: 'terrain', terrain, colour: G.colours?.ground ?? '#6f8a55' });
+    shapes.push({ kind: 'heightfield', name: 'terrain', terrain, colour: G.look?.ground?.[0] ?? G.colours?.ground ?? '#6f8a55' });
     shapes.push({ kind: 'trimesh', name: 'road', positions: G.road.positions, indices: G.road.indices, colours: G.road.colours, ground: true, material: 'ground' });
+    // dressed (Phase 5 Step 2: track/build2.js): the kerbs (drawn by track/render.js), the barriers (Map v3's
+    // chained boxes, from the very pieces drawn), and what stands about — hidden: drawn their own way
+    if (G.kerbs?.indices?.length) shapes.push({ kind: 'trimesh', name: 'kerbs', positions: G.kerbs.positions, indices: G.kerbs.indices, ground: true, material: 'ground', hidden: true });
+    for (const run of G.barriers?.runs ?? []) {
+      const B = G.barriers.cfg, Ty = B.types[run.type];
+      for (const b of barrierBoxes(run.type, run.pieces, B, 7)) shapes.push({ kind: 'box', name: `barrier ${run.type}`, centre: b.centre, halfExtents: b.halfExtents, rotation: b.rotation, material: b.material, restitution: Ty.restitution, friction: Ty.friction, hidden: true, barrier: run.type });
+    }
+    for (const c of G.colliders ?? []) shapes.push(c);
   } else if (!g) { /* no fixed ground: the world streams its own (the real world) */ }
   else if (!terrain) groundBox(0, 0, g.size[0] / 2, g.size[1] / 2);
   else {
@@ -230,6 +239,19 @@ function buildSurfaceMap(track) {
       for (let x = Math.floor((px - r) / res); x <= Math.floor((px + r) / res); x++)
         for (let z = Math.floor((pz - r) / res); z <= Math.floor((pz + r) / res); z++)
           if (Math.hypot(cellCentre(x) - px, cellCentre(z) - pz) <= r) paint(cellCentre(x), cellCentre(z), id);
+    }
+  }
+  // painted in quads (four corners, flat: x, z × 4 each), in order: a dressed track's run-off and kerbs
+  for (const pq of track.paintQuads || []) {
+    const id = list.push({ name: pq.surface, ...S[pq.surface] }) - 1, Q = pq.quads;
+    const inTri = (px, pz, ax, az, bx, bz, cx, cz) => { const d1 = (px - bx) * (az - bz) - (ax - bx) * (pz - bz), d2 = (px - cx) * (bz - cz) - (bx - cx) * (pz - cz), d3 = (px - ax) * (cz - az) - (cx - ax) * (pz - az); return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)); };
+    for (let k = 0; k + 7 < Q.length; k += 8) {
+      const xs = [Q[k], Q[k + 2], Q[k + 4], Q[k + 6]], zs = [Q[k + 1], Q[k + 3], Q[k + 5], Q[k + 7]];
+      for (let x = Math.floor(Math.min(...xs) / res); x <= Math.floor(Math.max(...xs) / res); x++)
+        for (let z = Math.floor(Math.min(...zs) / res); z <= Math.floor(Math.max(...zs) / res); z++) {
+          const px = cellCentre(x), pz = cellCentre(z);
+          if (inTri(px, pz, xs[0], zs[0], xs[1], zs[1], xs[2], zs[2]) || inTri(px, pz, xs[0], zs[0], xs[2], zs[2], xs[3], zs[3])) paint(px, pz, id);
+        }
     }
   }
   for (const road of track.roads || []) {

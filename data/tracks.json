@@ -1,8 +1,8 @@
 {
-  "_note": "Generated race tracks (Phase 5: track/). A track is its seed + its parameters + the generator's version: the same three always make the same track (track/generate.js). presets: what the track generator page and the Track scene offer. How each style builds its layout and the limits every track keeps to (the tightest corner, run-off, gradients, banking…) belong to a generator version and never change with it: track/gen/v1.js STYLES and LIMITS. build: the road and ground made from a track (track/build.js; not part of a track's identity). surfaces: the road, its verges and the ground round it (as Map v3's: the tyres and the effects).",
+  "_note": "Generated race tracks (Phase 5: track/). A track is its seed + its parameters + the generator's version: the same three always make the same track (track/generate.js). presets: what the track generator page and the Track scene offer. How each style builds its layout and the limits every track keeps to (the tightest corner, run-off, gradients, banking…) belong to a generator version and never change with it: track/gen/v1.js STYLES and LIMITS. build: the road and ground made from a track (track/build.js; not part of a track's identity). surfaces: the road, its verges and the ground round it (as Map v3's: the tyres and the effects). themes (Phase 5 Step 2, version-2 tracks): each theme's dress settings say what goes where (run-off sizes and types, the barrier, how many grandstands, trees, rocks, buildings…) and are part of a version-2 track's identity like the generator's rules (tests/fixtures/tracks-v2.json pins tracks of every theme: if they change, a theme's dress settings changed — make it a new generator version instead); look is how it looks (colours, sky, the time of day and weather), free to change. barriers: the barrier types (as Map v3's railings: thick colliders taller than drawn, overlapping at every joint). brands: the advertising (fictional, all of them). dressTests and performance: the targets the tests hold dressed tracks to.",
   "version": 1,
   "params": {
-    "_note": "type: circuit (a closed loop) or p2p (a sprint or hillclimb). lengthKm: [min, max]. corners: [min, max] corner groups (a chicane or esses count as one). style: flowing, technical, fast or mixed. width: m. elevation: m from the lowest point to the highest. climb (p2p): m from start to finish (negative: downhill). banking: the most banking in fast corners, degrees (0: none). crests: sharper rises and dips allowed. bridges: the track may cross itself on a bridge (not yet built: always false).",
+    "_note": "type: circuit (a closed loop) or p2p (a sprint or hillclimb). lengthKm: [min, max]. corners: [min, max] corner groups (a chicane or esses count as one). style: flowing, technical, fast or mixed. width: m. elevation: m from the lowest point to the highest. climb (p2p): m from start to finish (negative: downhill). banking: the most banking in fast corners, degrees (0: none). crests: sharper rises and dips allowed. bridges: the track may cross itself on a bridge (not yet built: always false). Version 2 adds: theme (one of themes, or auto: chosen by the seed), pitLane (a circuit: a pit lane beside the main straight), sausages (raised kerbs at chicanes), dressing (0–63: another dressing of the same layout).",
     "type": [
       "circuit",
       "p2p"
@@ -12,6 +12,15 @@
       "technical",
       "fast",
       "mixed"
+    ],
+    "theme": [
+      "auto",
+      "countryside",
+      "forest",
+      "desert",
+      "coastal",
+      "mountain",
+      "street"
     ]
   },
   "presets": [
@@ -32,7 +41,10 @@
         "width": 11,
         "elevation": 12,
         "banking": 0,
-        "crests": false
+        "crests": false,
+        "theme": "auto",
+        "pitLane": false,
+        "sausages": true
       }
     },
     {
@@ -52,7 +64,10 @@
         "width": 13,
         "elevation": 25,
         "banking": 6,
-        "crests": false
+        "crests": false,
+        "theme": "auto",
+        "pitLane": true,
+        "sausages": false
       }
     },
     {
@@ -72,7 +87,10 @@
         "width": 14,
         "elevation": 15,
         "banking": 8,
-        "crests": false
+        "crests": false,
+        "theme": "auto",
+        "pitLane": true,
+        "sausages": false
       }
     },
     {
@@ -92,7 +110,10 @@
         "width": 13,
         "elevation": 30,
         "banking": 4,
-        "crests": false
+        "crests": false,
+        "theme": "auto",
+        "pitLane": true,
+        "sausages": true
       }
     },
     {
@@ -112,7 +133,10 @@
         "width": 10,
         "elevation": 8,
         "banking": 0,
-        "crests": false
+        "crests": false,
+        "theme": "auto",
+        "pitLane": true,
+        "sausages": true
       }
     },
     {
@@ -133,7 +157,10 @@
         "elevation": 40,
         "climb": 160,
         "banking": 0,
-        "crests": true
+        "crests": true,
+        "theme": "mountain",
+        "pitLane": false,
+        "sausages": false
       }
     },
     {
@@ -154,18 +181,53 @@
         "elevation": 30,
         "climb": 20,
         "banking": 3,
-        "crests": true
+        "crests": true,
+        "theme": "coastal",
+        "pitLane": false,
+        "sausages": false
+      }
+    },
+    {
+      "id": "street_circuit",
+      "name": "Street circuit",
+      "params": {
+        "type": "circuit",
+        "lengthKm": [
+          2.4,
+          3.6
+        ],
+        "corners": [
+          10,
+          14
+        ],
+        "style": "technical",
+        "width": 11,
+        "elevation": 10,
+        "banking": 0,
+        "crests": false,
+        "theme": "street",
+        "pitLane": true,
+        "sausages": true
       }
     }
   ],
   "build": {
-    "_note": "The road and the ground (track/build.js). step: m between cross-sections of the road mesh. verge: m of flat run-off either side, the same height as the road's edge, left for kerbs and barriers (Phase 5 Step 2). margin: m of ground round the track. cell: the ground grid's spacing (m, at least; bigger tracks: bigger cells, at most maxCells across). blend: m over which the ground meets the land round it.",
+    "_note": "The road and the ground (track/build.js). step: m between cross-sections of the road mesh. verge: m of flat run-off either side, the same height as the road's edge, left for kerbs and barriers (Phase 5 Step 2). margin: m of ground round the track. cell: the ground grid's spacing (m, at least; bigger tracks: bigger cells, at most maxCells across). blend: m over which the ground meets the land round it. Version-2 tracks: the run-off, kerbs and barriers come from the dressing (track/dress.js); kerb: the flat kerb's width and height (m), its ridges' spacing, the sausage kerb's; runoffFall: how steeply run-off falls away from the road's edge; lip: m of verge beyond the kerbs' width before the run-off (its gravel, grass) begins.",
     "step": 2,
     "verge": 5,
     "margin": 260,
     "cell": 4,
     "maxCells": 420,
-    "blend": 55
+    "blend": 55,
+    "kerb": {
+      "width": 1.2,
+      "height": 0.035,
+      "ridge": 0.9,
+      "sausageWidth": 0.5,
+      "sausageHeight": 0.11
+    },
+    "runoffFall": 0.02,
+    "lip": 1.5
   },
   "surfaces": {
     "tarmac": {
@@ -180,8 +242,8 @@
       "marks": "#3b3b3b"
     },
     "grass": {
-      "grip": 0.72,
-      "rollingResistance": 0.04,
+      "grip": 0.62,
+      "rollingResistance": 0.05,
       "effects": {
         "dust": {
           "colour": "#7d7a55",
@@ -196,6 +258,770 @@
       },
       "marks": "#3f4b2c",
       "sound": "gravel"
+    },
+    "_note": "What the tyres drive on (physics/vehicle.js): grip, rollingResistance (also what a car must push past to move off: in a gravel trap more than its tyres can, so a car that stops there is beached), plough (a gravel trap's drag on a wheel ploughing through it, a share of its load: physics/vehicle.js), marks (skid marks), sound, effects (what tyres throw up), rumble (a kerb's: the sound's rattle).",
+    "kerb": {
+      "grip": 0.86,
+      "rollingResistance": 0.016,
+      "sound": "tarmac",
+      "rumble": 1,
+      "marks": "#3b3b3b"
+    },
+    "sausage": {
+      "grip": 0.7,
+      "rollingResistance": 0.03,
+      "sound": "tarmac",
+      "rumble": 1.6
+    },
+    "gravel": {
+      "grip": 0.55,
+      "rollingResistance": 0.6,
+      "plough": 0.35,
+      "effects": {
+        "spray": {
+          "colour": "#8d8577",
+          "rate": 90,
+          "speed": 0.6
+        },
+        "dust": {
+          "colour": "#a39b8c",
+          "perSpeed": 1.0,
+          "perSlip": 4,
+          "alpha": 0.9
+        }
+      },
+      "marks": "#6e675b",
+      "sound": "gravel"
+    },
+    "asphalt": {
+      "grip": 0.95,
+      "rollingResistance": 0.013,
+      "sound": "tarmac",
+      "marks": "#2f2f2f"
+    },
+    "sand": {
+      "grip": 0.5,
+      "rollingResistance": 0.55,
+      "plough": 0.3,
+      "effects": {
+        "dust": {
+          "colour": "#d8c99a",
+          "perSpeed": 0.9,
+          "perSlip": 5,
+          "alpha": 0.9
+        }
+      },
+      "marks": "#b8a878",
+      "sound": "gravel"
     }
+  },
+  "barriers": {
+    "_note": "Barrier types (track/build.js; map/build/format/barriers.js makes their colliders, as Map v3's railings): height and thickness drawn; the collider at least minThickness thick and extraHeight taller (nothing hops or slips through; the cars use continuous collision detection besides). restitution: how much a car bounces off; friction: how it slides along; material: what the damage and the crash sounds take it to be (a tyre wall's 'tyres': softer — physics/settings.json impacts.materials). armco: steel guard rail; concrete: a wall; tyres: a tyre wall (in front of a rail) at the end of fast corners' run-off; pitbox: the garages' fronts; pitwall: between the track and the pit lane.",
+    "minThickness": 0.4,
+    "extraHeight": 1.2,
+    "types": {
+      "armco": {
+        "height": 0.8,
+        "thickness": 0.4,
+        "colour": "#b9bec2",
+        "post": 2.0,
+        "material": "metal",
+        "restitution": 0.12,
+        "friction": 0.25
+      },
+      "concrete": {
+        "height": 1.05,
+        "thickness": 0.6,
+        "colour": "#c9c6bd",
+        "material": "concrete",
+        "restitution": 0.15,
+        "friction": 0.3
+      },
+      "tyres": {
+        "height": 0.9,
+        "thickness": 1.1,
+        "colour": "#1c1c1e",
+        "material": "tyres",
+        "restitution": 0.0,
+        "friction": 0.45
+      },
+      "pitbox": {
+        "height": 4.5,
+        "thickness": 0.6,
+        "colour": "#d8d6d0",
+        "material": "concrete",
+        "restitution": 0.1,
+        "friction": 0.3
+      },
+      "pitwall": {
+        "height": 1.1,
+        "thickness": 0.6,
+        "colour": "#e4e2dc",
+        "material": "concrete",
+        "restitution": 0.15,
+        "friction": 0.3
+      }
+    },
+    "fence": {
+      "height": 3.6,
+      "post": 4.0,
+      "colour": "#8f969c"
+    }
+  },
+  "brands": [
+    "VELOCITA OIL",
+    "KUGEL TYRES",
+    "APEX ENERGY",
+    "NORTHWIND AIR",
+    "BRAKELINE",
+    "SACKMANN MOTORS",
+    "TURBO COLA",
+    "GRANITE BANK",
+    "LUMEN WATCHES",
+    "ORBIT MOBILE",
+    "REDLINE FUEL",
+    "HALCYON INSURANCE",
+    "PITLANE COFFEE",
+    "MERIDIAN LOGISTICS",
+    "STORMCELL BATTERIES",
+    "FALCON OPTICS"
+  ],
+  "themes": {
+    "_note": "Environment themes (Phase 5 Step 2). dress: what goes where — runoff: scale × the speed-based size (track/dress.js), at least min and at most max m beyond the road's edge; fast / medium / slow: the run-off types of corners taken that fast (weights), straight: beside the straights; barrier: the usual barrier (concrete wherever the run-off is under 4 m; tyre walls at the end of fast corners' run-off); fence: 'all' (catch fencing everywhere) or none (only by the grandstands); grandstands; marshalEvery (m); lightTowers; boards (advertising); footbridge (the chance of one); buildings (count, style: city lines the track, others stand well away; height range); trees and rocks (count, clumps, how near and far from the barrier, kinds by weight). look: colours (ground, run-off, verge, buildings…), sky, fog, sun (the time of day) and weather (track/render.js themeEnvironment), backdrop (distant hills, mountains, the sea, a skyline).",
+    "countryside": {
+      "name": "Countryside",
+      "dress": {
+        "runoff": {
+          "scale": 1.0,
+          "min": 7,
+          "max": 65,
+          "fast": {
+            "gravel": 3,
+            "asphalt": 1
+          },
+          "medium": {
+            "gravel": 2,
+            "grass": 1
+          },
+          "slow": {
+            "grass": 2,
+            "asphalt": 1
+          },
+          "straight": "grass"
+        },
+        "barrier": "armco",
+        "grandstands": 4,
+        "marshalEvery": 300,
+        "lightTowers": 0,
+        "boards": 90,
+        "footbridge": 0.6,
+        "buildings": {
+          "count": 5,
+          "style": "farm",
+          "height": [
+            5,
+            9
+          ]
+        },
+        "trees": {
+          "count": 900,
+          "clumps": 45,
+          "near": 6,
+          "far": 200,
+          "kinds": {
+            "broadleaf": 3,
+            "conifer": 1
+          }
+        },
+        "rocks": {
+          "count": 30,
+          "clumps": 6,
+          "near": 10,
+          "far": 160,
+          "kinds": {
+            "boulder": 1
+          }
+        }
+      },
+      "look": {
+        "ground": [
+          "#5f7c47",
+          "#9aa86a"
+        ],
+        "grass": "#6a8a4c",
+        "gravel": "#b5aa94",
+        "asphalt": "#6c7075",
+        "sand": "#d9c68f",
+        "verge": "#7d9a5a",
+        "rock": "#8f8a80",
+        "building": [
+          "#a0603f",
+          "#d9d0bf",
+          "#7a8d99"
+        ],
+        "roof": "#5b3a2c",
+        "trees": {
+          "broadleaf": "#3f6b34",
+          "conifer": "#2f5530",
+          "palm": "#4d7a35",
+          "shrub": "#56703d"
+        },
+        "sky": "#9cc9f0",
+        "horizon": "#d6e6f2",
+        "fog": [
+          700,
+          3200
+        ],
+        "sun": {
+          "elevation": 42,
+          "azimuth": 220,
+          "intensity": 1.8,
+          "colour": "#fff4e0"
+        },
+        "hemi": [
+          "#ffffff",
+          "#556655",
+          1.1
+        ],
+        "time": "afternoon",
+        "weather": "clear",
+        "backdrop": "hills"
+      }
+    },
+    "forest": {
+      "name": "Forest",
+      "dress": {
+        "runoff": {
+          "scale": 0.85,
+          "min": 6,
+          "max": 55,
+          "fast": {
+            "gravel": 3,
+            "asphalt": 1
+          },
+          "medium": {
+            "gravel": 3,
+            "grass": 1
+          },
+          "slow": {
+            "grass": 1,
+            "gravel": 1
+          },
+          "straight": "grass"
+        },
+        "barrier": "armco",
+        "grandstands": 3,
+        "marshalEvery": 280,
+        "lightTowers": 0,
+        "boards": 60,
+        "footbridge": 0.4,
+        "buildings": {
+          "count": 2,
+          "style": "cabin",
+          "height": [
+            4,
+            7
+          ]
+        },
+        "trees": {
+          "count": 2400,
+          "clumps": 120,
+          "near": 4,
+          "far": 220,
+          "kinds": {
+            "conifer": 5,
+            "broadleaf": 2
+          }
+        },
+        "rocks": {
+          "count": 60,
+          "clumps": 12,
+          "near": 6,
+          "far": 120,
+          "kinds": {
+            "boulder": 1
+          }
+        }
+      },
+      "look": {
+        "ground": [
+          "#3f5a34",
+          "#6d7f4b"
+        ],
+        "grass": "#4f6f3b",
+        "gravel": "#a89f8c",
+        "asphalt": "#686c70",
+        "sand": "#cbb98a",
+        "verge": "#5c7a46",
+        "rock": "#7e7a72",
+        "building": [
+          "#7a5233",
+          "#a8875f"
+        ],
+        "roof": "#3e2c20",
+        "trees": {
+          "broadleaf": "#355f2c",
+          "conifer": "#1f4527",
+          "palm": "#4d7a35",
+          "shrub": "#46602f"
+        },
+        "sky": "#a9c8dc",
+        "horizon": "#d2dde2",
+        "fog": [
+          450,
+          2200
+        ],
+        "sun": {
+          "elevation": 30,
+          "azimuth": 140,
+          "intensity": 1.5,
+          "colour": "#fff1d6"
+        },
+        "hemi": [
+          "#e8f0f0",
+          "#3f4f3a",
+          1.15
+        ],
+        "time": "morning",
+        "weather": "hazy",
+        "backdrop": "hills"
+      }
+    },
+    "desert": {
+      "name": "Desert",
+      "dress": {
+        "runoff": {
+          "scale": 1.1,
+          "min": 9,
+          "max": 70,
+          "fast": {
+            "asphalt": 3,
+            "gravel": 1
+          },
+          "medium": {
+            "asphalt": 2,
+            "sand": 1
+          },
+          "slow": {
+            "asphalt": 2,
+            "sand": 1
+          },
+          "straight": "sand"
+        },
+        "barrier": "concrete",
+        "grandstands": 5,
+        "marshalEvery": 320,
+        "lightTowers": 10,
+        "boards": 110,
+        "footbridge": 0.7,
+        "buildings": {
+          "count": 3,
+          "style": "modern",
+          "height": [
+            6,
+            14
+          ]
+        },
+        "trees": {
+          "count": 140,
+          "clumps": 14,
+          "near": 10,
+          "far": 160,
+          "kinds": {
+            "palm": 3,
+            "shrub": 2
+          }
+        },
+        "rocks": {
+          "count": 160,
+          "clumps": 25,
+          "near": 8,
+          "far": 220,
+          "kinds": {
+            "mesa": 1,
+            "boulder": 3
+          }
+        }
+      },
+      "look": {
+        "ground": [
+          "#c9a46c",
+          "#e3c58f"
+        ],
+        "grass": "#a39a5c",
+        "gravel": "#c7b48e",
+        "asphalt": "#73767a",
+        "sand": "#e2c88f",
+        "verge": "#c8b07a",
+        "rock": "#a8623e",
+        "building": [
+          "#e8e0d0",
+          "#c9b89a",
+          "#9fb4bf"
+        ],
+        "roof": "#b8a888",
+        "trees": {
+          "broadleaf": "#6b7a3a",
+          "conifer": "#56653a",
+          "palm": "#5a7a32",
+          "shrub": "#7d7a45"
+        },
+        "sky": "#8fc2ea",
+        "horizon": "#f0e2c8",
+        "fog": [
+          900,
+          4200
+        ],
+        "sun": {
+          "elevation": 65,
+          "azimuth": 180,
+          "intensity": 2.1,
+          "colour": "#fff8e8"
+        },
+        "hemi": [
+          "#ffffff",
+          "#8a7350",
+          1.0
+        ],
+        "time": "midday",
+        "weather": "clear",
+        "backdrop": "mesas"
+      }
+    },
+    "coastal": {
+      "name": "Coastal",
+      "dress": {
+        "runoff": {
+          "scale": 0.95,
+          "min": 7,
+          "max": 60,
+          "fast": {
+            "gravel": 2,
+            "asphalt": 2
+          },
+          "medium": {
+            "gravel": 2,
+            "asphalt": 1
+          },
+          "slow": {
+            "asphalt": 2,
+            "grass": 1
+          },
+          "straight": "grass"
+        },
+        "barrier": "armco",
+        "grandstands": 4,
+        "marshalEvery": 300,
+        "lightTowers": 0,
+        "boards": 100,
+        "footbridge": 0.6,
+        "buildings": {
+          "count": 6,
+          "style": "villa",
+          "height": [
+            5,
+            10
+          ]
+        },
+        "trees": {
+          "count": 600,
+          "clumps": 50,
+          "near": 6,
+          "far": 200,
+          "kinds": {
+            "palm": 3,
+            "shrub": 2,
+            "broadleaf": 1
+          }
+        },
+        "rocks": {
+          "count": 50,
+          "clumps": 10,
+          "near": 8,
+          "far": 180,
+          "kinds": {
+            "boulder": 1
+          }
+        }
+      },
+      "look": {
+        "ground": [
+          "#6f8a50",
+          "#b4b07a"
+        ],
+        "grass": "#79914f",
+        "gravel": "#c2b79c",
+        "asphalt": "#6d7176",
+        "sand": "#e6d4a0",
+        "verge": "#8aa060",
+        "rock": "#9a948a",
+        "building": [
+          "#f2ede2",
+          "#e9d6b8",
+          "#9fc0cf"
+        ],
+        "roof": "#b5553a",
+        "trees": {
+          "broadleaf": "#4a7a3a",
+          "conifer": "#335f36",
+          "palm": "#4f8a3a",
+          "shrub": "#5f7d42"
+        },
+        "sky": "#86c4f2",
+        "horizon": "#dcecf5",
+        "fog": [
+          800,
+          3800
+        ],
+        "sun": {
+          "elevation": 48,
+          "azimuth": 250,
+          "intensity": 1.9,
+          "colour": "#fff6e4"
+        },
+        "hemi": [
+          "#ffffff",
+          "#5d6a55",
+          1.1
+        ],
+        "time": "afternoon",
+        "weather": "clear",
+        "backdrop": "sea"
+      }
+    },
+    "mountain": {
+      "name": "Mountain",
+      "dress": {
+        "runoff": {
+          "scale": 0.45,
+          "min": 4,
+          "max": 22,
+          "fast": {
+            "gravel": 2,
+            "asphalt": 1
+          },
+          "medium": {
+            "gravel": 1,
+            "asphalt": 1
+          },
+          "slow": {
+            "asphalt": 2,
+            "gravel": 1
+          },
+          "straight": "grass"
+        },
+        "barrier": "armco",
+        "grandstands": 2,
+        "marshalEvery": 250,
+        "lightTowers": 0,
+        "boards": 50,
+        "footbridge": 0.2,
+        "buildings": {
+          "count": 3,
+          "style": "chalet",
+          "height": [
+            6,
+            10
+          ]
+        },
+        "trees": {
+          "count": 1300,
+          "clumps": 70,
+          "near": 5,
+          "far": 220,
+          "kinds": {
+            "conifer": 6,
+            "broadleaf": 1
+          }
+        },
+        "rocks": {
+          "count": 180,
+          "clumps": 30,
+          "near": 5,
+          "far": 220,
+          "kinds": {
+            "boulder": 3,
+            "crag": 1
+          }
+        }
+      },
+      "look": {
+        "ground": [
+          "#4e6340",
+          "#8c8f74"
+        ],
+        "grass": "#5d7346",
+        "gravel": "#a19a8b",
+        "asphalt": "#686b70",
+        "sand": "#c8b98f",
+        "verge": "#6b7f52",
+        "rock": "#7d7b76",
+        "building": [
+          "#8a6a48",
+          "#d8d2c4"
+        ],
+        "roof": "#4a3a30",
+        "trees": {
+          "broadleaf": "#3f6634",
+          "conifer": "#26492c",
+          "palm": "#4d7a35",
+          "shrub": "#4f6a3a"
+        },
+        "sky": "#9fbfdc",
+        "horizon": "#dde4ea",
+        "fog": [
+          500,
+          3000
+        ],
+        "sun": {
+          "elevation": 34,
+          "azimuth": 120,
+          "intensity": 1.6,
+          "colour": "#fff0dc"
+        },
+        "hemi": [
+          "#eef2f6",
+          "#4a5244",
+          1.15
+        ],
+        "time": "morning",
+        "weather": "overcast",
+        "backdrop": "mountains"
+      }
+    },
+    "street": {
+      "name": "Street circuit",
+      "dress": {
+        "runoff": {
+          "scale": 0.12,
+          "min": 2.5,
+          "max": 9,
+          "fast": {
+            "asphalt": 1
+          },
+          "medium": {
+            "asphalt": 1
+          },
+          "slow": {
+            "asphalt": 1
+          },
+          "straight": "asphalt"
+        },
+        "barrier": "concrete",
+        "fence": "all",
+        "grandstands": 6,
+        "marshalEvery": 220,
+        "lightTowers": 14,
+        "boards": 160,
+        "footbridge": 0.8,
+        "buildings": {
+          "count": 170,
+          "style": "city",
+          "height": [
+            10,
+            42
+          ]
+        },
+        "trees": {
+          "count": 220,
+          "clumps": 40,
+          "near": 3,
+          "far": 60,
+          "kinds": {
+            "broadleaf": 3,
+            "palm": 1
+          }
+        },
+        "rocks": {
+          "count": 0
+        }
+      },
+      "look": {
+        "ground": [
+          "#7d7f78",
+          "#9a9b92"
+        ],
+        "grass": "#6e8350",
+        "gravel": "#b0a892",
+        "asphalt": "#5d6066",
+        "sand": "#cbbd98",
+        "verge": "#8a8c88",
+        "rock": "#8c8a86",
+        "building": [
+          "#c9c2b6",
+          "#9aa3ad",
+          "#d8cfc0",
+          "#7e8790",
+          "#b8a48c"
+        ],
+        "roof": "#55585c",
+        "trees": {
+          "broadleaf": "#3f6b34",
+          "conifer": "#2f5530",
+          "palm": "#4d7a35",
+          "shrub": "#56703d"
+        },
+        "sky": "#e9a77b",
+        "horizon": "#f3cfa6",
+        "fog": [
+          500,
+          2600
+        ],
+        "sun": {
+          "elevation": 12,
+          "azimuth": 260,
+          "intensity": 1.4,
+          "colour": "#ffc89a"
+        },
+        "hemi": [
+          "#ffe8d6",
+          "#4d4a52",
+          0.95
+        ],
+        "time": "evening",
+        "weather": "clear",
+        "backdrop": "skyline"
+      }
+    }
+  },
+  "dressTests": {
+    "_note": "What the dressing tests hold dressed tracks to (tests/track-dress.mjs, tests/track-dress-drive.ts). runoff: a car going straight on at the racing line's speed where each corner turns in, braking hard — it stops, or hits the barrier at most maxImpactKmh or at most slowedTo of the speed it left at, on at least minShare of corners. barrier: impact speeds (km/h) and angles (°) for every barrier type. gravel: speeds driven straight into a gravel trap, the speed (km/h) below which a car coasting in must be beached (can't drive out), the least deceleration (m/s²) in it. placement: how many seeds (every preset and theme).",
+    "runoff": {
+      "maxImpactKmh": 90,
+      "slowedTo": 0.6,
+      "minShare": 0.8,
+      "tracks": 12
+    },
+    "barrier": {
+      "speeds": [
+        50,
+        150,
+        300
+      ],
+      "angles": [
+        15,
+        45,
+        90
+      ]
+    },
+    "gravel": {
+      "speeds": [
+        60,
+        120,
+        180
+      ],
+      "beachedBelowKmh": 40,
+      "minDecel": 6
+    },
+    "placement": {
+      "seeds": 1000
+    }
+  },
+  "performance": {
+    "_note": "Targets for dressed tracks (tests/track-dress.mjs; the browser's in the smoke test): loadSeconds — making and building a track (Node; the browser's worker about the same); cachedMs — loading one made before; drawCalls — the whole dressed world drawn (the track, its dressing, no cars); frameMs — physics for 8 cars a frame at 60 fps (Node: a race's worst sustained step).",
+    "loadSeconds": 3,
+    "cachedMs": 400,
+    "drawCalls": 160,
+    "physicsMs8Cars": 6
   }
 }

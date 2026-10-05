@@ -13,8 +13,9 @@ import fs from 'node:fs';
 import { generateTrack, VERSIONS } from '../track/generate.js';
 import { checkTrack } from '../track/validate.js';
 import * as v1 from '../track/gen/v1.js';
+import * as v2 from '../track/gen/v2.js';
 
-const LIMITS_OF = { 1: v1.LIMITS };
+const LIMITS_OF = { 1: v1.LIMITS, 2: v2.LIMITS };
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? +args[i + 1] : d; };
 const cfg = JSON.parse(fs.readFileSync(new URL('../data/tracks.json', import.meta.url), 'utf8')), P = cfg.presets;
 let failed = 0;

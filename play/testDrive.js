@@ -31,7 +31,7 @@ export function createRouteRun({ THREE, w, rw, compiled: c, course = {}, laps = 
   const dressing = createRouteDressing({ THREE, parent: S.world, compiled: c, guides: course.guides });
   const samples = [];
   let lastSim = null;
-  let phase = 'placing', count = 3, message = null, messageFor = 0, resets = 0, sampleT = 0, endedAt = null, done = false, result = null;
+  let phase = 'placing', count = 3, message = null, messageFor = 0, resets = 0, sampleT = 0, endedAt = null, done = false, result = null, sinceGo = 0;
   rw.travelTo(w, { xz: [slot.x, slot.z], heading: slot.heading });
   const pilot = autopilot ? createAutopilot(c.line, { loop: c.loop }) : null;
   const backTo = (point, why) => { resets++; resetCar(point); rw.travelTo(w, { xz: [point.x, point.z], heading: point.heading }); tracker.resetTo(point); say(why, 'warn', 2); };
@@ -64,7 +64,8 @@ export function createRouteRun({ THREE, w, rw, compiled: c, course = {}, laps = 
   }
 
   return {
-    get state() { return { phase, ...tracker.state, resets, dressing: dressing.stats }; },
+    // (count: seconds to GO in the countdown; sinceGo: since it — a dressed track's start lights follow them)
+    get state() { return { phase, ...tracker.state, resets, dressing: dressing.stats, count, sinceGo }; },
     tracker, dressing, end,
     get auto() { return !!pilot && phase === 'driving'; },
     resetNow() { if (phase === 'driving' && !w.spawning) backTo(tracker.resetPoint(), 'Back to the last checkpoint'); },
@@ -81,7 +82,8 @@ export function createRouteRun({ THREE, w, rw, compiled: c, course = {}, laps = 
       const b = w.sim.vehicle.body, p = b.translation(), [x, z] = S.toWorld(p.x, p.z), v = b.linvel();
       dressing.update(x, z);
       if (phase === 'placing') { if (!w.spawning) { rw.holdCar(w); tracker.begin(x, z); phase = 'countdown'; count = 3; } draw(); return; }
-      if (phase === 'countdown') { count -= seconds; if (count <= 0) { rw.releaseCar(w); tracker.start(); phase = 'driving'; say('GO', 'go', 0.8); } draw(); return; }
+      if (phase === 'countdown') { count -= seconds; if (count <= 0) { rw.releaseCar(w); tracker.start(); phase = 'driving'; sinceGo = 0; say('GO', 'go', 0.8); } draw(); return; }
+      sinceGo += seconds;
       if (phase === 'finished') { draw(); if (performance.now() - endedAt > 4000 && result.finished) end(); return; }
       if (w.spawning) { draw(); return; }               // (being put back on the road)
       for (const e of tracker.update(seconds, { x, z, vx: v.x, vz: v.z })) {

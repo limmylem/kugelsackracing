@@ -262,7 +262,9 @@ colliders) that sweep was 5 ms a step on its own; an 8-car race is now 1.2–3.1
 - **8-car races on Monaco and Stelvio:** every car finishes, but with stuck-and-reset incidents (3 and
   10 in the test's race), where the test wants none, and some moments off the road. (Milton Keynes now
   passes: an NPC coming back from the cheap run is put down at its ride height, not dropped from 35 cm —
-  a drop at speed bottomed its suspension and the floor caught the road.)
+  a drop at speed bottomed its suspension and the floor caught the road.) On a circuit, an NPC that has
+  finished drives on at 60% (a cool-down lap) instead of stopping on the line in front of everyone still
+  racing (Phase 5 Step 2: found on generated circuits, where the player isn't always first home).
   Most are at spots where the baked world is not what the road is, or where it has no barrier:
   - **Monaco 450–470 m:** the route goes down a ramp beside a road that stays level; the bake leaves the
     level road's surface up to 1.3 m above the ramp inside the ramp's mapped width, so the drivable

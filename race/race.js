@@ -50,6 +50,8 @@ function assignDeep(target, source) {
 
 export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRules, playerSession, npcs, seed = 1, collisions = 'full', rubberBand = false, isVisible = null, playerName = 'You' }) {
   const L = course.length, loop = course.loop;
+  // (a finished NPC's cool-down lap: its speeds at 60%)
+  const COOL_DOWN = { corner: -0.64, braking: 0 };
   // (the racing line fitted to the world's kerbs and walls, now they're loaded)
   const RL = fittedRacing(course, sim, frame);
   const laps = loop ? Math.max(1, quest.params?.laps ?? 1) : 1;
@@ -72,7 +74,9 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     const plan = speedPlan(RL, caps, { loop, corner: n.params.cornerMargin, braking: n.params.brakingPoint, start: 0 });
     const racer = { id, player: false, name: n.profile.name, profile: n.profile, params: n.params, build: n.build, spec: n.spec, caps, plan, basePlan: plan, slot, passes: [], status: 'grid', finishTime: null, adjust: { corner: 0, braking: 0 }, lod: 'full', lodSince: 0, damage: null, condition: 100, retired: false, resets: 0, cheap: null };
     racer.driver = createAiDriver({ id, rl: RL, line: course.line, loop, plan, caps, params: n.params, rng: r, frame, config: cfg,
-      ctx: { started: () => racer.session?.state.state === 'racing', near: me => near(me), adjust: me => byId(me)?.adjust } });
+      // (on a circuit, a finished NPC drives on — a cool-down lap, slower — rather than stopping on the line
+      // in the way of everyone still racing)
+      ctx: { started: () => racer.session?.state.state === 'racing' || (loop && racer.status === 'finished'), near: me => near(me), adjust: me => byId(me)?.adjust } });
     const [sx, sz] = frame.toSim(slot.x, slot.z);
     const carId = sim.addCar({ position: [sx, 0, sz], headingDeg: slot.heading, speed: 0 }, racer.driver, n.spec, n.sockets);
     racer.carId = carId;
@@ -135,7 +139,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
       for (const e of r.session.drain()) {
         if (e.type === 'reset') { emit({ type: 'npc-off', id: r.id, x: p.x, z: p.z, u: uOf(r) }); resetNpc(r, e.point, 'off route'); }
         else if (e.type === 'leave') emit({ type: 'npc-leave', id: r.id, x: p.x, z: p.z, u: uOf(r) });
-        else if (e.type === 'finish') { r.status = 'finished'; r.finishTime = e.outcome.time; r.outcome = e.outcome; emit({ type: 'npc-finish', id: r.id, time: r.finishTime }); }
+        else if (e.type === 'finish') { r.status = 'finished'; r.finishTime = e.outcome.time; r.outcome = e.outcome; if (loop) r.adjust = COOL_DOWN; emit({ type: 'npc-finish', id: r.id, time: r.finishTime }); }
         else if (e.type === 'fail') retire(r, e.outcome.text ?? 'failed');
       }
       r.driver.tick(dt);
@@ -238,7 +242,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     if (!player) return;
     const B = cfg.rubberBand, pu = uOf(player);
     for (const r of npcList) {
-      if (r.status !== 'racing') { r.adjust = { corner: 0, braking: 0 }; continue; }
+      if (r.status !== 'racing') { r.adjust = r.status === 'finished' && loop ? COOL_DOWN : { corner: 0, braking: 0 }; continue; }
       // (how far ahead in time, + ahead: ahead, how long ago it was where the player is now; behind, how
       // long ago the player was where it is now)
       const u = uOf(r), ta = u >= pu ? timeAt(r, pu) : timeAt(player, u);

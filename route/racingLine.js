@@ -10,6 +10,9 @@
 //   lapTime(rl, v) → s     encodeOffsets(d) / decodeOffsets(str, n)
 
 const G = 9.81, RHO = 1.225;
+// (exact arithmetic only — + − × ÷ and square roots, the same bits in every browser — so a generated
+// track's dressing, sized from this speed plan, comes out the same everywhere: track/dress.js)
+const hyp = (x, z) => Math.sqrt(x * x + z * z), sq = x => x * x;
 
 // the curvature at each point of a polyline (1/m, + left): from the turn between its neighbours `span` away
 function curvatures(pts, loop, span = 2) {
@@ -18,7 +21,7 @@ function curvatures(pts, loop, span = 2) {
   for (let i = 0; i < n; i++) {
     const a = at(i - span), b = pts[i], c = at(i + span);
     const ax = b.x - a.x, az = b.z - a.z, bx = c.x - b.x, bz = c.z - b.z;
-    const la = Math.hypot(ax, az), lb = Math.hypot(bx, bz), lc = Math.hypot(c.x - a.x, c.z - a.z);
+    const la = hyp(ax, az), lb = hyp(bx, bz), lc = hyp(c.x - a.x, c.z - a.z);
     if (la < 1e-6 || lb < 1e-6 || lc < 1e-6) continue;
     // (x east, z south: a left turn is ax·bz − az·bx < 0)
     k[i] = -2 * (ax * bz - az * bx) / (la * lb * lc);
@@ -35,7 +38,7 @@ export function referenceLine(line, loop = false, { step = 2, passes = 12 } = {}
   // resample
   let pts = [];
   for (let i = 0; i < n0 - (loop ? 0 : 1); i++) {
-    const a = line[i], b = line[(i + 1) % n0], L = Math.hypot(b.x - a.x, b.z - a.z), m = Math.max(1, Math.round(L / step));
+    const a = line[i], b = line[(i + 1) % n0], L = hyp(b.x - a.x, b.z - a.z), m = Math.max(1, Math.round(L / step));
     for (let j = 0; j < m; j++) { const t = j / m; pts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, h: a.h + (b.h - a.h) * t, w: t < 0.5 ? a.w : b.w, src: i + t }); }
   }
   if (!loop) pts.push({ x: line[n0 - 1].x, z: line[n0 - 1].z, h: line[n0 - 1].h, w: line[n0 - 1].w, src: n0 - 1 });
@@ -55,7 +58,7 @@ export function referenceLine(line, loop = false, { step = 2, passes = 12 } = {}
     let best = null;
     for (let j = Math.max(0, Math.floor(p.src) - 4); j <= Math.min(n0 - (loop ? 1 : 2), Math.floor(p.src) + 4); j++) {
       const a = line[j], b = line[(j + 1) % n0], dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz || 1e-9, t = clamp((((p.x - a.x) * dx + (p.z - a.z) * dz) / L2), 0, 1);
-      const qx = a.x + dx * t, qz = a.z + dz * t, dist = Math.hypot(p.x - qx, p.z - qz);
+      const qx = a.x + dx * t, qz = a.z + dz * t, dist = hyp(p.x - qx, p.z - qz);
       if (!best || dist < best.dist) best = { dist, dev: ((p.x - qx) * dz - (p.z - qz) * dx) / Math.sqrt(L2), w: t < 0.5 ? a.w : b.w, h: a.h + (b.h - a.h) * t };
     }
     p.dev = best?.dev ?? 0; p.w = best?.w ?? p.w; p.h = best?.h ?? p.h;
@@ -113,12 +116,12 @@ export function racingLine(line, { loop = false, margin = 1.1, passes = [32, 16,
   const nx = new Float32Array(n), nz = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const a = ref[loop ? (i - 1 + n) % n : Math.max(0, i - 1)], b = ref[loop ? (i + 1) % n : Math.min(n - 1, i + 1)];
-    const tx = b.x - a.x, tz = b.z - a.z, L = Math.hypot(tx, tz) || 1;
+    const tx = b.x - a.x, tz = b.z - a.z, L = hyp(tx, tz) || 1;
     nx[i] = tz / L; nz[i] = -tx / L;
   }
   // an open route: the first and last 30 m back to the real centreline (the grid, the finish gate)
   const S = new Float32Array(n);
-  for (let i = 1; i < n; i++) S[i] = S[i - 1] + Math.hypot(ref[i].x - ref[i - 1].x, ref[i].z - ref[i - 1].z);
+  for (let i = 1; i < n; i++) S[i] = S[i - 1] + hyp(ref[i].x - ref[i - 1].x, ref[i].z - ref[i - 1].z);
   if (!loop) for (let i = 0; i < n; i++) { const e = Math.min(S[i], S[n - 1] - S[i]); if (e < 30) { const f = e / 30; lo[i] = lo[i] * f - ref[i].dev * (1 - f); hi[i] = hi[i] * f - ref[i].dev * (1 - f); d[i] = -ref[i].dev * (1 - f); } }
   for (let i = 0; i < n; i++) d[i] = clamp(d[i], lo[i], hi[i]);
   const px = i => ref[i].x + nx[i] * d[i], pz = i => ref[i].z + nz[i] * d[i];
@@ -155,7 +158,7 @@ export function fitRacingLine(line, { loop = false, margin = 1.1 } = {}, probe) 
   let fitted = 0;
   for (let i = 0; i < n; i++) {
     const p = ref[i], a = ref[loop ? (i - 1 + n) % n : Math.max(0, i - 1)], b = ref[loop ? (i + 1) % n : Math.min(n - 1, i + 1)];
-    const tx = b.x - a.x, tz = b.z - a.z, L = Math.hypot(tx, tz) || 1, nx = tz / L, nz = -tx / L;
+    const tx = b.x - a.x, tz = b.z - a.z, L = hyp(tx, tz) || 1, nx = tz / L, nz = -tx / L;
     const y = probe.ground(p.x, p.z, p.h);
     if (y == null) continue;
     const reach = p.w / 2 + 3;
@@ -178,15 +181,15 @@ export function withPoints(ref, d, loop = false, margin = 1.1, limits = null) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     const a = ref[loop ? (i - 1 + n) % n : Math.max(0, i - 1)], b = ref[loop ? (i + 1) % n : Math.min(n - 1, i + 1)];
-    const tx = b.x - a.x, tz = b.z - a.z, L = Math.hypot(tx, tz) || 1, di = d[i] ?? 0, x = ref[i].x + tz / L * di, z = ref[i].z - tx / L * di;
-    if (i) s += Math.hypot(x - pts[i - 1].x, z - pts[i - 1].z);
+    const tx = b.x - a.x, tz = b.z - a.z, L = hyp(tx, tz) || 1, di = d[i] ?? 0, x = ref[i].x + tz / L * di, z = ref[i].z - tx / L * di;
+    if (i) s += hyp(x - pts[i - 1].x, z - pts[i - 1].z);
     pts[i] = { x, z, h: ref[i].h, w: ref[i].w, s, d: di + ref[i].dev, k: 0, left: Math.max(0, B.hi[i] - di), right: Math.max(0, di - B.lo[i]) };
     if (limits?.[i]?.gap != null) pts[i].gap = limits[i].gap;
   }
   // (over 12 m: what a car drives through, not a kink between two points)
   const k = curvatures(pts, loop, 6);
   for (let i = 0; i < n; i++) pts[i].k = k[i];
-  const length = loop ? s + Math.hypot(pts[0].x - pts[n - 1].x, pts[0].z - pts[n - 1].z) : s;
+  const length = loop ? s + hyp(pts[0].x - pts[n - 1].x, pts[0].z - pts[n - 1].z) : s;
   return { d, points: pts, length };
 }
 
@@ -249,26 +252,26 @@ export function speedPlan(rl, caps, { loop = false, corner = 0.95, braking = 0.9
     }
   }
   const ds = i => Math.max(0.1, P[i + 1].s - P[i].s);
-  const grade = (i, j) => slope ? (P[j].h - P[i].h) / Math.max(0.5, Math.hypot(P[j].x - P[i].x, P[j].z - P[i].z)) : 0;
+  const grade = (i, j) => slope ? (P[j].h - P[i].h) / Math.max(0.5, hyp(P[j].x - P[i].x, P[j].z - P[i].z)) : 0;
   // accelerating out: traction and power, less drag, rolling and the hill; only the grip left from cornering
   const accel = (i, vi) => {
-    const lat = vi * vi * Math.abs(P[i].k) / Math.max(1e-3, mu), left = Math.sqrt(Math.max(0.05, 1 - Math.min(1, lat) ** 2));
+    const lat = vi * vi * Math.abs(P[i].k) / Math.max(1e-3, mu), left = Math.sqrt(Math.max(0.05, 1 - sq(Math.min(1, lat))));
     const a = Math.min(caps.traction * G * left, caps.power / (caps.mass * Math.max(3, vi)));
     return a - 0.5 * RHO * caps.cda * vi * vi / caps.mass - caps.rolling * G;
   };
   const decel = (i, vi) => {
-    const lat = vi * vi * Math.abs(P[i].k) / Math.max(1e-3, mu), left = Math.sqrt(Math.max(0.1, 1 - Math.min(1, lat) ** 2));
+    const lat = vi * vi * Math.abs(P[i].k) / Math.max(1e-3, mu), left = Math.sqrt(Math.max(0.1, 1 - sq(Math.min(1, lat))));
     return caps.brake * braking * left + 0.5 * RHO * caps.cda * vi * vi / caps.mass;
   };
   const passes = loop ? 2 : 1;
   if (!loop && start != null) v[0] = Math.min(v[0], start);
   for (let p = 0; p < passes; p++) for (let i = 0; i < n - (loop ? 0 : 1); i++) {
-    const j = (i + 1) % n, d = loop && i === n - 1 ? Math.hypot(P[0].x - P[i].x, P[0].z - P[i].z) : ds(i);
+    const j = (i + 1) % n, d = loop && i === n - 1 ? hyp(P[0].x - P[i].x, P[0].z - P[i].z) : ds(i);
     const a = accel(i, v[i]) - G * grade(i, j);
     v[j] = Math.min(v[j], Math.sqrt(Math.max(0, v[i] * v[i] + 2 * Math.max(0, a) * d)));
   }
   for (let p = 0; p < passes; p++) for (let i = n - (loop ? 1 : 2); i >= 0; i--) {
-    const j = (i + 1) % n, d = loop && i === n - 1 ? Math.hypot(P[0].x - P[i].x, P[0].z - P[i].z) : ds(i);
+    const j = (i + 1) % n, d = loop && i === n - 1 ? hyp(P[0].x - P[i].x, P[0].z - P[i].z) : ds(i);
     const b = decel(j, v[j]) + G * grade(i, j);
     v[i] = Math.min(v[i], Math.sqrt(v[j] * v[j] + 2 * Math.max(0.5, b) * d));
   }

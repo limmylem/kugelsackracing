@@ -6,7 +6,8 @@
     "ground": "concrete",
     "wood": "concrete",
     "car": "car",
-    "plastic": "car"
+    "plastic": "car",
+    "tyres": "car"
   },
   "impacts": {
     "metal": {

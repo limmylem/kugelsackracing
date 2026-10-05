@@ -38,7 +38,7 @@ test('track codes: every parameter and the seed round-trip; typos are caught; th
   for (const p of cfg.presets) for (const seed of [0, 1, 4294967295, 123456789]) {
     const code = encode({ version: 1, seed, params: p.params }), d = decode(code);
     assert.match(code, /^[0-9A-Z]{5}(-[0-9A-Z]{1,5}){5}$/);
-    assert.equal(d.version, 1); assert.equal(d.seed, seed); assert.deepEqual(d.params, normalise(p.params));
+    assert.equal(d.version, 1); assert.equal(d.seed, seed); assert.deepEqual(d.params, normalise(p.params, { version: 1 }));
     assert.equal(decode(code.toLowerCase().replace(/-/g, ' ')).seed, seed, 'case and separators don\'t matter');
     // one character changed: refused
     const k = code.indexOf('-') - 1, typo = code.slice(0, k) + (code[k] === '0' ? '1' : '0') + code.slice(k + 1);
@@ -94,7 +94,8 @@ test('the checker catches broken tracks: a kink, a corner too tight, a gap, a cr
 });
 
 test('the world from a track: its course in the route format, its collider and its drawing one mesh, its surfaces painted', () => {
-  const g = generateTrack({ seed: 9, params: cfg.presets[0].params }), d = buildTrack(g, cfg);
+  // (version 1's undressed world; version 2's dressed one: tests/unit/trackDress.test.mjs)
+  const g = generateTrack({ seed: 9, params: cfg.presets[0].params, version: 1 }), d = buildTrack(g, cfg);
   // the course: as a real-world route's, read back the same way
   const c = viewCourse(d.course, trackProjection);
   assert.equal(c.loop, true);

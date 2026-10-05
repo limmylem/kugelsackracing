@@ -46,11 +46,14 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
       world.createCollider(RAPIER.ColliderDesc.heightfield(t.n, t.n, t.heights, { x: t.size, y: 1, z: t.size }), ground).userData = { material: 'ground' };
       continue;
     } else if (s.kind === 'trimesh') {
-      // (a generated track's road: drawn from the same arrays. Its triangles' edges smoothed over: a car's
-      // floor scraping the road at speed slides, rather than catching on the edge between two triangles)
+      // (a generated track's road and kerbs: drawn from the same arrays. Their triangles' edges smoothed
+      // over: a car's floor scraping the road at speed slides, rather than catching on the edge between two
+      // triangles)
       world.createCollider(RAPIER.ColliderDesc.trimesh(s.positions, s.indices, RAPIER.TriMeshFlags?.FIX_INTERNAL_EDGES), ground).userData = { material: s.material ?? 'ground' };
       continue;
     } else throw new Error(`unknown shape ${s.kind}`);
+    if (s.friction != null) desc.setFriction(s.friction);
+    if (s.restitution != null) desc.setRestitution(s.restitution);
     const c = world.createCollider(desc.setTranslation(...s.centre).setRotation(s.rotation), ground);
     c.userData = { material: s.material ?? (s.tree ? 'wood' : s.ground ? 'ground' : 'concrete') };     // (what a crash into it sounds like)
   }
@@ -72,7 +75,8 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   const debris = new DebrisPool(RAPIER, world, debrisRules);
   // (cars hitting cars: physics/carCollisions.js — 'off' is ghosting, every car passing through the others)
   let collisions = 'full';
-  const setupCar = v => { v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; v.collider.setCollisionGroups(collisionGroups(collisions)); return v; };
+  // (a generated track: every car with continuous collision detection — its barriers never passed through)
+  const setupCar = v => { if (track.generated) v.body.enableCcd(true); v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; v.collider.setCollisionGroups(collisionGroups(collisions)); return v; };
   let vehicle = setupCar(new Vehicle(RAPIER, world, spec, sockets, spawn));
   vehicle.id = 0;                                        // (yours: 0; others' are their ids)
   // Other cars (AI test cars now; traffic / multiplayer later): { id, vehicle, driver(vehicle, dt) → input }

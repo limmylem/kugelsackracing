@@ -9,9 +9,10 @@
 // strength: the change in the car's velocity it made (physics/carCollisions.js impactStrength): into
 // something fixed, the closing speed; less for something light (a cone moves out of the way: the push it
 // took says so); into another car, its share by the two cars' masses (each feels the same push);
-// material: what it hit ('concrete', 'metal', 'wood', 'ground' from the world's colliders, 'car',
+// material: what it hit ('concrete', 'metal', 'wood', 'tyres', 'ground' from the world's colliders, 'car',
 // 'plastic' for a loose prop); other: 'world' | 'car' | 'prop'; under: it's under the car (the floor
-// pan: only a hard landing counts). Sliding along something, pressed on, is a scrape: the strongest
+// pan: only a hard landing counts). Something that gives (a tyre wall: rules.materials) takes some of the
+// hit itself — the strength is that share less. Sliding along something, pressed on, is a scrape: the strongest
 // this step is `scrape` ({ amount 0..1, speed, force, material, point, normal (car frame) }, or null).
 //
 // The tyres are rays, not colliders, so driving never touches anything here; the body touching the
@@ -79,7 +80,7 @@ export class ImpactSensor {
       const under = nWorld[1] < -R.groundUp, material = materialOf(other), kind = otherCar ? 'car' : dyn ? 'prop' : 'world';
       let s = this.pairs.get(other.handle);
       const shape = { point, normal, yRange: [yMin, yMax], extent: { min: lo, max: hi }, material, other: kind, under, mRed, mass, otherMass };
-      const impact = (cl, imp) => impactOf(time, shape, cl, imp);
+      const impact = (cl, imp) => impactOf(time, shape, cl, imp, R.materials?.[shape.material] ?? 1);
       if (!s || time - s.lastSeen > 0.1) {
         s = { start: time, closing, J: 0, emitted: false, lastEvent: s?.lastEvent ?? -Infinity, lastSeen: time };
         this.pairs.set(other.handle, s);
@@ -112,7 +113,7 @@ export class ImpactSensor {
     for (const s of this.pairs.values()) {
       if (s.emitted || s.lastSeen >= time) continue;
       s.emitted = true;
-      const e = impactOf(time, s.peak.shape, s.closing, s.J), min = e.under ? R.groundMinSpeed : R.minSpeed;
+      const e = impactOf(time, s.peak.shape, s.closing, s.J, R.materials?.[s.peak.shape.material] ?? 1), min = e.under ? R.groundMinSpeed : R.minSpeed;
       if (e.closing >= min && e.strength >= min * 0.5 && time - s.lastEvent >= R.cooldown) { this.events.push(e); s.lastEvent = time; }
     }
     for (const [h, s] of this.pairs) if (time - s.lastSeen > 0.5) this.pairs.delete(h);
@@ -122,10 +123,10 @@ export class ImpactSensor {
 
 // An impact from a contact's shape (where, which way, how wide, what: its hardest step) and how fast it
 // closed and the push it took
-function impactOf(time, sh, closing, impulse) {
+function impactOf(time, sh, closing, impulse, give = 1) {
   return {
     time, point: sh.point, normal: sh.normal, yRange: sh.yRange, extent: sh.extent, closing, impulse,
-    strength: impactStrength({ closing, impulse, mass: sh.mass, otherMass: sh.otherMass }), material: sh.material, other: sh.other, under: sh.under,
+    strength: impactStrength({ closing, impulse, mass: sh.mass, otherMass: sh.otherMass }) * give, material: sh.material, other: sh.other, under: sh.under,
     ...(sh.other === 'car' && { otherMass: sh.otherMass }),
   };
 }

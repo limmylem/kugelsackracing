@@ -23,12 +23,22 @@ async function tx(mode, fn) {
   const db = await idb();
   return new Promise((res, rej) => { const t = db.transaction(STORE, mode), s = t.objectStore(STORE), out = fn(s); t.oncomplete = () => res(out.result ?? out); t.onerror = () => rej(t.error); });
 }
+// (what a kept track was built with: the build's version and data/tracks.json's — a theme's colours, say)
+let buildKey = null;
+async function keyOf() {
+  if (buildKey) return buildKey;
+  let text = '';
+  try { text = await (await fetch(new URL('../data/tracks.json', import.meta.url), { cache: 'no-cache' })).text(); } catch { /* none: the version alone */ }
+  let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return (buildKey = `${BUILD_VERSION}:${h.toString(16)}`);
+}
 async function cached(code) {
-  try { const v = await tx('readonly', s => s.get(code)); return v && v.build === BUILD_VERSION ? v.data : null; } catch { return null; }
+  try { const v = await tx('readonly', s => s.get(code)), key = await keyOf(); return v && v.build === key ? v.data : null; } catch { return null; }
 }
 async function keep(code, data) {
   try {
-    await tx('readwrite', s => s.put({ code, build: BUILD_VERSION, at: Date.now(), data }, code));
+    const build = await keyOf();
+    await tx('readwrite', s => s.put({ code, build, at: Date.now(), data }, code));
     // (only the latest few kept)
     const all = await tx('readonly', s => s.getAll());
     const old = (all ?? []).sort((a, b) => b.at - a.at).slice(KEEP);
