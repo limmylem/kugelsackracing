@@ -11,7 +11,8 @@ import { viewCourse } from '../../route/model.js';
 import { encodeLine, resample, at } from '../../route/geometry.js';
 import { crossing, crossTime, fmtTime } from '../../quest/timing.js';
 import { createQuestSession } from '../../quest/session.js';
-import { medalTargets, medalOf, earnings, entryReasons, carsThatQualify, levelOf } from '../../quest/rules.js';
+import { medalTargets, medalOf, earnings, entryReasons, carsThatQualify, levelOf, xpForLevel, levelProgress, farmingFactor } from '../../quest/rules.js';
+import { rewardsOf, feeOf } from '../../content/quests.js';
 import { createDriftScorer, pointsPerSecond } from '../../quest/drift.js';
 import { createRecorder, decodeRecording } from '../../quest/recording.js';
 import { buildResult } from '../../quest/result.js';
@@ -271,13 +272,29 @@ test('rewards: each tier once (a better one pays the difference), finishing once
   assert.equal(pay('bronze', { paidShare: config.rewards.bronze }).repeat, true);
   assert.ok(near(pay(null, { finishPaid: true }).money, base.money * config.rewards.repeat));
   assert.equal(earnings({ quest: q, outcome: { status: 'failed' }, economy, config }).money, 0);
-  assert.equal(levelOf(0, config), 1); assert.equal(levelOf(2500, config), 3);
+  // levels: each a little more xp than the last
+  assert.equal(levelOf(0, config), 1); assert.equal(levelOf(xpForLevel(5, config), config), 5); assert.equal(levelOf(xpForLevel(5, config) - 1, config), 4);
+  assert.ok(xpForLevel(6, config) - xpForLevel(5, config) > xpForLevel(3, config) - xpForLevel(2, config));
+  const lp = levelProgress(xpForLevel(3, config) + 10, config);
+  assert.equal(lp.level, 3); assert.ok(lp.share > 0 && lp.share < 1);
+  // xp: every finish earns some, medals and places more, a repeat less
+  assert.ok(pay('gold', {}).xp > pay('bronze', {}).xp && pay('bronze', {}).xp > pay(null, {}).xp);
+  assert.ok(pay('gold', { paidShare: 1 }).xp > 0 && pay('gold', { paidShare: 1 }).xp < pay('gold', {}).xp);
+  const placed = p => earnings({ quest: q, outcome: { status: 'finished', medal: null, place: p }, economy, config });
+  assert.ok(placed(4).xp > placed(7).xp && placed(4).money > placed(7).money, 'a better place pays more');
+  // anti-farming: run the same quest again and again within the window and it pays less (not below the floor)
+  const F = economy.quests.farming, now = '2026-10-04T12:00:00Z', ago = m => new Date(Date.parse(now) - m * 60e3).toISOString();
+  const farmed = n => earnings({ quest: q, outcome: { status: 'finished', medal: 'gold' }, progress: { paidShare: 1, recent: Array.from({ length: n }, (_, i) => ago(5 * (i + 1))) }, economy, config, now });
+  assert.equal(farmed(F.freeRuns - 1).farming, 1);
+  assert.ok(farmed(F.freeRuns).farming < 1 && farmed(F.freeRuns + 3).farming < farmed(F.freeRuns).farming);
+  assert.equal(farmed(50).farming, F.floor);
+  assert.equal(farmingFactor([ago(F.windowHours * 60 + 5), ago(F.windowHours * 60 + 10), ago(F.windowHours * 60 + 20), ago(F.windowHours * 60 + 30)], now, economy), 1, 'older runs don\'t count');
 });
 
 test('entry: plain-English reasons, and which cars would do', () => {
-  const q = quest('sprint', {}, { entry: { classes: ['D', 'C'], maxPowerKw: 150, minLevel: 3 }, fee: 500 });
+  const q = quest('sprint', {}, { entry: { classes: ['D', 'C'], maxPowerKw: 150, minLevel: 3 }, rating: { stars: 3, km: 3 } });
   const car = { className: 'B', kw: 220, kg: 1300, drivable: { ok: false, reasons: ['front-left wheel missing'] } };
-  const R = entryReasons({ quest: q, car, player: { money: 100, xp: 0 }, config, economy });
+  const R = entryReasons({ quest: q, car, player: { money: 10, xp: 0 }, config, economy });
   const text = R.map(r => r.text).join('\n');
   assert.match(text, /Needs a class D or C car/);
   assert.match(text, /Needs a car under 201 hp \(yours has 295 hp\)/);
@@ -287,6 +304,13 @@ test('entry: plain-English reasons, and which cars would do', () => {
   const cars = [{ id: 'a', className: 'C', kw: 100, kg: 1100 }, { id: 'b', className: 'C', kw: 200, kg: 1100 }, { id: 'c', className: 'D', kw: 90, kg: 900, drivable: { ok: false, reasons: [] } }];
   assert.deepEqual(carsThatQualify(q, cars, config).map(c => c.id), ['a']);
   assert.match(entryReasons({ quest: quest('pink_slip'), car: { ...cars[0], carId: 'starter_car' }, player: { money: 0, xp: 0 }, config })[0].text, /starter car/);
+  // tiers open by level; a pink slip's stakes follow its tier
+  const pro = quest('sprint', {}, { entry: { classes: ['B'] }, rating: { stars: 3, km: 3 } }), T = rewardsOf(pro, economy);
+  assert.ok(T.unlockLevel > 1);
+  assert.match(entryReasons({ quest: pro, car: { className: 'B', kw: 100, kg: 1200 }, player: { money: 1e6, xp: 0 }, config, economy }).map(r => r.text).join(), new RegExp(`${T.tierName} quests open at level ${T.unlockLevel}`));
+  assert.deepEqual(entryReasons({ quest: pro, car: { className: 'B', kw: 100, kg: 1200 }, player: { money: 1e6, xp: xpForLevel(T.unlockLevel, config) }, config, economy }), []);
+  const slip = quest('pink_slip', {}, { rating: { stars: 1, km: 2 } });
+  assert.match(entryReasons({ quest: slip, car: { className: 'S', carId: 'apex_v8', kw: 400, kg: 1400 }, player: { money: 0, xp: 0 }, config, economy })[0].text, /stakes cars up to class D: yours is class S/);
 });
 
 test('result validation: in order, possible, the right route version; impossible pays nothing', () => {
@@ -371,21 +395,24 @@ async function run(s, q, course, { speed = 30, restart = false, tamper = null, r
 
 test('PlayerService: the fee taken at the start, refunded if it didn\'t start; restart charges again unless free', async () => {
   const { s } = await service();
-  const q = quest('sprint', {}, { fee: 200 }), m0 = s.profile.money;
+  const q = quest('sprint', {}, { rating: { stars: 3, km: 4 } }), m0 = s.profile.money, fee = feeOf(q, H.db.economy);
+  s.profile.xp = xpForLevel(rewardsOf(q, H.db.economy).unlockLevel, config);
+  assert.ok(fee > 0, 'a Club quest has a fee');
   const a = await s.startQuest(q);
-  assert.equal(s.profile.money, m0 - 200);
+  assert.equal(s.profile.money, m0 - fee);
   assert.equal(s.profile.quests[q.id].attempts, 1);
   await s.refundQuest(a.attemptId);
   assert.equal(s.profile.money, m0);
   assert.equal(s.profile.quests[q.id].attempts, 0);
   assert.equal((await s.refundQuest(a.attemptId)).ok, false, 'not twice');
   await s.startQuest(q); await s.startQuest(q, { restart: true });
-  assert.equal(s.profile.money, m0 - 400);
+  assert.equal(s.profile.money, m0 - 2 * fee);
   s.quests.config = { ...config, restart: { free: true } };
   await s.startQuest(q, { restart: true });
-  assert.equal(s.profile.money, m0 - 400);
+  assert.equal(s.profile.money, m0 - 2 * fee);
   s.quests.config = config;
-  const poor = await s.startQuest(quest('sprint', {}, { fee: 1e9 }));
+  s.profile.money = 0;
+  const poor = await s.startQuest(q);
   assert.equal(poor.ok, false); assert.match(poor.error, /Entry fee/);
 });
 

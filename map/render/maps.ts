@@ -11,6 +11,7 @@
 //   clustered on the full map when zoomed out; onPick(id) when one's clicked; a quest's state (properties
 //   state: new | attempted | completed, medal) in its colour and mark
 //   maps.setLines(features)  a quest's route and the guide line to its start, on both
+//   maps.side, maps.onOpen(fn(open)), maps.close(), maps.flyTo(lat, lon)  the full map's panel (quest finding)
 //
 // Also for the editor (editor/mapView.js): maplibre() loads MapLibre, regionStyle() the region's map style.
 
@@ -162,6 +163,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   full.innerHTML = `<div id="worldFullMap"></div><div id="worldFullSide"><h3>${manifest.name}</h3><small>Tab or Esc closes · click a place, or press its number, to go there</small><div id="worldSpots"></div></div>`;
   document.body.appendChild(full);
   let fullMap = null, carMarker = null, last = null, open = false;
+  const openers = new Set<(on: boolean) => void>();
   const spots = manifest.spots ?? [];
   const list = full.querySelector('#worldSpots');
   spots.forEach((s, k) => {
@@ -181,6 +183,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   function set(on) {
     open = on;
     full.style.display = on ? 'block' : 'none';
+    for (const fn of openers) fn(on);
     if (on && !fullMap) {
       fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
       fullMap.on('click', e => { if (e.originalEvent.shiftKey) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); } });
@@ -194,6 +197,12 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   }
   return {
     get open() { return open; },
+    // the full map's side panel (play/questFinder.js draws the quest filters and fast travel there), and
+    // a callback each time the full map opens or closes
+    get side() { return full.querySelector('#worldFullSide') as HTMLElement; },
+    onOpen(fn: (on: boolean) => void) { openers.add(fn); return () => openers.delete(fn); },
+    close() { set(false); },
+    flyTo(lat: number, lon: number) { fullMap?.flyTo({ center: [lon, lat], zoom: 15 }); },
     toggle() { set(!open); return open; },
     show(on) { mini.style.display = on ? '' : 'none'; if (!on) set(false); },
     update(lat, lon, bearing, speed = 0) {

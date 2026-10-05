@@ -28,7 +28,7 @@ import { medalOfPlace } from '../quest/rules.js';
 import { at } from '../route/geometry.js';
 import { headingOf } from '../route/grid.js';
 
-export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {}, race = null }) {
+export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {}, race = null, series = null }) {
   let Q = null, rec = null, detach = null, attemptId = null, placed = false, ending = null, results = null, disposed = false;
 
   function handle(e) {
@@ -65,7 +65,7 @@ export function createQuestController({ quest, course, config, player, car = {},
 
   async function finishUp(outcome) {
     detach?.(); detach = null;
-    const recording = outcome.status === 'finished' && rec ? rec.finish() : null;
+    const recording = outcome.status === 'finished' && rec ? rec.finish({ questId: quest.id, routeVersion: course.version ?? null }) : null;
     let pay = null, result = null, transfer = null;
     // a race: the NPCs still going get their times worked out; the place and everyone's times
     const R = race?.();
@@ -82,7 +82,9 @@ export function createQuestController({ quest, course, config, player, car = {},
     }
     if (outcome.status === 'finished') {
       result = buildResult({ quest, course, outcome, car, attemptId });
-      pay = await player.finishQuest(result, { quest, course, recording });
+      // (the series this quest is in: finishing the last of one pays its bonus)
+      const inSeries = series ? await series(quest).catch(() => []) : [];
+      pay = await player.finishQuest(result, { quest, course, recording, series: inSeries });
     } else {
       pay = await player.failQuest(attemptId, { questId: quest.id, status: outcome.status, reason: outcome.reason });
     }

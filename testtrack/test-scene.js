@@ -51,6 +51,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
 import { createRouteRun } from '../play/testDrive.js';
 import { createQuestPlay } from '../play/questUi.js';
+import { createQuestFinder } from '../play/questFinder.js';
+import { regionOf } from '../quest/finder.js';
 import { createRace } from '../race/race.js';
 import { worldContent } from '../content/client.js';
 import { garageFor } from '../garage/player/profile.js';
@@ -97,6 +99,11 @@ const rwOf = w => (w?.track?.mapV3 ? MapV3 : RW2);
 const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
+// the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
+let baked = null;
+const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
+const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
+const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
 
 // Display / sound only (not physics):
 const FORCE_LINE_M_PER_N = 1 / 4000;           // force arrows: metres of line per newton
@@ -178,7 +185,7 @@ function questGame(w) {
     const p = player.profile, c = p.cars[id];
     if (!c) return null;
     const totals = id === p.currentCar ? s.session.stats?.totals : garageFor(p, db, id).stats().totals;
-    return { instanceId: id, carId: c.carId, name: db.cars[c.carId]?.name ?? c.carId, className: totals?.rating?.class ?? null, kw: totals?.peakPower?.kw ?? 0, kg: totals?.mass ?? 0,
+    return { instanceId: id, carId: c.carId, name: db.cars[c.carId]?.name ?? c.carId, className: totals?.rating?.class ?? null, rating: totals?.rating?.index ?? null, kw: totals?.peakPower?.kw ?? 0, kg: totals?.mass ?? 0,
       topSpeed: (totals?.rating?.estimates?.topSpeed ?? 250) / 3.6, value: c.price ?? 0, fingerprint: id === p.currentCar ? s.session.garage.build.fingerprint : null,
       drivable: drivability(db.cars[c.carId], ownedBySocket(db, p, id), db.damage) };
   };
@@ -198,6 +205,31 @@ function questGame(w) {
     carInstanceId: () => player.profile.currentCar,
     carSummary: summary,
     ownedCars: () => Object.keys(player.profile.cars).map(summary),
+    // the published series a quest is in, each with its quests (a series lists its quests; it's near them)
+    // fast travel (Phase 4 Step 5): to a quest's start, in this region or another baked one — the loading
+    // screen holds until its ground is in and its route loaded, then the car is on its grid and its card opens
+    regionId: () => regionIdOf(w),
+    fastTravel: async item => {
+      const r = regionOf(item.location, await bakedRegions());
+      if (!r) { G.say?.('That quest isn\'t in a baked region', 'warn'); return false; }
+      let to = w;
+      // (another region of the real world: the same world button on the page, so straight in)
+      if (r.id !== regionIdOf(w)) { await enter(regionFile(r.id)); to = active; }
+      if (!to?.stream) return false;
+      await to.quests?.preload(item);
+      MapV3.travelTo(to, { lat: item.location.lat, lon: item.location.lon, heading: item.location.heading ?? 0 });
+      const t0 = performance.now();
+      await new Promise(res => { const tick = () => (!to.spawning || performance.now() - t0 > 30000) ? res() : setTimeout(tick, 100); tick(); });
+      to.content?.openCard(item);
+      return true;
+    },
+    travelToRegion: async id => { await enter(regionFile(id)); },
+    seriesOf: async quest => {
+      content ??= await worldContent();
+      const near = (await content.service.query({ lat: quest.location.lat, lon: quest.location.lon, km: 25, view: 'published', kinds: ['series'], limit: 50 })).items ?? [];
+      const mine = near.map(x => x.item).filter(S => S.quests?.includes(quest.id));
+      return Promise.all(mine.map(async S => ({ item: S, quests: (await Promise.all(S.quests.map(id => content.service.get(id, { view: 'published' })))).map(r => r.item).filter(Boolean) })));
+    },
     routeItem: async id => { content ??= await worldContent(); return (await content.service.get(id, { view: 'published' })).item ?? (await content.service.get(id)).item; },
     network: () => network ??= (async () => {
       const url = new URL(w.track.mapV3.manifest, document.baseURI), manifest = await (await fetch(url)).json();
@@ -552,7 +584,10 @@ function restartAudio() {
 }
 
 async function buildWorld(file) {
-  const track = await (await fetch(file)).json();
+  // (a baked region of the real world: scenes/map_v3.json?region=<id> — fast travel to its quests)
+  const [path, query] = file.split('?'), region = new URLSearchParams(query ?? '').get('region');
+  const track = await (await fetch(path)).json();
+  if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
   if (track.streamed) await RW2.prepareTrack(track);
   if (track.mapV3) await MapV3.prepareTrack(track);
@@ -642,10 +677,13 @@ async function buildWorld(file) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
     // the world's published content: quest starts and the rest, in the world and on the maps
     // and its quests (play/questUi.js): the card, starting one, the run, the results
-    w.quests = createQuestPlay({ THREE, w, game: questGame(w), autopilot: new URLSearchParams(location.search).has('questBot') });
+    const game = questGame(w);
+    w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
       questCard: (it, el) => w.quests.card(it, el), stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
+    // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
+    w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
   }
   return w;
 }
@@ -671,6 +709,7 @@ function frame(w, now) {
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
+  if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car

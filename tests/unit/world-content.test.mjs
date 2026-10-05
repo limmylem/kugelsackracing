@@ -50,31 +50,41 @@ test('the quest format: every type is valid in shape, and says in plain words wh
     for (const e of errors) assert.match(e.message, /^[A-Z].*[.)]$/, 'a sentence');
   }
   assert.ok(problems(sprint(), { economy }).some(p => p.message === 'Sprint needs a route (or a finish line).'));
-  const q = finished(); q.fee = 5000;
-  assert.ok(problems(q, { economy }).some(p => /Entry fee \(\$5,000\) is higher than the reward \(\$800\)/.test(p.message)));
-  q.fee = 600;
-  assert.ok(problems(q, { economy }).some(p => /more than 50% of the reward/.test(p.message)));
-  q.fee = 300;
-  assert.deepEqual(problems(q, { economy }).filter(p => p.level === 'error'), []);
-  // the shape: bad fields are caught
-  assert.ok(check.shape({ ...q, fee: -1 }).length && check.shape({ ...q, extra: 1 }).length && check.shape({ ...q, location: { lat: 99, lon: 0, alt: 0, heading: 0 } }).length);
-  assert.ok(check.shape({ ...newItem('poi', { id: 'poi_abcd0001', location: SF }), rewards: { tier: 'easy' } }).length, 'a point of interest has no rewards');
+  // money isn't set on a quest: an unrated one says it'll be worked out; a pink slip's stakes follow its tier
+  const q = finished();
+  assert.ok(problems(q, { economy }).some(p => p.level === 'warning' && /Not rated yet/.test(p.message)));
+  assert.deepEqual(problems({ ...q, rating: { stars: 2, km: 3 } }, { economy }).filter(p => p.level === 'error'), []);
+  const pink = { ...withType(q, 'pink_slip'), rating: { stars: 1, km: 2 } };
+  pink.params.opponentCar = 'fast';
+  assert.ok(problems(pink, { economy, cars: { fast: { name: 'Fast', class: 'S' } } }).some(p => /Rookie pink slip stakes cars up to class D: the rival's car is class S/.test(p.message)));
+  // the shape: bad fields are caught (a chosen fee or reward tier is no longer a field)
+  assert.ok(check.shape({ ...q, fee: 100 }).length && check.shape({ ...q, rewards: { tier: 'easy' } }).length && check.shape({ ...q, extra: 1 }).length && check.shape({ ...q, location: { lat: 99, lon: 0, alt: 0, heading: 0 } }).length);
+  assert.ok(check.shape({ ...newItem('poi', { id: 'poi_abcd0001', location: SF }), rating: { stars: 2 } }).length, 'a point of interest has no rating');
   // a type switched keeps what both have
   assert.deepEqual(withType(finished(), 'pink_slip').params.finish, finished().params.finish);
 });
 
-test('rewards come from the economy\'s rules, never from the quest', () => {
-  const q = finished();
-  assert.equal(rewardsOf(q, economy).money, 800);
-  q.rewards.tier = 'hard'; q.entry.classes = ['B', 'A'];
-  assert.equal(rewardsOf(q, economy).money, Math.round(800 * 1.6 * 2.4 / 50) * 50, 'the lowest class let in sets it');
-  const drift = withType(q, 'drift');
-  assert.equal(rewardsOf(drift, economy).money, Math.round(800 * 1.6 * 1.1 * 2.4 / 50) * 50);
+test('rewards come from the economy\'s rules and the quest\'s rating, never from the quest', () => {
+  const Q = economy.quests, R = x => Math.round(x / Q.roundTo) * Q.roundTo;
+  const q = { ...finished(), rating: { stars: 2, km: 3 } };
+  const core = (Q.base.money + Q.perKm.money * 3) * Q.byStars[1];
+  assert.equal(rewardsOf(q, economy).money, R(core), 'a 2-star, 3 km sprint for any car (a Rookie quest: no fee)');
+  assert.equal(rewardsOf(q, economy).fee, 0);
+  // harder, longer, for a better class: more — and a higher tier, with a fee that a win pays back
+  const hard = { ...q, rating: { stars: 4, km: 8 }, entry: { ...q.entry, classes: ['B', 'A'] } }, r = rewardsOf(hard, economy);
+  const hc = (Q.base.money + Q.perKm.money * 8) * Q.byStars[3] * Q.byClass.B;
+  assert.equal(r.tier, Math.floor((4 + Q.tierOfClass.B) / 2), 'the tier from the stars and the class');
+  assert.equal(r.fee, R(hc * Q.tiers[r.tier - 1].feeShare));
+  assert.equal(r.money, R(hc + r.fee * Q.fee.back), 'the lowest class let in sets it; the fee comes back on a win');
+  // rivals add to it; a drift pays its type's share; a pink slip pays no money
+  const raced = rewardsOf({ ...q, npc: { count: 5, skill: [0.6, 0.9] } }, economy);
+  assert.ok(raced.money > rewardsOf(q, economy).money && raced.xp > rewardsOf(q, economy).xp);
+  assert.equal(rewardsOf(withType(q, 'drift'), economy).money, R(core * Q.byType.drift));
   assert.equal(rewardsOf(withType(q, 'pink_slip'), economy).money, 0);
-  const richer = { ...economy, quests: { ...economy.quests, base: { ...economy.quests.base, money: 1000 } } };
+  const richer = { ...economy, quests: { ...Q, base: { ...Q.base, money: Q.base.money * 2 } } };
   assert.ok(rewardsOf(q, richer).money > rewardsOf(q, economy).money, 'changing the rules changes every quest');
-  q.rewards.tier = 'legendary';
-  assert.ok(problems(q, { economy }).some(p => /There's no reward tier "legendary"/.test(p.message)));
+  // not rated yet: the defaults
+  assert.equal(rewardsOf(finished(), economy).money, R((Q.base.money + Q.perKm.money * Q.defaults.km) * Q.byStars[Q.defaults.stars - 1]));
   assert.deepEqual(entryCheck(finished(), { className: 'D', kw: 80, kg: 1100 }), []);
   const e = entryCheck({ entry: { classes: ['C'], maxPowerKw: 100 } }, { className: 'D', kw: 120, kg: 1100 });
   assert.deepEqual(e.map(x => x.ok), [false, false]);
@@ -167,14 +177,15 @@ test('export and import: a round trip, one area or everything, version checks, v
   assert.match((await B.importContent({ ...doc, version: 9 })).error, /newer version of the game/);
   assert.match((await B.importContent({ format: 'something-else' })).error, /isn't a world content file/);
   assert.match((await B.importContent('{ not json')).error, /isn't a world content file/);
-  // an older file (version 1: flat places, money set by hand) comes in as version 3, on a tier
+  // an older file (version 1: flat places, money set by hand) comes in as version 4: its money now follows its rating
   const v1 = { format: 'world-content', version: 1, entries: [{ draft: { id: 'quest_old00001', version: 1, kind: 'quest', title: 'Old drift', lat: SF.lat, lon: SF.lon, heading: -90, questType: 'drift', reward: 1500, fee: 100, author: 'early', created: '2025-01-01T00:00:00Z' } }] };
   const m = await B.importContent(v1);
   assert.ok(m.ok && m.imported === 1 && m.migrated === 1, JSON.stringify(m));
   const old = (await B.get('quest_old00001')).item;
-  assert.equal(old.version, 3); assert.equal(old.name, 'Old drift'); assert.equal(old.type, 'drift'); assert.deepEqual(old.rewards, { tier: 'hard' }); assert.equal(old.location.heading, 270);
-  assert.equal(migrate({ version: 4 }).error.includes('newer version'), true);
-  assert.deepEqual(migrate({ ...old, version: 2 }), { item: old, from: 2, migrated: true }, 'version 2 → 3: as it is');
+  assert.equal(old.version, 4); assert.equal(old.name, 'Old drift'); assert.equal(old.type, 'drift'); assert.equal(old.rewards, undefined); assert.equal(old.fee, undefined); assert.equal(old.rating, null); assert.equal(old.location.heading, 270);
+  assert.equal(migrate({ version: 5 }).error.includes('newer version'), true);
+  const { rating, ...v3 } = old;
+  assert.deepEqual(migrate({ ...v3, version: 3, fee: 100, rewards: { tier: 'hard' } }), { item: old, from: 3, migrated: true }, 'version 3 → 4: the chosen fee and tier dropped, not rated yet');
   // a broken entry is skipped with its reason, the rest come in
   const mixed = await B.importContent({ ...doc, entries: [{ draft: { ...doc.entries[0].draft, location: { lat: 200, lon: 0, alt: 0, heading: 0 } } }, doc.entries[2]] });
   assert.equal(mixed.imported, 1); assert.equal(mixed.skipped.length, 1);
@@ -187,7 +198,7 @@ test('undo and redo every editor action: place, move, turn, edit, duplicate, del
   const place = await H.run('Place', [], () => S.create(finished())), id = place.item.id; states.push(await snap());
   await H.run('Move', [id], () => S.update(id, { location: { ...offset(SF, 6, 10), alt: 3, heading: 45 } })); states.push(await snap());
   await H.run('Turn', [id], () => S.update(id, { location: { ...offset(SF, 6, 10), alt: 3, heading: 180 } })); states.push(await snap());
-  await H.run('Edit', [id], () => S.update(id, { name: 'Edited', fee: 100 })); states.push(await snap());
+  await H.run('Edit', [id], () => S.update(id, { name: 'Edited', description: 'Changed' })); states.push(await snap());
   const dup = await H.run('Duplicate', [], async () => { const it = (await S.get(id)).item; return S.create({ ...it, id: undefined, name: 'Copy' }); }); states.push(await snap());
   await H.run('Publish', [id], () => S.publish(id)); states.push(await snap());
   await H.run('Archive', [id], () => S.remove(id, { confirm: true })); states.push(await snap());

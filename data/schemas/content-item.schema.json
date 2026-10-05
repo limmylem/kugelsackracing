@@ -20,14 +20,15 @@
       "pattern": "^[a-z]+_[0-9a-z]{4,40}$"
     },
     "version": {
-      "const": 3
+      "const": 4
     },
     "kind": {
       "enum": [
         "quest",
         "poi",
         "spawn",
-        "route"
+        "route",
+        "series"
       ]
     },
     "name": {
@@ -185,25 +186,6 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
-        }
-      }
-    },
-    "fee": {
-      "description": "Entry fee (the economy's currency).",
-      "type": "number",
-      "minimum": 0
-    },
-    "rewards": {
-      "description": "Which of the economy's reward tiers (data/economy.json quests.tiers): the money and xp are worked out from it, never stored.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "tier"
-      ],
-      "properties": {
-        "tier": {
-          "type": "string",
-          "pattern": "^[a-z_]+$"
         }
       }
     },
@@ -689,6 +671,61 @@
           }
         }
       }
+    },
+    "rating": {
+      "description": "A quest's difficulty, worked out (quest/difficulty.js) when it's saved or published, and again by bulk validation: never set by hand. Its reward and fee follow from it (content/quests.js rewardsOf). Null: not rated yet.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "stars"
+      ],
+      "properties": {
+        "stars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "points": {
+          "type": "number"
+        },
+        "km": {
+          "type": "number",
+          "minimum": 0
+        },
+        "recommended": {
+          "type": "number"
+        },
+        "recommendedClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parts": {
+          "type": "array"
+        },
+        "routeVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "at": {
+          "type": "string"
+        }
+      }
+    },
+    "quests": {
+      "description": "A series' quests, in order (3–6 quest ids): finishing all of them pays the series bonus (data/economy.json series).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^quest_[0-9a-z]{4,40}$"
+      },
+      "maxItems": 6
     }
   },
   "allOf": [
@@ -705,8 +742,6 @@
           "type",
           "route",
           "entry",
-          "fee",
-          "rewards",
           "npc",
           "conditions",
           "enabled",
@@ -728,17 +763,17 @@
             },
             {
               "required": [
-                "rewards"
-              ]
-            },
-            {
-              "required": [
                 "params"
               ]
             },
             {
               "required": [
                 "route"
+              ]
+            },
+            {
+              "required": [
+                "rating"
               ]
             }
           ]
@@ -762,6 +797,27 @@
         "not": {
           "required": [
             "course"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "series"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "quests"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "quests"
           ]
         }
       }

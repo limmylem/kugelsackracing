@@ -3,26 +3,28 @@
 // takes over, this is the one place that changes (a RemoteWorldContentService answering the same
 // requests: docs/WORLD_CONTENT.md).
 //
-//   const { service, check, economy, classes, cars } = await worldContent()
+//   const { service, check, economy, classes, cars, quests } = await worldContent()
 
 import { createLocalContentService } from './service.js';
 import { IdbContentStorage, MemoryContentStorage } from './storage.js';
 import { contentChecker } from './schema.js';
+import { makeRater } from './rating.js';
 
 let made = null;
 const readJson = async p => { const r = await fetch(p, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
 
 export function worldContent({ author = null } = {}) {
   return made ??= (async () => {
-    const [schema, economy, classesFile, carIndex] = await Promise.all(['data/schemas/content-item.schema.json', 'data/economy.json', 'data/classes.json', 'data/cars/index.json'].map(readJson));
+    const [schema, economy, classesFile, carIndex, quests] = await Promise.all(['data/schemas/content-item.schema.json', 'data/economy.json', 'data/classes.json', 'data/cars/index.json', 'data/quests.json'].map(readJson));
     // (the cars, by id, with their names: for a pink slip's rival)
-    const cars = Object.fromEntries(await Promise.all(carIndex.cars.map(async f => { const c = await readJson(`data/cars/${f}`); return [c.id ?? f.split('/')[0], { name: c.name ?? f.split('/')[0] }]; })));
+    const cars = Object.fromEntries(await Promise.all(carIndex.cars.map(async f => { const c = await readJson(`data/cars/${f}`); return [c.id ?? f.split('/')[0], { name: c.name ?? f.split('/')[0], class: c.class ?? null }]; })));
     const check = contentChecker(schema, { economy, classes: classesFile.classes, cars });
     let storage;
     try { storage = typeof indexedDB !== 'undefined' ? new IdbContentStorage() : new MemoryContentStorage(); await storage.getIndex(); }
     catch { storage = new MemoryContentStorage(); console.warn('World content: no IndexedDB here, so nothing is kept after this page closes.'); }
-    const service = createLocalContentService({ storage, check, author: author ?? localStorageGet('kugelsack.editor.author') ?? 'editor' });
-    return { service, check, economy, classes: classesFile.classes, cars, persistent: storage instanceof IdbContentStorage };
+    const rate = makeRater({ config: quests, classes: classesFile.classes });
+    const service = createLocalContentService({ storage, check, rate, author: author ?? localStorageGet('kugelsack.editor.author') ?? 'editor' });
+    return { service, check, rate, economy, quests, classes: classesFile.classes, cars, persistent: storage instanceof IdbContentStorage };
   })();
 }
 

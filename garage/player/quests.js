@@ -5,16 +5,22 @@
 //
 //   profile.xp                   all the xp earned
 //   profile.quests[questId]      { attempts, finishes, dnfs, completed, medal, bestTime, bestScore, bestSplits,
-//                                  bestLaps, paidShare, finishPaid, recording, lastPlayed }
+//                                  bestLaps, paidShare, finishPaid, recording, lastPlayed, recent: [ISO finish times in the
+//                                  farming window], routeVersion (of its best), oldRecord (its best is from an older
+//                                  version of the quest), oldBest: { time, score, routeVersion } (the best on the
+//                                  route before it was changed, once a run on the new one has replaced it) }
+//   profile.series[seriesId]     { completed: ISO time, money, xp } a series finished, its bonus paid
 //   profile.questPending         { attemptId, questId, fee, started, pinkSlip? } the run under way (its fee paid)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
 
-import { earnings, medalOf, medalOfPlace, medalTargets, tierRank } from '../../quest/rules.js';
+import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf } from '../../quest/rules.js';
+import { rewardsOf } from '../../content/quests.js';
 import { validateResult } from '../../quest/validate.js';
 
 export const LOG_SIZE = 50;
 export const progressOf = (profile, questId) => profile.quests?.[questId] ?? null;
-const blank = () => ({ bestPlace: null, attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
+const RECENT = 10;
+const blank = () => ({ recent: [], routeVersion: null, oldRecord: false, oldBest: null, bestPlace: null, attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
 const progress = (p, questId) => ((p.quests ??= {})[questId] ??= blank());
 const log = (p, entry) => { (p.questLog ??= []).push(entry); if (p.questLog.length > LOG_SIZE) p.questLog.splice(0, p.questLog.length - LOG_SIZE); };
 
@@ -50,7 +56,7 @@ export function failAttempt(p, { attemptId, questId, status, reason, now }) {
 }
 
 // A finished run: checked, then paid what it earns. Returns { valid, problems, money, xp, medal, pb, lines, tiers, repeat }
-export function finishAttempt(p, { result, quest, course, config, economy, now, recordingId = null }) {
+export function finishAttempt(p, { result, quest, course, config, economy, now, recordingId = null, series = [] }) {
   const pending = p.questPending;
   const problems = [];
   if (!pending || pending.attemptId !== result.attemptId || pending.questId !== quest.id) problems.push('No quest was started for this result (or it was already handed in).');
@@ -66,18 +72,29 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
   // (a race: the place is the medal)
   const medal = result.place != null ? medalOfPlace(result.place, config) : medalOf(medalTargets(quest, course, config), { time: result.time, score: result.score });
   const outcome = { status: 'finished', medal, cargoLost: result.cargoLost ?? 0, place: result.place ?? null };
-  const pay = earnings({ quest, outcome, progress: { paidShare: q.paidShare, finishPaid: q.finishPaid }, economy, config });
+  const pay = earnings({ quest, outcome, progress: { paidShare: q.paidShare, finishPaid: q.finishPaid, recent: q.recent }, economy, config, now });
+  const levelWas = levelOf(p.xp ?? 0, config);
   p.money += pay.money;
   p.xp = (p.xp ?? 0) + pay.xp;
+  q.recent = [...(q.recent ?? []), now].slice(-RECENT);
   q.finishes++; q.completed = true;
   if (!pay.repeat) { if (medal && config.rewards[medal] > q.paidShare) q.paidShare = config.rewards[medal]; else if (!medal) q.finishPaid = true; }
   if (tierRank(medal) > tierRank(q.medal)) q.medal = medal;
+  // a best set on another version of the route (the quest edited since): kept as the older version's, and
+  // this run is the first on the new one
+  const version = result.routeVersion ?? course?.version ?? null;
+  let older = null;
+  if (version && q.routeVersion && q.routeVersion !== version && (q.bestTime != null || q.bestScore != null)) {
+    older = q.oldBest = { time: q.bestTime, score: q.bestScore, routeVersion: q.routeVersion };
+    q.bestTime = null; q.bestScore = null; q.bestSplits = null; q.bestLaps = null; q.recording = null; q.oldRecord = false;
+  }
   // a personal best: the time (or the score), its splits and laps, its recording
   const scored = result.score != null && quest.type === 'drift';
   const pb = scored ? (q.bestScore == null || result.score > q.bestScore) : (q.bestTime == null || result.time < q.bestTime);
-  const was = { time: q.bestTime, score: q.bestScore };
+  const was = older ? { time: older.time, score: older.score, older: true } : { time: q.bestTime, score: q.bestScore };
   if (pb) {
     if (scored) q.bestScore = result.score; else q.bestTime = result.time;
+    q.routeVersion = version; q.oldRecord = false;
     q.bestSplits = result.checkpoints.map(c => c.time);
     q.bestLaps = result.laps.slice();
     if (recordingId) q.recording = recordingId;
@@ -85,7 +102,45 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
   if (result.time != null && scored && (q.bestTime == null || result.time < q.bestTime)) q.bestTime = result.time;
   log(p, { at: now, attemptId: result.attemptId, questId: quest.id, status: 'finished', time: result.time, score: result.score, ...(result.place != null ? { place: result.place } : {}), money: pay.money, xp: pay.xp, medal, valid: true });
   if (result.place != null && (q.bestPlace == null || result.place < q.bestPlace)) q.bestPlace = result.place;
-  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat };
+  // a series finished with this quest: its bonus, once
+  const bonuses = [];
+  for (const S of series ?? []) {
+    const ids = S.item?.quests ?? [], done = p.series?.[S.item.id];
+    if (done || !ids.includes(quest.id) || !ids.every(id => p.quests?.[id]?.completed)) continue;
+    const b = seriesBonus(S, economy);
+    p.money += b.money; p.xp += b.xp;
+    (p.series ??= {})[S.item.id] = { completed: now, money: b.money, xp: b.xp };
+    bonuses.push({ series: S.item.id, name: S.item.name, ...b });
+  }
+  const level = levelOf(p.xp ?? 0, config);
+  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat, farming: pay.farming, series: bonuses, levelUp: level > levelWas ? level : null };
+}
+
+// A series' bonus (data/economy.json series): its share of what its quests' gold medals pay, in all
+export function seriesBonus(S, economy) {
+  const R = economy.series ?? { moneyShare: 0.5, xpShare: 0.5 }, round = economy.quests?.roundTo ?? 1;
+  let money = 0, xp = 0;
+  for (const q of S.quests ?? []) { const r = rewardsOf(q, economy); money += r.money; xp += r.xp; }
+  return { money: Math.round(money * R.moneyShare / round) * round, xp: Math.round(xp * R.xpShare) };
+}
+
+// A quest edited after it was published: a best made on another version of its route is kept, but
+// marked as from an older version (it's not this quest's record any more)
+export function markOldRecords(profile, questId, routeVersion) {
+  const q = profile.quests?.[questId];
+  if (!q || !routeVersion || !q.routeVersion || q.routeVersion === routeVersion) return false;
+  q.oldRecord = true;
+  return true;
+}
+
+// A quest's best as it stands on the version of its route there is now (routeVersion: the course's
+// version): its time or score, and — only if it was set on this version — its splits, laps and recording to
+// race against. old: it was set on an earlier version (still shown, marked so); oldBest: the earlier
+// version's, once beaten on the new one
+export function bestOf(prog, routeVersion) {
+  if (!prog) return null;
+  const old = !!prog.oldRecord || !!(routeVersion && prog.routeVersion && prog.routeVersion !== routeVersion);
+  return { time: prog.bestTime, score: prog.bestScore, splits: old ? null : prog.bestSplits, laps: old ? null : prog.bestLaps, recording: old ? null : prog.recording, place: prog.bestPlace, old, oldBest: prog.oldBest ?? null };
 }
 
 // Loading a save: the quest records as they should be
@@ -102,10 +157,18 @@ export function checkQuests(profile) {
         bestPlace: Number.isInteger(q.bestPlace) && q.bestPlace > 0 ? q.bestPlace : null, completed: !!q.completed, medal: ['bronze', 'silver', 'gold'].includes(q.medal) ? q.medal : null,
         bestTime: num(q.bestTime), bestScore: num(q.bestScore), bestSplits: Array.isArray(q.bestSplits) ? q.bestSplits.filter(Number.isFinite) : null, bestLaps: Array.isArray(q.bestLaps) ? q.bestLaps.filter(Number.isFinite) : null,
         paidShare: Math.max(0, Math.min(1, num(q.paidShare) ?? 0)), finishPaid: !!q.finishPaid, recording: typeof q.recording === 'string' ? q.recording : null, lastPlayed: typeof q.lastPlayed === 'string' ? q.lastPlayed : null,
+        recent: Array.isArray(q.recent) ? q.recent.filter(x => typeof x === 'string' && Number.isFinite(Date.parse(x))).slice(-RECENT) : [], routeVersion: typeof q.routeVersion === 'string' ? q.routeVersion : null, oldRecord: !!q.oldRecord,
+        oldBest: q.oldBest && typeof q.oldBest === 'object' && (Number.isFinite(q.oldBest.time) || Number.isFinite(q.oldBest.score)) ? { time: num(q.oldBest.time), score: num(q.oldBest.score), routeVersion: typeof q.oldBest.routeVersion === 'string' ? q.oldBest.routeVersion : null } : null,
       };
     }
     profile.quests = out;
     if (!Object.keys(out).length) delete profile.quests;
+  }
+  if (profile.series !== undefined) {
+    const out = {};
+    for (const [id, x] of Object.entries(profile.series ?? {})) if (x && typeof x.completed === 'string' && /^series_[0-9a-z]{4,40}$/.test(id)) out[id] = { completed: x.completed, money: Number.isFinite(x.money) ? x.money : 0, xp: Number.isFinite(x.xp) ? x.xp : 0 };
+    profile.series = out;
+    if (!Object.keys(out).length) delete profile.series;
   }
   if (profile.questLog !== undefined) { profile.questLog = Array.isArray(profile.questLog) ? profile.questLog.filter(e => e && typeof e === 'object').slice(-LOG_SIZE) : []; if (!profile.questLog.length) delete profile.questLog; }
   // (a run under way when the game closed: its fee is spent, as a quit's would be)

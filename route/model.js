@@ -56,7 +56,7 @@ export function compileRoute(N, route) {
   // (the shortcuts to show: the uncovered ones first, each bunch as its biggest)
   for (const cut of out.allShortcuts) cut.covered = isCovered(cut, out.checkpoints, L, loop);
   out.shortcuts = [...mergeCuts(out.allShortcuts.filter(c => !c.covered), L, loop), ...mergeCuts(out.allShortcuts.filter(c => c.covered), L, loop)];
-  out.stats = routeStats(line, { loop, segments: built.segments });
+  out.stats = routeStats(line, { loop, segments: built.segments, junctions: (built.nodes ?? []).filter(n => n.degree > 2).length });
   out.problems = validateRoute(out);
   return out;
 }

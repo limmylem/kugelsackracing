@@ -2,8 +2,10 @@
 // roads it uses (in order) and an estimate of the time a starter car takes: the fastest it can go through
 // each corner (grip), braking for the corners ahead and accelerating out of them, up to its top speed.
 //
-//   routeStats(line, { loop, segments, car }) → { length, turns, sharpest, climb, descent, maxGrade, minAlt,
-//                                                  maxAlt, estimatedTime, roads }
+//   routeStats(line, { loop, segments, car, junctions }) → { length, turns, sharpest, climb, descent, maxGrade,
+//                                                  minAlt, maxAlt, estimatedTime, roads, features }
+//   routeFeatures(line, { loop, junctions }) → what makes it hard to drive (quest/difficulty.js): { km,
+//     cornersPerKm, sharpnessPerKm, hairpins, elevationPerKm, maxGrade, narrowShare, minWidth, junctionsPerKm }
 
 import { radiusAt, at } from './geometry.js';
 
@@ -49,7 +51,32 @@ export function estimateTime(line, car = STARTER_CAR, loop = false) {
   return t;
 }
 
-export function routeStats(line, { loop = false, segments = [], car = STARTER_CAR } = {}) {
+// What makes a route hard to drive, per km where it's a density: corners and how sharp they are (a
+// corner's sharpness: 25 m / its radius, at most 1, × its angle / 90°, at most 1), hairpins (under 15 m
+// radius, turning past 120°), height gained and lost, the steepest grade, the share of it on narrow roads (under 6 m),
+// the narrowest point, and junctions passed (null if not known)
+export function routeFeatures(line, { loop = false, junctions = null } = {}) {
+  if (line.length < 2) return null;
+  const L = line.at(-1).s, km = Math.max(0.05, L / 1000), cs = corners(line, loop);
+  let narrow = 0, minWidth = Infinity, rise = 0;
+  for (let k = 1; k < line.length; k++) {
+    const ds = line[k].s - line[k - 1].s, w = line[k].w ?? 7;
+    if (w < 6) narrow += ds;
+    minWidth = Math.min(minWidth, w);
+    rise += Math.abs(line[k].h - line[k - 1].h);
+  }
+  let maxGrade = 0;
+  for (let s = 0; s + 20 <= L; s += 10) maxGrade = Math.max(maxGrade, Math.abs(at(line, s + 20).h - at(line, s).h) / 20);
+  const sharp = cs.reduce((a, c) => a + Math.min(1, 25 / Math.max(1, c.radius)) * Math.min(1, Math.abs(c.angle) / 90), 0);
+  const r2 = x => Math.round(x * 100) / 100;
+  return {
+    km: r2(km), cornersPerKm: r2(cs.length / km), sharpnessPerKm: r2(sharp / km), hairpins: cs.filter(c => c.radius < 15 && Math.abs(c.angle) > 120).length,
+    elevationPerKm: Math.round(rise / km), maxGrade: r2(maxGrade * 100), narrowShare: r2(narrow / L), minWidth: Number.isFinite(minWidth) ? r2(minWidth) : null,
+    junctionsPerKm: junctions == null ? null : r2(junctions / km),
+  };
+}
+
+export function routeStats(line, { loop = false, segments = [], car = STARTER_CAR, junctions = null } = {}) {
   if (line.length < 2) return { length: 0, turns: 0, sharpest: null, climb: 0, descent: 0, maxGrade: 0, minAlt: 0, maxAlt: 0, estimatedTime: 0, roads: [] };
   const cs = corners(line, loop);
   let climb = 0, descent = 0, maxGrade = 0, minAlt = Infinity, maxAlt = -Infinity;
@@ -69,6 +96,6 @@ export function routeStats(line, { loop = false, segments = [], car = STARTER_CA
     length: Math.round(L), turns: cs.length,
     sharpest: sharp ? { s: Math.round(sharp.s), radius: r1(sharp.radius), angle: Math.round(sharp.angle), way: sharp.way } : null,
     climb: Math.round(climb), descent: Math.round(descent), maxGrade: r1(maxGrade * 100), minAlt: Math.round(minAlt), maxAlt: Math.round(maxAlt),
-    estimatedTime: r1(estimateTime(line, car, loop)), roads,
+    estimatedTime: r1(estimateTime(line, car, loop)), roads, features: routeFeatures(line, { loop, junctions }),
   };
 }

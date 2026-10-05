@@ -45,7 +45,7 @@ const boxesMeet = (a, b) => a[0] <= b[2] && a[2] >= b[0] && (b[1] <= b[3] ? a[1]
 const cellOf = loc => encode(loc.lat, loc.lon, CELL_PRECISION);
 const randomId = kind => `${kind}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-export function createLocalContentService({ storage, check, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, autosaveMs = 300 } = {}) {
+export function createLocalContentService({ storage, check, rate = null, author = 'editor', now = () => new Date().toISOString(), newId = randomId, maxCells = 3000, autosaveMs = 300 } = {}) {
   let index = null;                       // { layout, ids: { id: cell }, cells: { view: { cell: count } } }
   const nonEmpty = {};                    // view → how many cells have anything (kept as they change)
   const coarse = {};                      // view → Map(3-letter prefix → Set of its cells with anything): wide areas found fast
@@ -58,6 +58,12 @@ export function createLocalContentService({ storage, check, author = 'editor', n
 
   // one request at a time (a move between cells is several reads and writes)
   const serial = fn => { const r = queue.then(fn, fn); queue = r.catch(() => {}); return r; };
+  // a quest rated from its route (content/rating.js: its difficulty, so its reward) as it's saved
+  const rated = async item => {
+    if (!rate || item.kind !== 'quest') return item;
+    const route = item.route ? (await readItem(item.route, 'draft')) ?? (await readItem(item.route, 'published')) : null;
+    return rate(item, { route });
+  };
   const ready = async () => {
     if (index) return;
     index = await storage.getIndex() ?? { layout: 1, ids: {}, cells: Object.fromEntries(VIEWS.map(v => [v, {}])) };
@@ -67,8 +73,20 @@ export function createLocalContentService({ storage, check, author = 'editor', n
   async function cells(view, list) {
     const missing = list.filter(c => !cache.has(`${view}/${c}`) && index.cells[view][c]);
     if (missing.length) {
-      const got = await storage.getCells(missing.map(c => `${view}/${c}`));
-      for (const [k, rec] of got) cache.set(k, { items: new Map((rec?.items ?? []).map(i => [i.id, i])), dirty: false, used: 0 });
+      const got = await storage.getCells(missing.map(c => `${view}/${c}`)), older = [];
+      for (const [k, rec] of got) {
+        // (items saved by an older version of the game: brought up to date as they load, and saved so)
+        const e = { items: new Map(), dirty: false, used: 0 };
+        for (const i of rec?.items ?? []) {
+          const m = i.version === CONTENT_VERSION ? null : migrate(i);
+          if (m?.item) { e.items.set(i.id, m.item); e.dirty = true; if (m.item.kind === 'quest' && !m.item.rating) older.push([e, m.item]); }
+          else e.items.set(i.id, i);
+        }
+        cache.set(k, e);
+      }
+      // (a quest from before ratings: rated from its route now, so its reward follows the rules)
+      for (const [e, it] of older) e.items.set(it.id, await rated(it));
+      if (older.length || [...got].some(([k]) => cache.get(k)?.dirty)) schedule();
     }
     const out = [];
     for (const c of list) {
@@ -196,7 +214,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
 
     create: input => serial(async () => {
       await ready();
-      const t = now(), item = { ...clone(input), id: input.id && !index.ids[input.id] ? input.id : newId(input.kind), version: CONTENT_VERSION, status: 'draft', author: input.author ?? author, created: t, updated: t, publishedAt: null };
+      const t = now(), item = await rated({ ...clone(input), id: input.id && !index.ids[input.id] ? input.id : newId(input.kind), version: CONTENT_VERSION, status: 'draft', author: input.author ?? author, created: t, updated: t, publishedAt: null });
       const shape = check.shape(item);
       if (shape.length) return { ok: false, error: shape[0].message, problems: shape };
       await putState(item.id, { draft: item, published: null, archived: null });
@@ -207,7 +225,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       await ready();
       const old = await readItem(id, 'draft');
       if (!old) return { ok: false, error: (await readItem(id, 'archived')) ? 'It\'s archived: restore it to edit it.' : 'There\'s no such item.' };
-      const item = { ...old, ...clone(input), id, version: CONTENT_VERSION, created: old.created, author: old.author, status: old.status, publishedAt: old.publishedAt, updated: now() };
+      const item = await rated({ ...old, ...clone(input), id, version: CONTENT_VERSION, created: old.created, author: old.author, status: old.status, publishedAt: old.publishedAt, updated: now() });
       const shape = check.shape(item);
       if (shape.length) return { ok: false, error: shape[0].message, problems: shape };
       const state = await stateOf(id);
@@ -224,7 +242,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       const route = routeId ? (await readItem(routeId, 'draft')) ?? (await readItem(routeId, 'published')) ?? null : undefined;
       const errors = blocking(check(draft, routeId ? { route } : {}));
       if (errors.length) return { ok: false, error: `Can't publish "${draft.name || 'it'}" yet: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`, problems: errors };
-      const t = now(), item = { ...draft, status: 'published', publishedAt: t };
+      const t = now(), item = { ...(rate && draft.kind === 'quest' ? rate(draft, { route }) : draft), status: 'published', publishedAt: t };
       const state = await stateOf(id);
       await putState(id, { ...state, draft: item, published: clone(item) });
       let routeItem = null;
@@ -308,7 +326,7 @@ export function createLocalContentService({ storage, check, author = 'editor', n
       if (doc?.format !== EXPORT_FORMAT) return { ok: false, error: `That isn't a world content file (its format is "${doc?.format ?? 'missing'}").` };
       if (!(doc.version >= 1)) return { ok: false, error: 'The file doesn\'t say which version of the format it is.' };
       if (doc.version > CONTENT_VERSION) return { ok: false, error: `The file was made by a newer version of the game (content version ${doc.version}; this one reads up to ${CONTENT_VERSION}).` };
-      let imported = 0, migrated = 0; const skipped = [];
+      let imported = 0, migrated = 0; const skipped = [], unrated = [];
       for (const entry of doc.entries ?? []) {
         const state = {}, id = (entry.draft ?? entry.published ?? entry.archived)?.id ?? '?';
         let bad = null;
@@ -327,6 +345,14 @@ export function createLocalContentService({ storage, check, author = 'editor', n
         if (index.ids[id] && onConflict === 'skip') { skipped.push({ id, why: 'already here (kept as it is)' }); continue; }
         await putState(id, state);
         imported++;
+        if (rate && ['draft', 'published'].some(v => state[v]?.kind === 'quest' && !state[v].rating && (entry[v]?.version ?? 1) < CONTENT_VERSION)) unrated.push(id);
+      }
+      // (quests from before ratings: rated from their routes — now that every route in the file is in — so
+      // their rewards follow the rules)
+      for (const id of unrated) {
+        const st = await stateOf(id);
+        for (const v of ['draft', 'published']) if (st[v] && !st[v].rating) st[v] = await rated(st[v]);
+        await putState(id, st);
       }
       await save();
       emit({ type: 'import', count: imported });

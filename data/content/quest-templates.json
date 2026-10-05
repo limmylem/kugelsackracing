@@ -1,0 +1,13 @@
+{
+  "_note": "Quest templates (the editor's quest panel and route suggestions: content/templates.js applyTemplate). Each sets a quest's type, its rivals and entry, and anything its type needs; the name may use {road} (the route's first road) and {region}. what route it suits: twisty roads (suggestions rank those first) or any. A quest made from one is a draft like any other, rated from its route as it's saved: nothing here sets money.",
+  "templates": [
+    { "id": "mountain_sprint", "name": "Mountain sprint, 3 NPCs, medium", "quest": { "type": "sprint", "name": "{road} sprint", "npc": { "count": 3, "skill": [0.45, 0.7], "drivers": "random", "rubberBand": true } }, "route": "twisty" },
+    { "id": "mountain_sprint_hard", "name": "Mountain sprint, 5 NPCs, hard", "quest": { "type": "sprint", "name": "{road} showdown", "npc": { "count": 5, "skill": [0.65, 0.95], "drivers": "random", "rubberBand": true } }, "route": "twisty" },
+    { "id": "city_sprint", "name": "City sprint, 2 NPCs, easy", "quest": { "type": "sprint", "name": "{road} dash", "npc": { "count": 2, "skill": [0.25, 0.5], "drivers": "random", "rubberBand": true } }, "route": "any" },
+    { "id": "solo_time_trial", "name": "Time trial, solo", "quest": { "type": "time_trial", "name": "{road} time trial", "params": { "targetSeconds": 120 } }, "route": "twisty" },
+    { "id": "checkpoint_run", "name": "Checkpoint run, 3 minutes", "quest": { "type": "checkpoint", "name": "{road} checkpoints", "params": { "timeLimitSeconds": 180 } }, "route": "any" },
+    { "id": "drift_run", "name": "Drift, 5,000 points", "quest": { "type": "drift", "name": "{road} drift", "params": { "scoreTarget": 5000 } }, "route": "twisty" },
+    { "id": "fragile_delivery", "name": "Delivery, fragile cargo", "quest": { "type": "delivery", "name": "{road} delivery", "params": { "cargo": { "name": "Glassware", "massKg": 40, "fragile": true }, "damagePenalty": 0.6 } }, "route": "any" },
+    { "id": "class_c_race", "name": "Class C race, 4 NPCs, medium", "quest": { "type": "sprint", "name": "{road} class C race", "entry": { "classes": ["C"] }, "npc": { "count": 4, "skill": [0.4, 0.75], "drivers": "random", "carClass": "C", "rubberBand": true } }, "route": "twisty" }
+  ]
+}

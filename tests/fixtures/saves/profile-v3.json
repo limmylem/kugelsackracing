@@ -1,0 +1,516 @@
+{
+ "version": 3,
+ "money": 15230,
+ "nextId": 35,
+ "currentCar": "car_000001",
+ "created": "2026-06-01T09:00:00.000Z",
+ "cars": {
+  "car_000001": {
+   "carInstanceId": "car_000001",
+   "carId": "starter_car",
+   "price": 12000,
+   "activeSetup": "setup_000034",
+   "setups": {
+    "setup_000034": {
+     "setupId": "setup_000034",
+     "name": "Stock",
+     "sockets": {
+      "socket_engine": "part_000002",
+      "socket_pistons": null,
+      "socket_intake": "part_000003",
+      "socket_turbo": null,
+      "socket_intercooler": null,
+      "socket_exhaust": "part_000004",
+      "socket_header": null,
+      "socket_ecu": "part_000005",
+      "socket_gearbox": "part_000006",
+      "socket_clutch": "part_000007",
+      "socket_flywheel": null,
+      "socket_differential": "part_000008",
+      "socket_suspension": "part_000009",
+      "socket_arb_front": null,
+      "socket_arb_rear": null,
+      "socket_brakes": "part_000010",
+      "socket_brake_pads": null,
+      "socket_wheel_FL": "part_000011",
+      "socket_wheel_FR": "part_000012",
+      "socket_wheel_RL": "part_000013",
+      "socket_wheel_RR": "part_000014",
+      "socket_tyre_FL": "part_000015",
+      "socket_tyre_FR": "part_000016",
+      "socket_tyre_RL": "part_000017",
+      "socket_tyre_RR": "part_000018",
+      "socket_spacer_FL": null,
+      "socket_spacer_FR": null,
+      "socket_spacer_RL": null,
+      "socket_spacer_RR": null,
+      "socket_bonnet": "part_000019",
+      "socket_bumper_front": "part_000020",
+      "socket_bumper_rear": "part_000021",
+      "socket_boot": "part_000022",
+      "socket_door_left": "part_000023",
+      "socket_door_right": "part_000024",
+      "socket_fender_FL": "part_000025",
+      "socket_fender_FR": "part_000026",
+      "socket_skirt_left": "part_000027",
+      "socket_skirt_right": "part_000028",
+      "socket_mirror_left": "part_000029",
+      "socket_mirror_right": "part_000030",
+      "socket_seat_driver": "part_000031",
+      "socket_seat_passenger": "part_000032",
+      "socket_steering_wheel": "part_000033",
+      "socket_spoiler": null,
+      "socket_weight_rear_seats": null,
+      "socket_weight_sound_deadening": null,
+      "socket_supercharger": null,
+      "socket_radiator": null,
+      "socket_engine_swap": null,
+      "socket_shifter": null,
+      "socket_cage": null,
+      "socket_harness": null,
+      "socket_gauges": null,
+      "socket_strut_brace": null,
+      "socket_window_tint": null,
+      "socket_tyre_smoke": null,
+      "socket_underglow": null,
+      "socket_fog_lights": null
+     },
+     "partIds": {
+      "socket_engine": "stock_engine_rs17",
+      "socket_intake": "stock_airbox",
+      "socket_exhaust": "stock_exhaust",
+      "socket_ecu": "stock_ecu",
+      "socket_gearbox": "stock_gearbox_5sp",
+      "socket_clutch": "stock_clutch",
+      "socket_differential": "stock_lsd",
+      "socket_suspension": "stock_suspension",
+      "socket_brakes": "stock_brakes",
+      "socket_wheel_FL": "stock_wheel_15",
+      "socket_wheel_FR": "stock_wheel_15",
+      "socket_wheel_RL": "stock_wheel_15",
+      "socket_wheel_RR": "stock_wheel_15",
+      "socket_tyre_FL": "stock_tyre_180_55r15",
+      "socket_tyre_FR": "stock_tyre_180_55r15",
+      "socket_tyre_RL": "stock_tyre_180_55r15",
+      "socket_tyre_RR": "stock_tyre_180_55r15",
+      "socket_bonnet": "stock_bonnet",
+      "socket_bumper_front": "stock_bumper_front",
+      "socket_bumper_rear": "stock_bumper_rear",
+      "socket_boot": "stock_boot",
+      "socket_door_left": "stock_door_left",
+      "socket_door_right": "stock_door_right",
+      "socket_fender_FL": "stock_fender_left",
+      "socket_fender_FR": "stock_fender_right",
+      "socket_skirt_left": "stock_skirt_left",
+      "socket_skirt_right": "stock_skirt_right",
+      "socket_mirror_left": "stock_mirror_left",
+      "socket_mirror_right": "stock_mirror_right",
+      "socket_seat_driver": "stock_seat",
+      "socket_seat_passenger": "stock_seat",
+      "socket_steering_wheel": "stock_steering_wheel"
+     }
+    }
+   }
+  }
+ },
+ "parts": {
+  "part_000002": {
+   "instanceId": "part_000002",
+   "partId": "stock_engine_rs17",
+   "condition": 100,
+   "price": 2600,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_engine"
+   }
+  },
+  "part_000003": {
+   "instanceId": "part_000003",
+   "partId": "stock_airbox",
+   "condition": 100,
+   "price": 70,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_intake"
+   }
+  },
+  "part_000004": {
+   "instanceId": "part_000004",
+   "partId": "stock_exhaust",
+   "condition": 90,
+   "price": 260,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_exhaust"
+   },
+   "dentLog": {
+    "b": "0AegDzhKAAAAAPDYMgDoAw==",
+    "h": "uAugDyxMAADoA/DYFADoAw=="
+   }
+  },
+  "part_000005": {
+   "instanceId": "part_000005",
+   "partId": "stock_ecu",
+   "condition": 100,
+   "price": 180,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_ecu"
+   }
+  },
+  "part_000006": {
+   "instanceId": "part_000006",
+   "partId": "stock_gearbox_5sp",
+   "condition": 100,
+   "price": 900,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_gearbox"
+   }
+  },
+  "part_000007": {
+   "instanceId": "part_000007",
+   "partId": "stock_clutch",
+   "condition": 100,
+   "price": 220,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_clutch"
+   }
+  },
+  "part_000008": {
+   "instanceId": "part_000008",
+   "partId": "stock_lsd",
+   "condition": 100,
+   "price": 450,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_differential"
+   }
+  },
+  "part_000009": {
+   "instanceId": "part_000009",
+   "partId": "stock_suspension",
+   "condition": 100,
+   "price": 520,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_suspension"
+   }
+  },
+  "part_000010": {
+   "instanceId": "part_000010",
+   "partId": "stock_brakes",
+   "condition": 100,
+   "price": 380,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_brakes"
+   }
+  },
+  "part_000011": {
+   "instanceId": "part_000011",
+   "partId": "stock_wheel_15",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_wheel_FL"
+   }
+  },
+  "part_000012": {
+   "instanceId": "part_000012",
+   "partId": "stock_wheel_15",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_wheel_FR"
+   }
+  },
+  "part_000013": {
+   "instanceId": "part_000013",
+   "partId": "stock_wheel_15",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_wheel_RL"
+   }
+  },
+  "part_000014": {
+   "instanceId": "part_000014",
+   "partId": "stock_wheel_15",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_wheel_RR"
+   }
+  },
+  "part_000015": {
+   "instanceId": "part_000015",
+   "partId": "stock_tyre_180_55r15",
+   "condition": 100,
+   "price": 55,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_tyre_FL"
+   }
+  },
+  "part_000016": {
+   "instanceId": "part_000016",
+   "partId": "stock_tyre_180_55r15",
+   "condition": 100,
+   "price": 55,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_tyre_FR"
+   }
+  },
+  "part_000017": {
+   "instanceId": "part_000017",
+   "partId": "stock_tyre_180_55r15",
+   "condition": 100,
+   "price": 55,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_tyre_RL"
+   }
+  },
+  "part_000018": {
+   "instanceId": "part_000018",
+   "partId": "stock_tyre_180_55r15",
+   "condition": 100,
+   "price": 55,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_tyre_RR"
+   }
+  },
+  "part_000019": {
+   "instanceId": "part_000019",
+   "partId": "stock_bonnet",
+   "condition": 100,
+   "price": 300,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_bonnet"
+   }
+  },
+  "part_000020": {
+   "instanceId": "part_000020",
+   "partId": "stock_bumper_front",
+   "condition": 100,
+   "price": 240,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_bumper_front"
+   }
+  },
+  "part_000021": {
+   "instanceId": "part_000021",
+   "partId": "stock_bumper_rear",
+   "condition": 100,
+   "price": 220,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_bumper_rear"
+   }
+  },
+  "part_000022": {
+   "instanceId": "part_000022",
+   "partId": "stock_boot",
+   "condition": 100,
+   "price": 260,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_boot"
+   }
+  },
+  "part_000023": {
+   "instanceId": "part_000023",
+   "partId": "stock_door_left",
+   "condition": 100,
+   "price": 350,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_door_left"
+   }
+  },
+  "part_000024": {
+   "instanceId": "part_000024",
+   "partId": "stock_door_right",
+   "condition": 100,
+   "price": 350,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_door_right"
+   }
+  },
+  "part_000025": {
+   "instanceId": "part_000025",
+   "partId": "stock_fender_left",
+   "condition": 100,
+   "price": 180,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_fender_FL"
+   }
+  },
+  "part_000026": {
+   "instanceId": "part_000026",
+   "partId": "stock_fender_right",
+   "condition": 100,
+   "price": 180,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_fender_FR"
+   }
+  },
+  "part_000027": {
+   "instanceId": "part_000027",
+   "partId": "stock_skirt_left",
+   "condition": 100,
+   "price": 90,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_skirt_left"
+   }
+  },
+  "part_000028": {
+   "instanceId": "part_000028",
+   "partId": "stock_skirt_right",
+   "condition": 100,
+   "price": 90,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_skirt_right"
+   }
+  },
+  "part_000029": {
+   "instanceId": "part_000029",
+   "partId": "stock_mirror_left",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_mirror_left"
+   }
+  },
+  "part_000030": {
+   "instanceId": "part_000030",
+   "partId": "stock_mirror_right",
+   "condition": 100,
+   "price": 60,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_mirror_right"
+   }
+  },
+  "part_000031": {
+   "instanceId": "part_000031",
+   "partId": "stock_seat",
+   "condition": 100,
+   "price": 150,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_seat_driver"
+   }
+  },
+  "part_000032": {
+   "instanceId": "part_000032",
+   "partId": "stock_seat",
+   "condition": 100,
+   "price": 150,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_seat_passenger"
+   }
+  },
+  "part_000033": {
+   "instanceId": "part_000033",
+   "partId": "stock_steering_wheel",
+   "condition": 100,
+   "price": 90,
+   "installedOn": {
+    "car": "car_000001",
+    "socket": "socket_steering_wheel"
+   }
+  }
+ },
+ "xp": 2450,
+ "hints": [
+  "damage_first"
+ ],
+ "quests": {
+  "quest_old00001": {
+   "attempts": 4,
+   "finishes": 3,
+   "dnfs": 1,
+   "completed": true,
+   "medal": "silver",
+   "bestTime": 83.412,
+   "bestScore": null,
+   "bestSplits": [
+    20.1,
+    41.7,
+    63
+   ],
+   "bestLaps": [
+    83.412
+   ],
+   "paidShare": 0.7,
+   "finishPaid": false,
+   "recording": "rec_quest_old00001_a3",
+   "lastPlayed": "2026-06-01T09:40:00.000Z"
+  },
+  "quest_old00002": {
+   "attempts": 1,
+   "finishes": 1,
+   "dnfs": 0,
+   "completed": true,
+   "medal": "gold",
+   "bestTime": 140.2,
+   "bestScore": null,
+   "bestSplits": [],
+   "bestLaps": [
+    140.2
+   ],
+   "paidShare": 1,
+   "finishPaid": false,
+   "recording": null,
+   "lastPlayed": "2026-06-02T18:00:00.000Z",
+   "bestPlace": 1
+  },
+  "quest_old00003": {
+   "attempts": 2,
+   "finishes": 0,
+   "dnfs": 2,
+   "completed": false,
+   "medal": null,
+   "bestTime": null,
+   "bestScore": null,
+   "bestSplits": null,
+   "bestLaps": null,
+   "paidShare": 0,
+   "finishPaid": false,
+   "recording": null,
+   "lastPlayed": "2026-06-03T12:00:00.000Z"
+  }
+ },
+ "questLog": [
+  {
+   "at": "2026-06-01T09:40:00.000Z",
+   "attemptId": "a3",
+   "questId": "quest_old00001",
+   "status": "finished",
+   "time": 83.412,
+   "money": 640,
+   "xp": 90,
+   "medal": "silver",
+   "valid": true
+  }
+ ],
+ "saved": "2026-06-03T12:01:00.000Z"
+}

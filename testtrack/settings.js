@@ -79,6 +79,7 @@ export function createSettingsPanel(settings, spec, input, onChange) {
         <h3>Races</h3>
         <label class="row"><input type="checkbox" data-bool="rubberBand" ${S.rubberBand !== false ? 'checked' : ''}> <span><b>Rubber-banding</b><small>Rivals ease off a little when well ahead of you, and push a little when behind (their driving only, never their car). Never in pink slips.</small></span></label>
         <label class="row"><input type="checkbox" data-bool="npcNames" ${S.npcNames !== false ? 'checked' : ''}> <span><b>Rivals' names over their cars</b></span></label>
+        <label class="row"><input type="checkbox" data-bool="questNotices" ${S.questNotices !== false ? 'checked' : ''}> <span><b>Nearby quest notices</b><small>While free roaming, a small notice now and then when you pass a quest you haven't played.</small></span></label>
         <h3>Session</h3>
         <label class="slider">kind <select data-str="session">${[['test', 'Test drive'], ['race', 'Race']].map(([v, n]) => `<option value="${v}" ${(S.session ?? 'test') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <label class="slider">cars <select data-str="collisions">${[['', 'The session\'s own'], ['full', 'Full damage'], ['reduced', 'Reduced damage from other cars'], ['off', 'No collisions (ghosting)']].map(([v, n]) => `<option value="${v}" ${(S.collisions ?? '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>

@@ -12,17 +12,18 @@
 //             toGarage(), say(text, kind) }
 //   Q.card(item, el) → true (it drew the card)    Q.start(item)    Q.frame(realDt)    Q.camera(camera)
 //   Q.active  Q.paused  Q.auto (the browser tests' autopilot)  Q.autoInput()  Q.noteHit(strength)
-//   Q.resetNow()   Q.stateOf(questId) → { state, medal } (for the maps)
+//   Q.resetNow()   Q.stateOf(questId) → { state, medal } (for the maps)   Q.preload(item) (fast travel)
 
 import { createQuestController } from './questController.js';
 import { createRouteDressing } from './routeDressing.js';
 import { viewCourse, lineOf } from '../route/model.js';
 import { buildRoute } from '../route/build.js';
 import { createAutopilot } from '../route/autopilot.js';
-import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf } from '../quest/rules.js';
+import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf, levelProgress } from '../quest/rules.js';
+import { carWarning, starsText } from '../quest/difficulty.js';
 import { rewardsOf } from '../content/quests.js';
 import { fmtTime, fmtDelta } from '../quest/timing.js';
-import { questState } from '../garage/player/quests.js';
+import { questState, bestOf } from '../garage/player/quests.js';
 import { pinkSlipConfirmations } from '../quest/types/pinkSlip.js';
 import { TYPE_MODULES } from '../quest/types/index.js';
 import { npcSettings, setupNpcs } from '../race/setup.js';
@@ -73,7 +74,11 @@ const CSS = `
 .questScreen label{display:flex;align-items:center;gap:10px;margin:8px 0}
 #contentCard .qrow{display:flex;justify-content:space-between;gap:10px;font-size:13px}
 #contentCard .qbest{font:600 12px "JetBrains Mono",monospace;opacity:.9}
-#contentCard .qbtns{display:flex;gap:6px;margin-top:8px}`;
+#contentCard .qbtns{display:flex;gap:6px;margin-top:8px}
+#contentCard .stars{color:#ffd166;letter-spacing:1px}
+#contentCard .qwarn{color:#ffbd4a;font-size:12px;margin:4px 0}
+#contentCard .qold{color:#9aa3ad;font-size:11px}
+.questScreen .levelup{color:#ffd166;font-weight:700}`;
 
 export function loadHudSettings() {
   try { return { scale: 1, visible: true, ...JSON.parse(localStorage.getItem(HUD_KEY) || '{}') }; } catch { return { scale: 1, visible: true }; }
@@ -122,7 +127,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       const others = carBad ? carsThatQualify(item, game.ownedCars().filter(x => x.instanceId !== game.carInstanceId()), cfg) : [];
       const r = rewardsOf(item, game.economy), T = c ? medalTargets(item, c.course, cfg) : null;
       const laps = c?.course.loop ? Math.max(1, item.params?.laps ?? 1) : 1;
-      const best = prog ? (item.type === 'drift' ? (prog.bestScore != null ? `${prog.bestScore.toLocaleString('en-GB')} pts` : null) : (prog.bestTime != null ? fmtTime(prog.bestTime) : null)) : null;
+      // (a best set before the route was changed: still shown, marked as from an older version)
+      const B = bestOf(prog, c?.course?.version), show = (t, sc) => item.type === 'drift' ? (sc != null ? `${sc.toLocaleString('en-GB')} pts` : null) : (t != null ? fmtTime(t) : null);
+      const best = B ? `${show(B.time, B.score) ?? '—'}${B.old ? ' <span class="qold">(older version of this route)</span>' : B.oldBest && show(B.oldBest.time, B.oldBest.score) ? ` <span class="qold">(older version: ${show(B.oldBest.time, B.oldBest.score)})</span>` : ''}` : null;
       const targets = T && T.gold != null ? ['gold', 'silver', 'bronze'].map(t => `<span style="color:${MEDAL[t]}">●</span> ${T.kind === 'score' ? T[t].toLocaleString('en-GB') : fmtTime(T[t], 1)}`).join(' &nbsp;') : '';
       const disabled = TYPE_MODULES[item.type]?.enabled === false;
       el.innerHTML = `<div class="kind">Quest · ${esc(typeLabel(item.type))}</div><h4>${esc(item.name)}</h4>
@@ -131,15 +138,24 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         ${targets ? `<div class="qrow"><span>${targets}</span></div>` : ''}
         <ul>${reasons.length ? reasons.map(x => `<li class="no">${esc(x.text)}</li>`).join('') : `<li class="ok">You can enter with your ${esc(game.carSummary(game.carInstanceId())?.name ?? 'car')}</li>`}</ul>
         ${carBad ? `<div style="font-size:12px">${others.length ? `Your cars that qualify: <b>${others.map(x => esc(x.name)).join(', ')}</b> (switch in the garage)` : 'None of your cars qualify.'}</div>` : ''}
-        <div class="money">${item.type === 'pink_slip' ? 'Winner takes the loser\'s car' : `Reward up to ${esc(cur)}${(r.money ?? 0).toLocaleString('en-GB')} · ${r.xp ?? 0} xp`}${item.fee > 0 ? ` · entry ${esc(cur)}${item.fee.toLocaleString('en-GB')}` : ' · free entry'}</div>
+        <div class="qrow"><span class="stars" title="${esc((item.rating?.parts ?? []).map(x => `${x.what} ${x.points}`).join(', '))}">${starsText(r.stars ?? 2)}</span> <span>${esc(r.tierName ?? '')} tier${item.rating?.recommended ? ` · recommended car: rating ${Math.round(item.rating.recommended)}${item.rating.recommendedClass ? ` (class ${esc(item.rating.recommendedClass)})` : ''}` : ''}</span></div>
+        ${(() => { const wn = carWarning(item.rating, game.carSummary(game.carInstanceId())?.rating, cfg); return wn ? `<div class="qwarn">⚠ ${esc(wn)}</div>` : ''; })()}
+        <div class="money">${item.type === 'pink_slip' ? `Winner takes the loser\'s car · stakes up to class ${esc(r.stakeMaxClass ?? '?')}` : `Reward up to ${esc(cur)}${(r.money ?? 0).toLocaleString('en-GB')} · ${r.xp ?? 0} xp`}${r.fee > 0 ? ` · entry ${esc(cur)}${r.fee.toLocaleString('en-GB')}` : ' · free entry'}</div>
+        ${seriesLine}
         <div class="qbest">${prog?.attempts ? `Your best: ${best ?? '—'}${prog.medal ? ` <span style="color:${MEDAL[prog.medal]}">● ${prog.medal}</span>` : ''} · ${prog.attempts} attempt${prog.attempts > 1 ? 's' : ''}` : 'Not tried yet'} · level ${levelOf(p.xp ?? 0, cfg)}</div>
-        <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">Start${item.fee > 0 ? ` (${esc(cur)}${item.fee.toLocaleString('en-GB')})` : ''}</button>
+        <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">Start${r.fee > 0 ? ` (${esc(cur)}${r.fee.toLocaleString('en-GB')})` : ''}</button>
         <button class="qbtn" data-guide>${guide ? 'Clear route' : 'Set route'}</button><span style="flex:1"></span><button class="qbtn" data-close>Close</button></div>`;
       el.querySelector('[data-start]').onclick = () => start(item);
       el.querySelector('[data-guide]').onclick = () => guide ? clearGuide(() => draw(c)) : setGuide(item, () => draw(c));
     };
+    let seriesLine = '', lastC = null;
     draw();
-    courseOf(item).then(c => { if (c) { preview = c.course.line; setLines(); } draw(c); }).catch(e => { el.querySelector('.qrow span').textContent = `The route couldn't be loaded: ${e.message}`; });
+    game.seriesOf?.(item).then(list => {
+      const p = game.player.profile;
+      seriesLine = list.map(S => { const done = S.item.quests.filter(id => p.quests?.[id]?.completed).length; return `<div class="qrow"><span>Series: <b>${esc(S.item.name)}</b> · ${p.series?.[S.item.id] ? 'complete ✔' : `${done} of ${S.item.quests.length} done · bonus for all`}</span></div>`; }).join('');
+      if (seriesLine) draw(lastC);
+    }).catch(() => {});
+    courseOf(item).then(c => { lastC = c; if (c) { preview = c.course.line; setLines(); } draw(c); }).catch(e => { el.querySelector('.qrow span').textContent = `The route couldn't be loaded: ${e.message}`; });
     return true;
   }
 
@@ -176,8 +192,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const prev = run;
     if (prev && ['intro', 'countdown', 'racing'].includes(prev.controller.state)) await prev.controller.quit();
     const A = game.adapters(), me = {};
-    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null,
-      best: prog ? { splits: prog.bestSplits, laps: prog.bestLaps, time: prog.bestTime, score: prog.bestScore } : null,
+    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null,
+      best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: createRouteDressing({ THREE, parent: S.world, compiled: c.course, guides: c.course.guides }), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
@@ -306,7 +322,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const title = o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
     const main = o.score != null && item.type === 'drift' ? `${o.score.toLocaleString('en-GB')} pts` : o.time != null ? fmtTime(o.time) : '—';
     const was = pay.was ? (item.type === 'drift' ? pay.was.score : pay.was.time) : null;
-    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (was ${item.type === 'drift' ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${item.type === 'drift' ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
+    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (${pay.was?.older ? 'on the older version of this route: ' : 'was '}${item.type === 'drift' ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${item.type === 'drift' ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
     const splits = o.splits?.length ? `<h3>Splits</h3><table>${o.splits.map(s => `<tr><td>${o.laps.length > 1 ? `L${s.lap} ` : ''}CP ${s.number}</td><td>${fmtTime(s.time)}</td><td class="${s.delta == null ? '' : s.delta <= 0 ? 'good' : 'bad'}">${fmtDelta(s.delta)}</td></tr>`).join('')}</table>` : '';
     const laps = o.laps?.length > 1 ? `<h3>Laps</h3><table>${o.laps.map((t, i) => `<tr><td>Lap ${i + 1}</td><td class="${t === o.bestLap ? 'good' : ''}">${fmtTime(t)}${t === o.bestLap ? ' best' : ''}</td></tr>`).join('')}</table>` : '';
     const penalties = o.penalties?.length ? `<div class="bad">${o.penalties.map(p => `${esc(p.what)} +${p.seconds}s`).join(' · ')}</div>` : '';
@@ -314,8 +330,11 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const damage = `<h3>Damage</h3><div>${o.damage.taken > 0.05 ? `Condition −${o.damage.taken.toFixed(1)}% (${o.damage.events.length} hit${o.damage.events.length === 1 ? '' : 's'})` : 'No damage'}${o.cargo != null ? ` · cargo ${o.cargo}%` : ''}${repair > 0 ? ` · repairs about ${money(repair)}` : ''}</div>`;
     const earned = o.status !== 'finished' ? `<h3>Reward</h3><div>Nothing for a run that didn't finish${run.fee ? ` (entry ${money(run.fee)} spent)` : ''}.</div>`
       : !pay.valid ? `<h3>Reward</h3><div class="bad">This result couldn't be verified, so it pays nothing: ${esc((pay.problems ?? []).join(' '))}</div>`
-        : `<h3>Reward</h3>${(pay.lines ?? []).map(l => `<div>${esc(l.what)}${l.money != null ? ` <span class="bad">${money(l.money)}</span>` : ''}</div>`).join('')}<div class="money">+${money(pay.money)} · +${pay.xp} xp</div>`;
-    const fee = cfg.restart?.free || !item.fee ? '' : ` (${money(item.fee)})`;
+        : `<h3>Reward</h3>${(pay.lines ?? []).map(l => `<div>${esc(l.what)}${l.money != null ? ` <span class="bad">${money(l.money)}</span>` : ''}</div>`).join('')}<div class="money">+${money(pay.money)} · +${pay.xp} xp</div>`
+          + (pay.series ?? []).map(b => `<div class="good">Series complete: ${esc(b.name)} · +${money(b.money)} · +${b.xp} xp</div>`).join('')
+          + (pay.levelUp ? `<div class="levelup">Level ${pay.levelUp}!${(() => { const t = (game.economy.quests.tiers ?? []).find(x => x.level === pay.levelUp); return t ? ` ${esc(t.name)} quests are open.` : ''; })()}</div>` : '')
+          + (() => { const L = levelProgress(game.player.profile.xp ?? 0, cfg); return `<div style="font-size:12px;opacity:.8">Level ${L.level} · ${Math.round(L.share * 100)}% to level ${L.level + 1}</div>`; })();
+    const itemFee = rewardsOf(item, game.economy).fee, fee = cfg.restart?.free || !itemFee ? '' : ` (${money(itemFee)})`;
     const field = res.field?.length ? `<h3>Standings</h3><table>${res.field.map(f => `<tr style="${f.player ? 'color:#ffd24a' : ''}"><td>${f.place}. ${esc(f.player ? 'You' : f.name)}${f.car ? ` <span style="opacity:.6">${esc(f.car)}</span>` : ''}</td><td>${f.status === 'retired' || f.status === 'dnf' ? `DNF${f.why ? ` (${esc(f.why)})` : ''}` : f.time != null ? `${fmtTime(f.time)}${f.estimated ? ' *' : ''}` : '—'}</td></tr>`).join('')}</table>${res.field.some(f => f.estimated) ? '<div style="font-size:12px;opacity:.7">* still racing when you finished: their time from their pace</div>' : ''}` : '';
     const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
     showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
@@ -327,7 +346,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (!run || run.results) return;
     paused = on; game.pause(on);
     if (!on) { hideScreen(); return; }
-    const cur = game.currency, fee = cfg.restart?.free || !run.item.fee ? 'free' : `${cur}${run.item.fee.toLocaleString('en-GB')} entry again`;
+    const cur = game.currency, runFee = rewardsOf(run.item, game.economy).fee, fee = cfg.restart?.free || !runFee ? 'free' : `${cur}${runFee.toLocaleString('en-GB')} entry again`;
     showScreen(`<h2>Paused</h2><div>${esc(run.item.name)} · ${esc(typeLabel(run.item.type))}</div>
       <div class="buttons"><button class="primary" data-resume>Resume</button><button data-restart>Restart (${esc(fee)})</button><button class="danger" data-quit>Quit (did not finish)</button></div>
       <h3>Settings</h3><label>HUD size <input type="range" min="0.6" max="1.6" step="0.05" value="${hudSettings.scale}" data-scale></label>
@@ -376,6 +395,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     get controller() { return run?.controller ?? null; },
     get hudSettings() { return hudSettings; },
     stateOf: id => questState(game.player.profile, id),
+    // (fast travel: its route loaded before the car arrives, so it starts at once)
+    preload: item => courseOf(item).catch(() => null),
     // the browser tests: the autopilot drives once it's GO
     get auto() { return !!run?.pilot && run.controller.state === 'racing' && !paused; },
     autoInput(dt) {
