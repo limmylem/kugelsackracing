@@ -6,9 +6,16 @@
 //   const R = createRecorder({ hz })
 //   R.sample(t, { x, y, z, q: [x, y, z, w], vx, vy, vz })   every physics tick (t: the clock); keeps the
 //        ones on the beat
-//   R.finish() → { format, hz, frames, origin, data }       decodeRecording(rec) → [{ t, x, y, z, q, vx, vy, vz }]
+//   R.finish(meta) → { format, version, hz, frames, origin, data, meta }
+//   decodeRecording(rec) → [{ t, x, y, z, q, vx, vy, vz }]
+//
+// Versions (migrateRecording brings an old one up to date as it's read): 1 ('kr-ghost-1', Phase 4 Step 3)
+// the samples alone; 2 ('kr-ghost-2', Phase 4 Step 5) the same samples, and meta: { questId, routeVersion,
+// car, time, score, recorded } — what it's a run of, so a ghost is only raced on the route it was driven on.
 
-export const FORMAT = 'kr-ghost-1';
+export const FORMAT = 'kr-ghost-2';
+export const RECORDING_VERSION = 2;
+const META = { questId: null, routeVersion: null, car: null, time: null, score: null, recorded: null };
 const CH = 10;
 
 function zig(n) { return n >= 0 ? n * 2 : -n * 2 - 1; }
@@ -58,12 +65,21 @@ export function createRecorder({ hz = 20 } = {}) {
       frames++;
       return true;
     },
-    finish() { return { format: FORMAT, hz, frames, origin: origin ?? [0, 0, 0], data: toBase64(bytes) }; },
+    finish(meta = {}) { return { format: FORMAT, version: RECORDING_VERSION, hz, frames, origin: origin ?? [0, 0, 0], data: toBase64(bytes), meta: { ...META, ...meta } }; },
   };
 }
 
-export function decodeRecording(rec) {
-  if (rec?.format !== FORMAT) throw new Error(`not a recording this game reads (${rec?.format})`);
+// A recording of any version brought up to this one (the samples are the same in every version so far)
+export function migrateRecording(rec) {
+  if (rec?.format === FORMAT) return { ...rec, meta: { ...META, ...(rec.meta ?? {}) } };
+  if (rec?.format === 'kr-ghost-1') return { format: FORMAT, version: RECORDING_VERSION, hz: rec.hz, frames: rec.frames, origin: rec.origin, data: rec.data, meta: { ...META } };
+  throw new Error(`not a recording this game reads (${rec?.format})`);
+}
+// Whether a recording is a run of this version of the route (one of unknown version is taken as it is)
+export const recordingFits = (rec, routeVersion) => !rec?.meta?.routeVersion || !routeVersion || rec.meta.routeVersion === routeVersion;
+
+export function decodeRecording(input) {
+  const rec = migrateRecording(input);
   const b = fromBase64(rec.data), out = [], v = new Array(CH).fill(0);
   let i = 0;
   const get = () => { let n = 0, m = 1, c; do { c = b[i++]; n += (c & 127) * m; m *= 128; } while (c & 128); return unzig(n); };

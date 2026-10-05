@@ -1,0 +1,350 @@
+{
+ "format": "world-content",
+ "version": 3,
+ "exported": "2026-06-10T08:00:00.000Z",
+ "area": "everything",
+ "views": [
+  "draft",
+  "published",
+  "archived"
+ ],
+ "count": 4,
+ "entries": [
+  {
+   "draft": {
+    "id": "route_old00001",
+    "version": 3,
+    "kind": "route",
+    "name": "Old hill route",
+    "description": "",
+    "icon": "route",
+    "location": {
+     "lat": 37.7936,
+     "lon": -122.3965,
+     "alt": 0,
+     "heading": 0
+    },
+    "road": null,
+    "status": "published",
+    "author": "editor",
+    "created": "2026-06-10T08:00:00.000Z",
+    "updated": "2026-06-10T08:00:00.000Z",
+    "publishedAt": "2026-06-10T08:00:00.000Z",
+    "course": {
+     "kind": "p2p",
+     "region": "sf",
+     "waypoints": [
+      {
+       "lat": 37.7936,
+       "lon": -122.3965
+      },
+      {
+       "lat": 37.7936,
+       "lon": -122.3624090909091
+      }
+     ],
+     "options": {
+      "reverseOneway": false,
+      "motorways": true,
+      "unpaved": false,
+      "tunnels": true,
+      "offRoad": false
+     },
+     "grid": {
+      "count": 8,
+      "adjust": {}
+     },
+     "checkpointMode": "auto",
+     "spacing": 500,
+     "checkpoints": [],
+     "guides": {
+      "arrows": true,
+      "signs": true,
+      "gates": true,
+      "arch": true
+     },
+     "roads": "closed",
+     "corridor": {
+      "margin": 8
+     },
+     "path": {
+      "lat": "_svagAQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQd@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@n@l@n@`@[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[Y",
+      "lon": "ftnmhFwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAgAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAgAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsA",
+      "h": "?e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@i@UUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUU",
+      "w": "_D????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????",
+      "n": 845
+     },
+     "length": 3000,
+     "stats": {
+      "length": 3377,
+      "turns": 2,
+      "sharpest": {
+       "s": 2301,
+       "radius": 11.8,
+       "angle": 63,
+       "way": "left"
+      },
+      "climb": 150,
+      "descent": 0,
+      "maxGrade": 5.6,
+      "minAlt": 0,
+      "maxAlt": 150,
+      "estimatedTime": 97.1,
+      "roads": [],
+      "features": {
+       "km": 3.38,
+       "cornersPerKm": 0.59,
+       "sharpnessPerKm": 0.39,
+       "hairpins": 0,
+       "elevationPerKm": 44,
+       "maxGrade": 5.64,
+       "narrowShare": 0,
+       "minWidth": 8,
+       "junctionsPerKm": null
+      }
+     },
+     "referenceTime": null,
+     "roadData": null,
+     "review": null
+    }
+   },
+   "published": {
+    "id": "route_old00001",
+    "version": 3,
+    "kind": "route",
+    "name": "Old hill route",
+    "description": "",
+    "icon": "route",
+    "location": {
+     "lat": 37.7936,
+     "lon": -122.3965,
+     "alt": 0,
+     "heading": 0
+    },
+    "road": null,
+    "status": "published",
+    "author": "editor",
+    "created": "2026-06-10T08:00:00.000Z",
+    "updated": "2026-06-10T08:00:00.000Z",
+    "publishedAt": "2026-06-10T08:00:00.000Z",
+    "course": {
+     "kind": "p2p",
+     "region": "sf",
+     "waypoints": [
+      {
+       "lat": 37.7936,
+       "lon": -122.3965
+      },
+      {
+       "lat": 37.7936,
+       "lon": -122.3624090909091
+      }
+     ],
+     "options": {
+      "reverseOneway": false,
+      "motorways": true,
+      "unpaved": false,
+      "tunnels": true,
+      "offRoad": false
+     },
+     "grid": {
+      "count": 8,
+      "adjust": {}
+     },
+     "checkpointMode": "auto",
+     "spacing": 500,
+     "checkpoints": [],
+     "guides": {
+      "arrows": true,
+      "signs": true,
+      "gates": true,
+      "arch": true
+     },
+     "roads": "closed",
+     "corridor": {
+      "margin": 8
+     },
+     "path": {
+      "lat": "_svagAQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQOQQQOQQQOQQOQQQOQQd@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@l@n@n@n@l@n@`@[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[YY[YY[YY[Y[YY[YY[YY[Y",
+      "lon": "ftnmhFwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAyAwAwAwAwAwAwAwAwAwAyAwAwAwAwAgAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAcAeAcAcAcAcAeAcAcAcAeAcAcAcAgAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsAsAsAuAsAsAsAsAuAsAsAsAsAuAsA",
+      "h": "?e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@g@e@e@g@e@g@e@e@g@e@g@e@e@g@e@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@m@m@k@m@k@m@m@k@m@k@m@k@i@UUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUWUUUUUUWUUUUUUWUUUUUUWUUUUUUWUUU",
+      "w": "_D????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????",
+      "n": 845
+     },
+     "length": 3000,
+     "stats": {
+      "length": 3377,
+      "turns": 2,
+      "sharpest": {
+       "s": 2301,
+       "radius": 11.8,
+       "angle": 63,
+       "way": "left"
+      },
+      "climb": 150,
+      "descent": 0,
+      "maxGrade": 5.6,
+      "minAlt": 0,
+      "maxAlt": 150,
+      "estimatedTime": 97.1,
+      "roads": [],
+      "features": {
+       "km": 3.38,
+       "cornersPerKm": 0.59,
+       "sharpnessPerKm": 0.39,
+       "hairpins": 0,
+       "elevationPerKm": 44,
+       "maxGrade": 5.64,
+       "narrowShare": 0,
+       "minWidth": 8,
+       "junctionsPerKm": null
+      }
+     },
+     "referenceTime": null,
+     "roadData": null,
+     "review": null
+    }
+   }
+  },
+  {
+   "draft": {
+    "id": "quest_old00001",
+    "version": 3,
+    "kind": "quest",
+    "name": "Old hill sprint",
+    "description": "",
+    "icon": "flag",
+    "location": {
+     "lat": 37.7936,
+     "lon": -122.3965,
+     "alt": 0,
+     "heading": 0
+    },
+    "road": null,
+    "status": "published",
+    "author": "editor",
+    "created": "2026-06-10T08:00:00.000Z",
+    "updated": "2026-06-10T08:00:00.000Z",
+    "publishedAt": "2026-06-10T08:00:00.000Z",
+    "type": "sprint",
+    "route": "route_old00001",
+    "entry": {
+     "classes": [],
+     "maxPowerKw": null,
+     "minWeightKg": null,
+     "maxWeightKg": null,
+     "maxKwPerTonne": null,
+     "minLevel": 1
+    },
+    "npc": {
+     "count": 3,
+     "skill": [
+      0.4,
+      0.7
+     ]
+    },
+    "conditions": {
+     "timeOfDay": "any",
+     "weather": "any"
+    },
+    "enabled": true,
+    "params": {
+     "finish": null,
+     "laps": 1
+    },
+    "fee": 150,
+    "rewards": {
+     "tier": "hard"
+    }
+   },
+   "published": {
+    "id": "quest_old00001",
+    "version": 3,
+    "kind": "quest",
+    "name": "Old hill sprint",
+    "description": "",
+    "icon": "flag",
+    "location": {
+     "lat": 37.7936,
+     "lon": -122.3965,
+     "alt": 0,
+     "heading": 0
+    },
+    "road": null,
+    "status": "published",
+    "author": "editor",
+    "created": "2026-06-10T08:00:00.000Z",
+    "updated": "2026-06-10T08:00:00.000Z",
+    "publishedAt": "2026-06-10T08:00:00.000Z",
+    "type": "sprint",
+    "route": "route_old00001",
+    "entry": {
+     "classes": [],
+     "maxPowerKw": null,
+     "minWeightKg": null,
+     "maxWeightKg": null,
+     "maxKwPerTonne": null,
+     "minLevel": 1
+    },
+    "npc": {
+     "count": 3,
+     "skill": [
+      0.4,
+      0.7
+     ]
+    },
+    "conditions": {
+     "timeOfDay": "any",
+     "weather": "any"
+    },
+    "enabled": true,
+    "params": {
+     "finish": null,
+     "laps": 1
+    },
+    "fee": 150,
+    "rewards": {
+     "tier": "hard"
+    }
+   }
+  },
+  {
+   "draft": {
+    "id": "poi_old00001",
+    "version": 2,
+    "kind": "poi",
+    "name": "Old lookout",
+    "description": "",
+    "icon": "star",
+    "location": {
+     "lat": 37.7956,
+     "lon": -122.3965,
+     "alt": 0,
+     "heading": 0
+    },
+    "road": null,
+    "status": "draft",
+    "author": "editor",
+    "created": "2026-01-05T10:00:00.000Z",
+    "updated": "2026-01-05T10:00:00.000Z",
+    "publishedAt": null
+   }
+  },
+  {
+   "draft": {
+    "id": "quest_old00002",
+    "version": 1,
+    "kind": "quest",
+    "title": "Old drift",
+    "lat": 37.7966,
+    "lon": -122.3965,
+    "heading": -90,
+    "questType": "drift",
+    "reward": 1500,
+    "fee": 100,
+    "author": "early",
+    "created": "2025-01-01T00:00:00Z"
+   }
+  }
+ ]
+}

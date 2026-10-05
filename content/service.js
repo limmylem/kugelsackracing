@@ -73,8 +73,20 @@ export function createLocalContentService({ storage, check, rate = null, author 
   async function cells(view, list) {
     const missing = list.filter(c => !cache.has(`${view}/${c}`) && index.cells[view][c]);
     if (missing.length) {
-      const got = await storage.getCells(missing.map(c => `${view}/${c}`));
-      for (const [k, rec] of got) cache.set(k, { items: new Map((rec?.items ?? []).map(i => [i.id, i])), dirty: false, used: 0 });
+      const got = await storage.getCells(missing.map(c => `${view}/${c}`)), older = [];
+      for (const [k, rec] of got) {
+        // (items saved by an older version of the game: brought up to date as they load, and saved so)
+        const e = { items: new Map(), dirty: false, used: 0 };
+        for (const i of rec?.items ?? []) {
+          const m = i.version === CONTENT_VERSION ? null : migrate(i);
+          if (m?.item) { e.items.set(i.id, m.item); e.dirty = true; if (m.item.kind === 'quest' && !m.item.rating) older.push([e, m.item]); }
+          else e.items.set(i.id, i);
+        }
+        cache.set(k, e);
+      }
+      // (a quest from before ratings: rated from its route now, so its reward follows the rules)
+      for (const [e, it] of older) e.items.set(it.id, await rated(it));
+      if (older.length || [...got].some(([k]) => cache.get(k)?.dirty)) schedule();
     }
     const out = [];
     for (const c of list) {
@@ -314,7 +326,7 @@ export function createLocalContentService({ storage, check, rate = null, author 
       if (doc?.format !== EXPORT_FORMAT) return { ok: false, error: `That isn't a world content file (its format is "${doc?.format ?? 'missing'}").` };
       if (!(doc.version >= 1)) return { ok: false, error: 'The file doesn\'t say which version of the format it is.' };
       if (doc.version > CONTENT_VERSION) return { ok: false, error: `The file was made by a newer version of the game (content version ${doc.version}; this one reads up to ${CONTENT_VERSION}).` };
-      let imported = 0, migrated = 0; const skipped = [];
+      let imported = 0, migrated = 0; const skipped = [], unrated = [];
       for (const entry of doc.entries ?? []) {
         const state = {}, id = (entry.draft ?? entry.published ?? entry.archived)?.id ?? '?';
         let bad = null;
@@ -333,6 +345,14 @@ export function createLocalContentService({ storage, check, rate = null, author 
         if (index.ids[id] && onConflict === 'skip') { skipped.push({ id, why: 'already here (kept as it is)' }); continue; }
         await putState(id, state);
         imported++;
+        if (rate && ['draft', 'published'].some(v => state[v]?.kind === 'quest' && !state[v].rating && (entry[v]?.version ?? 1) < CONTENT_VERSION)) unrated.push(id);
+      }
+      // (quests from before ratings: rated from their routes — now that every route in the file is in — so
+      // their rewards follow the rules)
+      for (const id of unrated) {
+        const st = await stateOf(id);
+        for (const v of ['draft', 'published']) if (st[v] && !st[v].rating) st[v] = await rated(st[v]);
+        await putState(id, st);
       }
       await save();
       emit({ type: 'import', count: imported });

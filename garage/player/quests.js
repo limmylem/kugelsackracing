@@ -7,7 +7,8 @@
 //   profile.quests[questId]      { attempts, finishes, dnfs, completed, medal, bestTime, bestScore, bestSplits,
 //                                  bestLaps, paidShare, finishPaid, recording, lastPlayed, recent: [ISO finish times in the
 //                                  farming window], routeVersion (of its best), oldRecord (its best is from an older
-//                                  version of the quest) }
+//                                  version of the quest), oldBest: { time, score, routeVersion } (the best on the
+//                                  route before it was changed, once a run on the new one has replaced it) }
 //   profile.series[seriesId]     { completed: ISO time, money, xp } a series finished, its bonus paid
 //   profile.questPending         { attemptId, questId, fee, started, pinkSlip? } the run under way (its fee paid)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
@@ -19,7 +20,7 @@ import { validateResult } from '../../quest/validate.js';
 export const LOG_SIZE = 50;
 export const progressOf = (profile, questId) => profile.quests?.[questId] ?? null;
 const RECENT = 10;
-const blank = () => ({ recent: [], routeVersion: null, oldRecord: false, bestPlace: null, attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
+const blank = () => ({ recent: [], routeVersion: null, oldRecord: false, oldBest: null, bestPlace: null, attempts: 0, finishes: 0, dnfs: 0, completed: false, medal: null, bestTime: null, bestScore: null, bestSplits: null, bestLaps: null, paidShare: 0, finishPaid: false, recording: null, lastPlayed: null });
 const progress = (p, questId) => ((p.quests ??= {})[questId] ??= blank());
 const log = (p, entry) => { (p.questLog ??= []).push(entry); if (p.questLog.length > LOG_SIZE) p.questLog.splice(0, p.questLog.length - LOG_SIZE); };
 
@@ -79,13 +80,21 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
   q.finishes++; q.completed = true;
   if (!pay.repeat) { if (medal && config.rewards[medal] > q.paidShare) q.paidShare = config.rewards[medal]; else if (!medal) q.finishPaid = true; }
   if (tierRank(medal) > tierRank(q.medal)) q.medal = medal;
+  // a best set on another version of the route (the quest edited since): kept as the older version's, and
+  // this run is the first on the new one
+  const version = result.routeVersion ?? course?.version ?? null;
+  let older = null;
+  if (version && q.routeVersion && q.routeVersion !== version && (q.bestTime != null || q.bestScore != null)) {
+    older = q.oldBest = { time: q.bestTime, score: q.bestScore, routeVersion: q.routeVersion };
+    q.bestTime = null; q.bestScore = null; q.bestSplits = null; q.bestLaps = null; q.recording = null; q.oldRecord = false;
+  }
   // a personal best: the time (or the score), its splits and laps, its recording
   const scored = result.score != null && quest.type === 'drift';
   const pb = scored ? (q.bestScore == null || result.score > q.bestScore) : (q.bestTime == null || result.time < q.bestTime);
-  const was = { time: q.bestTime, score: q.bestScore };
+  const was = older ? { time: older.time, score: older.score, older: true } : { time: q.bestTime, score: q.bestScore };
   if (pb) {
     if (scored) q.bestScore = result.score; else q.bestTime = result.time;
-    q.routeVersion = result.routeVersion ?? course?.version ?? null; q.oldRecord = false;
+    q.routeVersion = version; q.oldRecord = false;
     q.bestSplits = result.checkpoints.map(c => c.time);
     q.bestLaps = result.laps.slice();
     if (recordingId) q.recording = recordingId;
@@ -124,6 +133,16 @@ export function markOldRecords(profile, questId, routeVersion) {
   return true;
 }
 
+// A quest's best as it stands on the version of its route there is now (routeVersion: the course's
+// version): its time or score, and — only if it was set on this version — its splits, laps and recording to
+// race against. old: it was set on an earlier version (still shown, marked so); oldBest: the earlier
+// version's, once beaten on the new one
+export function bestOf(prog, routeVersion) {
+  if (!prog) return null;
+  const old = !!prog.oldRecord || !!(routeVersion && prog.routeVersion && prog.routeVersion !== routeVersion);
+  return { time: prog.bestTime, score: prog.bestScore, splits: old ? null : prog.bestSplits, laps: old ? null : prog.bestLaps, recording: old ? null : prog.recording, place: prog.bestPlace, old, oldBest: prog.oldBest ?? null };
+}
+
 // Loading a save: the quest records as they should be
 export function checkQuests(profile) {
   const num = v => Number.isFinite(v) ? v : null;
@@ -139,6 +158,7 @@ export function checkQuests(profile) {
         bestTime: num(q.bestTime), bestScore: num(q.bestScore), bestSplits: Array.isArray(q.bestSplits) ? q.bestSplits.filter(Number.isFinite) : null, bestLaps: Array.isArray(q.bestLaps) ? q.bestLaps.filter(Number.isFinite) : null,
         paidShare: Math.max(0, Math.min(1, num(q.paidShare) ?? 0)), finishPaid: !!q.finishPaid, recording: typeof q.recording === 'string' ? q.recording : null, lastPlayed: typeof q.lastPlayed === 'string' ? q.lastPlayed : null,
         recent: Array.isArray(q.recent) ? q.recent.filter(x => typeof x === 'string' && Number.isFinite(Date.parse(x))).slice(-RECENT) : [], routeVersion: typeof q.routeVersion === 'string' ? q.routeVersion : null, oldRecord: !!q.oldRecord,
+        oldBest: q.oldBest && typeof q.oldBest === 'object' && (Number.isFinite(q.oldBest.time) || Number.isFinite(q.oldBest.score)) ? { time: num(q.oldBest.time), score: num(q.oldBest.score), routeVersion: typeof q.oldBest.routeVersion === 'string' ? q.oldBest.routeVersion : null } : null,
       };
     }
     profile.quests = out;

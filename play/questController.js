@@ -65,7 +65,7 @@ export function createQuestController({ quest, course, config, player, car = {},
 
   async function finishUp(outcome) {
     detach?.(); detach = null;
-    const recording = outcome.status === 'finished' && rec ? rec.finish() : null;
+    const recording = outcome.status === 'finished' && rec ? rec.finish({ questId: quest.id, routeVersion: course.version ?? null }) : null;
     let pay = null, result = null, transfer = null;
     // a race: the NPCs still going get their times worked out; the place and everyone's times
     const R = race?.();

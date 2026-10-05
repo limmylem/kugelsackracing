@@ -22,6 +22,7 @@ import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quest
 import { entryReasons, CAR_CODES } from '../../quest/rules.js';
 import { feeOf } from '../../content/quests.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
+import { migrateRecording } from '../../quest/recording.js';
 
 const ATTACH = ['attached', 'loose', 'detached'];
 // (JSON with every object's keys in order: two saves the same whatever order their keys came in)
@@ -349,7 +350,7 @@ export class LocalPlayerService extends PlayerService {
     const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series }) }));
     const store = this.quests?.recordings;
     if (out.ok && out.valid && out.pb && recording && store) {
-      await store.put(recordingId, recording);
+      await store.put(recordingId, { ...recording, meta: { ...(recording.meta ?? {}), questId: quest.id, routeVersion: result.routeVersion ?? course?.version ?? null, car: result.car?.carId ?? null, time: result.time ?? null, score: result.score ?? null, recorded: this.now() } });
       if (old && old !== recordingId) await store.delete(old);
     }
     return out;
@@ -358,7 +359,9 @@ export class LocalPlayerService extends PlayerService {
     return this.#change('quest', p => { failAttempt(p, { attemptId, questId, status, reason, now: this.now() }); return {}; });
   }
   async getRecording(recordingId) {
-    const rec = recordingId ? await this.quests?.recordings?.get(recordingId) : null;
+    let rec = recordingId ? await this.quests?.recordings?.get(recordingId) : null;
+    // (one saved by an older version of the game: brought up to date as it's read)
+    try { rec = rec ? migrateRecording(rec) : null; } catch (e) { return { ok: false, error: `That recording can't be read: ${e.message}`, updatedState: clone(this.profile), recording: null }; }
     return { ok: !!rec, error: rec ? null : 'There\'s no recording of that run.', updatedState: clone(this.profile), recording: rec };
   }
   // A pink slip's stake changing hands (only with a pink-slip run under way: Phase 4 Step 4's rivals)

@@ -23,7 +23,7 @@ import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, leve
 import { carWarning, starsText } from '../quest/difficulty.js';
 import { rewardsOf } from '../content/quests.js';
 import { fmtTime, fmtDelta } from '../quest/timing.js';
-import { questState } from '../garage/player/quests.js';
+import { questState, bestOf } from '../garage/player/quests.js';
 import { pinkSlipConfirmations } from '../quest/types/pinkSlip.js';
 import { TYPE_MODULES } from '../quest/types/index.js';
 import { npcSettings, setupNpcs } from '../race/setup.js';
@@ -77,6 +77,7 @@ const CSS = `
 #contentCard .qbtns{display:flex;gap:6px;margin-top:8px}
 #contentCard .stars{color:#ffd166;letter-spacing:1px}
 #contentCard .qwarn{color:#ffbd4a;font-size:12px;margin:4px 0}
+#contentCard .qold{color:#9aa3ad;font-size:11px}
 .questScreen .levelup{color:#ffd166;font-weight:700}`;
 
 export function loadHudSettings() {
@@ -126,7 +127,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       const others = carBad ? carsThatQualify(item, game.ownedCars().filter(x => x.instanceId !== game.carInstanceId()), cfg) : [];
       const r = rewardsOf(item, game.economy), T = c ? medalTargets(item, c.course, cfg) : null;
       const laps = c?.course.loop ? Math.max(1, item.params?.laps ?? 1) : 1;
-      const best = prog ? (item.type === 'drift' ? (prog.bestScore != null ? `${prog.bestScore.toLocaleString('en-GB')} pts` : null) : (prog.bestTime != null ? fmtTime(prog.bestTime) : null)) : null;
+      // (a best set before the route was changed: still shown, marked as from an older version)
+      const B = bestOf(prog, c?.course?.version), show = (t, sc) => item.type === 'drift' ? (sc != null ? `${sc.toLocaleString('en-GB')} pts` : null) : (t != null ? fmtTime(t) : null);
+      const best = B ? `${show(B.time, B.score) ?? '—'}${B.old ? ' <span class="qold">(older version of this route)</span>' : B.oldBest && show(B.oldBest.time, B.oldBest.score) ? ` <span class="qold">(older version: ${show(B.oldBest.time, B.oldBest.score)})</span>` : ''}` : null;
       const targets = T && T.gold != null ? ['gold', 'silver', 'bronze'].map(t => `<span style="color:${MEDAL[t]}">●</span> ${T.kind === 'score' ? T[t].toLocaleString('en-GB') : fmtTime(T[t], 1)}`).join(' &nbsp;') : '';
       const disabled = TYPE_MODULES[item.type]?.enabled === false;
       el.innerHTML = `<div class="kind">Quest · ${esc(typeLabel(item.type))}</div><h4>${esc(item.name)}</h4>
@@ -190,7 +193,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (prev && ['intro', 'countdown', 'racing'].includes(prev.controller.state)) await prev.controller.quit();
     const A = game.adapters(), me = {};
     const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null,
-      best: prog ? { splits: prog.bestSplits, laps: prog.bestLaps, time: prog.bestTime, score: prog.bestScore } : null,
+      best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: createRouteDressing({ THREE, parent: S.world, compiled: c.course, guides: c.course.guides }), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
@@ -319,7 +322,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const title = o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
     const main = o.score != null && item.type === 'drift' ? `${o.score.toLocaleString('en-GB')} pts` : o.time != null ? fmtTime(o.time) : '—';
     const was = pay.was ? (item.type === 'drift' ? pay.was.score : pay.was.time) : null;
-    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (was ${item.type === 'drift' ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${item.type === 'drift' ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
+    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (${pay.was?.older ? 'on the older version of this route: ' : 'was '}${item.type === 'drift' ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${item.type === 'drift' ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
     const splits = o.splits?.length ? `<h3>Splits</h3><table>${o.splits.map(s => `<tr><td>${o.laps.length > 1 ? `L${s.lap} ` : ''}CP ${s.number}</td><td>${fmtTime(s.time)}</td><td class="${s.delta == null ? '' : s.delta <= 0 ? 'good' : 'bad'}">${fmtDelta(s.delta)}</td></tr>`).join('')}</table>` : '';
     const laps = o.laps?.length > 1 ? `<h3>Laps</h3><table>${o.laps.map((t, i) => `<tr><td>Lap ${i + 1}</td><td class="${t === o.bestLap ? 'good' : ''}">${fmtTime(t)}${t === o.bestLap ? ' best' : ''}</td></tr>`).join('')}</table>` : '';
     const penalties = o.penalties?.length ? `<div class="bad">${o.penalties.map(p => `${esc(p.what)} +${p.seconds}s`).join(' · ')}</div>` : '';

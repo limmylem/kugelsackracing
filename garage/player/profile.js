@@ -27,7 +27,7 @@ import { dentsOf, packLog, unpackDents } from '../damageLog.js';
 import { needsWork, partWork, shellWork, workCost } from '../repair.js';
 import { checkQuests } from './quests.js';
 
-export const PROFILE_VERSION = 3;
+export const PROFILE_VERSION = 4;
 export const clone = x => JSON.parse(JSON.stringify(x));
 export const newId = (profile, prefix) => `${prefix}_${String(profile.nextId++).padStart(6, '0')}`;
 

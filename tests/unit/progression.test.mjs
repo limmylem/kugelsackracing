@@ -12,7 +12,7 @@ import { routeStats } from '../../route/stats.js';
 import { difficultyOf, carWarning, starsText } from '../../quest/difficulty.js';
 import { rateQuest } from '../../content/rating.js';
 import { rewardsOf, newItem, problems } from '../../content/quests.js';
-import { seriesBonus, markOldRecords, finishAttempt, startAttempt } from '../../garage/player/quests.js';
+import { seriesBonus, markOldRecords, finishAttempt, startAttempt, bestOf } from '../../garage/player/quests.js';
 import { xpForLevel } from '../../quest/rules.js';
 
 const json = p => JSON.parse(fs.readFileSync(new URL(`../../${p}`, import.meta.url)));
@@ -81,8 +81,8 @@ test('tiers: new players start with Rookie quests; better tiers open with levels
 
 // a real course (route/model.js) and a run driven along it at 30 m/s through a quest session
 const P = { toXZ: (lat, lon) => [lon * 1e5, -lat * 1e5], toLatLon: (x, z) => [-z / 1e5, x / 1e5] };
-function straightCourse() {
-  const line = resample([{ x: 0, z: 0, h: 0, w: 10 }, { x: 2000, z: 0, h: 0, w: 10 }], 4);
+function straightCourse(m = 2000) {
+  const line = resample([{ x: 0, z: 0, h: 0, w: 10 }, { x: m, z: 0, h: 0, w: 10 }], 4);
   const path = encodeLine(line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return { lat, lon, h: 0, w: 10 }; }));
   return viewCourse({ kind: 'p2p', path, checkpoints: [{ id: 'cp1', s: 1000, width: null, required: true, timeExtension: 0, auto: true }], grid: { count: 4 }, stats: { estimatedTime: 60 } }, P);
 }
@@ -125,4 +125,22 @@ test('a quest edited after publishing: a best on another version of its route is
   assert.equal(markOldRecords(p, 'quest_a0000001', 'v1'), false, 'the same route: still its record');
   assert.equal(markOldRecords(p, 'quest_a0000001', 'v2'), true);
   assert.equal(p.quests.quest_a0000001.oldRecord, true); assert.equal(p.quests.quest_a0000001.bestTime, 50);
+  // through runs: the route changed after a best was set on it
+  const T = '2026-10-04T12:00:00Z', c1 = straightCourse(2000), c2 = straightCourse(2100);
+  assert.notEqual(c1.version, c2.version);
+  const quest = { ...sprint(), id: 'quest_v0000001', rating: { stars: 2, km: 2 } }, pl = { money: 0, xp: 0 };
+  const run = (course, k) => { startAttempt(pl, { quest, fee: 0, attemptId: `v${k}`, now: T }); return finishAttempt(pl, { result: driven(quest, course, `v${k}`), quest, course, config, economy, now: T }); };
+  const a = run(c1, 1);
+  assert.ok(a.valid && a.pb, a.problems?.join('; '));
+  const prog = () => pl.quests[quest.id], best1 = prog().bestTime;
+  assert.equal(bestOf(prog(), c1.version).old, false, 'its own route: its record');
+  const shown = bestOf(prog(), c2.version);
+  assert.equal(shown.old, true, 'the route changed: shown, marked as from an older version');
+  assert.equal(shown.time, best1); assert.equal(shown.splits, null, 'no splits to race against on a changed route');
+  const b = run(c2, 2);
+  assert.ok(b.valid && b.pb, 'the first run on the new route is its record');
+  assert.deepEqual(b.was, { time: best1, score: null, older: true });
+  assert.deepEqual(prog().oldBest, { time: best1, score: null, routeVersion: c1.version }, 'the older version\'s best kept');
+  assert.equal(prog().routeVersion, c2.version); assert.equal(bestOf(prog(), c2.version).old, false);
+  assert.equal(run(c2, 3).pb, false, 'the same route again: compared as usual');
 });

@@ -41,6 +41,19 @@ export const MIGRATIONS = {
     for (const c of Object.values(out.cars ?? {})) move(c.damage);
     return out;
   },
+  // 3 → 4 (Phase 4 Step 5): quest progress gets what levels, farming, races and edited quests need — xp a
+  // whole number; per quest the recent finishes (none known: nothing an old save did counts as farming),
+  // the best place in a race, the route version its best was set on (not known: taken as today's, so an
+  // old best stays the record), and the older version's best (none yet); a series' bonus not yet paid
+  3(save) {
+    const out = clone(save);
+    if (out.quests || out.xp != null) out.xp = Number.isFinite(out.xp) && out.xp > 0 ? Math.floor(out.xp) : 0;
+    for (const q of Object.values(out.quests ?? {})) {
+      if (!q || typeof q !== 'object') continue;
+      q.recent ??= []; q.bestPlace ??= null; q.routeVersion ??= null; q.oldRecord ??= false; q.oldBest ??= null;
+    }
+    return out;
+  },
 };
 
 // A save of any version brought up to `current`: { save, steps: ['1 → 2', …] }. A save from a newer
