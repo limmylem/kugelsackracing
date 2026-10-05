@@ -1,0 +1,11 @@
+{
+  "_note": "The Map v3 regions baked and in the game (assets/map/<id>/manifest.json): fast travel can reach a quest in any of them, and the full map lists them. bbox [west, south, east, north] in degrees, as each region's manifest has it. tests/unit/finder.test.mjs checks this list against what's baked.",
+  "regions": [
+    { "id": "sf", "name": "San Francisco", "bbox": [-122.52, 37.705, -122.355, 37.838], "manifest": "assets/map/sf/manifest.json" },
+    { "id": "monaco", "name": "Monaco", "bbox": [7.405, 43.727, 7.437, 43.749], "manifest": "assets/map/monaco/manifest.json" },
+    { "id": "tokyo", "name": "Tokyo (Shibuya)", "bbox": [139.69, 35.652, 139.712, 35.668], "manifest": "assets/map/tokyo/manifest.json" },
+    { "id": "stelvio", "name": "Stelvio Pass", "bbox": [10.44, 46.525, 10.48, 46.545], "manifest": "assets/map/stelvio/manifest.json" },
+    { "id": "munich", "name": "Munich (A9 / A99)", "bbox": [11.61, 48.225, 11.645, 48.245], "manifest": "assets/map/munich/manifest.json" },
+    { "id": "mk", "name": "Milton Keynes", "bbox": [-0.78, 52.03, -0.74, 52.05], "manifest": "assets/map/mk/manifest.json" }
+  ]
+}

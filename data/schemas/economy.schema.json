@@ -467,6 +467,20 @@
           "minimum": 0
         }
       }
+    },
+    "simulation": {
+      "type": "object",
+      "description": "The economy simulation's settings and targets (tools/economy/sim.mjs).",
+      "required": [
+        "hours",
+        "skills",
+        "timing",
+        "crashes",
+        "performance",
+        "shopping",
+        "pool",
+        "targets"
+      ]
     }
   }
 }

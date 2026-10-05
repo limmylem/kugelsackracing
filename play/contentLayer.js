@@ -74,7 +74,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       ${it.description ? `<div>${esc(it.description)}</div>` : ''}
       ${it.kind === 'quest' ? `
         <ul>${req.length ? req.map(x => `<li class="${x.ok === true ? 'ok' : x.ok === false ? 'no' : 'unknown'}">${esc(x.text)}</li>`).join('') : '<li class="ok">Any car</li>'}</ul>
-        <div class="money">${it.type === 'pink_slip' ? `Winner takes ${esc(C?.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')}` : `Reward ${esc(cur)}${(r?.money ?? 0).toLocaleString('en-GB')} · ${r?.xp ?? 0} xp`}${it.fee > 0 ? ` · entry ${esc(cur)}${it.fee.toLocaleString('en-GB')}` : ''}</div>
+        <div class="money">${it.type === 'pink_slip' ? `Winner takes ${esc(C?.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')}` : `Reward ${esc(cur)}${(r?.money ?? 0).toLocaleString('en-GB')} · ${r?.xp ?? 0} xp`}${r?.fee > 0 ? ` · entry ${esc(cur)}${r.fee.toLocaleString('en-GB')}` : ''}${it.kind === 'quest' && r?.stars ? ` · ${'★'.repeat(r.stars)}` : ''}</div>
         ${it.conditions && (it.conditions.timeOfDay !== 'any' || it.conditions.weather !== 'any') ? `<div style="font-size:12px;opacity:.75">${esc([it.conditions.timeOfDay !== 'any' ? it.conditions.timeOfDay : null, it.conditions.weather !== 'any' ? it.conditions.weather : null].filter(Boolean).join(' · '))}</div>` : ''}` : ''}
       <div class="foot"><span>${it.kind === 'quest' ? 'Starting quests comes soon' : esc(it.road?.name ?? '')}</span><button data-close>Close</button></div>`;
     card.style.display = shown ? 'block' : 'none';
@@ -114,6 +114,8 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     click,
     refresh() { toMaps(); if (cardFor && byId.get(cardFor)) showCard(byId.get(cardFor), card.dataset.pinned === '1'); },
     hideCard,
+    // (fast travel: the quest's card, pinned, once it's arrived)
+    openCard(it) { if (it) { if (!byId.has(it.id)) { items.push(it); byId.set(it.id, it); } showCard(it, true); } },
     show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
     dispose() { markers.dispose(); card.remove(); },
   };

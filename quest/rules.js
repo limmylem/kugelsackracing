@@ -21,21 +21,22 @@ const money = (n, cur = '$') => `${cur}${Math.round(n).toLocaleString('en-GB')}`
 export function medalTargets(quest, course, config) {
   const P = quest.params ?? {}, M = config.medals;
   if (SCORE_TYPES.has(quest.type)) {
-    if (P.medalScores?.gold) return { kind: 'score', ...P.medalScores };
-    const target = P.scoreTarget ?? 1000;
-    return { kind: 'score', gold: Math.round(target * M.score.gold), silver: Math.round(target * M.score.silver), bronze: Math.round(target * M.score.bronze) };
+    const target = P.scoreTarget ?? 1000, auto = { gold: Math.round(target * M.score.gold), silver: Math.round(target * M.score.silver), bronze: Math.round(target * M.score.bronze) };
+    return { kind: 'score', ...pick(auto, P.medalScores) };
   }
-  if (P.medalTimes?.gold) return { kind: 'time', ...P.medalTimes };
+  const own = P.medalTimes;
   // the AI reference times (the editor's AI test race), for this quest's class: gold the high-skill AI's
   // time, silver the medium's, bronze the low's
   const ai = course?.aiTimes?.[classKey(quest)];
-  if (ai?.high && ai?.medium && ai?.low && quest.type !== 'time_trial') return { kind: 'time', gold: ai.high, silver: ai.medium, bronze: ai.low, from: 'ai' };
+  if (ai?.high && ai?.medium && ai?.low && quest.type !== 'time_trial') return { kind: 'time', ...pick({ gold: ai.high, silver: ai.medium, bronze: ai.low }, own), from: 'ai' };
   const laps = course?.loop ? Math.max(1, P.laps ?? 1) : 1;
   const ref = (P.targetSeconds && quest.type === 'time_trial' ? P.targetSeconds : null) ?? course?.referenceTime ?? course?.stats?.estimatedTime ?? null;
-  if (!ref) return { kind: 'time', gold: null, silver: null, bronze: null };
+  if (!ref) return { kind: 'time', ...pick({ gold: null, silver: null, bronze: null }, own) };
   const r1 = x => Math.round(x * 10) / 10;
-  return { kind: 'time', gold: r1(ref * laps * M.time.gold), silver: r1(ref * laps * M.time.silver), bronze: r1(ref * laps * M.time.bronze) };
+  return { kind: 'time', ...pick({ gold: r1(ref * laps * M.time.gold), silver: r1(ref * laps * M.time.silver), bronze: r1(ref * laps * M.time.bronze) }, own) };
 }
+// (a quest's own medal times or scores, each one it sets, over the ones worked out)
+const pick = (auto, own) => own ? Object.fromEntries(TIERS.map(t => [t, own[t] > 0 ? own[t] : auto[t]])) : auto;
 export function medalOf(T, { time = null, score = null }) {
   for (const tier of ['gold', 'silver', 'bronze']) {
     if (T[tier] == null) continue;

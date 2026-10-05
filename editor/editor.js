@@ -21,7 +21,9 @@
 import * as THREE from 'three';
 import { worldContent, localStorageGet, localStorageSet } from '../content/client.js';
 import { createHistory } from '../content/history.js';
-import { newItem, withType, rewardsOf, feeLimit, KINDS, TYPES, TYPE_IDS, TIMES, WEATHER } from '../content/quests.js';
+import { newItem, withType, rewardsOf, KINDS, TYPES, TYPE_IDS, TIMES, WEATHER } from '../content/quests.js';
+import { medalTargets } from '../quest/rules.js';
+import { seriesBonus } from '../garage/player/quests.js';
 import { offset } from '../content/geo.js';
 import { createRoadFinder } from './roads.js';
 import { createMapView } from './mapView.js';
@@ -181,7 +183,7 @@ export function createEditor({ game }) {
     const sel = current && current.status !== 'archived';
     ui.top.innerHTML = `
       <button data-view="map" class="${view === 'map' ? 'on' : ''}" title="The whole Earth (M)">Map</button><button data-view="3d" class="${view === '3d' ? 'on' : ''}" ${worldView ? '' : 'disabled'} title="The baked world in 3D (M)">3D</button>
-      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}
+      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}
       <button data-act="snap" class="${snap ? 'on' : ''}" title="Snap to the nearest road, facing along it (N)">Snap to road<kbd>N</kbd></button>
       <span class="sep"></span>
       <button data-act="undo" ${H?.canUndo ? '' : 'disabled'} title="${esc(H?.undoLabel ? `Undo ${H.undoLabel}` : 'Nothing to undo')} (Ctrl+Z)">↶ Undo</button>
@@ -240,7 +242,7 @@ export function createEditor({ game }) {
     worldView?.setItems(shown); worldView?.select(selected);
   }
   function renderFilters() {
-    ui.filters.innerHTML = ['all', 'quest', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
+    ui.filters.innerHTML = ['all', 'quest', 'series', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
     ui.filters.onclick = e => { const b = e.target.closest('button'); if (b) { filter = b.dataset.f; renderFilters(); refresh(); } };
     ui.filters.querySelector('#edArch').onchange = e => { showArchived = e.target.checked; refresh(); };
   }
@@ -310,14 +312,31 @@ export function createEditor({ game }) {
       </div>`}`;
     if (it.kind === 'quest') html += questFields(it);
     if (it.kind === 'route') html += routeTool.panel(it);
+    if (it.kind === 'series') html += seriesFields(it);
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
     for (const p of errors) ui.right.querySelector(`[data-field="${CSS.escape(p.field)}"]`)?.classList.add('field-error');
     renderRoad();
   }
+  // A quest series (Phase 4 Step 5): 3–6 quests near it, in order; finishing them all pays a bonus
+  // (data/economy.json series). Quests are added from those near it (the list on the left), and must be
+  // published for players to see the series.
+  function seriesFields(it) {
+    const near = items.map(x => x.item).filter(q => q.kind === 'quest' && q.status !== 'archived');
+    const byId = Object.fromEntries(near.map(q => [q.id, q])), mine = (it.quests ?? []).map(id => byId[id] ?? { id, name: `${id} (not near)`, missing: true });
+    const B = seriesBonus({ item: it, quests: mine.filter(q => !q.missing) }, C.economy), cur = C.economy.currency ?? '$';
+    const choices = near.filter(q => !(it.quests ?? []).includes(q.id));
+    return `<div class="section"><b>Quests in the series (${mine.length}, 3–6)</b>
+      ${mine.map((q, k) => `<div class="row2"><span class="hint">${k + 1}. ${esc(q.name)}${q.missing ? '' : ` · ${'★'.repeat(rewardsOf(q, C.economy).stars ?? 2)}`}${q.status === 'draft' ? ' · draft' : ''}</span><span><button data-sq="up" data-k="${k}" ${k ? '' : 'disabled'}>↑</button><button data-sq="remove" data-k="${k}">Remove</button></span></div>`).join('') || '<div class="hint">None yet.</div>'}
+      ${(it.quests ?? []).length < 6 ? `<label>Add a quest near it</label>${select('_seriesAdd', '', [['', '— choose —'], ...choices.map(q => [q.id, `${q.name} · ${TYPES[q.type]?.label ?? q.type}`])])}` : ''}
+      <div class="money">Bonus for finishing them all: ${esc(cur)}${B.money.toLocaleString('en-GB')} · ${B.xp} xp</div>
+      <div class="hint">Half of what the quests' gold medals pay, together (data/economy.json series). Players see the series on its quests' cards.</div></div>`;
+  }
   function questFields(it) {
     const T = TYPES[it.type], r = rewardsOf(it, C.economy), cur = C.economy.currency ?? '$', E = it.entry;
+    // (the medal times it gets with no times of its own: the AI's, else the route's estimate)
+    const medalsNow = questRoute?.course && C.quests ? medalTargets({ ...it, params: { ...it.params, medalTimes: null } }, { ...questRoute.course, loop: questRoute.course.kind === 'loop' }, C.quests) : null;
     let h = `<div class="section"><b>Quest</b>
       <label>Type</label>${select('type', it.type, TYPE_IDS.map(t => [t, TYPES[t].label]))}<div class="hint">${esc(T.blurb)}</div>`;
     for (const f of T.fields) {
@@ -340,10 +359,11 @@ export function createEditor({ game }) {
         <div class="row2"><div><label>Min weight (kg)</label>${num('entry.minWeightKg', E.minWeightKg ?? '')}</div><div><label>Max weight (kg)</label>${num('entry.maxWeightKg', E.maxWeightKg ?? '')}</div></div>
         <label>Minimum player level</label>${num('entry.minLevel', E.minLevel ?? 1, 'min="1" max="100"')}
       </div>
-      <div class="section"><b>Money</b>
-        <div class="row2"><div><label>Reward tier</label>${select('rewards.tier', it.rewards?.tier, Object.keys(C.economy.quests.tiers).map(t => [t, t]))}</div><div><label>Entry fee (${esc(cur)})</label>${num('fee', it.fee, 'min="0"')}</div></div>
-        <div class="money">${it.type === 'pink_slip' ? `Winner takes ${esc(C.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')}` : `Reward ${esc(cur)}${r.money.toLocaleString('en-GB')} · ${r.xp} xp`}</div>
-        <div class="hint">${it.type === 'pink_slip' ? 'No entry fee: the cars are the stakes.' : `From the economy's rules (class ${esc(r.rewardClass)}, ${esc(it.rewards?.tier)} tier). Entry fee at most ${esc(cur)}${feeLimit(it, C.economy).toLocaleString('en-GB')}.`}</div>
+      <div class="section"><b>Difficulty and money</b>
+        <div class="money">${'★'.repeat(r.stars ?? 2)}${'☆'.repeat(5 - (r.stars ?? 2))} · ${esc(r.tierName ?? '')} tier (level ${r.unlockLevel ?? 1}) · ${it.type === 'pink_slip' ? `winner takes ${esc(C.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')} · stakes up to class ${esc(r.stakeMaxClass ?? '?')}` : `reward ${esc(cur)}${r.money.toLocaleString('en-GB')} · ${r.xp} xp · entry ${r.fee > 0 ? `${esc(cur)}${r.fee.toLocaleString('en-GB')}` : 'free'}`}</div>
+        <div class="hint">${it.rating ? `Worked out from the route and the rivals (${(it.rating.parts ?? []).map(x => `${esc(x.what)} ${x.points}`).join(', ') || 'an easy one'}; ${it.rating.km} km). Recommended car: rating ${Math.round(it.rating.recommended)}${it.rating.recommendedClass ? ` (class ${esc(it.rating.recommendedClass)})` : ''}.` : 'Not rated yet: pick a route and it\'s worked out as you save.'} Nothing here is set by hand: data/economy.json quests and data/quests.json difficulty.</div>
+        ${it.type === 'drift' ? '' : `<label>Medal times (s; empty: from the AI reference times, else the route's estimate)</label>
+        <div class="row3">${['gold', 'silver', 'bronze'].map(t => `<div>${num(`params.medalTimes.${t}`, it.params?.medalTimes?.[t] ?? '', 'min="1"')}<span class="hint">${t}${medalsNow?.[t] ? ` (now ${medalsNow[t].toFixed(1)})` : ''}</span></div>`).join('')}</div>`}
       </div>
       <div class="section"><b>Conditions</b>
         <div class="row2"><div><label>Time of day</label>${select('conditions.timeOfDay', it.conditions?.timeOfDay ?? 'any', TIMES.map(t => [t, t]))}</div><div><label>Weather</label>${select('conditions.weather', it.conditions?.weather ?? 'any', WEATHER.map(t => [t, t]))}</div></div>
@@ -431,10 +451,11 @@ export function createEditor({ game }) {
     if (path === 'type') return edit('Change type', it => Object.assign(it, withType(it, v)), { type: v });
     if (path === 'location.heading' && v != null) v = wrap360(v);
     if (path.startsWith('location.') && v == null) return renderProps();
-    if (['fee', 'entry.minLevel'].includes(path) && v == null) v = path === 'fee' ? 0 : 1;
+    if (path === 'entry.minLevel' && v == null) v = 1;
     if (path === 'entry.minLevel' && v != null) v = Math.round(v);
     if (path === 'params.opponentCar' && v === '') v = null;
     if (path === 'route') { await edit('Pick route', it => { it.route = v || null; }); return loadSelected(); }
+    if (path === '_seriesAdd') { if (v) await edit('Add quest to series', it => { it.quests = [...(it.quests ?? []), v]; }); return; }
     await edit(`Edit ${path.split('.').at(-1)}`, it => setPath(it, path, v), { merge: `edit:${current.id}:${path}` });
     if (path === 'location.lat' || path === 'location.lon') { refresh(); }
   }
@@ -470,6 +491,8 @@ export function createEditor({ game }) {
     if (b.dataset.pick) { picking = { path: b.dataset.pick, append: !!b.dataset.append }; ui.pick.textContent = `Click the ${view === '3d' ? 'world' : 'map'} to set: ${b.closest('.section')?.querySelector('b')?.textContent ?? ''} ${b.dataset.pick.split('.').at(-1)} (Esc cancels)`; ui.pick.style.display = 'block'; return; }
     if (b.dataset.clear) return edit('Clear place', it => setPath(it, b.dataset.clear, null));
     if (b.dataset.remove) return edit('Remove checkpoint', it => getPath(it, b.dataset.remove).splice(+b.dataset.k, 1));
+    if (b.dataset.sq === 'remove') return edit('Remove quest from series', it => { it.quests.splice(+b.dataset.k, 1); });
+    if (b.dataset.sq === 'up') return edit('Move quest up', it => { const k = +b.dataset.k; [it.quests[k - 1], it.quests[k]] = [it.quests[k], it.quests[k - 1]]; });
     const act = b.dataset.act;
     if (act === 'publish') publish(); else if (act === 'unpublish') unpublish(); else if (act === 'duplicate') duplicate(); else if (act === 'delete') remove(); else if (act === 'restore') restore();
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
@@ -644,7 +667,7 @@ export function createEditor({ game }) {
     if (current?.kind === 'route' && routeTool.key(k)) { e.stopPropagation(); return; }
     if (k === 'KeyT' && current?.kind === 'route') { testDrive(current); e.stopPropagation(); return; }
     if (k === 'Escape') { if (picking) { picking = null; ui.pick.style.display = 'none'; } else if (tool !== 'select') setTool('select'); else deselect(); }
-    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route');
+    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series');
     else if (k === 'KeyN') { snap = !snap; localStorageSet('kugelsack.editor.snap', snap ? 'on' : 'off'); renderTop(); flash(snap ? 'Snap to road: on' : 'Snap to road: off'); }
     else if (k === 'KeyM') setView(view === 'map' ? '3d' : 'map');
     else if (k === 'Delete' || k === 'Backspace') remove();
