@@ -13,9 +13,11 @@
 //   profile.questPending         { attemptId, questId, fee, started, pinkSlip? } the run under way (its fee paid)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
 
-import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf } from '../../quest/rules.js';
+import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf, rankedTime } from '../../quest/rules.js';
 import { rewardsOf } from '../../content/quests.js';
 import { validateResult } from '../../quest/validate.js';
+// (track events, Phase 5 Step 3: records per track code, leaderboards, farming per code, the quick races' cap)
+import { trackFarming, capQuick, noteTrackRun, noteRecent, checkTrackProfile } from '../../track/events/records.js';
 
 export const LOG_SIZE = 50;
 export const progressOf = (profile, questId) => profile.quests?.[questId] ?? null;
@@ -35,6 +37,7 @@ export function startAttempt(p, { quest, fee, attemptId, now }) {
   const q = progress(p, quest.id);
   q.attempts++; q.lastPlayed = now;
   p.questPending = { attemptId, questId: quest.id, fee, started: now, ...(quest.type === 'pink_slip' ? { pinkSlip: true } : {}) };
+  if (quest.track?.code) noteRecent(p, { ...quest.track, eventId: quest.id }, now);
 }
 // the game couldn't start it: the fee back, the attempt not counted
 export function refundAttempt(p, attemptId) {
@@ -56,7 +59,7 @@ export function failAttempt(p, { attemptId, questId, status, reason, now }) {
 }
 
 // A finished run: checked, then paid what it earns. Returns { valid, problems, money, xp, medal, pb, lines, tiers, repeat }
-export function finishAttempt(p, { result, quest, course, config, economy, now, recordingId = null, series = [] }) {
+export function finishAttempt(p, { result, quest, course, config, economy, now, recordingId = null, series = [], tracksCfg = null }) {
   const pending = p.questPending;
   const problems = [];
   if (!pending || pending.attemptId !== result.attemptId || pending.questId !== quest.id) problems.push('No quest was started for this result (or it was already handed in).');
@@ -70,9 +73,14 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
   }
   // the medal worked out again here from the result's numbers (not the game's say-so)
   // (a race: the place is the medal)
-  const medal = result.place != null ? medalOfPlace(result.place, config) : medalOf(medalTargets(quest, course, config), { time: result.time, score: result.score });
+  // (a hot lap: ranked by its best lap)
+  const rank = rankedTime(quest, result);
+  const medal = result.place != null ? medalOfPlace(result.place, config) : medalOf(medalTargets(quest, course, config), { time: rank, score: result.score });
   const outcome = { status: 'finished', medal, cargoLost: result.cargoLost ?? 0, place: result.place ?? null };
-  const pay = earnings({ quest, outcome, progress: { paidShare: q.paidShare, finishPaid: q.finishPaid, recent: q.recent }, economy, config, now });
+  // (a track event: the anti-farming cut by its track's code; a quick race's pay capped each hour)
+  const tf = quest.track ? trackFarming(p, quest, economy) : null;
+  let pay = earnings({ quest, outcome, progress: { paidShare: q.paidShare, finishPaid: q.finishPaid, recent: tf ? tf.recent : q.recent }, economy: tf?.economy ?? economy, config, now });
+  if (quest.track) pay = capQuick(p, quest, pay, economy, now);
   const levelWas = levelOf(p.xp ?? 0, config);
   p.money += pay.money;
   p.xp = (p.xp ?? 0) + pay.xp;
@@ -90,16 +98,18 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
   }
   // a personal best: the time (or the score), its splits and laps, its recording
   const scored = result.score != null && quest.type === 'drift';
-  const pb = scored ? (q.bestScore == null || result.score > q.bestScore) : (q.bestTime == null || result.time < q.bestTime);
+  const pb = scored ? (q.bestScore == null || result.score > q.bestScore) : (q.bestTime == null || rank < q.bestTime);
   const was = older ? { time: older.time, score: older.score, older: true } : { time: q.bestTime, score: q.bestScore };
   if (pb) {
-    if (scored) q.bestScore = result.score; else q.bestTime = result.time;
+    if (scored) q.bestScore = result.score; else q.bestTime = rank;
     q.routeVersion = version; q.oldRecord = false;
     q.bestSplits = result.checkpoints.map(c => c.time);
     q.bestLaps = result.laps.slice();
     if (recordingId) q.recording = recordingId;
   }
   if (result.time != null && scored && (q.bestTime == null || result.time < q.bestTime)) q.bestTime = result.time;
+  // a generated track: the record for its code, generator version and the car's class; the event's leaderboard
+  const track = quest.track ? noteTrackRun(p, { quest, result, rank, recordingId, now, cfg: tracksCfg }) : null;
   log(p, { at: now, attemptId: result.attemptId, questId: quest.id, status: 'finished', time: result.time, score: result.score, ...(result.place != null ? { place: result.place } : {}), money: pay.money, xp: pay.xp, medal, valid: true });
   if (result.place != null && (q.bestPlace == null || result.place < q.bestPlace)) q.bestPlace = result.place;
   // a series finished with this quest: its bonus, once
@@ -113,7 +123,7 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
     bonuses.push({ series: S.item.id, name: S.item.name, ...b });
   }
   const level = levelOf(p.xp ?? 0, config);
-  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat, farming: pay.farming, series: bonuses, levelUp: level > levelWas ? level : null };
+  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat, farming: pay.farming, series: bonuses, levelUp: level > levelWas ? level : null, ...(track ? { track, capped: !!pay.capped } : {}) };
 }
 
 // A series' bonus (data/economy.json series): its share of what its quests' gold medals pay, in all
@@ -150,7 +160,7 @@ export function checkQuests(profile) {
   if (profile.quests !== undefined) {
     const out = {};
     for (const [id, q] of Object.entries(profile.quests ?? {})) {
-      if (!q || typeof q !== 'object' || !/^[A-Za-z0-9_-]+$/.test(id)) continue;
+      if (!q || typeof q !== 'object' || !/^[A-Za-z0-9_.-]+$/.test(id)) continue;
       const b = blank();
       out[id] = {
         ...b, attempts: Math.max(0, num(q.attempts) ?? 0) | 0, finishes: Math.max(0, num(q.finishes) ?? 0) | 0, dnfs: Math.max(0, num(q.dnfs) ?? 0) | 0,
@@ -171,6 +181,7 @@ export function checkQuests(profile) {
     if (!Object.keys(out).length) delete profile.series;
   }
   if (profile.questLog !== undefined) { profile.questLog = Array.isArray(profile.questLog) ? profile.questLog.filter(e => e && typeof e === 'object').slice(-LOG_SIZE) : []; if (!profile.questLog.length) delete profile.questLog; }
+  checkTrackProfile(profile);
   // (a run under way when the game closed: its fee is spent, as a quit's would be)
   if (profile.questPending && (typeof profile.questPending !== 'object' || typeof profile.questPending.attemptId !== 'string')) delete profile.questPending;
   return profile;

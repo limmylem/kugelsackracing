@@ -4,7 +4,7 @@
 // crash test suite's real bills. What it doesn't model is the driving: a run's outcome comes from the
 // bot's skill and its car against the quest (data/economy.json simulation.performance).
 //
-//   makePool(economy, config, seed) → { quests: [quest items, rated], series: [series items] }
+//   makePool(economy, config, seed) → { quests: [quest items, rated — track events among them], series: [series items] }
 //   simulate({ db, config, pool, crashTable, skill, hours, seed }) → { events, samples, totals, ... }
 //     crashTable: { carId: { kmh: full repair } } (crashCostTable: the crash suite, per car)
 
@@ -14,6 +14,7 @@ import { rewardsOf, tierOf } from '../../content/quests.js';
 import { earnings, levelOf, farmingFactor } from '../../quest/rules.js';
 import { seriesBonus } from '../../garage/player/quests.js';
 import { rng as makeRng, hashSeed } from '../../ai/rng.js';
+import { trackFarming, capQuick } from '../../track/events/records.js';
 
 const CLASS_ORDER = ['D', 'C', 'B', 'A', 'S', 'X'];
 
@@ -33,13 +34,30 @@ export function makePool(economy, config, seed = 7) {
     quests.push({ id, kind: 'quest', type, name: `${type} ${stars}★ ${km} km ${cls}`, entry: { classes: cls === 'open' ? [] : [cls], minLevel: 1 }, npc, params: { laps: 1 },
       rating: { stars, km, recommended: rec[stars - 1] + (cls === 'open' ? 0 : 60 * CLASS_ORDER.indexOf(cls)) } });
   }
-  // series: groups of quests of the same tier
+  // series: groups of quests of the same tier (not track events: those are a venue's)
   const series = [], byTier = {};
-  for (const q of quests) (byTier[tierOf(q, economy).tier] ??= []).push(q);
+  for (const q of quests) if (!q.track) (byTier[tierOf(q, economy).tier] ??= []).push(q);
   for (let k = 0, t = 1; k < S.series; k++, t = t % 5 + 1) {
     const list = byTier[t] ?? byTier[1];
     const pick = r.shuffle(list).slice(0, S.seriesOf);
     if (pick.length === S.seriesOf) series.push({ id: `series_sim${String(k).padStart(4, '0')}`, kind: 'series', name: `Series ${k + 1} (tier ${t})`, quests: pick.map(q => q.id) });
+  }
+  // track events (Phase 5 Step 3): tracks of each kind, each with an event or two on it (the anti-farming
+  // cut is by track, its pay by its kind: a quick race's capped each hour) — their own random numbers, so the
+  // world's quests and series are what they'd be without them
+  const TR = S.tracks, rt = makeRng(hashSeed(seed, 'tracks')), pickT = obj => { const keys = Object.keys(obj); let x = rt() * keys.reduce((a, k) => a + obj[k], 0); for (const k of keys) { x -= obj[k]; if (x <= 0) return k; } return keys.at(-1); };
+  if (TR) for (let k = 0; k < TR.count; k++) {
+    const kind = pickT(TR.kinds), code = `SIM${String(k).padStart(4, '0')}`, lapKm = Math.round((TR.lapKm[0] + (TR.lapKm[1] - TR.lapKm[0]) * rt()) * 100) / 100;
+    const types = [pickT(TR.types)];
+    if (rt() < 0.5) types.push(pickT(TR.types));
+    for (const [j, type] of [...new Set(types)].entries()) {
+      const stars = 1 + +pickT(Object.fromEntries(S.stars.map((w, i) => [i, w]))), cls = rt() < 0.7 ? 'open' : pickT(S.classes);
+      const [l0, l1] = TR.laps[type], laps = type === 'hillclimb' ? 1 : Math.round(l0 + (l1 - l0) * rt()), km = Math.round(lapKm * laps * 10) / 10;
+      const raced = rt() < (TR.rivals[type] ?? 0);
+      const npc = raced ? { count: Math.round(S.rivals.count[0] + (S.rivals.count[1] - S.rivals.count[0]) * rt()), skill: S.rivals.skill[Math.min(2, Math.floor((stars - 1) / 2))] } : {};
+      quests.push({ id: `trk_sim_${code}_${j}`, kind: 'quest', type, name: `${type} ${kind} ${stars}★ ${km} km ${cls}`, track: { code, kind, version: 2 }, entry: { classes: cls === 'open' ? [] : [cls], minLevel: 1 }, npc, params: { laps },
+        rating: { stars, km, recommended: rec[stars - 1] + (cls === 'open' ? 0 : 60 * CLASS_ORDER.indexOf(cls)) } });
+    }
   }
   return { quests, series };
 }
@@ -55,7 +73,17 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
   const normal = () => { let u = 0; for (let i = 0; i < 6; i++) u += r(); return (u - 3) / Math.sqrt(0.5); };
   const byId = Object.fromEntries(pool.quests.map(q => [q.id, q]));
   const newCar = carId => { const g = new Garage(db, null, carId), st = g.stats(); return { carId, garage: g, value: carPrice(db, db.cars[carId]), partsValue: 0, rating: st.totals.rating.index, cls: st.totals.rating.class }; };
-  const st = { money: E.startingMoney, xp: 0, cars: [newCar(E.startingCar)], progress: {}, series: {}, t: 0 };
+  const st = { money: E.startingMoney, xp: 0, cars: [newCar(E.startingCar)], progress: {}, series: {}, t: 0, tracks: {} };
+  // (a track event: farming by its track's code — a quick race's a fresh code every time — and the quick races' hourly cap)
+  const trackQuest = q => q.track?.kind === 'quick' ? { ...q, track: { ...q.track, code: `${q.track.code}-${runs}` } } : q;
+  function trackPay(q, outcome, pr, commit) {
+    const tq = trackQuest(q), tf = trackFarming(st.tracks, tq, E);
+    const pay = earnings({ quest: q, outcome, progress: { ...pr, recent: tf.recent }, economy: tf.economy, config, now: iso() });
+    const box = commit ? st.tracks : { trackQuick: st.tracks.trackQuick };
+    const out = capQuick(box, tq, pay, E, iso());
+    if (commit) (st.tracks.trackFarm ??= {})[tq.track.code] = [...(st.tracks.trackFarm[tq.track.code] ?? []), iso()].slice(-10);
+    return out;
+  }
   const car = () => st.cars[st.cars.length - 1];
   const events = [], samples = [], spend = { repairs: 0, parts: 0, cars: 0, fees: 0 }, income = {}, crashes = [];
   let firstUpgrade = null, secondCar = null, stuck = 0, runs = 0, safetyNet = 0;
@@ -74,7 +102,7 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     for (let i = 0; i < q.npc.count; i++) { const sk = q.npc.skill[0] + (q.npc.skill[1] - q.npc.skill[0]) * r(); if (sk + PF.noise * normal() > score) ahead++; }
     return ahead + 1;
   };
-  const duration = q => T.travelSeconds + T.overheadSeconds + q.rating.km * 1000 / T.speedByStars[q.rating.stars - 1];
+  const duration = q => T.travelSeconds + T.overheadSeconds + (q.track ? T.trackSeconds ?? 0 : 0) + q.rating.km * 1000 / T.speedByStars[q.rating.stars - 1];
   const allowed = q => { const cls = q.entry.classes; return !cls.length || cls.includes(car().cls); };
   function expected(q) {
     // (a race: the place it expects — each rival ahead as likely as their skill range is above its score,
@@ -82,7 +110,8 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     const score = scoreOf(q), seen = st.progress[q.id]?.lastPlace;
     const place = q.npc?.count ? (seen ?? 1 + Math.round(q.npc.count * Math.max(0, Math.min(1, (q.npc.skill[1] - score) / Math.max(0.05, q.npc.skill[1] - q.npc.skill[0]))))) : null;
     const medal = place != null ? (place <= 3 ? ['gold', 'silver', 'bronze'][place - 1] : null) : medalFor(q, score);
-    const pay = earnings({ quest: q, outcome: { status: 'finished', medal, place: place != null && place > 3 ? place : null }, progress: { ...(st.progress[q.id] ?? {}), recent: st.progress[q.id]?.recent ?? [] }, economy: E, config, now: iso() });
+    const out = { status: 'finished', medal, place: place != null && place > 3 ? place : null }, prog = q.track?.kind === 'quick' ? { recent: [] } : { ...(st.progress[q.id] ?? {}), recent: st.progress[q.id]?.recent ?? [] };
+    const pay = q.track ? trackPay(q, out, prog, false) : earnings({ quest: q, outcome: out, progress: prog, economy: E, config, now: iso() });
     const fee = rewardsOf(q, E).fee;
     // (xp is worth something too: a level opens better quests; and a series nearly done, its bonus)
     let bonus = 0;
@@ -190,14 +219,15 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     if (dnf) { events.push({ t: st.t, what: 'dnf', quest: q.id }); continue; }
     const score = scoreOf(q) + PF.noise * normal();
     const place = placeFor(q, score), medal = place != null ? (place <= 3 ? ['gold', 'silver', 'bronze'][place - 1] : null) : medalFor(q, score);
-    const pr = st.progress[q.id] ??= { paidShare: 0, finishPaid: false, recent: [], completed: false };
-    const pay = earnings({ quest: q, outcome: { status: 'finished', medal, place }, progress: pr, economy: E, config, now: iso() });
+    // (a quick race is a new event every time: nothing paid on it before — its pay is capped each hour instead)
+    const pr = q.track?.kind === 'quick' ? { paidShare: 0, finishPaid: false, recent: [], completed: false } : st.progress[q.id] ??= { paidShare: 0, finishPaid: false, recent: [], completed: false };
+    const pay = q.track ? trackPay(q, { status: 'finished', medal, place }, pr, true) : earnings({ quest: q, outcome: { status: 'finished', medal, place }, progress: pr, economy: E, config, now: iso() });
     const levelWas = levelOf(st.xp, config);
     st.money += pay.money; st.xp += pay.xp;
     if (!pay.repeat) { if (medal && config.rewards[medal] > pr.paidShare) pr.paidShare = config.rewards[medal]; else if (!medal) pr.finishPaid = true; }
     pr.recent = [...pr.recent, iso()].slice(-10); pr.completed = true;
     if (place != null) pr.lastPlace = place;
-    (st.runLog ??= []).push({ q: q.id, type: q.type, tier: terms.tier, medal, place, pay: pay.money, fee: terms.fee, repeat: pay.repeat, farming: pay.farming });
+    (st.runLog ??= []).push({ q: q.id, type: q.type, tier: terms.tier, medal, place, pay: pay.money, fee: terms.fee, repeat: pay.repeat, farming: pay.farming, ...(q.track ? { track: q.track.kind, capped: !!pay.capped } : {}) });
     const key = `${q.type}·${terms.tier}`;
     const inc = income[key] ??= { type: q.type, tier: terms.tier, money: 0, seconds: 0, runs: 0 };
     inc.money += pay.money - terms.fee; inc.seconds += duration(q); inc.runs++;

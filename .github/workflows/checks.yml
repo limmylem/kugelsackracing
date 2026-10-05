@@ -66,6 +66,8 @@ jobs:
         run: npm run test:dress
       - name: Dressed tracks driven (run-off, barriers at 50-300 km/h, gravel, kerbs, 8-car races and their physics time)
         run: npm run test:dress-drive
+      - name: Gameplay on generated tracks (every event type on 20 tracks solo and with NPCs, 100 trips there and back, daily / weekly / shared codes, reference times, the economy)
+        run: npm run test:track-events
       - name: NPC racers on real roads (every route at three skills, skill spread, fairness, 8-car races, determinism, budget, 100 races)
         # (known failures — the skill spread, and stuck-and-reset incidents in 8-car races at baked-world
         # spots: docs/NPC_RACERS.md "Known limits". Reported, not yet blocking.)

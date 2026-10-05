@@ -1,5 +1,8 @@
 # Generated tracks (Phase 5 Steps 1 and 2: the track generator core, and track dressing)
 
+> **Racing them (Phase 5 Step 3):** race venues, track events, the daily and weekly tracks, the track
+> library, reference times, records and rewards, and the multiplayer hash are in [TRACK_EVENTS.md](TRACK_EVENTS.md).
+
 Race tracks made from a seed, in a scene of their own: not part of the real world's streaming (no
 tiles load), with the same car, physics, damage and HUD. A track is its **seed + parameters +
 generator version**: the same three always make the identical track, on any machine, in any browser.

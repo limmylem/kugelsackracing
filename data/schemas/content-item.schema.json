@@ -1,6 +1,6 @@
 {
   "$id": "content-item.schema.json",
-  "title": "A piece of world content: a marker in the world (a quest's start, a point of interest, a spawn point) or a route (the line quests are driven along). content/schema.js checks this (the shape); content/quests.js says in plain words what it still needs.",
+  "title": "A piece of world content: a marker in the world (a quest's start, a point of interest, a spawn point, a race venue) or a route (the line quests are driven along). content/schema.js checks this (the shape); content/quests.js says in plain words what it still needs.",
   "type": "object",
   "required": [
     "id",
@@ -28,7 +28,8 @@
         "poi",
         "spawn",
         "route",
-        "series"
+        "series",
+        "venue"
       ]
     },
     "name": {
@@ -131,7 +132,11 @@
         "checkpoint",
         "drift",
         "delivery",
-        "pink_slip"
+        "pink_slip",
+        "circuit_race",
+        "hot_lap",
+        "hillclimb",
+        "endurance"
       ]
     },
     "route": {
@@ -726,6 +731,124 @@
         "pattern": "^quest_[0-9a-z]{4,40}$"
       },
       "maxItems": 6
+    },
+    "track": {
+      "description": "A track event's generated track (Phase 5 Step 3, track/events/model.js): its code (never changes), its kind (official: picked and named in the editor), its name, the hash of the track as made when the event was published (a result on a track with another hash pays nothing), its layout, grid slots, length, corners and theme, the generator version, and its checks (track/validate.js and the editor's AI test race: an event can't be published until the AI can finish it).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "code"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9A-Z]{5}(-[0-9A-Z]{1,5}){5}$"
+        },
+        "kind": {
+          "enum": [
+            "official",
+            "daily",
+            "weekly",
+            "quick",
+            "shared"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 80
+        },
+        "hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "layout": {
+          "enum": [
+            "loop",
+            "p2p",
+            null
+          ]
+        },
+        "gridSlots": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "km": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "corners": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "theme": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preset": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "check": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "venue": {
+      "description": "A track event's race venue (a content item of kind 'venue'), if it's at one.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^venue_[0-9a-z]{4,40}$"
+    },
+    "events": {
+      "description": "A race venue's track events, in order (quest ids): its card lists them.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^quest_[0-9a-z]{4,40}$"
+      },
+      "maxItems": 24
     }
   },
   "allOf": [

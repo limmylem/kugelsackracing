@@ -46,7 +46,8 @@
     "test:tracks": "node tests/tracks.mjs",
     "test:track-drive": "node --expose-gc --max-old-space-size=8192 tests/track-drive.ts",
     "test:dress": "node tests/track-dress.mjs",
-    "test:dress-drive": "node --expose-gc --max-old-space-size=8192 tests/track-dress-drive.ts"
+    "test:dress-drive": "node --expose-gc --max-old-space-size=8192 tests/track-dress-drive.ts",
+    "test:track-events": "node --expose-gc --max-old-space-size=8192 tests/track-events.ts"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

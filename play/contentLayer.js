@@ -9,7 +9,8 @@
 // route to it), and its marker shows how far the player's got with it (new, attempted, completed and
 // its medal: stateOf).
 //
-//   const L = createContentLayer({ THREE, world, carNow, questCard(item, el) → drew it?, stateOf(id), busy() })
+//   const L = createContentLayer({ THREE, world, carNow, questCard(item, el) → drew it?, venueCard(item, el) → drew it?, stateOf(id), busy() })
+//   (a race venue's card: its track events — play/trackUi.js, Phase 5 Step 3)
 //     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
 //   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
 
@@ -32,7 +33,7 @@ const CSS = `
 #contentCard .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .7; }
 #contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }`;
 
-export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, stateOf = null, busy = () => false }) {
+export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false }) {
   const S = w.stream, P = S.projection;
   let C = null, items = [], places = new Float64Array(0), byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
@@ -47,7 +48,8 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     querying = true;
     try {
       const r = await C.service.query({ lat, lon, km: RADIUS_KM, view: 'published', offered: true, kinds: MARKER_KINDS, limit: 2000 });
-      items = r.items.map(x => x.item); byId = new Map(items.map(it => [it.id, it]));
+      // (a track event's marker is its venue's: the events are listed on the venue's card)
+      items = r.items.map(x => x.item).filter(it => !it.track); byId = new Map(items.map(it => [it.id, it]));
       // (each one's place in the world, worked out once: the nearest is looked for every frame)
       places = new Float64Array(items.length * 2);
       items.forEach((it, k) => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); places[2 * k] = x; places[2 * k + 1] = z; });
@@ -71,6 +73,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     cardFor = it.id;
     card.dataset.pinned = pinned ? '1' : '';
     if (questCard?.(it, card)) { card.style.display = shown ? 'block' : 'none'; return; }
+    if (venueCard?.(it, card)) { card.style.display = shown ? 'block' : 'none'; return; }
     const car = carNow(), r = C && it.kind === 'quest' ? rewardsOf(it, C.economy) : null, cur = C?.economy.currency ?? '$';
     const req = it.kind === 'quest' ? entryCheck(it, car) : [];
     card.innerHTML = `<div class="kind">${esc(it.kind === 'quest' ? `Quest · ${TYPES[it.type]?.label ?? it.type}` : KINDS[it.kind]?.label)}</div><h4>${esc(it.name)}</h4>

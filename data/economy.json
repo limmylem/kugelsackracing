@@ -76,10 +76,14 @@
     "byType": {
       "sprint": 1,
       "time_trial": 0.9,
-      "checkpoint": 1.1,
+      "checkpoint": 1.25,
       "drift": 1.05,
       "delivery": 1.2,
-      "pink_slip": 0
+      "pink_slip": 0,
+      "circuit_race": 1,
+      "hot_lap": 0.9,
+      "hillclimb": 0.9,
+      "endurance": 0.95
     },
     "byClass": {
       "D": 1,
@@ -154,8 +158,28 @@
     },
     "roundTo": 10
   },
+  "trackEvents": {
+    "_note": "Track events (Phase 5 Step 3, generated tracks: track/events/). A track event's reward is a quest's (quests above: its type, km of driving — lap × laps — stars, class and rivals) × byKind for its kind of track: an official track's as it is, the day's and the week's a little more, a quick race (or a shared code) less. farming: per track code, not per event (every event on a track counts): finished more than freeRuns times within windowHours, it pays decay^(runs past freeRuns), at least floor. hourlyCap: the kinds whose pay is capped — in any hour, at most goldRuns × the event's full reward in money and xp.",
+    "byKind": {
+      "official": 1,
+      "daily": 1.1,
+      "weekly": 1.2,
+      "quick": 0.55,
+      "shared": 0.55
+    },
+    "farming": {
+      "windowHours": 2,
+      "freeRuns": 3,
+      "decay": 0.6,
+      "floor": 0.15
+    },
+    "hourlyCap": {
+      "kinds": ["quick", "shared"],
+      "goldRuns": 3
+    }
+  },
   "simulation": {
-    "_note": "The economy simulation (npm run economy-sim: tools/economy-sim.mjs, tools/economy/sim.mjs). A bot player starts with the starter car and startingMoney, and for hours of play does quests from a pool at its skill, crashes at a realistic rate (the crash test suite's real repair bills), repairs, and buys upgrades and cars. timing: s to get to a quest and through its intro/results, and the average m/s driven at each star count. crashes: per km driven × byStars × (1 − skill × skillCut), each at one of the speeds by its weight; one at dnfAt km/h or more ends the run; an upgraded car's repairs cost more by upgradeShare × its parts' value / its own. performance: a run's score = skill × skill + car × (the car's rating against the quest's recommended, as a share) + noise, and the medal it reaches: gold, silver, bronze thresholds (+ perStar for each star past one). shopping: the bot keeps reserve back; upgrades: the part with the most rating per dollar, if it adds at least minGain; a car: one rated at least carMargin above its own. pool: the quests the bot can find (made from the seed: stars by weight, km by stars, class rules, types, rivals) and series of seriesOf of them. targets: what the report checks (docs/PROGRESSION.md).",
+    "_note": "The economy simulation (npm run economy-sim: tools/economy-sim.mjs, tools/economy/sim.mjs). A bot player starts with the starter car and startingMoney, and for hours of play does quests from a pool at its skill, crashes at a realistic rate (the crash test suite's real repair bills), repairs, and buys upgrades and cars. timing: s to get to a quest and through its intro/results (a track event: trackSeconds more, entering the track and back), and the average m/s driven at each star count. crashes: per km driven × byStars × (1 − skill × skillCut), each at one of the speeds by its weight; one at dnfAt km/h or more ends the run; an upgraded car's repairs cost more by upgradeShare × its parts' value / its own. performance: a run's score = skill × skill + car × (the car's rating against the quest's recommended, as a share) + noise, and the medal it reaches: gold, silver, bronze thresholds (+ perStar for each star past one). shopping: the bot keeps reserve back; upgrades: the part with the most rating per dollar, if it adds at least minGain; a car: one rated at least carMargin above its own. pool: the quests the bot can find (made from the seed: stars by weight, km by stars, class rules, types, rivals) and series of seriesOf of them. targets: what the report checks (docs/PROGRESSION.md).",
     "hours": 8,
     "seed": 7,
     "skills": {
@@ -166,6 +190,7 @@
     "timing": {
       "travelSeconds": 75,
       "overheadSeconds": 45,
+      "trackSeconds": 25,
       "speedByStars": [22, 19, 16, 14, 12]
     },
     "crashes": {
@@ -220,6 +245,15 @@
         "share": 0.6,
         "count": [2, 7],
         "skill": [[0.2, 0.5], [0.4, 0.7], [0.6, 0.95]]
+      },
+      "tracks": {
+        "_note": "Track events (Phase 5 Step 3): tracks of generated events in the pool — official, daily, weekly and quick (by weight), events by type on each (laps: lap km by stars, × laps), and how a race's rivals are set (as above). Quick races are a new track each time (a fresh code) but their pay is capped each hour.",
+        "count": 40,
+        "kinds": { "official": 0.45, "daily": 0.15, "weekly": 0.1, "quick": 0.3 },
+        "lapKm": [1.6, 5.4],
+        "types": { "circuit_race": 0.4, "hot_lap": 0.3, "hillclimb": 0.2, "endurance": 0.1 },
+        "laps": { "circuit_race": [2, 5], "hot_lap": [3, 3], "hillclimb": [1, 1], "endurance": [8, 14] },
+        "rivals": { "circuit_race": 1, "hillclimb": 0.5, "endurance": 1 }
       }
     },
     "targets": {

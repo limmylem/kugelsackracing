@@ -101,7 +101,7 @@ export async function regionStyle(manifest, base) {
 }
 // World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
 // the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
-const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', '#ccc'];
+const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', 'venue', '#ff5a5f', '#ccc'];
 // a quest's colour by how far the player's got with it: new (bright), tried, done (its medal's colour)
 const MEDAL_COLOUR = ['match', ['get', 'medal'], 'gold', '#f2c230', 'silver', '#c9d1d9', 'bronze', '#cd7f32', '#8fd18a'];
 const POINT_COLOUR = ['case', ['==', ['get', 'state'], 'completed'], MEDAL_COLOUR, ['==', ['get', 'state'], 'attempted'], '#c7832a', KIND_COLOUR];

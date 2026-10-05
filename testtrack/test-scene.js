@@ -51,7 +51,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
 import { createRouteRun } from '../play/testDrive.js';
 import { createQuestPlay } from '../play/questUi.js';
-import { createQuestFinder } from '../play/questFinder.js';
+import { createQuestFinder, loadVenues } from '../play/questFinder.js';
 import { regionOf } from '../quest/finder.js';
 import { createRace } from '../race/race.js';
 import { worldContent } from '../content/client.js';
@@ -101,6 +101,11 @@ import { trackWorld } from '../track/build.js';
 import { trackMarkings } from '../track/render.js';
 import { dressMeshes, themeEnvironment } from '../track/renderDress.js';
 import { startLights } from '../track/lights.js';
+// gameplay on generated tracks (Phase 5 Step 3): race venues, track events, the library, the trip there and back
+import { createTrackUi } from '../play/trackUi.js';
+import { createTrackTrip } from '../play/trackTrip.js';
+import { referenceTimes, createIdbRefCache } from '../track/events/reference.js';
+import { lapGhost, ghostFrames } from '../track/events/ghost.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); TrackScene.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
@@ -206,8 +211,10 @@ function questGame(w) {
   let drivableNow = true, conditionNow = 100;
   const recheck = () => { const p = player.profile, id = p.currentCar; if (!p.cars[id]) return; drivableNow = drivability(db.cars[p.cars[id].carId], ownedBySocket(db, p, id), db.damage).ok; conditionNow = condition(); };
   recheck();
-  player.on(recheck);
+  const offRecheck = player.on(recheck);
   const G = {
+    // (the world gone: its listener off — a generated track's world is dropped for the next one)
+    dispose: () => offRecheck(),
     player, db, config: player.quests.config, get prefs() { return s.prefs; }, economy: db.economy, currency: db.economy.currency, projection: S.projection,
     carInstanceId: () => player.profile.currentCar,
     carSummary: summary,
@@ -217,6 +224,8 @@ function questGame(w) {
     // screen holds until its ground is in and its route loaded, then the car is on its grid and its card opens
     regionId: () => regionIdOf(w),
     fastTravel: async item => {
+      // (a track event: to its venue, whose card lists it)
+      if (item.track && item.venue) { content ??= await worldContent(); item = (await content.service.get(item.venue, { view: 'published' })).item ?? item; }
       const r = regionOf(item.location, await bakedRegions());
       if (!r) { G.say?.('That quest isn\'t in a baked region', 'warn'); return false; }
       let to = w;
@@ -267,7 +276,7 @@ function questGame(w) {
     startRace({ quest, course, npcs, playerSession, seed, rubberBand }) {
       const frustum = new THREE.Frustum(), m = new THREE.Matrix4();
       const isVisible = (x, z) => { const [sx, sz] = S.toSim(x, z), y = car().body.translation().y; m.multiplyMatrices(w.camera.projectionMatrix, w.camera.matrixWorldInverse); frustum.setFromProjectionMatrix(m); return frustum.containsPoint(new THREE.Vector3(sx, y, sz)); };
-      const race = createRace({ sim: w.sim, frame: { toWorld: S.toWorld, toSim: S.toSim }, course, quest, qcfg: player.quests.config, cfg: this.npcCfg, db, sessionRules: db.sessions, playerSession, npcs, seed, collisions: s.play.collisions, rubberBand, isVisible });
+      const race = createRace({ sim: w.sim, frame: { toWorld: S.toWorld, toSim: S.toSim }, course, quest, qcfg: player.quests.config, cfg: this.npcCfg, db, sessionRules: db.sessions, playerSession, npcs, seed, collisions: quest.params?.collisions ?? s.play.collisions, rubberBand, isVisible });
       w.npcRace = race;
       // their looks: each its own model and build, in its driver's colour
       for (const r of race.npcs) npcVisual(w, r).catch(e => console.warn(`NPC car ${r.name}: ${e.message}`));
@@ -348,6 +357,105 @@ function npcRaceEvents(w) {
     }
   }
 }
+
+// ---------- generated tracks from the real world (Phase 5 Step 3) ----------
+// The track library and race venues' cards (play/trackUi.js), and the trip to a track and back
+// (play/trackTrip.js): the spot in the real world kept, the loading screen while the track's made and its
+// AI reference times worked out (once per track: kept by code), the event started on the grid; back, the
+// car on the same spot. Damage is the session's (the player's car): it comes and goes with the car.
+let trackProgress = null;
+const refCache = typeof indexedDB !== 'undefined' ? createIdbRefCache() : null;
+let trackCfgs = null;
+const trackConfigs = () => trackCfgs ??= Promise.all(['data/trackEvents.json', 'data/tracks.json', 'data/npc.json'].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()))).then(([events, tracks, npc]) => ({ events, tracks, npc }));
+async function trackGame(game) {
+  if (shared.trackUi) return;
+  const C = await trackConfigs(), s = shared;
+  const content = (await worldContent()).service;
+  const realFile = () => s.trip?.spot?.file;
+  const trip = createTrackTrip({ config: s.session.player.quests.config, adapters: {
+    spot() {
+      const w = active, b = w.sim.vehicle.body, p = b.translation(), q = b.rotation(), [x, z] = w.stream ? w.stream.toWorld(p.x, p.z) : [p.x, p.z];
+      return { file: w.file, x, y: p.y, z, heading: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI };
+    },
+    async load(code, { onProgress }) {
+      trackProgress = onProgress;
+      try { const file = `track:${code}`; if (!worlds.has(file)) worlds.set(file, await buildWorld(file)); return { file, w: worlds.get(file), data: worlds.get(file).trackData }; }
+      finally { trackProgress = null; }
+    },
+    async reference(h, carClass, { onProgress }) {
+      const db = s.session.db, socketsOf = async spec => socketsFromGlb(await glbOf(spec.model.file), spec.model);
+      const makeSim = async spec => {
+        const sim = createSimulation(RAPIER, { settings: s.settings, spec, sockets: await socketsOf(spec), track: h.w.track });
+        sim.vehicle.body.enableCcd(true);
+        const reset = sim.resetCar.bind(sim);
+        sim.resetCar = pose => { const [x, , z] = pose.position; reset({ ...pose, position: [x, TrackScene.nearestOnTrack(h.data, x, z).h + 0.6, z] }); };
+        return { sim, frame: { toWorld: (x, z) => [x, z], toSim: (x, z) => [x, z] }, free: () => sim.vehicle.world.free() };
+      };
+      return referenceTimes({ data: h.data, carClass, makeSim, socketsOf, db, npcCfg: C.npc, qcfg: s.session.player.quests.config, sessionRules: db.sessions, cache: refCache, cfg: C.events, onProgress });
+    },
+    async enter(h, prepared) {
+      await switchWorld(h.file);
+      const w = worlds.get(h.file);
+      // the race: the event on its grid (its course, hash and rating: track/events/prepare.js), a ghost if asked
+      const ghost = s.trackUi.ghostWanted ? await bestLapGhost(prepared.event) : null;
+      const r = await w.quests.start(prepared.event, { ghost });
+      if (!r.ok) s.flash.show(r.error ?? 'Couldn\'t start', 'warn', 3);
+    },
+    async back(spot) {
+      await switchWorld(spot.file);
+      const w = worlds.get(spot.file);
+      rwOf(w).travelTo(w, { xz: [spot.x, spot.z], heading: spot.heading });
+      w.rig.reset();
+    },
+    fade: on => on ? s.trackUi.loading.show(s.trip?.going?.track?.name ?? 'Track', s.trip?.going?.name ?? '') : s.trackUi.loading.hide(),
+  } });
+  s.trip = trip;
+  s.trackUi = createTrackUi({ events: C.events, tracks: C.tracks, content, trip, game: { ...game,
+    busy: () => !!active?.quests?.active || trip.state === 'loading',
+    venues: async () => loadVenues(content, await bakedRegions()),
+    pause: on => game.pause(on),
+    go: async (event, { ghost } = {}) => {
+      if (active?.quests?.active) return { ok: false, error: 'Finish or quit the race you\'re in first.' };
+      trip.going = event;
+      active?.content?.hideCard?.();
+      const r = await trip.go(event, { onProgress: (step, share) => s.trackUi.loading.progress(step, share) });
+      trip.going = null;
+      return r;
+    },
+    leave: () => leaveTrack(),
+  } });
+}
+async function leaveTrack() {
+  const w = active;
+  if (w?.quests?.active) w.quests.stop();
+  if (shared.trip?.state === 'track') await shared.trip.leave();
+}
+// (another world through the page's own switch, so its world buttons follow)
+async function switchWorld(file) { if (hooks.switchTo) { const ok = await hooks.switchTo(file); if (ok !== false && active?.file === file) return; } await enter(file); }
+// the best lap of the player's record on this track (for their car's class), as a ghost
+async function bestLapGhost(event) {
+  const p = shared.session.player.profile, cls = shared.session.stats?.totals?.rating?.class ?? 'open';
+  const R = Object.values(p.trackRecords ?? {}).find(r => r.code === event.track.code && r.carClass === cls && r.recording);
+  if (!R) return null;
+  const got = await shared.session.player.getRecording(R.recording);
+  const lap = got.ok ? lapGhost(got.recording, R.bestLaps?.length ? R.bestLaps : [R.bestTime]) : null;
+  return lap ? { frames: ghostFrames(lap), lap: lap.meta.lap, perLap: event.track.layout !== 'p2p' } : null;
+}
+// the ghost car: the player's car's look, see-through
+function showGhost(w, pose) {
+  if (!pose) { if (w.ghostCar) w.ghostCar.visible = false; return; }
+  if (!w.ghostCar) {
+    w.ghostCar = w.car.clone(true);
+    w.ghostCar.traverse(o => { if (o.isMesh) { o.material = (Array.isArray(o.material) ? o.material : [o.material]).map(m => { const c = m.clone(); c.transparent = true; c.opacity = 0.32; c.depthWrite = false; return c; }); if (o.material.length === 1) o.material = o.material[0]; o.castShadow = false; } });
+    w.scene.add(w.ghostCar);
+  }
+  const [sx, sz] = w.stream ? w.stream.toSim(pose.x, pose.z) : [pose.x, pose.z];
+  w.ghostCar.position.set(sx, pose.y, sz);
+  w.ghostCar.quaternion.set(pose.q[0], pose.q[1], pose.q[2], pose.q[3]);
+  w.ghostCar.visible = true;
+}
+export const trackTrip = () => shared?.trip ?? null;
+export const trackUiNow = () => shared?.trackUi ?? null;
 
 export async function enter(file) {
   if (!shared) {
@@ -595,12 +703,33 @@ function restartAudio() {
   try { s.audio = createAudio(s.spec); s.audioSound = s.spec.engine?.sound; s.audio.mute(s.muted || !active); } catch { s.noAudio = true; }
 }
 
+// A world let go of (a generated track's, for the next one): its physics, its quests, and what it drew on
+// the GPU — nothing of it kept
+function disposeWorld(w) {
+  try { w.quests?.dispose(); } catch { /* gone */ }
+  try { w.questGame?.dispose(); } catch { /* gone */ }
+  try { w.sim.vehicle.world.free(); } catch { /* gone */ }
+  // (the cars: their own way — their models are shared through the model cache; the ghost's materials are its own)
+  const skip = new Set();
+  for (const g of [w.car, w.ghostCar]) g?.traverse(o => skip.add(o));
+  w.ghostCar?.traverse(o => { for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) m.dispose?.(); });
+  for (const vis of w.others?.values?.() ?? []) dropCar(vis);
+  if (w.carVis) dropCar(w.carVis);
+  const seen = new Set(), drop = x => { if (x && !seen.has(x)) { seen.add(x); x.dispose?.(); } };
+  w.scene.traverse(o => {
+    if (skip.has(o)) return;
+    drop(o.geometry);
+    for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) { for (const v of Object.values(m)) if (v?.isTexture) drop(v); drop(m); }
+  });
+  w.scene.clear();
+}
+
 async function buildWorld(file) {
   // (a baked region of the real world: scenes/map_v3.json?region=<id> — fast travel to its quests)
   const [path, query] = file.split('?'), region = new URLSearchParams(query ?? '').get('region');
   // (a generated track: made, or from this browser's cache — track/client.js)
-  const trackData = path.startsWith('track:') ? await loadTrack({ code: path.slice(6) }, { onProgress: (step, share) => { shared.info.textContent = `Making the track… ${step} ${Math.round(share * 100)}%`; } }) : null;
-  if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); try { other.sim.vehicle.world.free(); } catch { /* gone */ } }     // (one generated track kept at a time)
+  const trackData = path.startsWith('track:') ? await loadTrack({ code: path.slice(6) }, { onProgress: (step, share) => { shared.info.textContent = `Making the track… ${step} ${Math.round(share * 100)}%`; trackProgress?.(step, share); } }) : null;
+  if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
@@ -719,9 +848,21 @@ async function buildWorld(file) {
         const r = routeRun?.state;
         if (r?.phase === 'countdown') return startLights({ phase: 'countdown', left: r.count, total: 3 });
         if (r?.phase === 'driving') return startLights({ phase: 'go', since: r.sinceGo ?? 99 });
+        // (a track event's countdown: quest/session.js)
+        const Q = w.quests?.controller?.session?.state;
+        if (Q?.state === 'countdown' && Q.tGo != null) return startLights({ phase: 'countdown', left: Math.max(0, Q.tGo - Q.t), total: Q.config.start.countdown });
+        if (Q?.state === 'racing' && Q.tGo != null) return startLights({ phase: 'go', since: Q.t - Q.tGo });
         return startLights();
       };
     }
+  }
+  // a generated track's events (Phase 5 Step 3): the quests' own play, the course the track's
+  if (trackData) {
+    const game = w.questGame = questGame(w);
+    game.trackCourse = item => shared.trip?.prepared?.event?.id === item.id ? shared.trip.prepared.course : null;
+    game.leaveTrack = () => leaveTrack();
+    game.showGhost = pose => showGhost(w, pose);
+    w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
   }
   if (track.mapV3) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
@@ -729,8 +870,9 @@ async function buildWorld(file) {
     // and its quests (play/questUi.js): the card, starting one, the run, the results
     const game = questGame(w);
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
+    trackGame(game);
     w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
-      questCard: (it, el) => w.quests.card(it, el), stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
+      questCard: (it, el) => w.quests.card(it, el), venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
     // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
     w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
@@ -759,6 +901,7 @@ function frame(w, now) {
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
+  shared.trackUi?.frame(!!w.trackData && shared.trip?.state === 'track', !!w.quests?.active);
   if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car

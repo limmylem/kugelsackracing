@@ -3,7 +3,7 @@
 // enter (plain-English reasons, and which of the player's cars would do).
 //
 //   medalTargets(quest, course, config) → { kind: 'time' | 'score', gold, silver, bronze }
-//   medalOf(targets, { time, score }) → 'gold' | 'silver' | 'bronze' | null
+//   medalOf(targets, { time, score }) → 'gold' | 'silver' | 'bronze' | null     rankedTime(quest, result)
 //   earnings({ quest, outcome, progress, economy, config, now }) → { money, xp, tiers, repeat, lines, farming }
 //   levelOf(xp, config) → level      levelProgress(xp, config)      farmingFactor(recent, now, economy)
 //   entryReasons({ quest, car, player, fee, config, economy }) → [reason]
@@ -25,11 +25,20 @@ export function medalTargets(quest, course, config) {
     return { kind: 'score', ...pick(auto, P.medalScores) };
   }
   const own = P.medalTimes;
-  // the AI reference times (the editor's AI test race), for this quest's class: gold the high-skill AI's
-  // time, silver the medium's, bronze the low's
+  // (a hot lap for the best lap: one lap's targets)
+  const laps = course?.loop && !(quest.type === 'hot_lap' && (P.mode ?? 'best_lap') === 'best_lap') ? Math.max(1, P.laps ?? 1) : 1;
+  // the AI reference times (the editor's AI test race, or a generated track's reference laps), for this
+  // quest's class: gold the high-skill AI's time, silver the medium's, bronze the low's (a track's are one
+  // lap's: × the laps)
   const ai = course?.aiTimes?.[classKey(quest)];
-  if (ai?.high && ai?.medium && ai?.low && quest.type !== 'time_trial') return { kind: 'time', ...pick({ gold: ai.high, silver: ai.medium, bronze: ai.low }, own), from: 'ai' };
-  const laps = course?.loop ? Math.max(1, P.laps ?? 1) : 1;
+  if (ai?.high && ai?.medium && ai?.low && quest.type !== 'time_trial') {
+    // (a generated track's: its standing lap and its flying lap — a standing start's first lap, then flying
+    // ones; a rolling start's all flying; a hot lap's best lap a flying one)
+    const F = ai.flying, rolling = (P.start ?? 'standing') === 'rolling', best = quest.type === 'hot_lap' && (P.mode ?? 'best_lap') === 'best_lap';
+    const t = k => !ai.perLap ? ai[k] : !F ? ai[k] * laps : best ? F[k] : rolling ? F[k] * laps : ai[k] + F[k] * (laps - 1);
+    const r1 = x => Math.round(x * 10) / 10;
+    return { kind: 'time', ...pick({ gold: r1(t('high')), silver: r1(t('medium')), bronze: r1(t('low')) }, own), from: 'ai' };
+  }
   const ref = (P.targetSeconds && quest.type === 'time_trial' ? P.targetSeconds : null) ?? course?.referenceTime ?? course?.stats?.estimatedTime ?? null;
   if (!ref) return { kind: 'time', ...pick({ gold: null, silver: null, bronze: null }, own) };
   const r1 = x => Math.round(x * 10) / 10;
@@ -43,6 +52,11 @@ export function medalOf(T, { time = null, score = null }) {
     if (T.kind === 'score' ? score != null && score >= T[tier] : time != null && time <= T[tier]) return tier;
   }
   return null;
+}
+// The time a run is ranked by: a hot lap's best lap (mode best_lap), else the total
+export function rankedTime(quest, result) {
+  if (quest.type === 'hot_lap' && (quest.params?.mode ?? 'best_lap') === 'best_lap' && result.laps?.length) return Math.min(...result.laps);
+  return result.time ?? null;
 }
 // which AI reference times a quest uses: its classes (e.g. 'CD'), else 'open'
 export const classKey = quest => quest.entry?.classes?.length ? quest.entry.classes.slice().sort().join('') : 'open';

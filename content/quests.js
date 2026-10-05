@@ -22,9 +22,12 @@ export const KINDS = {
   spawn: { label: 'Spawn point', icon: 'car', colour: '#7ee08a' },
   route: { label: 'Route', icon: 'route', colour: '#e05cff' },
   series: { label: 'Quest series', icon: 'series', colour: '#ffd166' },
+  // (Phase 5 Step 3: a race venue in the real world — driving up to one lists its track events, each a
+  // quest on a generated track: track/events/)
+  venue: { label: 'Race venue', icon: 'venue', colour: '#ff5a5f' },
 };
 // the kinds players see as markers (a route is seen through its quests)
-export const MARKER_KINDS = ['quest', 'poi', 'spawn'];
+export const MARKER_KINDS = ['quest', 'poi', 'spawn', 'venue'];
 
 // Each quest type: its name, its own fields (params: their defaults, and how the editor shows them), and
 // what it must have before it can be published
@@ -85,14 +88,54 @@ export const TYPES = {
       ...(p.finish || ctx.route ? [] : [err('params.finish', 'Pink slip needs a route (or a finish line).')]),
     ],
   },
+  // ---------- track events (Phase 5 Step 3: on a generated track, track/events/) ----------
+  circuit_race: {
+    label: 'Circuit race', icon: 'flag', blurb: 'Laps of a circuit against the field: first past the flag wins.', track: true,
+    params: { laps: 3, start: 'standing', collisions: 'full', entryFee: null },
+    fields: [{ key: 'laps', label: 'Laps', kind: 'int', min: 1, max: 50 }, { key: 'start', label: 'Start', kind: 'choice', options: ['standing', 'rolling'] }, ...trackFields()],
+    check: (p, ctx) => [...needsTrackOrRoute(p, ctx, 'Circuit race'), ...laps(p), ...trackParams(p)],
+  },
+  hot_lap: {
+    label: 'Hot lap', icon: 'timer', blurb: 'Against the clock: your best lap (or the total) for the medals.', track: true,
+    params: { laps: 3, mode: 'best_lap', start: 'rolling', collisions: 'off', entryFee: null },
+    fields: [{ key: 'laps', label: 'Laps', kind: 'int', min: 1, max: 50 }, { key: 'mode', label: 'Medals for', kind: 'choice', options: ['best_lap', 'total'] }, { key: 'start', label: 'Start', kind: 'choice', options: ['standing', 'rolling'] }, ...trackFields()],
+    check: (p, ctx) => [...needsTrackOrRoute(p, ctx, 'Hot lap'), ...laps(p), ...trackParams(p), ...(['best_lap', 'total'].includes(p.mode ?? 'best_lap') ? [] : [err('params.mode', 'A hot lap\'s medals are for the best lap or the total.')])],
+  },
+  hillclimb: {
+    label: 'Hillclimb / sprint', icon: 'flag', blurb: 'From the start to the top: solo against the clock, or against the field.', track: true,
+    params: { start: 'standing', collisions: 'full', entryFee: null },
+    fields: [{ key: 'start', label: 'Start', kind: 'choice', options: ['standing', 'rolling'] }, ...trackFields()],
+    check: (p, ctx) => [...needsTrackOrRoute(p, ctx, 'Hillclimb'), ...trackParams(p)],
+  },
+  endurance: {
+    label: 'Endurance', icon: 'timer', blurb: 'A long race in stints (the framework: stints and the pit lane come later).', track: true,
+    params: { laps: 20, stints: 2, start: 'rolling', collisions: 'full', entryFee: null },
+    fields: [{ key: 'laps', label: 'Laps', kind: 'int', min: 2, max: 200 }, { key: 'stints', label: 'Stints', kind: 'int', min: 1, max: 10 }, ...trackFields()],
+    check: (p, ctx) => [...needsTrackOrRoute(p, ctx, 'Endurance'), ...laps(p), ...trackParams(p), ...(Number.isInteger(p.stints ?? 1) && (p.stints ?? 1) >= 1 ? [] : [err('params.stints', 'Stints: a whole number, at least 1.')])],
+  },
 };
 export const TYPE_IDS = Object.keys(TYPES);
 export const TIMES = ['any', 'dawn', 'day', 'dusk', 'night'], WEATHER = ['any', 'clear', 'cloudy', 'rain', 'fog'];
 
 function err(field, message) { return { field, level: 'error', message }; }
+// (a track event's own settings: who it collides with, an entry fee of its own)
+function trackFields() { return [{ key: 'collisions', label: 'Collisions', kind: 'choice', options: ['full', 'reduced', 'off'] }, { key: 'entryFee', label: 'Entry fee (blank: the economy\'s)', kind: 'number', min: 0 }]; }
+function trackParams(p) {
+  return [...(p.collisions == null || ['full', 'reduced', 'off'].includes(p.collisions) ? [] : [err('params.collisions', 'Collisions: full, reduced or off.')]),
+    ...(p.entryFee == null || (Number.isFinite(p.entryFee) && p.entryFee >= 0) ? [] : [err('params.entryFee', 'An entry fee is a sum of money, 0 or more (blank: the economy\'s).')])];
+}
+function needsTrackOrRoute(p, ctx, what) { return ctx.track || ctx.route ? [] : [err('track', `${what} needs a generated track (or a route).`)]; }
 function laps(p) { return p.laps === undefined || (Number.isInteger(p.laps) && p.laps >= 1) ? [] : [err('params.laps', 'Laps must be a whole number, at least 1.')]; }
 // what each type of quest needs of its route: a point-to-point one (a delivery goes somewhere), or either
-export const ROUTE_KINDS = { sprint: ['p2p', 'loop'], time_trial: ['p2p', 'loop'], checkpoint: ['p2p', 'loop'], drift: ['p2p', 'loop'], delivery: ['p2p'], pink_slip: ['p2p', 'loop'] };
+export const ROUTE_KINDS = { sprint: ['p2p', 'loop'], time_trial: ['p2p', 'loop'], checkpoint: ['p2p', 'loop'], drift: ['p2p', 'loop'], delivery: ['p2p'], pink_slip: ['p2p', 'loop'],
+  circuit_race: ['loop'], hot_lap: ['loop'], hillclimb: ['p2p'], endurance: ['loop'] };
+// the quest types rivals race in
+export const RIVAL_TYPES = ['sprint', 'pink_slip', 'circuit_race', 'hillclimb', 'endurance'];
+// the quest types made for a generated track (they can't run on a route)
+export const TRACK_TYPES = TYPE_IDS.filter(t => TYPES[t].track);
+// a track event's kind of track: official (named in the editor), the day's, the week's, a quick race's, a
+// code someone shared
+export const TRACK_KINDS = ['official', 'daily', 'weekly', 'quick', 'shared'];
 function warn(field, message) { return { field, level: 'warning', message }; }
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 
@@ -110,6 +153,7 @@ export function newItem(kind, { id, location, author = 'editor', now = new Date(
   });
   if (kind === 'route') item.course = newRoute(region, routeKind);
   if (kind === 'series') item.quests = [];
+  if (kind === 'venue') item.events = [];
   return item;
 }
 
@@ -148,13 +192,16 @@ export function rewardsOf(item, economy) {
   if (!Q || item.kind !== 'quest') return { money: 0, xp: 0, fee: 0, tier: null };
   const R = item.rating ?? {}, stars = Math.max(1, Math.min(5, R.stars ?? Q.defaults?.stars ?? 2)), km = Math.min(Q.maxKm ?? Infinity, R.km ?? Q.defaults?.km ?? 3);
   const cls = rewardClass(item, economy), round = Q.roundTo ?? 1, T = tierOf(item, economy);
-  const rivals = item.type === 'pink_slip' ? 1 : Math.max(0, item.npc?.count ?? 0), sk = item.npc?.skill ?? [0.4, 0.8];
+  const rivals = item.type === 'pink_slip' ? 1 : RIVAL_TYPES.includes(item.type) ? Math.max(0, item.npc?.count ?? 0) : 0, sk = item.npc?.skill ?? [0.4, 0.8];
   const crowd = 1 + rivals * (Q.npc?.perRival ?? 0) * ((Q.npc?.skillFloor ?? 0.5) + (sk[0] + sk[1]) / 2);
   const s = Q.byStars[stars - 1] ?? 1, type = Q.byType[item.type] ?? 1;
-  const core = (Q.base.money + Q.perKm.money * km) * s * type * (Q.byClass[cls] ?? 1) * crowd;
-  const fee = item.type === 'pink_slip' ? 0 : Math.round(core * (T.feeShare ?? 0) / round) * round;
+  // (a track event: its kind of track's share — a quick race pays less: economy.trackEvents.byKind)
+  const share = item.track ? (economy.trackEvents?.byKind?.[item.track.kind ?? 'official'] ?? 1) : 1;
+  const core = (Q.base.money + Q.perKm.money * km) * s * type * (Q.byClass[cls] ?? 1) * crowd * share;
+  const own = item.track && Number.isFinite(item.params?.entryFee) && item.params.entryFee >= 0 ? item.params.entryFee : null;
+  const fee = item.type === 'pink_slip' ? 0 : own ?? Math.round(core * (T.feeShare ?? 0) / round) * round;
   const money = item.type === 'pink_slip' ? 0 : Math.round((core + fee * (Q.fee?.back ?? 1)) / round) * round;
-  const xp = Math.round((Q.base.xp + Q.perKm.xp * km) * s * crowd);
+  const xp = Math.round((Q.base.xp + Q.perKm.xp * km) * s * crowd * Math.sqrt(share));
   return { money, xp, fee, core: Math.round(core), tier: T.tier, tierName: T.name, unlockLevel: T.level, stars, km, rewardClass: cls, stakeMaxClass: T.stakeMaxClass ?? null, rated: !!item.rating,
     car: item.type === 'pink_slip' ? item.params?.opponentCar ?? null : null };
 }
@@ -174,15 +221,19 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   if (item.location?.altFrom === 'estimate') out.push(warn('location.alt', 'Its height is a guess (no ground there): place it in the 3D view to set it from the road.'));
   if (item.kind === 'route') return [...out, ...routeProblems(item)];
   if (item.kind === 'series') return [...out, ...seriesProblems(item)];
+  if (item.kind === 'venue') return [...out, ...venueProblems(item)];
   if (item.kind !== 'quest') return out;
   const T = TYPES[item.type];
   if (!T) { out.push(err('type', `There's no quest type "${item.type}".`)); return out; }
   // (its route: given — the item, or null when there's none by that id — or not looked up: undefined)
   const R = item.route && route ? route : null;
-  out.push(...T.check(item.params ?? {}, { cars, route: R ?? (item.route && route === undefined ? { unknown: true } : null) }));
+  out.push(...T.check(item.params ?? {}, { cars, track: item.track ?? null, route: R ?? (item.route && route === undefined ? { unknown: true } : null) }));
   out.push(...rivalProblems(item));
   for (const f of T.fields) if (f.kind === 'place' && item.params?.[f.key] && !validPlace(item.params[f.key])) out.push(err(`params.${f.key}`, `The ${f.label.toLowerCase().replace(/ \(.*\)/, '')} isn't a place on the map.`));
-  if (!item.route) out.push(warn('route', 'No route yet: draw one with the route tool (4) and pick it here.'));
+  // (a track event: its generated track, checked — track/events/model.js)
+  if (item.track) out.push(...trackLinkProblems(item));
+  else if (T.track) out.push(err('track', `A ${T.label.toLowerCase()} is run on a generated track: pick one (Track event in the editor).`));
+  else if (!item.route) out.push(warn('route', 'No route yet: draw one with the route tool (4) and pick it here.'));
   else if (route === null) out.push(err('route', `Its route "${item.route}" doesn't exist (any more).`));
   else if (R) out.push(...linkProblems(item, R));
   // entry requirements
@@ -213,15 +264,49 @@ export function seriesProblems(item) {
   return out;
 }
 
-// rivals on a quest type that has none (they race in sprints and pink slips)
+// rivals on a quest type that has none (they race in sprints, pink slips and track races)
 export function rivalProblems(item) {
   const n = item.npc?.count ?? 0, out = [];
-  if (n > 0 && !['sprint', 'pink_slip'].includes(item.type)) out.push(warn('npc.count', `A ${TYPES[item.type]?.label.toLowerCase() ?? item.type} has no rivals: the ${n} set are ignored (they race in sprints and pink slips).`));
+  if (n > 0 && !RIVAL_TYPES.includes(item.type)) out.push(warn('npc.count', `A ${TYPES[item.type]?.label.toLowerCase() ?? item.type} has no rivals: the ${n} set are ignored (they race in sprints, pink slips, circuit races, hillclimbs and endurance races).`));
   const sk = item.npc?.skill;
   if (sk && !(sk[0] >= 0 && sk[1] <= 1 && sk[0] <= sk[1])) out.push(err('npc.skill', 'Rivals\' skill goes from 0 to 1, the first no more than the second.'));
   return out;
 }
 export const blocking = list => list.filter(p => p.level === 'error');
+
+// a venue: its events listed, none twice (that they exist, are track events and are published: the editor
+// checks, it can look)
+export function venueProblems(item) {
+  const e = item.events ?? [], out = [];
+  if (!e.length) out.push(warn('events', 'No track events yet: create one (Track event in the editor) and attach it here.'));
+  if (new Set(e).size !== e.length) out.push(err('events', 'An event is at the venue twice.'));
+  return out;
+}
+
+// A track event and its generated track: the code there, the kind of track it is, the track fits the type
+// (laps need a circuit, a hillclimb a point-to-point), the grid holds the rivals, and — to publish — the
+// track passed its checks and the AI could finish it (the editor's test race: item.track.check)
+export function trackLinkProblems(item) {
+  const t = item.track, out = [], T = TYPES[item.type];
+  if (!t?.code || !/^[0-9A-Z-]{10,}$/.test(t.code)) return [err('track.code', 'The track has no code: pick or roll one.')];
+  if (!TRACK_KINDS.includes(t.kind ?? 'official')) out.push(err('track.kind', `There's no kind of track "${t.kind}".`));
+  if (!T?.track && !['drift'].includes(item.type)) out.push(err('type', `A ${T?.label.toLowerCase() ?? item.type} isn't run on a generated track: pick a circuit race, hot lap, hillclimb, endurance race or drift.`));
+  const kinds = ROUTE_KINDS[item.type] ?? ['p2p', 'loop'];
+  if (t.layout && !kinds.includes(t.layout)) out.push(err('track', `A ${T?.label.toLowerCase() ?? item.type} needs a ${kinds[0] === 'loop' ? 'circuit' : 'point-to-point track'}: this track is ${t.layout === 'loop' ? 'a circuit' : 'point to point'}.`));
+  if ((item.params?.laps ?? 1) > 1 && t.layout === 'p2p') out.push(err('params.laps', 'Laps need a circuit: this track is point to point.'));
+  const rivals = item.npc?.count ?? 0, slots = t.gridSlots ?? 8;
+  if (RIVAL_TYPES.includes(item.type) && rivals > slots - 1) out.push(err('npc.count', `${rivals} rivals need a grid of ${rivals + 1} slots: the track has ${slots}.`));
+  if (!t.hash) out.push(warn('track.hash', 'The track hasn\'t been made yet: preview it so its hash is kept.'));
+  const C = t.check;
+  if (!C) out.push(err('track.check', 'Run the AI test race on the track first: an event can\'t be published until the AI can finish it.'));
+  else {
+    if (C.trackOk === false) out.push(err('track.check', `The track fails its checks: ${(C.problems ?? [])[0] ?? 'see the editor'}.`));
+    if (C.aiFinished === false) out.push(err('track.check', 'The AI couldn\'t finish this track: roll another seed or fix the problem corners.'));
+    if (C.hash && t.hash && C.hash !== t.hash) out.push(err('track.check', 'The track changed since its test race: run it again.'));
+    if ((C.spots ?? []).length) out.push(warn('track.check', `The AI test race flagged ${C.spots.length} problem corner${C.spots.length > 1 ? 's' : ''}: ${C.spots[0].message ?? ''}`));
+  }
+  return out;
+}
 
 // a route's own problems, from what's stored with it (the editor works them out with the road map and
 // keeps them in course.problems when it saves; a server can check them with route/model.js the same way)

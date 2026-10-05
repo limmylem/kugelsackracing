@@ -20,17 +20,21 @@ import { fittedRacing } from './fit.js';
 import { classKey } from '../quest/rules.js';
 import { groundHeight } from '../physics/ai.js';
 
-export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg, sessionRules, seed = 1, playerRating = null, count = null, limit = null }) {
+export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg, sessionRules, seed = 1, playerRating = null, count = null, limit = null, race: withRace = true, soloLaps = null }) {
   let world = null, race = null, phase = 'idle', solo = null, levels = Object.entries(cfg.skill.levels), lvl = 0, elapsed = 0;
-  const incidents = [], aiTimes = {}, field = [];
+  const incidents = [], aiTimes = {}, aiLaps = {}, soloResets = {}, field = [];
   const est = course.stats?.estimatedTime ?? 120, laps = course.loop ? Math.max(1, quest.params?.laps ?? 1) : 1;
-  const maxTime = limit ?? Math.max(120, est * laps * 3);
+  // (the solo laps: the quest's laps, or soloLaps — a generated track's reference laps: track/events/reference.js)
+  const soloQuest = { ...quest, type: 'sprint', params: { ...(quest.params ?? {}), laps: soloLaps ?? quest.params?.laps ?? 1 } };
+  const maxTime = limit ?? Math.max(120, est * Math.max(laps, soloLaps ?? 1) * 3);
   let carClass = null, refBuild = null;
 
   async function start() {
     const setup = setupNpcs({ db, quest: { ...quest, npc: { ...(quest.npc ?? {}), count: count ?? Math.max(1, quest.npc?.count ?? cfg.defaults.count) } }, course, cfg, qcfg, seed, playerRating });
     for (const n of setup) n.sockets = await socketsOf(n.spec);
     refBuild = setup[0]?.build ?? null; carClass = classKey(quest);
+    // (no race: straight to the reference laps)
+    if (!withRace) { lvl = 0; await startSolo(); return; }
     world = await makeSim(setup[0].spec);
     race = createRace({ sim: world.sim, frame: world.frame, course, quest, qcfg, cfg, db, sessionRules, playerSession: null, npcs: setup, seed, collisions: 'full' });
     phase = 'race'; elapsed = 0;
@@ -43,7 +47,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
     world?.free(); world = await makeSim(refBuild.stats.spec);
     const { sim, frame } = world, caps = carCaps(refBuild.stats), K = driverParams({ skill, mistakeRate: 0 }, cfg);
     const RL = fittedRacing(course, sim, frame), plan = speedPlan(RL, caps, { loop: course.loop, corner: K.cornerMargin, braking: K.brakingPoint });
-    const Q = createQuestSession({ quest: { ...quest, type: 'sprint' }, course, config: qcfg, car: { topSpeed: caps.topSpeed } });
+    const Q = createQuestSession({ quest: soloQuest, course, config: qcfg, car: { topSpeed: caps.topSpeed } });
     const D = createAiDriver({ id: 0, rl: RL, line: course.line, loop: course.loop, plan, caps, params: K, rng: rng(hashSeed(seed, name)), frame, config: cfg, ctx: { started: () => Q.state.state === 'racing' } });
     const slot = course.grid.slots[0], [sx, sz] = frame.toSim(slot.x, slot.z);
     sim.vehicle.reset({ position: [sx, (groundHeight(sim.vehicle, sx, sz) ?? slot.h) + 0.35, sz], headingDeg: slot.heading });
@@ -51,7 +55,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
     const detach = sim.onStep(s => {
       const b = sim.vehicle.body, p = b.translation(), l = b.linvel(), [x, z] = frame.toWorld(p.x, p.z);
       Q.tick({ t: s.time, dt: s.dt, x, z, vx: l.x, vz: l.z, throttle: 0, drivable: true, condition: 100 });
-      for (const e of Q.drain()) if (e.type === 'reset') { const pt = e.point, [rx, rz] = frame.toSim(pt.x, pt.z); sim.vehicle.reset({ position: [rx, (groundHeight(sim.vehicle, rx, rz) ?? pt.h) + 0.35, rz], headingDeg: pt.heading }); Q.noteReset(pt); }
+      for (const e of Q.drain()) if (e.type === 'reset') { const pt = e.point, [rx, rz] = frame.toSim(pt.x, pt.z); sim.vehicle.reset({ position: [rx, (groundHeight(sim.vehicle, rx, rz) ?? pt.h) + 0.35, rz], headingDeg: pt.heading }); Q.noteReset(pt); soloResets[name] = (soloResets[name] ?? 0) + 1; }
     });
     solo = { name, Q, D, detach, t: 0 };
     phase = 'solo';
@@ -84,7 +88,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
         while (performance.now() - t0 < (fast ? budgetMs : budgetMs / 2) && !solo.Q.outcome && solo.t < maxTime) { sim.step(solo.D(sim.vehicle, sim.dt)); solo.t += sim.dt; }
         if (solo.Q.outcome || solo.t >= maxTime) {
           solo.detach();
-          if (solo.Q.outcome?.status === 'finished') aiTimes[solo.name] = Math.round(solo.Q.outcome.time * 10) / 10;
+          if (solo.Q.outcome?.status === 'finished') { aiTimes[solo.name] = Math.round(solo.Q.outcome.time * 10) / 10; aiLaps[solo.name] = solo.Q.outcome.laps.map(t => Math.round(t * 1000) / 1000); }
           lvl++;
           await startSolo();
           if (phase === 'done') { world.free(); world = null; }
@@ -105,7 +109,7 @@ export function createAiTest({ makeSim, socketsOf, course, quest, db, cfg, qcfg,
       }
       const flagged = spots.filter(s => s.count > 1 || s.kinds.stuck || s.kinds['crashed out']).map(s => ({ x: Math.round(s.x), z: Math.round(s.z), u: Math.round(s.u ?? 0), count: s.count, cars: s.cars.size, kinds: s.kinds,
         message: `AIs ${Object.entries(s.kinds).map(([k, n]) => `${k}${n > 1 ? ` ×${n}` : ''}`).join(', ')} ${Math.round((s.u ?? 0))} m along the route.` }));
-      return { standings: field, spots: flagged, incidents: incidents.slice(), aiTimes: { ...aiTimes }, carClass, laps };
+      return { standings: field, spots: flagged, incidents: incidents.slice(), aiTimes: { ...aiTimes }, aiLaps: { ...aiLaps }, carClass, laps, soloResets: { ...soloResets } };
     },
     dispose() { solo?.detach?.(); race?.dispose?.(); world?.free?.(); world = null; },
   };

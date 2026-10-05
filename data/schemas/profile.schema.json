@@ -49,6 +49,18 @@
       }
     },
     "questLog": { "type": "array", "maxItems": 50, "items": { "type": "object" }, "description": "The last runs handed in: what each paid, and invalid results (paid nothing) with why" },
+    "trackRecords": {
+      "type": "object", "description": "Generated tracks' records (Phase 5 Step 3, track/events/records.js): per track code, generator version and car class (key code|vN|class) — the best time, lap and score, their splits and laps, the best run's recording (a ghost on request)",
+      "additionalProperties": {
+        "type": "object", "required": ["code"],
+        "properties": { "code": { "type": "string" }, "version": { "type": ["integer", "null"] }, "carClass": { "type": "string" }, "bestTime": { "type": ["number", "null"] }, "bestLap": { "type": ["number", "null"] }, "bestScore": { "type": ["number", "null"] }, "recording": { "type": ["string", "null"] }, "runs": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "trackBoards": { "type": "object", "description": "Local leaderboards of official, daily and weekly track events (by event id): their best runs, in the result format (quest/result.js)", "additionalProperties": { "type": "array", "maxItems": 25, "items": { "type": "object" } } },
+    "trackFarm": { "type": "object", "description": "Finishes on each generated track (by code, ISO times): the anti-farming cut per track code", "additionalProperties": { "type": "array", "maxItems": 10, "items": { "type": "string" } } },
+    "trackQuick": { "type": "array", "maxItems": 60, "items": { "type": "object" }, "description": "What quick races (and shared codes) paid in the last hour: their hourly cap" },
+    "trackRecent": { "type": "array", "maxItems": 60, "items": { "type": "object", "required": ["code"] }, "description": "Generated tracks played, newest first (the track library's Recent)" },
+    "trackFavs": { "type": "array", "maxItems": 60, "items": { "type": "object", "required": ["code"] }, "description": "The track library's favourites" },
     "questPending": {
       "type": "object", "required": ["attemptId", "questId", "fee"], "description": "The run under way (its fee paid)",
       "properties": { "attemptId": { "type": "string" }, "questId": { "type": "string" }, "fee": { "type": "number", "minimum": 0 }, "started": { "type": "string" }, "pinkSlip": { "type": "boolean" } }

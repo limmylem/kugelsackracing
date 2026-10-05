@@ -27,6 +27,10 @@ export function buildResult({ quest, course, outcome, car = {}, recordingId = nu
     resets: outcome.resets ?? 0,
     // (a race: the place, and everyone's times — a server can check the place against them)
     ...(outcome.place != null ? { place: outcome.place, field: (outcome.field ?? []).map(f => ({ id: f.id, name: f.name, player: !!f.player, status: f.status, time: f.time != null ? r3(f.time) : null, estimated: !!f.estimated })) } : {}),
+    // (a generated track: its code and the hash of what was driven — track/events/hash.js; a result whose
+    // hash isn't the event's pays nothing)
+    ...(quest.track ? { track: { code: quest.track.code, kind: quest.track.kind ?? 'official', hash: course?.trackHash ?? null, version: quest.track.version ?? null } } : {}),
+    ...(outcome.stints ? { stints: outcome.stints } : {}),
     recording: recordingId,
   };
 }

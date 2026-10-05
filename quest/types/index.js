@@ -15,5 +15,10 @@ import checkpoint from './checkpoint.js';
 import drift from './drift.js';
 import delivery from './delivery.js';
 import pink_slip from './pinkSlip.js';
+// (track events, Phase 5 Step 3: on generated tracks)
+import circuit_race from './circuitRace.js';
+import hot_lap from './hotLap.js';
+import hillclimb from './hillclimb.js';
+import endurance from './endurance.js';
 
-export const TYPE_MODULES = { sprint, time_trial, checkpoint, drift, delivery, pink_slip };
+export const TYPE_MODULES = { sprint, time_trial, checkpoint, drift, delivery, pink_slip, circuit_race, hot_lap, hillclimb, endurance };

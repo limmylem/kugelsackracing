@@ -1,5 +1,9 @@
 # Quests at run time: finding, racing, results
 
+> **Phase 5 Step 3:** quests also run on generated tracks. Track events (circuit race, hot lap, hillclimb or
+> sprint, endurance, drift) are listed at race venues, in the daily and weekly tracks, quick races and shared
+> codes, and come with records per track code, ghosts and leaderboards. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
+
 (What quests pay, difficulty, levels and tiers, the finder and fast travel, the sounds, camera, hints and
 accessibility options, and the balance and scale tests: [PROGRESSION.md](PROGRESSION.md).)
 

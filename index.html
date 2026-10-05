@@ -1825,7 +1825,9 @@ fetch('scenes/worlds.json').then(r => r.json()).then(list => {
 // track generator page (dev/tracks.html keeps it), else a fast flowing circuit. Its own scene: no world
 // tiles load, and the real world waits where you left it
 const DEFAULT_TRACK = '08028-CG81C-D1K00-02R00-0003M-8';          // (a dressed fast flowing circuit, countryside)
-const trackCode = () => { const q = new URLSearchParams(location.search).get('track'); if (q) return q; try { return localStorage.getItem('driveWorld.track.code') || DEFAULT_TRACK; } catch { return DEFAULT_TRACK; } };
+// (a track event entered from the real world, Phase 5 Step 3: its track, until another's entered)
+let trackOverride = null;
+const trackCode = () => { if (trackOverride) return trackOverride; const q = new URLSearchParams(location.search).get('track'); if (q) return q; try { return localStorage.getItem('driveWorld.track.code') || DEFAULT_TRACK; } catch { return DEFAULT_TRACK; } };
 // ---------- The world editor (F2): development builds and editor accounts (editor/access.js) ----------
 let editor = null, editorAllowed = false;
 import('./editor/access.js').then(m => { editorAllowed = m.editorAccess().allowed; drawWorldButtons(); }).catch(() => {});
@@ -1840,6 +1842,8 @@ async function editorNow() {
     async ensureRealWorld() { if (currentWorld !== 'real' && !PHOTOREAL) await switchWorld('real'); return test.activeWorld(); },
     // a route's test drive (play/testDrive.js): play resumes with the route on; onDone when it ends
     testDriveRoute: opts => test.testDriveRoute(opts),
+    // a generated track's test drive (Phase 5 Step 3, a track event's): the Track world on its code
+    testDriveTrack: code => { trackOverride = code; return currentWorld === 'track' ? test.enter(`track:${code}`) : switchWorld('track'); },
   } });
   window.worldEditor = editor;          // (the console)
   window.__testScene = test;            // (the browser tests: the route run)
@@ -1876,7 +1880,11 @@ async function switchWorld(id, nested = false) {
     const test = await import('./testtrack/test-scene.js');
     // the tuning panel's tests run in the test centre: let them switch world through here; a tow goes to
     // the garage, open on the damage report
-    test.hooks.switchTo = file => { const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true); };
+    test.hooks.switchTo = file => {
+      // (a generated track: the Track world, on that track)
+      if (file.startsWith('track:')) { trackOverride = file.slice(6); if (currentWorld === 'track') return test.enter(file); return switchWorld('track', true); }
+      const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true);
+    };
     test.hooks.toGarage = () => { garageTab = 'damage'; return switchWorld('garage'); };
     const target = worldList.find(w => w.id === id);
     if (currentWorld === 'garage') {

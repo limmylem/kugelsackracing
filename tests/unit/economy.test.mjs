@@ -16,7 +16,11 @@ const crashTable = Object.fromEntries(Object.keys(db.cars).map(id => [id, { 30: 
 test('the quest pool: the same from the same seed, every quest rated and priced by the rules, series of quests', () => {
   const a = makePool(db.economy, config, 3), b = makePool(db.economy, config, 3), S = db.economy.simulation.pool;
   assert.deepEqual(a, b);
-  assert.equal(a.quests.length, S.quests);
+  assert.equal(a.quests.filter(q => !q.track).length, S.quests);
+  // (track events, Phase 5 Step 3: on tracks of every kind, never in a series)
+  const tracks = a.quests.filter(q => q.track);
+  assert.ok(tracks.length >= S.tracks.count && new Set(tracks.map(q => q.track.kind)).size === Object.keys(S.tracks.kinds).length);
+  assert.ok(a.series.every(s => s.quests.every(id => !id.startsWith('trk_'))));
   for (const q of a.quests) { assert.ok(q.rating.stars >= 1 && q.rating.stars <= 5 && q.rating.km > 0); assert.ok(rewardsOf(q, db.economy).money > 0); }
   assert.ok(a.series.length > 0 && a.series.every(s => s.quests.length === S.seriesOf));
   assert.notDeepEqual(makePool(db.economy, config, 4).quests.map(q => q.rating), a.quests.map(q => q.rating), 'another seed, another pool');

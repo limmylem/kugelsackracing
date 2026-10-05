@@ -21,7 +21,10 @@
 import * as THREE from 'three';
 import { worldContent, localStorageGet, localStorageSet } from '../content/client.js';
 import { createHistory } from '../content/history.js';
-import { newItem, withType, rewardsOf, KINDS, TYPES, TYPE_IDS, TIMES, WEATHER } from '../content/quests.js';
+import { newItem, withType, rewardsOf, KINDS, TYPES, TYPE_IDS, TIMES, WEATHER, RIVAL_TYPES } from '../content/quests.js';
+// track events at race venues (Phase 5 Step 3): the designer, a track event's panel, its AI test race
+import { newDesigner, rollSeed, previewTrack, designerPanel, newEventFrom, trackSection, runTrackAiTest } from './trackEvent.js';
+import { THEMES } from '../track/code.js';
 import { medalTargets } from '../quest/rules.js';
 import { seriesBonus } from '../garage/player/quests.js';
 import { applyTemplate } from '../content/templates.js';
@@ -50,6 +53,8 @@ export function createEditor({ game }) {
   let items = [], publishedById = new Map(), showArchived = false, filter = 'all', picking = null, lastType = 'sprint', roadNote = null, typing = null, refreshTimer = null, rafId = 0, lastT = 0, loading = null;
   let questRoute;            // the selected quest's route item (null: none by its id; undefined: not looked up)
   let npcCfg = null, npcLoading = null;   // data/npc.json (the rivals' roster and settings)
+  let td = null, tracksCfg = null, trackAiBusy = false;   // the track-event designer (at a venue), data/tracks.json
+  const loadTracksCfg = async () => tracksCfg ??= await (await fetch('data/tracks.json', { cache: 'no-cache' })).json();
   const loadNpcCfg = () => npcLoading ??= fetch('data/npc.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { npcCfg = j; return j; });
   // the route tool: drawn on the map and in 3D, its edits through edit() like every other
   const routeTool = createRouteTool({ THREE, api: {
@@ -186,7 +191,7 @@ export function createEditor({ game }) {
     const sel = current && current.status !== 'archived';
     ui.top.innerHTML = `
       <button data-view="map" class="${view === 'map' ? 'on' : ''}" title="The whole Earth (M)">Map</button><button data-view="3d" class="${view === '3d' ? 'on' : ''}" ${worldView ? '' : 'disabled'} title="The baked world in 3D (M)">3D</button>
-      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}
+      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}
       <button data-act="snap" class="${snap ? 'on' : ''}" title="Snap to the nearest road, facing along it (N)">Snap to road<kbd>N</kbd></button>
       <span class="sep"></span>
       <button data-act="undo" ${H?.canUndo ? '' : 'disabled'} title="${esc(H?.undoLabel ? `Undo ${H.undoLabel}` : 'Nothing to undo')} (Ctrl+Z)">↶ Undo</button>
@@ -248,7 +253,7 @@ export function createEditor({ game }) {
     worldView?.setItems(shown); worldView?.select(selected);
   }
   function renderFilters() {
-    ui.filters.innerHTML = ['all', 'quest', 'series', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
+    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
     ui.filters.onclick = e => { const b = e.target.closest('button'); if (b) { filter = b.dataset.f; renderFilters(); refresh(); } };
     ui.filters.querySelector('#edArch').onchange = e => { showArchived = e.target.checked; refresh(); };
   }
@@ -320,11 +325,49 @@ export function createEditor({ game }) {
     if (it.kind === 'quest') html += questFields(it);
     if (it.kind === 'route') html += routeTool.panel(it);
     if (it.kind === 'series') html += seriesFields(it);
+    if (it.kind === 'venue') html += venueFields(it);
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
     for (const p of errors) ui.right.querySelector(`[data-field="${CSS.escape(p.field)}"]`)?.classList.add('field-error');
     renderRoad();
+  }
+  // A race venue (Phase 5 Step 3): its track events (driving up to it in the game lists them), and the
+  // track-event designer — a preset, a theme, a seed (roll on until it's right), previewed, test-driven,
+  // named and made into an event here
+  function venueFields(it) {
+    const near = new Map(items.map(x => [x.item.id, x.item]));
+    const evs = (it.events ?? []).map(id => near.get(id) ?? { id, name: `${id} (not loaded)`, missing: true });
+    let h = `<div class="section"><b>Track events (${evs.length})</b>
+      ${evs.map((q, k) => `<div class="row2"><span class="hint">${k + 1}. ${esc(q.name)}${q.missing ? '' : ` · ${esc(TYPES[q.type]?.label ?? q.type)} · ${esc(q.track?.name ?? '')}${q.track?.check?.aiFinished ? ' · AI ✔' : ' · AI test to run'}${publishedById.has(q.id) ? ' · live' : ' · draft'}`}</span><span><button data-ev="open" data-k="${k}">Open</button><button data-ev="up" data-k="${k}" ${k ? '' : 'disabled'}>↑</button><button data-ev="remove" data-k="${k}">Remove</button></span></div>`).join('') || '<div class="hint">None yet.</div>'}
+      ${td ? '' : '<div class="actions"><button data-act="tdOpen" class="go">Create a track event…</button></div>'}</div>`;
+    if (td) h += tracksCfg ? designerPanel(td, { presets: tracksCfg.presets, themes: THEMES, esc }) : (loadTracksCfg().then(() => renderProps()), '<div class="hint">Loading…</div>');
+    return h + '<div class="hint">Publish each event as well as the venue: players see the published ones on the venue\'s card.</div>';
+  }
+  async function createTrackEvent() {
+    if (!td?.code || current?.kind !== 'venue') return;
+    const venue = current, item = newEventFrom(td, { venue });
+    const r = await H.run(`Track event — ${item.name}`, [], () => C.service.create(item));
+    if (!r.ok) return flash(r.error, true);
+    const fresh = (await C.service.get(venue.id)).item;
+    await H.run(`Attach ${r.item.name}`, [venue.id], () => C.service.update(venue.id, { ...fresh, events: [...(fresh.events ?? []), r.item.id] }));
+    td = null;
+    flash(`Made ${r.item.name}: run its AI test race, then publish it.`);
+    pickItem(r.item.id);
+  }
+  // the AI test race on a track event's track (editor/trackEvent.js): its check, hash, rating and reference
+  // times kept with it (one undoable step)
+  async function runTrackTest(fast) {
+    if (trackAiBusy || !current?.track) return;
+    trackAiBusy = true; renderProps();
+    const id = current.id, say = html => { const el = ui.right?.querySelector('#edAiTest'); if (el && current?.id === id) el.innerHTML = html; };
+    try {
+      const out = await runTrackAiTest({ item: clone(current), fast, onUpdate: u => say(`<div class="hint">${esc(u.text)}${u.spots ? ` · ${u.spots} problem spot${u.spots > 1 ? 's' : ''}` : ''}</div>`) });
+      const fresh = (await C.service.get(id)).item;
+      await H.run(`AI test race — ${fresh.name}`, [id], () => C.service.update(id, { ...fresh, track: { ...fresh.track, check: out.check, hash: out.hash }, rating: out.rating ?? fresh.rating }));
+      flash(out.check.aiFinished && out.check.trackOk ? 'AI test race done: the AI finished it.' : 'AI test race done: see the problems.', !(out.check.aiFinished && out.check.trackOk));
+    } catch (e) { flash(`The AI test race failed: ${e.message}`, true); console.error(e); }
+    finally { trackAiBusy = false; if (current?.id === id) loadSelected(); }
   }
   // A quest series (Phase 4 Step 5): 3–6 quests near it, in order; finishing them all pays a bonus
   // (data/economy.json series). Quests are added from those near it (the list on the left), and must be
@@ -356,11 +399,14 @@ export function createEditor({ game }) {
       else if (f.kind === 'bool') h += `<input type="checkbox" data-field="${path}" ${v ? 'checked' : ''}>`;
       else if (f.kind === 'car') h += select(path, v ?? '', [['', '— choose a car —'], ...Object.entries(C.cars).map(([id, c]) => [id, c.name])]);
       else if (f.kind === 'text') h += input(path, v);
+      else if (f.kind === 'choice') h += select(path, v ?? f.options[0], f.options.map(o => [o, o.replace(/_/g, ' ')]));
       else h += num(path, v ?? '', `${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''}`);
     }
     const routes = items.map(x => x.item).filter(r => r.kind === 'route' && r.status !== 'archived');
     if (it.route && !routes.some(r => r.id === it.route)) routes.unshift(questRoute ?? { id: it.route, name: `${it.route} (not near)` });
     h += tplSelect;
+    // (a track event: its generated track in place of a route — editor/trackEvent.js)
+    if (it.track) h += `</div>${trackSection(it, { esc, busy: trackAiBusy })}<div style="display:none">`;
     h += `<label>Route</label>${select('route', it.route ?? '', [['', '— none —'], ...routes.map(r => [r.id, `${r.name}${r.course ? ` · ${r.course.kind === 'loop' ? 'loop' : 'A to B'} · ${((r.course.length ?? 0) / 1000).toFixed(1)} km` : ''}`])])}
       <div class="hint">${questRoute ? `${esc(questRoute.name)}: ${questRoute.course?.kind === 'loop' ? 'a loop' : 'point to point'}, ${((questRoute.course?.length ?? 0) / 1000).toFixed(2)} km (faint on the map). <button data-act="openRoute">Open the route</button>` : 'Draw one with the route tool (4), then pick it here. One route can serve several quests.'}</div></div>
       <div class="section"><b>Entry</b>
@@ -384,7 +430,7 @@ export function createEditor({ game }) {
   // Rivals (Phase 4 Step 4: race/setup.js): how many NPCs, their skill range, who (picked or at random),
   // their cars' class, aggression, rubber-banding; and the AI test race (race/aiTest.js)
   function rivalFields(it) {
-    if (!['sprint', 'pink_slip'].includes(it.type)) return `<div class="section"><b>Rivals</b><div class="hint">Rivals race in sprints (and pink slips, one rival).</div></div>`;
+    if (!RIVAL_TYPES.includes(it.type)) return `<div class="section"><b>Rivals</b><div class="hint">Rivals race in sprints, circuit races, hillclimbs and endurance races (and pink slips, one rival).</div></div>`;
     const cfg = npcCfg, N = { ...(cfg?.defaults ?? {}), ...(it.npc ?? {}) }, pink = it.type === 'pink_slip';
     if (!cfg) { loadNpcCfg().then(() => renderProps()); return '<div class="section"><b>Rivals</b><div class="hint">Loading…</div></div>'; }
     const picked = Array.isArray(N.drivers) ? N.drivers : [], course = questRoute?.course;
@@ -396,7 +442,7 @@ export function createEditor({ game }) {
       <div class="row2"><div><label>Aggression (empty: each driver's own)</label>${num('npc.aggression', N.aggression ?? '', 'min="0" max="1" step="0.05"')}</div>
         <div><label style="text-transform:none;margin-top:18px"><input type="checkbox" data-field="npc.rubberBand" ${N.rubberBand && !pink ? 'checked' : ''} ${pink ? 'disabled' : ''}> Rubber-banding</label></div></div>
       <label>Drivers (none ticked: random)</label><div>${cfg.drivers.map(d => `<label style="display:inline-block;margin-right:8px;text-transform:none" title="${esc(d.bio ?? '')}"><input type="checkbox" data-driver="${esc(d.id)}" ${picked.includes(d.id) ? 'checked' : ''}> ${esc(d.name)} <span class="hint">${Math.round(d.skill * 100)}</span></label>`).join('')}</div>
-      <div class="actions"><button data-act="aiTest" ${questRoute ? '' : 'disabled title="Pick a route first"'}>AI test race</button><button data-act="aiTestFast" ${questRoute ? '' : 'disabled'}>AI test race (fast)</button></div>
+      ${it.track ? '' : `<div class="actions"><button data-act="aiTest" ${questRoute ? '' : 'disabled title="Pick a route first"'}>AI test race</button><button data-act="aiTestFast" ${questRoute ? '' : 'disabled'}>AI test race (fast)</button></div>`}
       <div class="hint">${times ? `AI reference times: ${esc(times)} (medal targets use them)` : 'An AI test race sets the AI reference times per skill (used for the medal times) and marks any spot where the AIs crash, leave the route or get stuck.'}</div>
       <div id="edAiTest"></div></div>`;
   }
@@ -455,6 +501,13 @@ export function createEditor({ game }) {
     }
     if (el.dataset.class) { const set = new Set(current.entry.classes ?? []); el.checked ? set.add(el.dataset.class) : set.delete(el.dataset.class); const classes = C.classes.map(c => c.class).filter(c => set.has(c)); return edit('Entry classes', it => { it.entry.classes = classes; }); }
     const path = el.dataset.field; if (!path) return;
+    // (the track-event designer's own fields: not the item's)
+    if (path.startsWith('_td.') && td) {
+      const k = path.slice(4);
+      td[k] = k === 'seed' ? (Number(el.value) >>> 0) : el.value;
+      if (['preset', 'theme', 'seed'].includes(k)) { previewTrack(td, await loadTracksCfg()); renderProps(); }
+      return;
+    }
     if (el.tagName !== 'SELECT' && el.type !== 'checkbox' && (el.type === 'text' || el.tagName === 'TEXTAREA')) return commitTyping();
     let v = el.type === 'checkbox' ? el.checked : el.value;
     if (el.type === 'number') v = v === '' ? null : Number(v);
@@ -504,6 +557,9 @@ export function createEditor({ game }) {
     if (b.dataset.clear) return edit('Clear place', it => setPath(it, b.dataset.clear, null));
     if (b.dataset.remove) return edit('Remove checkpoint', it => getPath(it, b.dataset.remove).splice(+b.dataset.k, 1));
     if (b.dataset.sq === 'remove') return edit('Remove quest from series', it => { it.quests.splice(+b.dataset.k, 1); });
+    if (b.dataset.ev === 'remove') return edit('Remove event from venue', it => { it.events.splice(+b.dataset.k, 1); });
+    if (b.dataset.ev === 'up') return edit('Move event up', it => { const k = +b.dataset.k; [it.events[k - 1], it.events[k]] = [it.events[k], it.events[k - 1]]; });
+    if (b.dataset.ev === 'open') return pickItem(current.events[+b.dataset.k]);
     if (b.dataset.sq === 'up') return edit('Move quest up', it => { const k = +b.dataset.k; [it.quests[k - 1], it.quests[k]] = [it.quests[k], it.quests[k - 1]]; });
     if (b.dataset.sug != null) return makeFromSuggestion(+b.dataset.sug, b.dataset.with === 'quest');
     if (b.dataset.check) return pickItem(b.dataset.check);
@@ -513,6 +569,15 @@ export function createEditor({ game }) {
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
     else if (act === 'goto') focusOn(current.location);
     else if (act === 'openRoute' && questRoute) pickItem(questRoute.id);
+    else if (act === 'tdOpen') { td = newDesigner((await loadTracksCfg()).presets); previewTrack(td, tracksCfg); renderProps(); }
+    else if (act === 'tdClose') { td = null; renderProps(); }
+    else if (act === 'tdRoll' && td) { rollSeed(td); previewTrack(td, await loadTracksCfg()); renderProps(); }
+    else if (act === 'tdPreview' && td) { previewTrack(td, await loadTracksCfg()); renderProps(); }
+    else if (act === 'tdTestDrive' && td?.code) testDriveTrack(td.code);
+    else if (act === 'tdCreate') createTrackEvent();
+    else if (act === 'trackTestDrive' && current?.track) testDriveTrack(current.track.code);
+    else if ((act === 'trackAi' || act === 'trackAiFast') && current?.track) runTrackTest(act === 'trackAiFast');
+    else if (act === 'openVenue' && current?.venue) pickItem(current.venue);
     else if ((act === 'aiTest' || act === 'aiTestFast') && questRoute && current?.kind === 'quest') runAiTest(act === 'aiTestFast');
     else if (act === 'snapNow' || act === 'faceRoad') {
       const s = await roads.snap(current.location.lat, current.location.lon, { heading: current.location.heading });
@@ -675,6 +740,15 @@ export function createEditor({ game }) {
     } });
   }
 
+  // a test drive of a generated track: the game's Track world on its code (back to the real world and the
+  // editor: F2 — the editor goes there first)
+  async function testDriveTrack(code) {
+    if (!game.testDriveTrack) return flash('Test drives need the game.', true);
+    await commitTyping(); await C.service.flush();
+    await exit({ quiet: true });
+    game.testDriveTrack(code);
+  }
+
   async function duplicate() {
     if (!current || current.status === 'archived') return;
     const at = offset(current.location, 0.012, (current.location.heading + 90) % 360), { author: _, id: _id, ...copy } = { ...clone(current), name: `${current.name} (copy)`, location: { ...current.location, lat: at.lat, lon: at.lon }, road: null };
@@ -743,7 +817,7 @@ export function createEditor({ game }) {
     if (current?.kind === 'route' && routeTool.key(k)) { e.stopPropagation(); return; }
     if (k === 'KeyT' && current?.kind === 'route') { testDrive(current); e.stopPropagation(); return; }
     if (k === 'Escape') { if (picking) { picking = null; ui.pick.style.display = 'none'; } else if (tool !== 'select') setTool('select'); else deselect(); }
-    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series');
+    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue');
     else if (k === 'KeyN') { snap = !snap; localStorageSet('kugelsack.editor.snap', snap ? 'on' : 'off'); renderTop(); flash(snap ? 'Snap to road: on' : 'Snap to road: off'); }
     else if (k === 'KeyM') setView(view === 'map' ? '3d' : 'map');
     else if (k === 'Delete' || k === 'Backspace') remove();

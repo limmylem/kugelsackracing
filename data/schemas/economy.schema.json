@@ -320,6 +320,22 @@
             "pink_slip": {
               "type": "number",
               "minimum": 0
+            },
+            "circuit_race": {
+              "type": "number",
+              "minimum": 0
+            },
+            "hot_lap": {
+              "type": "number",
+              "minimum": 0
+            },
+            "hillclimb": {
+              "type": "number",
+              "minimum": 0
+            },
+            "endurance": {
+              "type": "number",
+              "minimum": 0
             }
           }
         },
@@ -481,6 +497,110 @@
         "pool",
         "targets"
       ]
+    },
+    "trackEvents": {
+      "type": "object",
+      "description": "Track events' rewards (Phase 5 Step 3): by kind of track, farming per track code, the quick races' hourly cap.",
+      "additionalProperties": false,
+      "required": [
+        "byKind",
+        "farming",
+        "hourlyCap"
+      ],
+      "properties": {
+        "_note": {
+          "type": "string"
+        },
+        "byKind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "official",
+            "daily",
+            "weekly",
+            "quick",
+            "shared"
+          ],
+          "properties": {
+            "official": {
+              "type": "number",
+              "minimum": 0
+            },
+            "daily": {
+              "type": "number",
+              "minimum": 0
+            },
+            "weekly": {
+              "type": "number",
+              "minimum": 0
+            },
+            "quick": {
+              "type": "number",
+              "minimum": 0
+            },
+            "shared": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "farming": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windowHours",
+            "freeRuns",
+            "decay",
+            "floor"
+          ],
+          "properties": {
+            "windowHours": {
+              "type": "number",
+              "minimum": 0
+            },
+            "freeRuns": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "decay": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "floor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "hourlyCap": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kinds",
+            "goldRuns"
+          ],
+          "properties": {
+            "kinds": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "official",
+                  "daily",
+                  "weekly",
+                  "quick",
+                  "shared"
+                ]
+              }
+            },
+            "goldRuns": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -1,5 +1,10 @@
 # Rewards, difficulty, progression and finding quests (Phase 4 Step 5)
 
+> **Phase 5 Step 3:** track events add to the pay rules: they pay by kind of track (official, daily, weekly,
+> quick, shared), anti-farming counts by track code, and quick races are capped each hour. The simulation now
+> includes them and all its targets still pass. Checkpoint runs' `byType` went from 1.1 to 1.25: they were the
+> weakest type and fell under 0.6× with track events in the pool. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
+
 How quests are made quickly, what they pay and why, how players move up through them, how they find them,
 and how all of that is checked: the balance simulation, the stress tests and the new player's end-to-end
 test. The run itself (the quest session, timing, the HUD, results, validation) is [QUESTS.md](QUESTS.md);

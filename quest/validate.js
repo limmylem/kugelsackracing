@@ -14,6 +14,12 @@ export function validateResult(result, { quest, course, config }) {
   if (result.questVersion !== questVersionOf(quest)) bad('The quest has changed since the run started.');
   if (!course || result.routeVersion !== course.version) bad(`The route has changed since the run started (version ${result.routeVersion}, now ${course?.version}).`);
   if (result.status !== 'finished') bad(`The run didn't finish (${result.status}).`);
+  // a generated track: the one the event is on, as made — the same code, the same hash (a player whose
+  // track was made differently drives something else: track/events/hash.js)
+  if (quest.track) {
+    if (result.track?.code !== quest.track.code) bad(`The result is for another track (${result.track?.code ?? 'none'}).`);
+    else if (!result.track?.hash || (quest.track.hash && result.track.hash !== quest.track.hash) || (course?.trackHash && result.track.hash !== course.trackHash)) bad(`The track driven isn't the event's: its hash (${result.track?.hash ?? 'none'}) isn't ${quest.track.hash ?? course?.trackHash} — a mismatched track pays nothing.`);
+  }
   if (problems.length) return { ok: false, problems };
 
   const loop = course.loop, L = course.length, startS = course.grid.startS;

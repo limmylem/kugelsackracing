@@ -158,7 +158,11 @@
       "checkpoint": 0.3,
       "drift": 0.3,
       "delivery": 0.2,
-      "pink_slip": 0.6
+      "pink_slip": 0.6,
+      "circuit_race": 0.2,
+      "hot_lap": 0.2,
+      "hillclimb": 0.1,
+      "endurance": 0.5
     },
     "stars": [1.0, 2.2, 3.3, 4.3],
     "recommended": {

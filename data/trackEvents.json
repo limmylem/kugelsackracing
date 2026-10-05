@@ -1,0 +1,68 @@
+{
+  "_note": "Gameplay on generated tracks (Phase 5 Step 3: track/events/, docs/TRACK_EVENTS.md). The money is the economy's (data/economy.json quests and trackEvents); these say which tracks there are and what's raced on them. events: the events a track gets when it isn't an official one (the day's, the week's, a quick race, a shared code), by its layout — each a quest type with its laps, start, rivals (count, skill range) and collisions; {track} in a name is the track's name.",
+  "daily": {
+    "_note": "The day's track: the same for every player on the same UTC date. Its seed from the date (and salt); the preset by the seed from presets; the generator version fixed here (a newer generator doesn't change past days' tracks).",
+    "version": 2,
+    "salt": "kugel-daily-1",
+    "presets": ["short_technical", "club_circuit", "fast_flowing", "mixed_gp", "street_circuit", "mountain_hillclimb", "coastal_sprint", "high_speed"],
+    "events": {
+      "loop": [
+        { "slot": "hot_lap", "type": "hot_lap", "name": "{track} hot lap", "laps": 3, "mode": "best_lap", "start": "rolling", "collisions": "off" },
+        { "slot": "race", "type": "circuit_race", "name": "{track} daily race", "laps": 3, "start": "standing", "npc": { "count": 5, "skill": [0.35, 0.75] }, "collisions": "full" }
+      ],
+      "p2p": [
+        { "slot": "climb", "type": "hillclimb", "name": "{track} time attack", "start": "standing", "collisions": "off" },
+        { "slot": "race", "type": "hillclimb", "name": "{track} daily sprint", "start": "standing", "npc": { "count": 4, "skill": [0.35, 0.75] }, "collisions": "full" }
+      ]
+    }
+  },
+  "weekly": {
+    "_note": "The week's track: the same for every player in the same ISO week (UTC), bigger and harder than a day's.",
+    "version": 2,
+    "salt": "kugel-weekly-1",
+    "presets": ["mixed_gp", "fast_flowing", "high_speed", "street_circuit", "mountain_hillclimb"],
+    "events": {
+      "loop": [
+        { "slot": "hot_lap", "type": "hot_lap", "name": "{track} weekly hot lap", "laps": 5, "mode": "best_lap", "start": "rolling", "collisions": "off" },
+        { "slot": "race", "type": "circuit_race", "name": "{track} weekly grand prix", "laps": 5, "start": "standing", "npc": { "count": 7, "skill": [0.5, 0.9] }, "collisions": "full" },
+        { "slot": "endurance", "type": "endurance", "name": "{track} weekly enduro", "laps": 12, "stints": 2, "start": "rolling", "npc": { "count": 5, "skill": [0.45, 0.85] }, "collisions": "full" }
+      ],
+      "p2p": [
+        { "slot": "climb", "type": "hillclimb", "name": "{track} weekly time attack", "start": "standing", "collisions": "off" },
+        { "slot": "race", "type": "hillclimb", "name": "{track} weekly sprint", "start": "standing", "npc": { "count": 6, "skill": [0.5, 0.9] }, "collisions": "full" }
+      ]
+    }
+  },
+  "quick": {
+    "_note": "A quick race: a random track from a preset (its rewards: data/economy.json trackEvents.byKind.quick, and capped each hour).",
+    "events": {
+      "loop": [
+        { "slot": "race", "type": "circuit_race", "name": "Quick race · {track}", "laps": 2, "start": "standing", "npc": { "count": 5, "skill": [0.3, 0.8] }, "collisions": "full" },
+        { "slot": "hot_lap", "type": "hot_lap", "name": "Quick hot lap · {track}", "laps": 3, "mode": "best_lap", "start": "rolling", "collisions": "off" }
+      ],
+      "p2p": [
+        { "slot": "race", "type": "hillclimb", "name": "Quick sprint · {track}", "start": "standing", "npc": { "count": 4, "skill": [0.3, 0.8] }, "collisions": "full" },
+        { "slot": "climb", "type": "hillclimb", "name": "Quick time attack · {track}", "start": "standing", "collisions": "off" }
+      ]
+    }
+  },
+  "shared": {
+    "_note": "A track from a code a friend shared: the same events as a quick race (and its rewards).",
+    "events": "quick"
+  },
+  "library": {
+    "_note": "The track library (play/trackLibrary.js): how many recently played tracks and favourites are kept, the leaderboards' size.",
+    "recent": 12,
+    "favourites": 50,
+    "board": 10
+  },
+  "reference": {
+    "_note": "The AI reference times (track/events/reference.js): a headless lap at each skill level (data/npc.json skill.levels) by the class's reference car, when a track is first loaded, kept by code. cacheVersion: bumped when the AI or physics changes, so old times are made again.",
+    "cacheVersion": 1,
+    "seed": 9001
+  },
+  "loading": {
+    "_note": "Entering a track from the real world: the fade, then the loading screen until the track is made (or loaded from the cache) and its reference times are known.",
+    "fadeSeconds": 0.45
+  }
+}

@@ -1,5 +1,8 @@
 # World content and the world editor
 
+> **Phase 5 Step 3:** a fifth kind, `venue` ("Race venue", the editor's tool 6), lists track events: quests with
+> a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
+
 Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)
 anywhere on Earth and fills in the details, and draws routes on the region's real roads (Step 2:
 [ROUTES.md](ROUTES.md) — the route tool, checkpoints and shortcuts, test drives). The game shows what's published near the player. Everything

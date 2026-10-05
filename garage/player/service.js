@@ -19,6 +19,7 @@ import { migrate } from './migrations.js';
 import { validateBuild } from '../validate.js';
 import { appendHits } from '../damageLog.js';
 import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quests.js';
+import { setFavourite } from '../../track/events/records.js';
 import { entryReasons, CAR_CODES } from '../../quest/rules.js';
 import { feeOf } from '../../content/quests.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
@@ -60,7 +61,8 @@ export const METHODS = {
   refundQuest: '(attemptId) the game couldn\'t start the quest: the fee back, the attempt not counted',
   finishQuest: '(result, { quest, course, recording }) a finished run checked (quest/validate.js) and paid (once per medal tier, then a repeat); an invalid one pays nothing and is logged; the best run\'s recording kept',
   failQuest: '(attemptId, { questId, status, reason }) a run that didn\'t finish (quit: a DNF, wrecked, out of time): counted, nothing paid',
-  getRecording: '(recordingId) → { recording } a best run kept for ghost replays',
+  getRecording: '(recordingId) → { recording } a best run kept for ghost replays (a quest\'s best, or a generated track\'s record: profile.trackRecords[key].recording)',
+  favouriteTrack: '({ code, kind, name }, on) a generated track kept in the track library\'s favourites (or not)',
   forfeitCar: '(carInstanceId, { attemptId }) a pink slip lost: the car and everything on it gone (only with a pink-slip run under way)',
   awardCar: '(carId, { attemptId }) a pink slip won: the rival\'s car, stock (only with a pink-slip run under way)',
   save: 'save now (every change is saved anyway)',
@@ -346,14 +348,27 @@ export class LocalPlayerService extends PlayerService {
     const cfg = this.quests?.config;
     // (the recording goes in its own store first: the save only keeps its id, if it's the best run)
     const recordingId = recording ? `rec_${quest.id}_${result.attemptId}` : null;
-    const old = this.profile.quests?.[quest.id]?.recording ?? null;
-    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series }) }));
+    const before = this.#recordingIds();
+    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series, tracksCfg: this.quests?.tracks ?? null }) }));
     const store = this.quests?.recordings;
-    if (out.ok && out.valid && out.pb && recording && store) {
-      await store.put(recordingId, { ...recording, meta: { ...(recording.meta ?? {}), questId: quest.id, routeVersion: result.routeVersion ?? course?.version ?? null, car: result.car?.carId ?? null, time: result.time ?? null, score: result.score ?? null, recorded: this.now() } });
-      if (old && old !== recordingId) await store.delete(old);
+    // (kept if it's the quest's best — or, on a generated track, the record for its code and class)
+    if (out.ok && out.valid && (out.pb || out.track?.record?.pb) && recording && store) {
+      await store.put(recordingId, { ...recording, meta: { ...(recording.meta ?? {}), questId: quest.id, routeVersion: result.routeVersion ?? course?.version ?? null, car: result.car?.carId ?? null, time: result.time ?? null, score: result.score ?? null, recorded: this.now(), ...(result.track ? { track: result.track, carClass: result.car?.className ?? null } : {}) } });
     }
+    // (the recordings nothing points at any more: gone)
+    if (out.ok && store) { const now = this.#recordingIds(); for (const id of before) if (!now.has(id)) await store.delete(id); }
     return out;
+  }
+  // every recording the profile points at (a quest's best, a track's record)
+  #recordingIds() {
+    const p = this.profile, ids = new Set();
+    for (const q of Object.values(p.quests ?? {})) if (q.recording) ids.add(q.recording);
+    for (const r of Object.values(p.trackRecords ?? {})) if (r.recording) ids.add(r.recording);
+    return ids;
+  }
+  // a generated track kept as a favourite (or not): the track library (play/trackLibrary.js)
+  favouriteTrack(track, on = true) {
+    return this.#change('quest', p => { const r = setFavourite(p, track, on, this.now(), this.quests?.tracks ?? null); return r.error ? r : { result: r }; });
   }
   failQuest(attemptId, { questId, status = 'dnf', reason = null } = {}) {
     return this.#change('quest', p => { failAttempt(p, { attemptId, questId, status, reason, now: this.now() }); return {}; });

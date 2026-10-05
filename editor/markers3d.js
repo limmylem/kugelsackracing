@@ -9,7 +9,7 @@
 //   M.update(cameraPos)               each frame: fades, which are drawn, labels
 //   M.pick(raycaster) → id | null     M.select(id)    M.stats    M.dispose()
 
-const COLOURS = { quest: 0xffb02e, poi: 0x4fc3f7, spawn: 0x7ee08a, route: 0xe05cff };
+const COLOURS = { quest: 0xffb02e, poi: 0x4fc3f7, spawn: 0x7ee08a, route: 0xe05cff, series: 0xffd166, venue: 0xff5a5f };
 const SELECTED = 0xff3d3d;
 
 export function createMarkers3d({ THREE, parent, place, max = 1500, near = 250, far = 2500, labels = 16, labelDist = 400, scale = 1 }) {

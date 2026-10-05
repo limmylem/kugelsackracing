@@ -28,6 +28,7 @@ import { carWarning, starsText } from '../quest/difficulty.js';
 import { rewardsOf } from '../content/quests.js';
 import { fmtTime, fmtDelta } from '../quest/timing.js';
 import { questState, bestOf } from '../garage/player/quests.js';
+import { ghostAt } from '../track/events/ghost.js';
 import { pinkSlipConfirmations } from '../quest/types/pinkSlip.js';
 import { TYPE_MODULES } from '../quest/types/index.js';
 import { npcSettings, setupNpcs } from '../race/setup.js';
@@ -125,6 +126,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   // ---------- the course (the quest's route, loaded once) ----------
   async function courseOf(item) {
+    // (a track event: the course of the track it's on, made ready by the trip there — play/trackTrip.js)
+    if (item.track) { const c = await game.trackCourse?.(item); return c ? { course: c, route: null } : null; }
     if (!item.route) return null;
     if (courses.has(item.route)) return courses.get(item.route);
     const route = await game.routeItem(item.route);
@@ -205,8 +208,10 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   function clearGuide(done) { guide = null; setLines(); done?.(); }
 
   // ---------- starting ----------
-  async function start(item, { restart = false } = {}) {
+  async function start(item, { restart = false, ghost = undefined } = {}) {
     if (run && !restart) return { ok: false, error: 'A quest is under way.' };
+    // (a ghost to race: the best lap's — track/events/ghost.js — kept for a restart)
+    if (ghost === undefined) ghost = restart && run?.item.id === item.id ? run.ghost : null;
     const c = await courseOf(item);
     if (!c) { game.say('This quest has no route to drive', 'warn'); return { ok: false, error: 'no route' }; }
     const id = game.carInstanceId(), car = { ...game.carSummary(id), instanceId: id };
@@ -227,7 +232,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null,
       best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
-    run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0 });
+    run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
     guide = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
@@ -298,6 +303,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     else if (panel?.kind === 'delivery') panelHtml = `<div class="k">${esc(panel.name)}${panel.fragile ? ' · fragile' : ''}</div><div class="big ${panel.condition < 50 ? 'bad' : ''}">${panel.condition}%</div><div class="bar"><i style="width:${panel.condition}%;background:${panel.condition < 50 ? '#ff7a6a' : panel.condition < 80 ? '#ffbd4a' : '#7ee08a'}"></i></div>`;
     else if (panel?.kind === 'timeTrial' && panel.next) panelHtml = `<div class="k">Target</div><div style="color:${MEDAL[panel.next.tier]}">● ${panel.next.tier} ${fmtTime(panel.next.time, 1)}</div>${panel.countdown ? '<div style="font-size:12px">checkpoints add time</div>' : ''}`;
     else if (panel?.kind === 'target' && panel.next) panelHtml = `<div class="k">Target</div><div style="color:${MEDAL[panel.next.tier]}">● ${panel.next.tier} ${fmtTime(panel.next.time, 1)}</div>`;
+    else if (panel?.kind === 'hotLap') panelHtml = `<div class="k">${panel.mode === 'best_lap' ? 'This lap' : 'Total'}</div><div class="big">${fmtTime(Math.max(0, panel.mode === 'best_lap' ? panel.lapTime : H.clock), 1)}</div>${panel.best != null ? `<div style="font-size:12px">best ${fmtTime(panel.best)}${panel.medal ? ` <span style="color:${MEDAL[panel.medal]}">●</span>` : ''}</div>` : ''}${panel.next ? `<div style="color:${MEDAL[panel.next.tier]};font-size:12px">● ${panel.next.tier} ${fmtTime(panel.next.time, 1)}</div>` : ''}`;
+    else if (panel?.kind === 'endurance') panelHtml = `<div class="k">Endurance</div><div class="big">Stint ${panel.stint} / ${panel.stints}</div><div style="font-size:12px">lap ${panel.lap} / ${panel.laps}</div>`;
     else if (panel?.kind === 'clock') panelHtml = `<div class="k">Checkpoints</div><div class="big">${panel.passed} / ${panel.of}</div>`;
     const msg = H.message ? { text: H.message, cls: H.message.startsWith('Wrong') ? 'bad' : 'warn' } : run.message;
     hudEl.innerHTML = st === 'intro' ? `<div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · Space to skip</div>` : `
@@ -374,17 +381,25 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const field = res.field?.length ? `<h3>Standings</h3><table>${res.field.map(f => `<tr style="${f.player ? 'color:#ffd24a' : ''}"><td>${f.place}. ${esc(f.player ? 'You' : f.name)}${f.car ? ` <span style="opacity:.6">${esc(f.car)}</span>` : ''}</td><td>${f.status === 'retired' || f.status === 'dnf' ? `DNF${f.why ? ` (${esc(f.why)})` : ''}` : f.time != null ? `${fmtTime(f.time)}${f.estimated ? ' *' : ''}` : '—'}</td></tr>`).join('')}</table>${res.field.some(f => f.estimated) ? '<div style="font-size:12px;opacity:.7">* still racing when you finished: their time from their pace</div>' : ''}` : '';
     const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
     showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
-      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button><button data-roam>Free roam</button><button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
-      retry: () => start(item, { restart: true }), roam: () => stop(), garage: () => { stop(); game.toGarage(); } });
+      ${trackLine(pay)}
+      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button><button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
+      retry: () => start(item, { restart: true }), roam: () => stop(), leave: () => { stop(); game.leaveTrack(); }, garage: () => { stop(); game.leaveTrack ? game.leaveTrack().then(() => game.toGarage()) : game.toGarage(); } });
   }
 
+  // (a generated track: its record for the car's class, and the event's leaderboard — track/events/records.js)
+  function trackLine(pay) {
+    const T = pay?.track;
+    if (!T) return '';
+    const R = T.record?.record, cap = pay.capped ? '<div class="bad">Quick race pay for this hour reached: this run paid less.</div>' : '';
+    return `<h3>Track record (class ${esc(R?.carClass ?? '?')})</h3><div>${T.record?.pb ? '<span class="good">New track record</span> · ' : ''}best ${fmtTime(R?.bestTime)} · best lap ${fmtTime(R?.bestLap)}${T.board?.place ? ` · ${ord(T.board.place)} on this event's leaderboard` : ''}</div>${cap}`;
+  }
   function pause(on) {
     if (!run || run.results) return;
     paused = on; game.pause(on);
     if (!on) { hideScreen(); return; }
     const cur = game.currency, runFee = rewardsOf(run.item, game.economy).fee, fee = cfg.restart?.free || !runFee ? 'free' : `${cur}${runFee.toLocaleString('en-GB')} entry again`;
     showScreen(`<h2>Paused</h2><div>${esc(run.item.name)} · ${esc(typeLabel(run.item.type))}</div>
-      <div class="buttons"><button class="primary" data-resume>Resume</button><button data-restart>Restart (${esc(fee)})</button><button class="danger" data-quit>Quit (did not finish)</button></div>
+      <div class="buttons"><button class="primary" data-resume>Resume</button><button data-restart>Restart (${esc(fee)})</button><button class="danger" data-quit>Quit (did not finish)</button>${game.leaveTrack ? '<button class="danger" data-leave>Quit and leave the track</button>' : ''}</div>
       <h3>Settings</h3><label>HUD size <input type="range" min="0.6" max="1.6" step="0.05" value="${hudScale()}" data-scale></label>
       <label><input type="checkbox" ${hudSettings.visible ? 'checked' : ''} data-visible> Show the race HUD</label>
       <label><input type="checkbox" ${hudSettings.names !== false ? 'checked' : ''} data-names> Drivers' names over their cars</label>
@@ -393,6 +408,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       resume: () => pause(false),
       restart: () => { pause(false); start(run.item, { restart: true }); },
       quit: async () => { pause(false); await run.controller.quit(); },
+      leave: async () => { pause(false); await run.controller.quit(); stop(); game.leaveTrack(); },
       settings: () => game.openSettings(),
     });
     screen.querySelector('[data-scale]').oninput = e => { hudSettings.scale = +e.target.value; saveHudSettings(hudSettings); game.setPref?.('hudScale', +e.target.value); hud(); };
@@ -407,6 +423,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (r.controller.state === 'racing' || r.controller.state === 'countdown' || r.controller.state === 'intro') r.controller.quit();
     if (r.race) game.endRace(r.race);
     r.dressing.dispose(); r.adapters.dispose(); r.controller.dispose();
+    if (r.ghost) game.showGhost?.(null);
     game.pause(false); hideScreen(); hud(); labels(); preview = null; setLines();
   }
 
@@ -459,6 +476,12 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       const car = game.carNow();
       run.dressing.update(car.x, car.z);
       run.controller.frame(paused ? 0 : realDt);
+      // the ghost: the best lap again, from each lap's start (a sprint's: from the start)
+      if (run.ghost && game.showGhost) {
+        const Q = run.controller.session?.state, racing = Q?.state === 'racing' && Q.t0 != null;
+        const t = racing ? (run.ghost.perLap ? Q.clock - Q.lapTimes.reduce((a, b) => a + b, 0) : Q.clock) : -1;
+        game.showGhost(racing ? ghostAt(run.ghost.frames, t) : null);
+      }
       run.messageFor -= realDt; if (run.messageFor <= 0) run.message = null;
       hud(); labels();
     },
