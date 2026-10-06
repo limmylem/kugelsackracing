@@ -9,15 +9,21 @@
 //   ?mode=sign-up | terms | reset (&token, from the reset email) · ?verified=1 (from the verification email)
 
 import { createApi, ApiError } from './api.js';
+import { SITE } from '../site/urls.js';
 
 const api = createApi();
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
-// (only this site's pages: never off to somewhere a link names)
-const safeNext = n => typeof n === 'string' && /^\/(?![/\\])/.test(n) && !n.startsWith('/api/') ? n : '/';
+// (only this site's pages: never off to somewhere a link names — and, with the API on its own address, its admin
+// page, which sends you here to sign in first)
+const TOOL_PAGES = SITE.api ? [`${SITE.api}/admin/`] : [];
+const safeNext = n => typeof n === 'string' && ((/^\/(?![/\\])/.test(n) && !n.startsWith('/api/')) || TOOL_PAGES.includes(n)) ? n : '/';
 const next = safeNext(q.get('next'));
 $('back').href = next;
-const here = (mode, extra = {}) => `/account/?${new URLSearchParams({ ...(mode ? { mode } : {}), next, ...extra })}`;
+// (whole addresses: the server, maybe on another address, sends the browser back here after an email link or
+// a sign-in elsewhere)
+const here = (mode, extra = {}) => `${location.origin}/account/?${new URLSearchParams({ ...(mode ? { mode } : {}), next, ...extra })}`;
+const nextUrl = next.startsWith('/') ? `${location.origin}${next}` : next;
 
 function h(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);
@@ -65,7 +71,7 @@ function socialButtons() {
   if (!cfg.social.length) return [];
   return [h('div', { class: 'or' }, 'or'), ...cfg.social.map(p => h('button', { class: 'btn secondary', type: 'button', onclick: async () => {
     try {
-      const r = await api.auth('/sign-in/social', { provider: p, callbackURL: next, newUserCallbackURL: here('terms'), errorCallbackURL: here(null) });
+      const r = await api.auth('/sign-in/social', { provider: p, callbackURL: nextUrl, newUserCallbackURL: here('terms'), errorCallbackURL: here(null) });
       if (r?.url && /^https:\/\//.test(r.url)) location.href = r.url;
     } catch (e) { say(e.message); }
   } }, `Continue with ${p === 'google' ? 'Google' : 'Discord'}`))];

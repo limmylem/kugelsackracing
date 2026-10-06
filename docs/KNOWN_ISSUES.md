@@ -1,8 +1,39 @@
 # Known issues, and what to revisit
 
-As of Phase 6 Step 2 (the server-owned economy, then Step 1's server and accounts, below first); Phase 5's and
-Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
+As of Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 6: going online (docs/DEPLOYMENT.md)
+
+### On free plans: sleeping servers, short database history
+
+Everything runs on free plans while it's one person testing (docs/DEPLOYMENT.md "Free plans: what to watch").
+- **The API sleeps** after 15 minutes without a visit and takes about a minute to wake.
+- **Database history:** Neon keeps 6 hours of it to restore from. The daily backup covers the rest, so at worst a
+  day's progress is lost.
+- **Email:** at most 100 a day.
+
+**Upgrade before Phase 7's multiplayer testing or before inviting beta testers.**
+
+### Not yet checked online: the inbox test and the ping from Australia
+
+Everything is tested locally in one browser, each part on an address of its own (`server/tools/deploy-browser.ts`),
+and online by `tools/check-deploy.mjs` after each deploy. Two things need you, once the accounts exist:
+- a sign-up from a phone on mobile data, its email landing in a Gmail and an Outlook inbox;
+- the real-time round trip from Australia (`ognistrada.com/site/ping.html`).
+
+### Two players in the same room: moved to Phase 7 Step 1
+
+There's no multiplayer server yet. `rt.ognistrada.com` only answers a ping with a pong, to prove that WebSockets
+reach the server through Cloudflare. The check that two players on different networks see each other in one room
+is part of Phase 7 Step 1's tests.
+
+### The development pages on staging can't open the editor
+
+The editor's code is served only to editor accounts, from the API's address. The development pages (`dev/`, staging
+only) import parts of it directly, and those imports don't carry the session, so their AI test-race button fails
+there. In the game, the editor opens normally for editors.
 
 ## Phase 6 Step 2: the server-owned economy
 

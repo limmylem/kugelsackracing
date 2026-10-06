@@ -47,44 +47,24 @@ jobs:
           CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/accounts-browser.ts
       - name: The economy in a browser (shown at once, put back on a refusal, offline and back, two tabs; the admin page)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/economy-browser.ts
+      - name: The deployment's layout in a browser (game, API, tiles, real time on addresses of their own; cookies, CORS, the admin and editor pages for their roles)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
       - name: The economy under load (500 players in the garage and on the road; the books balanced after)
         run: npm run --workspace @kr/server load-test:economy
       - name: The server's image builds
         run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .
 
+  # (docs/DEPLOYMENT.md: skipped until hosting is set up — the repository variable CLOUDFLARE_ACCOUNT_ID)
   staging:
     needs: test
-    # (skipped until hosting is set up: the STAGING_URL variable and the deploy hook — docs/SERVER.md)
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.STAGING_URL != ''
-    runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: ${{ vars.STAGING_URL }}
-    steps:
-      - name: Deploy to staging (Render's deploy hook)
-        run: curl -fsS -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}" > /dev/null
-      - name: Wait until staging is healthy
-        run: |
-          for i in $(seq 1 60); do
-            if curl -fsS "${{ vars.STAGING_URL }}/api/v1/health" | grep -q '"ok":true'; then echo "staging is up"; exit 0; fi
-            sleep 15
-          done
-          echo "staging didn't come up healthy"; exit 1
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    uses: ./.github/workflows/deploy.yml
+    with: { environment: staging }
+    secrets: inherit
 
+  # (production's required reviewers approve it in GitHub before it runs: the deploy job's environment)
   production:
     needs: staging
-    runs-on: ubuntu-latest
-    # (the environment's required reviewers approve this in GitHub before it runs)
-    environment:
-      name: production
-      url: ${{ vars.PRODUCTION_URL }}
-    steps:
-      - name: Deploy to production (Render's deploy hook)
-        run: curl -fsS -X POST "${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}" > /dev/null
-      - name: Wait until production is healthy
-        run: |
-          for i in $(seq 1 60); do
-            if curl -fsS "${{ vars.PRODUCTION_URL }}/api/v1/health" | grep -q '"ok":true'; then echo "production is up"; exit 0; fi
-            sleep 15
-          done
-          echo "production didn't come up healthy"; exit 1
+    uses: ./.github/workflows/deploy.yml
+    with: { environment: production }
+    secrets: inherit

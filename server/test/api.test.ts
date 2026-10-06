@@ -42,13 +42,16 @@ test('security headers on every answer; HSTS where it\'s served over HTTPS', asy
   assert.ok(h['referrer-policy']);
   assert.match(String(h['x-request-id']), /^[0-9a-f-]{36}$/);
   assert.equal(h['x-powered-by'], undefined);
-  // (production: HTTPS only, HSTS)
+  // (staging and production: HTTPS only; HSTS once it's switched on — HSTS=on, docs/DEPLOYMENT.md)
   const P = await testApp('api_prod', { env: { APP_ENV: 'staging', PUBLIC_URL: 'https://kr-staging.example.com' } });
+  const Q = await testApp('api_hsts', { env: { APP_ENV: 'staging', PUBLIC_URL: 'https://kr-staging.example.com', HSTS: 'on' } });
   try {
     const s = await P.app.inject({ method: 'GET', url: '/api/v1/health' });
-    assert.match(String(s.headers['strict-transport-security']), /max-age=31536000/);
+    assert.equal(s.headers['strict-transport-security'], undefined);
     assert.match(String(s.headers['content-security-policy']), /upgrade-insecure-requests/);
-  } finally { await P.close(); }
+    const q = await Q.app.inject({ method: 'GET', url: '/api/v1/health' });
+    assert.match(String(q.headers['strict-transport-security']), /max-age=31536000; includeSubDomains/);
+  } finally { await P.close(); await Q.close(); }
 });
 
 test('CORS: the game\'s own origin only, with cookies; others get nothing', async () => {

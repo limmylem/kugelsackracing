@@ -1,23 +1,38 @@
-# Render (docs/SERVER.md): the server and the game, one web service each for staging and production, on the
-# free plan (it sleeps when nobody's played for 15 minutes and wakes in about a minute). Both are built from
-# the Dockerfile. Neither deploys by itself: GitHub Actions deploys staging once every test has passed, and
-# production once someone approves it (.github/workflows/server.yml). Secrets are set in Render's
-# dashboard (sync: false), never here.
+# Render (docs/DEPLOYMENT.md): the API server — with the real-time stand-in, rt.<domain>, inside it for now — one
+# web service for staging and one for production, in Singapore (Render's nearest region to Australia; the
+# databases, on Neon, are in Singapore too). Both are built from the Dockerfile. The game itself is on Cloudflare
+# Pages and its map files on Cloudflare R2: not here.
+#
+# Free plan for now (docs/DEPLOYMENT.md "Free plans: what to watch"): each service sleeps after 15 minutes without
+# a request and wakes in about a minute; the two share 750 running hours a month. To go always-on, change
+# `plan: free` to `plan: starter` ($7 a month each) — nothing else changes.
+#
+# Neither deploys by itself: GitHub Actions deploys staging once every test has passed, and production once
+# someone approves it (.github/workflows/server.yml). Secrets are set in Render's dashboard (sync: false), never here.
 services:
   - type: web
-    name: kugelsack-staging
+    name: ognistrada-staging
     runtime: docker
     plan: free
+    region: singapore
     branch: main
     autoDeploy: false
     healthCheckPath: /api/v1/health
+    domains:
+      - staging-api.ognistrada.com
+      - staging-rt.ognistrada.com
     envVars:
       - { key: APP_ENV, value: staging }
-      - { key: PUBLIC_URL, sync: false }
+      - { key: PUBLIC_URL, value: https://staging-api.ognistrada.com }
+      - { key: GAME_URL, value: https://staging.ognistrada.com }
+      - { key: TILES_URL, value: https://staging-tiles.ognistrada.com }
+      - { key: RT_URL, value: wss://staging-rt.ognistrada.com }
+      - { key: HSTS, value: 'off' }
+      - { key: MAIL_FROM, value: "Kugelsack Racing (staging) <noreply@ognistrada.com>" }
       - { key: DATABASE_URL, sync: false }
       - { key: BETTER_AUTH_SECRET, sync: false }
+      - { key: EDGE_SECRET, sync: false }
       - { key: SMTP_URL, sync: false }
-      - { key: MAIL_FROM, sync: false }
       - { key: GOOGLE_CLIENT_ID, sync: false }
       - { key: GOOGLE_CLIENT_SECRET, sync: false }
       - { key: DISCORD_CLIENT_ID, sync: false }
@@ -26,19 +41,28 @@ services:
       - { key: SENTRY_CLIENT_DSN, sync: false }
       - { key: ADMIN_EMAIL, sync: false }
   - type: web
-    name: kugelsack-production
+    name: ognistrada-production
     runtime: docker
     plan: free
+    region: singapore
     branch: main
     autoDeploy: false
     healthCheckPath: /api/v1/health
+    domains:
+      - api.ognistrada.com
+      - rt.ognistrada.com
     envVars:
       - { key: APP_ENV, value: production }
-      - { key: PUBLIC_URL, sync: false }
+      - { key: PUBLIC_URL, value: https://api.ognistrada.com }
+      - { key: GAME_URL, value: https://ognistrada.com }
+      - { key: TILES_URL, value: https://tiles.ognistrada.com }
+      - { key: RT_URL, value: wss://rt.ognistrada.com }
+      - { key: HSTS, value: 'off' }
+      - { key: MAIL_FROM, value: "Kugelsack Racing <noreply@ognistrada.com>" }
       - { key: DATABASE_URL, sync: false }
       - { key: BETTER_AUTH_SECRET, sync: false }
+      - { key: EDGE_SECRET, sync: false }
       - { key: SMTP_URL, sync: false }
-      - { key: MAIL_FROM, sync: false }
       - { key: GOOGLE_CLIENT_ID, sync: false }
       - { key: GOOGLE_CLIENT_SECRET, sync: false }
       - { key: DISCORD_CLIENT_ID, sync: false }

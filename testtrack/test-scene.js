@@ -111,6 +111,7 @@ import { createTrackUi } from '../play/trackUi.js';
 import { createTrackTrip } from '../play/trackTrip.js';
 import { referenceTimes, createIdbRefCache } from '../track/events/reference.js';
 import { lapGhost, ghostFrames } from '../track/events/ghost.js';
+import { assetUrl } from '../site/urls.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); TrackScene.hideRealWorld(); for (const w of worlds.values()) w.content?.show(false); };
@@ -862,6 +863,10 @@ async function buildWorld(file) {
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
+  // (the baked regions' files are on the tiles address when there is one — docs/DEPLOYMENT.md: everything that
+  // streams in finds its files from here)
+  if (track.mapV3) track.mapV3 = { ...track.mapV3, manifest: assetUrl(track.mapV3.manifest) };
+  if (track.streamed) track.streamed = { ...track.streamed, manifest: assetUrl(track.streamed.manifest) };
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
   if (track.streamed) await RW2.prepareTrack(track);
   if (track.mapV3) await MapV3.prepareTrack(track);

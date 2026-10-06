@@ -1,0 +1,26 @@
+# Rollback (docs/DEPLOYMENT.md "Rolling back"): an environment put back to an earlier commit — its map files, its
+# API server and its game, in deploy.yml's order, then checked. Production's still needs approval.
+# (Quicker for one part alone: Render's and Cloudflare Pages' dashboards each roll back with one click — but only
+# this keeps the three in step.)
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: staging or production
+        type: choice
+        options: [staging, production]
+        required: true
+      ref:
+        description: the commit (or tag) to go back to — e.g. the one before the bad deploy (git log --oneline)
+        type: string
+        required: true
+
+jobs:
+  rollback:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      ref: ${{ inputs.ref }}
+    secrets: inherit

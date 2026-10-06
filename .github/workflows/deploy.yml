@@ -1,0 +1,85 @@
+# One environment deployed (docs/DEPLOYMENT.md): called by server.yml after every test passes on main (staging, then
+# production with approval) and by rollback.yml (an earlier commit). In order, so nothing ever points at something
+# that isn't there yet:
+#   1. the map files, cars, parts and sounds (assets/) → R2, only what changed
+#   2. the API server (Render) at this commit — its migrations run as it starts, and only add, so the game already
+#      online keeps working — and wait until it says it's this commit, healthy
+#   3. the game (Cloudflare Pages) built for this environment
+#   4. every check of tools/check-deploy.mjs
+# Its settings are the GitHub environment's (docs/DEPLOYMENT.md "GitHub"): variables GAME_URL, API_URL, TILES_URL,
+# RT_URL, PAGES_PROJECT, R2_BUCKET, RENDER_SERVICE_ID, OTHER_API_URL, HSTS; secrets CLOUDFLARE_API_TOKEN,
+# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, RENDER_API_KEY; and the repository variable CLOUDFLARE_ACCOUNT_ID.
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      ref: { type: string, required: false, default: '' }
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # (production: its required reviewers approve this in GitHub before it runs)
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.GAME_URL }}
+    env:
+      SHA: ${{ inputs.ref || github.sha }}
+      ENV_NAME: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ inputs.ref || github.sha }}', fetch-depth: 0 }
+      - name: The commit
+        run: echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+
+      - name: 1. Map files, cars, parts, sounds → R2 (only what changed)
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
+        run: |
+          sudo apt-get install -y -qq rclone > /dev/null
+          rclone sync assets "r2:${{ vars.R2_BUCKET }}/assets" --checksum --transfers 16 --fast-list --stats-one-line --stats 30s \
+            --header-upload "Cache-Control: public, max-age=3600"
+
+      - name: 2. The API server (Render) at this commit
+        env: { RENDER_API_KEY: '${{ secrets.RENDER_API_KEY }}' }
+        run: |
+          curl -fsS -X POST "https://api.render.com/v1/services/${{ vars.RENDER_SERVICE_ID }}/deploys" \
+            -H "authorization: Bearer $RENDER_API_KEY" -H 'content-type: application/json' \
+            -d "{\"commitId\":\"$SHA\"}" > /dev/null
+          echo "deploying $SHA…"
+          for i in $(seq 1 80); do
+            v=$(curl -fsS "${{ vars.API_URL }}/api/v1/health" 2>/dev/null || true)
+            if echo "$v" | grep -q "\"version\":\"$SHA\"" && echo "$v" | grep -q '"ok":true'; then echo "$v"; exit 0; fi
+            sleep 15
+          done
+          echo "the API didn't come up at $SHA: $v"; exit 1
+
+      - name: 3. The game (Cloudflare Pages)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node tools/build-site.mjs --env "$ENV_NAME" --game "${{ vars.GAME_URL }}" --api "${{ vars.API_URL }}" \
+            --tiles "${{ vars.TILES_URL }}" --rt "${{ vars.RT_URL }}" ${{ vars.HSTS == 'on' && '--hsts' || '' }}
+          npx --yes wrangler@4 pages deploy ".cache/site/$ENV_NAME" --project-name "${{ vars.PAGES_PROJECT }}" \
+            --branch main --commit-hash "$SHA" --commit-message "$(git log -1 --format=%s "$SHA" | cut -c1-200)"
+
+      - name: 4. Checks (tools/check-deploy.mjs)
+        run: |
+          sleep 20
+          node tools/check-deploy.mjs --env "$ENV_NAME" --game "${{ vars.GAME_URL }}" --api "${{ vars.API_URL }}" \
+            --tiles "${{ vars.TILES_URL }}" --rt "${{ vars.RT_URL }}" ${{ vars.HSTS == 'on' && '--hsts' || '' }} \
+            ${{ inputs.environment == 'production' && '--www' || '' }} ${{ vars.OTHER_API_URL && format('--other {0}', vars.OTHER_API_URL) || '' }}

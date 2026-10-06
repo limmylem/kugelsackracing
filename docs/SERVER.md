@@ -43,6 +43,7 @@ npm run server:dev                    # migrates the database, then serves on PU
 | `npm run test:browser -w @kr/server` | The account flows in Chromium: sign up, confirm, reset, guest to account, delete, offline. |
 | `npm run load-test -w @kr/server` | 500 players signing in at once and loading nearby content. |
 | `npm run test:browser:economy -w @kr/server` | The economy in Chromium: a change shown at once and confirmed, a refusal put back, offline and back, two tabs; the admin page's economy tools. |
+| `node server/tools/deploy-browser.ts` | The deployment's layout in Chromium: game, API, tiles and real time each on an address of its own (cookies, CORS, the admin and editor pages for their roles). |
 | `npm run load-test:economy -w @kr/server` | 500 players in the garage and on the road, then the books checked (`--burst`: all at the same moment). |
 
 The pre-commit hook doesn't run these, because they need PostgreSQL. CI runs them on every push
@@ -95,75 +96,16 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
   its body is read. Every admin action is logged.
 - `npm audit --omit=dev --audit-level=high` runs in CI.
 
-## Hosting: one-time setup
+## Hosting
 
-Everything below is on free plans. Paid plans come later, when there are more players.
+The online setup (Cloudflare for the game, its files and DNS; Render for the API; Neon for the databases; Resend for
+email), how to deploy and roll back, and what to renew: [DEPLOYMENT.md](DEPLOYMENT.md).
 
-### 1. Neon (the databases)
-
-1. Sign up at neon.com.
-2. Create two projects, `kugelsack-staging` and `kugelsack-production` (PostgreSQL 16, a region near you).
-3. In each, copy the connection string (Connect → "Connection string", with `sslmode=require`). These
-   become `DATABASE_URL` for that environment.
-4. Nothing else is needed: the server switches PostGIS on and runs every migration when it starts.
-
-### 2. Gmail (email: confirmations and password resets)
-
-1. On the Google account that will send the mail, turn on 2-Step Verification.
-2. Go to myaccount.google.com → Security → App passwords, and create one called "Kugelsack Racing".
-3. `SMTP_URL` is `smtps://YOUR.ADDRESS%40gmail.com:THE-APP-PASSWORD@smtp.gmail.com:465` (the `@` in the
-   address written as `%40`). `MAIL_FROM` is `Kugelsack Racing <YOUR.ADDRESS@gmail.com>`.
-4. Gmail sends about 500 a day. Move to Resend with your own domain later.
-
-### 3. Render (the server: staging and production)
-
-1. Sign up at render.com with GitHub, then New → Blueprint, and pick this repository. It reads
-   `render.yaml` and makes `kugelsack-staging` and `kugelsack-production` (free web services).
-2. In each service's Environment, fill in the values it asks for:
-   - `PUBLIC_URL` is the service's own address (e.g. `https://kugelsack-staging.onrender.com`).
-   - `DATABASE_URL` comes from Neon.
-   - `BETTER_AUTH_SECRET`: a new `openssl rand -base64 32` for each service, different for each.
-   - `SMTP_URL` and `MAIL_FROM` come from Gmail.
-   - `ADMIN_EMAIL` is your email.
-   - The Google, Discord and Sentry values come from steps 4 to 6 (leave them empty until then).
-3. In each service's Settings, copy the Deploy Hook URL (for step 7).
-4. Free services sleep after 15 minutes without players. The first visit after that waits about a
-   minute, and the game shows "Waking the server…".
-
-### 4. Google sign-in
-
-1. Go to console.cloud.google.com, make a project, then APIs & Services:
-   - OAuth consent screen: External, the app's name, your email.
-   - Credentials → Create credentials → OAuth client ID → Web application.
-2. Authorised redirect URIs: `https://kugelsack-staging.onrender.com/api/auth/callback/google` and the
-   production one.
-3. Put the client ID and secret in Render as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-
-### 5. Discord sign-in
-
-1. Go to discord.com/developers → New Application → OAuth2.
-2. Add the redirects `…/api/auth/callback/discord` for staging and production.
-3. Put the client ID and secret in Render as `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`.
-
-### 6. Sentry (errors)
-
-1. Go to sentry.io (free plan) and make two projects: a Node.js one (its DSN is `SENTRY_DSN`) and a
-   browser JavaScript one (`SENTRY_CLIENT_DSN`).
-2. Set them on both Render services. Sentry's own environment filter tells staging from production.
-
-### 7. GitHub (tests, deploys, backups)
-
-1. Settings → Environments:
-   - Make `staging`, with the variable `STAGING_URL` and the secret `RENDER_STAGING_DEPLOY_HOOK`.
-   - Make `production`, with the variable `PRODUCTION_URL` and the secret `RENDER_PRODUCTION_DEPLOY_HOOK`.
-     Under "Required reviewers" add yourself: a production deploy waits for your approval.
-2. Settings → Secrets → Actions (repository secrets):
-   - `PRODUCTION_DATABASE_URL` and `STAGING_DATABASE_URL` (from Neon).
-   - `BACKUP_PASSPHRASE`: a long random passphrase. Keep a copy somewhere safe too; without it the backups
-     can't be read.
-
-After that, every push to `main` runs the tests (`server.yml`). When they pass, staging deploys and is
-checked healthy, then production waits for your approval in the Actions tab.
+In staging and production the server runs with `serveClient: "tools"`:
+- It serves only the admin and editor pages (each to its role) and the modules they load.
+- The game itself is on `GAME_URL`, and its map files on `TILES_URL`.
+- Its settings for that: `GAME_URL`, `TILES_URL`, `RT_URL`, `EDGE_SECRET` (the player's address behind Cloudflare)
+  and `HSTS` (`server/.env.example`).
 
 ## Backups
 

@@ -230,7 +230,7 @@ export const ReplayMeta = z.object({ id: z.string(), title: z.string(), eventId:
 export const ReplayResponse = z.object({ meta: ReplayMeta, recording: ReplayRecording });
 
 // ---------- the server ----------
-export const Health = z.object({ ok: z.boolean(), version: z.string(), env: z.string(), db: z.enum(['ok', 'down']), uptime: z.number() });
+export const Health = z.object({ ok: z.boolean(), version: z.string(), env: z.string(), db: z.enum(['ok', 'down']), dbId: z.string(), uptime: z.number() });
 export const ClientConfig = z.object({
   apiBase: z.string(), env: z.string(), sentryDsn: z.string().nullable(), social: z.array(z.enum(['google', 'discord'])),
   termsVersion: z.string(), privacyVersion: z.string(), minAge: z.number().int(),

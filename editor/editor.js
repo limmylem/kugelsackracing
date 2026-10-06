@@ -37,6 +37,7 @@ import { createWorldView } from './worldView.js';
 import { findPlaces, bookmarks } from './search.js';
 import { editorAccessNow } from './access.js';
 import { createRouteTool } from './routeTool.js';
+import { assetUrl } from '../site/urls.js';
 
 const REGION = 'assets/map/sf/manifest.json';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -72,7 +73,7 @@ export function createEditor({ game }) {
     H = createHistory(C.service);
     H.on(() => renderTop());
     region = await (await fetch(REGION, { cache: 'no-cache' })).json().catch(() => null);
-    roads = createRoadFinder({ regions: region ? [{ manifestUrl: new URL(REGION, document.baseURI).href }] : [] });
+    roads = createRoadFinder({ regions: region ? [{ manifestUrl: new URL(assetUrl(REGION), document.baseURI).href }] : [] });
     C.service.on(ev => { if (active) { scheduleRefresh(); if (ev.id && ev.id === selected) loadSelected(); } saving(); });
     build();
   }

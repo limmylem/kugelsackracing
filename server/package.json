@@ -26,6 +26,7 @@
     "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.5",
+    "@fastify/websocket": "^11.3.3",
     "@kr/shared": "*",
     "@sentry/node": "^11.4.0",
     "better-auth": "^1.7.7",

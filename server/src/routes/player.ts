@@ -46,7 +46,9 @@ export async function playerRoutes(app0: FastifyInstance, { economy, config: eco
     const user = await who(req);
     reply.hijack();
     const res = reply.raw;
-    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+    // (the headers set so far — CORS for the game's own address, the security headers — kept: the stream is written
+    // past Fastify's reply)
+    res.writeHead(200, { ...reply.getHeaders(), 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' } as any);
     res.write(`retry: 3000\n\n`);
     const on = (userId: string, rev: number) => { if (userId === user.id) res.write(`event: change\ndata: ${JSON.stringify({ rev })}\n\n`); };
     economy.events.on('change', on);

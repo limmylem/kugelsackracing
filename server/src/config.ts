@@ -16,7 +16,10 @@ const FileConfig = z.object({
   termsVersion: z.string().min(1),
   privacyVersion: z.string().min(1),
   requireEmailVerification: z.boolean(),
-  serveClient: z.boolean(),
+  // the game's files: all of them (one address for everything: development, tests), 'tools' (the API's own
+  // address in staging and production: only the admin and editor pages and the modules they load, each
+  // page for its role — the game itself is on GAME_URL), or none
+  serveClient: z.union([z.boolean(), z.literal('tools')]),
   cookieSecure: z.boolean(),
   rateLimits: z.object({ global: Limit, auth: Limit, signUp: Limit, write: Limit }),
   cache: z.object({ publishedSeconds: z.number().int().min(0), cdnSeconds: z.number().int().min(0), serverMB: z.number().min(0).max(1024) }),
@@ -31,6 +34,14 @@ const Env = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   HOST: z.string().default('0.0.0.0'),
   PUBLIC_URL: z.url(),
+  // (docs/DEPLOYMENT.md: the game, its map files and the real-time server on addresses of their own)
+  GAME_URL: optional,
+  TILES_URL: optional,
+  RT_URL: optional,
+  // (Cloudflare adds this header to every request it passes on: only then is its CF-Connecting-IP believed)
+  EDGE_SECRET: optional,
+  // (HTTP Strict Transport Security: on once every address works over HTTPS — docs/DEPLOYMENT.md)
+  HSTS: z.enum(['on', 'off']).default('off'),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, 'DATABASE_URL must be a postgres:// URL'),
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters (openssl rand -base64 32)'),
   TRUSTED_ORIGINS: optional,
@@ -42,7 +53,8 @@ const Env = z.object({
   SENTRY_CLIENT_DSN: optional,
   ADMIN_EMAIL: optional,
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-  GIT_COMMIT: z.string().default('dev'),
+  // (Render says which commit it deployed in RENDER_GIT_COMMIT: the health check reports it, and the deploy waits for it)
+  GIT_COMMIT: z.string().default(process.env.RENDER_GIT_COMMIT ?? 'dev'),
 });
 
 export type Config = ReturnType<typeof loadConfig>;
@@ -56,7 +68,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (!f.success) throw new Error(`${file} isn't right:\n${f.error.issues.map(i => `  ${i.path.join('.')}: ${i.message}`).join('\n')}`);
   const publicUrl = E.PUBLIC_URL.replace(/\/$/, '');
   if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && !publicUrl.startsWith('https://')) throw new Error('PUBLIC_URL must be https:// in staging and production');
-  const origins = [new URL(publicUrl).origin, ...(E.TRUSTED_ORIGINS ? E.TRUSTED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])];
+  const url = (name: string, v: string | null) => {
+    if (!v) return null;
+    let u: URL;
+    try { u = new URL(v); } catch { throw new Error(`${name} must be a URL`); }
+    if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && !/^(https|wss):$/.test(u.protocol)) throw new Error(`${name} must be https:// (wss:// for RT_URL) in staging and production`);
+    return v.replace(/\/$/, '');
+  };
+  const gameUrl = url('GAME_URL', E.GAME_URL) ?? publicUrl, tilesUrl = url('TILES_URL', E.TILES_URL), rtUrl = url('RT_URL', E.RT_URL);
+  if (E.EDGE_SECRET && E.EDGE_SECRET.length < 24) throw new Error('EDGE_SECRET must be at least 24 characters (openssl rand -hex 24)');
+  const origins = [new URL(publicUrl).origin, new URL(gameUrl).origin, ...(E.TRUSTED_ORIGINS ? E.TRUSTED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])];
   const social = {
     google: E.GOOGLE_CLIENT_ID && E.GOOGLE_CLIENT_SECRET ? { clientId: E.GOOGLE_CLIENT_ID, clientSecret: E.GOOGLE_CLIENT_SECRET } : null,
     discord: E.DISCORD_CLIENT_ID && E.DISCORD_CLIENT_SECRET ? { clientId: E.DISCORD_CLIENT_ID, clientSecret: E.DISCORD_CLIENT_SECRET } : null,
@@ -65,6 +86,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env: E.APP_ENV, port: E.PORT, host: E.HOST, publicUrl, trustedOrigins: [...new Set(origins)], databaseUrl: E.DATABASE_URL, poolMax: E.DATABASE_POOL_MAX,
     authSecret: E.BETTER_AUTH_SECRET, smtpUrl: E.SMTP_URL, mailFrom: E.MAIL_FROM, social, sentryDsn: E.SENTRY_DSN, sentryClientDsn: E.SENTRY_CLIENT_DSN,
     adminEmail: E.ADMIN_EMAIL?.toLowerCase() ?? null, version: E.GIT_COMMIT,
+    gameUrl, tilesUrl, rtUrl, edgeSecret: E.EDGE_SECRET, hsts: E.HSTS === 'on',
     ...f.data,
   };
 }

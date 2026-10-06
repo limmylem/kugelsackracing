@@ -7,3 +7,13 @@
   in before pushing; never force-push `main`.
 - The pre-commit hook (`.githooks/pre-commit`) runs the data checks, model checks, physics tests and crash
   suite; let it run.
+
+## Reminders for the user (raise them at the right time)
+
+- **Hosting is on free plans** (docs/DEPLOYMENT.md). Remind the user to upgrade to at least the ~$13/month plan
+  (Render Starter for the API; Render Postgres or Neon's paid plan) **before Phase 7 multiplayer testing or before
+  inviting beta testers**, whichever comes first.
+- **Phase 7 Step 1's tests** must include the deferred deployment check: two players on different networks (e.g. home
+  Wi-Fi and a phone hotspot) sign in, join the same room and see each other. `rt.ognistrada.com` is only a ping/pong
+  stand-in (server/src/rt/health.ts) until then.
+- Stop and ask before anything that costs money, with a monthly cost estimate.

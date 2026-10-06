@@ -16,6 +16,7 @@
 import { METHODS, PlayerService, LocalPlayerService } from './service.js';
 import { MemoryStorage } from './storage.js';
 import { packProfile } from './profile.js';
+import { apiBase } from '../../site/urls.js';
 
 const uuid = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
@@ -65,7 +66,7 @@ export class RemotePlayerService extends PlayerService {
   // another tab or device changed something: the server's profile again (once nothing of ours is on its way)
   #listen() {
     if (typeof EventSource === 'undefined') return;
-    const es = this.events = new EventSource('/api/v1/player/events', { withCredentials: true });
+    const es = this.events = new EventSource(`${apiBase}/api/v1/player/events`, { withCredentials: true });
     es.addEventListener('change', e => {
       const { rev } = JSON.parse(e.data);
       if (rev === -1 || rev > this.rev) this.queue = this.queue.then(() => this.refresh());

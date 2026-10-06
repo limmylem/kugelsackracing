@@ -9,10 +9,18 @@ import { SERVER_DIR } from '../config.ts';
 
 export const MIGRATIONS_DIR = path.join(SERVER_DIR, 'drizzle');
 
+// (one at a time: a deploy can start the new server while the old one still runs, and two starting together
+// mustn't both apply the same migration — a lock held on the one connection while it migrates; the other waits,
+// then finds nothing left to do. Migrations only ever add to the schema, so the old server keeps working
+// meanwhile and after a rollback: docs/DEPLOYMENT.md)
+const LOCK = 7_461_002_301;
 export async function migrateDb(url: string) {
   const { db, pool } = openDb(url, { max: 1 });
-  try { await migrate(db, { migrationsFolder: MIGRATIONS_DIR }); }
-  finally { await pool.end(); }
+  try {
+    await pool.query('select pg_advisory_lock($1)', [LOCK]);
+    try { await migrate(db, { migrationsFolder: MIGRATIONS_DIR }); }
+    finally { await pool.query('select pg_advisory_unlock($1)', [LOCK]).catch(() => {}); }
+  } finally { await pool.end(); }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -1,5 +1,5 @@
-// The game's one way to its server (Phase 6 Step 1, docs/SERVER.md). Same origin, so the session is the
-// server's httpOnly cookie, never seen here. Every write to /api/v1 carries:
+// The game's one way to its server (Phase 6 Step 1, docs/SERVER.md). The session is the server's httpOnly
+// cookie, never seen here (on its own address — docs/DEPLOYMENT.md — sent along with every request). Every write to /api/v1 carries:
 //   - the CSRF token (GET /api/v1/csrf; fetched again once if the server says it's stale)
 //   - an Idempotency-Key, the same one on every retry of that write: the server applies it once
 // Errors come back in the server's one format as an ApiError { status, code, message, details, requestId };
@@ -10,6 +10,8 @@
 //
 //   const api = createApi();      api.on(state => …)      await api.get('/me')      await api.post('/me/terms', body)
 //   await api.auth('/sign-in/email', { email, password })   (Better Auth's own endpoints, /api/auth)
+
+import { apiBase } from '../site/urls.js';
 
 export const API = '/api/v1', AUTH = '/api/auth';
 const RETRY_STATUS = new Set([502, 503, 504]);
@@ -23,7 +25,7 @@ export class ApiError extends Error {
 const uuid = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-export function createApi({ base = '', fetchImpl = (...a) => globalThis.fetch(...a), retries = 4, slowMs = 4000, timeoutMs = 90_000 } = {}) {
+export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fetch(...a), retries = 4, slowMs = 4000, timeoutMs = 90_000 } = {}) {
   let csrf = null, state = 'online', watching = null;
   const listeners = new Set();
   const setState = s => { if (s !== state) { state = s; for (const f of listeners) try { f(s); } catch (e) { console.error(e); } } };
@@ -34,7 +36,7 @@ export function createApi({ base = '', fetchImpl = (...a) => globalThis.fetch(..
     try {
       const h = { accept: 'application/json', ...headers };
       if (body !== undefined) h['content-type'] = 'application/json';
-      return await fetchImpl(base + url, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin', signal: ctl.signal });
+      return await fetchImpl(base + url, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), credentials: base ? 'include' : 'same-origin', signal: ctl.signal });
     } finally { clearTimeout(slow); clearTimeout(dead); }
   }
   async function readError(res) {

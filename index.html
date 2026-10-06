@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/site/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Real World Drive</title>
 <script>
@@ -1838,7 +1839,8 @@ Promise.all([import('./account/session.js'), import('./account/status.js'), impo
 }).catch(e => console.warn(`Account: ${e.message}`));
 async function editorNow() {
   if (editor) return editor;
-  const [{ createEditor }, test] = await Promise.all([import('./editor/editor.js'), import('./testtrack/test-scene.js')]);
+  // (the editor's code: from the API's address, for editor accounts only, when that's another address — site/urls.js)
+  const [{ createEditor }, test] = await Promise.all([import('./site/urls.js').then(m => m.importTool('editor/editor.js')), import('./testtrack/test-scene.js')]);
   editor = createEditor({ game: {
     hooks: test.editorHooks,
     pause: on => test.editorPause(on),

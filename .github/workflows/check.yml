@@ -1,0 +1,30 @@
+# The checks of tools/check-deploy.mjs on demand (docs/DEPLOYMENT.md "Checks"): an environment as players reach it.
+# (No approval needed: it only reads. The addresses from the domain — the repository variable DOMAIN, or ognistrada.com.)
+name: check
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      hsts: { description: 'Expect HSTS', type: boolean, default: false }
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      D: ${{ vars.DOMAIN || 'ognistrada.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          if [ "${{ inputs.environment }}" = production ]; then
+            node tools/check-deploy.mjs --env production --game "https://$D" --api "https://api.$D" --tiles "https://tiles.$D" --rt "wss://rt.$D" \
+              --www --other "https://staging-api.$D" ${{ inputs.hsts && '--hsts' || '' }}
+          else
+            node tools/check-deploy.mjs --env staging --game "https://staging.$D" --api "https://staging-api.$D" --tiles "https://staging-tiles.$D" \
+              --rt "wss://staging-rt.$D" --other "https://api.$D" ${{ inputs.hsts && '--hsts' || '' }}
+          fi
