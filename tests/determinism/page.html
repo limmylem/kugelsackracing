@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Determinism probe</title>
+<!-- The determinism test's page (tests/determinism/run.ts browsers): the recorded runs replayed in this browser
+     with the game's own physics, car data and tracks; window.runAll() → each run's hashes -->
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
+<script type="module">
+import { trackFor, replay, decodeInputs, patchMath } from '/tests/determinism/probe.js';
+const mode = new URLSearchParams(location.search).get('detmath');
+if (mode) patchMath(mode, mode === 'all' ? { ...(await import('/.cache/determinism/detmath.mjs')) } : null);
+import { Garage, loadGarageData } from '/garage/data.js';
+import { socketsFromGlb } from '/physics/sockets.js';
+
+const json = async p => { const r = await fetch(`/${p}`); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
+window.runAll = async () => {
+  const R = (await import(new URLSearchParams(location.search).get('rapier'))).default;
+  await R.init();
+  const { db } = await loadGarageData(json), settings = await json('physics/settings.json'), cfg = await json('data/tracks.json');
+  const spec = new Garage(db, null, 'starter_car').stats().spec;
+  const glb = await (await fetch(`/${spec.model.file}`)).arrayBuffer(), sockets = socketsFromGlb(glb, spec.model);
+  const { runs } = await json('runs.json');
+  return runs.map(r => replay({ RAPIER: R, settings, spec, sockets, T: trackFor(r.code, cfg), inputs: decodeInputs(r.inputs), npcs: r.npcs.map(n => ({ inputs: decodeInputs(n.inputs) })) }));
+};
+</script>

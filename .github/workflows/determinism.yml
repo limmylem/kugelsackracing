@@ -1,0 +1,93 @@
+# The physics determinism test (Phase 6 Step 3, tests/determinism/run.ts): 100 recorded runs replayed from their
+# inputs in Node and in Chromium, Firefox and WebKit (Linux and macOS), compared bit for bit. Runs on every
+# change to the simulation: the physics, the cars and parts, the tracks, the NPC drivers.
+name: determinism
+
+on:
+  push:
+    paths:
+      - 'physics/**'
+      - 'track/**'
+      - 'ai/**'
+      - 'route/**'
+      - 'garage/**'
+      - 'data/cars/**'
+      - 'data/parts/**'
+      - 'data/tracks.json'
+      - 'tests/determinism/**'
+      - '.github/workflows/determinism.yml'
+  workflow_dispatch:
+
+env:
+  # (the experiment: the deterministic Rapier build and a deterministic maths library, not yet the game's own)
+  EXPERIMENT_PACKAGES: >-
+    @dimforge/rapier3d-deterministic-compat@0.21.0 @stdlib/math-base-special-sin@0.3.1 @stdlib/math-base-special-cos@0.3.1
+    @stdlib/math-base-special-tan@0.3.1 @stdlib/math-base-special-atan@0.2.4 @stdlib/math-base-special-atan2@0.3.1
+    @stdlib/math-base-special-asin@0.2.4 @stdlib/math-base-special-acos@0.2.4 @stdlib/math-base-special-exp@0.2.5
+    @stdlib/math-base-special-log@0.2.4 @stdlib/math-base-special-pow@0.3.1 @stdlib/math-base-special-hypot@0.2.4
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm i --no-save --no-audit --no-fund $EXPERIMENT_PACKAGES
+      - run: node tests/determinism/detmath.mjs
+      - name: Record 100 runs, and replay them in Node
+        run: |
+          DET_MATH=all node tests/determinism/run.ts record --out .cache/determinism/ci
+          for r in compat deterministic; do DET_MATH=all node tests/determinism/run.ts replay --in .cache/determinism/ci --rapier $r --label linux-x64-node-$r; done
+          node tests/determinism/run.ts replay --in .cache/determinism/ci --label linux-x64-node-platform-maths
+      - uses: actions/upload-artifact@v4
+        with: { name: det-record, path: .cache/determinism/ci }
+
+  replay:
+    needs: record
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, browsers: 'chromium,firefox,webkit', install: 'chromium firefox webkit', tag: linux }
+          - { os: macos-latest, browsers: 'webkit', install: 'webkit', tag: macos }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm i --no-save --no-audit --no-fund $EXPERIMENT_PACKAGES playwright@1.56.1
+      - run: npx playwright install --with-deps ${{ matrix.install }}
+      - run: node tests/determinism/detmath.mjs
+      - uses: actions/download-artifact@v4
+        with: { name: det-record, path: .cache/determinism/ci }
+      - name: Replay in each browser (and Node on this machine)
+        shell: bash
+        run: |
+          D=.cache/determinism/ci; B="$(echo '${{ matrix.browsers }}')"
+          mkdir -p out
+          for r in compat deterministic; do
+            DET_MATH=all node tests/determinism/run.ts browsers --in $D --rapier $r --browsers "$B" --tag ${{ matrix.tag }}
+          done
+          node tests/determinism/run.ts browsers --in $D --browsers "$B" --tag ${{ matrix.tag }}-platform-maths
+          if [ "${{ matrix.tag }}" = macos ]; then for r in compat deterministic; do DET_MATH=all node tests/determinism/run.ts replay --in $D --rapier $r --label macos-arm64-node-$r; done; fi
+          cp $D/hashes-*.json out/ && rm -f out/hashes-linux-x64-node-*.json
+      - uses: actions/upload-artifact@v4
+        with: { name: det-${{ matrix.tag }}, path: out }
+
+  compare:
+    needs: replay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/download-artifact@v4
+        with: { path: art }
+      - name: Every replay against Node's on Linux
+        run: |
+          mkdir -p .cache/determinism/ci && cp art/*/hashes-*.json .cache/determinism/ci/ 2>/dev/null; cp art/det-record/runs.json .cache/determinism/ci/
+          node tests/determinism/run.ts compare --in .cache/determinism/ci --ref linux-x64-node-compat-detall | tee summary.txt
+          { echo '```'; cat summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
