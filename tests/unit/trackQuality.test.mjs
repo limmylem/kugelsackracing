@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import { generateTrack } from '../../track/generate.js';
 import { dressTrack } from '../../track/dress.js';
 import { qualityOf, aiCloseness, layoutSignature, similarity } from '../../track/quality.js';
-import { dailyTrack, weeklyTrack, quickTrack, dayKey } from '../../track/events/model.js';
+import { dailyTrack, weeklyTrack, quickTrack, dayKey, eventsFor } from '../../track/events/model.js';
 import { trackName, cornerNames } from '../../track/names.js';
 import { themeEnvironment, eventConditions } from '../../track/renderDress.js';
 
@@ -130,6 +130,16 @@ test('conditions: an event\'s time of day and weather over the theme\'s; floodli
   assert.deepEqual(eventConditions({ timeOfDay: 'night', weather: 'rain' }, look, C), { time: 'night', weather: 'rain' });
   assert.equal(eventConditions({ timeOfDay: 'day' }, { ...look, time: 'dusk' }, C).time, 'midday');
   assert.equal(eventConditions({ timeOfDay: 'day' }, look, C).time, 'afternoon');
+  // the day's events: their own time of day and weather now and then (by the config's weights, from the
+  // code: the same for everyone), the theme's own most days
+  const seen = new Set(); let ownDays = 0, n = 0;
+  for (let d = 0; d < 20; d++) {
+    const t = dailyTrack(Date.UTC(2026, 9, 1) + d * 864e5, E, TC), a = eventsFor(t, E), b = eventsFor(t, E);
+    assert.deepEqual(a.map(e => e.conditions), b.map(e => e.conditions));
+    for (const e of a) { n++; if (e.conditions.timeOfDay === 'any' && e.conditions.weather === 'any') ownDays++; seen.add(e.conditions.timeOfDay); seen.add(e.conditions.weather); }
+  }
+  assert.ok(ownDays > n / 3 && ownDays < n, `${ownDays} of ${n} events in the theme's own conditions`);
+  assert.ok(seen.has('night') && seen.has('rain'), [...seen].join(' '));
   // every theme looks right at every time of day: a time and hours for each
   for (const t of Object.keys(C.times)) for (const th of Object.values(TC.themes).filter(x => x?.look)) {
     const env = themeEnvironment(th.look, { time: t, conditions: C, closed: true });

@@ -1,5 +1,5 @@
 {
-  "_note": "Gameplay on generated tracks (Phase 5 Step 3: track/events/, docs/TRACK_EVENTS.md). The money is the economy's (data/economy.json quests and trackEvents); these say which tracks there are and what's raced on them. events: the events a track gets when it isn't an official one (the day's, the week's, a quick race, a shared code), by its layout — each a quest type with its laps, start, rivals (count, skill range) and collisions; {track} in a name is the track's name.",
+  "_note": "Gameplay on generated tracks (Phase 5 Step 3: track/events/, docs/TRACK_EVENTS.md). The money is the economy's (data/economy.json quests and trackEvents); these say which tracks there are and what's raced on them. events: the events a track gets when it isn't an official one (the day's, the week's, a quick race, a shared code), by its layout — each a quest type with its laps, start, rivals (count, skill range) and collisions; {track} in a name is the track's name. conditions (Phase 5 Step 4): each event's time of day and weather, picked by these weights from its track's code and its slot (any: the theme's own) — the same for everyone; drawn only for now (data/tracks.json conditions.applyGrip).",
   "daily": {
     "_note": "The day's track: the same for every player on the same UTC date. Its seed from the date (and salt); the preset by the seed from presets. rules: from each date on (a later rule never changes the days before it), the generator version, and whether the track must reach the quality gate (data/tracks.json quality.min.daily) and differ from the last similar.recent days' tracks (layout similarity at most similar.max) — seeds that don't are skipped, the next derived seed tried, so every player still gets the same track.",
     "version": 2,
@@ -9,6 +9,7 @@
     ],
     "salt": "kugel-daily-1",
     "presets": ["short_technical", "club_circuit", "fast_flowing", "mixed_gp", "street_circuit", "mountain_hillclimb", "coastal_sprint", "high_speed"],
+    "conditions": { "timeOfDay": { "any": 6, "dawn": 0.6, "dusk": 1.2, "night": 1.4 }, "weather": { "any": 7, "rain": 1.5, "fog": 0.5 } },
     "events": {
       "loop": [
         { "slot": "hot_lap", "type": "hot_lap", "name": "{track} hot lap", "laps": 3, "mode": "best_lap", "start": "rolling", "collisions": "off" },
@@ -29,6 +30,7 @@
     ],
     "salt": "kugel-weekly-1",
     "presets": ["mixed_gp", "fast_flowing", "high_speed", "street_circuit", "mountain_hillclimb"],
+    "conditions": { "timeOfDay": { "any": 5, "dusk": 1.5, "night": 1.5 }, "weather": { "any": 7, "rain": 1.5, "fog": 0.5 } },
     "events": {
       "loop": [
         { "slot": "hot_lap", "type": "hot_lap", "name": "{track} weekly hot lap", "laps": 5, "mode": "best_lap", "start": "rolling", "collisions": "off" },
@@ -43,6 +45,7 @@
   },
   "quick": {
     "_note": "A quick race: a random track from a preset (its rewards: data/economy.json trackEvents.byKind.quick, and capped each hour).",
+    "conditions": { "timeOfDay": { "any": 8, "dusk": 1, "night": 1 }, "weather": { "any": 9, "rain": 1 } },
     "events": {
       "loop": [
         { "slot": "race", "type": "circuit_race", "name": "Quick race · {track}", "laps": 2, "start": "standing", "npc": { "count": 5, "skill": [0.3, 0.8] }, "collisions": "full" },

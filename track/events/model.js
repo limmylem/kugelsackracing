@@ -20,7 +20,7 @@
 
 import { generateTrack, LATEST } from '../generate.js';
 import { normalise } from '../code.js';
-import { fnv32, mix } from '../det.js';
+import { fnv32, mix, rng } from '../det.js';
 import { dressTrack } from '../dress.js';
 import { qualityOf, layoutSignature, similarity } from '../quality.js';
 import { TYPES, CONTENT_VERSION } from '../../content/quests.js';
@@ -151,9 +151,13 @@ export function eventsFor(track, cfg, { location = { lat: 0, lon: 0 }, venue = n
   let E = cfg[track.kind]?.events;
   if (typeof E === 'string') E = cfg[E]?.events;
   const list = E?.[track.info?.layout ?? 'loop'] ?? [];
-  return list.map(e => newTrackEvent({
+  // (their time of day and weather, by the config's weights, from the code and the event: the same for
+  // everyone; any — the theme's own — most often)
+  const W = cfg[track.kind]?.conditions, conditionsOf = slot => { if (!W) return null; const r = rng(fnv32(`${track.code}:${slot}:conditions`)); return { timeOfDay: r.weighted(W.timeOfDay ?? { any: 1 }), weather: r.weighted(W.weather ?? { any: 1 }) }; };
+  return list.map(e => withConditions(conditionsOf(e.slot), newTrackEvent({
     id: eventId(track.kind, track.code, e.slot), track, type: e.type, name: (e.name ?? '{track}').replace('{track}', track.name), venue, location, now,
     params: { ...(e.laps != null && { laps: e.laps }), ...(e.mode && { mode: e.mode }), ...(e.start && { start: e.start }), ...(e.collisions && { collisions: e.collisions }), ...(e.stints != null && { stints: e.stints }) },
     npc: e.npc?.count ? { count: e.npc.count, skill: e.npc.skill ?? [0.4, 0.8], drivers: 'random' } : {},
-  }));
+  })));
 }
+const withConditions = (c, ev) => c ? { ...ev, conditions: c } : ev;

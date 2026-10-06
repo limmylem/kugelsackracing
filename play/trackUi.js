@@ -117,13 +117,15 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
   }
 
   // ---------- an event's line (the venue card and the library alike) ----------
+  // an event's own time of day and weather (none: the theme's)
+  const conditionsText = ev => { const c = ev.conditions ?? {}; return [c.timeOfDay && c.timeOfDay !== 'any' ? (c.timeOfDay === 'night' ? 'at night (floodlit)' : `at ${c.timeOfDay}`) : null, c.weather && c.weather !== 'any' ? (c.weather === 'rain' ? 'in the rain' : `in ${c.weather}`) : null].filter(Boolean).join(', '); };
   function eventLine(ev, features = null) {
     const T = TYPES[ev.type], r = rewardsOf({ ...ev, rating: ev.rating ?? { stars: starsOf(ev, features) ?? 2, km: (ev.track.km ?? 3) * (ev.track.layout === 'loop' ? Math.max(1, ev.params?.laps ?? 1) : 1) } }, game.economy);
     const laps = ev.track.layout !== 'p2p' && ev.params?.laps > 1 ? ` · ${ev.params.laps} laps` : '', rivals = ev.npc?.count ? ` · ${ev.npc.count} rivals` : ' · solo';
     const prog = profile().quests?.[ev.id], best = prog?.bestTime != null ? ` · best ${fmt(prog.bestTime)}` : '', m = medalOf(ev.id);
-    const stars = starsOf(ev, features);
+    const stars = starsOf(ev, features), when = conditionsText(ev);
     return `<div class="tev"><b>${esc(ev.name)}</b> ${m ? `<span style="color:${MEDAL[m]}">●</span>` : ''}<br>
-      <small>${esc(T?.label ?? ev.type)}${laps}${rivals}${ev.params?.start ? ` · ${esc(ev.params.start)} start` : ''}${ev.type === 'hot_lap' ? ` · medals for ${(ev.params?.mode ?? 'best_lap') === 'best_lap' ? 'the best lap' : 'the total'}` : ''}${best}</small><br>
+      <small>${esc(T?.label ?? ev.type)}${laps}${rivals}${ev.params?.start ? ` · ${esc(ev.params.start)} start` : ''}${ev.type === 'hot_lap' ? ` · medals for ${(ev.params?.mode ?? 'best_lap') === 'best_lap' ? 'the best lap' : 'the total'}` : ''}${when ? ` · ${esc(when)}` : ''}${best}</small><br>
       <small>${stars ? `<span class="stars">${starsText(stars)}</span> · ` : ''}reward up to ${money(r.money)} · ${r.xp} xp${r.fee ? ` · entry ${money(r.fee)}` : ' · free entry'}${ev.track.kind === 'quick' || ev.track.kind === 'shared' ? ' · capped each hour' : ''}</small><br>
       <button class="qbtn primary" data-go="${esc(ev.id)}">Race</button></div>`;
   }
@@ -203,7 +205,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
       <div><h4>${esc(track.name ?? trackName(d?.seed ?? 0, { theme: track.theme, layout: track.layout }))} <button class="fav" data-fav="${k}" title="Favourite">${isFav(track.code) ? '★' : '☆'}</button></h4>
         <small class="meta">${esc(track.kind)}${track.venue ? ` · ${esc(track.venue)}` : ''}${track.key ? ` · ${esc(track.key)}` : ''} · <span class="info">…</span></small><br>
         <small>Your best: ${B.mine ? `${fmt(B.mine.bestTime)} (lap ${fmt(B.mine.bestLap)}, class ${esc(B.mine.carClass)})` : B.any ? `lap ${fmt(B.any.bestLap)} (class ${esc(B.any.carClass)})` : 'not raced yet'}${medals.length ? ` · ${medals.map(m => `<span style="color:${MEDAL[m]}">●</span>`).join('')}` : ''}</small>
-        <div class="ev">${events.map(e => `<button data-ev="${esc(e.id)}" title="${esc(TYPES[e.type]?.blurb ?? '')}">${esc(TYPES[e.type]?.label ?? e.type)}${e.npc?.count ? ` · ${e.npc.count} rivals` : ''}${e.params?.laps > 1 && e.track.layout !== 'p2p' ? ` · ${e.params.laps} laps` : ''}</button>`).join('')}</div>
+        <div class="ev">${events.map(e => `<button data-ev="${esc(e.id)}" title="${esc(TYPES[e.type]?.blurb ?? '')}">${esc(TYPES[e.type]?.label ?? e.type)}${e.npc?.count ? ` · ${e.npc.count} rivals` : ''}${e.params?.laps > 1 && e.track.layout !== 'p2p' ? ` · ${e.params.laps} laps` : ''}${conditionsText(e) ? ` · ${esc(conditionsText(e))}` : ''}</button>`).join('')}</div>
         <small class="note">Code <b style="font-family:'JetBrains Mono',monospace;user-select:all">${esc(track.code)}</b></small></div>
       <div>${profile().trackRecent?.[0]?.code === track.code && profile().trackRecent[0].eventId ? '<button data-again>Play again</button>' : ''}</div></div>`;
   }

@@ -381,7 +381,12 @@ function startRaceRecording(w, detachers) {
     if (w.raceRec !== R || sim.time < next) return;
     next = sim.time + 1 / 20 - 1e-6;
     const race = w.npcRace, list = [pose(car().body, { id: 0, player: true, name: 'You' })];
-    for (const r of race?.npcs ?? []) list.push(pose(r.car.vehicle.body, { id: r.carId, name: r.name, colour: r.profile?.colour ?? null }));
+    for (const r of race?.npcs ?? []) {
+      const e = pose(r.car.vehicle.body, { id: r.carId, name: r.name, colour: r.profile?.colour ?? null });
+      // (one out of the physics, far off: its body only follows along — facing its way along the line)
+      if (r.cheap) { const yaw = Math.atan2(r.cheap.vx, r.cheap.vz); e.q = [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]; e.vx = r.cheap.vx; e.vz = r.cheap.vz; }
+      list.push(e);
+    }
     R.sample(sim.time, list);
     // (a place changed hands: noted, the car that gained it the one to watch)
     if (race && sim.time - orderAt >= 1) {
@@ -992,7 +997,7 @@ async function buildWorld(file) {
     await MapV3.attachRealWorld(w, shared, { RAPIER });
     // the world's published content: quest starts and the rest, in the world and on the maps
     // and its quests (play/questUi.js): the card, starting one, the run, the results
-    const game = questGame(w);
+    const game = w.questGame = questGame(w);
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
     w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
