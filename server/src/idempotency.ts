@@ -34,9 +34,9 @@ export function installIdempotency(app: FastifyInstance, { db, auth }: { db: Db;
     const inserted = await db.insert(idempotencyKeys).values({ scope, key, method: req.method, path: req.url.split('?')[0], requestHash: hash }).onConflictDoNothing().returning({ key: idempotencyKeys.key });
     if (inserted.length) { req.idem = { scope, key }; return; }
     const [row] = await db.select().from(idempotencyKeys).where(and(eq(idempotencyKeys.scope, scope), eq(idempotencyKeys.key, key)));
-    if (!row) throw new AppError(409, 'IDEMPOTENCY_IN_PROGRESS', 'That action is still being applied: try again in a moment.');
+    if (!row) throw new AppError(409, 'IDEMPOTENCY_IN_PROGRESS', 'That action is still being applied: try again in a moment.', undefined, { 'retry-after': '1' });
     if (row.requestHash !== hash) throw new AppError(422, 'IDEMPOTENCY_MISMATCH', 'That Idempotency-Key was already used for a different request.');
-    if (row.state !== 'done') throw new AppError(409, 'IDEMPOTENCY_IN_PROGRESS', 'That action is still being applied: try again in a moment.');
+    if (row.state !== 'done') throw new AppError(409, 'IDEMPOTENCY_IN_PROGRESS', 'That action is still being applied: try again in a moment.', undefined, { 'retry-after': '1' });
     return reply.status(row.status ?? 200).header('idempotent-replayed', 'true').header('content-type', 'application/json; charset=utf-8').send(row.response);
   });
   app.addHook('onSend', async (req: FastifyRequest, reply, payload) => {

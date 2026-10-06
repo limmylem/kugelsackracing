@@ -5,6 +5,10 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { sql } from 'drizzle-orm';
 import { testApp, Player, signUp } from './helpers.ts';
 import { newItem } from '../../content/quests.js';
@@ -210,4 +214,32 @@ test('export and import: a round trip, a report of what was skipped and why, old
     assert.equal(mig.status, 200, mig.text);
     assert.ok(mig.body.imported === 1 || mig.body.skipped.length === 1, JSON.stringify(mig.body));
   } finally { await U.close(); }
+});
+
+test('the import tool: an export file into a server — a dry run first, then for real, with a report', async () => {
+  const ex = (await ed.get('/api/v1/content/export')).body;
+  const dir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'kr-import-')), file = nodePath.join(dir, 'world-content.json');
+  fs.writeFileSync(file, JSON.stringify({ ...ex, entries: [...ex.entries, { draft: { ...finished(), id: 'quest_badfield', fee: 5 } }] }));
+  const U = await testApp('content_tool');
+  try {
+    await signUp(U.app, U.outbox, { email: 'ed3@example.com', name: 'Ed Three' });
+    const tool = (...a: string[]) => spawnSync(process.execPath, ['tools/import-content.ts', file, ...a], { cwd: nodePath.join(import.meta.dirname, '..'), env: { ...process.env, DATABASE_URL: U.database.url }, encoding: 'utf8' });
+    // (only an editor's account)
+    const notEditor = tool('--as', 'ed3@example.com');
+    assert.equal(notEditor.status, 1); assert.match(notEditor.stderr, /isn't an editor/);
+    await U.app.deps.db.execute(sql`update users set role = 'editor'`);
+    const dry = tool('--as', 'ed3@example.com', '--dry-run');
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.match(dry.stdout, new RegExp(`${ex.count} would be imported`));
+    assert.match(dry.stdout, /skipped 1: .*quest_badfield/);
+    assert.equal((await U.app.deps.db.execute(sql`select count(*)::int as n from content_items`)).rows[0].n, 0, 'nothing written');
+    const real = tool('--as', 'ED3@example.com');
+    assert.equal(real.status, 0, real.stderr);
+    assert.match(real.stdout, new RegExp(`${ex.count} imported`));
+    const report = real.stdout.match(/Report: (\S+)/)![1];
+    const r = JSON.parse(fs.readFileSync(nodePath.resolve(nodePath.join(import.meta.dirname, '..'), report), 'utf8'));
+    assert.equal(r.files[0].imported, ex.count); assert.equal(r.files[0].skipped[0].id, 'quest_badfield');
+    assert.deepEqual((await ed.get('/api/v1/content/stats')).body, await U.app.content.stats(), 'the same counts on both servers');
+    fs.rmSync(nodePath.resolve(nodePath.join(import.meta.dirname, '..'), report));
+  } finally { await U.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });

@@ -19,7 +19,7 @@ const FileConfig = z.object({
   serveClient: z.boolean(),
   cookieSecure: z.boolean(),
   rateLimits: z.object({ global: Limit, auth: Limit, signUp: Limit, write: Limit }),
-  cache: z.object({ publishedSeconds: z.number().int().min(0), cdnSeconds: z.number().int().min(0) }),
+  cache: z.object({ publishedSeconds: z.number().int().min(0), cdnSeconds: z.number().int().min(0), serverMB: z.number().min(0).max(1024) }),
   replays: z.object({ keepPerPlayer: z.number().int().min(1) }),
   logLevel: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
 });

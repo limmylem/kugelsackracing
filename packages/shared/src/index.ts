@@ -111,7 +111,7 @@ export const BanBody = z.object({ reason: z.string().trim().min(3).max(500) });
 export const UnbanBody = z.object({ reason: z.string().trim().min(3).max(500) });
 export const AuditEntry = z.object({
   id: z.number().int(), at: z.string(), actorId: z.string().nullable(), actorName: z.string().nullable(), action: z.string(),
-  targetId: z.string().nullable(), reason: z.string().nullable(), details: z.unknown(),
+  targetId: z.string().nullable(), targetName: z.string().nullable(), reason: z.string().nullable(), details: z.unknown(),
 });
 
 // ---------- world content (docs/WORLD_CONTENT.md: the same requests as content/service.js) ----------

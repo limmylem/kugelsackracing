@@ -107,8 +107,8 @@ export async function adminRoutes(app0: FastifyInstance, { db, auth, G }: { conf
 
   app.get('/admin/audit', { config: { role: 'admin' }, schema: { querystring: z.object({ targetId: z.string().max(80).optional(), limit: z.coerce.number().int().min(1).max(200).default(50) }), response: { 200: z.object({ entries: z.array(AuditEntry) }) } } }, async req => {
     await admin(req);
-    const rows = (await db.execute(sql`select a.*, u.name as actor_name from audit_log a left join users u on u.id = a.actor_id
+    const rows = (await db.execute(sql`select a.*, u.name as actor_name, t.name as target_name from audit_log a left join users u on u.id = a.actor_id left join users t on t.id = a.target_id
       where (${req.query.targetId ?? null}::text is null or a.target_id = ${req.query.targetId ?? null}) order by a.id desc limit ${req.query.limit}`)).rows as any[];
-    return { entries: rows.map(r => ({ id: Number(r.id), at: iso(r.at)!, actorId: r.actor_id, actorName: r.actor_name ?? null, action: r.action, targetId: r.target_id, reason: r.reason, details: r.details })) };
+    return { entries: rows.map(r => ({ id: Number(r.id), at: iso(r.at)!, actorId: r.actor_id, actorName: r.actor_name ?? null, action: r.action, targetId: r.target_id, targetName: r.target_name ?? null, reason: r.reason, details: r.details })) };
   });
 }

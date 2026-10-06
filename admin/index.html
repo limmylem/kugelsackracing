@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Kugelsack Racing · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../ui/theme.css">
+<style>
+  /* the admin page (admin/admin.js): find a player, see their account, change their role, suspend or ban,
+     sign them out everywhere; the log of every admin action */
+  html, body { margin: 0; min-height: 100%; background: var(--c-base); color: var(--c-text); font: 500 var(--t-body)/1.45 var(--f-ui); }
+  * { box-sizing: border-box; }
+  header { height: 64px; display: flex; align-items: center; gap: var(--s-4); padding: 0 var(--s-6); border-bottom: 1px solid var(--c-line); background: var(--c-panel); }
+  header h1 { margin: 0; font: 600 24px var(--f-title); letter-spacing: .02em; }
+  header .who { margin-left: auto; color: var(--c-text-2); font-size: var(--t-secondary); }
+  main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: var(--s-6); padding: var(--s-6); max-width: 1400px; margin: 0 auto; }
+  main.narrow { grid-template-columns: minmax(320px, 440px); justify-content: center; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: var(--r-panel); padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+  h2 { margin: 0; font: 600 20px var(--f-title); letter-spacing: .02em; }
+  h3 { margin: var(--s-3) 0 0; font: 600 13px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--c-text-3); }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: var(--t-label); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-text-3); }
+  input, select, textarea { font: 500 15px var(--f-ui); color: var(--c-text); background: var(--c-viewport); border: 1px solid var(--c-line); border-radius: var(--r-btn); padding: 9px 11px; text-transform: none; letter-spacing: 0; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--c-accent); outline-offset: -1px; }
+  button { cursor: pointer; border: 0; color: inherit; }
+  .row { display: flex; gap: var(--s-2); align-items: flex-end; flex-wrap: wrap; }
+  .row > label { flex: 1; min-width: 120px; }
+  .btn { height: 40px; font-size: 15px !important; padding: 0 14px; }
+  .list { display: flex; flex-direction: column; gap: 4px; }
+  .player { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; padding: 10px 12px; border-radius: var(--r-card); background: var(--c-card); border: 1px solid transparent; }
+  .player:hover, .player.on { border-color: var(--c-accent); }
+  .player .name { font-weight: 600; }
+  .player .mail { color: var(--c-text-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tags { display: flex; gap: 4px; justify-content: flex-end; }
+  .badge { height: 20px; font-size: 11px; background: var(--c-raised); color: var(--c-text-2); }
+  .badge.admin { background: var(--c-accent-tint); color: var(--c-accent); }
+  .badge.editor { background: var(--c-good-tint); color: var(--c-good); }
+  .badge.banned { background: var(--c-bad-tint); color: var(--c-bad); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dt { color: var(--c-text-3); font-size: 13px; font-weight: 600; }
+  dd { margin: 0; font-family: var(--f-mono); font-size: 13px; overflow-wrap: anywhere; }
+  .msg { padding: 10px 12px; border-radius: var(--r-card); font-size: 14px; }
+  .msg.bad { background: var(--c-bad-tint); color: var(--c-bad-soft); }
+  .msg.good { background: var(--c-good-tint); color: var(--c-good); }
+  .muted { color: var(--c-text-3); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--c-text-3); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--c-line); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--c-line-soft); vertical-align: top; overflow-wrap: anywhere; }
+  td.when { font-family: var(--f-mono); white-space: nowrap; color: var(--c-text-2); }
+  .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-3); }
+  .action { background: var(--c-card); border-radius: var(--r-card); padding: var(--s-3); display: flex; flex-direction: column; gap: var(--s-2); }
+  a { color: var(--c-accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="ui">
+<header>
+  <h1>Kugelsack Racing · Admin</h1>
+  <span class="who" id="who"></span>
+  <button class="btn ghost" id="signOut" hidden>Sign out</button>
+</header>
+<main id="main" class="narrow">
+  <section id="gate">
+    <h2>Admins only</h2>
+    <p class="muted" id="gateWhy">Checking who you are…</p>
+    <form id="signIn" class="list" hidden>
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Sign in</button>
+      <div id="social" class="row"></div>
+    </form>
+    <div id="gateMsg"></div>
+  </section>
+</main>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

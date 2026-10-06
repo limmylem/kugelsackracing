@@ -13,3 +13,8 @@ incoming/*
 packages/*/dist/
 # the server's local files (backups, uploads)
 server/.data/
+
+# secrets: never committed (server/.env.example shows what goes in)
+.env
+.env.*
+!.env.example

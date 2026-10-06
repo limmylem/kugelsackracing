@@ -6,7 +6,7 @@
   "serveClient": false,
   "cookieSecure": false,
   "rateLimits": { "global": { "max": 100000, "windowSec": 60 }, "auth": { "max": 100000, "windowSec": 60 }, "signUp": { "max": 100000, "windowSec": 3600 }, "write": { "max": 100000, "windowSec": 60 } },
-  "cache": { "publishedSeconds": 30, "cdnSeconds": 300 },
+  "cache": { "publishedSeconds": 30, "cdnSeconds": 300, "serverMB": 32 },
   "replays": { "keepPerPlayer": 50 },
   "logLevel": "warn"
 }

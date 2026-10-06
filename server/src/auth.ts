@@ -53,8 +53,8 @@ export function termsProblem(config: Config, body: unknown): string | null {
 
 export type GuestLink = (from: string, to: string) => Promise<void>;
 
-export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, mockOAuth = null }: {
-  config: Config; db: Db; mailer: Mailer; onGuestLinked: GuestLink; onUserDeleted: (userId: string) => Promise<void>;
+export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, onUserChanged = async () => {}, mockOAuth = null }: {
+  config: Config; db: Db; mailer: Mailer; onGuestLinked: GuestLink; onUserDeleted: (userId: string) => Promise<void>; onUserChanged?: (userId: string) => Promise<void>;
   mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null;
 }) {
   const nameTaken = async (name: string) => (await db.execute(sql`select 1 from users where lower(name) = lower(${name}) limit 1`)).rows.length > 0;
@@ -143,7 +143,10 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, m
             const base = path === '/sign-in/anonymous' ? user.name : nameFromProfile(user.name);
             return { data: { ...user, name: await freeName(base), role: 'player', termsVersion: null, termsAcceptedAt: null } };
           },
+          after: async user => { await onUserChanged(user.id); },
         },
+        // (an email verified: the server's owner becomes an admin — owner.ts)
+        update: { after: async user => { await onUserChanged(user.id); } },
       },
     },
     hooks: {

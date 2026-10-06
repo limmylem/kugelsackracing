@@ -4,8 +4,10 @@
 // what players see changes only through publish / unpublish / archive, which move the published counter
 // (the cached responses' version).
 //
-// Near a point: ST_DWithin on the points as geography (metres on the earth; its own GiST index), nearest
-// first by the index's distance order. In a cell or a map tile: the box against the geometry's GiST index.
+// Near a point: the circle's lat/lon box (two over the antimeridian) against the geometry's GiST index (a
+// partial one for published rows: what the game reads), then the distance on the sphere, nearest first —
+// the same sphere as the browser's content/geo.js. (Measured: ten times faster than ST_DWithin and the
+// index's distance order on geography — tools/content-stress.ts.) In a cell or a map tile: the box alone.
 
 import crypto from 'node:crypto';
 import { sql, type SQL } from 'drizzle-orm';
@@ -73,24 +75,47 @@ export function createContentService({ db, rules, now = () => new Date().toISOSt
   const select = (marker: boolean) => marker ? sql`marker` : sql`data`;
   const offeredOnly = (offered: boolean) => offered ? sql`and (kind <> 'quest' or enabled)` : sql``;
   const kindsOnly = (kinds: string[] | null) => kinds?.length ? sql`and kind = any(${textArray(kinds)})` : sql``;
-  const inBox = async ([s, w, n, e]: number[], view: View, offered: boolean, marker: boolean) => {
-    const rows = (await db.execute(sql`select ${select(marker)} as item from content_items where view = ${view} and geom && ST_MakeEnvelope(${w}, ${s}, ${e}, ${n}, 4326) ${offeredOnly(offered)}`)).rows as any[];
-    return rows.map(r => r.item);
+  // (the box round a circle: two over the antimeridian)
+  const aroundBoxes = (lat: number, lon: number, km: number) => {
+    const [s, w, n, e] = rules.boxAround(lat, lon, km);
+    const boxes = w <= e ? [[s, w, n, e]] : [[s, w, n, 180], [s, -180, n, e]];
+    return sql.join(boxes.map(([s, w, n, e]) => sql`geom && ST_MakeEnvelope(${w}, ${s}, ${e}, ${n}, 4326)`), sql` or `);
   };
+  const boxSql = ([s, w, n, e]: number[], view: View, offered: boolean, marker: boolean) =>
+    sql`select ${select(marker)} as item from content_items where view = ${view} and geom && ST_MakeEnvelope(${w}, ${s}, ${e}, ${n}, 4326) ${offeredOnly(offered)}`;
+  const inBox = async (box: number[], view: View, offered: boolean, marker: boolean) => ((await db.execute(boxSql(box, view, offered, marker))).rows as any[]).map(r => r.item);
+  type NearParams = { lat: number; lon: number; km: number; view: View; kinds: string[] | null; offered: boolean; limit: number; fields: 'marker' | 'full' };
+  const nearSql = ({ lat, lon, km, view, kinds, offered, limit, fields }: NearParams) => {
+    const d = sql`ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326))`;
+    return sql`select ${select(fields === 'marker')} as item, ${d} / 1000.0 as km from content_items
+      where view = ${view} and (${aroundBoxes(lat, lon, km)}) and ${d} <= ${km * 1000} ${kindsOnly(kinds)} ${offeredOnly(offered)}
+      order by km limit ${limit}`;
+  };
+  // (the published responses as the JSON text itself, built by Postgres: what's cached and sent, never parsed
+  // and written out again here)
+  const jsonOf = async (q: SQL, agg: SQL) => ((await db.execute(sql`select coalesce(${agg}, '[]')::text as j from (${q}) x`)).rows[0] as any).j as string;
 
   return {
     readItem, stateOf,
     async epoch(): Promise<number> {
       return Number(((await db.execute(sql`select value from content_meta where key = 'published'`)).rows[0] as any)?.value ?? 0);
     },
-    async query({ lat, lon, km, view, kinds, offered, limit, fields }: { lat: number; lon: number; km: number; view: View; kinds: string[] | null; offered: boolean; limit: number; fields: 'marker' | 'full' }) {
-      const rows = (await db.execute(sql`
-        with p as (select ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography as g)
-        select ${select(fields === 'marker')} as item, ST_Distance(c.geom::geography, p.g) / 1000.0 as km
-        from content_items c, p
-        where c.view = ${view} and ST_DWithin(c.geom::geography, p.g, ${km * 1000}) ${kindsOnly(kinds)} ${offeredOnly(offered)}
-        order by c.geom::geography <-> p.g limit ${limit}`)).rows as any[];
+    async query(p: NearParams) {
+      const rows = (await db.execute(nearSql(p))).rows as any[];
       return { ok: true as const, items: rows.map(r => ({ item: r.item, km: Number(r.km) })) };
+    },
+    async queryJson(p: NearParams) {
+      return `{"ok":true,"items":${await jsonOf(nearSql(p), sql`json_agg(json_build_object('item', x.item, 'km', x.km) order by x.km)`)}}`;
+    },
+    async inCellJson(hash: string, { view, offered, fields }: { view: View; offered: boolean; fields: 'marker' | 'full' }) {
+      return `{"ok":true,"items":${await jsonOf(boxSql(rules.decode(hash).box, view, offered, fields === 'marker'), sql`json_agg(x.item)`)}}`;
+    },
+    async inTileJson(z: number, x: number, y: number, { view, offered, fields }: { view: View; offered: boolean; fields: 'marker' | 'full' }) {
+      return `{"ok":true,"items":${await jsonOf(boxSql(rules.tileBox(z, x, y), view, offered, fields === 'marker'), sql`json_agg(x.item)`)}}`;
+    },
+    async getJson(id: string, view: View) {
+      const r = (await db.execute(sql`select data::text as j from content_items where id = ${id} and view = ${view}`)).rows[0] as any;
+      return `{"ok":true,"item":${r?.j ?? 'null'}}`;
     },
     async inCell(hash: string, { view, offered, fields }: { view: View; offered: boolean; fields: 'marker' | 'full' }) {
       return { ok: true as const, items: await inBox(rules.decode(hash).box, view, offered, fields === 'marker') };
@@ -200,7 +225,7 @@ export function createContentService({ db, rules, now = () => new Date().toISOSt
     async exportContent({ area, cell, views }: { area: { lat: number; lon: number; km: number } | null; cell: string | null; views: View[] }) {
       let where: SQL = sql`true`;
       if (cell) { const [s, w, n, e] = rules.decode(cell).box; where = sql`geom && ST_MakeEnvelope(${w}, ${s}, ${e}, ${n}, 4326)`; }
-      else if (area) where = sql`ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(${area.lon}, ${area.lat}), 4326)::geography, ${area.km * 1000})`;
+      else if (area) where = sql`(${aroundBoxes(area.lat, area.lon, area.km)}) and ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint(${area.lon}, ${area.lat}), 4326)) <= ${area.km * 1000}`;
       const ids = (await db.execute(sql`select distinct id from content_items where view = any(${textArray(views)}) and ${where} order by id`)).rows.map((r: any) => r.id as string);
       const entries: Item[] = [];
       for (let k = 0; k < ids.length; k += 1000) {
@@ -214,7 +239,8 @@ export function createContentService({ db, rules, now = () => new Date().toISOSt
 
     // a world content file (the editor's export) brought in: every item migrated to the current version and
     // checked; a bad one skipped with the reason; in batches, each in its own transaction
-    async importContent(doc: any, { onConflict }: { onConflict: 'replace' | 'skip' }, author: Author) {
+    // (dryRun: everything checked, the conflicts found, nothing written — what the import tool's --dry-run reports)
+    async importContent(doc: any, { onConflict, dryRun = false }: { onConflict: 'replace' | 'skip'; dryRun?: boolean }, author: Author) {
       const t0 = performance.now();
       if (doc?.format !== 'world-content') throw new AppError(400, 'BAD_REQUEST', `That isn't a world content file (its format is "${doc?.format ?? 'missing'}").`);
       if (!(doc.version >= 1)) throw new AppError(400, 'BAD_REQUEST', 'The file doesn\'t say which version of the format it is.');
@@ -257,6 +283,7 @@ export function createContentService({ db, rules, now = () => new Date().toISOSt
           const existing = new Set(((await t.execute(sql`select distinct id from content_items where id = any(${textArray(ids)})`)).rows as any[]).map(r => r.id));
           const take = batch.filter(b => { if (existing.has(b.id) && onConflict === 'skip') { skipped.push({ id: b.id, why: 'already on the server (kept as it is)' }); return false; } return true; });
           if (!take.length) return;
+          if (dryRun) { for (const b of take) { imported++; const kind = (b.state.draft ?? b.state.published ?? b.state.archived)!.kind; byKind[kind] = (byKind[kind] ?? 0) + 1; } return; }
           await t.execute(sql`delete from content_items where id = any(${textArray(take.map(b => b.id))})`);
           const rows = take.flatMap(b => VIEWS.filter(v => b.state[v]).map(v => rowOf(b.state[v]!, v, author.id)));
           for (let r = 0; r < rows.length; r += 1000) await t.insert(contentItems).values(rows.slice(r, r + 1000));

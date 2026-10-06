@@ -11,9 +11,8 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, text, boolean, timestamp, integer, real, bigserial, jsonb, index, uniqueIndex, primaryKey, customType, bigint } from 'drizzle-orm/pg-core';
 
-// a point on the earth (PostGIS, WGS 84 longitude/latitude). Stored as geometry (its GiST index serves the
-// tile and cell boxes); nearby queries in metres use it as geography, through the index on (geom::geography)
-// that migration 0002 adds.
+// a point on the earth (PostGIS, WGS 84 longitude/latitude). Stored as geometry: its GiST indexes serve the
+// tile and cell boxes and the box round a nearby query, whose distances are then on the sphere.
 export const point = customType<{ data: { lon: number; lat: number }; driverData: string }>({
   dataType: () => 'geometry(point,4326)',
   toDriver: v => sql`ST_SetSRID(ST_MakePoint(${v.lon}, ${v.lat}), 4326)` as unknown as string,
@@ -122,6 +121,7 @@ export const contentItems = pgTable('content_items', {
 }, t => [
   primaryKey({ columns: [t.id, t.view] }),
   index('content_geom').using('gist', t.geom),
+  index('content_geom_published').using('gist', t.geom).where(sql`view = 'published'`),   // (what the game reads: only published rows)
   index('content_view_cell').on(t.view, t.cell),
   index('content_view_kind').on(t.view, t.kind),
 ]);

@@ -29,11 +29,14 @@ import { guards, sessionOf } from './session.ts';
 import { meRoutes } from './routes/me.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { contentRoutes } from './routes/content.ts';
+import { loadRules } from './content/rules.ts';
+import { promoteOwner } from './owner.ts';
+import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 
 // what of the repository is the game (served to browsers): nothing else — not the server, tests, tools or docs
-export const CLIENT_DIRS = ['ai', 'assets', 'content', 'data', 'dev', 'editor', 'effects', 'garage', 'map', 'physics', 'play', 'quest', 'race', 'realworld', 'route', 'scenes', 'testtrack', 'track', 'ui', 'world', 'admin'];
+export const CLIENT_DIRS = ['ai', 'assets', 'content', 'data', 'dev', 'editor', 'effects', 'garage', 'map', 'physics', 'play', 'quest', 'race', 'realworld', 'route', 'scenes', 'testtrack', 'track', 'ui', 'world', 'admin', 'account'];
 export const CLIENT_FILES = ['index.html', 'lowpoly.html', 'roadster.glb', 'favicon.ico'];
 
 // (a URL's query values that are secrets — verification and reset tokens, OAuth codes — never logged)
@@ -46,7 +49,7 @@ export const scrubUrl = (url: string) => {
   return `${url.slice(0, q)}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown) => void };
+export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -69,12 +72,12 @@ export async function buildApp(deps: AppDeps) {
   }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  installErrors(app, { onUnexpected: deps.onUnexpected ? (e) => deps.onUnexpected!(e) : undefined });
+  installErrors(app, { onUnexpected: deps.onUnexpected ? (e, req) => deps.onUnexpected!(e, req) : undefined });
   app.addHook('onSend', async (req, reply, payload) => { reply.header(REQUEST_ID_HEADER, req.id); return payload; });
 
   const log = { info: (o: object, m: string) => app.log.info(o, m), error: (o: object, m: string) => app.log.error(o, m) };
   const mailer = deps.mailer ?? createMailer({ smtpUrl: config.smtpUrl, from: config.mailFrom, log });
-  const auth = createAuth({ config, db, mailer, mockOAuth: deps.mockOAuth ?? null, onGuestLinked: (from, to) => moveGuestData(db, from, to), onUserDeleted: id => deleteUserData(db, id) });
+  const auth = createAuth({ config, db, mailer, mockOAuth: deps.mockOAuth ?? null, onGuestLinked: (from, to) => moveGuestData(db, from, to), onUserDeleted: id => deleteUserData(db, id), onUserChanged: async id => { await promoteOwner(db, config, id); } });
   const G = guards(auth, config);
 
   // ---------- security headers, CORS, cookies, CSRF ----------
@@ -132,7 +135,8 @@ export async function buildApp(deps: AppDeps) {
   const routes: { method: string; url: string; role?: string }[] = [];
   app.addHook('onRoute', r => { for (const m of [r.method].flat()) routes.push({ method: String(m), url: r.url, role: (r.config as any)?.role }); });
   app.decorate('routeList', routes);
-  app.addHook('preHandler', async req => {
+  // (as the request arrives: before its body is read or checked — a player's upload is refused unread)
+  app.addHook('onRequest', async req => {
     const role = req.routeOptions.config?.role;
     if (role) await G.requireRole(role)(req);
   });
@@ -146,8 +150,11 @@ export async function buildApp(deps: AppDeps) {
     url: `${AUTH_PREFIX}/*`,
     config: { rawAuth: true },
     async handler(req, reply) {
-      if (/^\/api\/auth\/admin\//.test(req.url)) return sendError(reply, req, 403, 'FORBIDDEN', 'Use the admin page.');
       const url = new URL(req.url, config.publicUrl);
+      // (however the path is written: escaped, doubled slashes)
+      let p = url.pathname;
+      try { p = decodeURIComponent(p); } catch { return sendError(reply, req, 400, 'BAD_REQUEST', 'That address isn\'t right.'); }
+      if (/^\/api\/auth\/+(admin|impersonate)/i.test(p.replace(/\/{2,}/g, '/')) || /\/admin\//i.test(p)) return sendError(reply, req, 403, 'FORBIDDEN', 'Use the admin page.');
       const body = req.method === 'POST' && req.body !== undefined ? JSON.stringify(req.body) : undefined;
       const res = await auth.handler(new Request(url, { method: req.method, headers: fromNodeHeaders(req.headers), body }));
       reply.status(res.status);
@@ -181,10 +188,12 @@ export async function buildApp(deps: AppDeps) {
     reply.header('cache-control', 'no-store');
     return { token: reply.generateCsrf() };
   });
+  const content = createContentService({ db, rules: loadRules() });
+  app.decorate('content', content);
   await app.register(async api => {
     await meRoutes(api, { config, db, auth, G, mailer });
     await adminRoutes(api, { config, db, auth, G });
-    await contentRoutes(api, { config, db, G });
+    await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, db, G });
   }, { prefix: API_PREFIX });
 
@@ -200,7 +209,8 @@ export async function buildApp(deps: AppDeps) {
       const p = decodeURIComponent(req.url.split('?')[0]);
       if (p === '/' ) return reply.header('cache-control', 'no-cache').sendFile('index.html');
       const top = `/${p.split('/')[1]}/`;
-      const file = p.slice(1);
+      if (p === top.slice(0, -1) && roots.has(top)) return reply.redirect(top);         // (/admin → /admin/)
+      const file = p.endsWith('/') ? `${p.slice(1)}index.html` : p.slice(1);
       if (p.includes('..') || p.split('/').some(s => s.startsWith('.'))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (!(roots.has(top) || CLIENT_FILES.includes(file))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (config.env === 'production' && top === '/dev/') return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
@@ -209,6 +219,8 @@ export async function buildApp(deps: AppDeps) {
     });
   }
 
+  // (the owner's account may be there already: an admin once its email is verified)
+  app.addHook('onReady', async () => { await promoteOwner(db, config); });
   app.decorate('deps', { db, auth, config, mailer });
   app.addHook('onClose', async () => { if (opened) await opened.pool.end(); });
   return app;

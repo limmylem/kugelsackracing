@@ -5,13 +5,15 @@
   "type": "module",
   "description": "The game's API server (Phase 6): Fastify + TypeScript, PostgreSQL with PostGIS through Drizzle, accounts through Better Auth",
   "scripts": {
-    "start": "node src/main.ts",
-    "dev": "node --watch src/main.ts",
+    "start": "node --env-file-if-exists=.env src/main.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.ts",
     "db:seed": "node src/db/seed.ts",
-    "test": "node --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "stress:content": "node tools/content-stress.ts",
+    "content:import": "node tools/import-content.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
