@@ -16,7 +16,13 @@
 //    zone) takes the camera there; each repaired quick or in full, or a spare fitted instead, or all of it
 //    at once — the dents easing out and loose parts going back on as it happens; and the free basic
 //    repair for a player who can't afford to make the car drivable
-//  Shop: every part still sold (buy; "Buy & install" from the parts panel), and the dealership
+//  Shop (Phase 6 Step 4: garage/shop.js): every part for sale by slot, brand, tier, price and what it does to
+//    the rating ("Fits my car" on at first), sales and limited-time items with their end dates, locked ones
+//    with what unlocks them; compare (the parts panel: the stats, the dyno before and after, a ghost on the
+//    car, a test drive with it), buy and install, or buy to the inventory; kits
+//  Dealership: new cars (specs, rating, price; the showroom — outside, interior, engine bay, boot — and a test
+//    drive), today's used lot (each car's damage, parts and history; a test drive as it is), the garage's space
+//  Selling: a part (or several at once), a car (its valuable parts kept if you like), refunds within the window
 //  The top bar: the player's cars and each car's setups (save, save as, rename, delete, switch —
 //    with what's missing and switching anyway), the money, undo / redo, the save (automatic; save now,
 //    export and import in the settings) and test drive.
@@ -26,6 +32,7 @@
 import { AREAS, SYSTEMS, conditionClass, conditionWord, iconFor, socketLabel, STAT_KEYS } from './workshop.js';
 import { needsRepair } from './player/profile.js';
 import { dealerCar, dealerList } from './dealer.js';
+import { listingState } from './shop.js';
 import { Garage } from './data.js';
 import { hasDamage } from './mechanical.js';
 import { ZONE_VIEW } from './damageReport.js';
@@ -50,7 +57,12 @@ const ZONE_WORDS = { front: 'the front', rear: 'the back', left: 'the left side'
 const VIEW_WORDS = { front: 'front', rear: 'rear', side_left: 'left side', side_right: 'right side', roof: 'roof', engine_bay: 'engine bay', underbody: 'underside', wheel_FL: 'front-left wheel', wheel_FR: 'front-right wheel', wheel_RL: 'rear-left wheel', wheel_RR: 'rear-right wheel' };
 const INV_FILTERS = [['all', 'All'], ['installed', 'Installed'], ['spare', 'Spare'], ['repair', 'Needs repair']];
 const INV_SORTS = [['name', 'Name: A–Z'], ['category', 'Category'], ['value', 'Value: highest first'], ['condition', 'Condition: worst first']];
-const SHOP_SORTS = [['category', 'Category'], ['price', 'Price: low to high'], ['price-desc', 'Price: high to low'], ['name', 'Name: A–Z']];
+const SHOP_SORTS = [['category', 'Category'], ['gain', 'Best upgrade first'], ['price', 'Price: low to high'], ['price-desc', 'Price: high to low'], ['name', 'Name: A–Z']];
+const PRICE_BANDS = [['all', 0, Infinity], ['u500', 0, 500], ['u1500', 500, 1500], ['u5000', 1500, 5000], ['o5000', 5000, Infinity]];
+const TIER_NAMES = [['all', 'Any tier'], ['stock', 'Stock'], ['street', 'Street'], ['sport', 'Sport'], ['race', 'Race']];
+const DEALER_VIEWS = [['overview', 'Outside', 'directions_car'], ['interior', 'Interior', 'airline_seat_recline_normal'], ['engine_bay', 'Engine bay', 'car_repair'], ['rear', 'Boot', 'luggage']];
+const WHAT_WORDS = { buy: 'Bought', sell: 'Sold', refund: 'Refunded', 'buy-car': 'Bought a car', 'sell-car': 'Sold a car', 'buy-used': 'Bought used', slot: 'Garage space' };
+const when = iso => iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 const WIDE = new Set(['inventory', 'shop']);
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -97,8 +109,8 @@ export class GarageScreen {
   // (a fresh visit: the overview, nothing open; the marker labels setting stays)
   reset() {
     this.ui = { tab: 'parts', area: null, view: 'overview', panel: null, socket: null, candidate: null, filter: 'all', sort: 'performance', expanded: 'power', paintEdit: null, dyno: { t: null, overlay: null }, dialog: null, pop: null, toast: null, labels: this.ui?.labels ?? 'hover', wheelCorner: 'FL',
-      inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts' }, dmg: { problem: null, zone: null },
-      confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null } };
+      inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null, view: 'parts', picked: [] }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts', brand: 'all', tier: 'all', band: 'all' }, dmg: { problem: null, zone: null },
+      confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null, lot: 'new', used: null, spin: true } };
     this.preview = null; this.dynoShown = null; this.ghosting = null; this.tuneBase = null;
   }
   set workshop(w) {
@@ -391,16 +403,35 @@ export class GarageScreen {
           <div class="info"><div class="spec">${esc(part ? partSpec(part) : '')}</div><div class="badges"><span class="badge ${conditionClass(cond)}">${conditionWord(cond)} · ${Math.round(cond)}%</span><span class="badge info plain">${esc(cap(part?.category ?? ''))}</span></div></div>
           <span class="badge ${buying ? 'info' : 'owned'} plain">${removing ? 'TO INVENTORY' : buying ? `NEW · ${esc(this.money(c.price))}` : 'OWNED'}</span></div>
         ${p.ok ? `<div class="g-table"><div class="thead"><span>Stat</span><span>Current</span><span>New</span><span>Change</span><span></span></div>${rows}</div>` : ''}
+        ${p.ok && !removing ? this.#miniDyno(p) : ''}
         ${!p.ok ? `<div class="note warn">${icon('lock')}<span>${esc(this.#words(p.reason?.text ?? p.errors?.[0]?.message ?? "It can't go on"))}${p.reason?.kind === 'blocked' ? ' Quick mode (settings, top right) does this for you.' : ''}</span></div>` : ''}
         ${warnings}
       </div>
       <div class="panel-foot" style="flex-direction:column;align-items:stretch;gap:12px">
-        ${buying ? `<div class="g-kv"><span>Price${c.set > 1 ? ` · set of ${c.set}` : ''}</span><span class="mono">${esc(this.money(c.price))}</span></div>
+        ${buying ? `<div class="g-kv"><span>Price${c.set > 1 ? ` · set of ${c.set}` : ''}${c.sale ? ` · ${esc(c.sale.name)}, −${Math.round(c.sale.discount * 100)}% until ${esc(when(c.sale.ends))}` : ''}</span><span class="mono">${esc(this.money(c.price))}</span></div>
           <div class="g-kv"><span>Your money after</span><span class="mono ${c.affordable ? '' : 'bad'}">${c.affordable ? esc(this.money(w.money - c.price)) : `${esc(this.money(c.price - w.money))} short`}</span></div>`
         : `<div class="g-kv"><span>${removing ? 'Goes to' : 'From'}</span><span class="mono">your inventory</span></div>`}
+        ${!removing && p.ok ? `<div style="display:flex;gap:10px">
+          <button class="btn ghost bar" style="flex:1" data-act="try-drive" data-key="try-drive" ${p.after?.spec && this.w.garageFor(p.state).drivable().ok ? '' : 'disabled title="The car couldn\'t be driven like that"'} title="Drive the car with it at the test centre: nothing you do is kept, nothing's bought or earned">${icon('sports_score')}Test drive with it</button>
+          ${buying ? `<button class="btn ghost bar" style="flex:1" data-act="buy:${c.partId}" data-key="buy-only" ${c.affordable ? '' : 'disabled'} title="Buy it to your inventory, not fitted">${icon('inventory_2')}Buy only</button>` : ''}</div>` : ''}
         <div style="display:flex;gap:10px"><button class="btn secondary" data-act="back" data-key="cancel">Cancel</button>
           <button class="btn primary" style="flex:1" data-act="${removing ? 'confirm-takeoff' : 'install'}" data-key="confirm" ${p.ok && !this.scene.busy && (!buying || c.affordable) ? '' : 'disabled'}>${removing ? 'Take off' : buying ? `${icon('shopping_cart')}Buy &amp; install · ${esc(this.money(c.price))}` : 'Install'}</button></div>
       </div></section>`;
+  }
+  // The dyno before (dashed) and with it: power and torque at the wheels, if they change
+  #miniDyno(p) {
+    const a = this.w.curves(p.before), b = this.w.curves(p.after);
+    if (!a?.length || !b?.length) return '';
+    const peak = (pts, k) => pts.reduce((m, x) => Math.max(m, x[k]), 0), pa = peak(a, 'hp'), pb = peak(b, 'hp'), ta = peak(a, 'nm'), tb = peak(b, 'nm');
+    if (Math.abs(pa - pb) < 0.5 && Math.abs(ta - tb) < 0.5 && a.length === b.length) return '';
+    const W = 440, H = 150, maxR = Math.max(a.at(-1).rpm, b.at(-1).rpm), maxP = Math.max(pa, pb) * 1.12 || 1, maxT = Math.max(ta, tb) * 1.12 || 1;
+    const X = r => 6 + r / maxR * (W - 12), YP = v => H - 6 - v / maxP * (H - 12), YT = v => H - 6 - v / maxT * (H - 12);
+    const path = (pts, k, Y) => pts.map((q, i) => `${i ? 'L' : 'M'}${X(q.rpm).toFixed(1)},${Y(q[k]).toFixed(1)}`).join('');
+    return `<div class="g-minidyno well"><div class="label">Dyno · now (dashed) and with it</div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Power and torque, now and with it">
+        <path d="${path(a, 'nm', YT)}" fill="none" stroke="#E9ECEF" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="5 5"/><path d="${path(a, 'hp', YP)}" fill="none" stroke="#36B3F5" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="5 5"/>
+        <path d="${path(b, 'nm', YT)}" fill="none" stroke="#E9ECEF" stroke-width="2.5"/><path d="${path(b, 'hp', YP)}" fill="none" stroke="#36B3F5" stroke-width="3"/></svg>
+      <div class="g-minidyno-legend"><span style="color:#36B3F5">${fmt(pa)} → ${fmt(pb)} hp</span><span>${fmt(ta)} → ${fmt(tb)} N·m</span><span class="muted">at the wheels</span></div></div>`;
   }
   // (the validator's messages name sockets by id: the player sees their names)
   #words(text) { return String(text).replace(/socket_\w+/g, n => this.socket(n)?.label ?? n); }
@@ -654,7 +685,10 @@ export class GarageScreen {
   // ---------- inventory ----------
   // Every copy the player has, grouped by part (a count; opened, each copy's condition and where it is)
   #inventory() {
-    const w = this.w, u = this.ui.inv, all = w.allParts(), q = u.q.trim().toLowerCase();
+    const w = this.w, u = this.ui.inv;
+    u.view ??= 'parts'; u.picked ??= [];
+    if (u.view === 'history') return this.#history();
+    const all = w.allParts(), q = u.q.trim().toLowerCase();
     const cats = [...new Set(all.map(x => x.part.category))].sort();
     if (u.cat !== 'all' && !cats.includes(u.cat)) u.cat = 'all';
     const shown = all.filter(x => (u.cat === 'all' || x.part.category === u.cat)
@@ -674,14 +708,18 @@ export class GarageScreen {
     return `<section class="g-wide panel">
       <div class="panel-head" style="align-items:center">
         <div class="grow"><div class="label">${all.length} part${all.length === 1 ? '' : 's'} · ${spare} spare · worth ${esc(this.money(worth))} to sell</div><div class="panel-title">Inventory</div></div>
+        ${this.#invTabs()}
         <label class="g-search">${icon('search')}<input class="g-input" type="text" placeholder="Search your parts" data-field="inv.q" data-key="inv-q" value="${esc(u.q)}" aria-label="Search your parts"></label>
         <button class="icon-btn flat" data-act="tab:parts" data-key="close" title="Close">${icon('close', 'style="font-size:22px"')}</button></div>
       <div class="g-toolbar">
         <div class="chips">${['all', ...cats].map(c => `<button class="chip ${u.cat === c ? 'on' : ''}" data-act="inv-cat:${c}" data-key="inv-cat:${c}">${c === 'all' ? 'All' : esc(catName(c))}</button>`).join('')}</div>
         <div class="g-toolbar-row"><div class="segmented">${INV_FILTERS.map(([id, n]) => `<button class="${u.filter === id ? 'on' : ''}" data-act="inv-filter:${id}" data-key="inv-filter:${id}">${n}</button>`).join('')}</div>
-          <div style="flex:1"></div><button class="chip square" data-act="inv-sort" data-key="inv-sort">${icon('sort', 'style="font-size:18px"')}${INV_SORTS.find(x => x[0] === u.sort)[1]}</button></div></div>
+          <div style="flex:1"></div>
+          <button class="chip square ${u.picking ? 'on' : ''}" data-act="inv-pick-mode" data-key="inv-pick-mode" title="Choose spare parts to sell together">${icon(u.picking ? 'check_box' : 'checklist', 'style="font-size:18px"')}${u.picking ? 'Choosing' : 'Sell several'}</button>
+          <button class="chip square" data-act="inv-sort" data-key="inv-sort">${icon('sort', 'style="font-size:18px"')}${INV_SORTS.find(x => x[0] === u.sort)[1]}</button></div></div>
       <div class="panel-body g-inv" data-scroll="inventory">${groups.length ? groups.map(gp => this.#invGroup(gp)).join('')
         : `<div class="empty-list">${all.length ? 'No parts match.' : 'No parts yet.'} ${all.length ? '' : '<button class="g-link" style="display:inline-flex" data-act="tab:shop">Go to the shop</button>'}</div>`}</div>
+      ${u.picking ? this.#pickFoot(all) : ''}
       <div class="panel-foot"><div class="secondary-text" style="flex:1">${worn.length ? `${worn.length} part${worn.length > 1 ? 's' : ''} below 100%${u.filter !== 'all' || u.cat !== 'all' || q ? ' in this list' : ''}` : 'Everything here is in perfect condition.'}</div>
         ${fixAll ? `<button class="btn secondary bar" data-act="repair-shown" data-key="repair-shown" ${w.money >= fixAll ? '' : `disabled title="You need ${esc(this.money(fixAll - w.money))} more"`}>${icon('build')}Repair ${worn.length > 1 ? `all ${worn.length}` : 'it'} · ${esc(this.money(fixAll))}</button>` : ''}</div>
     </section>`;
@@ -692,7 +730,8 @@ export class GarageScreen {
     const head = `${thumb(gp.part)}
       <div class="info"><div class="name">${esc(gp.part.name)}${one ? '' : ` <span class="mono muted" style="font-size:14px">×${gp.copies.length}</span>`}${gp.part.retired ? ' <span class="badge info plain">No longer sold</span>' : ''}</div>
         <div class="spec">${esc(catName(gp.part.category))} · ${esc(partSpec(gp.part))}</div>
-        <div class="where">${gp.mine ? icon('directions_car', 'style="font-size:15px;color:var(--c-accent)"') : ''}${esc(one && gp.copies[0].mine ? `On this car · ${this.socket(gp.copies[0].socket)?.label ?? ''}` : where)}</div></div>
+        <div class="where">${gp.mine ? icon('directions_car', 'style="font-size:15px;color:var(--c-accent)"') : ''}${esc(one && gp.copies[0].mine ? `On this car · ${this.socket(gp.copies[0].socket)?.label ?? ''}` : where)}</div>
+        ${gp.spare ? `<div class="where muted">${icon('build', 'style="font-size:14px"')}${esc(this.#fitsWords(gp.part))}</div>` : ''}</div>
       <span class="badge ${conditionClass(gp.worst)}">${one || gp.copies.every(x => x.instance.condition === gp.worst) ? '' : 'worst '}${Math.round(gp.worst)}%</span>`;
     return `<div class="g-inv-group ${open ? 'open' : ''}">
       <div class="g-inv-row">${one ? `<div class="main">${head}</div>${this.#copyActions(gp.copies[0])}`
@@ -706,8 +745,11 @@ export class GarageScreen {
   // (one copy: fit it, or show it on the car; repair it; sell it — not while it's on a car)
   #copyActions(x) {
     const w = this.w, id = x.instance.instanceId, on = x.instance.installedOn, sure = this.ui.confirm === `sell:${id}`;
-    const fits = !on && w.fitsCar(x.part);
+    const fits = !on && w.fitsCar(x.part), u = this.ui.inv;
+    if (u.picking) return `<div class="acts">${on ? '<span class="muted" style="font-size:13px">on a car</span>' : `<label class="g-pick"><input type="checkbox" data-act="inv-pick:${id}" data-key="pick:${id}" ${u.picked.includes(id) ? 'checked' : ''}> ${esc(this.money(x.sell))}</label>`}</div>`;
+    const refund = !on && !w.refundable(x.instance), rsure = this.ui.confirm === `refund:${id}`;
     return `<div class="acts">
+      ${refund ? `<button class="btn ${rsure ? 'primary' : 'ghost'} bar sm" data-act="refund:${id}" data-key="refund:${id}" title="Bought new and never fitted: back for what you paid, within ${w.db.economy.shop?.refund?.minutes ?? 0} minutes of buying it">${rsure ? `Refund ${esc(this.money(x.instance.price))}?` : `${icon('undo')}Refund`}</button>` : ''}
       ${x.mine ? `<button class="btn ghost bar sm" data-act="inv-show:${id}" data-key="show:${id}" title="Open its slot on the car">${icon('visibility')}Show</button>`
         : fits ? `<button class="btn secondary bar sm" data-act="inv-install:${id}" data-key="install:${id}" title="Fit it to ${esc(w.name)}">${icon('build')}Install</button>` : ''}
       ${needsRepair(x.instance) ? `<button class="btn ghost bar sm" data-act="repair:${id}" data-key="repair:${id}" ${w.money >= x.repair ? '' : `disabled title="You need ${esc(this.money(x.repair - w.money))} more"`}>Repair · ${esc(this.money(x.repair))}</button>` : ''}
@@ -715,41 +757,100 @@ export class GarageScreen {
     </div>`;
   }
 
+  #invTabs() { const v = this.ui.inv.view ?? 'parts'; return `<div class="segmented">${[['parts', 'Parts'], ['history', 'History']].map(([id, n]) => `<button class="${v === id ? 'on' : ''}" data-act="inv-view:${id}" data-key="inv-view:${id}">${n}</button>`).join('')}</div>`; }
+  // which of the player's cars a part goes on
+  #fitsWords(part) {
+    const ids = this.w.fitsCars(part), cars = this.w.cars().filter(c => ids.includes(c.carInstanceId)).map(c => c.name);
+    return cars.length ? `Fits your ${cars.join(', ')}` : 'Fits none of your cars';
+  }
+  // (choosing spare parts to sell together: how many, what they fetch)
+  #pickFoot(all) {
+    const u = this.ui.inv, picked = all.filter(x => u.picked.includes(x.instance.instanceId) && !x.instance.installedOn), total = picked.reduce((a, x) => a + x.sell, 0);
+    const spare = all.filter(x => !x.instance.installedOn);
+    return `<div class="panel-foot" style="gap:10px"><span class="secondary-text" style="flex:1">${picked.length ? `${picked.length} chosen · ${esc(this.money(total))}` : 'Tick the parts to sell.'}</span>
+      <button class="btn ghost bar sm" data-act="inv-pick-all" data-key="inv-pick-all">${picked.length === spare.length && spare.length ? 'None' : 'All spare'}</button>
+      <button class="btn primary bar" data-act="inv-sell-picked" data-key="inv-sell-picked" ${picked.length ? '' : 'disabled'}>${icon('sell')}Sell ${picked.length || ''} · ${esc(this.money(total))}</button></div>`;
+  }
+  // What was bought and sold, newest first (the save keeps the last 200)
+  #history() {
+    const w = this.w, log = w.shopLog;
+    return `<section class="g-wide panel">
+      <div class="panel-head" style="align-items:center"><div class="grow"><div class="label">Bought and sold · newest first</div><div class="panel-title">Inventory</div></div>${this.#invTabs()}
+        <button class="icon-btn flat" data-act="tab:parts" data-key="close" title="Close">${icon('close', 'style="font-size:22px"')}</button></div>
+      <div class="panel-body" data-scroll="history">${log.length ? `<div class="g-history">${log.map(e => `<div class="h"><span class="mono muted">${esc(when(e.at))}</span><span class="what">${esc(WHAT_WORDS[e.what] ?? e.what)}</span><span class="nm">${esc(e.name)}${e.sale ? ` <span class="badge good plain">${esc(e.sale)}</span>` : ''}${e.kept ? ` <span class="muted">· kept ${e.kept} part${e.kept > 1 ? 's' : ''}</span>` : ''}</span><span class="mono ${e.amount < 0 ? 'bad' : 'good'}">${e.amount < 0 ? '−' : '+'}${esc(this.money(Math.abs(e.amount)))}</span></div>`).join('')}</div>` : '<div class="empty-list">Nothing bought or sold yet.</div>'}</div>
+    </section>`;
+  }
+
   // ---------- shop ----------
   #shop() {
     const w = this.w, u = this.ui.shop;
+    u.brand ??= 'all'; u.tier ??= 'all'; u.band ??= 'all';
+    const sections = [['parts', 'Parts', 'shop-section:parts'], ['kits', 'Kits', 'shop-section:kits'], ['cars', 'Cars', 'tab:dealer']];
     const head = `<div class="panel-head" style="align-items:center">
-        <div class="grow"><div class="label">${u.section === 'cars' ? 'Dealership · cars come with their factory parts' : 'Parts · new, at 100%'}</div><div class="panel-title">Shop</div></div>
-        <div class="segmented">${[['parts', 'Parts', 'shop-section:parts'], ['cars', 'Cars', 'tab:dealer']].map(([id, n, act]) => `<button class="${u.section === id ? 'on' : ''}" data-act="${act}" data-key="shop-section:${id}">${n}</button>`).join('')}</div>
+        <div class="grow"><div class="label">${u.section === 'kits' ? `Kits for your ${esc(w.car.name)} · a set of parts for less` : 'Parts · new, at 100%'}</div><div class="panel-title">Shop</div></div>
+        <div class="segmented">${sections.map(([id, n, act]) => `<button class="${u.section === id ? 'on' : ''}" data-act="${act}" data-key="shop-section:${id}">${n}</button>`).join('')}</div>
         ${u.section === 'parts' ? `<label class="g-search">${icon('search')}<input class="g-input" type="text" placeholder="Search the shop" data-field="shop.q" data-key="shop-q" value="${esc(u.q)}" aria-label="Search the shop"></label>` : ''}
         <button class="icon-btn flat" data-act="tab:parts" data-key="close" title="Close">${icon('close', 'style="font-size:22px"')}</button></div>`;
-    if (u.section === 'cars') return `<section class="g-wide panel">${head}<div class="panel-body" data-scroll="dealer"><div class="g-shop-grid">${w.dealer().map(c => this.#dealerCard(c)).join('')}</div></div></section>`;
-    const all = w.catalogue(), q = u.q.trim().toLowerCase(), cats = [...new Set(all.map(c => c.part.category))].sort();
-    const list = all.filter(c => (u.cat === 'all' || c.part.category === u.cat) && (!u.fits || c.fits) && (!q || c.part.name.toLowerCase().includes(q) || c.part.category.includes(q) || c.part.id.includes(q)));
-    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort];
+    if (u.section === 'cars') u.section = 'parts';
+    if (u.section === 'kits') return `<section class="g-wide panel">${head}<div class="panel-body" data-scroll="kits">${this.#kits()}</div></section>`;
+    const all = w.catalogue(), q = u.q.trim().toLowerCase(), cats = [...new Set(all.map(c => c.part.category))].sort(), brands = [...new Set(all.map(c => c.brand).filter(Boolean))].sort();
+    if (u.brand !== 'all' && !brands.includes(u.brand)) u.brand = 'all';
+    const band = PRICE_BANDS.find(b => b[0] === u.band) ?? PRICE_BANDS[0];
+    const list = all.filter(c => (u.cat === 'all' || c.part.category === u.cat) && (!u.fits || c.fits) && (u.brand === 'all' || c.brand === u.brand) && (u.tier === 'all' || (c.part.tier ?? 'stock') === u.tier)
+      && c.price >= band[1] && c.price < band[2] && (!q || c.part.name.toLowerCase().includes(q) || c.part.category.includes(q) || c.part.id.includes(q) || (c.brand ?? '').toLowerCase().includes(q)));
+    // (what each would do to the rating: worked out only when sorting by it — a trial fit each)
+    if (u.sort === 'gain') for (const c of list) c.gain = c.fits && !c.lock ? w.ratingGain(c.part.id) : null;
+    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, gain: (a, b) => (b.gain ?? -1e9) - (a.gain ?? -1e9), price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort] ?? ((a, b) => a.price - b.price);
     list.sort((a, b) => by(a, b) || a.part.name.localeCompare(b.part.name));
+    const bandName = ([id, lo, hi]) => id === 'all' ? 'Any price' : hi === Infinity ? `Over ${this.money(lo)}` : lo === 0 ? `Under ${this.money(hi)}` : `${this.money(lo)}–${this.money(hi)}`;
+    const select = (field, value, opts, label) => `<select class="g-input g-select" data-field="shop.${field}" data-key="shop-${field}" aria-label="${label}">${opts.map(([v, n]) => `<option value="${esc(v)}" ${value === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+    const sales = all.filter(c => c.sale).length;
     return `<section class="g-wide panel">${head}
       <div class="g-toolbar">
         <div class="chips">${['all', ...cats].map(c => `<button class="chip ${u.cat === c ? 'on' : ''}" data-act="shop-cat:${c}" data-key="shop-cat:${c}">${c === 'all' ? 'All' : esc(catName(c))}</button>`).join('')}</div>
         <div class="g-toolbar-row"><button class="chip square ${u.fits ? 'on' : ''}" data-act="shop-fits" data-key="shop-fits" aria-pressed="${u.fits}">${icon(u.fits ? 'check_box' : 'check_box_outline_blank', 'style="font-size:18px"')}Fits my ${esc(w.car.name.toLowerCase())}</button>
-          <span class="secondary-text" style="font-size:13px">${list.length} of ${all.length} parts</span>
-          <div style="flex:1"></div><button class="chip square" data-act="shop-sort" data-key="shop-sort">${icon('sort', 'style="font-size:18px"')}${SHOP_SORTS.find(x => x[0] === u.sort)[1]}</button></div></div>
+          ${select('brand', u.brand, [['all', 'Any maker'], ...brands.map(b => [b, b])], 'Maker')}${select('tier', u.tier, TIER_NAMES, 'Tier')}${select('band', u.band, PRICE_BANDS.map(b => [b[0], bandName(b)]), 'Price')}
+          <span class="secondary-text" style="font-size:13px">${list.length} of ${all.length} parts${sales ? ` · ${sales} on sale` : ''}</span>
+          <div style="flex:1"></div><button class="chip square" data-act="shop-sort" data-key="shop-sort">${icon('sort', 'style="font-size:18px"')}${(SHOP_SORTS.find(x => x[0] === u.sort) ?? SHOP_SORTS[0])[1]}</button></div></div>
       <div class="panel-body" data-scroll="shop">${list.length ? `<div class="g-shop-grid">${list.map(c => this.#shopCard(c)).join('')}</div>` : `<div class="empty-list">Nothing in the shop matches${u.fits ? ' that fits this car' : ''}.</div>`}</div>
     </section>`;
   }
+  // (a price: on sale, the old one struck through; and the sale's or a limited item's end)
+  #priceTag(price, list, sale, until, extra = '') {
+    return `<span class="pv ${this.w.money >= price ? '' : 'bad'}">${esc(this.money(price))}</span>${sale ? `<span class="pe"><s>${esc(this.money(list))}</s> · ${esc(sale.name)} ends ${esc(when(sale.ends))}</span>` : until ? `<span class="pe">Only until ${esc(when(until))}</span>` : ''}${extra}`;
+  }
   #shopCard(c) {
-    const w = this.w, id = c.part.id, afford = w.money >= c.price, socket = c.fits ? w.socketFor(id) : null, fitted = socket && this.sockets().some(s => s.part?.id === id), soon = !!c.part.todo?.length;
-    return `<div class="g-card">
+    const w = this.w, id = c.part.id, afford = w.money >= c.price, socket = c.fits ? w.socketFor(id) : null, fitted = socket && this.sockets().some(s => s.part?.id === id), soon = !!c.part.todo?.length, locked = !!c.lock;
+    return `<div class="g-card ${locked ? 'locked' : ''}">
       <div class="top">${thumb(c.part)}
-        <div class="info"><div class="label">${esc(c.part.category)}</div><div class="name">${esc(c.part.name)}</div></div></div>
+        <div class="info"><div class="label">${esc(c.part.category)}${c.brand ? ` · ${esc(c.brand)}` : ''}</div><div class="name">${esc(c.part.name)}</div></div></div>
       <div class="spec">${esc(partSpec(c.part))}</div>
-      <div class="badges">${tierBadge(c.part)}${fitted ? '<span class="badge owned plain">ON YOUR CAR</span>' : c.fits ? '<span class="badge good plain">FITS YOUR CAR</span>' : `<span class="badge info plain">Not for this car</span>`}${c.owned ? `<span class="badge info plain">You have ${c.owned}</span>` : ''}</div>
-      <div class="buy"><div class="price">${soon ? '<span class="pv muted">Coming soon</span><span class="pe">not priced yet</span>' : `<span class="pv ${afford ? '' : 'bad'}">${esc(this.money(c.price))}</span>${c.set > 1 ? `<span class="pe">set of ${c.set} · ${esc(this.money(c.part.price))} each</span>` : ''}`}</div>
-        ${socket && !soon ? `<button class="icon-btn" data-act="try:${id}" data-key="try:${id}" title="See it on the car (and buy it fitted)">${icon('visibility')}</button>` : ''}
-        <button class="btn primary bar" data-act="buy:${id}" data-key="buy:${id}" ${soon ? `disabled title="Not for sale yet: its ${esc(c.part.todo.join(', '))} ${c.part.todo.length > 1 ? 'are' : 'is'} still to be filled in"` : afford ? '' : `disabled title="You need ${esc(this.money(c.price - w.money))} more"`}>${icon('shopping_cart')}Buy</button></div>
+      <div class="badges">${tierBadge(c.part)}${fitted ? '<span class="badge owned plain">ON YOUR CAR</span>' : c.fits ? '<span class="badge good plain">FITS YOUR CAR</span>' : `<span class="badge info plain">Not for this car</span>`}${c.owned ? `<span class="badge info plain">You have ${c.owned}</span>` : ''}${c.sale ? `<span class="badge good plain">−${Math.round(c.sale.discount * 100)}%</span>` : ''}${c.until ? '<span class="badge warn plain">LIMITED</span>' : ''}${c.gain != null ? `<span class="badge plain" style="color:${colourOf(c.gain > 0 ? true : c.gain < 0 ? false : null)}">Rating ${sgn(c.gain)}</span>` : ''}</div>
+      ${locked ? `<div class="lock">${icon('lock')}${esc(c.lock.text)}</div>` : ''}
+      <div class="buy"><div class="price">${soon ? '<span class="pv muted">Coming soon</span><span class="pe">not priced yet</span>' : this.#priceTag(c.price, c.list, c.sale, c.until, c.set > 1 ? `<span class="pe">set of ${c.set} · ${esc(this.money(c.each))} each</span>` : '')}</div>
+        ${socket && !soon ? `<button class="btn ghost bar sm" data-act="try:${id}" data-key="try:${id}" title="Compare with what's on the car: the numbers, the dyno, a look on the car, a test drive — and buy it fitted">${icon('compare_arrows')}Compare</button>` : ''}
+        <button class="btn primary bar" data-act="buy:${id}" data-key="buy:${id}" ${soon ? `disabled title="Not for sale yet: its ${esc(c.part.todo.join(', '))} ${c.part.todo.length > 1 ? 'are' : 'is'} still to be filled in"` : locked ? `disabled title="${esc(c.lock.text)}"` : afford ? 'title="Buy it to your inventory"' : `disabled title="You need ${esc(this.money(c.price - w.money))} more"`}>${icon('shopping_cart')}Buy</button></div>
     </div>`;
   }
-  // ---------- the dealership: every car by type, one on the lift turning, its paint, a test drive ----------
+  // kits for this car: each part as a set, for less together
+  #kits() {
+    const w = this.w, list = w.kits();
+    if (!list.length) return '<div class="empty-list">No kits for this car.</div>';
+    return `<div class="g-shop-grid">${list.map(k => {
+      const ok = k.forSale && !k.lock && k.affordable;
+      return `<div class="g-card ${k.lock ? 'locked' : ''}">
+        <div class="top"><div class="thumb">${icon('inventory_2')}</div><div class="info"><div class="label">Kit · ${k.items.length} parts</div><div class="name">${esc(k.name)}</div></div></div>
+        <div class="g-kit-parts">${k.items.map(it => `<div>${icon('chevron_right', 'style="font-size:16px"')}<span>${esc(w.db.parts[it.partId]?.name ?? it.partId)}${it.n > 1 ? ` ×${it.n}` : ''}</span><span class="mono muted">${esc(this.money(it.each * it.n))}</span></div>`).join('')}</div>
+        <div class="badges">${k.discount ? `<span class="badge good plain">Save ${esc(this.money(k.saving))}</span>` : ''}${k.fits ? '<span class="badge good plain">FITS YOUR CAR</span>' : '<span class="badge warn plain">Not all of it fits</span>'}${k.until ? `<span class="badge warn plain">Until ${esc(when(k.until))}</span>` : ''}</div>
+        ${k.lock ? `<div class="lock">${icon('lock')}${esc(k.lock.text)}</div>` : !k.forSale && k.why ? `<div class="lock">${icon('block')}${esc(k.why)}</div>` : ''}
+        <div class="buy"><div class="price">${this.#priceTag(k.price, k.sum, null, null, k.saving ? `<span class="pe"><s>${esc(this.money(k.sum))}</s> bought one by one</span>` : '')}</div>
+          <button class="btn ghost bar sm" data-act="kit-buy:${k.id}" data-key="kit-buy:${k.id}" ${ok ? 'title="Buy it to your inventory"' : 'disabled'}>${icon('shopping_cart')}Buy</button>
+          <button class="btn primary bar sm" data-act="kit-fit:${k.id}" data-key="kit-fit:${k.id}" ${ok && k.fits ? 'title="Buy it and fit every part"' : 'disabled'}>${icon('build')}Buy &amp; install</button></div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+  // ---------- the dealership: new cars by type, and today's used lot — one on the lift turning (outside, interior,
+  // engine bay, boot), its paint, a test drive; the garage's space ----------
   #dealerPaint() { const d = this.ui.dealer, def = this.w.db.cars[d.carId]; return d.paint ?? def?.paint ?? { colour: '#8d969f', finish: 'gloss' }; }
   #showDealerCar(id) {
     const db = this.w.db, def = db.cars[id];
@@ -760,22 +861,53 @@ export class GarageScreen {
     this.dealerShown = id;
     const state = Garage.freshState(db, id), g = new Garage(db, state, id);
     this.carQueue = (this.carQueue ?? Promise.resolve()).then(() => this.scene.setCar({ car: def, finishes: db.finishes, build: g.build, view: g.view, paint: this.#dealerPaint(), spec: g.stats().spec }))
-      .then(() => { this.shownLook = null; this.render(); }).catch(err => console.warn('The dealership couldn\'t show the car:', err));
+      .then(() => { this.shownLook = null; this.#dealerView(this.ui.dealer.view ?? 'overview'); this.render(); }).catch(err => console.warn('The dealership couldn\'t show the car:', err));
+  }
+  // a used car on the lift as the lot has it: its parts at their conditions, its body's damage
+  #showUsedCar(l) {
+    const db = this.w.db, def = db.cars[l.carId];
+    if (!def || this.dealerShown === l.id) return;
+    this.dealerShown = l.id;
+    const state = listingState(db, l), g = new Garage(db, state, l.carId);
+    this.carQueue = (this.carQueue ?? Promise.resolve()).then(() => this.scene.setCar({ car: def, finishes: db.finishes, build: g.build, view: g.view, paint: def.paint, spec: g.stats().spec, damage: { shell: l.damage, parts: {} }, rules: db.damage }))
+      .then(() => { this.shownLook = null; this.#dealerView(this.ui.dealer.view ?? 'overview'); this.render(); }).catch(err => console.warn('The dealership couldn\'t show the car:', err));
+  }
+  // the showroom's views: outside (turning, if it's on), the interior (driver's door open), the engine bay, the boot
+  #dealerView(v) { this.ui.dealer.view = v; this.scene.turntable = v === 'overview' && this.ui.dealer.spin !== false; this.#view(v); }
+  async #loadLot() {
+    if (this.lotLoading) return;
+    this.lotLoading = true;
+    try { this.lot = await this.w.usedLot(); } finally { this.lotLoading = false; }
+    this.render();
   }
   #dealer() {
-    const w = this.w, d = this.ui.dealer, groups = dealerList(w.db, w.money), sel = d.carId && dealerCar(w.db, d.carId, w.money);
-    const mine = id => w.cars().filter(x => x.def.id === id).length, paint = this.#dealerPaint(), sure = sel && this.ui.confirm === `dealer:${sel.id}`;
-    const row = c => `<button class="g-dealer-row ${c.id === d.carId ? 'on' : ''}" data-act="dealer-car:${c.id}" data-key="dealer-car:${c.id}">
+    const w = this.w, d = this.ui.dealer, space = w.space;
+    d.lot ??= 'new';
+    const views = `<div class="g-dealer-views">${DEALER_VIEWS.map(([v, n, ic]) => `<button class="chip square ${(d.view ?? 'overview') === v ? 'on' : ''}" data-act="dealer-view:${v}" data-key="dealer-view:${v}">${icon(ic, 'style="font-size:18px"')}${n}</button>`).join('')}
+      <button class="chip square ${d.spin !== false ? 'on' : ''}" data-act="dealer-spin" data-key="dealer-spin" title="Turn the car on the lift (drag to turn it yourself)">${icon('360', 'style="font-size:18px"')}Turn</button></div>`;
+    const spaceLine = `<div class="g-space ${space.used >= space.capacity ? 'full' : ''}">${icon('garage')}<span>Your garage: ${space.used} of ${space.capacity} spaces</span>
+      ${space.next != null ? `<button class="g-link" data-act="buy-slot" data-key="buy-slot" ${w.money >= space.next ? '' : `disabled title="You need ${esc(this.money(space.next - w.money))} more"`}>${this.ui.confirm === 'slot' ? `Buy one for ${esc(this.money(space.next))}?` : `${icon('add')}Another space · ${esc(this.money(space.next))}`}</button>` : '<span class="muted">as big as it gets</span>'}</div>`;
+    const tabs = `<div class="segmented" style="align-self:flex-start">${[['new', 'New cars'], ['used', `Used lot${this.lot ? ` · ${this.lot.listings.length}` : ''}`]].map(([id, n]) => `<button class="${d.lot === id ? 'on' : ''}" data-act="dealer-lot:${id}" data-key="dealer-lot:${id}">${n}</button>`).join('')}</div>`;
+    return d.lot === 'used' ? this.#usedLot(views, spaceLine, tabs) : this.#newCars(views, spaceLine, tabs);
+  }
+  #newCars(views, spaceLine, tabs) {
+    const w = this.w, d = this.ui.dealer, groups = dealerList(w.db, w.money), offers = new Map(w.dealer().map(c => [c.def.id, c])), sel = d.carId && dealerCar(w.db, d.carId, w.money), so = sel && offers.get(sel.id);
+    const mine = id => w.cars().filter(x => x.def.id === id).length, sure = sel && this.ui.confirm === `dealer:${sel.id}`, full = w.space.used >= w.space.capacity;
+    const row = c => { const o = offers.get(c.id); if (!o) return ''; return `<button class="g-dealer-row ${c.id === d.carId ? 'on' : ''}" data-act="dealer-car:${c.id}" data-key="dealer-car:${c.id}">
         ${c.def.icon ? `<img src="${esc(c.def.icon)}" alt="">` : icon('directions_car')}
-        <span class="n"><b>${esc(c.name)}</b><small>${fmt(c.hp)} hp · ${fmt(c.kg)} kg · ${c.zeroTo100 != null ? c.zeroTo100.toFixed(1) : '—'} s · ${esc(c.layout)}</small></span>
-        <span class="c"><span class="badge class-${esc(c.class)}">${esc(c.class)}</span><span class="${c.affordable ? '' : 'bad'}">${esc(this.money(c.price))}</span></span></button>`;
+        <span class="n"><b>${esc(c.name)}${o.lock ? ` ${icon('lock', 'style="font-size:15px;vertical-align:-2px" title="Locked"')}` : ''}</b><small>${fmt(c.hp)} hp · ${fmt(c.kg)} kg · ${c.zeroTo100 != null ? c.zeroTo100.toFixed(1) : '—'} s · ${esc(c.layout)}</small></span>
+        <span class="c"><span class="badge class-${esc(c.class)}">${esc(c.class)}</span><span class="${w.money >= o.price ? '' : 'bad'}">${o.sale ? `<s class="muted">${esc(this.money(o.list))}</s> ` : ''}${esc(this.money(o.price))}</span></span></button>`; };
     const stat = (label, value) => `<div class="g-dealer-stat"><span>${label}</span><b>${value}</b></div>`;
     const swatches = [['factory', w.db.cars[d.carId]?.paint?.colour ?? '#8d969f', 'Factory colour'], ...PRESETS.slice(0, 11).map(([n, hex]) => [hex, hex, n])];
+    const why = so?.lock?.text ?? (full ? 'Your garage is full: sell a car or buy another space first.' : null);
     return `<section class="g-side panel g-dealer">
       <div class="panel-head"><div class="grow"><div class="label">Dealership · cars come with their factory parts</div><div class="panel-title">${sel ? esc(sel.name) : 'Cars'}</div></div></div>
       <div class="panel-body" style="gap:14px;padding-top:14px" data-scroll="dealer">
+        ${tabs}${spaceLine}
         ${sel ? `<div class="g-dealer-sel">
-          <div class="badges"><span class="badge class-${esc(sel.class)}">CLASS ${esc(sel.class)}</span><span class="badge info plain">${esc(sel.type)}</span>${mine(sel.id) ? `<span class="badge owned plain">You have ${mine(sel.id)}</span>` : ''}</div>
+          ${views}
+          <div class="badges"><span class="badge class-${esc(sel.class)}">CLASS ${esc(sel.class)}</span><span class="badge info plain">${esc(sel.type)}</span>${mine(sel.id) ? `<span class="badge owned plain">You have ${mine(sel.id)}</span>` : ''}${so?.sale ? `<span class="badge good plain">−${Math.round(so.sale.discount * 100)}% · ${esc(so.sale.name)} ends ${esc(when(so.sale.ends))}</span>` : ''}${so?.until ? `<span class="badge warn plain">Only until ${esc(when(so.until))}</span>` : ''}</div>
+          ${so?.lock ? `<div class="lock">${icon('lock')}${esc(so.lock.text)} You can still test drive it.</div>` : ''}
           ${sel.about ? `<p class="secondary-text">${esc(sel.about)}</p>` : ''}
           <div class="g-dealer-stats">${stat('Power', `${fmt(sel.hp)} hp`)}${stat('Torque', `${fmt(sel.nm)} N·m`)}${stat('Weight', `${fmt(sel.kg)} kg`)}${stat('0–100 km/h', sel.zeroTo100 != null ? `${sel.zeroTo100.toFixed(1)} s` : '—')}${stat('Top speed', sel.top != null ? `${Math.round(sel.top)} km/h` : '—')}${stat('Grip', sel.grip != null ? `${sel.grip.toFixed(2)} g` : '—')}${stat('Drive', esc(sel.layout))}${stat('Gearbox', sel.gears ? `${sel.gears}-speed` : '—')}${stat('Rating', fmt(sel.rating))}</div>
           <div class="label">Paint (preview)</div>
@@ -783,24 +915,48 @@ export class GarageScreen {
         </div>` : ''}
         ${groups.map(g => `<div class="g-dealer-group"><div class="label">${esc(g.type)}</div>${g.cars.map(row).join('')}</div>`).join('')}
       </div>
-      ${sel ? `<div class="panel-foot" style="gap:10px">
-        <button class="btn ghost bar" data-act="dealer-drive:${sel.id}" data-key="dealer-drive" title="Drive it at the test centre first: nothing you do to it is kept">${icon('sports_score')}Test drive</button>
-        <button class="btn ${sure ? 'danger solid' : 'primary'} bar" data-act="dealer-buy:${sel.id}" data-key="dealer-buy" ${sel.affordable ? '' : `disabled title="You need ${esc(this.money(sel.price - w.money))} more"`}>${sure ? `Buy for ${esc(this.money(sel.price))}?` : `${icon('shopping_cart')}Buy · ${esc(this.money(sel.price))}`}</button>
+      ${sel && so ? `<div class="panel-foot" style="gap:10px">
+        <button class="btn ghost bar" data-act="dealer-drive:${sel.id}" data-key="dealer-drive" title="Drive it at the test centre first: nothing you do to it is kept, and nothing's earned">${icon('sports_score')}Test drive</button>
+        <button class="btn ${sure ? 'danger solid' : 'primary'} bar" data-act="dealer-buy:${sel.id}" data-key="dealer-buy" ${!why && w.money >= so.price ? '' : `disabled title="${esc(why ?? `You need ${this.money(so.price - w.money)} more`)}"`}>${sure ? `Buy for ${esc(this.money(so.price))}?` : `${icon('shopping_cart')}Buy · ${esc(this.money(so.price))}`}</button>
       </div>` : ''}
     </section>`;
   }
-  #dealerCard(c) {
-    const w = this.w, id = c.def.id, sure = this.ui.confirm === `car:${id}`, mine = w.cars().filter(x => x.def.id === id).length;
-    return `<div class="g-card">
-      <div class="top">${c.def.icon ? `<div class="thumb pic"><img src="${esc(c.def.icon)}" alt=""></div>` : `<div class="thumb">${icon('directions_car')}</div>`}
-        <div class="info"><div class="label">${esc(c.def.drivetrain?.layout ?? '')} · ${fmt(c.def.chassis?.mass ?? 0)} kg body</div><div class="name">${esc(c.def.name)}</div></div></div>
-      <div class="spec">Comes with every factory part fitted, and a "Stock" setup.</div>
-      <div class="badges">${mine ? `<span class="badge owned plain">You have ${mine}</span>` : ''}</div>
-      <div class="buy"><div class="price"><span class="pv ${c.affordable ? '' : 'bad'}">${esc(this.money(c.price))}</span></div>
-        <button class="btn ${sure ? 'danger solid' : 'primary'} bar" data-act="buy-car:${id}" data-key="buy-car:${id}" ${c.affordable ? '' : `disabled title="You need ${esc(this.money(c.price - w.money))} more"`}>${sure ? `Buy for ${esc(this.money(c.price))}?` : `${icon('shopping_cart')}Buy`}</button></div>
-    </div>`;
+  #usedLot(views, spaceLine, tabs) {
+    const w = this.w, d = this.ui.dealer, lot = this.lot;
+    if (!lot && !this.lotLoading) this.#loadLot();
+    const list = lot?.listings ?? [], sel = list.find(l => l.id === d.used) ?? null, full = w.space.used >= w.space.capacity, sure = sel && this.ui.confirm === `used:${sel.id}`;
+    const row = l => `<button class="g-dealer-row ${l.id === d.used ? 'on' : ''}" data-act="used-car:${l.id}" data-key="used-car:${l.id}">
+        ${w.db.cars[l.carId]?.icon ? `<img src="${esc(w.db.cars[l.carId].icon)}" alt="">` : icon('directions_car')}
+        <span class="n"><b>${esc(l.name)}${l.lock ? ` ${icon('lock', 'style="font-size:15px;vertical-align:-2px"')}` : ''}${l.bought ? ' <span class="badge owned plain">BOUGHT</span>' : ''}</b><small>${l.year} · ${l.mileage.toLocaleString('en-GB')} km · body ${l.condition}%${l.aftermarket.length ? ` · ${l.aftermarket.length} aftermarket` : ''}</small></span>
+        <span class="c"><span class="badge class-${esc(l.rating?.class ?? l.class)}">${esc(l.rating?.class ?? l.class)}</span><span class="${l.affordable ? '' : 'bad'}">${esc(this.money(l.price))}</span></span></button>`;
+    const worst = sel ? Object.entries(sel.parts).filter(([, x]) => x.condition < 85).sort((a, b) => a[1].condition - b[1].condition).slice(0, 8) : [];
+    const why = sel?.bought ? 'You\'ve bought this one.' : sel?.lock?.text ?? (full ? 'Your garage is full: sell a car or buy another space first.' : null);
+    const label = socket => socketLabel(w.db.cars[sel.carId].sockets.find(x => x.name === socket) ?? { name: socket });
+    return `<section class="g-side panel g-dealer">
+      <div class="panel-head"><div class="grow"><div class="label">Used lot · today's cars, as they are · new ones ${lot?.endsAt ? esc(when(lot.endsAt)) : 'tomorrow'}</div><div class="panel-title">${sel ? esc(`${sel.year} ${sel.name}`) : 'Used cars'}</div></div></div>
+      <div class="panel-body" style="gap:14px;padding-top:14px" data-scroll="used">
+        ${tabs}${spaceLine}
+        ${!lot ? '<div class="empty-list">Fetching today\'s lot…</div>' : !list.length ? '<div class="empty-list">No used cars today.</div>' : ''}
+        ${sel ? `<div class="g-dealer-sel">
+          ${views}
+          <div class="badges"><span class="badge class-${esc(sel.rating?.class ?? sel.class)}">CLASS ${esc(sel.rating?.class ?? sel.class)} · ${fmt(sel.rating?.index)}</span><span class="badge info plain">${sel.owners} owner${sel.owners > 1 ? 's' : ''}</span><span class="badge info plain">New: ${esc(this.money(sel.newPrice))}</span></div>
+          ${sel.lock ? `<div class="lock">${icon('lock')}${esc(sel.lock.text)} You can still test drive it.</div>` : ''}
+          <div class="g-dealer-stats">${[['Year', sel.year], ['Mileage', `${sel.mileage.toLocaleString('en-GB')} km`], ['Body', `${sel.condition}%`], ['Glass, lights', sel.damage.broken?.length ? `${sel.damage.broken.length} broken` : 'all fine']].map(([a, b]) => `<div class="g-dealer-stat"><span>${a}</span><b>${esc(b)}</b></div>`).join('')}</div>
+          <div class="label">Damage report</div>
+          <div class="g-used-report">${worst.length ? worst.map(([socket, x]) => `<div><span>${esc(label(socket))} · ${esc(w.db.parts[x.partId]?.name ?? x.partId)}</span><span class="badge ${conditionClass(x.condition)}">${conditionWord(x.condition)} · ${x.condition}%</span></div>`).join('') : '<div class="muted">Every part 85% or better.</div>'}
+            ${sel.damage.broken?.length ? `<div><span>Broken: ${esc(sel.damage.broken.map(n => n.replace(/_/g, ' ')).join(', '))}</span><span class="badge bad">Broken</span></div>` : ''}</div>
+          ${sel.aftermarket.length ? `<div class="label">Aftermarket parts</div><div class="g-used-report">${sel.aftermarket.map(id => `<div><span>${esc(w.db.parts[id]?.name ?? id)}</span>${tierBadge(w.db.parts[id])}</div>`).join('')}</div>` : ''}
+          <div class="label">History</div>
+          <div class="g-used-history">${sel.history.map(h => `<div><span class="mono">${h.year}</span><span>${esc(h.text)}</span></div>`).join('')}</div>
+        </div>` : ''}
+        ${list.length ? `<div class="g-dealer-group"><div class="label">Today · the same for everyone</div>${list.map(row).join('')}</div>` : ''}
+      </div>
+      ${sel ? `<div class="panel-foot" style="gap:10px">
+        <button class="btn ghost bar" data-act="used-drive:${sel.id}" data-key="used-drive" title="Drive it as it is at the test centre: nothing you do to it is kept, and nothing's earned">${icon('sports_score')}Test drive</button>
+        <button class="btn ${sure ? 'danger solid' : 'primary'} bar" data-act="used-buy:${sel.id}" data-key="used-buy" ${!why && sel.affordable ? '' : `disabled title="${esc(why ?? `You need ${this.money(sel.price - w.money)} more`)}"`}>${sure ? `Buy for ${esc(this.money(sel.price))}?` : `${icon('shopping_cart')}Buy · ${esc(this.money(sel.price))}`}</button>
+      </div>` : ''}
+    </section>`;
   }
-
   // ---------- popovers, dialogs ----------
   #settingsPop() {
     const w = this.w, setup = w.activeSetup, n = w.changes().length;
@@ -828,9 +984,11 @@ export class GarageScreen {
   // as it is to one, or as a new one)
   #garagePop() {
     const w = this.w, changes = w.changes(), f = this.ui.fields;
-    const carRow = c => `<button class="g-car-row ${c.current ? 'on' : ''}" data-act="${c.current ? '' : `car:${c.carInstanceId}`}" data-key="car:${c.carInstanceId}">
+    const carRow = c => `<div class="g-car-line"><button class="g-car-row ${c.current ? 'on' : ''}" data-act="${c.current ? '' : `car:${c.carInstanceId}`}" data-key="car:${c.carInstanceId}">
         ${icon(c.current ? 'radio_button_checked' : 'radio_button_unchecked')}<span class="cn">${esc(c.name)}</span><span class="cs">${esc(c.setup ?? 'no setup')}</span>
-        ${c.rating ? `<span class="class-badge sm"><span class="cls">${c.rating.class}</span><span class="pi">${c.rating.index}</span></span>` : '<span class="mono muted">—</span>'}</button>`;
+        ${c.rating ? `<span class="class-badge sm"><span class="cls">${c.rating.class}</span><span class="pi">${c.rating.index}</span></span>` : '<span class="mono muted">—</span>'}</button>
+        <button class="icon-btn flat" data-act="sell-car:${c.carInstanceId}" data-key="sell-car:${c.carInstanceId}" ${w.cantSell(c.carInstanceId) ? `disabled title="${esc(`Can't sell it: ${w.cantSell(c.carInstanceId)}`)}"` : `title="Sell it (keep its valuable parts if you like)"`}>${icon('sell')}</button></div>`;
+    const space = w.space;
     const stockOf = socket => w.car.sockets.find(x => x.name === socket)?.stock?.[0] ?? null;
     const setupRow = s => {
       if (this.ui.renaming === s.setupId) return `<div class="g-setup-row editing"><input class="g-input" type="text" maxlength="40" data-field="rename" data-key="rename" data-enter="rename-ok:${s.setupId}" value="${esc(f.rename ?? s.name)}" aria-label="Setup name">
@@ -843,7 +1001,7 @@ export class GarageScreen {
     };
     const setups = w.setups, active = w.activeSetup;
     return `<div class="g-pop left panel">
-      <div class="pr"><div class="g-pop-head"><div class="label">Your cars</div><button class="g-link" data-act="buy-a-car" data-key="buy-a-car">${icon('add')}Buy a car</button></div>
+      <div class="pr"><div class="g-pop-head"><div class="label">Your cars · ${space.used} of ${space.capacity} spaces</div><button class="g-link" data-act="buy-a-car" data-key="buy-a-car">${icon('add')}Buy a car</button></div>
         <div class="g-car-list">${w.cars().map(carRow).join('')}</div></div>
       <div class="pr"><div class="label">Setups · ${esc(w.name)}</div>
         <div class="g-setup-list">${setups.map(setupRow).join('') || '<div class="d">No setups yet: save the car as it is as one.</div>'}</div>
@@ -861,8 +1019,26 @@ export class GarageScreen {
         <div style="width:44px;height:44px;flex:none;border-radius:8px;background:color-mix(in srgb, ${colour} 14%, transparent);display:flex;align-items:center;justify-content:center;color:${colour}">${icon(ic, 'style="font-size:26px"')}</div>
         <div style="display:flex;flex-direction:column;gap:6px"><div class="panel-title">${esc(title)}</div>${text ? `<div class="secondary-text" style="font-size:15px;line-height:1.45">${esc(text)}</div>` : ''}</div></div>
       ${list.length ? `<div class="g-dialog-list well">${list.join('')}</div>` : ''}
-      <div style="padding:24px 28px;display:flex;gap:10px;justify-content:flex-end">${buttons}</div>
+      <div style="padding:24px 28px;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end">${buttons}</div>
     </div></div>`;
+    if (d.kind === 'sell-car') {
+      const car = w.profile.cars[d.car];
+      if (!car) { this.ui.dialog = null; return ''; }
+      const why = w.cantSell(d.car), name = w.cars().find(c => c.carInstanceId === d.car)?.name ?? w.db.cars[car.carId]?.name;
+      const values = new Map(w.allParts().map(x => [x.instance.instanceId, x.sell])), q = w.sellCarQuote(d.car, d.keep);
+      const on = Object.values(w.profile.parts).filter(x => x.installedOn?.car === d.car).map(x => ({ x, part: w.db.parts[x.partId], value: values.get(x.instanceId) ?? 0 })).sort((a, b) => b.value - a.value);
+      const kept = on.filter(o => d.keep.includes(o.x.instanceId)), keptValue = kept.reduce((a, o) => a + o.value, 0);
+      const list = on.map(o => `<label class="li g-keep">${`<input type="checkbox" data-act="sell-keep:${o.x.instanceId}" data-key="keep:${o.x.instanceId}" ${d.keep.includes(o.x.instanceId) ? 'checked' : ''}>`}<div style="flex:1;display:flex;flex-direction:column;gap:1px"><span>${esc(o.part?.name ?? o.x.partId)}</span>
+          <span class="sub">${esc(this.socket(o.x.installedOn.socket)?.label ?? socketLabel(w.db.cars[car.carId].sockets.find(s => s.name === o.x.installedOn.socket) ?? { name: o.x.installedOn.socket }))} · ${Math.round(o.x.condition)}%${d.keep.includes(o.x.instanceId) ? ' · kept: to your inventory' : ''}</span></div><span class="mono">${esc(this.money(o.value))}</span></label>`);
+      return box('sell', 'var(--c-warn)', `Sell your ${name}?`, why ? `You can't sell it: ${why}` : `It fetches ${this.money(q.total)}: the body ${this.money(q.body)} and ${q.parts.length} part${q.parts.length === 1 ? '' : 's'} on it. Tick any part to keep it (it goes to your inventory)${kept.length ? ` — keeping ${kept.length}, worth ${this.money(keptValue)}` : ''}.`, list,
+        `<button class="btn secondary" data-act="dialog-cancel" data-key="dialog-cancel">Cancel</button><button class="btn ghost" data-act="sell-keep-valuable" data-key="sell-keep-valuable" title="Keep every non-factory part, and any worth ${esc(this.money(500))} or more">Keep the valuable parts</button>
+        <button class="btn danger solid" data-act="sell-car-confirm" data-key="sell-car-confirm" ${why ? 'disabled' : ''}>${icon('sell')}Sell for ${esc(this.money(q.total))}</button>`);
+    }
+    if (d.kind === 'sell-many') {
+      const parts = d.ids.map(id => w.allParts().find(x => x.instance.instanceId === id)).filter(Boolean), total = parts.reduce((a, x) => a + x.sell, 0);
+      return box('sell', 'var(--c-warn)', `Sell ${parts.length} part${parts.length === 1 ? '' : 's'} for ${this.money(total)}?`, 'They\'re gone once they\'re sold (a refund is only for something bought new and never fitted).', parts.map(x => `<div class="li">${icon('chevron_right')}<span style="flex:1">${esc(x.part.name)} · ${Math.round(x.instance.condition)}%</span><span class="mono">${esc(this.money(x.sell))}</span></div>`),
+        `<button class="btn secondary" data-act="dialog-cancel" data-key="dialog-cancel">Cancel</button><button class="btn danger solid" data-act="inv-sell-confirm" data-key="inv-sell-confirm">${icon('sell')}Sell for ${esc(this.money(total))}</button>`);
+    }
     if (d.kind === 'switch') {
       const setup = w.setups.find(s => s.setupId === d.setupId), part = id => w.db.parts[id]?.name ?? id ?? 'a part';
       const list = d.conflicts.map(c => `<div class="li">${icon(c.reason === 'gone' ? 'remove_shopping_cart' : 'directions_car')}<div style="flex:1;display:flex;flex-direction:column;gap:1px">
@@ -924,7 +1100,7 @@ export class GarageScreen {
       const f = e.target.dataset?.field;
       if (!f) return;
       if (f === 'inv.q') { this.ui.inv.q = e.target.value; this.render(); }
-      else if (f === 'shop.q') { this.ui.shop.q = e.target.value; this.render(); }
+      else if (f.startsWith('shop.')) { this.ui.shop[f.slice(5)] = e.target.value; this.render(); }
       else this.ui.fields[f] = e.target.value;
     });
     this.fileInput.addEventListener('change', async () => {
@@ -1071,12 +1247,72 @@ export class GarageScreen {
         if (paint) await w.service.setPaint(r.carInstanceId, paint);
         return this.toast(`Bought a ${w.db.cars[arg].name}: it's in your cars (top left)`, 'directions_car', 'good');
       }
-      case 'buy-car': {
-        if (this.ui.confirm !== `car:${arg}`) return this.#arm(`car:${arg}`);
+      case 'dealer-view': this.#dealerView(arg); return this.render();
+      case 'dealer-spin': this.ui.dealer.spin = this.ui.dealer.spin === false; this.#dealerView(this.ui.dealer.view ?? 'overview'); return this.render();
+      case 'dealer-lot': {
+        this.ui.dealer.lot = arg; this.ui.confirm = null; this.dealerShown = null;
+        if (arg === 'used') { const l = this.lot?.listings.find(x => x.id === this.ui.dealer.used) ?? this.lot?.listings[0]; if (l) { this.ui.dealer.used = l.id; this.#showUsedCar(l); } else this.#loadLot().then(() => { const f = this.lot?.listings[0]; if (f && this.ui.dealer.lot === 'used') { this.ui.dealer.used = f.id; this.#showUsedCar(f); } }); }
+        else this.#showDealerCar(this.ui.dealer.carId ?? dealerList(w.db)[0].cars[0].id);
+        return this.render();
+      }
+      case 'used-car': { const l = this.lot?.listings.find(x => x.id === arg); if (!l) return; this.ui.confirm = null; this.ui.dealer.used = arg; this.#showUsedCar(l); return this.render(); }
+      case 'used-drive': {
+        const l = this.lot?.listings.find(x => x.id === arg);
+        if (!l) return;
+        const r = this.actions.testDriveWith?.(listingState(w.db, l), `${l.year} ${l.name} (used)`);
+        if (r && !r.ok) return this.toast(this.#words(r.errors?.[0] ?? "Can't test drive that"), 'error', 'bad');
+        return;
+      }
+      case 'used-buy': {
+        if (this.ui.confirm !== `used:${arg}`) return this.#arm(`used:${arg}`);
         this.ui.confirm = null;
-        const r = await w.buyCar(arg);
+        const l = this.lot?.listings.find(x => x.id === arg), r = await w.buyUsed(arg);
         if (failed(r)) return;
-        return this.toast(`Bought a ${w.db.cars[arg].name}: it's in your cars (top left)`, 'directions_car', 'good');
+        this.lot = await w.usedLot();
+        this.render();
+        return this.toast(`Bought the ${l ? `${l.year} ${l.name}` : 'car'}: it's in your cars (top left), as it was on the lot`, 'directions_car', 'good');
+      }
+      case 'buy-slot': {
+        if (this.ui.confirm !== 'slot') return this.#arm('slot');
+        this.ui.confirm = null;
+        const r = await w.buySlot();
+        if (failed(r)) return;
+        return this.toast(`Another space: your garage holds ${r.capacity} cars · ${this.money(r.cost)}`, 'garage', 'good');
+      }
+      // ---- selling a car ----
+      case 'sell-car': this.ui.pop = null; this.ui.dialog = { kind: 'sell-car', car: arg, keep: [] }; return this.render();
+      case 'sell-keep': { const d = this.ui.dialog; if (!d) return; d.keep = d.keep.includes(arg) ? d.keep.filter(x => x !== arg) : [...d.keep, arg]; return this.render(); }
+      case 'sell-keep-valuable': {
+        const d = this.ui.dialog, car = d && w.profile.cars[d.car];
+        if (!car) return;
+        const values = new Map(w.allParts().map(x => [x.instance.instanceId, x.sell])), stock = new Set(w.db.cars[car.carId].sockets.map(x => x.stock?.[0]).filter(Boolean));
+        d.keep = Object.values(w.profile.parts).filter(x => x.installedOn?.car === d.car && (!stock.has(x.partId) || (values.get(x.instanceId) ?? 0) >= 500)).map(x => x.instanceId);
+        return this.render();
+      }
+      case 'sell-car-confirm': {
+        const d = this.ui.dialog;
+        if (!d) return;
+        const name = w.cars().find(c => c.carInstanceId === d.car)?.name, r = await w.sellCar(d.car, d.keep);
+        if (failed(r)) return;
+        this.ui.dialog = null; this.ui.panel = null; this.ui.socket = null; this.ui.candidate = null; this.preview = null; this.scene.clearGhost();
+        this.render();
+        return this.toast(`Sold your ${name} · ${this.money(r.amount)}${r.kept ? ` · ${r.kept} part${r.kept > 1 ? 's' : ''} kept` : ''}`, 'sell', 'good');
+      }
+      // ---- kits ----
+      case 'kit-buy': case 'kit-fit': {
+        const k = w.kits().find(x => x.id === arg), r = await w.buyKit(arg, { install: cmd === 'kit-fit' });
+        if (failed(r)) return;
+        if (cmd === 'kit-fit') this.#syncCar();
+        this.sounds.clunk?.();
+        return this.toast(`${k?.name ?? 'Kit'} bought · ${this.money(r.cost)}${r.saving ? ` (saved ${this.money(r.saving)})` : ''}${cmd === 'kit-fit' ? r.notFitted?.length ? ` · ${r.notFitted.length} didn't go on: in your inventory` : ' · all fitted' : ' · in your inventory'}`, 'inventory_2', 'good');
+      }
+      // ---- a test drive with a part from the shop (or a spare): the car as the comparison has it ----
+      case 'try-drive': {
+        const st = this.preview?.state;
+        if (!st) return;
+        const c = this.#cand(this.ui.candidate), r = this.actions.testDriveWith?.(st, `${w.name} with ${c?.part?.name ?? 'the part'}`);
+        if (r && !r.ok) return this.toast(this.#words(r.errors?.[0] ?? "Can't test drive that"), 'error', 'bad');
+        return;
       }
 
       // ---- money ----
@@ -1095,6 +1331,27 @@ export class GarageScreen {
         if (!c) return this.toast(`${w.db.parts[arg].name} is already on the car`, 'info');
         if (c.locked) return this.toast(`${w.db.parts[arg].name}: ${this.#words(c.locked.text)}`, 'lock', 'bad');
         return this.pick(c.key);
+      }
+      case 'refund': {
+        if (this.ui.confirm !== `refund:${arg}`) return this.#arm(`refund:${arg}`);
+        this.ui.confirm = null;
+        const name = w.db.parts[w.profile.parts[arg]?.partId]?.name, r = await w.refund(arg);
+        if (failed(r)) return;
+        return this.toast(`${name} refunded · ${this.money(r.amount)}`, 'undo', 'good');
+      }
+      case 'inv-view': this.ui.inv.view = arg; return this.render();
+      case 'inv-pick-mode': this.ui.inv.picking = !this.ui.inv.picking; this.ui.inv.picked = []; return this.render();
+      case 'inv-pick': { const u = this.ui.inv; u.picked = u.picked.includes(arg) ? u.picked.filter(x => x !== arg) : [...u.picked, arg]; return this.render(); }
+      case 'inv-pick-all': { const u = this.ui.inv, spare = w.allParts().filter(x => !x.instance.installedOn).map(x => x.instance.instanceId); u.picked = u.picked.length === spare.length ? [] : spare; return this.render(); }
+      case 'inv-sell-picked': { const ids = this.ui.inv.picked.filter(id => w.profile.parts[id] && !w.profile.parts[id].installedOn); if (ids.length) { this.ui.dialog = { kind: 'sell-many', ids }; this.render(); } return; }
+      case 'inv-sell-confirm': {
+        const d = this.ui.dialog;
+        if (!d) return;
+        const r = await w.sellMany(d.ids);
+        if (failed(r)) return;
+        this.ui.dialog = null; this.ui.inv.picked = []; this.ui.inv.picking = false;
+        this.render();
+        return this.toast(`Sold ${r.sold} part${r.sold === 1 ? '' : 's'} · ${this.money(r.amount)}`, 'sell', 'good');
       }
       case 'sell': {
         if (this.ui.confirm !== `sell:${arg}`) return this.#arm(`sell:${arg}`);
@@ -1235,7 +1492,12 @@ export class GarageScreen {
   setTab(tab) {
     if (this.ui.tab === 'paint' && tab !== 'paint') { this.ui.paintEdit = null; this.scene.previewPaint(this.w.paint); }
     // (the dealership: a dealer's car on the lift, turning; leaving it, the player's own car again)
-    if (tab === 'dealer' && this.ui.tab !== 'dealer') { this.ui.tab = tab; this.scene.turntable = true; this.#showDealerCar(this.ui.dealer.carId ?? dealerList(this.w.db)[0].cars[0].id); }
+    if (tab === 'dealer' && this.ui.tab !== 'dealer') {
+      this.ui.tab = tab; this.ui.dealer.view = 'overview'; this.scene.turntable = this.ui.dealer.spin !== false;
+      const used = this.ui.dealer.lot === 'used' && this.lot?.listings.find(l => l.id === this.ui.dealer.used);
+      if (used) this.#showUsedCar(used); else { this.ui.dealer.lot = 'new'; this.#showDealerCar(this.ui.dealer.carId ?? dealerList(this.w.db)[0].cars[0].id); }
+      this.lot = null; this.#loadLot();
+    }
     else if (tab !== 'dealer' && this.ui.tab === 'dealer') { this.scene.turntable = false; this.dealerShown = null; this.showCar().then(() => this.render()); }
     this.ui.tab = tab; this.ui.pop = null; this.ui.confirm = null;
     if (tab === 'tuning') this.tuneBase = this.stats;

@@ -300,4 +300,24 @@ export const DriveStart = z.object({ carInstanceId: InstanceId, mode: z.enum(['f
 export const AdminMoney = z.object({ amount: z.number().int().refine(n => n !== 0, 'not zero').refine(n => Math.abs(n) <= 100_000_000, 'too big'), reason: z.string().trim().min(3).max(500) }).strict();
 export const AdminItem = z.object({ give: z.object({ partId: DataId.optional(), carId: DataId.optional(), quantity: z.number().int().min(1).max(20).optional() }).strict().optional(), remove: z.object({ instanceId: InstanceId.optional(), carInstanceId: InstanceId.optional() }).strict().optional(), reason: z.string().trim().min(3).max(500) }).strict();
 export const AdminReverse = z.object({ reason: z.string().trim().min(3).max(500) }).strict();
+// the shop's catalogue on the admin page (Phase 6 Step 4): one change at a time, each a new version of the economy's
+// settings (who, why: logged; any version can be rolled back to)
+const When = z.string().datetime({ offset: true });
+const UnlockRule = z.object({ level: z.number().int().min(1).max(100).optional(), series: z.string().regex(/^series_[0-9a-z]{4,40}$/).optional(), seriesName: z.string().max(80).optional() }).strict();
+const Ids = z.array(DataId).max(500);
+export const ShopSale = z.object({ id: DataId, name: z.string().trim().min(1).max(80), starts: When, ends: When, discount: z.number().gt(0).max(0.9), all: z.boolean().optional(), parts: Ids.optional(), cars: Ids.optional(), categories: Ids.optional(), tiers: Ids.optional(), classes: z.array(z.string().max(8)).max(20).optional(), disabled: z.boolean().optional() }).strict()
+  .refine(s => Date.parse(s.ends) > Date.parse(s.starts), 'it has to end after it starts');
+export const ShopBundle = z.object({ id: DataId, name: z.string().trim().min(1).max(80), car: DataId.optional(), parts: z.array(DataId).min(2).max(20), discount: z.number().min(0).max(0.5), unlock: UnlockRule.optional(), hidden: z.boolean().optional(), from: When.optional(), until: When.optional() }).strict();
+export const ShopChange = z.object({
+  change: z.discriminatedUnion('op', [
+    z.object({ op: z.literal('item'), kind: z.enum(['part', 'car']), id: DataId, set: z.object({ price: z.number().int().min(0).max(100_000_000).nullable().optional(), hidden: z.boolean().nullable().optional(), unlock: UnlockRule.nullable().optional(), from: When.nullable().optional(), until: When.nullable().optional(), maker: z.string().trim().min(1).max(60).nullable().optional() }).strict() }).strict(),
+    z.object({ op: z.literal('bundle'), bundle: ShopBundle }).strict(),
+    z.object({ op: z.literal('bundle-remove'), id: DataId }).strict(),
+    z.object({ op: z.literal('sale'), sale: ShopSale }).strict(),
+    z.object({ op: z.literal('sale-remove'), id: DataId }).strict(),
+    z.object({ op: z.literal('usedLot'), settings: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({ op: z.literal('unlock'), settings: z.object({ partTiers: z.record(z.string(), UnlockRule).optional(), carClasses: z.record(z.string(), UnlockRule).optional() }).strict() }).strict(),
+  ]),
+  reason: z.string().trim().min(3).max(500), basedOn: z.number().int().positive(),
+}).strict();
 export const EconomyChange = z.object({ data: z.object({ economy: z.record(z.string(), z.unknown()), quests: z.record(z.string(), z.unknown()) }).strict(), reason: z.string().trim().min(3).max(500), basedOn: z.number().int().positive() }).strict();

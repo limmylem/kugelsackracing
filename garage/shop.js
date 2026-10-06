@@ -16,6 +16,7 @@
 
 import { carPrice, curve, setSize } from './player/profile.js';
 import { Garage } from './data.js';
+import { fingerprint } from './fingerprint.js';
 import { partWork, shellWork, workCost } from './repair.js';
 import { takes } from './validate.js';
 import { levelOf } from '../quest/rules.js';
@@ -42,6 +43,16 @@ function saleCovers(db, s, kind, id) {
   if (kind === 'car') { const c = db.cars[id]; return !!(s.all || s.cars?.includes(id) || (c?.class && s.classes?.includes(c.class))); }
   const p = db.parts[id];
   return !!(s.all || s.parts?.includes(id) || (p && (s.categories?.includes(p.category) || s.tiers?.includes(p.tier))));
+}
+// Who makes a part (the shop's filter): the catalogue's, shop.makers' own list, Factory for stock parts and a car's
+// own, the racing maker for race parts, else by its category
+export function makerOf(db, part) {
+  if (!part) return null;
+  const M = shopOf(db).makers ?? {}, own = entryOf(db, 'part', part.id).maker ?? M.parts?.[part.id];
+  if (own) return own;
+  if (part.tier === 'stock' || part.tier == null || Object.keys(db.cars).some(c => part.id.startsWith(`${c}_`))) return M.factory ?? 'Factory';
+  if (part.tier === 'race' && M.racing) return M.racing;
+  return M.byCategory?.[part.category] ?? null;
 }
 // The best sale on an item now (they don't add up)
 export function saleOn(db, kind, id, now = Date.now()) {
@@ -238,6 +249,15 @@ export function usedLot(db, day = dayOf()) {
   if (lotCache.size > 20) lotCache.delete(lotCache.keys().next().value);
   lotCache.set(key, out);
   return out;
+}
+// A used car as a garage state (garage/data.js), to look at or test drive: its parts at their conditions
+export function listingState(db, listing) {
+  const state = Garage.freshState(db, listing.carId), car = state.cars[state.current], sockets = {};
+  state.parts = {};
+  for (const [socket, x] of Object.entries(listing.parts)) { const id = `lot_${socket}`; state.parts[id] = { instanceId: id, partId: x.partId, condition: x.condition }; sockets[socket] = id; }
+  car.build.sockets = { ...Object.fromEntries(Object.keys(car.build.sockets).map(k => [k, null])), ...sockets };
+  car.build.fingerprint = fingerprint(car.build, state.parts);
+  return state;
 }
 // What each thing on a used car was bought for: the price shared by list value (the body's and each part's)
 export function usedShares(db, listing) {

@@ -321,11 +321,11 @@
 .g-card .name { font-size: 16px; font-weight: 600; line-height: 1.2; }
 .g-card .spec { font-family: var(--f-mono); font-size: 12px; color: var(--c-text-2); min-height: 16px; }
 .g-card .badges { display: flex; gap: 6px; flex-wrap: wrap; min-height: 22px; }
-.g-card .buy { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--c-line-soft); }
-.g-card .price { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.g-card .buy { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--c-line-soft); }
+.g-card .price { flex: 1 1 100%; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .g-card .pv { font-family: var(--f-mono); font-size: 18px; font-weight: 600; }
 .g-card .pe { font-size: 12px; color: var(--c-text-3); white-space: nowrap; }
-.g-card .buy .btn { padding: 0 14px; }
+.g-card .buy .btn { padding: 0 14px; flex: 1; }
 /* a part's upgrade tier */
 .badge.tier-street { background: var(--c-good-tint); color: var(--c-good); }
 .badge.tier-sport { background: var(--c-accent-tint); color: var(--c-accent); }
@@ -418,3 +418,34 @@
 .g-dmg-net b { font-size: 15px; }
 .g-hintcard { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); width: 560px; max-width: calc(100% - 48px); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; flex-direction: row !important; border-left: 3px solid var(--c-accent); }
 .g-hintcard b { font-size: 15px; }
+
+/* ---------- Phase 6 Step 4: the shop, kits, the used lot, selling ---------- */
+.g-select { height: 32px; padding: 0 8px; font-size: 13px; }
+.g-card .lock, .g-dealer .lock { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--c-bad-soft); }
+.g-card .lock .icon, .g-dealer .lock .icon { font-size: 16px; }
+.g-card.locked { opacity: 0.82; }
+.g-card .pe s, .g-dealer s { color: var(--c-text-3); }
+.g-kit-parts { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.g-kit-parts > div { display: flex; align-items: center; gap: 4px; }
+.g-kit-parts > div > span:nth-child(2) { flex: 1; }
+.g-dealer-views { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-space { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--c-text-2); flex-wrap: wrap; }
+.g-space.full > span { color: var(--c-warn); }
+.g-used-report, .g-used-history { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.g-used-report > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.g-used-history > div { display: flex; gap: 10px; color: var(--c-text-2); }
+.g-used-history .mono { color: var(--c-text-3); min-width: 40px; }
+.g-minidyno { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.g-minidyno svg { width: 100%; height: 130px; }
+.g-minidyno-legend { display: flex; gap: 14px; font-family: var(--f-mono); font-size: 12px; }
+.g-history { display: flex; flex-direction: column; }
+.g-history .h { display: grid; grid-template-columns: 130px 120px 1fr auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--c-line-soft); font-size: 14px; }
+.g-history .what { color: var(--c-text-2); }
+.g-history .good { color: var(--c-good); } .g-history .bad { color: var(--c-bad); }
+.g-pick { display: flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 13px; cursor: pointer; }
+.g-car-line { display: flex; align-items: center; gap: 4px; }
+.g-car-line .g-car-row { flex: 1; }
+.g-keep { cursor: pointer; }
+.g-keep input { width: 18px; height: 18px; }
+@media (max-width: 900px) { .g-history .h { grid-template-columns: 1fr auto; } .g-history .h .what { display: none; } }
+.dialog .g-dialog-list { max-height: min(46vh, 460px); overflow-y: auto; }

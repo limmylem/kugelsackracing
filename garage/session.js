@@ -431,6 +431,18 @@ async function create() {
       applyStats(); lookChanged();
       return { ok: true, errors: [] };
     },
+    // A test drive of a build that isn't the player's: a shop part on their car, or a used car as the lot has it
+    // (state: a garage state with the car to drive current) — like the dealer's, nothing on it changes or is kept
+    testDriveWith(state, name) {
+      const cur = state?.cars?.[state.current];
+      if (!cur || !db.cars[cur.carId]) return { ok: false, errors: ['There\'s no such car to drive.'] };
+      clearAttach('test drive');
+      trial = { carId: cur.carId, name: name ?? db.cars[cur.carId].name };
+      garage.state = clone(state);
+      fingerprintNow = garage.build.fingerprint; look = lookOf();
+      applyStats(); lookChanged();
+      return { ok: true, errors: [] };
+    },
     // A route's test drive from the editor: the player's own car as it is now (or a dealer's car, stock),
     // on a trial like the dealer's — whatever happens to it isn't kept — and the player's car as it was
     // after endTestDrive()

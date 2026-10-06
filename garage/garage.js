@@ -47,7 +47,7 @@ async function create() {
   scene.rigFor = car => { if (!rigs.has(car.id)) rigs.set(car.id, fetch(car.model.file).then(r => r.arrayBuffer()).then(glb => modelRig(glb, car.model))); return rigs.get(car.id); };
   const rig = await scene.rigFor(session.garage.car);
   scene.rig = rig;
-  const screen = new GarageScreen({ root, scene, sounds, actions: { leave: () => leave(), testDrive: () => testDrive(), testDriveCar: id => testDriveCar(id), modeChanged: mode => { try { localStorage.setItem(MODE_KEY, mode); } catch { /* not kept */ } } } });
+  const screen = new GarageScreen({ root, scene, sounds, actions: { leave: () => leave(), testDrive: () => testDrive(), testDriveCar: id => testDriveCar(id), testDriveWith: (state, name) => testDriveWith(state, name), modeChanged: mode => { try { localStorage.setItem(MODE_KEY, mode); } catch { /* not kept */ } } } });
   screen.playtest = session.playtest;
   screen.dev = session.dev;
   addEventListener('resize', () => {
@@ -140,6 +140,14 @@ function testDrive() {
 // kept); back in the garage, the player's own car again and the dealership as it was
 function testDriveCar(carId) {
   const r = g.session.testDrive(carId);
+  if (!r.ok) return r;
+  testing = true;
+  hooks.testDrive?.();
+  return r;
+}
+// A build that isn't the player's own (a shop part on their car, a used car from the lot), the same way
+function testDriveWith(state, name) {
+  const r = g.session.testDriveWith(state, name);
   if (!r.ok) return r;
   testing = true;
   hooks.testDrive?.();

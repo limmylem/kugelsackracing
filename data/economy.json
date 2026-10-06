@@ -65,7 +65,7 @@
     "X": 300000
   },
   "shop": {
-    "_note": "The shop, the dealership and the used car lot (Phase 6 Step 4: garage/shop.js). Prices: a part's own (its file) or a car's (carPrices by class × its priceFactor), unless catalogue sets one. catalogue.parts / .cars: { id: { price, hidden, unlock: { level, series, seriesName }, from, until (a limited-time item: only sold between them) } }. unlock: the level a part's tier or a car's class needs, unless the item has its own rule. sales: { id, name, starts, ends, discount (0–1), parts, cars, categories, tiers, classes, all } — the best one on an item counts, they don't add up. bundles: kits, each part as a set for the car (wheels: four), discount off their prices together. refund.minutes: something bought new can go back for what was paid within this, if it was never fitted and is as it came. garage: slots for cars, and extra ones for money (slotPrice × growth for each bought, at most maxExtra). confirmAbove: selling something worth this or more (or a car) asks twice. usedLot: the day's used cars (the same for everyone, from the day and seed): count, which classes by weight, mileage, wear by km, accidents, aftermarket parts by tier, and the price — the body and each part by its condition (conditionCurve) × factor.",
+    "_note": "The shop, the dealership and the used car lot (Phase 6 Step 4: garage/shop.js). Prices: a part's own (its file) or a car's (carPrices by class × its priceFactor), unless catalogue sets one. catalogue.parts / .cars: { id: { price, hidden, maker, unlock: { level, series, seriesName }, from, until (a limited-time item: only sold between them) } }. unlock: the level a part's tier or a car's class needs, unless the item has its own rule. sales: { id, name, starts, ends, discount (0–1), parts, cars, categories, tiers, classes, all } — the best one on an item counts, they don't add up. bundles: kits, each part as a set for the car (wheels: four), discount off their prices together. refund.minutes: something bought new can go back for what was paid within this, if it was never fitted and is as it came. garage: slots for cars, and extra ones for money (slotPrice × growth for each bought, at most maxExtra). confirmAbove: selling something worth this or more (or a car) asks twice. usedLot: the day's used cars (the same for everyone, from the day and seed): count, which classes by weight, mileage, wear by km, accidents, aftermarket parts by tier, and the price — the body and each part by its condition (conditionCurve) × factor.",
     "confirmAbove": 5000,
     "refund": {
       "minutes": 30
@@ -97,6 +97,34 @@
     "catalogue": {
       "parts": {},
       "cars": {}
+    },
+    "makers": {
+      "_note": "Who makes each part, for the shop's filter: catalogue.parts[id].maker, else parts here, else Factory for stock parts and a car's own parts, else racing for race-tier parts, else byCategory.",
+      "racing": "Sackworks Racing",
+      "factory": "Factory",
+      "byCategory": {
+        "body": "Panelcraft",
+        "wheels": "Spoke & Co",
+        "tyres": "Gripmax",
+        "differential": "Lockline",
+        "interior": "Cockpit Co",
+        "suspension": "Coilco",
+        "cosmetic": "Shinewell",
+        "aero": "Downforce Lab",
+        "engine": "Kugel Motorworks",
+        "exhaust": "Boomtube",
+        "brakes": "Haltwell",
+        "gearbox": "Ratio Works",
+        "intake": "Airwerk",
+        "clutch": "Grabwell",
+        "turbo": "Spoolwell",
+        "drivetrain": "Lockline",
+        "ecu": "Chipworks",
+        "intercooler": "Coolstack",
+        "weight": "Featherline",
+        "flywheel": "Grabwell"
+      },
+      "parts": {}
     },
     "bundles": [
       {

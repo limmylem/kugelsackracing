@@ -36,6 +36,7 @@ import { createEconomyConfig } from './economy/config.ts';
 import { createEconomy } from './economy/service.ts';
 import { playerRoutes } from './routes/player.ts';
 import { adminEconomyRoutes } from './routes/adminEconomy.ts';
+import { adminShopRoutes } from './routes/adminShop.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
@@ -263,6 +264,7 @@ export async function buildApp(deps: AppDeps) {
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, G });
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
+    await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
   }, { prefix: API_PREFIX });
 
   // ---------- the real-time server's stand-in (rt.<domain>; Phase 7 Step 1 replaces it) ----------

@@ -28,12 +28,32 @@ export function createEconomyConfig(db: Db) {
   let current: { version: number; data: EconomyData; checkedAt: number } | null = null;
   const rowOut = (r: any): ConfigVersion => ({ version: r.version, data: r.data, reason: r.reason, actorId: r.actor_id, basedOn: r.based_on, createdAt: new Date(r.created_at).toISOString(), active: r.active });
 
-  // (the first version: the repository's files)
+  // (the first version: the repository's files. Later, settings the game has gained since — a new section, a new
+  // value — come in as a new version with only what was missing added: nothing already there changes)
+  let filled = false;
   async function ensure() {
     const has = (await db.execute(sql`select 1 from economy_config limit 1`)).rows.length;
-    if (has) return;
-    const data = { economy: await readJson('data/economy.json'), quests: await readJson('data/quests.json') };
-    await db.execute(sql`insert into economy_config (version, data, reason, active) values (1, ${JSON.stringify(data)}::jsonb, 'The game''s own settings (data/economy.json, data/quests.json)', true) on conflict do nothing`);
+    const files = { economy: await readJson('data/economy.json'), quests: await readJson('data/quests.json') };
+    if (!has) {
+      await db.execute(sql`insert into economy_config (version, data, reason, active) values (1, ${JSON.stringify(files)}::jsonb, 'The game''s own settings (data/economy.json, data/quests.json)', true) on conflict do nothing`);
+      filled = true;
+      return;
+    }
+    if (filled) return;
+    filled = true;
+    const r = (await db.execute(sql`select version, data from economy_config where active`)).rows[0] as any;
+    if (!r) return;
+    const added: string[] = [], data = { economy: addMissing(r.data.economy, files.economy, 'economy', added), quests: addMissing(r.data.quests, files.quests, 'quests', added) };
+    if (!added.length) return;
+    await db.transaction(async tx => {
+      await tx.execute(sql`lock table economy_config in exclusive mode`);
+      const still = (await tx.execute(sql`select version from economy_config where active`)).rows[0] as any;
+      if (Number(still?.version) !== Number(r.version)) return;          // (another server did it first)
+      const next = Number(((await tx.execute(sql`select coalesce(max(version), 0) + 1 as v from economy_config`)).rows[0] as any).v);
+      await tx.execute(sql`update economy_config set active = false where active`);
+      await tx.execute(sql`insert into economy_config (version, data, based_on, reason, active) values (${next}, ${JSON.stringify(data)}::jsonb, ${r.version}, ${`New settings from the game's files, nothing else changed: ${added.slice(0, 12).join(', ')}${added.length > 12 ? ` and ${added.length - 12} more` : ''}`}, true)`);
+    });
+    current = null;
   }
   // the active version (asked again every few seconds: another server may have changed it)
   async function active() {
@@ -80,3 +100,16 @@ export function createEconomyConfig(db: Db) {
   };
 }
 export type EconomyConfig = ReturnType<typeof createEconomyConfig>;
+
+// What a newer settings file has that the active version doesn't: added (objects merged key by key; anything
+// there already — a value, a list — kept as it is). added: the paths that came in
+export function addMissing(have: any, want: any, at: string, added: string[]): any {
+  if (!have || typeof have !== 'object' || Array.isArray(have) || !want || typeof want !== 'object' || Array.isArray(want)) return have;
+  const out: any = { ...have };
+  for (const [k, v] of Object.entries(want)) {
+    if (k.startsWith('_')) { if (!(k in out)) out[k] = v; continue; }
+    if (!(k in out)) { out[k] = v; added.push(`${at}.${k}`); }
+    else out[k] = addMissing(out[k], v, `${at}.${k}`, added);
+  }
+  return out;
+}

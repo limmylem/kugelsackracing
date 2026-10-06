@@ -1,4 +1,4 @@
-// The admin page (Phase 6 Step 1): for admins only — the server checks every call (server/src/routes/admin.ts)
+// The admin page (Phase 6 Step 1; the shop: Phase 6 Step 4): for admins only — the server checks every call (server/src/routes/admin.ts)
 // and logs every action with who, whom and why. Find a player by name, email or id; see their account; change
 // their role; suspend them for some days, ban them, lift it; sign them out everywhere; read the log.
 // Everything a player wrote (names, reasons) goes on the page as text, never as HTML.
@@ -66,7 +66,7 @@ $('signOut').onclick = async () => { try { await api.auth('/sign-out', {}); } fi
 // (the page's views: players — with their economy — the economy's settings, the dashboard)
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
-  nav.replaceChildren(...[['Players', showAdmin], ['Economy settings', showSettings], ['Economy dashboard', showDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
+  nav.replaceChildren(...[['Players', showAdmin], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
@@ -262,4 +262,102 @@ async function showDashboard() {
       h('h3', {}, 'Average balance by level'),
       h('table', {}, h('thead', {}, h('tr', {}, ...['Level', 'Players', 'Average balance'].map(t => h('th', {}, t)))), h('tbody', {}, ...d.byLevel.map(r => h('tr', {}, h('td', {}, String(r.level)), h('td', {}, String(r.players)), h('td', {}, money(r.averageBalance)))))));
   } catch (e) { box.replaceChildren(h('h2', {}, 'Economy dashboard'), h('div', { class: 'msg bad' }, errText(e))); }
+}
+
+// ---------- the shop (Phase 6 Step 4): the catalogue, kits, sales, level locks, the used lot ----------
+// Every change is a new version of the economy's settings (who, why — in the log; rolled back from Economy settings)
+const isoLocal = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
+const fromLocal = v => v ? new Date(`${v}:00Z`).toISOString() : null;
+async function showShop() {
+  tabs();
+  const main = $('main'); main.className = 'narrow'; main.style.gridTemplateColumns = 'minmax(320px, 1280px)';
+  const msg = h('div'), box = h('div', { class: 'list' });
+  main.replaceChildren(h('section', {}, h('h2', {}, 'Shop'),
+    h('p', { class: 'muted' }, 'Prices, makers, what\'s for sale and to whom, kits, sales and the used lot. Each change is a new version of the economy\'s settings with your reason; any of them can be rolled back to from Economy settings. Times are UTC.'), msg, box));
+  let cat;
+  const change = async (c, what) => {
+    const why = prompt(`${what}\n\nWhy? (required: it goes in the history)`);
+    if (!why || why.trim().length < 3) return false;
+    try { const r = await api.post('/admin/shop/catalogue', { change: c, reason: why.trim(), basedOn: cat.version }); say(msg, `Saved as version ${r.version}: active now.`, true); await load(); return true; }
+    catch (e) { say(msg, errText(e)); return false; }
+  };
+  const load = async () => {
+    cat = await api.get('/admin/shop/catalogue');
+    const filter = h('input', { type: 'search', placeholder: 'Filter parts: name, id, category, maker', maxlength: 60 });
+    const partsBody = h('tbody');
+    const priceCell = (kind, it) => { const inp = h('input', { type: 'number', min: 0, step: 10, value: it.own.price ?? '', placeholder: String(it.base ?? it.list), style: 'width:110px' }); return [inp, () => inp.value === '' ? null : Math.round(Number(inp.value))]; };
+    const row = (kind, it) => {
+      const [price, priceOf] = priceCell(kind, it);
+      const hidden = h('input', { type: 'checkbox', ...(it.own.hidden ? { checked: true } : {}) });
+      const level = h('input', { type: 'number', min: 1, max: 100, value: it.own.unlock?.level ?? '', placeholder: it.unlock?.level ? `${it.unlock.level} (default)` : '—', style: 'width:90px' });
+      const until = h('input', { type: 'datetime-local', value: isoLocal(it.own.until) });
+      const maker = kind === 'part' ? h('input', { value: it.own.maker ?? '', placeholder: it.maker ?? '', style: 'width:140px', maxlength: 60 }) : null;
+      const save = () => change({ op: 'item', kind, id: it.id, set: { price: priceOf(), hidden: hidden.checked ? true : null, unlock: level.value ? { level: Number(level.value) } : null, until: fromLocal(until.value), ...(maker ? { maker: maker.value.trim() || null } : {}) } }, `Change ${it.name}?`);
+      return h('tr', { 'data-text': `${it.name} ${it.id} ${it.category ?? ''} ${it.maker ?? ''}`.toLowerCase() },
+        h('td', {}, h('b', {}, it.name), h('div', { class: 'muted' }, `${it.id}${it.category ? ` · ${it.category} · ${it.tier}` : ` · class ${it.class}`}`)),
+        h('td', {}, money(it.price), it.sale ? h('div', { class: 'muted' }, `${it.sale.name} −${Math.round(it.sale.discount * 100)}%`) : '', !it.forSale ? h('div', { class: 'muted' }, it.why) : ''),
+        h('td', {}, price), maker ? h('td', {}, maker) : null, h('td', {}, hidden), h('td', {}, level), h('td', {}, until), h('td', {}, h('button', { class: 'btn secondary', onclick: save }, 'Save')));
+    };
+    const head = (cols) => h('thead', {}, h('tr', {}, ...cols.map(t => h('th', {}, t))));
+    partsBody.replaceChildren(...cat.parts.map(p => row('part', p)));
+    filter.oninput = () => { const q = filter.value.trim().toLowerCase(); for (const tr of partsBody.children) tr.hidden = !!q && !tr.dataset.text.includes(q); };
+    // kits
+    const kitForm = (b = {}) => {
+      const id = h('input', { value: b.id ?? '', placeholder: 'kit_id', maxlength: 60 }), name = h('input', { value: b.name ?? '', placeholder: 'Name', maxlength: 80 }), parts = h('input', { value: (b.parts ?? []).join(', '), placeholder: 'part ids, comma separated', style: 'min-width:320px' }), disc = h('input', { type: 'number', min: 0, max: 50, step: 1, value: b.discount != null ? Math.round(b.discount * 100) : 8, style: 'width:80px' }), car = h('input', { value: b.car ?? '', placeholder: 'car id (any)', maxlength: 60 });
+      return h('div', { class: 'row' }, h('label', {}, 'Id', id), h('label', {}, 'Name', name), h('label', {}, 'Parts', parts), h('label', {}, 'Off %', disc), h('label', {}, 'For car', car),
+        h('button', { class: 'btn secondary', onclick: () => change({ op: 'bundle', bundle: { id: id.value.trim(), name: name.value.trim(), parts: parts.value.split(',').map(x => x.trim()).filter(Boolean), discount: Number(disc.value) / 100, ...(car.value.trim() ? { car: car.value.trim() } : {}) } }, `Save the kit ${name.value}?`) }, 'Save kit'),
+        b.id ? h('button', { class: 'btn ghost', onclick: () => change({ op: 'bundle-remove', id: b.id }, `Remove the kit ${b.name}?`) }, 'Remove') : null);
+    };
+    // sales
+    const saleForm = () => {
+      const id = h('input', { placeholder: 'sale_id', maxlength: 60 }), name = h('input', { placeholder: 'Name, e.g. Weekend brake sale', maxlength: 80 }), starts = h('input', { type: 'datetime-local' }), ends = h('input', { type: 'datetime-local' }), disc = h('input', { type: 'number', min: 1, max: 90, value: 15, style: 'width:80px' });
+      const what = h('select', {}, ...[['all', 'Everything'], ['categories', 'Categories'], ['tiers', 'Tiers'], ['parts', 'Parts'], ['cars', 'Cars'], ['classes', 'Car classes']].map(([v, t]) => h('option', { value: v }, t))), list = h('input', { placeholder: 'ids, comma separated (not for Everything)', style: 'min-width:260px' });
+      return h('div', { class: 'row' }, h('label', {}, 'Id', id), h('label', {}, 'Name', name), h('label', {}, 'Starts (UTC)', starts), h('label', {}, 'Ends (UTC)', ends), h('label', {}, 'Off %', disc), h('label', {}, 'On', what), h('label', {}, 'Which', list),
+        h('button', { class: 'btn primary', onclick: () => { const ids = list.value.split(',').map(x => x.trim()).filter(Boolean); return change({ op: 'sale', sale: { id: id.value.trim(), name: name.value.trim(), starts: fromLocal(starts.value), ends: fromLocal(ends.value), discount: Number(disc.value) / 100, ...(what.value === 'all' ? { all: true } : { [what.value]: ids }) } }, `Schedule ${name.value}?`); } }, 'Schedule sale'));
+    };
+    const salesTable = h('table', {}, head(['Sale', 'When', 'Off', 'On', '']), h('tbody', {}, ...cat.sales.map(x => h('tr', {}, h('td', {}, h('b', {}, x.name), h('div', { class: 'muted' }, `${x.id}${x.on ? ' · ON NOW' : x.over ? ' · over' : ' · scheduled'}`)), h('td', { class: 'when' }, `${when(x.starts)} → ${when(x.ends)}`), h('td', {}, `${Math.round(x.discount * 100)}%`),
+      h('td', {}, x.all ? 'everything' : ['categories', 'tiers', 'parts', 'cars', 'classes'].filter(k => x[k]?.length).map(k => `${k}: ${x[k].join(', ')}`).join(' · ')),
+      h('td', {}, x.on ? h('button', { class: 'btn secondary', onclick: () => change({ op: 'sale', sale: { ...Object.fromEntries(Object.entries(x).filter(([k]) => !['on', 'over'].includes(k))), ends: new Date().toISOString() } }, `End ${x.name} now?`) }, 'End now') : '', h('button', { class: 'btn ghost', onclick: () => change({ op: 'sale-remove', id: x.id }, `Remove ${x.name}?`) }, 'Remove'))))));
+    // level locks and the used lot
+    const locks = h('textarea', { rows: 6, spellcheck: false, style: 'width:100%;font:12px var(--f-mono)' }); locks.value = JSON.stringify(cat.unlock, null, 1);
+    const lot = h('textarea', { rows: 14, spellcheck: false, style: 'width:100%;font:12px var(--f-mono)' }); lot.value = JSON.stringify(cat.usedLot, null, 1);
+    const preview = h('div'), day = h('input', { type: 'date' });
+    const showPreview = async () => {
+      let settings; try { settings = JSON.parse(lot.value); } catch (e) { return say(msg, `The used lot settings aren't valid JSON: ${e.message}`); }
+      try {
+        const r = await api.post('/admin/shop/used-lot/preview', { settings, ...(day.value ? { day: day.value } : {}) });
+        preview.replaceChildren(h('h3', {}, `The lot on ${r.day}${day.value ? '' : ' (tomorrow)'}`), h('table', {}, head(['Car', 'Year · km', 'Body', 'Aftermarket', 'Price', 'New']), h('tbody', {}, ...r.listings.map(l => h('tr', {}, h('td', {}, `${l.name} (${l.rating?.class ?? l.class} ${l.rating?.index ?? ''})`), h('td', {}, `${l.year} · ${l.mileage.toLocaleString('en-GB')} km`), h('td', {}, `${l.condition}%${l.damage.broken?.length ? ' · glass broken' : ''}`), h('td', {}, l.aftermarket.join(', ') || '—'), h('td', {}, money(l.price)), h('td', { class: 'muted' }, money(l.newPrice)))))));
+      } catch (e) { say(msg, errText(e)); }
+    };
+    box.replaceChildren(
+      h('h3', {}, `Parts · ${cat.parts.length} (prices: blank is its own; settings version ${cat.version})`), filter,
+      h('div', { style: 'max-height:60vh;overflow:auto' }, h('table', {}, head(['Part', 'Now', 'Price', 'Maker', 'Hidden', 'Unlock level', 'Sold until (UTC)', '']), partsBody)),
+      h('h3', {}, 'Cars'), h('table', {}, head(['Car', 'Now', 'Price', 'Hidden', 'Unlock level', 'Sold until (UTC)', '']), h('tbody', {}, ...cat.cars.map(c => row('car', c)))),
+      h('h3', {}, 'Kits'), ...cat.bundles.map(b => h('div', { class: 'action' }, kitForm(b), h('div', { class: 'muted' }, b.quote ? `${money(b.quote.price)} (saves ${money(b.quote.saving)})${b.quote.forSale ? '' : ` · not for sale: ${b.quote.why ?? ''}`}` : ''))), h('div', { class: 'action' }, h('b', {}, 'A new kit'), kitForm()),
+      h('h3', {}, 'Sales'), salesTable, h('div', { class: 'action' }, h('b', {}, 'Schedule a sale'), saleForm()),
+      h('h3', {}, 'Level locks (by part tier and car class)'), locks,
+      h('button', { class: 'btn secondary', onclick: () => { let v; try { v = JSON.parse(locks.value); } catch (e) { return say(msg, `Not valid JSON: ${e.message}`); } return change({ op: 'unlock', settings: v }, 'Change the level locks?'); } }, 'Save the locks'),
+      h('h3', {}, 'The used car lot'), lot, h('div', { class: 'row' }, h('label', {}, 'Day (blank: tomorrow)', day), h('button', { class: 'btn secondary', onclick: showPreview }, 'Preview the lot'),
+        h('button', { class: 'btn primary', onclick: () => { let v; try { v = JSON.parse(lot.value); } catch (e) { return say(msg, `Not valid JSON: ${e.message}`); } return change({ op: 'usedLot', settings: v }, 'Save the used lot settings? (Today\'s lot changes too.)'); } }, 'Save the lot settings')),
+      preview);
+    showPreview();
+  };
+  load().catch(e => say(msg, errText(e)));
+}
+async function showShopDashboard() {
+  tabs();
+  const main = $('main'); main.className = 'narrow'; main.style.gridTemplateColumns = 'minmax(320px, 1100px)';
+  const box = h('section', {}, h('h2', {}, 'Shop dashboard'), h('p', { class: 'muted' }, 'Loading…'));
+  main.replaceChildren(box);
+  try {
+    const d = await api.get('/admin/shop/dashboard?days=30');
+    const head = cols => h('thead', {}, h('tr', {}, ...cols.map(t => h('th', {}, t))));
+    box.replaceChildren(h('h2', {}, 'Shop dashboard · last 30 days'),
+      h('dl', {}, h('dt', {}, 'Spent in the shop'), h('dd', {}, money(d.spent)), h('dt', {}, 'Paid out for things sold'), h('dd', {}, money(d.sold)), h('dt', {}, 'Refunds'), h('dd', {}, `${d.refunds} · ${money(d.refunded)}`)),
+      h('h3', {}, 'Top sellers'), d.top.length ? h('table', {}, head(['What', 'Kind', 'Bought', 'Spent']), h('tbody', {}, ...d.top.map(t => h('tr', {}, h('td', {}, t.name), h('td', {}, t.kind), h('td', {}, String(t.count)), h('td', {}, money(t.money)))))) : h('p', { class: 'muted' }, 'Nothing bought yet.'),
+      h('h3', {}, 'Spend by category'), h('table', {}, head(['Category', 'Spent']), h('tbody', {}, ...d.byCategory.map(c => h('tr', {}, h('td', {}, c.category), h('td', {}, money(c.money)))))),
+      h('h3', {}, `Parts nobody bought · ${d.neverBought.count} of ${d.neverBought.of} for sale (dearest first)`),
+      h('table', {}, head(['Part', 'Category', 'Tier', 'Price']), h('tbody', {}, ...d.neverBought.items.map(p => h('tr', {}, h('td', {}, `${p.name} (${p.id})`), h('td', {}, p.category), h('td', {}, p.tier ?? ''), h('td', {}, money(p.price)))))),
+      h('h3', {}, 'Cars nobody bought'), h('p', {}, d.carsNeverBought.map(c => c.name).join(', ') || 'Every car has sold.'));
+  } catch (e) { box.replaceChildren(h('h2', {}, 'Shop dashboard'), h('div', { class: 'msg bad' }, errText(e))); }
 }

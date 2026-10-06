@@ -13,7 +13,7 @@ import { takes } from './validate.js';
 import { dyno } from '../physics/engine.js';
 import { angleScale } from '../physics/parts.js';
 import { buildOf, carName, carPrice, garageStateOf, inInventory, needsRepair, repairCost, setSize, setupChanges, shellRepairCost } from './player/profile.js';
-import { sellValue } from './shop.js';
+import { bundles, capacity, carSellValue, lockOf, makerOf, needsConfirm, offer, refundable, sellValue, slotPrice, shopOf, usedLot, dayOf } from './shop.js';
 import { carProblems } from './damageReport.js';
 import { cornerWord } from './repair.js';
 
@@ -141,13 +141,85 @@ export class Workshop {
   }
   // The shop: every part still sold, with its price, how many come together, whether it goes on this
   // car and how many the player has
+  // (its price now with any sale, whether it's for sale, its lock — garage/shop.js — and its maker)
   catalogue() {
-    const owned = new Map();
+    const owned = new Map(), now = Date.now();
     for (const p of Object.values(this.profile.parts)) owned.set(p.partId, (owned.get(p.partId) ?? 0) + 1);
-    return Object.values(this.db.parts).filter(p => !p.retired).map(part => {
+    return Object.values(this.db.parts).map(part => ({ part, o: offer(this.db, 'part', part.id, now) })).filter(({ part, o }) => o.forSale || (part.todo?.length && !part.retired && !shopOf(this.db).catalogue?.parts?.[part.id]?.hidden)).map(({ part, o }) => {
       const n = setSize(this.db, part, this.carDef.id);
-      return { part, set: n, price: part.price * n, fits: this.fitsCar(part), owned: owned.get(part.id) ?? 0 };
+      return { part, set: n, price: o.price * n, each: o.price, list: o.list * n, sale: o.sale, until: o.until, lock: this.lock(o.unlock), fits: this.fitsCar(part), owned: owned.get(part.id) ?? 0, brand: makerOf(this.db, part) };
     });
+  }
+  // What fitting a shop part would do to the rating (null: it doesn't go on as the car is)
+  ratingGain(partId) {
+    const key = `${this.carInstanceId}|${this.build.fingerprint}`;
+    if (this.gainCache?.key !== key) this.gainCache = { key, map: new Map() };
+    if (!this.gainCache.map.has(partId)) {
+      const socket = this.socketFor(partId), t = socket && this.#try(socket, { instanceId: null, partId }, 'quick');
+      const before = this.stats().totals?.rating?.index, after = t?.ok ? t.garage.stats().totals?.rating?.index : null;
+      this.gainCache.map.set(partId, before != null && after != null ? after - before : null);
+    }
+    return this.gainCache.map.get(partId);
+  }
+
+  // ---- the shop's rules (garage/shop.js) ----
+  get levels() { return this.service.quests?.config ?? null; }
+  // why an item is locked for this player (null: it isn't): { text, level, series }
+  lock(rule) { return lockOf(this.db, this.profile, rule, this.levels); }
+  // the kits for this car: each quoted, with whether every part of it goes on, and its lock
+  kits() {
+    return bundles(this.db, this.carDef.id).filter(k => k.forSale || k.why).map(k => ({ ...k, fits: k.items.every(it => this.fitsCar(this.db.parts[it.partId])), lock: this.lock(k.unlock) ?? k.items.map(it => this.lock(offer(this.db, 'part', it.partId).unlock)).find(Boolean) ?? null, affordable: this.money >= k.price }));
+  }
+  buyKit(bundleId, { install = false } = {}) { const ask = () => this.service.buyBundle(bundleId, { carInstanceId: this.carInstanceId, install }); return install ? this.#change('kit fitted', 'parts', ask) : ask(); }
+  // the garage's space: { used, capacity, next (the price of one more, null: as big as it gets) }
+  get space() { return { used: Object.keys(this.profile.cars).length, capacity: capacity(this.db, this.profile), next: slotPrice(this.db, this.profile) }; }
+  buySlot() { return this.service.buyGarageSlot(); }
+  // a car sold: what it fetches, keeping some of its parts — { total, body, parts: [{ instanceId, partId, value }] }
+  sellCarQuote(carInstanceId, keep = []) { return carSellValue(this.db, this.profile, carInstanceId, { keep }); }
+  async sellCar(carInstanceId, keep = []) {
+    const r = await this.service.sellCar(carInstanceId, { keep });
+    if (r.ok) { this.history = []; this.future = []; this.runs = []; }
+    return r;
+  }
+  // why a car can't be sold (null: it can)
+  cantSell(carInstanceId) {
+    const others = Object.keys(this.profile.cars).filter(id => id !== carInstanceId);
+    if (!others.length) return 'It\'s your only car.';
+    if (!others.some(id => new Garage(this.db, { ...garageStateOf(this.profile, this.db), current: id }, this.profile.cars[id].carId).drivable().ok)) return 'It\'s your only car that can be driven.';
+    return null;
+  }
+  needsConfirm(value) { return needsConfirm(this.db, value); }
+  refundable(instance) { return refundable(this.db, instance); }
+  refund(instanceId) { return this.service.refundPart(instanceId); }
+  sellMany(instanceIds) { return this.service.sellParts(instanceIds); }
+  // what was bought and sold, newest first
+  get shopLog() { return this.profile.shopLog ?? []; }
+  // today's used cars (the server's, signed in; else worked out here — the same either way)
+  async usedLot() {
+    const r = this.service.getUsedLot ? await this.service.getUsedLot() : { ok: true, day: dayOf(), listings: usedLot(this.db, dayOf()) };
+    return { ...r, listings: (r.listings ?? []).map(l => ({ ...l, lock: this.lock(offer(this.db, 'car', l.carId).unlock), bought: !!this.profile.usedBought?.[l.day]?.includes(l.id), affordable: this.money >= l.price })) };
+  }
+  buyUsed(listingId) { return this.service.buyUsedCar(listingId); }
+  // Which of the player's cars a part goes on, as each is built: [carInstanceId]
+  fitsCars(part) {
+    const key = `${this.profile.saved}|${part.id}`;
+    this.fitsCarsCache ??= new Map();
+    if (!this.fitsCarsCache.has(key)) {
+      if (this.fitsCarsCache.size > 2000) this.fitsCarsCache.clear();
+      const out = [];
+      for (const c of Object.values(this.profile.cars)) {
+        const def = this.db.cars[c.carId], sock = def?.sockets.find(s => takes(def, s, part));
+        if (!sock) continue;
+        const state = clone(garageStateOf(this.profile, this.db)), id = `try_${state.nextId++}`, g = new Garage(this.db, { ...state, current: c.carInstanceId }, c.carId);
+        state.parts[id] = { instanceId: id, partId: part.id, condition: 100 };
+        const group = def.socketGroups?.[part.slot];
+        if (group) for (let k = 1; k < group.length; k++) { const j = `try_${state.nextId++}`; state.parts[j] = { instanceId: j, partId: part.id, condition: 100 }; }
+        const r = g.install(id, { socket: group ? undefined : sock.name, auto: true });
+        if (!r.errors?.some(e => e.code === 'does_not_fit' && e.part === part.id) && !r.errors?.some(e => e.code === 'no_socket')) out.push(c.carInstanceId);
+      }
+      this.fitsCarsCache.set(key, out);
+    }
+    return this.fitsCarsCache.get(key);
   }
   // The socket to open for a part on this car: an empty one that takes it, else the first (null: none)
   socketFor(partId) {
@@ -207,10 +279,10 @@ export class Workshop {
       const owned = !!instance && (!group || count >= n), cand = { instanceId: owned ? instance.instanceId : null, partId: part.id };
       const trial = this.#try(socketName, cand, 'quick');
       if (trial.errors.some(e => e.code === 'does_not_fit' && e.part === part.id)) return;
-      const soon = !owned && part.todo?.length;
-      const locked = soon ? { kind: 'todo', text: 'Not in the shop yet: its price and stats are still to do' } : trial.ok ? null : reason(trial.errors), after = trial.ok ? trial.garage.stats() : null;
+      const soon = !owned && part.todo?.length, o = offer(this.db, 'part', part.id), lock = !owned && this.lock(o.unlock);
+      const locked = soon ? { kind: 'todo', text: 'Not in the shop yet: its price and stats are still to do' } : lock ? { kind: 'level', text: lock.text } : trial.ok ? null : reason(trial.errors), after = trial.ok ? trial.garage.stats() : null;
       candidates.push({ key: owned ? instance.instanceId : `shop:${part.id}`, instanceId: cand.instanceId, partId: part.id, count: owned ? count : 0, part, condition: owned ? instance.condition ?? 100 : 100, owned,
-        set: n, price: part.price * n, affordable: owned || this.money >= part.price * n,
+        set: n, price: o.price * n, sale: owned ? null : o.sale, affordable: owned || this.money >= o.price * n,
         locked, blockers: trial.ok ? trial.result.ops.filter(o => o.op === 'remove' && o.socket !== socketName && !this.#sameGroup(o.socket, socketName)).map(o => o.socket) : [],
         gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0 });
     };
@@ -218,6 +290,7 @@ export class Workshop {
     // (the shop's: parts the player has no spare of — or not enough for a set)
     for (const part of Object.values(this.db.parts)) {
       if (part.retired || !takes(this.carDef, def, part) || (spares.get(part.id)?.length ?? 0) >= setSize(this.db, part, this.carDef.id)) continue;
+      { const o = offer(this.db, 'part', part.id); if (!o.forSale && !part.todo?.length) continue; }
       if (here.part?.id === part.id) continue;
       consider(part, null, 0);
     }
@@ -231,7 +304,15 @@ export class Workshop {
     const t = this.#try(socketName, candidate), before = this.stats();
     if (!t.ok) return { ok: false, errors: t.errors, reason: reason(t.errors), before, after: null, rows: [] };
     const after = t.garage.stats();
-    return { ok: true, errors: [], before, after, rows: compareStats(before, after, this.db, this.state, t.garage.state), warnings: t.result.warnings, ops: t.result.ops };
+    return { ok: true, errors: [], before, after, rows: compareStats(before, after, this.db, this.state, t.garage.state), warnings: t.result.warnings, ops: t.result.ops, state: t.garage.state };
+  }
+  // a Garage on another state (a preview's: whether the car could be driven like that)
+  garageFor(state) { return new Garage(this.db, state, state.cars[state.current]?.carId ?? this.carDef.id); }
+  // A dyno run of a stats' engine (at the wheels): [{ rpm, nm, hp }] — the comparison's curves, before and after
+  curves(stats) {
+    if (!stats?.spec) return null;
+    const eff = stats.spec.drivetrain.efficiency;
+    return dyno(stats.spec.engine, 40).map(p => ({ rpm: p.rpm, nm: p.torque * eff, hp: p.hp * eff }));
   }
   // The same for taking a part off
   previewRemove(socketName) {
@@ -396,7 +477,7 @@ export class Workshop {
       return { carInstanceId: c.carInstanceId, name: carName(this.profile, this.db, c.carInstanceId), def: this.db.cars[c.carId], setup: c.setups[c.activeSetup]?.name ?? null, current: c.carInstanceId === this.carInstanceId, rating: stats.totals?.rating ?? null };
     });
   }
-  dealer() { return Object.values(this.db.cars).map(def => { const price = carPrice(this.db, def); return { def, price, affordable: this.money >= price }; }); }
+  dealer() { const now = Date.now(); return Object.values(this.db.cars).map(def => ({ def, o: offer(this.db, 'car', def.id, now) })).filter(x => x.o.forSale).map(({ def, o }) => ({ def, price: o.price, list: o.list, sale: o.sale, until: o.until, lock: this.lock(o.unlock), affordable: this.money >= o.price })); }
   async selectCar(carInstanceId) {
     const r = await this.service.selectCar(carInstanceId);
     if (r.ok) { this.history = []; this.future = []; this.runs = []; }
