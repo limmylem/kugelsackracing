@@ -8,3 +8,8 @@ incoming/*
 !incoming/README.md
 .scratch/
 .cache/
+
+# built from packages/*/src (npm run build:shared; npm install runs it)
+packages/*/dist/
+# the server's local files (backups, uploads)
+server/.data/

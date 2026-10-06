@@ -1,0 +1,13 @@
+{
+  "_note": "Settings that aren't secret, for each environment (server/src/config.ts). Secrets — the database URL, BETTER_AUTH_SECRET, the OAuth apps, SMTP, Sentry — only ever come from environment variables (.env locally, the host's settings elsewhere: docs/SERVER.md).",
+  "minAge": 13,
+  "termsVersion": "2026-10-06",
+  "privacyVersion": "2026-10-06",
+  "requireEmailVerification": true,
+  "serveClient": true,
+  "cookieSecure": false,
+  "rateLimits": { "global": { "max": 600, "windowSec": 60 }, "auth": { "max": 30, "windowSec": 60 }, "signUp": { "max": 10, "windowSec": 3600 }, "write": { "max": 120, "windowSec": 60 } },
+  "cache": { "publishedSeconds": 30, "cdnSeconds": 300 },
+  "replays": { "keepPerPlayer": 50 },
+  "logLevel": "debug"
+}

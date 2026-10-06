@@ -1,0 +1,17 @@
+{
+  "name": "@kr/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The data formats the game client and the server share: Zod schemas for every API request and response, the error format, limits and constants (Phase 6)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./dist/shared.browser.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/shared.browser.js --legal-comments=none --minify"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

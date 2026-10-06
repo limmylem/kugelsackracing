@@ -1,0 +1,12 @@
+{
+  "minAge": 13,
+  "termsVersion": "2026-10-06",
+  "privacyVersion": "2026-10-06",
+  "requireEmailVerification": true,
+  "serveClient": false,
+  "cookieSecure": false,
+  "rateLimits": { "global": { "max": 100000, "windowSec": 60 }, "auth": { "max": 100000, "windowSec": 60 }, "signUp": { "max": 100000, "windowSec": 3600 }, "write": { "max": 100000, "windowSec": 60 } },
+  "cache": { "publishedSeconds": 30, "cdnSeconds": 300 },
+  "replays": { "keepPerPlayer": 50 },
+  "logLevel": "warn"
+}

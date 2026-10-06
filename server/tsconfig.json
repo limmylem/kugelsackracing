@@ -1,0 +1,21 @@
+{
+  "//": "The server: TypeScript run by Node's own type stripping (no build step); `npm run server:typecheck` checks it strictly.",
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": false,
+    "erasableSyntaxOnly": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "tools/**/*.ts", "drizzle.config.ts", "../packages/shared/src/**/*.ts"]
+}

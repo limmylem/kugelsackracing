@@ -19,7 +19,7 @@
     "sample-models": "node tools/sample-models.mjs",
     "guide": "node tools/write-guide.mjs",
     "hooks": "node tools/install-hooks.mjs",
-    "prepare": "node tools/install-hooks.mjs",
+    "prepare": "node tools/install-hooks.mjs && npm run --silent build:shared",
     "icons": "node tools/icons.mjs",
     "playtest": "node tools/playtest.mjs",
     "sounds": "node tools/sounds.mjs",
@@ -49,7 +49,12 @@
     "test:dress-drive": "node --expose-gc --max-old-space-size=8192 tests/track-dress-drive.ts",
     "test:track-events": "node --expose-gc --max-old-space-size=8192 tests/track-events.ts",
     "track-variety": "node tools/track-variety.mjs",
-    "test:track-perf": "node --expose-gc --max-old-space-size=4096 tests/track-perf.ts"
+    "test:track-perf": "node --expose-gc --max-old-space-size=4096 tests/track-perf.ts",
+    "build:shared": "npm run --workspace @kr/shared build",
+    "server": "npm run --workspace @kr/server start",
+    "server:dev": "npm run --workspace @kr/server dev",
+    "test:server": "npm run --workspace @kr/server test",
+    "server:typecheck": "tsc -p server/tsconfig.json"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
@@ -69,6 +74,11 @@
     "pmtiles": "^4.5.0",
     "sharp": "^0.35.5",
     "three": "0.160.0",
-    "typescript": "5.9"
-  }
+    "typescript": "5.9",
+    "esbuild": "^0.28.2"
+  },
+  "workspaces": [
+    "packages/*",
+    "server"
+  ]
 }
