@@ -8,7 +8,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp } from './helpers.ts';
+import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 import { dailyTrack, weeklyTrack, sharedTrack, eventsFor } from '../../track/events/model.js';
 import { questVersionOf } from '../../quest/result.js';
 import { createRaceRecording } from '../../race/raceReplay.js';
@@ -28,7 +28,7 @@ before(async () => {
     signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.3.0.4' }),
   ]);
   anon = new Player(T.app, '10.3.0.9');
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  await makeStaff(T.app, ed, 'ed@example.com', 'editor');
 });
 after(async () => { await T?.close(); });
 

@@ -38,6 +38,9 @@ export const ERROR_CODES = [
   'PAYLOAD_TOO_LARGE', 'UNSUPPORTED_MEDIA_TYPE', 'RATE_LIMITED', 'IDEMPOTENCY_MISMATCH', 'IDEMPOTENCY_IN_PROGRESS', 'IDEMPOTENCY_KEY_REQUIRED',
   'CSRF', 'TERMS_REQUIRED', 'BANNED', 'NAME_TAKEN', 'NAME_NOT_ALLOWED', 'NAME_CHANGE_TOO_SOON', 'NEEDS_CONFIRM', 'UNPUBLISHABLE',
   'REFUSED', 'OFFLINE', 'INTERNAL',
+  // (Phase 6 Step 5) two-factor sign-in needed (editors and admins), the bot check failed, a closed beta's invite
+  // code needed, the game down for maintenance, a game too old for the server, a feature switched off
+  'MFA_REQUIRED', 'BOT_CHECK', 'INVITE_REQUIRED', 'MAINTENANCE', 'CLIENT_TOO_OLD', 'FEATURE_OFF',
 ] as const;
 export const ErrorCode = z.enum(ERROR_CODES);
 export type ErrorCode = z.infer<typeof ErrorCode>;
@@ -88,6 +91,9 @@ export const Me = z.object({
     nameChangeAvailableAt: z.string().nullable(),
     createdAt: z.string(),
     providers: z.array(z.string()),            // 'credential', 'google', 'discord', 'anonymous'…
+    // two-factor sign-in (an authenticator app): on for the account; this session passed it (and when); whether
+    // the account's role needs it (editors and admins: their tools refuse a session without it)
+    twoFactor: z.object({ enabled: z.boolean(), verifiedAt: z.string().nullable(), required: z.boolean() }),
   }),
   terms: z.object({ version: z.string(), privacyVersion: z.string(), minAge: z.number().int() }),
 });

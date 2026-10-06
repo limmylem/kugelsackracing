@@ -42,7 +42,7 @@ import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 import { rtHealth } from './rt/health.ts';
 
-import { CLIENT_DIRS, CLIENT_FILES } from './clientFiles.ts';
+import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from './clientFiles.ts';
 export { CLIENT_DIRS, CLIENT_FILES };
 // (on the API's own address in staging and production — serveClient 'tools' — only these pages, each for its
 // role; the rest of the game's pages are on GAME_URL, and its map files on TILES_URL)
@@ -90,16 +90,16 @@ export async function buildApp(deps: AppDeps) {
   // (behind Cloudflare — docs/DEPLOYMENT.md: the player's address is its CF-Connecting-IP, believed only when the
   // request carries the edge's secret; one that didn't come through Cloudflare is taken at the address the host's
   // own proxy saw, the last in X-Forwarded-For — what a client writes there itself doesn't count)
-  if (config.edgeSecret) {
-    const secret = Buffer.from(config.edgeSecret);
-    app.addHook('onRequest', async req => {
-      const given = req.headers['x-kr-edge'], cf = req.headers['cf-connecting-ip'];
-      const viaEdge = typeof given === 'string' && given.length === secret.length && crypto.timingSafeEqual(Buffer.from(given), secret);
-      const hops = String(req.headers['x-forwarded-for'] ?? '').split(',').map(x => x.trim()).filter(Boolean);
-      req.headers['x-forwarded-for'] = viaEdge && typeof cf === 'string' && cf ? cf : (hops.at(-1) ?? req.socket.remoteAddress ?? '');
-      delete req.headers['x-kr-edge'];
-    });
-  }
+  // (Phase 6 Step 5: always — without an edge secret too. Fastify's trustProxy takes the first address in
+  // X-Forwarded-For, which the client writes itself: anyone could have picked their own address for the rate limits)
+  const secret = config.edgeSecret ? Buffer.from(config.edgeSecret) : null;
+  app.addHook('onRequest', async req => {
+    const given = req.headers['x-kr-edge'], cf = req.headers['cf-connecting-ip'];
+    const viaEdge = !!secret && typeof given === 'string' && given.length === secret.length && crypto.timingSafeEqual(Buffer.from(given), secret);
+    const hops = String(req.headers['x-forwarded-for'] ?? '').split(',').map(x => x.trim()).filter(Boolean);
+    req.headers['x-forwarded-for'] = viaEdge && typeof cf === 'string' && cf ? cf : (hops.at(-1) ?? req.socket.remoteAddress ?? '');
+    delete req.headers['x-kr-edge'];
+  });
   app.addHook('onSend', async (req, reply, payload) => { reply.header(REQUEST_ID_HEADER, req.id); return payload; });
 
   const log = { info: (o: object, m: string) => app.log.info(o, m), error: (o: object, m: string) => app.log.error(o, m) };
@@ -117,7 +117,9 @@ export async function buildApp(deps: AppDeps) {
         defaultSrc: ["'self'"],
         // (the game's pages: their own modules, inline module scripts and import maps, three.js and Rapier from
         // the jsDelivr CDN, Rapier's WebAssembly)
-        scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:'],
+        // (Phase 6 Step 5: no 'unsafe-inline' — the pages' own inline scripts, by their hashes, and nothing else inline:
+        // a script injected into a page doesn't run)
+        scriptSrc: ["'self'", ...inlineScriptHashes(), "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:'],
         workerSrc: ["'self'", 'blob:', 'https://cdn.jsdelivr.net'],   // (MapLibre's worker, for the maps)
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
@@ -200,13 +202,20 @@ export async function buildApp(deps: AppDeps) {
       let p = url.pathname;
       try { p = decodeURIComponent(p); } catch { return sendError(reply, req, 400, 'BAD_REQUEST', 'That address isn\'t right.'); }
       if (/^\/api\/auth\/+(admin|impersonate)/i.test(p.replace(/\/{2,}/g, '/')) || /\/admin\//i.test(p)) return sendError(reply, req, 403, 'FORBIDDEN', 'Use the admin page.');
+      // (deleting an account goes through DELETE /api/v1/me: its confirmation, and never the last admin)
+      if (/^\/api\/auth\/+delete-user/i.test(p.replace(/\/{2,}/g, '/'))) return sendError(reply, req, 403, 'FORBIDDEN', 'Delete your account from your account page.');
       const body = req.method === 'POST' && req.body !== undefined ? JSON.stringify(req.body) : undefined;
       const res = await auth.handler(new Request(url, { method: req.method, headers: fromNodeHeaders(req.headers), body }));
       reply.status(res.status);
       res.headers.forEach((v, k) => { if (k !== 'set-cookie' && k !== 'content-length') reply.header(k, v); });
       const cookies = res.headers.getSetCookie();
       if (cookies.length) reply.header('set-cookie', cookies);
-      const text = await res.text();
+      let text = await res.text();
+      // (a session's token is the cookie's secret: kept out of what the page's scripts can read — the cookie is
+      // httpOnly so a script injected into a page couldn't take a session; these answers would have handed it over)
+      if (text && (res.headers.get('content-type') ?? '').includes('json')) {
+        try { const j = JSON.parse(text), out = stripTokens(j); if (out.changed) text = JSON.stringify(j); } catch { /* not JSON */ }
+      }
       // (its errors in our format too, so the client reads one shape)
       if (res.status >= 400 && text) {
         try {
@@ -296,7 +305,7 @@ export async function buildApp(deps: AppDeps) {
         if (role && p !== top.slice(0, -1)) {
           try { await G.requireRole(role)(req); }
           catch (e: any) {
-            if (e?.status === 401 || e?.code === 'TERMS_REQUIRED') return reply.redirect(`${config.gameUrl}/account/?${new URLSearchParams({ next: `${config.publicUrl}${top}`, ...(e?.code === 'TERMS_REQUIRED' ? { mode: 'terms' } : {}) })}`, 302);
+            if (e?.status === 401 || e?.code === 'TERMS_REQUIRED' || e?.code === 'MFA_REQUIRED') return reply.redirect(`${config.gameUrl}/account/?${new URLSearchParams({ next: `${config.publicUrl}${top}`, ...(e?.code === 'TERMS_REQUIRED' ? { mode: 'terms' } : e?.code === 'MFA_REQUIRED' ? { mode: 'mfa' } : {}) })}`, 302);
             return reply.status(403).header('content-type', 'text/html; charset=utf-8').header('cache-control', 'no-store').send(`<!doctype html><meta charset="utf-8"><title>Not for this account</title><p style="font:16px system-ui;margin:3em">This page is for ${role === 'admin' ? 'admins' : 'editors'}. <a href="${config.gameUrl}/">Back to the game</a></p>`);
           }
           reply.header('cache-control', 'no-store');
@@ -318,6 +327,16 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('deps', { db, auth, config, mailer });
   app.addHook('onClose', async () => { if (opened) await opened.pool.end(); });
   return app;
+}
+
+// (session tokens taken out of an answer, wherever they are: { token }, { session: { token } }, a list of sessions)
+export function stripTokens(x: any, depth = 0): { changed: boolean } {
+  let changed = false;
+  if (!x || typeof x !== 'object' || depth > 4) return { changed };
+  if (Array.isArray(x)) { for (const v of x) changed = stripTokens(v, depth + 1).changed || changed; return { changed }; }
+  if (typeof x.token === 'string') { delete x.token; changed = true; }
+  for (const k of ['session', 'sessions', 'data']) if (x[k] && typeof x[k] === 'object') changed = stripTokens(x[k], depth + 1).changed || changed;
+  return { changed };
 }
 
 function authCode(status: number, code?: string) {

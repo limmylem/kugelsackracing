@@ -10,5 +10,6 @@
   "cache": { "publishedSeconds": 30, "cdnSeconds": 300, "serverMB": 32 },
   "replays": { "keepPerPlayer": 50 },
   "tracks": { "precompute": true, "graceMinutes": 15, "workerTimeoutSec": 180 },
-  "logLevel": "debug"
+  "logLevel": "debug",
+  "staffMfa": { "required": true, "maxAgeHours": 12 }
 }

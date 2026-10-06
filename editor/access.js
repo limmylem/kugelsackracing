@@ -15,6 +15,8 @@ export function editorAccess(A, loc = globalThis.location) {
     if (!me) return { allowed: false, why: 'Sign in with an editor account to open the world editor.' };
     if (me.isGuest || !['editor', 'admin'].includes(me.role)) return { allowed: false, why: 'The world editor is for editor accounts: an admin can make yours one.' };
     if (me.needsTerms) return { allowed: false, why: 'Accept the terms first (the account page).' };
+    // (Phase 6 Step 5: the server refuses an editor's requests without two-factor sign-in — said here first)
+    if (me.twoFactor?.required && !me.twoFactor.enabled) return { allowed: false, why: 'Editor accounts need two-factor sign-in: turn it on from your account page.', fix: '/account/?mode=mfa' };
     if (!A.online) return { allowed: false, why: 'The world editor needs the game\'s server: you\'re offline.' };
     return { allowed: true, how: `${me.role} account` };
   }

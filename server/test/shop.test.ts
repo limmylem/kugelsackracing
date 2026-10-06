@@ -7,7 +7,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp } from './helpers.ts';
+import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 import { carSellValue, sellValue } from '../../garage/shop.js';
 
 let T: Awaited<ReturnType<typeof testApp>>, ann: Player, ben: Player, cat: Player, admin: Player;
@@ -34,7 +34,7 @@ before(async () => {
     signUp(T.app, T.outbox, { email: 'cat@example.com', name: 'Cat Camber', ip: '10.8.0.3' }),
     signUp(T.app, T.outbox, { email: 'adm@example.com', name: 'The Admin', ip: '10.8.0.4' }),
   ]);
-  await T.app.deps.db.execute(sql`update users set role = 'admin' where email = 'adm@example.com'`);
+  await makeStaff(T.app, admin, 'adm@example.com', 'admin');
   for (const p of [ann, ben, cat]) await p.get('/api/v1/player');
   await grant('ann@example.com', 400_000); await grant('ben@example.com', 400_000); await grant('cat@example.com', 400_000);
 });
@@ -72,7 +72,7 @@ test('every purchase and sale through the server, each with its ledger row', asy
   const kitIds: string[] = kit.instanceIds;
   await step('sellParts', { instanceIds: kitIds }, 'sale', r => r.amount, /Sold 2 parts/);
   const keep = Object.values<any>(car.updatedState.parts).filter(x => x.installedOn?.car === car.carInstanceId && x.partId === 'kaze_gt_engine').map(x => x.instanceId);
-  const value = carSellValue(db, (await profile(ann)), car.carInstanceId, { keep }, now).total;
+  const value = (carSellValue as any)(db, await profile(ann), car.carInstanceId, { keep }, now).total;
   const sold = await step('sellCar', { carInstanceId: car.carInstanceId, opts: { keep } }, 'sale', () => value, /Sold the Kaze GT/);
   assert.ok(sold.amount < 24000 * 0.6 + 1, 'below what it cost');
   assert.equal(sold.updatedState.parts[keep[0]].installedOn, null, 'the kept engine in the inventory');

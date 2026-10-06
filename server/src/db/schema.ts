@@ -39,6 +39,7 @@ export const users = pgTable('users', {
   termsVersion: text('terms_version'),                   // the terms and privacy policy accepted (null: not yet)
   termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
   nameChangedAt: timestamp('name_changed_at', { withTimezone: true }),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),   // (Better Auth's two-factor plugin)
 }, t => [uniqueIndex('users_name_lower').on(sql`lower(${t.name})`)]);
 
 export const sessions = pgTable('sessions', {
@@ -51,7 +52,19 @@ export const sessions = pgTable('sessions', {
   userAgent: text('user_agent'),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   impersonatedBy: text('impersonated_by'),
+  mfaVerifiedAt: timestamp('mfa_verified_at', { withTimezone: true }),   // (when this session passed two-factor sign-in)
 }, t => [index('sessions_user').on(t.userId)]);
+
+// two-factor sign-in (Better Auth's plugin): the authenticator's secret and the backup codes, encrypted
+export const twoFactors = pgTable('two_factors', {
+  id: text('id').primaryKey(),
+  secret: text('secret').notNull(),
+  backupCodes: text('backup_codes').notNull(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  verified: boolean('verified').default(true),
+  failedVerificationCount: integer('failed_verification_count').default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+}, t => [index('two_factors_user').on(t.userId), index('two_factors_secret').on(t.secret)]);
 
 export const accounts = pgTable('accounts', {
   id: text('id').primaryKey(),

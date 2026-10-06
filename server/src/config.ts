@@ -26,6 +26,9 @@ const FileConfig = z.object({
   replays: z.object({ keepPerPlayer: z.number().int().min(1) }),
   tracks: z.object({ precompute: z.boolean(), graceMinutes: z.number().min(0).max(120), workerTimeoutSec: z.number().min(5).max(600) }),
   logLevel: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+  // (Phase 6 Step 5) editors and admins: their tools need a session that passed two-factor sign-in, at most this
+  // many hours ago (then the authenticator's code again: the admin page asks)
+  staffMfa: z.object({ required: z.boolean(), maxAgeHours: z.number().min(0.1).max(720) }),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);

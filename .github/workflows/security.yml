@@ -1,0 +1,37 @@
+# Security checks that need no change to run (Phase 6 Step 5, docs/SECURITY.md): every Monday, on demand, and on
+# every push to main — known vulnerabilities in the dependencies (high or critical fails it; new advisories appear
+# without anyone pushing) and leaked secrets in the files and the whole git history.
+name: security
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Dependencies with known vulnerabilities (what's deployed: high or critical fails)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Development tools too (reported, critical fails)
+        run: npm audit --audit-level=critical
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Leaked secrets in the files and every commit
+        run: node tools/scan-secrets.mjs --history

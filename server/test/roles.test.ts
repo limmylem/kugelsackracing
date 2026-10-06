@@ -8,7 +8,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp, linkIn, path } from './helpers.ts';
+import { testApp, Player, signUp, linkIn, path, makeStaff, enableTwoFactor } from './helpers.ts';
 
 let T: Awaited<ReturnType<typeof testApp>>, boss: Player, ed: Player, pl: Player, guest: Player, anon: Player;
 const idOf = async (email: string) => ((await T.app.deps.db.execute(sql`select id from users where email = ${email}`)).rows[0] as any).id as string;
@@ -21,12 +21,13 @@ before(async () => {
   const mail = T.outbox.find(m => m.to === 'boss@example.com' && m.kind === 'verify-email')!;
   assert.ok((await b.get(path(linkIn(mail)))).status < 400);
   boss = b;
+  await enableTwoFactor(boss);                // (an admin's tools need two-factor sign-in)
   ed = await signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.2.0.2' });
   pl = await signUp(T.app, T.outbox, { email: 'pl@example.com', name: 'Pla Yer', ip: '10.2.0.3' });
   guest = new Player(T.app, '10.2.0.4');
   assert.equal((await guest.post('/api/auth/sign-in/anonymous')).status, 200);
   anon = new Player(T.app, '10.2.0.5');
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  await makeStaff(T.app, ed, 'ed@example.com', 'editor');
 });
 after(async () => { await T?.close(); });
 
@@ -102,6 +103,10 @@ test('the admin API: find, view, change a role (logged, never no admin), suspend
   assert.equal((await boss.post(`/api/v1/admin/players/${plId}/role`, { role: 'editor' })).status, 400);
   assert.equal((await boss.post(`/api/v1/admin/players/${plId}/role`, { role: 'editor', reason: 'Builds the Bay Area quests' })).status, 200);
   assert.equal((await pl.get('/api/v1/me')).body.user.role, 'editor');
+  // (Phase 6 Step 5: an editor's tools need two-factor sign-in — refused until it's on, then open)
+  const needs = await pl.get('/api/v1/content/stats');
+  assert.equal(needs.status, 403); assert.equal(needs.body.error.code, 'MFA_REQUIRED'); assert.equal(needs.body.error.details.setup, true);
+  await enableTwoFactor(pl);
   assert.equal((await pl.get('/api/v1/content/stats')).status, 200, 'the editor endpoints open to them');
   await boss.post(`/api/v1/admin/players/${plId}/role`, { role: 'player', reason: 'Back to playing' });
   assert.equal((await pl.get('/api/v1/content/stats')).status, 403);

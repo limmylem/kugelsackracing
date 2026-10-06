@@ -8,7 +8,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp, linkIn, path, PUBLIC_URL } from './helpers.ts';
+import { testApp, Player, signUp, linkIn, path, PUBLIC_URL, makeStaff } from './helpers.ts';
 import { newItem } from '../../content/quests.js';
 
 const logs: string[] = [];
@@ -17,7 +17,7 @@ before(async () => {
   T = await testApp('api', { overrides: { logLevel: 'info' }, logStream: { write: (m: string) => { logs.push(m); } } });
   ed = await signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.4.0.1' });
   pl = await signUp(T.app, T.outbox, { email: 'pl@example.com', name: 'Pla Yer', ip: '10.4.0.2' });
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  await makeStaff(T.app, ed, 'ed@example.com', 'editor');
 });
 after(async () => { await T?.close(); });
 
@@ -103,7 +103,7 @@ test('idempotency: a retried write is applied once; a key reused for something e
   errShape(await ed.post('/api/v1/content/items', body, { headers: { 'idempotency-key': 'short' } }), 400);
   errShape(await ed.post('/api/v1/content/items', body, { headers: { 'idempotency-key': 'has spaces and <tags>' } }), 400);
   // another account's same key: its own
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'pl@example.com'`);
+  await makeStaff(T.app, pl, 'pl@example.com', 'editor');
   const c = await pl.post('/api/v1/content/items', { ...body, name: 'Theirs' }, { key });
   assert.equal(c.status, 200); assert.equal(c.headers['idempotent-replayed'], undefined);
   await T.app.deps.db.execute(sql`update users set role = 'player' where email = 'pl@example.com'`);

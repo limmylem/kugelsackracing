@@ -102,3 +102,31 @@ export async function signUp(app: App, outbox: Mail[], { email, name, password =
   if (!p.cookies.size) { const s = await p.post('/api/auth/sign-in/email', { email, password }); if (s.status !== 200) throw new Error(`sign-in ${email}: ${s.status} ${s.text}`); }
   return p;
 }
+
+// ---------- two-factor sign-in (Phase 6 Step 5) ----------
+// an authenticator app's code now (RFC 6238: HMAC-SHA1, 6 digits, 30 s) for an otpauth:// secret (base32)
+export function totp(secret: string, at = Date.now()) {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', bits = [...secret.replace(/=+$/, '').toUpperCase()].map(c => A.indexOf(c).toString(2).padStart(5, '0')).join('');
+  const key = Buffer.from(bits.match(/.{8}/g)!.map(b => parseInt(b, 2)));
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
+  const h = crypto.createHmac('sha1', key).update(counter).digest(), o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
+}
+// turn on two-factor sign-in for a signed-in player (their password, then a code from the app): the player keeps
+// its secret (player.totpSecret) for signing in again
+export async function enableTwoFactor(p: Player, password = 'correct horse battery') {
+  const e = await p.post('/api/auth/two-factor/enable', { password });
+  if (e.status !== 200 || !e.body?.totpURI) throw new Error(`two-factor enable: ${e.status} ${e.text}`);
+  const secret = new URL(e.body.totpURI).searchParams.get('secret')!;
+  const v = await p.post('/api/auth/two-factor/verify-totp', { code: totp(secret) });
+  if (v.status !== 200) throw new Error(`two-factor verify: ${v.status} ${v.text}`);
+  (p as any).totpSecret = secret;
+  return { secret, backupCodes: e.body.backupCodes as string[] };
+}
+// an editor or admin as the server wants them: the role, and two-factor sign-in on (this session passed it)
+export async function makeStaff(app: App, p: Player, email: string, role: 'editor' | 'admin', password = 'correct horse battery') {
+  const { sql } = await import('drizzle-orm');
+  await app.deps.db.execute(sql`update users set role = ${role} where email = ${email}`);
+  if (!(p as any).totpSecret) await enableTwoFactor(p, password);
+  return p;
+}

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp, linkIn, path as urlPath, birth } from './helpers.ts';
+import { testApp, Player, signUp, linkIn, path as urlPath, birth, makeStaff } from './helpers.ts';
 import { LocalPlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
 import { loadGarageData } from '../../garage/data.js';
@@ -25,7 +25,7 @@ let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 21474836
 before(async () => {
   T = await testApp('ecoflow');
   admin = await signUp(T.app, T.outbox, { email: 'boss@example.com', name: 'Boss Hog', ip: '10.8.0.99' });
-  await T.app.deps.db.execute(sql`update users set role = 'admin' where email = 'boss@example.com'`);
+  await makeStaff(T.app, admin, 'boss@example.com', 'admin');
 });
 after(async () => { await T?.close(); });
 

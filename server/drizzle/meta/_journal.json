@@ -71,6 +71,13 @@
       "when": 1791274150121,
       "tag": "0009_item_extra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791274151121,
+      "tag": "0010_two_factor",
+      "breakpoints": true
     }
   ]
 }

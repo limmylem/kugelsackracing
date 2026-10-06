@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { CLIENT_DIRS, CLIENT_FILES } from '../server/src/clientFiles.ts';
+import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from '../server/src/clientFiles.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
@@ -79,11 +79,14 @@ fs.writeFileSync(index, html);
 
 // ---------- headers and redirects ----------
 const origin = u => new URL(u.replace(/^wss:/, 'https:')).origin;
+// (Phase 6 Step 5: the inline scripts of the pages as built — import maps, start-up scripts — by their hashes, not
+// 'unsafe-inline': a script injected into a page doesn't run. The server's inlineScriptHashes does the same.)
+const scriptHashes = inlineScriptHashes(out).join(' ');
 const csp = [
   "default-src 'self'",
   // (the game's modules, inline module scripts and import maps; three.js, Rapier and Cesium from jsDelivr; Rapier's
   // WebAssembly; the editor's code from the API's address)
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)}`,
+  `script-src 'self' ${scriptHashes} 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)}`,
   "worker-src 'self' blob: https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",

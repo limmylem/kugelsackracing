@@ -8,7 +8,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp } from './helpers.ts';
+import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 import { newItem, feeOf } from '../../content/quests.js';
 import { offset } from '../../content/geo.js';
 import { questVersionOf } from '../../quest/result.js';
@@ -39,7 +39,7 @@ let feeQuest = '';
 before(async () => {
   T = await testApp('sessions');
   [cat, ed] = await Promise.all([signUp(T.app, T.outbox, { email: 'cat@example.com', name: 'Cat Curb', ip: '10.7.0.1' }), signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.7.0.2' })]);
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  await makeStaff(T.app, ed, 'ed@example.com', 'editor');
   // (a published 4-star quest: a fee to enter; the player at a level that may)
   const q: any = { ...newItem('quest', { location: { ...SF, alt: 3, heading: 0 }, type: 'sprint' } as any), name: 'Embarcadero dash', rating: { stars: 4, km: 3 } };
   q.params.finish = { ...offset(SF, 1, 90), alt: 3, heading: 90 };

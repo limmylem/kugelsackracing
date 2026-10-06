@@ -6,7 +6,10 @@
 // The server does all the checking (Better Auth, server/src/routes/me.ts); what anyone typed is shown as text.
 //
 //   /account/?next=/somewhere   back there afterwards (only this site's own pages)
-//   ?mode=sign-up | terms | reset (&token, from the reset email) · ?verified=1 (from the verification email)
+//   ?mode=sign-up | terms | reset (&token, from the reset email) | mfa (an editor's or admin's tools: two-factor
+//   sign-in to turn on, or its code again) · ?verified=1 (from the verification email)
+// Two-factor sign-in (Phase 6 Step 5): an authenticator app's code after the password (any account can turn it on;
+// editors and admins must).
 
 import { createApi, ApiError } from './api.js';
 import { SITE } from '../site/urls.js';
@@ -60,8 +63,9 @@ async function start() {
   if (q.get('verified')) say('Your email is confirmed.', true);
   const mode = q.get('mode');
   if (mode === 'reset' && q.get('token')) return viewReset(q.get('token'));
-  if (!me) return mode === 'sign-up' ? viewSignUp() : mode === 'forgot' ? viewForgot() : viewSignIn();
+  if (!me) return mode === 'sign-up' ? viewSignUp() : mode === 'forgot' ? viewForgot() : mode === 'mfa' ? viewTwoFactorStep() : viewSignIn();
   if (me.needsTerms) return viewTerms();
+  if (mode === 'mfa') return me.twoFactor.enabled ? viewCodeAgain() : viewTurnOnTwoFactor({ required: true });
   if (q.get('verified') || (mode === 'terms' && !me.needsTerms)) { location.replace(next); return; }
   viewAccount();
 }
@@ -81,7 +85,8 @@ function viewSignIn() {
   const resend = h('div');
   show(h('section', {}, h('h2', {}, 'Sign in'),
     form([email.el, pw.el], 'Sign in', async () => {
-      try { await api.auth('/sign-in/email', { email: email.input.value.trim(), password: pw.input.value }); }
+      let r;
+      try { r = await api.auth('/sign-in/email', { email: email.input.value.trim(), password: pw.input.value }); }
       catch (e) {
         // (not confirmed yet: the link sent again)
         if (e.status === 403 && /verif/i.test(e.message)) {
@@ -91,6 +96,8 @@ function viewSignIn() {
         }
         throw e;
       }
+      // (two-factor sign-in on: the authenticator's code before there's a session)
+      if (r?.twoFactorRedirect) return viewTwoFactorStep();
       location.replace(next);
     }),
     resend, ...socialButtons(),
@@ -155,6 +162,57 @@ function viewReset(token) {
     })));
 }
 
+// ---------- two-factor sign-in ----------
+const codeField = () => field('Code from your authenticator app', { required: true, inputmode: 'numeric', autocomplete: 'one-time-code', pattern: '[0-9]{6}', maxlength: 6, minlength: 6 });
+const backupLink = done => h('a', { href: '#', onclick: e => { e.preventDefault(); viewBackupCode(done); } }, 'Use a backup code instead');
+// signing in: the password was right, now the code
+function viewTwoFactorStep() {
+  const code = codeField();
+  show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', { class: 'muted' }, 'Open your authenticator app and enter the 6-digit code for Kugelsack Racing.'),
+    form([code.el], 'Sign in', async () => { await api.auth('/two-factor/verify-totp', { code: code.input.value.trim() }); api.forgetCsrf(); location.replace(next); }),
+    h('div', { class: 'links' }, backupLink(() => location.replace(next)), h('a', { href: here(null) }, 'Start again'))));
+  code.input.focus();
+}
+function viewBackupCode(done) {
+  const code = field('Backup code', { required: true, autocomplete: 'off', maxlength: 40 });
+  show(h('section', {}, h('h2', {}, 'A backup code'), h('p', { class: 'muted' }, 'One of the codes you saved when you turned two-factor sign-in on. Each works once.'),
+    form([code.el], 'Use it', async () => { await api.auth('/two-factor/verify-backup-code', { code: code.input.value.trim() }); api.forgetCsrf(); done(); })));
+}
+// signed in, an editor's or admin's tools ask for the code again (every few hours)
+function viewCodeAgain() {
+  const code = codeField();
+  show(h('section', {}, h('h2', {}, 'Enter your code'), h('p', { class: 'muted' }, 'Editor and admin tools ask for your authenticator\'s code every few hours.'),
+    form([code.el], 'Carry on', async () => { await api.auth('/two-factor/verify-totp', { code: code.input.value.trim() }); location.replace(next); }),
+    h('div', { class: 'links' }, backupLink(() => location.replace(next)))));
+  code.input.focus();
+}
+// turning it on: the password, then the app set up from the key (or its link), then a code to prove it works; the
+// backup codes shown once
+function viewTurnOnTwoFactor({ required = false } = {}) {
+  if (!me.providers.includes('credential')) {
+    show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', {}, 'Two-factor sign-in works with an email and password account. Set a password first: sign out, then "Forgot your password?" with your email.')));
+    return;
+  }
+  const pw = field('Your password', { type: 'password', required: true, autocomplete: 'current-password', maxlength: 128 });
+  show(h('section', {}, h('h2', {}, 'Turn on two-factor sign-in'),
+    h('p', { class: 'muted' }, required ? 'Editor and admin accounts need it: after your password, a code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Aegis…).' : 'After your password, a code from an authenticator app on your phone: someone with your password alone can\'t sign in.'),
+    form([pw.el], 'Next', async () => {
+      const r = await api.auth('/two-factor/enable', { password: pw.input.value });
+      const secret = new URL(r.totpURI).searchParams.get('secret') ?? '', code = codeField();
+      show(h('section', {}, h('h2', {}, 'Set up your app'),
+        h('p', {}, 'Add an account in your authenticator app with this key (or open the link on your phone):'),
+        h('p', {}, h('code', { style: 'font-size:18px;letter-spacing:.12em;user-select:all' }, secret.replace(/(.{4})/g, '$1 ').trim())),
+        h('p', {}, h('a', { href: r.totpURI }, 'Open in my authenticator app')),
+        form([code.el], 'Turn it on', async () => {
+          await api.auth('/two-factor/verify-totp', { code: code.input.value.trim() });
+          show(h('section', {}, h('h2', {}, 'Two-factor sign-in is on'),
+            h('p', {}, 'Save these backup codes somewhere safe (each works once, if you lose your phone):'),
+            h('pre', { style: 'user-select:all;font-size:15px' }, (r.backupCodes ?? []).join('\n')),
+            h('a', { class: 'btn primary', href: required ? next : here(null), style: 'display:inline-flex' }, required ? 'Carry on' : 'Done')));
+        })));
+    })));
+}
+
 // ---------- signed in ----------
 function viewTerms() {
   const birth = birthField(), terms = termsCheck();
@@ -182,6 +240,14 @@ function viewAccount() {
     sections.push(h('section', {}, h('h2', {}, 'Display name'),
       soon ? h('p', { class: 'muted' }, `You can change it again on ${when(soon)}.`) : h('p', { class: 'muted' }, 'You can change it once a month.'),
       !soon && form([name.el], 'Change it', async () => { await api.patch('/me/name', { displayName: name.input.value.trim() }); say('Your name is changed.', true); me = (await api.get('/me')).user; viewAccount(); }, { primary: false })));
+  }
+  if (!me.isGuest) {
+    const tf = me.twoFactor, pw2 = field('Your password', { type: 'password', required: true, autocomplete: 'current-password', maxlength: 128 });
+    sections.push(h('section', {}, h('h2', {}, 'Two-factor sign-in'),
+      tf.enabled ? h('p', {}, 'On: after your password, a code from your authenticator app.') : h('p', { class: tf.required ? 'bad' : 'muted' }, tf.required ? 'Your role needs it: turn it on to use the editor and admin tools.' : 'Off. Turn it on so your password alone isn\'t enough to sign in.'),
+      tf.enabled
+        ? form([pw2.el], tf.required ? 'Turn it off (the editor and admin tools stop working)' : 'Turn it off', async () => { if (!confirm('Turn two-factor sign-in off?')) return; await api.auth('/two-factor/disable', { password: pw2.input.value }); me = (await api.get('/me')).user; say('Two-factor sign-in is off.', true); viewAccount(); }, { primary: false })
+        : h('button', { class: `btn ${tf.required ? 'primary' : 'secondary'}`, type: 'button', onclick: () => viewTurnOnTwoFactor({ required: tf.required }) }, 'Turn it on')));
   }
   sections.push(h('section', {}, h('h2', {}, 'Signing out'),
     h('div', { class: 'row' },

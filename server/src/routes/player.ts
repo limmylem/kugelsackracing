@@ -43,8 +43,13 @@ export async function playerRoutes(app0: FastifyInstance, { economy, config: eco
   });
 
   // ---------- another tab or device: the changes as they happen ----------
+  // (at most a few streams open per account: a tab each, not a thousand held open to use up the server)
+  const open = new Map<string, number>(), MAX_STREAMS = 6;
   app.get('/player/events', async (req, reply) => {
     const user = await who(req);
+    if ((open.get(user.id) ?? 0) >= MAX_STREAMS) throw new AppError(429, 'RATE_LIMITED', 'Too many game windows are open: close one and try again.', undefined, { 'retry-after': '10' });
+    open.set(user.id, (open.get(user.id) ?? 0) + 1);
+    req.raw.on('close', () => { const n = (open.get(user.id) ?? 1) - 1; if (n > 0) open.set(user.id, n); else open.delete(user.id); });
     reply.hijack();
     const res = reply.raw;
     // (the headers set so far — CORS for the game's own address, the security headers — kept: the stream is written

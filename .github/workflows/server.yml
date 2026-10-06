@@ -34,6 +34,8 @@ jobs:
       - run: npm ci
       - name: Dependencies with known vulnerabilities (high or critical, in what's deployed)
         run: npm audit --omit=dev --audit-level=high
+      - name: Leaked secrets in the files (docs/SECURITY.md; the history weekly in security.yml)
+        run: node tools/scan-secrets.mjs
       - name: Typecheck
         run: npm run server:typecheck
       - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)

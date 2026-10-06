@@ -15,14 +15,14 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
-import { anonymous, admin, genericOAuth } from 'better-auth/plugins';
+import { anonymous, admin, genericOAuth, twoFactor } from 'better-auth/plugins';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { defaultStatements, adminAc } from 'better-auth/plugins/admin/access';
 import { sql } from 'drizzle-orm';
 import { SignUpExtra } from '@kr/shared';
 import type { Config } from './config.ts';
 import type { Db } from './db/index.ts';
-import { users, sessions, accounts, verifications } from './db/schema.ts';
+import { users, sessions, accounts, verifications, twoFactors } from './db/schema.ts';
 import { linkMail, type Mailer } from './mail.ts';
 import { guestName, nameFromProfile, nameProblem, withTag } from './names.ts';
 
@@ -66,7 +66,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
     basePath: '/api/auth',
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
-    database: drizzleAdapter(db, { provider: 'pg', schema: { user: users, session: sessions, account: accounts, verification: verifications } }),
+    database: drizzleAdapter(db, { provider: 'pg', schema: { user: users, session: sessions, account: accounts, verification: verifications, twoFactor: twoFactors } }),
     user: {
       additionalFields: {
         termsVersion: { type: 'string', required: false, input: false },
@@ -106,7 +106,11 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       ...(config.social.discord ? { discord: { ...config.social.discord } } : {}),
     },
     account: { accountLinking: { enabled: true, trustedProviders: ['google'] } },
-    session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24, freshAge: 60 * 15 },
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24, freshAge: 60 * 15,
+      // (when this session passed two-factor sign-in: set by the hook below, never by the client)
+      additionalFields: { mfaVerifiedAt: { type: 'date', required: false, input: false } },
+    },
     advanced: {
       useSecureCookies: config.cookieSecure,
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', secure: config.cookieSecure },
@@ -153,6 +157,19 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       before: createAuthMiddleware(async ctx => {
         // (a display name changes only through our own endpoint, with its filter and limits)
         if (ctx.path === '/update-user' && ctx.body && 'name' in ctx.body) throw new APIError('BAD_REQUEST', { message: 'Change your display name from your account page.' });
+        // (the game has no pictures for accounts: nothing is kept there — a link someone else's page might show)
+        if (ctx.path === '/update-user' && ctx.body && 'image' in ctx.body) throw new APIError('BAD_REQUEST', { message: 'Accounts don\'t have pictures.' });
+        // (two-factor sign-in every time: no "trust this device" — an editor's or admin's stolen laptop shouldn't be enough)
+        if (ctx.path.startsWith('/two-factor/verify') && ctx.body && typeof ctx.body === 'object') return { context: { body: { ...ctx.body, trustDevice: false } } };
+      }),
+      after: createAuthMiddleware(async ctx => {
+        // a session that just passed two-factor sign-in (signing in, or entering a code again in a signed-in
+        // session; turning it on counts too): marked, so the editor's and admin's tools know it did
+        if (!/^\/two-factor\/(verify-totp|verify-backup-code)$/.test(ctx.path)) return;
+        const returned: any = ctx.context.returned;
+        if (returned instanceof Error || (returned && typeof returned === 'object' && 'statusCode' in returned && returned.statusCode >= 400)) return;
+        const id = ctx.context.newSession?.session.id ?? ctx.context.session?.session.id;
+        if (id) await db.execute(sql`update sessions set mfa_verified_at = now() where id = ${id}`);
       }),
     },
     plugins: [
@@ -162,6 +179,9 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
         // (a guest who signs up or in, in the same browser: their results, records and replays come along)
         onLinkAccount: async ({ anonymousUser, newUser }) => { await onGuestLinked(anonymousUser.user.id, newUser.user.id); },
       }),
+      // two-factor sign-in with an authenticator app (and backup codes): anyone can turn it on; editors and
+      // admins must (session.ts requireRole). A password sign-in then asks for a code before there's a session.
+      twoFactor({ issuer: 'Kugelsack Racing', skipVerificationOnEnable: false }),
       admin({ defaultRole: 'player', adminRoles: ['admin'], ac, roles, bannedUserMessage: 'This account is suspended or banned. If you think that\'s a mistake, contact support.' }),
       ...(mockOAuth ? [genericOAuth({ config: [{ providerId: 'mock', discoveryUrl: mockOAuth.discoveryUrl, clientId: mockOAuth.clientId, clientSecret: mockOAuth.clientSecret, scopes: ['openid', 'email', 'profile'], pkce: true }] })] : []),
     ],

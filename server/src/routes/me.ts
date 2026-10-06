@@ -39,6 +39,7 @@ export async function meRoutes(app0: FastifyInstance, { config, db, auth, G }: {
         isGuest: s.user.isAnonymous, needsTerms: s.user.termsVersion !== config.termsVersion,
         nameChangeAvailableAt: next && next > new Date() ? next.toISOString() : null, createdAt: s.user.createdAt.toISOString(),
         providers: s.user.isAnonymous ? ['anonymous'] : providers,
+        twoFactor: (() => { const m = G.mfaState(s); return { enabled: s.user.twoFactorEnabled, verifiedAt: m.verifiedAt?.toISOString() ?? null, required: m.required }; })(),
       },
       terms: { version: config.termsVersion, privacyVersion: config.privacyVersion, minAge: config.minAge },
     };

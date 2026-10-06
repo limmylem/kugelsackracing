@@ -10,7 +10,7 @@ import os from 'node:os';
 import nodePath from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp } from './helpers.ts';
+import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 import { newItem } from '../../content/quests.js';
 import { encode, offset } from '../../content/geo.js';
 
@@ -25,7 +25,7 @@ before(async () => {
   ed = await signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.1.0.1' });
   pl = await signUp(T.app, T.outbox, { email: 'pl@example.com', name: 'Pla Yer', ip: '10.1.0.2' });
   anon = new Player(T.app, '10.1.0.3');
-  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  await makeStaff(T.app, ed, 'ed@example.com', 'editor');
 });
 after(async () => { await T?.close(); });
 
@@ -184,7 +184,7 @@ test('export and import: a round trip, a report of what was skipped and why, old
   const U = await testApp('content_import');
   try {
     const e2 = await signUp(U.app, U.outbox, { email: 'ed2@example.com', name: 'Ed Two' });
-    await U.app.deps.db.execute(sql`update users set role = 'editor'`);
+    await makeStaff(U.app, e2, 'ed2@example.com', 'editor');
     const doc = { ...ex.body, entries: [...ex.body.entries,
       { draft: { ...finished(), id: 'quest_badfield', fee: 5 } },
       { draft: { id: '../../etc', kind: 'quest' } },

@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { testApp, Player, signUp } from './helpers.ts';
+import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 
 let T: Awaited<ReturnType<typeof testApp>>, ann: Player, ben: Player, admin: Player;
 const act = (p: Player, action: string, args: object, o: object = {}) => p.post(`/api/v1/player/actions/${action}`, { args }, o);
@@ -23,7 +23,7 @@ before(async () => {
     signUp(T.app, T.outbox, { email: 'ben@example.com', name: 'Ben Brake', ip: '10.6.0.2' }),
     signUp(T.app, T.outbox, { email: 'adm@example.com', name: 'The Admin', ip: '10.6.0.3' }),
   ]);
-  await T.app.deps.db.execute(sql`update users set role = 'admin' where email = 'adm@example.com'`);
+  await makeStaff(T.app, admin, 'adm@example.com', 'admin');
 });
 after(async () => { await T?.close(); });
 

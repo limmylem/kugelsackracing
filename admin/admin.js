@@ -4,6 +4,7 @@
 // Everything a player wrote (names, reasons) goes on the page as text, never as HTML.
 
 import { createApi, ApiError } from '../account/api.js';
+import { SITE } from '../site/urls.js';
 
 const api = createApi();
 const $ = id => document.getElementById(id);
@@ -39,7 +40,15 @@ async function start() {
     $('gateWhy').textContent = `This page is for admins. You're signed in as ${me.displayName}, ${me.isGuest ? 'a guest' : `with the ${me.role} role`}.`;
     return;
   }
+  // (Phase 6 Step 5: an admin's session needs two-factor sign-in, recently — the account page asks for the code, or
+  // turns it on, then comes back here)
+  try { await api.get('/admin/audit?limit=1'); }
+  catch (e) { if (e.code === 'MFA_REQUIRED') return toTwoFactor(); throw e; }
   showAdmin();
+}
+function toTwoFactor() {
+  const back = SITE.api ? `${SITE.api}/admin/` : '/admin/';
+  location.href = `${SITE.game || ''}/account/?${new URLSearchParams({ mode: 'mfa', next: back })}`;
 }
 
 async function showSignIn() {
@@ -48,7 +57,7 @@ async function showSignIn() {
   $('signIn').onsubmit = async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target);
-    try { await api.auth('/sign-in/email', { email: f.get('email'), password: f.get('password') }); api.forgetCsrf(); location.reload(); }
+    try { const r = await api.auth('/sign-in/email', { email: f.get('email'), password: f.get('password') }); api.forgetCsrf(); if (r?.twoFactorRedirect) return toTwoFactor(); location.reload(); }
     catch (e) { say($('gateMsg'), errText(e)); }
   };
   try {
