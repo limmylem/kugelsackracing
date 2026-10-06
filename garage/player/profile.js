@@ -29,7 +29,8 @@ import { checkQuests } from './quests.js';
 
 export const PROFILE_VERSION = 4;
 export const clone = x => JSON.parse(JSON.stringify(x));
-export const newId = (profile, prefix) => `${prefix}_${String(profile.nextId++).padStart(6, '0')}`;
+// (idPrefix: the server's, per player — Phase 6 Step 2 — so every copy's id is unique across all players)
+export const newId = (profile, prefix) => `${prefix}_${profile.idPrefix ?? ''}${String(profile.nextId++).padStart(6, '0')}`;
 
 // ---------- money ----------
 // Straight lines between [x, y] points
@@ -122,8 +123,8 @@ export function addPart(profile, db, partId, condition = 100) {
 }
 
 // A new player: the starting car with its stock parts, and the starting money
-export function newProfile(db, now = new Date().toISOString()) {
-  const E = db.economy, profile = { version: PROFILE_VERSION, money: E.startingMoney, nextId: 1, currentCar: null, created: now, cars: {}, parts: {} };
+export function newProfile(db, now = new Date().toISOString(), { idPrefix = null } = {}) {
+  const E = db.economy, profile = { version: PROFILE_VERSION, money: E.startingMoney, nextId: 1, currentCar: null, created: now, ...(idPrefix ? { idPrefix } : {}), cars: {}, parts: {} };
   profile.currentCar = addCar(profile, db, E.startingCar);
   return profile;
 }

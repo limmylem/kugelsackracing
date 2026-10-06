@@ -85,10 +85,11 @@ export class LocalPlayerService extends PlayerService {
   // quests: { config (data/quests.json), recordings (quest/recordStore.js) }
   // questGate: () → null (quests may start) or why not in plain words — Phase 6: the game's server must be
   // there and the player signed in (offline is free roam only)
-  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null, questGate = null } = {}) {
+  // idPrefix: a new profile's ids made unique across players (the server's)
+  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null, questGate = null, idPrefix = null } = {}) {
     super();
     this.db = db; this.storage = storage; this.now = now; this.migrations = migrations;
-    this.quests = quests; this.questGate = questGate;
+    this.quests = quests; this.questGate = questGate; this.idPrefix = idPrefix;
     this.profile = null; this.notices = []; this.queue = Promise.resolve();
     this.unlimited = false;       // (development: unlimited money)
   }
@@ -106,7 +107,7 @@ export class LocalPlayerService extends PlayerService {
   async init() {
     const saved = await this.storage.load();
     let changed = true;
-    if (!saved) { this.profile = newProfile(this.db, this.now()); this.notices = []; }
+    if (!saved) { this.profile = newProfile(this.db, this.now(), { idPrefix: this.idPrefix }); this.notices = []; }
     else {
       const { profile, notices } = this.#bringIn(saved);
       this.profile = profile; this.notices = notices;
@@ -722,7 +723,7 @@ export class LocalPlayerService extends PlayerService {
     });
   }
   resetProfile() {
-    return this.#change('reset', p => { const fresh = newProfile(this.db, this.now()); for (const k of Object.keys(p)) delete p[k]; Object.assign(p, fresh); return {}; });
+    return this.#change('reset', p => { const fresh = newProfile(this.db, this.now(), { idPrefix: p.idPrefix ?? null }); for (const k of Object.keys(p)) delete p[k]; Object.assign(p, fresh); return {}; });
   }
 }
 

@@ -10,6 +10,7 @@
     "version": { "type": "integer", "minimum": 1, "description": "The save format (garage/player/profile.js PROFILE_VERSION); older saves are brought up to date on load (garage/player/migrations.js)" },
     "money": { "type": "number", "minimum": 0 },
     "nextId": { "type": "integer", "minimum": 1 },
+    "idPrefix": { "type": "string", "pattern": "^[a-z0-9]{1,12}$", "description": "The server's prefix for this player's new ids (Phase 6 Step 2): every copy's id unique across players." },
     "currentCar": { "type": ["string", "null"], "description": "The car being driven / in the garage" },
     "created": { "type": "string" },
     "saved": { "type": "string", "description": "When it was last saved (ISO time)" },

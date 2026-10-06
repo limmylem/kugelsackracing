@@ -27,6 +27,12 @@ export async function moveGuestData(db: Db, from: string, to: string) {
 }
 
 export async function deleteUserData(db: Db, userId: string) {
+  // (the ledger is append-only: an account's rows go with it only here, the rule lifted for this transaction)
+  await db.transaction(async tx => {
+    await tx.execute(sql`select set_config('kr.ledger_delete', 'on', true)`);
+    await tx.execute(sql`delete from ledger where user_id = ${userId}`);
+    await tx.execute(sql`delete from player_economy where user_id = ${userId}`);
+  });
   // (their results, records, replays and sessions go with the users row: on delete cascade. What they authored
   // as an editor stays in the world, its author cleared — on delete set null — and so do the admins' log entries)
   await db.execute(sql`delete from idempotency_keys where scope = ${`u:${userId}`}`);

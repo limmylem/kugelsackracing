@@ -37,7 +37,7 @@ export const ERROR_CODES = [
   'BAD_REQUEST', 'VALIDATION', 'UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'CONFLICT', 'GONE',
   'PAYLOAD_TOO_LARGE', 'UNSUPPORTED_MEDIA_TYPE', 'RATE_LIMITED', 'IDEMPOTENCY_MISMATCH', 'IDEMPOTENCY_IN_PROGRESS', 'IDEMPOTENCY_KEY_REQUIRED',
   'CSRF', 'TERMS_REQUIRED', 'BANNED', 'NAME_TAKEN', 'NAME_NOT_ALLOWED', 'NAME_CHANGE_TOO_SOON', 'NEEDS_CONFIRM', 'UNPUBLISHABLE',
-  'OFFLINE', 'INTERNAL',
+  'REFUSED', 'OFFLINE', 'INTERNAL',
 ] as const;
 export const ErrorCode = z.enum(ERROR_CODES);
 export type ErrorCode = z.infer<typeof ErrorCode>;
@@ -236,3 +236,61 @@ export const ClientConfig = z.object({
   termsVersion: z.string(), privacyVersion: z.string(), minAge: z.number().int(),
 });
 export const Ok = z.object({ ok: z.literal(true) });
+
+// ---------- the economy (Phase 6 Step 2): what the game may ask the server's player service ----------
+// Each action's arguments: what the player wants done — never a price, an amount of money or a car's stats
+// (the server works those out). Anything else in a request is refused.
+const InstanceId = z.string().regex(/^[A-Za-z0-9_.:-]{1,80}$/, 'not an id');
+const DataId = z.string().regex(/^[A-Za-z0-9_.-]{1,80}$/, 'not an id');
+const Socket = z.string().regex(/^[A-Za-z0-9_.:-]{1,60}$/);
+const Paint = z.object({ colour: z.string().max(32), finish: z.string().max(40) }).strict();
+const Look = z.object({ colour: z.string().max(32).optional(), finish: z.string().max(40).optional() }).strict();
+const SessionId = z.string().regex(/^(ses|drv)_[0-9a-f-]{36}$/, 'not a session id');
+const Hit = z.object({ p: z.array(Num).length(3), d: z.array(Num).length(3), s: Num, w: Num.optional() }).strict();
+const Hits = z.array(Hit).max(32);
+const PartDamage = z.object({ condition: z.number().min(0).max(100).optional(), hits: Hits.optional(), damage: z.record(z.string().max(40), z.union([Num, z.record(z.string().max(40), Num)])).optional(), attach: z.enum(['attached', 'loose', 'detached']).optional() }).strict();
+const ShellDamage = z.object({ condition: z.number().min(0).max(100).optional(), hits: Hits.optional(), broken: z.array(z.string().max(80)).max(64).optional() }).strict();
+const RepairItem = z.object({ target: z.union([InstanceId, z.literal('shell')]), scope: z.union([z.literal('all'), z.string().max(60), z.record(z.string().max(40), z.unknown())]).optional() }).strict();
+export const PLAYER_ACTION_ARGS = {
+  buyPart: z.object({ partId: DataId, quantity: z.number().int().min(1).max(20).optional() }).strict(),
+  sellPart: z.object({ instanceId: InstanceId }).strict(),
+  repairPart: z.object({ instanceId: InstanceId }).strict(),
+  repairParts: z.object({ instanceIds: z.array(InstanceId).min(1).max(200) }).strict(),
+  repairBody: z.object({ carInstanceId: InstanceId }).strict(),
+  repairCar: z.object({ carInstanceId: InstanceId, opts: z.object({ kind: z.enum(['quick', 'full']).optional(), items: z.array(RepairItem).max(200).optional() }).strict().optional() }).strict(),
+  replaceWithSpare: z.object({ carInstanceId: InstanceId, socket: Socket, instanceId: InstanceId }).strict(),
+  basicRepair: z.object({ carInstanceId: InstanceId }).strict(),
+  installPart: z.object({ carInstanceId: InstanceId, instanceId: InstanceId, opts: z.object({ socket: Socket.optional(), auto: z.boolean().optional() }).strict().optional() }).strict(),
+  removePart: z.object({ carInstanceId: InstanceId, which: Socket, opts: z.object({ auto: z.boolean().optional() }).strict().optional() }).strict(),
+  buyAndInstall: z.object({ carInstanceId: InstanceId, partId: DataId, opts: z.object({ socket: Socket.optional(), auto: z.boolean().optional() }).strict().optional() }).strict(),
+  setBuild: z.object({ carInstanceId: InstanceId, build: z.object({
+    sockets: z.record(Socket, InstanceId.nullable()).optional(), tuning: z.record(InstanceId, z.record(z.string().max(40), Num.nullable()).nullable()).optional(),
+    partPaint: z.record(InstanceId, Look.nullable()).optional(), paint: Paint.nullable().optional(), activeSetup: z.string().max(80).nullable().optional() }).strict() }).strict(),
+  setTuning: z.object({ instanceId: InstanceId, settings: z.record(z.string().max(40), Num.nullable()) }).strict(),
+  setPaint: z.object({ carInstanceId: InstanceId, paint: Paint.nullable() }).strict(),
+  setPartFinish: z.object({ instanceIds: z.array(InstanceId).min(1).max(64), look: Look.nullable() }).strict(),
+  selectCar: z.object({ carInstanceId: InstanceId }).strict(),
+  buyCar: z.object({ carId: DataId }).strict(),
+  saveSetup: z.object({ carInstanceId: InstanceId, opts: z.object({ name: z.string().trim().max(40).optional(), setupId: z.string().max(80).optional() }).strict().optional() }).strict(),
+  renameSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80), name: z.string().trim().min(1).max(40) }).strict(),
+  deleteSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80) }).strict(),
+  switchSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80), opts: z.object({ force: z.boolean().optional() }).strict().optional() }).strict(),
+  markHint: z.object({ id: z.string().regex(/^[a-zA-Z0-9_]{1,60}$/) }).strict(),
+  favouriteTrack: z.object({ track: z.object({ code: TrackCode, kind: TrackKind, name: z.string().max(80).nullable().optional() }).strict(), on: z.boolean() }).strict(),
+  startQuest: z.object({ questId: z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/), trackCode: TrackCode.nullable().optional(), carInstanceId: InstanceId.optional(), restart: z.boolean().optional() }).strict(),
+  refundQuest: z.object({ sessionId: SessionId }).strict(),
+  finishQuest: z.object({ sessionId: SessionId, result: RunResult, recording: RecordingSchema.nullable().optional() }).strict(),
+  failQuest: z.object({ sessionId: SessionId, status: z.enum(['dnf', 'quit', 'wrecked', 'time', 'failed', 'disqualified']).optional(), reason: z.string().max(80).nullable().optional() }).strict(),
+  awardCar: z.object({ sessionId: SessionId, result: RunResult }).strict(),
+  forfeitCar: z.object({ sessionId: SessionId, carInstanceId: InstanceId }).strict(),
+  damageCar: z.object({ sessionId: SessionId, carInstanceId: InstanceId, report: z.object({ parts: z.record(InstanceId, PartDamage).optional(), shell: ShellDamage.nullable().optional() }).strict(), cause: z.string().max(80).nullable().optional() }).strict(),
+  wearPart: z.object({ sessionId: SessionId, instanceId: InstanceId, condition: z.number().min(0).max(100), cause: z.string().max(80).nullable().optional() }).strict(),
+  sessionReset: z.object({ sessionId: SessionId }).strict(),
+} as const;
+export type PlayerActionName = keyof typeof PLAYER_ACTION_ARGS;
+export const PlayerActionBody = z.object({ args: z.record(z.string(), z.unknown()) }).strict();
+export const DriveStart = z.object({ carInstanceId: InstanceId, mode: z.enum(['free', 'test']).default('free') }).strict();
+export const AdminMoney = z.object({ amount: z.number().int().refine(n => n !== 0, 'not zero').refine(n => Math.abs(n) <= 100_000_000, 'too big'), reason: z.string().trim().min(3).max(500) }).strict();
+export const AdminItem = z.object({ give: z.object({ partId: DataId.optional(), carId: DataId.optional(), quantity: z.number().int().min(1).max(20).optional() }).strict().optional(), remove: z.object({ instanceId: InstanceId.optional(), carInstanceId: InstanceId.optional() }).strict().optional(), reason: z.string().trim().min(3).max(500) }).strict();
+export const AdminReverse = z.object({ reason: z.string().trim().min(3).max(500) }).strict();
+export const EconomyChange = z.object({ data: z.object({ economy: z.record(z.string(), z.unknown()), quests: z.record(z.string(), z.unknown()) }).strict(), reason: z.string().trim().min(3).max(500), basedOn: z.number().int().positive() }).strict();

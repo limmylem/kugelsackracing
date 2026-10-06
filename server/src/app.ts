@@ -32,6 +32,10 @@ import { contentRoutes } from './routes/content.ts';
 import { loadRules } from './content/rules.ts';
 import { promoteOwner } from './owner.ts';
 import { createTrackService } from './tracks/service.ts';
+import { createEconomyConfig } from './economy/config.ts';
+import { createEconomy } from './economy/service.ts';
+import { playerRoutes } from './routes/player.ts';
+import { adminEconomyRoutes } from './routes/adminEconomy.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
@@ -210,6 +214,15 @@ export async function buildApp(deps: AppDeps) {
   const tracks = createTrackService({ db, config, log: (o, m) => app.log.info(o, m) });
   app.decorate('tracks', tracks);
   app.addHook('onClose', async () => { await tracks.close(); });
+  // (the economy: the server's — Phase 6 Step 2; runs gone quiet ended every minute)
+  const economyConfig = createEconomyConfig(db);
+  const economy = createEconomy({ db, config: economyConfig, tracks, log: (o, m) => app.log.warn(o, m) });
+  app.decorate('economy', economy);
+  app.decorate('economyConfig', economyConfig);
+  app.addHook('onReady', async () => { await economyConfig.ensure(); });
+  const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
+  sweeper.unref();
+  app.addHook('onClose', async () => clearInterval(sweeper));
   // (the coming days' tracks made ahead of time: now, then every hour)
   if (config.tracks.precompute) {
     app.addHook('onReady', async () => { void tracks.prepare(); });
@@ -222,6 +235,8 @@ export async function buildApp(deps: AppDeps) {
     await adminRoutes(api, { config, db, auth, G });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
+    await playerRoutes(api, { economy, config: economyConfig, G });
+    await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
   }, { prefix: API_PREFIX });
 
   // ---------- the game itself (same origin as the API: the session cookie stays first-party) ----------
@@ -267,7 +282,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService }
+  interface FastifyInstance { routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };

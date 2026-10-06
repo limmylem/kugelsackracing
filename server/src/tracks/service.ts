@@ -201,6 +201,8 @@ export function createTrackService({ db, config, log = () => {} }: { db: Db; con
       }
     },
     built,
+    // (an event as the server knows it, for the economy's runs: the day's, the week's, a code's)
+    resolveEvent: (eventId: string, code: string | null, now = Date.now()) => eventFor(eventId, { track: { code } }, now),
 
     // a run handed in: checked, kept; the record and the leaderboard place
     async submit(user: User, body: { eventId: string; result: any; recording?: any; replayId?: string | null }, now = Date.now()) {
