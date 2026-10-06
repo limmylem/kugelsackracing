@@ -3,22 +3,63 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600&display=swap" rel="stylesheet">
 <style>html,body{margin:0;background:#07090b;color:#e9ecef;font:500 15px/1.6 Barlow,system-ui,sans-serif}main{width:min(720px,calc(100vw - 32px));margin:40px auto 64px}h1,h2{font-family:'Barlow Condensed',Barlow,sans-serif;font-weight:600;letter-spacing:.02em}h1{font-size:32px;margin:0 0 4px}h2{font-size:21px;margin:28px 0 6px}p,li{color:#c9d0d8}.meta{color:#6b7480;font-size:13px}.draft{background:rgba(242,192,55,.12);color:#f2c037;padding:10px 12px;border-radius:8px;font-size:14px}a{color:#36b3f5}</style></head><body><main>
 <h1>Privacy policy</h1>
-<p class="meta">Version 2026-10-06</p>
-<p class="draft">A starting draft written with the game. The game's owner should review it (ideally with legal advice) before the game is opened to the public.</p>
-<h2>What's kept</h2>
+<p class="meta">Version 2026-10-06 · draft 2026-10-07</p>
+<p class="draft">DRAFT for legal review (Phase 6 Step 5). The game's owner will have it checked before the game opens to the public. Words in [square brackets] are still to fill in. The full list it's based on: docs/PRIVACY_DATA.md.</p>
+
+<h2>Who we are</h2>
+<p>Kugelsack Racing ("the game", "we") is run by [OWNER NAME], [ADDRESS] — the controller of your personal data. Contact: [PRIVACY EMAIL], or "Contact support" in the game.</p>
+
+<h2>What we keep, and why</h2>
 <ul>
-<li><b>Your account:</b> your email address, display name, a scrambled form of your password (never the password itself), your role, when you joined, and when you accepted these terms. Your date of birth is only checked when you sign up, never kept.</li>
-<li><b>Signing in:</b> your sessions, each with the internet address and browser it came from, so you can sign out everywhere and so abuse can be stopped. If you sign in with Google or Discord, the account id and profile name they give us.</li>
-<li><b>Playing:</b> the results you hand in (with the run's recording, as evidence for the leaderboards), your track records, and the race replays you keep (your newest 50, and your records').</li>
-<li><b>In your browser:</b> your garage and progress (kept in this browser, tied to your account), your settings, and two cookies the game needs: one keeps you signed in, one protects your requests from other sites. There are no advertising or tracking cookies.</li>
-<li><b>Admins' log:</b> anything an admin does to an account (a role change, a suspension) is logged with the reason.</li>
+<li><b>Your account:</b> email, display name, a scrambled form of your password (never the password), your role, when you joined, and when you accepted these terms. We check your date of birth against the minimum age when you sign up, and don't keep it. If you sign in with Google or Discord, the account id they give us. If you turn on two-factor sign-in, its secret and backup codes, encrypted. <i>Why: to run your account (our contract with you).</i></li>
+<li><b>Signing in:</b> each session's internet address, browser and times. <i>Why: to keep you signed in, let you sign out everywhere, and spot a stolen account (contract; our legitimate interest in security).</i></li>
+<li><b>Playing:</b> your progress (money, cars, parts, quests, the history of each change), the results you hand in with their recording as evidence, your records and the replays you keep. <i>Why: to play the game and keep leaderboards fair (contract; legitimate interest in fair play).</i></li>
+<li><b>Fair play and safety:</b> the addresses you play from and a scrambled form of a random id the game keeps in your browser, for 90 days, to notice one person using several accounts to farm or pass on items; reports players make and how they were handled; flags our checks raise. Nothing about you is decided by a machine alone: an admin reviews every flag. <i>Why: our legitimate interest in preventing cheating and fraud.</i></li>
+<li><b>Messages to us:</b> what you write to support or as feedback, with the game's version and basic device information (browser, operating system, screen size, graphics card) so we can reproduce a problem. <i>Why: to answer you (contract; legitimate interest).</i></li>
+<li><b>Admins' log:</b> anything an admin does to an account, with the reason. <i>Why: accountability.</i></li>
+<li><b>Server logs and error reports:</b> requests to the server (without passwords, cookies or tokens) and errors, with nothing personal in the error reports. <i>Why: to keep the game running (legitimate interest).</i></li>
 </ul>
+<p>We don't sell your data, share it for advertising, or use it for advertising. There's no profiling beyond the fair-play checks above.</p>
+
 <h2>Who sees it</h2>
-<p>Other players see your display name, your times and places on leaderboards, and replays shared with them. The game's admins can see your account to help you or to stop abuse. The game runs on hosting providers (its server and its database) and sends email through an email provider; they keep the data only to run the game. Errors in the game are reported to an error-tracking service without your name, email or anything you typed. Nothing is sold, and nothing is used for advertising.</p>
-<h2>Your choices</h2>
-<ul><li><b>A copy:</b> download everything the server keeps about you from the account page.</li>
-<li><b>Deleting:</b> delete your account from the account page: your account, results, records and replays are deleted at once (backups of the database roll off within 30 days). World content you made as an editor stays in the game, no longer linked to you.</li>
-<li><b>Guests:</b> a guest account is deleted when it's made into a full account (its progress moves across).</li></ul>
-<h2>Contact</h2>
-<p>Questions about your data: contact the game's owner.</p>
-<p class="meta"><a href="/account/">Back</a></p></main></body></html>
+<ul>
+<li>Other players see your display name, your times and places on leaderboards, and replays shared from them.</li>
+<li>The game's admins see your account and its history, to help you and to stop abuse. Every time they look, it's logged.</li>
+<li>Service providers who run the game for us, under contract, only to provide their service: Render (servers, Singapore), Neon (database, Singapore), Cloudflare (network protection and the bot check, worldwide), Resend (email, Tokyo), Sentry (error reports, United States). [Reviewer: transfer mechanisms per provider.]</li>
+<li>The game loads code from jsDelivr and fonts from Google Fonts, which see your internet address when they're fetched. [Reviewer: see the open question on serving these ourselves.]</li>
+<li>Authorities, only where the law requires it.</li>
+</ul>
+
+<h2>How long we keep it</h2>
+<ul>
+<li>Your account and progress: until you delete the account. A guest account nobody has played for 30 days is deleted.</li>
+<li>Sign-in sessions: 30 days after last use. Email links: an hour (password reset) or a day (confirming your email).</li>
+<li>Addresses and the browser id used for fair-play checks: 90 days after last seen.</li>
+<li>Support and feedback messages: 1 year. Resolved reports and reviewed flags: 1 year. The admins' log: 2 years.</li>
+<li>Server logs and error reports: about 7 and 30 days (our providers' settings). Backups: 30 days.</li>
+</ul>
+
+<h2>Cookies and your browser</h2>
+<p>The game uses only cookies it needs to work: one keeps you signed in, one protects your requests from other sites, and two are used briefly while signing in. There are no advertising, tracking or analytics cookies, so there's nothing to agree to. The game also keeps your settings, downloaded map files and ghost recordings in your browser's storage, plus a random id (not anything about your device) that it sends with requests for the fair-play checks above.</p>
+
+<h2>Your rights</h2>
+<p>Wherever you live, you can:</p>
+<ul>
+<li><b>get a copy</b> of your data — "Download my data" on the account page;</li>
+<li><b>correct</b> it — your display name on the account page, anything else through support;</li>
+<li><b>delete</b> it — "Delete my account" on the account page (at once; database backups roll off within 30 days). World content you made as an editor stays in the game without your name;</li>
+<li><b>object to or restrict</b> how we use it, or ask a question — contact us.</li>
+</ul>
+<p><b>EU and UK (GDPR, UK GDPR):</b> you also have the right to data portability, and to complain to your data protection authority (in the UK, the Information Commissioner's Office). Where we rely on legitimate interests, you can ask how we balanced them. [Reviewer: EU/UK representative.]</p>
+<p><b>United States (including California's CCPA/CPRA and similar state laws):</b> you have the right to know, correct and delete, and not to be discriminated against for using them. We don't sell or share personal information as those laws define it, so there's nothing to opt out of. The categories collected are identifiers (email, display name, internet address, the browser id), internet activity (sessions, requests), and game activity, for the purposes above.</p>
+<p><b>Australia (Privacy Act 1988, Australian Privacy Principles):</b> you can ask to see and correct your information. Some of it is held overseas by the providers listed above. If you're unhappy with how we handle a complaint, you can contact the Office of the Australian Information Commissioner (oaic.gov.au).</p>
+
+<h2>Children</h2>
+<p>You need to be at least 13 to play [reviewer: the minimum age and any parental consent — see the open questions]. We don't knowingly collect data from children under that age. If you think a child has made an account, contact us and we'll delete it.</p>
+
+<h2>Security</h2>
+<p>Passwords are hashed, connections are encrypted, and the database and its backups are encrypted. Editor and admin accounts need two-factor sign-in, and every admin action is logged. If a breach puts your data at risk, we'll tell you and the authorities as the law requires.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes in a way that matters, we'll ask you to look at the new version the next time you play.</p>
+<p class="meta"><a href="/account/">Back</a> · <a href="/account/terms.html">Terms of service</a> · <a href="/account/credits.html">Credits and licences</a></p></main></body></html>

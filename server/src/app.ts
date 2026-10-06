@@ -46,6 +46,7 @@ import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts'
 import { createSignals, scanForAbuse } from './abuse/detect.ts';
 import { abuseRoutes } from './routes/abuse.ts';
 import { opsRoutes } from './routes/ops.ts';
+import { runRetention } from './ops/retention.ts';
 
 import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from './clientFiles.ts';
 export { CLIENT_DIRS, CLIENT_FILES };
@@ -238,6 +239,10 @@ export async function buildApp(deps: AppDeps) {
     const s = await req.sessionCache.catch(() => null);
     if (s) void signals.seen(s.user.id, req.headers[DEVICE_HEADER] as string | undefined, req.ip);
   });
+  // (personal data kept only as long as it's needed: once a day — docs/PRIVACY_DATA.md)
+  const retentionTimer = setInterval(() => { void runRetention(db, config.retention).then(r => app.log.info(r, 'retention')).catch(e => app.log.warn({ err: e }, 'retention failed')); }, 24 * 3600e3);
+  retentionTimer.unref();
+  app.addHook('onClose', async () => clearInterval(retentionTimer));
   const abuseTimer = setInterval(() => { void scanForAbuse(db, config.abuse).catch(e => app.log.warn({ err: e }, 'abuse scan failed')); }, 3600e3);
   abuseTimer.unref();
   app.addHook('onClose', async () => clearInterval(abuseTimer));

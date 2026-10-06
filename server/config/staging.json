@@ -13,5 +13,6 @@
   "staffMfa": { "required": true, "maxAgeHours": 12 },
   "botCheck": { "required": false },
   "abuse": { "maxRewardPerHour": 60000, "burstAccounts": 4, "farmGroup": 3, "keepDays": 90 },
-  "closedBeta": true
+  "closedBeta": true,
+  "retention": { "guestInactiveDays": 30, "sessionsExpiredDays": 7, "signalsDays": 90, "supportDays": 365, "reportsDays": 365, "flagsDays": 365, "inviteUsesDays": 365, "auditDays": 730, "alertsDays": 90 }
 }

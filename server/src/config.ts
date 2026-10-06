@@ -36,6 +36,9 @@ const FileConfig = z.object({
   abuse: z.object({ maxRewardPerHour: z.number().positive(), burstAccounts: z.number().int().min(2), farmGroup: z.number().int().min(2), keepDays: z.number().int().min(1).max(365) }),
   // signing up needs an invite code, until an admin turns it off (the admin page's Launch settings)
   closedBeta: z.boolean(),
+  // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
+  retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
+    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);

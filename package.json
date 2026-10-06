@@ -54,7 +54,9 @@
     "server": "npm run --workspace @kr/server start",
     "server:dev": "npm run --workspace @kr/server dev",
     "test:server": "npm run --workspace @kr/server test",
-    "server:typecheck": "tsc -p server/tsconfig.json"
+    "server:typecheck": "tsc -p server/tsconfig.json",
+    "credits": "node tools/credits.mjs",
+    "scan-secrets": "node tools/scan-secrets.mjs"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

@@ -36,6 +36,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Leaked secrets in the files (docs/SECURITY.md; the history weekly in security.yml)
         run: node tools/scan-secrets.mjs
+      - name: The credits screen lists every data source and package (npm run credits)
+        run: node tools/credits.mjs --check
       - name: Typecheck
         run: npm run server:typecheck
       - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)

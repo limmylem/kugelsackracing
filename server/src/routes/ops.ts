@@ -22,6 +22,7 @@ import { AppError, notFound } from '../errors.ts';
 import { auditLog } from '../db/schema.ts';
 import { FEATURES, type SiteSettingsStore } from '../ops/settings.ts';
 import { maskIp } from '../abuse/detect.ts';
+import { runRetention } from '../ops/retention.ts';
 import { sessionOf } from '../session.ts';
 import type { Auth } from '../auth.ts';
 
@@ -78,6 +79,13 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     const after = await settings.set(b.key, value as any, s.user.id);
     await log(s, `setting-${b.key}`, null, b.reason, { from: now[b.key], to: after[b.key] });
     return { ok: true as const, settings: after };
+  });
+
+  // ---------- keeping personal data only as long as needed (ops/retention.ts; it runs daily by itself) ----------
+  app.post('/admin/retention', { config: { role: 'admin' }, schema: { body: z.object({ dryRun: z.boolean().default(true) }).strict() } }, async req => {
+    const s = await admin(req), r = await runRetention(db, config.retention, { dryRun: req.body.dryRun });
+    if (!req.body.dryRun) await log(s, 'retention-run', null, null, r.deleted);
+    return { ok: true as const, ...r, rules: config.retention };
   });
 
   // ---------- the closed beta's invite codes ----------

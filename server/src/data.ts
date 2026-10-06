@@ -45,6 +45,13 @@ export async function deleteUserData(db: Db, userId: string) {
   // (their results, records, replays and sessions go with the users row: on delete cascade. What they authored
   // as an editor stays in the world, its author cleared — on delete set null — and so do the admins' log entries)
   await db.execute(sql`delete from idempotency_keys where scope = ${`u:${userId}`}`);
+  // (Phase 6 Step 5) what links them to other accounts, the invite they used, and their id in abuse flags: gone too
+  // (reports they made stay for the reported player's sake, without them — on delete set null; their support messages,
+  // reports about them and two-factor secret go by the cascade)
+  await db.execute(sql`delete from account_signals where user_id = ${userId}`);
+  await db.execute(sql`delete from invite_uses where user_id = ${userId}`);
+  await db.execute(sql`update abuse_flags set user_ids = array_remove(user_ids, ${userId}) where ${userId} = any(user_ids)`);
+  await db.execute(sql`delete from abuse_flags where cardinality(user_ids) = 0`);
 }
 
 export async function exportUserData(db: Db, userId: string) {
@@ -61,6 +68,20 @@ export async function exportUserData(db: Db, userId: string) {
     replays: await one(sql`select id, event_id, code, title, duration, cars, bytes, created_at from replays where owner_id = ${userId} order by created_at`),
     worldContent: await one(sql`select id, view, kind, (data->>'name') as name, created_at, updated_at, published_at from content_items where author_id = ${userId}`),
     adminActions: await one(sql`select at, action, reason from audit_log where target_id = ${userId} order by at`),
-    note: 'Your game progress (cars, parts, money, quest bests) is kept in your browser in this version of the game: it is not on the server yet.',
+    // (Phase 6 Steps 2–5: the economy is the server's — the save, money, cars, parts, quest progress and their history)
+    economy: (await one(sql`select balance, xp, level, profile_version, current_car, state, created_at, updated_at from player_economy where user_id = ${userId}`))[0] ?? null,
+    ledger: await one(sql`select amount, balance_after, kind, reason, ref, at from ledger where user_id = ${userId} order by id`),
+    cars: await one(sql`select * from owned_cars where user_id = ${userId}`),
+    parts: await one(sql`select * from owned_parts where user_id = ${userId}`),
+    questProgress: await one(sql`select * from quest_progress where user_id = ${userId}`),
+    itemHistory: await one(sql`select item_type, instance_id, event, details, at from item_history where user_id = ${userId} order by id`),
+    runs: await one(sql`select id, kind, quest_id, car_instance_id, state, end_reason, started_at, ended_at from economy_sessions where user_id = ${userId} order by started_at`),
+    twoFactor: { enabled: !!((await one(sql`select two_factor_enabled from users where id = ${userId}`))[0] as any)?.two_factor_enabled, note: 'The authenticator\'s secret and backup codes are kept encrypted and aren\'t shown here.' },
+    // what links accounts for abuse review: the addresses you played from, and your browser's id as kept (scrambled)
+    accountLinks: await one(sql`select kind, value, first_seen, last_seen, hits from account_signals where user_id = ${userId} order by kind, last_seen desc`),
+    reportsMade: await one(sql`select kind, target_name, details, status, created_at from reports where reporter_id = ${userId} order by created_at`),
+    reportsAboutYou: await one(sql`select kind, status, resolution, created_at from reports where target_id = ${userId} order by created_at`),
+    supportMessages: await one(sql`select kind, category, message, contact_email, client, status, created_at from support_tickets where user_id = ${userId} order by created_at`),
+    note: 'Also kept in your browser (not on the server): your settings, the game\'s random browser id, map files and ghost recordings.',
   };
 }
