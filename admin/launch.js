@@ -79,8 +79,11 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
     const st = S.settings, mMsg = h('textarea', { rows: 2, maxlength: 500 }, st.maintenance.message), mUntil = h('input', { placeholder: 'e.g. 18:00 UTC', maxlength: 40, value: st.maintenance.until ?? '' });
     const features = Object.entries(S.features).map(([k, label]) => {
       const f = st.features[k], note = h('input', { placeholder: 'Message for players (optional)', maxlength: 300, value: f.message });
-      return h('tr', {}, h('td', {}, label), h('td', {}, f.on ? h('span', { class: 'badge editor' }, 'on') : h('span', { class: 'badge banned' }, 'off')), h('td', {}, note),
-        h('td', {}, h('button', { class: 'btn ghost', onclick: () => put('features', { [k]: { on: !f.on, message: note.value.trim() } }) }, f.on ? 'Switch off' : 'Switch on')));
+      // (a gradual rollout: on for this share of players, each always on the same side)
+      const pct = h('input', { type: 'number', min: 0, max: 100, value: f.percent ?? 100, style: 'width:70px', title: 'Share of players it\'s on for (a gradual rollout)' });
+      return h('tr', {}, h('td', {}, label), h('td', {}, f.on ? h('span', { class: 'badge editor' }, f.percent < 100 ? `on for ${f.percent}%` : 'on') : h('span', { class: 'badge banned' }, 'off')), h('td', {}, note), h('td', {}, pct, ' %'),
+        h('td', {}, h('div', { class: 'row' }, h('button', { class: 'btn ghost', onclick: () => put('features', { [k]: { on: !f.on, message: note.value.trim(), percent: Number(pct.value) } }) }, f.on ? 'Switch off' : 'Switch on'),
+          f.on && h('button', { class: 'btn ghost', onclick: () => put('features', { [k]: { on: true, message: note.value.trim(), percent: Math.max(0, Math.min(100, Math.round(Number(pct.value)))) } }) }, 'Set share'))));
     });
     const invites = h('div'), count = h('input', { type: 'number', min: 1, max: 200, value: 5 }), uses = h('input', { type: 'number', min: 1, max: 1000, value: 1 }), days = h('input', { type: 'number', min: 1, max: 365, value: 30 }), note = h('input', { placeholder: 'Who they\'re for', maxlength: 200 });
     box.replaceChildren(
@@ -91,7 +94,7 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
         h('h2', { style: 'margin-top:12px' }, 'The oldest game the server takes'),
         h('p', { class: 'muted' }, `This build's API version is ${S.protocol}; games older than ${st.client.minProtocol} are asked to refresh. Raise it after an API change old games can't follow.`),
         h('button', { class: 'btn ghost', onclick: () => { const v = Number(prompt('The oldest API version to take:', String(st.client.minProtocol))); if (v >= 1) put('client', { minProtocol: Math.round(v) }); } }, 'Change')),
-      h('section', {}, h('h2', {}, 'Features'), h('p', { class: 'muted' }, 'Switch off a broken feature without a deploy: its requests are refused with your message, and the rest of the game carries on.'), table(['', '', '', ''], features)),
+      h('section', {}, h('h2', {}, 'Features'), h('p', { class: 'muted' }, 'Switch off a broken feature without a deploy: its requests are refused with your message, and the rest of the game carries on.'), table(['Feature', 'Now', 'Message', 'Share', ''], features)),
       h('section', { style: 'grid-column: 1 / -1' }, h('h2', {}, 'Closed beta'),
         h('p', {}, st.closedBeta.on ? 'On: signing up needs an invite code; guests and first social sign-ins wait.' : 'Off: anyone can sign up.'),
         h('button', { class: 'btn secondary', onclick: () => put('closedBeta', { on: !st.closedBeta.on }) }, st.closedBeta.on ? 'Open sign-ups to everyone' : 'Close sign-ups (invite only)'),
@@ -136,5 +139,58 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
       part('Admin actions', r.adminActions, ['When', 'Action', 'By', 'Why'], x => [when(x.at), x.action, x.by, x.reason]));
   }
 
-  return { showReports, showSupport, showLaunch, history };
+  // ---------- monitoring: this server's last hours, the database, the queues, the economy, the alerts ----------
+  // (one measure per chart, its title naming it; the accent colour for the line, text in the text colours; a tile for
+  // each headline number; hovering a chart reads its minute)
+  let monitorTimer = null;
+  async function showMonitoring() {
+    const box = main(), msg = h('div');
+    clearInterval(monitorTimer);
+    const tile = (label, value, note, state) => h('div', { class: 'action', style: 'min-width:150px' }, h('div', { class: 'muted' }, label),
+      h('div', { style: `font:600 26px var(--f-mono);${state === 'bad' ? 'color:var(--c-bad)' : state === 'warn' ? 'color:var(--c-warn)' : ''}` }, `${state === 'bad' ? '✖ ' : state === 'warn' ? '▲ ' : ''}${value}`), note ? h('div', { class: 'muted' }, note) : null);
+    const chart = (title, series, key, unit) => {
+      const W = 520, H = 120, P = 28, vals = series.map(x => x[key]), max = Math.max(1, ...vals), n = Math.max(1, series.length - 1);
+      const X = i => P + (W - P - 6) * i / n, Y = v => H - 18 - (H - 30) * v / max;
+      const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), el = (t, a) => { const e = document.createElementNS(ns, t); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); return e; };
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('style', 'width:100%;max-width:560px;height:auto;display:block');
+      svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `${title}: latest ${vals.at(-1) ?? 0}${unit}, highest ${max}${unit}`);
+      for (const f of [0, 0.5, 1]) { svg.append(el('line', { x1: P, x2: W - 6, y1: Y(max * f), y2: Y(max * f), stroke: 'var(--c-line)', 'stroke-width': 1 })); const t = el('text', { x: P - 4, y: Y(max * f) + 4, 'text-anchor': 'end', fill: 'var(--c-text-3)', 'font-size': 10 }); t.textContent = String(Math.round(max * f)); svg.append(t); }
+      svg.append(el('path', { d: vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(''), fill: 'none', stroke: 'var(--c-accent)', 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+      const cross = el('line', { y1: 8, y2: H - 18, stroke: 'var(--c-text-3)', 'stroke-width': 1, visibility: 'hidden' }), dot = el('circle', { r: 4, fill: 'var(--c-accent)', stroke: 'var(--c-panel)', 'stroke-width': 2, visibility: 'hidden' });
+      svg.append(cross, dot);
+      const read = h('div', { class: 'muted', style: 'min-height:18px;font-family:var(--f-mono)' }, `latest ${vals.at(-1) ?? 0}${unit}`);
+      const hit = el('rect', { x: P, y: 0, width: W - P, height: H, fill: 'transparent' });
+      hit.addEventListener('mousemove', e => { const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, i = Math.max(0, Math.min(n, Math.round((x - P) / (W - P - 6) * n))); cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); dot.setAttribute('cx', X(i)); dot.setAttribute('cy', Y(vals[i] ?? 0)); cross.setAttribute('visibility', 'visible'); dot.setAttribute('visibility', 'visible'); read.textContent = `${new Date(series[i]?.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · ${vals[i] ?? 0}${unit}`; });
+      hit.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); read.textContent = `latest ${vals.at(-1) ?? 0}${unit}`; });
+      svg.append(hit);
+      return h('div', {}, h('h3', {}, title), svg, read);
+    };
+    async function load() {
+      let M;
+      try { M = await api.get('/admin/monitoring?minutes=120'); } catch (e) { say(msg, errText(e)); return; }
+      const w = M.now, db = M.database, v = M.verification, money = n => Number(n).toLocaleString('en-GB');
+      const firing = M.alerts.filter(a => a.state === 'firing');
+      box.replaceChildren(
+        h('section', { style: 'grid-column: 1 / -1' }, h('div', { class: 'row', style: 'align-items:center' }, h('h2', {}, 'Monitoring'), h('span', { class: 'muted' }, `this server (${M.env}, ${String(M.version).slice(0, 8)}), up ${Math.round(M.uptimeSec / 3600)} h · refreshes every 30 s`)), msg,
+          firing.length ? h('div', { class: 'msg bad' }, ...firing.map(a => h('div', {}, `✖ ${a.key}: ${a.message} (since ${when(a.since)})`))) : h('div', { class: 'msg good' }, '✔ No alerts firing.'),
+          !M.alertTo.email && !M.alertTo.phone ? h('div', { class: 'msg bad' }, 'Alerts go nowhere: set ALERT_EMAIL (and ALERT_WEBHOOK_URL for your phone) on the server.') : null,
+          h('div', { class: 'actions' },
+            tile('Players now', M.now.activePlayers, `${M.players.activeDay} today · ${M.players.newToday} new today`),
+            tile('Requests, 5 min', w.requests, `${w.rateLimited} rate limited`),
+            tile('Server errors, 5 min', w.serverErrors, `${(w.errorRate * 100).toFixed(1)}% of requests`, w.errorRate > 0.05 ? 'bad' : w.serverErrors ? 'warn' : null),
+            tile('Answer time, 95%', `${Math.round(w.p95)} ms`, `half under ${Math.round(w.p50)} ms`, w.p95 > 1500 ? 'bad' : w.p95 > 600 ? 'warn' : null),
+            tile('Database', db.ok ? `${db.ms} ms` : 'down', `${db.total} connections, ${db.waiting} waiting`, !db.ok ? 'bad' : db.waiting > 5 || db.ms > 1000 ? 'warn' : null),
+            tile('Verification queue', v.waiting, `oldest ${Math.round(v.oldestMs / 1000)} s · ${v.resultsLastHour} results this hour (${v.refusedLastHour} refused)`, v.waiting > 20 ? 'bad' : null),
+            tile('Money made, last hour', money(M.economy.madeLastHour), `a normal hour: ${money(M.economy.normalHour)} · today ${money(M.economy.madeDay)} made, ${money(M.economy.spentDay)} spent`, M.economy.normalHour && M.economy.madeLastHour > 5 * M.economy.normalHour ? 'warn' : null),
+            tile('Waiting for an admin', M.queues.reports + M.queues.flags + M.queues.support, `${M.queues.reports} reports · ${M.queues.flags} flags · ${M.queues.support} support`))),
+        h('section', {}, chart('Requests a minute', M.series, 'requests', ''), chart('Players a minute', M.series, 'players', '')),
+        h('section', {}, chart('Answer time, 95% (ms)', M.series, 'p95', ' ms'), chart('Server errors a minute', M.series, 'serverErrors', '')),
+        h('section', { style: 'grid-column: 1 / -1' }, h('h2', {}, 'Slowest requests, last hour'), table(['Request', 'Count', 'Half under', '95% under', '99% under'], M.hour.routes.map(r => h('tr', {}, h('td', { style: 'font-family:var(--f-mono)' }, r.route), h('td', {}, String(r.n)), h('td', {}, `${Math.round(r.p50)} ms`), h('td', {}, `${Math.round(r.p95)} ms`), h('td', {}, `${Math.round(r.p99)} ms`))))),
+        h('section', { style: 'grid-column: 1 / -1' }, h('h2', {}, 'Alerts'), M.alerts.length ? table(['State', 'What', 'Since', 'Last', 'Times'], M.alerts.map(a => h('tr', {}, h('td', {}, a.state === 'firing' ? '✖ firing' : '✔ fixed'), h('td', {}, a.message), h('td', { class: 'when' }, when(a.since)), h('td', { class: 'when' }, when(a.last)), h('td', {}, String(a.count))))) : h('p', { class: 'muted' }, 'None yet.')));
+    }
+    await load();
+    monitorTimer = setInterval(() => { if (document.body.contains(box) && box.querySelector('h2')?.textContent === 'Monitoring') load(); else clearInterval(monitorTimer); }, 30_000);
+  }
+
+  return { showReports, showSupport, showLaunch, history, showMonitoring };
 }

@@ -1,11 +1,13 @@
 // Switches the admins flip without a deploy (Phase 6 Step 5; docs/OPERATIONS.md), kept in site_settings:
 //   features      each feature on or off — a broken one switched off at once (its endpoints answer 503 FEATURE_OFF
-//                 with the message; the rest of the game carries on)
+//                 with the message; the rest of the game carries on) — or on for only some players (percent: a gradual
+//                 rollout; each account always lands on the same side, by a hash of its id)
 //   maintenance   the whole API down for everyone but editors and admins, with a message for players (503 MAINTENANCE)
 //   closedBeta    signing up needs an invite code
 //   client        the oldest game the server works with: older ones are told to refresh (426 CLIENT_TOO_OLD)
 // Read through a few seconds' cache (every request asks); a change applies on every server within that.
 
+import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { CLIENT_PROTOCOL } from '@kr/shared';
 import type { Db } from '../db/index.ts';
@@ -17,13 +19,13 @@ export const FEATURES = {
 export type Feature = keyof typeof FEATURES;
 
 export type SiteSettings = {
-  features: Record<Feature, { on: boolean; message: string }>;
+  features: Record<Feature, { on: boolean; message: string; percent: number }>;
   maintenance: { on: boolean; message: string; until: string | null };
   closedBeta: { on: boolean };
   client: { minProtocol: number };
 };
 export const defaults = (closedBeta = false): SiteSettings => ({
-  features: Object.fromEntries(Object.keys(FEATURES).map(k => [k, { on: true, message: '' }])) as SiteSettings['features'],
+  features: Object.fromEntries(Object.keys(FEATURES).map(k => [k, { on: true, message: '', percent: 100 }])) as SiteSettings['features'],
   maintenance: { on: false, message: '', until: null },
   closedBeta: { on: closedBeta },
   client: { minProtocol: CLIENT_PROTOCOL },
@@ -35,7 +37,7 @@ export function createSiteSettings(db: Db, { closedBeta = false, cacheMs = 3000 
     if (cached && Date.now() - cached.at < cacheMs) return cached.value;
     const rows = (await db.execute(sql`select key, value from site_settings`)).rows as { key: string; value: any }[];
     const v = defaults(closedBeta), saved = Object.fromEntries(rows.map(r => [r.key, r.value]));
-    if (saved.features) for (const k of Object.keys(FEATURES) as Feature[]) if (saved.features[k]) v.features[k] = { on: saved.features[k].on !== false, message: String(saved.features[k].message ?? '') };
+    if (saved.features) for (const k of Object.keys(FEATURES) as Feature[]) if (saved.features[k]) v.features[k] = { on: saved.features[k].on !== false, message: String(saved.features[k].message ?? ''), percent: Math.max(0, Math.min(100, Number(saved.features[k].percent ?? 100))) };
     if (saved.maintenance) v.maintenance = { on: !!saved.maintenance.on, message: String(saved.maintenance.message ?? ''), until: saved.maintenance.until ?? null };
     if (saved.closedBeta) v.closedBeta = { on: !!saved.closedBeta.on };
     // (never below this build's own protocol: a setting left from an older version can't let older games in)
@@ -52,6 +54,9 @@ export function createSiteSettings(db: Db, { closedBeta = false, cacheMs = 3000 
   return { get, set, forget() { cached = null; } };
 }
 export type SiteSettingsStore = ReturnType<typeof createSiteSettings>;
+
+// which side of a gradual rollout an account is on: 0–99, the same every time for the same account and feature
+export const bucketOf = (userId: string, feature: string) => crypto.createHash('sha256').update(`${feature}:${userId}`).digest().readUInt16BE(0) % 100;
 
 // which feature an API request belongs to (null: none that can be switched off)
 const SHOP_ACTIONS = /^(buyPart|sellPart|sellParts|refundPart|buyBundle|sellCar|buyUsedCar|buyGarageSlot|buyCar|buyAndInstall)$/;

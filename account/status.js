@@ -24,7 +24,9 @@ const CSS = `
 #krWelcome a,#krWelcome button{display:block;width:100%;box-sizing:border-box;text-align:center;margin-top:8px;padding:11px;border-radius:6px;font:600 16px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer;border:1px solid #333c46;background:#1b2127;color:#e9ecef}
 #krWelcome .primary{background:#36b3f5;border-color:#36b3f5;color:#04121b}
 #krWelcome .ghost{background:none;border:0;color:#a3abb5;font-size:14px}
-#krWelcome .err{color:#ff7a7e;font-size:13px;margin-top:8px}`;
+#krWelcome .err{color:#ff7a7e;font-size:13px;margin-top:8px}
+#krNotice{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:96;max-width:min(560px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;font:600 14px/1.35 Barlow,system-ui,sans-serif;color:#1a1405;background:#f2c037;border-radius:10px;padding:10px 14px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+#krNotice button{font:700 13px Barlow,system-ui,sans-serif;border:0;border-radius:6px;padding:7px 12px;background:#1a1405;color:#f2c037;cursor:pointer;flex:none}`;
 
 const TEXT = { online: '', waking: 'Waking the server…', retrying: 'Reconnecting…', offline: 'Offline · free roam only' };
 
@@ -36,6 +38,20 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
   const dot = document.createElement('i'), label = document.createElement('span'), sub = document.createElement('small');
   chip.append(dot, label, sub);
   parent.appendChild(chip);
+  // (Phase 6 Step 5: the server's notices — down for maintenance, or this game too old for it — as a banner at the top;
+  // account/api.js raises them from any answer, and the status is asked once as the game starts)
+  const notice = (code, message, details) => {
+    let el = document.getElementById('krNotice');
+    if (!el) { el = document.createElement('div'); el.id = 'krNotice'; el.setAttribute('role', 'alert'); document.body.appendChild(el); }
+    const text = document.createElement('span');
+    text.textContent = code === 'CLIENT_TOO_OLD' ? (message || 'The game has been updated: refresh the page.') : `${message || 'The game is down for maintenance.'}${details?.until ? ` Back at ${details.until}.` : ''}`;
+    const btn = document.createElement('button');
+    btn.textContent = code === 'CLIENT_TOO_OLD' ? 'Refresh' : 'Hide';
+    btn.onclick = () => code === 'CLIENT_TOO_OLD' ? location.reload() : el.remove();
+    el.replaceChildren(text, btn);
+  };
+  addEventListener('kr-server-notice', e => notice(e.detail.code, e.detail.message, e.detail.details));
+  A.api.get('/status', { retries: 0 }).then(s => { if (s?.maintenance?.on) notice('MAINTENANCE', s.maintenance.message, s.maintenance); }).catch(() => {});
   const next = encodeURIComponent(location.pathname + location.search);
   const open = () => { location.href = `/account/?next=${next}`; };
   chip.onclick = open;

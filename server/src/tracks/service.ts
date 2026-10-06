@@ -52,7 +52,7 @@ type User = { id: string; name: string };
 // ---------- the worker: one, restarted if it dies; each job once at a time however many ask ----------
 function createWorkerPool({ timeoutMs, log }: { timeoutMs: number; log: (o: object, m: string) => void }) {
   let worker: Worker | null = null, seq = 0;
-  const pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
+  const pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout; at: number }>();
   const inflight = new Map<string, Promise<any>>();
   const start = () => {
     const w = new Worker(new URL('./worker.ts', import.meta.url));
@@ -71,13 +71,15 @@ function createWorkerPool({ timeoutMs, log }: { timeoutMs: number; log: (o: obje
       const p = new Promise<T>((resolve, reject) => {
         worker ??= start();
         const id = ++seq, timer = setTimeout(() => { pending.delete(id); reject(new Error(`The track worker took too long (${op}).`)); worker?.terminate(); worker = null; }, timeoutMs);
-        pending.set(id, { resolve, reject, timer });
+        pending.set(id, { resolve, reject, timer, at: Date.now() });
         worker.postMessage({ id, op, ...args });
       }).finally(() => inflight.delete(key));
       inflight.set(key, p);
       return p;
     },
     async close() { const w = worker; worker = null; await w?.terminate(); },
+    // (Phase 6 Step 5, monitoring: the work waiting — tracks to make, results' courses to build to check them against)
+    queue() { let oldest = 0; const now = Date.now(); for (const p of pending.values()) oldest = Math.max(oldest, now - p.at); return { waiting: pending.size, oldestMs: oldest }; },
   };
 }
 
@@ -189,6 +191,7 @@ export function createTrackService({ db, config, log = () => {} }: { db: Db; con
 
   return {
     endOf,
+    queue: () => pool.queue(),
     // the day's and the week's tracks, with their events
     async today(now = Date.now()) {
       const [daily, weekly] = await Promise.all([dayView('daily', now), dayView('weekly', now)]);

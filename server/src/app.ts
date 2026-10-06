@@ -41,12 +41,14 @@ import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 import { rtHealth } from './rt/health.ts';
-import { createSiteSettings, featureOf, FEATURES } from './ops/settings.ts';
+import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
 import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts';
 import { createSignals, scanForAbuse } from './abuse/detect.ts';
 import { abuseRoutes } from './routes/abuse.ts';
 import { opsRoutes } from './routes/ops.ts';
 import { runRetention } from './ops/retention.ts';
+import { createMetrics, routeKind } from './ops/metrics.ts';
+import { createAlerter, evaluate, healthNow } from './ops/alerts.ts';
 
 import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from './clientFiles.ts';
 export { CLIENT_DIRS, CLIENT_FILES };
@@ -66,7 +68,10 @@ export const scrubUrl = (url: string) => {
   return `${p}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
+export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null;
+  // (the rollback drill only — server/tools/rollback-test.ts: a "broken release", every request matching it answering 500.
+  // Never from settings or the environment, and refused in production)
+  fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -107,6 +112,11 @@ export async function buildApp(deps: AppDeps) {
     delete req.headers['x-kr-edge'];
   });
   app.addHook('onSend', async (req, reply, payload) => { reply.header(REQUEST_ID_HEADER, req.id); return payload; });
+  if (deps.fault) {
+    if (config.env === 'production') throw new Error('No fault injection in production');
+    const fault = deps.fault;
+    app.addHook('onRequest', async req => { if (fault.test(req.url)) throw new Error('fault injected (rollback drill)'); });
+  }
 
   const log = { info: (o: object, m: string) => app.log.info(o, m), error: (o: object, m: string) => app.log.error(o, m) };
   const mailer = deps.mailer ?? createMailer({ smtpUrl: config.smtpUrl, from: config.mailFrom, log });
@@ -199,7 +209,14 @@ export async function buildApp(deps: AppDeps) {
       if (!sess || !['editor', 'admin'].includes(sess.user.role)) throw new AppError(503, 'MAINTENANCE', S.maintenance.message || 'The game is down for maintenance: back soon.', { until: S.maintenance.until }, { 'retry-after': '120' });
     }
     const f = featureOf(req.method, req.url);
-    if (f && !S.features[f].on) throw new AppError(503, 'FEATURE_OFF', S.features[f].message || `${FEATURES[f]} is switched off for now: try again later.`, { feature: f }, { 'retry-after': '300' });
+    if (f) {
+      const F = S.features[f];
+      // (a gradual rollout: on for this account only if its bucket is under the percentage; a request with no account
+      // counts as outside it until it's on for everyone)
+      let on = F.on;
+      if (on && F.percent < 100) { const sess = await sessionOf(auth, req).catch(() => null); on = !!sess && bucketOf(sess.user.id, f) < F.percent; }
+      if (!on) throw new AppError(503, 'FEATURE_OFF', F.message || `${FEATURES[f]} is switched off for now: try again later.`, { feature: f }, { 'retry-after': '300' });
+    }
     if (req.method !== 'POST') return;
     const p = req.url.split('?')[0].replace(/\/{2,}/g, '/');
     if (botCheck && BOT_CHECKED.test(p)) {
@@ -239,6 +256,19 @@ export async function buildApp(deps: AppDeps) {
     const s = await req.sessionCache.catch(() => null);
     if (s) void signals.seen(s.user.id, req.headers[DEVICE_HEADER] as string | undefined, req.ip);
   });
+  // ---------- monitoring (docs/OPERATIONS.md): every API request counted and timed; the alerts checked each minute ----------
+  const metrics = createMetrics();
+  app.addHook('onResponse', async (req, reply) => {
+    if (!req.url.startsWith('/api/')) return;
+    const s = req.sessionCache ? await req.sessionCache.catch(() => null) : null;
+    metrics.record({ route: routeKind(req.method, req.routeOptions?.url ?? req.url), status: reply.statusCode, ms: reply.elapsedTime, userId: s?.user.id ?? null });
+  });
+  const alerter = createAlerter({ db, mailer, email: config.alertEmail, webhook: config.alertWebhook, env: config.env, rules: config.alerts, log: (o, m) => app.log.warn(o, m) });
+  const alertTimer = setInterval(() => { void healthNow(db, opened?.pool ?? deps.pool, tracks).then(h => alerter.check(evaluate(metrics, h, config.alerts))).catch(e => app.log.warn({ err: e }, 'alert check failed')); }, 60_000);
+  alertTimer.unref();
+  app.addHook('onClose', async () => clearInterval(alertTimer));
+  app.decorate('metrics', metrics);
+  app.decorate('alerter', alerter);
   // (personal data kept only as long as it's needed: once a day — docs/PRIVACY_DATA.md)
   const retentionTimer = setInterval(() => { void runRetention(db, config.retention).then(r => app.log.info(r, 'retention')).catch(e => app.log.warn({ err: e }, 'retention failed')); }, 24 * 3600e3);
   retentionTimer.unref();
@@ -351,7 +381,7 @@ export async function buildApp(deps: AppDeps) {
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse });
-    await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings });
+    await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });
 
   // ---------- the real-time server's stand-in (rt.<domain>; Phase 7 Step 1 replaces it) ----------
@@ -433,7 +463,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
+  interface FastifyInstance { metrics: import('./ops/metrics.ts').Metrics; alerter: ReturnType<typeof import('./ops/alerts.ts').createAlerter>; siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };

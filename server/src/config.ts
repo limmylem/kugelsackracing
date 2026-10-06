@@ -36,6 +36,9 @@ const FileConfig = z.object({
   abuse: z.object({ maxRewardPerHour: z.number().positive(), burstAccounts: z.number().int().min(2), farmGroup: z.number().int().min(2), keepDays: z.number().int().min(1).max(365) }),
   // signing up needs an invite code, until an admin turns it off (the admin page's Launch settings)
   closedBeta: z.boolean(),
+  // the alerts' thresholds (ops/alerts.ts, docs/OPERATIONS.md)
+  alerts: z.object({ errorRate: z.number().min(0).max(1), minRequests: z.number().int().min(1), slowP95Ms: z.number().positive(), dbSlowMs: z.number().positive(), queueWaiting: z.number().int().min(1),
+    queueOldestSec: z.number().positive(), moneyPerHour: z.number().positive(), moneySpike: z.number().min(1), repeatMinutes: z.number().min(1) }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
     reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
@@ -70,6 +73,10 @@ const Env = z.object({
   TURNSTILE_SECRET_KEY: optional,
   // where alerts go (docs/OPERATIONS.md): an email address (and a phone's, through an email-to-SMS or push address)
   ALERT_EMAIL: optional,
+  // a phone's alerts: a webhook that takes plain text (an ntfy.sh topic URL — free, the ntfy app on the phone)
+  ALERT_WEBHOOK_URL: optional,
+  // an external monitor reading /api/v1/metrics sends this as a bearer token (empty: that endpoint is off)
+  METRICS_TOKEN: optional,
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   // (Render says which commit it deployed in RENDER_GIT_COMMIT: the health check reports it, and the deploy waits for it)
   GIT_COMMIT: z.string().default(process.env.RENDER_GIT_COMMIT ?? 'dev'),
@@ -107,7 +114,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     adminEmail: E.ADMIN_EMAIL?.toLowerCase() ?? null, version: E.GIT_COMMIT,
     gameUrl, tilesUrl, rtUrl, edgeSecret: E.EDGE_SECRET, hsts: E.HSTS === 'on',
     turnstile: E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY ? { siteKey: E.TURNSTILE_SITE_KEY, secret: E.TURNSTILE_SECRET_KEY } : null,
-    alertEmail: E.ALERT_EMAIL,
+    alertEmail: E.ALERT_EMAIL, alertWebhook: E.ALERT_WEBHOOK_URL, metricsToken: E.METRICS_TOKEN,
     ...f.data,
   };
 }

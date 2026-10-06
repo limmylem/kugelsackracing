@@ -23,13 +23,15 @@ import { auditLog } from '../db/schema.ts';
 import { FEATURES, type SiteSettingsStore } from '../ops/settings.ts';
 import { maskIp } from '../abuse/detect.ts';
 import { runRetention } from '../ops/retention.ts';
+import type { Metrics } from '../ops/metrics.ts';
+import type { Health } from '../ops/alerts.ts';
 import { sessionOf } from '../session.ts';
 import type { Auth } from '../auth.ts';
 
 const Reason = z.string().trim().min(3, 'Say why (it goes in the log).').max(500);
-const Feature = z.object({ on: z.boolean(), message: z.string().max(300).default('') }).strict();
+const Feature = z.object({ on: z.boolean(), message: z.string().max(300).default(''), percent: z.number().int().min(0).max(100).default(100) }).strict();
 const SettingBody = z.discriminatedUnion('key', [
-  z.object({ key: z.literal('features'), value: z.record(z.enum(Object.keys(FEATURES) as [keyof typeof FEATURES, ...(keyof typeof FEATURES)[]]), Feature), reason: Reason }).strict(),
+  z.object({ key: z.literal('features'), value: z.partialRecord(z.enum(Object.keys(FEATURES) as [keyof typeof FEATURES, ...(keyof typeof FEATURES)[]]), Feature), reason: Reason }).strict(),
   z.object({ key: z.literal('maintenance'), value: z.object({ on: z.boolean(), message: z.string().max(500).default(''), until: z.string().max(40).nullable().default(null) }).strict(), reason: Reason }).strict(),
   z.object({ key: z.literal('closedBeta'), value: z.object({ on: z.boolean() }).strict(), reason: Reason }).strict(),
   z.object({ key: z.literal('client'), value: z.object({ minProtocol: z.number().int().min(1).max(1_000_000) }).strict(), reason: Reason }).strict(),
@@ -47,7 +49,7 @@ const SupportBody = z.object({
 const FeedbackBody = z.object({ message: z.string().trim().min(3).max(4000), mood: z.enum(['love', 'like', 'meh', 'dislike']).optional(), client: ClientInfo }).strict();
 const TICKETS_PER_DAY = 5;
 
-export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, mailer, settings }: { config: Config; db: Db; auth: Auth; G: Guards; mailer: Mailer; settings: SiteSettingsStore }) {
+export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, mailer, settings, metrics, health }: { config: Config; db: Db; auth: Auth; G: Guards; mailer: Mailer; settings: SiteSettingsStore; metrics: Metrics; health: () => Promise<Health> }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const admin = G.requireRole('admin');
   const log = (s: NonNullable<RequestSession>, action: string, targetId: string | null, reason: string | null, details: object = {}) => db.insert(auditLog).values({ actorId: s.user.id, action, targetId, reason, details });
@@ -79,6 +81,38 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     const after = await settings.set(b.key, value as any, s.user.id);
     await log(s, `setting-${b.key}`, null, b.reason, { from: now[b.key], to: after[b.key] });
     return { ok: true as const, settings: after };
+  });
+
+  // ---------- monitoring: the dashboard's numbers, and an external monitor's scrape ----------
+  app.get('/admin/monitoring', { config: { role: 'admin' }, schema: { querystring: z.object({ minutes: z.coerce.number().int().min(10).max(360).default(120) }) } }, async req => {
+    await admin(req);
+    const one = async (q: ReturnType<typeof sql>) => (await db.execute(q)).rows[0] as any;
+    const [h, players, money, queue, alerts, abuse] = await Promise.all([
+      health(),
+      one(sql`select (select count(*) from users)::int as accounts, (select count(*) from users where is_anonymous)::int as guests,
+        (select count(distinct user_id) from sessions where updated_at > now() - interval '24 hours')::int as day, (select count(*) from users where created_at > now() - interval '24 hours')::int as new_today`),
+      one(sql`select coalesce(sum(amount) filter (where amount > 0 and kind in ('reward', 'grant', 'start')), 0)::bigint as made, coalesce(sum(-amount) filter (where amount < 0), 0)::bigint as spent, count(*)::int as changes from ledger where at > now() - interval '24 hours'`),
+      one(sql`select (select count(*) from track_results where at > now() - interval '1 hour')::int as results_hour, (select count(*) from track_results where at > now() - interval '1 hour' and not accepted)::int as refused_hour,
+        (select count(*) from economy_sessions where state = 'active')::int as runs_active`),
+      db.execute(sql`select key, state, message, first_at, last_at, count from alerts order by (state = 'firing') desc, last_at desc limit 20`).then(r => r.rows),
+      one(sql`select (select count(*) from reports where status = 'open')::int as reports, (select count(*) from abuse_flags where status = 'open')::int as flags, (select count(*) from support_tickets where status = 'open')::int as support`),
+    ]);
+    return {
+      now: metrics.window(5), hour: metrics.window(60), series: metrics.series(req.query.minutes), uptimeSec: metrics.uptimeSec(), version: config.version, env: config.env,
+      database: h.db, verification: { ...h.queue, resultsLastHour: queue.results_hour, refusedLastHour: queue.refused_hour, runsActive: queue.runs_active },
+      players: { accounts: players.accounts, guests: players.guests, activeDay: players.day, newToday: players.new_today },
+      economy: { madeDay: Number(money.made), spentDay: Number(money.spent), changesDay: money.changes, madeLastHour: h.money.lastHour, normalHour: Math.round(h.money.weekHourly) },
+      queues: abuse, alerts: (alerts as any[]).map(a => ({ key: a.key, state: a.state, message: a.message, since: iso(a.first_at), last: iso(a.last_at), count: a.count })),
+      alertTo: { email: !!config.alertEmail, phone: !!config.alertWebhook },
+    };
+  });
+  app.get('/metrics', async (req, reply) => {
+    const token = config.metricsToken, given = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+    if (!token) throw notFound('That');
+    if (given.length !== token.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) throw new AppError(401, 'UNAUTHENTICATED', 'A metrics token is needed.');
+    const h = await health();
+    reply.header('content-type', 'text/plain; version=0.0.4').header('cache-control', 'no-store');
+    return metrics.prometheus({ kr_db_up: h.db.ok ? 1 : 0, kr_db_ms: h.db.ms, kr_db_waiting: h.db.waiting, kr_queue_waiting: h.queue.waiting, kr_queue_oldest_ms: h.queue.oldestMs, kr_money_made_hour: h.money.lastHour });
   });
 
   // ---------- keeping personal data only as long as needed (ops/retention.ts; it runs daily by itself) ----------
@@ -150,7 +184,7 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     await mailer.send({ kind: 'support-reply', to, subject: `Re: your message to Kugelsack Racing (#${t.id})`,
       text: `Hi ${t.name ?? ''},\n\n${req.body.message}\n\n— The Kugelsack Racing team\n\n(You wrote: ${t.message.slice(0, 500)})`,
       html: `<p>Hi ${esc(t.name ?? '')},</p><p>${esc(req.body.message).replace(/\n/g, '<br>')}</p><p>— The Kugelsack Racing team</p><blockquote>${esc(t.message.slice(0, 500))}</blockquote>` });
-    await db.execute(sql`update support_tickets set status = ${req.body.close ? 'closed' : 'open'}, note = concat_ws(E'\n', note, ${`Replied ${new Date().toISOString().slice(0, 16)}: ${req.body.message.slice(0, 500)}`}), handled_by = ${s.user.id}, handled_at = now() where id = ${req.params.id}`);
+    await db.execute(sql`update support_tickets set status = ${req.body.close ? 'closed' : 'open'}, note = concat_ws(E'\n', note, ${`Replied ${new Date().toISOString().slice(0, 16)}: ${req.body.message.slice(0, 500)}`}::text), handled_by = ${s.user.id}, handled_at = now() where id = ${req.params.id}`);
     await log(s, 'support-reply', t.user_id, null, { ticket: req.params.id });
     return { ok: true as const };
   });

@@ -14,5 +14,6 @@
   "botCheck": { "required": true },
   "abuse": { "maxRewardPerHour": 60000, "burstAccounts": 4, "farmGroup": 3, "keepDays": 90 },
   "closedBeta": true,
-  "retention": { "guestInactiveDays": 30, "sessionsExpiredDays": 7, "signalsDays": 90, "supportDays": 365, "reportsDays": 365, "flagsDays": 365, "inviteUsesDays": 365, "auditDays": 730, "alertsDays": 90 }
+  "retention": { "guestInactiveDays": 30, "sessionsExpiredDays": 7, "signalsDays": 90, "supportDays": 365, "reportsDays": 365, "flagsDays": 365, "inviteUsesDays": 365, "auditDays": 730, "alertsDays": 90 },
+  "alerts": { "errorRate": 0.05, "minRequests": 20, "slowP95Ms": 1500, "dbSlowMs": 1000, "queueWaiting": 20, "queueOldestSec": 120, "moneyPerHour": 5000000, "moneySpike": 5, "repeatMinutes": 60 }
 }
