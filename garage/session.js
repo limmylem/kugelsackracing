@@ -21,7 +21,8 @@ import { LocalPlayerService } from './player/service.js';
 import { RemotePlayerService } from './player/remote.js';
 import { account } from '../account/session.js';
 import { IdbStorage, MemoryStorage } from './player/storage.js';
-import { garageStateOf, inInventory, carName, sellPrice, packProfile } from './player/profile.js';
+import { garageStateOf, inInventory, carName, packProfile } from './player/profile.js';
+import { sellValue } from './shop.js';
 import { PLAYTEST_TESTS, PlaytestLog } from './playtest.js';
 import { crashOutcome } from './carDamage.js';
 import { CORNERS, DEBUG_KINDS, damageReport, mechanicalLayout, prune, setMechanical, strikeMechanical } from './mechanical.js';
@@ -603,7 +604,7 @@ async function create() {
     },
     profile() { return clone(profile()); },
     get money() { return profile().money; },
-    inventory() { console.table(inInventory(profile()).map(p => ({ copy: p.instanceId, part: p.partId, condition: p.condition, sells: money(sellPrice(db, p)) }))); },
+    inventory() { console.table(inInventory(profile()).map(p => ({ copy: p.instanceId, part: p.partId, condition: p.condition, sells: money(sellValue(db, p)) }))); },
     addMoney: n => done(`added ${money(n)}`, player.addMoney(n)),
     unlimitedMoney: (on = true) => api.dev.setUnlimitedMoney(on).then(r => { console.log(on ? 'unlimited money: on — nothing costs anything (kept in this browser; player.unlimitedMoney(false) to stop)' : 'unlimited money: off'); return r; }),
     givePart: (id, n) => done(`given ${id}`, player.givePart(id, n)),

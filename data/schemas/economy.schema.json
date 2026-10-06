@@ -33,8 +33,7 @@
     "sell": {
       "type": "object",
       "required": [
-        "ratio",
-        "conditionCurve"
+        "ratio"
       ],
       "additionalProperties": false,
       "properties": {
@@ -58,6 +57,23 @@
             "maxItems": 2
           },
           "description": "[condition, factor] points, condition rising"
+        },
+        "repairShare": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Of what a copy would cost to put right, taken off its sell value (at most 1: repairing to sell never pays)"
+        },
+        "floor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A copy sells for at least this share of its worth × ratio"
+        }
+      },
+      "patternProperties": {
+        "^_": {
+          "type": "string"
         }
       }
     },
@@ -212,6 +228,481 @@
         "minimum": 0
       },
       "description": "A new car's price by its class (× the car's priceFactor)"
+    },
+    "shop": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "The shop, dealership and used car lot (garage/shop.js)",
+      "properties": {
+        "confirmAbove": {
+          "type": "number",
+          "minimum": 0
+        },
+        "refund": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minutes"
+          ],
+          "properties": {
+            "minutes": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "garage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "slots"
+          ],
+          "properties": {
+            "slots": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "slotPrice": {
+              "type": "number",
+              "minimum": 0
+            },
+            "growth": {
+              "type": "number",
+              "minimum": 1
+            },
+            "maxExtra": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "unlock": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "partTiers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "series": {
+                    "type": "string",
+                    "pattern": "^series_[0-9a-z]{4,40}$"
+                  },
+                  "seriesName": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            },
+            "carClasses": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "series": {
+                    "type": "string",
+                    "pattern": "^series_[0-9a-z]{4,40}$"
+                  },
+                  "seriesName": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "catalogue": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "price": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "unlock": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "level": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "series": {
+                        "type": "string",
+                        "pattern": "^series_[0-9a-z]{4,40}$"
+                      },
+                      "seriesName": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            },
+            "cars": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "price": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "unlock": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "level": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "series": {
+                        "type": "string",
+                        "pattern": "^series_[0-9a-z]{4,40}$"
+                      },
+                      "seriesName": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "bundles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "parts",
+              "discount"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "car": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                "minItems": 2,
+                "maxItems": 20
+              },
+              "discount": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.5
+              },
+              "unlock": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "series": {
+                    "type": "string",
+                    "pattern": "^series_[0-9a-z]{4,40}$"
+                  },
+                  "seriesName": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              },
+              "hidden": {
+                "type": "boolean"
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "sales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "starts",
+              "ends",
+              "discount"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "starts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "ends": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "discount": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 0.9
+              },
+              "all": {
+                "type": "boolean"
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              },
+              "cars": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              },
+              "tiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              },
+              "classes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "disabled": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "usedLot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 40
+            },
+            "seed": {
+              "type": "string"
+            },
+            "classes": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "mileage": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "kmPerYear": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "kmPerOwner": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "serviceKm": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "wear": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "perKm": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "spread": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "min": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "damage": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "chance": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "maxLoss": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "aftermarket": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "chance": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 12
+                },
+                "tiers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "price": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "factor": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "conditionCurve": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "description": "[condition, factor] points, condition rising"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "quests": {
       "type": "object",

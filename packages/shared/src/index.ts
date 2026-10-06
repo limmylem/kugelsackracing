@@ -271,6 +271,13 @@ export const PLAYER_ACTION_ARGS = {
   setPartFinish: z.object({ instanceIds: z.array(InstanceId).min(1).max(64), look: Look.nullable() }).strict(),
   selectCar: z.object({ carInstanceId: InstanceId }).strict(),
   buyCar: z.object({ carId: DataId }).strict(),
+  // (Phase 6 Step 4: the shop, the dealership, selling)
+  sellParts: z.object({ instanceIds: z.array(InstanceId).min(1).max(200) }).strict(),
+  refundPart: z.object({ instanceId: InstanceId }).strict(),
+  buyBundle: z.object({ bundleId: DataId, opts: z.object({ carInstanceId: InstanceId.optional(), install: z.boolean().optional() }).strict().optional() }).strict(),
+  sellCar: z.object({ carInstanceId: InstanceId, opts: z.object({ keep: z.array(InstanceId).max(80).optional() }).strict().optional() }).strict(),
+  buyUsedCar: z.object({ listingId: z.string().regex(/^used_\d{8}_\d{2}$/, 'not a listing') }).strict(),
+  buyGarageSlot: z.object({}).strict(),
   saveSetup: z.object({ carInstanceId: InstanceId, opts: z.object({ name: z.string().trim().max(40).optional(), setupId: z.string().max(80).optional() }).strict().optional() }).strict(),
   renameSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80), name: z.string().trim().min(1).max(40) }).strict(),
   deleteSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80) }).strict(),

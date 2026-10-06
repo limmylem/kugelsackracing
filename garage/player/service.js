@@ -14,7 +14,8 @@
 // A session's reset (sessionReset) puts parts back on by the session's rules (data/sessions.json), free;
 // so a server can own all of it later.
 
-import { addCar, addPart, applyGarage, buildOf, carName, carPrice, checkProfile, cleanDamage, cleanDents, clone, garageFor, needsRepair, newProfile, packProfile, priceOf, repairCost, sellPrice, setDents, setSize, shellRepairCost, unpackProfile } from './profile.js';
+import { addCar, addPart, applyGarage, buildOf, carName, checkProfile, cleanDamage, cleanDents, clone, garageFor, needsRepair, newProfile, packProfile, priceOf, repairCost, setDents, setSize, shellRepairCost, unpackProfile } from './profile.js';
+import { capacity, carSellValue, dayOf, lockOf, logShop, lotEnds, ms, offer, quoteBundle, refundable, sellValue, shopOf, slotPrice, usedLot, usedShares } from '../shop.js';
 import { migrate } from './migrations.js';
 import { validateBuild } from '../validate.js';
 import { appendHits } from '../damageLog.js';
@@ -33,7 +34,14 @@ const canonical = x => JSON.stringify(x, (k, v) => v && typeof v === 'object' &&
 export const METHODS = {
   getProfile: 'the profile, and any notices from loading it',
   buyPart: '(partId, { quantity }) a new copy at 100% (a part for a group of sockets: a set)',
-  sellPart: '(instanceId) a copy that isn\'t on a car, for its sell price',
+  sellPart: '(instanceId) a copy that isn\'t on a car, for its sell value (garage/shop.js)',
+  sellParts: '([instanceId]) several at once (bulk sell)',
+  refundPart: '(instanceId) a copy bought new, never fitted and as it came, back for what was paid — within the refund window (garage/shop.js refundable)',
+  buyBundle: '(bundleId, { carInstanceId, install }) a kit: its parts as sets for the car, for its price (install: each fitted that can be)',
+  sellCar: '(carInstanceId, { keep: [instanceId] }) a car and the parts on it, bar those kept (to the inventory) — never the last car that can be driven',
+  buyUsedCar: '(listingId) a car from today\'s used lot (garage/shop.js usedLot), as it is',
+  buyGarageSlot: '() room for one more car',
+  getUsedLot: '→ { day, endsAt, listings } today\'s used cars',
   repairPart: '(instanceId) back to 100%, its dents out, its mechanical damage put right and bolted back on, for its repair cost',
   repairParts: '([instanceId]) several at once (repair all)',
   repairBody: '(carInstanceId) the body shell: condition, dents, broken glass and lights, for its repair cost',
@@ -136,8 +144,8 @@ export class LocalPlayerService extends PlayerService {
       let out;
       try { out = fn(draft) ?? {}; } catch (err) { out = { error: `Something went wrong: ${err.message}` }; }
       if (out.error) return { ok: false, error: out.error, updatedState: clone(before), ...(out.detail ?? {}) };
-      // (a part off every car isn't hanging off anything)
-      for (const x of Object.values(draft.parts)) if (!x.installedOn) delete x.attach;
+      // (a part off every car isn't hanging off anything; one fitted has been used: no refund)
+      for (const x of Object.values(draft.parts)) { if (!x.installedOn) delete x.attach; else if (x.boughtAt && !x.used) x.used = true; }
       draft.saved = this.now();
       this.profile = draft;
       try { await this.storage.save(packProfile(draft)); }
@@ -152,28 +160,88 @@ export class LocalPlayerService extends PlayerService {
   #car(profile, carInstanceId) { return profile.cars[carInstanceId] ? null : { error: 'That car isn\'t yours.' }; }
 
   // ---------- buying, selling, repairing ----------
+  // (the level and quest series an item needs, if the player hasn't got there: why, in words)
+  #locked(p, rule) { return lockOf(this.db, p, rule, this.quests?.config ?? null)?.text ?? null; }
   #buy(p, partId, quantity) {
-    const part = this.db.parts[partId];
+    const part = this.db.parts[partId], now = this.now(), o = offer(this.db, 'part', partId, now);
     if (!part) return { error: `There's no part "${partId}".` };
-    if (part.retired) return { error: `${part.name} isn't sold any more.` };
-    if (part.todo?.length) return { error: `${part.name} isn't for sale yet: its ${part.todo.join(', ')} ${part.todo.length > 1 ? 'are' : 'is'} still to be filled in.` };
+    if (!o.forSale) return { error: o.why };
+    const lock = this.#locked(p, o.unlock);
+    if (lock) return { error: `${part.name} is locked. ${lock}` };
     const n = quantity ?? setSize(this.db, part, p.cars[p.currentCar]?.carId);
     if (!Number.isInteger(n) || n < 1 || n > 20) return { error: 'You can buy 1 to 20 at a time.' };
-    const cost = part.price * n;
+    const cost = o.price * n;
     const unpaid = this.#pay(p, cost, `${n > 1 ? `${n} × ` : ''}${part.name} cost${n > 1 ? '' : 's'}`);
     if (unpaid) return unpaid;
-    return { result: { instanceIds: Array.from({ length: n }, () => addPart(p, this.db, partId)), cost } };
+    const paid = this.unlimited ? 0 : o.price, instanceIds = Array.from({ length: n }, () => addPart(p, this.db, partId, 100, { price: paid, boughtAt: now }));
+    logShop(p, { at: now, what: 'buy', name: `${n > 1 ? `${n} × ` : ''}${part.name}`, amount: -(this.unlimited ? 0 : cost), partId, ...(o.sale ? { sale: o.sale.name } : {}) });
+    return { result: { instanceIds, cost: this.unlimited ? 0 : cost, ...(o.sale ? { sale: o.sale } : {}) } };
   }
   buyPart(partId, { quantity } = {}) { return this.#change('buy', p => this.#buy(p, partId, quantity)); }
+  #sell(p, instanceId) {
+    const part = p.parts[instanceId];
+    if (!part) return { error: 'That part isn\'t yours.' };
+    if (part.installedOn) return { error: `${this.#name(part)} is on your ${carName(p, this.db, part.installedOn.car)}: take it off before you sell it.` };
+    const amount = sellValue(this.db, part, this.now());
+    p.money += amount;
+    delete p.parts[instanceId];
+    return { amount, name: this.#name(part) };
+  }
   sellPart(instanceId) {
     return this.#change('sell', p => {
-      const part = p.parts[instanceId];
-      if (!part) return { error: 'That part isn\'t yours.' };
-      if (part.installedOn) return { error: `${this.#name(part)} is on your ${carName(p, this.db, part.installedOn.car)}: take it off before you sell it.` };
-      const amount = sellPrice(this.db, part);
-      p.money += amount;
+      const r = this.#sell(p, instanceId);
+      if (r.error) return r;
+      logShop(p, { at: this.now(), what: 'sell', name: r.name, amount: r.amount });
+      return { result: { amount: r.amount } };
+    });
+  }
+  sellParts(instanceIds) {
+    return this.#change('sell', p => {
+      const ids = [...new Set(instanceIds ?? [])];
+      if (!ids.length || ids.length > 200) return { error: 'Choose 1 to 200 parts to sell.' };
+      let amount = 0;
+      for (const id of ids) { const r = this.#sell(p, id); if (r.error) return r; amount += r.amount; }
+      logShop(p, { at: this.now(), what: 'sell', name: `${ids.length} part${ids.length > 1 ? 's' : ''}`, amount });
+      return { result: { amount, sold: ids.length } };
+    });
+  }
+  // Something bought new, never fitted and as it came, back within the refund window — for what was paid
+  refundPart(instanceId) {
+    return this.#change('refund', p => {
+      const x = p.parts[instanceId];
+      if (!x) return { error: 'That part isn\'t yours.' };
+      const why = refundable(this.db, x, this.now());
+      if (why) return { error: why };
+      p.money += x.price;
       delete p.parts[instanceId];
-      return { result: { amount } };
+      logShop(p, { at: this.now(), what: 'refund', name: this.#name(x), amount: x.price });
+      return { result: { amount: x.price } };
+    });
+  }
+  // A kit: its parts as sets for the car, for its price (each copy's share of it is what was paid for it).
+  // install: each fitted to the car if it goes on (what doesn't stays in the inventory)
+  buyBundle(bundleId, { carInstanceId, install = false } = {}) {
+    return this.#change('buy', p => {
+      const b = (shopOf(this.db).bundles ?? []).find(x => x.id === bundleId);
+      if (!b) return { error: 'There\'s no such kit.' };
+      const carIid = carInstanceId ?? p.currentCar, car = p.cars[carIid];
+      if (!car) return { error: 'That car isn\'t yours.' };
+      if (b.car && b.car !== car.carId) return { error: `${b.name} is for the ${this.db.cars[b.car]?.name ?? b.car}.` };
+      const now = this.now(), q = quoteBundle(this.db, b, car.carId, now);
+      if (!q.forSale) return { error: q.why ?? `${b.name} isn't for sale.` };
+      const lock = this.#locked(p, b.unlock) ?? q.items.map(it => this.#locked(p, offer(this.db, 'part', it.partId, now).unlock)).find(Boolean);
+      if (lock) return { error: `${b.name} is locked. ${lock}` };
+      const unpaid = this.#pay(p, q.price, `${b.name} costs`);
+      if (unpaid) return unpaid;
+      const instanceIds = q.copies.map(c => addPart(p, this.db, c.partId, 100, { price: this.unlimited ? 0 : c.paid, boughtAt: now }));
+      const fitted = [], notFitted = [];
+      if (install) for (const it of q.items) {
+        const id = instanceIds.find((x, i) => q.copies[i].partId === it.partId && !p.parts[x].installedOn);
+        const r = this.#install(p, carIid, id, { auto: true });
+        (r.error ? notFitted : fitted).push(it.partId);
+      }
+      logShop(p, { at: now, what: 'buy', name: b.name, amount: -(this.unlimited ? 0 : q.price), bundle: b.id });
+      return { result: { instanceIds, cost: this.unlimited ? 0 : q.price, saving: q.saving, fitted, notFitted } };
     });
   }
   // Repairs (garage/repair.js): items [{ target: instanceId | 'shell', scope }] on a car (target's
@@ -341,10 +409,12 @@ export class LocalPlayerService extends PlayerService {
       const reasons = entryReasons({ quest, car: { ...(car ?? {}), drivable }, player: { money: p.money, xp: p.xp ?? 0, unlimited: this.unlimited }, fee, config: cfg, economy: this.db.economy })
         .filter(r => car || !CAR_CODES.has(r.code) || r.code === 'damage');
       if (reasons.length) return { error: reasons[0].text, detail: { reasons } };
+      // (a pink slip may win a car: room for it first)
+      if (quest.type === 'pink_slip') { const full = this.#room(p); if (full) return { error: `${full.error.replace(/ first\.$/, '')} before racing for pink slips.` }; }
       const unpaid = this.#pay(p, fee, 'the entry fee is');
       if (unpaid) return unpaid;
       const aid = attemptId ?? `att_${String(p.nextId++).padStart(6, '0')}`;
-      startAttempt(p, { quest, fee: this.unlimited ? 0 : fee, attemptId: aid, now: this.now() });
+      startAttempt(p, { quest, fee: this.unlimited ? 0 : fee, attemptId: aid, now: this.now(), car: id });
       return { result: { attemptId: aid, fee: this.unlimited ? 0 : fee } };
     });
   }
@@ -554,14 +624,90 @@ export class LocalPlayerService extends PlayerService {
 
   // ---------- cars ----------
   selectCar(carInstanceId) { return this.#change('car', p => this.#car(p, carInstanceId) ?? (p.currentCar = carInstanceId, {})); }
+  // (room for one more car, or why not)
+  #room(p) { const n = capacity(this.db, p); return Object.keys(p.cars).length >= n ? { error: `Your garage is full (${n} cars): sell a car or buy more space first.` } : null; }
   buyCar(carId) {
     return this.#change('car', p => {
-      const def = this.db.cars[carId];
+      const def = this.db.cars[carId], now = this.now();
       if (!def) return { error: `There's no car "${carId}".` };
-      const price = carPrice(this.db, def);
-      const unpaid = this.#pay(p, price, `the ${def.name} costs`);
+      const o = offer(this.db, 'car', carId, now);
+      if (!o.forSale) return { error: o.why };
+      const lock = this.#locked(p, o.unlock);
+      if (lock) return { error: `The ${def.name} is locked. ${lock}` };
+      const full = this.#room(p);
+      if (full) return full;
+      const unpaid = this.#pay(p, o.price, `the ${def.name} costs`);
       if (unpaid) return unpaid;
-      return { result: { carInstanceId: addCar(p, this.db, carId, price), cost: price } };
+      const paid = this.unlimited ? 0 : o.price, id = addCar(p, this.db, carId, paid, { boughtAt: now });
+      logShop(p, { at: now, what: 'buy-car', name: def.name, amount: -paid, carId, ...(o.sale ? { sale: o.sale.name } : {}) });
+      return { result: { carInstanceId: id, cost: paid } };
+    });
+  }
+  // A car from today's used lot, as it is: its parts (some aftermarket) at their conditions, its body's damage,
+  // its history. Each listing once per player
+  buyUsedCar(listingId) {
+    return this.#change('car', p => {
+      const now = this.now(), day = dayOf(ms(now)), l = usedLot(this.db, day).find(x => x.id === listingId);
+      if (!l) return { error: 'That car isn\'t on the lot today.' };
+      if (p.usedBought?.[day]?.includes(l.id)) return { error: 'You\'ve bought that one already.' };
+      const def = this.db.cars[l.carId], lock = this.#locked(p, offer(this.db, 'car', l.carId, now).unlock);
+      if (lock) return { error: `The ${def.name} is locked. ${lock}` };
+      const full = this.#room(p);
+      if (full) return full;
+      const unpaid = this.#pay(p, l.price, `this ${def.name} costs`);
+      if (unpaid) return unpaid;
+      const share = this.unlimited ? Object.fromEntries(Object.keys(usedShares(this.db, l)).map(k => [k, 0])) : usedShares(this.db, l);
+      const id = addCar(p, this.db, l.carId, 0, { boughtAt: now, used: { listing: l.id, year: l.year, mileage: l.mileage, owners: l.owners, history: l.history } });
+      // (its factory parts out; what the lot had on it in, at their conditions)
+      for (const [pid, x] of Object.entries(p.parts)) if (x.installedOn?.car === id) delete p.parts[pid];
+      const sockets = {}, partIds = {};
+      for (const [socket, x] of Object.entries(l.parts)) {
+        const pid = addPart(p, this.db, x.partId, x.condition, { price: share[socket] ?? 0 });
+        p.parts[pid].installedOn = { car: id, socket };
+        sockets[socket] = pid; partIds[socket] = x.partId;
+      }
+      const car = p.cars[id], setup = car.setups[car.activeSetup];
+      setup.sockets = { ...Object.fromEntries(Object.keys(setup.sockets).map(k => [k, null])), ...sockets }; setup.partIds = partIds; setup.name = 'As bought';
+      car.price = this.unlimited ? 0 : l.price; car.bodyPrice = share.body ?? 0;
+      if (l.damage.condition < 100 || l.damage.broken?.length) car.damage = { condition: l.damage.condition, ...(l.damage.broken?.length ? { broken: [...l.damage.broken] } : {}) };
+      p.usedBought = { [day]: [...(p.usedBought?.[day] ?? []), l.id] };
+      logShop(p, { at: now, what: 'buy-used', name: `${def.name} (${l.year}, ${l.mileage.toLocaleString('en-GB')} km)`, amount: -car.price, carId: l.carId });
+      return { result: { carInstanceId: id, cost: car.price } };
+    });
+  }
+  // Selling a car: its body and every part on it, bar those kept (they go to the inventory). Never the last
+  // car that can be driven, nor one in a race
+  sellCar(carInstanceId, { keep = [] } = {}) {
+    return this.#change('car', p => {
+      const car = p.cars[carInstanceId];
+      if (!car) return { error: 'That car isn\'t yours.' };
+      if (p.questPending?.car === carInstanceId) return { error: 'That car is in a race: finish or quit it first.' };
+      const others = Object.keys(p.cars).filter(id => id !== carInstanceId);
+      if (!others.some(id => garageFor(p, this.db, id).drivable().ok)) return { error: others.length ? 'That\'s your only car that can be driven: repair another (or buy one) before you sell it.' : 'That\'s your only car: buy another before you sell it.' };
+      for (const id of keep ?? []) if (p.parts[id]?.installedOn?.car !== carInstanceId) return { error: 'You can only keep parts that are on that car.' };
+      const v = carSellValue(this.db, p, carInstanceId, { keep }, this.now()), name = carName(p, this.db, carInstanceId);
+      for (const id of keep ?? []) p.parts[id].installedOn = null;
+      for (const x of v.parts) delete p.parts[x.instanceId];
+      delete p.cars[carInstanceId];
+      if (p.currentCar === carInstanceId) p.currentCar = others.find(id => garageFor(p, this.db, id).drivable().ok) ?? others[0];
+      // (setups elsewhere that used a part that's gone: they name it, and say it's missing)
+      p.money += v.total;
+      logShop(p, { at: this.now(), what: 'sell-car', name, amount: v.total, carId: car.carId, kept: (keep ?? []).length });
+      return { result: { amount: v.total, body: v.body, parts: v.parts.length, kept: (keep ?? []).length } };
+    });
+  }
+  // Today's used cars (garage/shop.js usedLot: the same for everyone today)
+  async getUsedLot() { const now = ms(this.now()), day = dayOf(now); return { ok: true, error: null, day, endsAt: lotEnds(now), listings: usedLot(this.db, day) }; }
+  // Room for one more car in the garage
+  buyGarageSlot() {
+    return this.#change('buy', p => {
+      const price = slotPrice(this.db, p);
+      if (price == null) return { error: 'Your garage is as big as it gets.' };
+      const unpaid = this.#pay(p, price, 'another space costs');
+      if (unpaid) return unpaid;
+      p.garageSlots = (p.garageSlots ?? 0) + 1;
+      logShop(p, { at: this.now(), what: 'slot', name: 'Garage space', amount: -(this.unlimited ? 0 : price) });
+      return { result: { cost: this.unlimited ? 0 : price, capacity: capacity(this.db, p) } };
     });
   }
 
@@ -732,4 +878,4 @@ export class LocalPlayerService extends PlayerService {
 }
 
 // (What a copy fetches and what it costs to repair, for the screens: the same sums the service uses)
-export { sellPrice, repairCost, shellRepairCost, priceOf, setSize, needsRepair };
+export { sellValue, repairCost, shellRepairCost, priceOf, setSize, needsRepair };

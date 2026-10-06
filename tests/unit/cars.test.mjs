@@ -29,7 +29,7 @@ import { fitWithNeeds, ownPart } from '../../tools/content/balance.mjs';
 
 const H = await harness(), db = H.db;
 const ok = (r, what) => { assert.ok(r.ok, `${what}: ${r.error ?? JSON.stringify(r.errors)}`); return r; };
-const newPlayer = async (money) => { const s = new LocalPlayerService({ db, storage: new MemoryStorage() }); await s.init(); await s.addMoney(money); return s; };
+const newPlayer = async (money) => { const s = new LocalPlayerService({ db, storage: new MemoryStorage() }); await s.init(); await s.addXp(1e7); await s.addMoney(money); return s; };
 const garageOf = (service, carInstanceId) => new Garage(db, { ...garageStateOf(service.profile, db), current: carInstanceId });
 const input = (throttle = 0, steer = 0, brake = 0) => ({ device: 'wheel', throttle, brake, steer, handbrake: false });
 const glbOf = spec => { const b = fs.readFileSync(path.join(root, spec.model.file)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); };

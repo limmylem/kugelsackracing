@@ -33,7 +33,7 @@ const r4 = x => Math.round(x * 1e4) / 1e4 + 0;
 // part's slot; an engine carries the radiator)
 const SLOT_SYSTEM = { suspension: 'suspension', brakes: 'brakeLine', wheels: 'rim', wheel: 'rim', tyres: 'tyre', tyre: 'tyre', turbo: 'intake', supercharger: 'intake', gearbox: 'gearbox', differential: 'differential', differential_front: 'differential', centre_diff: 'differential', clutch: 'clutch', exhaust: 'exhaust' };
 export const systemOf = part => !part ? null : part.engine ? 'radiator' : SLOT_SYSTEM[part.slot] ?? null;
-export const priceOf = (db, instance) => db.parts[instance.partId]?.price ?? instance.price ?? 0;
+export const priceOf = (db, instance) => db.economy?.shop?.catalogue?.parts?.[instance.partId]?.price ?? db.parts[instance.partId]?.price ?? instance.price ?? 0;
 
 // ---------- what's wrong ----------
 

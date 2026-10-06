@@ -10,7 +10,7 @@
 //                                  version of the quest), oldBest: { time, score, routeVersion } (the best on the
 //                                  route before it was changed, once a run on the new one has replaced it) }
 //   profile.series[seriesId]     { completed: ISO time, money, xp } a series finished, its bonus paid
-//   profile.questPending         { attemptId, questId, fee, started, pinkSlip? } the run under way (its fee paid)
+//   profile.questPending         { attemptId, questId, fee, started, car?, pinkSlip? } the run under way (its fee paid; car: the one racing)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
 
 import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf, rankedTime } from '../../quest/rules.js';
@@ -33,10 +33,10 @@ export function questState(profile, questId) {
   return { state: q.completed ? 'completed' : 'attempted', medal: q.medal };
 }
 
-export function startAttempt(p, { quest, fee, attemptId, now }) {
+export function startAttempt(p, { quest, fee, attemptId, now, car = null }) {
   const q = progress(p, quest.id);
   q.attempts++; q.lastPlayed = now;
-  p.questPending = { attemptId, questId: quest.id, fee, started: now, ...(quest.type === 'pink_slip' ? { pinkSlip: true } : {}) };
+  p.questPending = { attemptId, questId: quest.id, fee, started: now, ...(car ? { car } : {}), ...(quest.type === 'pink_slip' ? { pinkSlip: true } : {}) };
   if (quest.track?.code) noteRecent(p, { ...quest.track, eventId: quest.id }, now);
 }
 // the game couldn't start it: the fee back, the attempt not counted

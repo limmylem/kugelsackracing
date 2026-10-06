@@ -59,7 +59,7 @@ export const scrubUrl = (url: string) => {
   return `${p}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void } };
+export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -242,7 +242,7 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('onClose', async () => { await tracks.close(); });
   // (the economy: the server's — Phase 6 Step 2; runs gone quiet ended every minute)
   const economyConfig = createEconomyConfig(db);
-  const economy = createEconomy({ db, config: economyConfig, tracks, log: (o, m) => app.log.warn(o, m) });
+  const economy = createEconomy({ db, config: economyConfig, tracks, log: (o, m) => app.log.warn(o, m), ...(deps.clock ? { clock: deps.clock } : {}) });
   app.decorate('economy', economy);
   app.decorate('economyConfig', economyConfig);
   app.addHook('onReady', async () => { await economyConfig.ensure(); });

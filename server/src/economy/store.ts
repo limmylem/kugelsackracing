@@ -16,6 +16,10 @@ import { levelOf } from '../../../quest/rules.js';
 
 type Tx = Pick<Db, 'execute'>;
 const CORE = new Set(['version', 'money', 'nextId', 'currentCar', 'xp', 'quests', 'cars', 'parts']);
+// (a car's or part's own columns; anything else it carries — bodyPrice, boughtAt, used — is its extra)
+const CAR_COLS = new Set(['carInstanceId', 'carId', 'price', 'paint', 'damage', 'activeSetup', 'setups']);
+const PART_COLS = new Set(['instanceId', 'partId', 'condition', 'price', 'tuning', 'paint', 'damage', 'dentLog', 'dents', 'attach', 'installedOn']);
+const extraOf = (x: any, cols: Set<string>) => { const e = Object.fromEntries(Object.entries(x ?? {}).filter(([k, v]) => !cols.has(k) && v !== undefined)); return Object.keys(e).length ? e : null; };
 const j = (x: unknown) => x === undefined || x === null ? null : JSON.stringify(x);
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -33,12 +37,12 @@ export async function loadProfile(tx: Tx, userId: string): Promise<any | null> {
     ...(e.state ?? {}), version: e.profile_version, money: Number(e.balance), nextId: e.next_id, currentCar: e.current_car, ...(Number(e.xp) ? { xp: Number(e.xp) } : {}),
     cars: Object.fromEntries((cars.rows as any[]).map(c => [c.instance_id, {
       carInstanceId: c.instance_id, carId: c.car_id, price: Number(c.price), ...(c.paint ? { paint: c.paint } : {}), ...(c.damage ? { damage: c.damage } : {}),
-      activeSetup: c.active_setup, setups: c.setups ?? {},
+      activeSetup: c.active_setup, setups: c.setups ?? {}, ...(c.extra ?? {}),
     }])),
     parts: Object.fromEntries((parts.rows as any[]).map(p => [p.instance_id, {
       instanceId: p.instance_id, partId: p.part_id, condition: Number(p.condition), price: Number(p.price),
       ...(p.tuning ? { tuning: p.tuning } : {}), ...(p.paint ? { paint: p.paint } : {}), ...(p.damage ? { damage: p.damage } : {}),
-      ...(p.dent_log ? { dentLog: p.dent_log } : {}), ...(p.attach ? { attach: p.attach } : {}), installedOn: on.get(p.instance_id) ?? null,
+      ...(p.dent_log ? { dentLog: p.dent_log } : {}), ...(p.attach ? { attach: p.attach } : {}), installedOn: on.get(p.instance_id) ?? null, ...(p.extra ?? {}),
     }])),
   };
   if ((quests.rows as any[]).length) profile.quests = Object.fromEntries((quests.rows as any[]).map(q => [q.quest_id, q.data]));
@@ -67,9 +71,9 @@ export async function saveProfile(tx: Tx, userId: string, before: any | null, af
   for (const [id, c] of Object.entries<any>(ac)) {
     const was = bc[id];
     if (was && same(was, c)) continue;
-    await tx.execute(sql`insert into owned_cars (user_id, instance_id, car_id, price, paint, damage, active_setup, setups)
-      values (${userId}, ${id}, ${c.carId}, ${Math.round(c.price ?? 0)}, ${j(c.paint)}::jsonb, ${j(c.damage)}::jsonb, ${c.activeSetup ?? null}, ${JSON.stringify(c.setups ?? {})}::jsonb)
-      on conflict (user_id, instance_id) do update set car_id = excluded.car_id, price = excluded.price, paint = excluded.paint, damage = excluded.damage, active_setup = excluded.active_setup, setups = excluded.setups`);
+    await tx.execute(sql`insert into owned_cars (user_id, instance_id, car_id, price, paint, damage, active_setup, setups, extra)
+      values (${userId}, ${id}, ${c.carId}, ${Math.round(c.price ?? 0)}, ${j(c.paint)}::jsonb, ${j(c.damage)}::jsonb, ${c.activeSetup ?? null}, ${JSON.stringify(c.setups ?? {})}::jsonb, ${j(extraOf(c, CAR_COLS))}::jsonb)
+      on conflict (user_id, instance_id) do update set car_id = excluded.car_id, price = excluded.price, paint = excluded.paint, damage = excluded.damage, active_setup = excluded.active_setup, setups = excluded.setups, extra = excluded.extra`);
     history.push({ type: 'car', id, event: was ? meta.action : `${meta.action}: new`, details: was ? changedKeys(was, c) : { carId: c.carId } });
   }
   // ---------- parts (and where each is: the build) ----------
@@ -81,9 +85,9 @@ export async function saveProfile(tx: Tx, userId: string, before: any | null, af
   for (const [id, p] of Object.entries<any>(ap)) {
     const was = bp[id], strip = (x: any) => x && { ...x, installedOn: null };
     if (!was || !same(strip(was), strip(p))) {
-      await tx.execute(sql`insert into owned_parts (user_id, instance_id, part_id, condition, price, tuning, paint, damage, dent_log, attach)
-        values (${userId}, ${id}, ${p.partId}, ${Math.max(0, Math.min(100, Number(p.condition)))}, ${Math.round(p.price ?? 0)}, ${j(p.tuning)}::jsonb, ${j(p.paint)}::jsonb, ${j(p.damage)}::jsonb, ${j(p.dentLog)}::jsonb, ${p.attach ?? null})
-        on conflict (user_id, instance_id) do update set part_id = excluded.part_id, condition = excluded.condition, price = excluded.price, tuning = excluded.tuning, paint = excluded.paint, damage = excluded.damage, dent_log = excluded.dent_log, attach = excluded.attach`);
+      await tx.execute(sql`insert into owned_parts (user_id, instance_id, part_id, condition, price, tuning, paint, damage, dent_log, attach, extra)
+        values (${userId}, ${id}, ${p.partId}, ${Math.max(0, Math.min(100, Number(p.condition)))}, ${Math.round(p.price ?? 0)}, ${j(p.tuning)}::jsonb, ${j(p.paint)}::jsonb, ${j(p.damage)}::jsonb, ${j(p.dentLog)}::jsonb, ${p.attach ?? null}, ${j(extraOf(p, PART_COLS))}::jsonb)
+        on conflict (user_id, instance_id) do update set part_id = excluded.part_id, condition = excluded.condition, price = excluded.price, tuning = excluded.tuning, paint = excluded.paint, damage = excluded.damage, dent_log = excluded.dent_log, attach = excluded.attach, extra = excluded.extra`);
       history.push({ type: 'part', id, event: was ? meta.action : `${meta.action}: new`, details: was ? changedKeys(strip(was), strip(p)) : { partId: p.partId, condition: p.condition } });
     }
     if (slotOf(p) && slotOf(p) !== slotOf(was)) {

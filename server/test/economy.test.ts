@@ -74,15 +74,15 @@ test('double spend: 50 purchases at once with money for one — exactly one goes
   await ben.get('/api/v1/player');
   // (an admin leaves them exactly enough for one)
   const now = await money(ben);
-  const r = await admin.post(`/api/v1/admin/players/${uid}/money`, { amount: 820 - now, reason: 'Test: exactly one race intake' });
+  const r = await admin.post(`/api/v1/admin/players/${uid}/money`, { amount: 780 - now, reason: 'Test: exactly one sport exhaust' });
   assert.equal(r.status, 200, r.text);
-  assert.equal(await money(ben), 820);
-  const all = await Promise.all(Array.from({ length: 50 }, () => act(ben, 'buyPart', { partId: 'intake_race' })));
+  assert.equal(await money(ben), 780);
+  const all = await Promise.all(Array.from({ length: 50 }, () => act(ben, 'buyPart', { partId: 'catback_sport' })));
   const ok = all.filter(x => x.status === 200), no = all.filter(x => x.status !== 200);
   assert.equal(ok.length, 1, all.map(x => x.status).join(','));
   for (const x of no) { assert.equal(x.status, 409); assert.match(x.body.error.message, /Not enough money/); }
   assert.equal(await money(ben), 0);
-  const parts = Object.values<any>((await ben.get('/api/v1/player')).body.profile.parts).filter(p => p.partId === 'intake_race');
+  const parts = Object.values<any>((await ben.get('/api/v1/player')).body.profile.parts).filter(p => p.partId === 'catback_sport');
   assert.equal(parts.length, 1);
   await ledgerOk();
 });

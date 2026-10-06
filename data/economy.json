@@ -4,8 +4,11 @@
   "startingMoney": 6000,
   "startingCar": "starter_car",
   "sell": {
+    "_note": "What a part or car sells for (garage/shop.js sellValue): what it's worth — the least of what was paid for it, its list price and its price now — × ratio, less repairShare of what it would cost to put right (its condition, dents and mechanical damage; garage/repair.js), never below floor of the ratio's share. Repairing something only to sell it never pays. A car's body (its list price less its factory parts') the same, with its body shell's repairs; each part on it as a part. conditionCurve: the old rule (condition only), for economy files without repairShare.",
     "ratio": 0.6,
-    "conditionCurve": [[0, 0.1], [40, 0.45], [70, 0.8], [100, 1]]
+    "conditionCurve": [[0, 0.1], [40, 0.45], [70, 0.8], [100, 1]],
+    "repairShare": 0.5,
+    "floor": 0.1
   },
   "repair": {
     "_note": "garage/repair.js. A car's damage is repaired a piece at a time (the damage report's problems) or all at once. full: back to 100%, every dent out, the mechanical damage gone. quick: share of the full price; condition up to quick.condition (never down), each dent dentScale as hard (those left shallower than dentMin m gone), leaks sealed and tyres pumped up, bends and wear mechanicalKept of what they were. Mechanical damage: the part's price × its system's share (systems; mechanical for any not listed) — a corner of a per-wheel system (suspension, brake lines) a quarter of it — at least minimum, from severity of it for a slight one up to all of it at the worst. reattach: of the part's price, bolting a part that came loose or off back on (the same either way). A part's repairs together never cost more than maxOfNew of a new one. Fitting a spare from the inventory instead is free, like fitting any part.",
@@ -60,6 +63,115 @@
     "A": 70000,
     "S": 160000,
     "X": 300000
+  },
+  "shop": {
+    "_note": "The shop, the dealership and the used car lot (Phase 6 Step 4: garage/shop.js). Prices: a part's own (its file) or a car's (carPrices by class × its priceFactor), unless catalogue sets one. catalogue.parts / .cars: { id: { price, hidden, unlock: { level, series, seriesName }, from, until (a limited-time item: only sold between them) } }. unlock: the level a part's tier or a car's class needs, unless the item has its own rule. sales: { id, name, starts, ends, discount (0–1), parts, cars, categories, tiers, classes, all } — the best one on an item counts, they don't add up. bundles: kits, each part as a set for the car (wheels: four), discount off their prices together. refund.minutes: something bought new can go back for what was paid within this, if it was never fitted and is as it came. garage: slots for cars, and extra ones for money (slotPrice × growth for each bought, at most maxExtra). confirmAbove: selling something worth this or more (or a car) asks twice. usedLot: the day's used cars (the same for everyone, from the day and seed): count, which classes by weight, mileage, wear by km, accidents, aftermarket parts by tier, and the price — the body and each part by its condition (conditionCurve) × factor.",
+    "confirmAbove": 5000,
+    "refund": {
+      "minutes": 30
+    },
+    "garage": {
+      "slots": 3,
+      "slotPrice": 10000,
+      "growth": 1.5,
+      "maxExtra": 5
+    },
+    "unlock": {
+      "partTiers": {
+        "race": {
+          "level": 5
+        }
+      },
+      "carClasses": {
+        "A": {
+          "level": 4
+        },
+        "S": {
+          "level": 6
+        },
+        "X": {
+          "level": 10
+        }
+      }
+    },
+    "catalogue": {
+      "parts": {},
+      "cars": {}
+    },
+    "bundles": [
+      {
+        "id": "kit_street_breathing",
+        "name": "Street breathing kit",
+        "parts": ["intake_filter_street", "catback_street", "ecu_stage1"],
+        "discount": 0.08
+      },
+      {
+        "id": "kit_street_brakes",
+        "name": "Street brake kit",
+        "parts": ["brakes_street", "pads_street"],
+        "discount": 0.08
+      },
+      {
+        "id": "kit_handling",
+        "name": "Sport handling kit",
+        "parts": ["springs_sport", "arb_front_sport", "arb_rear_sport", "strut_brace"],
+        "discount": 0.08
+      },
+      {
+        "id": "kit_lightweight",
+        "name": "Lightweight kit",
+        "parts": ["weight_rear_seats", "weight_sound_deadening", "bucket_seat_street"],
+        "discount": 0.08
+      },
+      {
+        "id": "kit_sport_power",
+        "name": "Sport power kit",
+        "parts": ["cold_air_intake", "catback_sport", "ecu_stage2", "header_4into1"],
+        "discount": 0.08,
+        "unlock": {
+          "level": 3
+        }
+      }
+    ],
+    "sales": [],
+    "usedLot": {
+      "count": 8,
+      "seed": "kugelsack-used-lot",
+      "classes": {
+        "D": 3,
+        "C": 3,
+        "B": 2,
+        "A": 1,
+        "S": 0.5,
+        "X": 0
+      },
+      "mileage": [5000, 220000],
+      "kmPerYear": 15000,
+      "kmPerOwner": 70000,
+      "serviceKm": 20000,
+      "wear": {
+        "perKm": 0.00012,
+        "spread": 10,
+        "min": 35
+      },
+      "damage": {
+        "chance": 0.35,
+        "maxLoss": 30
+      },
+      "aftermarket": {
+        "chance": 0.6,
+        "max": 4,
+        "tiers": {
+          "street": 0.6,
+          "sport": 0.3,
+          "race": 0.1
+        }
+      },
+      "price": {
+        "factor": 0.85,
+        "conditionCurve": [[0, 0.3], [100, 1]]
+      }
+    }
   },
   "quests": {
     "_note": "World quests' rewards, entry fees and tiers (content/quests.js rewardsOf). A quest never stores money: its reward is worked out from its rating (stars and km: quest/difficulty.js, stored with the quest when it's saved or published) and these. core = (base + perKm × km, at most maxKm) × byStars[stars] × byType × byClass (the lowest class it lets in: an open quest isn't worth farming with a fast car) × (1 + rivals × npc.perRival × (npc.skillFloor + their mean skill)). Its tier (tiers: unlocked by level) = floor((stars + tierOfClass) / 2), at least 1. The entry fee is core × its tier's feeShare, and the reward is core + the fee × fee.back (winning pays the fee back on top). xp the same way from base.xp and perKm.xp (no class). Pink slips: no money and no fee, the cars are the stakes: both cars' classes at most the tier's stakeMaxClass. A run's share of the reward: data/quests.json rewards and race. farming: a quest finished more than freeRuns times within windowHours pays decay^(runs past freeRuns) of it (at least floor), money and xp.",
@@ -249,11 +361,30 @@
       "tracks": {
         "_note": "Track events (Phase 5 Step 3): tracks of generated events in the pool — official, daily, weekly and quick (by weight), events by type on each (laps: lap km by stars, × laps), and how a race's rivals are set (as above). Quick races are a new track each time (a fresh code) but their pay is capped each hour.",
         "count": 40,
-        "kinds": { "official": 0.45, "daily": 0.15, "weekly": 0.1, "quick": 0.3 },
+        "kinds": {
+          "official": 0.45,
+          "daily": 0.15,
+          "weekly": 0.1,
+          "quick": 0.3
+        },
         "lapKm": [1.6, 5.4],
-        "types": { "circuit_race": 0.4, "hot_lap": 0.3, "hillclimb": 0.2, "endurance": 0.1 },
-        "laps": { "circuit_race": [2, 5], "hot_lap": [3, 3], "hillclimb": [1, 1], "endurance": [8, 14] },
-        "rivals": { "circuit_race": 1, "hillclimb": 0.5, "endurance": 1 }
+        "types": {
+          "circuit_race": 0.4,
+          "hot_lap": 0.3,
+          "hillclimb": 0.2,
+          "endurance": 0.1
+        },
+        "laps": {
+          "circuit_race": [2, 5],
+          "hot_lap": [3, 3],
+          "hillclimb": [1, 1],
+          "endurance": [8, 14]
+        },
+        "rivals": {
+          "circuit_race": 1,
+          "hillclimb": 0.5,
+          "endurance": 1
+        }
       }
     },
     "targets": {

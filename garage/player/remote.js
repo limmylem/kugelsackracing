@@ -147,6 +147,17 @@ export class RemotePlayerService extends PlayerService {
   setPartFinish(instanceIds, look) { return this.#do('paint', 'setPartFinish', { instanceIds, look: look ?? null }, S => S.setPartFinish(instanceIds, look)); }
   selectCar(carInstanceId) { return this.#do('car', 'selectCar', { carInstanceId }, S => S.selectCar(carInstanceId)).then(r => { if (r.ok) this.endDrive(); return r; }); }
   buyCar(carId) { return this.#do('car', 'buyCar', { carId }, S => S.buyCar(carId)); }
+  sellParts(instanceIds) { const ids = [...new Set(instanceIds)]; return this.#do('sell', 'sellParts', { instanceIds: ids }, S => S.sellParts(ids)); }
+  refundPart(instanceId) { return this.#do('refund', 'refundPart', { instanceId }, S => S.refundPart(instanceId)); }
+  buyBundle(bundleId, opts = {}) { return this.#do('buy', 'buyBundle', { bundleId, opts: { ...(opts.carInstanceId ? { carInstanceId: opts.carInstanceId } : {}), ...(opts.install ? { install: true } : {}) } }, S => S.buyBundle(bundleId, opts)); }
+  sellCar(carInstanceId, opts = {}) { return this.#do('car', 'sellCar', { carInstanceId, opts: { keep: opts.keep ?? [] } }, S => S.sellCar(carInstanceId, opts)); }
+  buyUsedCar(listingId) { return this.#do('car', 'buyUsedCar', { listingId }, S => S.buyUsedCar(listingId)); }
+  buyGarageSlot() { return this.#do('buy', 'buyGarageSlot', {}, S => S.buyGarageSlot()); }
+  // today's used cars: the server's (the same for everyone today)
+  async getUsedLot() {
+    try { const r = await this.api.get('/player/used-lot', { retries: 1 }); return { ok: true, error: null, ...r }; }
+    catch (e) { return { ok: false, error: e.message, listings: [] }; }
+  }
   saveSetup(carInstanceId, opts = {}) { return this.#do('setup', 'saveSetup', { carInstanceId, opts }, S => S.saveSetup(carInstanceId, opts)); }
   renameSetup(carInstanceId, setupId, name) { return this.#do('setup', 'renameSetup', { carInstanceId, setupId, name }, S => S.renameSetup(carInstanceId, setupId, name)); }
   deleteSetup(carInstanceId, setupId) { return this.#do('setup', 'deleteSetup', { carInstanceId, setupId }, S => S.deleteSetup(carInstanceId, setupId)); }

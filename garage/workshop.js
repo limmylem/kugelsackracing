@@ -12,7 +12,8 @@ import { Garage } from './data.js';
 import { takes } from './validate.js';
 import { dyno } from '../physics/engine.js';
 import { angleScale } from '../physics/parts.js';
-import { buildOf, carName, carPrice, garageStateOf, inInventory, needsRepair, repairCost, sellPrice, setSize, setupChanges, shellRepairCost } from './player/profile.js';
+import { buildOf, carName, carPrice, garageStateOf, inInventory, needsRepair, repairCost, setSize, setupChanges, shellRepairCost } from './player/profile.js';
+import { sellValue } from './shop.js';
 import { carProblems } from './damageReport.js';
 import { cornerWord } from './repair.js';
 
@@ -135,7 +136,7 @@ export class Workshop {
     return Object.values(this.profile.parts).filter(p => this.db.parts[p.partId]).map(instance => ({
       instance, part: this.db.parts[instance.partId], car: instance.installedOn ? carName(this.profile, this.db, instance.installedOn.car) : null,
       socket: instance.installedOn?.socket ?? null, mine: instance.installedOn?.car === this.carInstanceId,
-      sell: sellPrice(this.db, instance), repair: repairCost(this.db, instance),
+      sell: sellValue(this.db, instance), repair: repairCost(this.db, instance),
     }));
   }
   // The shop: every part still sold, with its price, how many come together, whether it goes on this
@@ -166,7 +167,7 @@ export class Workshop {
     }
     return this.fitCache.map.get(part.id);
   }
-  sellPrice(instance) { return sellPrice(this.db, instance); }
+  sellPrice(instance) { return sellValue(this.db, instance); }
   repairCost(instance) { return repairCost(this.db, instance); }
   #isGroup(part) { return !!this.carDef.socketGroups?.[part.slot]; }
   #sameGroup(a, b) { return Object.values(this.carDef.socketGroups || {}).some(g => g.includes(a) && g.includes(b)); }

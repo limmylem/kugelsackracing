@@ -64,6 +64,13 @@
       "when": 1791274149121,
       "tag": "0008_ledger_move",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791274150121,
+      "tag": "0009_item_extra",
+      "breakpoints": true
     }
   ]
 }

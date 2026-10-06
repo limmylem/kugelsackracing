@@ -24,7 +24,7 @@ import { fingerprint } from '../fingerprint.js';
 import { takes, validateBuild } from '../validate.js';
 import { prune } from '../mechanical.js';
 import { dentsOf, packLog, unpackDents } from '../damageLog.js';
-import { needsWork, partWork, shellWork, workCost } from '../repair.js';
+import { needsWork, partWork, priceOf, shellWork, workCost } from '../repair.js';
 import { checkQuests } from './quests.js';
 
 export const PROFILE_VERSION = 4;
@@ -43,14 +43,16 @@ export function curve(points, x) {
 // a car with no class, its own price
 export function carPrice(db, def) {
   if (!def) return 0;
+  const own = db.economy?.shop?.catalogue?.cars?.[def.id]?.price;          // (the shop's catalogue: garage/shop.js)
+  if (Number.isFinite(own)) return own;
   const base = def.class && db.economy?.carPrices?.[def.class];
   return base ? Math.round(base * (def.priceFactor ?? 1) / 100) * 100 : def.price ?? 0;
 }
-// A part's price: its definition's, or (if that's gone) what was paid for it
-export const priceOf = (db, instance) => db.parts[instance.partId]?.price ?? instance.price ?? 0;
-// What a copy sells for, and what it costs to put back to 100% (garage/repair.js: its condition and
-// dents, its mechanical damage — bent, leaking, worn — and bolting it back on if it came loose or off)
-export const sellPrice = (db, instance) => Math.round(priceOf(db, instance) * db.economy.sell.ratio * curve(db.economy.sell.conditionCurve, instance.condition));
+// A part's list price: the shop's catalogue's, its definition's, or (if that's gone) what was paid for it.
+// (What a copy sells for: garage/shop.js sellValue)
+export { priceOf } from '../repair.js';
+// What it costs to put back to 100% (garage/repair.js: its condition and dents, its mechanical damage — bent,
+// leaking, worn — and bolting it back on if it came loose or off)
 export const repairCost = (db, instance, kind = 'full') => workCost(partWork(db, instance), kind);
 // Whether a copy needs the workshop: worn, dented, mechanically damaged, loose or torn off
 export const needsRepair = needsWork;
@@ -102,23 +104,27 @@ export function setSize(db, part, carId = null) {
 }
 
 // ---------- cars and parts ----------
-// A car with its stock parts (new, fitted), and a first setup of them: returns its instance id
-export function addCar(profile, db, carId, price = carPrice(db, db.cars[carId])) {
-  const def = db.cars[carId], id = newId(profile, 'car'), sockets = {}, partIds = {};
+// A car with its stock parts (new, fitted), and a first setup of them: returns its instance id. price: what was
+// paid for it, shared between its parts (each its list price's share) and its body (the rest: bodyPrice) — what
+// each is worth when it's sold. extra: more for the car ({ history, mileage, … })
+export function addCar(profile, db, carId, price = carPrice(db, db.cars[carId]), extra = {}) {
+  const def = db.cars[carId], id = newId(profile, 'car'), sockets = {}, partIds = {}, list = carPrice(db, def), share = list ? Math.min(1, price / list) : 0;
+  let parts = 0;
   for (const s of def.sockets) {
     const stock = s.stock?.[0];
     if (!stock || !db.parts[stock]) { sockets[s.name] = null; continue; }
-    const pid = newId(profile, 'part');
-    profile.parts[pid] = { instanceId: pid, partId: stock, condition: 100, price: db.parts[stock].price, installedOn: { car: id, socket: s.name } };
-    sockets[s.name] = pid; partIds[s.name] = stock;
+    const pid = newId(profile, 'part'), paid = Math.round(priceOf(db, { partId: stock }) * share);
+    profile.parts[pid] = { instanceId: pid, partId: stock, condition: 100, price: paid, installedOn: { car: id, socket: s.name } };
+    sockets[s.name] = pid; partIds[s.name] = stock; parts += paid;
   }
   const setupId = newId(profile, 'setup');
-  profile.cars[id] = { carInstanceId: id, carId, price, activeSetup: setupId, setups: { [setupId]: { setupId, name: 'Stock', sockets, partIds } } };
+  profile.cars[id] = { carInstanceId: id, carId, price, bodyPrice: Math.max(0, price - parts), activeSetup: setupId, setups: { [setupId]: { setupId, name: 'Stock', sockets, partIds } }, ...extra };
   return id;
 }
-export function addPart(profile, db, partId, condition = 100) {
+// A copy of a part: extra — what was paid (price; else its list price), when it was bought new (boughtAt)
+export function addPart(profile, db, partId, condition = 100, extra = {}) {
   const id = newId(profile, 'part');
-  profile.parts[id] = { instanceId: id, partId, condition, price: db.parts[partId].price, installedOn: null };
+  profile.parts[id] = { instanceId: id, partId, condition, price: priceOf(db, { partId }), installedOn: null, ...extra };
   return id;
 }
 

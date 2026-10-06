@@ -5,6 +5,7 @@
 //   GET  /player/events                changes as they happen (server-sent events: { rev }) — another tab or device
 //   GET  /player/config                the economy's settings, read-only (prices to show; the server charges by its own)
 //   GET  /player/ledger                the player's own money changes, newest first
+//   GET  /player/used-lot              today's used cars (the same for everyone today; garage/shop.js usedLot)
 //   GET  /player/recordings/:id        a best run's recording (a ghost)
 //   POST /player/drives · /player/sessions/:id/heartbeat · /player/drives/:id/end    drives (free roam, test drives)
 // Every one: a signed-in player (a guest counts) who has accepted the terms. Every write: an Idempotency-Key.
@@ -61,6 +62,13 @@ export async function playerRoutes(app0: FastifyInstance, { economy, config: eco
     reply.header('etag', tag).header('cache-control', 'public, max-age=60');
     if (req.headers['if-none-match'] === tag) return reply.status(304).send();
     return { version: a.version, economy: a.data.economy, quests: a.data.quests };
+  });
+
+  app.get('/player/used-lot', async (req, reply) => {
+    await who(req);
+    const now = economy.clock(), g = await econ.gameDb(), { usedLot, dayOf, lotEnds } = await import('../../../garage/shop.js');
+    reply.header('cache-control', 'private, max-age=60');
+    return { day: dayOf(now), endsAt: lotEnds(now), configVersion: g.version, listings: usedLot(g.db, dayOf(now)) };
   });
 
   app.get('/player/ledger', { schema: { querystring: z.object({ limit: z.coerce.number().int().min(1).max(500).default(100), before: z.coerce.number().int().positive().optional() }) } }, async (req, reply) => {

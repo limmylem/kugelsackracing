@@ -18,7 +18,8 @@ import { Garage } from '../../garage/data.js';
 import { Workshop } from '../../garage/workshop.js';
 import { LocalPlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
-import { buildOf, garageStateOf, repairCost, sellPrice } from '../../garage/player/profile.js';
+import { buildOf, garageStateOf, repairCost } from '../../garage/player/profile.js';
+import { sellValue as sellPrice } from '../../garage/shop.js';
 import { ModelCache, createCarVisual, resolveLook } from '../../garage/visual.js';
 import { glbJson } from '../../physics/sockets.js';
 import { KEY_STATS, fitWithNeeds, forCar } from '../../tools/content/balance.mjs';
@@ -30,6 +31,7 @@ const carOf = profile => new Garage(db, garageStateOf(profile, db));
 const newPlayer = async (money = 0, storage = new MemoryStorage()) => {
   const s = new LocalPlayerService({ db, storage });
   await s.init();
+  if ((s.profile.xp ?? 0) < 1e7) await s.addXp(1e7);      // (every level: nothing locked — garage/shop.js)
   if (money) await s.addMoney(money);
   return s;
 };

@@ -41,17 +41,18 @@ type Game = Awaited<ReturnType<EconomyConfig['gameDb']>> & { onCommit: (() => vo
 const DAMAGE = { partsPerReport: 64, hitsPerPart: 32, reportsPerSession: 20000, refundWindowSec: 120, timeoutMin: 10 };
 
 // the actions a player may ask for (their arguments are checked by the routes' schemas first)
-export const PLAYER_ACTIONS = ['buyPart', 'sellPart', 'repairPart', 'repairParts', 'repairBody', 'repairCar', 'replaceWithSpare', 'basicRepair', 'installPart', 'removePart', 'buyAndInstall',
+export const PLAYER_ACTIONS = ['buyPart', 'sellPart', 'sellParts', 'refundPart', 'buyBundle', 'sellCar', 'buyUsedCar', 'buyGarageSlot', 'repairPart', 'repairParts', 'repairBody', 'repairCar', 'replaceWithSpare', 'basicRepair', 'installPart', 'removePart', 'buyAndInstall',
   'setBuild', 'setTuning', 'setPaint', 'setPartFinish', 'selectCar', 'buyCar', 'saveSetup', 'renameSetup', 'deleteSetup', 'switchSetup', 'markHint', 'favouriteTrack',
   'startQuest', 'refundQuest', 'finishQuest', 'failQuest', 'awardCar', 'forfeitCar', 'damageCar', 'wearPart', 'sessionReset'] as const;
 export type PlayerAction = typeof PLAYER_ACTIONS[number];
 
-const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purchase', buyCar: 'purchase', sellPart: 'sale', repairPart: 'repair', repairParts: 'repair', repairBody: 'repair', repairCar: 'repair', replaceWithSpare: 'repair', basicRepair: 'repair', startQuest: 'entry_fee', refundQuest: 'refund', finishQuest: 'reward', failQuest: 'reward' };
+const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purchase', buyCar: 'purchase', buyBundle: 'purchase', buyUsedCar: 'purchase', buyGarageSlot: 'purchase', sellPart: 'sale', sellParts: 'sale', sellCar: 'sale', refundPart: 'refund', repairPart: 'repair', repairParts: 'repair', repairBody: 'repair', repairCar: 'repair', replaceWithSpare: 'repair', basicRepair: 'repair', startQuest: 'entry_fee', refundQuest: 'refund', finishQuest: 'reward', failQuest: 'reward' };
 
-export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; config: EconomyConfig; tracks: TrackService; log?: (o: object, m: string) => void }) {
+// clock: what time it is (the tests move it on: a sale ending, the refund window closing, tomorrow's used lot)
+export function createEconomy({ db, config, tracks, log = () => {}, clock = () => Date.now() }: { db: Db; config: EconomyConfig; tracks: TrackService; log?: (o: object, m: string) => void; clock?: () => number }) {
   const events = new EventEmitter();
   events.setMaxListeners(0);
-  const now = () => new Date().toISOString();
+  const now = () => new Date(clock()).toISOString();
 
   // ---------- one player at a time ----------
   // (what the action reads besides the player's own rows — the settings, a quest, a course — is read before
@@ -230,6 +231,20 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
         case 'buyAndInstall': answer = await S.buyAndInstall(args.carInstanceId, args.partId, args.opts ?? {}); meta.reason = `Bought and fitted ${name('part', args.partId)}`; meta.ref = { partId: args.partId, car: args.carInstanceId }; break;
         case 'buyCar': answer = await S.buyCar(args.carId); meta.reason = `Bought a ${name('car', args.carId)}`; meta.ref = { carId: args.carId, carInstanceId: answer.carInstanceId ?? null, cost: answer.cost ?? null }; break;
         case 'sellPart': { const x = profile.parts[args.instanceId]; answer = await S.sellPart(args.instanceId); meta.reason = `Sold ${x ? name('part', x.partId) : args.instanceId}`; meta.ref = { instanceId: args.instanceId, partId: x?.partId ?? null }; break; }
+        case 'sellParts': { const ids: string[] = args.instanceIds; answer = await S.sellParts(ids); meta.reason = `Sold ${ids.length} part${ids.length === 1 ? '' : 's'}`; meta.ref = { instanceIds: ids, partIds: ids.map(i => profile.parts[i]?.partId ?? null) }; break; }
+        case 'refundPart': { const x = profile.parts[args.instanceId]; answer = await S.refundPart(args.instanceId); meta.reason = `Refunded ${x ? name('part', x.partId) : args.instanceId}`; meta.ref = { instanceId: args.instanceId, partId: x?.partId ?? null }; break; }
+        case 'buyBundle': answer = await S.buyBundle(args.bundleId, args.opts ?? {}); meta.reason = `Bought a kit: ${(E.game.economy.shop?.bundles ?? []).find((b: any) => b.id === args.bundleId)?.name ?? args.bundleId}`; meta.ref = { bundleId: args.bundleId, instanceIds: answer.instanceIds ?? [], partIds: (answer.instanceIds ?? []).map((i: string) => answer.updatedState?.parts?.[i]?.partId ?? null) }; break;
+        case 'buyUsedCar': answer = await S.buyUsedCar(args.listingId); meta.reason = `Bought a used car (${args.listingId})`; meta.ref = { listingId: args.listingId, carInstanceId: answer.carInstanceId ?? null, carId: answer.carInstanceId ? answer.updatedState?.cars?.[answer.carInstanceId]?.carId ?? null : null }; break;
+        case 'buyGarageSlot': answer = await S.buyGarageSlot(); meta.reason = 'Bought garage space'; meta.ref = { capacity: answer.capacity ?? null }; break;
+        case 'sellCar': {
+          // (not one that's racing: a run under way with it)
+          const racing = (await tx.execute(sql`select 1 from economy_sessions where user_id = ${user.id} and kind = 'quest' and state = 'active' and car_instance_id = ${args.carInstanceId}`)).rows.length;
+          if (racing) throw new AppError(409, 'CONFLICT', 'That car is in a race: finish or quit it first.');
+          const c = profile.cars[args.carInstanceId];
+          answer = await S.sellCar(args.carInstanceId, args.opts ?? {});
+          meta.reason = `Sold the ${c ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId, carId: c?.carId ?? null, kept: args.opts?.keep ?? [] };
+          break;
+        }
         case 'repairPart': answer = await S.repairPart(args.instanceId); meta.reason = `Repaired ${name('part', profile.parts[args.instanceId]?.partId ?? args.instanceId)}`; meta.ref = { instanceIds: [args.instanceId] }; break;
         case 'repairParts': answer = await S.repairParts(args.instanceIds); meta.reason = `Repaired ${args.instanceIds.length} part${args.instanceIds.length === 1 ? '' : 's'}`; meta.ref = { instanceIds: args.instanceIds }; break;
         case 'repairBody': answer = await S.repairBody(args.carInstanceId); meta.reason = `Repaired the body of the ${profile.cars[args.carInstanceId] ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId }; break;
@@ -440,7 +455,7 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer,
+    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

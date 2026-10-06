@@ -8,7 +8,8 @@ import { harness } from '../harness.mjs';
 import { LocalPlayerService, METHODS, PlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
 import { CURRENT_VERSION, MIGRATIONS, migrate } from '../../garage/player/migrations.js';
-import { buildOf, clone, repairCost, sellPrice, setupChanges } from '../../garage/player/profile.js';
+import { buildOf, clone, repairCost, setupChanges } from '../../garage/player/profile.js';
+import { sellValue } from '../../garage/shop.js';
 
 const H = await harness(), db = H.db;
 let clock = 0;
@@ -43,9 +44,9 @@ test('buying: money comes off, a new copy at 100% in the inventory; not without 
   assert.equal(r.updatedState.money, db.economy.startingMoney - db.parts.cold_air_intake.price);
   assert.equal(copyOf(r.updatedState, 'cold_air_intake').condition, 100);
   // a set of four for wheels and tyres
-  r = await service.buyPart('tyre_215_40r15');
+  r = await service.buyPart('tyre_205_50r15');
   assert.equal(r.instanceIds.length, 4);
-  assert.equal(r.cost, 4 * db.parts.tyre_215_40r15.price);
+  assert.equal(r.cost, 4 * db.parts.tyre_205_50r15.price);
   // not enough money: nothing changes
   const before = r.updatedState;
   r = await service.buyPart('gearbox_close_ratio', { quantity: 5 });
@@ -120,8 +121,9 @@ test('selling and repairing: an installed part can\'t be sold; prices from the c
   const intake = r.instanceIds[0];
   await service.setCondition(intake, 55);
   const worn = (await service.getProfile()).updatedState.parts[intake];
-  const E = db.economy, factor = 0.45 + (0.8 - 0.45) * (55 - 40) / 30;
-  assert.equal(sellPrice(db, worn), Math.round(350 * E.sell.ratio * factor));
+  const E = db.economy;
+  // (what it's worth × the ratio, less a share of what putting it right would cost)
+  assert.equal(sellValue(db, worn), Math.round(350 * E.sell.ratio - E.sell.repairShare * repairCost(db, worn)));
   assert.equal(repairCost(db, worn), Math.round(Math.max(E.repair.minimum, 350 * E.repair.perPoint * 45)));
   const money = (await service.getProfile()).updatedState.money;
   r = await service.repairPart(intake);

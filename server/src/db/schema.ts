@@ -250,6 +250,7 @@ export const ownedCars = pgTable('owned_cars', {
   damage: jsonb('damage'),                               // the body shell: condition, dents (packed log), broken
   activeSetup: text('active_setup'),
   setups: jsonb('setups').notNull().default({}),
+  extra: jsonb('extra'),                                 // bodyPrice, boughtAt, used (a used car's listing and history)
   createdAt: created(),
 }, t => [primaryKey({ columns: [t.userId, t.instanceId] })]);
 export const ownedParts = pgTable('owned_parts', {
@@ -263,6 +264,7 @@ export const ownedParts = pgTable('owned_parts', {
   damage: jsonb('damage'),                               // mechanical damage (garage/mechanical.js)
   dentLog: jsonb('dent_log'),                            // the compact damage events (garage/damageLog.js, packed)
   attach: text('attach'),
+  extra: jsonb('extra'),                                 // boughtAt, used (the refund window: garage/shop.js)
   createdAt: created(),
 }, t => [primaryKey({ columns: [t.userId, t.instanceId] })]);
 // Which part copy is in which socket of which car: a copy in one place at most (the unique index)
