@@ -85,11 +85,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
       - uses: actions/download-artifact@v4
         with: { path: art }
       - name: Every replay against Node's on Linux
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p .cache/determinism/ci && cp art/*/hashes-*.json .cache/determinism/ci/ 2>/dev/null; cp art/det-record/runs.json .cache/determinism/ci/
           node tests/determinism/run.ts compare --in .cache/determinism/ci --ref linux-x64-node-compat-detall | tee summary.txt
           { echo '```'; cat summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
