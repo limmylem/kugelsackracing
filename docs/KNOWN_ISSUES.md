@@ -151,8 +151,10 @@ Also:
 - **Frame times weren't measured on a GPU**: this container renders in software, so the browser's frame
   times (`tools/track-perf-browser.mjs`) mean nothing here. The CPU's share of a frame (3.0–3.7 ms at the
   three levels, `npm run test:track-perf`) and the draw calls (30–33) are well inside budget; run the
-  browser tool on real hardware before relying on the frameMs targets. The track detail setting applies
-  to the next track loaded.
+  browser tool on real hardware before relying on the frameMs targets (here, with software rendering,
+  every frame took 0.6–0.9 s). The track detail setting applies to the next track loaded. With 8 cars
+  the shadow pass is most of the draw calls (about 430 a frame at medium and high, 108 at low with no
+  shadows): fewer shadow casters (the cars' small parts) would be the first saving.
 - **The ambience is synthesised** (no recorded sounds): birds, wind, sea and city from noise and
   oscillators, the crowd from filtered noise, not placed in 3D (the nearest grandstand sets its level).
 - **The problem seeds are the scan's**: the seeds noted by hand during Step 1 weren't recorded where this

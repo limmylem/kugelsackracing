@@ -38,26 +38,31 @@ try {
     await page.goto(`http://localhost:${port}/dev/world.html?world=track&code=${code}&questBot`);
     await page.waitForFunction(() => window.testWorld?.active?.trackData && window.testWorld.active.quests, null, { timeout: 300000 });
     // the race: seven NPCs and you
-    await page.evaluate(async () => {
+    const started = await page.evaluate(async () => {
       const w = window.testWorld.active, D = w.trackData;
       const { newTrackEvent, trackInfo } = await import('/track/events/model.js'), { readyEvent } = await import('/track/events/prepare.js');
       const qcfg = await (await fetch('/data/quests.json')).json();
       const ev = newTrackEvent({ id: 'trk_perf', track: { code: D.code, kind: 'quick', name: 'perf', info: trackInfo(D) }, type: 'circuit_race', params: { laps: 3 }, npc: { count: 7, skill: [0.5, 0.8], drivers: 'random' } });
       const { event, course } = readyEvent(ev, D, null, { config: qcfg });
       w.questGame.trackCourse = () => course;
-      await w.quests.start(event);
+      await window.testWorld.shared.session.player.addXp(1e6);        // (every tier open: a fresh profile's level 1)
+      const r = await w.quests.start(event);
+      return r?.ok === false ? r.error : null;
     });
+    if (started) throw new Error(`the race didn't start: ${started}`);
     await page.waitForFunction(() => window.testWorld.active.quests.state === 'racing', null, { timeout: 120000 });
     await page.waitForTimeout(5000);
     const r = await page.evaluate(secs => new Promise(res => {
       const times = [], R = window.testWorld.shared.renderer, t0 = performance.now(); let last = t0, calls = 0, tris = 0;
-      const tick = now => { times.push(now - last); last = now; calls = Math.max(calls, R.info.render.calls); tris = Math.max(tris, R.info.render.triangles); if (now - t0 < secs * 1000) requestAnimationFrame(tick); else res({ times, calls, tris, cars: (window.testWorld.active.npcRace?.npcs.length ?? 0) + 1 }); };
+      R.info.autoReset = false; R.info.reset();          // (every pass of a frame counted: the effects draw in more than one)
+      const tick = now => { times.push(now - last); last = now; calls = Math.max(calls, R.info.render.calls); tris = Math.max(tris, R.info.render.triangles); R.info.reset(); if (now - t0 < secs * 1000) requestAnimationFrame(tick); else { R.info.autoReset = true; res({ times, calls, tris, cars: (window.testWorld.active.npcRace?.npcs.length ?? 0) + 1 }); } };
       requestAnimationFrame(tick);
     }), seconds);
+    const lv = await page.evaluate(() => { const w = window.testWorld.active; return { level: w.detail?.level, shadows: w.sun.castShadow, pref: window.testWorld.shared.prefs.trackDetail }; });
     const t = r.times.slice(10).sort((a, b) => a - b), p95 = t[Math.floor(t.length * 0.95)], p50 = t[Math.floor(t.length / 2)], T = DT.targets[level];
-    const ok = p95 <= T.frameMs;
+    const ok = p95 <= T.frameMs && lv.level === level;
     if (!ok) failed++;
-    console.log(`${ok ? '  ok  ' : ' FAIL '} ${level.padEnd(6)} ${r.cars} cars · frames: median ${p50.toFixed(1)} ms, 95% within ${p95.toFixed(1)} ms (budget ${T.frameMs}) · ${r.calls} draw calls, ${(r.tris / 1000).toFixed(0)}k triangles`);
+    console.log(`${ok ? '  ok  ' : ' FAIL '} ${level.padEnd(6)} ${r.cars} cars · frames: median ${p50.toFixed(1)} ms, 95% within ${p95.toFixed(1)} ms (budget ${T.frameMs}) · ${r.calls} draw calls, ${(r.tris / 1000).toFixed(0)}k triangles a frame (cars and shadow passes included), shadows ${lv.shadows ? 'on' : 'off'}${lv.level === level ? '' : ` — NOT AT ${level}: ${lv.level}`}`);
     await page.close();
   }
 } finally { await browser.close(); server.kill(); }

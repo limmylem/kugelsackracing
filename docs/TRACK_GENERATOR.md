@@ -196,7 +196,10 @@ grandstands' crowd, shadows and their map size, the screen's sharpness), with ta
   and triangles (246k / 290k / 344k), and the CPU's share of a frame in an 8-car race (physics 2.5 ms + the
   dressing's updates 0.5–1.2 ms + the recording): 3.0 / 3.3 / 3.7 ms against budgets of 8 / 9 / 10 ms.
 - `node tools/track-perf-browser.mjs` (needs playwright-core and a Chromium with a GPU): the whole frame
-  in an 8-car race at each level in a browser, against `frameMs`.
+  in an 8-car race at each level in a browser, against `frameMs`, checking the level really applied. Run
+  here only with software rendering (no GPU): 8 cars at every level, whole-frame draw calls 108 at low (no
+  shadow pass) and about 430 at medium and high (the shadow pass draws the cars again), but 0.6–0.9 s a
+  frame — the CPU drawing every pixel, not a measurement of the game. It needs running on real hardware.
 
 ## Tests and reports
 

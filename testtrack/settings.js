@@ -21,6 +21,7 @@ export function defaultSettings(spec) {
     spoilerAngle: 8,
     altitude: 0,
     effects: 'medium',          // visual effects quality: low / medium / high (data/effects.json)
+    trackDetail: 'high',        // generated tracks' detail: low / medium / high (data/tracks.json performance.detail)
     timeOfDay: 13,              // the test worlds' time of day (hours)
     // accessibility (play/palette.js): the quests' colours, how visible the route guides are, the HUDs' size,
     // and the first-time hints
