@@ -280,7 +280,7 @@ export const PLAYER_ACTION_ARGS = {
   startQuest: z.object({ questId: z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/), trackCode: TrackCode.nullable().optional(), carInstanceId: InstanceId.optional(), restart: z.boolean().optional() }).strict(),
   refundQuest: z.object({ sessionId: SessionId }).strict(),
   finishQuest: z.object({ sessionId: SessionId, result: RunResult, recording: RecordingSchema.nullable().optional() }).strict(),
-  failQuest: z.object({ sessionId: SessionId, status: z.enum(['dnf', 'quit', 'wrecked', 'time', 'failed', 'disqualified']).optional(), reason: z.string().max(80).nullable().optional() }).strict(),
+  failQuest: z.object({ sessionId: SessionId, status: z.string().regex(/^[a-z_]{1,24}$/).optional(), reason: z.string().max(80).nullable().optional() }).strict(),
   awardCar: z.object({ sessionId: SessionId, result: RunResult }).strict(),
   forfeitCar: z.object({ sessionId: SessionId, carInstanceId: InstanceId }).strict(),
   damageCar: z.object({ sessionId: SessionId, carInstanceId: InstanceId, report: z.object({ parts: z.record(InstanceId, PartDamage).optional(), shell: ShellDamage.nullable().optional() }).strict(), cause: z.string().max(80).nullable().optional() }).strict(),

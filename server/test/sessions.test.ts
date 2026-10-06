@@ -47,7 +47,7 @@ before(async () => {
   feeQuest = made.body.item.id;
   assert.equal((await ed.post(`/api/v1/content/items/${feeQuest}/publish`)).status, 200);
   await profile(cat);
-  await T.app.economy.withPlayer(await uid('cat@example.com'), async tx => { await tx.execute(sql`update player_economy set xp = 200000 where user_id = ${await uid('cat@example.com')}`); });
+  await T.app.economy.withPlayer(await uid('cat@example.com'), async tx => { await tx.execute(sql`update player_economy set xp = 200000, rev = rev + 1 where user_id = ${await uid('cat@example.com')}`); });
 });
 after(async () => { await T?.close(); });
 

@@ -11,11 +11,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.ts",
     "db:seed": "node src/db/seed.ts",
-    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "test": "KR_VERIFY_ECONOMY_CACHE=1 node --test --test-concurrency=1 test/*.test.ts",
     "stress:content": "node tools/content-stress.ts",
     "content:import": "node tools/import-content.ts",
     "load-test": "node tools/load-test.ts",
-    "test:browser": "node tools/accounts-browser.ts"
+    "load-test:economy": "node tools/economy-load.ts",
+    "test:browser": "node tools/accounts-browser.ts",
+    "test:browser:economy": "node tools/economy-browser.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

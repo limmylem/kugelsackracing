@@ -30,7 +30,7 @@ export async function loadProfile(tx: Tx, userId: string): Promise<any | null> {
   ]);
   const on = new Map((slots.rows as any[]).map(s => [s.part_instance_id, { car: s.car_instance_id, socket: s.socket }]));
   const profile: any = {
-    ...(e.state ?? {}), version: e.profile_version, money: Number(e.balance), nextId: e.next_id, currentCar: e.current_car, xp: Number(e.xp),
+    ...(e.state ?? {}), version: e.profile_version, money: Number(e.balance), nextId: e.next_id, currentCar: e.current_car, ...(Number(e.xp) ? { xp: Number(e.xp) } : {}),
     cars: Object.fromEntries((cars.rows as any[]).map(c => [c.instance_id, {
       carInstanceId: c.instance_id, carId: c.car_id, price: Number(c.price), ...(c.paint ? { paint: c.paint } : {}), ...(c.damage ? { damage: c.damage } : {}),
       activeSetup: c.active_setup, setups: c.setups ?? {},

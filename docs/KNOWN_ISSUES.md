@@ -1,8 +1,48 @@
 # Known issues, and what to revisit
 
-As of Phase 6 Step 1 (the server, accounts and world content on the server, below first); Phase 5's and
+As of Phase 6 Step 2 (the server-owned economy, then Step 1's server and accounts, below first); Phase 5's and
 Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 6 Step 2: the server-owned economy
+
+### Everyone at the same moment: fitting parts queues
+
+`npm run load-test:economy -w @kr/server -- --burst` has all 500 players send every step at the same moment.
+Everything goes through correctly, and the books balance afterwards. But the slowest actions wait:
+- **Fitting a part or taking it off** waits up to about 9 s (p95 about 9.4 s).
+- **Everything else** waits about 1–6 s.
+- **Why:** each fit or removal runs the game's own build checks: the car's stats several times, about
+  20 ms of CPU. About 165 requests a second fit through one process.
+
+At a person's pace (the default: arriving over 20 s, 5–20 s between actions) every action's p95 is under
+about 100 ms. The game shows each change at once, so only the confirmation waits.
+
+Render's free plan has a fraction of one CPU, so its limits are much lower. Before there are that many
+players:
+- a paid instance with more cores;
+- faster build checks: a cache of the car's stats for a build already worked out
+  (`garage/stats.js`, shared with the game and its physics tests, so it wasn't changed here).
+
+### One server process: changes from another device reach the others through it
+
+Another tab's or device's changes come through the server's events (`GET /player/events`), which are
+sent by the process that made the change. With more than one server process, they'd need passing between
+them (PostgreSQL's `LISTEN`/`NOTIFY`). Render's free plan runs one process, so this doesn't happen yet.
+Nothing goes wrong without it: each action is checked against the database, and the game catches up on
+its next action or reload.
+
+### Settings changes reach every server within 5 seconds
+
+The server checks the active settings version every 5 s. For up to 5 s after an admin's change, a price
+can still be the old one. Each ledger row from an action records the version that priced it (`ref.configVersion`).
+
+### Not checked in a browser here: the whole game page
+
+`npm run test:browser:economy -w @kr/server` drives the game's own player service and garage
+(`garage/session.js`), the account chip and the admin page in Chromium. It doesn't play the full 3D game
+page through a quest. The game's quest controller now hands the pink slip's result to the server
+(`play/questController.js`); that path is covered by the server tests, not in a browser.
 
 ## Phase 6 Step 1: the server
 
@@ -49,13 +89,6 @@ also pause when idle, and wake in a second or so.
   served the game, the pages and today's tracks, and refused the server's source, the tests and `.env`.
 - **The browser's Sentry:** it loads from jsDelivr, which this session couldn't reach. It only loads when
   `SENTRY_CLIENT_DSN` is set, and the game carries on if it can't.
-
-### Still the browser's: the economy
-
-Money, cars, parts and quest rewards are still worked out in the player's browser (kept per account).
-Phase 6 Step 2 moves them to the server. Until then, a player who edits their browser's save can change
-their own money. Records and leaderboards are already the server's: every run is checked again there
-against the course it builds.
 
 ### The terms of service and privacy policy are drafts
 
@@ -240,6 +273,9 @@ Also:
   the spots above), reported in CI but not blocking.
 
 ## To revisit before Phase 6 (accounts, a server-owned economy)
+
+(Kept as written at the end of Phase 5. Phase 6 has since done the economy, results, anti-farming, the day's
+tracks, records and saves on the server: SERVER.md and ECONOMY_SERVER.md.)
 
 - **Money, progress and inventory are in the browser** (`LocalPlayerService`). Every request already
   goes through PlayerService's methods and answers `{ ok, error, updatedState }`

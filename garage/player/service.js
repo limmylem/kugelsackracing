@@ -86,10 +86,11 @@ export class LocalPlayerService extends PlayerService {
   // questGate: () → null (quests may start) or why not in plain words — Phase 6: the game's server must be
   // there and the player signed in (offline is free roam only)
   // idPrefix: a new profile's ids made unique across players (the server's)
-  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null, questGate = null, idPrefix = null } = {}) {
+  // checked: a profile this service brought in and checked already (the server's cache): used as it is
+  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null, questGate = null, idPrefix = null, checked = null } = {}) {
     super();
     this.db = db; this.storage = storage; this.now = now; this.migrations = migrations;
-    this.quests = quests; this.questGate = questGate; this.idPrefix = idPrefix;
+    this.quests = quests; this.questGate = questGate; this.idPrefix = idPrefix; this.checked = checked;
     this.profile = null; this.notices = []; this.queue = Promise.resolve();
     this.unlimited = false;       // (development: unlimited money)
   }
@@ -105,6 +106,9 @@ export class LocalPlayerService extends PlayerService {
   // Load (bringing an old save up to date, and putting right what no longer fits the game), or start
   // a new profile. Notices: what was put right, in plain words
   async init() {
+    // (checked: this very save, already brought in and checked by this service — the server's, which keeps
+    // the last one it checked for each player while their save hasn't changed)
+    if (this.checked) { this.profile = clone(this.checked); this.notices = []; return { ok: true, error: null, updatedState: clone(this.profile), notices: [] }; }
     const saved = await this.storage.load();
     let changed = true;
     if (!saved) { this.profile = newProfile(this.db, this.now(), { idPrefix: this.idPrefix }); this.notices = []; }

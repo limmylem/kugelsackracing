@@ -23,6 +23,15 @@ export async function moveGuestData(db: Db, from: string, to: string) {
         result_id = case when excluded.best_time < track_records.best_time or excluded.best_score > track_records.best_score then excluded.result_id else track_records.result_id end,
         replay_id = case when excluded.best_time < track_records.best_time or excluded.best_score > track_records.best_score then excluded.replay_id else track_records.replay_id end`);
     await tx.execute(sql`delete from track_records where user_id = ${from}`);
+    // the economy (Phase 6 Step 2): the guest's comes with them — if the account hasn't one of its own yet
+    const has = (await tx.execute(sql`select 1 from player_economy where user_id = ${to}`)).rows.length;
+    if (!has && (await tx.execute(sql`select 1 from player_economy where user_id = ${from}`)).rows.length) {
+      await tx.execute(sql`select set_config('kr.ledger_move', 'on', true)`);
+      await tx.execute(sql`set constraints all deferred`);
+      await tx.execute(sql`update player_economy set user_id = ${to} where user_id = ${from}`);
+      await tx.execute(sql`update ledger set user_id = ${to} where user_id = ${from}`);
+      for (const t of ['owned_cars', 'owned_parts', 'car_build_slots', 'quest_progress', 'item_history', 'economy_sessions', 'player_recordings']) await tx.execute(sql`update ${sql.raw(t)} set user_id = ${to} where user_id = ${from}`);
+    }
   });
 }
 

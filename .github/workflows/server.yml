@@ -36,7 +36,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Typecheck
         run: npm run server:typecheck
-      - name: Server tests (accounts, roles, world content, tracks, the API's defences)
+      - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)
         run: npm run test:server
       - name: World content at scale (50,000 markers in PostGIS against the Phase 4 limits)
         run: npm run --workspace @kr/server stress:content
@@ -45,6 +45,10 @@ jobs:
           npm i --no-save --no-audit --no-fund playwright@1.56.1
           npx playwright install --with-deps chromium
           CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/accounts-browser.ts
+      - name: The economy in a browser (shown at once, put back on a refusal, offline and back, two tabs; the admin page)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/economy-browser.ts
+      - name: The economy under load (500 players in the garage and on the road; the books balanced after)
+        run: npm run --workspace @kr/server load-test:economy
       - name: The server's image builds
         run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .
 

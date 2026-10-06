@@ -35,6 +35,7 @@ import { decodePath } from './geometry.ts';
 type Tx = Pick<Db, 'execute'>;
 type User = { id: string; name: string };
 export type Ctx = { idemKey?: string | null };
+type Game = Awaited<ReturnType<EconomyConfig['gameDb']>> & { onCommit: (() => void)[] };
 
 // how a session's damage reports are kept sensible (not economy values: limits on what one report can say)
 const DAMAGE = { partsPerReport: 64, hitsPerPart: 32, reportsPerSession: 20000, refundWindowSec: 120, timeoutMin: 10 };
@@ -53,14 +54,32 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
   const now = () => new Date().toISOString();
 
   // ---------- one player at a time ----------
-  const withPlayer = <T>(userId: string, fn: (tx: Tx) => Promise<T>) => db.transaction(async tx => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`economy:${userId}`}, 0))`);
-    return fn(tx);
-  }) as Promise<T>;
+  // (what the action reads besides the player's own rows — the settings, a quest, a course — is read before
+  // the transaction opens: a transaction waiting on a second connection from the pool, with every connection
+  // held by such transactions, would wait for ever)
+  const withPlayer = async <T>(userId: string, fn: (tx: Tx, G: Game) => Promise<T>) => {
+    const G = { ...await config.gameDb(), onCommit: [] as (() => void)[] };
+    const out = await (db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`economy:${userId}`}, 0))`);
+      return fn(tx, G);
+    }) as Promise<T>);
+    for (const f of G.onCommit) f();
+    return out;
+  };
+
+  // Each player's save as last checked (the game's rules bring a save in — migrated, every car's build and
+  // stats checked — which is most of an action's work): kept while the save is the same — the same rev (every
+  // change to it moves the rev on) and the same settings — and only once its transaction has committed.
+  // KR_VERIFY_ECONOMY_CACHE=1 (the tests): each use checked against bringing the save in afresh.
+  const checkedCache = new Map<string, { rev: number; version: number; profile: any }>();
+  const CACHE_MAX = 5000, verifyCache = process.env.KR_VERIFY_ECONOMY_CACHE === '1';
+  // (JSON with its keys in order: the database's jsonb keeps them in its own)
+  const sorted = (x: any): string => JSON.stringify(x, (_k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
 
   // the game's rules on this player's profile: a service whose storage is the profile read, and catches what it saves
-  async function engine(tx: Tx, userId: string, before: any) {
-    const { db: game, quests: questsConfig, version } = await config.gameDb();
+  async function engine(tx: Tx, userId: string, before: any, G: Game) {
+    const { db: game, quests: questsConfig, version } = G;
+    const hit = checkedCache.get(userId), checked = before && hit && hit.rev === before.__rev && hit.version === version ? hit.profile : null;
     let saved: any = null;
     const strip = (p: any) => { if (!p) return null; const { __rev, ...rest } = p; return rest; };
     const recordings = {
@@ -69,18 +88,34 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
       delete: async (id: string) => { await tx.execute(sql`delete from player_recordings where user_id = ${userId} and id = ${id}`); },
     };
     const idPrefix = BigInt('0x' + crypto.createHash('sha256').update(userId).digest('hex').slice(0, 12)).toString(36).slice(0, 8);
-    const svc: any = new (LocalPlayerService as any)({ db: game, idPrefix, storage: { load: async () => strip(before), save: async (p: any) => { saved = p; } }, quests: { config: questsConfig, recordings }, now });
+    const make = (checked: any) => new (LocalPlayerService as any)({ db: game, idPrefix, checked, storage: { load: async () => strip(before), save: async (p: any) => { saved = p; } }, quests: { config: questsConfig, recordings }, now });
+    const svc: any = make(checked);
     const init = await svc.init();
-    return { svc, init, game, questsConfig, version, take: () => { const s = saved; saved = null; return s; } };
+    if (checked && verifyCache) {
+      const fresh = await make(null).init();
+      saved = null;
+      if (sorted(fresh.updatedState) !== sorted(init.updatedState) || fresh.notices.length) {
+        const diff = (a: any, b: any, at = ''): string => { if (sorted(a) === sorted(b)) return ''; if (a && b && typeof a === 'object' && typeof b === 'object') { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const d = diff(a[k], b[k], `${at}.${k}`); if (d) return d; } } return `${at}: ${JSON.stringify(a)?.slice(0, 200)} ≠ ${JSON.stringify(b)?.slice(0, 200)}`; };
+        throw new Error(`The economy's cache of ${userId}'s save isn't what bringing it in gives: ${diff(fresh.updatedState, init.updatedState) || fresh.notices.join(' ')}`);
+      }
+    }
+    // (once the transaction has committed: this save, at its rev, as this service has it now)
+    const remember = (rev: number) => G.onCommit.push(() => {
+      checkedCache.delete(userId);
+      if (checkedCache.size >= CACHE_MAX) checkedCache.delete(checkedCache.keys().next().value!);
+      checkedCache.set(userId, { rev, version, profile: JSON.parse(JSON.stringify(svc.profile)) });
+    });
+    return { svc, init, game, questsConfig, version, remember, take: () => { const s = saved; saved = null; return s; } };
   }
 
   // A player's economy as it is now (made, the first time: the starting car and money — a ledger row)
   async function state(user: User) {
-    const r = await withPlayer(user.id, async tx => {
-      const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before);
+    const r = await withPlayer(user.id, async (tx, G) => {
+      const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before, G);
       const first = E.take();
       let rev = before?.__rev ?? 0;
       if (first) rev = (await saveProfile(tx, user.id, before, first, { kind: before ? 'adjustment' : 'start', reason: before ? `Your save was put right: ${E.init.notices.join(' ')}` : 'Starting money', action: before ? 'adjust' : 'start', questsConfig: E.questsConfig })).rev;
+      E.remember(rev);
       return { profile: E.init.updatedState, rev, notices: E.init.notices, configVersion: E.version, created: !before };
     });
     if (r.created) events.emit('change', user.id, r.rev);
@@ -167,8 +202,21 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
 
   // ---------- an action ----------
   async function act(user: User, action: PlayerAction, args: any, ctx: Ctx = {}) {
-    const result = await withPlayer(user.id, async tx => {
-      const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before);
+    // (a quest and its course: read first — see withPlayer. A session's quest is kept as it started, so the
+    // one read here is the one checked under the lock)
+    const pre: { quest?: any; kind?: string; course?: any; series?: any[]; sessionQuest?: string } = {};
+    if (action === 'startQuest') Object.assign(pre, await questById(args.questId, args.trackCode ?? null));
+    if (action === 'finishQuest' || action === 'awardCar') {
+      const row = (await db.execute(sql`select quest from economy_sessions where id = ${String(args.sessionId)} and user_id = ${user.id}`)).rows[0] as any;
+      if (row?.quest?.id) {
+        const { __kind, ...q } = row.quest;
+        pre.sessionQuest = q.id;
+        pre.course = q.track ? (await tracks.built(q.track.code)).view : await routeCourse(q);
+        if (action === 'finishQuest') pre.series = await seriesOf(q.id);
+      }
+    }
+    const result = await withPlayer(user.id, async (tx, G) => {
+      const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before, G);
       let cur = before;
       const first = E.take();
       if (first) cur = { ...first, __rev: (await saveProfile(tx, user.id, before, first, { kind: before ? 'adjustment' : 'start', reason: before ? `Your save was put right: ${E.init.notices.join(' ')}` : 'Starting money', action: before ? 'adjust' : 'start', questsConfig: E.questsConfig })).rev };
@@ -204,7 +252,7 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
 
         // ---------- quests and track events: a session each ----------
         case 'startQuest': {
-          const { quest, kind } = await questById(args.questId, args.trackCode ?? null);
+          const { quest, kind } = pre as { quest: any; kind: string };
           const carId = args.carInstanceId ?? profile.currentCar, car = carSummary(E, profile, carId);
           if (!car) throw new AppError(400, 'BAD_REQUEST', 'That car isn\'t yours.');
           // (one run at a time: one still going is ended — its fee spent, as a quit's is)
@@ -229,9 +277,11 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
         }
         case 'finishQuest': {
           const s = await sessionOf(tx, user.id, args.sessionId);
-          const quest = s.quest, { __kind, ...q } = quest, course = q.track ? (await tracks.built(q.track.code)).view : await routeCourse(q);
+          const quest = s.quest, { __kind, ...q } = quest;
+          if (pre.sessionQuest !== q.id) throw new AppError(409, 'CONFLICT', 'That run changed while it was being handed in: try again.');
+          const course = pre.course;
           if (args.result?.attemptId !== s.attempt_id) throw new AppError(400, 'BAD_REQUEST', 'That result is for another run.');
-          answer = await S.finishQuest(args.result, { quest: q, course, recording: args.recording ?? null, series: await seriesOf(q.id) });
+          answer = await S.finishQuest(args.result, { quest: q, course, recording: args.recording ?? null, series: pre.series ?? [] });
           if (answer.ok) await endSession(tx, s.id, 'finished', answer.valid ? 'finished' : 'not believed', { result: { result: args.result, valid: answer.valid, problems: answer.problems ?? [] }, paid: true });
           meta = { ...meta, reason: `${answer.valid ? 'Reward' : 'Run not counted'}: ${q.name}${answer.medal ? ` (${answer.medal})` : ''}`, ref: { questId: q.id, medal: answer.medal ?? null, xp: answer.xp ?? 0 }, sessionId: s.id };
           break;
@@ -248,7 +298,8 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
           const s = await sessionOf(tx, user.id, args.sessionId), q = s.quest;
           if (q?.type !== 'pink_slip') throw new AppError(409, 'CONFLICT', 'A car only changes hands in a pink-slip race.');
           if (s.result?.awarded) throw new AppError(409, 'CONFLICT', 'That pink slip has been paid out.');
-          const { __kind, ...quest } = q, course = quest.track ? (await tracks.built(quest.track.code)).view : await routeCourse(quest);
+          const { __kind, ...quest } = q, course = pre.course;
+          if (pre.sessionQuest !== quest.id) throw new AppError(409, 'CONFLICT', 'That run changed while it was being handed in: try again.');
           const v = validateResult(args.result, { quest, course, config: E.questsConfig });
           if (!v.ok || args.result?.attemptId !== s.attempt_id || args.result?.status !== 'finished' || args.result?.place !== 1) throw new AppError(409, 'CONFLICT', `That run doesn't win the pink slip${v.problems[0] ? `: ${v.problems[0]}` : ''}.`);
           const prize = quest.params?.opponentCar;
@@ -288,7 +339,9 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
       }
       const saved = E.take();
       let rev = cur?.__rev ?? 0, ledgerId: number | null = null;
-      if (answer?.ok && saved) { const r = await saveProfile(tx, user.id, cur, saved, meta); rev = r.rev; ledgerId = r.ledgerId; }
+      // (the settings version that priced it, with the ledger row)
+      if (answer?.ok && saved) { const r = await saveProfile(tx, user.id, cur, saved, { ...meta, ref: { ...meta.ref, configVersion: E.version } }); rev = r.rev; ledgerId = r.ledgerId; }
+      E.remember(rev);
       return { ...answer, rev, ledgerId, configVersion: E.version };
     });
     if (result.ok) events.emit('change', user.id, result.rev);
@@ -297,7 +350,7 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
 
   // ---------- drives: free roam and test drives (where crash damage comes from) ----------
   async function startDrive(user: User, { carInstanceId, mode }: { carInstanceId: string; mode: 'free' | 'test' }) {
-    return withPlayer(user.id, async tx => {
+    return withPlayer(user.id, async (tx, G) => {
       const own = (await tx.execute(sql`select 1 from owned_cars where user_id = ${user.id} and instance_id = ${carInstanceId}`)).rows.length;
       if (!own) throw new AppError(400, 'BAD_REQUEST', 'That car isn\'t yours.');
       await tx.execute(sql`update economy_sessions set state = 'finished', end_reason = 'another drive', ended_at = now() where user_id = ${user.id} and kind = 'drive' and state = 'active'`);
@@ -322,10 +375,10 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
     for (const s of stale) {
       try {
         if (s.kind === 'drive') { await db.execute(sql`update economy_sessions set state = 'expired', end_reason = 'no word from the game', ended_at = now() where id = ${s.id} and state = 'active'`); continue; }
-        await withPlayer(s.user_id, async tx => {
+        await withPlayer(s.user_id, async (tx, G) => {
           const still = (await tx.execute(sql`select state from economy_sessions where id = ${s.id} for update`)).rows[0] as any;
           if (still?.state !== 'active') return;
-          const before = await loadProfile(tx, s.user_id), E = await engine(tx, s.user_id, before);
+          const before = await loadProfile(tx, s.user_id), E = await engine(tx, s.user_id, before, G);
           E.take();
           const a = await E.svc.failQuest(s.attempt_id, { questId: s.quest_id, status: 'disconnected', reason: 'no word from the game' });
           const saved = E.take();
@@ -340,7 +393,7 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
 
   // ---------- admins: money and items put right, by hand (always with a reason; the caller logs it) ----------
   async function adminMoney(admin: User, userId: string, amount: number, reason: string) {
-    return withPlayer(userId, async tx => {
+    return withPlayer(userId, async (tx, G) => {
       const before = await loadProfile(tx, userId);
       if (!before) throw new AppError(404, 'NOT_FOUND', 'That player hasn\'t played yet.');
       if (before.money + amount < 0) throw new AppError(409, 'CONFLICT', `They have ${before.money}: that would take them below zero.`);
@@ -352,7 +405,7 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
     const row = (await db.execute(sql`select * from ledger where id = ${ledgerId}`)).rows[0] as any;
     if (!row) throw new AppError(404, 'NOT_FOUND', 'There\'s no such transaction.');
     if (row.kind === 'reversal') throw new AppError(409, 'CONFLICT', 'A reversal can\'t itself be reversed: grant or remove money instead.');
-    return withPlayer(row.user_id, async tx => {
+    return withPlayer(row.user_id, async (tx, G) => {
       if ((await tx.execute(sql`select 1 from ledger where reverses = ${ledgerId}`)).rows.length) throw new AppError(409, 'CONFLICT', 'That transaction has been reversed already.');
       const before = await loadProfile(tx, row.user_id), amount = -Number(row.amount);
       if (before.money + amount < 0) throw new AppError(409, 'CONFLICT', `Reversing it would take them below zero (they have ${before.money}).`);
@@ -363,10 +416,10 @@ export function createEconomy({ db, config, tracks, log = () => {} }: { db: Db; 
   }
   // items: given (a new copy of a part, a car with its stock parts) or taken away (a copy not on a car; a car and what's on it)
   async function adminItem(admin: User, userId: string, op: { give?: { partId?: string; carId?: string; quantity?: number }; remove?: { instanceId?: string; carInstanceId?: string } }, reason: string) {
-    return withPlayer(userId, async tx => {
+    return withPlayer(userId, async (tx, G) => {
       const before = await loadProfile(tx, userId);
       if (!before) throw new AppError(404, 'NOT_FOUND', 'That player hasn\'t played yet.');
-      const E = await engine(tx, userId, before);
+      const E = await engine(tx, userId, before, G);
       E.take();
       const p = JSON.parse(JSON.stringify(E.init.updatedState));
       const { addPart, addCar, packProfile } = await import('../../../garage/player/profile.js');

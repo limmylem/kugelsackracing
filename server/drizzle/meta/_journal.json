@@ -57,6 +57,13 @@
       "when": 1791274148121,
       "tag": "0007_unique_instances",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791274149121,
+      "tag": "0008_ledger_move",
+      "breakpoints": true
     }
   ]
 }

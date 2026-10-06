@@ -1,9 +1,9 @@
-# The game's server (Phase 6 Step 1)
+# The game's server (Phase 6 Steps 1 and 2)
 
 The server keeps accounts, roles, world content, the day's and the week's tracks, records, leaderboards and
-race replays. It also serves the game itself from the same address, so the session cookie stays
-first-party. The economy (money, cars, parts) is still kept in each player's browser, tied to their
-account; Phase 6 Step 2 moves it to the server.
+race replays. Since Step 2 it also owns the economy: money, cars, parts, builds, damage, XP and quest
+progress ([ECONOMY_SERVER.md](ECONOMY_SERVER.md)). It serves the game itself from the same address, so the
+session cookie stays first-party.
 
 - **Stack:** Fastify 5 and TypeScript (Node 22 runs the `.ts` files directly), PostgreSQL 16 with PostGIS,
   Drizzle migrations, Better Auth for accounts, and Zod schemas shared by the client and the server
@@ -37,11 +37,13 @@ npm run server:dev                    # migrates the database, then serves on PU
 
 | Command | What |
 |---|---|
-| `npm run test:server` | Every server test against a real PostgreSQL with PostGIS: accounts, roles, world content, tracks and the API's defences. Set `TEST_DATABASE_URL` to an admin connection; each test file makes its own database. |
+| `npm run test:server` | Every server test against a real PostgreSQL with PostGIS: accounts, roles, world content, tracks, the economy and the API's defences. Set `TEST_DATABASE_URL` to an admin connection; each test file makes its own database. |
 | `npm run server:typecheck` | The server's TypeScript, strict. |
 | `npm run stress:content -w @kr/server` | 50,000 markers in PostGIS against the Phase 4 limits. |
 | `npm run test:browser -w @kr/server` | The account flows in Chromium: sign up, confirm, reset, guest to account, delete, offline. |
 | `npm run load-test -w @kr/server` | 500 players signing in at once and loading nearby content. |
+| `npm run test:browser:economy -w @kr/server` | The economy in Chromium: a change shown at once and confirmed, a refusal put back, offline and back, two tabs; the admin page's economy tools. |
+| `npm run load-test:economy -w @kr/server` | 500 players in the garage and on the road, then the books checked (`--burst`: all at the same moment). |
 
 The pre-commit hook doesn't run these, because they need PostgreSQL. CI runs them on every push
 (`.github/workflows/server.yml`).
@@ -61,6 +63,12 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
   - Published content is public and cached by the server, browsers and a CDN (an ETag that changes on
     publish).
   - Drafts and every write are for editors only.
+- **The economy** ([ECONOMY_SERVER.md](ECONOMY_SERVER.md)):
+  - `/player` (the profile), `POST /player/actions/:action` (every garage, shop, repair, quest and
+    damage action), `/player/config`, `/player/ledger`, `/player/events`;
+  - drives and heartbeats: `/player/drives`, `/player/sessions/:id/heartbeat`;
+  - admins: `/admin/players/:id/economy`, `/money`, `/items`, `/admin/ledger/:id/reverse`,
+    `/admin/economy/config` (with its history and rollback) and `/admin/economy/dashboard`.
 - **Tracks:**
   - `/tracks/today` gives the day's and the week's tracks.
   - `POST /tracks/results` hands a run in; it's checked by the game's own rules against the course the

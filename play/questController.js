@@ -77,7 +77,9 @@ export function createQuestController({ quest, course, config, player, car = {},
       // a pink slip: the winner takes the loser's car, through PlayerService
       if (quest.type === 'pink_slip') {
         const rival = R.npcs[0], won = outcome.status === 'finished' && outcome.place === 1;
-        transfer = won ? await player.awardCar(rival.build.carId, { attemptId, parts: rival.build.parts }) : await player.forfeitCar(car.instanceId, { attemptId });
+        // (the run's result with it: the server pays a pink slip only for a win it believes)
+        const proof = won ? buildResult({ quest, course, outcome, car, attemptId }) : null;
+        transfer = won ? await player.awardCar(rival.build.carId, { attemptId, parts: rival.build.parts, result: proof }) : await player.forfeitCar(car.instanceId, { attemptId });
         outcome.pinkSlip = { won, rival: rival.name, car: rival.build.carId, ok: !!transfer?.ok, error: transfer?.error ?? null };
       }
     }

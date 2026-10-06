@@ -14,6 +14,9 @@ const CSS = `
 #krAccount.offline i{background:#ff5a5f;box-shadow:0 0 0 3px rgba(255,90,95,.2)}
 #krAccount small{opacity:.65;font-weight:500}
 @keyframes krPulse{to{opacity:.35}}
+#krToast{position:fixed;left:12px;bottom:52px;z-index:71;max-width:min(360px,calc(100vw - 24px));font:600 13px/1.35 Barlow,system-ui,sans-serif;color:#ffd9da;background:rgba(40,12,14,.94);border:1px solid rgba(255,90,95,.45);border-radius:10px;padding:8px 12px;display:none}
+#krToast.on{display:block}
+#krToast.info{color:#e9ecef;background:rgba(10,14,20,.9);border-color:rgba(255,255,255,.14)}
 #krWelcome{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:rgba(4,6,9,.6)}
 #krWelcome>div{width:min(420px,calc(100vw - 32px));background:#0e1114;border:1px solid #333c46;border-radius:12px;padding:22px 22px 18px;color:#e9ecef;font:500 15px/1.45 Barlow,system-ui,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,.6)}
 #krWelcome h2{margin:0 0 6px;font:600 26px 'Barlow Condensed',Barlow,sans-serif}
@@ -45,6 +48,20 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
     chip.title = st === 'offline' ? 'The game\'s server can\'t be reached: free roam works; quests, events and rewards wait for it. It keeps trying.' : 'Your account';
   };
   A.on(draw); draw();
+
+  // the economy's changes on their way (Phase 6 Step 2: garage/player/remote.js): "saving…", paused while
+  // offline, and a refusal in plain words (what was shown has been put back)
+  const toast = document.createElement('div'); toast.id = 'krToast'; toast.setAttribute('role', 'status'); parent.appendChild(toast);
+  let hide = null, eco = { pending: 0, paused: false };
+  const say = (text, kind = 'error', ms = 6000) => { toast.textContent = text; toast.className = `on ${kind === 'info' ? 'info' : ''}`; clearTimeout(hide); if (ms) hide = setTimeout(() => { toast.className = ''; }, ms); };
+  addEventListener('kr-economy', e => {
+    const d = e.detail ?? {};
+    eco = { pending: d.pending ?? 0, paused: !!d.paused };
+    if (d.error) say(`${d.error}${/[.!?]$/.test(d.error) ? '' : '.'} (Put back as it was.)`);
+    else if (d.message) say(d.message, 'info', d.paused ? 0 : 5000);
+    else if (!d.paused && toast.className.includes('info') && /offline/i.test(toast.textContent)) toast.className = '';
+    sub.textContent = eco.paused ? 'changes paused (offline)' : eco.pending ? 'saving…' : (TEXT[A.state] || (A.me?.isGuest ? 'guest' : ''));
+  });
 
   // a welcome, once a visit, for someone not signed in
   let seen = false;

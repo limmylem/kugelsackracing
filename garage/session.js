@@ -18,9 +18,10 @@ import { recordStore } from '../quest/recordStore.js';
 import { changes, changesText, explain, labelOf, num, totalsText } from './report.js';
 import { getPath } from './stats.js';
 import { LocalPlayerService } from './player/service.js';
+import { RemotePlayerService } from './player/remote.js';
 import { account } from '../account/session.js';
 import { IdbStorage, MemoryStorage } from './player/storage.js';
-import { garageStateOf, inInventory, carName, sellPrice } from './player/profile.js';
+import { garageStateOf, inInventory, carName, sellPrice, packProfile } from './player/profile.js';
 import { PLAYTEST_TESTS, PlaytestLog } from './playtest.js';
 import { crashOutcome } from './carDamage.js';
 import { CORNERS, DEBUG_KINDS, damageReport, mechanicalLayout, prune, setMechanical, strikeMechanical } from './mechanical.js';
@@ -57,18 +58,35 @@ async function create() {
   // free roam. A page served without a server: the save as it was, quests its own)
   const quests = { config: await readJson('data/quests.json'), recordings: recordStore() };
   const A = await account().catch(err => { console.warn(`No account: ${err.message}`); return null; });
-  const storage = A?.server ? new IdbStorage({ key: A.profileKey, legacy: false }) : new IdbStorage();
-  if (A?.upgradedFrom) await storage.adopt(`profile:${A.upgradedFrom}`).then(moved => moved && console.info('Your guest progress is now your account\'s.')).catch(() => {});
   const questGate = () => !A?.server ? null
     : !A.online ? 'You\'re offline: free roam only. Quests and events come back when the game\'s server does.'
     : !A.me ? 'Sign in (or play as a guest) to do quests and events: the corner button.'
     : A.me.needsTerms ? 'Accept the terms first (the corner button) to do quests and events.' : null;
-  let player = new LocalPlayerService({ db, storage, quests, questGate }), loaded;
-  try { loaded = await player.init(); }
-  catch (err) {
-    console.warn(`The save in this browser can't be opened (${err.message ?? err}): playing without saving this time.`);
-    player = new LocalPlayerService({ db, storage: new MemoryStorage(), quests, questGate });
-    loaded = await player.init();
+  let player, loaded;
+  if (A?.server && A.me && !A.me.needsTerms) {
+    // (Phase 6 Step 2: the server's economy — garage/player/remote.js. Its settings are the prices shown;
+    // the last profile it sent is kept here only to show offline, where nothing changes until it's back)
+    try { const cfg = await A.api.get('/player/config', { retries: 1 }); db.economy = cfg.economy; quests.config = cfg.quests; } catch { /* the files' own, to show */ }
+    const cache = new IdbStorage({ key: A.profileKey, legacy: false });
+    player = new RemotePlayerService({ api: A.api, db, quests, onStatus: st => globalThis.dispatchEvent?.(new CustomEvent('kr-economy', { detail: st })) });
+    try { loaded = await player.init(); }
+    catch (err) {
+      const cached = await cache.load().catch(() => null);
+      if (!cached) throw new Error(`Your garage is on the game's server, which can't be reached (${err.message}).`);
+      loaded = await player.initOffline(cached);
+    }
+    const keep = () => cache.save(packProfile(player.profile)).catch(() => {});
+    keep(); player.on(keep);
+  } else {
+    // (no server — the local game as it was; or nobody signed in with one: the starter car, not kept)
+    const storage = A?.server ? new MemoryStorage() : new IdbStorage();
+    player = new LocalPlayerService({ db, storage, quests, questGate });
+    try { loaded = await player.init(); }
+    catch (err) {
+      console.warn(`The save in this browser can't be opened (${err.message ?? err}): playing without saving this time.`);
+      player = new LocalPlayerService({ db, storage: new MemoryStorage(), quests, questGate });
+      loaded = await player.init();
+    }
   }
   if (loaded.notices.length) console.warn(`Your save was brought up to date:\n${loaded.notices.map(n => `  · ${n}`).join('\n')}`);
   const garage = new Garage(db, garageStateOf(loaded.updatedState, db));
