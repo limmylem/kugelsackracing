@@ -45,7 +45,7 @@ export function tvCameras(data, { spacing = 260 } = {}) {
   // the corners: outside each, back from its run-off, a little up — covering its approach and its exit
   for (const c of D.corners ?? []) {
     const i = wrap(c.apex), side = -(c.side ?? 1), out = W + runoff(side)(i) + 6 + r.float() * 8;
-    add('corner', `T${c.n}`, i, side, out, 4 + r.float() * 5, (c.from ?? c.apex) - m(130), (c.to ?? c.apex) + m(50));
+    add('corner', `T${c.n}`, i, side, out, 6 + r.float() * 5, (c.from ?? c.apex) - m(130), (c.to ?? c.apex) + m(50));
   }
   // the grandstands: on top of each, looking along its stretch
   for (const g of (data.objects ?? []).filter(o => o.k === 'grandstand')) {

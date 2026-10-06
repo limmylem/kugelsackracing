@@ -166,7 +166,7 @@ marshal posts — with pools of light following the camera and the scene lit coo
 
 ## TV cameras and replays (`track/cameras.js`, `race/raceReplay.js`)
 
-`tvCameras(data)`: from the code — outside every corner (back from its run-off, 4–9 m up), on every
+`tvCameras(data)`: from the code — outside every corner (back from its run-off, 6–11 m up (over the advertising boards)), on every
 grandstand, and beside the straights every ~260 m where nothing else covers them. Each covers a stretch of
 the track; `cameraFor` cuts to the camera whose stretch the car entered last (the next corner's as it
 comes), and `zoom` keeps the car about the same size in frame.
@@ -209,3 +209,150 @@ grandstands' crowd, shadows and their map size, the screen's sharpness), with ta
 | `npm run test:track-perf` | loads, memory, detail levels |
 | `npm run track-variety` | the variety report |
 | `node tools/problem-seeds.mjs` | find problem seeds for the fixture |
+| `node tools/player-test-browser.mjs` | the scripted player test in a browser (needs playwright-core): fast travel to a venue, its official race, the replay, back to the real world, the daily track, its code shared, a repair and a part bought — no page errors |
+| `node tools/track-perf-browser.mjs` | frame times of an 8-car race at each detail level, in a browser |
+
+## Appendix: the last full variety report
+
+`npm run track-variety` (10,000 tracks a preset, generator v3), as it printed:
+
+```
+Generated tracks' variety: 10000 tracks a preset, generator v3
+
+short_technical (10000 tracks)
+  length 2.1–2.6 km (median 2.4) · corners 9–13 · elevation 2.3–10.6 m · crests/dips 0 (median)
+  corners: 100% have slow, 100% medium, 42% fast, 42% all three · hairpins in 31%
+  themes: desert 16% · countryside 17% · coastal 17% · mountain 17% · street 17% · forest 16%
+  signatures: none 52% · long hairpin 28% · big crest 14% · fast esses 6%
+  quality: p10 69 · median 78.9 · p90 86.6 · passing the gates: daily 98%, weekly 96%, quick 99% · parts (median): variety 74 flow 69 overtaking 100 elevation 6 safety 100
+  layouts: mean similarity 0.42, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 69 (at least 50)
+  ok   quality (median): median 78.9 (at least 70)
+  ok   pass the quick races' gate: 99% (at least 85%)
+  ok   slow, medium and fast corners: 42% of tracks have all three (at least 30%)
+  ok   signature features: 48% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 58% of the preset's range (at least 55%)
+  ok   every theme: 6 themes, the rarest 16% (at least 12%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+fast_flowing (10000 tracks)
+  length 3.7–4.6 km (median 4.1) · corners 9–14 · elevation 3.7–14.4 m · crests/dips 1 (median)
+  corners: 100% have slow, 100% medium, 87% fast, 86% all three · hairpins in 24%
+  themes: desert 16% · countryside 17% · coastal 17% · mountain 17% · street 17% · forest 16%
+  signatures: fast esses 27% · none 18% · banked corner 18% · crossover 14% · big crest 14% · long hairpin 10%
+  quality: p10 81.4 · median 87.4 · p90 91.2 · passing the gates: daily 100%, weekly 100%, quick 100% · parts (median): variety 92 flow 100 overtaking 100 elevation 19 safety 100
+  layouts: mean similarity 0.38, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 81.4 (at least 50)
+  ok   quality (median): median 87.4 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 86% of tracks have all three (at least 50%)
+  ok   signature features: 82% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 65% of the preset's range (at least 55%)
+  ok   every theme: 6 themes, the rarest 16% (at least 12%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+high_speed (10000 tracks)
+  length 4.1–5.1 km (median 4.5) · corners 6–11 · elevation 3.8–14.6 m · crests/dips 1 (median)
+  corners: 100% have slow, 97% medium, 90% fast, 87% all three · hairpins in 32%
+  themes: desert 16% · countryside 17% · coastal 17% · mountain 17% · street 17% · forest 16%
+  signatures: banked corner 29% · none 24% · big crest 19% · fast esses 19% · long hairpin 10%
+  quality: p10 82.1 · median 87.9 · p90 91.6 · passing the gates: daily 100%, weekly 100%, quick 100% · parts (median): variety 94 flow 100 overtaking 100 elevation 18 safety 100
+  layouts: mean similarity 0.44, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 82.1 (at least 50)
+  ok   quality (median): median 87.9 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 87% of tracks have all three (at least 40%)
+  ok   signature features: 76% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 64% of the preset's range (at least 55%)
+  ok   every theme: 6 themes, the rarest 16% (at least 12%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+mixed_gp (10000 tracks)
+  length 4–5 km (median 4.5) · corners 12–18 · elevation 4–14.8 m · crests/dips 1 (median)
+  corners: 100% have slow, 100% medium, 91% fast, 91% all three · hairpins in 26%
+  themes: desert 16% · countryside 17% · coastal 17% · mountain 17% · street 17% · forest 16%
+  signatures: none 22% · big crest 18% · long hairpin 18% · fast esses 18% · crossover 14% · banked corner 9%
+  quality: p10 81.3 · median 87 · p90 91.4 · passing the gates: daily 100%, weekly 100%, quick 100% · parts (median): variety 92 flow 100 overtaking 100 elevation 21 safety 100
+  layouts: mean similarity 0.35, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 81.3 (at least 50)
+  ok   quality (median): median 87 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 91% of tracks have all three (at least 60%)
+  ok   signature features: 78% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 71% of the preset's range (at least 55%)
+  ok   every theme: 6 themes, the rarest 16% (at least 12%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+club_circuit (10000 tracks)
+  length 1.7–2.2 km (median 2) · corners 6–10 · elevation 2.1–10.4 m · crests/dips 0 (median)
+  corners: 100% have slow, 98% medium, 42% fast, 42% all three · hairpins in 30%
+  themes: desert 16% · countryside 17% · coastal 17% · mountain 17% · street 17% · forest 16%
+  signatures: none 28% · big crest 22% · fast esses 20% · long hairpin 20% · banked corner 11%
+  quality: p10 70 · median 81.2 · p90 87.8 · passing the gates: daily 98%, weekly 95%, quick 99% · parts (median): variety 74 flow 100 overtaking 100 elevation 6 safety 100
+  layouts: mean similarity 0.47, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 70 (at least 50)
+  ok   quality (median): median 81.2 (at least 70)
+  ok   pass the quick races' gate: 99% (at least 85%)
+  ok   slow, medium and fast corners: 42% of tracks have all three (at least 30%)
+  ok   signature features: 72% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 59% of the preset's range (at least 55%)
+  ok   every theme: 6 themes, the rarest 16% (at least 12%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+mountain_hillclimb (10000 tracks)
+  length 3.3–4.1 km (median 3.8) · corners 14–21 · elevation 155.7–165.7 m · crests/dips 1 (median)
+  corners: 100% have slow, 100% medium, 37% fast, 37% all three · hairpins in 54%
+  themes: mountain 100%
+  signatures: none 42% · long hairpin 41% · big crest 9% · fast esses 7%
+  quality: p10 85 · median 89.1 · p90 92.9 · passing the gates: daily 100%, weekly 100%, quick 100% · parts (median): variety 74 flow 100 overtaking 100 elevation 70 safety 100
+  layouts: mean similarity 0.15, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 85 (at least 50)
+  ok   quality (median): median 89.1 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 37% of tracks have all three (at least 30%)
+  ok   signature features: 58% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 61% of the preset's range (at least 55%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+  ok   elevation: median 160.6 m (at least 40 m)
+
+coastal_sprint (10000 tracks)
+  length 3.3–4.8 km (median 4.1) · corners 10–16 · elevation 18.9–34 m · crests/dips 2 (median)
+  corners: 100% have slow, 100% medium, 88% fast, 88% all three · hairpins in 18%
+  themes: coastal 100%
+  signatures: fast esses 40% · none 27% · big crest 20% · long hairpin 14%
+  quality: p10 84.9 · median 91 · p90 95.9 · passing the gates: daily 100%, weekly 100%, quick 100% · parts (median): variety 91 flow 100 overtaking 100 elevation 57 safety 100
+  layouts: mean similarity 0.14, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 84.9 (at least 50)
+  ok   quality (median): median 91 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 88% of tracks have all three (at least 50%)
+  ok   signature features: 73% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 75% of the preset's range (at least 55%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+street_circuit (10000 tracks)
+  length 2.8–3.5 km (median 3.2) · corners 11–16 · elevation 2.9–12 m · crests/dips 0 (median)
+  corners: 100% have slow, 100% medium, 57% fast, 57% all three · hairpins in 41%
+  themes: street 100%
+  signatures: none 41% · long hairpin 37% · big crest 14% · fast esses 7%
+  quality: p10 75.2 · median 82.6 · p90 88.2 · passing the gates: daily 100%, weekly 99%, quick 100% · parts (median): variety 83 flow 100 overtaking 100 elevation 10 safety 100
+  layouts: mean similarity 0.38, near-duplicates 0.00% of 402 tracks' pairs
+  ok   every seed a track: 0 seeds with no track (at most 0)
+  ok   quality (p10): p10 75.2 (at least 50)
+  ok   quality (median): median 82.6 (at least 70)
+  ok   pass the quick races' gate: 100% (at least 85%)
+  ok   slow, medium and fast corners: 57% of tracks have all three (at least 30%)
+  ok   signature features: 59% of tracks (at least 45%)
+  ok   length spread: p10–p90 covers 60% of the preset's range (at least 55%)
+  ok   no near-duplicates: 0.00% of pairs alike (at most 0.50%)
+
+Every variety target met.
+(42.8 min, 3 threads)
+```
