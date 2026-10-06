@@ -142,7 +142,24 @@ export const contentMeta = pgTable('content_meta', {
   value: bigint('value', { mode: 'number' }).notNull().default(0),
 });
 
-// ---------- generated tracks: results, records, leaderboards, replays ----------
+// ---------- generated tracks: the day's and the week's, built courses, results, records, leaderboards, replays ----------
+// (the day's and the week's track, worked out once — the quality-checked search — and kept: every server
+// and every player the same)
+export const trackDays = pgTable('track_days', {
+  kind: text('kind').notNull(),                          // daily | weekly
+  key: text('key').notNull(),                            // 2026-10-06 | 2026-W41
+  data: jsonb('data').notNull(),                         // { code, name, seed, version, preset, info, quality }
+  createdAt: created(),
+}, t => [primaryKey({ columns: [t.kind, t.key] })]);
+// (a track built from its code: its course as stored — what results are checked against — and its hash)
+export const trackCourses = pgTable('track_courses', {
+  code: text('code').primaryKey(),
+  version: integer('version').notNull(),
+  hash: text('hash').notNull(),
+  course: jsonb('course').notNull(),
+  info: jsonb('info').notNull(),
+  createdAt: created(),
+});
 export const trackResults = pgTable('track_results', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -153,14 +170,17 @@ export const trackResults = pgTable('track_results', {
   carClass: text('car_class').notNull(),
   type: text('type').notNull(),
   time: real('time').notNull(),
+  rank: real('rank'),                                    // what it's ranked by: the time, or a hot lap's best lap (quest/rules.js rankedTime)
+  score: real('score'),                                  // a drift's (ranked by it, highest first)
   bestLap: real('best_lap'),
   laps: jsonb('laps').notNull().default([]),
   accepted: boolean('accepted').notNull(),
   problems: jsonb('problems').notNull().default([]),
+  result: jsonb('result'),                               // the result as sent (quest/result.js)
   recording: bytea('recording'),                         // the run's recording (gzip): the result's evidence
   replayId: text('replay_id'),
   at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('results_board').on(t.eventId, t.accepted, t.time), index('results_user').on(t.userId, t.at)]);
+}, t => [index('results_board').on(t.eventId, t.accepted, t.rank), index('results_board_score').on(t.eventId, t.accepted, t.score), index('results_user').on(t.userId, t.at)]);
 
 export const trackRecords = pgTable('track_records', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -169,7 +189,10 @@ export const trackRecords = pgTable('track_records', {
   carClass: text('car_class').notNull(),
   bestTime: real('best_time'),
   bestLap: real('best_lap'),
+  bestScore: real('best_score'),
+  resultId: bigint('result_id', { mode: 'number' }),     // the best run (its recording: the ghost)
   replayId: text('replay_id'),
+  runs: integer('runs').notNull().default(0),
   at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.userId, t.code, t.version, t.carClass] })]);
 

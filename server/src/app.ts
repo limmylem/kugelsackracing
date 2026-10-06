@@ -8,7 +8,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -31,6 +31,7 @@ import { adminRoutes } from './routes/admin.ts';
 import { contentRoutes } from './routes/content.ts';
 import { loadRules } from './content/rules.ts';
 import { promoteOwner } from './owner.ts';
+import { createTrackService } from './tracks/service.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
@@ -39,17 +40,18 @@ import { moveGuestData, deleteUserData } from './data.ts';
 export const CLIENT_DIRS = ['ai', 'assets', 'content', 'data', 'dev', 'editor', 'effects', 'garage', 'map', 'physics', 'play', 'quest', 'race', 'realworld', 'route', 'scenes', 'testtrack', 'track', 'ui', 'world', 'admin', 'account'];
 export const CLIENT_FILES = ['index.html', 'lowpoly.html', 'roadster.glb', 'favicon.ico'];
 
-// (a URL's query values that are secrets — verification and reset tokens, OAuth codes — never logged)
+// (a URL's secrets — verification and reset tokens, OAuth codes, in its query or its path — never logged)
 const SECRET_PARAM = /token|code|state|password|secret|key/i;
+const SECRET_PATH = /(\/(?:reset-password|verify-email|magic-link)\/)[^/?]+/gi;
 export const scrubUrl = (url: string) => {
-  const q = url.indexOf('?');
-  if (q < 0) return url;
+  const q = url.indexOf('?'), p = (q < 0 ? url : url.slice(0, q)).replace(SECRET_PATH, '$1[redacted]');
+  if (q < 0) return p;
   const params = new URLSearchParams(url.slice(q + 1));
   for (const k of [...params.keys()]) if (SECRET_PARAM.test(k)) params.set(k, '[redacted]');
-  return `${url.slice(0, q)}?${params}`;
+  return `${p}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void };
+export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void } };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -62,6 +64,7 @@ export async function buildApp(deps: AppDeps) {
     genReqId: () => crypto.randomUUID(),
     logger: {
       level: config.logLevel,
+      ...(deps.logStream ? { stream: deps.logStream } : {}),
       redact: { paths: ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-csrf-token"]', 'res.headers["set-cookie"]', '*.password', '*.token', '*.newPassword', '*.currentPassword'], censor: '[redacted]' },
       serializers: {
         req: r => ({ method: r.method, url: scrubUrl(r.url), ip: r.ip, id: r.id }),
@@ -69,6 +72,8 @@ export async function buildApp(deps: AppDeps) {
       },
     },
     ajv: { customOptions: { removeAdditional: false } },
+    // (an address the router can't read, or a parameter too long: the one error format too)
+    frameworkErrors: (err, req, reply) => { sendError(reply, req, 400, 'BAD_REQUEST', `That address isn't right (${err.code === 'FST_ERR_MAX_PARAM_LENGTH' ? 'a part of it is too long' : 'it can\'t be read'}).`); },
   }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -110,19 +115,31 @@ export async function buildApp(deps: AppDeps) {
   await app.register(csrf, { sessionPlugin: '@fastify/cookie', cookieKey: 'kr_csrf', cookieOpts: { path: '/', httpOnly: true, sameSite: 'strict', secure: config.cookieSecure, signed: true }, getToken: req => req.headers[CSRF_HEADER] as string | undefined });
 
   // ---------- rate limits ----------
+  // (each its own count, all of them checked: per address for everything; stricter per address on signing
+  // in, signing up and the emails; per account for writes. createRateLimit, not rateLimit(): the plugin's
+  // hooks stop at the first that runs on a request)
   await app.register(rateLimit, { global: false });
-  const ipLimit = app.rateLimit({ max: config.rateLimits.global.max, timeWindow: config.rateLimits.global.windowSec * 1000, keyGenerator: r => `ip:${r.ip}` });
-  const authLimit = app.rateLimit({ max: config.rateLimits.auth.max, timeWindow: config.rateLimits.auth.windowSec * 1000, keyGenerator: r => `auth:${r.ip}` });
-  const signUpLimit = app.rateLimit({ max: config.rateLimits.signUp.max, timeWindow: config.rateLimits.signUp.windowSec * 1000, keyGenerator: r => `signup:${r.ip}` });
-  const writeLimit = app.rateLimit({ max: config.rateLimits.write.max, timeWindow: config.rateLimits.write.windowSec * 1000, keyGenerator: async r => { const s = await sessionOf(auth, r); return s ? `acct:${s.user.id}` : `ip:${r.ip}`; } });
-  app.addHook('onRequest', ipLimit);
-  const STRICT = /^\/api\/auth\/(sign-in|sign-up|request-password-reset|reset-password|send-verification-email|sign-in\/anonymous)/;
-  app.addHook('onRequest', async (req, reply) => {
-    if (STRICT.test(req.url)) await authLimit.call(app, req, reply);
-    if (req.url.startsWith('/api/auth/sign-up') || req.url.startsWith('/api/auth/sign-in/anonymous')) await signUpLimit.call(app, req, reply);
+  const limiter = (max: number, windowSec: number, keyOf: (r: FastifyRequest) => string | Promise<string>) => {
+    const check = app.createRateLimit({ max, timeWindow: windowSec * 1000, keyGenerator: keyOf });
+    return async (req: FastifyRequest) => {
+      const r: any = await check(req);
+      if (!r.isAllowed && r.isExceeded) throw new AppError(429, 'RATE_LIMITED', 'Too many requests: wait a moment and try again.', undefined, { 'retry-after': String(Math.max(1, r.ttlInSeconds)) });
+    };
+  };
+  const RL = config.rateLimits;
+  const ipLimit = limiter(RL.global.max, RL.global.windowSec, r => `ip:${r.ip}`);
+  const authLimit = limiter(RL.auth.max, RL.auth.windowSec, r => `auth:${r.ip}`);
+  const signUpLimit = limiter(RL.signUp.max, RL.signUp.windowSec, r => `signup:${r.ip}`);
+  const writeLimit = limiter(RL.write.max, RL.write.windowSec, async r => { const s = await sessionOf(auth, r); return s ? `acct:${s.user.id}` : `ip:${r.ip}`; });
+  const STRICT = /^\/api\/auth\/+(sign-in|sign-up|request-password-reset|reset-password|send-verification-email|forget-password)/;
+  app.addHook('onRequest', async req => {
+    await ipLimit(req);
+    if (req.method !== 'POST') return;
+    if (STRICT.test(req.url)) await authLimit(req);
+    if (/^\/api\/auth\/+(sign-up|sign-in\/anonymous)/.test(req.url)) await signUpLimit(req);
   });
-  app.addHook('preHandler', async (req, reply) => {
-    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) await writeLimit.call(app, req, reply);
+  app.addHook('preHandler', async req => {
+    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) await writeLimit(req);
   });
 
   // ---------- CSRF: a write with a cookie session carries the token (GET /api/v1/csrf) ----------
@@ -190,11 +207,21 @@ export async function buildApp(deps: AppDeps) {
   });
   const content = createContentService({ db, rules: loadRules() });
   app.decorate('content', content);
+  const tracks = createTrackService({ db, config, log: (o, m) => app.log.info(o, m) });
+  app.decorate('tracks', tracks);
+  app.addHook('onClose', async () => { await tracks.close(); });
+  // (the coming days' tracks made ahead of time: now, then every hour)
+  if (config.tracks.precompute) {
+    app.addHook('onReady', async () => { void tracks.prepare(); });
+    const timer = setInterval(() => { void tracks.prepare(); }, 3600e3);
+    timer.unref();
+    app.addHook('onClose', async () => clearInterval(timer));
+  }
   await app.register(async api => {
     await meRoutes(api, { config, db, auth, G, mailer });
     await adminRoutes(api, { config, db, auth, G });
     await contentRoutes(api, { config, content, G });
-    await trackRoutes(api, { config, db, G });
+    await trackRoutes(api, { config, tracks, G, auth });
   }, { prefix: API_PREFIX });
 
   // ---------- the game itself (same origin as the API: the session cookie stays first-party) ----------
@@ -240,7 +267,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { routeList: { method: string; url: string; role?: string }[] }
+  interface FastifyInstance { routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };

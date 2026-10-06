@@ -8,5 +8,6 @@
   "rateLimits": { "global": { "max": 600, "windowSec": 60 }, "auth": { "max": 20, "windowSec": 60 }, "signUp": { "max": 5, "windowSec": 3600 }, "write": { "max": 120, "windowSec": 60 } },
   "cache": { "publishedSeconds": 30, "cdnSeconds": 300, "serverMB": 32 },
   "replays": { "keepPerPlayer": 50 },
+  "tracks": { "precompute": true, "graceMinutes": 15, "workerTimeoutSec": 180 },
   "logLevel": "info"
 }

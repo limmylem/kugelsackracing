@@ -20,7 +20,9 @@ export const REQUEST_ID_HEADER = 'x-request-id';
 
 export const LIMITS = {
   bodyBytes: 1_048_576,          // any request body, at most (1 MiB)
-  replayBytes: 2_097_152,        // a race replay's upload, compressed (2 MiB)
+  replayBytes: 2_097_152,        // a race replay as kept, compressed (2 MiB)
+  replayUploadBytes: 8_388_608,  // a race replay's upload (8 MiB of JSON)
+  resultBytes: 2_097_152,        // a run's result with its recording (2 MiB)
   importBytes: 26_214_400,       // a world content import file (25 MiB)
   displayName: { min: 3, max: 20 },
   password: { min: 10, max: 128 },
@@ -160,39 +162,72 @@ export const ImportReport = z.object({
   byKind: z.record(z.string(), z.number().int()), ms: z.number(),
 });
 
-// ---------- generated tracks: the day's and the week's, records, leaderboards, replays ----------
+// ---------- generated tracks: the day's and the week's, results, records, leaderboards, replays ----------
+export const TRACK_KINDS = ['official', 'daily', 'weekly', 'quick', 'shared'] as const;
+export const TrackKind = z.enum(TRACK_KINDS);
+export const TrackCode = z.string().regex(/^[0-9A-Z]{5}(-[0-9A-Z]{1,5}){5}$/, 'not a track code');
+export const CarClass = z.string().regex(/^[A-Za-z0-9_+-]{1,16}$/);
+const Num = z.number().finite();
+// the day's or the week's track (track/events/model.js, worked out on the server): its events are quest items
 export const TrackOfDay = z.object({
   kind: z.enum(['daily', 'weekly']), key: z.string(), code: z.string(), name: z.string(), version: z.number().int(), preset: z.string().nullable(),
   seed: z.number(), info: z.record(z.string(), z.unknown()), quality: z.record(z.string(), z.unknown()).nullable(),
-  events: z.array(z.record(z.string(), z.unknown())),
+  hash: z.string(), endsAt: z.string(), events: z.array(z.record(z.string(), z.unknown())),
 });
-export const TrackCode = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{5}(-[0-9A-HJKMNP-TV-Z]{5}){4}-[0-9A-HJKMNP-TV-Z*~$=U]$/i, 'not a track code');
-export const CarClass = z.string().regex(/^[A-Za-z0-9_+-]{1,16}$/);
+export const TracksToday = z.object({ now: z.string(), daily: TrackOfDay, weekly: TrackOfDay });
+// a quest recording (quest/recording.js finish(): delta-coded samples, base64)
 export const RecordingSchema = z.object({
-  format: z.string().max(32), version: z.number().int(), hz: z.number().positive().max(240), frames: z.number().int().min(1).max(200_000),
-  origin: z.array(z.number()).length(3), data: z.string().max(4_000_000), meta: z.record(z.string(), z.unknown()).optional(),
+  format: z.string().max(32), version: z.number().int(), hz: z.number().positive().max(240), frames: z.number().int().min(0).max(400_000),
+  origin: z.array(Num).length(3), data: z.string().max(6_000_000), meta: z.record(z.string(), z.unknown()).optional(),
 });
-export const TrackResultBody = z.object({
-  eventId: z.string().max(120), kind: z.enum(['official', 'daily', 'weekly', 'quick', 'shared']), code: TrackCode, version: z.number().int().min(1).max(99),
-  carClass: CarClass, type: z.string().max(40), laps: z.array(z.number().positive().max(36_000)).max(200), time: z.number().positive().max(36_000),
-  trackHash: z.string().max(80), recording: RecordingSchema, replayId: z.string().max(80).nullable().optional(),
+// a run's result as the game makes it (quest/result.js buildResult): its size bounded here, its sense
+// checked by the game's own rules on the server (quest/validate.js)
+export const RunResult = z.object({
+  format: z.literal(1), attemptId: z.string().max(80).nullable(), at: z.string().max(40),
+  questId: z.string().max(120), questVersion: z.string().max(80), type: z.string().max(40),
+  routeId: z.string().max(120).nullable(), routeVersion: z.union([z.string().max(80), Num]).nullable(),
+  status: z.string().max(20), reason: z.string().max(60).nullable(),
+  car: z.object({ carId: z.string().max(80).nullable(), instanceId: z.string().max(80).nullable(), fingerprint: z.string().max(200).nullable(), className: z.string().max(16).nullable(), kw: Num.nullable(), kg: Num.nullable(), topSpeed: Num.nullable() }),
+  start: z.object({ mode: z.string().max(20).nullable().optional(), jump: z.boolean() }),
+  checkpoints: z.array(z.object({ id: z.string().max(60), lap: z.number().int().min(1).max(1000), time: Num })).max(20_000),
+  laps: z.array(Num).max(1000),
+  rawTime: Num.nullable(), time: Num.nullable(),
+  penalties: z.array(z.object({ what: z.string().max(120), seconds: Num })).max(200),
+  score: Num.nullable(), medal: z.string().max(12).nullable(),
+  damage: z.object({ taken: Num, events: z.array(z.unknown()).max(500) }),
+  cargo: z.unknown().optional(), cargoLost: Num.optional(),
+  resets: z.number().int().min(0).max(100_000),
+  place: z.number().int().min(1).max(64).optional(),
+  field: z.array(z.object({ id: z.string().max(60), name: z.string().max(80).nullable(), player: z.boolean(), status: z.string().max(20), time: Num.nullable(), estimated: z.boolean() })).max(64).optional(),
+  track: z.object({ code: TrackCode, kind: TrackKind, hash: z.string().max(60).nullable(), version: z.number().int().nullable() }).optional(),
+  stints: z.unknown().optional(),
+  recording: z.string().max(120).nullable(),
 });
-export const RecordEntry = z.object({ code: z.string(), version: z.number().int(), carClass: z.string(), bestTime: z.number().nullable(), bestLap: z.number().nullable(), at: z.string(), replayId: z.string().nullable() });
+export const TrackResultBody = z.object({ eventId: z.string().max(120), result: RunResult, recording: RecordingSchema.nullable().optional(), replayId: z.string().max(80).nullable().optional() });
+export const RecordEntry = z.object({
+  code: z.string(), version: z.number().int(), carClass: z.string(), bestTime: z.number().nullable(), bestLap: z.number().nullable(), bestScore: z.number().nullable(),
+  runs: z.number().int(), at: z.string(), replayId: z.string().nullable(),
+});
 export const TrackResultResponse = z.object({
-  ok: z.literal(true), accepted: z.boolean(), problems: z.array(z.string()), record: RecordEntry.nullable(), pb: z.boolean(),
-  board: z.object({ place: z.number().int().nullable(), of: z.number().int() }),
+  ok: z.literal(true), accepted: z.boolean(), problems: z.array(z.string()), pb: z.boolean(), record: RecordEntry.nullable(),
+  board: z.object({ place: z.number().int().nullable(), of: z.number().int() }).nullable(),
 });
 export const LeaderboardQuery = z.object({ eventId: z.string().max(120), limit: z.coerce.number().int().min(1).max(100).default(20) });
 export const Leaderboard = z.object({
-  eventId: z.string(), entries: z.array(z.object({ place: z.number().int(), playerId: z.string(), displayName: z.string(), time: z.number(), carClass: z.string(), at: z.string(), replayId: z.string().nullable() })),
-  mine: z.object({ place: z.number().int(), time: z.number() }).nullable(),
+  eventId: z.string(), scored: z.boolean(),           // (a drift's: by score, highest first; else by time)
+  entries: z.array(z.object({ place: z.number().int(), displayName: z.string(), value: z.number(), carClass: z.string(), at: z.string(), replayId: z.string().nullable(), you: z.boolean() })),
+  mine: z.object({ place: z.number().int(), value: z.number() }).nullable(), of: z.number().int(),
 });
+export const RecordsQuery = z.object({ code: TrackCode.optional() });
 // a race replay (race/raceReplay.js createRaceRecording().finish()): kept on the server, compressed
-export const ReplayUpload = z.object({
-  eventId: z.string().max(120).nullable(), code: TrackCode.nullable(), title: z.string().trim().max(120),
-  recording: z.object({ hz: z.number().positive().max(240), duration: z.number().nonnegative().max(36_000), events: z.array(z.record(z.string(), z.unknown())).max(5000), cars: z.array(z.record(z.string(), z.unknown())).min(1).max(16) }),
+export const ReplayRecording = z.object({
+  hz: z.number().positive().max(240), duration: Num.nonnegative().max(36_000),
+  events: z.array(z.record(z.string(), z.unknown())).max(5000),
+  cars: z.array(z.object({ id: z.union([z.string().max(60), Num]), name: z.string().max(80).nullable(), colour: z.union([z.string().max(40), Num]).nullable(), player: z.boolean(), offset: Num, rec: RecordingSchema })).min(1).max(32),
 });
-export const ReplayMeta = z.object({ id: z.string(), title: z.string(), eventId: z.string().nullable(), code: z.string().nullable(), duration: z.number(), cars: z.number().int(), bytes: z.number().int(), createdAt: z.string(), ownerId: z.string() });
+export const ReplayUpload = z.object({ eventId: z.string().max(120).nullable(), code: TrackCode.nullable(), title: z.string().trim().min(1).max(120), recording: ReplayRecording });
+export const ReplayMeta = z.object({ id: z.string(), title: z.string(), eventId: z.string().nullable(), code: z.string().nullable(), duration: z.number(), cars: z.number().int(), bytes: z.number().int(), createdAt: z.string(), mine: z.boolean() });
+export const ReplayResponse = z.object({ meta: ReplayMeta, recording: ReplayRecording });
 
 // ---------- the server ----------
 export const Health = z.object({ ok: z.boolean(), version: z.string(), env: z.string(), db: z.enum(['ok', 'down']), uptime: z.number() });

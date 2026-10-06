@@ -34,10 +34,10 @@ export function testConfig(databaseUrl: string, overrides: Record<string, unknow
   return loadConfig({ APP_ENV: 'test', PUBLIC_URL, DATABASE_URL: databaseUrl, BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-0123456789', SMTP_URL: 'memory://', ...env }, overrides as any);
 }
 
-export async function testApp(tag: string, { overrides = {}, env = {}, mockOAuth = null }: { overrides?: Record<string, unknown>; env?: Record<string, string>; mockOAuth?: any } = {}) {
+export async function testApp(tag: string, { overrides = {}, env = {}, mockOAuth = null, logStream }: { overrides?: Record<string, unknown>; env?: Record<string, string>; mockOAuth?: any; logStream?: { write(msg: string): void } } = {}) {
   const database = await freshDatabase(tag);
   const config = testConfig(database.url, overrides, env);
-  const app = await buildApp({ config, mockOAuth });
+  const app = await buildApp({ config, mockOAuth, logStream });
   await app.ready();
   const outbox = app.deps.mailer.outbox as Mail[];
   return { app, config, outbox, database, async close() { await app.close(); await database.drop(); } };
