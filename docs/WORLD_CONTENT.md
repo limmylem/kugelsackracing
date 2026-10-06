@@ -13,11 +13,10 @@ it in the browser. A server with PostGIS can take over later with no change to t
 ## Using the editor
 
 - **Open it** with **F2**, or the **✎ Editor** button in the world bar.
-  - It's there in development builds: the game served from your own computer with `npm start`, or any
-    address with `?dev`.
-  - It's also there for accounts with the editor flag. For now that's a setting in this browser: in the
-    console, `localStorage['kugelsack.editor'] = 'on'` (or `'off'`, even in a development build).
-  - The server will decide this later.
+  - It's there for editor and admin accounts. The role is the server's (an admin sets it on the admin
+    page), and the server checks it again on every editor request (`editor/access.js`).
+  - On a page served without the server (the local-only game), it's there in development builds on this
+    computer. The old browser setting `kugelsack.editor` no longer does anything.
 - **Opening it pauses play safely.** Nothing is simulated, the car holds where it is, the game's controls
   and sound are off, and an automated test stops. Leaving with F2 carries on from exactly where you were.
 - **An orange frame and banner** show you're in the editor.
@@ -163,6 +162,20 @@ words.
   the quests' own (start it, set a route to it): see [QUESTS.md](QUESTS.md).
 - **Quest states:** each quest's marker on the maps shows new, attempted or completed (in its medal's
   colour).
+
+## On the server (Phase 6 Step 1)
+
+The game's server now keeps world content in PostGIS (docs/SERVER.md). `content/remote.js` asks it the
+same requests as the local service, and `content/client.js` uses it whenever the page comes from the
+server. A page without a server keeps content in the browser as before.
+- **Queries:** published rows have a partial GiST index. A nearby query is the circle's box against it,
+  then the distance on the sphere. The 50,000-marker results are in docs/KNOWN_ISSUES.md.
+- **Caching:** published responses are cached with an ETag that changes on every publish.
+- **Writes and drafts:** for editors only, checked as each request arrives.
+- **Tests:** `server/test/content.test.ts`, and `server/tools/content-stress.ts` for scale.
+- **Importing local content:** docs/SERVER.md.
+
+The design note below is the plan it was built from (the tables as built are in `server/src/db/schema.ts`).
 
 ## Design note: a server with PostGIS
 

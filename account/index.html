@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kugelsack Racing · Account</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../ui/theme.css">
+<style>
+  /* the account page (account/account.js): sign in, make an account, play as a guest, a forgotten password,
+     the terms; signed in — the name, signing out (here or everywhere), the data, deleting the account */
+  html, body { margin: 0; min-height: 100%; background: var(--c-base); color: var(--c-text); font: 500 var(--t-body)/1.45 var(--f-ui); }
+  * { box-sizing: border-box; }
+  main { width: min(460px, calc(100vw - 32px)); margin: 6vh auto 48px; display: flex; flex-direction: column; gap: var(--s-4); }
+  h1 { margin: 0; font: 600 30px var(--f-title); letter-spacing: .02em; }
+  h2 { margin: 0; font: 600 21px var(--f-title); letter-spacing: .02em; }
+  section { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: var(--r-panel); padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: var(--t-label); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-text-3); }
+  label.check { flex-direction: row; align-items: flex-start; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; color: var(--c-text-2); }
+  label.check input { margin-top: 3px; }
+  input { font: 500 15px var(--f-ui); color: var(--c-text); background: var(--c-viewport); border: 1px solid var(--c-line); border-radius: var(--r-btn); padding: 10px 11px; text-transform: none; letter-spacing: 0; }
+  input:focus { outline: 2px solid var(--c-accent); outline-offset: -1px; }
+  button { cursor: pointer; border: 0; color: inherit; }
+  .btn { height: 44px; font-size: 16px !important; width: 100%; }
+  .row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+  .row .btn { flex: 1; width: auto; }
+  .msg { padding: 10px 12px; border-radius: var(--r-card); font-size: 14px; }
+  .msg.bad { background: var(--c-bad-tint); color: var(--c-bad-soft); }
+  .msg.good { background: var(--c-good-tint); color: var(--c-good); }
+  .muted { color: var(--c-text-3); font-size: 13px; }
+  .hint { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .hint.bad { color: var(--c-bad-soft); } .hint.good { color: var(--c-good); }
+  a { color: var(--c-accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .links { display: flex; justify-content: space-between; font-size: 14px; }
+  .or { text-align: center; color: var(--c-text-3); font-size: 13px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dt { color: var(--c-text-3); font-size: 13px; font-weight: 600; } dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="ui">
+<main>
+  <div class="links"><h1>Kugelsack Racing</h1><a id="back" href="/">Back to the game</a></div>
+  <div id="msg"></div>
+  <div id="view"><section><p class="muted">One moment…</p></section></div>
+</main>
+<script type="module" src="account.js"></script>
+</body>
+</html>

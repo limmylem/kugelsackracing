@@ -1,17 +1,24 @@
-// Who may open the world editor: a development build (the game served from this computer — npm start —
-// or opened with ?dev in the address), or an account with the editor flag. Accounts are local for now, so
-// the flag is a setting in this browser (localStorage 'kugelsack.editor' = 'on'; 'off' turns it off even
-// in a development build). When there's a server, it decides (and checks every write) instead.
+// Who may open the world editor (Phase 6 Step 1): an editor or admin account — the role is the server's,
+// and the server checks it again on every editor request (server/src/routes/content.ts), so this only
+// decides whether the editor opens. A page served without a server (the local-only game) opens it on a
+// development build (this computer, or a file), where the content stays in this browser.
+// (The old localStorage editor flag is gone: a browser setting can't make anyone an editor.)
+//
+//   editorAccess(A, loc) → { allowed, how | why }      A: account/session.js's account (or null)
+//   await editorAccessNow() → the same, for this page's account
 
-import { localStorageGet, localStorageSet } from '../content/client.js';
+import { account } from '../account/session.js';
 
-const FLAG = 'kugelsack.editor';
-
-export function editorAccess(loc = globalThis.location) {
-  const flag = localStorageGet(FLAG);
-  if (flag === 'off') return { allowed: false, why: 'The editor is switched off in this browser (localStorage kugelsack.editor = off).' };
-  if (flag === 'on') return { allowed: true, how: 'editor flag' };
-  const host = loc?.hostname ?? '', dev = ['localhost', '127.0.0.1', '::1', '[::1]', ''].includes(host) || loc?.protocol === 'file:' || new URLSearchParams(loc?.search ?? '').has('dev');
-  return dev ? { allowed: true, how: 'development build' } : { allowed: false, why: 'The world editor is for development builds and editor accounts.' };
+export function editorAccess(A, loc = globalThis.location) {
+  if (A?.server) {
+    const me = A.me;
+    if (!me) return { allowed: false, why: 'Sign in with an editor account to open the world editor.' };
+    if (me.isGuest || !['editor', 'admin'].includes(me.role)) return { allowed: false, why: 'The world editor is for editor accounts: an admin can make yours one.' };
+    if (me.needsTerms) return { allowed: false, why: 'Accept the terms first (the account page).' };
+    if (!A.online) return { allowed: false, why: 'The world editor needs the game\'s server: you\'re offline.' };
+    return { allowed: true, how: `${me.role} account` };
+  }
+  const host = loc?.hostname ?? '', dev = ['localhost', '127.0.0.1', '::1', '[::1]', ''].includes(host) || loc?.protocol === 'file:';
+  return dev ? { allowed: true, how: 'development build (no server: content kept in this browser)' } : { allowed: false, why: 'The world editor is for editor accounts.' };
 }
-export const setEditorFlag = on => localStorageSet(FLAG, on == null ? null : on ? 'on' : 'off');
+export async function editorAccessNow() { return editorAccess(await account().catch(() => null)); }

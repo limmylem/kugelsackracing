@@ -272,6 +272,8 @@ function questGame(w) {
     // the race replay (race/raceReplay.js): whether the last run has one, and watching it
     canReplay: () => !!(w.raceRec?.duration > 2 || w.raceRecording),
     watchReplay: opts => watchReplay(w, opts),
+    // a replay kept on the server (the library's: a record's, or the player's own) — on this track
+    watchStoredReplay: (recording, meta = null) => watchReplay(w, { recording, title: meta?.title }),
     replaying: () => shared.raceReplay?.w === w,
     setPref(k, v) { s.prefs[k] = v; saveSettings(s.prefs); applyHudScale(); },
     // ---------- races against NPCs (race/race.js) ----------
@@ -330,6 +332,8 @@ function questGame(w) {
         },
         // each frame: the car held on its slot once it's down on the road
         frame() { if (wantHold && !w.spawning && !w.pinned) rwOf(w).holdCar(w); },
+        // the race replay so far, finished (Phase 6: kept on the server with the run — play/trackServer.js)
+        raceReplay: () => raceRecording(w),
         dispose() { for (const d of detachers) d(); detachers = []; if (w.pinned) rwOf(w).releaseCar(w); },
       };
     },
@@ -407,8 +411,8 @@ function raceRecording(w) {
 }
 // The replay: the world held, every car where the recording has it, the view the player's (TV cameras on
 // a generated track, chase, in-car); its controls on screen and on the keyboard. onEnd: when it's closed
-function watchReplay(w, { onEnd = null } = {}) {
-  const rec = raceRecording(w);
+function watchReplay(w, { onEnd = null, recording = null } = {}) {
+  const rec = recording ?? raceRecording(w);
   if (!rec || shared.raceReplay) return false;
   const P = createRacePlayer(rec, { cameras: w.tvCams, data: w.trackData ?? null });
   const ui = document.createElement('div');
@@ -539,6 +543,12 @@ async function trackGame(game) {
       return r;
     },
     leave: () => leaveTrack(),
+    // a replay kept on the server: on its own track only (its cars where they raced)
+    watchStoredReplay: (recording, meta = null) => {
+      const w = active;
+      if (!w || (meta?.code && w.trackData?.code !== meta.code)) { s.flash.show('Go to that track first: its replay plays there (the library → its event).', 'warn', 4); return false; }
+      return watchReplay(w, { recording });
+    },
   } });
 }
 async function leaveTrack() {

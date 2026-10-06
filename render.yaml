@@ -1,0 +1,48 @@
+# Render (docs/SERVER.md): the server and the game, one web service each for staging and production, on the
+# free plan (it sleeps when nobody's played for 15 minutes and wakes in about a minute). Both are built from
+# the Dockerfile. Neither deploys by itself: GitHub Actions deploys staging once every test has passed, and
+# production once someone approves it (.github/workflows/server.yml). Secrets are set in Render's
+# dashboard (sync: false), never here.
+services:
+  - type: web
+    name: kugelsack-staging
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: false
+    healthCheckPath: /api/v1/health
+    envVars:
+      - { key: APP_ENV, value: staging }
+      - { key: PUBLIC_URL, sync: false }
+      - { key: DATABASE_URL, sync: false }
+      - { key: BETTER_AUTH_SECRET, sync: false }
+      - { key: SMTP_URL, sync: false }
+      - { key: MAIL_FROM, sync: false }
+      - { key: GOOGLE_CLIENT_ID, sync: false }
+      - { key: GOOGLE_CLIENT_SECRET, sync: false }
+      - { key: DISCORD_CLIENT_ID, sync: false }
+      - { key: DISCORD_CLIENT_SECRET, sync: false }
+      - { key: SENTRY_DSN, sync: false }
+      - { key: SENTRY_CLIENT_DSN, sync: false }
+      - { key: ADMIN_EMAIL, sync: false }
+  - type: web
+    name: kugelsack-production
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: false
+    healthCheckPath: /api/v1/health
+    envVars:
+      - { key: APP_ENV, value: production }
+      - { key: PUBLIC_URL, sync: false }
+      - { key: DATABASE_URL, sync: false }
+      - { key: BETTER_AUTH_SECRET, sync: false }
+      - { key: SMTP_URL, sync: false }
+      - { key: MAIL_FROM, sync: false }
+      - { key: GOOGLE_CLIENT_ID, sync: false }
+      - { key: GOOGLE_CLIENT_SECRET, sync: false }
+      - { key: DISCORD_CLIENT_ID, sync: false }
+      - { key: DISCORD_CLIENT_SECRET, sync: false }
+      - { key: SENTRY_DSN, sync: false }
+      - { key: SENTRY_CLIENT_DSN, sync: false }
+      - { key: ADMIN_EMAIL, sync: false }

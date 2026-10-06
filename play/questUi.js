@@ -19,6 +19,7 @@
 // data/hints.json); and the accessibility settings (game.prefs: palette, guides, hudScale — play/palette.js).
 
 import { createQuestController } from './questController.js';
+import { trackServer } from './trackServer.js';
 import { createRouteDressing } from './routeDressing.js';
 import { viewCourse, lineOf } from '../route/model.js';
 import { buildRoute } from '../route/build.js';
@@ -229,7 +230,15 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const prev = run;
     if (prev && ['intro', 'countdown', 'racing'].includes(prev.controller.state)) await prev.controller.quit();
     const A = game.adapters(), me = {};
-    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null,
+    // (a run on a generated track: handed to the server — its record and leaderboard are the server's; the
+    // race replay kept there with it)
+    const report = item.track ? async ({ result, recording }) => {
+      const S = await trackServer();
+      if (!S) return null;
+      const replay = A.raceReplay?.();
+      return S.submit({ eventId: item.id, result, recording, replay: replay ? { ...replay, title: item.name } : null });
+    } : null;
+    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null, report,
       best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
@@ -388,7 +397,14 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   // (a generated track: its record for the car's class, and the event's leaderboard — track/events/records.js)
   function trackLine(pay) {
-    const T = pay?.track;
+    const T = pay?.track, V = pay?.server;
+    // (the server's: the record and the leaderboard every player shares)
+    if (V && !V.error) {
+      if (!V.accepted) return `<h3>Track record</h3><div class="bad">The server didn't count this run: ${esc(V.problems?.[0] ?? 'it didn\'t check out')}</div>`;
+      const R = V.record, drift = R?.bestScore != null;
+      return `<h3>Track record (class ${esc(R?.carClass ?? '?')})</h3><div>${V.pb ? '<span class="good">New personal record</span> · ' : ''}${drift ? `best ${Math.round(R.bestScore).toLocaleString('en-GB')} pts` : `best ${fmtTime(R?.bestTime)} · best lap ${fmtTime(R?.bestLap)}`}${V.board?.place ? ` · ${ord(V.board.place)} of ${V.board.of} on this event's leaderboard` : ''}${V.replayId ? ' · replay kept' : ''}</div>${pay.capped ? '<div class="bad">Quick race pay for this hour reached: this run paid less.</div>' : ''}`;
+    }
+    if (V?.error) return `<h3>Track record</h3><div class="bad">The run couldn't be handed to the server (${esc(V.error)}): it isn't on the leaderboard.</div>`;
     if (!T) return '';
     const R = T.record?.record, cap = pay.capped ? '<div class="bad">Quick race pay for this hour reached: this run paid less.</div>' : '';
     return `<h3>Track record (class ${esc(R?.carClass ?? '?')})</h3><div>${T.record?.pb ? '<span class="good">New track record</span> · ' : ''}best ${fmtTime(R?.bestTime)} · best lap ${fmtTime(R?.bestLap)}${T.board?.place ? ` · ${ord(T.board.place)} on this event's leaderboard` : ''}</div>${cap}`;

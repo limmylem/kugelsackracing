@@ -54,7 +54,7 @@ export function createApi({ base = '', fetchImpl = (...a) => globalThis.fetch(..
 
   // a request: retried when the connection drops or the server's waking (a write keeps its key, so it's
   // applied once however many times it's sent)
-  async function request(method, path, { body, key = null, signal, raw = false } = {}) {
+  async function request(method, path, { body, key = null, signal, raw = false, retries: tries = retries } = {}) {
     const write = !['GET', 'HEAD'].includes(method), url = path.startsWith('/api/') ? path : API + path;
     const headers = {};
     if (write && url.startsWith(API)) headers['idempotency-key'] = key ?? uuid();
@@ -67,14 +67,14 @@ export function createApi({ base = '', fetchImpl = (...a) => globalThis.fetch(..
       } catch (e) {
         if (signal?.aborted) throw e;
         if (e instanceof ApiError && !RETRY_STATUS.has(e.status)) throw e;
-        if (attempt >= retries) { setState('offline'); watch(); throw new ApiError(0, 'OFFLINE', 'Can\'t reach the server: check your connection.'); }
+        if (attempt >= tries) { setState('offline'); watch(); throw new ApiError(0, 'OFFLINE', 'Can\'t reach the server: check your connection.'); }
         setState('retrying'); await wait(1000 * 2 ** attempt); continue;
       }
-      if (RETRY_STATUS.has(res.status) && attempt < retries) { setState('retrying'); await wait(1000 * 2 ** attempt); continue; }
+      if (RETRY_STATUS.has(res.status) && attempt < tries) { setState('retrying'); await wait(1000 * 2 ** attempt); continue; }
       // (the same write still being applied — sent again after a dropped connection: its answer shortly)
       if (res.status === 409 && write) {
         const err = await readError(res);
-        if (err.code === 'IDEMPOTENCY_IN_PROGRESS' && attempt < retries) { await wait(500 * 2 ** attempt); continue; }
+        if (err.code === 'IDEMPOTENCY_IN_PROGRESS' && attempt < tries) { await wait(500 * 2 ** attempt); continue; }
         setState('online'); throw err;
       }
       if (res.status === 429 && attempt < 1) { const s = Number(res.headers.get('retry-after')); if (s > 0 && s <= 10) { await wait(s * 1000); continue; } }

@@ -18,6 +18,7 @@
 //   C.frame(realDt)  (the intro's clock)   C.skipIntro()   C.introCamera() → { x, y, z, lookX, lookY, lookZ }
 //   await C.quit()   a DNF        await C.restart()   quit + start again (a fee again unless config says free)
 //   C.session  C.state  C.results  (once it's over: { outcome, result, pay, pb, field })   C.dispose()
+//   report({ quest, result, recording }) → the server's word on a finished, valid run (pay.server)
 //   race: () → the race against NPCs (race/race.js), if there is one: the place and the field go in the
 //   result, and a pink slip's car changes hands (PlayerService awardCar / forfeitCar) before it's paid
 
@@ -28,7 +29,7 @@ import { medalOfPlace } from '../quest/rules.js';
 import { at } from '../route/geometry.js';
 import { headingOf } from '../route/grid.js';
 
-export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {}, race = null, series = null }) {
+export function createQuestController({ quest, course, config, player, car = {}, adapters: A, best = null, startMode = null, onEvent = () => {}, onEnd = () => {}, race = null, series = null, report = null }) {
   let Q = null, rec = null, detach = null, attemptId = null, placed = false, ending = null, results = null, disposed = false;
 
   function handle(e) {
@@ -85,6 +86,8 @@ export function createQuestController({ quest, course, config, player, car = {},
       // (the series this quest is in: finishing the last of one pays its bonus)
       const inSeries = series ? await series(quest).catch(() => []) : [];
       pay = await player.finishQuest(result, { quest, course, recording, series: inSeries });
+      // (the run handed to the game's server, where it's checked again: a track's record and leaderboard)
+      if (report && pay?.valid) { try { pay.server = await report({ quest, result, recording }); } catch (e) { pay.server = { error: e.message }; } }
     } else {
       pay = await player.failQuest(attemptId, { questId: quest.id, status: outcome.status, reason: outcome.reason });
     }

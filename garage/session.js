@@ -18,6 +18,7 @@ import { recordStore } from '../quest/recordStore.js';
 import { changes, changesText, explain, labelOf, num, totalsText } from './report.js';
 import { getPath } from './stats.js';
 import { LocalPlayerService } from './player/service.js';
+import { account } from '../account/session.js';
 import { IdbStorage, MemoryStorage } from './player/storage.js';
 import { garageStateOf, inInventory, carName, sellPrice } from './player/profile.js';
 import { PLAYTEST_TESTS, PlaytestLog } from './playtest.js';
@@ -51,12 +52,22 @@ async function create() {
   // the player's profile (money, cars, parts, setups), kept in this browser by the player service —
   // the only thing that changes it (garage/player)
   // (quests: their rules, and the best runs' recordings kept apart from the save — quest/recordStore.js)
+  // (Phase 6: each account its own save in this browser — account/session.js; a guest who made their
+  // account keeps the guest's save. Quests and events need the server and someone signed in: offline is
+  // free roam. A page served without a server: the save as it was, quests its own)
   const quests = { config: await readJson('data/quests.json'), recordings: recordStore() };
-  let player = new LocalPlayerService({ db, storage: new IdbStorage(), quests }), loaded;
+  const A = await account().catch(err => { console.warn(`No account: ${err.message}`); return null; });
+  const storage = A?.server ? new IdbStorage({ key: A.profileKey, legacy: false }) : new IdbStorage();
+  if (A?.upgradedFrom) await storage.adopt(`profile:${A.upgradedFrom}`).then(moved => moved && console.info('Your guest progress is now your account\'s.')).catch(() => {});
+  const questGate = () => !A?.server ? null
+    : !A.online ? 'You\'re offline: free roam only. Quests and events come back when the game\'s server does.'
+    : !A.me ? 'Sign in (or play as a guest) to do quests and events: the corner button.'
+    : A.me.needsTerms ? 'Accept the terms first (the corner button) to do quests and events.' : null;
+  let player = new LocalPlayerService({ db, storage, quests, questGate }), loaded;
   try { loaded = await player.init(); }
   catch (err) {
     console.warn(`The save in this browser can't be opened (${err.message ?? err}): playing without saving this time.`);
-    player = new LocalPlayerService({ db, storage: new MemoryStorage(), quests });
+    player = new LocalPlayerService({ db, storage: new MemoryStorage(), quests, questGate });
     loaded = await player.init();
   }
   if (loaded.notices.length) console.warn(`Your save was brought up to date:\n${loaded.notices.map(n => `  · ${n}`).join('\n')}`);

@@ -16,7 +16,7 @@ import type { Config } from '../config.ts';
 import type { Db } from '../db/index.ts';
 import type { Auth } from '../auth.ts';
 import { termsProblem } from '../auth.ts';
-import type { Guards } from '../session.ts';
+import { sessionOf, type Guards } from '../session.ts';
 import type { Mailer } from '../mail.ts';
 import { AppError } from '../errors.ts';
 import { nameProblem } from '../names.ts';
@@ -52,11 +52,12 @@ export async function meRoutes(app0: FastifyInstance, { config, db, auth, G }: {
     return { ok: true as const };
   });
 
+  // (anyone: someone signing up checks the name they want — display names are public on the boards anyway)
   app.get('/me/name-check', { schema: { querystring: z.object({ name: z.string().max(100) }), response: { 200: NameCheck } } }, async req => {
-    const s = await G.requireUser(req);
+    const s = await sessionOf(auth, req);
     const bad = nameProblem(req.query.name);
     if (bad) return { available: false, reason: bad };
-    if (await nameTaken(req.query.name.trim(), s.user.id)) return { available: false, reason: 'That name is taken.' };
+    if (await nameTaken(req.query.name.trim(), s?.user.id ?? null)) return { available: false, reason: 'That name is taken.' };
     return { available: true };
   });
 

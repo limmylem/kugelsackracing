@@ -1,9 +1,68 @@
-# Known issues, and what to revisit before Phase 6
+# Known issues, and what to revisit
 
-As of the end of Phase 5 (Step 4); the Phase 4 entries as they were at its end. Each with what was seen and where; the tests named reproduce them.
+As of Phase 6 Step 1 (the server, accounts and world content on the server, below first); Phase 5's and
+Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
-## Known issues
+## Phase 6 Step 1: the server
+
+### Signing in at once: password checks are deliberately slow
+
+`npm run load-test -w @kr/server` has 500 players sign in at the same moment, then load the content near
+them. Nothing fails, and the content comes back at a p95 of about 180 ms. But signing in waits:
+- **This computer (4 cores):** a p95 of about 15 s. Each password check is scrypt (32 MB, about 100 ms of
+  CPU), so about 35 a second fit, and the burst queues behind them.
+- **Afterwards:** requests that land just as all those sign-ins finish wait too (`/me` at a p95 of about
+  8 s).
+- **Render's free plan:** it has a fraction of one CPU, so a burst like this would take minutes.
+
+Players stay signed in for 30 days, so it's only a burst of fresh sign-ins that queues. Before there are
+that many players:
+- a paid instance with several cores;
+- the session cookie cache (it trades instant sign-out-everywhere and bans for fewer database reads);
+- a queue that says "busy, retrying".
+
+The load test reports sign-in as "over (known)", not failed.
+
+### Nearby content: a 10 km circle in the densest city is over 5 ms through the API
+
+`npm run stress:content -w @kr/server` (50,000 markers):
+- **Within the Phase 4 limits (p95 5 ms, worst 25 ms):** every nearby, cell and tile query in the
+  database, and every query the game makes (3 km, whole items).
+- **Over:** a 10 km circle in the busiest cities through the API, at a p95 of about 13–16 ms. It returns
+  about 320 items (167 KB), and the time is in building and sending that much, not in the search. The
+  database's own time for it is within the limit.
+
+The game never asks for that much at once. The editor's map asks by tiles, which are cached and small.
+
+### Free hosting sleeps
+
+Render's free web services sleep after 15 minutes without a visit. The first request after that waits
+about a minute, and the game's chip says "Waking the server…" and keeps retrying. Neon's free databases
+also pause when idle, and wake in a second or so.
+
+### Not verified here: the Docker image and the browser's Sentry
+
+- **The Docker image:** Docker Hub refused this session's pulls (429), so the image wasn't built here. CI
+  builds it on every push. The same layout was checked on this machine instead: a copy without what
+  `.dockerignore` leaves out, with only the production dependencies. That copy migrated a new database,
+  served the game, the pages and today's tracks, and refused the server's source, the tests and `.env`.
+- **The browser's Sentry:** it loads from jsDelivr, which this session couldn't reach. It only loads when
+  `SENTRY_CLIENT_DSN` is set, and the game carries on if it can't.
+
+### Still the browser's: the economy
+
+Money, cars, parts and quest rewards are still worked out in the player's browser (kept per account).
+Phase 6 Step 2 moves them to the server. Until then, a player who edits their browser's save can change
+their own money. Records and leaderboards are already the server's: every run is checked again there
+against the course it builds.
+
+### The terms of service and privacy policy are drafts
+
+`account/terms.html` and `account/privacy.html` were written with the game as a starting point. Have them
+reviewed before the game is opened to the public.
+
+## Known issues (Phase 5 and before)
 
 ### The baked world: spots where cars stop dead
 

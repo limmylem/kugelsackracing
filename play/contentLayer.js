@@ -48,6 +48,8 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     querying = true;
     try {
       const r = await C.service.query({ lat, lon, km: RADIUS_KM, view: 'published', offered: true, kinds: MARKER_KINDS, limit: 2000 });
+      // (no answer — offline: free roam, no markers; asked again in a while)
+      if (!r.ok) { items = []; byId = new Map(); places = new Float64Array(0); markers.setItems([]); toMaps(); hideCard(); queriedAt = { lat, lon }; setTimeout(() => { dirty = true; }, 15_000); return; }
       // (a track event's marker is its venue's: the events are listed on the venue's card)
       items = r.items.map(x => x.item).filter(it => !it.track); byId = new Map(items.map(it => [it.id, it]));
       // (each one's place in the world, worked out once: the nearest is looked for every frame)

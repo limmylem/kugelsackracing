@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as THREE from 'three';
 import { createRoadFinder } from '../../editor/roads.js';
-import { editorAccess, setEditorFlag } from '../../editor/access.js';
+import { editorAccess } from '../../editor/access.js';
 import { createMarkers3d } from '../../editor/markers3d.js';
 import { newItem } from '../../content/quests.js';
 
@@ -33,18 +33,22 @@ test('snapping: onto the nearest road of the baked graph, facing along it, its h
   assert.ok((await roads.heightAt(37.7936, -122.3955)).alt > 0);
 });
 
-test('who may open the editor: development builds, or the editor flag', () => {
-  const store = new Map();
-  globalThis.localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
-  try {
-    assert.equal(editorAccess({ hostname: 'localhost', protocol: 'http:', search: '' }).allowed, true);
-    assert.equal(editorAccess({ hostname: 'game.example.com', protocol: 'https:', search: '' }).allowed, false);
-    assert.equal(editorAccess({ hostname: 'game.example.com', protocol: 'https:', search: '?dev' }).allowed, true);
-    setEditorFlag(true);
-    assert.equal(editorAccess({ hostname: 'game.example.com', protocol: 'https:', search: '' }).how, 'editor flag');
-    setEditorFlag(false);
-    assert.equal(editorAccess({ hostname: 'localhost', protocol: 'http:', search: '' }).allowed, false, 'off is off, even in a development build');
-  } finally { delete globalThis.localStorage; }
+test('who may open the editor: an editor or admin account (the server\'s role); no server — a development build only', () => {
+  const A = (me, online = true) => ({ server: true, online, me });
+  const acct = (role, extra = {}) => ({ id: 'u1', role, isGuest: false, needsTerms: false, ...extra });
+  const prod = { hostname: 'game.example.com', protocol: 'https:', search: '' };
+  assert.equal(editorAccess(A(null), prod).allowed, false, 'signed out');
+  assert.equal(editorAccess(A(acct('player')), prod).allowed, false, 'a player');
+  assert.equal(editorAccess(A(acct('editor', { isGuest: true })), prod).allowed, false, 'a guest');
+  assert.equal(editorAccess(A(acct('editor')), prod).allowed, true);
+  assert.equal(editorAccess(A(acct('admin')), prod).allowed, true);
+  assert.equal(editorAccess(A(acct('editor', { needsTerms: true })), prod).allowed, false, 'terms first');
+  assert.equal(editorAccess(A(acct('editor'), false), prod).allowed, false, 'offline');
+  // (a server's page on this computer: still the role, not the host)
+  assert.equal(editorAccess(A(acct('player')), { hostname: 'localhost', protocol: 'http:', search: '' }).allowed, false);
+  // no server at all: a development build only (and ?dev no longer opens it)
+  assert.equal(editorAccess({ server: false }, { hostname: 'localhost', protocol: 'http:', search: '' }).allowed, true);
+  assert.equal(editorAccess(null, { ...prod, search: '?dev' }).allowed, false);
 });
 
 test('3D markers: the nearest drawn, faded with distance, picked by a ray, labels made and disposed', () => {

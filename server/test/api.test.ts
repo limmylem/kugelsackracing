@@ -143,7 +143,7 @@ test('bad requests are refused cleanly: malformed, the wrong type, too big, mali
   assert.ok([200, 400].includes(proto.status), proto.text);
   assert.equal(({} as any).polluted, undefined);
   // a script in a name: refused by the name rules (and the pages only ever show text)
-  const xss = await pl.patch('/api/v1/me/name', { name: '<script>alert(1)</script>' });
+  const xss = await pl.patch('/api/v1/me/name', { displayName: '<script>alert(1)</script>' });
   assert.equal(xss.status, 400);
   // an unknown route: the same format
   errShape(await new Player(T.app).get('/api/v1/nothing-here'), 404, 'NOT_FOUND');

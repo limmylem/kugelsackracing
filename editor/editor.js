@@ -35,7 +35,7 @@ import { createRoadFinder } from './roads.js';
 import { createMapView } from './mapView.js';
 import { createWorldView } from './worldView.js';
 import { findPlaces, bookmarks } from './search.js';
-import { editorAccess } from './access.js';
+import { editorAccessNow } from './access.js';
 import { createRouteTool } from './routeTool.js';
 
 const REGION = 'assets/map/sf/manifest.json';
@@ -103,7 +103,7 @@ export function createEditor({ game }) {
 
   // ---------- entering and leaving ----------
   async function enter() {
-    const a = editorAccess();
+    const a = await editorAccessNow();
     if (!a.allowed) { flash(a.why, true); return false; }
     if (active || loading) return true;
     loading = (async () => {

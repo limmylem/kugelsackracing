@@ -20,6 +20,7 @@ import { dressTrack } from '../track/dress.js';
 import { cornerNames } from '../track/names.js';
 import { dailyTrack, weeklyTrack, quickTrack, sharedTrack, eventsFor, trackInfo, trackName, recordKey } from '../track/events/model.js';
 import { decode } from '../track/code.js';
+import { trackServer } from './trackServer.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#ffd24a', silver: '#cfd8e3', bronze: '#d08a4c' };
@@ -57,6 +58,9 @@ const CSS = `
 export function createTrackUi({ game, trip, events: E, tracks: TC, content = null }) {
   if (!document.getElementById('trackUiCss')) { const s = document.createElement('style'); s.id = 'trackUiCss'; s.textContent = CSS; document.head.appendChild(s); }
   const cur = () => game.currency ?? '$', money = n => `${cur()}${Math.round(n).toLocaleString('en-GB')}`;
+  // (Phase 6: the day's and the week's tracks, records and leaderboards are the server's — play/trackServer.js;
+  // a page without a server has the old local ones)
+  const server = trackServer();
   let ghostWanted = (() => { try { return localStorage.getItem('driveWorld.trackGhost') === '1'; } catch { return false; } })();
 
   // ---------- the loading screen ----------
@@ -170,7 +174,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
   // ---------- the track library ----------
   const lib = document.createElement('div'); lib.id = 'trackLibrary'; document.body.appendChild(lib);
   let tab = 'official', shown = [];   // shown: [{ track, events }]
-  const TABS = [['official', 'Official'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['recent', 'Recent'], ['favourites', 'Favourites'], ['quick', 'Quick race'], ['code', 'Friend\'s code']];
+  const TABS = [['official', 'Official'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['recent', 'Recent'], ['favourites', 'Favourites'], ['quick', 'Quick race'], ['code', 'Friend\'s code'], ['replays', 'My replays']];
   async function officialTracks() {
     if (!content) return [];
     // (the venues in the baked regions — the finder's way: play/questFinder.js loadVenues)
@@ -179,18 +183,24 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     for (const v of near) for (const ev of await eventsOfVenue(v)) { const k = ev.track.code; if (!by.has(k)) by.set(k, { track: { ...ev.track, venue: v.name }, events: [] }); by.get(k).events.push(ev); }
     return [...by.values()];
   }
-  function generated(t) { return { track: { code: t.code, kind: t.kind, name: t.name, key: t.key, info: t.info, version: t.version, layout: t.info.layout, km: t.info.km, corners: t.info.corners, theme: t.info.theme }, events: eventsFor(t, E) }; }
+  function generated(t) { return { track: { code: t.code, kind: t.kind, name: t.name, key: t.key, info: t.info, version: t.version, layout: t.info.layout, km: t.info.km, corners: t.info.corners, theme: t.info.theme, ...(t.hash ? { hash: t.hash } : {}) }, events: t.events ?? eventsFor(t, E) }; }
+  // the day's or the week's: the server's (its events carry the hash of the track as the server built it)
+  async function ofDay(kind) {
+    const S = await server;
+    if (!S) return generated(kind === 'daily' ? dailyTrack(new Date(), E, TC) : weeklyTrack(new Date(), E, TC));
+    if (!S.online) throw new Error('you\'re offline: today\'s tracks come from the game\'s server');
+    return generated((await S.today())[kind]);
+  }
   // (a code's events by its kind: a quick race's or a shared code's; an official one's from the venues)
   async function byCode(code, kind = 'shared') {
     if (kind === 'official') { const o = (await officialTracks()).find(x => x.track.code === code); if (o) return o; }
-    if (kind === 'daily' || kind === 'weekly') { const t = kind === 'daily' ? dailyTrack(new Date(), E, TC) : weeklyTrack(new Date(), E, TC); if (t.code === code) return generated(t); }
+    if (kind === 'daily' || kind === 'weekly') { const t = await ofDay(kind).catch(() => null); if (t?.track.code === code) return t; }
     const t = sharedTrack(code); t.kind = kind === 'quick' ? 'quick' : 'shared';
     return generated(t);
   }
   async function listFor(which) {
     if (which === 'official') return officialTracks();
-    if (which === 'daily') return [generated(dailyTrack(new Date(), E, TC))];
-    if (which === 'weekly') return [generated(weeklyTrack(new Date(), E, TC))];
+    if (which === 'daily' || which === 'weekly') return [await ofDay(which)];
     if (which === 'recent' || which === 'favourites') {
       const list = which === 'recent' ? profile().trackRecent ?? [] : profile().trackFavs ?? [], out = [];
       for (const x of list) { try { out.push(await byCode(x.code, x.kind)); } catch { /* a code this game can't make */ } }
@@ -204,7 +214,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     return `<div class="row" data-k="${k}"><div class="pv" data-code="${esc(track.code)}"><svg viewBox="0 0 120 80"></svg></div>
       <div><h4>${esc(track.name ?? trackName(d?.seed ?? 0, { theme: track.theme, layout: track.layout }))} <button class="fav" data-fav="${k}" title="Favourite">${isFav(track.code) ? '★' : '☆'}</button></h4>
         <small class="meta">${esc(track.kind)}${track.venue ? ` · ${esc(track.venue)}` : ''}${track.key ? ` · ${esc(track.key)}` : ''} · <span class="info">…</span></small><br>
-        <small>Your best: ${B.mine ? `${fmt(B.mine.bestTime)} (lap ${fmt(B.mine.bestLap)}, class ${esc(B.mine.carClass)})` : B.any ? `lap ${fmt(B.any.bestLap)} (class ${esc(B.any.carClass)})` : 'not raced yet'}${medals.length ? ` · ${medals.map(m => `<span style="color:${MEDAL[m]}">●</span>`).join('')}` : ''}</small>
+        <small>Your best: <span class="best">${B.mine ? `${fmt(B.mine.bestTime)} (lap ${fmt(B.mine.bestLap)}, class ${esc(B.mine.carClass)})` : B.any ? `lap ${fmt(B.any.bestLap)} (class ${esc(B.any.carClass)})` : 'not raced yet'}</span>${medals.length ? ` · ${medals.map(m => `<span style="color:${MEDAL[m]}">●</span>`).join('')}` : ''}</small>
         <div class="ev">${events.map(e => `<button data-ev="${esc(e.id)}" title="${esc(TYPES[e.type]?.blurb ?? '')}">${esc(TYPES[e.type]?.label ?? e.type)}${e.npc?.count ? ` · ${e.npc.count} rivals` : ''}${e.params?.laps > 1 && e.track.layout !== 'p2p' ? ` · ${e.params.laps} laps` : ''}${conditionsText(e) ? ` · ${esc(conditionsText(e))}` : ''}</button>`).join('')}</div>
         <small class="note">Code <b style="font-family:'JetBrains Mono',monospace;user-select:all">${esc(track.code)}</b></small></div>
       <div>${profile().trackRecent?.[0]?.code === track.code && profile().trackRecent[0].eventId ? '<button data-again>Play again</button>' : ''}</div></div>`;
@@ -221,6 +231,17 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
       body.querySelector('[data-code]').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') run(); };
       return;
     }
+    if (tab === 'replays') {
+      const S = await server;
+      if (!S) { body.innerHTML = '<p class="note">Replays are kept by the game\'s server: this page has none.</p>'; return; }
+      try {
+        const list = await S.replays();
+        body.innerHTML = list.length ? `<p class="note">Your newest ${list.length} race replays (and your records'), kept on the server.</p>${list.map(r => `<div class="row" style="grid-template-columns:1fr auto"><div><h4>${esc(r.title)}</h4><small>${esc(r.createdAt.slice(0, 16).replace('T', ' '))} · ${fmt(r.duration)} · ${r.cars} car${r.cars === 1 ? '' : 's'}</small></div><div><button data-watch="${esc(r.id)}">Watch</button> <button data-del="${esc(r.id)}">Delete</button></div></div>`).join('')}` : '<p class="note">No replays kept yet: they\'re kept when you finish a race on a track.</p>';
+        for (const b of body.querySelectorAll('[data-watch]')) b.onclick = () => watchServerReplay(b.dataset.watch);
+        for (const b of body.querySelectorAll('[data-del]')) b.onclick = async () => { try { await S.deleteReplay(b.dataset.del); render(); } catch (err) { game.say?.(err.message, 'warn'); } };
+      } catch (e) { body.innerHTML = `<p class="note">Couldn't load your replays: ${esc(e.message)}</p>`; }
+      return;
+    }
     if (tab === 'quick') {
       body.innerHTML = `<p class="note">A random track from a preset: lower rewards (and capped each hour) — for fun and practice.</p><div class="codebox"><select data-preset>${TC.presets.map(p => `<option value="${esc(p.id)}">${esc(p.id.replace(/_/g, ' '))}</option>`).join('')}</select><button data-roll>Random track</button></div><div class="res"></div>`;
       body.querySelector('[data-roll]').onclick = () => {
@@ -233,11 +254,25 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     try { shown = await listFor(tab); } catch (e) { body.innerHTML = `<p class="note">Couldn't list them: ${esc(e.message)}</p>`; return; }
     if (tab !== (lib.querySelector('header .on')?.dataset.tab)) return;
     const extra = tab === 'daily' ? '<p class="note">Today\'s track (UTC): the same for every player, a new one tomorrow. Its own leaderboard.</p>' : tab === 'weekly' ? '<p class="note">This week\'s track (ISO week, UTC): the same for everyone until Monday. Its own leaderboard.</p>' : '';
-    body.innerHTML = extra + (shown.length ? shown.map(trackRow).join('') : `<p class="note">${tab === 'official' ? 'No official tracks published yet.' : tab === 'recent' ? 'No tracks played yet.' : 'No favourites yet: ☆ a track to keep it here.'}</p>`) + (['daily', 'weekly', 'official'].includes(tab) ? boards() : '');
+    body.innerHTML = extra + (shown.length ? shown.map(trackRow).join('') : `<p class="note">${tab === 'official' ? 'No official tracks published yet.' : tab === 'recent' ? 'No tracks played yet.' : 'No favourites yet: ☆ a track to keep it here.'}</p>`) + (['daily', 'weekly', 'official'].includes(tab) ? '<div class="boards"></div>' : '');
     fill(body);
+    if (['daily', 'weekly', 'official'].includes(tab)) boards().then(html => { const b = body.querySelector('.boards'); if (b) b.innerHTML = html; }).catch(e => { const b = body.querySelector('.boards'); if (b) b.innerHTML = `<p class="note">The leaderboards couldn't be loaded: ${esc(e.message)}</p>`; });
   }
-  // the local leaderboards of what's shown (official, daily, weekly events)
-  function boards() {
+  // the leaderboards of what's shown (official, daily, weekly events): the server's — every player's best
+  async function boards() {
+    const S = await server;
+    if (!S) return localBoards();
+    const rows = [];
+    for (const { events } of shown) for (const e of events) {
+      const b = await S.leaderboard(e.id, 10);
+      if (!b.entries.length) continue;
+      const val = v => b.scored ? `${Math.round(v).toLocaleString('en-GB')} pts` : fmt(v);
+      rows.push(`<div style="margin-top:8px"><b>${esc(e.name)}</b> — ${b.of} driver${b.of === 1 ? '' : 's'}<br>${b.entries.map(r => `<small style="${r.you ? 'color:#ffd24a' : ''}">${r.place}. ${esc(r.displayName)} · ${val(r.value)} · class ${esc(r.carClass)}${r.replayId ? ` · <a href="#" data-replay="${esc(r.replayId)}">replay</a>` : ''}</small>`).join('<br>')}${b.mine && !b.entries.some(r => r.you) ? `<br><small style="color:#ffd24a">… ${b.mine.place}. you · ${val(b.mine.value)}</small>` : ''}</div>`);
+    }
+    return rows.length ? `<h4 style="margin:14px 0 2px">Leaderboards</h4>${rows.join('')}` : '<p class="note">No one on the leaderboards yet: be the first.</p>';
+  }
+  // (no server: this device's own best runs)
+  function localBoards() {
     const rows = [];
     for (const { events } of shown) for (const e of events) {
       const b = profile().trackBoards?.[e.id] ?? [];
@@ -246,6 +281,15 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     return rows.length ? `<h4 style="margin:14px 0 2px">Leaderboards (this device)</h4>${rows.join('')}` : '';
   }
   function fill(body) {
+    // (your records: the server's, for the car's class — else any class's best lap)
+    server.then(S => S && S.online && S.records().then(recs => {
+      for (const el of body.querySelectorAll('.row')) {
+        const item = shown[+el.dataset.k], mine = recs.filter(r => r.code === item?.track.code), cls = mine.find(r => r.carClass === carClass());
+        const best = el.querySelector('.best'); if (!best || !mine.length) continue;
+        const any = mine.reduce((a, r) => r.bestLap != null && (!a || r.bestLap < a.bestLap) ? r : a, null);
+        best.textContent = cls ? `${fmt(cls.bestTime)} (lap ${fmt(cls.bestLap)}, class ${cls.carClass}, ${cls.runs} run${cls.runs === 1 ? '' : 's'})` : any ? `lap ${fmt(any.bestLap)} (class ${any.carClass})` : best.textContent;
+      }
+    })).catch(() => {});
     for (const el of body.querySelectorAll('.row')) {
       const k = +el.dataset.k, item = shown[k];
       preview(item.track.code).then(p => {
@@ -257,6 +301,8 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     }
   }
   lib.addEventListener('click', async e => {
+    const link = e.target.closest('[data-replay]');
+    if (link) { e.preventDefault(); watchServerReplay(link.dataset.replay); return; }
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.tab) { tab = b.dataset.tab; render(); return; }
     if (b.hasAttribute('data-closelib')) { closeLibrary(); return; }
@@ -265,6 +311,15 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     if (b.dataset.ev && item) go(item.events.find(x => x.id === b.dataset.ev));
     if (b.hasAttribute('data-again') && item) { const last = profile().trackRecent[0]; go(item.events.find(x => x.id === last.eventId) ?? item.events[0]); }
   });
+  // a replay kept on the server (a record's, or the player's own): watched where the game can show one
+  async function watchServerReplay(id) {
+    try {
+      const S = await server, r = await S.replay(id);
+      if (!game.watchStoredReplay) { game.say?.('Replays play on the track: race there, then open it from the library.', 'warn'); return; }
+      closeLibrary();
+      game.watchStoredReplay(r.recording, r.meta);
+    } catch (err) { game.say?.(`Couldn't load the replay: ${err.message}`, 'warn'); }
+  }
   function openLibrary(which = tab) { tab = which; lib.classList.add('on'); game.pause?.(true); render(); }
   function closeLibrary() { if (!lib.classList.contains('on')) return; lib.classList.remove('on'); game.pause?.(false); }
   const toggleLibrary = () => lib.classList.contains('on') ? closeLibrary() : openLibrary();

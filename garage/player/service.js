@@ -83,10 +83,12 @@ for (const name of Object.keys(METHODS)) PlayerService.prototype[name] = async f
 export class LocalPlayerService extends PlayerService {
   // db: loadGarageData's (cars, parts, finishes, economy); storage: storage.js; migrations: for tests
   // quests: { config (data/quests.json), recordings (quest/recordStore.js) }
-  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null } = {}) {
+  // questGate: () → null (quests may start) or why not in plain words — Phase 6: the game's server must be
+  // there and the player signed in (offline is free roam only)
+  constructor({ db, storage, now = () => new Date().toISOString(), migrations, quests = null, questGate = null } = {}) {
     super();
     this.db = db; this.storage = storage; this.now = now; this.migrations = migrations;
-    this.quests = quests;
+    this.quests = quests; this.questGate = questGate;
     this.profile = null; this.notices = []; this.queue = Promise.resolve();
     this.unlimited = false;       // (development: unlimited money)
   }
@@ -323,6 +325,8 @@ export class LocalPlayerService extends PlayerService {
     return this.#change('quest', p => {
       const cfg = this.quests?.config;
       if (!cfg) return { error: 'Quests aren\'t set up.' };
+      const gate = this.questGate?.();
+      if (gate) return { error: gate };
       const bad = this.#car(p, carInstanceId ?? p.currentCar);
       if (bad) return bad;
       if (p.questPending) delete p.questPending;    // (one left over: its fee's spent, as a quit's is)

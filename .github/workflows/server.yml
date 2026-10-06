@@ -1,0 +1,85 @@
+# The server (docs/SERVER.md): on every push and pull request, its typecheck, every server test against a
+# PostgreSQL with PostGIS, the browser's account flows, and a check of the dependencies for known
+# vulnerabilities. On main, once all of that passes: deployed to staging by itself (and checked there),
+# then to production when someone approves it (the "production" environment's required reviewers).
+name: server
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Dependencies with known vulnerabilities (high or critical, in what's deployed)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Typecheck
+        run: npm run server:typecheck
+      - name: Server tests (accounts, roles, world content, tracks, the API's defences)
+        run: npm run test:server
+      - name: World content at scale (50,000 markers in PostGIS against the Phase 4 limits)
+        run: npm run --workspace @kr/server stress:content
+      - name: Accounts in a browser (sign up, confirm, reset, a guest made an account, delete, offline)
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/accounts-browser.ts
+      - name: The server's image builds
+        run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .
+
+  staging:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    steps:
+      - name: Deploy to staging (Render's deploy hook)
+        run: curl -fsS -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}" > /dev/null
+      - name: Wait until staging is healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "${{ vars.STAGING_URL }}/api/v1/health" | grep -q '"ok":true'; then echo "staging is up"; exit 0; fi
+            sleep 15
+          done
+          echo "staging didn't come up healthy"; exit 1
+
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    # (the environment's required reviewers approve this in GitHub before it runs)
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Deploy to production (Render's deploy hook)
+        run: curl -fsS -X POST "${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK }}" > /dev/null
+      - name: Wait until production is healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "${{ vars.PRODUCTION_URL }}/api/v1/health" | grep -q '"ok":true'; then echo "production is up"; exit 0; fi
+            sleep 15
+          done
+          echo "production didn't come up healthy"; exit 1

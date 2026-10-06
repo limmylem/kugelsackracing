@@ -1,0 +1,60 @@
+# The database's backups (docs/SERVER.md "Backups"): every day, production's database dumped and encrypted
+# (AES-256, a passphrase only GitHub's secrets hold), kept 30 days as a workflow artifact — and every backup
+# restored straight away into a fresh PostgreSQL with PostGIS and checked, so a backup that can't be restored
+# is noticed the day it's made. Run by hand with "restore to staging" to put the newest backup into the
+# staging database (the restore test on staging).
+name: backup
+on:
+  schedule:
+    - cron: '17 3 * * *'           # (03:17 UTC every day)
+  workflow_dispatch:
+    inputs:
+      restore_to_staging:
+        description: 'Also restore this backup into the staging database (it replaces staging''s data)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL 17's tools (they dump and restore 16 and 17)
+        run: |
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Back up production (encrypted)
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: server/scripts/backup.sh "kugelsack-$(date -u +%Y-%m-%d).dump.gpg"
+      - name: Restore it into a fresh database, and check it
+        env:
+          TARGET_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: server/scripts/restore.sh kugelsack-*.dump.gpg
+      - name: Keep it 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ github.run_id }}
+          path: kugelsack-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
+      - name: Restore into staging (by hand only)
+        if: github.event_name == 'workflow_dispatch' && inputs.restore_to_staging
+        env:
+          TARGET_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: server/scripts/restore.sh kugelsack-*.dump.gpg --clean

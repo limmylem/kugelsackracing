@@ -13,7 +13,9 @@
     "db:seed": "node src/db/seed.ts",
     "test": "node --test --test-concurrency=1 test/*.test.ts",
     "stress:content": "node tools/content-stress.ts",
-    "content:import": "node tools/import-content.ts"
+    "content:import": "node tools/import-content.ts",
+    "load-test": "node tools/load-test.ts",
+    "test:browser": "node tools/accounts-browser.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

@@ -1,0 +1,25 @@
+# what the server image leaves out (Dockerfile): dependencies (installed in it), the repository's history,
+# secrets, tests, tools and docs, local data and reports, source files for models
+node_modules
+**/node_modules
+.git
+.github
+.githooks
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+tests
+server/test
+tools
+docs
+design
+incoming
+reports
+.scratch
+.cache
+server/.data
+data/.backup
+packages/*/dist
+*.original.glb

@@ -16,9 +16,11 @@ export class MemoryStorage {
 
 const LEGACY_KEY = 'driveWorld.garage.v1';
 
+// key: whose save (Phase 6: 'profile:<account id>' — each account its own); legacy: pick up the old
+// localStorage garage when there's no save (the game before accounts; an account starts fresh)
 export class IdbStorage {
-  constructor({ database = 'drive-world', store = 'saves', key = 'profile' } = {}) {
-    this.database = database; this.store = store; this.key = key; this.db = null; this.legacy = false;
+  constructor({ database = 'drive-world', store = 'saves', key = 'profile', legacy = true } = {}) {
+    this.database = database; this.store = store; this.key = key; this.db = null; this.legacy = false; this.useLegacy = legacy;
   }
   #open() {
     return this.db ??= new Promise((resolve, reject) => {
@@ -43,6 +45,7 @@ export class IdbStorage {
   async load() {
     const saved = await this.#tx('readonly', (store, done) => { const r = store.get(this.key); r.onsuccess = () => done(r.result ?? null); });
     if (saved) return saved;
+    if (!this.useLegacy) return null;
     try {
       const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null');
       if (old) { this.legacy = true; return old; }
@@ -60,4 +63,21 @@ export class IdbStorage {
     }
   }
   async clear() { await this.#tx('readwrite', store => { store.delete(this.key); }); }
+  // A guest who made their account: the guest's save becomes the account's (if it has none yet); the
+  // guest's is kept aside as '<key>.from-guest'
+  async adopt(fromKey) {
+    if (!fromKey || fromKey === this.key) return false;
+    return this.#tx('readwrite', (store, done) => {
+      const mine = store.get(this.key);
+      mine.onsuccess = () => {
+        if (mine.result) { done(false); return; }
+        const theirs = store.get(fromKey);
+        theirs.onsuccess = () => {
+          if (!theirs.result) { done(false); return; }
+          store.put(theirs.result, this.key); store.put(theirs.result, `${this.key}.from-guest`); store.delete(fromKey);
+          done(true);
+        };
+      };
+    });
+  }
 }

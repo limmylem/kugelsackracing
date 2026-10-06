@@ -160,6 +160,18 @@ same times to the tenth when run again.
 
 ## Records, ghosts and leaderboards
 
+**Phase 6 Step 1: these are the server's** (docs/SERVER.md, `play/trackServer.js`).
+- **The day's and the week's tracks** are worked out there (the same search, in a worker, kept for
+  everyone). Their events carry the hash of the track as the server built it.
+- **Every finished run** on a generated track is handed in and checked again by `quest/validate.js`
+  against the course the server built.
+- **Records** (per code, generator version and class) and **leaderboards** (one place a player, best
+  first, for official, daily and weekly events) come from the server.
+- **Race replays** are kept there: your newest 50 and your records'. The library's "My replays" lists
+  them, and a leaderboard links a record's replay.
+
+The profile's own copies below are still kept, for the ghosts and for a page without a server.
+
 All of these are in the profile (`track/events/records.js`; `data/schemas/profile.schema.json`):
 
 - **Records** (`trackRecords`) are kept per track code, generator version and car class (`code|vN|class`):

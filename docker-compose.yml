@@ -1,0 +1,37 @@
+# Local development (docs/SERVER.md): the server and the game on http://localhost:8787, PostgreSQL with
+# PostGIS, and Mailpit catching every email (http://localhost:8025: the verification and reset links).
+#   docker compose up --build
+# Development values only: nothing here is a real secret. Staging and production take theirs from Render's
+# environment (render.yaml).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: kr
+      POSTGRES_PASSWORD: kr
+      POSTGRES_DB: kr_dev
+    ports: ["5432:5432"]
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kr -d kr_dev"]
+      interval: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports: ["8025:8025"]
+  server:
+    build: .
+    environment:
+      APP_ENV: development
+      PUBLIC_URL: http://localhost:8787
+      DATABASE_URL: postgres://kr:kr@db:5432/kr_dev
+      BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: Kugelsack Racing <no-reply@localhost>
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    ports: ["8787:8787"]
+    depends_on:
+      db: { condition: service_healthy }
+      mailpit: { condition: service_started }
+volumes:
+  db:
