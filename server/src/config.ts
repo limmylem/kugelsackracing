@@ -29,6 +29,13 @@ const FileConfig = z.object({
   // (Phase 6 Step 5) editors and admins: their tools need a session that passed two-factor sign-in, at most this
   // many hours ago (then the authenticator's code again: the admin page asks)
   staffMfa: z.object({ required: z.boolean(), maxAgeHours: z.number().min(0.1).max(720) }),
+  // the bot check (Cloudflare Turnstile) on signing up, signing in and becoming a guest: required → the server won't
+  // start without its keys (production); otherwise on when the keys are set
+  botCheck: z.object({ required: z.boolean() }),
+  // the abuse scan's thresholds (abuse/detect.ts) and how long what links accounts is kept
+  abuse: z.object({ maxRewardPerHour: z.number().positive(), burstAccounts: z.number().int().min(2), farmGroup: z.number().int().min(2), keepDays: z.number().int().min(1).max(365) }),
+  // signing up needs an invite code, until an admin turns it off (the admin page's Launch settings)
+  closedBeta: z.boolean(),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);
@@ -55,6 +62,11 @@ const Env = z.object({
   SENTRY_DSN: optional,
   SENTRY_CLIENT_DSN: optional,
   ADMIN_EMAIL: optional,
+  // (Phase 6 Step 5) Cloudflare Turnstile, the bot check: its site key (public, for the pages) and secret
+  TURNSTILE_SITE_KEY: optional,
+  TURNSTILE_SECRET_KEY: optional,
+  // where alerts go (docs/OPERATIONS.md): an email address (and a phone's, through an email-to-SMS or push address)
+  ALERT_EMAIL: optional,
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   // (Render says which commit it deployed in RENDER_GIT_COMMIT: the health check reports it, and the deploy waits for it)
   GIT_COMMIT: z.string().default(process.env.RENDER_GIT_COMMIT ?? 'dev'),
@@ -79,6 +91,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     return v.replace(/\/$/, '');
   };
   const gameUrl = url('GAME_URL', E.GAME_URL) ?? publicUrl, tilesUrl = url('TILES_URL', E.TILES_URL), rtUrl = url('RT_URL', E.RT_URL);
+  if (f.data.botCheck.required && !(E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY)) throw new Error('The bot check is required here: set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY (docs/ABUSE.md)');
   if (E.EDGE_SECRET && E.EDGE_SECRET.length < 24) throw new Error('EDGE_SECRET must be at least 24 characters (openssl rand -hex 24)');
   const origins = [new URL(publicUrl).origin, new URL(gameUrl).origin, ...(E.TRUSTED_ORIGINS ? E.TRUSTED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])];
   const social = {
@@ -90,6 +103,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     authSecret: E.BETTER_AUTH_SECRET, smtpUrl: E.SMTP_URL, mailFrom: E.MAIL_FROM, social, sentryDsn: E.SENTRY_DSN, sentryClientDsn: E.SENTRY_CLIENT_DSN,
     adminEmail: E.ADMIN_EMAIL?.toLowerCase() ?? null, version: E.GIT_COMMIT,
     gameUrl, tilesUrl, rtUrl, edgeSecret: E.EDGE_SECRET, hsts: E.HSTS === 'on',
+    turnstile: E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY ? { siteKey: E.TURNSTILE_SITE_KEY, secret: E.TURNSTILE_SECRET_KEY } : null,
+    alertEmail: E.ALERT_EMAIL,
     ...f.data,
   };
 }

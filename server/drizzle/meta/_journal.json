@@ -78,6 +78,13 @@
       "when": 1791274151121,
       "tag": "0010_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791274152121,
+      "tag": "0011_launch",
+      "breakpoints": true
     }
   ]
 }

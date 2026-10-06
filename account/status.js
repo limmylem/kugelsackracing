@@ -79,8 +79,8 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
       const k = e.target.closest('[data-k]')?.dataset.k;
       if (k === 'later' || e.target === box) box.remove();
       if (k === 'guest') {
-        try { await A.api.auth('/sign-in/anonymous', {}); A.api.forgetCsrf(); location.href = `/account/?mode=terms&next=${next}`; }
-        catch (x) { err.hidden = false; err.textContent = x.message; }
+        // (on the account page: the bot check, when it's on, is there — Phase 6 Step 5)
+        location.href = `/account/?mode=guest&next=${next}`;
       }
     };
     document.body.appendChild(box);

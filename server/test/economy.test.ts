@@ -21,7 +21,7 @@ before(async () => {
   [ann, ben, admin] = await Promise.all([
     signUp(T.app, T.outbox, { email: 'ann@example.com', name: 'Ann Apex', ip: '10.6.0.1' }),
     signUp(T.app, T.outbox, { email: 'ben@example.com', name: 'Ben Brake', ip: '10.6.0.2' }),
-    signUp(T.app, T.outbox, { email: 'adm@example.com', name: 'The Admin', ip: '10.6.0.3' }),
+    signUp(T.app, T.outbox, { email: 'adm@example.com', name: 'Ada Boss', ip: '10.6.0.3' }),
   ]);
   await makeStaff(T.app, admin, 'adm@example.com', 'admin');
 });

@@ -12,6 +12,7 @@
 // editors and admins must).
 
 import { createApi, ApiError } from './api.js';
+import { createBotCheck } from './botCheck.js';
 import { SITE } from '../site/urls.js';
 
 const api = createApi();
@@ -63,7 +64,7 @@ async function start() {
   if (q.get('verified')) say('Your email is confirmed.', true);
   const mode = q.get('mode');
   if (mode === 'reset' && q.get('token')) return viewReset(q.get('token'));
-  if (!me) return mode === 'sign-up' ? viewSignUp() : mode === 'forgot' ? viewForgot() : mode === 'mfa' ? viewTwoFactorStep() : viewSignIn();
+  if (!me) return mode === 'sign-up' ? viewSignUp() : mode === 'forgot' ? viewForgot() : mode === 'mfa' ? viewTwoFactorStep() : mode === 'guest' ? playAsGuest() : viewSignIn();
   if (me.needsTerms) return viewTerms();
   if (mode === 'mfa') return me.twoFactor.enabled ? viewCodeAgain() : viewTurnOnTwoFactor({ required: true });
   if (q.get('verified') || (mode === 'terms' && !me.needsTerms)) { location.replace(next); return; }
@@ -82,12 +83,13 @@ function socialButtons() {
 }
 function viewSignIn() {
   const email = field('Email', { type: 'email', required: true, autocomplete: 'username', maxlength: 254 }), pw = field('Password', { type: 'password', required: true, autocomplete: 'current-password', maxlength: 128 });
-  const resend = h('div');
+  const resend = h('div'), bot = createBotCheck(cfg);
   show(h('section', {}, h('h2', {}, 'Sign in'),
-    form([email.el, pw.el], 'Sign in', async () => {
+    form([email.el, pw.el, bot.el], 'Sign in', async () => {
       let r;
-      try { r = await api.auth('/sign-in/email', { email: email.input.value.trim(), password: pw.input.value }); }
+      try { r = await api.auth('/sign-in/email', { email: email.input.value.trim(), password: pw.input.value }, { headers: await bot.headers() }); }
       catch (e) {
+        bot.reset();
         // (not confirmed yet: the link sent again)
         if (e.status === 403 && /verif/i.test(e.message)) {
           say('Confirm your email first: we\'ve sent the link again. Check your inbox (and spam).');
@@ -104,8 +106,13 @@ function viewSignIn() {
     h('div', { class: 'links' }, h('a', { href: here('sign-up') }, 'Create an account'), h('a', { href: here('forgot') }, 'Forgot your password?')),
     h('button', { class: 'btn ghost', type: 'button', onclick: playAsGuest }, 'Play as a guest')));
 }
+// (a guest: the bot check first, on a little page of its own when it's on)
 async function playAsGuest() {
-  try { await api.auth('/sign-in/anonymous', {}); api.forgetCsrf(); location.replace(here('terms')); } catch (e) { say(e.message); }
+  const bot = createBotCheck(cfg);
+  const go = async () => { try { await api.auth('/sign-in/anonymous', {}, { headers: await bot.headers() }); api.forgetCsrf(); location.replace(here('terms')); } catch (e) { bot.reset(); say(e.message); } };
+  if (!cfg.botCheck) return go();
+  show(h('section', {}, h('h2', {}, 'Play as a guest'), h('p', { class: 'muted' }, 'A quick check that you\'re not a bot, then you\'re in. Make an account later and your progress comes with you.'),
+    form([bot.el], 'Play as a guest', go), h('a', { href: here(null) }, 'Back to signing in')));
 }
 function termsCheck() {
   const box = h('input', { type: 'checkbox', required: true });
@@ -129,11 +136,14 @@ function nameField() {
 function viewSignUp({ guest = false } = {}) {
   const name = nameField(), email = field('Email', { type: 'email', required: true, autocomplete: 'email', maxlength: 254 });
   const pw = field('Password', { type: 'password', required: true, minlength: 10, maxlength: 128, autocomplete: 'new-password' }, h('span', { class: 'hint muted' }, 'At least 10 characters.'));
-  const birth = birthField(), terms = termsCheck();
+  const birth = birthField(), terms = termsCheck(), bot = createBotCheck(cfg);
+  // (the closed beta: an invite code — from the link someone sent, or typed)
+  const invite = cfg.closedBeta ? field('Invite code', { required: true, autocomplete: 'off', maxlength: 40, value: q.get('invite') ?? '', style: 'text-transform:uppercase' }, h('span', { class: 'hint muted' }, 'The game is in a closed beta: signing up needs an invite.')) : null;
   const sec = h('section', {}, h('h2', {}, guest ? 'Make your account' : 'Create an account'),
     guest ? h('p', { class: 'muted' }, 'Everything you\'ve done as a guest comes with you.') : null,
-    form([name.el, email.el, pw.el, birth.el, terms.el], 'Create my account', async () => {
-      await api.auth('/sign-up/email', { name: name.input.value.trim(), email: email.input.value.trim(), password: pw.input.value, acceptTerms: cfg.termsVersion, birthDate: birth.input.value, callbackURL: here(null, { verified: '1' }) });
+    form([invite?.el, name.el, email.el, pw.el, birth.el, terms.el, bot.el].filter(Boolean), 'Create my account', async () => {
+      try { await api.auth('/sign-up/email', { name: name.input.value.trim(), email: email.input.value.trim(), password: pw.input.value, acceptTerms: cfg.termsVersion, birthDate: birth.input.value, callbackURL: here(null, { verified: '1' }), ...(invite ? { inviteCode: invite.input.value.trim() } : {}) }, { headers: await bot.headers() }); }
+      catch (e) { bot.reset(); throw e; }
       show(h('section', {}, h('h2', {}, 'Check your email'), h('p', {}, `We've sent a link to ${email.input.value.trim()}. Open it to confirm your email and you're in${guest ? ', with your progress' : ''}.`),
         h('button', { class: 'btn secondary', type: 'button', onclick: () => api.auth('/send-verification-email', { email: email.input.value.trim(), callbackURL: here(null, { verified: '1' }) }).then(() => say('Sent again.', true), x => say(x.message)) }, 'Send it again')));
     }),

@@ -53,8 +53,9 @@ export function termsProblem(config: Config, body: unknown): string | null {
 
 export type GuestLink = (from: string, to: string) => Promise<void>;
 
-export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, onUserChanged = async () => {}, mockOAuth = null }: {
+export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, onUserChanged = async () => {}, closedBeta = async () => false, mockOAuth = null }: {
   config: Config; db: Db; mailer: Mailer; onGuestLinked: GuestLink; onUserDeleted: (userId: string) => Promise<void>; onUserChanged?: (userId: string) => Promise<void>;
+  closedBeta?: () => Promise<boolean>;
   mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null;
 }) {
   const nameTaken = async (name: string) => (await db.execute(sql`select 1 from users where lower(name) = lower(${name}) limit 1`)).rows.length > 0;
@@ -122,7 +123,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       window: config.rateLimits.auth.windowSec,
       max: config.rateLimits.auth.max,
       customRules: {
-        '/sign-in/email': { window: 60, max: 10 },
+        '/sign-in/email': { window: 60, max: 15 },
         '/sign-up/email': { window: config.rateLimits.signUp.windowSec, max: config.rateLimits.signUp.max },
         '/request-password-reset': { window: 3600, max: 5 },
         '/send-verification-email': { window: 3600, max: 5 },
@@ -143,6 +144,9 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
               if (await nameTaken(user.name)) throw new APIError('BAD_REQUEST', { message: 'That name is taken: try another.', code: 'NAME_TAKEN' });
               return { data: { ...user, name: user.name.trim(), role: 'player', termsVersion: config.termsVersion, termsAcceptedAt: new Date() } };
             }
+            // (the closed beta: a new account needs an invite code, which only the email sign-up form takes — the server
+            // checked it before this; a first social sign-in, or a new guest, waits for the open beta)
+            if (await closedBeta()) throw new APIError('FORBIDDEN', { message: 'The game is in a closed beta: sign up with your invite code and your email.', code: 'INVITE_REQUIRED' });
             // a guest's generated name, or a social profile's: made to fit and unique; the terms still to accept
             const base = path === '/sign-in/anonymous' ? user.name : nameFromProfile(user.name);
             return { data: { ...user, name: await freeName(base), role: 'player', termsVersion: null, termsAcceptedAt: null } };

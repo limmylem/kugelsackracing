@@ -86,7 +86,9 @@ const csp = [
   "default-src 'self'",
   // (the game's modules, inline module scripts and import maps; three.js, Rapier and Cesium from jsDelivr; Rapier's
   // WebAssembly; the editor's code from the API's address)
-  `script-src 'self' ${scriptHashes} 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)}`,
+  `script-src 'self' ${scriptHashes} 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)} https://challenges.cloudflare.com`,
+  // (the bot check's widget, Cloudflare Turnstile: account pages)
+  'frame-src https://challenges.cloudflare.com',
   "worker-src 'self' blob: https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",

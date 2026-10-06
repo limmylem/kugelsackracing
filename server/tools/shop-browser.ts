@@ -30,7 +30,7 @@ const config = testConfig(database.url, { serveClient: true, logLevel: 'warn' },
 const app = await buildApp({ config });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 await signUp(app, app.deps.mailer.outbox as any[], { email: 'sam@example.com', name: 'Sam Shopper', ip: '10.9.0.3' });
-await signUp(app, app.deps.mailer.outbox as any[], { email: 'boss@example.com', name: 'Boss Admin', ip: '10.9.0.4' });
+await signUp(app, app.deps.mailer.outbox as any[], { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.4' });
 await app.deps.db.execute(sql`update users set role = 'admin' where email = 'boss@example.com'`);
 const sam = ((await app.deps.db.execute(sql`select id from users where email = 'sam@example.com'`)).rows[0] as any).id as string;
 

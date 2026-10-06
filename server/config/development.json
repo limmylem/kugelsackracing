@@ -11,5 +11,8 @@
   "replays": { "keepPerPlayer": 50 },
   "tracks": { "precompute": true, "graceMinutes": 15, "workerTimeoutSec": 180 },
   "logLevel": "debug",
-  "staffMfa": { "required": true, "maxAgeHours": 12 }
+  "staffMfa": { "required": true, "maxAgeHours": 12 },
+  "botCheck": { "required": false },
+  "abuse": { "maxRewardPerHour": 60000, "burstAccounts": 4, "farmGroup": 3, "keepDays": 90 },
+  "closedBeta": false
 }

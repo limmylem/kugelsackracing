@@ -18,7 +18,7 @@ import fastifyStatic from '@fastify/static';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { fromNodeHeaders } from 'better-auth/node';
 import { sql } from 'drizzle-orm';
-import { API_PREFIX, AUTH_PREFIX, CSRF_HEADER, ClientConfig, Health, LIMITS, REQUEST_ID_HEADER, z } from '@kr/shared';
+import { API_PREFIX, AUTH_PREFIX, CSRF_HEADER, ClientConfig, Health, LIMITS, REQUEST_ID_HEADER, CLIENT_HEADER, DEVICE_HEADER, BOT_CHECK_HEADER, CLIENT_PROTOCOL, z } from '@kr/shared';
 import { REPO_DIR, type Config } from './config.ts';
 import { openDb, type Db } from './db/index.ts';
 import { createAuth, type Auth } from './auth.ts';
@@ -41,6 +41,11 @@ import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 import { rtHealth } from './rt/health.ts';
+import { createSiteSettings, featureOf, FEATURES } from './ops/settings.ts';
+import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts';
+import { createSignals, scanForAbuse } from './abuse/detect.ts';
+import { abuseRoutes } from './routes/abuse.ts';
+import { opsRoutes } from './routes/ops.ts';
 
 import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from './clientFiles.ts';
 export { CLIENT_DIRS, CLIENT_FILES };
@@ -60,7 +65,7 @@ export const scrubUrl = (url: string) => {
   return `${p}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
+export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -104,7 +109,10 @@ export async function buildApp(deps: AppDeps) {
 
   const log = { info: (o: object, m: string) => app.log.info(o, m), error: (o: object, m: string) => app.log.error(o, m) };
   const mailer = deps.mailer ?? createMailer({ smtpUrl: config.smtpUrl, from: config.mailFrom, log });
-  const auth = createAuth({ config, db, mailer, mockOAuth: deps.mockOAuth ?? null, onGuestLinked: (from, to) => moveGuestData(db, from, to), onUserDeleted: id => deleteUserData(db, id), onUserChanged: async id => { await promoteOwner(db, config, id); } });
+  // (Phase 6 Step 5: the switches admins flip without a deploy — feature flags, maintenance, the closed beta, the
+  // oldest game the server takes; docs/OPERATIONS.md)
+  const siteSettings = createSiteSettings(db, { closedBeta: config.closedBeta });
+  const auth = createAuth({ config, db, mailer, mockOAuth: deps.mockOAuth ?? null, onGuestLinked: (from, to) => moveGuestData(db, from, to), onUserDeleted: id => deleteUserData(db, id), onUserChanged: async id => { await promoteOwner(db, config, id); }, closedBeta: async () => (await siteSettings.get()).closedBeta.on });
   const G = guards(auth, config);
 
   // ---------- security headers, CORS, cookies, CSRF ----------
@@ -119,7 +127,9 @@ export async function buildApp(deps: AppDeps) {
         // the jsDelivr CDN, Rapier's WebAssembly)
         // (Phase 6 Step 5: no 'unsafe-inline' — the pages' own inline scripts, by their hashes, and nothing else inline:
         // a script injected into a page doesn't run)
-        scriptSrc: ["'self'", ...inlineScriptHashes(), "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:'],
+        scriptSrc: ["'self'", ...inlineScriptHashes(), "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:', ...(config.turnstile ? ['https://challenges.cloudflare.com'] : [])],
+        // (the bot check's widget: Cloudflare Turnstile's frame, when it's on)
+        frameSrc: config.turnstile ? ['https://challenges.cloudflare.com'] : ["'none'"],
         workerSrc: ["'self'", 'blob:', 'https://cdn.jsdelivr.net'],   // (MapLibre's worker, for the maps)
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
@@ -171,6 +181,66 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('preHandler', async req => {
     if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) await writeLimit(req);
   });
+
+  // ---------- launch readiness (Phase 6 Step 5): the game's version, maintenance, switched-off features, the bot
+  // check, the closed beta's invite codes (docs/OPERATIONS.md, docs/ABUSE.md) ----------
+  const botCheck = deps.botCheck !== undefined ? deps.botCheck : config.turnstile ? createBotCheck({ secret: config.turnstile.secret }) : null;
+  // (what still answers in maintenance: enough to see it's down, and for editors and admins to sign in and fix it)
+  const OPEN_IN_MAINTENANCE = /^\/api\/(v1\/(health|client-config|status|csrf|me)(\/|$|\?)|auth\/)/;
+  app.addHook('onRequest', async req => {
+    if (!req.url.startsWith('/api/')) return;
+    // a game too old for this server: refresh (its version is in the header; tools that don't send one are let through)
+    const v = Number(req.headers[CLIENT_HEADER]);
+    const S = await siteSettings.get();
+    if (Number.isFinite(v) && v > 0 && v < S.client.minProtocol) throw new AppError(426, 'CLIENT_TOO_OLD', 'The game has been updated: refresh the page (your progress is kept on the server).', { need: S.client.minProtocol, have: v });
+    if (S.maintenance.on && !OPEN_IN_MAINTENANCE.test(req.url)) {
+      const sess = await sessionOf(auth, req).catch(() => null);
+      if (!sess || !['editor', 'admin'].includes(sess.user.role)) throw new AppError(503, 'MAINTENANCE', S.maintenance.message || 'The game is down for maintenance: back soon.', { until: S.maintenance.until }, { 'retry-after': '120' });
+    }
+    const f = featureOf(req.method, req.url);
+    if (f && !S.features[f].on) throw new AppError(503, 'FEATURE_OFF', S.features[f].message || `${FEATURES[f]} is switched off for now: try again later.`, { feature: f }, { 'retry-after': '300' });
+    if (req.method !== 'POST') return;
+    const p = req.url.split('?')[0].replace(/\/{2,}/g, '/');
+    if (botCheck && BOT_CHECKED.test(p)) {
+      const r = await botCheck(req.headers[BOT_CHECK_HEADER] as string | undefined, req.ip);
+      if (!r.ok) { app.log.info({ path: p, reason: r.reason }, 'bot check refused'); throw new AppError(403, 'BOT_CHECK', 'The check that you\'re not a bot didn\'t pass: try again (and let the check on the page finish).', { reason: r.reason }); }
+    }
+    if (S.closedBeta.on && p === '/api/auth/sign-in/anonymous') throw new AppError(403, 'INVITE_REQUIRED', 'The game is in a closed beta: playing as a guest opens with the open beta.');
+  });
+  // the closed beta: signing up uses an invite code (taken now; given back if the sign-up fails) — once the body's read
+  app.addHook('preHandler', async req => {
+    if (req.method !== 'POST' || !req.url.startsWith('/api/auth/')) return;
+    const p = req.url.split('?')[0].replace(/\/{2,}/g, '/'), S = await siteSettings.get();
+    if (S.closedBeta.on && p === '/api/auth/sign-up/email') {
+      const code = String((req.body as any)?.inviteCode ?? '').trim().toUpperCase();
+      (req as any).inviteCode = null;
+      const took = code ? (await db.execute(sql`update invite_codes set uses = uses + 1 where code = ${code} and not revoked and uses < max_uses and (expires_at is null or expires_at > now()) returning code`)).rows[0] : null;
+      if (!took) throw new AppError(403, 'INVITE_REQUIRED', code ? 'That invite code isn\'t valid (or it\'s been used up).' : 'The game is in a closed beta: signing up needs an invite code.');
+      (req as any).inviteCode = code;
+    }
+  });
+  // (the invite code's use recorded once the account exists, or given back — before the answer goes, so the next
+  // request sees it)
+  app.addHook('onSend', async (req, reply, payload) => {
+    const code = (req as any).inviteCode as string | null | undefined;
+    if (!code) return payload;
+    (req as any).inviteCode = null;
+    if (reply.statusCode === 200) {
+      const email = String((req.body as any)?.email ?? '').trim().toLowerCase(), u = (await db.execute(sql`select id from users where email = ${email}`)).rows[0] as any;
+      await db.execute(sql`insert into invite_uses (code, user_id, email_hash) values (${code}, ${u?.id ?? null}, ${crypto.createHmac('sha256', config.authSecret).update(email).digest('hex').slice(0, 24)})`);
+    } else await db.execute(sql`update invite_codes set uses = greatest(0, uses - 1) where code = ${code}`);
+    return payload;
+  });
+  // what links accounts, for abuse review (abuse/detect.ts): a signed-in request's hashed device id and address
+  const signals = createSignals(db, config.authSecret);
+  app.addHook('onResponse', async req => {
+    if (!req.url.startsWith('/api/') || !req.sessionCache) return;
+    const s = await req.sessionCache.catch(() => null);
+    if (s) void signals.seen(s.user.id, req.headers[DEVICE_HEADER] as string | undefined, req.ip);
+  });
+  const abuseTimer = setInterval(() => { void scanForAbuse(db, config.abuse).catch(e => app.log.warn({ err: e }, 'abuse scan failed')); }, 3600e3);
+  abuseTimer.unref();
+  app.addHook('onClose', async () => clearInterval(abuseTimer));
 
   // ---------- CSRF: a write with a cookie session carries the token (GET /api/v1/csrf) ----------
   app.addHook('preHandler', async (req, reply) => {
@@ -240,6 +310,7 @@ export async function buildApp(deps: AppDeps) {
   app.get(`${API_PREFIX}/client-config`, { schema: { response: { 200: ClientConfig } } }, async () => ({
     apiBase: '', env: config.env, sentryDsn: config.sentryClientDsn, social: (['google', 'discord'] as const).filter(k => config.social[k]),
     termsVersion: config.termsVersion, privacyVersion: config.privacyVersion, minAge: config.minAge,
+    ...await (async () => { const S = await siteSettings.get(); return { botCheck: config.turnstile ? { siteKey: config.turnstile.siteKey } : null, closedBeta: S.closedBeta.on, protocol: CLIENT_PROTOCOL, maintenance: S.maintenance }; })(),
   }));
   app.get(`${API_PREFIX}/csrf`, { schema: { response: { 200: z.object({ token: z.string() }) } } }, async (_req, reply) => {
     reply.header('cache-control', 'no-store');
@@ -274,6 +345,8 @@ export async function buildApp(deps: AppDeps) {
     await playerRoutes(api, { economy, config: economyConfig, G });
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
+    await abuseRoutes(api, { db, auth, G, rules: config.abuse });
+    await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings });
   }, { prefix: API_PREFIX });
 
   // ---------- the real-time server's stand-in (rt.<domain>; Phase 7 Step 1 replaces it) ----------
@@ -325,6 +398,7 @@ export async function buildApp(deps: AppDeps) {
   // (the owner's account may be there already: an admin once its email is verified)
   app.addHook('onReady', async () => { await promoteOwner(db, config); });
   app.decorate('deps', { db, auth, config, mailer });
+  app.decorate('siteSettings', siteSettings);
   app.addHook('onClose', async () => { if (opened) await opened.pool.end(); });
   return app;
 }
@@ -346,6 +420,7 @@ function authCode(status: number, code?: string) {
   if (code === 'NAME_TAKEN') return 'NAME_TAKEN' as const;
   if (code === 'NAME_NOT_ALLOWED') return 'NAME_NOT_ALLOWED' as const;
   if (code === 'TERMS_REQUIRED') return 'TERMS_REQUIRED' as const;
+  if (code === 'INVITE_REQUIRED') return 'INVITE_REQUIRED' as const;
   if (status === 422 || status === 400) return 'BAD_REQUEST' as const;
   return status >= 500 ? 'INTERNAL' as const : 'BAD_REQUEST' as const;
 }
@@ -353,7 +428,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
+  interface FastifyInstance { siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };

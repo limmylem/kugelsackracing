@@ -17,6 +17,16 @@ export const IDEMPOTENCY_HEADER = 'idempotency-key';
 // (cookie sessions: a write carries the token from GET /api/v1/csrf in this header)
 export const CSRF_HEADER = 'x-csrf-token';
 export const REQUEST_ID_HEADER = 'x-request-id';
+// (Phase 6 Step 5) the game's API compatibility number: every request says which it was built for; a game older than
+// the server takes (an API change the old game can't follow — raise this when making one) is told to refresh. The
+// browser's copy is in account/api.js (a test checks they match).
+export const CLIENT_PROTOCOL = 1;
+export const CLIENT_HEADER = 'x-kr-client';
+// a random id the game keeps in the browser (never anything about the device itself), sent with each request: the
+// server keeps only a keyed hash of it, to see accounts used from the same browser (abuse review, 90 days)
+export const DEVICE_HEADER = 'x-kr-device';
+// the bot check's answer (Cloudflare Turnstile) on signing up, signing in and becoming a guest
+export const BOT_CHECK_HEADER = 'x-bot-check';
 
 export const LIMITS = {
   bodyBytes: 1_048_576,          // any request body, at most (1 MiB)
@@ -240,6 +250,10 @@ export const Health = z.object({ ok: z.boolean(), version: z.string(), env: z.st
 export const ClientConfig = z.object({
   apiBase: z.string(), env: z.string(), sentryDsn: z.string().nullable(), social: z.array(z.enum(['google', 'discord'])),
   termsVersion: z.string(), privacyVersion: z.string(), minAge: z.number().int(),
+  // (Phase 6 Step 5) the bot check's site key (null: off), whether signing up needs an invite code, the API's
+  // compatibility number, and maintenance
+  botCheck: z.object({ siteKey: z.string() }).nullable(), closedBeta: z.boolean(), protocol: z.number().int(),
+  maintenance: z.object({ on: z.boolean(), message: z.string(), until: z.string().nullable() }),
 });
 export const Ok = z.object({ ok: z.literal(true) });
 

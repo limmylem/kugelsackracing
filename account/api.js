@@ -14,6 +14,21 @@
 import { apiBase } from '../site/urls.js';
 
 export const API = '/api/v1', AUTH = '/api/auth';
+// (Phase 6 Step 5) the API version this game was built for: an older game than the server takes is told to refresh.
+// The server's is @kr/shared CLIENT_PROTOCOL (server/test/ops.test.ts checks they're the same).
+export const CLIENT_PROTOCOL = 1;
+// a random id kept in this browser — nothing about the device itself — sent with each request; the server keeps only
+// a scrambled form of it, to notice several accounts played from one browser (abuse review, kept 90 days)
+export function deviceId() {
+  try {
+    let id = localStorage.getItem('kr.device');
+    if (!id || !/^[0-9a-f-]{20,64}$/i.test(id)) { id = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`; localStorage.setItem('kr.device', id); }
+    return id;
+  } catch { return null; }
+}
+// the server's notices any page should show: down for maintenance, the game too old (a CustomEvent on window: status.js
+// shows a banner)
+const notice = e => { if (['MAINTENANCE', 'CLIENT_TOO_OLD'].includes(e.code)) try { globalThis.dispatchEvent?.(new CustomEvent('kr-server-notice', { detail: { code: e.code, message: e.message, details: e.details } })); } catch { /* not in a page */ } };
 const RETRY_STATUS = new Set([502, 503, 504]);
 
 export class ApiError extends Error {
@@ -34,7 +49,7 @@ export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fet
     const ctl = new AbortController(), slow = setTimeout(() => setState('waking'), slowMs), dead = setTimeout(() => ctl.abort(), timeoutMs);
     signal?.addEventListener('abort', () => ctl.abort(), { once: true });
     try {
-      const h = { accept: 'application/json', ...headers };
+      const dev = deviceId(), h = { accept: 'application/json', 'x-kr-client': String(CLIENT_PROTOCOL), ...(dev ? { 'x-kr-device': dev } : {}), ...headers };
       if (body !== undefined) h['content-type'] = 'application/json';
       return await fetchImpl(base + url, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), credentials: base ? 'include' : 'same-origin', signal: ctl.signal });
     } finally { clearTimeout(slow); clearTimeout(dead); }
@@ -56,9 +71,9 @@ export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fet
 
   // a request: retried when the connection drops or the server's waking (a write keeps its key, so it's
   // applied once however many times it's sent)
-  async function request(method, path, { body, key = null, signal, raw = false, retries: tries = retries } = {}) {
+  async function request(method, path, { body, key = null, signal, raw = false, retries: tries = retries, headers: extra = {} } = {}) {
     const write = !['GET', 'HEAD'].includes(method), url = path.startsWith('/api/') ? path : API + path;
-    const headers = {};
+    const headers = { ...extra };
     if (write && url.startsWith(API)) headers['idempotency-key'] = key ?? uuid();
     let csrfRetried = false;
     for (let attempt = 0; ; attempt++) {
@@ -72,6 +87,8 @@ export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fet
         if (attempt >= tries) { setState('offline'); watch(); throw new ApiError(0, 'OFFLINE', 'Can\'t reach the server: check your connection.'); }
         setState('retrying'); await wait(1000 * 2 ** attempt); continue;
       }
+      // (a 503 that says why — down for maintenance, a feature switched off — is the answer, not a reason to retry)
+      if (res.status === 503) { const err = await readError(res.clone()).catch(() => null); if (err && ['MAINTENANCE', 'FEATURE_OFF'].includes(err.code)) { setState('online'); notice(err); throw err; } }
       if (RETRY_STATUS.has(res.status) && attempt < tries) { setState('retrying'); await wait(1000 * 2 ** attempt); continue; }
       // (the same write still being applied — sent again after a dropped connection: its answer shortly)
       if (res.status === 409 && write) {
@@ -86,7 +103,7 @@ export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fet
         if (err.code !== 'CSRF') throw err;
         csrfRetried = true; await token(true); attempt--; continue;
       }
-      if (!res.ok) throw await readError(res);
+      if (!res.ok) { const err = await readError(res); notice(err); throw err; }
       if (raw) return res;
       if (res.status === 204) return null;
       const text = await res.text();
@@ -110,7 +127,8 @@ export function createApi({ base = apiBase, fetchImpl = (...a) => globalThis.fet
     patch: (p, body, o) => request('PATCH', p, { ...o, body: body ?? {} }),
     del: (p, body, o) => request('DELETE', p, { ...o, body }),
     // Better Auth's endpoints (sign in, sign up, sign out…): it checks the page's origin itself
-    auth: (p, body) => request(body === undefined ? 'GET' : 'POST', AUTH + p, { body }),
+    // (o.headers: the bot check's answer on signing up, signing in, becoming a guest — account/botCheck.js)
+    auth: (p, body, o = {}) => request(body === undefined ? 'GET' : 'POST', AUTH + p, { body, headers: o.headers ?? {} }),
     get state() { return state; },
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     watch,

@@ -339,3 +339,86 @@ export const playerRecordings = pgTable('player_recordings', {
   data: bytea('data').notNull(),
   createdAt: created(),
 }, t => [primaryKey({ columns: [t.userId, t.id] })]);
+
+// ---------- launch readiness (Phase 6 Step 5; migration 0011) ----------
+// what links accounts for abuse review: kind 'device' (an HMAC of the game's random device id) or 'ip'; kept 90 days
+export const accountSignals = pgTable('account_signals', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),
+  value: text('value').notNull(),
+  firstSeen: timestamp('first_seen', { withTimezone: true }).notNull().defaultNow(),
+  lastSeen: timestamp('last_seen', { withTimezone: true }).notNull().defaultNow(),
+  hits: integer('hits').notNull().default(1),
+}, t => [primaryKey({ columns: [t.userId, t.kind, t.value] }), index('account_signals_value').on(t.kind, t.value)]);
+// accounts flagged for review (server/src/abuse/detect.ts): never acted on by themselves
+export const abuseFlags = pgTable('abuse_flags', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  kind: text('kind').notNull(),
+  key: text('key').notNull().unique(),
+  userIds: text('user_ids').array().notNull(),
+  score: integer('score').notNull(),
+  evidence: jsonb('evidence').notNull(),
+  status: text('status').notNull().default('open'),                    // open | dismissed | actioned
+  createdAt: created(), updatedAt: updated(),
+  reviewedBy: text('reviewed_by'), reviewedAt: timestamp('reviewed_at', { withTimezone: true }), note: text('note'),
+});
+// players' reports of another player
+export const reports = pgTable('reports', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  reporterId: text('reporter_id').references(() => users.id, { onDelete: 'set null' }),
+  targetId: text('target_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  targetName: text('target_name').notNull(),
+  kind: text('kind').notNull(),                                          // cheating | name | behaviour | other
+  details: text('details').notNull(),
+  ref: jsonb('ref'),
+  status: text('status').notNull().default('open'),                     // open | resolved
+  createdAt: created(),
+  resolvedBy: text('resolved_by'), resolvedAt: timestamp('resolved_at', { withTimezone: true }), resolution: text('resolution'), note: text('note'),
+});
+// "Contact support" and the feedback button (kept a year)
+export const supportTickets = pgTable('support_tickets', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),                                          // support | feedback
+  category: text('category'),
+  message: text('message').notNull(),
+  contactEmail: text('contact_email'),
+  client: jsonb('client').notNull(),                                     // the game's version, browser, OS, screen, GPU
+  status: text('status').notNull().default('open'),
+  createdAt: created(),
+  handledBy: text('handled_by'), handledAt: timestamp('handled_at', { withTimezone: true }), note: text('note'),
+});
+// the closed beta's invite codes
+export const inviteCodes = pgTable('invite_codes', {
+  code: text('code').primaryKey(),
+  note: text('note'),
+  maxUses: integer('max_uses').notNull().default(1),
+  uses: integer('uses').notNull().default(0),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revoked: boolean('revoked').notNull().default(false),
+  createdBy: text('created_by'),
+  createdAt: created(),
+});
+export const inviteUses = pgTable('invite_uses', {
+  code: text('code').notNull().references(() => inviteCodes.code, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  emailHash: text('email_hash'),
+  usedAt: timestamp('used_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('invite_uses_code').on(t.code)]);
+// switches flipped without a deploy: feature flags, maintenance mode (server/src/ops/settings.ts)
+export const siteSettings = pgTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedBy: text('updated_by'),
+  updatedAt: updated(),
+});
+// alerts sent (server/src/ops/alerts.ts): one per problem until it clears
+export const alerts = pgTable('alerts', {
+  key: text('key').primaryKey(),
+  state: text('state').notNull(),                                        // firing | resolved
+  message: text('message').notNull(),
+  firstAt: timestamp('first_at', { withTimezone: true }).notNull().defaultNow(),
+  lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  count: integer('count').notNull().default(1),
+});

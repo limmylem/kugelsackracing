@@ -258,6 +258,18 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
     fill(body);
     if (['daily', 'weekly', 'official'].includes(tab)) boards().then(html => { const b = body.querySelector('.boards'); if (b) b.innerHTML = html; }).catch(e => { const b = body.querySelector('.boards'); if (b) b.innerHTML = `<p class="note">The leaderboards couldn't be loaded: ${esc(e.message)}</p>`; });
   }
+  async function reportDriver(name, eventId) {
+    const S = await server;
+    if (!S) return;
+    const kinds = { 1: ['cheating', 'Cheating (an impossible time, a hacked car)'], 2: ['name', 'An offensive name'], 3: ['behaviour', 'Behaviour'], 4: ['other', 'Something else'] };
+    const pick = prompt(`Report ${name}: what for?\n${Object.entries(kinds).map(([k, [, t]]) => `${k}. ${t}`).join('\n')}\n\nType the number:`);
+    const kind = kinds[String(pick ?? '').trim()]?.[0];
+    if (!kind) return;
+    const details = prompt('What happened? (a few words for the admins)');
+    if (!details || details.trim().length < 5) { if (details != null) alert('A few words, please: the admins need to know what to look at.'); return; }
+    try { const r = await S.report({ targetName: name, kind, details: details.trim(), ref: { eventId } }); alert(r.already ? 'You\'ve already reported that: the admins have it.' : 'Thanks: the admins will look at it.'); }
+    catch (err) { alert(err.message); }
+  }
   // the leaderboards of what's shown (official, daily, weekly events): the server's — every player's best
   async function boards() {
     const S = await server;
@@ -267,7 +279,7 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
       const b = await S.leaderboard(e.id, 10);
       if (!b.entries.length) continue;
       const val = v => b.scored ? `${Math.round(v).toLocaleString('en-GB')} pts` : fmt(v);
-      rows.push(`<div style="margin-top:8px"><b>${esc(e.name)}</b> — ${b.of} driver${b.of === 1 ? '' : 's'}<br>${b.entries.map(r => `<small style="${r.you ? 'color:#ffd24a' : ''}">${r.place}. ${esc(r.displayName)} · ${val(r.value)} · class ${esc(r.carClass)}${r.replayId ? ` · <a href="#" data-replay="${esc(r.replayId)}">replay</a>` : ''}</small>`).join('<br>')}${b.mine && !b.entries.some(r => r.you) ? `<br><small style="color:#ffd24a">… ${b.mine.place}. you · ${val(b.mine.value)}</small>` : ''}</div>`);
+      rows.push(`<div style="margin-top:8px"><b>${esc(e.name)}</b> — ${b.of} driver${b.of === 1 ? '' : 's'}<br>${b.entries.map(r => `<small style="${r.you ? 'color:#ffd24a' : ''}">${r.place}. ${esc(r.displayName)} · ${val(r.value)} · class ${esc(r.carClass)}${r.replayId ? ` · <a href="#" data-replay="${esc(r.replayId)}">replay</a>` : ''}${r.you ? '' : ` · <a href="#" data-report="${esc(r.displayName)}" data-event="${esc(e.id)}" title="Report this driver (cheating, an offensive name…)">report</a>`}</small>`).join('<br>')}${b.mine && !b.entries.some(r => r.you) ? `<br><small style="color:#ffd24a">… ${b.mine.place}. you · ${val(b.mine.value)}</small>` : ''}</div>`);
     }
     return rows.length ? `<h4 style="margin:14px 0 2px">Leaderboards</h4>${rows.join('')}` : '<p class="note">No one on the leaderboards yet: be the first.</p>';
   }
@@ -303,6 +315,9 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
   lib.addEventListener('click', async e => {
     const link = e.target.closest('[data-replay]');
     if (link) { e.preventDefault(); watchServerReplay(link.dataset.replay); return; }
+    // (Phase 6 Step 5: reporting a driver — what for, a few words; the admins' queue)
+    const rep = e.target.closest('[data-report]');
+    if (rep) { e.preventDefault(); reportDriver(rep.dataset.report, rep.dataset.event); return; }
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.tab) { tab = b.dataset.tab; render(); return; }
     if (b.hasAttribute('data-closelib')) { closeLibrary(); return; }

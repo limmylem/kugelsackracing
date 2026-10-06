@@ -5,6 +5,8 @@
 
 import { createApi, ApiError } from '../account/api.js';
 import { SITE } from '../site/urls.js';
+import { createBotCheck } from '../account/botCheck.js';
+import { createLaunchTools } from './launch.js';
 
 const api = createApi();
 const $ = id => document.getElementById(id);
@@ -51,14 +53,16 @@ function toTwoFactor() {
   location.href = `${SITE.game || ''}/account/?${new URLSearchParams({ mode: 'mfa', next: back })}`;
 }
 
+let bot = { headers: async () => ({}), reset() {} };
 async function showSignIn() {
   $('gateWhy').textContent = 'Sign in with an admin account.';
   $('signIn').hidden = false;
+  try { bot = createBotCheck(await api.get('/client-config')); $('signIn').querySelector('button[type=submit], button')?.before(bot.el); } catch { /* the server says when it needs it */ }
   $('signIn').onsubmit = async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target);
-    try { const r = await api.auth('/sign-in/email', { email: f.get('email'), password: f.get('password') }); api.forgetCsrf(); if (r?.twoFactorRedirect) return toTwoFactor(); location.reload(); }
-    catch (e) { say($('gateMsg'), errText(e)); }
+    try { const r = await api.auth('/sign-in/email', { email: f.get('email'), password: f.get('password') }, { headers: await bot.headers() }); api.forgetCsrf(); if (r?.twoFactorRedirect) return toTwoFactor(); location.reload(); }
+    catch (e) { bot.reset(); say($('gateMsg'), errText(e)); }
   };
   try {
     const cfg = await api.get('/client-config');
@@ -73,9 +77,15 @@ $('signOut').onclick = async () => { try { await api.auth('/sign-out', {}); } fi
 
 // ---------- the admin's view: search on the left, the player on the right, the log under it ----------
 // (the page's views: players — with their economy — the economy's settings, the dashboard)
+// (Phase 6 Step 5: reports and flags, support, the launch switches and a player's whole history — admin/launch.js)
+let launch = null;
+const launchTools = () => launch ??= createLaunchTools({ api, h, say, when, errText,
+  main: () => { tabs(); const m = $('main'); m.className = ''; m.replaceChildren(); return m; },
+  pickPlayer: id => { showAdmin(); pick(id); } });
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
-  nav.replaceChildren(...[['Players', showAdmin], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
+  nav.replaceChildren(...[['Players', showAdmin], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
+    ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
@@ -144,7 +154,7 @@ async function pick(id) {
   const banWhy = reason('Why (required)'), unbanWhy = reason('Why (required)'), outWhy = reason('Why (required)');
   const log = h('div');
   box.replaceChildren(
-    h('div', { class: 'row', style: 'align-items:center' }, h('h2', {}, p.displayName), tags(p)),
+    h('div', { class: 'row', style: 'align-items:center' }, h('h2', {}, p.displayName), tags(p), h('button', { class: 'btn ghost', onclick: () => launchTools().history(p.id) }, 'Full history')),
     h('dl', {},
       h('dt', {}, 'Email'), h('dd', {}, p.isGuest ? 'a guest (no email)' : `${p.email}${p.emailVerified ? ' · verified' : ' · not verified'}`),
       h('dt', {}, 'Id'), h('dd', {}, p.id),

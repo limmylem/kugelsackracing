@@ -40,6 +40,8 @@ function create(A) {
       return { ...(await api.post('/tracks/results', { eventId, result, recording, replayId })), replayId };
     },
     leaderboard: (eventId, limit = 10) => api.get(`/tracks/leaderboard?${new URLSearchParams({ eventId, limit: String(limit) })}`),
+    // (Phase 6 Step 5) a player reported: { targetName, kind, details, ref }
+    report: body => api.post('/reports', body),
     records: code => api.get(`/tracks/records${code ? `?code=${encodeURIComponent(code)}` : ''}`).then(r => r.records),
     replays: () => api.get('/replays').then(r => r.replays),
     replay: id => api.get(`/replays/${encodeURIComponent(id)}`),

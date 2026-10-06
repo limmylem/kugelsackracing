@@ -25,7 +25,7 @@ const app = await buildApp({ config });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 const outbox = app.deps.mailer.outbox as any[];
 await signUp(app, outbox, { email: 'pia@example.com', name: 'Pia Pitlane', ip: '10.9.0.1' });
-await signUp(app, outbox, { email: 'boss@example.com', name: 'Boss Admin', ip: '10.9.0.2' });
+await signUp(app, outbox, { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.2' });
 await app.deps.db.execute(sql`update users set role = 'admin' where email = 'boss@example.com'`);
 const boss = ((await app.deps.db.execute(sql`select * from users where email = 'boss@example.com'`)).rows[0] as any);
 const pia = ((await app.deps.db.execute(sql`select id from users where email = 'pia@example.com'`)).rows[0] as any).id as string;
