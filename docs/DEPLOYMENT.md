@@ -42,6 +42,9 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
 8. **Phase 7 Step 1's two-player check** on different networks (CLAUDE.md), once multiplayer is built.
 
 What changed for localhost since this file was written, and matters online too:
+- The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`
+  values) are added to the active version as a new version, without changing anything already there. The first
+  start online with Step 4 makes that version: look for it in the admin page's Economy settings.
 - The per-address rate limit counts only `/api/` and `/rt/` (the game's own files were being counted: a page
   load is hundreds of modules).
 - The content security policy allows the tiles and real-time addresses by name (`TILES_URL`, `RT_URL`), and

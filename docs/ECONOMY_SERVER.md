@@ -5,6 +5,9 @@ damage, XP, level, quest progress and medals. The game asks it to do things; the
 game's own rules and prices from its own settings, and answers with the player's new state. Nothing the
 browser sends can say what something costs, what a player owns or how much they earn.
 
+The shop, the dealership, selling, refunds, kits, sales, level locks, the used car lot and garage space (Phase 6
+Step 4) are in [SHOP.md](SHOP.md).
+
 Without a server (the old `npm start`), the game works as it always did: `LocalPlayerService`, kept in the
 browser. Signed out on a page with a server, it's the starter car and nothing is kept.
 
@@ -22,7 +25,7 @@ browser. Signed out on a page with a server, it's the starter car and nothing is
 |---|---|
 | `player_economy` | One row a player: balance, XP, level, the current car, `rev` (moves on with every change), the rest of the profile (setups, hints, favourites…) in `state`. |
 | `ledger` | Every money change: amount, balance after, kind (`start`, `purchase`, `sale`, `repair`, `entry_fee`, `refund`, `reward`, `grant`, `removal`, `reversal`, `adjustment`, `other`), reason in words, what it was about (`ref`: parts, car, quest), the session, the request's Idempotency-Key, the admin who did it, and what it reverses. |
-| `owned_cars`, `owned_parts` | Each car and part a player owns, by its own instance id (unique across every player): price paid, condition, damage (the compact events format), tuning, paint. |
+| `owned_cars`, `owned_parts` | Each car and part a player owns, by its own instance id (unique across every player): price paid, condition, damage (the compact events format), tuning, paint; `extra`: when it was bought and whether it's been fitted (refunds), a car's body price, a used car's listing and history. |
 | `car_build_slots` | Which part is in which socket of which car. |
 | `item_history` | Each car's and part's story: bought, fitted, taken off, damaged, repaired, sold, given, taken away (with the ledger row, if money moved). |
 | `quest_progress` | Medals, best runs and attempts, per quest. |
@@ -48,7 +51,8 @@ in the server can break them:
 ## An action
 
 `POST /api/v1/player/actions/:action` with `{ args }`:
-- **The actions** are the game's own: buy, sell, fit, take off, buy and fit, a whole build, tuning, paint,
+- **The actions** are the game's own: buy, sell (one or several), refund, a kit, sell a car, a used car, garage
+  space (SHOP.md), fit, take off, buy and fit, a whole build, tuning, paint,
   setups, select a car, buy a car; repairs (a part, several, the body, the car — quick or full, every
   problem or chosen ones), the free basic repair, a spare fitted in place of a broken part; quests (start,
   refund, finish, fail), pink slips (win a car, lose one); damage and wear while driving; hints and
@@ -119,7 +123,9 @@ On the admin page, **Economy settings**:
   first, and refused if someone else changed the settings since you loaded them;
 - lists every version, and rolls back to any of them (a new version with that one's values).
 
-No value was changed in Step 2: the active settings are the repository's files.
+No value was changed in Step 2: the active settings are the repository's files. Settings the game gains later (Step 4's
+`shop`, `sell.repairShare`) are added to the active version when the server starts, as a new version that changes
+nothing already there. The shop's own changes are made on the admin page's Shop view (SHOP.md).
 
 ## The game (the client)
 

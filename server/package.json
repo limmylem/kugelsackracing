@@ -17,7 +17,9 @@
     "load-test": "node tools/load-test.ts",
     "load-test:economy": "node tools/economy-load.ts",
     "test:browser": "node tools/accounts-browser.ts",
-    "test:browser:economy": "node tools/economy-browser.ts"
+    "test:browser:economy": "node tools/economy-browser.ts",
+    "load-test:shop": "node tools/shop-load.ts",
+    "test:browser:shop": "node tools/shop-browser.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

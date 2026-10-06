@@ -60,6 +60,8 @@ npm run server:dev                    # migrates the database, then serves on PU
 | `npm run load-test -w @kr/server` | 500 players signing in at once and loading nearby content. |
 | `npm run test:browser:economy -w @kr/server` | The economy in Chromium: a change shown at once and confirmed, a refusal put back, offline and back, two tabs; the admin page's economy tools. |
 | `node server/tools/deploy-browser.ts` | The deployment's layout in Chromium: game, API, tiles and real time each on an address of its own (cookies, CORS, the admin and editor pages for their roles). |
+| `node server/tools/shop-browser.ts` | The shop, dealership, selling and the admin's shop in Chromium (docs/SHOP.md). |
+| `node server/tools/shop-load.ts` | 500 players browsing and buying in the shop at once, then the books checked. |
 | `npm run load-test:economy -w @kr/server` | 500 players in the garage and on the road, then the books checked (`--burst`: all at the same moment). |
 
 The pre-commit hook doesn't run these, because they need PostgreSQL. CI runs them on every push

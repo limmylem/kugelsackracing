@@ -169,6 +169,14 @@ most half a typical race reward on average (never more than one), a skilled play
 average one, nobody stuck, every quest type paying within 0.6–1.6× its tier's median an hour, and level
 6–12 after 8 hours. To retune: change `data/economy.json`, run it again, until every target passes.
 
+Since Phase 6 Step 4 the bots also shop as the game does (docs/SHOP.md):
+- prices now, level locks and kits;
+- the day's used lot;
+- selling their weakest car when the garage is full.
+
+The quest pay check pools the runs over `simulation.payCheckSeeds`. The run also tries every money-making trick
+(`tools/economy/exploits.mjs`) and fails if one makes money.
+
 ### Stress tests
 
 - `npm run stress:quests` — **50,000 published quests, each with its own route**, on real roads in all six

@@ -2,7 +2,8 @@
 // bots' runs, as plain text and as an HTML page with charts (money over time, income an hour by quest
 // type, where the money goes, which quests pay too much or too little).
 //
-//   evaluate(runs: { low, medium, high }, economy) → [{ id, name, pass, detail }]
+//   evaluate(runs: { low, medium, high }, economy, { payRuns }) → [{ id, name, pass, detail }]   (payRuns: the quest pay
+//     check's — the runs over simulation.payCheckSeeds)
 //   questPay(runs, economy) → [{ type, tier, perHour, runs, ratio, flag }]
 //   textReport(runs, checks, economy) → string      htmlReport(runs, checks, economy) → string
 
@@ -24,7 +25,7 @@ export function questPay(runs, economy) {
   return rows.sort((a, b) => a.tier - b.tier || b.perHour - a.perHour);
 }
 
-export function evaluate(runs, economy) {
+export function evaluate(runs, economy, { payRuns = runs } = {}) {
   const T = economy.simulation.targets, M = runs.medium, out = [];
   const add = (id, name, pass, detail) => out.push({ id, name, pass, detail });
   add('firstUpgrade', `First meaningful upgrade (+${T.meaningfulGain} rating) within ${T.firstUpgradeMinutes} min`, M.firstUpgrade != null && M.firstUpgrade <= T.firstUpgradeMinutes * 60,
@@ -40,14 +41,14 @@ export function evaluate(runs, economy) {
     `high ${money(runs.high.earned, economy)} vs medium ${money(M.earned, economy)}: ${ratio.toFixed(2)}× (low ${money(runs.low.earned, economy)})`);
   const stuck = Object.entries(runs).map(([k, R]) => `${k} ${R.stuck}`).join(', '), anyStuck = Object.values(runs).reduce((a, R) => a + R.stuck, 0);
   add('stuck', 'No player gets stuck with no way to earn', anyStuck <= T.stuck, `times with no quest it could enter and afford: ${stuck}; free basic repairs: ${Object.entries(runs).map(([k, R]) => `${k} ${R.safetyNet}`).join(', ')}`);
-  const pay = questPay(runs, economy), flagged = pay.filter(x => x.flag);
+  const pay = questPay(payRuns, economy), flagged = pay.filter(x => x.flag);
   add('questPay', `Every quest type pays ${T.questPay.low}–${T.questPay.high}× the median of its tier an hour`, !flagged.length,
     flagged.length ? flagged.map(x => `${x.type} (tier ${x.tier}) ${x.flag}: ${x.ratio.toFixed(2)}×`).join(' · ') : `${pay.length} type × tier rows within range`);
   add('levels', `A medium player reaches level ${T.levels.min}–${T.levels.max} in ${M.hours} h`, M.level >= T.levels.min && M.level <= T.levels.max, `medium level ${M.level} (low ${runs.low.level}, high ${runs.high.level})`);
   return out;
 }
 
-export function textReport(runs, checks, economy) {
+export function textReport(runs, checks, economy, { payRuns = runs } = {}) {
   const L = [], S = economy.simulation;
   L.push(`Economy simulation: ${S.hours} h of play at each skill (${Object.entries(S.skills).map(([k, v]) => `${k} ${v}`).join(', ')}), seed ${S.seed}`, '');
   for (const c of checks) L.push(`${c.pass ? '  ok  ' : ' FAIL '} ${c.name}`, `        ${c.detail}`);
@@ -57,8 +58,8 @@ export function textReport(runs, checks, economy) {
     L.push(`${k} (skill ${R.skill}): ${R.runs} quests, level ${R.level}, earned ${money(R.earned, economy)}, has ${money(R.money, economy)}; cars ${R.cars.map(c => `${c.carId} (${c.cls} ${c.rating})`).join(', ')}; ${R.series} series`);
     L.push(`    spent: repairs ${money(sp.repairs, economy)} (${Math.round(sp.repairs / tot * 100)}%), parts ${money(sp.parts, economy)} (${Math.round(sp.parts / tot * 100)}%), cars ${money(sp.cars, economy)} (${Math.round(sp.cars / tot * 100)}%), entry fees ${money(sp.fees, economy)} (${Math.round(sp.fees / tot * 100)}%)`);
   }
-  L.push('', 'Income an hour by quest type and tier (all skills):');
-  for (const x of questPay(runs, economy)) L.push(`  tier ${x.tier} ${x.type.padEnd(11)} ${money(x.perHour, economy).padStart(9)}/h · ${String(x.runs).padStart(3)} runs · ${x.ratio.toFixed(2)}× its tier's median${x.flag ? `  ✘ ${x.flag}` : ''}`);
+  L.push('', `Income an hour by quest type and tier (all skills${economy.simulation.payCheckSeeds?.length ? `, seeds ${economy.simulation.payCheckSeeds.join(', ')}` : ''}):`);
+  for (const x of questPay(payRuns, economy)) L.push(`  tier ${x.tier} ${x.type.padEnd(11)} ${money(x.perHour, economy).padStart(9)}/h · ${String(x.runs).padStart(3)} runs · ${x.ratio.toFixed(2)}× its tier's median${x.flag ? `  ✘ ${x.flag}` : ''}`);
   const failed = checks.filter(c => !c.pass).length;
   L.push('', failed ? `${failed} target${failed > 1 ? 's' : ''} not met.` : 'Every target met.');
   return L.join('\n');
@@ -111,8 +112,8 @@ function spendChart(runs, economy) {
   return svg + '</svg>';
 }
 
-export function htmlReport(runs, checks, economy) {
-  const L = lineChart(runs, economy), pay = questPay(runs, economy);
+export function htmlReport(runs, checks, economy, { payRuns = runs } = {}) {
+  const L = lineChart(runs, economy), pay = questPay(payRuns, economy);
   const legend = keys => keys.map((k, i) => `<span class="key"><i style="background:var(--series-${i + 1})"></i>${esc(k)}</span>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Economy Balance Report</title>
 <style>

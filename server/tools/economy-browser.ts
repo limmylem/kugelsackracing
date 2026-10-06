@@ -94,7 +94,7 @@ try {
   await app.economy.adminMoney(boss, pia, -5600, 'Browser test: leave too little');
   const refused = await tab1.evaluate(async () => {
     const w = window as any; w.log.length = 0;
-    const r = await w.P.buyPart('intake_race');
+    const r = await w.P.buyPart('catback_sport');
     await new Promise(res => setTimeout(res, 50));
     return { ok: r.ok, error: r.error, money: w.P.profile.money, log: w.log, toast: document.getElementById('krToast')?.textContent, shown: document.getElementById('krToast')?.className };
   });

@@ -126,6 +126,28 @@ also pause when idle, and wake in a second or so.
 `account/terms.html` and `account/privacy.html` were written with the game as a starting point. Have them
 reviewed before the game is opened to the public.
 
+### The shop (Phase 6 Step 4, docs/SHOP.md)
+
+- **Selling changed, and needs the owner's OK.** The old condition curve let a player profit by repairing a part
+  just to sell it (the exploit check found $1,806 on a wrecked engine). A sale is now worth less a share of its
+  repair bill (`sell.repairShare` 0.5, `floor` 0.1). A new part still sells for 60% of what was paid. Worn and
+  damaged parts sell for more than before: a part at 0% sold for 6% of its price, and now sells for about 40%. The
+  old rule comes back by removing `repairShare` from the settings, and with it the exploit.
+- **Makers are made up.** Parts had no makers, so `shop.makers` gives one per category ("Airwerk" intakes,
+  "Gripmax" tyres…), "Sackworks Racing" for race parts and "Factory" for stock and car-specific parts. Admins can
+  change any part's maker.
+- **A used car's history is generated**, from its mileage and the day's seed: services, accidents and parts
+  fitted. It's flavour, consistent with the car's condition, not a record of anything that happened.
+- **The used lot isn't a shared stock.** Everyone sees the same cars all day, and each player can buy each car
+  once. One player buying a car doesn't take it off anyone else's lot.
+- **New parts and cars come from their data files.** The admin catalogue prices, hides, locks and times what's
+  there. Making a new part (its stats and model) is still the data files' and the editor's job.
+- **The sim's bots sell a car roughly.** With the garage full they sell the weakest for 60% of what they paid for
+  it and its parts, close to the game's value for a car in good condition. They value a used car by its listed
+  rating.
+- **Refund and confirmation timing.** "Click again to confirm" lasts 3.5 s. Under software rendering (the tests'
+  Chromium) two clicks can be further apart than that, so the browser test clicks twice at once.
+
 ## Known issues (Phase 5 and before)
 
 ### The baked world: spots where cars stop dead

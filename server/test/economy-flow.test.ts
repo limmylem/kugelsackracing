@@ -126,7 +126,7 @@ test('a guest plays, then makes an account: their money, cars and parts come wit
   const g = new Player(T.app, '10.8.2.1');
   await g.post('/api/auth/sign-in/anonymous', {});
   await g.post('/api/v1/me/terms', { termsVersion: T.config.termsVersion, birthDate: birth(20) });
-  const bought = await act(g, 'buyPart', { partId: 'intake_race' });
+  const bought = await act(g, 'buyPart', { partId: 'cold_air_intake' });
   assert.equal(bought.status, 200, bought.text);
   const before = await profile(g), guestId = (await g.get('/api/v1/me')).body.user.id;
   await g.post('/api/auth/sign-up/email', { email: 'gina@example.com', password: 'correct horse battery', name: 'Gina Grip', acceptTerms: T.config.termsVersion, birthDate: birth(20) });

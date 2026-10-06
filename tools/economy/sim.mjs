@@ -1,8 +1,10 @@
-// The economy simulation (Phase 4 Step 5): a bot player over hours of play, on the game's own rules —
+// The economy simulation (Phase 4 Step 5; the shop: Phase 6 Step 4): a bot player over hours of play, on the game's own rules —
 // the quests' rewards, fees, tiers and anti-farming (content/quests.js, quest/rules.js), levels, series
 // bonuses, real part and car prices and the garage's real ratings (garage/), and crash repairs from the
 // crash test suite's real bills. What it doesn't model is the driving: a run's outcome comes from the
-// bot's skill and its car against the quest (data/economy.json simulation.performance).
+// bot's skill and its car against the quest (data/economy.json simulation.performance). The shop is the game's
+// (garage/shop.js): prices now, level locks, kits, the day's used lot; with the garage full, the weakest car
+// is sold (for its sell value) to make room.
 //
 //   makePool(economy, config, seed) → { quests: [quest items, rated — track events among them], series: [series items] }
 //   simulate({ db, config, pool, crashTable, skill, hours, seed }) → { events, samples, totals, ... }
@@ -15,6 +17,7 @@ import { earnings, levelOf, farmingFactor } from '../../quest/rules.js';
 import { seriesBonus } from '../../garage/player/quests.js';
 import { rng as makeRng, hashSeed } from '../../ai/rng.js';
 import { trackFarming, capQuick } from '../../track/events/records.js';
+import { offer, lockOf, unlockRule, bundles, usedLot, dayOf, capacity } from '../../garage/shop.js';
 
 const CLASS_ORDER = ['D', 'C', 'B', 'A', 'S', 'X'];
 
@@ -72,7 +75,11 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
   const r = makeRng(hashSeed(seed, 'bot', skill));
   const normal = () => { let u = 0; for (let i = 0; i < 6; i++) u += r(); return (u - 3) / Math.sqrt(0.5); };
   const byId = Object.fromEntries(pool.quests.map(q => [q.id, q]));
-  const newCar = carId => { const g = new Garage(db, null, carId), st = g.stats(); return { carId, garage: g, value: carPrice(db, db.cars[carId]), partsValue: 0, rating: st.totals.rating.index, cls: st.totals.rating.class }; };
+  const newCar = (carId, paid = carPrice(db, db.cars[carId]), state = null) => { const g = new Garage(db, state, carId), st = g.stats(); return { carId, garage: g, value: carPrice(db, db.cars[carId]), paid, partsValue: 0, partsPaid: 0, rating: st.totals.rating.index, cls: st.totals.rating.class }; };
+  // (the shop's rules: what it costs now, whether the bot's level — or series — unlocks it)
+  const now = () => now0 + st.t * 1000;
+  const lockedBy = rule => !!lockOf(db, { xp: st.xp, series: Object.fromEntries(Object.keys(st.series).map(k => [k, { completed: true }])) }, rule, config), locked = (kind, id) => lockedBy(unlockRule(db, kind, id));
+  const priceOf = (kind, id) => { const o = offer(db, kind, id, now()); return o.forSale && !locked(kind, id) ? o.price : null; };
   const st = { money: E.startingMoney, xp: 0, cars: [newCar(E.startingCar)], progress: {}, series: {}, t: 0, tracks: {} };
   // (a track event: farming by its track's code — a quick race's a fresh code every time — and the quick races' hourly cap)
   const trackQuest = q => q.track?.kind === 'quick' ? { ...q, track: { ...q.track, code: `${q.track.code}-${runs}` } } : q;
@@ -85,7 +92,8 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     return out;
   }
   const car = () => st.cars[st.cars.length - 1];
-  const events = [], samples = [], spend = { repairs: 0, parts: 0, cars: 0, fees: 0 }, income = {}, crashes = [];
+  const events = [], samples = [], spend = { repairs: 0, parts: 0, cars: 0, fees: 0 }, income = {}, crashes = [], sold = { cars: 0, money: 0 };
+  const lotBought = new Set();
   let firstUpgrade = null, secondCar = null, stuck = 0, runs = 0, safetyNet = 0;
   const recentGold = [];                  // (the gold rewards of its last runs: a typical race reward for it now)
   const typical = () => { const a = recentGold.slice().sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : 0; };
@@ -130,7 +138,7 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     const g = new Garage(db, null, carId), base = g.stats().totals.rating.index, saved = JSON.stringify(g.state), slots = new Set(db.cars[carId].sockets.map(s => s.slot)), out = [];
     for (const part of Object.values(db.parts)) {
       if (!slots.has(part.slot) || part.retired || part.todo?.length) continue;
-      const cost = part.price * setSize(db, part, carId);
+      const cost = (offer(db, 'part', part.id, now0).list ?? part.price) * setSize(db, part, carId);
       if (cost <= 0) continue;
       if (g.install(part.id)?.ok !== false) { const gain = g.stats().totals.rating.index - base; if (gain > 0) out.push({ id: part.id, cost, est: gain }); }
       g.state = JSON.parse(saved);
@@ -143,7 +151,10 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
   function bestUpgrade(c, budget) {
     const saved = JSON.stringify(c.garage.state), owned = new Set(c.bought ?? []);
     let pick = null, tried = 0;
-    for (const o of gainsOf(c.carId)) {
+    for (const g0 of gainsOf(c.carId)) {
+      const each = priceOf('part', g0.id);
+      if (each == null) continue;
+      const o = { ...g0, cost: each * setSize(db, db.parts[g0.id], c.carId) };
       if (o.cost > budget || owned.has(o.id)) continue;
       if (++tried > 10) break;
       if (c.garage.install(o.id)?.ok !== false) {
@@ -154,22 +165,52 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     }
     return pick;
   }
+  // a kit for this car, as an upgrade: every part of it fitted, its rating gain for its price
+  function bestKit(c, budget) {
+    let pick = null;
+    for (const k of bundles(db, c.carId, now())) {
+      if (!k.forSale || k.price > budget || lockedBy(k.unlock) || k.items.some(it => locked('part', it.partId) || (c.bought ?? []).includes(it.partId))) continue;
+      const saved = JSON.stringify(c.garage.state);
+      let ok = true;
+      for (const it of k.items) if (c.garage.install(it.partId)?.ok === false) { ok = false; break; }
+      const gain = ok && c.garage.drivable().ok ? c.garage.stats().totals.rating.index - c.rating : 0;
+      c.garage.state = JSON.parse(saved);
+      if (gain >= SH.minGain && (!pick || gain / k.price > pick.gain / pick.cost)) pick = { kit: k, cost: k.price, gain };
+    }
+    return pick;
+  }
+  // the garage full: the weakest car sold to make room (its sell value: what was paid for it and its parts × sell.ratio)
+  function makeRoom() {
+    if (st.cars.length < capacity(db, null)) return;
+    const weakest = st.cars.slice(0, -1).sort((a, b) => a.rating - b.rating)[0];
+    const value = Math.round((weakest.paid + weakest.partsPaid) * E.sell.ratio);
+    st.cars.splice(st.cars.indexOf(weakest), 1);
+    st.money += value; sold.cars++; sold.money += value;
+    events.push({ t: st.t, what: 'sold', carId: weakest.carId, price: value });
+  }
   function shop() {
     const c = car();
-    // a better car: rated well above this one, affordable with the reserve left over
+    // a better car — new from the dealer or from today's used lot: rated well above this one, affordable with the reserve left over
     const cars = Object.keys(db.cars).filter(id => !db.cars[id].retired && !st.cars.some(x => x.carId === id));
     let best = null;
     for (const id of cars) {
-      const price = carPrice(db, db.cars[id]);
-      if (price > st.money - SH.reserve) continue;
+      const price = priceOf('car', id);
+      if (price == null || price > st.money - SH.reserve) continue;
       const g = new Garage(db, null, id), rating = g.stats().totals.rating.index;
       if (rating < c.rating + SH.carMargin) continue;
       if (!best || rating / price > best.rating / best.price) best = { id, price, rating };
     }
+    for (const l of usedLot(db, dayOf(now()))) {
+      if (lotBought.has(l.id) || st.cars.some(x => x.carId === l.carId) || l.price > st.money - SH.reserve || locked('car', l.carId) || !l.rating) continue;
+      if (l.rating.index < c.rating + SH.carMargin) continue;
+      if (!best || l.rating.index / l.price > best.rating / best.price) best = { id: l.carId, price: l.price, rating: l.rating.index, listing: l };
+    }
     if (best) {
+      makeRoom();
       st.money -= best.price; spend.cars += best.price;
-      st.cars.push(newCar(best.id));
-      events.push({ t: st.t, what: 'car', carId: best.id, price: best.price });
+      if (best.listing) lotBought.add(best.listing.id);
+      st.cars.push(newCar(best.id, best.price));
+      events.push({ t: st.t, what: 'car', carId: best.id, price: best.price, used: !!best.listing });
       if (st.cars.length === 2 && secondCar == null) secondCar = st.t;
       return true;
     }
@@ -177,11 +218,21 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     // car's build changes)
     const budget = st.money - SH.reserve;
     if (budget <= 0) return false;
-    const pick = bestUpgrade(c, budget);
+    const one = bestUpgrade(c, budget), kit = bestKit(c, budget);
+    if (kit && (!one || kit.gain / kit.cost > one.gain / one.cost)) {
+      for (const it of kit.kit.items) c.garage.install(it.partId);
+      const s2 = c.garage.stats();
+      c.rating = s2.totals.rating.index; c.cls = s2.totals.rating.class; c.partsValue += kit.kit.sum; c.partsPaid += kit.cost; (c.bought ??= []).push(...kit.kit.items.map(it => it.partId));
+      st.money -= kit.cost; spend.parts += kit.cost;
+      events.push({ t: st.t, what: 'kit', kitId: kit.kit.id, price: kit.cost, gain: kit.gain });
+      if (firstUpgrade == null && kit.gain >= SIM.targets.meaningfulGain) firstUpgrade = st.t;
+      return true;
+    }
+    const pick = one;
     if (!pick) return false;
     c.garage.install(pick.id);
     const s2 = c.garage.stats();
-    c.rating = s2.totals.rating.index; c.cls = s2.totals.rating.class; c.partsValue += pick.cost; (c.bought ??= []).push(pick.id);
+    c.rating = s2.totals.rating.index; c.cls = s2.totals.rating.class; c.partsValue += pick.cost; c.partsPaid += pick.cost; (c.bought ??= []).push(pick.id);
     st.money -= pick.cost; spend.parts += pick.cost;
     events.push({ t: st.t, what: 'part', partId: pick.id, price: pick.cost, gain: pick.gain });
     if (firstUpgrade == null && pick.gain >= SIM.targets.meaningfulGain) firstUpgrade = st.t;
@@ -243,7 +294,7 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
   }
   sample();
   const earned = Object.values(income).reduce((a, x) => a + x.money, 0) + events.filter(e => e.what === 'series').reduce((a, e) => a + e.money, 0);
-  return { skill, hours, runs, stuck, safetyNet, firstUpgrade, secondCar, samples, events, spend, income, crashes, earned, level: levelOf(st.xp, config), xp: st.xp, money: st.money, cars: st.cars.map(c => ({ carId: c.carId, rating: c.rating, cls: c.cls })), runLog: st.runLog ?? [], series: Object.keys(st.series).length };
+  return { skill, hours, runs, stuck, safetyNet, firstUpgrade, secondCar, samples, events, spend, sold, income, crashes, earned, level: levelOf(st.xp, config), xp: st.xp, money: st.money, cars: st.cars.map(c => ({ carId: c.carId, rating: c.rating, cls: c.cls })), runLog: st.runLog ?? [], series: Object.keys(st.series).length };
 }
 
 // The crash suite's full repair for each car at each speed (the average of every crash there)
