@@ -37,9 +37,9 @@ jobs:
         run: npm run stress
       - name: Baked world tests (heights, railings at 50–300 km/h, 20 km streaming at 200 km/h, memory, physics on a real road)
         run: npm run test:world
-      - name: World content at scale (50,000 markers: queries, per-frame work, memory)
+      - name: 'World content at scale (50,000 markers: queries, per-frame work, memory)'
         run: npm run stress:content
-      - name: Routes at scale (a 60 km route: routing, edits, the tracker, dressing memory)
+      - name: 'Routes at scale (a 60 km route: routing, edits, the tracker, dressing memory)'
         run: npm run perf:route
       - name: Map v3 typecheck
         run: npm run map:typecheck
@@ -47,7 +47,7 @@ jobs:
         run: node --test tests/map/unit.test.ts
       - name: Map v3 baked-map tests (roads, heights, seams, datum, railings, streaming, memory, determinism, physics)
         run: npm run test:map
-      - name: Routes on real roads (six regions, five countries: routed, then driven to the finish in the physics)
+      - name: 'Routes on real roads (six regions, five countries: routed, then driven to the finish in the physics)'
         run: npm run test:routes
       - name: Quests on real roads (every quest type driven to a valid result; the same time at 30, 60 and 144 fps; 50 restarts)
         run: npm run test:quests

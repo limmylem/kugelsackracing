@@ -75,7 +75,9 @@ jobs:
           if [ "${{ matrix.tag }}" = macos ]; then for r in compat deterministic; do DET_MATH=all node tests/determinism/run.ts replay --in $D --rapier $r --label macos-arm64-node-$r; done; fi
           cp $D/hashes-*.json out/ && rm -f out/hashes-linux-x64-node-*.json
       - uses: actions/upload-artifact@v4
-        with: { name: det-${{ matrix.tag }}, path: out }
+        with:
+          name: det-${{ matrix.tag }}
+          path: out
 
   compare:
     needs: replay

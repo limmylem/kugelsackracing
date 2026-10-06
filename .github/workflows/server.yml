@@ -54,7 +54,8 @@ jobs:
 
   staging:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # (skipped until hosting is set up: the STAGING_URL variable and the deploy hook — docs/SERVER.md)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.STAGING_URL != ''
     runs-on: ubuntu-latest
     environment:
       name: staging
