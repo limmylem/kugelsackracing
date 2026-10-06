@@ -10,6 +10,10 @@
 
 ## Reminders for the user (raise them at the right time)
 
+- **Deployment is paused**: the game runs on localhost only (Docker Compose) until multiplayer fully works. Don't
+  run the `infra` workflow, deploy, or create accounts. Keep docs/DEPLOYMENT.md current, and put anything that needs
+  real hosting (CDN, DNS, status page, hosting costs, real email) under its "To do when we deploy".
+
 - **Hosting is on free plans** (docs/DEPLOYMENT.md). Remind the user to upgrade to at least the ~$13/month plan
   (Render Starter for the API; Render Postgres or Neon's paid plan) **before Phase 7 multiplayer testing or before
   inviting beta testers**, whichever comes first.

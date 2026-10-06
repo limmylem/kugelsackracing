@@ -15,10 +15,26 @@ session cookie stays first-party.
 
 ## Running it on your computer
 
-Either with Docker:
+Everything runs on this computer with Docker Compose (nothing online is needed, and nothing is deployed:
+[DEPLOYMENT.md](DEPLOYMENT.md) is paused):
 
 ```sh
-docker compose up --build        # the game and the API on http://localhost:8787, emails at http://localhost:8025
+docker compose up --build
+```
+
+| Address | What |
+|---|---|
+| http://localhost:8787 | The game, the API, the admin page (`/admin/`) and the editor |
+| http://localhost:8788 | The map files, cars, parts and sounds (`assets/`) on their own address, as online: byte ranges, CORS for the game only (nginx, `docker/tiles.nginx.conf`) |
+| http://localhost:8025 | Mailpit: every email the game sends (sign-up confirmations, password resets) — open it and click the link |
+| localhost:5432 | PostgreSQL 16 with PostGIS (user `kr`, password `kr`, database `kr_dev`) |
+
+To check the whole thing works (the server, the tiles, signing up and resetting a password through Mailpit, the
+game loading, streaming its map from the tiles address, driving, and buying a part through the server), with the
+stack running:
+
+```sh
+node server/tools/local-check.ts     # --local-libs: three.js, Rapier and MapLibre from node_modules, not jsDelivr
 ```
 
 Or with a PostgreSQL that has PostGIS:
@@ -98,7 +114,7 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
 
 ## Hosting
 
-The online setup (Cloudflare for the game, its files and DNS; Render for the API; Neon for the databases; Resend for
+**Paused, not yet deployed:** the game runs on localhost until multiplayer works. The online setup (Cloudflare for the game, its files and DNS; Render for the API; Neon for the databases; Resend for
 email), how to deploy and roll back, and what to renew: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 In staging and production the server runs with `serveClient: "tools"`:

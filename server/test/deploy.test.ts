@@ -48,6 +48,10 @@ test('the API\'s own address: the game\'s pages to the game\'s address, map file
   assert.equal((await get('/editor/editor.js')).statusCode, 302);
   // where everything is
   const cfg = await get('/site/config.js');
+  // (and the pages may reach them: on this computer they're http:// and ws://, which 'https:' doesn't cover)
+  const csp = String((await get('/site/urls.js')).headers['content-security-policy']);
+  assert.match(csp, /connect-src [^;]*http:\/\/tiles\.example\.test[^;]*ws:\/\/rt\.example\.test/);
+  assert.match(csp, /worker-src [^;]*https:\/\/cdn\.jsdelivr\.net/);
   assert.match(cfg.body, /"api":""/); assert.match(cfg.body, /"game":"http:\/\/game\.example\.test"/); assert.match(cfg.body, /"tiles":"http:\/\/tiles\.example\.test"/); assert.match(cfg.body, /"rt":"ws:\/\/rt\.example\.test"/);
 });
 
@@ -64,4 +68,17 @@ test('health: which database, as a fingerprint (staging\'s and production\'s mus
   const h = JSON.parse((await T.app.inject({ method: 'GET', url: '/api/v1/health' })).body);
   assert.match(h.dbId, /^[0-9a-f]{10}$/);
   assert.ok(!JSON.stringify(h).includes('postgres'), 'nothing of the connection string itself');
+});
+
+test('the game\'s own files don\'t count against the per-address limit (the API does)', async () => {
+  const lim = { max: 20, windowSec: 60 }, big = { max: 100000, windowSec: 60 };
+  const L = await testApp('deploy_limit', { overrides: { serveClient: true, rateLimits: { global: lim, auth: big, signUp: big, write: big } } });
+  try {
+    const files: { statusCode: number }[] = [];
+    for (let i = 0; i < 40; i++) files.push(await L.app.inject({ method: 'GET', url: '/garage/data.js', headers: { 'x-forwarded-for': '10.77.0.1' } }));
+    assert.ok(files.every(r => r.statusCode === 200), `${files.filter(r => r.statusCode !== 200).length} of 40 refused`);
+    const api: { statusCode: number }[] = [];
+    for (let i = 0; i < 25; i++) api.push(await L.app.inject({ method: 'GET', url: '/api/v1/health', headers: { 'x-forwarded-for': '10.77.0.2' } }));
+    assert.ok(api.some(r => r.statusCode === 429), 'the API is limited');
+  } finally { await L.close(); }
 });

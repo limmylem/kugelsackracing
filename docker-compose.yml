@@ -1,5 +1,9 @@
-# Local development (docs/SERVER.md): the server and the game on http://localhost:8787, PostgreSQL with
-# PostGIS, and Mailpit catching every email (http://localhost:8025: the verification and reset links).
+# The game on this computer (docs/SERVER.md "Running it on your computer"), everything local, nothing online:
+#   http://localhost:8787   the game and the API (the server)
+#   http://localhost:8788   the map files, cars, parts and sounds (assets/), served as the tiles address will be
+#                           online: their own address, byte ranges, CORS for the game only (nginx)
+#   http://localhost:8025   Mailpit: every email the game sends (sign-up confirmations, password resets) lands here
+#   localhost:5432          PostgreSQL 16 with PostGIS
 #   docker compose up --build
 # Development values only: nothing here is a real secret. Staging and production take theirs from Render's
 # environment (render.yaml).
@@ -19,11 +23,19 @@ services:
   mailpit:
     image: axllent/mailpit:v1.21
     ports: ["8025:8025"]
+  tiles:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./assets:/srv/assets:ro
+      - ./docker/tiles.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: ["8788:80"]
   server:
     build: .
     environment:
       APP_ENV: development
       PUBLIC_URL: http://localhost:8787
+      TILES_URL: http://localhost:8788
+      RT_URL: ws://localhost:8787
       DATABASE_URL: postgres://kr:kr@db:5432/kr_dev
       BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
       SMTP_URL: smtp://mailpit:1025
@@ -33,5 +45,6 @@ services:
     depends_on:
       db: { condition: service_healthy }
       mailpit: { condition: service_started }
+      tiles: { condition: service_started }
 volumes:
   db:

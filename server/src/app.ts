@@ -107,6 +107,9 @@ export async function buildApp(deps: AppDeps) {
   const G = guards(auth, config);
 
   // ---------- security headers, CORS, cookies, CSRF ----------
+  // (the map files' and the real-time server's own addresses, when they're elsewhere — on this computer they're
+  // http:// and ws://, which 'https:' doesn't cover)
+  const elsewhere = [config.tilesUrl, config.rtUrl].filter((u): u is string => !!u).map(u => new URL(u).origin);
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
@@ -114,13 +117,13 @@ export async function buildApp(deps: AppDeps) {
         // (the game's pages: their own modules, inline module scripts and import maps, three.js and Rapier from
         // the jsDelivr CDN, Rapier's WebAssembly)
         scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:'],
-        workerSrc: ["'self'", 'blob:'],
+        workerSrc: ["'self'", 'blob:', 'https://cdn.jsdelivr.net'],   // (MapLibre's worker, for the maps)
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         // (map tiles and the world's data come from several hosts)
-        connectSrc: ["'self'", 'https:', 'data:', 'blob:'],
-        mediaSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'", 'https:', 'data:', 'blob:', ...elsewhere],
+        mediaSrc: ["'self'", 'data:', 'blob:', ...elsewhere],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
         baseUri: ["'self'"],
@@ -154,6 +157,9 @@ export async function buildApp(deps: AppDeps) {
   const writeLimit = limiter(RL.write.max, RL.write.windowSec, async r => { const s = await sessionOf(auth, r); return s ? `acct:${s.user.id}` : `ip:${r.ip}`; });
   const STRICT = /^\/api\/auth\/+(sign-in|sign-up|request-password-reset|reset-password|send-verification-email|forget-password)/;
   app.addHook('onRequest', async req => {
+    // (the API and real time only: the game's own files are hundreds of small modules, fetched every time the game
+    // loads — counting them, two page loads used up a minute's allowance)
+    if (!req.url.startsWith('/api/') && !req.url.startsWith('/rt/')) return;
     await ipLimit(req);
     if (req.method !== 'POST') return;
     if (STRICT.test(req.url)) await authLimit(req);

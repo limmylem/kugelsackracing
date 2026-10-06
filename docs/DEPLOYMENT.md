@@ -1,5 +1,11 @@
 # Deployment: the game online at ognistrada.com
 
+> **Status: paused, not yet deployed** (decided after the deployment step, before Phase 6 Step 4). The game runs
+> on localhost only, with Docker Compose ([SERVER.md](SERVER.md#running-it-on-your-computer)), until multiplayer
+> fully works; then a cheap paid server. No accounts have been made and the `infra` workflow has never run. Everything
+> below is built and ready (the workflows skip themselves while `CLOUDFLARE_ACCOUNT_ID` isn't set); what's left is
+> in [To do when we deploy](#to-do-when-we-deploy). Keep this file up to date with anything that will matter online.
+
 Every service, address and setting the online game uses; how to set it up, deploy it, roll it back and keep it
 running; and what to renew. For the server itself see [SERVER.md](SERVER.md), and for the economy
 [ECONOMY_SERVER.md](ECONOMY_SERVER.md).
@@ -10,6 +16,36 @@ set up so going to the paid plan is a settings change: see [Upgrading](#upgradin
 > **Reminder:** upgrade to at least the ~$13/month plan **before Phase 7 multiplayer testing, or before inviting
 > beta testers**, whichever comes first. The free plans sleep, and they lose data more easily (see
 > [Free plans: what to watch](#free-plans-what-to-watch)).
+
+## To do when we deploy
+
+In order. Nothing here has been done yet; each needs the owner (accounts, money, DNS).
+
+1. **Choose the plan.** The plan below is free plans; since the plan is now to go online once multiplayer works,
+   start on the paid one instead ([Upgrading](#upgrading-about-13-a-month), about $13 a month). Ask before paying.
+2. **Make the accounts** ([Setting it up](#setting-it-up-once) 1–5): Cloudflare (the domain's DNS, Pages, R2),
+   Neon (two databases with PostGIS), Resend (two keys, the sending domain), Render (two services from
+   `render.yaml`), and GitHub's environments, variables and secrets.
+3. **Run the `infra` workflow** (step 6): DNS records, the R2 buckets and their CORS, the Pages projects, the
+   redirect rule, Resend's domain records.
+4. **The first deploy** (step 7), then the [Checks](#checks): `tools/check-deploy.mjs` against staging, then
+   production.
+5. **Real email:** Resend instead of Mailpit (`SMTP_URL` on Render). On this computer every email goes to Mailpit;
+   the sending domain's SPF/DKIM records and real delivery have only been tested on paper.
+6. **What only the real setup can check:** Cloudflare's CDN caching of the tiles (range requests through the
+   edge), WebSockets through Cloudflare to `rt.` ([Real time](#real-time-through-cloudflare-or-straight)), the
+   player's address via `EDGE_SECRET`, HSTS (turn `HSTS` on once HTTPS works everywhere), a status page or uptime
+   check (not built: [Once everything works](#once-everything-works)).
+7. **Hosts the game reaches besides its own:** jsDelivr (three.js, Rapier, MapLibre and its worker), Google Fonts,
+   `demotiles.maplibre.org` (the map's lettering) and `tiles.openfreemap.org` (the photoreal world's minimap). The
+   content security policy (`server/src/app.ts`, `tools/build-site.mjs`) allows them; recheck it if any moves.
+8. **Phase 7 Step 1's two-player check** on different networks (CLAUDE.md), once multiplayer is built.
+
+What changed for localhost since this file was written, and matters online too:
+- The per-address rate limit counts only `/api/` and `/rt/` (the game's own files were being counted: a page
+  load is hundreds of modules).
+- The content security policy allows the tiles and real-time addresses by name (`TILES_URL`, `RT_URL`), and
+  MapLibre's worker from jsDelivr (the maps were blocked).
 
 ## The addresses
 
