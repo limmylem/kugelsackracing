@@ -116,10 +116,17 @@ if (want('barriers')) {
     sim.resetCar({ position: [sx, B.y + 0.7, sz], headingDeg: Math.atan2(hx, hz) * 180 / Math.PI, speed: kmh / 3.6 });
     sim.vehicle.sensor.take();
     const dmg = new CarDamage({ car, build: gar.build, view: gar.view, boxes: ctx.boxesOf(car), rules: ctx.db.damage }), hits: number[] = [];
+    // (the hit itself: what happens within 15 m of where it was aimed — not a car slid 100 m on along a
+    // curving wall into the next stretch, which depends on what's further along, not on the wall's material)
+    const dmgHere = new CarDamage({ car, build: gar.build, view: gar.view, boxes: ctx.boxesOf(car), rules: ctx.db.damage }), hitsHere: number[] = [];
     let worst = Infinity, hitIt = false, beyondAll = -Infinity, first: any = null;
     for (let t = 0; t < 2.5; t += sim.dt) {
       sim.step(IDLE);
-      for (const e of sim.vehicle.sensor.take()) { hits.push(e.strength); dmg.hit(e); if (BARRIER_MATERIALS.has(e.material)) { hitIt = true; first ??= e; } }
+      for (const e of sim.vehicle.sensor.take()) {
+        hits.push(e.strength); dmg.hit(e); if (BARRIER_MATERIALS.has(e.material)) { hitIt = true; first ??= e; }
+        const q = sim.vehicle.body.translation();
+        if (Math.hypot(q.x - B.x, q.z - B.z) < 15) { hitsHere.push(e.strength); dmgHere.hit(e); }
+      }
       // (how far on the track's side of the barrier's line the car is: through it, it'd be − its thickness
       // and more — there, and as it slides along it: past the barrier line nearest it)
       const p = sim.vehicle.body.translation();
@@ -127,8 +134,8 @@ if (want('barriers')) {
       beyondAll = Math.max(beyondAll, pastBarrier(B.T, p.x, p.z, type === 'pitwall'));
     }
     sim.vehicle.world.free();
-    const o = outcome(ctx.db, { car, damage: dmg }, hits, ctx.targets);
-    return { type, kmh, ang, through: worst < -(B.thick / 2 + 0.5) || beyondAll > B.thick / 2 + 0.5, hitIt, strength: o.strength, repair: o.repair.full, minCondition: o.minCondition, first: first && { material: first.material, closing: +first.closing.toFixed(1), strength: +first.strength.toFixed(1) } };
+    const o = outcome(ctx.db, { car, damage: dmg }, hits, ctx.targets), here = outcome(ctx.db, { car, damage: dmgHere }, hitsHere, ctx.targets);
+    return { type, kmh, ang, through: worst < -(B.thick / 2 + 0.5) || beyondAll > B.thick / 2 + 0.5, hitIt, strength: o.strength, repair: o.repair.full, minCondition: o.minCondition, here: { strength: here.strength, repair: here.repair.full, minCondition: here.minCondition }, first: first && { material: first.material, closing: +first.closing.toFixed(1), strength: +first.strength.toFixed(1) } };
   };
   const results: any[] = [];
   for (const [type, B] of Object.entries(found) as any) for (const kmh of DT.barrier.speeds) for (const ang of DT.barrier.angles) results.push(hit(B, B.T, type, kmh, ang));
@@ -139,10 +146,10 @@ if (want('barriers')) {
   // a tyre wall against concrete: the same wall, the same hits, built of concrete instead
   const B = found.tyres, D0 = B.T.data, asConcrete = { ...B.T, track: trackWorld({ ...D0, barriers: { ...D0.barriers, runs: D0.barriers.runs.map((r: any) => r.type === 'tyres' ? { ...r, type: 'concrete' } : r) } }) };
   const pairs = results.filter(r => r.type === 'tyres').map(r => [r, hit(B, asConcrete, 'concrete', r.kmh, r.ang)]);
-  const softer = pairs.filter(([t, c]) => t.repair < c.repair || (t.repair <= c.repair + 5 && t.strength < c.strength));
+  const softer = pairs.filter(([t, c]) => t.here.repair < c.here.repair || (t.here.repair <= c.here.repair + 5 && t.here.strength < c.here.strength));
   if (args.includes('--verbose')) for (const [t, c] of pairs) console.log(`        tyres ${JSON.stringify(t)}\n        concrete ${JSON.stringify(c)}`);
   report(pairs.length > 0 && softer.length === pairs.length, 'barriers: a tyre wall does less damage than concrete there',
-    pairs.filter(([t]) => t.ang === 90).map(([t, c]) => `${t.kmh} km/h head-on: repair ${t.repair} vs ${c.repair}, condition ${t.minCondition} vs ${c.minCondition}`).join(' · ') + ` · softer in ${softer.length} of ${pairs.length} hits`);
+    pairs.filter(([t]) => t.ang === 90).map(([t, c]) => `${t.kmh} km/h head-on: repair ${t.here.repair} vs ${c.here.repair}, condition ${t.here.minCondition} vs ${c.here.minCondition}`).join(' · ') + ` · softer in ${softer.length} of ${pairs.length} hits`);
 }
 
 // ---------- gravel: slows hard; a car rolling in slowly is beached ----------

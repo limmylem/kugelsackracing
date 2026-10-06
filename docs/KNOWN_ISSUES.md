@@ -112,6 +112,12 @@ Also:
 - **A tyre wall's softness is in the damage, not the physics**: it doesn't bounce and its hits reach the
   damage model at 55% (physics/settings.json impacts.materials), but the car still stops as fast as at a
   concrete wall — Rapier has no per-collider compliance.
+- **A glancing hit on a tyre wall carries the car along it**: with no bounce (restitution 0) a car that
+  glances a tyre wall at speed stays against it and slides on; where the wall curves on round a fast
+  corner's run-off it meets more of it further along (seen at 150 km/h, 15°, on a version-3 track:
+  2.3 m/s at the glance, a 26 m/s hit 100 m on). `npm run test:dress-drive` compares tyre walls and
+  concrete on the hit itself (within 15 m of where it was aimed). A little restitution, or less friction
+  along a tyre wall, would let it shed the car as concrete does.
 - **A car stopped in a gravel trap is beached**: it can't drive out (by design); the AI's and the
   tracker's resets (5 s off the route, or stuck) put it back — there are no marshals or recovery vehicles.
 - **The AI's racing line stays off the kerbs**: Phase 4's line keeps a margin from the road's edge (built
