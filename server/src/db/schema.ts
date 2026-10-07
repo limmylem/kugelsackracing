@@ -7,6 +7,7 @@
 //   audit_log: every admin action · idempotency_keys: writes applied once
 //   content_items / content_history / content_meta: world content (docs/WORLD_CONTENT.md, design note)
 //   track_results / track_records / replays: generated tracks' results, records, leaderboards, race replays
+//   friendships / blocks / mp_ratings / mp_races / mp_race_players: multiplayer (Phase 7 Step 2; docs/MULTIPLAYER.md)
 
 import { sql } from 'drizzle-orm';
 import { pgTable, text, boolean, timestamp, integer, real, bigserial, jsonb, index, uniqueIndex, primaryKey, customType, bigint } from 'drizzle-orm/pg-core';
@@ -422,3 +423,56 @@ export const alerts = pgTable('alerts', {
   sentAt: timestamp('sent_at', { withTimezone: true }),
   count: integer('count').notNull().default(1),
 });
+
+// ---------- multiplayer (Phase 7 Step 2; docs/MULTIPLAYER.md) ----------
+// friends: one row a pair (a_id < b_id), asked by one, accepted by the other
+export const friendships = pgTable('friendships', {
+  aId: text('a_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  bId: text('b_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: text('status').notNull(),                                      // pending | accepted
+  requestedBy: text('requested_by').notNull(),
+  createdAt: created(), acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+}, t => [primaryKey({ columns: [t.aId, t.bId] }), index('friendships_b').on(t.bId)]);
+// a player blocked by another: no chat, invites or friend requests from them; not matched together
+export const blocks = pgTable('blocks', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedId: text('blocked_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: created(),
+}, t => [primaryKey({ columns: [t.userId, t.blockedId] })]);
+// each player's skill rating (OpenSkill: mu, sigma), changed only by confirmed races
+export const mpRatings = pgTable('mp_ratings', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  mu: real('mu').notNull(), sigma: real('sigma').notNull(),
+  races: integer('races').notNull().default(0), wins: integer('wins').notNull().default(0),
+  updatedAt: updated(),
+});
+// a race (the race server reports it as it ends: provisional; the API confirms it once the runs are checked)
+export const mpRaces = pgTable('mp_races', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),                                          // quick | private | custom
+  ranked: boolean('ranked').notNull(),
+  venue: jsonb('venue').notNull(),                                       // what was raced: a route, a track code
+  settings: jsonb('settings').notNull(),
+  courseVersion: text('course_version'), trackHash: text('track_hash'),
+  km: real('km').notNull(),
+  humans: integer('humans').notNull(), npcs: integer('npcs').notNull(),
+  state: text('state').notNull(),                                        // provisional | confirmed
+  provisional: jsonb('provisional').notNull(),
+  confirmed: jsonb('confirmed'),
+  createdAt: created(), confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, t => [index('mp_races_state').on(t.state, t.createdAt)]);
+export const mpRacePlayers = pgTable('mp_race_players', {
+  raceId: text('race_id').notNull().references(() => mpRaces.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provisionalPlace: integer('provisional_place').notNull(),
+  place: integer('place'),
+  status: text('status').notNull(),                                      // finished | dnf | dsq (confirmed); as the server saw it before
+  leftEarly: boolean('left_early').notNull().default(false),
+  serverTimeMs: integer('server_time_ms'),
+  run: jsonb('run'),                                                     // the run as the game handed it in (quest/result.js)
+  recording: bytea('recording'),                                         // its recording, gzipped
+  verdict: jsonb('verdict'),                                             // { ok, problems }
+  pay: jsonb('pay'),                                                     // { money, xp, why }
+  ratingBefore: jsonb('rating_before'), ratingAfter: jsonb('rating_after'),
+  createdAt: created(),
+}, t => [primaryKey({ columns: [t.raceId, t.userId] }), index('mp_race_players_user').on(t.userId, t.createdAt)]);

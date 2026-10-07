@@ -4,24 +4,28 @@
 // no database — checks the signature and the expiry, and takes each ticket once. Nothing in it is secret; it just
 // can't be made or changed without RT_SECRET.
 //
-//   signTicket(secret, { uid, name, role, guest }, ttlSec) → 'payload.signature' (base64url)
-//   verifyTicket(secret, ticket, now?) → { uid, name, role, guest, jti, exp } or null
+//   signTicket(secret, { uid, name, role, guest, mp? }, ttlSec) → 'payload.signature' (base64url)
+//   verifyTicket(secret, ticket, now?) → { uid, name, role, guest, mp?, jti, exp } or null
+// mp (Phase 7 Step 2): what the races need to know of the player, from the API — their rating, their cars (each one's
+// class and performance rating, worked out on the server), who they've blocked, and when they may queue again.
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type Ticket = { uid: string; name: string; role: string; guest: boolean; jti: string; exp: number };
+export type MpCar = { instanceId: string; carId: string; name: string; cls: string; pr: number; current?: boolean };
+export type MpClaims = { rating: { mu: number; sigma: number; races: number }; cars: MpCar[]; blocked: string[]; cooldownUntil: number | null };
+export type Ticket = { uid: string; name: string; role: string; guest: boolean; mp?: MpClaims; jti: string; exp: number };
 
 const b64 = (b: Buffer) => b.toString('base64url');
 const mac = (secret: string, body: string) => createHmac('sha256', secret).update(body).digest();
 
-export function signTicket(secret: string, who: { uid: string; name: string; role: string; guest: boolean }, ttlSec: number, now = Date.now()): string {
+export function signTicket(secret: string, who: { uid: string; name: string; role: string; guest: boolean; mp?: MpClaims }, ttlSec: number, now = Date.now()): string {
   const t: Ticket = { ...who, jti: b64(randomBytes(12)), exp: Math.floor(now / 1000) + ttlSec };
   const body = b64(Buffer.from(JSON.stringify(t)));
   return `${body}.${b64(mac(secret, body))}`;
 }
 
 export function verifyTicket(secret: string, ticket: unknown, now = Date.now()): Ticket | null {
-  if (typeof ticket !== 'string' || ticket.length > 2048) return null;
+  if (typeof ticket !== 'string' || ticket.length > 16384) return null;
   const [body, sig, extra] = ticket.split('.');
   if (!body || !sig || extra !== undefined) return null;
   const want = mac(secret, body), got = Buffer.from(sig, 'base64url');

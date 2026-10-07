@@ -3,7 +3,9 @@
 // player's car (paced to NET.sendHz, only what changed, a full state every NET.keyframeSec), and keeps every other
 // player's car (remote.js) for the game to draw.
 //
-//   const N = createNetClient({ transport, endpoint, getTicket, world, look, netsim, serverNetsim, settings })
+//   const N = createNetClient({ transport, endpoint, getTicket, world, look, netsim, serverNetsim, settings, roomName, join })
+//     join (Phase 7 Step 2): { how: 'joinOrCreate' | 'create' | 'joinById' | 'reservation', roomId, reservation, options }
+//     — a race room: by its id, a seat the matchmaker reserved, or a new lobby; N.conn.sendJson / onJson its messages
 //     transport: transport.js · getTicket() → { ticket, url } (POST /api/v1/rt/ticket) · netsim: conditions
 //     (net/netsim.js) on this side · serverNetsim: '150,30,0.05' for the server's side (development/tests)
 //   await N.connect()            rejects with { code, message } (protocol.CODES / MESSAGES) when refused
@@ -26,7 +28,7 @@ import { withNetsim } from './transport.js';
 
 const WS_UP = 8, WS_DOWN = 4;                     // (a WebSocket frame's header (masked from the client) + the type)
 
-export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test' }) {
+export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test', join = null }) {
   const S = settings, clock = createClock({ now });
   const listeners = { status: new Set(), roster: new Set(), event: new Set(), notice: new Set() };
   const emit = (k, v) => { for (const f of listeners[k]) { try { f(v); } catch (e) { console.error(e); } } };
@@ -136,11 +138,15 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
     async connect() {
       setStatus('connecting');
       let t;
-      try { t = await getTicket(); }
-      catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code)); throw { code, message: messageFor(code) }; }
+      // (a reserved seat needs no ticket: the reservation is the player's)
+      if (join?.how === 'reservation') t = { ticket: null, url: endpoint };
+      else {
+        try { t = await getTicket(); }
+        catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code)); throw { code, message: messageFor(code) }; }
+      }
       try {
         fullStates ||= !!transport.unreliable;
-        const c = await transport.join(endpoint ?? t.url, roomName, { ticket: t.ticket, protocol: PROTOCOL, world, ...(fullStates ? { fullStates: true } : {}), ...(serverNetsim ? { netsim: serverNetsim } : {}) });
+        const c = await transport.join(endpoint ?? t.url, roomName, { ticket: t.ticket, protocol: PROTOCOL, world, ...(join?.options ?? {}), how: join?.how, roomId: join?.roomId, reservation: join?.reservation, ...(fullStates ? { fullStates: true } : {}), ...(serverNetsim ? { netsim: serverNetsim } : {}) });
         conn = links ? withNetsim(c, { ...links, unreliable: { up: [C2S.STATE], down: [S2C.SNAPSHOT] } }) : c;
       } catch (e) {
         const code = e?.code ?? 0, m = messageFor(code, e?.message ?? 'Couldn\'t reach the game server.');

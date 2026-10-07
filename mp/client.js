@@ -1,0 +1,109 @@
+// A player's multiplayer, the game's side (Phase 7 Step 2; docs/MULTIPLAYER.md): the hub (friends, invites, parties,
+// the lobby browser), the quick-race queue, and the lobby and race they're in — the same for the game's screens
+// (play/mpScreens.js) and the bots (mp/bot.js). Nothing of the page in here.
+//
+//   const S = createMpSession({ transport, endpoint, getTicket, look, now })
+//     getTicket() → { ticket, url }: a fresh one each join (they're used once)
+//   await S.hub()                  the hub: S.friends, S.party; events 'friends' 'invite' 'party' 'party-invite' 'goto' 'notice'
+//   await S.queue({ region, pings, car, party })   the quick-race queue: 'queued' 'npc-offer' then 'matched' — and the race joined by itself
+//   S.acceptNpcs(yes)  S.leaveQueue()
+//   await S.createLobby({ kind: 'private' | 'custom', settings })    await S.joinLobby(roomId, { spectate })    await S.joinCode(code)
+//   S.race: the lobby/race joined — S.race.net (net/client.js: cars), S.lobby (its latest view), S.chat, S.standings, S.results, S.confirmed
+//   S.send(msg)  to the lobby/race: ready, car, settings, start, kick, chat, loaded, spectate, race, run, rematch, ping
+//   S.leaveRace()   S.on(event, fn) → off   S.close()
+//   events: 'lobby' 'chat' 'phase' 'load' 'event' 'standings' 'results' 'confirmed' 'verdict' 'votes' 'notice' 'left' (and the hub's and queue's)
+
+import { createNetClient } from '../net/client.js';
+import { PROTOCOL } from '../net/protocol.js';
+
+export function createMpSession({ transport, endpoint = null, getTicket, look = null, now = () => performance.now(), netsim = null, serverNetsim = null }) {
+  const listeners = new Map();
+  const emit = (k, v) => { for (const f of listeners.get(k) ?? []) { try { f(v); } catch (e) { console.warn(e); } } };
+  let hub = null, queue = null, race = null;
+  const S = {
+    friends: [], party: null, lobby: null, myUid: null, chat: [], standings: null, results: null, confirmed: null, verdict: null, raceId: null, venue: null, phase: null, goAt: null, notices: [],
+    on(k, fn) { if (!listeners.has(k)) listeners.set(k, new Set()); listeners.get(k).add(fn); return () => listeners.get(k)?.delete(fn); },
+    get race() { return race; }, get hubConn() { return hub; }, get queueConn() { return queue; },
+
+    async hub(state = 'menu') {
+      if (hub) return hub;
+      const t = await getTicket();
+      hub = await transport.join(endpoint ?? t.url, 'hub', { ticket: t.ticket, protocol: PROTOCOL, state });
+      hub.onJson(m => {
+        if (m.t === 'hello') { S.friends = m.friends; S.party = m.party; emit('friends', S.friends); }
+        if (m.t === 'friends') { S.friends = m.list; emit('friends', S.friends); }
+        if (m.t === 'party') { S.party = m.party; emit('party', S.party); }
+        if (m.t === 'party-queue') emit('party-queue', m);
+        if (m.t === 'notice') { S.notices.push(m.text); emit('notice', m.text); }
+        if (['invite', 'party-invite', 'goto', 'lobbies'].includes(m.t)) emit(m.t, m);
+      });
+      hub.onStatus((s, info) => { if (s === 'left') { hub = null; emit('hub-left', info); } });
+      return hub;
+    },
+    hubSend(m) { hub?.sendJson(m); },
+    lobbies() { return new Promise(res => { const off = S.on('lobbies', m => { off(); res(m.list); }); S.hubSend({ t: 'lobbies' }); setTimeout(() => { off(); res([]); }, 5000); }); },
+
+    async queue({ region = 'local', pings = { local: 50 }, car = null, party = null } = {}) {
+      if (queue) return queue;
+      const t = await getTicket();
+      try { queue = await transport.join(endpoint ?? t.url, 'queue', { ticket: t.ticket, protocol: PROTOCOL, region, pings, car, party }); }
+      catch (e) { emit('notice', e.message); throw e; }
+      queue.onJson(async m => {
+        if (m.t === 'queued') emit('queued', m);
+        if (m.t === 'npc-offer') emit('npc-offer', m);
+        if (m.t === 'matched') {
+          emit('matched', m);
+          const q = queue; queue = null;
+          try { await S.joinRace({ how: 'reservation', reservation: m.reservation }); } catch (e) { emit('notice', e.message ?? 'Couldn\'t join the race.'); }
+          void q?.leave();
+        }
+      });
+      queue.onStatus((s, info) => { if (s === 'left' && queue) { queue = null; emit('queue-left', info); } });
+      return queue;
+    },
+    acceptNpcs(yes = true) { queue?.sendJson({ t: 'npc', yes }); },
+    async leaveQueue() { const q = queue; queue = null; await q?.leave(); },
+
+    async createLobby({ kind = 'custom', settings = {} } = {}) { return S.joinRace({ how: 'create', options: { kind, settings } }); },
+    async joinLobby(roomId, { spectate = false } = {}) { return S.joinRace({ how: 'joinById', roomId, options: { spectate } }); },
+    async joinCode(code) {
+      await S.hub();
+      const roomId = await new Promise((res, rej) => {
+        const off = S.on('goto', m => { off(); offN(); res(m.roomId); }), offN = S.on('notice', t => { off(); offN(); rej(new Error(t)); });
+        S.hubSend({ t: 'code', code });
+        setTimeout(() => { off(); offN(); rej(new Error('No answer.')); }, 8000);
+      });
+      return S.joinLobby(roomId);
+    },
+    async joinRace(join) {
+      if (race) await S.leaveRace();
+      Object.assign(S, { lobby: null, chat: [], standings: null, results: null, confirmed: null, verdict: null, raceId: null, phase: null, goAt: null });
+      const net = createNetClient({ transport, endpoint, getTicket, roomName: 'race', join, world: 'race', look, now, netsim, serverNetsim });
+      await net.connect();
+      race = { net, id: net.conn.roomId };
+      net.conn.onJson(m => onRace(m));
+      net.on('status', st => { if (st.status === 'offline') emit('left', st); emit('race-status', st); });
+      return race;
+    },
+    send(m) { race?.net.conn?.sendJson(m); },
+    async leaveRace() { const r = race; race = null; await r?.net.leave(); },
+    async close() { await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await h?.leave(); },
+  };
+  function onRace(m) {
+    switch (m.t) {
+      case 'lobby': S.lobby = m; S.myUid = m.you ?? S.myUid; S.phase = m.phase; S.goAt = m.goAt; S.raceId = m.raceId ?? S.raceId; if (m.confirmed) S.confirmed = m.confirmed; break;
+      case 'chat-log': S.chat = m.messages.slice(); break;
+      case 'chat': S.chat.push(m); if (S.chat.length > 100) S.chat.shift(); break;
+      case 'load': S.raceId = m.raceId; S.venue = m.venue; break;
+      case 'phase': S.phase = m.phase; if (m.goAt != null) S.goAt = m.goAt; break;
+      case 'standings': S.standings = m; if (m.goAt != null) S.goAt = m.goAt; break;
+      case 'results': S.results = m; S.raceId = m.raceId; S.phase = 'results'; break;
+      case 'confirmed': S.confirmed = m.race; break;
+      case 'verdict': S.verdict = m.verdict; break;
+      case 'notice': S.notices.push(m.text); if (S.notices.length > 50) S.notices.shift(); break;
+    }
+    emit(m.t, m);
+  }
+  return S;
+}
+

@@ -3,7 +3,7 @@
 // unique index on lower(name)), and generated ones for guests and social sign-ins.
 
 import crypto from 'node:crypto';
-import { RegExpMatcher, englishDataset, englishRecommendedTransformers } from 'obscenity';
+import { RegExpMatcher, TextCensor, englishDataset, englishRecommendedTransformers, asteriskCensorStrategy } from 'obscenity';
 import { DisplayName, LIMITS } from '@kr/shared';
 
 const matcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
@@ -28,6 +28,13 @@ export function nameProblem(name: string): string | null {
   return null;
 }
 export const guestName = () => `Guest-${randomTag(6)}`;
+// (Phase 7 Step 2) a lobby's chat: the same filter, the words it matches starred out (a message isn't refused for one
+// word); control characters and runs of spaces gone, at most maxLength
+const censor = new TextCensor().setStrategy(asteriskCensorStrategy());
+export function cleanChat(text: string, maxLength = 200): string {
+  const t = String(text ?? '').normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return t ? censor.applyTo(t, matcher.getAllMatches(t)) : '';
+}
 // a name from a social profile, made to fit (or a racer's name, if it can't be)
 export function nameFromProfile(raw: string | null | undefined): string {
   const cleaned = (raw ?? '').normalize('NFKC').replace(/[^\p{L}\p{N}_.\- ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, LIMITS.displayName.max - 5).trim();

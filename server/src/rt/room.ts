@@ -21,7 +21,7 @@ import { verifyTicket, type Ticket } from './tickets.ts';
 import { createChecks } from './checks.ts';
 import { createGrid } from './interest.ts';
 
-export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void };
+export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null };
 let ENV: RtEnv;
 export const setRtEnv = (e: RtEnv) => { ENV = e; };
 
@@ -40,11 +40,28 @@ async function totalPlayers() {
   for (const v of Object.values(all)) { const [c, at] = String(v).split(':').map(Number); if (now - at < 30000) n += c; }
   return n;
 }
+// every room's join check (the test room, and Phase 7 Step 2's hub, queue and race rooms): the game's version, the
+// ticket (signed, in date, used once), not banned, a guest only where guests may play, room on the server
+export async function authorize(token: string, options: any, { count = true }: { count?: boolean } = {}) {
+  if (Number(options?.protocol) !== PROTOCOL) throw refuse(CODES.VERSION, `${MESSAGES[CODES.VERSION]} (game ${options?.protocol ?? '?'}, server ${PROTOCOL})`);
+  const t = verifyTicket(ENV.secret, token);
+  if (!t) throw refuse(CODES.TICKET);
+  // (each ticket once: a copied one is worthless)
+  const used = `rt:ticket:${t.jti}`;
+  if (await matchMaker.presence.get(used)) throw refuse(CODES.TICKET);
+  await matchMaker.presence.setex(used, '1', 600);
+  if (await matchMaker.presence.get(`rt:banned:${t.uid}`)) throw refuse(CODES.BANNED);
+  if (t.guest && !ENV.allowGuests) throw refuse(CODES.GUESTS);
+  if (count && await totalPlayers() >= ENV.maxPlayers) throw refuse(CODES.FULL);
+  return t;
+}
+export { refuse, ENV as rtEnv };
+
 let processPlayers = 0;
 const reportLoad = () => matchMaker.presence.hset(LOAD, matchMaker.processId, `${processPlayers}:${Date.now()}`);
 setInterval(() => { if (matchMaker.presence) void Promise.resolve(reportLoad()).catch(() => {}); }, 10000).unref();
 
-type Player = {
+export type Player = {
   id: number; client: Client; t: Ticket; look: any; events: any[]; status: 'here' | 'away';
   latest: any | null; latestF: any | null; resetUntil: number; lastReset: number; lastHeard: number;
   checks: ReturnType<typeof createChecks>; sentBase: Map<number, any>; eventTokens: number;
@@ -67,19 +84,7 @@ export class TestRoom extends Room {
 
   roomNow() { return serverMs() - this.epoch; }
 
-  static async onAuth(token: string, options: any) {
-    if (Number(options?.protocol) !== PROTOCOL) throw refuse(CODES.VERSION, `${MESSAGES[CODES.VERSION]} (game ${options?.protocol ?? '?'}, server ${PROTOCOL})`);
-    const t = verifyTicket(ENV.secret, token);
-    if (!t) throw refuse(CODES.TICKET);
-    // (each ticket once: a copied one is worthless)
-    const used = `rt:ticket:${t.jti}`;
-    if (await matchMaker.presence.get(used)) throw refuse(CODES.TICKET);
-    await matchMaker.presence.setex(used, '1', 600);
-    if (await matchMaker.presence.get(`rt:banned:${t.uid}`)) throw refuse(CODES.BANNED);
-    if (t.guest && !ENV.allowGuests) throw refuse(CODES.GUESTS);
-    if (await totalPlayers() >= ENV.maxPlayers) throw refuse(CODES.FULL);
-    return t;
-  }
+  static async onAuth(token: string, options: any) { return authorize(token, options); }
 
   onCreate(options: any) {
     TestRoom.live.add(this);
@@ -126,7 +131,7 @@ export class TestRoom extends Room {
       protocol: PROTOCOL, id, roomId: this.roomId, world: this.world, epoch: this.epoch, serverTime: this.roomNow(),
       net: { sendHz: NET.sendHz, detailEvery: NET.detailEvery, keyframeSec: NET.keyframeSec, pingSec: NET.pingSec, tickHz: NET.tickHz }, reconnectSec: NET.reconnectSec,
     }), true);
-    this.out(p, S2C.ROSTER, encodeValue({ full: [...this.players.values()].map(x => this.entry(x)) }), true);
+    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull() }), true);
     this.broadcastRoster({ join: this.entry(p) }, p);
     ENV.log('rt join', { room: this.roomId, id, uid: t.uid, guest: t.guest, players: this.players.size });
   }
@@ -145,7 +150,7 @@ export class TestRoom extends Room {
     if (!p) return;
     p.client = client; p.status = 'here'; p.lastHeard = this.roomNow();
     p.sentBase.clear();                              // (what it had may be out of date: everything afresh)
-    this.out(p, S2C.ROSTER, encodeValue({ full: [...this.players.values()].map(x => this.entry(x)) }), true);
+    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull() }), true);
     this.broadcastRoster({ status: { id: p.id, status: 'here' } }, p);
   }
 
@@ -161,7 +166,7 @@ export class TestRoom extends Room {
   }
 
   // ---------- messages in ----------
-  private inbound(c: Client, bytes: Uint8Array, handle: (b: Uint8Array) => void) {
+  protected inbound(c: Client, bytes: Uint8Array, handle: (b: Uint8Array) => void) {
     const p = this.players.get(c.sessionId);
     if (!p) return;
     p.bytesIn += bytes.length + WS_UP;
@@ -169,7 +174,7 @@ export class TestRoom extends Room {
     const run = (b: Uint8Array) => { if (this.players.get(c.sessionId) !== p) return; try { handle(b); } catch (e: any) { this.strike(p, 'unreadable message'); } };
     if (p.up) p.up.send(run, bytes, { reliable: true }); else run(bytes);
   }
-  private onState(c: Client, bytes: Uint8Array) {
+  protected onState(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!, now = this.roomNow();
     if (!p.checks.rate(now)) { this.strike(p, 'too many messages'); return; }
     const { q, mask } = decodeStateMessage(bytes);
@@ -178,8 +183,12 @@ export class TestRoom extends Room {
     const why = p.checks.state(p.latestF, f, now, { resetOk: now < p.resetUntil });
     if (why) { p.dropped++; if (why !== 'stale') this.strike(p, why); return; }
     p.latest = merged; p.latestF = f; p.statesIn++;
+    this.carAccepted(p, f);
   }
-  private onEvent(c: Client, bytes: Uint8Array) {
+  // (Phase 7 Step 2: a race room follows each car's progress; NPCs driven by the server are cars of their own)
+  protected carAccepted(_p: Player, _f: any) {}
+  protected virtualCars(): Iterable<{ id: number; latest: any; latestF: any; entry: any }> { return []; }
+  protected onEvent(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!, now = this.roomNow();
     if (bytes.length > MAX_EVENT_BYTES) { this.strike(p, 'event too big'); return; }
     p.eventTokens = Math.min(20, p.eventTokens + 0.5);
@@ -197,7 +206,7 @@ export class TestRoom extends Room {
     const out = encodeValue({ ...ev, from: p.id, at: now });
     for (const o of this.players.values()) if (o !== p && o.status === 'here') this.out(o, S2C.EVENT, out, true);
   }
-  private onHello(c: Client, bytes: Uint8Array) {
+  protected onHello(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!;
     if (bytes.length > MAX_LOOK_BYTES) { this.strike(p, 'look too big'); return; }
     const v = decodeValue(bytes) as any;
@@ -205,14 +214,14 @@ export class TestRoom extends Room {
     if (Array.isArray(v?.events)) p.events = v.events.slice(-KEEP_EVENTS);
     this.broadcastRoster({ look: { id: p.id, look: p.look, events: p.events } }, p);
   }
-  private onPing(c: Client, bytes: Uint8Array) {
+  protected onPing(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!, { seq, clientMs } = decodePing(bytes);
     // (the server's time as late as possible: when the answer leaves)
     this.out(p, S2C.PONG, null, false, () => encodePong(seq, clientMs, this.roomNow()));
   }
 
   // ---------- out ----------
-  private out(p: Player, type: number, bytes: Uint8Array | null, reliable = false, late?: () => Uint8Array, force = false) {
+  protected out(p: Player, type: number, bytes: Uint8Array | null, reliable = false, late?: () => Uint8Array, force = false) {
     const go = (b: Uint8Array | null) => {
       const out = late ? late() : b!;
       if (!force && (this.players.get(p.client.sessionId) !== p || p.status !== 'here')) return;
@@ -221,12 +230,13 @@ export class TestRoom extends Room {
     };
     if (p.down) p.down.send(go, bytes, { reliable }); else go(bytes);
   }
-  private entry(p: Player) { return { id: p.id, name: p.t.name, guest: p.t.guest, status: p.status, look: p.look, events: p.events }; }
-  private broadcastRoster(msg: object, except?: Player) {
+  protected rosterFull() { return [...[...this.players.values()].map(x => this.entry(x)), ...[...this.virtualCars()].map(v => v.entry)]; }
+  protected entry(p: Player) { return { id: p.id, name: p.t.name, guest: p.t.guest, status: p.status, look: p.look, events: p.events }; }
+  protected broadcastRoster(msg: object, except?: Player) {
     const b = encodeValue(msg);
     for (const o of this.players.values()) if (o !== except && o.status === 'here') this.out(o, S2C.ROSTER, b, true);
   }
-  private strike(p: Player, reason: string) {
+  protected strike(p: Player, reason: string) {
     if (p.checks.strike(reason, this.roomNow())) {
       ENV.log('rt kicked by the live checks', { uid: p.t.uid, reasons: p.checks.reasons });
       this.kick(p, CODES.KICKED, 'Your game sent car movement the server can\'t accept.');
@@ -245,14 +255,14 @@ export class TestRoom extends Room {
   // ---------- the tick ----------
   tick() {
     const t0 = performance.now(), now = this.roomNow(), tick = ++this.tickNo;
-    const list = [...this.players.values()];
-    this.grid.rebuild(list.filter(p => p.status === 'here').map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })));
-    const byId = new Map(list.map(p => [p.id, p]));
+    const list = [...this.players.values()], virt = [...this.virtualCars()];
+    this.grid.rebuild([...list.filter(p => p.status === 'here').map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })), ...virt.map(v => ({ id: v.id, pos: v.latestF?.pos ?? null }))]);
+    const byId = new Map<number, any>([...list.map(p => [p.id, p] as [number, any]), ...virt.map(v => [v.id, { ...v, status: 'here' }] as [number, any])]);
     for (const r of list) {
       if (r.status !== 'here') continue;
       // (a dead connection: nothing heard for too long)
       if (now - r.lastHeard > NET.idleSec * 1000) { this.kick(r, CODES.IDLE); continue; }
-      const near = r.latestF ? this.grid.near({ id: r.id, pos: r.latestF.pos }) : list.filter(o => o !== r && o.latestF && o.status === 'here').map(o => ({ id: o.id, d: 0, every: 1 }));
+      const near = r.latestF ? this.grid.near({ id: r.id, pos: r.latestF.pos }) : [...byId.values()].filter(o => o !== r && o.latestF && o.status === 'here').map(o => ({ id: o.id, d: 0, every: 1 }));
       const keep = new Set<number>(), cars: any[] = [];
       for (const n of near) {
         keep.add(n.id);

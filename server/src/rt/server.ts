@@ -6,7 +6,7 @@
 // rooms in memory — lobbies, the matchmaking queue, parties, friends' status and invites all work the same.
 //
 //   const rt = await startRt({ port, publicAddress, redisUrl?, secret, rt: config.rt, api, log })
-//   rt.port · rt.rooms() → the rooms in this process · rt.stop()
+//   rt.port · rt.rooms() → the rooms in this process (races() and queues(): the race and queue rooms) · rt.stop()
 
 import { Server, matchMaker, LocalPresence, LocalDriver } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
@@ -14,15 +14,21 @@ import { RedisPresence } from '@colyseus/redis-presence';
 import { RedisDriver } from '@colyseus/redis-driver';
 import { NET } from '../../../net/settings.js';
 import { TestRoom, setRtEnv } from './room.ts';
+import { RaceRoom } from './race.ts';
+import { QueueRoom } from './queue.ts';
+import { HubRoom } from './hub.ts';
+import { createRtApi } from './mp.ts';
 
 export type RtOptions = {
   port: number; host?: string; publicAddress?: string; redisUrl?: string | null; secret: string;
   rt: { allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean };
+  // (Phase 7 Step 2: the API's address for the races' internal calls — venues, results, friends; none: free roam only)
+  api?: { url: string } | null;
   log?: (msg: string, extra?: object) => void;
 };
 
 export async function startRt(o: RtOptions) {
-  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}) });
+  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null });
   const server = new Server({
     // (dead connections: a WebSocket ping every 3 s, closed after 2 unanswered — a dropped player then gets
     // NET.reconnectSec to come back)
@@ -34,6 +40,10 @@ export async function startRt(o: RtOptions) {
     gracefullyShutdown: false,
   });
   server.define('test', TestRoom).filterBy(['world']);
+  // (Phase 7 Step 2: lobbies and races, the quick-race queue per region, the hub — friends, invites, parties)
+  server.define('race', RaceRoom);
+  server.define('queue', QueueRoom).filterBy(['region']);
+  server.define('hub', HubRoom);
   await server.listen(o.port, o.host ?? '0.0.0.0');
   o.log?.('rt listening', { port: o.port, process: matchMaker.processId, tickHz: NET.tickHz, redis: !!o.redisUrl });
   return {
@@ -41,6 +51,8 @@ export async function startRt(o: RtOptions) {
     processId: matchMaker.processId,
     // (the rooms running here: their metrics, for tests and the logs)
     rooms: () => [...TestRoom.live],
+    races: () => [...RaceRoom.races],
+    queues: () => [...QueueRoom.queues],
     async stop() { await server.gracefullyShutdown(false).catch(() => {}); },
   };
 }

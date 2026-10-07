@@ -9,7 +9,9 @@
 // DNFs, and everyone behind them moves up. NPCs' results are the server's own.
 //
 //   confirmResults(provisional, verdicts, { toleranceMs }) → [{ …, place, provisionalPlace, status: finished | dnf | dsq, verified, problems }]
-//     verdicts: { [uid]: { ok, problems, timeMs } }    (a human finisher missing from it: not handed in)
+//     verdicts: { [uid]: { ok, problems, rawMs } }    (a human finisher missing from it: not handed in; rawMs: the run's
+//               own time before penalties, against the race server's before its penalties — the two may penalise a
+//               jump start differently, the server's penalty is the one that counts)
 //   ratingOrder(confirmed) → [{ uid, rank }]   the humans in the order the rating update uses (ties share a rank; leavers
 //                                              and the disqualified last)
 //   payFor(confirmed, rules, { ranked, humans, npcs, km, todayRaces }) → { [uid]: { money, xp, why } }   (rules: economy
@@ -24,7 +26,8 @@ export function confirmResults(provisional, verdicts, { toleranceMs = 300 } = {}
       if (!v) problems.push('No run handed in for this race.');
       else {
         if (!v.ok) problems.push(...(v.problems?.length ? v.problems : ['The run didn\'t pass the check.']));
-        if (v.timeMs != null && r.timeMs != null && Math.abs(v.timeMs - r.timeMs) > toleranceMs) problems.push(`The run's time (${(v.timeMs / 1000).toFixed(3)} s) isn't what the race server saw (${(r.timeMs / 1000).toFixed(3)} s).`);
+        const serverRaw = r.timeMs != null ? r.timeMs - (r.penaltyMs ?? 0) : null;
+        if (v.rawMs != null && serverRaw != null && Math.abs(v.rawMs - serverRaw) > toleranceMs) problems.push(`The run's time (${(v.rawMs / 1000).toFixed(3)} s) isn't what the race server saw (${(serverRaw / 1000).toFixed(3)} s).`);
       }
       for (const f of r.flags ?? []) if (f.kind === 'progress') { problems.push('Moved further along the route than the car could have.'); break; }
     }

@@ -166,7 +166,7 @@ test('results: a run that fails the check is disqualified and the others move up
     { pid: 4, uid: 'c', place: 4, status: 'finished', timeMs: 63000, flags: [] },
     { pid: 5, uid: 'd', place: 5, status: 'dnf', why: 'left', leftEarly: true, flags: [] },
   ];
-  const conf = confirmResults(prov, { a: { ok: false, problems: ['Missed checkpoint 2.'] }, b: { ok: true, timeMs: 61050 }, c: { ok: true, timeMs: 64000 } }, { toleranceMs: 300 });
+  const conf = confirmResults(prov, { a: { ok: false, problems: ['Missed checkpoint 2.'] }, b: { ok: true, rawMs: 61050 }, c: { ok: true, rawMs: 64000 } }, { toleranceMs: 300 });
   const by = Object.fromEntries(conf.map(r => [r.uid, r]));
   assert.equal(by.a.status, 'dsq'); assert.equal(by.b.place, 1, 'moved up'); assert.equal(by.npc.place, 2);
   assert.equal(by.c.status, 'dsq', 'its time isn\'t what the server saw');

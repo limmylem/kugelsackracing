@@ -60,6 +60,7 @@ export function createChatGate({ burst, perSec }) {
   };
 }
 
+/** @param {any[]} players @param {string | number | null} [leavingPid] */
 export function nextHost(players, leavingPid = null) {
   return [...players].filter(p => !p.npc && p.pid !== leavingPid && !p.gone).sort((a, b) => a.joinedAt - b.joinedAt || a.pid - b.pid)[0] ?? null;
 }

@@ -36,6 +36,7 @@ export const CODES = {
   IDLE: 4016,      // nothing heard for too long (a dead connection)
   CLOSED: 4017,    // the room or server closed (a deploy)
   GUESTS: 4018,    // guests may not join this room
+  COOLDOWN: 4019,  // (Phase 7 Step 2) left ranked races early: a short wait before queuing again
 };
 
 // What a player sees for each (and what to do)
@@ -49,6 +50,7 @@ export const MESSAGES = {
   [CODES.IDLE]: 'Lost the connection to the game server.',
   [CODES.CLOSED]: 'The game server is restarting. Reconnecting…',
   [CODES.GUESTS]: 'Make a full account to join this room (your progress comes with you).',
+  [CODES.COOLDOWN]: 'You left ranked races early: you can queue again in a few minutes.',
 };
 export const messageFor = (code, fallback = 'Disconnected from the game server.') => MESSAGES[code] ?? fallback;
 

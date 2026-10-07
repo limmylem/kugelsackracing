@@ -13,6 +13,8 @@
 //   Q.tick({ t, dt, x, z, vx, vz, fx, fz, throttle, drivable, condition, impulse })   every physics tick
 //   Q.noteReset(point)  after the car's been put back      Q.quit()  a DNF      Q.fail(reason, text)
 //   Q.drain() → the events since      Q.hud() → what the HUD shows      Q.outcome  when it's over
+//   externalGo (Phase 7 Step 2, a multiplayer race): the countdown doesn't set GO itself — Q.setGo(t) does (t on the
+//   ticks' clock: when the race server's lights go out), and may move it as the clocks settle, until it's passed
 //
 // Times: a gate (a line across the road) is crossed between two ticks; where along that tick gives the
 // time (quest/timing.js), so times don't depend on the frame rate.
@@ -25,7 +27,7 @@ import { TYPE_MODULES } from './types/index.js';
 export const STATES = ['ready', 'intro', 'countdown', 'racing', 'finished', 'failed', 'results'];
 const NEAR = 40;   // (a gate counts when the car is this near it along the route: not another pass by it)
 
-export function createQuestSession({ quest, course, config, car = {}, startMode = null, best = null, laps = null, slot = 0 }) {
+export function createQuestSession({ quest, course, config, car = {}, startMode = null, best = null, laps = null, slot = 0, externalGo = false }) {
   const type = TYPE_MODULES[quest.type];
   if (!type) throw new Error(`no quest type "${quest.type}"`);
   const P = quest.params ?? {}, loop = course.loop;
@@ -156,6 +158,8 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
       if (S.introT >= S.introLength) api.toGrid();
     },
     skipIntro() { if (S.state === 'intro') api.toGrid(); },
+    // (a multiplayer race: GO when the race server says — on the ticks' clock)
+    setGo(t) { if (externalGo && (S.state === 'countdown' || S.state === 'ready' || S.state === 'intro')) S.goAt = t; },
     toGrid() {
       S.state = 'countdown';
       const rolling = startMode === 'rolling', R = config.start;
@@ -165,10 +169,11 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
       S.t = I.t;
       if (S.state === 'countdown') {
         const R = config.start;
-        if (S.tCount == null) { S.tCount = I.t; S.tGo = I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
+        if (S.tCount == null) { S.tCount = I.t; S.tGo = externalGo ? (S.goAt ?? Infinity) : I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
+        if (externalGo && S.goAt != null) S.tGo = S.goAt;
         const left = S.tGo - I.t;
         const n = Math.ceil(left - 1e-9);
-        if (n > 0 && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
+        if (n > 0 && n <= R.countdown && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
         if (startMode !== 'rolling' && !S.jump && (I.throttle ?? 0) > R.jumpThrottle && left <= R.jumpWindow + 1e-9) {
           S.jump = true; S.penalties.push({ what: 'Jump start', seconds: R.jumpPenalty });
           emit({ type: 'jump', penalty: R.jumpPenalty });

@@ -4,10 +4,13 @@
 //
 //   const T = createColyseusTransport(Colyseus)        Colyseus: the SDK module (net/vendor/colyseus.js in the
 //                                                     browser, '@colyseus/sdk' in Node)
-//   const conn = await T.join(endpoint, room, { ticket, ...options })  → a connection:
+//   const conn = await T.join(endpoint, room, { ticket, how, roomId, reservation, ...options })  → a connection:
+//     how (Phase 7 Step 2): 'joinOrCreate' (the default), 'create', 'joinById' (roomId), 'reservation' (a seat the
+//     matchmaker reserved: { reservation } — no ticket needed, the reservation carries the player)
 //     conn.send(type, bytes, { reliable })   reliable: must arrive (events); otherwise newest-wins (car states) — over
 //                                            WebSockets everything arrives anyway, in order
 //     conn.on(type, fn(bytes))   conn.onStatus(fn(status, info))   status: 'dropped' | 'back' | 'left' ({ code, reason })
+//     conn.sendJson(msg) · conn.onJson(fn(msg))   the lobby's, queue's and hub's messages (Phase 7 Step 2: JSON, 'mp')
 //     conn.leave()   conn.kind ('websocket')   conn.unreliable (false: a lost state is resent, late)
 //   withNetsim(conn, { up, down, unreliable })   the same connection through network simulator links (net/netsim.js);
 //                                    unreliable: { up: [types], down: [types] } may be dropped in 'datagram' mode
@@ -16,11 +19,16 @@
 export function createColyseusTransport(Colyseus) {
   return {
     kind: 'websocket',
-    async join(endpoint, roomName, { ticket, ...options }) {
+    async join(endpoint, roomName, { ticket, how = 'joinOrCreate', roomId = null, reservation = null, ...options }) {
       const client = new Colyseus.Client(endpoint);
-      client.auth.token = ticket;
+      if (ticket) client.auth.token = ticket;
       let room;
-      try { room = await client.joinOrCreate(roomName, options); }
+      try {
+        room = how === 'reservation' ? await client.consumeSeatReservation(reservation)
+          : how === 'joinById' ? await client.joinById(roomId, options)
+            : how === 'create' ? await client.create(roomName, options)
+              : await client.joinOrCreate(roomName, options);
+      }
       catch (e) {
         // (the server's refusals: '[4010] The game has been updated…' — our code, then the message)
         const m = /^\[(\d{4})\]\s*(.*)$/s.exec(e?.message ?? '');
@@ -29,14 +37,20 @@ export function createColyseusTransport(Colyseus) {
       // (reconnecting after a drop: straight away, however recently the room was joined, and on trying every few hundred
       // ms for as long as the server keeps the car — NET.reconnectSec)
       Object.assign(room.reconnection, { minUptime: 0, minDelay: 250, delay: 250, maxDelay: 2000, maxRetries: 30 });
-      const handlers = new Map(), status = new Set();
-      room.onMessage('*', (type, payload) => { const fn = handlers.get(Number(type)); if (fn && payload instanceof Uint8Array) fn(payload); });
+      const handlers = new Map(), status = new Set(), json = new Set(), early = [];
+      room.onMessage('*', (type, payload) => {
+        if (type === 'mp') { if (json.size) for (const f of json) f(payload); else early.push(payload); return; }
+        const fn = handlers.get(Number(type)); if (fn && payload instanceof Uint8Array) fn(payload);
+      });
       room.onDrop?.((code, reason) => { for (const f of status) f('dropped', { code, reason }); });
       room.onReconnect?.(() => { for (const f of status) f('back', {}); });
       room.onLeave((code, reason) => { for (const f of status) f('left', { code, reason }); });
       return {
         kind: 'websocket', unreliable: false,
         send(type, bytes) { room.sendBytes(type, bytes); },
+        sendJson(msg) { room.send('mp', msg); },
+        // (messages that came before anyone listened — the room's first word on joining — handed to the first listener)
+        onJson(fn) { json.add(fn); for (const m of early.splice(0)) fn(m); return () => json.delete(fn); },
         on(type, fn) { handlers.set(type, fn); },
         onStatus(fn) { status.add(fn); return () => status.delete(fn); },
         leave() { return room.leave(true); },
@@ -58,7 +72,7 @@ export function withNetsim(conn, { up, down, unreliable = { up: [], down: [] } }
     ...conn,
     send(type, bytes, opts = {}) { if (up) up.send(b => conn.send(type, b, opts), bytes, { reliable: !lossyUp.has(type) }); else conn.send(type, bytes, opts); },
     on(type, fn) { conn.on(type, b => { if (down) down.send(x => fn(x), b, { reliable: !lossyDown.has(type) }); else fn(b); }); },
-    onStatus: conn.onStatus, leave: conn.leave, breakConnection: conn.breakConnection,
+    onStatus: conn.onStatus, leave: conn.leave, breakConnection: conn.breakConnection, sendJson: conn.sendJson, onJson: conn.onJson,
     get roomId() { return conn.roomId; }, get sessionId() { return conn.sessionId; }, raw: conn.raw, kind: conn.kind, unreliable: conn.unreliable,
   };
 }

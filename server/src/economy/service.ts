@@ -406,6 +406,31 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
     return stale.length;
   }
 
+  // ---------- multiplayer (Phase 7 Step 2; docs/MULTIPLAYER.md) ----------
+  // the cars a player can race: each one's class and performance rating worked out here from its build (made, the first
+  // time, like state(): the starting car)
+  async function racingCars(user: User) {
+    await state(user);
+    return withPlayer(user.id, async (tx, G) => {
+      const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before, G), p = E.init.updatedState;
+      return Object.keys(p.cars).map(id => {
+        const t = garageFor(p, E.game, id).stats().totals;
+        return { instanceId: id, carId: p.cars[id].carId, name: carName(p, E.game, id), cls: t?.rating?.class ?? 'D', pr: Math.round(t?.rating?.index ?? 100), current: p.currentCar === id };
+      });
+    });
+  }
+  // a confirmed race's pay: money (a ledger row saying which race) and xp, once (the race and player as its key)
+  async function payRace(userId: string, { money, xp, reason, raceId }: { money: number; xp: number; reason: string; raceId: string }) {
+    return withPlayer(userId, async (tx, G) => {
+      const before = await loadProfile(tx, userId);
+      if (!before) return { paid: false as const, why: 'No garage yet.' };
+      const done = (await tx.execute(sql`select 1 from ledger where user_id = ${userId} and kind = 'reward' and ref->>'mpRace' = ${raceId}`)).rows.length;
+      if (done) return { paid: false as const, why: 'Paid already.' };
+      const r = await saveProfile(tx, userId, before, { ...before, money: before.money + money, xp: (before.xp ?? 0) + xp }, { kind: 'reward', reason, action: 'mpRace', questsConfig: G.quests, ref: { mpRace: raceId, xp } });
+      return { paid: true as const, rev: r.rev };
+    }).then(r => { if (r.paid) events.emit('change', userId, r.rev); return r; });
+  }
+
   // ---------- admins: money and items put right, by hand (always with a reason; the caller logs it) ----------
   async function adminMoney(admin: User, userId: string, amount: number, reason: string) {
     return withPlayer(userId, async (tx, G) => {
@@ -455,7 +480,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock,
+    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock, racingCars, payRace,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

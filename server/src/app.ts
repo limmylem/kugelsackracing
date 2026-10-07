@@ -5,6 +5,8 @@
 //   (1 MiB; JSON only) → the session (Better Auth's cookie) → CSRF (writes with a cookie session carry the
 //   token) → idempotency (writes) → the route: Zod-validated request and response → one error format.
 
+import { mpRoutes } from './routes/mp.ts';
+import { createMpService } from './mp/service.ts';
 import { rtRoutes } from './routes/rt.ts';
 import { createRtBridge } from './rt/bridge.ts';
 import crypto from 'node:crypto';
@@ -184,17 +186,21 @@ export async function buildApp(deps: AppDeps) {
   const signUpLimit = limiter(RL.signUp.max, RL.signUp.windowSec, r => `signup:${r.ip}`);
   const writeLimit = limiter(RL.write.max, RL.write.windowSec, async r => { const s = await sessionOf(auth, r); return s ? `acct:${s.user.id}` : `ip:${r.ip}`; });
   const STRICT = /^\/api\/auth\/+(sign-in|sign-up|request-password-reset|reset-password|send-verification-email|forget-password)/;
+  // (the real-time server's own calls — RT_SECRET in x-kr-internal — aren't counted: it speaks for every player at once)
+  const rtKey = Buffer.from(config.rtSecret);
+  const fromRt = (req: FastifyRequest) => { if (!req.url.startsWith(`${API_PREFIX}/internal/`)) return false; const k = Buffer.from(String(req.headers['x-kr-internal'] ?? '')); return k.length === rtKey.length && crypto.timingSafeEqual(k, rtKey); };
   app.addHook('onRequest', async req => {
     // (the API and real time only: the game's own files are hundreds of small modules, fetched every time the game
     // loads — counting them, two page loads used up a minute's allowance)
     if (!req.url.startsWith('/api/') && !req.url.startsWith('/rt/')) return;
+    if (fromRt(req)) return;
     await ipLimit(req);
     if (req.method !== 'POST') return;
     if (STRICT.test(req.url)) await authLimit(req);
     if (/^\/api\/auth\/+(sign-up|sign-in\/anonymous)/.test(req.url)) await signUpLimit(req);
   });
   app.addHook('preHandler', async req => {
-    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) await writeLimit(req);
+    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !fromRt(req)) await writeLimit(req);
   });
 
   // ---------- launch readiness (Phase 6 Step 5): the game's version, maintenance, switched-off features, the bot
@@ -366,6 +372,11 @@ export async function buildApp(deps: AppDeps) {
   const economyConfig = createEconomyConfig(db);
   const economy = createEconomy({ db, config: economyConfig, tracks, log: (o, m) => app.log.warn(o, m), ...(deps.clock ? { clock: deps.clock } : {}) });
   app.decorate('economy', economy);
+  // (multiplayer: friends, ratings, the races' results — Phase 7 Step 2)
+  const mp = createMpService({ db, tracks, economy, economyConfig, log: (o, m) => app.log.info(o, m) });
+  app.decorate('mp', mp);
+  app.addHook('onReady', async () => { void mp.sweep().catch(e => app.log.warn({ err: e }, 'multiplayer sweep failed')); });
+  app.addHook('onClose', async () => mp.close());
   app.decorate('economyConfig', economyConfig);
   app.addHook('onReady', async () => { await economyConfig.ensure(); });
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
@@ -381,7 +392,8 @@ export async function buildApp(deps: AppDeps) {
   await app.register(async api => {
     await meRoutes(api, { config, db, auth, G, mailer });
     await adminRoutes(api, { config, db, auth, G, rtBridge });
-    await rtRoutes(api, { config, G });
+    await rtRoutes(api, { config, G, mp });
+    await mpRoutes(api, { config, G, mp });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, G });
