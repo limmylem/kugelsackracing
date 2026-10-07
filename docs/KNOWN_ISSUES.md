@@ -114,6 +114,14 @@ The load test reports sign-in as "over (known)", not failed.
   - Details in [SECURITY.md](SECURITY.md).
 - **Browser tests and the CDN:** the game's page needs `--local-libs` in the shop browser test where jsDelivr can't be reached. Its `pbf` and `@mapbox/vector-tile` must be the CDN's versions (4 and 2): set `CDN_LIBS` to a folder with them installed if the repository's own are newer.
 
+### Every phase's tests at the end of Phase 6 Step 5
+
+Run on this computer. Everything passes except three suites that fail **the same way on the code from before Step 5** (commit
+`92589b2`, checked side by side). They aren't caused by Step 5, and they stay as they were:
+- **`npm run stress:quests`:** 5 of its 13 timing limits are over (nearby queries p95 about 10–13 ms against 8; the full map opening in 663 ms against 400). They are timings on 50,000 quests, and vary with the machine: the older code missed 6 here.
+- **`npm run test:track-events`:** "every quest type pays 0.6–1.6× the median". The tier-3 time trial pays 0.55×, the same number before Step 5. It's a balance target for the owner to tune ([PROGRESSION.md](PROGRESSION.md)); nothing in Step 5 changed the economy's rules.
+- **`npm run test:npc`:** the known stuck-and-reset races in Monaco and Stelvio (above: reported in CI, not blocking).
+
 ### Nearby content: a 10 km circle in the densest city is over 5 ms through the API
 
 `npm run stress:content -w @kr/server` (50,000 markers):

@@ -93,7 +93,7 @@ Work down it in order.
 ## 10. Tests (every phase)
 
 - [x] `npm run test:server`: the server, including the security, abuse, privacy and operations tests.
-- [x] `npm test`, `npm run test:unit`, `npm run test:all`: the game.
+- [x] `npm test`, `npm run test:unit`, `npm run test:all` and every phase's suites. Three fail exactly as they did before Step 5: quest stress timings, one economy balance target and the known NPC stuck spots ([docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)).
 - [x] Browser tests: accounts, economy, shop, deploy layout, and the launch screens (`npm run test:browser:launch -w @kr/server`).
 - [x] DR drill, rollback drill, load test report.
 
