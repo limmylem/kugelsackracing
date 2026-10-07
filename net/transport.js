@@ -21,7 +21,14 @@ export function createColyseusTransport(Colyseus) {
       client.auth.token = ticket;
       let room;
       try { room = await client.joinOrCreate(roomName, options); }
-      catch (e) { throw Object.assign(new Error(e?.message ?? 'join failed'), { code: e?.code ?? 0 }); }
+      catch (e) {
+        // (the server's refusals: '[4010] The game has been updated…' — our code, then the message)
+        const m = /^\[(\d{4})\]\s*(.*)$/s.exec(e?.message ?? '');
+        throw Object.assign(new Error(m ? m[2] : e?.message ?? 'join failed'), { code: m ? Number(m[1]) : e?.code ?? 0 });
+      }
+      // (reconnecting after a drop: straight away, however recently the room was joined, and on trying every few hundred
+      // ms for as long as the server keeps the car — NET.reconnectSec)
+      Object.assign(room.reconnection, { minUptime: 0, minDelay: 250, delay: 250, maxDelay: 2000, maxRetries: 30 });
       const handlers = new Map(), status = new Set();
       room.onMessage('*', (type, payload) => { const fn = handlers.get(Number(type)); if (fn && payload instanceof Uint8Array) fn(payload); });
       room.onDrop?.((code, reason) => { for (const f of status) f('dropped', { code, reason }); });
@@ -36,7 +43,7 @@ export function createColyseusTransport(Colyseus) {
         get roomId() { return room.roomId; },
         get sessionId() { return room.sessionId; },
         // (the underlying socket closed without a word: what a dropped connection looks like — tests use it)
-        breakConnection() { try { room.connection.transport.ws?.close?.(); room.connection.transport.close?.(); } catch { /* already */ } },
+        breakConnection() { try { room.connection.transport.ws?.close?.(); } catch { /* already */ } },
         raw: room,
       };
     },

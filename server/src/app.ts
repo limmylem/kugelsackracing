@@ -131,7 +131,9 @@ export async function buildApp(deps: AppDeps) {
   // ---------- security headers, CORS, cookies, CSRF ----------
   // (the map files' and the real-time server's own addresses, when they're elsewhere — on this computer they're
   // http:// and ws://, which 'https:' doesn't cover)
-  const elsewhere = [config.tilesUrl, config.rtUrl].filter((u): u is string => !!u).map(u => new URL(u).origin);
+  // (Phase 7: the real-time server is joined over HTTP first — matchmaking — then WebSocket: both its addresses)
+  const rtHttp = config.rtUrl ? config.rtUrl.replace(/^ws(s?):/, 'http$1:') : null;
+  const elsewhere = [config.tilesUrl, config.rtUrl, rtHttp].filter((u): u is string => !!u).map(u => new URL(u).origin);
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {

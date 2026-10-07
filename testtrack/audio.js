@@ -61,6 +61,30 @@ export function createAudio(spec) {
 
 const finite = (x, or) => Number.isFinite(x) ? x : or;
 
+// Another player's car (Phase 7 Step 1, play/multiplayer.js): its engine (its own sound config, at the revs and
+// throttle its game sends) and its tyres' squeal, where it is — panned, and quieter the further away.
+//   const v = remoteCarSound(audio, { sound, idleRpm, redlineRpm })
+//   v.update({ rpm, throttle, slip, speed }, at, dt)   at: the car's place relative to the listener, in the
+//                                                     camera's frame (x right, y up, −z ahead), metres
+//   v.dispose()
+export function remoteCarSound(audio, { sound = null, idleRpm = 900, redlineRpm = 6800 } = {}) {
+  const { ctx, master } = audio;
+  const panner = new PannerNode(ctx, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 6, maxDistance: 600, rolloffFactor: 1.4 });
+  const out = new GainNode(ctx, { gain: 0.7 });
+  panner.connect(out).connect(master);
+  const spec = { engine: { sound, idleRpm, redlineRpm } };
+  const engine = engineSound(ctx, panner, spec), squeal = tyreSqueal(ctx, panner);
+  return {
+    update({ rpm, throttle, slip = 0, speed = 0 }, at, dt) {
+      const t = ctx.currentTime;
+      if (at && at.every(Number.isFinite)) { panner.positionX.setTargetAtTime(at[0], t, 0.03); panner.positionY.setTargetAtTime(at[1], t, 0.03); panner.positionZ.setTargetAtTime(at[2], t, 0.03); }
+      engine.update({ rpm, throttle, fuelCut: false, shifting: false, health: 100 }, dt);
+      squeal.set(Math.max(0, Math.min(1, (finite(slip, 0) - 0.25) / 0.8)) * Math.min(1, finite(speed, 0) / 4), Math.min(1, finite(speed, 0) / 40));
+    },
+    dispose() { engine.dispose(); squeal.stop(); out.disconnect(); panner.disconnect(); },
+  };
+}
+
 function engineSound(ctx, out, spec) {
   // layers → rough (dropped firings) → tone (low-pass) → level → out; the intake and one-offs straight out
   const rough = new GainNode(ctx, { gain: 1 }), tone = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 2000, Q: 0.5 }), level = new GainNode(ctx, { gain: 0 }), cabin = new GainNode(ctx, { gain: 1 });
@@ -86,6 +110,7 @@ function engineSound(ctx, out, spec) {
 
   return {
     tap: level,                     // (the engine's sound, for a holed exhaust to rattle)
+    dispose() { path = '(gone)'; if (sound) stop(sound); sound = null; cabin.disconnect(); },
     cabin,                          // (how loud it is where you're listening: the cockpit, roof up or down)
     get config() { return sound?.cfg ?? null; },
     // a one-off: 'bang' (blown), 'bent' (bent valves), 'shift', 'limiter'
@@ -246,6 +271,7 @@ function tyreSqueal(ctx, out) {
       band.frequency.setTargetAtTime(900 + pitch * 700, t, 0.1);
       tone.frequency.setTargetAtTime(620 + pitch * 380, t, 0.1);
     },
+    stop() { for (const n of [noise, tone, wobble]) n.stop(); level.disconnect(); },
   };
 }
 

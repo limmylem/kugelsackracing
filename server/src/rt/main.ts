@@ -18,8 +18,14 @@ const port = Number(process.env.RT_PORT ?? 2567), host = process.env.RT_HOST ?? 
 const i = process.argv.indexOf('--processes'), n = i > 0 ? Math.max(1, Number(process.argv[i + 1]) || 1) : 1;
 
 if (n > 1 && !process.env.RT_CHILD) {
-  for (let k = 0; k < n; k++) fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, RT_CHILD: '1', RT_PORT: String(port + k), RT_PUBLIC_ADDRESS: process.env.RT_PUBLIC_ADDRESS_PATTERN?.replace('{port}', String(port + k)) ?? `localhost:${port + k}` } });
+  const kids = Array.from({ length: n }, (_, k) => fork(fileURLToPath(import.meta.url), [], { env: { ...process.env, RT_CHILD: '1', RT_PORT: String(port + k), RT_PUBLIC_ADDRESS: process.env.RT_PUBLIC_ADDRESS_PATTERN?.replace('{port}', String(port + k)) ?? `localhost:${port + k}` } }));
+  // (stopping this stops them all; one that dies takes the rest down, for the host to restart cleanly)
+  const stop = () => { for (const c of kids) c.kill('SIGTERM'); setTimeout(() => process.exit(0), 3000).unref(); };
+  for (const s of ['SIGTERM', 'SIGINT']) process.on(s, stop);
+  for (const c of kids) c.on('exit', code => { if (code) { console.error(`a real-time server process stopped (${code})`); stop(); } });
 } else {
+  // (a child process: it goes when its parent does)
+  if (process.env.RT_CHILD) process.on('disconnect', () => process.exit(0));
   if ((env === 'staging' || env === 'production') && !process.env.RT_SECRET) throw new Error('RT_SECRET is needed in staging and production');
   const secret = rtSecretOf(process.env.RT_SECRET, process.env.BETTER_AUTH_SECRET ?? 'local-development-only-secret-change-me-0123');
   const log = (msg: string, extra: object = {}) => console.log(JSON.stringify({ time: new Date().toISOString(), msg, ...extra }));

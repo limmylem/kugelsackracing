@@ -26,6 +26,9 @@ let ENV: RtEnv;
 export const setRtEnv = (e: RtEnv) => { ENV = e; };
 
 const serverMs = () => performance.timeOrigin + performance.now();
+// (a join is refused over HTTP — the matchmaking request — so its status must be an HTTP one: 403, with our code in
+// the message, '[4010] The game has been updated…'; net/transport.js reads it back out)
+const refuse = (code: number, message = MESSAGES[code]) => new ServerError(403, `[${code}] ${message}`);
 const EVENT_KINDS = new Set(['impact', 'damage', 'parts', 'reset', 'repair', 'lights', 'horn']);
 const KEEP_EVENTS = 64, MAX_EVENT_BYTES = 8192, MAX_LOOK_BYTES = 16384, WS_DOWN = 4, WS_UP = 8;
 
@@ -65,16 +68,16 @@ export class TestRoom extends Room {
   roomNow() { return serverMs() - this.epoch; }
 
   static async onAuth(token: string, options: any) {
-    if (Number(options?.protocol) !== PROTOCOL) throw new ServerError(CODES.VERSION, `${MESSAGES[CODES.VERSION]} (game ${options?.protocol ?? '?'}, server ${PROTOCOL})`);
+    if (Number(options?.protocol) !== PROTOCOL) throw refuse(CODES.VERSION, `${MESSAGES[CODES.VERSION]} (game ${options?.protocol ?? '?'}, server ${PROTOCOL})`);
     const t = verifyTicket(ENV.secret, token);
-    if (!t) throw new ServerError(CODES.TICKET, MESSAGES[CODES.TICKET]);
+    if (!t) throw refuse(CODES.TICKET);
     // (each ticket once: a copied one is worthless)
     const used = `rt:ticket:${t.jti}`;
-    if (await matchMaker.presence.get(used)) throw new ServerError(CODES.TICKET, MESSAGES[CODES.TICKET]);
+    if (await matchMaker.presence.get(used)) throw refuse(CODES.TICKET);
     await matchMaker.presence.setex(used, '1', 600);
-    if (await matchMaker.presence.get(`rt:banned:${t.uid}`)) throw new ServerError(CODES.BANNED, MESSAGES[CODES.BANNED]);
-    if (t.guest && !ENV.allowGuests) throw new ServerError(CODES.GUESTS, MESSAGES[CODES.GUESTS]);
-    if (await totalPlayers() >= ENV.maxPlayers) throw new ServerError(CODES.FULL, MESSAGES[CODES.FULL]);
+    if (await matchMaker.presence.get(`rt:banned:${t.uid}`)) throw refuse(CODES.BANNED);
+    if (t.guest && !ENV.allowGuests) throw refuse(CODES.GUESTS);
+    if (await totalPlayers() >= ENV.maxPlayers) throw refuse(CODES.FULL);
     return t;
   }
 
@@ -84,6 +87,8 @@ export class TestRoom extends Room {
     this.maxClients = ENV.roomMaxClients;
     void this.setMetadata({ world: this.world });
     this.setSimulationInterval(() => this.tick(), 1000 / NET.tickHz);
+    // (its numbers in Redis every 5 s, for monitoring and the load tests: players, the tick's time, bytes)
+    this.clock.setInterval(() => { void Promise.resolve(matchMaker.presence.hset('rt:rooms', this.roomId, JSON.stringify({ at: Date.now(), process: matchMaker.processId, world: this.world, ...this.summary() }))).catch(() => {}); }, 5000);
     this.onMessageBytes(C2S.STATE, (c, b: any) => this.inbound(c, b, x => this.onState(c, x)));
     this.onMessageBytes(C2S.EVENT, (c, b: any) => this.inbound(c, b, x => this.onEvent(c, x)));
     this.onMessageBytes(C2S.HELLO, (c, b: any) => this.inbound(c, b, x => this.onHello(c, x)));
@@ -97,7 +102,7 @@ export class TestRoom extends Room {
     this.unsub = () => matchMaker.presence.unsubscribe('rt:kick', kick);
   }
 
-  onDispose() { TestRoom.live.delete(this); this.unsub?.(); for (const p of this.players.values()) { p.up?.close(); p.down?.close(); } }
+  onDispose() { void Promise.resolve(matchMaker.presence.hdel('rt:rooms', this.roomId)).catch(() => {}); TestRoom.live.delete(this); this.unsub?.(); for (const p of this.players.values()) { p.up?.close(); p.down?.close(); } }
 
   onJoin(client: Client, options: any) {
     const t = client.auth as Ticket;
@@ -267,6 +272,10 @@ export class TestRoom extends Room {
     if (this.tickMs.length > 600) this.tickMs.shift();
   }
 
+  summary() {
+    const m = this.metrics(), sum = (k: 'bytesIn' | 'bytesOut') => m.perPlayer.reduce((a, p) => a + p[k], 0);
+    return { players: m.players, tickMsP50: +m.tickMsP50.toFixed(3), tickMsP95: +m.tickMsP95.toFixed(3), tickMsMax: +m.tickMsMax.toFixed(3), kicks: m.kicks, bytesIn: sum('bytesIn'), bytesOut: sum('bytesOut') };
+  }
   metrics() {
     const s = [...this.tickMs].sort((a, b) => a - b), q = (x: number) => s.length ? s[Math.min(s.length - 1, Math.floor(s.length * x))] : 0;
     return { players: this.players.size, tickMsP50: q(0.5), tickMsP95: q(0.95), tickMsMax: s[s.length - 1] ?? 0, kicks: this.kicks,

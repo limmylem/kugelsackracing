@@ -6,6 +6,7 @@
 //   const C = createClock({ now })            now: this client's monotonic ms (performance.now)
 //   C.sample(clientSent, serverMs, clientGot)   a pong
 //   C.serverNow()                             the server's ms now (its own monotonic clock)
+//   C.guess(serverMs)                         a first rough guess (the server's time in its welcome), until a ping
 //   C.ready (4 pings in) · C.rtt · C.jitter (ms) · C.offset · C.samples
 
 const WINDOW = 48, BEST = 1 / 4;
@@ -24,12 +25,14 @@ export function createClock({ now = () => performance.now() } = {}) {
       const byTrip = [...samples].sort((a, b) => a.trip - b.trip), best = byTrip.slice(0, Math.max(1, Math.ceil(byTrip.length * BEST)));
       const target = median(best.map(s => s.off));
       // (settling: straight there; afterwards a slew of at most 1 ms a ping, or a jump if it's far off — a new path)
-      if (offset == null || n <= 4 || Math.abs(target - offset) > 50) offset = target;
+      if (n <= 4 || offset == null || Math.abs(target - offset) > 50) offset = target;
       else offset += Math.max(-1, Math.min(1, target - offset));
       const trips = samples.map(s => s.trip);
       rtt = median(trips);
       jitter = median(trips.map(t => Math.abs(t - rtt)));
     },
+    // (a guess isn't a measurement: it doesn't go among the samples, it's just where the clock starts)
+    guess(serverMs) { if (offset == null) offset = serverMs - now(); },
     serverNow() { return now() + (offset ?? 0); },
     get ready() { return n >= 4; },
     get rtt() { return rtt; },

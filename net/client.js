@@ -74,7 +74,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
         const w = decodeValue(bytes);
         me = w.id; net = { ...net, ...w.net };
         // (a first guess at the server's clock, until the pings have measured it)
-        if (!clock.ready) clock.sample(now(), w.serverTime, now());
+        if (!clock.ready) clock.guess(w.serverTime);
         burst = 8; nextPing = now();
         base = null; forceKey = true;
         break;
@@ -90,7 +90,10 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       case S2C.SNAPSHOT: {
         const snap = decodeSnapshot(bytes), t = roomNow();
         for (const c of snap.cars) {
-          const p = players.get(c.id) ?? player({ id: c.id });
+          // (players come from the roster, which arrives in order; a state for one it hasn't announced yet — it can
+          // overtake on a lossy link — waits: the car appears a moment later rather than being made twice)
+          const p = players.get(c.id);
+          if (!p) continue;
           if (!p.base && c.mask !== ALL) continue;        // (wait for a complete one)
           p.base = mergeState(p.base, c.q, c.mask);
           p.remote.push(dequantise(p.base), t);

@@ -134,7 +134,9 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       }
     },
     sample(roomNow, dt) {
-      if (!buf.length) return null;
+      // (shown once there are two states to move between: a car appears, rather than sitting on its first state and
+      // then setting off with a step)
+      if (buf.length < 2) return null;
       // The shown time: it follows (room time − the delay wanted) through its RATE — how fast it runs against real time,
       // 90–110%, changed by at most half a percent a frame — so a new delay, the clock's estimate settling just after
       // joining, or a slewed correction are all taken up smoothly; the car never speeds up or slows down visibly. A long
@@ -167,7 +169,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       const ang = shown && fdt > 1e-4 ? quat.between(shown.rot, rot, fdt) : r.ang;
       shown = { pos, rot, vel, ang };
       lastT = t;
-      stats.maxCorrectionCm = Math.max(stats.maxCorrectionCm, corr);
+      stats.maxCorrectionCm = Math.max(stats.maxCorrectionCm, corr); stats.lastCorrectionCm = corr;
       if (r.extrapolating) stats.extrapolatedMs += dt * 1000;
       stats.delayMs = delay;
       return { ...r, pos, rot, vel, ang, correctionCm: corr, bufferMs: stats.bufferMs, delayMs: delay, shownAt: t };

@@ -37,7 +37,7 @@ export type BotOptions = {
   endpoint: string; ticket: (i: number) => Promise<{ ticket: string; url: string }> | { ticket: string; url: string };
   n: number; seconds: number; route?: { points: number[][]; loop: boolean }; world?: string;
   netsim?: any; serverNetsim?: string | null; spacing?: number; fps?: number; settings?: typeof NET;
-  look?: (i: number) => any; onFrame?: (t: number, bots: Bot[]) => void; measure?: boolean;
+  look?: (i: number) => any; onFrame?: (t: number, bots: Bot[]) => void; measure?: boolean; warmupMs?: number;
 };
 export type Bot = { i: number; client: ReturnType<typeof createNetClient>; driver: ReturnType<typeof createRouteDriver>; truth: [number, number[]][]; seen: Map<number, ReturnType<typeof createSmoothness>>; firstSeen: Map<number, number>; moved: Map<number, number> };
 
@@ -82,7 +82,8 @@ export async function runBots(o: BotOptions) {
         if (!other || !c.pose) continue;
         if (!b.firstSeen.has(c.id)) b.firstSeen.set(c.id, now - t0);
         let m = b.seen.get(c.id); if (!m) b.seen.set(c.id, m = createSmoothness({ snapCm: S.interp.snapCm }));
-        m.frame(c.pose, dt, ((at: number) => truthAt(other, at)) as any);
+        // (how far from its true path: measured once the buffer has settled, after the first few seconds)
+        m.frame(c.pose, dt, (now - t0 > (o.warmupMs ?? 5000) ? (at: number) => truthAt(other, at) : null) as any);
         b.moved.set(c.id, (b.moved.get(c.id) ?? 0) + Math.hypot(...c.pose.vel) * dt);
       }
     }
