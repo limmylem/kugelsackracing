@@ -10,7 +10,7 @@
 //   node server/tools/economy-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig, signUp } from '../test/helpers.ts';
+import { freshDatabase, testConfig, signUp, makeStaff, passTwoFactorInPage } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 
 const PORT = Number(process.env.PORT ?? 8787), BASE = `http://localhost:${PORT}`;  // (the test helpers' origin: the players are made through them)
@@ -25,8 +25,8 @@ const app = await buildApp({ config });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 const outbox = app.deps.mailer.outbox as any[];
 await signUp(app, outbox, { email: 'pia@example.com', name: 'Pia Pitlane', ip: '10.9.0.1' });
-await signUp(app, outbox, { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.2' });
-await app.deps.db.execute(sql`update users set role = 'admin' where email = 'boss@example.com'`);
+// an admin, as the server wants them: two-factor sign-in on (Phase 6 Step 5)
+const bossPlayer = await makeStaff(app, await signUp(app, outbox, { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.2' }), 'boss@example.com', 'admin');
 const boss = ((await app.deps.db.execute(sql`select * from users where email = 'boss@example.com'`)).rows[0] as any);
 const pia = ((await app.deps.db.execute(sql`select id from users where email = 'pia@example.com'`)).rows[0] as any).id as string;
 
@@ -133,6 +133,7 @@ try {
   await adm.goto(`${BASE}/admin/`);
   await adm.fill('#signIn input[type=email]', 'boss@example.com'); await adm.fill('#signIn input[type=password]', 'correct horse battery');
   await adm.click('#signIn button[type=submit]');
+  await passTwoFactorInPage(adm, (bossPlayer as any).totpSecret);
   await adm.waitForSelector('text=Recent admin actions', { timeout: 10000 });
   await adm.fill('input[type=search]', 'Pia'); await adm.click('button:text("Find")');
   await adm.click('.player:has-text("Pia Pitlane")');
@@ -159,7 +160,7 @@ try {
   await adm.click('#tabs button:text("Economy dashboard")');
   await adm.waitForSelector('h3:text("Average balance by level")', { timeout: 10000 });
   const dash = (await adm.textContent('main'))!;
-  check('the dashboard: totals, ledger checks, alerts, by day and by level', dash.includes('every balance matches its ledger') && dash.includes('All the money in the game') && /admin/i.test(dash), dash.slice(0, 160));
+  check('the dashboard: totals, ledger checks, alerts, by day and by level', dash.includes('every balance matches its ledger') && dash.includes('All the money in the game') && dash.includes('Bea Boss took'), dash.slice(0, 160));
   await actx.close();
   check('no errors on the pages', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e: any) {

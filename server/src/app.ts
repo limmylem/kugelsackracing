@@ -392,7 +392,7 @@ export async function buildApp(deps: AppDeps) {
   // (where the game's other parts are, for its pages: window.KR_SITE — site/config.js has the same for a
   // page served without this server, and the site build writes one for each environment)
   const tools = config.serveClient === 'tools';
-  const site = { env: config.env, api: '', game: tools ? config.gameUrl : '', tiles: config.tilesUrl ?? '', rt: config.rtUrl ?? '' };
+  const site = { env: config.env, api: '', game: tools ? config.gameUrl : '', tiles: config.tilesUrl ?? '', rt: config.rtUrl ?? '', version: config.version };
   if (config.serveClient) app.get('/site/config.js', (_req, reply) => reply.header('content-type', 'text/javascript; charset=utf-8').header('cache-control', 'no-cache').send(`globalThis.KR_SITE = Object.freeze(${JSON.stringify(site)});\n`));
   if (config.serveClient) {
     const roots = new Set(CLIENT_DIRS.map(d => `/${d}/`));

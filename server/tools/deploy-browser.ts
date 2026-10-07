@@ -25,7 +25,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig } from '../test/helpers.ts';
+import { freshDatabase, testConfig, totp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 import { REPO_DIR } from '../src/config.ts';
 
@@ -131,7 +131,7 @@ try {
   check('the emailed link is on the API\'s address', link.startsWith(U.api), link.slice(0, 60));
   const pia = await me(page);
   check('back on the game\'s address, signed in (the API\'s cookie, sent from the game)', pia?.displayName === 'Pia Pitlane' && new URL(page.url()).origin === U.game, page.url());
-  check('the page knows where everything is', await page.evaluate(() => JSON.stringify(globalThis.KR_SITE)) === JSON.stringify({ env: 'staging', api: U.api, game: U.game, tiles: U.tiles, rt: U.rt }));
+  check('the page knows where everything is', await page.evaluate(() => { const { version, ...rest } = (globalThis as any).KR_SITE; return JSON.stringify(rest) + (version ? '' : ' (no version)'); }) === JSON.stringify({ env: 'staging', api: U.api, game: U.game, tiles: U.tiles, rt: U.rt }));
 
   // ---------- the economy: writes (CSRF) and server-sent events across addresses ----------
   const start = (p: any) => p.evaluate(async () => {
@@ -173,7 +173,16 @@ try {
   const r403 = await page.goto(`${U.api}/admin/`);
   check('the admin page: a player is refused', r403!.status() === 403);
   await app.deps.db.execute(sql`update users set role = 'admin' where email = 'pia@example.com'`);
+  // an admin without two-factor sign-in: sent to the game's account page to turn it on, then back (Phase 6 Step 5)
   await page.goto(`${U.api}/admin/`);
+  await page.waitForURL((u: URL) => u.origin === U.game && u.search.includes('mode=mfa'), { timeout: 10000 });
+  check('the admin page: an admin without two-factor sign-in is sent to turn it on (on the game\'s address)', true);
+  await page.fill('input[autocomplete=current-password]', 'correct horse battery'); await page.press('input[autocomplete=current-password]', 'Enter');
+  const key = (await (await page.waitForSelector('code')).textContent())!.replace(/\s+/g, '');
+  await page.fill('input[autocomplete=one-time-code]', totp(key)); await page.press('input[autocomplete=one-time-code]', 'Enter');
+  await page.waitForSelector('text=Two-factor sign-in is on');
+  await page.click('a:has-text("Carry on")');
+  await page.waitForURL((u: URL) => u.origin === U.api, { timeout: 10000 }).catch(() => {});
   await page.waitForSelector('text=Recent admin actions', { timeout: 10000 }).then(() => check('the admin page: an admin gets it (on the API\'s address)', true), () => check('the admin page: an admin gets it (on the API\'s address)', false, page.url()));
 
   // ---------- the editor's code ----------

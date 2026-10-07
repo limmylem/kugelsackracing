@@ -26,6 +26,17 @@ const CSS = `
 #krWelcome .ghost{background:none;border:0;color:#a3abb5;font-size:14px}
 #krWelcome .err{color:#ff7a7e;font-size:13px;margin-top:8px}
 #krNotice{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:96;max-width:min(560px,calc(100vw - 24px));display:flex;gap:12px;align-items:center;font:600 14px/1.35 Barlow,system-ui,sans-serif;color:#1a1405;background:#f2c037;border-radius:10px;padding:10px 14px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+#krFeedback{position:fixed;left:12px;bottom:46px;z-index:70;font:600 11px/1 Barlow,system-ui,sans-serif;color:#a3abb5;background:rgba(10,14,20,.7);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:5px 9px;cursor:pointer}
+#krFeedback:hover{color:#e9ecef}
+#krFeedbackBox{position:fixed;inset:0;z-index:97;display:flex;align-items:center;justify-content:center;background:rgba(4,6,9,.6)}
+#krFeedbackBox>div{width:min(440px,calc(100vw - 32px));background:#0e1114;border:1px solid #333c46;border-radius:12px;padding:18px;color:#e9ecef;font:500 14px/1.45 Barlow,system-ui,sans-serif;display:flex;flex-direction:column;gap:10px}
+#krFeedbackBox h2{margin:0;font:600 22px 'Barlow Condensed',Barlow,sans-serif}
+#krFeedbackBox textarea{font:500 14px Barlow,system-ui,sans-serif;color:#e9ecef;background:#07090b;border:1px solid #333c46;border-radius:6px;padding:8px;resize:vertical}
+#krFeedbackBox .moods{display:flex;gap:6px}#krFeedbackBox .moods button{flex:1;padding:8px;border-radius:6px;border:1px solid #333c46;background:#1b2127;color:#e9ecef;cursor:pointer;font-size:18px}
+#krFeedbackBox .moods button.on{border-color:#36b3f5;background:#0f2a3a}
+#krFeedbackBox .row{display:flex;gap:8px;justify-content:flex-end}#krFeedbackBox .row button{padding:8px 14px;border-radius:6px;border:1px solid #333c46;background:#1b2127;color:#e9ecef;cursor:pointer;font:600 14px Barlow,system-ui,sans-serif}
+#krFeedbackBox .row button.primary{background:#36b3f5;border-color:#36b3f5;color:#04121b}
+#krFeedbackBox small{color:#6b7480}
 #krNotice button{font:700 13px Barlow,system-ui,sans-serif;border:0;border-radius:6px;padding:7px 12px;background:#1a1405;color:#f2c037;cursor:pointer;flex:none}`;
 
 const TEXT = { online: '', waking: 'Waking the server…', retrying: 'Reconnecting…', offline: 'Offline · free roam only' };
@@ -51,6 +62,32 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
     el.replaceChildren(text, btn);
   };
   addEventListener('kr-server-notice', e => notice(e.detail.code, e.detail.message, e.detail.details));
+  // (Phase 6 Step 5: feedback from anywhere in the game — a mood, a few words, and the game's version and device, shown
+  // before it's sent; support with a reply is on the account page)
+  const fb = document.createElement('button');
+  fb.id = 'krFeedback'; fb.textContent = 'Feedback';
+  fb.onclick = async () => {
+    const { clientInfo, describe } = await import('./clientInfo.js');
+    const fps = globalThis.__krFps ?? undefined, info = clientInfo({ fps });
+    const box = document.createElement('div'); box.id = 'krFeedbackBox';
+    box.innerHTML = '<div><h2>Feedback</h2><div class="moods"></div><textarea rows="5" maxlength="4000" placeholder="What did you like, what bugged you, what would make it better?"></textarea><small class="info"></small><small class="err"></small><div class="row"><a class="sup" href="#">Need an answer? Contact support</a><span style="flex:1"></span><button class="cancel">Cancel</button><button class="primary send">Send</button></div></div>';
+    let mood = null;
+    for (const [m, e] of [['love', '😍'], ['like', '🙂'], ['meh', '😐'], ['dislike', '🙁']]) { const b = document.createElement('button'); b.textContent = e; b.title = m; b.onclick = () => { mood = m; for (const x of box.querySelectorAll('.moods button')) x.classList.toggle('on', x === b); }; box.querySelector('.moods').append(b); }
+    box.querySelector('.info').textContent = `Sent with it: ${describe(info)}.`;
+    box.querySelector('.sup').href = `/account/?mode=support&next=${next}`;
+    const close = () => box.remove();
+    box.querySelector('.cancel').onclick = close;
+    box.onclick = e => { if (e.target === box) close(); };
+    box.querySelector('.send').onclick = async () => {
+      const text = box.querySelector('textarea').value.trim(), err = box.querySelector('.err');
+      if (text.length < 3) { err.textContent = 'A few words, please.'; return; }
+      try { await A.api.post('/feedback', { message: text, ...(mood ? { mood } : {}), client: info }); box.querySelector('div').innerHTML = '<h2>Thanks!</h2><p>We read every one.</p>'; setTimeout(close, 1500); }
+      catch (x) { err.textContent = x.code === 'UNAUTHENTICATED' ? 'Sign in (or play as a guest) to send feedback.' : x.message; }
+    };
+    document.body.appendChild(box);
+    box.querySelector('textarea').focus();
+  };
+  parent.appendChild(fb);
   A.api.get('/status', { retries: 0 }).then(s => { if (s?.maintenance?.on) notice('MAINTENANCE', s.maintenance.message, s.maintenance); }).catch(() => {});
   const next = encodeURIComponent(location.pathname + location.search);
   const open = () => { location.href = `/account/?next=${next}`; };

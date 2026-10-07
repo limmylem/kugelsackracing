@@ -13,6 +13,7 @@
 
 import { createApi, ApiError } from './api.js';
 import { createBotCheck } from './botCheck.js';
+import { clientInfo, describe } from './clientInfo.js';
 import { SITE } from '../site/urls.js';
 
 const api = createApi();
@@ -67,6 +68,7 @@ async function start() {
   if (!me) return mode === 'sign-up' ? viewSignUp() : mode === 'forgot' ? viewForgot() : mode === 'mfa' ? viewTwoFactorStep() : mode === 'guest' ? playAsGuest() : viewSignIn();
   if (me.needsTerms) return viewTerms();
   if (mode === 'mfa') return me.twoFactor.enabled ? viewCodeAgain() : viewTurnOnTwoFactor({ required: true });
+  if (mode === 'support') return show(supportSection(true));
   if (q.get('verified') || (mode === 'terms' && !me.needsTerms)) { location.replace(next); return; }
   viewAccount();
 }
@@ -223,6 +225,20 @@ function viewTurnOnTwoFactor({ required = false } = {}) {
     })));
 }
 
+// ---------- contact support (Phase 6 Step 5): linked to the account; the game's version and device shown, then sent ----------
+function supportSection(alone = false) {
+  const info = clientInfo(), cat = h('select', { required: true }, ...[['', 'What\'s it about?'], ['bug', 'Something doesn\'t work'], ['account', 'My account'], ['progress', 'Lost progress, money or items'], ['cheating', 'Cheating or another player'], ['other', 'Something else']].map(([v, t]) => h('option', { value: v }, t)));
+  const msg = h('textarea', { required: true, minlength: 10, maxlength: 4000, rows: 5, placeholder: 'What happened, and what you expected. The more detail, the quicker we can help.', style: 'font:500 15px var(--f-ui);color:var(--c-text);background:var(--c-viewport);border:1px solid var(--c-line);border-radius:var(--r-btn);padding:10px 11px' });
+  const email = me.isGuest ? field('Your email (to answer you: guests have none on file)', { type: 'email', maxlength: 254, autocomplete: 'email' }) : null;
+  return h('section', {}, h('h2', {}, 'Contact support'),
+    h('p', { class: 'muted' }, me.isGuest ? 'We answer by email if you give one.' : `We answer by email to ${me.email}.`),
+    form([h('label', {}, 'About', cat), h('label', {}, 'Message', msg), email?.el, h('p', { class: 'muted' }, 'Sent with it, to help us find the problem: ', describe(info), '.')].filter(Boolean), 'Send', async () => {
+      await api.post('/support', { category: cat.value, message: msg.value.trim(), client: info, ...(email?.input.value.trim() ? { contactEmail: email.input.value.trim() } : {}) });
+      say('Sent: thanks. We\'ll get back to you.', true); msg.value = ''; cat.value = '';
+    }, { primary: alone }),
+    alone ? h('a', { href: next }, 'Back') : null);
+}
+
 // ---------- signed in ----------
 function viewTerms() {
   const birth = birthField(), terms = termsCheck();
@@ -259,6 +275,7 @@ function viewAccount() {
         ? form([pw2.el], tf.required ? 'Turn it off (the editor and admin tools stop working)' : 'Turn it off', async () => { if (!confirm('Turn two-factor sign-in off?')) return; await api.auth('/two-factor/disable', { password: pw2.input.value }); me = (await api.get('/me')).user; say('Two-factor sign-in is off.', true); viewAccount(); }, { primary: false })
         : h('button', { class: `btn ${tf.required ? 'primary' : 'secondary'}`, type: 'button', onclick: () => viewTurnOnTwoFactor({ required: tf.required }) }, 'Turn it on')));
   }
+  sections.push(supportSection());
   sections.push(h('section', {}, h('h2', {}, 'Signing out'),
     h('div', { class: 'row' },
       h('button', { class: 'btn secondary', onclick: async () => { await api.auth('/sign-out', {}).catch(() => {}); api.forgetCsrf(); location.replace(here(null)); } }, 'Sign out'),

@@ -53,12 +53,16 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/economy-browser.ts
       - name: The deployment's layout in a browser (game, API, tiles, real time on addresses of their own; cookies, CORS, the admin and editor pages for their roles)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
+      - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/launch-browser.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
         run: node server/tools/dr-test.ts
       - name: Rollback drill (a broken release with a migration, its alert, rolled back on the newer schema; docs/OPERATIONS.md)
         run: node server/tools/rollback-test.ts
       - name: The economy under load (500 players in the garage and on the road; the books balanced after)
         run: npm run --workspace @kr/server load-test:economy
+      - name: The whole game under load (500 players at once, every step within its limit; reports/load-test.md)
+        run: npm run --workspace @kr/server load-test:full -- --players 500
       - name: The server's image builds
         run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .
 

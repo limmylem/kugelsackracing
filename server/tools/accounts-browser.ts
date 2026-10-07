@@ -11,7 +11,7 @@
 //   node server/tools/accounts-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig } from '../test/helpers.ts';
+import { freshDatabase, testConfig, totp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 
 const PORT = Number(process.env.PORT ?? 8791), BASE = `http://localhost:${PORT}`;
@@ -153,7 +153,18 @@ try {
     await app.deps.db.execute(sql`update users set role = 'editor' where email = 'ola@example.com'`);
     await page.reload(); await page.waitForSelector('h2:text("Ola Apex")');
     s = await state();
-    check('the editor: open for an editor', s.editor === true);
+    check('the editor: refused for an editor without two-factor sign-in', s.editor === false);
+    // turning two-factor sign-in on from the account page: the password, the key into an authenticator, its code
+    await page.goto(`${BASE}/account/?mode=mfa&next=/account/`);
+    await page.fill('input[autocomplete=current-password]', 'a brand new password'); await page.press('input[autocomplete=current-password]', 'Enter');
+    const key = (await (await page.waitForSelector('code')).textContent())!.replace(/\s+/g, '');
+    await page.fill('input[autocomplete=one-time-code]', totp(key)); await page.press('input[autocomplete=one-time-code]', 'Enter');
+    await page.waitForSelector('text=Two-factor sign-in is on');
+    const backup = (await page.textContent('pre'))!.trim().split(/\n/).length;
+    check('two-factor sign-in turned on, backup codes shown', backup >= 8, `${backup} codes`);
+    await page.goto(`${BASE}/account/`); await page.waitForSelector('h2:text("Ola Apex")');
+    s = await state();
+    check('the editor: open for an editor with two-factor sign-in', s.editor === true);
   }
   check('no errors on the pages', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e: any) {

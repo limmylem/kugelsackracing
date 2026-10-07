@@ -13,7 +13,7 @@
 
 import path from 'node:path';
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig, signUp } from '../test/helpers.ts';
+import { freshDatabase, testConfig, signUp, makeStaff, totp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 import { REPO_DIR } from '../src/config.ts';
 
@@ -30,8 +30,8 @@ const config = testConfig(database.url, { serveClient: true, logLevel: 'warn' },
 const app = await buildApp({ config });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 await signUp(app, app.deps.mailer.outbox as any[], { email: 'sam@example.com', name: 'Sam Shopper', ip: '10.9.0.3' });
-await signUp(app, app.deps.mailer.outbox as any[], { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.4' });
-await app.deps.db.execute(sql`update users set role = 'admin' where email = 'boss@example.com'`);
+// an admin, as the server wants them: two-factor sign-in on (Phase 6 Step 5)
+const bossPlayer = await makeStaff(app, await signUp(app, app.deps.mailer.outbox as any[], { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.0.4' }), 'boss@example.com', 'admin');
 const sam = ((await app.deps.db.execute(sql`select id from users where email = 'sam@example.com'`)).rows[0] as any).id as string;
 
 const browser = await pw.chromium.launch({ executablePath: process.env.CHROMIUM ?? '/opt/pw-browsers/chromium', args: ['--no-proxy-server', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -185,7 +185,7 @@ try {
   ap.on('pageerror', (e: any) => errors.push(String(e)));
   ap.on('dialog', (d: any) => d.type() === 'prompt' ? d.accept('Browser test: a brake sale') : d.accept());
   await ap.goto(`${BASE}/admin/`);
-  await ap.evaluate(async () => { const { createApi } = await import('/account/api.js'); await createApi().auth('/sign-in/email', { email: 'boss@example.com', password: 'correct horse battery' }); });
+  await ap.evaluate(async (code: string) => { const { createApi } = await import('/account/api.js'), api = createApi(); await api.auth('/sign-in/email', { email: 'boss@example.com', password: 'correct horse battery' }); await api.auth('/two-factor/verify-totp', { code }); }, totp((bossPlayer as any).totpSecret));
   await ap.goto(`${BASE}/admin/`);
   await ap.click('#tabs button:has-text("Shop")');
   await ap.waitForSelector('text=Schedule a sale');

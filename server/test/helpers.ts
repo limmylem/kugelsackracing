@@ -130,3 +130,12 @@ export async function makeStaff(app: App, p: Player, email: string, role: 'edito
   if (!(p as any).totpSecret) await enableTwoFactor(p, password);
   return p;
 }
+// the browser tools (tools/*-browser.ts): a page on the account page's two-factor step (after a password sign-in, or sent
+// there by the admin page) enters the authenticator's code and goes on to where it was going
+export async function passTwoFactorInPage(page: any, secret: string) {
+  const sel = 'input[autocomplete=one-time-code]';
+  await page.waitForSelector(sel, { timeout: 10000 });
+  await page.fill(sel, totp(secret));
+  await page.press(sel, 'Enter');
+  await page.waitForURL((u: URL) => !u.search.includes('mode=mfa'), { timeout: 10000 });
+}

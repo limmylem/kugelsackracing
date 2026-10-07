@@ -51,6 +51,8 @@ export const ERROR_CODES = [
   // (Phase 6 Step 5) two-factor sign-in needed (editors and admins), the bot check failed, a closed beta's invite
   // code needed, the game down for maintenance, a game too old for the server, a feature switched off
   'MFA_REQUIRED', 'BOT_CHECK', 'INVITE_REQUIRED', 'MAINTENANCE', 'CLIENT_TOO_OLD', 'FEATURE_OFF',
+  // the server too busy this moment (every database connection in use): try again in a second — the game does by itself
+  'BUSY',
 ] as const;
 export const ErrorCode = z.enum(ERROR_CODES);
 export type ErrorCode = z.infer<typeof ErrorCode>;

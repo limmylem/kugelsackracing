@@ -6,4 +6,5 @@
 //   game   the game's address ('' = this page's own)
 //   tiles  map files, cars, parts and sounds (/assets/…) ('' = this page's own)
 //   rt     the real-time server (wss://…) ('' = none)
-globalThis.KR_SITE ??= Object.freeze({ env: 'local', api: '', game: '', tiles: '', rt: '' });
+//   version  the game's build (its commit), sent with support and feedback messages
+globalThis.KR_SITE ??= Object.freeze({ env: 'local', api: '', game: '', tiles: '', rt: '', version: 'local' });

@@ -188,3 +188,21 @@ test('alerts: each problem sent once, again an hour later if it lasts, and when 
   quiet.record({ route: 'GET /x', status: 500, ms: 5000 });
   assert.equal(evaluate(quiet, healthy, DEFAULT_ALERTS).size, 0);
 });
+
+test('every database connection busy: 503 BUSY with when to retry (the game retries), not a 500 (the load test\'s finding)', async () => {
+  const Fastify = (await import('fastify')).default, { installErrors } = await import('../src/errors.ts');
+  const f = Fastify({ logger: false }), unexpected: unknown[] = [];
+  installErrors(f, { onUnexpected: e => unexpected.push(e) });
+  // (what node-postgres throws when the pool's wait runs out)
+  f.get('/busy', async () => { throw new Error('timeout exceeded when trying to connect'); });
+  f.get('/broken', async () => { throw new Error('a real bug'); });
+  const busy = await f.inject({ method: 'GET', url: '/busy' });
+  assert.equal(busy.statusCode, 503);
+  assert.equal(busy.json().error.code, 'BUSY');
+  assert.equal(busy.headers['retry-after'], '2');
+  assert.equal(unexpected.length, 0, 'not reported as a bug');
+  const broken = await f.inject({ method: 'GET', url: '/broken' });
+  assert.equal(broken.statusCode, 500);
+  assert.equal(unexpected.length, 1);
+  await f.close();
+});

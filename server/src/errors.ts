@@ -39,6 +39,13 @@ export function installErrors(app: FastifyInstance, { onUnexpected }: { onUnexpe
     if (s === 429) return sendError(reply, request, 429, 'RATE_LIMITED', 'Too many requests: wait a moment and try again.');
     if (err.code === 'FST_CSRF_INVALID_TOKEN' || err.code === 'FST_CSRF_MISSING_SECRET') return sendError(reply, request, 403, 'CSRF', 'This request didn\'t come from the game: reload and try again.');
     if (s >= 400 && s < 500) return sendError(reply, request, s, s === 404 ? 'NOT_FOUND' : 'BAD_REQUEST', s === 404 ? 'Not found.' : `That request isn't right${err.message ? `: ${err.message}` : ''}.`);
+    // (every database connection busy for its whole wait: not a bug, a busy moment — 503 and when to retry, which the
+    // game does by itself, rather than a failure; the load test's finding, docs/KNOWN_ISSUES.md)
+    if (/timeout exceeded when trying to connect|too many clients|remaining connection slots/i.test(`${err.message} ${(err as any).cause?.message ?? ''}`)) {
+      request.log.warn({ err: err.message }, 'database busy');
+      reply.header('retry-after', '2');
+      return sendError(reply, request, 503, 'BUSY', 'The server is very busy this moment: trying again…');
+    }
     request.log.error({ err }, 'unexpected error');
     onUnexpected?.(err, request);
     return sendError(reply, request, 500, 'INTERNAL', 'Something went wrong on the server. Please try again.');

@@ -35,11 +35,18 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
 6. **What only the real setup can check:** Cloudflare's CDN caching of the tiles (range requests through the
    edge), WebSockets through Cloudflare to `rt.` ([Real time](#real-time-through-cloudflare-or-straight)), the
    player's address via `EDGE_SECRET`, HSTS (turn `HSTS` on once HTTPS works everywhere), a status page or uptime
-   check (not built: [Once everything works](#once-everything-works)).
+   check (built in Phase 6 Step 5: [OPERATIONS.md](OPERATIONS.md); the outside monitor needs an account).
 7. **Hosts the game reaches besides its own:** jsDelivr (three.js, Rapier, MapLibre and its worker), Google Fonts,
    `demotiles.maplibre.org` (the map's lettering) and `tiles.openfreemap.org` (the photoreal world's minimap). The
    content security policy (`server/src/app.ts`, `tools/build-site.mjs`) allows them; recheck it if any moves.
-8. **Phase 7 Step 1's two-player check** on different networks (CLAUDE.md), once multiplayer is built.
+8. **Launch readiness (Phase 6 Step 5):** follow [LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST.md). For hosting, that means:
+   - Turnstile keys ([ABUSE.md](ABUSE.md)) and Cloudflare's WAF rules;
+   - `ALERT_EMAIL` and `ALERT_WEBHOOK_URL`, an uptime monitor and `status.` ([OPERATIONS.md](OPERATIONS.md#when-we-deploy));
+   - `METRICS_TOKEN` if a dashboard reads `/api/v1/metrics`;
+   - budget alerts on every paid service ([COSTS.md](COSTS.md));
+   - point-in-time recovery, with the paid database ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md));
+   - the DR drill once on real staging.
+9. **Phase 7 Step 1's two-player check** on different networks (CLAUDE.md), once multiplayer is built.
 
 What changed for localhost since this file was written, and matters online too:
 - The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`

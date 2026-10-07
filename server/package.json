@@ -19,7 +19,11 @@
     "test:browser": "node tools/accounts-browser.ts",
     "test:browser:economy": "node tools/economy-browser.ts",
     "load-test:shop": "node tools/shop-load.ts",
-    "test:browser:shop": "node tools/shop-browser.ts"
+    "test:browser:shop": "node tools/shop-browser.ts",
+    "test:browser:launch": "node tools/launch-browser.ts",
+    "load-test:full": "node tools/full-load.ts",
+    "drill:dr": "node tools/dr-test.ts",
+    "drill:rollback": "node tools/rollback-test.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

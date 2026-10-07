@@ -32,7 +32,9 @@ const url = (name) => {
   if (!ok) { console.error(`--${name} must be ${name === 'rt' ? 'wss' : 'https'}://`); process.exit(2); }
   return v.replace(/\/$/, '');
 };
-const SITE = { env, api: url('api'), game: url('game'), tiles: url('tiles'), rt: url('rt') };
+// (the commit built: support and feedback messages say which version of the game they came from)
+const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
+const SITE = { env, api: url('api'), game: url('game'), tiles: url('tiles'), rt: url('rt'), version: process.env.GITHUB_SHA?.slice(0, 7) ?? commit };
 const out = path.resolve(opt('--out', path.join(root, '.cache/site', env)));
 const LEAVE_OUT = new Set(['assets', 'admin', 'editor', ...(env === 'production' ? ['dev'] : [])]);
 const KEEP = new Set(['editor/access.js']);

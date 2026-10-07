@@ -95,6 +95,25 @@ that many players:
 
 The load test reports sign-in as "over (known)", not failed.
 
+**Phase 6 Step 5's full-game load test** (`npm run load-test:full -w @kr/server`, [reports/load-test.md](../reports/load-test.md)):
+- **500 players at once (the beta's size), arriving over a minute:** passes. Every step's p95 is under 210 ms, including sign-in, with no errors and the books balanced.
+- **2,000 at once (this computer, 4 cores):** fails.
+  - Sign-in queues behind the password checks.
+  - The database's 10 connections run out. Those requests used to answer 500. They now answer `503 BUSY` with "try again in 2 s", and the game retries.
+  - Online, more players at once means a bigger plan ([COSTS.md](COSTS.md)).
+
+### Launch readiness (Phase 6 Step 5): what's left
+
+[LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST.md) has every item. The ones that aren't code:
+- **The minimum age stays 13** until a lawyer agrees otherwise. The owner would allow any age, but under-13s bring COPPA, GDPR article 8 and the UK Children's Code ([PRIVACY_DATA.md](PRIVACY_DATA.md)).
+- **The privacy policy and terms** are drafts for the EU, UK, US and Australia, and need a legal review.
+- **Point-in-time recovery, Turnstile, alerts, the uptime monitor and budget alerts** wait for the deployment.
+- **Two security findings stay open (accepted):**
+  - sign-up says when an email already has an account (L3);
+  - moderate advisories in development tools only (L4).
+  - Details in [SECURITY.md](SECURITY.md).
+- **Browser tests and the CDN:** the game's page needs `--local-libs` in the shop browser test where jsDelivr can't be reached. Its `pbf` and `@mapbox/vector-tile` must be the CDN's versions (4 and 2): set `CDN_LIBS` to a folder with them installed if the repository's own are newer.
+
 ### Nearby content: a 10 km circle in the densest city is over 5 ms through the API
 
 `npm run stress:content -w @kr/server` (50,000 markers):

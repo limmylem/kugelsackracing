@@ -1034,6 +1034,7 @@ function frame(w, now) {
   const seconds = Math.min(Math.max((now - shared.last) / 1000, 0), 0.25);
   shared.last = now;
   shared.fps += ((seconds > 0 ? 1 / seconds : 0) - shared.fps) * 0.05;
+  globalThis.__krFps = shared.fps;        // (Phase 6 Step 5: the feedback button sends it with a message — account/status.js)
   // the editor's on: it flies its camera, nothing else moves
   if (editorHooks.active) { editorHooks.frame?.(w, seconds, now); if (!editorHooks.hidden) w.fxDraw.render(w.scene, editorHooks.camera ?? w.camera); return; }
 

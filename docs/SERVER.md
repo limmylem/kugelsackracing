@@ -63,6 +63,9 @@ npm run server:dev                    # migrates the database, then serves on PU
 | `node server/tools/shop-browser.ts` | The shop, dealership, selling and the admin's shop in Chromium (docs/SHOP.md). |
 | `node server/tools/shop-load.ts` | 500 players browsing and buying in the shop at once, then the books checked. |
 | `npm run load-test:economy -w @kr/server` | 500 players in the garage and on the road, then the books checked (`--burst`: all at the same moment). |
+| `npm run load-test:full -w @kr/server` | **The whole game, 500 players at once** (Phase 6 Step 5): sign in, the world, the garage, the shop, a drive, a repair, the daily event, the leaderboard; limits per step, the books checked, and what one player costs (`reports/load-test.md`, [COSTS.md](COSTS.md)). `--players N`. |
+| `npm run test:browser:launch -w @kr/server` | The launch screens in Chromium: support and feedback with the game's version and device, the credits and status pages; the admin's Support, Launch (closed beta, invite codes used by a new player), Reports, Monitoring and a player's full history. |
+| `npm run drill:dr -w @kr/server` · `npm run drill:rollback -w @kr/server` | The disaster recovery and rollback drills ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md), [OPERATIONS.md](OPERATIONS.md)). |
 
 The pre-commit hook doesn't run these, because they need PostgreSQL. CI runs them on every push
 (`.github/workflows/server.yml`).
@@ -94,6 +97,13 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
     server built.
   - `/tracks/leaderboard` and `/tracks/records` give leaderboards and records.
   - `/replays` stores race replays.
+- **Launch (Phase 6 Step 5):**
+  - `/status` (public: up, maintenance, features off), `/metrics` (Prometheus, with `METRICS_TOKEN`);
+  - players: `POST /reports`, `POST /support`, `POST /feedback`;
+  - admins: `/admin/reports`, `/admin/flags` (multi-account and earning flags), `/admin/support` (with `/reply`),
+    `/admin/settings/:key` (features and gradual rollouts, maintenance, the closed beta, the oldest game taken),
+    `/admin/invites`, `/admin/players/:id/history`, `/admin/monitoring`, `/admin/retention`.
+  - [SECURITY.md](SECURITY.md), [ABUSE.md](ABUSE.md), [OPERATIONS.md](OPERATIONS.md), [PRIVACY_DATA.md](PRIVACY_DATA.md).
 - **Every write** needs:
   - an `Idempotency-Key` (a retry is applied once);
   - with a session cookie, the CSRF token from `/csrf` in `x-csrf-token`.
@@ -112,6 +122,9 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
 - **Sentry** (server and browser) collects nothing personal.
 - **Roles** are the server's. Editor and admin endpoints check the role as the request arrives, before
   its body is read. Every admin action is logged.
+- **Editors and admins need two-factor sign-in** (an authenticator app), passed within the last 12 hours.
+- **When the database's connections run out**, a request answers `503 BUSY` with `Retry-After: 2`, not a 500.
+- The whole review, its findings and the release checklist: [SECURITY.md](SECURITY.md).
 - `npm audit --omit=dev --audit-level=high` runs in CI.
 
 ## Hosting
