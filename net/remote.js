@@ -57,7 +57,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   const I = interp, interval = 1000 / sendHz;
   const buf = [];                       // states, oldest first, by time
   const lags = [];
-  let delay = null, target = I.startBufferMs, lastT = null, jump = false;
+  let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1;
   let shown = null;                     // what was drawn last frame: { pos, rot, vel, ang } (vel/ang: as drawn)
   let blend = null;                     // a correction under way: from the path shown { t0, T, p0, v0, q0, w0 } to the real one
   const stats = { lagP50: 0, lagP95: 0, bufferMs: I.startBufferMs, delayMs: 0, corrections: 0, maxCorrectionCm: 0, extrapolatedMs: 0, states: 0 };
@@ -80,7 +80,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
         pos, rot: quat.slerp(a.rot, b.rot, u), vel: v3.lerp(a.vel, b.vel, u), ang: v3.lerp(a.ang, b.ang, u),
         steer: L(a.steer, b.steer), throttle: L(a.throttle, b.throttle), brake: L(a.brake, b.brake), gear: near.gear, rpm: L(a.rpm, b.rpm),
         wheels: b.wheels.map((w, k) => { const x = a.wheels[k] ?? w; return { omega: L(x.omega, w.omega), length: L(x.length, w.length), slip: L(x.slip, w.slip), grounded: (u < 0.5 ? x : w).grounded }; }),
-        flags: near.flags, extrapolating: false, staleMs: 0,
+        flags: near.flags, extrapolating: false, staleMs: 0, seg: [a.time, b.time],
       };
     }
     // past the newest: predicted ahead from it, for a while; then easing to a stop
@@ -112,14 +112,14 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       // far enough back that 95% of states are in before they're needed (and the next one too)
       target = Math.max(p50 + I.minBufferMs, Math.min(p50 + I.maxBufferMs, p95 + interval / 2));
       stats.bufferMs = target - p50;
-      if (delay == null) delay = Math.max(target, lag + I.startBufferMs);
+      if (delay == null) { delay = Math.max(target, lag + I.startBufferMs); target = delay; }
       const before = lastT != null && !jump ? raw(lastT) : null;
       let k = buf.length;
       while (k > 0 && buf[k - 1].time > state.time) k--;
       buf.splice(k, 0, state);
       while (buf.length > 2 && buf[buf.length - 1].time - buf[1].time > KEEP_MS && (lastT == null || buf[1].time < lastT)) buf.shift();
       stats.states++;
-      if (jump) { jump = false; blend = null; shown = null; lastT = null; delay = target; return; }
+      if (jump) { jump = false; blend = null; shown = null; lastT = null; return; }
       // the real path moved under what was shown (a late state replaced a prediction): steer across to it from where
       // the car is shown, over longer the bigger the difference
       if (before && shown) {
@@ -135,11 +135,20 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     },
     sample(roomNow, dt) {
       if (!buf.length) return null;
-      // the shown time follows a new delay gradually: a few percent faster or slower, never a skip
-      const rate = target > delay ? 0.08 : 0.05;
-      delay += Math.max(-rate * dt * 1000, Math.min(rate * dt * 1000, target - delay));
-      let t = roomNow - delay;
-      if (lastT != null && t < lastT) t = lastT;                       // (never backwards)
+      // The shown time: it follows (room time − the delay wanted) through its RATE — how fast it runs against real time,
+      // 90–110%, changed by at most half a percent a frame — so a new delay, the clock's estimate settling just after
+      // joining, or a slewed correction are all taken up smoothly; the car never speeds up or slows down visibly. A long
+      // gap (the tab was in the background) resets it.
+      const want = roomNow - target;
+      let t;
+      if (lastT == null || Math.abs(want - (lastT + dt * 1000)) > 2000) { t = want; rate = 1; }
+      else {
+        const err = want - (lastT + dt * 1000 * rate);
+        const wantRate = 1 + Math.max(-0.1, Math.min(0.1, err / 500));
+        rate += Math.max(-0.005, Math.min(0.005, wantRate - rate));
+        t = lastT + dt * 1000 * rate;
+      }
+      delay = roomNow - t;
       const r = raw(t);
       let pos = r.pos, rot = r.rot, corr = 0;
       if (blend) {

@@ -35,6 +35,18 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
   let myLook = look, myEvents = events;
   // sending
   let base = null, lastSend = -Infinity, lastKey = -Infinity, sendCount = 0, forceKey = false;
+  // the stamps on this car's states: their own steady clock, steered towards the server's (as the clock's estimate
+  // settles it can step by tens of ms; a state stamped with a step doesn't match its position, and every other player
+  // would see the car lurch). It runs 90–110% of real time, changing its rate by at most half a percent a state.
+  const stamp = { local: null, room: 0, rate: 1 };
+  const stampNow = () => {
+    const t = now(), want = roomNow();
+    if (stamp.local == null || Math.abs(want - (stamp.room + (t - stamp.local))) > 2000) { stamp.local = t; stamp.room = want; stamp.rate = 1; return want; }
+    const est = stamp.room + (t - stamp.local) * stamp.rate, err = want - est;
+    stamp.rate += Math.max(-0.005, Math.min(0.005, 1 + Math.max(-0.1, Math.min(0.1, err / 500)) - stamp.rate));
+    stamp.room = est; stamp.local = t;
+    return est;
+  };
   // pings
   let seq = 0, nextPing = 0, burst = 0;
   const pending = new Map(), pingLog = [];
@@ -159,7 +171,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       if (status === 'online' && local && t - lastSend >= 1000 / net.sendHz - 2) {
         const s = local();
         if (s) {
-          const q = quantise({ ...s, time: roomNow() - (s.ageMs ?? 0) });
+          const q = quantise({ ...s, time: stampNow() - (s.ageMs ?? 0) });
           const key = fullStates || forceKey || !base || t - lastKey >= net.keyframeSec * 1000;
           const mask = key ? ALL : maskFor(q, base, sendCount % net.detailEvery === 0);
           // (parked, nothing changed: a short "still here" a few times a second, not 30)

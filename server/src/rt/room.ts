@@ -171,7 +171,7 @@ export class TestRoom extends Room {
     if (!p.latest && mask !== ALL) return;          // (the first must be complete: wait for its next full one)
     const merged = mergeState(p.latest, q, mask), f = dequantise(merged);
     const why = p.checks.state(p.latestF, f, now, { resetOk: now < p.resetUntil });
-    if (why) { p.dropped++; this.strike(p, why); return; }
+    if (why) { p.dropped++; if (why !== 'stale') this.strike(p, why); return; }
     p.latest = merged; p.latestF = f; p.statesIn++;
   }
   private onEvent(c: Client, bytes: Uint8Array) {

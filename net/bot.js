@@ -10,8 +10,31 @@
 
 const G = 9.81, WHEEL_R = 0.33, RATIOS = [3.6, 2.2, 1.55, 1.2, 0.95, 0.78], FINAL = 3.7, IDLE = 900, REDLINE = 7000;
 
-export function createRouteDriver(points, { closed = true, topSpeed = 45, grip = 0.9, accel = 4.5, brake = 8, offset = 0, startAt = 0, wheelbase = 2.6 } = {}) {
-  const P = points.map(p => [...p]), n = P.length;
+// a line resampled every `step` m and smoothed (moving averages), so the car's path has no corners: a road's line
+// is a polyline, and a car taking its corners point to point would turn in jerks
+export function smoothLine(points, { closed = true, step = 2, passes = 4, window = 6 } = {}) {
+  const src = points.map(p => [...p]), m = src.length;
+  const out = [];
+  for (let i = 0; i < m - (closed ? 0 : 1); i++) {
+    const a = src[i], b = src[(i + 1) % m], d = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), k = Math.max(1, Math.round(d / step));
+    for (let j = 0; j < k; j++) out.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k, a[2] + (b[2] - a[2]) * j / k]);
+  }
+  if (!closed) out.push(src[m - 1]);
+  let cur = out;
+  for (let p = 0; p < passes; p++) {
+    const n = cur.length;
+    cur = cur.map((_, i) => {
+      if (!closed && (i < window || i >= n - window)) return cur[i];
+      const acc = [0, 0, 0];
+      for (let j = -window; j <= window; j++) { const q = cur[((i + j) % n + n) % n]; acc[0] += q[0]; acc[1] += q[1]; acc[2] += q[2]; }
+      return acc.map(x => x / (2 * window + 1));
+    });
+  }
+  return cur;
+}
+
+export function createRouteDriver(points, { closed = true, topSpeed = 45, grip = 0.9, accel = 4.5, brake = 8, offset = 0, startAt = 0, wheelbase = 2.6, smooth = true } = {}) {
+  const P = (smooth ? smoothLine(points, { closed }) : points).map(p => [...p]), n = P.length;
   // distances along the line, and each point's tangent and curvature
   const cum = [0];
   for (let i = 1; i < n + (closed ? 1 : 0); i++) { const a = P[(i - 1) % n], b = P[i % n]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])); }
@@ -42,9 +65,11 @@ export function createRouteDriver(points, { closed = true, topSpeed = 45, grip =
       const yaw = heading(s), k = curvature(s);
       let yawRate = (yaw - prevYaw); yawRate = Math.atan2(Math.sin(yawRate), Math.cos(yawRate)) / dt; prevYaw = yaw;
       // (offset to the right of the line: x right = (cos yaw, −sin yaw) for a heading measured from +z towards +x)
-      const c = at(s), right = [-Math.cos(yaw), 0, Math.sin(yaw)];
-      const pos = [c[0] + right[0] * offset, c[1] + 0.45, c[2] + right[2] * offset];
-      const fwd = [Math.sin(yaw), 0, Math.cos(yaw)];
+      const place = d => { const c = at(d), h = heading(d), r = [-Math.cos(h), 0, Math.sin(h)]; return [c[0] + r[0] * offset, c[1] + 0.45, c[2] + r[2] * offset]; };
+      const pos = place(s);
+      // (its velocity: how its position really changes along the path — offset, slope and all)
+      const ahead = place(s + 0.5), behind = place(s - 0.5), dl = Math.hypot(ahead[0] - behind[0], ahead[1] - behind[1], ahead[2] - behind[2]) || 1;
+      const fwd = [(ahead[0] - behind[0]) / dl, (ahead[1] - behind[1]) / dl, (ahead[2] - behind[2]) / dl];
       const rot = [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)];
       // the drivetrain: the highest gear that keeps the revs up, the rpm from the wheels
       const wheelRpm = v / WHEEL_R * 60 / (2 * Math.PI);
@@ -54,7 +79,7 @@ export function createRouteDriver(points, { closed = true, topSpeed = 45, grip =
       const slip = Math.min(2.4, Math.abs(k) * v * v / (grip * G) * 0.6 + (braking ? 0.15 : 0));
       const wheels = ['FL', 'FR', 'RL', 'RR'].map((_, i) => ({ omega: v / WHEEL_R, length: 0.22 + 0.01 * Math.sin(bounce * 9 + i * 1.7) + (i < 2 ? 0.006 : -0.006) * (braking ? 1 : 0), slip, grounded: true }));
       return {
-        tick, pos, rot, vel: [fwd[0] * v, 0, fwd[2] * v], ang: [0, yawRate, 0],
+        tick, pos, rot, vel: [fwd[0] * v, fwd[1] * v, fwd[2] * v], ang: [0, yawRate, 0],
         steer: Math.max(-1, Math.min(1, Math.atan(wheelbase * k) / 0.6)), throttle: a > 0 ? Math.min(1, a / accel + 0.2) : 0, brake: braking ? Math.min(1, (v - want) / 4 + 0.4) : 0,
         gear, rpm, wheels, flags: braking ? 1 : 0,
       };

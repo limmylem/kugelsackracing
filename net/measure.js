@@ -13,6 +13,7 @@ import { quat } from './remote.js';
 
 export function createSmoothness({ snapCm = 10 } = {}) {
   let prev = null, frames = 0, snaps = 0, worstJump = 0, worstTurn = 0, extrap = 0, corrMax = 0;
+  const notes = [];                 // (the first few snaps: what was going on — for working out why)
   const errors = [];
   return {
     frame(pose, dt, truth = null) {
@@ -26,14 +27,14 @@ export function createSmoothness({ snapCm = 10 } = {}) {
         const travel = Math.hypot(...prev.vel) * dt * 100;
         const turnExp = quat.spin(prev.rot, prev.ang, dt), turn = quat.angle(quat.mul(pose.rot, quat.conj(turnExp))) * 180 / Math.PI;
         worstJump = Math.max(worstJump, jump); worstTurn = Math.max(worstTurn, turn);
-        if (jump > Math.max(snapCm, 0.1 * travel) || turn > 1.5) snaps++;
+        if (jump > Math.max(snapCm, 0.1 * travel) || turn > 1.5) { snaps++; if (notes.length < 8) notes.push({ frame: frames, jumpCm: +jump.toFixed(1), travelCm: +travel.toFixed(1), turnDeg: +turn.toFixed(2), dtMs: +(dt * 1000).toFixed(1), extrapolating: !!pose.extrapolating, correctionCm: +(pose.correctionCm ?? 0).toFixed(1), shownAt: pose.shownAt, prevShownAt: prev.shownAt, seg: pose.seg, prevSeg: prev.seg }); }
       }
       if (truth) { const t = truth(pose.shownAt); if (t) errors.push(Math.hypot(t[0] - pose.pos[0], t[1] - pose.pos[1], t[2] - pose.pos[2]) * 100); }
       prev = pose;
     },
     result() {
       const e = [...errors].sort((a, b) => a - b), q = x => e.length ? e[Math.min(e.length - 1, Math.floor(e.length * x))] : 0;
-      return { frames, snaps, worstJumpCm: +worstJump.toFixed(1), worstTurnDeg: +worstTurn.toFixed(2), errorP50Cm: +q(0.5).toFixed(1), errorP95Cm: +q(0.95).toFixed(1), errorMaxCm: +(e[e.length - 1] ?? 0).toFixed(1), extrapolatedShare: frames ? +(extrap / frames).toFixed(3) : 0, correctionMaxCm: +corrMax.toFixed(1) };
+      return { frames, snaps, worstJumpCm: +worstJump.toFixed(1), worstTurnDeg: +worstTurn.toFixed(2), errorP50Cm: +q(0.5).toFixed(1), errorP95Cm: +q(0.95).toFixed(1), errorMaxCm: +(e[e.length - 1] ?? 0).toFixed(1), extrapolatedShare: frames ? +(extrap / frames).toFixed(3) : 0, correctionMaxCm: +corrMax.toFixed(1), notes };
     },
   };
 }

@@ -6,7 +6,8 @@
 // decides.
 //
 //   const C = createChecks(NET.checks)
-//   C.state(prev, next, now, { resetOk }) → null (fine) or a reason       (prev/next: dequantised, world frame)
+//   C.state(prev, next, now, { resetOk }) → null (fine), 'stale' (older than the last: dropped, no strike — normal on a
+//                                         lossy link) or a reason it's impossible       (prev/next: dequantised, world frame)
 //   C.rate(now) → whether one more message fits the rate limit
 //   C.strike(reason, now) → whether the player has now had too many
 
@@ -34,8 +35,8 @@ export function createChecks(L: Limits) {
       const speed = Math.hypot(s.vel[0], s.vel[1], s.vel[2]);
       if (speed > L.maxSpeed) return 'too fast';
       if (!prev) return null;
-      if (s.tick <= prev.tick && !resetOk) return 'out of order';
-      if (s.time < prev.time) return 'went back in time';
+      if (s.tick <= prev.tick && !resetOk) return 'stale';
+      if (s.time < prev.time) return 'stale';
       // how far it could have gone since the last state: at the faster of its two speeds, plus some slack (a crash
       // can fling a car; the clocks wobble)
       const dt = Math.max(0, s.time - prev.time) / 1000, moved = Math.hypot(s.pos[0] - prev.pos[0], s.pos[1] - prev.pos[1], s.pos[2] - prev.pos[2]);

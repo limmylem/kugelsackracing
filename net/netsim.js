@@ -25,6 +25,18 @@ export function createLink(opts = {}) {
   const rand = rng(o.seed), timers = new Set();
   const stats = { sent: 0, delivered: 0, lost: 0, resent: 0, maxDelayMs: 0 };
   let lastDue = 0, closed = false;
+  const fifo = [];
+  let armed = null;
+  // the ordered queue: one timer, for its head; everything due by then goes, in order
+  const arm = () => {
+    if (armed || !fifo.length || closed) return;
+    armed = schedule(() => {
+      timers.delete(armed); armed = null;
+      while (fifo.length && fifo[0].due <= now() + 0.5 && !closed) { const m = fifo.shift(); stats.delivered++; m.deliver(m.payload); }
+      arm();
+    }, Math.max(0, fifo[0].due - now()));
+    timers.add(armed);
+  };
   // (jitter: a bell curve around the latency — two uniform draws — never below zero)
   const delayOf = () => Math.max(0, o.latencyMs + o.jitterMs * (rand() + rand() - 1) * 1.7);
   return {
@@ -40,9 +52,15 @@ export function createLink(opts = {}) {
         d += o.rtoMs ?? Math.max(200, 2 * o.latencyMs + 4 * o.jitterMs);      // (TCP's retransmission timeout: at least 200 ms)
       }
       let due = now() + d;
-      // a stream keeps its order: nothing overtakes what's ahead of it (a datagram may arrive out of order)
-      if (o.mode === 'stream' || reliable) { due = Math.max(due, lastDue); lastDue = due; }
       stats.maxDelayMs = Math.max(stats.maxDelayMs, due - now());
+      // a stream keeps its order: nothing overtakes what's ahead of it, so it's delivered from one queue, in order
+      // (timers alone don't promise that); a datagram may arrive out of order, on its own timer
+      if (o.mode === 'stream' || reliable) {
+        due = Math.max(due, lastDue); lastDue = due;
+        fifo.push({ due, deliver, payload });
+        if (fifo.length === 1) arm();
+        return;
+      }
       const h = schedule(() => { timers.delete(h); if (!closed) { stats.delivered++; deliver(payload); } }, Math.max(0, due - now()));
       timers.add(h);
     },
@@ -50,7 +68,7 @@ export function createLink(opts = {}) {
     get conditions() { return { ...o }; },
     get off() { return !o.latencyMs && !o.jitterMs && !o.loss; },
     stats,
-    close() { closed = true; for (const h of timers) cancel(h); timers.clear(); },
+    close() { closed = true; for (const h of timers) cancel(h); timers.clear(); fifo.length = 0; },
   };
 }
 
