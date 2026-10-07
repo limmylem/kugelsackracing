@@ -6,7 +6,29 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
 ## Phase 7 Step 1: multiplayer networking (docs/MULTIPLAYER.md)
 
-### Two players on different networks: waiting for the game to be online
+### Fixed: two windows on one computer didn't see each other
+
+Reported after Step 1: `docker compose up`, `/?mp` in two windows side by side; the banner said 2 players, but
+neither window showed the other car. Found with `server/tools/mp-two-windows.ts`, which reproduces it (and fails 10
+of 11 checks on the code before the fix):
+- **The same account twice.** Two windows of one browser share its sign-in, so the second window replaced the
+  first (`ELSEWHERE`). The first went offline with a five-second notice, so its car was never sent. The "2
+  players" was the second window's join banner, from the moment before the first was replaced. Now the replaced
+  window keeps a banner saying why, and in development `?mp&player=A` / `?mp&player=B` give each window a guest of
+  its own.
+- **On top of each other.** Every new car arrives at the same place, so with two different players each car was
+  drawn inside the other. Now the later one moves beside the first.
+- **Background windows dropped.** A window that isn't drawing sent nothing, and the server removed it after 15 s.
+  Its states were also refused, because the physics step hadn't moved on, which also hid any player with the
+  settings open. Now a worker keeps it connected and its car shows as paused; the same step again is accepted.
+- **A closed or reloaded window** left its car behind as "reconnecting…" for 20 s. It now leaves at once.
+- **Slow machines** caught up with a car's delay at a rate set per frame, so at a few frames a second other cars
+  trailed for many seconds. It's now per second.
+
+Why the earlier tests missed it: `mp-browser.ts` used two separate browsers with two accounts, in the proving
+ground. It checked where the network code said the other car should be, not what was drawn.
+
+
 
 Two real browsers on this computer see each other smoothly in the same room, on a clean network and at 150 ms,
 30 ms jitter and 5% loss (`server/tools/mp-browser.ts`). The check with two players on different real networks
@@ -36,6 +58,10 @@ This computer's Chromium renders in software (SwiftShader), so each test page dr
 pages check what they can at that rate: the other car seen and moving, wheels, brake lights, sound, dents and
 reconnecting. Smoothness is measured by a third, headless player watching both cars at a steady 60 fps through
 the same network code. The pages check it themselves only when they reach 20 fps, which a machine with a GPU will.
+
+At 2 fps (this computer on a slow day), `mp-browser.ts` can fail one check, "Ben sees Ana's car, drawn and moving"
+at the target bad network: Ana drives only a few metres in that phase. It fails the same way on the code before
+the two-window fix, and passes at 3 fps or more.
 
 ### Fixed on the way: the test track's road (since Phase 5 Step 4)
 

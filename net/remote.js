@@ -150,7 +150,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       // then setting off with a step)
       if (buf.length < 2) return null;
       // The shown time: it follows (room time − the delay wanted) through its RATE — how fast it runs against real time,
-      // 90–110%, changed by at most half a percent a frame — so a new delay, the clock's estimate settling just after
+      // 90–110%, changed by at most 0.3 a second (half a percent a frame at 60 fps; as fast in real time on a machine
+      // drawing a few frames a second, which would otherwise take many seconds to catch up) — so a new delay, the clock's estimate settling just after
       // joining, or a slewed correction are all taken up smoothly; the car never speeds up or slows down visibly. A long
       // gap (the tab was in the background) resets it.
       const want = roomNow - target;
@@ -159,7 +160,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       else {
         const err = want - (lastT + dt * 1000 * rate);
         const wantRate = 1 + Math.max(-0.1, Math.min(0.1, err / 500));
-        rate += Math.max(-0.005, Math.min(0.005, wantRate - rate));
+        const step = Math.min(0.1, 0.3 * dt);
+        rate += Math.max(-step, Math.min(step, wantRate - rate));
         t = lastT + dt * 1000 * rate;
       }
       delay = roomNow - t;

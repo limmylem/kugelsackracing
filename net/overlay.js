@@ -1,14 +1,17 @@
 // The network overlay (Phase 7 Step 1; docs/MULTIPLAYER.md "Debug tools"): what the connection is doing, in a
 // corner of the screen. Ping and its jitter, packet loss (pings unanswered), kB a second up and down, the
 // interpolation buffer, and for each other car how far behind it's shown, whether it's being predicted ahead, and how
-// much it's being corrected (now and at worst). The network simulator's conditions too, when it's on.
+// much it's being corrected (now and at worst). The network simulator's conditions too, when it's on. And the
+// players: each other one, how far from you, whether its car is drawn here (and if not, why), and how long ago its
+// last state arrived.
 //
-//   const O = createNetOverlay(N)    N: net/client.js     O.toggle() · O.update() (a few times a second) · O.dispose()
+//   const O = createNetOverlay(N, { others, footer })    N: net/client.js · others() → play/multiplayer.js M.others()
+//   O.toggle() · O.update() (a few times a second) · O.dispose()
 
-export function createNetOverlay(N, { parent = document.body, shown = false } = {}) {
+export function createNetOverlay(N, { parent = document.body, shown = false, self = null, others = null, footer = '' } = {}) {
   const el = document.createElement('div');
   el.id = 'krNet';
-  el.style.cssText = 'position:fixed;right:12px;top:72px;z-index:80;min-width:250px;max-width:340px;font:12px/1.45 "JetBrains Mono",ui-monospace,monospace;color:#e9ecef;background:rgba(8,12,18,.82);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 11px;pointer-events:none;white-space:pre';
+  el.style.cssText = 'position:fixed;right:12px;top:72px;z-index:80;min-width:250px;max-width:min(480px,92vw);font:12px/1.45 "JetBrains Mono",ui-monospace,monospace;color:#e9ecef;background:rgba(8,12,18,.82);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 11px;pointer-events:none;white-space:pre';
   el.hidden = !shown;
   parent.appendChild(el);
   const f = (x, d = 0) => Number.isFinite(x) ? x.toFixed(d) : '–';
@@ -19,15 +22,26 @@ export function createNetOverlay(N, { parent = document.body, shown = false } = 
     update() {
       if (el.hidden) return;
       const s = N.stats, rows = [];
-      rows.push(`<b>NETWORK</b>  ${s.status}${N.message ? ` · ${N.message}` : ''}`);
+      const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      rows.push(`<b>NETWORK</b>  ${s.status}${N.message ? ` · ${esc(N.message)}` : ''}`);
+      rows.push(`you    #${N.id ?? '–'}${self ? ` ${esc(self)}` : ''}${N.conn?.roomId ? `  room ${esc(N.conn.roomId)}` : ''}`);
       rows.push(`ping   <span style="color:${tone(s.ping, 80, 200)}">${f(s.ping)} ms</span>  jitter ${f(s.jitter)} ms`);
       rows.push(`loss   <span style="color:${tone(s.loss * 100, 1, 5)}">${f(s.loss * 100, 1)}%</span>`);
       rows.push(`up     ${f(s.upKBs, 2)} kB/s   down ${f(s.downKBs, 2)} kB/s`);
       rows.push(`buffer ${f(s.bufferMs)} ms above the usual delay`);
       if (s.netsim) rows.push(`<span style="color:#f2cc60">SIMULATED ${s.netsim.latencyMs} ms, ±${s.netsim.jitterMs} ms, ${f(s.netsim.loss * 100, 0)}% loss (${s.netsim.mode})</span>`);
-      for (const r of s.remotes.slice(0, 8)) {
-        rows.push(`#${r.id} ${(r.name ?? '').slice(0, 12).padEnd(12)} ${f(r.delayMs)} ms · fix ${f(r.lastCorrectionCm ?? 0)}/${f(r.maxCorrectionCm)} cm · ${r.corrections} fixes${r.extrapolatedMs ? ` · predicted ${f(r.extrapolatedMs / 1000, 1)} s` : ''}`);
+      const list = others?.() ?? [];
+      rows.push(`<b>PLAYERS</b>  ${list.length + 1} in the room (you and ${list.length} other${list.length === 1 ? '' : 's'})`);
+      if (!list.length) rows.push('<span style="color:#f2cc60">nobody else here</span>');
+      for (const o of list.slice(0, 10)) {
+        const drawn = o.drawn ? `<span style="color:#7ee787">drawn${o.onScreen ? '' : ', off screen'}</span>` : `<span style="color:#ff7b72">NOT drawn: ${esc(o.why)}</span>`;
+        const age = o.ageMs == null ? 'no update yet' : `updated ${o.ageMs < 1000 ? `${f(o.ageMs)} ms` : `${f(o.ageMs / 1000, 1)} s`} ago`;
+        rows.push(`#${o.id} ${esc(o.name).slice(0, 14).padEnd(14)} ${o.distM == null ? '   – m' : `${f(o.distM).padStart(4)} m`} · ${drawn} · <span style="color:${tone(o.ageMs ?? 1e9, 200, 1000)}">${age}</span>${o.paused ? ' · paused' : ''}`);
       }
+      for (const r of s.remotes.slice(0, 8)) {
+        rows.push(`#${r.id} ${esc(r.name ?? '').slice(0, 12).padEnd(12)} ${f(r.delayMs)} ms behind · fix ${f(r.lastCorrectionCm ?? 0)}/${f(r.maxCorrectionCm)} cm · ${r.corrections} fixes${r.extrapolatedMs ? ` · predicted ${f(r.extrapolatedMs / 1000, 1)} s` : ''}`);
+      }
+      if (footer) rows.push(`<span style="color:#8b949e">${esc(footer)}</span>`);
       el.innerHTML = rows.join('\n');
     },
     dispose() { el.remove(); },

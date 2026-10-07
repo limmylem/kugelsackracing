@@ -63,7 +63,7 @@ import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 import { createAudio, remoteCarSound } from './audio.js';
-import { joinMultiplayer, multiplayerOptions, localState, lookOf } from '../play/multiplayer.js';
+import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode } from '../play/multiplayer.js';
 import { account as accountNow } from '../account/session.js';
 import { createDyno, createTacho } from './gauges.js';
 import { InputManager } from './input.js';
@@ -2233,7 +2233,8 @@ function debugCommands(session) {
 }
 
 // ---------- multiplayer (Phase 7 Step 1: play/multiplayer.js, docs/MULTIPLAYER.md) ----------
-// ?mp joins this world's room (?mp=<name>: that room) with your account; F8 shows the network overlay
+// ?mp joins this world's room (?mp=<name>: that room) with your account (development: ?player=A, a guest of this
+// window's own); F8 shows the network overlay, F9 (development) puts your car beside the nearest other player
 
 async function startMultiplayer(w) {
   const o = multiplayerOptions();
@@ -2246,8 +2247,8 @@ async function startMultiplayer(w) {
   shared.mpStarting = true;
   try {
     const A = await accountNow();
-    if (!A?.me) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
-    shared.mp = await joinMultiplayer({ account: A, world: room, look: mpLook(), adapter: mpAdapter(), netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug });
+    if (!A?.me && !o.player) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
+    shared.mp = await joinMultiplayer({ account: A, world: room, look: mpLook(), adapter: mpAdapter(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug });
     shared.mpRoom = room; shared.mpParts = mpAttach(); shared.mpLookKey = null;
     globalThis.__krMp = shared.mp; globalThis.__krMpWorld = room;   // (the console and the browser tests)
     shared.mp.net.on('status', st => {
@@ -2255,8 +2256,15 @@ async function startMultiplayer(w) {
       else if (st.status === 'reconnecting') shared.flash.show('Reconnecting…', 'warn', 2.5, 'the connection dropped: back in a moment');
       else if (st.status === 'online') shared.flash.show('Back online', 'ok', 1.5, '');
     });
-    if (!shared.mpKeys) { shared.mpKeys = true; addEventListener('keydown', e => { if (e.code === 'F8') shared.mp?.overlay.toggle(); }); }
-    shared.flash.show('Online', 'ok', 2.5, `room ${room} · ${shared.mp.net.players.size + 1} player${shared.mp.net.players.size ? 's' : ''} · F8: the network`);
+    if (!shared.mpKeys) {
+      shared.mpKeys = true;
+      addEventListener('keydown', e => {
+        if (e.code === 'F8') { e.preventDefault(); shared.mp?.overlay.toggle(); }
+        if (e.code === 'F9' && devMode() && shared.mp) { e.preventDefault(); shared.flash.show('Multiplayer', 'ok', 2, shared.mp.toNearest()); }
+      });
+    }
+    const n = shared.mp.net.players.size;
+    shared.flash.show('Online', 'ok', 2.5, `room ${room}${o.player ? ` · you are Player ${o.player}` : ''} · ${n ? `${n} other player${n > 1 ? 's' : ''}` : 'nobody else yet'} · F8: who's here`);
   } catch (e) {
     shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
     console.warn('multiplayer:', e);
@@ -2299,6 +2307,15 @@ function mpAdapter() {
       return { vis, car };
     },
     dropCar(h) { h.vis.group.removeFromParent(); dropCar(h.vis); },
+    // (the overlay: whether it's really there to see — visible, in the scene being drawn)
+    shown(h) { const g = h.vis.group; let o = g; while (o.parent) o = o.parent; return g.visible && !!active && o === active.scene; },
+    // your car put down here (the world frame), facing headingDeg — the others see it jump, not slide
+    place(pos, headingDeg) {
+      const w = active; if (!w) return;
+      shared.mp?.reset();
+      if (w.stream) { rwOf(w).travelTo(w, { xz: [pos[0], pos[2]], heading: headingDeg }); return; }
+      w.sim.resetCar({ position: [pos[0], w.heightAt(pos[0], pos[2]) + (w.sim.vehicle.spec.spawnHeight ?? 0.6), pos[2]], headingDeg });
+    },
     // where it is, its wheels (turning, steering, on their suspension), its brake lights and headlights
     drawCar(h, p, wheels) {
       const vis = h.vis;
@@ -2339,7 +2356,8 @@ function mpAdapter() {
 // your parts coming loose or off, and a new look (another car, parts, paint, a repair), sent as they happen
 function mpFrame(w, view, seconds) {
   const M = shared.mp, v = w.sim.vehicle, b = view.current, A = mpAdapter.cached ??= mpAdapter();
-  M.frame(seconds, () => { const av = v.body.angvel(); return localState({ snapshot: b, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A.toWorld, headlights: (w.light?.night ?? 0) > 0.3, ageMs: view.alpha * w.sim.dt * 1000 }); });
+  // (still landing — the real world's ground loading, the car held high above it: not in the world yet for the others)
+  M.frame(seconds, () => { if (w.spawning) return null; const av = v.body.angvel(); return localState({ snapshot: b, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A.toWorld, headlights: (w.light?.night ?? 0) > 0.3, ageMs: view.alpha * w.sim.dt * 1000 }); });
   const now = mpAttach(), was = shared.mpParts ?? {};
   for (const [k, st] of Object.entries(now)) if (was[k] !== st) M.part(k, st);
   for (const k of Object.keys(was)) if (!now[k]) M.part(k, 'attached');

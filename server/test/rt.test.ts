@@ -13,6 +13,9 @@ import { testApp, signUp, makeStaff, Player } from './helpers.ts';
 import { startRt } from '../src/rt/server.ts';
 import { setRtEnv, TestRoom } from '../src/rt/room.ts';
 import { signTicket, verifyTicket } from '../src/rt/tickets.ts';
+import { createChecks } from '../src/rt/checks.ts';
+import { loadConfig } from '../src/config.ts';
+import { NET } from '../../net/settings.js';
 import { transport } from '../tools/rt-bots.ts';
 import { createNetClient } from '../../net/client.js';
 import { PROTOCOL, CODES, MESSAGES } from '../../net/protocol.js';
@@ -21,7 +24,7 @@ import { C2S, ALL } from '../../net/protocol.js';
 
 const REDIS = process.env.REDIS_URL ?? 'redis://localhost:6379/6', PORT = 2641, ENDPOINT = `http://localhost:${PORT}`;
 const SECRET = 'rt-test-secret-rt-test-secret-0123456789';
-const RT = { allowGuests: true, maxPlayers: 1000, roomMaxClients: 64, netsim: true };
+const RT = { allowGuests: true, maxPlayers: 1000, roomMaxClients: 64, netsim: true, devPlayers: true };
 let rt: Awaited<ReturnType<typeof startRt>>;
 const logs: { msg: string; extra?: object }[] = [];
 const env = (over: Partial<typeof RT> = {}) => setRtEnv({ secret: SECRET, ...RT, ...over, log: (msg, extra) => logs.push({ msg, extra }) });
@@ -74,6 +77,33 @@ test('join tickets: the API gives one to a signed-in player (a minute, theirs); 
       assert.notEqual((await g.post('/api/v1/rt/ticket', {})).status, 200, 'guests refused where they may not play');
     }
   } finally { await G.close(); }
+});
+
+test('development: two windows of one browser play as players of their own (?player=A: a guest each); refused anywhere else', async () => {
+  const T = await testApp('rtdevplayer');
+  try {
+    // (signed in or not: the browser's sign-in is shared by its windows, so the window says which player it is)
+    const anon = new Player(T.app, '10.70.2.1');
+    const a = await anon.post('/api/v1/rt/ticket', { player: 'A' }), b = await anon.post('/api/v1/rt/ticket', { player: 'B' });
+    assert.equal(a.status, 200, a.text); assert.equal(b.status, 200, b.text);
+    const ta = verifyTicket(T.config.rtSecret, a.body.ticket)!, tb = verifyTicket(T.config.rtSecret, b.body.ticket)!;
+    assert.deepEqual([ta.uid, ta.name, ta.guest], ['dev-player:A', 'Player A', true]);
+    assert.notEqual(ta.uid, tb.uid, 'each window its own player: neither replaces the other');
+    assert.equal((await anon.post('/api/v1/rt/ticket', { player: 'A B<script>' })).status, 400, 'a short name of letters and digits only');
+  } finally { await T.close(); }
+  const P = await testApp('rtdevplayeroff', { overrides: { rt: { ...RT, ticketSec: 60, devPlayers: false } } });
+  try { assert.equal((await new Player(P.app, '10.70.2.2').post('/api/v1/rt/ticket', { player: 'A' })).status, 403, 'not where it is switched off'); }
+  finally { await P.close(); }
+  // (and it can't be switched on online)
+  assert.throws(() => loadConfig({ APP_ENV: 'production', PUBLIC_URL: 'https://example.com', DATABASE_URL: 'postgres://x@localhost/x', BETTER_AUTH_SECRET: 'production-like-secret-production-like-0123456789' }, { rt: { ...RT, ticketSec: 60, devPlayers: true } } as any), /devPlayers/);
+});
+
+test('a paused game (the settings open, or its window in the background) still says where its car is: the same physics step again is fine, an older one is out of order', () => {
+  const C = createChecks(NET.checks), now = 100000;
+  const s = (tick: number, time: number) => ({ tick, time, pos: [10, 0.5, 10], vel: [0, 0, 0] });
+  assert.equal(C.state(s(50, now - 400), s(50, now - 200), now), null, 'paused: the same step, later');
+  assert.equal(C.state(s(50, now - 200), s(49, now - 100), now), 'stale', 'an older step');
+  assert.equal(C.state(s(50, now - 200), s(51, now - 300), now), 'stale', 'an earlier time');
 });
 
 test('joining is refused cleanly: an old game, no ticket, a used or forged ticket, a ban, guests, a full server', async () => {

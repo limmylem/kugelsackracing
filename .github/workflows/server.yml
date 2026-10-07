@@ -66,6 +66,8 @@ jobs:
         run: node --expose-gc server/tools/rt-test.ts
       - name: Multiplayer in two browsers (each sees the other's car move smoothly, its wheels, lights, sound and dents; reconnecting; at 150 ms, 30 ms jitter, 5% loss)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser.ts
+      - name: Multiplayer in two windows of one browser (one sign-in; ?player=A/B; each window draws the other's car, moving; a background window stays; F8, F9)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-two-windows.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
         run: node server/tools/dr-test.ts
       - name: Rollback drill (a broken release with a migration, its alert, rolled back on the newer schema; docs/OPERATIONS.md)

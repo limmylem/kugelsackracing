@@ -41,8 +41,9 @@ const FileConfig = z.object({
   alerts: z.object({ errorRate: z.number().min(0).max(1), minRequests: z.number().int().min(1), slowP95Ms: z.number().positive(), dbSlowMs: z.number().positive(), queueWaiting: z.number().int().min(1),
     queueOldestSec: z.number().positive(), moneyPerHour: z.number().positive(), moneySpike: z.number().min(1), repeatMinutes: z.number().min(1) }),
   // multiplayer (Phase 7 Step 1; docs/MULTIPLAYER.md): who may join the real-time server, how long a join ticket
-  // lasts, how many players (in all its processes) and a room take, and whether the network simulator may be used
-  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean() }),
+  // lasts, how many players (in all its processes) and a room take, whether the network simulator may be used, and
+  // (development and tests only) whether a window may play as its own guest with ?player=A (two windows, one browser)
+  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), devPlayers: z.boolean() }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
     reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
@@ -104,6 +105,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const file = path.join(SERVER_DIR, 'config', `${E.APP_ENV}.json`);
   const f = FileConfig.safeParse({ ...JSON.parse(fs.readFileSync(file, 'utf8')), ...overrides });
   if (!f.success) throw new Error(`${file} isn't right:\n${f.error.issues.map(i => `  ${i.path.join('.')}: ${i.message}`).join('\n')}`);
+  if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && f.data.rt.devPlayers) throw new Error('rt.devPlayers is for development only (anyone could join as any ?player=)');
   const publicUrl = E.PUBLIC_URL.replace(/\/$/, '');
   if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && !publicUrl.startsWith('https://')) throw new Error('PUBLIC_URL must be https:// in staging and production');
   const url = (name: string, v: string | null) => {

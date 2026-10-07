@@ -237,6 +237,25 @@ Far cars are shown with a longer buffer, which the adaptive delay handles on its
 
 **Dead connections** are removed: no message for `NET.idleSec` (15 s) and the server closes it (`IDLE`).
 
+**Closing or reloading the page** leaves the room at once (`pagehide`), so the car doesn't linger for 20 s as
+"reconnecting…".
+
+**A window in the background** (minimised, another tab, covered by another window) draws no frames, and the game
+sends from its frame loop. A timer in a small worker (not slowed down like the page's own timers) keeps the
+connection alive. While the page is hidden it sends the car as it stands, marked paused (`LIGHT.AWAY`); everyone
+else sees it there with "paused (window in the background)". A page that's visible but drawing slower than one frame
+a second only keeps its connection.
+
+**Paused games:** the server accepts the same physics step again (a paused car still says where it is); only an
+older step is out of order. Before this, a game with its settings open vanished for everyone else after 3 s.
+
+**Joining on top of another car:** every new car arrives where the world puts it, so two players joining together
+were drawn inside each other. The later one (the higher id) moves 3.5 m beside the other once it has landed.
+
+**One account, two windows:** joining again replaces the first connection (`ELSEWHERE`). The replaced window says
+so in a banner that stays until it's dealt with (not a few seconds' notice), and in development it says how to play
+two windows (below).
+
 **Clear messages** (`net/protocol.js` `MESSAGES`, shown on the game's screen):
 
 | Code | When | The player sees |
@@ -259,13 +278,21 @@ Far cars are shown with a longer buffer, which the adaptive delay handles on its
   unreliable messages instead of delaying them like TCP.
 - `?servernetsim=…` does the same on the server's side, for this player (development and test only:
   `rt.netsim`).
+- `?player=A` (development only, `rt.devPlayers`): this window plays as a guest of its own, "Player A",
+  whatever the browser is signed in as. Two windows of one browser share its sign-in, so without it the second
+  window replaces the first. Refused in staging and production (the server won't start with it on).
 - `?netdebug` shows the network overlay from the start; **F8** toggles it. It shows:
+  - who you are (your id and player) and the room;
+  - **every other player:** how far from you, whether its car is drawn here (and if not, why: no state yet,
+    loading its model, nothing heard for 3 s, reconnecting), whether it's on screen, and how long ago its last
+    state arrived;
   - ping and jitter;
   - loss;
   - kB/s up and down;
   - the buffer;
   - for each car: how far behind it's shown, its corrections (now and at worst) and how long it's been predicted;
   - the simulator's settings, when on.
+- **F9** (development only) puts your car beside the nearest other player, facing the way it faces.
 
 **The network simulator** (`net/netsim.js`) is the same code on both sides. It has a seeded random number
 generator and an injectable clock, so the offline tests are repeatable.
@@ -313,8 +340,9 @@ player's own car is never delayed.
 | Test | What it covers |
 |---|---|
 | `tests/unit/net.test.mjs` | The codec (round trips, quantisation limits, deltas, version), the world frame, the clock, interpolation, the simulator. Offline smoothness at target, in both modes, over several seeds. |
-| `server/test/rt.test.ts` (needs Redis) | Join tickets (forged, expired, reused); version mismatch, banned and guest joins refused with their codes; a ban kicking a player in the room; the live checks; the interest grid; join and leave; reconnect. |
+| `server/test/rt.test.ts` (needs Redis) | Join tickets (forged, expired, reused); development `?player=` tickets (and refused where switched off, and in production); version mismatch, banned and guest joins refused with their codes; a ban kicking a player in the room; the live checks (a paused game's states accepted); the interest grid; join and leave; reconnect. |
 | `server/tools/rt-test.ts` (needs Redis) | Writes `reports/multiplayer-test.md`. Covers: <ul><li>8 bots on a real route;</li><li>the bad-network test (stream, datagram, and worse than target);</li><li>time sync accuracy;</li><li>bandwidth with 8 and 30 cars;</li><li>several processes;</li><li>8 rooms × 32 players' tick time;</li><li>reconnect ×100 (no lost state, heap not growing).</li></ul> |
+| `server/tools/mp-two-windows.ts` (needs Redis, Chromium) | Two windows of **one** browser, sharing its sign-in, in the world `/?mp` opens, as a person tries it on their own computer. What's checked is what each window really draws, read from its 3D scene and its rendered pixels: <ul><li>plain `?mp` in both: the replaced window says so on screen;</li><li>`?player=A` / `?player=B`: both in the room, not on top of each other, each window drawing the other's car on screen;</li><li>A drives by key presses: B draws it moving as far as A went;</li><li>A's window in the background for 20 s: A stays, B shows it paused, then moving again;</li><li>F8 lists the other player; F9 goes beside it.</li></ul> On the code before this fix it fails 10 of 11 checks. |
 | `server/tools/mp-browser.ts` (needs Redis, Chromium) | The success check. Two real browsers, signed in, in the same room. Each sees the other's car: <ul><li>moving smoothly;</li><li>wheels turning;</li><li>brake lights;</li><li>engine and tyre sound;</li><li>dents after a knock.</li></ul> A dropped connection comes back by itself. Then all of it again at the target bad network. |
 
 The two-networks check (two players on different real networks, such as home Wi-Fi and a phone hotspot) needs
@@ -323,15 +351,32 @@ the game online. It's in [DEPLOYMENT.md](DEPLOYMENT.md) "To do when we deploy".
 ## Running it on this computer
 
 ```sh
-redis-server                                  # or: docker compose up redis
-npm run rt -w @kr/server                      # the real-time server on :2567
-npm start -w @kr/server                       # the API and the game on :8787 (RT_URL=ws://localhost:2567)
-# open http://localhost:8787/?mp in two browsers (or a normal and a private window)
+docker compose up --build                     # everything: the game and API, Redis, the real-time server
 ```
 
-With Docker Compose, `docker compose up --build` starts all of it, Redis and the real-time server included.
+or by hand:
+
+```sh
+redis-server
+npm run rt -w @kr/server                      # the real-time server on :2567
+npm start -w @kr/server                       # the API and the game on :8787 (RT_URL=ws://localhost:2567)
+```
+
+**Two windows on one computer:**
+1. Open `http://localhost:8787/?mp&player=A` in one window and `http://localhost:8787/?mp&player=B` in a second
+   window (not a second tab: a tab in the background stops drawing). Put them side by side.
+2. Wait for both to finish loading the world (the HOLD sign goes away) and for "Online … you are Player A/B".
+   The second to arrive is moved beside the first, so each window shows the other car next to its own.
+3. Press **F8** in either window: under PLAYERS, the other player should read "drawn" with an update a few
+   hundred ms old. If it says "NOT drawn", the reason is next to it.
+4. Click into one window and drive (arrow keys or WASD). The other window shows that car moving, a moment behind.
+5. Lost each other? **F9** puts your car beside the nearest player.
+
+Plain `?mp` in two windows of one browser is one account twice: the second window replaces the first, and the
+first says so at the top of the screen. Two different browsers (or a normal and a private window), each signed in
+as a different player, work with plain `?mp`.
 
 **Settings:**
 - The API: `RT_URL`, `RT_SECRET` (in development made from `BETTER_AUTH_SECRET`), `REDIS_URL`.
 - The real-time server: `RT_PORT`, `RT_HOST`, `RT_PUBLIC_ADDRESS`, `REDIS_URL`, `RT_SECRET`.
-- `server/config/<env>.json` `rt`: `allowGuests`, `maxPlayers`, `netsim`.
+- `server/config/<env>.json` `rt`: `allowGuests`, `maxPlayers`, `netsim`, `devPlayers` (development and test only).

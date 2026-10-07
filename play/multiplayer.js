@@ -11,14 +11,23 @@
 //
 // The game provides the drawing (an adapter: testtrack/test-scene.js):
 //   { toWorld([x,y,z]), toSim([x,y,z]), makeCar(look) → handle, dropCar(handle), drawCar(handle, pose, wheels),
-//     setDamage(handle, view), setPart(handle, socket, state), listener(posSim) → [x, y, z] in the camera's frame,
+//     shown(handle) → whether it's in the scene being drawn and visible, setDamage(handle, view),
+//     setPart(handle, socket, state), listener(posSim) → [x, y, z] in the camera's frame,
 //     audio() → the game's audio or null, carSound(audio, engine) (testtrack/audio.js remoteCarSound),
-//     screen(posSim) → { x, y } on screen or null, rules (data/damage.json) }
+//     screen(posSim) → { x, y } on screen or null, place(posWorld, headingDeg) (your car moved there), rules }
 //
-//   const M = await joinMultiplayer({ account, world, look, adapter, netsim, serverNetsim, debug })
+//   const M = await joinMultiplayer({ account, world, look, adapter, player, netsim, serverNetsim, debug })
 //   M.frame(dt, local)          every frame: local() → your car's state (codec.js) or null
 //   M.crash(outcome, build) · M.part(socket, state) · M.reset() · M.repair() · M.setLook(look)
 //   M.status · M.message · M.overlay.toggle() · M.leave()
+//   M.others() → [{ id, name, distM, drawn, why, onScreen, ageMs }]    each other player as this window sees it
+//   M.toNearest() → your car beside the nearest other player (the development key F9), or why not
+//
+// Two windows of one browser share its sign-in, and an account joining twice replaces itself: in development each
+// window can be a guest of its own instead (?mp&player=A, ?mp&player=B: POST /rt/ticket { player }).
+// A window in the background (minimised, another tab, covered) stops drawing frames; a timer in a worker keeps its
+// connection alive and tells the others its car is paused, so it isn't dropped as gone.
+// Players arrive where the world puts every new car; a car joining on top of another is moved beside it.
 
 import { NET } from '../net/settings.js';
 import { createNetClient } from '../net/client.js';
@@ -29,12 +38,19 @@ import { createNetOverlay } from '../net/overlay.js';
 import { packCrash, packDents, unpackDents, dentsOf } from '../garage/damageLog.js';
 
 // ?mp (or ?mp=<room name>) turns it on; ?netsim=150,30,0.05[,datagram] and ?servernetsim=… add a bad network on
-// this side and on the server's; ?netdebug shows the overlay from the start
+// this side and on the server's; ?netdebug shows the overlay from the start; ?player=A (development) plays this
+// window as a guest of its own
 export function multiplayerOptions(loc = globalThis.location) {
   const q = new URLSearchParams(loc?.search ?? '');
   if (!q.has('mp')) return null;
-  return { room: q.get('mp') || null, netsim: parseConditions(q.get('netsim')), serverNetsim: q.get('servernetsim') || null, debug: q.has('netdebug') };
+  const player = /^[A-Za-z0-9_-]{1,16}$/.test(q.get('player') ?? '') ? q.get('player') : null;
+  return { room: q.get('mp') || null, player, netsim: parseConditions(q.get('netsim')), serverNetsim: q.get('servernetsim') || null, debug: q.has('netdebug') };
 }
+
+// development or tests (not online): the extra keys and hints
+export const devMode = (site = globalThis.KR_SITE) => !site?.env || site.env === 'development' || site.env === 'test';
+// how far apart two cars must be not to count as one on top of the other (m), and where a car is put beside another
+const ON_TOP_M = 2.5, BESIDE_M = 3.5;
 
 // where the real-time server is: the site's setting (rt: wss://rt.<domain> online), else this computer's (npm run rt)
 export function rtEndpoint(site = globalThis.KR_SITE ?? {}, ticketUrl = null, loc = globalThis.location) {
@@ -64,24 +80,63 @@ export function damageView(look, events, rules) {
   return out;
 }
 
-export async function joinMultiplayer({ account, world, look, adapter: A, netsim = null, serverNetsim = null, debug = false, settings = NET }) {
+export async function joinMultiplayer({ account, world, look, adapter: A, player = null, netsim = null, serverNetsim = null, debug = false, settings = NET }) {
   const Colyseus = await import('../net/vendor/colyseus.js');
   let endpoint = null;
   const N = createNetClient({
     transport: createColyseusTransport(Colyseus), world, look, netsim, serverNetsim, settings,
     getTicket: async () => {
-      const t = await account.api.post('/rt/ticket', {});
+      const t = await account.api.post('/rt/ticket', player ? { player } : {});
       endpoint = rtEndpoint(globalThis.KR_SITE, t.url);
       return { ticket: t.ticket, url: endpoint };
     },
   });
   await N.connect();
   const cars = new Map();          // id → { handle, loading, lookKey, spin: [], sound, label, damageKey, parts }
-  const overlay = createNetOverlay(N, { shown: debug });
+  let mine = null, landedAt = null; // your car's last state (world frame), as sent; when it was first in the world
+  let cleared = false;             // (joined on top of another car: moved beside it, once)
+  const overlay = createNetOverlay(N, { shown: debug, self: player ? `Player ${player}` : account?.me?.name ?? null, others: () => api.others(), footer: devMode() ? 'F8 this overlay · F9 your car beside the nearest player' : 'F8 this overlay' });
   let overlayAt = 0, lastFrame = null;
   const labels = document.createElement('div');
   labels.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:55';
   document.body.appendChild(labels);
+  // (disconnected: says so until it's back, not for a moment — and why)
+  const banner = document.createElement('div');
+  banner.id = 'krMpBanner';
+  banner.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:90;max-width:min(560px,92vw);font:600 13px/1.4 Barlow,system-ui,sans-serif;color:#fff;background:rgba(150,40,30,.92);border-radius:10px;padding:8px 14px;text-align:center;pointer-events:none';
+  banner.hidden = true;
+  document.body.appendChild(banner);
+  const showBanner = () => {
+    const st = N.status;
+    if (st === 'offline' && N.message) {
+      const two = /another tab or device/.test(N.message) && devMode() ? ' Two windows on one computer share a sign-in: open them as ?mp&player=A and ?mp&player=B.' : '';
+      banner.textContent = `Multiplayer: ${N.message}${two}`; banner.hidden = false;
+    } else if (st === 'reconnecting') { banner.textContent = 'Multiplayer: the connection dropped. Reconnecting…'; banner.hidden = false; }
+    else banner.hidden = true;
+  };
+  N.on('status', showBanner);
+  // (the page closed, reloaded or left: gone for the others now, not "reconnecting…" for the next 20 s)
+  const bye = () => { void N.leave(); };
+  addEventListener('pagehide', bye);
+
+  // a window in the background draws no frames: a worker's timer (not slowed down like the page's) keeps the
+  // connection alive, your car still for the others, marked paused
+  let beat = null;
+  try {
+    const src = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 250)'], { type: 'text/javascript' }));
+    beat = new Worker(src);
+    URL.revokeObjectURL(src);
+    let lastBeat = performance.now();
+    beat.onmessage = () => {
+      const t = performance.now(), dt = (t - lastBeat) / 1000;
+      lastBeat = t;
+      if (lastFrame != null && t - lastFrame < 1000) return;         // (frames are being drawn, if slowly: they do it)
+      // (hidden — minimised, another tab, covered: your car paused for the others; visible but not drawing — a slow
+      // machine, a debugger — only kept connected)
+      const hidden = globalThis.document?.visibilityState === 'hidden';
+      N.update(dt, hidden ? () => mine && { ...mine, vel: [0, 0, 0], ang: [0, 0, 0], throttle: 0, wheels: mine.wheels.map(w => ({ ...w, omega: 0, slip: 0 })), flags: mine.flags | LIGHT.AWAY, ageMs: 0 } : null);
+    };
+  } catch { beat = null; }
 
   const drop = id => {
     const c = cars.get(id);
@@ -109,7 +164,7 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
       // the server's clock, which doesn't wait)
       const nowMs = performance.now(), dt = lastFrame == null ? gameDt : Math.min(5, (nowMs - lastFrame) / 1000);
       lastFrame = nowMs;
-      N.update(dt, local);
+      N.update(dt, () => { const s = local(); if (s) { mine = s; landedAt ??= nowMs; } return s; });
       const seen = new Set();
       for (const o of N.sample(dt)) {
         seen.add(o.id);
@@ -131,6 +186,7 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
           labels.appendChild(c.label);
         }
         const p = o.pose;
+        c.name = o.name; c.pose = p; c.status = o.status;
         if (!c.handle || !p) { if (c.handle) A.drawCar(c.handle, null); if (c.label) c.label.hidden = true; continue; }
         // (its sound: once the game's audio has started — browsers only allow sound after a key press)
         if (!c.sound) { const s = o.look?.sound, au = A.audio(); if (au && s?.file) c.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline }); }
@@ -148,10 +204,17 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
         if (c.sound) { const slip = Math.max(0, ...wheels.filter(w => w.grounded).map(w => w.slip)); c.sound.update({ rpm: p.rpm, throttle: p.throttle, slip, speed: Math.hypot(...p.vel) }, A.listener(simPos), dt); }
         // its name over it (and "reconnecting…" while its player is away)
         const at = A.screen([simPos[0], simPos[1] + 1.7, simPos[2]]);
+        c.onScreen = !!A.screen(simPos);
         c.label.hidden = !at;
-        if (at) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${o.name ?? 'Player'}${o.status === 'away' ? ' · reconnecting…' : ''}`; c.label.style.opacity = o.status === 'away' ? '0.6' : '1'; }
+        const paused = o.status === 'away' ? ' · reconnecting…' : p.flags & LIGHT.AWAY ? ' · paused (window in the background)' : '';
+        if (at) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${o.name ?? 'Player'}${paused}`; c.label.style.opacity = paused ? '0.6' : '1'; }
       }
       for (const id of [...cars.keys()]) if (!seen.has(id)) drop(id);
+      // (joined on top of someone — every new car arrives at the same place: the later one moves beside them)
+      if (!cleared && landedAt != null) {
+        if (nowMs - landedAt > 20000) cleared = true;
+        else if (api.others().some(x => x.distM != null && x.distM < ON_TOP_M && x.id < N.id)) { cleared = true; api.toNearest(); }
+      }
       overlayAt -= dt;
       if (overlayAt <= 0) { overlayAt = 0.25; overlay.update(); }
     },
@@ -161,10 +224,33 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
       if (Object.keys(crash.hits).length || crash.broken?.length) N.sendEvent({ kind: 'damage', crash });
     },
     part(socket, to) { N.sendEvent({ kind: 'parts', socket, to }); },
+    // each other player as this window sees it: how far, whether its car is drawn (and if not, why), on screen, and
+    // how long since its last state arrived
+    others() {
+      const out = [];
+      for (const pl of N.players.values()) {
+        if (pl.id === N.id) continue;
+        const c = cars.get(pl.id), p = c?.pose, ageMs = Number.isFinite(pl.lastStateAt) ? performance.now() - pl.lastStateAt : null;
+        const distM = p && mine ? Math.hypot(p.pos[0] - mine.pos[0], p.pos[2] - mine.pos[2]) : null;
+        const shown = !!(c?.handle && p && A.shown?.(c.handle));
+        const why = shown ? (c.onScreen ? '' : 'off screen') : pl.status === 'away' ? 'reconnecting' : !pl.base ? 'no state yet' : ageMs > 3000 ? 'no update for 3 s (out of range?)' : !c ? 'not seen yet' : c.loading ? 'loading its model' : 'not in the scene';
+        out.push({ id: pl.id, name: pl.name ?? `#${pl.id}`, distM, drawn: shown, onScreen: !!c?.onScreen, why, ageMs, paused: !!(p && p.flags & LIGHT.AWAY), status: pl.status });
+      }
+      return out.sort((a, b) => (a.distM ?? 1e9) - (b.distM ?? 1e9));
+    },
+    // your car beside the nearest other player's (development: F9), facing the way it faces
+    toNearest() {
+      const o = api.others().find(x => x.distM != null), c = o && cars.get(o.id), p = c?.pose;
+      if (!p) return 'Nobody to go to yet (no other car has sent where it is).';
+      const q = p.rot, fx = 2 * (q[0] * q[2] + q[3] * q[1]), fz = 1 - 2 * (q[0] * q[0] + q[1] * q[1]), n = Math.hypot(fx, fz) || 1;
+      const at = [p.pos[0] - fz / n * BESIDE_M, p.pos[1], p.pos[2] + fx / n * BESIDE_M];
+      A.place(at, Math.atan2(fx, fz) * 180 / Math.PI);
+      return `Beside ${o.name}`;
+    },
     reset() { N.sendEvent({ kind: 'reset' }); },
     repair() { N.sendEvent({ kind: 'repair' }); },
     setLook(l) { N.setLook(l, []); },
-    leave() { for (const id of [...cars.keys()]) drop(id); labels.remove(); overlay.dispose(); return N.leave(); },
+    leave() { removeEventListener('pagehide', bye); for (const id of [...cars.keys()]) drop(id); labels.remove(); banner.remove(); beat?.terminate(); overlay.dispose(); return N.leave(); },
   };
   return api;
 }

@@ -35,7 +35,9 @@ export function createChecks(L: Limits) {
       const speed = Math.hypot(s.vel[0], s.vel[1], s.vel[2]);
       if (speed > L.maxSpeed) return 'too fast';
       if (!prev) return null;
-      if (s.tick <= prev.tick && !resetOk) return 'stale';
+      // (an older physics step: out of order. The same one is fine — a paused game, or a window in the background,
+      // still says where its car is)
+      if (s.tick < prev.tick && !resetOk) return 'stale';
       if (s.time < prev.time) return 'stale';
       // how far it could have gone since the last state: at the faster of its two speeds, plus some slack (a crash
       // can fling a car; the clocks wobble)
