@@ -64,6 +64,20 @@ per active player.** For 1,000 monthly active players that's 45,000 passes a mon
   - Before it matters, older driving sessions and results could be summarised or archived.
   - That's a decision about what we keep ([PRIVACY_DATA.md](PRIVACY_DATA.md)), so ask first.
 
+**Multiplayer (Phase 7 Step 1), not in the table above yet.** The region and services are the owner's decision:
+ask first ([DEPLOYMENT.md](DEPLOYMENT.md) "To do when we deploy" 9).
+- **The real-time server:**
+  - a second Render Starter, $7 a month, or a small Fly.io machine in Sydney, a few dollars a month (*check*);
+  - one process handled 256 players at a 2.4 ms tick on this computer.
+- **Redis:**
+  - Render Key Value Starter, about $10 a month (*check*), or Upstash, which charges per request;
+  - its use is small: rooms, one-use ticket ids and bans.
+- **Traffic:**
+  - each player sends about 2 KB/s and receives about 10 KB/s with 8 cars around, 31–34 KB/s with 30;
+  - an hour with 8 cars around is about 40 MB out of the server per player;
+  - 100 players at once for 3 hours every evening is about 360 GB a month;
+  - check the host's included bandwidth before choosing (*check*).
+
 ## Budget alerts to set (when we deploy)
 
 None of these exist yet, because there are no accounts ([DEPLOYMENT.md](DEPLOYMENT.md), "To do when we deploy").

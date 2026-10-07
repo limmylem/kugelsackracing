@@ -104,6 +104,8 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
     `/admin/settings/:key` (features and gradual rollouts, maintenance, the closed beta, the oldest game taken),
     `/admin/invites`, `/admin/players/:id/history`, `/admin/monitoring`, `/admin/retention`.
   - [SECURITY.md](SECURITY.md), [ABUSE.md](ABUSE.md), [OPERATIONS.md](OPERATIONS.md), [PRIVACY_DATA.md](PRIVACY_DATA.md).
+- **Multiplayer (Phase 7 Step 1):** `POST /rt/ticket` gives a signed-in player (or a guest) a one-use join ticket
+  for the real-time server, a separate process (`npm run rt -w @kr/server`, needs Redis): [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Every write** needs:
   - an `Idempotency-Key` (a retry is applied once);
   - with a session cookie, the CSRF token from `/csrf` in `x-csrf-token`.

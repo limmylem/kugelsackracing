@@ -34,6 +34,7 @@ const browser = [
   { name: 'PMTiles', version: pkgVersion('pmtiles'), licence: 'BSD-3-Clause', url: 'https://github.com/protomaps/PMTiles', by: 'Protomaps' },
   { name: 'pbf', version: '4', licence: 'BSD-3-Clause', url: 'https://github.com/mapbox/pbf', by: 'Mapbox' },
   { name: 'vector-tile', version: '2', licence: 'BSD-3-Clause', url: 'https://github.com/mapbox/vector-tile-js', by: 'Mapbox' },
+  { name: 'Colyseus SDK (multiplayer: net/vendor/colyseus.js, bundled)', version: pkgVersion('@colyseus/sdk'), licence: 'MIT', url: 'https://colyseus.io', by: 'Endel Dreyer and Colyseus contributors' },
   { name: 'Zod (the shared data formats)', version: pkgVersion('zod'), licence: 'MIT', url: 'https://zod.dev', by: 'Colin McDonnell' },
   { name: 'Cloudflare Turnstile (the bot check, when on)', version: null, licence: 'Cloudflare terms of service', url: 'https://www.cloudflare.com/products/turnstile/', by: 'Cloudflare' },
 ];

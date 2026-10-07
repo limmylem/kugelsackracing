@@ -1,6 +1,6 @@
 # The server (docs/SERVER.md): on every push and pull request, its typecheck, every server test against a
-# PostgreSQL with PostGIS, the browser's account flows, and a check of the dependencies for known
-# vulnerabilities. On main, once all of that passes: deployed to staging by itself (and checked there),
+# PostgreSQL with PostGIS (and a Redis, for multiplayer), the browser's account flows, multiplayer's tests,
+# and a check of the dependencies for known vulnerabilities. On main, once all of that passes: deployed to staging by itself (and checked there),
 # then to production when someone approves it (the "production" environment's required reviewers).
 name: server
 on:
@@ -23,8 +23,15 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+      # (the real-time server's rooms, tickets and bans: docs/MULTIPLAYER.md)
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-retries 30
     env:
       TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,6 +62,10 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
       - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/launch-browser.ts
+      - name: Multiplayer (docs/MULTIPLAYER.md; reports/multiplayer-test.md) — 8 bots on a real route, bad networks, time sync, bandwidth with 8 and 30 cars, several processes, 256 players' tick, reconnect ×100
+        run: node --expose-gc server/tools/rt-test.ts
+      - name: Multiplayer in two browsers (each sees the other's car move smoothly, its wheels, lights, sound and dents; reconnecting; at 150 ms, 30 ms jitter, 5% loss)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
         run: node server/tools/dr-test.ts
       - name: Rollback drill (a broken release with a migration, its alert, rolled back on the newer schema; docs/OPERATIONS.md)

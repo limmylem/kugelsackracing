@@ -4,6 +4,8 @@
 #                           online: their own address, byte ranges, CORS for the game only (nginx)
 #   http://localhost:8025   Mailpit: every email the game sends (sign-up confirmations, password resets) lands here
 #   localhost:5432          PostgreSQL 16 with PostGIS
+#   ws://localhost:2567     the real-time server: multiplayer (docs/MULTIPLAYER.md; open the game with ?mp)
+#   localhost:6379          Redis: the real-time server's rooms, join tickets and bans
 #   docker compose up --build
 # Development values only: nothing here is a real secret. Staging and production take theirs from Render's
 # environment (render.yaml).
@@ -35,7 +37,8 @@ services:
       APP_ENV: development
       PUBLIC_URL: http://localhost:8787
       TILES_URL: http://localhost:8788
-      RT_URL: ws://localhost:8787
+      RT_URL: ws://localhost:2567
+      REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://kr:kr@db:5432/kr_dev
       BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
       SMTP_URL: smtp://mailpit:1025
@@ -46,5 +49,31 @@ services:
       db: { condition: service_healthy }
       mailpit: { condition: service_started }
       tiles: { condition: service_started }
+      redis: { condition: service_healthy }
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+  rt:
+    build: .
+    command: ["node", "server/src/rt/main.ts"]
+    environment:
+      APP_ENV: development
+      RT_PORT: "2567"
+      RT_PUBLIC_ADDRESS: localhost:2567
+      REDIS_URL: redis://redis:6379
+      # (the join tickets' key: made from this, the same as the server's)
+      BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
+    ports: ["2567:2567"]
+    # (the image's health check is the API's: this one only needs its port open)
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(2567,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+    depends_on:
+      redis: { condition: service_healthy }
 volumes:
   db:

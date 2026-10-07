@@ -1,8 +1,47 @@
 # Known issues, and what to revisit
 
-As of Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 7 Step 1 (multiplayer's networking, first), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 7 Step 1: multiplayer networking (docs/MULTIPLAYER.md)
+
+### Two players on different networks: waiting for the game to be online
+
+Two real browsers on this computer see each other smoothly in the same room, on a clean network and at 150 ms,
+30 ms jitter and 5% loss (`server/tools/mp-browser.ts`). The check with two players on different real networks
+(home Wi-Fi and a phone hotspot) needs the real-time server online. It's in docs/DEPLOYMENT.md "To do when we
+deploy" 9, together with choosing where it runs and a Redis (both cost money: ask first).
+
+### Other cars are shown 0.4–0.75 s in the past on a bad network
+
+At 150 ms, 30 ms jitter and 5% loss over WebSockets, a lost packet holds up everything behind it (TCP), so the
+buffer grows to about 750 ms to stay smooth. Over datagrams it's about 380 ms (`rt-test.ts` measures both). On a
+good network it's about 100 ms. This is fine for free roam. For close racing (Step 3), move to WebTransport
+datagrams; everything above the transport already handles them. Your own car is never delayed.
+
+### Other cars don't collide with yours yet
+
+They're drawn kinematically: they pass through your car. Collisions between players are Step 3.
+
+### A modified client could drive slightly better than its car allows, live
+
+The live checks (docs/MULTIPLAYER.md "Live checks and after-race checks") catch impossible states: too fast,
+teleporting, too many messages. They can't catch a car with a few percent more grip. Results are still decided by
+the replay (Phase 6 Step 3), so this affects only what other players see live.
+
+### The browser test draws at a few frames a second here
+
+This computer's Chromium renders in software (SwiftShader), so each test page draws the world at 2–4 fps. The
+pages check what they can at that rate: the other car seen and moving, wheels, brake lights, sound, dents and
+reconnecting. Smoothness is measured by a third, headless player watching both cars at a steady 60 fps through
+the same network code. The pages check it themselves only when they reach 20 fps, which a machine with a GPU will.
+
+### Fixed on the way: the test track's road (since Phase 5 Step 4)
+
+`testtrack/test-scene.js` had a local variable `roadMesh` that hid the function of the same name, so building the
+proving ground's road threw "roadMesh is not a function". It has been renamed (`trackRoad`). Found by the
+two-browser test, the first to open the proving ground in a browser since then.
 
 ## Phase 6: going online (docs/DEPLOYMENT.md)
 
@@ -23,11 +62,10 @@ and online by `tools/check-deploy.mjs` after each deploy. Two things need you, o
 - a sign-up from a phone on mobile data, its email landing in a Gmail and an Outlook inbox;
 - the real-time round trip from Australia (`ognistrada.com/site/ping.html`).
 
-### Two players in the same room: moved to Phase 7 Step 1
+### Two players in the same room: built in Phase 7 Step 1, not online yet
 
-There's no multiplayer server yet. `rt.ognistrada.com` only answers a ping with a pong, to prove that WebSockets
-reach the server through Cloudflare. The check that two players on different networks see each other in one room
-is part of Phase 7 Step 1's tests.
+The real-time server is built (docs/MULTIPLAYER.md). Online, `rt.ognistrada.com` still only answers a ping with a
+pong until it's deployed; the two-networks check is waiting for that (above).
 
 ### The development pages on staging can't open the editor
 

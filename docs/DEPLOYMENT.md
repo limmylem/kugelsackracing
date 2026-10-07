@@ -46,7 +46,27 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
    - budget alerts on every paid service ([COSTS.md](COSTS.md));
    - point-in-time recovery, with the paid database ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md));
    - the DR drill once on real staging.
-9. **Phase 7 Step 1's two-player check** on different networks (CLAUDE.md), once multiplayer is built.
+9. **Multiplayer's real-time server** (Phase 7 Step 1, [MULTIPLAYER.md](MULTIPLAYER.md)). Built and tested on this
+   computer only; online it needs:
+   - **Where it runs, and Redis.** Both cost money and the region is the owner's choice: ask first. The real-time
+     server is a long-running Node process (`node server/src/rt/main.ts`, the same image as the API). Options:
+     a second Render service (Starter, $7 a month, Singapore) or a small machine nearer the players (Fly.io
+     `syd`, a few dollars a month); measure with `site/ping.html`. Redis: Render Key Value (Starter about $10 a
+     month; the free one has no persistence, which is fine for rooms and tickets) or Upstash (pay per request).
+   - **Secrets and settings:** `RT_SECRET` (the same long random value on the API and the real-time server: join
+     tickets), `REDIS_URL` on both (the API writes bans to it), `RT_PUBLIC_ADDRESS` on the real-time server (its
+     public `host:port`, or `rt.<domain>`), and `RT_URL=wss://rt.<domain>` on the API (`site/config.js` for the
+     game).
+   - **`rt.` moves** from the API's ping/pong stand-in (`server/src/rt/health.ts`) to the real-time server. Check
+     WebSockets through Cloudflare ([Real time](#real-time-through-cloudflare-or-straight)), including that
+     reconnecting works after Cloudflare drops an idle socket.
+   - **Several processes** (`--processes N`) need one public address each, or a proxy that routes by the room's
+     process (`RT_PUBLIC_ADDRESS_PATTERN`). One process holds 256 players, so start with one.
+   - **The two-player check** on different networks (CLAUDE.md): two players on different networks (home Wi-Fi
+     and a phone hotspot) sign in, join the same room (`?mp`) and see each other. Do it on the paid plan
+     (step 1), before inviting beta testers.
+   - Later: WebTransport, which needs HTTP/3 and UDP through to the real-time server (not through Cloudflare's
+     proxy), so a host that allows it.
 
 What changed for localhost since this file was written, and matters online too:
 - The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`
@@ -64,7 +84,7 @@ What changed for localhost since this file was written, and matters online too:
 | `ognistrada.com` | The game | Cloudflare Pages (project `ognistrada`) |
 | `www.ognistrada.com` | Redirects (301) to `ognistrada.com`, keeping the path | A Cloudflare redirect rule |
 | `api.ognistrada.com` | The API server, plus the admin and editor pages, served only to admin and editor accounts | Render, `ognistrada-production` (Singapore) |
-| `rt.ognistrada.com` | Real time: for now only a WebSocket ping/pong check | The same Render service (Phase 7 Step 1 replaces it) |
+| `rt.ognistrada.com` | Real time: for now only a WebSocket ping/pong check | The same Render service (the real-time server, built in Phase 7 Step 1, replaces it: "To do when we deploy" 9) |
 | `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, 277 MB) | Cloudflare R2, bucket `ognistrada-tiles` |
 | `staging.ognistrada.com` | The test version of the game | Pages project `ognistrada-staging` |
 | `staging-api.ognistrada.com`, `staging-rt.ognistrada.com` | The test API and real time | Render, `ognistrada-staging` (Singapore) |
