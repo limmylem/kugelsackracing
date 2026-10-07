@@ -1,0 +1,213 @@
+// A player's connection to multiplayer (Phase 7 Step 1; docs/MULTIPLAYER.md). Used by the game, the bots and the
+// tests alike. It joins the room with a ticket from the API, keeps the server's clock (clock.js), sends this
+// player's car (paced to NET.sendHz, only what changed, a full state every NET.keyframeSec), and keeps every other
+// player's car (remote.js) for the game to draw.
+//
+//   const N = createNetClient({ transport, endpoint, getTicket, world, look, netsim, serverNetsim, settings })
+//     transport: transport.js · getTicket() → { ticket, url } (POST /api/v1/rt/ticket) · netsim: conditions
+//     (net/netsim.js) on this side · serverNetsim: '150,30,0.05' for the server's side (development/tests)
+//   await N.connect()            rejects with { code, message } (protocol.CODES / MESSAGES) when refused
+//   N.update(dtSec, local)       every frame: local() → this car's state (codec.js, world frame; `ageMs`: how old
+//                                the physics state is) or null when not driving
+//   N.sample(dtSec) → [{ id, name, guest, status, look, events, pose }]   every frame: the other cars as shown now
+//   N.sendEvent({ kind, ... })   something that must arrive (damage, a reset, a part off, lights)
+//   N.setLook(look, events)      this car's look (and its damage so far): everyone else's game draws it
+//   N.on('status' | 'roster' | 'event' | 'notice', fn)
+//   N.status: 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline'    N.message (why offline)
+//   N.stats: ping, jitter, loss, upKBs, downKBs, … (the network overlay)   N.roomNow()   N.leave()
+
+import { NET } from './settings.js';
+import { PROTOCOL, C2S, S2C, ALL, CODES, messageFor } from './protocol.js';
+import { quantise, dequantise, maskFor, mergeState, encodeStateMessage, decodeSnapshot, encodeValue, decodeValue, encodePing, decodePong } from './codec.js';
+import { createClock } from './clock.js';
+import { createRemote } from './remote.js';
+import { createLink } from './netsim.js';
+import { withNetsim } from './transport.js';
+
+const WS_UP = 8, WS_DOWN = 4;                     // (a WebSocket frame's header (masked from the client) + the type)
+
+export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test' }) {
+  const S = settings, clock = createClock({ now });
+  const listeners = { status: new Set(), roster: new Set(), event: new Set(), notice: new Set() };
+  const emit = (k, v) => { for (const f of listeners[k]) { try { f(v); } catch (e) { console.error(e); } } };
+  const players = new Map();        // id → { id, name, guest, status, look, events, remote, base, lastState }
+  let conn = null, me = null, status = 'idle', message = '', net = { sendHz: S.sendHz, detailEvery: S.detailEvery, keyframeSec: S.keyframeSec, pingSec: S.pingSec };
+  let myLook = look, myEvents = events;
+  // sending
+  let base = null, lastSend = -Infinity, lastKey = -Infinity, sendCount = 0, forceKey = false;
+  // pings
+  let seq = 0, nextPing = 0, burst = 0;
+  const pending = new Map(), pingLog = [];
+  // bandwidth (bytes this second, and the last few seconds' rates)
+  const bw = { up: 0, down: 0, at: now(), upKBs: 0, downKBs: 0, upTotal: 0, downTotal: 0 };
+  const links = netsim ? { up: createLink({ ...netsim, seed: 11 }), down: createLink({ ...netsim, seed: 12 }) } : null;
+  // (sending only what changed needs every message to arrive: over a lossy link — WebTransport datagrams later, or the
+  // simulator's datagram mode — complete states every time, both ways)
+  let fullStates = netsim?.mode === 'datagram';
+
+  const setStatus = (s, m = '') => { if (status === s && message === m) return; status = s; message = m; emit('status', { status, message }); };
+  const roomNow = () => clock.serverNow();
+  const player = (e) => {
+    let p = players.get(e.id);
+    if (!p) players.set(e.id, p = { id: e.id, remote: createRemote({ interp: S.interp, sendHz: net.sendHz }), base: null, lastStateAt: -Infinity });
+    Object.assign(p, { name: e.name ?? p.name, guest: e.guest ?? p.guest, status: e.status ?? p.status ?? 'here', look: e.look !== undefined ? e.look : p.look, events: e.events ?? p.events ?? [] });
+    return p;
+  };
+  const send = (type, bytes, reliable) => { if (!conn) return; bw.up += bytes.length + WS_UP; bw.upTotal += bytes.length + WS_UP; conn.send(type, bytes, { reliable }); };
+
+  function onMessage(type, bytes) {
+    bw.down += bytes.length + WS_DOWN; bw.downTotal += bytes.length + WS_DOWN;
+    switch (type) {
+      case S2C.WELCOME: {
+        const w = decodeValue(bytes);
+        me = w.id; net = { ...net, ...w.net };
+        // (a first guess at the server's clock, until the pings have measured it)
+        if (!clock.ready) clock.sample(now(), w.serverTime, now());
+        burst = 8; nextPing = now();
+        base = null; forceKey = true;
+        break;
+      }
+      case S2C.PONG: {
+        const p = decodePong(bytes), sent = pending.get(p.seq);
+        if (sent == null) break;
+        pending.delete(p.seq);
+        clock.sample(p.clientMs, p.serverMs, now());
+        pingLog.push(true); if (pingLog.length > 30) pingLog.shift();
+        break;
+      }
+      case S2C.SNAPSHOT: {
+        const snap = decodeSnapshot(bytes), t = roomNow();
+        for (const c of snap.cars) {
+          const p = players.get(c.id) ?? player({ id: c.id });
+          if (!p.base && c.mask !== ALL) continue;        // (wait for a complete one)
+          p.base = mergeState(p.base, c.q, c.mask);
+          p.remote.push(dequantise(p.base), t);
+          p.lastStateAt = now();
+        }
+        break;
+      }
+      case S2C.ROSTER: {
+        const r = decodeValue(bytes);
+        if (r.full) {
+          const ids = new Set(r.full.map(e => e.id));
+          for (const id of players.keys()) if (!ids.has(id)) players.delete(id);
+          for (const e of r.full) if (e.id !== me) player(e);
+        }
+        if (r.join && r.join.id !== me) player(r.join);
+        if (r.leave) players.delete(r.leave.id);
+        if (r.status && players.has(r.status.id)) players.get(r.status.id).status = r.status.status;
+        if (r.look && players.has(r.look.id)) Object.assign(players.get(r.look.id), { look: r.look.look, events: r.look.events ?? [] });
+        emit('roster', r);
+        break;
+      }
+      case S2C.EVENT: {
+        const ev = decodeValue(bytes), p = players.get(ev.from);
+        if (p && ev.kind === 'reset') p.remote.teleport();
+        if (p && (ev.kind === 'damage' || ev.kind === 'parts')) p.events = [...(p.events ?? []), ev].slice(-64);
+        if (p && ev.kind === 'repair') p.events = [];
+        emit('event', ev);
+        break;
+      }
+      case S2C.NOTICE: {
+        const n = decodeValue(bytes);
+        emit('notice', n);
+        if (n.code) setStatus('offline', n.message ?? messageFor(n.code));
+        break;
+      }
+    }
+  }
+
+  const api = {
+    async connect() {
+      setStatus('connecting');
+      let t;
+      try { t = await getTicket(); }
+      catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code)); throw { code, message: messageFor(code) }; }
+      try {
+        fullStates ||= !!transport.unreliable;
+        const c = await transport.join(endpoint ?? t.url, roomName, { ticket: t.ticket, protocol: PROTOCOL, world, ...(fullStates ? { fullStates: true } : {}), ...(serverNetsim ? { netsim: serverNetsim } : {}) });
+        conn = links ? withNetsim(c, { ...links, unreliable: { up: [C2S.STATE], down: [S2C.SNAPSHOT] } }) : c;
+      } catch (e) {
+        const code = e?.code ?? 0, m = messageFor(code, e?.message ?? 'Couldn\'t reach the game server.');
+        setStatus('offline', m);
+        throw { code, message: m };
+      }
+      for (const type of Object.values(S2C)) conn.on(type, b => onMessage(type, b));
+      conn.onStatus((s, info) => {
+        if (s === 'dropped') setStatus('reconnecting', 'Connection lost: reconnecting…');
+        else if (s === 'back') { forceKey = true; setStatus('online'); }
+        else if (s === 'left' && status !== 'offline') setStatus('offline', info.code === 4000 || info.code === 1000 ? '' : messageFor(info.code, info.reason || 'Disconnected from the game server.'));
+      });
+      // (connected: wait for the welcome, then say this car's look)
+      const t0 = now();
+      while (me == null) { if (now() - t0 > 10000) throw { code: 0, message: 'The game server didn\'t answer.' }; await new Promise(r => setTimeout(r, 10)); }
+      api.setLook(myLook, myEvents);
+      setStatus('online');
+      return api;
+    },
+    update(dt, local) {
+      if (!conn || status === 'offline') return;
+      const t = now();
+      // pings: a burst on joining, then one a second; unanswered after 3 s counts as lost
+      if (t >= nextPing) {
+        seq = (seq + 1) & 65535; pending.set(seq, t);
+        send(C2S.PING, encodePing(seq, t), true);
+        nextPing = t + (burst > 0 ? (burst--, 100) : net.pingSec * 1000);
+      }
+      for (const [k, at] of pending) if (t - at > 3000) { pending.delete(k); pingLog.push(false); if (pingLog.length > 30) pingLog.shift(); }
+      // this car's state, paced
+      if (status === 'online' && local && t - lastSend >= 1000 / net.sendHz - 2) {
+        const s = local();
+        if (s) {
+          const q = quantise({ ...s, time: roomNow() - (s.ageMs ?? 0) });
+          const key = fullStates || forceKey || !base || t - lastKey >= net.keyframeSec * 1000;
+          const mask = key ? ALL : maskFor(q, base, sendCount % net.detailEvery === 0);
+          // (parked, nothing changed: a short "still here" a few times a second, not 30)
+          if (mask || t - lastSend >= 200) {
+            send(C2S.STATE, encodeStateMessage(q, mask), false);
+            base = mergeState(base, q, mask); lastSend = t; sendCount++;
+            if (key) { lastKey = t; forceKey = false; }
+          }
+        }
+      }
+      // bandwidth, a second at a time
+      if (t - bw.at >= 1000) {
+        const k = (t - bw.at) / 1000;
+        bw.upKBs = bw.up / 1024 / k; bw.downKBs = bw.down / 1024 / k; bw.up = 0; bw.down = 0; bw.at = t;
+      }
+    },
+    sample(dt) {
+      const t = roomNow(), out = [];
+      for (const p of players.values()) {
+        if (p.id === me) continue;
+        const pose = p.remote.sample(t, dt);
+        // (no state for a while and not away: out of range — not drawn)
+        const gone = p.status !== 'away' && now() - p.lastStateAt > 3000;
+        out.push({ id: p.id, name: p.name, guest: p.guest, status: p.status, look: p.look, events: p.events, pose: gone ? null : pose });
+      }
+      return out;
+    },
+    sendEvent(ev) { send(C2S.EVENT, encodeValue(ev), true); if (ev.kind === 'damage' || ev.kind === 'parts') myEvents = [...myEvents, ev].slice(-64); if (ev.kind === 'repair') myEvents = []; },
+    setLook(look, events = myEvents) { myLook = look; myEvents = events ?? []; if (conn) send(C2S.HELLO, encodeValue({ look: myLook, events: myEvents }), true); },
+    on(k, fn) { listeners[k].add(fn); return () => listeners[k].delete(fn); },
+    leave() { setStatus('offline', ''); links?.up.close(); links?.down.close(); const c = conn; conn = null; return c?.leave(); },
+    roomNow,
+    get id() { return me; },
+    get status() { return status; },
+    get message() { return message; },
+    get conn() { return conn; },
+    get clock() { return clock; },
+    get players() { return players; },
+    get stats() {
+      const rem = [...players.values()].filter(p => p.base).map(p => ({ id: p.id, name: p.name, ...p.remote.stats }));
+      const lost = pingLog.filter(x => !x).length;
+      return {
+        status, ping: clock.rtt, jitter: clock.jitter, loss: pingLog.length ? lost / pingLog.length : 0,
+        upKBs: bw.upKBs, downKBs: bw.downKBs, upTotal: bw.upTotal, downTotal: bw.downTotal,
+        bufferMs: rem.length ? rem.reduce((a, r) => a + r.bufferMs, 0) / rem.length : 0, remotes: rem,
+        netsim: links ? { ...links.up.conditions, upStats: links.up.stats, downStats: links.down.stats } : null,
+      };
+    },
+  };
+  return api;
+}

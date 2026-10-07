@@ -67,6 +67,7 @@
     "@mapbox/vector-tile": "^3.0.0",
     "@types/node": "^22.20.5",
     "@types/three": "^0.160.0",
+    "esbuild": "^0.28.2",
     "geotiff": "^3.0.5",
     "hyparquet": "^1.31.2",
     "hyparquet-compressors": "^1.1.2",
@@ -76,11 +77,13 @@
     "pmtiles": "^4.5.0",
     "sharp": "^0.35.5",
     "three": "0.160.0",
-    "typescript": "5.9",
-    "esbuild": "^0.28.2"
+    "typescript": "5.9"
   },
   "workspaces": [
     "packages/*",
     "server"
-  ]
+  ],
+  "dependencies": {
+    "@colyseus/sdk": "^0.18.5"
+  }
 }

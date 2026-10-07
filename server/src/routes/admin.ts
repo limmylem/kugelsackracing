@@ -22,7 +22,7 @@ const summary = (r: any) => ({
   banned: !!r.banned && (!r.ban_expires || new Date(r.ban_expires) > new Date()), banReason: r.ban_reason ?? null, banExpires: iso(r.ban_expires), createdAt: iso(r.created_at)!,
 });
 
-export async function adminRoutes(app0: FastifyInstance, { db, auth, G }: { config: Config; db: Db; auth: Auth; G: Guards }) {
+export async function adminRoutes(app0: FastifyInstance, { db, auth, G, rtBridge }: { config: Config; db: Db; auth: Auth; G: Guards; rtBridge?: import('../rt/bridge.ts').RtBridge }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const admin = G.requireRole('admin');
   const userRow = async (id: string) => (await db.execute(sql`select * from users where id = ${id}`)).rows[0] as any;
@@ -78,6 +78,7 @@ export async function adminRoutes(app0: FastifyInstance, { db, auth, G }: { conf
     if (!u) throw notFound('That player');
     await call(req, h => auth.api.banUser({ body: { userId: u.id, banReason: req.body.reason, banExpiresIn: req.body.days * 86400 }, headers: h }));
     await log(s, 'suspend', u.id, req.body.reason, { days: req.body.days });
+    await rtBridge?.banned(u.id, req.body.days * 86400);
     return { ok: true as const };
   });
   app.post('/admin/players/:id/ban', { config: { role: 'admin' }, schema: { params: Id, body: BanBody, response: { 200: Ok } } }, async req => {
@@ -86,6 +87,7 @@ export async function adminRoutes(app0: FastifyInstance, { db, auth, G }: { conf
     if (!u) throw notFound('That player');
     await call(req, h => auth.api.banUser({ body: { userId: u.id, banReason: req.body.reason }, headers: h }));
     await log(s, 'ban', u.id, req.body.reason);
+    await rtBridge?.banned(u.id, null);
     return { ok: true as const };
   });
   app.post('/admin/players/:id/unban', { config: { role: 'admin' }, schema: { params: Id, body: UnbanBody, response: { 200: Ok } } }, async req => {
@@ -94,6 +96,7 @@ export async function adminRoutes(app0: FastifyInstance, { db, auth, G }: { conf
     if (!u) throw notFound('That player');
     await call(req, h => auth.api.unbanUser({ body: { userId: u.id }, headers: h }));
     await log(s, 'unban', u.id, req.body.reason);
+    await rtBridge?.unbanned(u.id);
     return { ok: true as const };
   });
   app.post('/admin/players/:id/sign-out', { config: { role: 'admin' }, schema: { params: Id, body: UnbanBody, response: { 200: Ok } } }, async req => {

@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHmac } from 'node:crypto';
 import { z } from 'zod';
 
 export const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -39,6 +40,9 @@ const FileConfig = z.object({
   // the alerts' thresholds (ops/alerts.ts, docs/OPERATIONS.md)
   alerts: z.object({ errorRate: z.number().min(0).max(1), minRequests: z.number().int().min(1), slowP95Ms: z.number().positive(), dbSlowMs: z.number().positive(), queueWaiting: z.number().int().min(1),
     queueOldestSec: z.number().positive(), moneyPerHour: z.number().positive(), moneySpike: z.number().min(1), repeatMinutes: z.number().min(1) }),
+  // multiplayer (Phase 7 Step 1; docs/MULTIPLAYER.md): who may join the real-time server, how long a join ticket
+  // lasts, how many players (in all its processes) and a room take, and whether the network simulator may be used
+  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean() }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
     reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
@@ -77,12 +81,21 @@ const Env = z.object({
   ALERT_WEBHOOK_URL: optional,
   // an external monitor reading /api/v1/metrics sends this as a bearer token (empty: that endpoint is off)
   METRICS_TOKEN: optional,
+  // (Phase 7) the real-time server: the secret its join tickets are signed with (shared by the API and it; in
+  // development and tests made from BETTER_AUTH_SECRET), and Redis (its presence; bans reach it through Redis)
+  RT_SECRET: optional,
+  REDIS_URL: optional,
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
   // (Render says which commit it deployed in RENDER_GIT_COMMIT: the health check reports it, and the deploy waits for it)
   GIT_COMMIT: z.string().default(process.env.RENDER_GIT_COMMIT ?? 'dev'),
 });
 
 export type Config = ReturnType<typeof loadConfig>;
+
+// The join tickets' secret: RT_SECRET, or (development and tests, where it isn't set) one made from the auth secret
+export function rtSecretOf(rtSecret: string | null | undefined, authSecret: string) {
+  return rtSecret ?? createHmac('sha256', authSecret).update('kugelsack rt tickets').digest('base64');
+}
 
 export function loadConfig(env: Record<string, string | undefined> = process.env, overrides: Partial<z.infer<typeof FileConfig>> = {}) {
   const e = Env.safeParse(env);
@@ -103,6 +116,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const gameUrl = url('GAME_URL', E.GAME_URL) ?? publicUrl, tilesUrl = url('TILES_URL', E.TILES_URL), rtUrl = url('RT_URL', E.RT_URL);
   if (f.data.botCheck.required && !(E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY)) throw new Error('The bot check is required here: set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY (docs/ABUSE.md)');
   if (E.EDGE_SECRET && E.EDGE_SECRET.length < 24) throw new Error('EDGE_SECRET must be at least 24 characters (openssl rand -hex 24)');
+  if (E.RT_SECRET && E.RT_SECRET.length < 32) throw new Error('RT_SECRET must be at least 32 characters (openssl rand -base64 32)');
+  if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && rtUrl && !E.RT_SECRET) throw new Error('RT_SECRET is needed with RT_URL in staging and production (the real-time server\'s join tickets)');
   const origins = [new URL(publicUrl).origin, new URL(gameUrl).origin, ...(E.TRUSTED_ORIGINS ? E.TRUSTED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])];
   const social = {
     google: E.GOOGLE_CLIENT_ID && E.GOOGLE_CLIENT_SECRET ? { clientId: E.GOOGLE_CLIENT_ID, clientSecret: E.GOOGLE_CLIENT_SECRET } : null,
@@ -114,6 +129,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     adminEmail: E.ADMIN_EMAIL?.toLowerCase() ?? null, version: E.GIT_COMMIT,
     gameUrl, tilesUrl, rtUrl, edgeSecret: E.EDGE_SECRET, hsts: E.HSTS === 'on',
     turnstile: E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY ? { siteKey: E.TURNSTILE_SITE_KEY, secret: E.TURNSTILE_SECRET_KEY } : null,
+    rtSecret: rtSecretOf(E.RT_SECRET, E.BETTER_AUTH_SECRET), redisUrl: E.REDIS_URL,
     alertEmail: E.ALERT_EMAIL, alertWebhook: E.ALERT_WEBHOOK_URL, metricsToken: E.METRICS_TOKEN,
     ...f.data,
   };

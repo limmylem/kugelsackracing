@@ -5,6 +5,8 @@
 //   (1 MiB; JSON only) → the session (Better Auth's cookie) → CSRF (writes with a cookie session carry the
 //   token) → idempotency (writes) → the route: Zod-validated request and response → one error format.
 
+import { rtRoutes } from './routes/rt.ts';
+import { createRtBridge } from './rt/bridge.ts';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -68,7 +70,7 @@ export const scrubUrl = (url: string) => {
   return `${p}?${params}`;
 };
 
-export type AppDeps = { config: Config; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null;
+export type AppDeps = { config: Config; rtBridge?: import('./rt/bridge.ts').RtBridge; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null;
   // (the rollback drill only — server/tools/rollback-test.ts: a "broken release", every request matching it answering 500.
   // Never from settings or the environment, and refused in production)
   fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
@@ -257,6 +259,8 @@ export async function buildApp(deps: AppDeps) {
     if (s) void signals.seen(s.user.id, req.headers[DEVICE_HEADER] as string | undefined, req.ip);
   });
   // ---------- monitoring (docs/OPERATIONS.md): every API request counted and timed; the alerts checked each minute ----------
+  // (Phase 7) bans reach the real-time server through Redis (rt/bridge.ts)
+  const rtBridge = deps.rtBridge ?? createRtBridge(config.redisUrl, (msg, e) => app.log.warn(e ?? {}, msg));
   const metrics = createMetrics();
   app.addHook('onResponse', async (req, reply) => {
     if (!req.url.startsWith('/api/')) return;
@@ -374,7 +378,8 @@ export async function buildApp(deps: AppDeps) {
   }
   await app.register(async api => {
     await meRoutes(api, { config, db, auth, G, mailer });
-    await adminRoutes(api, { config, db, auth, G });
+    await adminRoutes(api, { config, db, auth, G, rtBridge });
+    await rtRoutes(api, { config, G });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, G });
@@ -434,7 +439,7 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('onReady', async () => { await promoteOwner(db, config); });
   app.decorate('deps', { db, auth, config, mailer });
   app.decorate('siteSettings', siteSettings);
-  app.addHook('onClose', async () => { if (opened) await opened.pool.end(); });
+  app.addHook('onClose', async () => { await rtBridge.close(); if (opened) await opened.pool.end(); });
   return app;
 }
 
