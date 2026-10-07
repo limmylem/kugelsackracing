@@ -194,3 +194,11 @@ test('lobby rules: settings clamped (ghost only), codes, the chat\'s pace, the n
   const ps = [{ pid: 1, joinedAt: 5 }, { pid: 2, joinedAt: 1, npc: true }, { pid: 3, joinedAt: 3 }];
   assert.equal(nextHost(ps, 3).pid, 1); assert.equal(nextHost(ps).pid, 3);
 });
+
+test('a course\'s version doesn\'t depend on how its stored path\'s keys are ordered (the database keeps its own order)', async () => {
+  const { routeVersionOf } = await import('../../route/model.js');
+  const path = { lat: 'abc', lon: 'def', h: 'gh', w: 'ij', n: 12 }, jsonb = { h: 'gh', n: 12, w: 'ij', lat: 'abc', lon: 'def' };
+  const c = { kind: 'loop', checkpoints: [{ id: 'a', s: 10 }], grid: { at: 5, count: 8 } };
+  assert.equal(routeVersionOf({ ...c, path }), routeVersionOf({ ...c, path: jsonb }));
+  assert.equal(routeVersionOf({ ...c, path: JSON.parse(JSON.stringify(path)) }), routeVersionOf({ ...c, path }), 'and the same as before for a course as it was made');
+});

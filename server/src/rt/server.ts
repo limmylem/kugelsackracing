@@ -13,7 +13,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import { RedisPresence } from '@colyseus/redis-presence';
 import { RedisDriver } from '@colyseus/redis-driver';
 import { NET } from '../../../net/settings.js';
-import { TestRoom, setRtEnv } from './room.ts';
+import { TestRoom, setRtEnv, resetKicks } from './room.ts';
 import { RaceRoom } from './race.ts';
 import { QueueRoom } from './queue.ts';
 import { HubRoom } from './hub.ts';
@@ -24,11 +24,14 @@ export type RtOptions = {
   rt: { allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean };
   // (Phase 7 Step 2: the API's address for the races' internal calls — venues, results, friends; none: free roam only)
   api?: { url: string } | null;
+  // (the tests: quick races in a region on this venue, not a random one — { region | '*': venue })
+  quickVenue?: Record<string, any>;
   log?: (msg: string, extra?: object) => void;
 };
 
 export async function startRt(o: RtOptions) {
-  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null });
+  resetKicks();                                   // (a new server, a new presence: subscribed afresh)
+  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null, quickVenue: o.quickVenue ?? null });
   const server = new Server({
     // (dead connections: a WebSocket ping every 3 s, closed after 2 unanswered — a dropped player then gets
     // NET.reconnectSec to come back)

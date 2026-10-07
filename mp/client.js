@@ -11,17 +11,22 @@
 //   S.race: the lobby/race joined — S.race.net (net/client.js: cars), S.lobby (its latest view), S.chat, S.standings, S.results, S.confirmed
 //   S.send(msg)  to the lobby/race: ready, car, settings, start, kick, chat, loaded, spectate, race, run, rematch, ping
 //   S.leaveRace()   S.on(event, fn) → off   S.close()
+//   S.mute(uid, on)   a player's chat hidden here (this game's choice: kept by the screens, nothing sent); S.muted
 //   events: 'lobby' 'chat' 'phase' 'load' 'event' 'standings' 'results' 'confirmed' 'verdict' 'votes' 'notice' 'left' (and the hub's and queue's)
 
 import { createNetClient } from '../net/client.js';
 import { PROTOCOL } from '../net/protocol.js';
+
+// (leaving a room that's already gone — kicked, closed — never answers: give up waiting after a moment)
+const settle = (p, ms = 2000) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise(r => setTimeout(r, ms))]);
 
 export function createMpSession({ transport, endpoint = null, getTicket, look = null, now = () => performance.now(), netsim = null, serverNetsim = null }) {
   const listeners = new Map();
   const emit = (k, v) => { for (const f of listeners.get(k) ?? []) { try { f(v); } catch (e) { console.warn(e); } } };
   let hub = null, queue = null, race = null;
   const S = {
-    friends: [], party: null, lobby: null, myUid: null, chat: [], standings: null, results: null, confirmed: null, verdict: null, raceId: null, venue: null, phase: null, goAt: null, notices: [],
+    friends: [], party: null, lobby: null, myUid: null, muted: new Set(),
+    mute(uid, on = true) { if (on) S.muted.add(uid); else S.muted.delete(uid); S.chat = S.chat.filter(m => !S.muted.has(m.uid)); emit('chat-log', S.chat); }, chat: [], standings: null, results: null, confirmed: null, verdict: null, raceId: null, venue: null, phase: null, goAt: null, notices: [],
     on(k, fn) { if (!listeners.has(k)) listeners.set(k, new Set()); listeners.get(k).add(fn); return () => listeners.get(k)?.delete(fn); },
     get race() { return race; }, get hubConn() { return hub; }, get queueConn() { return queue; },
 
@@ -55,14 +60,14 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
           emit('matched', m);
           const q = queue; queue = null;
           try { await S.joinRace({ how: 'reservation', reservation: m.reservation }); } catch (e) { emit('notice', e.message ?? 'Couldn\'t join the race.'); }
-          void q?.leave();
+          void settle(q?.leave());
         }
       });
       queue.onStatus((s, info) => { if (s === 'left' && queue) { queue = null; emit('queue-left', info); } });
       return queue;
     },
     acceptNpcs(yes = true) { queue?.sendJson({ t: 'npc', yes }); },
-    async leaveQueue() { const q = queue; queue = null; await q?.leave(); },
+    async leaveQueue() { const q = queue; queue = null; await settle(q?.leave()); },
 
     async createLobby({ kind = 'custom', settings = {} } = {}) { return S.joinRace({ how: 'create', options: { kind, settings } }); },
     async joinLobby(roomId, { spectate = false } = {}) { return S.joinRace({ how: 'joinById', roomId, options: { spectate } }); },
@@ -86,14 +91,14 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       return race;
     },
     send(m) { race?.net.conn?.sendJson(m); },
-    async leaveRace() { const r = race; race = null; await r?.net.leave(); },
-    async close() { await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await h?.leave(); },
+    async leaveRace() { const r = race; race = null; await settle(r?.net.leave()); },
+    async close() { await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await settle(h?.leave()); },
   };
   function onRace(m) {
     switch (m.t) {
       case 'lobby': S.lobby = m; S.myUid = m.you ?? S.myUid; S.phase = m.phase; S.goAt = m.goAt; S.raceId = m.raceId ?? S.raceId; if (m.confirmed) S.confirmed = m.confirmed; break;
-      case 'chat-log': S.chat = m.messages.slice(); break;
-      case 'chat': S.chat.push(m); if (S.chat.length > 100) S.chat.shift(); break;
+      case 'chat-log': S.chat = m.messages.filter(x => !S.muted.has(x.uid)); break;
+      case 'chat': if (S.muted.has(m.uid)) return; S.chat.push(m); if (S.chat.length > 100) S.chat.shift(); break;
       case 'load': S.raceId = m.raceId; S.venue = m.venue; break;
       case 'phase': S.phase = m.phase; if (m.goAt != null) S.goAt = m.goAt; break;
       case 'standings': S.standings = m; if (m.goAt != null) S.goAt = m.goAt; break;

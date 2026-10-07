@@ -91,7 +91,12 @@ export function bakeRacing(course, P, margin = 1.1) {
   const rl = racingLine(line, { loop: course.kind === 'loop', margin });
   return { key: pathKey(course.path), d: encodeOffsets(rl.d), margin };
 }
-const pathKey = path => { const k = JSON.stringify(path); let h = 0x811c9dc5; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
+// (the stored path's keys in encodeLine's order: PostgreSQL's jsonb keeps an object's keys in its own order, and a
+// course read back from the database must have the version it had when it was made — Phase 7 Step 2 found a track's
+// runs failing their check once the server had loaded the track from its database)
+const PATH_KEYS = ['lat', 'lon', 'h', 'w', 'n'];
+const canonPath = p => p && typeof p === 'object' && !Array.isArray(p) ? Object.fromEntries([...PATH_KEYS.filter(k => k in p), ...Object.keys(p).filter(k => !PATH_KEYS.includes(k)).sort()].map(k => [k, p[k]])) : p;
+const pathKey = path => { const k = JSON.stringify(canonPath(path)); let h = 0x811c9dc5; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
 // a course's racing line as stored (or made now, if it's missing or was made for another path)
 export function racingOf(course, line, P) {
   const loop = course.kind === 'loop';
@@ -149,7 +154,7 @@ export function viewCourse(course, P) {
 // A route's version as a run was made on it: its line, checkpoints, grid and kind (a short hash). A
 // result made on another version of the route is no result for this one.
 export function routeVersionOf(course) {
-  const key = JSON.stringify([course.kind, course.path, (course.checkpoints ?? []).map(c => [c.id, Math.round(c.s), c.required !== false]), course.grid?.at ?? course.grid?.startS ?? null, course.grid?.finish ?? null, course.grid?.count ?? null]);
+  const key = JSON.stringify([course.kind, canonPath(course.path), (course.checkpoints ?? []).map(c => [c.id, Math.round(c.s), c.required !== false]), course.grid?.at ?? course.grid?.startS ?? null, course.grid?.finish ?? null, course.grid?.count ?? null]);
   let h = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(36).padStart(7, '0');

@@ -7,7 +7,8 @@
 //   const B = createRaceBot({ session (mp/client.js), courseFor(venue) → course, skill, car, behave })
 //     behave: { jumpStart: true (creeps off its slot before the lights), cutCheckpoint: n (hands in a run without
 //       its nth checkpoint: it won't pass the check), fakeTime: s (hands in a run s faster than it drove), hash: '…'
-//       (says it built another track), drop: { atSec } (its connection drops), leaveAtSec (it quits) }
+//       (says it built another track), drop: { atSec | atPhase, forGood } (its connection drops — back by itself, or
+//       never), leaveAtSec (it quits) }
 //   B.done → a promise: { result, verdict, finished }      B.log   B.stop()
 
 import { createQuestSession } from '../quest/session.js';
@@ -56,12 +57,25 @@ export function createRaceBot({ session: S, courseFor, quests, cfg, skill = 0.9,
     const net = S.race?.net;
     if (!net || !Q) return;
     const t = net.roomNow(), goAt = S.goAt;
-    if (goAt != null) { Q.setGo(goAt / 1000); if (t >= goAt && !driver.started) { driver.started = true; driver.go(goAt); } }
+    if (goAt != null) {
+      Q.setGo(goAt / 1000);
+      if (t >= goAt && !driver.started) {
+        driver.started = true; driver.go(goAt);
+        // (when this player's lights went out, on the wall clock: the tests compare everyone's — the countdown's sync)
+        api.goWall = performance.timeOrigin + performance.now() - (t - goAt);
+      }
+    }
     const dt = lastT == null ? 1 / hz : Math.max(1e-3, (t - lastT) / 1000);
     lastT = t;
     // (misbehaving, for the tests)
     if (behave.leaveAtSec != null && goAt != null && t > goAt + behave.leaveAtSec * 1000) { say('leaving'); stop(); void S.leaveRace(); finish({ result: null, verdict: null, finished: false, left: true }); return; }
-    if (behave.drop && goAt != null && !behave.dropped && t > goAt + behave.drop.atSec * 1000) { behave.dropped = true; say('dropping'); net.conn?.breakConnection?.(); }
+    if (behave.drop && !behave.dropped && (behave.drop.atPhase ? S.phase === behave.drop.atPhase : goAt != null && t > goAt + behave.drop.atSec * 1000)) {
+      behave.dropped = true; say(behave.drop.forGood ? 'dropping for good' : 'dropping');
+      // (for good: it never reconnects — the server waits out the grace, then it's out)
+      if (behave.drop.forGood) { try { net.conn.raw.reconnection.maxRetries = 0; net.conn.raw.reconnection.enabled = false; } catch { /* sdk */ } stop(); }
+      net.conn?.breakConnection?.();
+      if (behave.drop.forGood) return;
+    }
     let s = driver.state(t);
     if (behave.jumpStart && goAt != null && t < goAt && t > goAt - 2000) s = { ...s, pos: [s.pos[0] + 3, s.pos[1], s.pos[2]] };
     const fwd = Math.hypot(s.vel[0], s.vel[2]) > 0.1 ? [s.vel[0] / Math.hypot(s.vel[0], s.vel[2]), s.vel[2] / Math.hypot(s.vel[0], s.vel[2])] : [0, 1];
@@ -84,5 +98,25 @@ export function createRaceBot({ session: S, courseFor, quests, cfg, skill = 0.9,
     }
   }
   function stop() { if (timer) clearInterval(timer); timer = null; }
-  return { log, get done() { return done; }, get course() { return course; }, get session() { return Q; }, stop };
+  const api = { log, goWall: null, get done() { return done; }, get course() { return course; }, get session() { return Q; }, stop };
+  return api;
+}
+
+// A run driven with no network at all (the API's tests: a run to check): the same driver and QuestSession, the lights
+// out at goAt (ms on the run's clock), ticked at hz until it finishes → { result, timeMs } (timeMs: from the lights)
+export function driveRun({ course, quest, quests, cfg, skill = 0.9, slot = 0, car = { carId: 'starter_car', topSpeed: 62 }, hz = 60, goAt = 3000, limitSec = 1200 }) {
+  const driver = createNpcDriver({ line: course.line, loop: course.loop, plan: speedPlan(course.line, { loop: course.loop, cfg }), slot: course.grid.slots[slot], skill });
+  const Q = createQuestSession({ quest, course, config: quests, car, startMode: 'standing', externalGo: true, slot });
+  Q.begin({ intro: false });
+  Q.setGo(goAt / 1000);
+  let started = false;
+  for (let t = 0; t < goAt + limitSec * 1000; t += 1000 / hz) {
+    if (!started && t >= goAt) { started = true; driver.go(goAt); }
+    const s = driver.state(t), v = Math.hypot(s.vel[0], s.vel[2]) || 1;
+    Q.tick({ t: t / 1000, dt: 1 / hz, x: s.pos[0], z: s.pos[2], vx: s.vel[0], vz: s.vel[2], fx: s.vel[0] / v, fz: s.vel[2] / v, throttle: s.throttle, drivable: true, condition: 1 });
+    Q.drain();
+    if (Q.outcome && Q.state.state !== 'racing' && Q.state.state !== 'countdown') break;
+  }
+  const result = Q.outcome ? buildResult({ quest, course, outcome: Q.outcome, car }) : null;
+  return { result, timeMs: result ? result.rawTime * 1000 : null };
 }

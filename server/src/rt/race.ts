@@ -56,7 +56,7 @@ export class RaceRoom extends TestRoom {
     this.kind = ['quick', 'private', 'custom'].includes(options?.kind) ? options.kind : 'custom';
     this.maxClients = MP.lobby.maxPlayers + MP.spectate.maxSpectators;
     this.settings = normaliseSettings(options?.settings ?? {}, MP, { kind: this.kind }).settings;
-    if (this.kind === 'quick') { this.settings.npcFill = !!options?.npcFill; this.settings.laps = 2; }
+    if (this.kind === 'quick') { this.settings.npcFill = !!options?.npcFill; this.settings.laps = 1; const v = rtEnv.quickVenue?.[options?.region] ?? rtEnv.quickVenue?.['*']; if (v) this.settings.venue = v; }
     this.expected = Array.isArray(options?.expect) ? options.expect.map(String) : [];
     this.expectBy = this.roomNow() + 20000;
     if (this.kind === 'private') { this.code = await claimCode(this.roomId, MP.lobby.codeLength); await this.setPrivate(true); }

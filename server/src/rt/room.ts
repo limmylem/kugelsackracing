@@ -21,7 +21,7 @@ import { verifyTicket, type Ticket } from './tickets.ts';
 import { createChecks } from './checks.ts';
 import { createGrid } from './interest.ts';
 
-export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null };
+export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any };
 let ENV: RtEnv;
 export const setRtEnv = (e: RtEnv) => { ENV = e; };
 
@@ -56,6 +56,17 @@ export async function authorize(token: string, options: any, { count = true }: {
   return t;
 }
 export { refuse, ENV as rtEnv };
+
+// (rt:kick, once per process: every room here gets each message)
+let kicksOn = false;
+function subscribeKicks() {
+  if (kicksOn) return;
+  kicksOn = true;
+  void matchMaker.presence.subscribe('rt:kick', (m: any) => {
+    for (const room of TestRoom.live) for (const p of room.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except) room.kick(p, m.code ?? CODES.KICKED, m.message);
+  });
+}
+export const resetKicks = () => { kicksOn = false; };
 
 let processPlayers = 0;
 const reportLoad = () => matchMaker.presence.hset(LOAD, matchMaker.processId, `${processPlayers}:${Date.now()}`);
@@ -99,12 +110,9 @@ export class TestRoom extends Room {
     this.onMessageBytes(C2S.HELLO, (c, b: any) => this.inbound(c, b, x => this.onHello(c, x)));
     this.onMessageBytes(C2S.PING, (c, b: any) => this.inbound(c, b, x => this.onPing(c, x)));
     this.onMessageBytes(C2S.STATS, (c, b: any) => this.inbound(c, b, () => {}));
-    // (another tab or device of the same account joined, anywhere; or an admin banned them: kicked)
-    const kick = (m: any) => {
-      for (const p of this.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except) this.kick(p, m.code ?? CODES.KICKED, m.message);
-    };
-    void matchMaker.presence.subscribe('rt:kick', kick);
-    this.unsub = () => matchMaker.presence.unsubscribe('rt:kick', kick);
+    // (another tab or device of the same account joined, anywhere; or an admin banned them: kicked — one subscription
+    // for the whole process, handed to each room)
+    subscribeKicks();
   }
 
   onDispose() { void Promise.resolve(matchMaker.presence.hdel('rt:rooms', this.roomId)).catch(() => {}); TestRoom.live.delete(this); this.unsub?.(); for (const p of this.players.values()) { p.up?.close(); p.down?.close(); } }
@@ -142,7 +150,8 @@ export class TestRoom extends Room {
     // (the car waits, paused for everyone else, for the player to come back)
     p.status = 'away';
     this.broadcastRoster({ status: { id: p.id, status: 'away' } }, p);
-    this.allowReconnection(client, NET.reconnectSec);
+    // (refused while the room is closing — the server shutting down: nothing to wait for)
+    Promise.resolve(this.allowReconnection(client, NET.reconnectSec)).catch(() => {});
   }
 
   onReconnect(client: Client) {

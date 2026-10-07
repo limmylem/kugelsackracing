@@ -23,6 +23,9 @@ type Entry = { client: Client; uid: string; name: string; since: number; pings: 
 
 export class QueueRoom extends Room {
   static queues = new Set<QueueRoom>();
+  // (every race made and every cycle's time in this process — the rooms come and go; the load test reads these)
+  static made: any[] = [];
+  static cycles: number[] = [];
   maxClients = 10000;
   autoDispose = true;
   region = 'local';
@@ -108,16 +111,17 @@ export class QueueRoom extends Room {
         for (const s of sessions) this.entries.delete(s);
         const quality = { ...m.quality, npcFill: m.npcFill, region: m.region, at: now };
         this.made.push(quality); if (this.made.length > 5000) this.made.splice(0, 1000);
+        QueueRoom.made.push(quality); if (QueueRoom.made.length > 20000) QueueRoom.made.splice(0, 5000);
         this.report.push(quality);
         void this.seat(es, m, quality);
       }
     } catch (e: any) { rtEnv.log('rt queue cycle failed', { err: e?.message }); }
-    finally { this.running = false; this.cycleMs.push(performance.now() - t0); if (this.cycleMs.length > 1000) this.cycleMs.shift(); }
+    finally { this.running = false; const ms = performance.now() - t0; this.cycleMs.push(ms); if (this.cycleMs.length > 1000) this.cycleMs.shift(); QueueRoom.cycles.push(ms); if (QueueRoom.cycles.length > 20000) QueueRoom.cycles.splice(0, 5000); }
   }
   // a race room for them, and a seat for each
   private async seat(es: Entry[], m: any, quality: any) {
     try {
-      const room = await matchMaker.createRoom('race', { kind: 'quick', expect: es.map(e => e.uid), npcFill: m.npcFill });
+      const room = await matchMaker.createRoom('race', { kind: 'quick', region: this.region, expect: es.map(e => e.uid), npcFill: m.npcFill });
       for (const e of es) {
         const reservation = await matchMaker.reserveSeatFor(room, { quick: true }, e.client.auth);
         e.client.userData = { ...(e.client.userData ?? {}), matched: true };

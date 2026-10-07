@@ -26,12 +26,11 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 export async function loadProfile(tx: Tx, userId: string): Promise<any | null> {
   const e = (await tx.execute(sql`select * from player_economy where user_id = ${userId}`)).rows[0] as any;
   if (!e) return null;
-  const [cars, parts, slots, quests] = await Promise.all([
-    tx.execute(sql`select * from owned_cars where user_id = ${userId}`),
-    tx.execute(sql`select * from owned_parts where user_id = ${userId}`),
-    tx.execute(sql`select * from car_build_slots where user_id = ${userId}`),
-    tx.execute(sql`select quest_id, data from quest_progress where user_id = ${userId}`),
-  ]);
+  // (one after another: a transaction is one connection, and pg is dropping queries sent to it while it's busy)
+  const cars = await tx.execute(sql`select * from owned_cars where user_id = ${userId}`);
+  const parts = await tx.execute(sql`select * from owned_parts where user_id = ${userId}`);
+  const slots = await tx.execute(sql`select * from car_build_slots where user_id = ${userId}`);
+  const quests = await tx.execute(sql`select quest_id, data from quest_progress where user_id = ${userId}`);
   const on = new Map((slots.rows as any[]).map(s => [s.part_instance_id, { car: s.car_instance_id, socket: s.socket }]));
   const profile: any = {
     ...(e.state ?? {}), version: e.profile_version, money: Number(e.balance), nextId: e.next_id, currentCar: e.current_car, ...(Number(e.xp) ? { xp: Number(e.xp) } : {}),
