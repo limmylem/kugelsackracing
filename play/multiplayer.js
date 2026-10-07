@@ -78,7 +78,7 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
   await N.connect();
   const cars = new Map();          // id → { handle, loading, lookKey, spin: [], sound, label, damageKey, parts }
   const overlay = createNetOverlay(N, { shown: debug });
-  let overlayAt = 0;
+  let overlayAt = 0, lastFrame = null;
   const labels = document.createElement('div');
   labels.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:55';
   document.body.appendChild(labels);
@@ -104,7 +104,11 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
     net: N, overlay,
     get status() { return N.status; },
     get message() { return N.message; },
-    frame(dt, local) {
+    frame(gameDt, local) {
+      // (real time since the last frame: the game caps its own step on a slow frame, but the others' cars are shown on
+      // the server's clock, which doesn't wait)
+      const nowMs = performance.now(), dt = lastFrame == null ? gameDt : Math.min(5, (nowMs - lastFrame) / 1000);
+      lastFrame = nowMs;
       N.update(dt, local);
       const seen = new Set();
       for (const o of N.sample(dt)) {
@@ -121,8 +125,6 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
             mine.handle = h; mine.loading = false;
             // (parts already off it when it was first seen)
             for (const e of o.events ?? []) if (e.kind === 'parts') { A.setPart(h, e.socket, e.to); (mine.partsOff ??= new Set()).add(e.socket); }
-            const s = o.look?.sound, au = A.audio();
-            if (au && s?.file) mine.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline });
           }, err => console.warn(`Another player's car didn't load: ${err.message ?? err}`));
           c.label = document.createElement('div');
           c.label.style.cssText = 'position:absolute;transform:translate(-50%,-100%);font:600 12px/1.2 Barlow,system-ui,sans-serif;color:#fff;background:rgba(10,14,20,.6);padding:2px 7px;border-radius:9px;white-space:nowrap';
@@ -130,13 +132,18 @@ export async function joinMultiplayer({ account, world, look, adapter: A, netsim
         }
         const p = o.pose;
         if (!c.handle || !p) { if (c.handle) A.drawCar(c.handle, null); if (c.label) c.label.hidden = true; continue; }
+        // (its sound: once the game's audio has started — browsers only allow sound after a key press)
+        if (!c.sound) { const s = o.look?.sound, au = A.audio(); if (au && s?.file) c.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline }); }
         // its wheels: turned by their own speed (the angle isn't sent: only how fast), riding their suspension
         const wheels = (p.wheels ?? []).map((w, i) => { c.spin[i] = ((c.spin[i] ?? 0) + w.omega * dt) % (Math.PI * 2); return { ...w, spin: c.spin[i] }; });
         const simPos = A.toSim(p.pos);
         A.drawCar(c.handle, { ...p, pos: simPos }, wheels);
+        // (the tests: what was drawn, frame by frame — globalThis.__krMpTrace = {} turns it on)
+        const tr = globalThis.__krMpTrace;
+        if (tr) { const list = tr[o.id] ??= []; list.push({ at: performance.now(), dt, pos: p.pos, vel: p.vel, rot: p.rot, ang: p.ang, shownAt: p.shownAt, flags: p.flags, rpm: p.rpm, spin: wheels[0]?.spin ?? null, extrapolating: p.extrapolating, correctionCm: p.correctionCm, teleported: p.teleported, sound: !!c.sound, dents: c.dentCount ?? 0 }); if (list.length > 6000) list.splice(0, 1000); }
         // its damage (rebuilt only when something new came in)
         const dk = `${o.events?.length ?? 0}|${o.look?.damage ? 1 : 0}`;
-        if (dk !== c.damageKey) { c.damageKey = dk; A.setDamage(c.handle, damageView(o.look, o.events, A.rules)); }
+        if (dk !== c.damageKey) { c.damageKey = dk; const v = damageView(o.look, o.events, A.rules); c.dentCount = v.shell.dents.length + Object.values(v.parts).reduce((a, x) => a + x.length, 0); A.setDamage(c.handle, v); }
         // its sound, where it is
         if (c.sound) { const slip = Math.max(0, ...wheels.filter(w => w.grounded).map(w => w.slip)); c.sound.update({ rpm: p.rpm, throttle: p.throttle, slip, speed: Math.hypot(...p.vel) }, A.listener(simPos), dt); }
         // its name over it (and "reconnecting…" while its player is away)

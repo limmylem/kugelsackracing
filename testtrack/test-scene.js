@@ -62,7 +62,9 @@ import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
-import { createAudio } from './audio.js';
+import { createAudio, remoteCarSound } from './audio.js';
+import { joinMultiplayer, multiplayerOptions, localState, lookOf } from '../play/multiplayer.js';
+import { account as accountNow } from '../account/session.js';
 import { createDyno, createTacho } from './gauges.js';
 import { InputManager } from './input.js';
 import { reverseLine, roadFollower, straightLine } from '../physics/ai.js';
@@ -611,10 +613,13 @@ export async function enter(file) {
   shared.renderer.domElement.style.display = 'block';
   shared.last = performance.now();
   if (!shared.looping) { shared.looping = true; requestAnimationFrame(loop); }
+  // (Phase 7: ?mp — this world's room, the other players in it)
+  if (multiplayerOptions()) void startMultiplayer(active);
 }
 
 export function exit() {
   active = null;
+  if (shared?.mp) { void shared.mp.leave(); shared.mp = null; shared.mpRoom = null; }
   hideRealWorlds();
   if (!shared) return;
   shared.renderer.domElement.style.display = 'none';
@@ -889,7 +894,7 @@ async function buildWorld(file) {
 
   // Fixed shapes (same as the colliders)
   const trees = [];
-  let roadMesh = null;
+  let trackRoad = null;                             // (not `roadMesh`: that's the function drawing a road, below)
   for (const s of trackShapes(track)) {
     if (s.tree) { trees.push(s.tree); continue; }
     if (s.hidden) continue;                          // (a dressed track's barriers, kerbs, scenery: track/render.js draws them)
@@ -904,7 +909,7 @@ async function buildWorld(file) {
       const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: !!s.colours, color: s.colours ? 0xffffff : 0x404246, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
       mesh.receiveShadow = true;
       scene.add(mesh);
-      if (trackData) roadMesh = mesh;          // (the weather: wet, darker — track/weather.js)
+      if (trackData) trackRoad = mesh;         // (the weather: wet, darker — track/weather.js)
       continue;
     }
     let geo;
@@ -984,7 +989,7 @@ async function buildWorld(file) {
       w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high', floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false, detail });
       applyDetail(w);
       w.stream.world.add(w.trackDress.group);
-      w.roadMesh = roadMesh;
+      w.roadMesh = trackRoad;
       w.camera.far = Math.max(2000, span * 6); w.camera.updateProjectionMatrix();
       // its time of day and weather: the theme's (an event's own when one starts: applyConditions)
       applyConditions(w, null);
@@ -1100,6 +1105,7 @@ function frame(w, now) {
   if (!T) drawParts(w, b);
   syncParts(w.carVis, b);
   if (!T) updateOtherCars(w, a, b, alpha);
+  if (shared.mp && !T) mpFrame(w, view, seconds);
   if (!paused && !T) shared.input.feedback(b, seconds);
 
   b.bonnetUp = T ? 0 : bonnetUp(b);
@@ -1482,6 +1488,7 @@ function crashEvents(w, v, now) {
     w.quests?.noteHit(impact.strength);                     // (a quest: a drift's wall hit, the cargo's damage)
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
     const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: s.play.scale(impact) });
+    s.mp?.crash(result, s.session.garage.build);                    // (the others see your dents: play/multiplayer.js)
     if (impact.strength > 5) w.ambience?.cheer('crash', Math.min(1, impact.strength / 20));
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
     const R = s.session.db.sessions.replay;
@@ -1976,6 +1983,7 @@ const clock = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')
 // Shift+R (or no roads): everything back to the start. The damage stays: what comes back on is the
 // session's rule (a test drive: every part that came loose or off, as it is; a race: only a wheel torn off)
 function resetCar(w, toStart) {
+  shared.mp?.reset();                                            // (the others see a jump, not a slide)
   shared.session.attach.reattachAll('reset', { kind: shared.play.kind });
   w.sim.vehicle.parts.clear();                       // (what's still loose hangs again from where the car is now)
   if (w.stream) { rwOf(w).resetToRoad(w); return; }          // (the real world: onto the nearest road)
@@ -2160,6 +2168,13 @@ function debugCommands(session) {
   const current = () => active ?? [...worlds.values()][0];
   session.debug('attached', () => { const w = current(); console.table(w.carVis.list()); console.log(`wheels: ${w.carVis.wheelRadius('FL')?.toFixed(4)} m tyre radius (the physics still rolls on ${shared.spec.wheels.radius} m until Step 4)`); },
     'garage.attached()               what\'s drawn on every socket (the part, its model, loaded / placeholder / made)');
+  // (a knock as the crash sensor would report one: the crash goes the usual way — dents, damage and, online, the
+  // other players see it)
+  session.debug('bump', (strength = 9, side = 'front') => {
+    const w = current(), z = side === 'rear' ? -2.1 : 2.1;
+    w.sim.vehicle.sensor.events.push({ time: w.sim.time, point: [0, 0.55, z], normal: [0, 0, Math.sign(z)], yRange: [0.25, 0.9], extent: { min: [-0.8, 0.25, z - 0.05], max: [0.8, 0.9, z + 0.05] }, closing: strength, impulse: strength * 1200, strength, material: 'concrete', other: 'world', under: false });
+    return `a ${strength} m/s knock at the ${side}`;
+  }, 'garage.bump(9, "front")         a knock into a wall (front or rear): the crash as any — and, online, the others see it');
   session.debug('pileup', (n = 8, kmh = 60) => pileup(current(), n, kmh), 'garage.pileup(8, 60)            8 AI cars driving into each other 45 m ahead at 60 km/h (J takes them away): the effects with many cars');
   session.debug('crash', (kmh = 60, target = 'wall', side = 'front', angleDeg = 0) => crashTest(kmh, target, side, angleDeg), 'garage.crash(60, "wall", "front", 0)   the crash test: into the wall or barrier (front, rear or side on, at an angle) or along the guardrail');
   const attachAs = state => which => {
@@ -2215,6 +2230,127 @@ function debugCommands(session) {
     }
     return window.garage.models();
   }, 'garage.copies(10)               park 10 copies of your car beside you (0: take them away) and show what that loaded');
+}
+
+// ---------- multiplayer (Phase 7 Step 1: play/multiplayer.js, docs/MULTIPLAYER.md) ----------
+// ?mp joins this world's room (?mp=<name>: that room) with your account; F8 shows the network overlay
+
+async function startMultiplayer(w) {
+  const o = multiplayerOptions();
+  if (!o || shared.mpStarting) return;
+  // (a room per world: players in different worlds have different coordinates — ?mp=<name> picks which of that
+  // world's rooms)
+  const room = `${o.room ?? 'free'}@${w.file}`.slice(0, 64);
+  if (shared.mp && shared.mpRoom === room) return;
+  if (shared.mp) { await shared.mp.leave(); shared.mp = null; }
+  shared.mpStarting = true;
+  try {
+    const A = await accountNow();
+    if (!A?.me) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
+    shared.mp = await joinMultiplayer({ account: A, world: room, look: mpLook(), adapter: mpAdapter(), netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug });
+    shared.mpRoom = room; shared.mpParts = mpAttach(); shared.mpLookKey = null;
+    globalThis.__krMp = shared.mp; globalThis.__krMpWorld = room;   // (the console and the browser tests)
+    shared.mp.net.on('status', st => {
+      if (st.status === 'offline' && st.message) shared.flash.show('Multiplayer', 'warn', 5, st.message);
+      else if (st.status === 'reconnecting') shared.flash.show('Reconnecting…', 'warn', 2.5, 'the connection dropped: back in a moment');
+      else if (st.status === 'online') shared.flash.show('Back online', 'ok', 1.5, '');
+    });
+    if (!shared.mpKeys) { shared.mpKeys = true; addEventListener('keydown', e => { if (e.code === 'F8') shared.mp?.overlay.toggle(); }); }
+    shared.flash.show('Online', 'ok', 2.5, `room ${room} · ${shared.mp.net.players.size + 1} player${shared.mp.net.players.size ? 's' : ''} · F8: the network`);
+  } catch (e) {
+    shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
+    console.warn('multiplayer:', e);
+  } finally { shared.mpStarting = false; }
+}
+
+// your car's look for the others: the car, what's fitted, the paint, the engine's sound, its damage so far
+function mpLook() {
+  const s = shared.session, G = s.garage, parts = {};
+  for (const [socket, id] of Object.entries(G.build.sockets)) if (id) parts[socket] = G.state.parts[id]?.partId ?? null;
+  return lookOf({ carId: G.car.id, paint: s.paint ?? null, parts, engine: shared.spec.engine, damage: s.damage, name: null });
+}
+const mpAttach = () => Object.fromEntries(Object.entries(shared.session.attach.states).filter(([, x]) => x?.state && x.state !== 'attached').map(([k, x]) => [k, x.state]));
+const mpDents = () => { const d = shared.session.damage; return (d.shell?.dents?.length ?? 0) + Object.values(d.parts ?? {}).reduce((a, x) => a + (x?.length ?? 0), 0); };
+const WHEEL_ORDER = ['FL', 'FR', 'RL', 'RR'];
+
+// how the game draws another player's car (play/multiplayer.js's adapter)
+function mpAdapter() {
+  const sn = shared.session, db = sn.db;
+  const toWorld = p => { const S = active?.stream; if (!S) return [p[0], p[1], p[2]]; const [x, z] = S.toWorld(p[0], p[2]); return [x, p[1], z]; };
+  const toSim = p => { const S = active?.stream; if (!S) return [p[0], p[1], p[2]]; const [x, z] = S.toSim(p[0], p[2]); return [x, p[1], z]; };
+  return {
+    toWorld, toSim, rules: db.damage, audio: () => shared.audio ?? null, carSound: remoteCarSound,
+    // its own model, fitted with its parts, in its paint (garage/visual.js, as the NPCs' are made)
+    async makeCar(look) {
+      const car = db.cars[look.carId] ?? sn.garage.car;
+      const vis = await createCarVisual({ car, finishes: db.finishes, models: shared.models, paint: look.paint ?? car.paint });
+      const owned = Object.fromEntries(Object.entries(look.parts ?? {}).filter(([, id]) => id && db.parts[id]).map(([k, id]) => [k, { instanceId: k, partId: id, condition: 100 }]));
+      await vis.applyBuild({ sockets: Object.fromEntries(Object.keys(owned).map(k => [k, k])) }, { parts: db.parts, owned });
+      vis.fixedPaint = true;
+      const glb = await glbOf(car.model.file), rig = modelRig(glb, car.model);
+      vis.wheelVis = Object.fromEntries(Object.entries(rig.wheels ?? shared.rig.wheels).map(([k, r]) => [k, { pivot: vis.wheels[k], rig: r }]));
+      let taillamp = null;
+      vis.root.traverse(o => { if (o.isMesh && /tail/i.test(o.material?.name ?? '')) taillamp ??= o.material; });
+      vis.details = { taillamp, lampOff: taillamp?.emissiveIntensity ?? 1, lampOn: taillamp ? 3 / Math.max(0.05, ...taillamp.emissive.toArray()) : 1, glass: null, glassOpacity: 1, steeringWheel: null };
+      addHeadlights(vis);
+      shared.visuals.add(vis);
+      vis.group.visible = false;
+      active?.scene.add(vis.group);
+      return { vis, car };
+    },
+    dropCar(h) { h.vis.group.removeFromParent(); dropCar(h.vis); },
+    // where it is, its wheels (turning, steering, on their suspension), its brake lights and headlights
+    drawCar(h, p, wheels) {
+      const vis = h.vis;
+      if (!p) { vis.group.visible = false; return; }
+      if (!vis.group.parent && active) active.scene.add(vis.group);
+      vis.group.visible = true;
+      const front = shared.spec.wheels.front ?? ['FL', 'FR'], names = WHEEL_ORDER.filter(n => vis.wheelVis[n]);
+      const snap = {
+        position: p.pos, rotation: { x: p.rot[0], y: p.rot[1], z: p.rot[2], w: p.rot[3] },
+        wheels: names.map((name, i) => ({ name, length: wheels[i]?.length ?? 0.2, spin: wheels[i]?.spin ?? 0, steerAngle: front.includes(name) ? p.steer : 0, bend: 0, off: vis.partState?.(sn.garage.car.model.sockets?.[name]) === 'detached' })),
+        steering: { wheelAngle: p.steer * (shared.spec.steering?.ratio ?? 14) }, brakeLights: !!(p.flags & 1),
+      };
+      placeCar(vis, snap, snap, 1);
+      updateCarDetails(vis, snap, snap, 1);
+      for (const l of vis.headlights ?? []) l.intensity = p.flags & 2 ? 60 * Math.max(0.2, active?.light?.night ?? 1) : 0;
+    },
+    setDamage(h, view) { h.vis.setDamage(view, db.damage); },
+    // a part loose (hanging where it settles) or torn off (gone from the car), or back on
+    setPart(h, socket, state) {
+      const v = h.vis;
+      if (state === 'attached') v.reattachPart(socket);
+      else if (state === 'loose') { if (v.loosenPart(socket)) { const m = v.restingPose(socket, db.parts, 1); if (m) v.setPartPose(socket, m); } }
+      else if (state === 'detached') v.detachPart(socket);
+    },
+    listener(pos) { return active ? new THREE.Vector3(...pos).applyMatrix4(active.camera.matrixWorldInverse).toArray() : null; },
+    screen(pos) {
+      const c = active?.camera; if (!c) return null;
+      const v = new THREE.Vector3(...pos);
+      if (v.distanceTo(c.position) > 300) return null;
+      v.project(c);
+      if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
+      return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
+    },
+  };
+}
+
+// each frame: your car to the others (its state at the last physics step, and how old that is), the others drawn;
+// your parts coming loose or off, and a new look (another car, parts, paint, a repair), sent as they happen
+function mpFrame(w, view, seconds) {
+  const M = shared.mp, v = w.sim.vehicle, b = view.current, A = mpAdapter.cached ??= mpAdapter();
+  M.frame(seconds, () => { const av = v.body.angvel(); return localState({ snapshot: b, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A.toWorld, headlights: (w.light?.night ?? 0) > 0.3, ageMs: view.alpha * w.sim.dt * 1000 }); });
+  const now = mpAttach(), was = shared.mpParts ?? {};
+  for (const [k, st] of Object.entries(now)) if (was[k] !== st) M.part(k, st);
+  for (const k of Object.keys(was)) if (!now[k]) M.part(k, 'attached');
+  shared.mpParts = now;
+  shared.mpLookIn = (shared.mpLookIn ?? 0) - seconds;
+  if (shared.mpLookIn <= 0) {
+    shared.mpLookIn = 2;
+    const l = mpLook(), key = JSON.stringify([l.carId, l.paint, l.parts]), dents = mpDents();
+    if (shared.mpLookKey && (key !== shared.mpLookKey || dents < (shared.mpDentCount ?? 0))) M.setLook(l);
+    shared.mpLookKey = key; shared.mpDentCount = dents;
+  }
 }
 
 const AI_PAINT = { colour: '#c8452f', finish: 'metallic' };

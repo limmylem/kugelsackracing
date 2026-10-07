@@ -21,7 +21,7 @@ export function createSmoothness({ snapCm = 10 } = {}) {
       frames++;
       if (pose.extrapolating) extrap++;
       corrMax = Math.max(corrMax, pose.correctionCm ?? 0);
-      if (prev) {
+      if (prev && !pose.teleported) {         // (a reset is a jump on purpose)
         const exp = [0, 1, 2].map(k => prev.pos[k] + prev.vel[k] * dt);
         const jump = Math.hypot(...[0, 1, 2].map(k => pose.pos[k] - exp[k])) * 100;
         const travel = Math.hypot(...prev.vel) * dt * 100;

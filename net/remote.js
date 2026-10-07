@@ -57,7 +57,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   const I = interp, interval = 1000 / sendHz;
   const buf = [];                       // states, oldest first, by time
   const lags = [];
-  let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1;
+  let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1, teleported = false;
   let shown = null;                     // what was drawn last frame: { pos, rot, vel, ang } (vel/ang: as drawn)
   let blend = null;                     // a correction under way: from the path shown { t0, T, p0, v0, q0, w0 } to the real one
   const stats = { lagP50: 0, lagP95: 0, bufferMs: I.startBufferMs, delayMs: 0, corrections: 0, maxCorrectionCm: 0, extrapolatedMs: 0, states: 0 };
@@ -74,7 +74,11 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       // position: a Hermite curve through both, with their velocities as its tangents (smooth, follows the
       // car's real path through corners, unlike a straight line between points)
       const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
-      const pos = [0, 1, 2].map(k => h00 * a.pos[k] + h10 * span * a.vel[k] + h01 * b.pos[k] + h11 * span * b.vel[k]);
+      // (the tangents no longer than the positions bear out: a sender whose game can't keep up — its physics running
+      // slower than real time — sends speeds its positions don't match, and full tangents would overshoot and wobble)
+      const chord = v3.len(v3.sub(b.pos, a.pos)), lim = (v) => { const l = v3.len(v) * span; return l > 1e-6 ? Math.min(1, 1.25 * chord / l) : 1; };
+      const ta = span * lim(a.vel), tb = span * lim(b.vel);
+      const pos = [0, 1, 2].map(k => h00 * a.pos[k] + h10 * ta * a.vel[k] + h01 * b.pos[k] + h11 * tb * b.vel[k]);
       const near = u < 0.5 ? a : b, L = (x, y) => x + (y - x) * u;
       return {
         pos, rot: quat.slerp(a.rot, b.rot, u), vel: v3.lerp(a.vel, b.vel, u), ang: v3.lerp(a.ang, b.ang, u),
@@ -84,7 +88,15 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       };
     }
     // past the newest: predicted ahead from it, for a while; then easing to a stop
-    const s = buf[n - 1], prev = buf[n - 2];
+    let s = buf[n - 1];
+    const prev = buf[n - 2];
+    // (its speed as its positions show it, if that's well below what it says: a sender whose game can't keep up
+    // reports its physics' speed, but covers less ground a real second — predicting at the reported speed would
+    // overshoot, then pull back)
+    if (prev && s.time > prev.time) {
+      const seen = v3.len(v3.sub(s.pos, prev.pos)) / ((s.time - prev.time) / 1000), said = v3.len(s.vel);
+      if (said > 1 && seen < 0.7 * said) { const k = Math.max(0.1, seen / said); s = { ...s, vel: v3.scale(s.vel, k), ang: v3.scale(s.ang, k) }; }
+    }
     const ahead = (t - s.time) / 1000, cap = I.maxExtrapolateMs / 1000, d = Math.min(ahead, cap);
     let acc = [0, 0, 0];
     if (prev && s.time > prev.time) { acc = v3.scale(v3.sub(s.vel, prev.vel), 1000 / (s.time - prev.time)); const l = v3.len(acc); if (l > A_MAX) acc = v3.scale(acc, A_MAX / l); }
@@ -119,7 +131,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       buf.splice(k, 0, state);
       while (buf.length > 2 && buf[buf.length - 1].time - buf[1].time > KEEP_MS && (lastT == null || buf[1].time < lastT)) buf.shift();
       stats.states++;
-      if (jump) { jump = false; blend = null; shown = null; lastT = null; return; }
+      if (jump) { jump = false; blend = null; shown = null; lastT = null; teleported = true; return; }
       // the real path moved under what was shown (a late state replaced a prediction): steer across to it from where
       // the car is shown, over longer the bigger the difference
       if (before && shown) {
@@ -172,7 +184,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       stats.maxCorrectionCm = Math.max(stats.maxCorrectionCm, corr); stats.lastCorrectionCm = corr;
       if (r.extrapolating) stats.extrapolatedMs += dt * 1000;
       stats.delayMs = delay;
-      return { ...r, pos, rot, vel, ang, correctionCm: corr, bufferMs: stats.bufferMs, delayMs: delay, shownAt: t };
+      const tp = teleported; teleported = false;
+      return { ...r, pos, rot, vel, ang, correctionCm: corr, bufferMs: stats.bufferMs, delayMs: delay, shownAt: t, teleported: tp };
     },
     teleport() { jump = true; },
     get newest() { return buf[buf.length - 1] ?? null; },
