@@ -1028,6 +1028,18 @@
         "targets"
       ]
     },
+    "multiplayer": {
+      "type": "object", "description": "Multiplayer races' pay (Phase 7 Step 2): mp/results.js payFor.", "additionalProperties": false,
+      "required": ["base", "perKm", "maxKm", "byClass", "places", "perOpponent", "npcShare", "ranked", "unranked", "xp", "dailyFull", "afterDaily", "guests"],
+      "properties": {
+        "_note": { "type": "string" }, "base": { "type": "number", "minimum": 0 }, "perKm": { "type": "number", "minimum": 0 }, "maxKm": { "type": "number", "minimum": 0 },
+        "byClass": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+        "places": { "type": "array", "minItems": 1, "items": { "type": "number", "minimum": 0, "maximum": 1 } },
+        "perOpponent": { "type": "number", "minimum": 0 }, "npcShare": { "type": "number", "minimum": 0, "maximum": 1 }, "ranked": { "type": "number", "minimum": 0 }, "unranked": { "type": "number", "minimum": 0 },
+        "xp": { "type": "object", "additionalProperties": false, "required": ["base", "perPlaceAbove", "dnf"], "properties": { "base": { "type": "number", "minimum": 0 }, "perPlaceAbove": { "type": "number", "minimum": 0 }, "dnf": { "type": "number", "minimum": 0 } } },
+        "dailyFull": { "type": "integer", "minimum": 0 }, "afterDaily": { "type": "number", "minimum": 0, "maximum": 1 }, "guests": { "type": "boolean" }
+      }
+    },
     "trackEvents": {
       "type": "object",
       "description": "Track events' rewards (Phase 5 Step 3): by kind of track, farming per track code, the quick races' hourly cap.",

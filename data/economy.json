@@ -442,5 +442,14 @@
         "max": 12
       }
     }
+  },
+  "multiplayer": {
+    "_note": "Multiplayer races (Phase 7 Step 2; mp/results.js payFor). Paid by the server once the results are confirmed (each run checked). A finisher's pay = (base + perKm x km, up to maxKm) x byClass[car class] x places[place - 1] x (1 + perOpponent x (players - 1), NPCs counting npcShare each) x ranked (a quick race) or unranked (a private or custom lobby) x the day's factor (after dailyFull races in a day, afterDaily). XP: base + perPlaceAbove for each finisher beaten; dnf for finishing out of the race (none for leaving). Nothing is staked or lost between players.",
+    "base": 500, "perKm": 140, "maxKm": 30,
+    "byClass": { "D": 1, "C": 1.6, "B": 2.4, "A": 3.4, "S": 5, "X": 7 },
+    "places": [1, 0.8, 0.68, 0.58, 0.5, 0.44, 0.39, 0.35],
+    "perOpponent": 0.04, "npcShare": 0.5, "ranked": 1.2, "unranked": 0.8,
+    "xp": { "base": 40, "perPlaceAbove": 6, "dnf": 10 },
+    "dailyFull": 12, "afterDaily": 0.3, "guests": true
   }
 }

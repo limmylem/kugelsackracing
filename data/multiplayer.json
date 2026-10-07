@@ -1,0 +1,88 @@
+{
+  "_note": "Multiplayer races (Phase 7 Step 2; docs/MULTIPLAYER.md 'Lobbies, matchmaking and races'). Read by the real-time server (rooms, the queue), the API (ratings, results, rewards, cooldowns), the game and the bots. Times in seconds unless named otherwise.",
+  "grid": {
+    "_note": "maxPlayers: a race's grid (humans and NPCs). quickMinHumans: a quick race starts with at least this many players (fewer only by taking NPC fill).",
+    "maxPlayers": 8,
+    "quickMinHumans": 2
+  },
+  "queue": {
+    "_note": "Matching, in order: region (a party's best region by ping; pingLimitsMs: the first ping a party is matched on, then each next one as it waits), skill (the OpenSkill ordinal's gap to the group's average: start, growing per second waited, up to max), then car (class must match unless classStrict is false; performance rating gap: the same growth). A group goes when it's full, or when its oldest party has waited fillAfterSec and it has quickMinHumans. npcOfferSec: a party waiting this long is offered the race now with its empty slots filled by NPCs.",
+    "cycleMs": 500,
+    "regions": ["local"],
+    "pingLimitsMs": [80, 150, 250],
+    "pingStepSec": 15,
+    "skill": { "start": 4, "growPerSec": 0.25, "max": 20 },
+    "performance": { "start": 30, "growPerSec": 3, "max": 160 },
+    "classStrict": true,
+    "fillAfterSec": 20,
+    "npcOfferSec": 40,
+    "maxPartySize": 4,
+    "targets": {
+      "_note": "What the queue should manage (the dashboard and the load test check them): queue time percentiles, and how far apart a race's players are at the 95th percentile (skill: OpenSkill ordinal points; performance: rating points; ping: ms over the best).",
+      "waitP50Sec": 10,
+      "waitP95Sec": 45,
+      "skillSpreadP95": 12,
+      "performanceSpreadP95": 120,
+      "sameClassShare": 1
+    }
+  },
+  "lobby": {
+    "_note": "Private and custom lobbies. codeLength: the invite code's letters (no look-alike letters). chat: a message's longest, and how many a player may send (a burst, then one every perSec). kickBanSec: a kicked player can't rejoin that lobby for this long.",
+    "maxPlayers": 8,
+    "codeLength": 6,
+    "chat": { "maxLength": 200, "burst": 5, "perSec": 1.5, "keep": 50 },
+    "kickBanSec": 600,
+    "idleCloseSec": 1800,
+    "lapsMax": 20,
+    "times": ["dawn", "morning", "noon", "afternoon", "dusk", "night"],
+    "weathers": ["clear", "cloudy", "rain", "fog"],
+    "gridOrders": ["rating", "random", "reverse"]
+  },
+  "race": {
+    "_note": "loadTimeoutSec: the race starts when everyone has loaded, or after this; anyone still loading starts late from the back of the grid (lateJoin: 'back') or watches (lateJoin: 'spectate'). countdownSec: from the start being announced to the lights going out (the lights themselves: the last lightsSec of it). jumpStart: a car more than toleranceM from its slot before the lights go out gets penaltySec. finishWindowSec: once the winner finishes, the others have this long. dnfGraceSec: a dropped player has this long to come back before they're out (their car removed). resultsWaitSec: how long the results wait for each player's run to be handed in and checked before it's counted as not handed in.",
+    "loadTimeoutSec": 60,
+    "lateJoin": "back",
+    "countdownSec": 6,
+    "lightsSec": 5,
+    "jumpStart": { "toleranceM": 1.5, "penaltySec": 5 },
+    "finishWindowSec": 45,
+    "dnfGraceSec": 30,
+    "resultsWaitSec": 45,
+    "rematchVoteSec": 20,
+    "progress": {
+      "_note": "The live checks on progress (as well as Step 1's on movement): a car that gains more distance along the route than maxSpeed allows in the time, or passes a checkpoint it should have passed earlier, is flagged for the results' check.",
+      "maxSpeed": 110,
+      "slackM": 25
+    }
+  },
+  "npc": {
+    "_note": "NPCs filling empty grid slots: driven by the server along the racing line at a share of the route's speed plan (skill), ghosts like everyone else in this step. Their car: data/npc.json's drivers.",
+    "skill": [0.86, 0.96],
+    "corneringG": 1.0,
+    "accelG": 0.45,
+    "brakeG": 0.85,
+    "topSpeed": 62
+  },
+  "rank": {
+    "_note": "The skill rating is OpenSkill (Plackett-Luce; mu 25, sigma 25/3 to start). It's shown as a tier, from the ordinal (mu - 3 sigma) — never the raw number. A new player is Unranked until placed (placementRaces).",
+    "placementRaces": 3,
+    "tiers": [
+      { "id": "bronze", "name": "Bronze", "from": -1000 },
+      { "id": "silver", "name": "Silver", "from": 6 },
+      { "id": "gold", "name": "Gold", "from": 12 },
+      { "id": "platinum", "name": "Platinum", "from": 18 },
+      { "id": "diamond", "name": "Diamond", "from": 24 },
+      { "id": "champion", "name": "Champion", "from": 30 }
+    ]
+  },
+  "leaving": {
+    "_note": "Leaving a ranked race early counts as last place. More than freeLeaves within windowHours and the player waits cooldownMinutes (the next step each time) before they can queue again.",
+    "windowHours": 24,
+    "freeLeaves": 2,
+    "cooldownMinutes": [3, 10, 30, 60]
+  },
+  "spectate": {
+    "_note": "Spectators of one race at most (besides its players).",
+    "maxSpectators": 16
+  }
+}
