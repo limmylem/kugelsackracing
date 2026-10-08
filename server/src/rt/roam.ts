@@ -22,7 +22,7 @@
 //   challenge-answer { id, yes } · challenge-cancel { id } · chat { scope: 'nearby' | 'party', text } · wheel { id, scope } ·
 //   emote { id } · inspect { uid } · report { uid, details } · meet-park { meet } · meet-leave · contact-report (Step 3)
 // What it sends: hello · touch { with, passive, ghostUntil, … } · map { players } · challenge-invite / -sent / -start /
-//   -event / -results / -declined · chat · emote · inspect · meet-spot · notice · contact / contact-rejected / ghosts / ramming
+//   -event { id, event: { t: 'go' | 'hold' | 'checkpoint' | 'finish' | 'penalty' | 'dnf' | 'done' | … } } / -results / -declined · chat · emote · inspect · meet-spot · notice · contact / contact-rejected / ghosts / ramming
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -136,7 +136,7 @@ export class RoamRoom extends TestRoom {
       pairAllowed: (a, b) => touches(this.touchOf(a), this.touchOf(b), Date.now()),
       onContact: (msg, bl) => this.onContact(msg, bl),
     });
-    this.clock.setInterval(() => this.roamTick(), 100);
+    this.clock.setInterval(() => { try { this.roamTick(); } catch (e: any) { rtEnv.log('rt roam tick failed', { err: e?.stack ?? e?.message }); } }, 100);
     this.clock.setInterval(() => void this.slowTick().catch(e => rtEnv.log('rt roam tick failed', { err: e?.message })), ROAM.zones.mapEverySec * 1000);
     void this.meta();
   }
@@ -160,7 +160,8 @@ export class RoamRoom extends TestRoom {
   say(p: Player, text: string) { this.sendTo(p, { t: 'notice', text }); }
 
   // ---------- joining and leaving ----------
-  protected joined(p: Player, options: any) {
+  // (before the roster goes out: who they are to free roam — their settings, friends, blocks — so names and blocks apply)
+  protected joining(p: Player, options: any) {
     const t: any = p.t, mp = t.mp ?? {}, cur = (mp.cars ?? []).find((c: any) => c.current) ?? mp.cars?.[0] ?? null;
     const r: Roam = {
       uid: t.uid, name: t.name, settings: cleanSettings(options?.settings, cleanSettings(mp.roam?.settings)), friends: new Set(mp.friends ?? []), blocked: new Set(mp.blocked ?? []),
@@ -169,6 +170,9 @@ export class RoamRoom extends TestRoom {
     };
     this.roam.get(t.uid)?.off();
     this.roam.set(t.uid, r);
+  }
+  protected joined(p: Player, options: any) {
+    const t: any = p.t, r = this.roam.get(t.uid)!;
     roamCounters.joins++;
     if (options?.handoff) roamCounters.handoffs++;
     // (their friends and blocks changed elsewhere — the hub, the API: read again; an auto-ghost from another zone)
@@ -192,7 +196,7 @@ export class RoamRoom extends TestRoom {
     if (r.meet) this.meets.get(r.meet.id)?.delete(r.meet.spot);
     r.off();
     this.roam.delete(p.t.uid);
-    if (r.home && p.latestF) void this.save([{ r, f: p.latestF }]);
+    if (r.home && p.latestF) void this.save([{ r, p, f: p.latestF }]);
     if (r.home) { void Promise.resolve(matchMaker.presence.hdel(MAP_KEY(this.region), r.uid)).catch(() => {}); void clearStatusIfOurs(r.uid, this.roomId); }
     this.pushTouch();
     void this.meta();
@@ -234,7 +238,8 @@ export class RoamRoom extends TestRoom {
     if (on !== r.lights) {
       r.lights = on;
       this.flashes.lights(r.uid, on, now);
-      if (on && !r.settings.passive && !r.challenge) {
+      // (only their home zone acts on it: near a border a car is in two zones, and both see the lights)
+      if (on && r.home && !r.settings.passive && !r.challenge) {
         const others = [...this.players.values()].filter(o => o !== p && o.latestF && !this.hidden(p, o)).map(o => ({ uid: o.t.uid, pos: o.latestF.pos }));
         const target = this.flashes.target(r.uid, now, { pos: f.pos, heading: yawOf(f.rot) * 180 / Math.PI }, others);
         if (target) void this.challenge(p, { to: target, type: 'sprint', how: 'flash' });
@@ -277,14 +282,14 @@ export class RoamRoom extends TestRoom {
     for (const inv of this.book.expire(now)) this.closed(inv);
     for (const [id, run] of this.runs) {
       const events = run.tick(now);
-      for (const e of events) for (const u of run.racers) { const p = this.playerOf(u); if (p) this.sendTo(p, { t: 'challenge-event', id, ...e }); }
+      for (const e of events) for (const u of run.racers) { const p = this.playerOf(u); if (p) this.sendTo(p, { t: 'challenge-event', id, event: e }); }
       if (run.phase === 'done') { this.runs.delete(id); void this.finishRun(run); }
     }
     if (now % 1000 < 100) this.pushTouch();      // (ghosts that ran out)
   }
   // ---------- every mapEverySec: the map, presence, saving, the room's listing ----------
   async slowTick() {
-    const now = Date.now(), toSave: { r: Roam; f: any }[] = [];
+    const now = Date.now(), toSave: { r: Roam; p: Player; f: any }[] = [];
     this.slowTicks++;
     for (const r of this.roam.values()) {
       if (!r.home) continue;
@@ -292,7 +297,7 @@ export class RoamRoom extends TestRoom {
       if (!p?.latestF) continue;
       const f = p.latestF;
       await matchMaker.presence.hset(MAP_KEY(this.region), r.uid, JSON.stringify({ uid: r.uid, name: r.name, pos: mapPoint(f.pos, ROAM), heading: Math.round(yawOf(f.rot) * 180 / Math.PI), zone: this.zone, group: this.group, settings: { location: r.settings.location, appearOffline: !!r.settings.appearOffline }, party: r.partyId, at: now }));
-      if (now - r.savedAt >= ROAM.persistence.saveEverySec * 1000) { r.savedAt = now; toSave.push({ r, f }); }
+      if (now - r.savedAt >= ROAM.persistence.saveEverySec * 1000) { r.savedAt = now; toSave.push({ r, p, f }); }
       if (this.slowTicks % Math.max(1, Math.round(30 / ROAM.zones.mapEverySec)) === 0) void this.status(r);
     }
     if (toSave.length) void this.save(toSave);
@@ -308,10 +313,10 @@ export class RoamRoom extends TestRoom {
     }
     await this.meta();
   }
-  async save(list: { r: Roam; f: any }[]) {
+  async save(list: { r: Roam; p: Player; f: any }[]) {
     if (!rtEnv.api?.roamSave) return;
     const at = new Date().toISOString();
-    const rows = list.map(({ r, f }) => { const p = this.playerOf(r.uid); return { uid: r.uid, region: this.region, pos: f.pos.map((v: number) => Math.round(v * 100) / 100), heading: Math.round(yawOf(f.rot) * 1800 / Math.PI) / 10, carId: p?.look?.carId ?? r.car.carId ?? null, instanceId: r.car.instanceId ?? null, damage: p?.look?.damage ?? null, events: (p?.events ?? []).slice(-32), at }; });
+    const rows = list.map(({ r, p, f }) => { return { uid: r.uid, region: this.region, pos: f.pos.map((v: number) => Math.round(v * 100) / 100), heading: Math.round(yawOf(f.rot) * 1800 / Math.PI) / 10, carId: p?.look?.carId ?? r.car.carId ?? null, instanceId: r.car.instanceId ?? null, damage: p?.look?.damage ?? null, events: (p?.events ?? []).slice(-32), at }; });
     await rtEnv.api.roamSave(rows).catch((e: any) => rtEnv.log('rt roam save failed', { err: e?.message }));
   }
   // the room's listing (placement reads it): who's in it and roughly where
@@ -383,9 +388,11 @@ export class RoamRoom extends TestRoom {
         if (!q || !o || this.hidden(p, q)) return this.say(p, 'That car isn\'t here.');
         const a = p.latestF?.pos, b = q.latestF?.pos;
         if (a && b && Math.hypot(a[0] - b[0], a[2] - b[2]) > ROAM.seeing.inspectM) return this.say(p, 'Get closer to look at their car.');
-        const safety = (q.t as any).mp?.safety;
+        const safety = (q.t as any).mp?.safety, cars = (q.t as any).mp?.cars ?? [];
+        // (the stats of the car they're driving: the API worked them out for each of their cars — the one with this model)
+        const driven = cars.find((c: any) => c.carId === q.look?.carId && c.current) ?? cars.find((c: any) => c.carId === q.look?.carId) ?? null;
         return this.sendTo(p, { t: 'inspect', uid: o.uid, name: nameFor(r.uid, o, this.relOf(r.uid)), look: { carId: q.look?.carId ?? null, paint: q.look?.paint ?? null, parts: q.look?.parts ?? {} },
-          car: { name: o.car.name ?? null, cls: o.car.cls ?? null, pr: o.car.pr ?? null, mass: o.car.mass }, safety: safety != null ? { value: Math.round(safety), tier: safetyTier(safety, MP.contact) } : null, damaged: (q.events ?? []).length });
+          car: driven ? { name: driven.name ?? null, cls: driven.cls ?? null, pr: driven.pr ?? null, mass: driven.mass ?? null } : null, safety: safety != null ? { value: Math.round(safety), tier: safetyTier(safety, MP.contact) } : null, damaged: (q.events ?? []).length });
       }
       case 'report': return this.report(p, r, String(m.uid ?? ''), String(m.details ?? ''));
       case 'meet-park': return this.park(p, r, m.meet);
@@ -446,6 +453,7 @@ export class RoamRoom extends TestRoom {
     const run = createChallengeRun({ cfg: ROAM, id: `rc_${this.roomId}_${inv.id}`, type: inv.type, racers, route: inv.route, now: this.roomNow(), leader: inv.from });
     run.region = this.region;
     this.runs.set(run.id, run);
+    rtEnv.log('rt roam challenge', { id: run.id, racers, zone: this.zone });
     roamCounters.challenges++;
     for (const u of racers) { const x = this.roam.get(u); if (x) x.challenge = run.id; }
     this.pushTouch();
@@ -453,6 +461,7 @@ export class RoamRoom extends TestRoom {
     for (const u of racers) { const q = this.playerOf(u); if (q) this.sendTo(q, { t: 'challenge-start', id: run.id, type: inv.type, racers: racers.map(x => ({ uid: x, name: this.roam.get(x)?.name })), leader: inv.from, route: view, checkpoints: run.checkpoints, goAt: run.goAt, rolling: ROAM.challenges.rolling, roomId: this.roomId }); }
   }
   async finishRun(run: any) {
+    rtEnv.log('rt roam challenge over', { id: run.id, results: run.results() });
     for (const u of run.racers) { const x = this.roam.get(u); if (x && x.challenge === run.id) x.challenge = null; }
     this.pushTouch();
     const results = run.results();

@@ -94,7 +94,8 @@ export function createFlashDetector(cfg) {
     target(uid, t, me, others) {
       const l = (flips.get(uid) ?? []).filter(x => x > t - C.flashSec * 1000);
       if (l.length < C.flashes || !me?.pos) return null;
-      const h = (me.heading ?? 0) * Math.PI / 180, fx = Math.sin(h), fz = -Math.cos(h);
+      // (heading: the car's yaw, degrees — forward is [sin, cos] in x and z, as mp/contact.js yawOf has it)
+      const h = (me.heading ?? 0) * Math.PI / 180, fx = Math.sin(h), fz = Math.cos(h);
       let best = null, bd = Infinity;
       for (const o of others) {
         const dx = o.pos[0] - me.pos[0], dz = o.pos[2] - me.pos[2], d = Math.hypot(dx, dz);

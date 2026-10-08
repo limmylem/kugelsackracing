@@ -8,4 +8,7 @@ const json = (f: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, f), '
 export const MP = json('data/multiplayer.json');
 // (Phase 7 Step 4) free roam: zones, instances, privacy, contact, challenges, chat, meets (docs/FREE_ROAM.md)
 export const ROAM = json('data/roam.json');
+// (the tests and the bot swarm: smaller zones, smaller instances — the same knobs for the server and its bots)
+if (process.env.ROAM_ZONE_TILES) ROAM.zones.zoneTiles = Number(process.env.ROAM_ZONE_TILES);
+if (process.env.ROAM_CAPACITY) ROAM.zones.capacity = Number(process.env.ROAM_CAPACITY);
 export const NPC_DRIVERS: { id: string; name: string; car: string; colour: string; skill: number }[] = json('data/npc.json').drivers;

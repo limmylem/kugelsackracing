@@ -96,7 +96,9 @@ export class HubRoom extends Room {
         await this.reload(m);
         // (the other player's lists change too)
         const other = r?.id ?? id;
-        if (other) await toUser(other, { t: 'relations' }).catch(() => {});
+        // (both players' lists change — and every free-roam zone they're in: Phase 7 Step 4)
+        if (other) await Promise.resolve(toUser(other, { t: 'relations' })).catch(() => {});
+        await Promise.resolve(toUser(m.uid, { t: 'relations' })).catch(() => {});
         const name = r?.name ?? [...m.friends, ...m.incoming, ...m.outgoing].find(f => f.id === other)?.name ?? 'them';
         return say(action === 'friend-add' ? (r?.status === 'friend' ? `You and ${name} are friends.` : `Friend request sent to ${name}.`) : action === 'friend-accept' ? `You and ${name} are friends.` : action === 'friend-remove' ? 'Removed.' : action === 'block' ? 'Blocked: you won\'t see each other\'s chat or invites, and the queue keeps you apart.' : 'Unblocked.');
       }

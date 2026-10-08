@@ -71,7 +71,7 @@ test('coming back: where you left, with your car and its damage; the garage when
 function recordOf(id: string, racers: string[], { lengthM = 1600, va = 30, vb = 25 } = {}) {
   const line = Array.from({ length: Math.round(lengthM / 4) + 1 }, (_, k) => ({ x: k * 4, z: 0, h: 0, w: 8, s: k * 4 }));
   const route = { ok: true, line, length: lengthM, dest: [lengthM, 0] };
-  const R = createChallengeRun({ cfg: ROAM, id, type: 'sprint', racers, route, now: 0 });
+  const R = (createChallengeRun as any)({ cfg: ROAM, id, type: 'sprint', racers, route, now: 0 });
   let sa = 0, sb = -3;
   for (let t = 0; t < 400000 && R.phase !== 'done'; t += 100) {
     const go = R.phase === 'racing', v1 = go ? va : 10, v2 = go ? vb : 10;
@@ -142,7 +142,7 @@ test('meets: scheduled at a published meet spot from the admin page, listed with
   await makeStaff(T.app, admin, (await admin.get('/api/v1/me')).body.user.email, 'admin');
   // a meet spot, published (the editor's: content of kind 'meet')
   const { newItem } = await import('../../content/quests.js');
-  const item: any = newItem('meet', { id: undefined, location: { lat: 52.04, lon: -0.76, heading: 90 }, name: 'The Hub car park' });
+  const item: any = (newItem as any)('meet', { id: undefined, location: { lat: 52.04, lon: -0.76, heading: 90 }, name: 'The Hub car park' });
   delete item.id;
   const made = await admin.post('/api/v1/content/items', item);
   assert.equal(made.status, 200, made.text);

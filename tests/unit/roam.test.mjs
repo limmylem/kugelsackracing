@@ -159,7 +159,7 @@ test('challenges: asked, answered, declined (cooldown doubling), not answered, s
 
 test('flashing headlights at the car ahead asks it', () => {
   const F = createFlashDetector(CFG);
-  const me = { pos: [0, 0, 0], heading: 0 }, ahead = { uid: 'ahead', pos: [3, 0, -40] }, behind = { uid: 'behind', pos: [0, 0, 30] };
+  const me = { pos: [0, 0, 0], heading: 0 }, ahead = { uid: 'ahead', pos: [3, 0, 40] }, behind = { uid: 'behind', pos: [0, 0, -30] };
   F.lights('a', true, 0); F.lights('a', false, 200);
   assert.equal(F.target('a', 300, me, [ahead, behind]), null, 'one flash');
   F.lights('a', true, 400); F.lights('a', false, 600);

@@ -13,6 +13,7 @@
 //   R.sample(roomNow, dtSec) → { pos, rot, vel, ang, steer, throttle, brake, gear, rpm, wheels, flags,
 //                                extrapolating, staleMs, correctionCm, bufferMs, delayMs }  (null before any state)
 //   R.teleport()               the next state is a jump (a reset): shown at once, not blended
+//   R.align(t, pose)           (Phase 7 Step 4) carry on from room time t and that drawn pose (the car's source changed)
 //   R.present(roomNow, maxMs) → the newest state predicted to now (for at most maxMs): where the car really is, near
 //                              enough — car-to-car contact (Phase 7 Step 3) happens there; { …, stampT, aheadMs }
 //   R.stats                    { lagP50, lagP95, bufferMs, delayMs, corrections, maxCorrectionCm, extrapolatedMs }
@@ -193,6 +194,12 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       return { ...r, pos, rot, vel, ang, correctionCm: corr, bufferMs: stats.bufferMs, delayMs: delay, shownAt: t, teleported: tp };
     },
     teleport() { jump = true; },
+    // (Phase 7 Step 4) the same car seen through another connection (a free-roam zone) until now: carry on from the moment
+    // that one showed (t, in this connection's room time) and from where it drew the car — the shown time then eases to this
+    // connection's own delay at the usual rate, so a car changing which zone it's drawn from never jumps
+    // (its own states at that moment become what was last shown — its next frame's motion is its own; the small difference
+    // from the other connection's drawing is the caller's to ease away — and the other's speed and spin carry on)
+    align(t, pose = null) { if (!Number.isFinite(t) || buf.length < 2) return; lastT = t; blend = null; const r = raw(t); shown = { pos: r.pos, rot: r.rot, vel: pose?.vel ?? r.vel, ang: pose?.ang ?? r.ang }; },
     // (Phase 7 Step 3) the car as it is now, as near as can be told: its newest state predicted forward to room time t
     // (velocity, a fading acceleration, the spin), for at most maxMs — no buffer, no blending. stampT: when that state
     // was stamped; aheadMs: how far it was predicted

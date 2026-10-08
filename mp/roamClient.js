@@ -16,7 +16,8 @@
 //   RC.sample(dt) → [{ id, uid, name, guest, status, look, events, pose, alpha, zone }]   every other car, once
 //   RC.send(msg)  to the home zone's room ('mp')    RC.sendAll(msg)  to every zone joined    RC.sendTo(roomId, msg)
 //   RC.sendEvent(ev) · RC.setLook(look, events) · RC.setSettings(s) · RC.setParty(id)
-//   RC.pin(roomId) / RC.unpin(roomId)   a zone kept while a challenge in it lasts (wherever the car goes)
+//   RC.pin(roomId) / RC.unpin(roomId)   a zone kept while a challenge in it lasts (wherever the car goes: done by itself on
+//                                       'challenge-start' and 'challenge-results')
 //   RC.on('mp' | 'status' | 'handoff' | 'zones' | 'roster' | 'event', fn) → off
 //   RC.home · RC.zones · RC.group · RC.handoffs · RC.stats · RC.homeNet (the home connection: contact's clock) · RC.leave()
 
@@ -25,7 +26,18 @@ import { createZoneTracker, zoneOf } from './roam.js';
 import { quat } from '../net/remote.js';
 
 const smooth = u => u * u * (3 - 2 * u);
-const FADE_MS = 500;
+const FADE_MS = 500, STALE_MS = 350, FROZEN_MS = 600, MAX_BLEND_M = 3;
+
+// how far ahead one zone's clock is of another's, from the same car's states in each (pairs: [[step, stamp]], oldest
+// first): at a step inside both, the stamp in b minus the stamp in a (each interpolated between its neighbouring states)
+export function clockOffset(a, b) {
+  const at = (pairs, k) => { for (let i = 1; i < pairs.length; i++) { const [k0, t0] = pairs[i - 1], [k1, t1] = pairs[i]; if (k0 <= k && k <= k1 && k1 > k0) return t0 + (t1 - t0) * (k - k0) / (k1 - k0); } return null; };
+  const lo = Math.max(a[0]?.[0] ?? Infinity, b[0]?.[0] ?? Infinity), hi = Math.min(a.at(-1)?.[0] ?? -Infinity, b.at(-1)?.[0] ?? -Infinity);
+  if (!(hi >= lo)) return null;
+  // (the newest step both have; a state's own step where one zone has it, so one side needs no interpolating)
+  for (let i = b.length - 1; i >= 0; i--) { const [k, tb] = b[i]; if (k > hi || k < lo) continue; const ta = at(a, k); if (ta != null) return tb - ta; }
+  return null;
+}
 
 export function createRoamClient({ transport, getTicket, hub, region, cfg, look = null, events = [], settings = {}, page = null, party = null, netsim = null, serverNetsim = null, endpoint = null, now = () => performance.now(), tileSize = 512, log = () => {}, blendMs = 350 }) {
   const Z = createZoneTracker(cfg, { tileSize });
@@ -36,6 +48,8 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
   const pinned = new Set();
   const ids = new Map();              // uid → a stable id for the game's drawing
   const drawn = new Map();            // uid → { src (zone), pose, blend, seenAt, fade }
+  const clocks = new Map();           // 'uid|zone' → { tick, time, msPerTick }: a zone's clock against that car's physics steps
+  let switches = 0, reappeared = 0;
   let group = null, mine = null, myLook = look, myEvents = events, mySettings = { ...settings }, myParty = party, handoffs = 0, started = false, closed = false, req = 0;
 
   // which instance of a zone to join: the hub decides (party, friends, players near, ping — mp/roam.js placeInstance)
@@ -64,7 +78,13 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
       c.offs.push(N.on('status', s => emit('status', { zone, ...s })));
       c.offs.push(N.on('roster', r => emit('roster', { zone, ...r })));
       c.offs.push(N.on('event', e => { const pl = N.players.get(e.from); emit('event', { zone, uid: pl?.uid ?? null, ...e }); }));
-      c.offs.push(N.conn.onJson(m => { if (m?.t === 'hello') c.group = m.group; emit('mp', { ...m, zone, roomId: c.roomId }); }));
+      c.offs.push(N.conn.onJson(m => {
+        if (m?.t === 'hello') c.group = m.group;
+        // (a challenge lives in the zone it started in: that zone is kept, wherever the car goes, until it's over)
+        if (m?.t === 'challenge-start') api.pin(c.roomId);
+        if (m?.t === 'challenge-results') api.unpin(c.roomId);
+        emit('mp', { ...m, zone, roomId: c.roomId });
+      }));
       log('roam join', { zone, group: c.group, home: Z.home === zone });
       emit('zones', api.zones);
       return c;
@@ -119,7 +139,8 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
       }
       for (const z of u.drop) drop(z);
     },
-    // every other car once: from the zone it was being drawn from while that still shows it, else another (blended)
+    // every other car once: from the zone it was being drawn from while that still shows it, else another — lined up in
+    // time with the one it was drawn from (the same physics step, whatever each zone's clock says), then blended
     sample(dt) {
       const t = now(), out = [], seen = new Set();
       const byUid = new Map();
@@ -129,33 +150,73 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
           if (!o.uid) continue;
           let l = byUid.get(o.uid);
           if (!l) byUid.set(o.uid, l = []);
-          l.push({ zone: c.zone, o });
+          const pl = c.net.players.get(o.id), rem = pl?.remote;
+          l.push({ zone: c.zone, o, rem });
+          // (each zone's clock against the car's own physics steps: its newest state, and how long a step is)
+          // (its recent states' steps and stamps: kept a moment after the zone forgets the car, to line up a switch with)
+          const b = rem?.buf;
+          if (b?.length >= 2) { const k = `${o.uid}|${c.zone}`, was = clocks.get(k); if (!was || t - was.at > 50) clocks.set(k, { pairs: b.slice(-60).map(x => [x.tick, x.time]), at: t }); }
         }
       }
       for (const [uid, list] of byUid) {
         let d = drawn.get(uid);
         const withPose = list.filter(x => x.o.pose);
+        // (the zone it's drawn from is kept while its view is fresh; one whose view has gone stale — no new state for a
+        // moment, the car predicted on — gives way to a zone with a fresh one)
+        const fresh = x => !x.o.pose.extrapolating || (x.o.pose.staleMs ?? 0) < STALE_MS;
         const cur = d && withPose.find(x => x.zone === d.src);
-        let pick = cur ?? withPose.find(x => x.zone === Z.home) ?? withPose[0] ?? list[0];
+        const better = cur && !fresh(cur) ? withPose.find(x => x !== cur && fresh(x)) : null;
+        const pick = better ?? cur ?? withPose.find(x => x.zone === Z.home && fresh(x)) ?? withPose.find(fresh) ?? withPose[0] ?? list[0];
         if (!ids.has(uid)) ids.set(uid, ids.size + 1);
-        const o = pick.o;
+        let o = pick.o;
         if (!d) { d = { src: pick.zone, pose: null, blend: null, fadeIn: o.pose ? t : null, born: t }; drawn.set(uid, d); }
-        // the source changed (the zone it was drawn from doesn't show it now): blend from where it was drawn
-        if (pick.zone !== d.src && o.pose && d.pose) { d.blend = { at: t, from: d.pose }; d.src = pick.zone; }
-        else if (pick.zone !== d.src) d.src = pick.zone;
+        // (a car out of view a while, back through another zone: it just appears there, fading in)
+        if (pick.zone !== d.src && (!d.pose || t - (d.drawnAt ?? -Infinity) > 150)) { d.src = pick.zone; d.blend = null; d.pose = null; d.fadeIn = o.pose ? t : null; }
+        if (pick.zone !== d.src) {
+          // (the view it was drawn from had frozen: the car was drawn wrong already — it's put right at once, flagged so)
+          const frozen = d.pose.extrapolating && (d.pose.staleMs ?? 0) > FROZEN_MS;
+          // the source changed: the new zone's showing of the car carried on from the moment the old one showed — the
+          // old zone's time of that moment, in the new zone's clock, through the car's physics steps
+          const A = clocks.get(`${uid}|${d.src}`), B = clocks.get(`${uid}|${pick.zone}`);
+          // (the two zones' clocks against each other: a physics step both have states round, its stamp in each — only from a
+          // fresh record of the old zone's, and to a moment the new zone has states round)
+          const offset = A && B && t - A.at < 300 ? clockOffset(A.pairs, B.pairs) : null, target = offset != null && d.pose?.shownAt != null ? d.pose.shownAt + offset : null;
+          const alignable = target != null && target >= B.pairs[0][1] && target <= B.pairs[B.pairs.length - 1][1] + 300;
+          if (!frozen && alignable && pick.rem) {
+            // (lined up with the moment last drawn, then on by this frame's time like any other frame)
+            pick.rem.align(target, d.pose);
+            const c = conns.get(pick.zone);
+            const again = c?.net?.players.get(o.id)?.remote.sample(c.net.roomNow(), dt);
+            if (again) o = { ...o, pose: again };
+          }
+          const gap = o.pose && d.pose ? Math.hypot(o.pose.pos[0] - d.pose.pos[0] - d.pose.vel[0] * dt, o.pose.pos[2] - d.pose.pos[2] - d.pose.vel[2] * dt) : 0;
+          // (frozen, or the two can't be lined up and are far apart: the car was being drawn wrong — put right at once, flagged)
+          if (frozen || (!alignable && gap > MAX_BLEND_M)) { reappeared++; d.blend = null; if (o.pose) o = { ...o, pose: { ...o.pose, teleported: true } }; }
+          else if (o.pose && d.pose) {
+            // (what's left between the two drawings — where the old one would be this frame, and the new one — eased away)
+            const f = d.pose, was = [f.pos[0] + f.vel[0] * dt, f.pos[1] + f.vel[1] * dt, f.pos[2] + f.vel[2] * dt];
+            const off = [was[0] - o.pose.pos[0], was[1] - o.pose.pos[1], was[2] - o.pose.pos[2]];
+            // (over longer the bigger it is: a few centimetres in blendMs; a metre — a switch that couldn't be lined up — in
+            // about half a second a metre, so it never moves more than a few centimetres a frame)
+            d.blend = { at: t, off, T: Math.max(blendMs, 500 * Math.hypot(...off)), qoff: quat.mul(quat.spin(f.rot, f.ang ?? [0, 0, 0], dt), quat.conj(o.pose.rot)) };
+          }
+          d.src = pick.zone; switches++;
+        }
         let pose = o.pose;
         if (pose && d.blend) {
-          const u = Math.min(1, (t - d.blend.at) / blendMs);
+          const u = Math.min(1, (t - d.blend.at) / (d.blend.T ?? blendMs));
           if (u >= 1) d.blend = null;
           else {
-            // (where the old drawing would be now, moving on at its own speed, eased into the new one)
-            const el = (t - d.blend.at) / 1000, f = d.blend.from, k = smooth(u);
-            const was = [f.pos[0] + f.vel[0] * el, f.pos[1] + f.vel[1] * el, f.pos[2] + f.vel[2] * el];
-            pose = { ...pose, pos: [was[0] + (pose.pos[0] - was[0]) * k, was[1] + (pose.pos[1] - was[1]) * k, was[2] + (pose.pos[2] - was[2]) * k], rot: quat.slerp(quat.spin(f.rot, f.ang ?? [0, 0, 0], el), pose.rot, k), blending: true };
+            // (the offset at the switch — a centimetre or two once lined up in time — fading to nothing)
+            const w = 1 - smooth(u), b = d.blend;
+            const pos = [pose.pos[0] + b.off[0] * w, pose.pos[1] + b.off[1] * w, pose.pos[2] + b.off[2] * w];
+            // (its motion as drawn — the view's own, plus the offset easing away — as the view itself reports it)
+            const vel = d.pose && dt > 1e-4 ? [(pos[0] - d.pose.pos[0]) / dt, (pos[1] - d.pose.pos[1]) / dt, (pos[2] - d.pose.pos[2]) / dt] : pose.vel;
+            pose = { ...pose, pos, vel, rot: quat.mul(quat.slerp([0, 0, 0, 1], b.qoff, w), pose.rot), blending: true };
           }
         }
         if (pose && d.fadeIn == null) d.fadeIn = t;
-        if (pose) d.pose = pose;
+        if (pose) { d.pose = pose; d.drawnAt = t; }
         seen.add(uid);
         d.fadeOut = null;
         // (a car appearing — over the edge of the zones this player is in, or joining — fades in)
@@ -186,7 +247,7 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
     player(uid) { for (const c of conns.values()) for (const p of c.net?.players.values() ?? []) if (p.uid === uid) return { zone: c.zone, net: c.net, id: p.id, player: p }; return null; },
     get stats() {
       const per = [...conns.values()].map(c => ({ zone: c.zone, group: c.group, home: c.zone === Z.home, status: c.net?.status ?? 'joining', ...(c.net ? { ping: c.net.stats.ping, upKBs: c.net.stats.upKBs, downKBs: c.net.stats.downKBs, players: c.net.players.size } : {}) }));
-      return { zones: per, handoffs, upKBs: per.reduce((a, x) => a + (x.upKBs ?? 0), 0), downKBs: per.reduce((a, x) => a + (x.downKBs ?? 0), 0), ping: per.find(x => x.home)?.ping ?? null };
+      return { zones: per, handoffs, switches, reappeared, upKBs: per.reduce((a, x) => a + (x.upKBs ?? 0), 0), downKBs: per.reduce((a, x) => a + (x.downKBs ?? 0), 0), ping: per.find(x => x.home)?.ping ?? null };
     },
     zoneAt(pos) { return zoneOf(pos[0], pos[2], Z.size).key; },
     async leave() { closed = true; const all = [...conns.values()]; conns.clear(); for (const c of all) { for (const f of c.offs) f(); } await Promise.all(all.map(c => Promise.race([Promise.resolve(c.net?.leave()).catch(() => {}), new Promise(r => setTimeout(r, 2000))]))); },
