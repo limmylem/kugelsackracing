@@ -44,8 +44,21 @@ cp server/.env.example server/.env   # fill in DATABASE_URL and BETTER_AUTH_SECR
 npm run server:dev                    # migrates the database, then serves on PUBLIC_URL
 ```
 
-- Set `ADMIN_EMAIL` to your email. When that account has signed up and confirmed its email, it becomes an
-  admin (once; it's logged). Make other editors and admins on the admin page, `/admin/`.
+- **On this computer, signing up needs no email.** `server/config/development.json` has
+  `requireEmailVerification` off: a new account is signed in as soon as it's made, and no confirmation email is
+  sent. `staffMfa.required` is off too, so the admin and editor pages don't ask for an authenticator app. Staging and
+  production keep both on (their own config files).
+- **Your owner account** (an admin: every control on `/admin/` and the editor):
+  ```sh
+  npm run owner -w @kr/server -- --email you@example.com --password 'at least 10 characters' --name YourName
+  # with Docker Compose running:
+  docker compose exec server node server/tools/make-owner.ts --email you@example.com --password '…' --name YourName
+  ```
+  It makes the account if there isn't one with that email, or promotes the one there is (logged once).
+- Or set `ADMIN_EMAIL` to your email (`server/.env`, or a `.env` file beside `docker-compose.yml` for Docker
+  Compose: both are git-ignored, so your email never goes in the repository). That account becomes an admin when it
+  signs up (once; it's logged). Online, where emails are confirmed, only once its email is confirmed. Make other
+  editors and admins on the admin page, `/admin/`.
 - Development mail: `SMTP_URL=memory://` keeps it in memory. Mailpit (with Docker) shows every email.
 - A page served without the server (the old `npm start`) still works as the local-only game.
 
@@ -131,7 +144,8 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
 - **Sentry** (server and browser) collects nothing personal.
 - **Roles** are the server's. Editor and admin endpoints check the role as the request arrives, before
   its body is read. Every admin action is logged.
-- **Editors and admins need two-factor sign-in** (an authenticator app), passed within the last 12 hours.
+- **Editors and admins need two-factor sign-in** (an authenticator app), passed within the last 12 hours, in staging
+  and production (`staffMfa`; off in development, on this computer only).
 - **When the database's connections run out**, a request answers `503 BUSY` with `Retry-After: 2`, not a 500.
 - The whole review, its findings and the release checklist: [SECURITY.md](SECURITY.md).
 - `npm audit --omit=dev --audit-level=high` runs in CI.

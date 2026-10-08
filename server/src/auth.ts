@@ -1,7 +1,8 @@
 // Accounts, through Better Auth (a proven library: the password hashing, sessions, cookies, OAuth, email
 // verification and resets are all its own — none of it written here). What this adds is configuration and
 // the game's rules around it:
-//   - email + password (verified by email before the first sign-in), password reset, Google and Discord when
+//   - email + password (verified by email before the first sign-in where config.requireEmailVerification — not in
+//     development, where a new account is signed in at once), password reset, Google and Discord when
 //     their apps are set up (the tests use a mock OAuth server through the generic OAuth plugin)
 //   - guests (the anonymous plugin): play first, then sign up — their records and replays move to the account
 //   - display names: unique, filtered (names.ts); changed only through PATCH /api/v1/me/name (its limits)
@@ -87,7 +88,8 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       requireEmailVerification: config.requireEmailVerification,
       minPasswordLength: 10,
       maxPasswordLength: 128,
-      autoSignIn: false,
+      // (no email to confirm — development, on this computer: signed in as soon as the account is made)
+      autoSignIn: !config.requireEmailVerification,
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: 60 * 60,
       sendResetPassword: async ({ user, url }) => {
@@ -95,7 +97,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       },
     },
     emailVerification: {
-      sendOnSignUp: true,
+      sendOnSignUp: config.requireEmailVerification,
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60 * 24,
       sendVerificationEmail: async ({ user, url }) => {

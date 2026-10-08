@@ -256,6 +256,8 @@ export const ClientConfig = z.object({
   // compatibility number, and maintenance
   botCheck: z.object({ siteKey: z.string() }).nullable(), closedBeta: z.boolean(), protocol: z.number().int(),
   maintenance: z.object({ on: z.boolean(), message: z.string(), until: z.string().nullable() }),
+  // whether a new email account confirms its email by a link before it can sign in (off in development: in at once)
+  emailVerification: z.boolean().optional(),
 });
 export const Ok = z.object({ ok: z.literal(true) });
 

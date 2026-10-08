@@ -356,7 +356,7 @@ export async function buildApp(deps: AppDeps) {
   app.get('/health', async (_req, reply) => reply.redirect(`${API_PREFIX}/health`));
   app.get(`${API_PREFIX}/client-config`, { schema: { response: { 200: ClientConfig } } }, async () => ({
     apiBase: '', env: config.env, sentryDsn: config.sentryClientDsn, social: (['google', 'discord'] as const).filter(k => config.social[k]),
-    termsVersion: config.termsVersion, privacyVersion: config.privacyVersion, minAge: config.minAge,
+    termsVersion: config.termsVersion, privacyVersion: config.privacyVersion, minAge: config.minAge, emailVerification: config.requireEmailVerification,
     ...await (async () => { const S = await siteSettings.get(); return { botCheck: config.turnstile ? { siteKey: config.turnstile.siteKey } : null, closedBeta: S.closedBeta.on, protocol: CLIENT_PROTOCOL, maintenance: S.maintenance }; })(),
   }));
   app.get(`${API_PREFIX}/csrf`, { schema: { response: { 200: z.object({ token: z.string() }) } } }, async (_req, reply) => {

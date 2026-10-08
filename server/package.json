@@ -15,6 +15,7 @@
     "test": "KR_VERIFY_ECONOMY_CACHE=1 node --test --test-concurrency=1 test/*.test.ts",
     "stress:content": "node tools/content-stress.ts",
     "content:import": "node tools/import-content.ts",
+    "owner": "node --env-file-if-exists=.env tools/make-owner.ts",
     "load-test": "node tools/load-test.ts",
     "load-test:economy": "node tools/economy-load.ts",
     "test:browser": "node tools/accounts-browser.ts",

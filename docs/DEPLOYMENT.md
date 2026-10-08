@@ -31,7 +31,11 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
 4. **The first deploy** (step 7), then the [Checks](#checks): `tools/check-deploy.mjs` against staging, then
    production.
 5. **Real email:** Resend instead of Mailpit (`SMTP_URL` on Render). On this computer every email goes to Mailpit;
-   the sending domain's SPF/DKIM records and real delivery have only been tested on paper.
+   the sending domain's SPF/DKIM records and real delivery have only been tested on paper. On this computer
+   signing up doesn't confirm the email at all, and admins need no authenticator app (`development.json`
+   `requireEmailVerification` and `staffMfa.required` off, at the owner's request). `staging.json` and
+   `production.json` keep both on: check they still do before the first deploy, and that the owner's account online
+   comes from `ADMIN_EMAIL` with its email confirmed (`make-owner.ts` refuses staging and production).
 6. **What only the real setup can check:** Cloudflare's CDN caching of the tiles (range requests through the
    edge), WebSockets through Cloudflare to `rt.` ([Real time](#real-time-through-cloudflare-or-straight)), the
    player's address via `EDGE_SECRET`, HSTS (turn `HSTS` on once HTTPS works everywhere), a status page or uptime

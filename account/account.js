@@ -146,6 +146,8 @@ function viewSignUp({ guest = false } = {}) {
     form([invite?.el, name.el, email.el, pw.el, birth.el, terms.el, bot.el].filter(Boolean), 'Create my account', async () => {
       try { await api.auth('/sign-up/email', { name: name.input.value.trim(), email: email.input.value.trim(), password: pw.input.value, acceptTerms: cfg.termsVersion, birthDate: birth.input.value, callbackURL: here(null, { verified: '1' }), ...(invite ? { inviteCode: invite.input.value.trim() } : {}) }, { headers: await bot.headers() }); }
       catch (e) { bot.reset(); throw e; }
+      // (no email to confirm — development, on this computer: the new account is signed in already)
+      if (cfg.emailVerification === false) { api.forgetCsrf(); location.replace(next); return; }
       show(h('section', {}, h('h2', {}, 'Check your email'), h('p', {}, `We've sent a link to ${email.input.value.trim()}. Open it to confirm your email and you're in${guest ? ', with your progress' : ''}.`),
         h('button', { class: 'btn secondary', type: 'button', onclick: () => api.auth('/send-verification-email', { email: email.input.value.trim(), callbackURL: here(null, { verified: '1' }) }).then(() => say('Sent again.', true), x => say(x.message)) }, 'Send it again')));
     }),
