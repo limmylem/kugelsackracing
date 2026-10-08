@@ -21,6 +21,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const ord = n => n == null ? '—' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 const VENUE_KINDS = { random: 'Random (a real-world route or a generated track)', official: 'Official track', route: 'Real-world route', track: 'Track code' };
 const TIME_NAMES = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night' };
+const COLLISION_NAMES = { full: 'Full contact', reduced: 'Reduced (less damage)', ghost: 'Ghost (no contact)' };
 const GRID_NAMES = { rating: 'By rating', random: 'Random', reverse: 'Reverse of the last race' };
 const STATE_NAMES = { menu: 'Online', 'free roam': 'Free roam', queue: 'Looking for a race', lobby: 'In a lobby', racing: 'Racing', spectating: 'Watching a race', offline: 'Offline' };
 
@@ -35,6 +36,7 @@ const CSS = `
 .mpBox table{width:100%;border-collapse:collapse}.mpBox td,.mpBox th{padding:3px 5px;text-align:left;white-space:nowrap}.mpBox th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;font-weight:600}
 .mpBox tr.me td{color:#ffd24a}.mpBox .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0}.mpBox .dim{opacity:.65}.mpBox .good{color:#7ee08a}.mpBox .bad{color:#ff7a6a}.mpBox .warn{color:#ffbd4a}
 .mpBox .tier{display:inline-block;padding:0 6px;border-radius:9px;background:rgba(255,255,255,.12);font-size:11px;font-weight:700}
+.mpBox .tier.sr{background:rgba(94,200,255,.16)} .mpBox .tier.sr.low{background:rgba(255,123,114,.22)}
 #mpMenu{left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,96vw);max-height:94vh;overflow:auto;padding:14px 16px}
 #mpLobby{left:50%;top:50%;transform:translate(-50%,-50%);width:min(860px,98vw);max-height:96vh;overflow:auto;padding:12px 14px}
 #mpLobby .cols{display:flex;gap:14px;flex-wrap:wrap}#mpLobby .cols>div{flex:1 1 320px;min-width:0}
@@ -82,6 +84,9 @@ export function createMpScreens({ S, R, game, cfg }) {
 
   // ---------- the session's news ----------
   offs.push(S.on('notice', text => notice(text)));
+  // (rammed again and again: one tap reports it, the race server's replay of both cars attached)
+  offs.push(S.on('ramming', m => toast(`<b>${esc(m.name)}</b> hit you ${m.hits ?? 'several'} times. <button class="primary" data-report>Report, with the replay</button> <button data-no>Not now</button>`,
+    { report: () => S.send({ t: 'report-ramming', evidenceId: m.evidenceId, by: m.by }) }, 25)));
   offs.push(S.on('invite', m => toast(`<b>${esc(m.name)}</b> invited you to ${m.kind === 'private' ? 'their private lobby' : `“${esc(m.lobby)}”`}${m.venue ? ` · ${esc(m.venue)}` : ''} <button class="primary" data-join>Join</button> <button data-no>Not now</button>`, { join: () => joinRoom(m.roomId) }, 30)));
   offs.push(S.on('party-invite', m => toast(`<b>${esc(m.name)}</b> asked you into their party <button class="primary" data-yes>Join the party</button> <button data-no>No</button>`, { yes: () => S.hubSend({ t: 'party-join', partyId: m.partyId }) }, 30)));
   offs.push(S.on('party-queue', m => { void quickRace({ party: m.partyId }); }));
@@ -196,6 +201,7 @@ export function createMpScreens({ S, R, game, cfg }) {
       <td class="${p.ready ? 'good' : 'dim'}" data-ready>${p.npc ? 'NPC' : p.ready ? 'Ready' : 'Not ready'}</td>
       <td class="dim">${p.ping != null ? `${p.ping} ms` : '—'}</td>
       <td>${p.tier ? `<span class="tier" title="${p.tier.placement ? `${p.tier.placement} placement race${p.tier.placement > 1 ? 's' : ''} to go` : ''}">${esc(tierLabel(p.tier))}</span>` : ''}</td>
+      <td data-safety>${p.safety ? `<span class="tier sr${p.safety.value < 40 ? ' low' : ''}" title="Safety rating ${p.safety.value} of 100: clean races raise it, causing contact lowers it">${esc(p.safety.tier?.name ?? '')} ${p.safety.value}</span>` : ''}</td>
       <td>${host && p.uid !== S.myUid && !p.npc ? `<button data-kick="${esc(p.uid)}">Kick</button>` : ''}${p.away ? ' <span class="warn">reconnecting…</span>' : ''}</td></tr>`;
     const venueSel = host ? `<select data-set="venueKind">${Object.entries(VENUE_KINDS).map(([k, n]) => `<option value="${k}" ${set.venue.kind === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       ${set.venue.kind === 'route' ? `<select data-set="route">${(game.routes ?? []).map(r => `<option value="${esc(r.id)}" ${set.venue.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}${set.venue.id && !(game.routes ?? []).some(r => r.id === set.venue.id) ? `<option value="${esc(set.venue.id)}" selected>${esc(set.venue.id)}</option>` : ''}</select>` : ''}
@@ -210,13 +216,13 @@ export function createMpScreens({ S, R, game, cfg }) {
         ${L.kind === 'custom' ? `<label><input type="checkbox" data-set="listed" ${set.listed ? 'checked' : ''}> Listed in the lobby browser</label>` : ''}</div>
       <div class="row">Time <select data-set="timeOfDay">${cfg.lobby.times.map(t => `<option value="${t}" ${set.timeOfDay === t ? 'selected' : ''}>${esc(TIME_NAMES[t] ?? t)}</option>`).join('')}</select>
         Weather <select data-set="weather">${cfg.lobby.weathers.map(t => `<option value="${t}" ${set.weather === t ? 'selected' : ''}>${esc(t[0].toUpperCase() + t.slice(1))}</option>`).join('')}</select>
-        Collisions <select disabled title="Car contact between players comes in a later update"><option>Ghost (no contact)</option></select></div>`
-      : `<div class="row dim">${set.classes ? `Classes ${set.classes.join(', ')}` : 'Any class'} · grid ${esc((GRID_NAMES[set.gridOrder] ?? set.gridOrder).toLowerCase())} · ${esc(TIME_NAMES[set.timeOfDay] ?? set.timeOfDay)}, ${esc(set.weather)} · ghost mode${set.npcFill ? ' · NPCs fill the grid' : ''}</div>`;
+        Collisions <select data-set="collisions" title="Full: cars touch, with damage · Reduced: touch, less damage from other players · Ghost: no contact">${(cfg.contact?.modes ?? ['ghost']).map(m => `<option value="${m}" ${set.collisions === m ? 'selected' : ''}>${esc(COLLISION_NAMES[m] ?? m)}</option>`).join('')}</select></div>`
+      : `<div class="row dim">${set.classes ? `Classes ${set.classes.join(', ')}` : 'Any class'} · grid ${esc((GRID_NAMES[set.gridOrder] ?? set.gridOrder).toLowerCase())} · ${esc(TIME_NAMES[set.timeOfDay] ?? set.timeOfDay)}, ${esc(set.weather)} · ${esc((COLLISION_NAMES[set.collisions] ?? set.collisions ?? 'ghost').toLowerCase())}${set.npcFill ? ' · NPCs fill the grid' : ''}</div>`;
     const html = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(kind)}${set.name ? `: ${esc(set.name)}` : ''}</h2>${L.code ? `<div>Invite code <b data-code style="font:700 18px 'JetBrains Mono',monospace;letter-spacing:.1em">${esc(L.code)}</b></div>` : ''}</div>
       <div class="row" data-venue>${venueLine(L)}</div>
       <div class="cols"><div>
         <h3>Players · ${racers.length}/${L.maxRacers}</h3>
-        <table data-players><tr><th>Player</th><th>Car</th><th></th><th>Ping</th><th>Rank</th><th></th></tr>${racers.map(row).join('')}</table>
+        <table data-players><tr><th>Player</th><th>Car</th><th></th><th>Ping</th><th>Rank</th><th title="Safety rating">Safety</th><th></th></tr>${racers.map(row).join('')}</table>
         ${watchers.length ? `<div class="dim">Watching: ${watchers.map(p => esc(p.name)).join(', ')}</div>` : ''}
         <div class="row">${meP?.role === 'racer' ? `<button class="${meP.ready ? '' : 'primary'}" data-ready>${meP.ready ? 'Not ready' : 'Ready'}</button>` : '<button data-race>Race</button>'}
           ${meP?.role === 'racer' ? '<button data-spectate>Watch instead</button>' : ''}

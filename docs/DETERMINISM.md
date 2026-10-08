@@ -57,10 +57,18 @@ everywhere):
 - **Rapier itself** was already deterministic across these (it's WebAssembly, whose arithmetic is exact);
   its deterministic build agrees with the usual one bit for bit here.
 
-### Not yet covered
+### In the game now (Phase 7 Step 3)
 
-- **`**` with a fraction** (2 places: air density with altitude, traction control's strength) still uses
-  the engine's own power function. Squares and cubes (24 places) are exact.
+The deterministic maths is the game's own: `physics/detmath.js` installs it on `Math` before anything is built or
+simulated (`physics/detmath-install.js`, the game's first import), and the server's replay worker
+(`server/src/mp/replayWorker.ts`), the multiplayer bots and the contact tests install the same. The bundle is
+`physics/vendor/detmath.js` (`node tools/build-detmath.mjs` rebuilds it from the `@stdlib` packages: `Math.log` is
+stdlib's `ln` — its `log` takes a base); `Math.hypot` folds stdlib's two-argument one over however many it's given.
+`tests/unit/detmath.test.mjs` checks each against the platform's own (the same function, to the last bit or two). The two `**` with a fraction now use `Math.pow`. A
+multiplayer run on a generated track is driven again on the server from its inputs and contact pushes and must land
+exactly where it says (docs/CONTACT.md "Verification"; `server/tools/mp-contact-test.ts`).
+
+### Not yet covered
 - **Real-world routes:** the map's collision streams in round the car on a per-frame time budget and as
   downloads finish, so which colliders exist at each step depends on the machine. A replay there needs
   the route's corridor of collision loaded before the start, in a fixed order.

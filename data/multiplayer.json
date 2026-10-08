@@ -145,9 +145,10 @@
       "reduced": 0.4
     },
     "ghost": {
-      "_note": "Automatic ghosting, even in full mode: a car touches nobody while its ping or jitter is above maxPingMs / maxJitterMs (over the last pingWindowSec), for resetSec after a reset and rejoinSec after rejoining, while going the wrong way (wrongWaySec of it at over wrongWaySpeed m/s, until rightWaySec back the right way), in the pit lane (pitLane), and optionally on lap 1 before firstCornerM (firstCorner) and while being lapped by a car within lappedWithinM (lapped). A ghosted car is drawn at opacity, and fades back to solid over fadeSec once the ghost is lifted and no car overlaps it.",
+      "_note": "Automatic ghosting, even in full mode: a car touches nobody while its ping or jitter is above maxPingMs / maxJitterMs (over the last pingWindowSec), or its states come more than maxStateGapMs apart (a game that can't keep up: a few frames a second), for resetSec after a reset and rejoinSec after rejoining, while going the wrong way (wrongWaySec of it at over wrongWaySpeed m/s, until rightWaySec back the right way), in the pit lane (pitLane), and optionally on lap 1 before firstCornerM (firstCorner) and while being lapped by a car within lappedWithinM (lapped). A ghosted car is drawn at opacity, and fades back to solid over fadeSec once the ghost is lifted and no car overlaps it.",
       "maxPingMs": 300,
       "maxJitterMs": 70,
+      "maxStateGapMs": 300,
       "pingWindowSec": 5,
       "resetSec": 3,
       "rejoinSec": 5,
@@ -215,7 +216,7 @@
       "replaySec": 12
     },
     "verify": {
-      "_note": "Checking a run with contact (docs/CONTACT.md Verification): each contact's pushes must add up to the agreed impulse within impulseTolShare of it plus impulseTolNs (N s); each proxy pose recorded must be within proxyTolM, plus proxyTolPerSpeed x its speed, of where the race server had that car; the run's trail (where it says the car was every second) within trailTolM, plus trailTolPerSpeed x its speed, of where the race server saw it; and the run driven again from its inputs and pushes must land on that trail within replayTolM.",
+      "_note": "Checking a run with contact (docs/CONTACT.md Verification): each contact's pushes must add up to the agreed impulse within impulseTolShare of it plus impulseTolNs (N s); each proxy pose recorded must be within proxyTolM, plus proxyTolPerSpeed x its speed, of where the race server had that car; the run's trail (where it says the car was every second) within trailTolM, plus trailTolPerSpeed x its speed, of the race server's record of the car's path within trailWindowSec of that time (where, not exactly when: a slow computer's physics maps onto the race's clock only roughly); and the run driven again from its inputs and pushes must land on that trail within replayTolM.",
       "impulseTolShare": 0.05,
       "impulseTolNs": 80,
       "proxyTolM": 3,
@@ -223,6 +224,7 @@
       "crossingTolSec": 0.02,
       "trailTolM": 2,
       "trailTolPerSpeed": 0.03,
+        "trailWindowSec": 2.5,
       "replayTolM": 0.01
     }
   }

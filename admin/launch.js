@@ -6,7 +6,7 @@
 //   history(id)       one player's whole history (ledger, results, reports, flags, support, admin actions)
 // Everything typed by players is shown as text.
 
-export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer }) {
+export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer, replayEvidence = null }) {
   const ask = (text, min = 3) => { const v = prompt(`${text}\n\nWhy? (required: it goes in the log)`); return v && v.trim().length >= min ? v.trim() : null; };
   const pre = obj => h('pre', { style: 'margin:0;white-space:pre-wrap;font:12px var(--f-mono);color:var(--c-text-2)' }, JSON.stringify(obj, null, 1));
   const table = (head, rows) => h('table', {}, h('tr', {}, ...head.map(x => h('th', {}, x))), ...rows);
@@ -27,7 +27,9 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
         reports.replaceChildren(r.reports.length ? table(['When', 'Who', 'What', 'By', ''], r.reports.map(x => h('tr', {},
           h('td', { class: 'when' }, when(x.createdAt)),
           h('td', {}, who({ id: x.target.id, name: x.target.name }), x.target.name !== x.target.nameReported ? h('div', { class: 'muted' }, `reported as ${x.target.nameReported}`) : null, h('div', { class: 'muted' }, `${x.target.openReporters} reporting now · ${x.target.reports} ever${x.target.banned ? ' · banned' : ''}`)),
-          h('td', {}, h('b', {}, x.kind), h('div', {}, x.details), x.ref ? h('div', { class: 'muted' }, Object.entries(x.ref).map(([k, v]) => `${k}: ${v}`).join(' · ')) : null),
+          h('td', {}, h('b', {}, x.kind), h('div', {}, x.details), x.ref ? h('div', { class: 'muted' }, Object.entries(x.ref).map(([k, v]) => `${k}: ${v}`).join(' · ')) : null,
+            // (a ramming report: the race server's replay of both cars, attached — Phase 7 Step 3)
+            x.ref?.evidenceId ? h('button', { class: 'btn ghost', onclick: () => replayEvidence?.(x.ref.evidenceId) }, 'Watch the replay') : null),
           h('td', {}, x.reporter ? who(x.reporter) : '(deleted)'),
           h('td', {}, x.status === 'open' ? h('div', { class: 'row' }, ...[['dismiss', 'Dismiss'], ['warn', 'Warned'], ['rename', 'Rename'], ['suspend', 'Suspend 7 days'], ['ban', 'Ban']].map(([a, label]) => h('button', { class: 'btn ghost', onclick: async () => {
             const note = ask(`${label} — ${x.target.name} (${x.kind})`); if (!note) return;

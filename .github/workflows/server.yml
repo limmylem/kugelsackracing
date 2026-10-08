@@ -70,6 +70,8 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-two-windows.ts
       - name: Multiplayer races with bots (one real-time process, no Redis; reports/mp-races.md) — a ranked quick race on a real-world route, a generated track, a party and the NPC offer, disconnects, chat and kicks, a spectator
         run: node server/tools/mp-race-test.ts
+      - name: Car-to-car contact (physics bots at 0, 80, 150 and 250 ms; auto-ghosting, blame, faked contacts, 8 cars)
+        run: node server/tools/mp-contact-test.ts
       - name: Matchmaking under load (2,000 bots queuing at once against one process; queue times and match quality within data/multiplayer.json's targets)
         run: node server/tools/mp-load-test.ts --bots 2000 --workers 4
       - name: Multiplayer races in the browser (what each screen draws — lobby, loading, the lights against the server's clock, live positions, a spectator's cameras, confirmed results; a quick race)

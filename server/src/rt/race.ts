@@ -241,6 +241,13 @@ export class RaceRoom extends TestRoom {
       case 'spectate': r.makeSpectator(uid); break;
       case 'race': r.makeRacer(uid); break;
       case 'contact-report': if (r.phase === 'countdown' || r.phase === 'racing') this.referee?.report(uid, m); return;
+      case 'contact-replay': {
+        // (a racer's F10 replay: the contact as the server logged it — both games' views, its own record of the cars)
+        const c = this.referee?.contacts.find((x: any) => x.cid === m.cid);
+        if (!c || !c.cars?.[uid]) { this.sendTo(p, { t: 'contact-replay', cid: m.cid, contact: null, why: c ? 'Only the players in a contact can replay it here.' : 'That contact isn\'t kept any more.' }); return; }
+        this.sendTo(p, { t: 'contact-replay', cid: m.cid, contact: c });
+        return;
+      }
       case 'report-ramming': {
         // (the victim's one-tap report: the race server's replay attached — the API checks it's theirs)
         if (typeof m.evidenceId !== 'string' || typeof m.by !== 'string') return;

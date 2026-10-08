@@ -153,6 +153,8 @@ test('ghosting: lag, jitter, a reset, a rejoin, the wrong way, the pit lane, the
   const now = 100000, g = c => ghostState({ ...base, ...c }, now, CFG);
   assert.equal(g({}).ghost, false);
   assert.match(g({ pingMs: 400 }).reasons[0], /ping/); assert.match(g({ jitterMs: 150 }).reasons[0], /jitter/);
+  // (a game drawing a frame every 2.5 s: its car sent too seldom; a parked one's 200 ms "still here" isn't)
+  assert.match(g({ gapMs: 2500 }).reasons[0], /apart/); assert.equal(g({ gapMs: 200 }).ghost, false);
   assert.ok(g({ resetAt: now - 1000 }).ghost && !g({ resetAt: now - 10000 }).ghost);
   assert.ok(g({ rejoinAt: now - 1000 }).ghost);
   assert.ok(g({ wrongWay: 2 }).ghost && g({ wasWrong: true, rightWay: 0.5 }).ghost && !g({ wasWrong: true, rightWay: 5 }).ghost);

@@ -142,6 +142,13 @@
    "by": "Colin McDonnell"
   },
   {
+   "name": "stdlib maths (deterministic sin, cos, exp, pow …: physics/vendor/detmath.js, bundled; ports of FreeBSD's msun)",
+   "version": "0.3.1",
+   "licence": "Apache-2.0",
+   "url": "https://stdlib.io",
+   "by": "The Stdlib Authors"
+  },
+  {
    "name": "Cloudflare Turnstile (the bot check, when on)",
    "version": null,
    "licence": "Cloudflare terms of service",

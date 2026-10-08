@@ -7,6 +7,7 @@ import { createApi, ApiError } from '../account/api.js';
 import { SITE } from '../site/urls.js';
 import { createBotCheck } from '../account/botCheck.js';
 import { createLaunchTools } from './launch.js';
+import { openContactReplay } from '../mp/contactReplay.js';
 
 const api = createApi();
 const $ = id => document.getElementById(id);
@@ -81,11 +82,11 @@ $('signOut').onclick = async () => { try { await api.auth('/sign-out', {}); } fi
 let launch = null;
 const launchTools = () => launch ??= createLaunchTools({ api, h, say, when, errText,
   main: () => { tabs(); const m = $('main'); m.className = ''; m.replaceChildren(); return m; },
-  pickPlayer: id => { showAdmin(); pick(id); } });
+  pickPlayer: id => { showAdmin(); pick(id); }, replayEvidence: id => replayEvidence(id) });
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
   nav.replaceChildren(...[['Players', showAdmin], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
-    ['Monitoring', () => launchTools().showMonitoring()], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
+    ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
@@ -379,4 +380,42 @@ async function showShopDashboard() {
       h('table', {}, head(['Part', 'Category', 'Tier', 'Price']), h('tbody', {}, ...d.neverBought.items.map(p => h('tr', {}, h('td', {}, `${p.name} (${p.id})`), h('td', {}, p.category), h('td', {}, p.tier ?? ''), h('td', {}, money(p.price)))))),
       h('h3', {}, 'Cars nobody bought'), h('p', {}, d.carsNeverBought.map(c => c.name).join(', ') || 'Every car has sold.'));
   } catch (e) { box.replaceChildren(h('h2', {}, 'Shop dashboard'), h('div', { class: 'msg bad' }, errText(e))); }
+}
+
+// ---------- car-to-car contact (Phase 7 Step 3; docs/CONTACT.md "Debug tools") ----------
+// a race's contacts as its server logged them — each one's reports, the agreed result, the blame — any of them replayed
+// from both players' views side by side; and ramming evidence (the race server's record of both cars)
+async function replayEvidence(id) {
+  try {
+    const e = await api.get(`/admin/mp/evidence/${encodeURIComponent(id)}`);
+    openContactReplay({ cid: e.id, kind: 'ramming', cars: e.data.cars, blame: { fault: e.fault, shares: {}, reasons: [`${e.data.hits?.length ?? 0} hits`] } }, { names: e.data.names ?? {}, boxes: e.data.boxes ?? {} });
+  } catch (err) { alert(errText(err)); }
+}
+function showContacts() {
+  tabs();
+  const main = $('main');
+  main.className = '';
+  const msg = h('div'), list = h('div');
+  const race = h('input', { type: 'search', placeholder: 'A race\'s id', maxlength: 80 }), ev = h('input', { type: 'search', placeholder: 'Evidence id (from a ramming report)', maxlength: 80 });
+  const load = async () => {
+    const id = race.value.trim(); if (!id) return;
+    try {
+      const r = await api.get(`/admin/mp/races/${encodeURIComponent(id)}/contacts`);
+      say(msg, r.contacts.length ? `${r.contacts.length} contacts, ${r.rejected.length} reports refused` : 'No contacts in that race.');
+      const names = {};
+      list.replaceChildren(h('table', {}, h('thead', {}, h('tr', {}, ...['Contact', 'When', 'What', 'Reports', 'Agreed', 'Blame', ''].map(t => h('th', {}, t)))),
+        h('tbody', {}, ...r.contacts.map(c => h('tr', {},
+          h('td', {}, c.cid), h('td', { class: 'when' }, `${(c.t / 1000).toFixed(1)} s`),
+          h('td', {}, `${c.kind} at ${Number(c.closing).toFixed(1)} m/s${c.gentler ? ' (gentler)' : ''}`),
+          h('td', {}, ...(c.reports ?? []).map(x => h('div', { class: 'muted' }, `${x.pid.slice(-6)}: ${Number(x.closing).toFixed(1)} m/s, predicted ${x.predictMs} ms, pushed ${Math.round(Math.hypot(...(x.J ?? [0, 0])))} N s`))),
+          h('td', {}, ...Object.entries(c.cars ?? {}).map(([pid, x]) => h('div', { class: 'muted' }, `${pid.slice(-6)}: ${Math.round(Math.hypot(...x.impulse))} N s, damage ${Number(x.strength).toFixed(1)}×${x.scale}`))),
+          h('td', {}, c.blame?.fault ? `${c.blame.fault.slice(-6)} ${Math.round((c.blame.shares?.[c.blame.fault] ?? 0) * 100)}%${c.blame.careless ? ' careless' : ''}` : '—', h('div', { class: 'muted' }, (c.blame?.reasons ?? []).join('; '))),
+          h('td', {}, h('button', { class: 'btn ghost', onclick: () => openContactReplay(c, { names }) }, 'Replay')))))));
+    } catch (e) { say(msg, errText(e)); }
+  };
+  race.addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+  ev.addEventListener('keydown', e => { if (e.key === 'Enter' && ev.value.trim()) replayEvidence(ev.value.trim()); });
+  main.replaceChildren(h('section', { style: 'grid-column: 1 / -1' }, h('h2', {}, 'Car-to-car contact'),
+    h('div', { class: 'row' }, h('label', {}, 'Race', race), h('button', { class: 'btn primary', onclick: load }, 'Show its contacts'), h('label', {}, 'Evidence', ev), h('button', { class: 'btn', onclick: () => ev.value.trim() && replayEvidence(ev.value.trim()) }, 'Replay it')),
+    msg, list));
 }

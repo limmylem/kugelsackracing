@@ -48,7 +48,7 @@ test('the report: each target checked, and the text and the page say so', () => 
   const pool = makePool(db.economy, config, 7), runs = {};
   for (const [k, s] of Object.entries(db.economy.simulation.skills)) runs[k] = simulate({ db, config, pool, crashTable, skill: s, hours: 0.5, seed: 7 });
   const checks = evaluate(runs, db.economy);
-  assert.deepEqual(checks.map(c => c.id), ['firstUpgrade', 'secondCar', 'repairs', 'skill', 'stuck', 'questPay', 'levels']);
+  assert.deepEqual(checks.map(c => c.id), ['firstUpgrade', 'secondCar', 'repairs', 'skill', 'stuck', 'questPay', 'levels', 'multiplayerPay']);
   for (const c of checks) assert.equal(typeof c.pass, 'boolean');
   assert.equal(checks.find(c => c.id === 'stuck').pass, true);
   const text = textReport(runs, checks, db.economy), html = htmlReport(runs, checks, db.economy);

@@ -95,10 +95,12 @@ async function prepare(ctx) {
 // A and B: one browser's two windows (sharing its cookies, as two windows do)
 const ctx = await prepare(await browser.newContext({ viewport: { width: 520, height: 380 } }));
 const errors: string[] = [];
+const errorCounts = new Map<string, number>();
 const pages: Record<string, any> = {};
 for (const n of ['A', 'B']) {
   const P = pages[n] = await ctx.newPage();
-  P.on('pageerror', (e: any) => errors.push(`${n}: ${e}`));
+  // (with where it came from: the first lines of its stack — and how many times, not each one)
+  P.on('pageerror', (e: any) => { const at = String(e?.stack ?? '').split('\n').slice(1, 4).map(x => x.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < '), key = `${n}: ${e} (${at})`; errorCounts.set(key, (errorCounts.get(key) ?? 0) + 1); if (errorCounts.get(key) === 1) errors.push(key); });
   P.on('dialog', (d: any) => d.accept(d.type() === 'prompt' ? 'Rude in the chat, again and again.' : undefined));
   if (process.env.MP_DEBUG) P.on('console', (m: any) => console.log(`[${n}] ${m.type()}: ${m.text().slice(0, 240)}`));
 }
@@ -176,7 +178,8 @@ try {
   section('Setup: two windows on the real world, as Player A and Player B');
   // (they drive with the autopilot once it's GO: ?mpauto)
   // (?view=600: the world loaded 600 m round the car, not 1.4 km — drawn in software, the city is slow)
-  await A.goto(`${BASE}/?mp&player=A&mpauto&view=600`); await B.goto(`${BASE}/?mp&player=B&mpauto&view=600`);
+  const extra = process.env.MP_QUERY ? `&${process.env.MP_QUERY}` : '';
+  await A.goto(`${BASE}/?mp&player=A&mpauto&view=600${extra}`); await B.goto(`${BASE}/?mp&player=B&mpauto&view=600${extra}`);
   const up = await until(async () => (await Promise.all([A, B].map(P => P.evaluate(() => !!(globalThis as any).__krMpS?.hubConn)))).every(Boolean), 300000, 1000);
   check('each window is online for races (the hub joined)', !!up);
   for (const P of [A, B]) await recordTexts(P, '#mpResults h2');
@@ -406,7 +409,7 @@ try {
   const qLights = await until(async () => { const s = await seen(A, '#mpLights'); return s.ok ? s : null; }, 180000, 100);
   check('the quick race reaches its countdown: the lights drawn', !!qLights);
 
-  check('no errors on the pages', errors.length === 0, errors.slice(0, 3).join(' | '));
+  check('no errors on the pages', errors.length === 0, errors.slice(0, 3).map(e => `${e} ×${errorCounts.get(e)}`).join(' | '));
 } catch (e: any) {
   check('ran to the end', false, e.stack ?? e.message);
 } finally {

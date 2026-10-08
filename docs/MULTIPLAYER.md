@@ -549,3 +549,36 @@ Last runs on this computer: the bot races 29 of 29, the browser races 29 of 29, 
    menu**.
 8. **Quick race** in both windows (from the menu) matches A and B into one race by themselves. Waiting alone, you're
    offered NPCs after 40 s.
+
+
+## Step 3: car-to-car contact
+
+Players' cars touch, bump, lean on each other and crash, fairly with lag: how it works is in
+[CONTACT.md](CONTACT.md). In short — each player simulates only their own car; the others are proxies in their
+physics, predicted to the present when close; a contact pushes only your own car (capped: no launches, no wild
+spins); both games report it; the race server agrees one result (the impulse each car gets, the damage, who caused
+it) and both games blend to it. Lag, resets, the wrong way and the pit lane ghost a car automatically. Blame feeds a
+safety rating (shown in the lobby, used by matchmaking), penalties and ramming reports. Each run's record carries its
+pushes, checked against the race server's log and, on a generated track, driven again exactly.
+
+The game's side: `play/mpRace.js` (the contact client and the run's record in a race; ghosts drawn see-through;
+sparks, knocks, scrapes and damage), `play/mpScreens.js` (collisions in the lobby's settings — full, reduced, ghost;
+each player's safety rating; the ramming report), `mp/contactOverlay.js` (F10) and `mp/contactReplay.js`
+(Shift+F10; the admin page's Contacts tab).
+
+### The tests (Step 3)
+
+| Test | What it covers |
+|---|---|
+| `tests/unit/contact.test.mjs` | The rules, pure: boxes and contact points, a rear-end, 150 ms of lag, the caps, rubbing that settles, agreeing two reports (and the gentler, and a one-sided one checked against the server), blame (rear-end, brake test, swerve), ghosting, a race's incidents (penalty, repeat offender, ramming), the safety rating. |
+| `tests/unit/runRecord.test.mjs` | A run's record on a generated track — inputs, a contact's pushes, a reset — driven again exactly (bit for bit); the record edited every way a cheat might (a push nobody agreed, a bigger one, against a car that wasn't there, a correction for nothing, a refused contact kept, pushes hidden), each caught. |
+| `tests/unit/mp.test.mjs` | Matchmaking keeps safety ratings close. |
+| `server/tools/mp-contact-test.ts` (Postgres; one real-time process, no Redis; physics bots) | `reports/mp-contact.md`. 1 — seven scenarios at 0, 80, 150 and 250 ms ping: a rear-end, a side-swipe, rubbing through a corner, door to door at speed, a T-bone, a spin into another car, a squeeze against the pit wall; each an agreed contact; both games drawing each car where it came to rest (within 0.5 m) and never far off through the knock; the same damage on both screens (the same events, the same dents and parts); sparks and sounds on both; nothing launched, spun wildly or through a wall; rubbing one steady contact. 2 — ghosting: 400 ms ping, a reset, the wrong way, the pit lane (each on and off at the right times; nobody touching the ghost). 3 — blame on scripted contacts with a known cause (rear-end, brake test, swerve), a time penalty, a repeat offender ghosted, ramming flagged with its replay and the one-tap report. 4 — honest runs pass; edited records fail; a contact claimed that never was is refused and the run fails; an unrecorded push fails the replay; a race to the finish with the API's verdicts (the honest one driven again in the API's worker) and safety ratings moving. 5 — 8 cars weaving into each other for 25 s at 80 ms: the frame and bandwidth targets. |
+
+### Trying contact on this computer
+
+As "Trying it on this computer" above, then in the lobby (as host) set **Collisions** to **Full contact** (quick
+races are **Reduced** by default; **Ghost** is no contact). In the race, drive into each other. **F10** shows the
+contact overlay (both windows: what each game predicts and pushes, the agreed result and the blame); **Shift+F10**
+replays the last contact from both players' views. `?mp&player=A&netsim=75` (each window: 75 ms each way) tries it at
+150 ms ping. The admin page's **Contacts** tab shows any race's contacts (its id is in the results) and replays them.

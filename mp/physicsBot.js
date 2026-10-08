@@ -30,12 +30,13 @@ const quat = q => [q.x, q.y, q.z, q.w];
 
 export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets, T, session: S, quests, cfg, damage = null, script, hz = 60, handIn = true, car = { carId: 'starter_car', topSpeed: 62 }, behave = {} }) {
   const sim = createSimulation(RAPIER, { settings, spec, sockets, track: T.track });
-  const recorder = createRunRecorder({ sim });
+  let offset = null;
+  const recorder = createRunRecorder({ sim, clock: simT => (simT + (offset ?? 0)) * 1000 });
   const box = spec.bodyCollider, mass = spec.mass, course = T.course;
   const log = [], say = x => log.push(`${Date.now()} ${name}: ${x}`);
   const metrics = { maxVy: 0, maxYawRate: 0, maxRoll: 0, maxLift: 0, lifts: [], contacts: [], agreed: [], rejected: [], effects: [], ghosts: [], impacts: [], ramming: [], penalties: [], sent: [], frameMs: [] };
   let liftBase = null;
-  let C = null, offset = null, timer = null, lastWall = null, released = false, Q = null, rec = null, quest = null, handed = false, tick = 0, goT = null;
+  let C = null, timer = null, lastWall = null, released = false, Q = null, rec = null, quest = null, handed = false, tick = 0, goT = null;
   let finish, done = new Promise(r => { finish = r; });
   const me = () => S.lobby?.players.find(p => p.uid === S.myUid);
   const others = () => {
@@ -51,8 +52,8 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
 
   S.on('load', m => {
     stop(); released = false; handed = false; Q = null; goT = null;
-    quest = raceQuest({ raceId: m.raceId, venue: m.venue.venue, laps: m.laps, loop: course.loop, trackHash: m.venue.trackHash ?? null });
-    S.send({ t: 'loaded', hash: behave.hash ?? m.venue.trackHash ?? null });
+    quest = raceQuest({ raceId: m.raceId, venue: m.venue.venue, laps: m.laps, loop: course.loop, trackHash: course.trackHash ?? null });
+    S.send({ t: 'loaded', hash: behave.hash ?? course.trackHash ?? null });
     say(`loaded ${m.venue?.name}`);
   });
   S.on('phase', m => {
@@ -146,10 +147,12 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
     // (held on the grid by the handbrake: the brake held at a standstill would engage reverse)
     const input = !released ? { steer: 0, throttle: 0, brake: 0, handbrake: true, device: 'wheel' } : (script?.(api, since) ?? drive(0, 20));
     const w0 = performance.now();
-    sim.advance(dt, input);
+    const adv = sim.advance(dt, input);
     C.frame(dt);
-    // (what this frame's physics cost: the car, the contact with the others' proxies)
-    const ms = performance.now() - w0; metrics.frameMs.push(ms); if (metrics.frameMs.length > 3000) metrics.frameMs.shift();
+    // (what the physics cost, as a 60 fps frame's: the car and the contact with the others' proxies, per physics step
+    // times the steps a frame has at 60 fps — a frame that catches up after the process was busy isn't counted twice)
+    const ms = performance.now() - w0, steps = adv?.stepsThisFrame ?? 0;
+    if (steps) { metrics.frameMs.push(ms / steps * Math.round(1 / 60 / sim.dt)); if (metrics.frameMs.length > 3000) metrics.frameMs.shift(); }
     // (the worst of it: lifted, spun, rolled — no car may be launched by contact)
     const b = sim.vehicle.body, l = b.linvel(), a = b.angvel(), up = b.rotation();
     metrics.maxVy = Math.max(metrics.maxVy, Math.abs(l.y));
@@ -194,6 +197,8 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
     get contact() { return C; },
     get done() { return done; },
     get released() { return released; },
+    get quest() { return Q?.state ?? null; },
+    get handed() { return handed; },
     // (the last run's record, for a test to tamper with or inspect)
     takeRecord() { return recorder.on ? recorder.stop() : null; },
     stop() { stop(); C?.dispose(); },

@@ -46,6 +46,7 @@
 // settings.budget.dentsMs a frame). The first time something happens — the first damage, a part hanging
 // off, a car that can't carry on — a short hint says what to do (garage/hints.js).
 
+import '../physics/detmath-install.js';          // (first: the physics' maths the same bits everywhere — docs/DETERMINISM.md)
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
@@ -1107,6 +1108,14 @@ function frame(w, now) {
   npcRaceEvents(w);
   // (a multiplayer race: its run on the server's clock, the others' cars, the screens — play/mpRace.js, mpScreens.js)
   if (shared.mpRace && !T) { shared.mpView = view; shared.mpRace.frame(seconds); shared.mpScreens?.frame(seconds); }
+  // (in a race too: parts shaken loose or torn off go to the others — the race's own connection)
+  const RM = !T && shared.mpRace?.racing ? shared.mpRace.drawn : null;
+  if (RM) {
+    const now = mpAttach(), was = shared.mpRaceParts ?? {};
+    for (const [k, st] of Object.entries(now)) if (was[k] !== st) RM.part(k, st);
+    for (const k of Object.keys(was)) if (!now[k]) RM.part(k, 'attached');
+    shared.mpRaceParts = now;
+  }
   // (rubbing on another player's car: a scrape like the physics' own — its sound and sparks; docs/CONTACT.md)
   const rub = !T ? shared.mpRace?.scrape?.() : null;
   if (rub && (!b.scrape || rub.amount > b.scrape.amount)) b.scrape = rub;

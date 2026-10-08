@@ -67,8 +67,10 @@ export function createContactClient({ sim, net, send, cfg, mine, others, roomAt,
     const t0 = performance.now();
     try { contactStep(s, dt); } finally { const ms = performance.now() - t0; debug.stepMs = (debug.stepMs ?? ms) * 0.98 + ms * 0.02; debug.stepMaxMs = Math.max(debug.stepMaxMs ?? 0, ms); }
   });
+  let O = null;            // (the other cars, looked up once a frame: the steps between use the frame's)
   function contactStep(s, dt) {
-    const t = roomAt(s.time) / 1000, me = myFootprint(), O = others();
+    const t = roomAt(s.time) / 1000, me = myFootprint();
+    O ??= others();
     for (const [uid, o] of O) {
       if (!(near.get(uid) > 0) && !tracker.episodes.has(uid)) continue;
       const pr = simPose(net.present(o.id, N.maxPredictMs, t * 1000));
@@ -86,7 +88,7 @@ export function createContactClient({ sim, net, send, cfg, mine, others, roomAt,
       applied.set(r.episode, a);
       if (r.start) {
         debug.started = (debug.started ?? 0) + 1;
-        debug.contacts.push({ t, point: r.point, kind: r.kind, uid, ep: r.episode, predictMs: pr.aheadMs }); if (debug.contacts.length > 40) debug.contacts.shift();
+        debug.contacts.push({ t, wall: performance.now() / 1000, point: r.point, kind: r.kind, uid, ep: r.episode, predictMs: pr.aheadMs }); if (debug.contacts.length > 40) debug.contacts.shift();
         // (this player's own sparks and sound at once: the agreed copy of it is skipped)
         played.add(r.episode);
         const ep = tracker.episodes.get(uid);
@@ -131,7 +133,8 @@ export function createContactClient({ sim, net, send, cfg, mine, others, roomAt,
     try { frameWork(dt); } finally { const ms = performance.now() - t0; debug.frameMs = (debug.frameMs ?? ms) * 0.98 + ms * 0.02; }
   }
   function frameWork(dt) {
-    const me = myFootprint(), O = others(), room = net.roomNow();
+    O = others();
+    const me = myFootprint(), room = net.roomNow();
     const fps = new Map();
     for (const [uid, o] of O) {
       const pr = simPose(net.present(o.id, N.maxPredictMs, room));
@@ -224,6 +227,8 @@ export function createContactClient({ sim, net, send, cfg, mine, others, roomAt,
 
   return {
     frame, message, debug, tracker, scrape,
+    me: () => myFootprint(),
+    get ghosts() { return ghosts; },
     opacity: uid => fade.get(uid) ?? 1,
     nearness: uid => near.get(uid) ?? 0,
     solid: uid => solid.get(uid) !== false,

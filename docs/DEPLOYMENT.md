@@ -39,14 +39,19 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
 7. **Hosts the game reaches besides its own:** jsDelivr (three.js, Rapier, MapLibre and its worker), Google Fonts,
    `demotiles.maplibre.org` (the map's lettering) and `tiles.openfreemap.org` (the photoreal world's minimap). The
    content security policy (`server/src/app.ts`, `tools/build-site.mjs`) allows them; recheck it if any moves.
-8. **Launch readiness (Phase 6 Step 5):** follow [LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST.md). For hosting, that means:
+8. **Car-to-car contact's replays (Phase 7 Step 3):** the API drives each multiplayer run on a generated track again in
+   a worker thread — about 1/16 of the race's length of CPU per finisher (a 3-minute run: ~11 s). On the paid plan's
+   single small instance that's fine for a few races at once; watch the verification queue on the monitoring page
+   and add workers (or a bigger instance) before it backs up. Ramming evidence is kept in `mp_evidence` (tens of kB
+   each) with no expiry yet: add it to the retention jobs before the database fills.
+9. **Launch readiness (Phase 6 Step 5):** follow [LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST.md). For hosting, that means:
    - Turnstile keys ([ABUSE.md](ABUSE.md)) and Cloudflare's WAF rules;
    - `ALERT_EMAIL` and `ALERT_WEBHOOK_URL`, an uptime monitor and `status.` ([OPERATIONS.md](OPERATIONS.md#when-we-deploy));
    - `METRICS_TOKEN` if a dashboard reads `/api/v1/metrics`;
    - budget alerts on every paid service ([COSTS.md](COSTS.md));
    - point-in-time recovery, with the paid database ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md));
    - the DR drill once on real staging.
-9. **Multiplayer's real-time server** (Phase 7 Step 1, [MULTIPLAYER.md](MULTIPLAYER.md)). Built and tested on this
+10. **Multiplayer's real-time server** (Phase 7 Step 1, [MULTIPLAYER.md](MULTIPLAYER.md)). Built and tested on this
    computer only; online it needs:
    - **Where it runs, and Redis.** Both cost money and the region is the owner's choice: ask first. The real-time
      server is a long-running Node process (`node server/src/rt/main.ts`, the same image as the API). Options:
@@ -67,7 +72,7 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
      (step 1), before inviting beta testers.
    - Later: WebTransport, which needs HTTP/3 and UDP through to the real-time server (not through Cloudflare's
      proxy), so a host that allows it.
-10. **Multiplayer races** (Phase 7 Step 2, [MULTIPLAYER.md](MULTIPLAYER.md#phase-7-step-2-lobbies-matchmaking-and-races)):
+11. **Multiplayer races** (Phase 7 Step 2, [MULTIPLAYER.md](MULTIPLAYER.md#phase-7-step-2-lobbies-matchmaking-and-races)):
    - **Redis is optional now**: one real-time process keeps rooms, presence, invite codes and parties in memory.
      Only several processes need it (so the first deploy can skip Redis's cost; ask before adding it).
    - **The real-time server calls the API** (`API_INTERNAL_URL`, default `http://localhost:8787`): set it to the

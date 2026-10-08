@@ -21,13 +21,17 @@ import { inputFrom, fromBase64 } from './runRecord.js';
 import { generateTrack } from '../track/generate.js';
 import { buildTrack, trackWorld, trackProjection } from '../track/build.js';
 import { viewCourse } from '../route/model.js';
+import { trackHash } from '../track/events/hash.js';
 
 // a generated track from its code, as the game builds it (the world the physics drives in, and its course)
 export function trackFor(code, cfg) {
   const gen = generateTrack({ code });
   if (!gen.ok) throw new Error(gen.error);
   const data = buildTrack(gen, cfg);
-  return { data, track: trackWorld(data), course: viewCourse(data.course, trackProjection) };
+  // (its course as a race's: the track's hash with it, as the game's — track/events/prepare.js eventCourse)
+  const course = viewCourse(data.course, trackProjection);
+  course.trackHash = trackHash(data);
+  return { data, track: trackWorld(data), course };
 }
 
 const len = v => Math.hypot(v[0], v[1]);
@@ -40,6 +44,16 @@ function at(list, t) {
   if (t <= list[0][0]) return list[0];
   for (let i = 1; i < list.length; i++) if (list[i][0] >= t) { const a = list[i - 1], b = list[i], u = (t - a[0]) / Math.max(1, b[0] - a[0]); return a.map((x, k) => x + (b[k] - x) * u); }
   return list.at(-1);
+}
+
+// a car on its trail ([t, x, z, vx, vz], a point every half second) at time t: from the nearest point, at its speed —
+// as [t, x, z, yaw (unknown), vx, vz]
+function fromTrail(trail, t) {
+  if (!trail?.length) return null;
+  let k = 0;
+  for (let i = 1; i < trail.length; i++) if (Math.abs(trail[i][0] - t) < Math.abs(trail[k][0] - t)) k = i;
+  const [t0, x, z, vx, vz] = trail[k], dt = (t - t0) / 1000;
+  return Math.abs(dt) > 1 ? null : [t, x + vx * dt, z + vz * dt, 0, vx, vz];
 }
 
 export function checkContacts({ uid, run, log, cfg }) {
@@ -59,12 +73,13 @@ export function checkContacts({ uid, run, log, cfg }) {
   const accounted = new Set(), out = [];
   // the light rubbing push, each step: no more than the cap allows a car of this mass, and away from the other car
   const R = cfg.response, L = cfg.limits, G = 9.81;
-  // (a push's point is in the physics' frame, the other car's in the world's: header.origin, the one in the other)
-  const o = run?.header?.origin ?? [0, 0, 0];
-  const rubOk = (e, mass) => {
-    const cap = mass * L.maxRubG * G * dt * (1 + R.rubFriction) * 1.02 + 1, n = len(e.j), p = [e.p[0] + o[0], e.p[1] + o[2]];
+  // (away from the other car: from where the race server had the other car to where it had this one, at that moment —
+  // its own record of both, not the run's word; the rubbing's friction is never more than a quarter of the push)
+  const rubOk = (e, mass, mine, theirs) => {
+    const cap = mass * L.maxRubG * G * dt * (1 + R.rubFriction) * 1.02 + 1, n = len(e.j);
     if (n > cap) return `a rubbing push of ${n.toFixed(0)} N s in one step (at most ${cap.toFixed(0)})`;
-    if (e.f && n > 1 && (e.j[0] * (p[0] - e.f[0]) + e.j[1] * (p[1] - e.f[1])) < -0.3 * n * Math.hypot(p[0] - e.f[0], p[1] - e.f[1])) return 'a rubbing push towards the other car';
+    const a = mine(e.at), b = theirs(e.at);
+    if (a && b && n > 1) { const d = [a[1] - b[1], a[2] - b[2]], dl = len(d); if (dl > 0.3 && (e.j[0] * d[0] + e.j[1] * d[1]) < -0.35 * n * dl) return 'a rubbing push towards the other car'; }
     return null;
   };
   for (const c of contacts) {
@@ -76,13 +91,15 @@ export function checkContacts({ uid, run, log, cfg }) {
     out.push({ cid: c.cid, want, got, off });
     if (off > tol) bad(`Contact ${c.cid}: the car was pushed ${len(got).toFixed(0)} N s, the race server agreed ${len(want).toFixed(0)} N s (${off.toFixed(0)} apart).`);
     // the rest: rubbing, within its cap
+    // (a car where the race server had it at t: its states round the contact, or — after them, a long rub — its trail)
+    const where = id => t => { const l = c.srv?.[id]; return l?.length && t >= l[0][0] - 50 && t <= l.at(-1)[0] + 50 ? at(l, t) : fromTrail(log?.trails?.[id], t); };
+    const other = Object.keys(c.cars).find(k => k !== uid), srv = c.srv?.[other], trail = log?.trails?.[other];
     const mass = c.cars[uid].mass ?? run?.header?.mass ?? 1500;
-    for (const ep of eps) for (const e of local.get(ep)?.events ?? []) { if (e.h) continue; const why = rubOk(e, mass); if (why) { bad(`Contact ${c.cid}: ${why}.`); break; } }
+    for (const ep of eps) for (const e of local.get(ep)?.events ?? []) { if (e.h) continue; const why = rubOk(e, mass, where(uid), where(other)); if (why) { bad(`Contact ${c.cid}: ${why}.`); break; } }
     // the other car was where the game pushed against it
-    const other = Object.keys(c.cars).find(k => k !== uid), srv = c.srv?.[other];
     for (const ep of eps) for (const e of local.get(ep)?.events ?? []) {
-      if (!e.f || e.at == null || !srv) continue;
-      const s = at(srv, e.at);
+      if (!e.f || e.at == null) continue;
+      const s = srv?.length && e.at >= srv[0][0] - 50 && e.at <= srv.at(-1)[0] + 50 ? at(srv, e.at) : fromTrail(trail, e.at);
       if (!s) continue;
       const d = Math.hypot(e.f[0] - s[1], e.f[1] - s[2]), speed = Math.hypot(s[4], s[5]);
       if (d > V.proxyTolM + V.proxyTolPerSpeed * speed) { bad(`Contact ${c.cid}: the other car wasn't where this run pushed against it (${d.toFixed(1)} m from where the race server had it).`); break; }
@@ -101,15 +118,27 @@ export function checkContacts({ uid, run, log, cfg }) {
   return { ok: problems.length === 0, problems, contacts: out };
 }
 
-// the run's trail against where the race server saw the car: header.t0 (room ms at the run's first step), dt
+// the run's trail against where the race server saw the car: header.t0 (room ms at the run's first step), dt. Where,
+// not exactly when: each point must lie on the server's record of the car (its half-second trail, as a path) within
+// `trailWindowSec` of the point's time — a computer whose physics falls behind real time (a slow one: the physics
+// catches up a second a frame) maps its steps onto the race's clock only roughly; the race's own timing is checked
+// apart (the race server's timing of the run, Phase 6's checks)
 export function checkTrail({ run, serverTrail, cfg }) {
-  const problems = [], dt = 1000 / (run?.header?.stepHz ?? 120), t0 = run?.header?.t0;
+  const problems = [], dt = 1000 / (run?.header?.stepHz ?? 120), t0 = run?.header?.t0, V = cfg.verify, W = (V.trailWindowSec ?? 2.5) * 1000;
   if (t0 == null || !serverTrail?.length) return problems;
   let worst = 0, where = null;
-  for (const [s, x, , z] of run.trail ?? []) {
-    const t = t0 + s * dt, sv = at(serverTrail, t);
-    if (!sv || t < serverTrail[0][0] || t > serverTrail.at(-1)[0]) continue;
-    const d = Math.hypot(x - sv[1], z - sv[2]), speed = Math.hypot(sv[3] ?? 0, sv[4] ?? 0), tol = cfg.verify.trailTolM + cfg.verify.trailTolPerSpeed * speed;
+  // (not across a reset: the car put elsewhere, the server's half-second trail jumps with it)
+  const resets = (run.events ?? []).filter(e => e.k === 'R').map(e => e.s), nearReset = s => resets.some(r => Math.abs(s - r) * dt < 1100);
+  const segDist = (px, pz, a, b) => { const dx = b[1] - a[1], dz = b[2] - a[2], L = dx * dx + dz * dz, u = L > 0 ? Math.max(0, Math.min(1, ((px - a[1]) * dx + (pz - a[2]) * dz) / L)) : 0; return Math.hypot(px - (a[1] + dx * u), pz - (a[2] + dz * u)); };
+  for (const [s, x, , z, stamp] of run.trail ?? []) {
+    if (nearReset(s)) continue;
+    const t = stamp ?? t0 + s * dt;
+    if (t < serverTrail[0][0] || t > serverTrail.at(-1)[0]) continue;
+    const near = serverTrail.filter(p => Math.abs(p[0] - t) <= W);
+    if (near.length < 2) continue;
+    let d = Infinity, speed = 0;
+    for (let i = 1; i < near.length; i++) { const e = segDist(x, z, near[i - 1], near[i]); if (e < d) { d = e; speed = Math.hypot(near[i][3] ?? 0, near[i][4] ?? 0); } }
+    const tol = V.trailTolM + V.trailTolPerSpeed * speed;
     if (d - tol > worst) { worst = d - tol; where = { s, d }; }
   }
   if (where) problems.push(`The run's car wasn't where the race server saw it (${where.d.toFixed(1)} m off at step ${where.s}).`);

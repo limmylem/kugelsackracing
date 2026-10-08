@@ -23,6 +23,7 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
 }) {
   const history = new Map<string, Snap[]>();
   const lags = new Map<string, number[]>();
+  const gaps = new Map<string, number[]>();
   const marks = new Map<string, { resetAt: number | null; rejoinAt: number | null; wrong: number; right: number; wasWrong: boolean; lastT: number | null; inPit: boolean; offender: boolean }>();
   const pending = new Map<string, Pending>();
   const contacts: any[] = [];
@@ -42,6 +43,9 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     while (h.length && h[0].t < f.time - HISTORY_SEC * 1000) h.shift();
     history.set(uid, h);
     const l = lags.get(uid) ?? []; l.push(at - f.time); while (l.length > 150) l.shift(); lags.set(uid, l);
+    // (how far apart its states come: a game drawing a few frames a second sends its car too seldom)
+    const prev = h.length > 1 ? h[h.length - 2].t : null;
+    if (prev != null) { const g = gaps.get(uid) ?? []; g.push(f.time - prev); while (g.length > 60) g.shift(); gaps.set(uid, g); }
     const tr = trails.get(uid) ?? []; if (!tr.length || f.time - tr.at(-1)![0] >= 500) { tr.push([Math.round(f.time), ...[f.pos[0], f.pos[2], f.vel[0], f.vel[2]].map(v => Math.round(v * 100) / 100)]); if (tr.length > 20000) tr.shift(); trails.set(uid, tr); }
     // the wrong way: its velocity against the course's direction there (and how long it's been going which way)
     const m = markOf(uid), dt = m.lastT != null ? Math.max(0, Math.min(0.5, (f.time - m.lastT) / 1000)) : 0;
@@ -100,6 +104,7 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     if (p.reports.length >= 2) resolve(p);
   }
   const lagOf = (uid: string) => { const l = [...(lags.get(uid) ?? [])].sort((x, y) => x - y); return l.length ? l[Math.floor(l.length / 2)] : 0; };
+  const gapOf = (uid: string) => { const g = [...(gaps.get(uid) ?? [])].sort((x, y) => x - y); return g.length >= 5 ? g[Math.floor(g.length / 2)] : 0; };
   const jitterOf = (uid: string) => { const l = lags.get(uid) ?? []; if (l.length < 5) return 0; const m = l.reduce((s, x) => s + x, 0) / l.length; return Math.sqrt(l.reduce((s, x) => s + (x - m) ** 2, 0) / l.length); };
 
   function resolve(p: Pending) {
@@ -167,10 +172,21 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
   function ghostList() {
     const out: Record<string, { ghost: boolean; reasons: string[] }> = {};
     const t = now();
-    for (const uid of history.keys()) {
-      if (!isRacer(uid)) continue;
-      const m = markOf(uid), r = raceOf(uid);
-      out[uid] = ghostState({ pingMs: lagOf(uid) * 2, jitterMs: jitterOf(uid), resetAt: m.resetAt, rejoinAt: m.rejoinAt, wrongWay: m.wrong, rightWay: m.right, wasWrong: m.wasWrong, inPit: m.inPit, lap: r?.lap, u: r?.u, offender: m.offender }, t, cfg, { mode: mode() });
+    const racers = [...history.keys()].filter(isRacer), progress = new Map(racers.map(u => [u, raceOf(u)]));
+    for (const uid of racers) {
+      const m = markOf(uid), r = progress.get(uid);
+      // (being lapped, if that ghosts: a car a lap or more ahead within lappedWithinM of this one)
+      let lappedBy: string | null = null;
+      if (cfg.ghost.lapped && r?.lap != null) {
+        const me = history.get(uid)?.at(-1);
+        for (const o of racers) {
+          if (o === uid) continue;
+          const ro = progress.get(o), them = history.get(o)?.at(-1);
+          if (ro?.lap == null || ro.lap <= r.lap || !me || !them) continue;
+          if (Math.hypot(me.pos[0] - them.pos[0], me.pos[2] - them.pos[2]) <= cfg.ghost.lappedWithinM) { lappedBy = o; break; }
+        }
+      }
+      out[uid] = ghostState({ pingMs: lagOf(uid) * 2, jitterMs: jitterOf(uid), gapMs: gapOf(uid), resetAt: m.resetAt, rejoinAt: m.rejoinAt, wrongWay: m.wrong, rightWay: m.right, wasWrong: m.wasWrong, inPit: m.inPit, lap: r?.lap, u: r?.u, lappedBy, offender: m.offender }, t, cfg, { mode: mode() });
     }
     return out;
   }
@@ -181,6 +197,6 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     get incidents() { return incidents; },
     // (for the race record: the agreed contacts, each player's at-fault incidents)
     forRecord(uids: string[]) { return { contacts, rejected, trails: Object.fromEntries(uids.map(u => [u, trails.get(u) ?? []])), incidents: Object.fromEntries(uids.map(u => [u, incidents.of(u)])) }; },
-    reset() { history.clear(); lags.clear(); marks.clear(); pending.clear(); contacts.length = 0; ghostsSent = ''; },
+    reset() { history.clear(); lags.clear(); gaps.clear(); marks.clear(); pending.clear(); contacts.length = 0; ghostsSent = ''; },
   };
 }

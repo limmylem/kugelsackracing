@@ -2,7 +2,8 @@
 // the player's car, step by step, so the run can be driven again exactly — on the server, headless, with the same
 // physics (Phase 6 Step 3's determinism). Pure: no network, no drawing; the game and the bots alike.
 //
-//   const R = createRunRecorder({ sim, trailEvery })
+//   const R = createRunRecorder({ sim, trailEvery, toWorld, clock })   toWorld([x, y, z]): the physics' frame to the
+//                                       world's; clock(simTime) → the race's clock (ms) then
 //   R.start({ pose: { position, headingDeg }, ...header })   the car is reset there exactly (sim.resetCar) — the replay
 //                                       starts from the same state — and from then on (header.origin: where the
 //                                       physics' frame's origin is in the world's, if they differ):
@@ -33,7 +34,10 @@ const clone = x => x == null ? null : JSON.parse(JSON.stringify(x));
 export const toBase64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
 export const fromBase64 = b64 => { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
 
-export function createRunRecorder({ sim, trailEvery = 120 }) {
+export function createRunRecorder({ sim, trailEvery = 120, toWorld = null, clock = null }) {
+  // (the trail, and each push's point beside its physics one, in the world's frame: what the race server sees — the
+  // game's physics can run on a floating origin; the replay applies the physics' own)
+  const world = (x, y, z) => { if (!toWorld) return [x, y, z]; const p = toWorld([x, y, z]); return [p[0], p[1], p[2]]; };
   const rec = { on: false, start: 0, inputs: [], events: [], trail: [], header: null };
   let lastDamage = null, lastAids = null, undo = [];
   const step = () => sim.stepCount - rec.start;
@@ -48,7 +52,9 @@ export function createRunRecorder({ sim, trailEvery = 120 }) {
     const q = quantizeInput(input);
     if (rec.on) {
       rec.inputs.push(...q);
-      if ((rec.inputs.length / 5 - 1) % trailEvery === 0) { const p = v.body.translation(); rec.trail.push([step(), f32(p.x), f32(p.y), f32(p.z)]); }
+      // (each trail point stamped on the race's clock too: a game whose physics falls behind real time — a slow
+      // computer — isn't where step × dt says)
+      if ((rec.inputs.length / 5 - 1) % trailEvery === 0) { const p = v.body.translation(), [x, y, z] = world(p.x, p.y, p.z); rec.trail.push([step(), f32(x), f32(y), f32(z), ...(clock ? [Math.round(clock(sim.time))] : [])]); }
     }
     return inputFrom(q, 0, { wheelRange: input?.wheelRange ?? null });
   }
@@ -79,7 +85,8 @@ export function createRunRecorder({ sim, trailEvery = 120 }) {
       const b = sim.vehicle.body, jx = f32(j[0]), jz = f32(j[1]), px = f32(point[0]), pz = f32(point[1]);
       if (!Number.isFinite(jx) || !Number.isFinite(jz) || !Number.isFinite(px) || !Number.isFinite(pz)) return null;
       b.applyImpulseAtPoint({ x: jx, y: 0, z: jz }, { x: px, y: b.worldCom().y, z: pz }, true);
-      if (rec.on) rec.events.push({ s: sim.stepCount - rec.start, k: 'J', j: [jx, jz], p: [px, pz], ...ev });
+      const [wx, , wz] = world(px, 0, pz);
+      if (rec.on) rec.events.push({ s: sim.stepCount - rec.start, k: 'J', j: [jx, jz], p: [px, pz], ...(toWorld && (wx !== px || wz !== pz) && { w: [f32(wx), f32(wz)] }), ...ev });
       return [jx, jz];
     },
     stop() {

@@ -1,8 +1,61 @@
 # Known issues, and what to revisit
 
-As of Phase 7 Step 2 (multiplayer races, first), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 7 Step 3 (car-to-car contact, first), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 7 Step 3: car-to-car contact (docs/CONTACT.md)
+
+### Fixed on the way (found by the contact tests)
+
+- **A contact timed on a stale clock.** The physics' time was turned into the race's clock with an offset taken once,
+  on the grid — while the stamp clock was still settling after joining. At 250 ms ping the game reported contacts
+  ~140 ms early, where the race server's record didn't have the cars touching, and refused them. The offset is
+  read afresh every frame now (the game's race did; the test bots didn't).
+- **Prediction capped below the states' age.** A remote car's newest state is a round trip and a tick or two old
+  (~350 ms at 250 ms ping); prediction stopped at 250 ms, so the other car was hit ~2.5 m from where it was.
+  `maxPredictMs` is 400 now, and the server's pairing window widens by the two players' lag.
+- **A knock taken as acceleration.** The remote car's prediction carried on the jump in speed of a hit as if the
+  car kept accelerating (capped at 15 m/s²): drawn 2–3 m off for a moment after every hit at high ping. A change over
+  4 g is a knock now, not an acceleration.
+- **A long rub fought by its own correction.** The agreed result for rubbing was the push each game had applied by
+  its report; the rub carried on, and the "correction" pushed the car back into the other. Rubbing is now one
+  contact for as long as it lasts, the agreed result for it carries no impulse, and the verifier checks each rubbing
+  push against the cap instead.
+- **The bots reversed on the grid.** The brake held at a standstill engages reverse with the automatic box; the test
+  bots held the brake through the countdown and backed 50 m, going the wrong way (ghosted). Held by the handbrake.
+- **`Math.log` was NaN with the deterministic maths.** stdlib's `log` is a logarithm to a base, `log(x, b)`; the
+  natural log is its `ln`. Installed as `Math.log`, every log was NaN — nothing in the physics uses it, but the engine
+  sound does, and the game's frame stopped on the error (found by the browser race test: the lights and the race HUD
+  never drawn). Mapped to `ln` now; `tests/unit/detmath.test.mjs` checks every function against the platform's.
+- **The run's trail on a slow computer, and on a real-world route.** It assumed each physics step was 1/120 s of the
+  race's clock (a game whose physics falls behind real time isn't) and was kept in the physics' floating-origin frame
+  (the race server's record is in the world's). Each point is stamped on the race's clock and kept in the world's
+  frame now; and a rubbing push's direction is checked against the race server's record of both cars, not the push's
+  point (found by the browser race test).
+- **A game at a few frames a second was touchable.** It sends its car once a frame — every 2.5 s at 0.4 fps — so the
+  others' proxies of it were seconds stale, and its own physics, catching up a second a frame, fell behind the race's
+  clock. Such a car is ghosted now (`maxStateGapMs`), and the run's trail is checked for where the car was rather than
+  exactly when (found by the browser race test, whose software-drawn windows ran at 0.4 fps in this container).
+- **Race damage didn't reach the others.** A crash into a wall in a race (not free roam) wasn't sent to the other
+  players, nor were parts torn off. Both go on the race's connection now.
+
+### Things to know
+
+- **Through the knock itself, each game is blind to the other's reaction for a round trip.** It predicts it (the
+  push it gave, by the other car's mass) and hands over to the real states smoothly; the tests allow 1.5 m plus 6 mm
+  per ms of ping between where each game draws the other car and where it was, through a hard hit (worst seen: 1.7 m
+  at 250 ms; a car braking hard into a hairpin is drawn up to ~1.1 m wide at any ping). Once it's over, both games
+  agree: the cars at rest within 0.3 m in every scenario at every ping (the check: 0.5 m).
+- **Real-world routes aren't replayed** (their collision streams in, so they aren't deterministic yet): a run there
+  is checked on its pushes against the race server's log and on where the server saw the car (checks 1–5 in
+  CONTACT.md "Verification"), not driven again.
+- **A run's damage, aids and parts are the client's word**, recorded as they changed (the replay applies them at the
+  same step). The server checks the impulses that caused contact damage, not the damage model's output.
+- **The replay takes about 1/16 of the race's length** (a 3-minute run in ~11 s), in a worker thread beside the API,
+  one run at a time. A busy server would want more workers.
+- **NPCs in a race are ghosts** to players (they're driven by the server; contact with them isn't modelled).
+- **Ramming evidence is kept in full** (both cars' last `replaySec`, a few tens of kB gzipped) with no expiry yet.
 
 ## Phase 7 Step 2: lobbies, matchmaking and races (docs/MULTIPLAYER.md)
 
@@ -21,7 +74,7 @@ them, so it worked, but pg 9 will refuse it (the deprecation warning in the bot 
 
 ### Not in this step
 
-- **Collisions between players**: ghost mode only (Step 3).
+- **Collisions between players**: ghost mode only (Step 3 — done: docs/CONTACT.md).
 - **Pink slips between players**: none (nothing a player owns can be lost to another player).
 - **Real-world route runs aren't replayed input by input.** A multiplayer run on a route is checked on its gates,
   laps and times (Phase 6 Step 3's checks on the race's quest), against the race server's own timing of the same

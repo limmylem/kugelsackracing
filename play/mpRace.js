@@ -48,6 +48,8 @@ import { startLights } from '../track/lights.js';
 import { zoom } from '../track/cameras.js';
 import { createContactClient } from '../mp/contactClient.js';
 import { createRunRecorder } from '../mp/runRecord.js';
+import { createContactOverlay } from '../mp/contactOverlay.js';
+import { openContactReplay } from '../mp/contactReplay.js';
 
 export const CAMERAS = ['chase', 'in-car', 'tv'];
 const CAMERA_NAMES = { chase: 'Chase', 'in-car': 'In car', tv: 'TV' };
@@ -90,6 +92,18 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   offs.push(S.on('left', () => end()));
   // (car-to-car contact: the agreed results, refusals, who's a ghost — the contact client's)
   for (const k of ['contact', 'contact-rejected', 'ghosts']) offs.push(S.on(k, m => run?.C?.message(m)));
+  // (the contact replay asked for: both players' views of it, side by side)
+  offs.push(S.on('contact-replay', m => { if (!m.contact) { say(m.why ?? 'That contact isn\'t kept any more', 'warn'); return; } replayView?.close(); replayView = openContactReplay(m.contact, { names: Object.fromEntries((S.lobby?.players ?? []).map(p => [p.uid, p.name])), boxes: Object.fromEntries((S.lobby?.players ?? []).filter(p => p.car?.box).map(p => [p.uid, p.car.box])), onClose: () => { replayView = null; } }); }));
+  // F10 the contact overlay, Shift+F10 the last contact replayed (docs/CONTACT.md "Debug tools")
+  let replayView = null;
+  const keys = e => {
+    if (e.code !== 'F10' || !run?.C) return;
+    e.preventDefault();
+    if (e.shiftKey) { const cid = run.overlay?.lastCid() ?? [...run.C.debug.agreed].reverse().find(a => a.cid)?.cid; if (cid) S.send({ t: 'contact-replay', cid }); else say('No contact yet to replay', 'info'); return; }
+    run.overlay ??= createContactOverlay({ C: run.C, names: uid => S.lobby?.players.find(p => p.uid === uid)?.name ?? null, mode: () => S.lobby?.settings?.collisions ?? '', me: () => S.myUid });
+    run.overlay.toggle();
+  };
+  if (typeof addEventListener === 'function') { addEventListener('keydown', keys); offs.push(() => removeEventListener('keydown', keys)); }
 
   // ---------- loading: to the venue, the car near the start ----------
   async function load(m) {
@@ -248,7 +262,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   function contactOn(r) {
     const sim = game.sim?.();
     if (!sim || r.C) return;
-    r.recorder = createRunRecorder({ sim });
+    r.recorder = createRunRecorder({ sim, toWorld: game.toWorld, clock: simT => (simT + (r.offset ?? 0)) * 1000 });
     r.C = createContactClient({ sim, net: S.race.net, send: m => S.send(m), cfg: cfg.contact, myUid: S.myUid, mine: () => game.carPhysics(), others: othersOf,
       roomAt: simT => (simT + (r.offset ?? 0)) * 1000, mode: () => S.lobby?.settings?.collisions ?? 'ghost', recorder: r.recorder, toSim: game.toSim, toWorld: game.toWorld,
       onImpact: (impact, { scale }) => game.contactHit?.(impact, { scale }), onEffect: e => game.contactEffect?.(e) });
@@ -258,7 +272,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     const r = run;
     run = null; watching = null;
     if (!r) return;
-    r.C?.dispose(); if (r.recorder?.on) r.recorder.stop();
+    r.C?.dispose(); if (r.recorder?.on) r.recorder.stop(); r.overlay?.dispose(); replayView?.close();
     game.setOpacity?.('me', 1);
     r.detach?.(); r.dressing?.dispose(); r.A?.dispose(); void r.M?.leave();
     game.hideCar(false); game.focus?.(null); game.realTime?.(false);
@@ -300,6 +314,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
         r.C.frame(dt);
         for (const [uid, o] of othersOf()) game.setOpacity?.(o.id, r.C.opacity(uid));
         game.setOpacity?.('me', r.C.opacity(S.myUid));
+        if (r.overlay?.shown && (r.overlayAt = (r.overlayAt ?? 0) - dt) <= 0) { r.overlayAt = 0.2; r.overlay.update(); }
       }
     },
     get auto() { return !!run?.pilot && run.released && (run.state === 'racing' || run.state === 'finished'); },

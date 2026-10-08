@@ -205,7 +205,10 @@ export function createContactTracker(cfg) {
         // (the other car's reaction to it, as this game predicts it until its own states show it)
         ep.pv = [ep.pv[0] - j[0] / other.mass, ep.pv[1] - j[1] / other.mass];
       }
-      const s = capSpin(me, point, j, L.maxSpin - Math.abs(ep.spin));
+      // (the spin: no more than maxSpin from one contact — and never pushing the car's own yaw rate past maxSpin either,
+      // so a car already turning, or knocked by another just before, isn't spun up further)
+      const dw = spinOf(me, point, j), adds = dw * (me.w ?? 0) > 0;
+      const s = capSpin(me, point, j, Math.min(L.maxSpin - Math.abs(ep.spin), adds ? Math.max(0, L.maxSpin - Math.abs(me.w)) : Infinity));
       ep.spin += s.spin;
       ep.applied = [ep.applied[0] + j[0], ep.applied[1] + j[1]];
       advance(ep, dt);
@@ -299,7 +302,13 @@ export function blame({ a, b, result, history = {}, cfg, footprints }) {
   if (ca + cb > 0.2) { score[a.pid] += W.closing * ca / (ca + cb); score[b.pid] += W.closing * cb / (ca + cb); if (Math.abs(ca - cb) > 1) reasons.push(`${(ca > cb ? a : b).name ?? (ca > cb ? a : b).pid} closed in faster`); }
   else { score[a.pid] += W.closing / 2; score[b.pid] += W.closing / 2; }
   // 3. braking much harder than the car behind expected (a brake test): the car ahead's
-  const decel = pid => { const h = history[pid] ?? []; if (h.length < 2) return 0; const x = h.at(-1), y = h.find(s => s.t >= x.t - B.lookSec * 1000) ?? h[0]; const dt = (x.t - y.t) / 1000; return dt > 0.1 ? (len2([y.vel[0], y.vel[2]]) - len2([x.vel[0], x.vel[2]])) / dt : 0; };
+  // (the hardest braking in the look back, a quarter second at a time: a late stab on the brakes counts in full)
+  const decel = pid => {
+    const h = (history[pid] ?? []).filter(s => s.t >= (history[pid]?.at(-1)?.t ?? 0) - B.lookSec * 1000);
+    let most = 0;
+    for (const x of h) { const y = h.findLast(s => s.t <= x.t - 250); if (!y) continue; const dt = (x.t - y.t) / 1000; if (dt > 0.12) most = Math.max(most, (len2([y.vel[0], y.vel[2]]) - len2([x.vel[0], x.vel[2]])) / dt); }
+    return most;
+  };
   const uOf = pid => (history[pid] ?? []).at(-1)?.u ?? null;
   const ua = uOf(a.pid), ub = uOf(b.pid), ahead = ua != null && ub != null ? (ua > ub ? a : b) : null, behind = ahead ? (ahead === a ? b : a) : null;
   const brakeTest = ahead && decel(ahead.pid) > B.brakeTestG * G && decel(behind.pid) < B.brakeTestG * G * 0.5 ? ahead : null;
@@ -332,6 +341,8 @@ export function ghostState(car, now, cfg, { mode = 'reduced' } = {}) {
   if (mode === 'ghost') return { ghost: true, reasons: ['ghost mode'] };
   if (car.pingMs > G.maxPingMs) reasons.push(`ping ${Math.round(car.pingMs)} ms`);
   if (car.jitterMs > G.maxJitterMs) reasons.push(`jitter ${Math.round(car.jitterMs)} ms`);
+  // (a game that can't keep up — a few frames a second — sends its car too seldom to be touched fairly)
+  if (G.maxStateGapMs && car.gapMs > G.maxStateGapMs) reasons.push(`updates ${Math.round(car.gapMs)} ms apart`);
   if (car.resetAt != null && now - car.resetAt < G.resetSec * 1000) reasons.push('just reset');
   if (car.rejoinAt != null && now - car.rejoinAt < G.rejoinSec * 1000) reasons.push('just rejoined');
   if (car.wrongWay >= G.wrongWaySec || (car.wasWrong && car.rightWay < G.rightWaySec)) reasons.push('going the wrong way');
