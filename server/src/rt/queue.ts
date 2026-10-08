@@ -19,7 +19,7 @@ import { authorize, refuse, rtEnv } from './room.ts';
 import { getParty, setStatus, clearStatus } from './mp.ts';
 import { MP } from './mpData.ts';
 
-type Entry = { client: Client; uid: string; name: string; since: number; pings: Record<string, number>; npcOk: boolean; offered: boolean; party: string | null; player: { uid: string; skill: number; pr: number; cls: string } };
+type Entry = { client: Client; uid: string; name: string; since: number; pings: Record<string, number>; npcOk: boolean; offered: boolean; party: string | null; player: { uid: string; skill: number; pr: number; cls: string; safety?: number } };
 
 export class QueueRoom extends Room {
   static queues = new Set<QueueRoom>();
@@ -64,7 +64,7 @@ export class QueueRoom extends Room {
     this.entries.set(client.sessionId, {
       client, uid: t.uid, name: t.name, since: Date.now(), pings: clean(options?.pings ?? { [this.region]: 50 }), npcOk: false, offered: false,
       party: typeof options?.party === 'string' ? options.party.slice(0, 40) : null,
-      player: { uid: t.uid, skill: ordinalOf(t.mp?.rating), pr: car.pr ?? 300, cls: car.cls ?? 'D' },
+      player: { uid: t.uid, skill: ordinalOf(t.mp?.rating), pr: car.pr ?? 300, cls: car.cls ?? 'D', safety: t.mp?.safety ?? MP.contact.safety.start },
     });
     void Promise.resolve(setStatus(t.uid, { state: 'queue', region: this.region })).catch(() => {});
     client.send('mp', { t: 'queued', waiting: this.entries.size, region: this.region });

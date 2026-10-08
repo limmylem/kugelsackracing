@@ -19,6 +19,8 @@
 //   N.status: 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline'    N.message (why offline)
 //   N.stats: ping, jitter, loss, upKBs, downKBs, … (the network overlay)   N.roomNow()   N.leave()
 //   N.stampAt() → the clock this car's states are stamped with (a steady one, steered towards the server's)
+//   N.setNear(id, n, maxMs)  N.present(id, maxMs) → Phase 7 Step 3: a car near this one drawn nearer the present, and
+//                                where it is now (its newest state predicted forward): car-to-car contact's proxies
 
 import { NET } from './settings.js';
 import { PROTOCOL, C2S, S2C, ALL, CODES, messageFor } from './protocol.js';
@@ -28,7 +30,17 @@ import { createRemote } from './remote.js';
 import { createLink } from './netsim.js';
 import { withNetsim } from './transport.js';
 
-const WS_UP = 8, WS_DOWN = 4;                     // (a WebSocket frame's header (masked from the client) + the type)
+const WS_UP = 8, WS_DOWN = 4;
+// two poses blended (u: 0 the first, 1 the second): position and velocity straight, rotation by slerp
+const lerp3 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+function slerp(a, b, u) {
+  let [bx, by, bz, bw] = b, d = a[0] * bx + a[1] * by + a[2] * bz + a[3] * bw;
+  if (d < 0) { d = -d; bx = -bx; by = -by; bz = -bz; bw = -bw; }
+  if (d > 0.9995) { const q = [a[0] + (bx - a[0]) * u, a[1] + (by - a[1]) * u, a[2] + (bz - a[2]) * u, a[3] + (bw - a[3]) * u], l = Math.hypot(...q) || 1; return q.map(x => x / l); }
+  const th = Math.acos(d), s = Math.sin(th), k0 = Math.sin((1 - u) * th) / s, k1 = Math.sin(u * th) / s;
+  return [a[0] * k0 + bx * k1, a[1] * k0 + by * k1, a[2] * k0 + bz * k1, a[3] * k0 + bw * k1];
+}
+const blendPose = (a, b, u) => ({ ...a, pos: lerp3(a.pos, b.pos, u), rot: slerp(a.rot, b.rot, u), vel: lerp3(a.vel, b.vel, u), ang: lerp3(a.ang, b.ang, u) });                     // (a WebSocket frame's header (masked from the client) + the type)
 
 export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test', join = null }) {
   const S = settings, clock = createClock({ now });
@@ -206,13 +218,21 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       const t = roomNow(), out = [];
       for (const p of players.values()) {
         if (p.id === me) continue;
-        const pose = p.remote.sample(t, dt);
+        let pose = p.remote.sample(t, dt);
+        // (Phase 7 Step 3: a car close to this one is drawn nearer the present — towards where it really is, where it can
+        // be hit — by its nearness, eased; setNear)
+        // (drawnAt: the moment the drawn pose stands for — between the shown time and the present, by the same blend)
+        if (pose && p.near > 0) { const pr = p.remote.present(t, p.nearMaxMs ?? 250); if (pr) { const u = p.near * p.near * (3 - 2 * p.near); pose = { ...blendPose(pose, pr, u), near: p.near, aheadMs: pr.aheadMs, drawnAt: pose.shownAt + (pr.stampT + pr.aheadMs - pose.shownAt) * u }; } }
         // (no state for a while and not away: out of range — not drawn)
         const gone = p.status !== 'away' && now() - p.lastStateAt > 3000;
         out.push({ id: p.id, uid: p.uid, npc: p.npc, name: p.name, guest: p.guest, status: p.status, look: p.look, events: p.events, pose: gone ? null : pose });
       }
       return out;
     },
+    // (Phase 7 Step 3) a car's nearness (0..1: how close to this one; mp/contactClient.js sets it) and the most it's
+    // predicted ahead; present(id, maxMs) → its newest state predicted to now (net/remote.js present)
+    setNear(id, n, maxMs = 250) { const p = players.get(id); if (p) { p.near = Math.max(0, Math.min(1, n)); p.nearMaxMs = maxMs; } },
+    present(id, maxMs = 250, t = roomNow()) { return players.get(id)?.remote.present(t, maxMs) ?? null; },
     sendEvent(ev) { send(C2S.EVENT, encodeValue(ev), true); if (ev.kind === 'damage' || ev.kind === 'parts') myEvents = [...myEvents, ev].slice(-64); if (ev.kind === 'repair') myEvents = []; },
     setLook(look, events = myEvents) { myLook = look; myEvents = events ?? []; if (conn) send(C2S.HELLO, encodeValue({ look: myLook, events: myEvents }), true); },
     on(k, fn) { listeners[k].add(fn); return () => listeners[k].delete(fn); },

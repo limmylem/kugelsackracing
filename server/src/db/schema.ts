@@ -8,6 +8,7 @@
 //   content_items / content_history / content_meta: world content (docs/WORLD_CONTENT.md, design note)
 //   track_results / track_records / replays: generated tracks' results, records, leaderboards, race replays
 //   friendships / blocks / mp_ratings / mp_races / mp_race_players: multiplayer (Phase 7 Step 2; docs/MULTIPLAYER.md)
+//   mp_evidence: a contact's replay kept for a report (Phase 7 Step 3; docs/CONTACT.md)
 
 import { sql } from 'drizzle-orm';
 import { pgTable, text, boolean, timestamp, integer, real, bigserial, jsonb, index, uniqueIndex, primaryKey, customType, bigint } from 'drizzle-orm/pg-core';
@@ -444,6 +445,8 @@ export const mpRatings = pgTable('mp_ratings', {
   userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   mu: real('mu').notNull(), sigma: real('sigma').notNull(),
   races: integer('races').notNull().default(0), wins: integer('wins').notNull().default(0),
+  // the safety rating (Phase 7 Step 3; docs/CONTACT.md): 0–100, careless contacts down, clean races up
+  safety: real('safety').notNull().default(60), safetyRaces: integer('safety_races').notNull().default(0),
   updatedAt: updated(),
 });
 // a race (the race server reports it as it ends: provisional; the API confirms it once the runs are checked)
@@ -459,6 +462,7 @@ export const mpRaces = pgTable('mp_races', {
   state: text('state').notNull(),                                        // provisional | confirmed
   provisional: jsonb('provisional').notNull(),
   confirmed: jsonb('confirmed'),
+  contacts: jsonb('contacts'),                                           // the agreed contacts (Phase 7 Step 3: each car's impulse, the blame)
   createdAt: created(), confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
 }, t => [index('mp_races_state').on(t.state, t.createdAt)]);
 export const mpRacePlayers = pgTable('mp_race_players', {
@@ -474,5 +478,16 @@ export const mpRacePlayers = pgTable('mp_race_players', {
   verdict: jsonb('verdict'),                                             // { ok, problems }
   pay: jsonb('pay'),                                                     // { money, xp, why }
   ratingBefore: jsonb('rating_before'), ratingAfter: jsonb('rating_after'),
+  incidents: jsonb('incidents'),                                         // contacts at fault (Phase 7 Step 3): [{ share, strength, careless }]
+  safetyBefore: real('safety_before'), safetyAfter: real('safety_after'),
   createdAt: created(),
 }, t => [primaryKey({ columns: [t.raceId, t.userId] }), index('mp_race_players_user').on(t.userId, t.createdAt)]);
+// what the race server kept of a contact for a report (Phase 7 Step 3: ramming — both cars' states round the hits)
+export const mpEvidence = pgTable('mp_evidence', {
+  id: text('id').primaryKey(),
+  raceId: text('race_id'),
+  kind: text('kind').notNull(),                                          // ramming
+  fault: text('fault_id'), victim: text('victim_id'),
+  data: bytea('data').notNull(),                                         // gzipped JSON: { cars: { uid: [{ t, pos, yaw, vel }] }, hits }
+  createdAt: created(),
+}, t => [index('mp_evidence_race').on(t.raceId)]);

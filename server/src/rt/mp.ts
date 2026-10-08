@@ -3,7 +3,7 @@
 // each player's status for their friends, messages to a player wherever they're connected, invite codes, parties.
 // Presence is Colyseus's: Redis when there is one (several processes), memory in one process without.
 //
-//   createRtApi({ url, secret }) → { relations(uid), venue(v), recordRace(rec), submitRun(id, uid, run), race(id), queueStats(s) }
+//   createRtApi({ url, secret }) → { relations(uid), venue(v), recordRace(rec), submitRun(id, uid, run), race(id), queueStats(s), act, saveEvidence(e) }
 //   courseOf(resolved) → route/model.js viewCourse in the race's frame (a region's map frame, or a generated track's), with its trackHash
 //   setStatus(uid, status) · statuses(uids) → { uid: status }    status: { state: 'menu' | 'queue' | 'lobby' | 'racing' | 'spectating' | 'free roam', roomId?, kind?, name? }
 //   toUser(uid, msg) · onUser(uid, fn) → off      codes: claimCode(roomId) → code, roomOfCode(code)
@@ -29,10 +29,11 @@ export function createRtApi({ url, secret, timeoutMs = 20000 }: { url: string; s
     relations: (uid: string) => call('GET', `/relations/${encodeURIComponent(uid)}`),
     venue: (venue: unknown) => call('POST', '/venue', { venue }),
     recordRace: (rec: unknown) => call('POST', '/races', rec),
-    submitRun: (id: string, uid: string, run: { result: unknown; recording?: unknown }) => call('POST', `/races/${encodeURIComponent(id)}/runs`, { uid, ...run }),
+    submitRun: (id: string, uid: string, run: { result: unknown; recording?: unknown; contact?: string | null }) => call('POST', `/races/${encodeURIComponent(id)}/runs`, { uid, ...run }),
     race: (id: string) => call('GET', `/races/${encodeURIComponent(id)}`),
     queueStats: (s: unknown) => call('POST', '/queue-stats', s),
     act: (uid: string, a: Record<string, unknown>) => call('POST', '/act', { ...a, uid }),
+    saveEvidence: (e: unknown) => call('POST', '/evidence', e),
   };
 }
 export type RtApi = ReturnType<typeof createRtApi>;

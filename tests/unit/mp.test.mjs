@@ -189,9 +189,13 @@ test('results: a run that fails the check is disqualified and the others move up
   assert.ok(tired.b.money < pay.b.money, 'after the day\'s full-pay races, less');
 });
 
-test('lobby rules: settings clamped (ghost only), codes, the chat\'s pace, the next host, car classes', () => {
+test('lobby rules: settings clamped, the collision mode (a quick race the public one), codes, the chat\'s pace, the next host, car classes', () => {
   const { settings, problems } = normaliseSettings({ laps: 99, collisions: 'on', weather: 'snow', classes: ['C', 'Q'], venue: { kind: 'track', code: 'not a code' } }, CFG, { kind: 'custom' });
-  assert.equal(settings.laps, CFG.lobby.lapsMax); assert.equal(settings.collisions, 'ghost'); assert.equal(settings.weather, 'clear');
+  assert.equal(settings.laps, CFG.lobby.lapsMax); assert.equal(settings.collisions, CFG.contact.defaultMode); assert.equal(settings.weather, 'clear');
+  assert.ok(problems.some(p => /collision mode/.test(p)), problems.join(' | '));
+  assert.equal(normaliseSettings({ collisions: 'full' }, CFG, { kind: 'private' }).settings.collisions, 'full');
+  assert.equal(normaliseSettings({ collisions: 'ghost' }, CFG, { kind: 'custom' }).settings.collisions, 'ghost');
+  assert.equal(normaliseSettings({ collisions: 'full' }, CFG, { kind: 'quick' }).settings.collisions, CFG.contact.publicMode, 'a quick race: the public mode, whatever is asked');
   assert.deepEqual(settings.classes, ['C']); assert.equal(settings.venue.kind, 'random'); assert.ok(problems.length >= 2);
   assert.ok(carAllowed({ cls: 'C' }, settings) && !carAllowed({ cls: 'B' }, settings));
   const code = inviteCode(Math.random, 6);
@@ -210,4 +214,22 @@ test('a course\'s version doesn\'t depend on how its stored path\'s keys are ord
   const c = { kind: 'loop', checkpoints: [{ id: 'a', s: 10 }], grid: { at: 5, count: 8 } };
   assert.equal(routeVersionOf({ ...c, path }), routeVersionOf({ ...c, path: jsonb }));
   assert.equal(routeVersionOf({ ...c, path: JSON.parse(JSON.stringify(path)) }), routeVersionOf({ ...c, path }), 'and the same as before for a course as it was made');
+});
+
+test('matchmaking (Phase 7 Step 3): safety ratings kept close — clean drivers race clean drivers, careless ones each other', () => {
+  const withSafety = (e, safety) => ({ ...e, players: e.players.map(p => ({ ...p, safety })) });
+  const q = [...Array.from({ length: 4 }, (_, i) => withSafety(party(`clean${i}`, i * 10, [[10 + i * 0.2, 500]]), 90)), ...Array.from({ length: 4 }, (_, i) => withSafety(party(`rough${i}`, i * 10 + 5, [[10 + i * 0.2, 500]]), 15))];
+  const { matches } = matchQueue(q, 25000, CFG);
+  assert.ok(matches.length >= 2, `two races: ${matches.length}`);
+  for (const m of matches) {
+    const kinds = new Set(m.players.map(p => p.uid.startsWith('clean') ? 'clean' : 'rough'));
+    assert.equal(kinds.size, 1, `one kind a race: ${m.players.map(p => p.uid).join(', ')}`);
+    assert.ok(m.quality.safetySpread <= CFG.contact.match.start + CFG.contact.match.growPerSec * 25 + 1e-9);
+  }
+  // (waiting, the window grows — up to its most: 40 apart race together after a while; 60 apart never do, and the NPC
+  // offer is there for them instead)
+  const pair = d => [withSafety(party('a', 0, [[10, 500]]), 90), withSafety(party('b', 0, [[10, 500]]), 90 - d)];
+  assert.equal(matchQueue(pair(40), 25000, CFG).matches.length, 0, 'not at first');
+  assert.equal(matchQueue(pair(40), 120000, CFG).matches.length, 1, 'the window has grown wide enough after two minutes');
+  assert.equal(matchQueue(pair(60), 600000, CFG).matches.length, 0, 'never past its most');
 });

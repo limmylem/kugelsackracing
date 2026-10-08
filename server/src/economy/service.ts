@@ -414,9 +414,22 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
     return withPlayer(user.id, async (tx, G) => {
       const before = await loadProfile(tx, user.id), E = await engine(tx, user.id, before, G), p = E.init.updatedState;
       return Object.keys(p.cars).map(id => {
-        const t = garageFor(p, E.game, id).stats().totals;
-        return { instanceId: id, carId: p.cars[id].carId, name: carName(p, E.game, id), cls: t?.rating?.class ?? 'D', pr: Math.round(t?.rating?.index ?? 100), current: p.currentCar === id };
+        const st = garageFor(p, E.game, id).stats(), t = st.totals, sp = st.spec, r3 = (x: number) => Math.round(x * 1000) / 1000;
+        // (its mass and body box: car-to-car contact between players, Phase 7 Step 3 — the server's word, not the game's)
+        const phys = sp?.bodyCollider ? { mass: Math.round(sp.mass), box: { halfExtents: sp.bodyCollider.halfExtents.map(r3), centre: sp.bodyCollider.centre.map(r3) } } : {};
+        return { instanceId: id, carId: p.cars[id].carId, name: carName(p, E.game, id), cls: t?.rating?.class ?? 'D', pr: Math.round(t?.rating?.index ?? 100), current: p.currentCar === id, ...phys };
       });
+    });
+  }
+  // (Phase 7 Step 3) a car's spec as the physics drives it — its build, tuning and damage, from the server's own save:
+  // the verifier drives a multiplayer run again with it
+  async function carSpec(userId: string, instanceId: string | null) {
+    return withPlayer(userId, async (tx, G) => {
+      const before = await loadProfile(tx, userId);
+      if (!before) return null;
+      const E = await engine(tx, userId, before, G), p = E.init.updatedState;
+      const id = instanceId && p.cars[instanceId] ? instanceId : p.currentCar;
+      return id ? JSON.parse(JSON.stringify(garageFor(p, E.game, id).stats().spec)) : null;
     });
   }
   // a confirmed race's pay: money (a ledger row saying which race) and xp, once (the race and player as its key)
@@ -480,7 +493,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock, racingCars, payRace,
+    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

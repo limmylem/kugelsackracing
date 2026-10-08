@@ -11,8 +11,8 @@
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type MpCar = { instanceId: string; carId: string; name: string; cls: string; pr: number; current?: boolean };
-export type MpClaims = { rating: { mu: number; sigma: number; races: number }; cars: MpCar[]; blocked: string[]; cooldownUntil: number | null };
+export type MpCar = { instanceId: string; carId: string; name: string; cls: string; pr: number; current?: boolean; mass?: number; box?: any };
+export type MpClaims = { rating: { mu: number; sigma: number; races: number }; safety?: number; cars: MpCar[]; blocked: string[]; cooldownUntil: number | null };
 export type Ticket = { uid: string; name: string; role: string; guest: boolean; mp?: MpClaims; jti: string; exp: number };
 
 const b64 = (b: Buffer) => b.toString('base64url');

@@ -35,12 +35,13 @@ export function normaliseSettings(input = {}, cfg, { kind = 'custom' } = {}) {
     npcFill: !!input.npcFill,
     timeOfDay: pick(input.timeOfDay, L.times, 'afternoon'),
     weather: pick(input.weather, L.weathers, 'clear'),
-    collisions: 'ghost',                                                         // (car contact: Step 3)
+    // (car contact, Phase 7 Step 3: a quick race the public mode, else the host's choice)
+    collisions: kind === 'quick' ? cfg.contact?.publicMode ?? 'reduced' : pick(input.collisions, cfg.contact?.modes ?? ['ghost'], cfg.contact?.defaultMode ?? 'reduced'),
     gridOrder: pick(input.gridOrder, L.gridOrders, 'rating'),
     maxPlayers: Math.max(2, Math.min(L.maxPlayers, Math.round(Number(input.maxPlayers) || L.maxPlayers))),
     ranked: kind === 'quick',
   };
-  if (input.collisions && input.collisions !== 'ghost') problems.push('Collisions between players come in a later update: ghost mode for now.');
+  if (input.collisions && kind !== 'quick' && !(cfg.contact?.modes ?? []).includes(input.collisions)) problems.push(`There's no collision mode "${String(input.collisions).slice(0, 20)}": ${settings.collisions}.`);
   return { settings, problems };
 }
 

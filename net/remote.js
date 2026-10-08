@@ -13,6 +13,8 @@
 //   R.sample(roomNow, dtSec) → { pos, rot, vel, ang, steer, throttle, brake, gear, rpm, wheels, flags,
 //                                extrapolating, staleMs, correctionCm, bufferMs, delayMs }  (null before any state)
 //   R.teleport()               the next state is a jump (a reset): shown at once, not blended
+//   R.present(roomNow, maxMs) → the newest state predicted to now (for at most maxMs): where the car really is, near
+//                              enough — car-to-car contact (Phase 7 Step 3) happens there; { …, stampT, aheadMs }
 //   R.stats                    { lagP50, lagP95, bufferMs, delayMs, corrections, maxCorrectionCm, extrapolatedMs }
 
 const v3 = {
@@ -190,6 +192,15 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       return { ...r, pos, rot, vel, ang, correctionCm: corr, bufferMs: stats.bufferMs, delayMs: delay, shownAt: t, teleported: tp };
     },
     teleport() { jump = true; },
+    // (Phase 7 Step 3) the car as it is now, as near as can be told: its newest state predicted forward to room time t
+    // (velocity, a fading acceleration, the spin), for at most maxMs — no buffer, no blending. stampT: when that state
+    // was stamped; aheadMs: how far it was predicted
+    present(t, maxMs) {
+      const n = buf[buf.length - 1];
+      if (!n) return null;
+      const at = Math.min(t, n.time + Math.max(0, maxMs)), r = raw(Math.max(at, n.time));
+      return { ...r, stampT: n.time, aheadMs: Math.max(0, at - n.time) };
+    },
     get newest() { return buf[buf.length - 1] ?? null; },
     get stats() { return stats; },
     get buf() { return buf; },

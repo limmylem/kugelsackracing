@@ -95,5 +95,135 @@
   "spectate": {
     "_note": "Spectators of one race at most (besides its players).",
     "maxSpectators": 16
+  },
+  "contact": {
+    "_note": "Car-to-car contact between players (Phase 7 Step 3; docs/CONTACT.md, mp/contact.js). modes: what a lobby may set (quick races use publicMode; a new private or custom lobby starts on defaultMode). Fair and stable beats realistic: every push is horizontal, at the centre of mass's height, and capped (limits).",
+    "modes": ["full", "reduced", "ghost"],
+    "publicMode": "reduced",
+    "defaultMode": "reduced",
+    "near": {
+      "_note": "Other cars nearer the present when close: each one's nearness rises from 0 (farther than farGapM between the two cars' boxes) to 1 (within nearGapM), by at most rampPerSec; the drawn car blends from its interpolated pose to its proxy's (the newest state predicted to now, for at most maxPredictMs). Proxies take part in contact within activeGapM.",
+      "nearGapM": 3,
+      "farGapM": 15,
+      "rampPerSec": 2.5,
+      "maxPredictMs": 250,
+      "activeGapM": 8
+    },
+    "response": {
+      "_note": "The push on the player's own car. A contact closing faster than rubBelow (m/s) is a hit: the two-body impulse (1 + restitution) x m_red x closing, spread over impactSpreadSec; slower, it's rubbing: a spring (rubStiffness, m/s^2 for each metre of overlap) and a damper (rubDamping, 1/s, on the closing speed) with sliding friction rubFriction. A contact ends endAfterSec after the cars last touched (forgotten after forgetSec); reactSec: during a hit, the other car is moved by its predicted reaction until a state of its own stamped this long after the hit arrives. closingLookSec: a hit's closing speed is the most seen over this long before the touch (the game that notices second may already see the other car's reaction).",
+      "rubBelow": 2.0,
+      "restitution": 0.2,
+      "impactSpreadSec": 0.06,
+      "rubStiffness": 60,
+      "rubDamping": 10,
+      "rubFriction": 0.25,
+      "endAfterSec": 0.25,
+      "forgetSec": 1.0,
+      "reactSec": 0.15,
+      "closingLookSec": 0.15
+    },
+    "limits": {
+      "_note": "Caps on every contact: maxDeltaV (m/s) the most a hit changes a car's speed, maxSpin (rad/s) the most yaw spin it gives, maxRubG (g) the most force leaning on another car. Nothing is ever vertical.",
+      "maxDeltaV": 10,
+      "maxSpin": 1.2,
+      "maxRubG": 0.5
+    },
+    "agree": {
+      "_note": "How the race server agrees a contact. Each game reports a contact reportAfterMs after it began; the server pairs the two players' reports of the same pair within pairWindowMs, waiting at most waitMs (plus both pings) for the second. They agree when their closing speeds are within max(closingTol m/s, closingTolShare of the faster) and their normals within normalTolDeg; otherwise the gentler is used. A one-sided report needs the server's own view of the two cars within serverCheckM of touching. blendSec: a correction (agreed minus what the game applied) is spread over this long. maxReportsPerSec: a player's reports beyond this are ignored.",
+      "reportAfterMs": 120,
+      "pairWindowMs": 400,
+      "waitMs": 400,
+      "closingTol": 2,
+      "closingTolShare": 0.35,
+      "normalTolDeg": 50,
+      "serverCheckM": 2.5,
+      "blendSec": 0.2,
+      "maxReportsPerSec": 10
+    },
+    "damage": {
+      "_note": "reduced: in reduced mode, the share of the damage from another player's car a car takes (as data/sessions.json collisions.reduced).",
+      "reduced": 0.4
+    },
+    "ghost": {
+      "_note": "Automatic ghosting, even in full mode: a car touches nobody while its ping or jitter is above maxPingMs / maxJitterMs (over the last pingWindowSec), for resetSec after a reset and rejoinSec after rejoining, while going the wrong way (wrongWaySec of it at over wrongWaySpeed m/s, until rightWaySec back the right way), in the pit lane (pitLane), and optionally on lap 1 before firstCornerM (firstCorner) and while being lapped by a car within lappedWithinM (lapped). A ghosted car is drawn at opacity, and fades back to solid over fadeSec once the ghost is lifted and no car overlaps it.",
+      "maxPingMs": 220,
+      "maxJitterMs": 70,
+      "pingWindowSec": 5,
+      "resetSec": 3,
+      "rejoinSec": 5,
+      "wrongWaySec": 1.0,
+      "rightWaySec": 2.0,
+      "wrongWaySpeed": 3,
+      "pitLane": true,
+      "firstCorner": false,
+      "firstCornerM": 250,
+      "lapped": false,
+      "lappedWithinM": 60,
+      "fadeSec": 0.5,
+      "opacity": 0.35
+    },
+    "blame": {
+      "_note": "Who caused a contact, from the server's log of both cars. weights: a nose into the other's tail or side (hitter), who closed in faster (closing), the car ahead braking far harder than the one behind (braking: over brakeTestG g in the last lookSec), a swerve off the line towards the other car (line: faster than swerveMs m/s sideways), and being behind (behind). A brake test or a swerve outweighs who hit whom: shifts moves that share of the other car's fault to the one who did it. A car with faultShare of it is at fault; with carelessShare, and a hit of at least minStrength m/s, it was careless.",
+      "weights": { "hitter": 0.4, "closing": 0.25, "braking": 0.15, "line": 0.15, "behind": 0.05 },
+      "lookSec": 1.0,
+      "brakeTestG": 0.7,
+      "shifts": { "brakeTest": 0.5, "swerve": 0.5 },
+      "swerveMs": 1.5,
+      "faultShare": 0.6,
+      "carelessShare": 0.7,
+      "minStrength": 2
+    },
+    "safety": {
+      "_note": "The safety rating, 0 to 100 (start: a new player's). After each confirmed race: each contact a player was at fault for (half or more) costs incident points (light below contactStrength m/s, contact below crashStrength, crash above) times their share, each point perPoint off the rating; a race with none earns cleanPerKm a km raced, at most cleanMax. Shown as a tier (tiers: the letter from each value up).",
+      "start": 60,
+      "min": 0,
+      "max": 100,
+      "perPoint": 1.5,
+      "cleanPerKm": 0.5,
+      "cleanMax": 3,
+      "contactStrength": 3,
+      "crashStrength": 8,
+      "points": { "light": 1, "contact": 2, "crash": 4 },
+      "tiers": [
+        { "id": "E", "name": "E", "from": 0 },
+        { "id": "D", "name": "D", "from": 20 },
+        { "id": "C", "name": "C", "from": 40 },
+        { "id": "B", "name": "B", "from": 60 },
+        { "id": "A", "name": "A", "from": 80 }
+      ]
+    },
+    "match": {
+      "_note": "Matchmaking keeps safety ratings close too: a race's players within a window of the group's average (start, growing growPerSec a second waited, up to max), and weight how much it counts against skill and car when choosing among those that fit.",
+      "start": 15,
+      "growPerSec": 0.5,
+      "max": 50,
+      "weight": 1
+    },
+    "penalties": {
+      "_note": "In a race: a careless contact with crashShare of the fault and a hit of crashStrength m/s or more adds seconds to the driver's time; repeatIncidents careless contacts in one race ghost the driver for the rest of it.",
+      "enabled": true,
+      "crashShare": 0.8,
+      "crashStrength": 6,
+      "seconds": 5,
+      "repeatIncidents": 3
+    },
+    "ramming": {
+      "_note": "Ramming: hits (each with at least minShare of the fault) on the same car by the same driver within withinSec are flagged; the victim is offered a one-tap report with the server's replay of both cars (replaySec before the last hit, and 2 s after).",
+      "hits": 3,
+      "withinSec": 30,
+      "minShare": 0.7,
+      "replaySec": 12
+    },
+    "verify": {
+      "_note": "Checking a run with contact (docs/CONTACT.md Verification): each contact's pushes must add up to the agreed impulse within impulseTolShare of it plus impulseTolNs (N s); each proxy pose recorded must be within proxyTolM, plus proxyTolPerSpeed x its speed, of where the race server had that car; the run's trail (where it says the car was every second) within trailTolM, plus trailTolPerSpeed x its speed, of where the race server saw it; and the run driven again from its inputs and pushes must land on that trail within replayTolM.",
+      "impulseTolShare": 0.05,
+      "impulseTolNs": 80,
+      "proxyTolM": 3,
+      "proxyTolPerSpeed": 0.12,
+      "crossingTolSec": 0.02,
+      "trailTolM": 2,
+      "trailTolPerSpeed": 0.03,
+      "replayTolM": 0.01
+    }
   }
 }

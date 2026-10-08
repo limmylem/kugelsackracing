@@ -16,7 +16,7 @@ import { partAero } from './parts.js';
 export function airDensity(altitude) {
   const R = 287.05, g = 9.80665, lapse = 0.0065, T0 = 288.15, P0 = 101325;
   const h = Math.max(-500, Math.min(11000, altitude)), T = T0 - lapse * h;
-  return P0 * (T / T0) ** (g / (R * lapse)) / (R * T);
+  return P0 * Math.pow(T / T0, g / (R * lapse)) / (R * T);     // (Math.pow: the deterministic one when installed — physics/detmath.js)
 }
 export const SEA_LEVEL_DENSITY = airDensity(0);
 

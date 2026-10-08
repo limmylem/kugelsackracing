@@ -492,7 +492,7 @@ export class Vehicle {
       if (tc) {
         // it lets the wheels spin more while you're steering or drifting (to hold a slide) than
         // when you're pointing straight (for traction); strength 0..1 scales how tight it is
-        const loose = Math.max(Math.abs(input.steer || 0), drifting), k = 2 ** (1 - 2 * aids.tcStrength);
+        const loose = Math.max(Math.abs(input.steer || 0), drifting), k = Math.pow(2, 1 - 2 * aids.tcStrength);   // (Math.pow: the deterministic one when installed — physics/detmath.js)
         const target = k * (tc.straightSlipTarget + (tc.slipTarget - tc.straightSlipTarget) * loose);
         const window = k * (tc.straightSlipWindow + (tc.slipWindow - tc.straightSlipWindow) * loose);
         for (const w of dtr.driven) if (w.grounded) tcf = Math.min(tcf, clamp(1 - (slipOf(w, w.omega) * driveSign - target) / window, 0, 1));

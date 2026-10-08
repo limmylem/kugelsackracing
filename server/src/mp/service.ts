@@ -32,6 +32,9 @@ import { transverseMercator } from '../../../map/build/format/projection.js';
 import { trackProjection } from '../../../track/build.js';
 import { decodePath } from '../economy/geometry.ts';
 import { fileReport, REPORT_KINDS } from '../abuse/reports.ts';
+import { safetyAfterRace, safetyTier } from '../../../mp/contact.js';
+import { checkContacts, checkTrail } from '../../../mp/verify.js';
+import { createReplayer } from './replay.ts';
 
 const json = (f: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, f), 'utf8'));
 export const MP = json('data/multiplayer.json');
@@ -108,9 +111,11 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
 
   // ---------- ratings, cooldowns, what a ticket carries ----------
   async function ratingOf(userId: string) {
-    const r = await one(sql`select mu, sigma, races, wins from mp_ratings where user_id = ${userId}`);
-    return r ? { mu: Number(r.mu), sigma: Number(r.sigma), races: Number(r.races), wins: Number(r.wins) } : { ...START, races: 0, wins: 0 };
+    const r = await one(sql`select mu, sigma, races, wins, safety, safety_races from mp_ratings where user_id = ${userId}`);
+    return r ? { mu: Number(r.mu), sigma: Number(r.sigma), races: Number(r.races), wins: Number(r.wins), safety: Number(r.safety), safetyRaces: Number(r.safety_races) }
+      : { ...START, races: 0, wins: 0, safety: MP.contact.safety.start, safetyRaces: 0 };
   }
+  const safetyOf = (r: { safety?: number }) => ({ value: Math.round(r.safety ?? MP.contact.safety.start), tier: safetyTier(r.safety, MP.contact) });
   async function cooldown(userId: string, at = now()) {
     const L = MP.leaving;
     const left = await rows(sql`select p.created_at from mp_race_players p join mp_races r on r.id = p.race_id
@@ -124,11 +129,11 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     const [r, rel, cd] = await Promise.all([ratingOf(user.id), relations(user.id), cooldown(user.id)]);
     let cars: any[] = [];
     try { cars = (await economy.racingCars(user)).slice(0, 40); } catch (e) { log({ err: e }, 'racing cars failed'); }
-    return { rating: { mu: r.mu, sigma: r.sigma, races: r.races }, cars, blocked: [...new Set([...rel.blocked, ...rel.blockedBy])].slice(0, 200), cooldownUntil: cd.until };
+    return { rating: { mu: r.mu, sigma: r.sigma, races: r.races }, safety: Math.round(r.safety * 10) / 10, cars, blocked: [...new Set([...rel.blocked, ...rel.blockedBy])].slice(0, 200), cooldownUntil: cd.until };
   }
   async function me(userId: string) {
     const r = await ratingOf(userId), cd = await cooldown(userId);
-    return { tier: tierOf(r, MP.rank), races: r.races, wins: r.wins, cooldownUntil: cd.until ? new Date(cd.until).toISOString() : null, leaves: cd.leaves };
+    return { tier: tierOf(r, MP.rank), races: r.races, wins: r.wins, safety: safetyOf(r), cooldownUntil: cd.until ? new Date(cd.until).toISOString() : null, leaves: cd.leaves };
   }
   // (development: Player A, a guest of its own — made on first use, its terms accepted)
   async function devPlayer(letter: string) {
@@ -197,11 +202,13 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     if (had) return raceView(rec.id);
     const humans = rec.results.filter((r: any) => !r.npc), npcs = rec.results.length - humans.length;
     await db.transaction(async (tx: any) => {
-      await tx.execute(sql`insert into mp_races (id, kind, ranked, venue, settings, course_version, track_hash, km, humans, npcs, state, provisional)
-        values (${rec.id}, ${rec.kind}, ${!!rec.ranked}, ${JSON.stringify(rec.venue)}::jsonb, ${JSON.stringify(rec.settings ?? {})}::jsonb, ${rec.courseVersion ?? null}, ${rec.trackHash ?? null}, ${Number(rec.km) || 0}, ${humans.length}, ${npcs}, 'provisional', ${JSON.stringify(rec.results)}::jsonb)`);
+      await tx.execute(sql`insert into mp_races (id, kind, ranked, venue, settings, course_version, track_hash, km, humans, npcs, state, provisional, contacts)
+        values (${rec.id}, ${rec.kind}, ${!!rec.ranked}, ${JSON.stringify(rec.venue)}::jsonb, ${JSON.stringify(rec.settings ?? {})}::jsonb, ${rec.courseVersion ?? null}, ${rec.trackHash ?? null}, ${Number(rec.km) || 0}, ${humans.length}, ${npcs}, 'provisional', ${JSON.stringify(rec.results)}::jsonb, ${Array.isArray(rec.contacts) ? JSON.stringify({ contacts: rec.contacts.slice(0, 2000), rejected: Array.isArray(rec.rejected) ? rec.rejected.slice(0, 2000) : [], trails: rec.trails && typeof rec.trails === 'object' ? rec.trails : {} }) : null}::jsonb)`);
       for (const r of humans) {
         if (!(await exists(r.uid))) continue;
-        await tx.execute(sql`insert into mp_race_players (race_id, user_id, provisional_place, status, left_early, server_time_ms) values (${rec.id}, ${r.uid}, ${r.place}, ${r.status}, ${!!r.leftEarly}, ${r.timeMs != null ? Math.round(r.timeMs) : null}) on conflict do nothing`);
+        // (the contacts this player was at fault for: Phase 7 Step 3, their safety rating moves by them once confirmed)
+        const inc = Array.isArray(rec.incidents?.[r.uid]) ? rec.incidents[r.uid].slice(0, 200).map((x: any) => ({ share: Number(x.share) || 0, strength: Number(x.strength) || 0, careless: !!x.careless })) : [];
+        await tx.execute(sql`insert into mp_race_players (race_id, user_id, provisional_place, status, left_early, server_time_ms, incidents) values (${rec.id}, ${r.uid}, ${r.place}, ${r.status}, ${!!r.leftEarly}, ${r.timeMs != null ? Math.round(r.timeMs) : null}, ${JSON.stringify(inc)}::jsonb) on conflict do nothing`);
       }
     });
     const finishers = humans.filter((r: any) => r.status === 'finished');
@@ -209,7 +216,7 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     else timers.set(rec.id, setTimeout(() => { timers.delete(rec.id); void finalize(rec.id).catch(e => log({ err: e, race: rec.id }, 'confirming a race failed')); }, MP.race.resultsWaitSec * 1000).unref());
     return raceView(rec.id);
   }
-  async function submitRun(raceId: string, uid: string, body: { result: any; recording?: any }) {
+  async function submitRun(raceId: string, uid: string, body: { result: any; recording?: any; contact?: string | null }) {
     const race = await one(sql`select * from mp_races where id = ${raceId}`);
     if (!race) throw new AppError(404, 'NOT_FOUND', 'There\'s no such race.');
     const p = await one(sql`select * from mp_race_players where race_id = ${raceId} and user_id = ${uid}`);
@@ -219,13 +226,38 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     const settings = race.settings ?? {}, course = await courseToCheck(race.venue);
     const quest = raceQuest({ raceId, venue: race.venue, laps: settings.laps, loop: !!course?.loop, trackHash: race.track_hash });
     const v = validateResult(body.result, { quest, course, config: QCFG });
-    const verdict = { ok: v.ok, problems: v.problems, rawMs: Number.isFinite(body.result?.rawTime) ? Math.round(body.result.rawTime * 1000) : null };
-    const rec = body.recording ? zlib.gzipSync(Buffer.from(JSON.stringify(body.recording))) : null;
+    // (Phase 7 Step 3: a race with contact — the pushes on the car against the race server's log, the run's trail
+    // against where the server saw it, and the run driven again)
+    const contact = await checkRunContact(race, uid, body.contact ?? null, body.result);
+    const verdict = { ok: v.ok && !contact.problems.length, problems: [...v.problems, ...contact.problems], rawMs: Number.isFinite(body.result?.rawTime) ? Math.round(body.result.rawTime * 1000) : null, ...(contact.checked ? { contact: contact.checked } : {}) };
+    const kept = body.contact ? { ...(body.recording ?? {}), contact: body.contact } : body.recording;
+    const rec = kept ? zlib.gzipSync(Buffer.from(JSON.stringify(kept))) : null;
     await db.execute(sql`update mp_race_players set run = ${JSON.stringify(body.result ?? null)}::jsonb, recording = ${rec}, verdict = ${JSON.stringify(verdict)}::jsonb where race_id = ${raceId} and user_id = ${uid}`);
     // (everyone who finished has handed theirs in: confirmed now)
     const waiting = await rows(sql`select 1 from mp_race_players where race_id = ${raceId} and status = 'finished' and run is null`);
     if (!waiting.length) { clearTimeout(timers.get(raceId)); timers.delete(raceId); await finalize(raceId); }
     return { verdict };
+  }
+  // A run's contact checks (docs/CONTACT.md "Verification"): only in a race with contact on
+  let replayer: ReturnType<typeof createReplayer> | null = null;
+  async function checkRunContact(race: any, uid: string, text: string | null, result: any) {
+    const settings = race.settings ?? {}, log = race.contacts && !Array.isArray(race.contacts) ? race.contacts : { contacts: race.contacts ?? [] };
+    if (!settings.collisions || settings.collisions === 'ghost') return { problems: [] as string[], checked: null };
+    const mine = (log.contacts ?? []).filter((c: any) => c.cars?.[uid]);
+    if (!text) return { problems: mine.length ? ['The run came without its contact record (what pushed the car), and the race server agreed contacts with it.'] : [], checked: null };
+    let run: any;
+    try { run = JSON.parse(text); } catch { return { problems: ['The run\'s contact record isn\'t readable.'], checked: null }; }
+    const c = checkContacts({ uid, run, log, cfg: MP.contact });
+    const problems = [...c.problems, ...checkTrail({ run, serverTrail: log.trails?.[uid], cfg: MP.contact })];
+    const checked: any = { contacts: c.contacts.length, trail: (run.trail ?? []).length, replay: null };
+    // the run driven again: on a generated track (its world is the same everywhere, built from its code)
+    const code = race.venue?.kind === 'track' ? race.venue.code : null;
+    if (!problems.length && code && run.inputs) {
+      const spec = await economy.carSpec(uid, result?.car?.instanceId ?? null).catch(() => null);
+      if (spec) { const r = await (replayer ??= createReplayer()).check({ run, code, spec }); problems.push(...r.problems); checked.replay = r.skipped ? `skipped: ${r.skipped}` : `${run.steps ?? '?'} steps in ${Math.round(r.ms ?? 0)} ms`; }
+      else checked.replay = 'skipped: no car';
+    }
+    return { problems, checked };
   }
   async function todayRaces(uids: string[]) {
     if (!uids.length) return {};
@@ -240,7 +272,7 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
   async function doFinalize(raceId: string) {
     const race = await one(sql`select * from mp_races where id = ${raceId}`);
     if (!race || race.state === 'confirmed') return raceView(raceId);
-    const players = await rows(sql`select user_id, verdict, run is not null as handed from mp_race_players where race_id = ${raceId}`);
+    const players = await rows(sql`select user_id, verdict, run is not null as handed, incidents from mp_race_players where race_id = ${raceId}`);
     const known = new Set(players.map(p => p.user_id));
     const verdicts = Object.fromEntries(players.filter(p => p.verdict).map(p => [p.user_id, p.verdict]));
     // (a player with no account here — a bot's made-up id — is the race server's word alone)
@@ -269,11 +301,18 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
         if (p.money > 0 || p.xp > 0) { try { paid = await economy.payRace(r.uid, { money: p.money, xp: p.xp, raceId, reason: `Multiplayer race: ${p.why}` }); } catch (e) { log({ err: e, race: raceId, uid: r.uid }, 'paying a race failed'); } }
         entry.pay = { ...p, paid: !!paid.paid };
         entry.rank = { before: tierOf(before[r.uid], MP.rank), after: tierOf(after[r.uid], MP.rank), change: tierChange(before[r.uid], after[r.uid], MP.rank), ranked: race.ranked };
-        await db.execute(sql`update mp_race_players set place = ${r.place}, status = ${r.status}, pay = ${JSON.stringify(entry.pay)}::jsonb, rating_before = ${JSON.stringify(before[r.uid])}::jsonb, rating_after = ${JSON.stringify(after[r.uid])}::jsonb where race_id = ${raceId} and user_id = ${r.uid}`);
-        if (race.ranked && after[r.uid] !== before[r.uid]) {
+        // the safety rating (Phase 7 Step 3): contacts at fault cost points, a clean race with contact on earns a little —
+        // a race with cars passing through each other (ghost) moves it neither way
+        const incidents = (players.find(p => p.user_id === r.uid)?.incidents ?? []) as any[];
+        const contactOn = (race.settings as any)?.collisions && (race.settings as any).collisions !== 'ghost';
+        const raced = r.status === 'finished' ? race.km : 0;
+        const sf = contactOn ? safetyAfterRace(before[r.uid].safety, incidents, { km: raced, cfg: MP.contact }) : { sr: before[r.uid].safety, delta: 0, points: 0 };
+        entry.safety = { before: safetyOf(before[r.uid]), after: safetyOf({ safety: sf.sr }), delta: Math.round(sf.delta * 10) / 10, incidents: incidents.length };
+        await db.execute(sql`update mp_race_players set place = ${r.place}, status = ${r.status}, pay = ${JSON.stringify(entry.pay)}::jsonb, rating_before = ${JSON.stringify(before[r.uid])}::jsonb, rating_after = ${JSON.stringify(after[r.uid])}::jsonb, safety_before = ${before[r.uid].safety}, safety_after = ${sf.sr} where race_id = ${raceId} and user_id = ${r.uid}`);
+        if ((race.ranked && after[r.uid] !== before[r.uid]) || sf.sr !== before[r.uid].safety) {
           const a = after[r.uid];
-          await db.execute(sql`insert into mp_ratings (user_id, mu, sigma, races, wins) values (${r.uid}, ${a.mu}, ${a.sigma}, ${a.races}, ${a.wins})
-            on conflict (user_id) do update set mu = excluded.mu, sigma = excluded.sigma, races = excluded.races, wins = excluded.wins, updated_at = now()`);
+          await db.execute(sql`insert into mp_ratings (user_id, mu, sigma, races, wins, safety, safety_races) values (${r.uid}, ${a.mu}, ${a.sigma}, ${a.races}, ${a.wins}, ${sf.sr}, ${(before[r.uid].safetyRaces ?? 0) + (contactOn ? 1 : 0)})
+            on conflict (user_id) do update set mu = excluded.mu, sigma = excluded.sigma, races = excluded.races, wins = excluded.wins, safety = excluded.safety, safety_races = excluded.safety_races, updated_at = now()`);
         }
       }
       delete entry.rating; delete entry.flags;
@@ -336,11 +375,35 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
       case 'report': {
         const kind = REPORT_KINDS.includes(a.kind) ? a.kind : 'behaviour', details = String(a.details ?? '').trim().slice(0, 1000);
         if (details.length < 5) throw new AppError(400, 'BAD_REQUEST', 'Say what happened (a few words at least).');
-        const ref = a.ref && typeof a.ref === 'object' ? Object.fromEntries(Object.entries(a.ref).filter(([k, v]) => ['raceId', 'roomId', 'place'].includes(k) && typeof v === 'string').map(([k, v]) => [k, String(v).slice(0, 80)])) : undefined;
+        const ref = a.ref && typeof a.ref === 'object' ? Object.fromEntries(Object.entries(a.ref).filter(([k, v]) => ['raceId', 'roomId', 'place', 'evidenceId'].includes(k) && typeof v === 'string').map(([k, v]) => [k, String(v).slice(0, 80)])) : undefined;
+        // (a ramming report with the race server's replay: only the victim of it may attach it)
+        if (ref?.evidenceId) {
+          const ev = await one(sql`select victim_id, fault_id from mp_evidence where id = ${ref.evidenceId}`);
+          if (!ev || ev.victim_id !== uid || ev.fault_id !== id) delete ref.evidenceId;
+        }
         return fileReport(db, uid, { targetId: id, kind, details, ref });
       }
     }
     throw new AppError(400, 'BAD_REQUEST', 'Not something the game can do.');
   }
-  return { act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); } };
+  // (Phase 7 Step 3) what the race server kept of repeated hits (ramming): both cars' states round them, for a report
+  async function saveEvidence(e: any) {
+    if (typeof e?.id !== 'string' || !e.data) throw new AppError(400, 'BAD_REQUEST', 'No evidence.');
+    const data = zlib.gzipSync(Buffer.from(JSON.stringify(e.data)));
+    if (data.length > 2_000_000) throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Too much evidence.');
+    await db.execute(sql`insert into mp_evidence (id, race_id, kind, fault_id, victim_id, data) values (${e.id.slice(0, 80)}, ${e.raceId ?? null}, ${String(e.kind ?? 'ramming').slice(0, 20)}, ${e.fault ?? null}, ${e.victim ?? null}, ${data}) on conflict (id) do nothing`);
+    return { ok: true, id: e.id };
+  }
+  async function evidence(id: string) {
+    const r = await one(sql`select id, race_id, kind, fault_id, victim_id, data, created_at from mp_evidence where id = ${id}`);
+    if (!r) throw new AppError(404, 'NOT_FOUND', 'There\'s no such evidence.');
+    return { id: r.id, raceId: r.race_id, kind: r.kind, fault: r.fault_id, victim: r.victim_id, at: r.created_at, data: JSON.parse(zlib.gunzipSync(r.data).toString()) };
+  }
+  async function contactsOf(raceId: string) {
+    const r = await one(sql`select id, contacts from mp_races where id = ${raceId}`);
+    if (!r) throw new AppError(404, 'NOT_FOUND', 'There\'s no such race.');
+    const c = r.contacts && !Array.isArray(r.contacts) ? r.contacts : { contacts: r.contacts ?? [] };
+    return { id: r.id, contacts: c.contacts ?? [], rejected: c.rejected ?? [] };
+  }
+  return { saveEvidence, evidence, contactsOf, act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); replayer?.close(); } };
 }

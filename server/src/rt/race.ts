@@ -9,9 +9,11 @@
 // The game's messages ('mp', JSON):  ready { v } · car { instanceId } · settings { settings } (host) · start (host) ·
 //   kick { uid } (host) · chat { text } · block { uid } · loaded { hash } · spectate · race · run { result, recording } (a long
 //   recording first in pieces: run-part { i, of, data }) ·
-//   rematch { v } · ping { ms }
+//   rematch { v } · ping { ms } · contact-report (Phase 7 Step 3: a contact the game saw; ./contact.ts) ·
+//   report-ramming { evidenceId, details } (the victim's one-tap report)
 // What it sends:  lobby (everything: settings, players, host, phase, venue, code) · chat · event (the race's) ·
-//   standings (4 a second while racing) · results (provisional) · confirmed (once the runs are checked) · notice
+//   standings (4 a second while racing) · results (provisional) · confirmed (once the runs are checked) · notice ·
+//   contact (the agreed result) · contact-rejected · ghosts (who touches nobody, and why) · ramming (to its victim)
 
 import type { Client } from '@colyseus/core';
 import { CODES } from '../../../net/protocol.js';
@@ -24,8 +26,15 @@ import { TestRoom, rtEnv, type Player } from './room.ts';
 import { courseOf, setStatus, clearStatus, claimCode, renewCode, dropCode } from './mp.ts';
 import { cleanChat } from '../names.ts';
 import { MP, NPC_DRIVERS } from './mpData.ts';
+import { createReferee } from './contact.ts';
+import { generateTrack } from '../../../track/generate.js';
+import { pitSpan, PIT } from '../../../track/gen/v2.js';
+import { safetyTier } from '../../../mp/contact.js';
 
 const MAX_RUN_PARTS = 200;
+// (a car as the race keeps it: its mass and body box from the ticket — the API's word, for car-to-car contact)
+const STOCK = { mass: 1300, box: { halfExtents: [0.9, 0.6, 2.2], centre: [0, 0.7, 0] } };
+const carOf = (c: any) => ({ instanceId: c.instanceId, carId: c.carId, name: c.name, cls: c.cls, pr: c.pr, mass: c.mass ?? STOCK.mass, box: c.box ?? STOCK.box });
 
 type Npc = { pid: string; id: number; name: string; driver: any; latest: any; latestF: any; entry: any };
 
@@ -54,6 +63,8 @@ export class RaceRoom extends TestRoom {
   private lastStandings = 0;
   loadMsg: any = null;
   private plan: any = null;
+  referee: ReturnType<typeof createReferee> | null = null;
+  pit: any = null;
 
   async onCreate(options: any) {
     super.onCreate({ world: 'race' });
@@ -86,12 +97,25 @@ export class RaceRoom extends TestRoom {
       this.course = courseOf(this.resolved);
       if (!this.course) throw new Error('That route has no course.');
       this.plan = null;
+      this.pit = this.pitOf(this.resolved);
     } catch (e: any) {
       this.venueError = e?.message ?? 'Couldn\'t load that route or track.';
       rtEnv.log('rt race venue failed', { room: this.roomId, err: this.venueError });
       if (venue?.kind !== 'random' && !this.course) return this.setVenue({ kind: 'random' });
     }
     this.newRace();
+  }
+  // a generated track's pit lane (Phase 7 Step 3: cars in it are ghosted) — along the main straight, beyond the road's
+  // edge on its side (track/gen/v2.js)
+  pitOf(v: any) {
+    try {
+      const code = v?.venue?.code ?? v?.code;
+      if (!code || v?.frame?.kind === 'region') return null;
+      const g: any = generateTrack({ code });
+      if (!g?.ok || !g.track?.pit?.side) return null;
+      const [from, to] = pitSpan(g.track);
+      return { side: g.track.pit.side, from, to, edge: g.track.width / 2 + PIT.wall };
+    } catch { return null; }
   }
   // (a race with the lobby's players in it, as they are)
   newRace() {
@@ -108,7 +132,7 @@ export class RaceRoom extends TestRoom {
     const cars = p.t.mp?.cars ?? [];
     const allowed = cars.filter((c: any) => carAllowed(c, this.settings));
     const c = allowed.find((c: any) => c.current) ?? allowed[0] ?? cars.find((c: any) => c.current) ?? cars[0] ?? { instanceId: null, carId: 'starter_car', name: 'Starter car', cls: 'D', pr: 300 };
-    return { instanceId: c.instanceId, carId: c.carId, name: c.name, cls: c.cls, pr: c.pr };
+    return carOf(c);
   }
 
   // ---------- players ----------
@@ -120,7 +144,7 @@ export class RaceRoom extends TestRoom {
     const p = this.players.get(client.sessionId)!;
     const r = this.race;
     const had = r.players.get(t.uid);
-    if (had && !had.gone) { r.back(t.uid); }
+    if (had && !had.gone) { r.back(t.uid); this.referee?.onRejoin(t.uid); }
     else {
       if (had) r.players.delete(t.uid);
       const role = r.join(t.uid, { uid: t.uid, name: t.name, guest: t.guest, car: this.defaultCar(p), rating: t.mp?.rating ?? null, spectator: !!options?.spectate });
@@ -137,7 +161,7 @@ export class RaceRoom extends TestRoom {
     void this.meta();
   }
   onDrop(client: Client) { const p = this.players.get(client.sessionId); if (p) this.race?.drop(p.t.uid, this.roomNow()); return super.onDrop(client); }
-  onReconnect(client: Client) { super.onReconnect(client); const p = this.players.get(client.sessionId); if (p) { this.race?.back(p.t.uid); this.broadcastLobby(); } }
+  onReconnect(client: Client) { super.onReconnect(client); const p = this.players.get(client.sessionId); if (p) { this.race?.back(p.t.uid); this.referee?.onRejoin(p.t.uid); this.broadcastLobby(); } }
   onLeave(client: Client, code?: number) {
     const p = this.players.get(client.sessionId);
     super.onLeave(client);
@@ -168,7 +192,7 @@ export class RaceRoom extends TestRoom {
         const car = (p.t.mp?.cars ?? []).find((x: any) => x.instanceId === m.instanceId);
         if (!car) return this.say(p, 'That car isn\'t one of yours.');
         if (!carAllowed(car, this.settings)) return this.say(p, `This lobby is for class ${this.settings.classes.join(', ')} cars.`);
-        r.setCar(uid, { instanceId: car.instanceId, carId: car.carId, name: car.name, cls: car.cls, pr: car.pr });
+        r.setCar(uid, carOf(car));
         break;
       }
       case 'settings': {
@@ -216,6 +240,14 @@ export class RaceRoom extends TestRoom {
       case 'block': if (typeof m.uid === 'string' && m.uid !== uid) { const t: any = p.t; t.mp ??= {}; t.mp.blocked = [...new Set([...(t.mp.blocked ?? []), m.uid.slice(0, 80)])].slice(-400); } return;
       case 'spectate': r.makeSpectator(uid); break;
       case 'race': r.makeRacer(uid); break;
+      case 'contact-report': if (r.phase === 'countdown' || r.phase === 'racing') this.referee?.report(uid, m); return;
+      case 'report-ramming': {
+        // (the victim's one-tap report: the race server's replay attached — the API checks it's theirs)
+        if (typeof m.evidenceId !== 'string' || typeof m.by !== 'string') return;
+        void rtEnv.api?.act(uid, { action: 'report', id: m.by, kind: 'behaviour', details: String(m.details ?? 'Rammed me again and again in a race.').slice(0, 500), ref: { raceId: this.raceId ?? '', evidenceId: m.evidenceId } })
+          .then(() => this.say(p, 'Reported, with the replay: thanks — the admins will look at it.'), (e: any) => this.say(p, `The report didn't go: ${e?.message ?? 'try again'}`));
+        return;
+      }
       case 'run-part': this.runPart(p, m); return;
       case 'run': void this.handIn(p, m); return;
       case 'rematch': this.votes.set(uid, !!m.v); this.checkRematch(); break;
@@ -251,6 +283,7 @@ export class RaceRoom extends TestRoom {
     // (the race's id from the start: each player's run is a quest named after it — mp/quest.js)
     this.raceId = `${this.roomId}-${this.raceNo}-${Date.now().toString(36)}`;
     this.results = null; this.votes.clear(); this.pending = [];
+    this.referee = this.makeReferee();
     r.start(now);
     this.handle(r.drain());
     // (a real-world route's course with it, as stored: the game lays it out in its own world the way the server does)
@@ -259,10 +292,26 @@ export class RaceRoom extends TestRoom {
     this.broadcastLobby();
     void this.meta();
   }
+  // car-to-car contact's referee for this race (./contact.ts)
+  makeReferee() {
+    const r = this.race, byUid = (uid: string) => [...this.players.values()].find(x => x.t.uid === uid);
+    return createReferee({
+      cfg: MP.contact, mode: () => this.settings.collisions ?? 'ghost', now: () => this.roomNow(), course: this.course, pit: this.pit,
+      car: uid => { const q = r.players.get(uid); return q && !q.npc ? { uid, name: q.name, mass: q.car?.mass ?? STOCK.mass, box: q.car?.box ?? STOCK.box } : null; },
+      isRacer: uid => { const q = r.players.get(uid); return !!q && !q.npc && q.role === 'racer' && q.status !== 'dnf' && (r.phase === 'countdown' || r.phase === 'racing'); },
+      raceOf: uid => { const st = r.standings(this.roomNow()).find((x: any) => x.pid === uid); return st ? { lap: st.lap, u: st.u, status: st.status } : null; },
+      send: (uid, msg) => { const p = byUid(uid); if (p) this.sendTo(p, msg); },
+      broadcast: msg => this.broadcastJson(msg),
+      penalize: (uid, sec, why) => { if (r.penalize(uid, sec, why)) this.handle(r.drain()); },
+      saveEvidence: e => rtEnv.api ? rtEnv.api.saveEvidence(e) : Promise.reject(new Error('no API')),
+      raceId: () => this.raceId,
+    });
+  }
   raceTick() {
     const r = this.race;
     if (!r) return;
     const now = this.roomNow();
+    if (this.referee && (r.phase === 'countdown' || r.phase === 'racing')) this.referee.tick();
     // quick: off once everyone expected is in (or after a short wait for anyone who isn't)
     if (this.kind === 'quick' && r.phase === 'lobby' && this.course) {
       const here = new Set([...this.players.values()].map(p => p.t.uid));
@@ -327,7 +376,8 @@ export class RaceRoom extends TestRoom {
     for (const n of this.npcs.values()) this.broadcastRoster({ join: n.entry });
   }
   protected virtualCars() { return [...this.npcs.values()].filter(n => n.latest).map(n => ({ id: n.id, latest: n.latest, latestF: n.latestF, entry: n.entry })); }
-  protected carAccepted(p: Player, f: any) { this.handle(this.race.carState(p.t.uid, { t: f.time, pos: f.pos, vel: f.vel })); }
+  protected carAccepted(p: Player, f: any) { this.handle(this.race.carState(p.t.uid, { t: f.time, pos: f.pos, vel: f.vel })); if (this.referee && this.race.phase !== 'lobby') this.referee.onState(p.t.uid, f, this.roomNow()); }
+  protected carReset(p: Player) { this.referee?.onReset(p.t.uid); }
   // (only the cars racing go to the others: not in the lobby, not a spectator's, not once its player is out)
   protected relays(p: Player) {
     const r = this.race, q = r?.players.get(p.t.uid);
@@ -345,6 +395,8 @@ export class RaceRoom extends TestRoom {
     const rec = {
       id: raceId, kind: this.kind, ranked: this.settings.ranked, venue: this.resolved?.venue ?? this.settings.venue, settings: { ...this.settings, laps: r.laps },
       courseVersion: this.course?.version ?? null, trackHash: this.course?.trackHash ?? null, km: (this.course?.length ?? 0) * r.laps / 1000, results,
+      // (Phase 7 Step 3: the agreed contacts — each run's pushes are checked against them — and each player's incidents)
+      ...(this.referee ? this.referee.forRecord(results.filter((x: any) => !x.npc).map((x: any) => x.uid ?? x.pid)) : {}),
     };
     try { await rtEnv.api?.recordRace(rec); this.results.posted = true; for (const m of this.pending.splice(0)) await this.forwardRun(m.uid, m.body); }
     catch (err: any) { rtEnv.log('rt race report failed', { race: raceId, err: err?.message }); }
@@ -356,7 +408,7 @@ export class RaceRoom extends TestRoom {
   // with recording.parts — put back together here (at most MAX_RUN_PARTS, ~6 MB: hours of driving)
   runParts = new Map<string, string[]>();
   runPart(p: Player, m: any) {
-    const key = `${this.raceId}:${p.t.uid}`, of = Number(m.of), i = Number(m.i);
+    const key = `${this.raceId}:${p.t.uid}${m.field === 'contact' ? ':contact' : ''}`, of = Number(m.of), i = Number(m.i);
     if (!this.raceId || !Number.isInteger(of) || !Number.isInteger(i) || of < 1 || of > MAX_RUN_PARTS || i < 0 || i >= of || typeof m.data !== 'string') return;
     const list = this.runParts.get(key) ?? new Array(of).fill(null);
     if (list.length !== of) return;
@@ -373,8 +425,15 @@ export class RaceRoom extends TestRoom {
       this.runParts.delete(key);
       recording = list && list.length === recording.parts && list.every(x => x != null) ? { ...recording, data: list.join(''), parts: undefined } : null;
     }
+    // (Phase 7 Step 3: the run's contact record — what pushed the car, step by step — for the verifier)
+    let contact: string | null = typeof m.contact === 'string' ? m.contact : null;
+    if (Number.isInteger(m.contactParts)) {
+      const list = this.runParts.get(`${key}:contact`);
+      this.runParts.delete(`${key}:contact`);
+      contact = list && list.length === m.contactParts && list.every(x => x != null) ? list.join('') : null;
+    }
     this.handed.add(key);
-    const body = { result: m.result ?? null, recording };
+    const body = { result: m.result ?? null, recording, contact };
     if (!this.results?.posted) { this.pending.push({ uid: p.t.uid, body }); return; }
     await this.forwardRun(p.t.uid, body);
   }
@@ -423,6 +482,8 @@ export class RaceRoom extends TestRoom {
     for (const p of view.players) {
       const q = r.players.get(p.pid);
       p.tier = q?.npc ? null : tierOf(q?.rating, MP.rank);
+      // (the safety rating, Phase 7 Step 3: a letter and number — the ticket's)
+      if (!q?.npc) { const sr = [...this.players.values()].find(x => x.t.uid === p.pid)?.t.mp?.safety; p.safety = sr != null ? { value: Math.round(sr), tier: safetyTier(sr, MP.contact) } : null; }
       p.ping = this.pings.get(p.pid) ?? null;
       p.host = p.pid === this.host;
       p.here = q?.npc ? true : this.isHere(p.pid);

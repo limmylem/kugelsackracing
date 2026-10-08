@@ -26,10 +26,10 @@
 //   R.drop(pid, now) / R.back(pid, now)   R.setReady(pid, v)   R.setCar(pid, car)   R.makeSpectator(pid)
 //   R.start(now)        the host (or the queue) starts it: lobby → loading
 //   R.loaded(pid, { hash }, now) → { ok, why }
-//   R.carState(pid, { t, pos, vel }) → events      R.update(now) → events
+//   R.carState(pid, { t, pos, vel }) → events      R.update(now) → events      R.penalize(pid, seconds, why)
 //   R.standings(now) → [{ pid, name, place, status, lap, laps, u, gapMs, timeMs, npc, away }]
 //   R.results() → the provisional results     R.view(now) → what the clients are told     R.rematch(now)
-//   events: { type: 'phase' | 'grid' | 'jumpstart' | 'checkpoint' | 'lap' | 'finish' | 'dnf' | 'flag' | 'late' | 'spectate', pid?, … }
+//   events: { type: 'phase' | 'grid' | 'jumpstart' | 'checkpoint' | 'lap' | 'finish' | 'dnf' | 'flag' | 'late' | 'spectate' | 'penalty', pid?, … }
 
 import { createTracker } from '../route/tracker.js';
 import { crossing } from '../quest/timing.js';
@@ -122,6 +122,16 @@ export function createRace({ cfg, settings, course, now = 0, seed = 1 }) {
     back(pid) { const p = players.get(pid); if (p) p.away = null; },
     setReady(pid, v) { const p = players.get(pid); if (p && S.phase === 'lobby' && p.role === 'racer') p.ready = !!v; },
     setCar(pid, car) { const p = players.get(pid); if (p && S.phase === 'lobby') { p.car = car; p.ready = false; } },
+    // a time penalty during the race (Phase 7 Step 3: causing a crash): added to the time it finishes with (a finished
+    // car's to its time now — the standings sort again)
+    penalize(pid, seconds, why) {
+      const p = players.get(pid);
+      if (!p || p.role !== 'racer' || !(seconds > 0)) return false;
+      p.penaltyMs += seconds * 1000;
+      if (p.status === 'finished' && p.finishMs != null) p.finishMs += seconds * 1000;
+      emit({ type: 'penalty', pid, penaltySec: seconds, why });
+      return true;
+    },
     makeSpectator(pid) { const p = players.get(pid); if (p && S.phase === 'lobby') { p.role = 'spectator'; p.status = 'spectating'; p.ready = false; } },
     makeRacer(pid) { const p = players.get(pid); if (p && S.phase === 'lobby' && p.role === 'spectator' && racers().length < maxRacers) { p.role = 'racer'; p.status = 'waiting'; } },
     allReady() { const r = racers().filter(p => !p.npc); return r.length > 0 && r.every(p => p.ready); },

@@ -201,6 +201,8 @@ export class TestRoom extends Room {
   }
   // (Phase 7 Step 2: a race room follows each car's progress; NPCs driven by the server are cars of their own)
   protected carAccepted(_p: Player, _f: any) {}
+  // (Phase 7 Step 3: a race room ghosts a car that's just reset)
+  protected carReset(_p: Player) {}
   protected virtualCars(): Iterable<{ id: number; latest: any; latestF: any; entry: any }> { return []; }
   // (whether a player's car goes to the others: a race room sends only the cars racing)
   protected relays(_p: Player) { return true; }
@@ -216,6 +218,7 @@ export class TestRoom extends Room {
       // (a reset puts the car somewhere else: allowed, now and then)
       if (now - p.lastReset < NET.checks.resetEverySec * 1000) { this.strike(p, 'resets too often'); return; }
       p.lastReset = now; p.resetUntil = now + 1500;
+      this.carReset(p);
     }
     if (ev.kind === 'repair') p.events = [];
     else if (ev.kind === 'damage' || ev.kind === 'parts') { p.events.push(ev); if (p.events.length > KEEP_EVENTS) p.events.splice(0, p.events.length - KEEP_EVENTS); }

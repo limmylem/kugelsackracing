@@ -11,7 +11,7 @@
 //   await S.createLobby({ kind: 'private' | 'custom', settings })    await S.joinLobby(roomId, { spectate })    await S.joinCode(code)
 //   S.race: the lobby/race joined — S.race.net (net/client.js: cars), S.lobby (its latest view), S.chat, S.standings, S.results, S.confirmed
 //   S.send(msg)  to the lobby/race: ready, car, settings, start, kick, chat, loaded, spectate, race, run, rematch, ping
-//   S.sendRun(result, recording)  a finished run, its recording in pieces if it's long
+//   S.sendRun(result, recording, contact)  a finished run, its recording (and its contact record) in pieces if long
 //   S.leaveRace()   S.on(event, fn) → off   S.close()
 //   S.mute(uid, on)   a player's chat hidden here (this game's choice: kept by the screens, nothing sent); S.muted
 //   S.me (this player in the lobby's view)  S.isHost  S.votes (the rematch vote: { yes, of })
@@ -116,12 +116,14 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
     },
     send(m) { race?.net.conn?.sendJson(m); },
     // a finished run handed in to be checked: its recording in pieces when it's long (a message is at most 64 kB)
-    sendRun(result, recording) {
-      const data = recording?.data ?? '', size = 40000;
-      if (data.length <= size) return S.send({ t: 'run', result, recording });
-      const parts = Math.ceil(data.length / size);
-      for (let i = 0; i < parts; i++) S.send({ t: 'run-part', i, of: parts, data: data.slice(i * size, (i + 1) * size) });
-      S.send({ t: 'run', result, recording: { ...recording, data: null, parts } });
+    // (and, Phase 7 Step 3, its contact record — mp/runRecord.js: inputs, pushes, the car's changes — in pieces too)
+    sendRun(result, recording, contact = null) {
+      const size = 40000;
+      const pieces = (text, field) => { const of = Math.ceil(text.length / size); for (let i = 0; i < of; i++) S.send({ t: 'run-part', field, i, of, data: text.slice(i * size, (i + 1) * size) }); return of; };
+      const data = recording?.data ?? '', ctext = contact ? JSON.stringify(contact) : '';
+      const rec = data.length > size ? { ...recording, data: null, parts: pieces(data, 'data') } : recording;
+      const contactParts = ctext.length > size ? pieces(ctext, 'contact') : 0;
+      S.send({ t: 'run', result, recording: rec, ...(ctext ? contactParts ? { contactParts } : { contact: ctext } : {}) });
     },
     async leaveRace() { const r = race; race = null; clearInterval(r?.keep); Object.assign(S, { lobby: null, phase: null, goAt: null, standings: null, results: null, confirmed: null, verdict: null, votes: null, raceId: null, venue: null, chat: [] }); await settle(r?.net.leave()); },
     async close() { await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await settle(h?.leave()); },

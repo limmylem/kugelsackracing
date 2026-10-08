@@ -19,8 +19,12 @@
 
 export const MODES = ['full', 'reduced', 'off'];
 // collision groups (membership << 16 | filter): what a car body is, and what it hits
-export const CAR = 0x0002, DEBRIS = 0x0004;
+export const CAR = 0x0002, DEBRIS = 0x0004, PROXY = 0x0008;
 const ALL = 0xffff;
+// Another player's car in this world (Phase 7 Step 3: mp/contactClient.js): where this game believes it is, for
+// queries and drawing — it touches nothing. Car-to-car contact with it is mp/contact.js's (capped, and recorded), so
+// nothing else of it can reach this car: a run is driven again exactly from its inputs and those pushes.
+export const PROXY_GROUPS = (PROXY << 16) | 0;
 
 // A hit's strength for the car it happened to (m/s): closing speed along the contact, at most the change
 // in its velocity the push gave it (impulse ÷ its mass); otherMass: the other body's (none: something

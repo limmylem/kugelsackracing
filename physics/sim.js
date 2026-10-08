@@ -23,7 +23,7 @@ import { ImpactSensor } from './impacts.js';
 import { DebrisPool, LooseParts } from './looseParts.js';
 import { RunTimer } from './runTimer.js';
 import { add, fromXYZ, quatMultiply, rotate, toXYZ } from './math.js';
-import { collisionGroups } from './carCollisions.js';
+import { collisionGroups, PROXY_GROUPS } from './carCollisions.js';
 
 const now = () => performance.now();
 
@@ -96,6 +96,12 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   world.step(); // lets ray casts see the colliders straight away
   let accumulator = 0, previous = snapshot(), current = previous, steps = 0;
   const listeners = new Set();
+  // (Phase 7 Step 3) before the world steps: pushes on the car that aren't the solver's (car-to-car contact between
+  // players); and a filter on each step's input (quantized and recorded, so the run can be driven again)
+  const preWorld = new Set();
+  let inputFilter = null;
+  // other players' cars: kinematic proxies, the size of each car's body box, touching nothing (carCollisions.js)
+  const proxies = new Map();
 
   // Physics cost, smoothed (ms): a whole step, our car, the other cars, Rapier's own step; `peak` is
   // the slowest recent step. budget (settings.budget) is what the physics may use per drawn frame.
@@ -105,11 +111,13 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   // One fixed step with this input
   function step(input) {
     const t0 = now();
+    if (inputFilter) input = inputFilter(input, steps);
     if (cars.length) wakes();
     vehicle.step(dt, input);
     const t1 = now();
     // (a car off the physics — an NPC far away, run along its racing line instead: race/race.js — skips it)
     for (const c of cars) if (!c.offPhysics) c.vehicle.step(dt, c.driver(c.vehicle, dt));
+    for (const fn of preWorld) fn(api, steps, dt);
     const t2 = now();
     vehicle.sensor.before(); vehicle.parts.before();
     for (const c of cars) if (!c.offPhysics) { c.vehicle.sensor.before(); c.vehicle.parts.before(); }
@@ -147,6 +155,30 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     step,
     // fn(sim, stepNumber) after every step; returns a function that stops it
     onStep(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    // fn(sim, stepNumber, dt) in every step, after the cars' own forces and before the world steps (a push on the car
+    // that isn't the solver's: physics/carCollisions.js PROXY); returns a function that stops it
+    beforeWorldStep(fn) { preWorld.add(fn); return () => preWorld.delete(fn); },
+    // fn(input, stepNumber) → the input each step really applies (null: none)
+    setInputFilter(fn) { inputFilter = fn; },
+    // Another player's car where this game believes it is (Phase 7 Step 3: mp/contactClient.js): a kinematic body the
+    // size of its body box (box: a spec's bodyCollider), touching nothing. moveProxy each step: { position, rotation }
+    addProxy(id, box) {
+      if (proxies.has(id)) return proxies.get(id);
+      const body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
+      const collider = world.createCollider(RAPIER.ColliderDesc.cuboid(...box.halfExtents).setTranslation(...box.centre).setCollisionGroups(PROXY_GROUPS).setSolverGroups(PROXY_GROUPS), body);
+      collider.userData = { material: 'car', proxy: id };
+      const p = { id, body, collider, box };
+      proxies.set(id, p);
+      return p;
+    },
+    moveProxy(id, pose) {
+      const p = proxies.get(id);
+      if (!p) return;
+      p.body.setNextKinematicTranslation(toXYZ(pose.position));
+      if (pose.rotation) p.body.setNextKinematicRotation(pose.rotation);
+    },
+    removeProxy(id) { const p = proxies.get(id); if (!p) return; proxies.delete(id); if (world.getRigidBody(p.body.handle)) world.removeRigidBody(p.body); },
+    proxies,
     // Add a car driven by `driver` at spawn ({ position, headingDeg, speed? }); returns its id. Another
     // model: its own spec and sockets (an NPC's car, built from its parts)
     addCar(at, driver, carSpec = spec, carSockets = sockets) {
