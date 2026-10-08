@@ -575,6 +575,13 @@ each player's safety rating; the ramming report), `mp/contactOverlay.js` (F10) a
 | `tests/unit/mp.test.mjs` | Matchmaking keeps safety ratings close. |
 | `server/tools/mp-contact-test.ts` (Postgres; one real-time process, no Redis; physics bots) | `reports/mp-contact.md`. 1 — seven scenarios at 0, 80, 150 and 250 ms ping: a rear-end, a side-swipe, rubbing through a corner, door to door at speed, a T-bone, a spin into another car, a squeeze against the pit wall; each an agreed contact; both games drawing each car where it came to rest (within 0.5 m) and never far off through the knock; the same damage on both screens (the same events, the same dents and parts); sparks and sounds on both; nothing launched, spun wildly or through a wall; rubbing one steady contact. 2 — ghosting: 400 ms ping, a reset, the wrong way, the pit lane (each on and off at the right times; nobody touching the ghost). 3 — blame on scripted contacts with a known cause (rear-end, brake test, swerve), a time penalty, a repeat offender ghosted, ramming flagged with its replay and the one-tap report. 4 — honest runs pass; edited records fail; a contact claimed that never was is refused and the run fails; an unrecorded push fails the replay; a race to the finish with the API's verdicts (the honest one driven again in the API's worker) and safety ratings moving. 5 — 8 cars weaving into each other for 25 s at 80 ms: the frame and bandwidth targets. |
 
+Last runs on this computer: the contact tests 248 of 249. The 8 cars made 69 agreed contacts in 25 s (29 hits,
+40 rubbing); each game's physics took 1.3–1.4 ms a frame (95th percentile 2.1–2.3 ms, the target 4), uploads
+1.3–1.6 kB/s and downloads 9.4 kB/s (targets 10 and 20). The honest 3-minute race was driven again in 10.9 s. The one
+miss: the spin at 250 ms ping, drawn 5.2 m off for a moment just after the hit (the limit 3.0 m). It wasn't seen again
+in 15 more runs of it (worst 2.1 m): [KNOWN_ISSUES.md](KNOWN_ISSUES.md). The Step 2 bot races, with quick races now
+on reduced contact, 28 of 29 (the countdown's spread 8.7 ms against 8: the clock sync is unchanged by this step).
+
 ### Trying contact on this computer
 
 As "Trying it on this computer" above, then in the lobby (as host) set **Collisions** to **Full contact** (quick

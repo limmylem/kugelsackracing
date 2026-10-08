@@ -47,6 +47,13 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   per ms of ping between where each game draws the other car and where it was, through a hard hit (worst seen: 1.7 m
   at 250 ms; a car braking hard into a hairpin is drawn up to ~1.1 m wide at any ping). Once it's over, both games
   agree: the cars at rest within 0.3 m in every scenario at every ping (the check: 0.5 m).
+- **Seen once: a spinning car drawn 5.2 m off for a moment.** In one full run of the contact tests, the spin into
+  another car at 250 ms ping had the spinner drawn 5.2 m from where it was, 0.16 s after the hit (the check allows
+  3.0 m). It wasn't seen again in 15 more runs of that scenario, alone and after the others (worst 2.1 m, at about
+  0.35 s, as usual). It is only what was drawn: the agreed contact, the damage and where both cars came to rest
+  matched in that run too. The test now says when the car's own frames were far apart at the worst moment (a pause
+  in the test's one process, which runs both games, the race server and the network), so the next one shows whether
+  it was that.
 - **Real-world routes aren't replayed** (their collision streams in, so they aren't deterministic yet): a run there
   is checked on its pushes against the race server's log and on where the server saw the car (checks 1–5 in
   CONTACT.md "Verification"), not driven again.

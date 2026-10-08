@@ -139,7 +139,7 @@ function viewError(r, from, to, where = null) {
       const path = r.paths[j], k = path.findIndex(p => p.t >= v.at); if (k <= 0) continue;
       const a = path[k - 1], c = path[k], u = (v.at - a.t) / Math.max(1, c.t - a.t), x = a.pos[0] + (c.pos[0] - a.pos[0]) * u, z = a.pos[2] + (c.pos[2] - a.pos[2]) * u;
       const e = Math.hypot(v.pos[0] - x, v.pos[2] - z);
-      if (e > worst && where) Object.assign(where, { at: v.at, viewer: b.name, of: r.P[j].name, ahead: v.ahead, near: v.near });
+      if (e > worst && where) Object.assign(where, { at: v.at, viewer: b.name, of: r.P[j].name, ahead: v.ahead, near: v.near, gap: c.t - a.t });
       worst = Math.max(worst, e);
     }
   });
@@ -277,7 +277,7 @@ try {
           console.log(`      ${(v.at - t1).toFixed(0)} ms: drawn ${v.pos[0].toFixed(2)},${v.pos[2].toFixed(2)} nudge ${v.nudge?.map(q => q.toFixed(2)).join(',') ?? '-'} ahead ${v.ahead?.toFixed(0)} · really ${x.toFixed(2)},${z.toFixed(2)} · off ${Math.hypot(v.pos[0] - x, v.pos[2] - z).toFixed(2)}`);
         }
       }
-      const off = (e, w) => `${e?.toFixed(2)} m${w.of ? ` (${w.of} in ${w.viewer}'s game, ${((w.at - t1) / 1000).toFixed(2)} s after the contact, drawn ${w.ahead?.toFixed(0)} ms ahead)` : ''}`;
+      const off = (e, w) => `${e?.toFixed(2)} m${w.of ? ` (${w.of} in ${w.viewer}'s game, ${((w.at - t1) / 1000).toFixed(2)} s after the contact, drawn ${w.ahead?.toFixed(0)} ms ahead${w.gap > 60 ? `; its path then ${w.gap.toFixed(0)} ms between frames: a pause` : ''})` : ''}`;
       check(`${ping} ms · ${sc.name}: the same outcome on both screens (each car where it came to rest, within 0.5 m)`, err != null && err < 0.5, `worst ${off(err, where)}`);
       // (through the knock itself each game is blind to the other's reaction for a round trip — 6 mm a ms of ping —
       // and a car braking hard into a hairpin is predicted a little wide at any ping: 1.5 m)
