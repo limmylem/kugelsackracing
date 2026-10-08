@@ -1,0 +1,139 @@
+{
+  "_note": "Multiplayer free roam in the real world (Phase 7 Step 4; docs/FREE_ROAM.md). Read by the real-time server (zone instances, handoffs, presence, challenges, chat, meets), the API (settings, persistence, challenge pay and caps, meet events), the game and the bots. Times in seconds unless named otherwise; distances in metres.",
+  "zones": {
+    "_note": "The world is cut into zones: squares of zoneTiles x zoneTiles Map v3 tiles (512 m each) in a region's map frame. Each zone runs instances (rooms) of at most capacity players. A car within overlapM of a neighbouring zone is in that zone's instance as well (the same instance group where it can be): it sends its car to both and sees the cars of both, so crossing the border changes nothing it can see. It hands over (the neighbour becomes its home zone) once it is handoffM past the border, and leaves the old zone once it is further than overlapM + leaveSlackM from it.",
+    "zoneTiles": 4,
+    "overlapM": 300,
+    "handoffM": 25,
+    "leaveSlackM": 60,
+    "capacity": 50,
+    "friendSlots": 8,
+    "nearRadiusM": 1500,
+    "placeEverySec": 2,
+    "mapEverySec": 2,
+    "mapPrecisionM": 10
+  },
+  "regions": {
+    "_note": "Server regions (where zone servers run). A player connects to the nearest one with a good ping: the lowest measured ping, unless one within preferWithinMs of it is the region of their friends or party. goodPingMs: above this the game warns that free roam may feel laggy.",
+    "list": [{ "id": "local", "name": "This computer" }],
+    "preferWithinMs": 40,
+    "goodPingMs": 150
+  },
+  "seeing": {
+    "_note": "Other players' cars: Step 1's interest rings set how often each is sent; detail (lod) by distance: full (the car's own model, wheels, sound, damage) within fullM, simple (its body only, no wheels turning, no sound) within simpleM, a marker beyond (still on the maps). Names over cars fade from nameFullM to nameHideM. inspectM: how near a car must be to inspect it.",
+    "fullM": 250,
+    "simpleM": 700,
+    "nameFullM": 60,
+    "nameHideM": 300,
+    "inspectM": 40
+  },
+  "privacy": {
+    "_note": "Who sees where a player is on the map and minimap, and who can join them: everyone, friends, or nobody (location); appearOffline hides them from their friends' lists and stops friends joining them. A blocked player (either way) is never in the same instance and never sees the other anywhere.",
+    "locations": ["everyone", "friends", "nobody"],
+    "default": { "location": "friends", "appearOffline": false, "nearbyChat": true, "names": true, "contact": false, "passive": false, "partyContact": true }
+  },
+  "contact": {
+    "_note": "Free roam is ghost between players by default. Two cars touch only when both have contact on, or they're in the same party with party contact on (both), and neither is in passive mode, auto-ghosted or in a challenge with someone else. Passive mode: ghost to everyone, can't challenge or be challenged; switching it takes passiveCooldownSec. Automatic protection: a player at fault (faultShare) in autoGhost.hits contacts within autoGhost.windowSec is ghosted for everyone for autoGhost.ghostSec (longer each time: x repeatFactor), and their safety rating drops safetyPerHit for each of those hits (the API). Contacts use Step 3's referee in reduced mode (damage share contact.damage.reduced).",
+    "passiveCooldownSec": 60,
+    "toggleCooldownSec": 5,
+    "mode": "reduced",
+    "autoGhost": { "hits": 3, "windowSec": 60, "minStrength": 2, "faultShare": 0.6, "ghostSec": 300, "repeatFactor": 2, "safetyPerHit": 2 }
+  },
+  "reports": {
+    "_note": "Reporting a player in free roam: the last replaySec of both cars (as the zone server kept them) go with the report.",
+    "replaySec": 15,
+    "perHour": 6
+  },
+  "challenges": {
+    "_note": "Challenging a nearby player (within rangeM): by flashing headlights at them (flashes headlight flashes within flashSec, pointed within flashConeDeg of them) or the menu. They have answerSec to accept; declining or not answering starts a cooldown for that pair (pairCooldownSec, doubling each time up to pairCooldownMaxSec) and each player can send at most perMinute. A blocked player's challenges are declined without a word. Sprint: to a destination routeM.min-routeM.max away by road (the road graph), the route shown to both before they accept. Quest: to a quest marker within questRangeM. Follow: follow-the-leader — the follower must stay within follow.gapM of the leader for follow.sec (the leader wins by getting follow.breakM away for follow.breakSec). Rolling start: both keep within rolling.maxGapM side by side at rolling.minKmh-rolling.maxKmh for the countdown (rolling.countSec), then go; a car more than maxGapM ahead of the rearmost at go gets rolling.jumpPenaltySec; a rolling start that never comes together in maxHoldSec is called off. Both are ghosted to everyone else and nearby traffic for the challenge. Groups: a party of up to groupMax. Pay: base + perKm x km (up to maxKm), to the winner (others: shares by place); farming caps: the same pair (or group) pays at most pairPerDay challenges a day, a player at most dailyPaid paid challenges a day; a result the server's own tracking doesn't support (time within maxTimeDiffMs, speed under maxSpeed, every checkpoint passed) pays nothing.",
+    "rangeM": 120,
+    "flashes": 2,
+    "flashSec": 1.5,
+    "flashConeDeg": 25,
+    "answerSec": 15,
+    "perMinute": 3,
+    "pairCooldownSec": 30,
+    "pairCooldownMaxSec": 600,
+    "types": ["sprint", "quest", "follow"],
+    "routeM": { "min": 1200, "max": 4000 },
+    "questRangeM": 3000,
+    "checkpointEveryM": 400,
+    "gateRadiusM": 25,
+    "finishRadiusM": 25,
+    "timeoutSec": 600,
+    "follow": { "gapM": 60, "sec": 90, "breakM": 250, "breakSec": 5 },
+    "rolling": { "countSec": 5, "minKmh": 15, "maxKmh": 60, "maxGapM": 25, "jumpPenaltySec": 3, "maxHoldSec": 30 },
+    "groupMax": 8,
+    "pay": { "base": 150, "perKm": 60, "maxKm": 8, "places": [1, 0.5, 0.35, 0.25, 0.2, 0.15, 0.12, 0.1], "xp": 15 },
+    "caps": { "pairPerDay": 3, "dailyPaid": 15 },
+    "verify": { "maxTimeDiffMs": 400, "maxSpeed": 110 }
+  },
+  "coop": {
+    "_note": "A party starting a quest together: everyone races the same quest (with or without NPCs) through Step 2's race flow (a private lobby made for the party on the quest's route), with positions and pay per player by the quest's normal rules.",
+    "maxPlayers": 8,
+    "npcFillDefault": false
+  },
+  "chat": {
+    "_note": "Quick chat wheel (preset messages, by id), party chat and nearby text chat (players within nearbyM; each player can turn nearby chat off). Every message goes through the name/profanity filter; a player can mute (this game only), block (kept by the API) or report anyone. maxLength, burst and perSec: as lobby chat.",
+    "nearbyM": 300,
+    "maxLength": 160,
+    "burst": 4,
+    "perSec": 1,
+    "wheel": [
+      { "id": "hi", "text": "Hi!" },
+      { "id": "race", "text": "Race?" },
+      { "id": "follow", "text": "Follow me" },
+      { "id": "nice", "text": "Nice car!" },
+      { "id": "gg", "text": "Good race" },
+      { "id": "sorry", "text": "Sorry!" },
+      { "id": "thanks", "text": "Thanks" },
+      { "id": "meet", "text": "Meet here?" }
+    ]
+  },
+  "meets": {
+    "_note": "Car meets. A meet spot (world content: kind 'meet', placed by editors at car parks and scenic places) has spots: places to park, laid out from its marker (spots in rows of perRow, spacingM apart, rowGapM between rows, facing its heading). A player near a meet (within radiusM) can park in the nearest free spot, take photos (photo mode), inspect cars, use their horn and lights, and emote. Scheduled meet events: made on the admin page, shown on the map with a countdown from announceHours before.",
+    "radiusM": 120,
+    "spots": 24,
+    "perRow": 8,
+    "spacingM": 3.2,
+    "rowGapM": 8,
+    "emotes": [
+      { "id": "wave", "text": "waves" },
+      { "id": "thumbs", "text": "gives a thumbs up" },
+      { "id": "clap", "text": "claps" },
+      { "id": "rev", "text": "revs the engine" },
+      { "id": "photo", "text": "takes a photo" }
+    ],
+    "announceHours": 48,
+    "eventMaxHours": 6
+  },
+  "persistence": {
+    "_note": "Where a player was in free roam (their region, position and heading, car and its damage) is saved when they leave (and every saveEverySec while driving). Next time they're put back there, unless the region isn't baked any more, or the spot is more than maxOffRoadM from a road: then the garage (the region's spawn). Kept keepDays.",
+    "saveEverySec": 30,
+    "maxOffRoadM": 30,
+    "keepDays": 90
+  },
+  "costs": {
+    "_note": "Hosting cost per 1,000 free roam players (docs/COSTS.md; server/src/roam/service.ts costPer1000), from what the bot swarm measured per player (download, CPU), at these prices — check each pricing page before paying. Zone servers on instances of coresPerInstance cores at instanceMonthly a month (Render Standard: 1 CPU, 2 GB, about $25, check), each kept below coreTarget of its CPU; bandwidth beyond includedGB a month per instance at perGB (check); Redis (Render Key Value Starter, about $10, check). Two views: 1,000 monthly active players (each hoursPerPlayerMonth hours in free roam, peakShare of them on at once in the evening) and 1,000 on at once all month (the worst case). assumed: per player before anything's measured.",
+    "coresPerInstance": 1,
+    "coreTarget": 0.6,
+    "instanceMonthly": 25,
+    "includedGB": 100,
+    "perGB": 0.15,
+    "redisMonthly": 10,
+    "hoursPerPlayerMonth": 20,
+    "peakShare": 0.1,
+    "assumed": { "downKBsPerPlayer": 20, "coresPerPlayer": 0.003 }
+  },
+  "targets": {
+    "_note": "What the bot swarm and the handoff test check (docs/FREE_ROAM.md): 500 bots in one region across many zones — each zone process's tick p95 under tickMs, download per player under downKBs with upKBs up, the game's frame cost of drawing the others under frameMs; handoffs at 200 km/h with no visible snap (net/measure.js) or position jump over jumpCm, no lost state.",
+    "bots": 500,
+    "tickMs": 4,
+    "upKBs": 10,
+    "downKBs": 48,
+    "frameMs": 4,
+    "handoffs": 1000,
+    "handoffKmh": 200,
+    "jumpCm": 10
+  }
+}

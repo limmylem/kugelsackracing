@@ -66,7 +66,8 @@ function subscribeKicks() {
     for (const room of TestRoom.live) {
       // (the same account joining a room of another sort — free roam's while in a race's lobby — isn't another tab)
       if (m?.scope && room.scope !== m.scope) continue;
-      for (const p of room.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except) room.kick(p, m.code ?? CODES.KICKED, m.message);
+      // (Phase 7 Step 4: one page's connections to several free-roam zones are one player — a join from it isn't another tab)
+      for (const p of room.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except && !(m.keep && p.page === m.keep)) room.kick(p, m.code ?? CODES.KICKED, m.message);
     }
   });
 }
@@ -82,6 +83,7 @@ export type Player = {
   checks: ReturnType<typeof createChecks>; sentBase: Map<number, any>; eventTokens: number;
   up: ReturnType<typeof createLink> | null; down: ReturnType<typeof createLink> | null;
   bytesIn: number; bytesOut: number; statesIn: number; dropped: number; kicked: boolean; fullStates: boolean;
+  page?: string | null;              // (Phase 7 Step 4: the page this connection is from — a free-roam player is in several zones at once)
 };
 
 export class TestRoom extends Room {
@@ -123,9 +125,9 @@ export class TestRoom extends Room {
   onDispose() { void Promise.resolve(matchMaker.presence.hdel('rt:rooms', this.roomId)).catch(() => {}); TestRoom.live.delete(this); this.unsub?.(); for (const p of this.players.values()) { p.up?.close(); p.down?.close(); } }
 
   onJoin(client: Client, options: any) {
-    const t = client.auth as Ticket;
-    for (const o of this.players.values()) if (o.t.uid === t.uid) this.kick(o, CODES.ELSEWHERE);
-    void matchMaker.presence.publish('rt:kick', { uid: t.uid, except: client.sessionId, code: CODES.ELSEWHERE, scope: this.scope });
+    const t = client.auth as Ticket, page = this.pageOf(options);
+    for (const o of this.players.values()) if (o.t.uid === t.uid && !(page && o.page === page)) this.kick(o, CODES.ELSEWHERE);
+    void matchMaker.presence.publish('rt:kick', { uid: t.uid, except: client.sessionId, code: CODES.ELSEWHERE, scope: this.scope, keep: page });
     const ids = new Set([...this.players.values()].map(p => p.id));
     let id = 1; while (ids.has(id)) id++;
     // (the network simulator, on the server's side of this player's connection: development and tests only)
@@ -137,6 +139,7 @@ export class TestRoom extends Room {
       bytesIn: 0, bytesOut: 0, statesIn: 0, dropped: 0, kicked: false,
       // (its link may lose messages — WebTransport datagrams later: complete states every time, not changes)
       fullStates: !!options?.fullStates || !!(cond && cond.mode === 'datagram'),
+      page,
     };
     this.players.set(client.sessionId, p);
     processPlayers++; void Promise.resolve(reportLoad()).catch(() => {});
@@ -144,8 +147,9 @@ export class TestRoom extends Room {
       protocol: PROTOCOL, id, roomId: this.roomId, world: this.world, epoch: this.epoch, serverTime: this.roomNow(),
       net: { sendHz: NET.sendHz, detailEvery: NET.detailEvery, keyframeSec: NET.keyframeSec, pingSec: NET.pingSec, tickHz: NET.tickHz }, reconnectSec: NET.reconnectSec,
     }), true);
-    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull() }), true);
+    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull(p) }), true);
     this.broadcastRoster({ join: this.entry(p) }, p);
+    this.joined(p, options);
     ENV.log('rt join', { room: this.roomId, id, uid: t.uid, guest: t.guest, players: this.players.size });
   }
 
@@ -164,7 +168,7 @@ export class TestRoom extends Room {
     if (!p) return;
     p.client = client; p.status = 'here'; p.lastHeard = this.roomNow();
     p.sentBase.clear();                              // (what it had may be out of date: everything afresh)
-    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull() }), true);
+    this.out(p, S2C.ROSTER, encodeValue({ full: this.rosterFull(p) }), true);
     this.broadcastRoster({ status: { id: p.id, status: 'here' } }, p);
   }
 
@@ -206,6 +210,12 @@ export class TestRoom extends Room {
   protected virtualCars(): Iterable<{ id: number; latest: any; latestF: any; entry: any }> { return []; }
   // (whether a player's car goes to the others: a race room sends only the cars racing)
   protected relays(_p: Player) { return true; }
+  // (Phase 7 Step 4: free roam — a page's key, so its connections to several zones don't replace each other; who a player
+  // never sees (blocked either way); the roster entry a viewer gets (a private player's name); after joining)
+  protected pageOf(_options: any): string | null { return null; }
+  protected hidden(_viewer: Player, _target: Player): boolean { return false; }
+  protected entryFor(_viewer: Player | null, p: Player) { return this.entry(p); }
+  protected joined(_p: Player, _options: any) {}
   protected onEvent(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!, now = this.roomNow();
     if (bytes.length > MAX_EVENT_BYTES) { this.strike(p, 'event too big'); return; }
@@ -223,7 +233,7 @@ export class TestRoom extends Room {
     if (ev.kind === 'repair') p.events = [];
     else if (ev.kind === 'damage' || ev.kind === 'parts') { p.events.push(ev); if (p.events.length > KEEP_EVENTS) p.events.splice(0, p.events.length - KEEP_EVENTS); }
     const out = encodeValue({ ...ev, from: p.id, at: now });
-    for (const o of this.players.values()) if (o !== p && o.status === 'here') this.out(o, S2C.EVENT, out, true);
+    for (const o of this.players.values()) if (o !== p && o.status === 'here' && !this.hidden(o, p)) this.out(o, S2C.EVENT, out, true);
   }
   protected onHello(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!;
@@ -249,11 +259,18 @@ export class TestRoom extends Room {
     };
     if (p.down) p.down.send(go, bytes, { reliable }); else go(bytes);
   }
-  protected rosterFull() { return [...[...this.players.values()].map(x => this.entry(x)), ...[...this.virtualCars()].map(v => v.entry)]; }
+  protected rosterFull(viewer: Player | null = null) { return [...[...this.players.values()].filter(x => !viewer || !this.hidden(viewer, x)).map(x => this.entryFor(viewer, x)), ...[...this.virtualCars()].map(v => v.entry)]; }
   protected entry(p: Player) { return { id: p.id, uid: p.t.uid, name: p.t.name, guest: p.t.guest, status: p.status, look: p.look, events: p.events }; }
-  protected broadcastRoster(msg: object, except?: Player) {
+  protected broadcastRoster(msg: any, except?: Player) {
     const b = encodeValue(msg);
-    for (const o of this.players.values()) if (o !== except && o.status === 'here') this.out(o, S2C.ROSTER, b, true);
+    // (Phase 7 Step 4: about a player some can't see, or whose name differs by who's looking — each viewer's own)
+    const about = msg.join ?? msg.look ?? msg.status ?? msg.leave, subject = about ? [...this.players.values()].find(x => x.id === about.id) : null;
+    for (const o of this.players.values()) {
+      if (o === except || o.status !== 'here') continue;
+      if (subject && this.hidden(o, subject)) continue;
+      if (subject && msg.join) { this.out(o, S2C.ROSTER, encodeValue({ join: this.entryFor(o, subject) }), true); continue; }
+      this.out(o, S2C.ROSTER, b, true);
+    }
   }
   protected strike(p: Player, reason: string) {
     if (p.checks.strike(reason, this.roomNow())) {
@@ -289,6 +306,7 @@ export class TestRoom extends Room {
         if ((tick + n.id) % n.every) continue;
         const o = byId.get(n.id);
         if (!o?.latest) continue;
+        if (!o.virtual && this.hidden(r, o)) continue;
         const base = r.sentBase.get(n.id);
         if (base && base.time === o.latest.time) continue;       // (nothing new)
         cars.push({ id: n.id, q: o.latest, mask: r.fullStates ? ALL : maskFor(o.latest, base, true) });

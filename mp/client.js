@@ -47,7 +47,7 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
         if (m.t === 'party') { S.party = m.party; emit('party', S.party); }
         if (m.t === 'party-queue') emit('party-queue', m);
         if (m.t === 'notice') { S.notices.push(m.text); emit('notice', m.text); }
-        if (['invite', 'party-invite', 'goto', 'lobbies', 'pong'].includes(m.t)) emit(m.t, m);
+        if (['invite', 'party-invite', 'goto', 'lobbies', 'pong', 'roam-place', 'roam-goto', 'chat'].includes(m.t)) emit(m.t, m);   // (Phase 7 Step 4: free roam's placing, joining a friend, party chat)
       });
       hub.onStatus((s, info) => { if (s === 'left') { hub = null; emit('hub-left', info); } });
       return hub;

@@ -25,9 +25,14 @@ export const KINDS = {
   // (Phase 5 Step 3: a race venue in the real world — driving up to one lists its track events, each a
   // quest on a generated track: track/events/)
   venue: { label: 'Race venue', icon: 'venue', colour: '#ff5a5f' },
+  // (Phase 7 Step 4: a car meet's place in the real world — a car park, a scenic spot: players park in its spots, take
+  // photos, look at each other's cars; scheduled meet events are made on the admin page — docs/FREE_ROAM.md)
+  meet: { label: 'Meet spot', icon: 'meet', colour: '#36d1b0' },
 };
 // the kinds players see as markers (a route is seen through its quests)
-export const MARKER_KINDS = ['quest', 'poi', 'spawn', 'venue'];
+export const MARKER_KINDS = ['quest', 'poi', 'spawn', 'venue', 'meet'];
+// a meet spot's parking (data/roam.json meets: spots in rows, facing the marker's heading)
+export const MEET = { spots: [2, 200], perRow: [1, 20] };
 
 // Each quest type: its name, its own fields (params: their defaults, and how the editor shows them), and
 // what it must have before it can be published
@@ -154,6 +159,7 @@ export function newItem(kind, { id, location, author = 'editor', now = new Date(
   if (kind === 'route') item.course = newRoute(region, routeKind);
   if (kind === 'series') item.quests = [];
   if (kind === 'venue') item.events = [];
+  if (kind === 'meet') item.meet = { spots: 24, perRow: 8 };
   return item;
 }
 
@@ -222,6 +228,7 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   if (item.kind === 'route') return [...out, ...routeProblems(item)];
   if (item.kind === 'series') return [...out, ...seriesProblems(item)];
   if (item.kind === 'venue') return [...out, ...venueProblems(item)];
+  if (item.kind === 'meet') return [...out, ...meetProblems(item)];
   if (item.kind !== 'quest') return out;
   const T = TYPES[item.type];
   if (!T) { out.push(err('type', `There's no quest type "${item.type}".`)); return out; }
@@ -274,6 +281,14 @@ export function rivalProblems(item) {
 }
 export const blocking = list => list.filter(p => p.level === 'error');
 
+// a meet spot: how many places to park, in rows (laid out from its marker, facing its heading: mp/roam.js meetSpots)
+export function meetProblems(item) {
+  const m = item.meet ?? {}, out = [];
+  if (!(Number.isInteger(m.spots) && m.spots >= MEET.spots[0] && m.spots <= MEET.spots[1])) out.push(err('meet.spots', `A meet has ${MEET.spots[0]}–${MEET.spots[1]} parking spots.`));
+  if (!(Number.isInteger(m.perRow) && m.perRow >= MEET.perRow[0] && m.perRow <= MEET.perRow[1])) out.push(err('meet.perRow', `${MEET.perRow[0]}–${MEET.perRow[1]} spots a row.`));
+  if (!item.road) out.push(warn('road', 'Not on a road or car park yet: snap it to the car park\'s road (Snap to road), or check the spots in the 3D view.'));
+  return out;
+}
 // a venue: its events listed, none twice (that they exist, are track events and are published: the editor
 // checks, it can look)
 export function venueProblems(item) {

@@ -17,6 +17,7 @@ import { TestRoom, setRtEnv, resetKicks } from './room.ts';
 import { RaceRoom } from './race.ts';
 import { QueueRoom } from './queue.ts';
 import { HubRoom } from './hub.ts';
+import { RoamRoom, subscribeRoamGhosts, resetRoamGhosts, roamCounters } from './roam.ts';
 import { createRtApi } from './mp.ts';
 
 export type RtOptions = {
@@ -30,7 +31,7 @@ export type RtOptions = {
 };
 
 export async function startRt(o: RtOptions) {
-  resetKicks();                                   // (a new server, a new presence: subscribed afresh)
+  resetKicks(); resetRoamGhosts();                // (a new server, a new presence: subscribed afresh)
   setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null, quickVenue: o.quickVenue ?? null });
   const server = new Server({
     // (dead connections: a WebSocket ping every 3 s, closed after 2 unanswered — a dropped player then gets
@@ -47,7 +48,14 @@ export async function startRt(o: RtOptions) {
   server.define('race', RaceRoom);
   server.define('queue', QueueRoom).filterBy(['region']);
   server.define('hub', HubRoom);
+  // (Phase 7 Step 4: free roam — a room per instance of a zone of a region; docs/FREE_ROAM.md)
+  server.define('roam', RoamRoom).filterBy(['region', 'zone', 'group']);
   await server.listen(o.port, o.host ?? '0.0.0.0');
+  subscribeRoamGhosts();
+  // (the zones' numbers to the API every few seconds: the admin page's live dashboard)
+  const api = o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null;
+  const statsTimer = api ? setInterval(() => { void api.roamStats(roamStats(matchMaker.processId)).catch(() => {}); }, 5000) : null;
+  statsTimer?.unref();
   o.log?.('rt listening', { port: o.port, process: matchMaker.processId, tickHz: NET.tickHz, redis: !!o.redisUrl });
   return {
     port: o.port,
@@ -56,6 +64,16 @@ export async function startRt(o: RtOptions) {
     rooms: () => [...TestRoom.live],
     races: () => [...RaceRoom.races],
     queues: () => [...QueueRoom.queues],
-    async stop() { await server.gracefullyShutdown(false).catch(() => {}); },
+    roams: () => [...RoamRoom.live],
+    roamStats: () => roamStats(matchMaker.processId),
+    async stop() { if (statsTimer) clearInterval(statsTimer); await server.gracefullyShutdown(false).catch(() => {}); },
   };
+}
+
+// this process's free-roam numbers: each zone instance's players, tick and bytes, handoffs and the rest so far, memory and CPU
+let cpuAt = process.cpuUsage(), cpuT = performance.now();
+export function roamStats(processId: string) {
+  const c = process.cpuUsage(cpuAt), t = performance.now(), cpu = (c.user + c.system) / 1000 / Math.max(1, t - cpuT);
+  cpuAt = process.cpuUsage(); cpuT = t;
+  return { process: processId, at: Date.now(), rooms: [...RoamRoom.live].map(r => r.summaryRoam()), counters: { ...roamCounters }, cpu: +cpu.toFixed(3), rssMB: Math.round(process.memoryUsage().rss / 1048576) };
 }

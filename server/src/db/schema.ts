@@ -491,3 +491,32 @@ export const mpEvidence = pgTable('mp_evidence', {
   data: bytea('data').notNull(),                                         // gzipped JSON: { cars: { uid: [{ t, pos, yaw, vel }] }, hits }
   createdAt: created(),
 }, t => [index('mp_evidence_race').on(t.raceId)]);
+
+// ---------- free roam (Phase 7 Step 4; docs/FREE_ROAM.md) ----------
+// each player's free roam: settings (privacy, contact, passive), where they were (they come back there), the automatic protection's record
+export const roamPlayers = pgTable('roam_players', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  settings: jsonb('settings').notNull().default({}),
+  region: text('region'), pos: jsonb('pos'), heading: real('heading'), carId: text('car_id'), instanceId: text('instance_id'), damage: jsonb('damage'),
+  savedAt: timestamp('saved_at', { withTimezone: true }),
+  ghostUntil: timestamp('ghost_until', { withTimezone: true }), autoGhosts: integer('auto_ghosts').notNull().default(0),
+  updatedAt: updated(),
+});
+// a challenge as the zone server recorded it, the check of it; who was paid what (the caps count these)
+export const roamChallenges = pgTable('roam_challenges', {
+  id: text('id').primaryKey(), type: text('type').notNull(), region: text('region'),
+  players: text('players').array().notNull(), groupKey: text('group_key').notNull(), km: real('km'),
+  record: jsonb('record').notNull(), verdict: jsonb('verdict'), createdAt: created(),
+}, t => [index('roam_challenges_group').on(t.groupKey, t.createdAt)]);
+export const roamChallengePlayers = pgTable('roam_challenge_players', {
+  challengeId: text('challenge_id').notNull().references(() => roamChallenges.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  place: integer('place'), status: text('status').notNull(), timeMs: integer('time_ms'),
+  money: integer('money').notNull().default(0), xp: integer('xp').notNull().default(0), why: text('why'), createdAt: created(),
+}, t => [primaryKey({ columns: [t.challengeId, t.userId] }), index('roam_challenge_players_user').on(t.userId, t.createdAt)]);
+// scheduled car meets at a meet spot (made on the admin page)
+export const meetEvents = pgTable('meet_events', {
+  id: text('id').primaryKey(), meetId: text('meet_id').notNull(), title: text('title').notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(), hours: real('hours').notNull().default(2),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }), cancelled: boolean('cancelled').notNull().default(false), createdAt: created(),
+}, t => [index('meet_events_start').on(t.startsAt)]);

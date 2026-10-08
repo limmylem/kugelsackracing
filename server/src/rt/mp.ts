@@ -3,7 +3,8 @@
 // each player's status for their friends, messages to a player wherever they're connected, invite codes, parties.
 // Presence is Colyseus's: Redis when there is one (several processes), memory in one process without.
 //
-//   createRtApi({ url, secret }) → { relations(uid), venue(v), recordRace(rec), submitRun(id, uid, run), race(id), queueStats(s), act, saveEvidence(e) }
+//   createRtApi({ url, secret }) → { relations(uid), venue(v), recordRace(rec), submitRun(id, uid, run), race(id), queueStats(s), act, saveEvidence(e),
+//     roamSave(rows), roamSettings(uid, s), roamIncident(i), roamChallenge(rec), roamStats(s) }
 //   courseOf(resolved) → route/model.js viewCourse in the race's frame (a region's map frame, or a generated track's), with its trackHash
 //   setStatus(uid, status) · statuses(uids) → { uid: status }    status: { state: 'menu' | 'queue' | 'lobby' | 'racing' | 'spectating' | 'free roam', roomId?, kind?, name? }
 //   toUser(uid, msg) · onUser(uid, fn) → off      codes: claimCode(roomId) → code, roomOfCode(code)
@@ -34,6 +35,13 @@ export function createRtApi({ url, secret, timeoutMs = 20000 }: { url: string; s
     queueStats: (s: unknown) => call('POST', '/queue-stats', s),
     act: (uid: string, a: Record<string, unknown>) => call('POST', '/act', { ...a, uid }),
     saveEvidence: (e: unknown) => call('POST', '/evidence', e),
+    // (Phase 7 Step 4, free roam: docs/FREE_ROAM.md) where players are (saved as they drive and when they leave), a
+    // player's settings, an auto-ghost's safety drop, a challenge's record (checked and paid), the zones' numbers
+    roamSave: (rows: unknown[]) => call('POST', '/roam/save', { rows }),
+    roamSettings: (uid: string, settings: unknown) => call('POST', '/roam/settings', { uid, settings }),
+    roamIncident: (i: unknown) => call('POST', '/roam/incident', i),
+    roamChallenge: (rec: unknown) => call('POST', '/roam/challenges', rec),
+    roamStats: (s: unknown) => call('POST', '/roam/stats', s),
   };
 }
 export type RtApi = ReturnType<typeof createRtApi>;

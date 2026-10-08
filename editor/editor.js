@@ -192,7 +192,7 @@ export function createEditor({ game }) {
     const sel = current && current.status !== 'archived';
     ui.top.innerHTML = `
       <button data-view="map" class="${view === 'map' ? 'on' : ''}" title="The whole Earth (M)">Map</button><button data-view="3d" class="${view === '3d' ? 'on' : ''}" ${worldView ? '' : 'disabled'} title="The baked world in 3D (M)">3D</button>
-      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}
+      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}${t('meet', 'Meet spot', '7')}
       <button data-act="snap" class="${snap ? 'on' : ''}" title="Snap to the nearest road, facing along it (N)">Snap to road<kbd>N</kbd></button>
       <span class="sep"></span>
       <button data-act="undo" ${H?.canUndo ? '' : 'disabled'} title="${esc(H?.undoLabel ? `Undo ${H.undoLabel}` : 'Nothing to undo')} (Ctrl+Z)">↶ Undo</button>
@@ -254,7 +254,7 @@ export function createEditor({ game }) {
     worldView?.setItems(shown); worldView?.select(selected);
   }
   function renderFilters() {
-    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
+    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'meet', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
     ui.filters.onclick = e => { const b = e.target.closest('button'); if (b) { filter = b.dataset.f; renderFilters(); refresh(); } };
     ui.filters.querySelector('#edArch').onchange = e => { showArchived = e.target.checked; refresh(); };
   }
@@ -327,6 +327,7 @@ export function createEditor({ game }) {
     if (it.kind === 'route') html += routeTool.panel(it);
     if (it.kind === 'series') html += seriesFields(it);
     if (it.kind === 'venue') html += venueFields(it);
+    if (it.kind === 'meet') html += meetFields(it);
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
@@ -336,6 +337,13 @@ export function createEditor({ game }) {
   // A race venue (Phase 5 Step 3): its track events (driving up to it in the game lists them), and the
   // track-event designer — a preset, a theme, a seed (roll on until it's right), previewed, test-driven,
   // named and made into an event here
+  // A meet spot (Phase 7 Step 4): its parking — how many places and how many to a row, laid out from the marker
+  // facing its heading (snap it to the car park and face it along the bays). Scheduled meets are made on the admin page.
+  function meetFields(it) {
+    const m = it.meet ?? { spots: 24, perRow: 8 };
+    return `<div class="section"><b>Parking</b><div class="row2"><div><label>Spots</label>${num('meet.spots', m.spots, 'min="2" max="200" step="1"')}</div><div><label>Spots a row</label>${num('meet.perRow', m.perRow, 'min="1" max="20" step="1"')}</div></div>
+      <div class="hint">Rows of ${esc(m.perRow)} facing the marker's heading (alternate rows face each other across the aisle). Players near the meet park in the nearest free spot; scheduled meet events are made on the admin page.</div></div>`;
+  }
   function venueFields(it) {
     const near = new Map(items.map(x => [x.item.id, x.item]));
     const evs = (it.events ?? []).map(id => near.get(id) ?? { id, name: `${id} (not loaded)`, missing: true });
@@ -818,7 +826,7 @@ export function createEditor({ game }) {
     if (current?.kind === 'route' && routeTool.key(k)) { e.stopPropagation(); return; }
     if (k === 'KeyT' && current?.kind === 'route') { testDrive(current); e.stopPropagation(); return; }
     if (k === 'Escape') { if (picking) { picking = null; ui.pick.style.display = 'none'; } else if (tool !== 'select') setTool('select'); else deselect(); }
-    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue');
+    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue'); else if (k === 'Digit7') setTool('meet');
     else if (k === 'KeyN') { snap = !snap; localStorageSet('kugelsack.editor.snap', snap ? 'on' : 'off'); renderTop(); flash(snap ? 'Snap to road: on' : 'Snap to road: off'); }
     else if (k === 'KeyM') setView(view === 'map' ? '3d' : 'map');
     else if (k === 'Delete' || k === 'Backspace') remove();

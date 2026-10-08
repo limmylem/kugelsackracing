@@ -44,7 +44,7 @@ const MAX_FRIENDS = 200;
 type Db = any;
 export type Venue = { kind: 'route'; id: string } | { kind: 'track'; code: string } | { kind: 'official'; which?: 'daily' | 'weekly' } | { kind: 'random' };
 
-export function createMpService({ db, tracks, economy, economyConfig, log = () => {}, now = () => Date.now() }: { db: Db; tracks: any; economy: any; economyConfig: any; log?: (o: object, m: string) => void; now?: () => number }) {
+export function createMpService({ db, tracks, economy, economyConfig, roam = null, log = () => {}, now = () => Date.now() }: { db: Db; tracks: any; economy: any; economyConfig: any; roam?: any; log?: (o: object, m: string) => void; now?: () => number }) {
   const rows = async (q: any) => (await db.execute(q)).rows as any[];
   const one = async (q: any) => (await rows(q))[0] ?? null;
   const pair = (a: string, b: string) => a < b ? [a, b] : [b, a];
@@ -129,7 +129,10 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     const [r, rel, cd] = await Promise.all([ratingOf(user.id), relations(user.id), cooldown(user.id)]);
     let cars: any[] = [];
     try { cars = (await economy.racingCars(user)).slice(0, 40); } catch (e) { log({ err: e }, 'racing cars failed'); }
-    return { rating: { mu: r.mu, sigma: r.sigma, races: r.races }, safety: Math.round(r.safety * 10) / 10, cars, blocked: [...new Set([...rel.blocked, ...rel.blockedBy])].slice(0, 200), cooldownUntil: cd.until };
+    // (Phase 7 Step 4, free roam: friends — for the instance they join, the map, names — and their free-roam settings)
+    const roamClaims = roam ? await roam.ticket(user.id).catch(() => null) : null;
+    return { rating: { mu: r.mu, sigma: r.sigma, races: r.races }, safety: Math.round(r.safety * 10) / 10, cars, blocked: [...new Set([...rel.blocked, ...rel.blockedBy])].slice(0, 200), cooldownUntil: cd.until,
+      friends: rel.friends.map((f: any) => f.id).slice(0, 200), roam: roamClaims };
   }
   async function me(userId: string) {
     const r = await ratingOf(userId), cd = await cooldown(userId);

@@ -15,11 +15,14 @@ type Pending = { key: string; a: string; b: string; reports: any[]; first: numbe
 
 const HISTORY_SEC = 15;
 
-export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer, raceOf, send, broadcast, penalize, saveEvidence, raceId }: {
+export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer, raceOf, send, broadcast, penalize, saveEvidence, raceId, pairAllowed = () => true, onContact = () => {} }: {
   cfg: any; mode: () => string; now: () => number; course: any; pit?: any;
   car: (uid: string) => Car | null; isRacer: (uid: string) => boolean; raceOf: (uid: string) => { lap?: number; u?: number; status?: string } | null;
   send: (uid: string, msg: any) => void; broadcast: (msg: any) => void; penalize: (uid: string, sec: number, why: string) => void;
   saveEvidence: (e: any) => Promise<any>; raceId: () => string | null;
+  // (Phase 7 Step 4, free roam: whether two cars may touch at all — both with contact on, or a party; and each agreed
+  // contact with its blame, for the automatic protection against ramming)
+  pairAllowed?: (a: string, b: string) => boolean; onContact?: (msg: any, blame: any) => void;
 }) {
   const history = new Map<string, Snap[]>();
   const lags = new Map<string, number[]>();
@@ -89,6 +92,7 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     const r = { pid: uid, other, ep: Number.isInteger(m?.ep) ? m.ep : null, t: num(m?.at), kind: m?.kind === 'hit' ? 'hit' : 'rub', closing: Math.max(0, Math.min(80, num(m?.closing) ?? 0)), n: vec(m?.n), point: vec(m?.point), J: vec(m?.J) ?? [0, 0],
       me: m?.me ?? null, them: m?.them ?? null, predictMs: num(m?.predictMs) ?? 0, track: Array.isArray(m?.track) ? m.track.slice(0, 40) : [] };
     if (!other || other === uid || r.t == null || !r.n || !r.point || !car(uid) || !car(other) || !isRacer(uid) || !isRacer(other)) return;
+    if (!pairAllowed(uid, other)) { send(uid, { t: 'contact-rejected', ep: r.ep, why: 'ghost' }); return; }
     if (Math.abs(r.t - t) > 5000) return;
     const [a, b] = [uid, other].sort(), key = `${a}|${b}`;
     // the other player's report of the same contact (within the pairing window), or a new one waiting for it
@@ -132,6 +136,7 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     const eps = Object.fromEntries(p.reports.map(r => [r.pid, r.ep]));
     const msg = { t: 'contact', cid, result: { ...res, cars: Object.fromEntries(Object.entries(res.cars).map(([uid, c]: any) => [uid, { ...c, otherMass: uid === p.a ? B.mass : A.mass }])) }, eps, other: { [p.a]: p.b, [p.b]: p.a }, blame: { fault: bl.fault, shares: bl.shares, careless: bl.careless, reasons: bl.reasons.slice(0, 4) } };
     broadcast(msg);
+    onContact(msg, bl);
     contacts.push({ cid, t, kind: res.kind, closing: res.closing, J: res.J, gentler: res.gentler, sources: res.sources, cars: msg.result.cars, blame: msg.blame,
       reports: p.reports.map(r => ({ pid: r.pid, closing: r.closing, n: r.n, point: r.point, J: r.J, predictMs: r.predictMs, me: r.me, them: r.them, track: r.track })),
       server: view ? { gap: view.gap, closing: view.closing, a: [view.fa.x, view.fa.z, view.fa.yaw], b: [view.fb.x, view.fb.z, view.fb.yaw] } : null,

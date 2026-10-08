@@ -29,7 +29,8 @@
         "spawn",
         "route",
         "series",
-        "venue"
+        "venue",
+        "meet"
       ]
     },
     "name": {
@@ -849,6 +850,27 @@
         "pattern": "^quest_[0-9a-z]{4,40}$"
       },
       "maxItems": 24
+    },
+    "meet": {
+      "description": "A meet spot's parking (Phase 7 Step 4): how many places, and how many to a row (laid out from its marker, facing its heading).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spots",
+        "perRow"
+      ],
+      "properties": {
+        "spots": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 200
+        },
+        "perRow": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
     }
   },
   "allOf": [

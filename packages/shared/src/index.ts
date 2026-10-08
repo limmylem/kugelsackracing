@@ -137,7 +137,7 @@ export const AuditEntry = z.object({
 // ---------- world content (docs/WORLD_CONTENT.md: the same requests as content/service.js) ----------
 export const VIEWS = ['draft', 'published', 'archived'] as const;
 export const View = z.enum(VIEWS);
-export const CONTENT_KINDS = ['quest', 'poi', 'spawn', 'route', 'series', 'venue'] as const;
+export const CONTENT_KINDS = ['quest', 'poi', 'spawn', 'route', 'series', 'venue', 'meet'] as const;
 export const ContentKind = z.enum(CONTENT_KINDS);
 export const Lat = z.coerce.number().min(-90).max(90);
 export const Lon = z.coerce.number().min(-180).max(180);

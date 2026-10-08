@@ -8,6 +8,8 @@
 import { mpRoutes } from './routes/mp.ts';
 import { createMpService } from './mp/service.ts';
 import { rtRoutes } from './routes/rt.ts';
+import { roamRoutes } from './routes/roam.ts';
+import { createRoamService } from './roam/service.ts';
 import { createRtBridge } from './rt/bridge.ts';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -373,8 +375,11 @@ export async function buildApp(deps: AppDeps) {
   const economy = createEconomy({ db, config: economyConfig, tracks, log: (o, m) => app.log.warn(o, m), ...(deps.clock ? { clock: deps.clock } : {}) });
   app.decorate('economy', economy);
   // (multiplayer: friends, ratings, the races' results — Phase 7 Step 2)
-  const mp = createMpService({ db, tracks, economy, economyConfig, log: (o, m) => app.log.info(o, m) });
+  // (free roam: settings, where players come back to, challenges paid, meets, the zone servers' numbers — Phase 7 Step 4)
+  const roam = createRoamService({ db, economy, log: (o, m) => app.log.info(o, m) });
+  const mp = createMpService({ db, tracks, economy, economyConfig, roam, log: (o, m) => app.log.info(o, m) });
   app.decorate('mp', mp);
+  app.decorate('roam', roam);
   app.addHook('onReady', async () => { void mp.sweep().catch(e => app.log.warn({ err: e }, 'multiplayer sweep failed')); });
   app.addHook('onClose', async () => mp.close());
   app.decorate('economyConfig', economyConfig);
@@ -394,6 +399,7 @@ export async function buildApp(deps: AppDeps) {
     await adminRoutes(api, { config, db, auth, G, rtBridge });
     await rtRoutes(api, { config, G, mp });
     await mpRoutes(api, { config, G, mp });
+    await roamRoutes(api, { config, G, roam });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, G });

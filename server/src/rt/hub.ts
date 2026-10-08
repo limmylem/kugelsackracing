@@ -7,7 +7,10 @@
 //   messages: status { state: 'menu' | 'free roam' } · invite { to, roomId } · join-friend { uid } · lobbies ·
 //   code { code } · party-create · party-invite { to } · party-join { partyId } · party-leave · party-queue { pings } ·
 //   ping { id } (→ pong: the queue's ping to this region) · friends (ask again) · friend-add { name | id } · friend-accept { id } · friend-remove { id } · block { id } ·
-//   unblock { id } · report { id, kind, details, ref } (kept by the API: POST /internal/mp/act)
+//   unblock { id } · report { id, kind, details, ref } (kept by the API: POST /internal/mp/act) ·
+//   (Phase 7 Step 4, free roam) roam-place { req, region, zone, pos, group } → roam-place { req, zone, group, why } (which
+//   instance of a zone to join: mp/roam.js placeInstance) · roam-join { uid } → roam-goto { region, pos, heading, zone, group }
+//   (join a friend where they are, if they let friends — or a notice why not)
 //   sent: hello { friends, incoming, outgoing, party } · friends { list, incoming, outgoing } · invite { from, name, roomId, kind, code, lobby } ·
 //   party-invite { partyId, from, name } · party { party } · party-queue { partyId } · lobbies { list } ·
 //   goto { roomId, spectate } · notice { text }
@@ -15,7 +18,8 @@
 import { Room, matchMaker, type Client } from '@colyseus/core';
 import { authorize, rtEnv } from './room.ts';
 import { setStatus, clearStatus, statuses, toUser, onUser, roomOfCode, getParty, putParty, dropParty } from './mp.ts';
-import { MP } from './mpData.ts';
+import { MP, ROAM } from './mpData.ts';
+import { placeInstance, canJoin } from '../../../mp/roam.js';
 
 type Member = { client: Client; uid: string; name: string; friends: { id: string; name: string }[]; incoming: { id: string; name: string }[]; outgoing: { id: string; name: string }[]; blocked: Set<string>; off: () => void; state: string; last: string; party: string | null };
 
@@ -53,7 +57,10 @@ export class HubRoom extends Room {
 
   async friendList(m: Member) {
     const st = await statuses(m.friends.map(f => f.id)).catch(() => ({} as any));
-    return m.friends.map(f => ({ id: f.id, name: f.name, online: !!st[f.id], state: st[f.id]?.state ?? 'offline', roomId: st[f.id]?.roomId ?? null, kind: st[f.id]?.kind ?? null, venue: st[f.id]?.name ?? null }))
+    // (Phase 7 Step 4: a friend appearing offline is offline; one in free roam says where — if they let friends see it)
+    for (const k of Object.keys(st)) if (st[k]?.hidden) delete st[k];
+    return m.friends.map(f => ({ id: f.id, name: f.name, online: !!st[f.id], state: st[f.id]?.state ?? 'offline', roomId: st[f.id]?.roomId ?? null, kind: st[f.id]?.kind ?? null, venue: st[f.id]?.name ?? null,
+      roam: st[f.id]?.roam && st[f.id].location !== 'nobody' ? { region: st[f.id].roam.region, pos: st[f.id].pos ?? null } : null }))
       .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
   }
   // every few seconds: each member's friends' status (sent when it changed), and their own kept fresh
@@ -61,7 +68,8 @@ export class HubRoom extends Room {
     for (const m of this.members.values()) {
       if (['menu', 'free roam'].includes(m.state)) {
         const st = (await statuses([m.uid]).catch(() => ({} as any)))[m.uid];
-        if (!st || ['menu', 'free roam'].includes(st.state)) await setStatus(m.uid, { state: m.state }).catch(() => {});
+        // (a free-roam zone keeps a richer status: where, and whether they're hidden — not overwritten here)
+        if (!st || (['menu', 'free roam'].includes(st.state) && !st.roam)) await setStatus(m.uid, { state: m.state }).catch(() => {});
       }
       const list = await this.friendList(m), key = JSON.stringify([list, m.incoming, m.outgoing]);
       if (key !== m.last) { m.last = key; m.client.send('mp', { t: 'friends', list, incoming: m.incoming, outgoing: m.outgoing }); }
@@ -99,6 +107,20 @@ export class HubRoom extends Room {
         const code = (await statuses([m.uid]))[m.uid]?.code ?? null;
         await toUser(msg.to, { t: 'invite', from: m.uid, name: m.name, roomId: msg.roomId, kind: meta.kind, code, lobby: meta.name, venue: meta.venue });
         return say(`Invite sent to ${m.friends.find(f => f.id === msg.to)?.name}.`);
+      }
+      case 'roam-place': return this.place(c, m, msg);
+      case 'roam-join': {
+        // (join a friend in free roam: where they are and their instance — if they're a friend who shows where they are)
+        const uid = String(msg.uid ?? '');
+        const st = (await statuses([uid]))[uid];
+        const rel = { friends: new Set(m.friends.map(f => f.id)), blocked: m.blocked, party: new Set<string>() };
+        if (m.party) { const party = await getParty(m.party).catch(() => null); for (const u of party?.members ?? []) if (u !== m.uid) rel.party.add(u); }
+        const ok = canJoin(m.uid, { uid, settings: { location: st?.location ?? 'friends', appearOffline: !!st?.hidden } }, rel);
+        if (!ok.ok) return say(ok.why === 'blocked' ? 'You can join your friends.' : ok.why!);
+        if (!st?.roam || st.state !== 'free roam') return say('They aren\'t driving in free roam right now.');
+        const map = await matchMaker.presence.hget(`rt:roam:map:${st.roam.region}`, uid).catch(() => null);
+        let e: any = null; try { e = map ? JSON.parse(String(map)) : null; } catch { /* none */ }
+        return c.send('mp', { t: 'roam-goto', uid, region: st.roam.region, zone: st.roam.zone, group: st.roam.group, pos: e?.pos ?? st.pos ?? null, heading: e?.heading ?? 0 });
       }
       case 'join-friend': {
         if (!isFriend(msg.uid)) return say('You can join your friends.');
@@ -166,6 +188,20 @@ export class HubRoom extends Room {
     if (party.leader === m.uid) party.leader = party.members[0];
     await putParty(party);
     for (const u of party.members) await toUser(u, { t: 'party', party });
+  }
+  // which instance of a zone a player joins (free roam): their party's, a friend's, the most players near them, the lowest
+  // ping — never one with someone blocked either way; full ones only for friends (mp/roam.js placeInstance)
+  async place(c: Client, m: Member, msg: any) {
+    const region = String(msg.region ?? '').slice(0, 32), zone = String(msg.zone ?? '');
+    if (!region || !/^-?\d+,-?\d+$/.test(zone)) return;
+    const rooms = await matchMaker.query({ name: 'roam' });
+    const candidates = rooms.filter((r: any) => r.metadata?.region === region && r.metadata?.zone === zone && !r.locked)
+      .map((r: any) => ({ group: r.metadata.group, room: r.roomId, players: r.clients, uids: r.metadata.uids ?? [], positions: r.metadata.positions ?? [], pingMs: Number.isFinite(msg.pings?.[r.processId]) ? msg.pings[r.processId] : undefined }));
+    let party: string[] = [];
+    if (m.party) { const p = await getParty(m.party).catch(() => null); party = (p?.members ?? []).filter((u: string) => u !== m.uid); }
+    const pos = Array.isArray(msg.pos) && msg.pos.length >= 2 && msg.pos.every(Number.isFinite) ? [Number(msg.pos[0]), Number(msg.pos[msg.pos.length - 1])] : null;
+    const placed: any = placeInstance({ me: { uid: m.uid, pos, party, friends: m.friends.map(f => f.id), blocked: [...m.blocked], group: typeof msg.group === 'string' ? msg.group.slice(0, 24) : null }, candidates, cfg: ROAM });
+    c.send('mp', { t: 'roam-place', req: msg.req ?? null, region, zone, group: placed.group, why: placed.why, party: m.party });
   }
   async roomMeta(roomId: string) {
     const rooms = await matchMaker.query({ roomId });
