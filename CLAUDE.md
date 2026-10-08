@@ -10,14 +10,16 @@
 
 ## Reminders for the user (raise them at the right time)
 
-- **Deployment is paused**: the game runs on localhost only (Docker Compose) until multiplayer fully works. Don't
-  run the `infra` workflow, deploy, or create accounts. Keep docs/DEPLOYMENT.md current, and put anything that needs
-  real hosting (CDN, DNS, status page, hosting costs, real email) under its "To do when we deploy".
-
-- **Hosting is on free plans** (docs/DEPLOYMENT.md). Remind the user to upgrade to at least the ~$13/month plan
-  (Render Starter for the API; Render Postgres or Neon's paid plan) **before Phase 7 multiplayer testing or before
-  inviting beta testers**, whichever comes first.
-- **Phase 7 Step 1's tests** must include the deferred deployment check: two players on different networks (e.g. home
-  Wi-Fi and a phone hotspot) sign in, join the same room and see each other. `rt.ognistrada.com` is only a ping/pong
-  stand-in (server/src/rt/health.ts) until then.
-- Stop and ask before anything that costs money, with a monthly cost estimate.
+- **Going live for friends testing (Phase 7 Step 5, owner-approved 2026-10-08):** production only, no staging. One
+  OVHcloud VPS-1 in Sydney (API + real-time server + Cloudflare Tunnel in Docker), PlanetScale Postgres PS-5 in Sydney,
+  Cloudflare (DNS, Pages, R2, Turnstile, Tunnel), Resend; about US$10.50–11.50 a month in all (docs/DEPLOYMENT.md,
+  docs/COSTS.md). The owner's step-by-step is docs/GO_LIVE.md: the owner makes every account and pays; setup and deploy
+  workflows run only with the owner's approval, dry runs first. The owner and friends are in Australia (up to ~5
+  playing at once); the domain is at Namecheap.
+- **The repo is public:** never commit emails, tokens or secrets; they live in GitHub's secret settings only, and
+  nobody should paste them into a chat.
+- **The two-network check** (deferred since Phase 7 Step 1) is part of Step 5's tests: two players on different
+  networks (home Wi-Fi and a phone hotspot) sign up with invite codes, get the verification emails, meet in free roam
+  and race each other.
+- Stop and ask before anything that costs money (a bigger server, a second server or region, Redis, paid plans of the
+  free services, voice chat), with a monthly cost estimate.
