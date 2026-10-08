@@ -10,6 +10,9 @@
 //       B.others(), B.drive(lane, speed) (a lane-keeping helper along the course) help
 //   B.done → { result, verdict, finished }    B.metrics (the worst vertical speed, spin, …; the contacts; damage)
 //   B.stop()      B.handIn: whether it hands its run in at the finish (default true)
+//   B.safe(s) → the speed the track allows there (its corners, braking for them in time)    B.reset(): a reset, as the
+//   game does one (the server told; the car back on the track, stopped)    behave.place(slot) → where it waits for the
+//   start instead of its slot ({ s, d } along the course; e.g. the pit lane)    B.damage, B.metrics.sent: its damage events
 
 import { createSimulation } from '../physics/sim.js';
 import { createContactClient } from './contactClient.js';
@@ -30,7 +33,7 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
   const recorder = createRunRecorder({ sim });
   const box = spec.bodyCollider, mass = spec.mass, course = T.course;
   const log = [], say = x => log.push(`${Date.now()} ${name}: ${x}`);
-  const metrics = { maxVy: 0, maxYawRate: 0, maxRoll: 0, maxLift: 0, lifts: [], contacts: [], agreed: [], rejected: [], effects: [], ghosts: [], impacts: [], ramming: [], penalties: [] };
+  const metrics = { maxVy: 0, maxYawRate: 0, maxRoll: 0, maxLift: 0, lifts: [], contacts: [], agreed: [], rejected: [], effects: [], ghosts: [], impacts: [], ramming: [], penalties: [], sent: [], frameMs: [] };
   let liftBase = null;
   let C = null, offset = null, timer = null, lastWall = null, released = false, Q = null, rec = null, quest = null, handed = false, tick = 0, goT = null;
   let finish, done = new Promise(r => { finish = r; });
@@ -70,8 +73,8 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
   function toGrid() {
     const p = me();
     if (!p || p.role !== 'racer' || p.slot == null) { say('not racing'); return; }
-    const slot = course.grid.slots[p.slot], h = nearestOnTrack(T.data, slot.x, slot.z).h;
-    sim.resetCar({ position: [slot.x, h + (spec.spawnHeight ?? 0.6), slot.z], headingDeg: slot.heading });
+    const slot = course.grid.slots[p.slot], place = behave.place?.(p.slot);
+    sim.resetCar(place ? poseAt(place.s, place.d) : { position: [slot.x, nearestOnTrack(T.data, slot.x, slot.z).h + (spec.spawnHeight ?? 0.6), slot.z], headingDeg: slot.heading });
     const net = S.race.net;
     offset = net.stampAt() / 1000 - sim.time;
     C = createContactClient({ sim, net, send: x => S.send(x), cfg: cfg.contact, myUid: S.myUid, mine: () => ({ box, mass }), others, roomAt: simT => (simT + offset) * 1000,
@@ -81,7 +84,7 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
         if (!damage) return;
         const out = damage.hit(impact, { scale });
         const crash = packCrash(out, damage.build);
-        if (Object.keys(crash.hits ?? {}).length || crash.broken?.length) net.sendEvent({ kind: 'damage', crash });
+        if (Object.keys(crash.hits ?? {}).length || crash.broken?.length || crash.attach?.length) { const ev = { kind: 'damage', crash }; net.sendEvent(ev); metrics.sent.push(ev); }
       },
       onEffect: e => metrics.effects.push({ t: Date.now(), ...e }) });
     Q = createQuestSession({ quest, course, config: quests, car, startMode: 'standing', externalGo: true, slot: p.slot });
@@ -102,6 +105,22 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
     const v = l.x * Math.sin(yaw) + l.z * Math.cos(yaw), dv = speed - v;
     return { steer: Math.max(-1, Math.min(1, err * 2.2)), throttle: dv > 0 ? Math.min(1, dv * 0.35) : 0, brake: dv < -1 ? Math.min(1, -dv * 0.25) : 0, device: 'wheel' };
   }
+  // a pose on the course: so far along it, so far to its left, facing along it
+  function poseAt(s, d = 0) {
+    const a = at(course.line, s, course.loop), x = a.x + a.dz * d, z = a.z - a.dx * d;
+    return { position: [x, nearestOnTrack(T.data, x, z).h + (spec.spawnHeight ?? 0.6), z], headingDeg: Math.atan2(a.dx, a.dz) * 180 / Math.PI };
+  }
+  // the speed the track allows at s: each corner's (a margin under its apex speed), and braking for it in time
+  const corners = (T.data.dress?.corners ?? []).map(c => ({ from: c.from - 8, to: c.to, v: c.vApex / 3.6 * 0.72 })), L = course.length ?? T.data.length;
+  function safe(s, { brake = 4.5 } = {}) {
+    let v = Infinity;
+    for (const c of corners) for (const k of [0, 1]) {
+      const from = c.from + k * L, to = c.to + k * L;
+      if (s >= from && s <= to) v = Math.min(v, c.v);
+      else if (s < from) v = Math.min(v, Math.sqrt(c.v * c.v + 2 * brake * (from - s)));
+    }
+    return v;
+  }
   const state = () => {
     const b = sim.vehicle.body, p = b.translation(), l = b.linvel(), yaw = yawOf(b.rotation()), pr = project(course.line, p.x, p.z);
     return { pos: [p.x, p.y, p.z], vel: [l.x, l.y, l.z], yaw, speed: Math.hypot(l.x, l.z), s: pr?.s ?? 0, d: pr?.d ?? 0 };
@@ -112,6 +131,8 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
     if (!net || !C) return;
     const wall = performance.now(), dt = Math.min(0.1, Math.max(1e-3, (wall - lastWall) / 1000));
     lastWall = wall;
+    // (physics time → the race's clock, from the stamp clock this frame: it settles after joining, so never frozen)
+    offset = net.stampAt() / 1000 - sim.time;
     const goAt = S.goAt, t = (sim.time + offset) * 1000;
     if (goAt != null) Q?.setGo(goAt / 1000);
     // the lights out: the car reset exactly where it is (the replay starts the same way), its run recorded from here
@@ -122,12 +143,17 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
       say('go');
     }
     const since = goT != null ? (t - goT) / 1000 : null;
-    const input = !released ? { steer: 0, throttle: 0, brake: 1, device: 'wheel' } : (script?.(api, since) ?? drive(0, 20));
+    // (held on the grid by the handbrake: the brake held at a standstill would engage reverse)
+    const input = !released ? { steer: 0, throttle: 0, brake: 0, handbrake: true, device: 'wheel' } : (script?.(api, since) ?? drive(0, 20));
+    const w0 = performance.now();
     sim.advance(dt, input);
     C.frame(dt);
+    // (what this frame's physics cost: the car, the contact with the others' proxies)
+    const ms = performance.now() - w0; metrics.frameMs.push(ms); if (metrics.frameMs.length > 3000) metrics.frameMs.shift();
     // (the worst of it: lifted, spun, rolled — no car may be launched by contact)
     const b = sim.vehicle.body, l = b.linvel(), a = b.angvel(), up = b.rotation();
     metrics.maxVy = Math.max(metrics.maxVy, Math.abs(l.y));
+    metrics.peak = Math.max(metrics.peak ?? 0, Math.hypot(l.x, l.z));
     metrics.maxYawRate = Math.max(metrics.maxYawRate, Math.abs(a.y));
     metrics.maxRoll = Math.max(metrics.maxRoll, Math.acos(Math.min(1, 1 - 2 * (up.x * up.x + up.z * up.z))));
     // (how high above the road: a car launched leaves it — measured from its height once settled after the start)
@@ -159,8 +185,12 @@ export function createPhysicsBot({ name = 'bot', RAPIER, settings, spec, sockets
   }
   function stop() { if (timer) clearInterval(timer); timer = null; }
   const api = {
-    name, sim, log, metrics, drive, others, state, recorder,
+    name, sim, log, metrics, drive, others, state, recorder, safe, poseAt, damage,
+    // a reset, as the game does one: the server told first, the car back on the course where it is, stopped
+    reset() { S.race?.net?.sendEvent({ kind: 'reset' }); const st = state(); sim.resetCar(poseAt(st.s, Math.max(-3, Math.min(3, st.d)))); },
     get me() { return state(); },
+    // (the race's clock at the physics state as it is now: when state() was)
+    roomT() { return offset == null ? null : (sim.time + offset) * 1000; },
     get contact() { return C; },
     get done() { return done; },
     get released() { return released; },

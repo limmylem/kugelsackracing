@@ -21,6 +21,7 @@
 //   N.stampAt() → the clock this car's states are stamped with (a steady one, steered towards the server's)
 //   N.setNear(id, n, maxMs)  N.present(id, maxMs) → Phase 7 Step 3: a car near this one drawn nearer the present, and
 //                                where it is now (its newest state predicted forward): car-to-car contact's proxies
+//   N.setNudge(id, [dx, dz])     a car this one just knocked drawn where the knock moved it, until its states show it
 
 import { NET } from './settings.js';
 import { PROTOCOL, C2S, S2C, ALL, CODES, messageFor } from './protocol.js';
@@ -223,6 +224,8 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
         // be hit — by its nearness, eased; setNear)
         // (drawnAt: the moment the drawn pose stands for — between the shown time and the present, by the same blend)
         if (pose && p.near > 0) { const pr = p.remote.present(t, p.nearMaxMs ?? 250); if (pr) { const u = p.near * p.near * (3 - 2 * p.near); pose = { ...blendPose(pose, pr, u), near: p.near, aheadMs: pr.aheadMs, drawnAt: pose.shownAt + (pr.stampT + pr.aheadMs - pose.shownAt) * u }; } }
+        // (and moved by a push this game just gave it, until its own states show the knock: setNudge)
+        if (pose && p.nudge) pose = { ...pose, pos: [pose.pos[0] + p.nudge[0], pose.pos[1], pose.pos[2] + p.nudge[1]], nudge: p.nudge };
         // (no state for a while and not away: out of range — not drawn)
         const gone = p.status !== 'away' && now() - p.lastStateAt > 3000;
         out.push({ id: p.id, uid: p.uid, npc: p.npc, name: p.name, guest: p.guest, status: p.status, look: p.look, events: p.events, pose: gone ? null : pose });
@@ -233,6 +236,9 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
     // predicted ahead; present(id, maxMs) → its newest state predicted to now (net/remote.js present)
     setNear(id, n, maxMs = 250) { const p = players.get(id); if (p) { p.near = Math.max(0, Math.min(1, n)); p.nearMaxMs = maxMs; } },
     present(id, maxMs = 250, t = roomNow()) { return players.get(id)?.remote.present(t, maxMs) ?? null; },
+    // (Phase 7 Step 3: a car this one just knocked, drawn where the knock moved it — [dx, dz] m, or null — until its own
+    // states show it; mp/contactClient.js)
+    setNudge(id, d) { const p = players.get(id); if (p) p.nudge = d && (d[0] || d[1]) ? [d[0], d[1]] : null; },
     sendEvent(ev) { send(C2S.EVENT, encodeValue(ev), true); if (ev.kind === 'damage' || ev.kind === 'parts') myEvents = [...myEvents, ev].slice(-64); if (ev.kind === 'repair') myEvents = []; },
     setLook(look, events = myEvents) { myLook = look; myEvents = events ?? []; if (conn) send(C2S.HELLO, encodeValue({ look: myLook, events: myEvents }), true); },
     on(k, fn) { listeners[k].add(fn); return () => listeners[k].delete(fn); },

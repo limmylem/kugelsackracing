@@ -22,6 +22,12 @@
 //       say(text, kind)                a message on screen     realTime(on) (racing: the physics catches up each frame)
 //       carView(handle) → { pos: [x, y, z], quat: [x, y, z, w] } in the scene's frame, or null
 //       tvCameras() → a generated track's TV cameras (track/cameras.js) in the world frame, or null
+//       (car-to-car contact, Phase 7 Step 3 — mp/contactClient.js; docs/CONTACT.md:)
+//       sim() → the physics (physics/sim.js)     carPhysics() → { box (the body collider), mass }
+//       carPose() → { position (the physics' frame), headingDeg }: where the car is (the run's record starts there)
+//       contactHit(impact, { scale }) → your car's damage from an agreed hit (the game's crash path, and on to the others)
+//       contactEffect({ point, strength, kind, local }) → sparks and a knock where cars touched (point: [x, z], physics' frame)
+//       setOpacity(id | 'me', a) → a car drawn see-through (a ghost: 0..1)
 //     }
 //   R.frame(dt)  every frame, after the physics     R.camera(camera, dt) → whether it placed the camera (watching)
 //   R.state: 'idle' | 'loading' | 'loaded' | 'grid' | 'racing' | 'finished' | 'out'    R.progress (loading's step)
@@ -29,6 +35,8 @@
 //   R.drawn → the others' cars as drawn (play/multiplayer.js: .car(id) → { pose, handle })
 //   R.clock() → s since the lights went out      R.lights() → { red, green } (track/lights.js)    R.lap → { lap, laps }
 //   R.auto / R.autoInput(dt) (the browser tests' autopilot, once it's GO: ?mp&mpauto)   R.resetNow()   R.dispose()
+//   R.contact → this race's contact client (mp/contactClient.js: its debug, the overlay's)   R.scrape() → your car
+//   rubbing on another ({ amount, speed, material, point, normal } — the game adds it to its own scrapes) or null
 
 import { createQuestSession } from '../quest/session.js';
 import { createRecorder } from '../quest/recording.js';
@@ -38,6 +46,8 @@ import { at } from '../route/geometry.js';
 import { raceQuest } from '../mp/quest.js';
 import { startLights } from '../track/lights.js';
 import { zoom } from '../track/cameras.js';
+import { createContactClient } from '../mp/contactClient.js';
+import { createRunRecorder } from '../mp/runRecord.js';
 
 export const CAMERAS = ['chase', 'in-car', 'tv'];
 const CAMERA_NAMES = { chase: 'Chase', 'in-car': 'In car', tv: 'TV' };
@@ -78,6 +88,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   }));
   offs.push(S.on('results', () => { if (run && (run.state === 'grid' || run.state === 'racing')) { run.state = 'out'; } }));
   offs.push(S.on('left', () => end()));
+  // (car-to-car contact: the agreed results, refusals, who's a ghost — the contact client's)
+  for (const k of ['contact', 'contact-rejected', 'ghosts']) offs.push(S.on(k, m => run?.C?.message(m)));
 
   // ---------- loading: to the venue, the car near the start ----------
   async function load(m) {
@@ -128,6 +140,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     r.rec = createRecorder({ hz: quests.recording?.hz ?? 20 });
     r.offset = (S.race?.net.stampAt() ?? 0) / 1000 - game.simTime();
     r.pilot = autopilot ? createAutopilot(r.course.line, { loop: r.course.loop }) : null;
+    contactOn(r);
     r.detach = r.A.onStep((t, dt) => step(r, t, dt));
     game.realTime?.(true);
     r.state = 'grid';
@@ -137,7 +150,11 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     if (run !== r || !r.Q || r.offset == null) return;
     const t = simT + r.offset, go = goAt();
     if (go != null) r.Q.setGo(go / 1000);
-    if (!r.released && go != null && t * 1000 >= go) { r.released = true; r.A.release({ speed: 0 }); r.state = 'racing'; }
+    if (!r.released && go != null && t * 1000 >= go) {
+      r.released = true; r.A.release({ speed: 0 }); r.state = 'racing';
+      // (the run's record from here: the car put exactly where it stands — the verifier starts it the same way)
+      if (r.recorder) r.recorder.start({ pose: game.carPose(), t0: Math.round(t * 1000), carId: game.car()?.carId ?? null, origin: game.toWorld([0, 0, 0]) });
+    }
     const st = r.Q.state.state;
     if ((st === 'countdown' || st === 'racing') && r.A.ready()) {
       const c = r.A.carState();
@@ -156,7 +173,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     const o = r.Q.outcome;
     if (o.status !== 'finished') { r.state = 'out'; return; }
     const result = buildResult({ quest: r.quest, course: r.course, outcome: o, car: game.car() });
-    S.sendRun(result, r.rec.finish({ questId: r.quest.id, routeVersion: r.course.version ?? null }));
+    S.sendRun(result, r.rec.finish({ questId: r.quest.id, routeVersion: r.course.version ?? null }), r.recorder?.on ? r.recorder.stop() : null);
     r.result = result; r.state = 'finished';
   }
 
@@ -215,10 +232,34 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     return true;
   }
 
+  // ---------- car-to-car contact (Phase 7 Step 3; docs/CONTACT.md) ----------
+  // the other racers as the contact needs them: their net ids, body boxes and masses (the server's word on the car)
+  function othersOf() {
+    const out = new Map(), net = S.race?.net;
+    if (!net) return out;
+    for (const p of S.lobby?.players ?? []) {
+      if (p.uid === S.myUid || p.npc || p.role !== 'racer') continue;
+      const np = [...net.players.values()].find(x => x.uid === p.uid);
+      const mine = game.carPhysics();
+      if (np) out.set(p.uid, { id: np.id, box: p.car?.box ?? mine.box, mass: p.car?.mass ?? mine.mass, name: p.name });
+    }
+    return out;
+  }
+  function contactOn(r) {
+    const sim = game.sim?.();
+    if (!sim || r.C) return;
+    r.recorder = createRunRecorder({ sim });
+    r.C = createContactClient({ sim, net: S.race.net, send: m => S.send(m), cfg: cfg.contact, myUid: S.myUid, mine: () => game.carPhysics(), others: othersOf,
+      roomAt: simT => (simT + (r.offset ?? 0)) * 1000, mode: () => S.lobby?.settings?.collisions ?? 'ghost', recorder: r.recorder, toSim: game.toSim, toWorld: game.toWorld,
+      onImpact: (impact, { scale }) => game.contactHit?.(impact, { scale }), onEffect: e => game.contactEffect?.(e) });
+  }
+
   function end() {
     const r = run;
     run = null; watching = null;
     if (!r) return;
+    r.C?.dispose(); if (r.recorder?.on) r.recorder.stop();
+    game.setOpacity?.('me', 1);
     r.detach?.(); r.dressing?.dispose(); r.A?.dispose(); void r.M?.leave();
     game.hideCar(false); game.focus?.(null); game.realTime?.(false);
   }
@@ -231,6 +272,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     get racing() { return !!run && (run.state === 'grid' || run.state === 'racing'); },
     get lap() { const H = run?.Q?.hud?.(); return H ? { lap: H.lap, laps: H.laps } : null; },
     get drawn() { return run?.M ?? null; },          // (the others' cars as drawn: play/multiplayer.js's — .car(id))
+    get contact() { return run?.C ?? null; },
+    scrape() { return run?.C?.scrape() ?? null; },
     watch, nextCar, nextCamera, camera, cars,
     clock() { const g = goAt(), now = S.race?.net.roomNow(); return g != null && now != null ? (now - g) / 1000 : null; },
     // the lights: five red coming on through the last lightsSec, all out at GO (track/lights.js), on the server's clock
@@ -252,6 +295,12 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
       // your car to the others: once it's on its slot, while racing (not in the lobby, not while watching)
       const sending = r.state === 'grid' || r.state === 'racing' || r.state === 'finished';
       r.M?.frame(dt, () => sending ? game.localState() : null);
+      // the contact: who's near (drawn nearer the present), the proxies; ghosts drawn see-through — yours too
+      if (r.C) {
+        r.C.frame(dt);
+        for (const [uid, o] of othersOf()) game.setOpacity?.(o.id, r.C.opacity(uid));
+        game.setOpacity?.('me', r.C.opacity(S.myUid));
+      }
     },
     get auto() { return !!run?.pilot && run.released && (run.state === 'racing' || run.state === 'finished'); },
     autoInput(dt) {

@@ -26,7 +26,7 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
   const marks = new Map<string, { resetAt: number | null; rejoinAt: number | null; wrong: number; right: number; wasWrong: boolean; lastT: number | null; inPit: boolean; offender: boolean }>();
   const pending = new Map<string, Pending>();
   const contacts: any[] = [];
-  const rejected: { uid: string; ep: number; why: string }[] = [];
+  const rejected: { uid: string; ep: number; why: string; t?: number; me?: any; them?: any; server?: any }[] = [];
   const trails = new Map<string, number[][]>();          // uid → [[t, x, z, vx, vz]] a second apart (the verifier's)
   const incidents = createIncidents(cfg);
   const reportsAt = new Map<string, number[]>();
@@ -88,7 +88,9 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     if (Math.abs(r.t - t) > 5000) return;
     const [a, b] = [uid, other].sort(), key = `${a}|${b}`;
     // the other player's report of the same contact (within the pairing window), or a new one waiting for it
-    let p = [...pending.values()].find(x => x.key === key && Math.abs(x.first - r.t!) <= cfg.agree.pairWindowMs && !x.reports.some(y => y.pid === uid));
+    // (each game sees the contact begin a little apart — more so the more lag either has: the window widens by their lag)
+    const window = cfg.agree.pairWindowMs + Math.min(cfg.agree.pairWindowMs, lagOf(a) + lagOf(b));
+    let p = [...pending.values()].find(x => x.key === key && Math.abs(x.first - r.t!) <= window && !x.reports.some(y => y.pid === uid));
     if (!p) {
       const pings = (lagOf(a) + lagOf(b)) * 2;
       p = { key, a, b, reports: [], first: r.t, due: t + cfg.agree.waitMs + Math.min(1000, pings) };
@@ -109,7 +111,10 @@ export function createReferee({ cfg, mode, now, course, pit = null, car, isRacer
     const md = g[p.a]?.ghost || g[p.b]?.ghost ? 'ghost' : mode();
     const res: any = agree(p.reports, { a: { pid: p.a, mass: A.mass, box: A.box }, b: { pid: p.b, mass: B.mass, box: B.box }, serverView: view as any, mode: md, cfg });
     if (!res.ok) {
-      for (const r of p.reports) { send(r.pid, { t: 'contact-rejected', ep: r.ep, why: res.why }); if (r.ep != null) rejected.push({ uid: r.pid, ep: r.ep, why: res.why }); }
+      // (kept with the race: what the game said it saw, and where the server had the two cars then)
+      const at = (f: any) => f ? [f.x, f.z, f.yaw].map((v: number) => Math.round(v * 100) / 100) : null;
+      for (const r of p.reports) { send(r.pid, { t: 'contact-rejected', ep: r.ep, why: res.why }); if (r.ep != null) rejected.push({ uid: r.pid, ep: r.ep, why: res.why, t: r.t, me: r.me, them: r.them, server: view ? { [p.a]: at(view.fa), [p.b]: at(view.fb) } : null }); }
+      if (rejected.length > 2000) rejected.shift();
       return;
     }
     const cid = `c${nextCid++}`;

@@ -2,10 +2,11 @@
 // physics passed in. Three checks, so a client can't fake being pushed (or skip being slowed):
 //
 //   checkContacts({ uid, run, log, cfg }) → { ok, problems, contacts }
-//     every push the run applied (its record's J events) against the race server's log: each agreed contact's pushes
-//     (the game's own as it hit, and the agreed correction) add up to the impulse the server agreed for this car; a
-//     contact the server refused is undone; there are no pushes the server never heard of. And each push the game
-//     made against another car's proxy: that car was there (the server's own states of it, round the contact).
+//     every push the run applied (its record's J events) against the race server's log: each agreed contact's hit
+//     pushes (the game's own as it hit, h, and the agreed correction) add up to the impulse the server agreed for this
+//     car; its light rubbing pushes are each within the rubbing cap for the car's mass, and away from the other car; a
+//     contact the server refused is undone; there are no pushes the server never heard of. And each push the game made
+//     against another car's proxy: that car was there (the server's own states of it, round the contact).
 //   checkTrail({ run, serverTrail, cfg }) → problems     the run's trail (where the car was each second, as it says)
 //     against where the race server saw it
 //   trackFor(code, cfg) → { data, track, course }   a generated track built from its code (data/tracks.json cfg)
@@ -43,11 +44,11 @@ function at(list, t) {
 
 export function checkContacts({ uid, run, log, cfg }) {
   const V = cfg.verify, problems = [], bad = t => { if (problems.length < 12) problems.push(t); };
-  const pushes = (run?.events ?? []).filter(e => e.k === 'J');
-  // the game's own pushes by episode, the corrections by contact; the episodes it tied to a contact (M events)
+  const pushes = (run?.events ?? []).filter(e => e.k === 'J'), dt = 1 / (run?.header?.stepHz ?? 120);
+  // the game's own pushes by episode (its hits' apart), the corrections by contact; the episodes it tied to a contact (M)
   const local = new Map(), fixes = new Map(), tied = new Map();
   for (const e of pushes) {
-    if (e.c === 'L') { const x = local.get(e.ep) ?? { j: [0, 0], events: [] }; x.j = add(x.j, e.j); x.events.push(e); local.set(e.ep, x); }
+    if (e.c === 'L') { const x = local.get(e.ep) ?? { j: [0, 0], hit: [0, 0], events: [] }; x.j = add(x.j, e.j); if (e.h) x.hit = add(x.hit, e.j); x.events.push(e); local.set(e.ep, x); }
     else if (e.c === 'F') fixes.set(e.cid, add(fixes.get(e.cid) ?? [0, 0], e.j));
     else bad(`A push at step ${e.s} that isn't a contact's.`);
   }
@@ -56,13 +57,27 @@ export function checkContacts({ uid, run, log, cfg }) {
   const byCid = new Map(contacts.map(c => [c.cid, c]));
   const rejected = new Set((log?.rejected ?? []).filter(r => r.uid === uid).map(r => r.ep));
   const accounted = new Set(), out = [];
+  // the light rubbing push, each step: no more than the cap allows a car of this mass, and away from the other car
+  const R = cfg.response, L = cfg.limits, G = 9.81;
+  // (a push's point is in the physics' frame, the other car's in the world's: header.origin, the one in the other)
+  const o = run?.header?.origin ?? [0, 0, 0];
+  const rubOk = (e, mass) => {
+    const cap = mass * L.maxRubG * G * dt * (1 + R.rubFriction) * 1.02 + 1, n = len(e.j), p = [e.p[0] + o[0], e.p[1] + o[2]];
+    if (n > cap) return `a rubbing push of ${n.toFixed(0)} N s in one step (at most ${cap.toFixed(0)})`;
+    if (e.f && n > 1 && (e.j[0] * (p[0] - e.f[0]) + e.j[1] * (p[1] - e.f[1])) < -0.3 * n * Math.hypot(p[0] - e.f[0], p[1] - e.f[1])) return 'a rubbing push towards the other car';
+    return null;
+  };
   for (const c of contacts) {
     const eps = new Set([c.eps?.[uid], ...[...tied].filter(([, cid]) => cid === c.cid).map(([ep]) => ep)].filter(x => x != null));
+    // the hit: this game's own hit pushes and the agreed correction add up to the impulse agreed for this car
     let got = fixes.get(c.cid) ?? [0, 0];
-    for (const ep of eps) { if (local.has(ep)) { got = add(got, local.get(ep).j); accounted.add(ep); } }
+    for (const ep of eps) { if (local.has(ep)) { got = add(got, local.get(ep).hit); accounted.add(ep); } }
     const want = c.cars[uid].impulse, off = len(sub(got, want)), tol = V.impulseTolShare * len(want) + V.impulseTolNs;
     out.push({ cid: c.cid, want, got, off });
     if (off > tol) bad(`Contact ${c.cid}: the car was pushed ${len(got).toFixed(0)} N s, the race server agreed ${len(want).toFixed(0)} N s (${off.toFixed(0)} apart).`);
+    // the rest: rubbing, within its cap
+    const mass = c.cars[uid].mass ?? run?.header?.mass ?? 1500;
+    for (const ep of eps) for (const e of local.get(ep)?.events ?? []) { if (e.h) continue; const why = rubOk(e, mass); if (why) { bad(`Contact ${c.cid}: ${why}.`); break; } }
     // the other car was where the game pushed against it
     const other = Object.keys(c.cars).find(k => k !== uid), srv = c.srv?.[other];
     for (const ep of eps) for (const e of local.get(ep)?.events ?? []) {

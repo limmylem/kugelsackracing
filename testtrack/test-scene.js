@@ -1107,6 +1107,9 @@ function frame(w, now) {
   npcRaceEvents(w);
   // (a multiplayer race: its run on the server's clock, the others' cars, the screens — play/mpRace.js, mpScreens.js)
   if (shared.mpRace && !T) { shared.mpView = view; shared.mpRace.frame(seconds); shared.mpScreens?.frame(seconds); }
+  // (rubbing on another player's car: a scrape like the physics' own — its sound and sparks; docs/CONTACT.md)
+  const rub = !T ? shared.mpRace?.scrape?.() : null;
+  if (rub && (!b.scrape || rub.amount > b.scrape.amount)) b.scrape = rub;
 
   // Draw everything part-way between the last two physics states
   const place = (obj, pa, pb) => {
@@ -1489,7 +1492,10 @@ function updateDebug(w, s) {
 // its own (garage/carDamage.js) — a hit between two cars damages both, by the session's collisions — and
 // a big one of yours is replayed. now: the frame's time (ms)
 function crashEvents(w, v, now) {
-  const s = shared, impacts = v.sensor.take(), mode = s.prefs.damage ?? 'full', rules = s.session.db.damage;
+  const s = shared, mode = s.prefs.damage ?? 'full', rules = s.session.db.damage;
+  // (and another player's car's: the hit the race server agreed — its damage, scaled by the race's collision mode;
+  // its sparks and sound played as it happened, play/mpRace.js contactEffect)
+  const impacts = [...v.sensor.take(), ...(s.contactHits?.splice(0) ?? [])];
   // (the AI cars' own hits: their damage, their sparks, bits and dust — each car's drawing given its
   // dents once a frame, however many hits)
   const looks = new Set();
@@ -1504,8 +1510,8 @@ function crashEvents(w, v, now) {
   for (const impact of impacts) {
     w.quests?.noteHit(impact.strength);                     // (a quest: a drift's wall hit, the cargo's damage)
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
-    const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: s.play.scale(impact) });
-    s.mp?.crash(result, s.session.garage.build);                    // (the others see your dents: play/multiplayer.js)
+    const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: impact.agreedScale ?? s.play.scale(impact) });
+    (s.mp ?? s.mpRace?.drawn)?.crash(result, s.session.garage.build);   // (the others see your dents — in a race too: play/multiplayer.js)
     if (impact.strength > 5) w.ambience?.cheer('crash', Math.min(1, impact.strength / 20));
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
     const R = s.session.db.sessions.replay;
@@ -1518,10 +1524,10 @@ function crashEvents(w, v, now) {
     for (const e of hintEvents(result, mode)) hint(e);
     saved.then(() => { if (!drivability(s.session.garage.car, ownedBySocket(s.session.db, s.session.player.profile, s.session.player.profile.currentCar), rules).ok) hint('undrivable'); });
     const [lo, hi] = result.class === 'tap' ? [C.tap, C.crunch] : result.class === 'crunch' ? [C.crunch, C.crash] : [C.crash, C.crash * 2.2];
-    s.audio?.crash.impact(result.class, impact.material, (result.strength - lo) / (hi - lo));
+    if (!impact.quiet) s.audio?.crash.impact(result.class, impact.material, (result.strength - lo) / (hi - lo));
     for (const b of result.broken) if (!brokenBefore.has(b)) { if (/glass/.test(b)) s.audio?.crash.glass(); else s.audio?.crash.light(); }
     // the effects: sparks off metal, bits of what was hit, dust on loose ground, glass shards
-    w.fx.play(w.fx.impactEvent(0, impact, result, groundUnder(v)));
+    if (!impact.quiet) w.fx.play(w.fx.impactEvent(0, impact, result, groundUnder(v)));
     for (const e of w.fx.breakEvents(0, result.broken, brokenBefore, s.damageBoxes)) w.fx.play(e);
     w.rig.shake(result.class === 'tap' ? 0.05 : Math.min(1, result.strength / 14));
     s.lastCrash = { ...result, at: performance.now() };
@@ -2365,7 +2371,42 @@ function mpRaceGame() {
     carView: h => h?.vis?.group?.visible ? { pos: h.vis.group.position.toArray(), quat: h.vis.group.quaternion.toArray() } : null,
     tvCameras: () => active?.tvCams ?? null,
     say: (text, kind) => shared.flash.show(text, kind === 'bad' ? 'warn' : kind === 'info' ? 'ok' : kind, 3),
+    // car-to-car contact (Phase 7 Step 3; docs/CONTACT.md): your car's physics, its box and mass, where it is
+    sim: () => active?.sim ?? null,
+    carPhysics: () => { const sp = active?.sim.vehicle.spec ?? shared.spec; return { box: sp.bodyCollider, mass: sp.mass }; },
+    carPose() { const b = active.sim.vehicle.body, p = b.translation(), q = b.rotation(); return { position: [p.x, p.y, p.z], headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI }; },
+    // a hit the race server agreed: your car's damage through the crash path (its sparks and knock already played)
+    contactHit: (impact, { scale }) => { (shared.contactHits ??= []).push({ ...impact, agreedScale: scale, quiet: true }); },
+    // where cars touched: sparks there, and the knock (yours, or two others' near enough to hear)
+    contactEffect(e) {
+      const w = active; if (!w?.fx) return;
+      const p = w.sim.vehicle.body.translation(), y = p.y + 0.4, d = Math.hypot(e.point[0] - p.x, e.point[1] - p.z);
+      if (d > 150) return;
+      w.fx.play({ type: 'burst', effect: 'sparks', at: [e.point[0], y, e.point[1]], count: Math.round(10 + Math.min(50, (e.strength ?? 2) * 6)) });
+      if (e.kind === 'hit') { const C = shared.session.db.damage.classes, st = e.strength ?? 2, cls = st < C.crunch ? 'tap' : st < C.crash ? 'crunch' : 'crash'; shared.audio?.crash.impact(cls, 'car', Math.max(0.1, Math.min(1, st / C.crash)) * (e.uid === mpUid() || e.other === mpUid() ? 1 : Math.max(0.15, 1 - d / 150))); }
+    },
+    // a ghost: drawn see-through (another player's car by its net id, or yours: 'me')
+    setOpacity(id, a) {
+      if (id === 'me') { if (active?.car) ghostLook(active.car, a); return; }
+      const c = shared.mpRace?.drawn?.car(id); if (c?.handle?.vis) ghostLook(c.handle.vis.group, a);
+    },
   };
+}
+const mpUid = () => shared.mpS?.myUid ?? null;
+// a car's look made see-through (a: 0..1) — its own copies of its materials the first time, so no other car changes
+function ghostLook(group, a) {
+  if (Math.abs((group.userData.ghostA ?? 1) - a) < 0.01) return;
+  group.userData.ghostA = a;
+  group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    if (!o.userData.ghostOwn) { o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone(); o.userData.ghostOwn = true; }
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      m.userData.ghostBase ??= { transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite };
+      const B = m.userData.ghostBase, solid = a > 0.99;
+      m.transparent = solid ? B.transparent : true; m.opacity = B.opacity * (solid ? 1 : a); m.depthWrite = solid ? B.depthWrite : false;
+      m.needsUpdate = true;
+    }
+  });
 }
 
 // your car's look for the others: the car, what's fitted, the paint, the engine's sound, its damage so far

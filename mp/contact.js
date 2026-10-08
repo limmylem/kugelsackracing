@@ -110,11 +110,15 @@ export function createContactTracker(cfg) {
   const episodes = new Map();          // other id → episode
   let nextEp = 1;
   // The other car as this game treats it during a hit: moved by the push this car gave it (equal and opposite, by its
-  // mass), until its own states show its reaction — the newest one stamped (stampT, room ms… here in the same seconds as
-  // t) at least reactSec after the hit began. So this car doesn't keep pushing into a car that, in its owner's game, has
-  // already been knocked away.
-  const reacted = (other, ep, stampT) => !ep || (!ep.pv[0] && !ep.pv[1]) || (stampT != null && stampT >= ep.start + R.reactSec) ? other
-    : { ...other, x: other.x + ep.disp[0], z: other.z + ep.disp[1], vx: other.vx + ep.pv[0], vz: other.vz + ep.pv[1] };
+  // mass), until its own states show its reaction — handed over as the newest one's stamp (stampT, in the same seconds as
+  // t) passes the hit's beginning, fully once it's reactSec after. So this car doesn't keep pushing into a car that, in
+  // its owner's game, has already been knocked away.
+  // (handed over smoothly: the states stamped in the reactSec after the hit began show part of the reaction already)
+  const unseen = (ep, stampT) => stampT == null ? 1 : Math.max(0, Math.min(1, 1 - (stampT - ep.start) / R.reactSec));
+  const reacted = (other, ep, stampT) => {
+    const k = ep && (ep.pv[0] || ep.pv[1]) ? unseen(ep, stampT) : 0;
+    return k <= 0 ? other : { ...other, x: other.x + ep.disp[0] * k, z: other.z + ep.disp[1] * k, vx: other.vx + ep.pv[0] * k, vz: other.vz + ep.pv[1] * k };
+  };
   const advance = (ep, dt) => { if (ep) { ep.disp[0] += ep.pv[0] * dt; ep.disp[1] += ep.pv[1] * dt; } };
   // each other car's speed relative to this one over the last closingLookSec (the closing speed of a hit is the one
   // just before it: whichever game notices the touch second may already see the other car's reaction to it)
@@ -137,6 +141,15 @@ export function createContactTracker(cfg) {
       const hist = remember(otherId, me, other, t);
       const o = ghost ? null : overlap(me, other);
       const touching = !!o && o.heights && o.depth > 0;
+      // (a contact the race server refused: nothing more pushed for it while it lasts)
+      if (ep?.void && !ep.over) { if (touching) ep.lastTouch = t; else if (t - ep.lastTouch > R.endAfterSec) ep.over = true; return null; }
+      if (touching && ep) {
+        const now = closingAt(me, other, o.n, o.point);
+        // rubbing that turns into a real knock: a hit of its own (reported and agreed as one)
+        if (!ep.over && ep.kind === 'rub' && !ep.settled && now > R.rubBelow * 1.25) ep.over = true;
+        // rubbing that parted for a moment and leans in again: the same contact still, not a new one each time
+        else if (ep.over && !ep.void && ep.kind === 'rub' && now < R.rubBelow && t - ep.lastTouch <= R.forgetSec) ep.over = false;
+      }
       if (!touching) {
         if (ep && !ep.over && t - ep.lastTouch > R.endAfterSec) ep.over = true;
         if (ep?.over && t - ep.lastTouch > R.forgetSec) { episodes.delete(otherId); return null; }
@@ -162,7 +175,8 @@ export function createContactTracker(cfg) {
         kind = 'hit'; j = [-n[0] * ep.perStep, -n[1] * ep.perStep]; ep.stepsLeft--;
       } else {
         const closing = closingAt(me, other, n, point);
-        if (closing > R.rubBelow) {
+        // (once the race server has agreed the contact, its hit is settled: only the light push from here on)
+        if (closing > R.rubBelow && !ep.settled) {
           // still closing hard after the hit (the other car's reaction not yet in its states): this car's share of
           // stopping it (an inelastic contact) — from the same budget as the hit
           kind = 'hit';
@@ -197,6 +211,11 @@ export function createContactTracker(cfg) {
       advance(ep, dt);
       return { impulse: j, point: s.point, kind, episode: ep.id, start: ep.start === t, used: other };
     },
+    // how far this game's pushes have moved the other car, as it predicts it, while its own states don't show it yet
+    // (stampT: s, as step's) — null once they do, or when there's nothing to show
+    predicted(otherId, stampT) { const ep = episodes.get(otherId), k = ep && (ep.disp[0] || ep.disp[1]) ? unseen(ep, stampT) : 0; return k > 0 ? [ep.disp[0] * k, ep.disp[1] * k] : null; },
+    // the race server's word on an episode: agreed (its hit settled) or refused (void: nothing more pushed for it)
+    settle(id, { refused = false } = {}) { for (const ep of episodes.values()) if (ep.id === id) { ep.settled = true; if (refused) ep.void = true; } },
     // the episodes to report now (reportAfterMs after each began): what this player's game saw
     reports(t) {
       const out = [];
@@ -245,12 +264,19 @@ export function agree(reports, { a, b, serverView = null, mode = 'reduced', cfg 
   const t = ra && rb ? Math.min(ra.t, rb.t) : (ra ?? rb).t;
   const pointOf = (r, other) => (r ?? other).point;
   const strengthOf = (m, om) => kind === 'hit' ? Math.min(closing * om / (m + om), J / m) : 0;
+  // (rubbing: no hit for either car — only each game's own light push, capped and checked step by step by the verifier)
   const cars = {
-    [a.pid]: { impulse: kind === 'hit' ? [-n[0] * J, -n[1] * J] : (ra?.J ?? [0, 0]), point: pointOf(ra, rb), closing, strength: strengthOf(a.mass, b.mass), scale, n: [n[0], n[1]] },
-    [b.pid]: { impulse: kind === 'hit' ? [n[0] * J, n[1] * J] : (rb?.J ?? [0, 0]), point: pointOf(rb, ra), closing, strength: strengthOf(b.mass, a.mass), scale, n: [-n[0], -n[1]] },
+    [a.pid]: { impulse: kind === 'hit' ? [-n[0] * J, -n[1] * J] : [0, 0], point: pointOf(ra, rb), closing, strength: strengthOf(a.mass, b.mass), scale, n: [n[0], n[1]], mass: a.mass },
+    [b.pid]: { impulse: kind === 'hit' ? [n[0] * J, n[1] * J] : [0, 0], point: pointOf(rb, ra), closing, strength: strengthOf(b.mass, a.mass), scale, n: [-n[0], -n[1]], mass: b.mass },
   };
-  // (a rubbing push from a report that doesn't exist: none)
-  if (kind === 'rub') { if (!ra) cars[a.pid].impulse = [0, 0]; if (!rb) cars[b.pid].impulse = [0, 0]; }
+  // (where on each car, in its own frame — x left, z forward — as it was at the contact: its own report's pose, else the
+  // other's view of it, else the server's; the damage comes from this, whenever the result arrives)
+  const poseOf = (own, theirs, srv) => own?.me ?? theirs?.them ?? srv ?? null;
+  for (const [pid, pose] of [[a.pid, poseOf(ra, rb, serverView?.fa)], [b.pid, poseOf(rb, ra, serverView?.fb)]]) {
+    if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z) || !Number.isFinite(pose.yaw)) continue;
+    const c = cars[pid], f = { x: pose.x, z: pose.z, yaw: pose.yaw }, [fw, lf] = axesOf(f);
+    c.local = toCarFrame(f, c.point); c.nLocal = [dot2(c.n, lf), dot2(c.n, fw)];
+  }
   return { ok: true, kind, t, closing, n, J, gentler, sources, cars };
 }
 

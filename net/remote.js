@@ -46,7 +46,7 @@ export const quat = {
 };
 
 const pct = (sorted, p) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : 0;
-const LAGS = 150, KEEP_MS = 4000, TELEPORT_M = 20, A_MAX = 15, STOP_TAU = 0.5;
+const LAGS = 150, KEEP_MS = 4000, TELEPORT_M = 20, A_MAX = 15, A_KNOCK = 40, STOP_TAU = 0.5;
 const smooth = u => u * u * (3 - 2 * u);
 // a world-frame spin (rad/s) taking rotation a to b in dt seconds
 quat.between = (a, b, dt) => {
@@ -101,7 +101,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     }
     const ahead = (t - s.time) / 1000, cap = I.maxExtrapolateMs / 1000, d = Math.min(ahead, cap);
     let acc = [0, 0, 0];
-    if (prev && s.time > prev.time) { acc = v3.scale(v3.sub(s.vel, prev.vel), 1000 / (s.time - prev.time)); const l = v3.len(acc); if (l > A_MAX) acc = v3.scale(acc, A_MAX / l); }
+    // (a change far quicker than any car accelerates or brakes by itself is a knock — over: its new speed carries on)
+    if (prev && s.time > prev.time) { acc = v3.scale(v3.sub(s.vel, prev.vel), 1000 / (s.time - prev.time)); const l = v3.len(acc); if (l > A_KNOCK) acc = [0, 0, 0]; else if (l > A_MAX) acc = v3.scale(acc, A_MAX / l); }
     // (the acceleration fades over the prediction: a car braking into a corner doesn't reverse)
     const fade = Math.max(0, 1 - d / (2 * cap));
     let pos = v3.add(s.pos, v3.add(v3.scale(s.vel, d), v3.scale(acc, 0.5 * d * d * fade)));

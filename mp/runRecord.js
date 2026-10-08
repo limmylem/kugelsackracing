@@ -4,7 +4,8 @@
 //
 //   const R = createRunRecorder({ sim, trailEvery })
 //   R.start({ pose: { position, headingDeg }, ...header })   the car is reset there exactly (sim.resetCar) — the replay
-//                                       starts from the same state — and from then on:
+//                                       starts from the same state — and from then on (header.origin: where the
+//                                       physics' frame's origin is in the world's, if they differ):
 //     every step's input, quantized (5 bytes: steer, throttle, brake, clutch, flags) — what's recorded is what the car got
 //     every push that isn't the solver's (car-to-car contact: R.push(j, point, ev) applies it AND records it)
 //     every change to the car between steps (C events): its damage (the spec's), its driving aids, a part loosened, torn
