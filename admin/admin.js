@@ -86,7 +86,7 @@ const launchTools = () => launch ??= createLaunchTools({ api, h, say, when, errT
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
   nav.replaceChildren(...[['Players', showAdmin], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
-    ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
+    ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
@@ -418,4 +418,54 @@ function showContacts() {
   main.replaceChildren(h('section', { style: 'grid-column: 1 / -1' }, h('h2', {}, 'Car-to-car contact'),
     h('div', { class: 'row' }, h('label', {}, 'Race', race), h('button', { class: 'btn primary', onclick: load }, 'Show its contacts'), h('label', {}, 'Evidence', ev), h('button', { class: 'btn', onclick: () => ev.value.trim() && replayEvidence(ev.value.trim()) }, 'Replay it')),
     msg, list));
+}
+
+// ---------- free roam (Phase 7 Step 4; docs/FREE_ROAM.md): the zone servers live, and scheduled car meets ----------
+let roamTimer = null;
+function showRoam() {
+  tabs();
+  const main = $('main'); main.className = 'narrow'; main.style.gridTemplateColumns = 'minmax(320px, 1100px)';
+  const live = h('div', {}, h('p', { class: 'muted' }, 'Loading…')), meets = h('div'), msg = h('div');
+  const meetId = h('input', { placeholder: 'meet_… (a published meet spot: the editor, Meet spot, 7)', maxlength: 60, style: 'min-width:280px' });
+  const title = h('input', { placeholder: 'Sunday morning meet', maxlength: 80 });
+  const start = h('input', { type: 'datetime-local' }), hours = h('input', { type: 'number', min: 0.5, max: 6, step: 0.5, value: 2, style: 'width:70px' });
+  main.replaceChildren(h('section', {}, h('h2', {}, 'Free roam: the zone servers, live'), h('p', { class: 'muted' }, 'Every few seconds from each zone process: players per zone and instance, handoffs, bandwidth and load — and what hosting would cost at these numbers.'), live),
+    h('section', {}, h('h2', {}, 'Car meets'), h('p', { class: 'muted' }, 'A scheduled meet shows on every player\'s map with a countdown (from two days before). It needs a published meet spot.'),
+      h('div', { class: 'row' }, h('label', {}, 'Meet spot', meetId), h('label', {}, 'Title', title), h('label', {}, 'Starts', start), h('label', {}, 'Hours', hours),
+        h('button', { class: 'btn primary', onclick: async () => {
+          try { await api.post('/admin/roam/meets', { meetId: meetId.value.trim(), title: title.value.trim(), startsAt: new Date(start.value).toISOString(), hours: Number(hours.value) }); say(msg, 'Scheduled.', true); loadMeets(); }
+          catch (e) { say(msg, errText(e)); }
+        } }, 'Schedule it')), msg, meets));
+  const kb = x => `${Math.round(x)} kB/s`;
+  async function loadLive() {
+    if (!document.body.contains(live)) { clearInterval(roamTimer); roamTimer = null; return; }
+    try {
+      const d = await api.get('/admin/roam/dashboard'), T = d.totals, c = d.cost;
+      live.replaceChildren(
+        h('dl', {}, h('dt', {}, 'Players'), h('dd', {}, `${T.players} (${T.connections} connections: near a border a player is in two to four zones)`),
+          h('dt', {}, 'Zones and instances'), h('dd', {}, `${T.zones} zones, ${T.instances} instances`),
+          h('dt', {}, 'Handoffs'), h('dd', {}, `${T.handoffsPerMin} a minute`),
+          h('dt', {}, 'Bandwidth'), h('dd', {}, `${kb(T.downKBs)} out to players, ${kb(T.upKBs)} in`),
+          h('dt', {}, 'Load'), h('dd', {}, `${T.cpu} CPU cores in all, ${Math.round(T.rssMB)} MB of memory`),
+          ...(c ? [h('dt', {}, 'Hosting cost at these numbers'), h('dd', {}, `1,000 monthly active players ≈ $${c.monthlyActive.monthly.total}/month (${c.monthlyActive.instances} server${c.monthlyActive.instances === 1 ? '' : 's'}, ${c.monthlyActive.gbMonth} GB); 1,000 on at once all month ≈ $${c.allAtOnce.monthly.total}/month${c.perPlayer.measured ? '' : ' (assumed figures: too few players to measure)'}`)] : [])),
+        h('h3', {}, 'Processes'),
+        h('table', {}, h('thead', {}, h('tr', {}, ...['Process', 'Instances', 'Connections', 'Tick p50 / p95', 'CPU', 'Memory', 'Handoffs so far'].map(t => h('th', {}, t)))),
+          h('tbody', {}, ...d.processes.map(p => h('tr', {}, h('td', {}, p.process), h('td', {}, String(p.rooms)), h('td', {}, String(p.players)), h('td', {}, `${(p.tickMsP50 ?? 0).toFixed(2)} / ${(p.tickMsP95 ?? 0).toFixed(2)} ms`), h('td', {}, `${p.cpu} cores`), h('td', {}, `${p.rssMB} MB`), h('td', {}, String(p.counters?.handoffs ?? 0)))))),
+        h('h3', {}, 'Zones'),
+        h('table', {}, h('thead', {}, h('tr', {}, ...['Region', 'Zone', 'Connections', 'Instances (players, tick p95)'].map(t => h('th', {}, t)))),
+          h('tbody', {}, ...d.zones.slice(0, 100).map(z => h('tr', {}, h('td', {}, z.region), h('td', {}, z.zone), h('td', {}, String(z.players)), h('td', {}, z.instances.map(i => `${i.group}: ${i.players} (${(i.tickMsP95 ?? 0).toFixed(1)} ms${i.challenges ? `, ${i.challenges} challenge${i.challenges === 1 ? '' : 's'}` : ''})`).join(' · ')))))));
+      if (!d.processes.length) live.prepend(h('p', { class: 'muted' }, 'No zone server has reported in the last 20 seconds (is the real-time server running, with API_INTERNAL_URL pointing here?).'));
+    } catch (e) { live.replaceChildren(h('div', { class: 'msg bad' }, errText(e))); }
+  }
+  async function loadMeets() {
+    try {
+      const r = await api.get('/admin/roam/meets');
+      meets.replaceChildren(r.events.length ? h('table', {}, h('thead', {}, h('tr', {}, ...['Title', 'Where', 'Starts', 'Hours', 'State', ''].map(t => h('th', {}, t)))),
+        h('tbody', {}, ...r.events.map(e => h('tr', {}, h('td', {}, e.title), h('td', {}, e.place?.name ?? e.meetId), h('td', { class: 'when' }, when(e.startsAt)), h('td', {}, String(e.hours)), h('td', {}, e.state),
+          h('td', {}, h('button', { class: 'btn ghost', onclick: async () => { try { await api.del(`/admin/roam/meets/${encodeURIComponent(e.id)}`); loadMeets(); } catch (x) { say(msg, errText(x)); } } }, 'Cancel')))))) : h('p', { class: 'muted' }, 'No meets scheduled.'));
+    } catch (e) { meets.replaceChildren(h('div', { class: 'msg bad' }, errText(e))); }
+  }
+  void loadLive(); void loadMeets();
+  if (roamTimer) clearInterval(roamTimer);
+  roamTimer = setInterval(loadLive, 5000);
 }

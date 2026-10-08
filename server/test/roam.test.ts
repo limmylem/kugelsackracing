@@ -170,7 +170,7 @@ test('the live dashboard: zones, instances, handoffs, bandwidth, load, and the c
   await internal('/roam/stats', { process: 'p1', at: at - 5000, rooms, counters: { handoffs: 10 }, cpu: 0.1, rssMB: 200 });
   await internal('/roam/stats', { process: 'p1', at, rooms: rooms.map(r => ({ ...r, bytesIn: r.bytesIn + 50 * 1024, bytesOut: r.bytesOut + 1000 * 1024 })), counters: { handoffs: 22 }, cpu: 0.25, rssMB: 210 });
   const d = (await admin.get('/api/v1/admin/roam/dashboard')).body;
-  assert.equal(d.totals.players, 82); assert.equal(d.totals.instances, 3); assert.equal(d.totals.zones, 2);
+  assert.equal(d.totals.connections, 82); assert.equal(d.totals.instances, 3); assert.equal(d.totals.zones, 2);
   assert.equal(d.zones[0].zone, '0,0'); assert.equal(d.zones[0].instances.length, 2);
   assert.equal(d.totals.handoffsPerMin, Math.round(12 / 5 * 60));
   assert.ok(d.totals.downKBs > 500, String(d.totals.downKBs));

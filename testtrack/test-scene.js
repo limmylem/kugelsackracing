@@ -69,6 +69,7 @@ import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticke
 import { createMpSession } from '../mp/client.js';
 import { createMpRace } from '../play/mpRace.js';
 import { createMpScreens } from '../play/mpScreens.js';
+import { startRoam } from '../play/roam.js';
 import { createColyseusTransport } from '../net/transport.js';
 import { createRouteDressing } from '../play/routeDressing.js';
 import { paletteOf, guideStyle } from '../play/palette.js';
@@ -629,7 +630,7 @@ export async function enter(file) {
 
 export function exit() {
   active = null;
-  if (shared?.mp) { void shared.mp.leave(); shared.mp = null; shared.mpRoom = null; }
+  if (shared?.mp) { void shared.mp.leave(); shared.mp = null; shared.mpRoom = null; shared.roam = null; }
   hideRealWorlds();
   if (!shared) return;
   shared.renderer.domElement.style.display = 'none';
@@ -2274,11 +2275,13 @@ async function startMultiplayer(w) {
   if (!o || shared.mpStarting) return;
   // (in a race: its own room draws the cars — free roam's comes back after)
   if (shared.mpS?.race && shared.mpS.phase && shared.mpS.phase !== 'lobby') return;
+  // (Phase 7 Step 4: a baked real-world region — free roam, its zones and instances: play/roam.js; docs/FREE_ROAM.md)
+  if (w.stream && regionIdOf(w) && !o.room) return startRoamHere(w, o);
   // (a room per world: players in different worlds have different coordinates — ?mp=<name> picks which of that
   // world's rooms)
   const room = `${o.room ?? 'free'}@${w.file}`.slice(0, 64);
   if (shared.mp && shared.mpRoom === room) return;
-  if (shared.mp) { await shared.mp.leave(); shared.mp = null; }
+  if (shared.mp) { await shared.mp.leave(); shared.mp = null; shared.roam = null; }
   shared.mpStarting = true;
   try {
     const A = await accountNow();
@@ -2304,6 +2307,77 @@ async function startMultiplayer(w) {
     shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
     console.warn('multiplayer:', e);
   } finally { shared.mpStarting = false; }
+}
+
+// Free roam (Phase 7 Step 4: play/roam.js, docs/FREE_ROAM.md): in a baked region, the zones and their instances — other
+// players on the roads and the maps, the free-roam screen (F6), challenges, meets, chat; you come back where you left
+async function startRoamHere(w, o) {
+  const region = regionIdOf(w), room = `roam:${region}`;
+  if (shared.mp && shared.mpRoom === room) return;
+  if (shared.mp) { await shared.mp.leave(); shared.mp = null; shared.roam = null; }
+  shared.mpStarting = true;
+  try {
+    const A = await accountNow();
+    if (!A?.me && !o.player) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
+    // (the hub first: it places you in a zone's instance — with your party and friends — and joins friends)
+    await startMpRaces();
+    // (already starting — the page's own start of the race screens: wait for it)
+    for (let k = 0; k < 150 && !shared.mpS; k++) await new Promise(r => setTimeout(r, 100));
+    const S = shared.mpS;
+    if (!S) throw new Error('The multiplayer hub isn\'t reachable.');
+    const [roamCfg, mpCfg] = await Promise.all(['data/roam.json', 'data/multiplayer.json'].map(f => fetch(f, { cache: 'no-cache' }).then(r => r.json())));
+    const G = mpRaceGame(), Ad = mpAdapter.cached ??= mpAdapter(), P = () => active?.stream?.projection;
+    const R = await startRoam({ account: A, region, cfg: roamCfg, mpCfg, adapter: Ad, look: mpLook(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug, S, game: {
+      regionId: () => regionIdOf(active),
+      carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
+      place: (pos, h) => Ad.place(pos, h),
+      async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },
+      maps: () => active?.maps ?? null,
+      latLonOf: (x, z) => P()?.toLatLon(x, z) ?? [0, 0], xzOf: (lat, lon) => P()?.toXZ(lat, lon) ?? [0, 0],
+      say: (text, kind) => shared.flash.show(text, kind === 'warn' ? 'warn' : 'ok', 3),
+      questsNear: () => shared.roamNear?.quests ?? [], meetsNear: () => shared.roamNear?.meets ?? [],
+      sim: G.sim, simTime: G.simTime, carPhysics: G.carPhysics, toSim: G.toSim, toWorld: G.toWorld, contactHit: G.contactHit, contactEffect: G.contactEffect,
+    } });
+    shared.roam = R; shared.mp = R.M; shared.mpRoom = room; shared.mpParts = mpAttach(); shared.mpLookKey = null;
+    globalThis.__krMp = R.M; globalThis.__krRoam = R; globalThis.__krMpWorld = room;   // (the console and the browser tests)
+    // (joining a friend in another region: beside them once this one's loaded)
+    if (shared.roamGoto?.region === region) { const m = shared.roamGoto; shared.roamGoto = null; const h = (m.heading ?? 0) * Math.PI / 180; Ad.place([m.pos[0] - Math.cos(h) * 4, 0, m.pos[1] + Math.sin(h) * 4], m.heading ?? 0); }
+    void roamNearLoop(w);
+    if (!shared.mpKeys) {
+      shared.mpKeys = true;
+      addEventListener('keydown', e => {
+        if (e.code === 'F8') { e.preventDefault(); shared.mp?.overlay.toggle(); }
+        if (e.code === 'F9' && devMode() && shared.mp) { e.preventDefault(); shared.flash.show('Multiplayer', 'ok', 2, shared.mp.toNearest()); }
+      });
+    }
+    shared.flash.show('Free roam', 'ok', 3, `${region} · zone ${R.RC.home}${o.player ? ` · you are Player ${o.player}` : ''} · F6: who's here, challenges, meets, settings`);
+  } catch (e) {
+    shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
+    console.warn('free roam:', e);
+  } finally { shared.mpStarting = false; }
+}
+// quests and meet spots near the car (for challenges to a quest marker, racing one with the party, parking at a meet):
+// asked of the content service every 10 s while free roam is on
+async function roamNearLoop(w) {
+  if (shared.roamNearOn) return;
+  shared.roamNearOn = true;
+  const content = (await worldContent()).service;
+  while (shared.roam) {
+    try {
+      const pose = shared.roam && active?.stream ? (() => { const p = active.sim.vehicle.body.translation(), [x, z] = active.stream.toWorld(p.x, p.z), [lat, lon] = active.stream.projection.toLatLon(x, z); return { x, z, lat, lon }; })() : null;
+      if (pose) {
+        const items = (await content.query({ lat: pose.lat, lon: pose.lon, km: 3, view: 'published', kinds: ['quest', 'meet'], limit: 200 })).items.map(x => x.item ?? x);
+        const P = active.stream.projection, at = it => P.toXZ(it.location.lat, it.location.lon);
+        const near = items.map(it => { const [x, z] = at(it); return { it, x, z, d: Math.hypot(x - pose.x, z - pose.z) }; }).sort((a, b) => a.d - b.d);
+        shared.roamNear = {
+          quests: near.filter(n => n.it.kind === 'quest').map(n => ({ id: n.it.id, name: n.it.name, route: n.it.route ?? null, x: n.x, z: n.z, d: n.d })),
+          meets: near.filter(n => n.it.kind === 'meet' && n.d < 150).map(n => ({ id: n.it.id, name: n.it.name, meet: { id: n.it.id, x: n.x, z: n.z, heading: n.it.location.heading ?? 0, spots: n.it.meet?.spots ?? 24 } })),
+        };
+      }
+    } catch { /* next time */ }
+    await new Promise(r => setTimeout(r, 10000));
+  }
+  shared.roamNearOn = false;
 }
 
 // Races (Phase 7 Step 2: play/mpScreens.js, play/mpRace.js; docs/MULTIPLAYER.md): F7 or the Multiplayer button opens the
@@ -2342,7 +2416,7 @@ function mpRaceGame() {
     // to the venue: a real-world route's region (its course laid out in that world's frame), or a generated track built
     // here (its course and hash from what was built: the server checks the hash)
     async goTo(venue, stored, { onProgress }) {
-      if (shared.mp) { await shared.mp.leave(); shared.mp = null; shared.mpRoom = null; }
+      if (shared.mp) { await shared.mp.leave(); shared.mp = null; shared.mpRoom = null; shared.roam = null; }
       if (active?.quests?.active) active.quests.stop();
       if (venue.venue.kind === 'route') {
         if (!stored) throw new Error('The route didn\'t come with the race.');
@@ -2491,6 +2565,8 @@ function mpAdapter() {
       } else if (mpLightPool.on === vis) for (const l of mpLightPool.vis.headlights) l.intensity = 0;
     },
     setDamage(h, view) { h.vis.setDamage(view, db.damage); },
+    // (free roam: a car fading in or out at the edge of what's seen)
+    setOpacity(h, a) { ghostLook(h.vis.group, a); },
     // a part loose (hanging where it settles) or torn off (gone from the car), or back on
     setPart(h, socket, state) {
       const v = h.vis;
@@ -2515,7 +2591,8 @@ function mpAdapter() {
 function mpFrame(w, view, seconds) {
   const M = shared.mp, v = w.sim.vehicle, b = view.current, A = mpAdapter.cached ??= mpAdapter();
   // (still landing — the real world's ground loading, the car held high above it: not in the world yet for the others)
-  M.frame(seconds, () => { if (w.spawning) return null; const av = v.body.angvel(); return localState({ snapshot: b, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A.toWorld, headlights: (w.light?.night ?? 0) > 0.3, ageMs: view.alpha * w.sim.dt * 1000 }); });
+  M.frame(seconds, () => { if (w.spawning) return null; const av = v.body.angvel(); return localState({ snapshot: b, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A.toWorld, headlights: (w.light?.night ?? 0) > 0.3 || !!shared.roam?.flashing, ageMs: view.alpha * w.sim.dt * 1000 }); });
+  shared.roam?.frame(seconds);
   const now = mpAttach(), was = shared.mpParts ?? {};
   for (const [k, st] of Object.entries(now)) if (was[k] !== st) M.part(k, st);
   for (const k of Object.keys(was)) if (!now[k]) M.part(k, 'attached');

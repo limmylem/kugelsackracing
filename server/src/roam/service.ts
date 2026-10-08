@@ -177,11 +177,11 @@ export function createRoamService({ db, economy, log = () => {}, now = () => Dat
   function dashboard() {
     const t = now(), live = [...statsLog.values()].filter(s => t - s.at < 20000);
     const zones = new Map<string, any>();
-    let handoffsPerMin = 0, downKBs = 0, upKBs = 0, cpu = 0, rss = 0;
+    let handoffsPerMin = 0, downKBs = 0, upKBs = 0, cpu = 0, rss = 0, homes = 0;
     for (const s of live) {
       for (const r of s.rooms ?? []) {
         const key = `${r.region}:${r.zone}`, z = zones.get(key) ?? { region: r.region, zone: r.zone, players: 0, instances: [] as any[] };
-        z.players += r.players; z.instances.push({ group: r.group, players: r.players, tickMsP95: r.tickMsP95, tickCpuMsP95: r.tickCpuMsP95 ?? null, challenges: r.challenges ?? 0, process: s.process });
+        z.players += r.players; homes += r.homes ?? 0; z.instances.push({ group: r.group, players: r.players, tickMsP50: r.tickMsP50 ?? null, tickMsP95: r.tickMsP95, challenges: r.challenges ?? 0, process: s.process });
         zones.set(key, z);
       }
       if (s.prev) {
@@ -191,13 +191,13 @@ export function createRoamService({ db, economy, log = () => {}, now = () => Dat
       }
       cpu += s.cpu ?? 0; rss += s.rssMB ?? 0;
     }
-    const players = [...zones.values()].reduce((a, z) => a + z.players, 0);
-    // (players are in up to 4 zones at once near borders: the dashboard's count is connections; distinct players is the map's)
+    // (a player near a border is connected to up to 4 zones: connections; each is at home in one zone: players)
+    const connections = [...zones.values()].reduce((a, z) => a + z.players, 0), players = homes || connections;
     return {
       at: t, processes: live.map(s => ({ process: s.process, rooms: (s.rooms ?? []).length, players: (s.rooms ?? []).reduce((a: number, r: any) => a + r.players, 0), cpu: s.cpu, rssMB: s.rssMB, counters: s.counters,
-        tickMsP95: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP95 ?? 0)), tickCpuMsP95: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickCpuMsP95 ?? 0)) })),
+        tickMsP50: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP50 ?? 0)), tickMsP95: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP95 ?? 0)) })),
       zones: [...zones.values()].sort((a, b) => b.players - a.players),
-      totals: { players, instances: [...zones.values()].reduce((a, z) => a + z.instances.length, 0), zones: zones.size, handoffsPerMin: Math.round(handoffsPerMin), downKBs: Math.round(downKBs), upKBs: Math.round(upKBs), cpu: +cpu.toFixed(2), rssMB: rss },
+      totals: { players, connections, instances: [...zones.values()].reduce((a, z) => a + z.instances.length, 0), zones: zones.size, handoffsPerMin: Math.round(handoffsPerMin), downKBs: Math.round(downKBs), upKBs: Math.round(upKBs), cpu: +cpu.toFixed(2), rssMB: rss },
       cost: costPer1000({ players, downKBs, cpu }),
       history: history.slice(-180), targets: ROAM.targets,
     };

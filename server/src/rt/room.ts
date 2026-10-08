@@ -96,7 +96,6 @@ export class TestRoom extends Room {
   players = new Map<string, Player>();
   grid = createGrid(NET.interest);
   tickMs: number[] = [];
-  tickCpuMs: number[] = [];
   kicks = 0;
   scope = 'roam';                                   // (one connection per account among the rooms of a sort: free roam, races)
   private unsub: (() => void) | null = null;
@@ -293,7 +292,7 @@ export class TestRoom extends Room {
 
   // ---------- the tick ----------
   tick() {
-    const t0 = performance.now(), c0 = process.cpuUsage(), now = this.roomNow(), tick = ++this.tickNo;
+    const t0 = performance.now(), now = this.roomNow(), tick = ++this.tickNo;
     const list = [...this.players.values()], virt = [...this.virtualCars()];
     this.grid.rebuild([...list.filter(p => p.status === 'here' && this.relays(p)).map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })), ...virt.map(v => ({ id: v.id, pos: v.latestF?.pos ?? null }))]);
     const byId = new Map<number, any>([...list.map(p => [p.id, p] as [number, any]), ...virt.map(v => [v.id, { ...v, status: 'here', virtual: true }] as [number, any])]);
@@ -321,17 +320,11 @@ export class TestRoom extends Room {
     }
     this.tickMs.push(performance.now() - t0);
     if (this.tickMs.length > 600) this.tickMs.shift();
-    // (Phase 7 Step 4: and its CPU time — what it costs a server with a core to itself; wall time also counts the moments the
-    // process waited for a core on a machine busy with other things)
-    const c = process.cpuUsage(c0);
-    this.tickCpuMs.push((c.user + c.system) / 1000);
-    if (this.tickCpuMs.length > 600) this.tickCpuMs.shift();
   }
 
   summary() {
     const m = this.metrics(), sum = (k: 'bytesIn' | 'bytesOut') => m.perPlayer.reduce((a, p) => a + p[k], 0);
-    const cs = [...this.tickCpuMs].sort((a, b) => a - b);
-    return { players: m.players, tickMsP50: +m.tickMsP50.toFixed(3), tickMsP95: +m.tickMsP95.toFixed(3), tickMsMax: +m.tickMsMax.toFixed(3), tickCpuMsP95: +(cs[Math.floor(cs.length * 0.95)] ?? 0).toFixed(3), kicks: m.kicks, bytesIn: sum('bytesIn'), bytesOut: sum('bytesOut') };
+    return { players: m.players, tickMsP50: +m.tickMsP50.toFixed(3), tickMsP95: +m.tickMsP95.toFixed(3), tickMsMax: +m.tickMsMax.toFixed(3), kicks: m.kicks, bytesIn: sum('bytesIn'), bytesOut: sum('bytesOut') };
   }
   metrics() {
     const s = [...this.tickMs].sort((a, b) => a - b), q = (x: number) => s.length ? s[Math.min(s.length - 1, Math.floor(s.length * x))] : 0;

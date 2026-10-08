@@ -78,6 +78,21 @@ ask first ([DEPLOYMENT.md](DEPLOYMENT.md) "To do when we deploy" 9).
   - 100 players at once for 3 hours every evening is about 360 GB a month;
   - check the host's included bandwidth before choosing (*check*).
 
+**Multiplayer free roam (Phase 7 Step 4; [FREE_ROAM.md](FREE_ROAM.md)), per 1,000 players.** Measured with 500 bots
+driving Milton Keynes across 47 zones (`node server/tools/roam-test.ts --swarm 500`): each player receives about
+6 kB/s on average (16 kB/s at the 95th percentile, in the busiest spots) and sends about 1 kB/s; the zone servers used
+about 3 ms of CPU a second per player (a core carries roughly 350 players). At Render Standard (about $25 a month a
+core, *check*), Render Key Value (about $10, *check*) and about $0.15 a GB past the included bandwidth (*check*):
+
+| | Zone servers | Bandwidth | Redis | Total |
+|---|---|---|---|---|
+| 1,000 monthly active players (20 h a month each in free roam, 10% on at once in the evening) | 1 instance, $25 | ~170 GB, ~$10 | $10 | **about $45 a month** |
+| 1,000 players on at once, all month (the worst case) | 6 instances, $150 | ~15 TB, ~$2,300 | $10 | **about $950 a month** at the measured average; bandwidth is nearly all of it |
+
+The admin page's **Free roam** tab shows the same estimate from the live numbers. Bandwidth is the thing to watch: a host
+with cheap or included egress (or Cloudflare in front of the WebSockets, which doesn't charge for it) changes the second
+row most. Nothing here has been bought.
+
 ## Budget alerts to set (when we deploy)
 
 None of these exist yet, because there are no accounts ([DEPLOYMENT.md](DEPLOYMENT.md), "To do when we deploy").

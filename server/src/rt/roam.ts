@@ -180,7 +180,7 @@ export class RoamRoom extends TestRoom {
     void Promise.resolve(matchMaker.presence.get(GHOST_KEY(t.uid))).then(v => { const until = Number(v); if (until > Date.now()) { r.ghostUntil = until; this.pushTouch(); } }).catch(() => {});
     if (typeof options?.party === 'string') void this.setParty(r, options.party);
     // (anyone blocked either way who's here: gone from each other's view — the hidden() check; their cars stop now)
-    this.sendTo(p, { t: 'hello', zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes });
+    this.sendTo(p, { t: 'hello', you: t.uid, zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes });
     this.pushTouch();
     void this.meta();
     if (r.home) void this.status(r);
@@ -509,7 +509,8 @@ export class RoamRoom extends TestRoom {
     this.sendTo(p, { t: 'meet-spot', meet: meet.id, spot });
   }
 
-  summaryRoam() { return { region: this.region, zone: this.zone, group: this.group, ...this.summary(), challenges: this.runs.size }; }
+  // (players: connections here; homes: the players whose home zone this is — each player is home in one zone: the distinct count)
+  summaryRoam() { return { region: this.region, zone: this.zone, group: this.group, ...this.summary(), homes: [...this.roam.values()].filter(r => r.home).length, challenges: this.runs.size }; }
 }
 
 // a route as the game shows it: its line every ~20 m (x, z), its length, where it ends, the roads' names

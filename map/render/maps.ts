@@ -11,6 +11,8 @@
 //   clustered on the full map when zoomed out; onPick(id) when one's clicked; a quest's state (properties
 //   state: new | attempted | completed, medal) in its colour and mark
 //   maps.setLines(features)  a quest's route and the guide line to its start, on both
+//   maps.setPlayers(features, onPick)  (Phase 7 Step 4) other players in free roam, as each may be seen (the zone server
+//   decides: privacy, blocks): GeoJSON points with uid, name, rel ('friend' | 'party' | 'other'), heading; onPick(uid)
 //   maps.side, maps.onOpen(fn(open)), maps.close(), maps.flyTo(lat, lon)  the full map's panel (quest finding)
 //
 // Also for the editor (editor/mapView.js): maplibre() loads MapLibre, regionStyle() the region's map style.
@@ -92,7 +94,7 @@ export async function regionStyle(manifest: any, base: string) {
 
 // World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
 // the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
-const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', 'venue', '#ff5a5f', '#ccc'];
+const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', 'venue', '#ff5a5f', 'meet', '#36d1b0', '#ccc'];
 // a quest's colour by how far the player's got with it: new (bright), tried, done (its medal's colour)
 const MEDAL_COLOUR = ['match', ['get', 'medal'], 'gold', '#f2c230', 'silver', '#c9d1d9', 'bronze', '#cd7f32', '#8fd18a'];
 const POINT_COLOUR = ['case', ['==', ['get', 'state'], 'completed'], MEDAL_COLOUR, ['==', ['get', 'state'], 'attempted'], '#c7832a', KIND_COLOUR];
@@ -140,6 +142,24 @@ export function lineLayers(map: any, prefix = 'lines') {
   return { set(features: any[]) { data = { type: 'FeatureCollection', features }; map.getSource(src)?.setData(data); } };
 }
 
+// Other players on a map (Phase 7 Step 4, free roam): a dot each — friends green, the party violet, everyone else blue —
+// pointing the way they're heading, their names on the full map
+const REL_COLOUR = ['match', ['get', 'rel'], 'friend', '#4fd18b', 'party', '#b07cff', '#4fc3f7'];
+export function playerLayers(map: any, { labels = true, prefix = 'players' } = {}) {
+  const src = `${prefix}-src`;
+  let data: any = { type: 'FeatureCollection', features: [] }, pick: ((uid: string) => void) | null = null;
+  const add = () => {
+    if (map.getSource(src)) return;
+    map.addSource(src, { type: 'geojson', data });
+    map.addLayer({ id: `${prefix}-dots`, type: 'circle', source: src, paint: { 'circle-color': REL_COLOUR, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 16, 7], 'circle-stroke-color': '#0b0f16', 'circle-stroke-width': 1.5 } });
+    if (labels) map.addLayer({ id: `${prefix}-names`, type: 'symbol', source: src, minzoom: 12, layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': 11, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': REL_COLOUR, 'text-halo-color': '#0b0f16', 'text-halo-width': 1.4 } });
+    map.on('click', `${prefix}-dots`, (e: any) => { const f = e.features?.[0]; if (f && pick) pick(f.properties.uid); });
+  };
+  if (map.isStyleLoaded()) add(); else map.once('load', add);
+  map.on('styledata', () => { if (map.isStyleLoaded() && !map.getSource(src)) add(); });
+  return { set(features: any[], onPick?: (uid: string) => void) { data = { type: 'FeatureCollection', features }; if (onPick) pick = onPick; map.getSource(src)?.setData(data); } };
+}
+
 export async function createWorldMaps({ manifest, base, onTravel }: { manifest: any; base: string; onTravel?: (spot: any) => void }) {
   if (!document.getElementById('worldMapCss')) { const s = document.createElement('style'); s.id = 'worldMapCss'; s.textContent = css; document.head.appendChild(s); }
   const ml = await maplibre(), fileUrl = new URL(manifest.files.map, base).href;
@@ -154,6 +174,8 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   const miniMap = new ml.Map({ container: mini, style: st, center: [lon0, lat0], zoom: 16, interactive: false, attributionControl: false, fadeDuration: 0, pitchWithRotate: false });
   const miniContent = contentLayers(miniMap, { cluster: false, labels: false, prefix: 'mini' });
   const miniLines = lineLayers(miniMap, 'mini-lines');
+  const miniPlayers = playerLayers(miniMap, { labels: false, prefix: 'mini-players' });
+  let fullPlayers: any = null, playersNow: any[] = [], onPlayerNow: any = null;
   let fullLines: any = null, linesNow: any[] = [];
   let fullContent: any = null, contentNow: any[] = [], onPickNow: any = null;
   const north = mini.querySelector('#worldMiniN') as HTMLElement;
@@ -190,6 +212,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
       fullContent = contentLayers(fullMap, { prefix: 'full' });
       fullLines = lineLayers(fullMap, 'full-lines'); fullLines.set(linesNow);
       fullContent.set(contentNow, id => { set(false); onPickNow?.(id); });
+      fullPlayers = playerLayers(fullMap, { prefix: 'full-players' }); fullPlayers.set(playersNow, uid => onPlayerNow?.(uid));
       const el = document.createElement('div'); el.className = 'worldCarMarker';
       carMarker = new ml.Marker({ element: el, rotationAlignment: 'map' }).setLngLat(last ? [last.lon, last.lat] : [lon0, lat0]).addTo(fullMap);
     }
@@ -222,6 +245,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
     // lines on both maps (GeoJSON LineStrings with kind: 'route' | 'guide', and optionally colour and width — the
     // accessibility settings): a quest's route, the way to its start
     setLines(features: any[]) { linesNow = features; miniLines.set(features); fullLines?.set(features); },
+    setPlayers(features: any[], onPick?: (uid: string) => void) { playersNow = features; if (onPick) onPlayerNow = onPick; miniPlayers.set(features); fullPlayers?.set(features, uid => onPlayerNow?.(uid)); },
     get miniMap() { return miniMap; },
     dispose() { removeEventListener('keydown', keys); miniMap.remove(); fullMap?.remove(); mini.remove(); full.remove(); },
   };

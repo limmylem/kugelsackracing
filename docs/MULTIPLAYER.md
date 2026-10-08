@@ -1,5 +1,8 @@
 # Multiplayer
 
+**Step 4, free roam in the real world** (zones and instances, handoffs, privacy, challenges, meets, chat, persistence) has
+its own page: [FREE_ROAM.md](FREE_ROAM.md).
+
 Step 1 (below, first): the networking foundation. Players drive in the same world and see each other's cars: the
 network model, the real-time server, the protocol, time sync, showing other cars, connections and the debug tools.
 Step 2 ([Lobbies, matchmaking and races](#phase-7-step-2-lobbies-matchmaking-and-races), after it): races between

@@ -88,6 +88,19 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
    - **The two-player check, as a race:** the two players on different networks also make a private lobby, join it by
      its code, race to confirmed results, and one of them watches a race.
    - **The matchmaking dashboard** (admin page, Multiplayer) against its targets, once real players queue.
+12. **Free roam's zone servers** (Phase 7 Step 4, [FREE_ROAM.md](FREE_ROAM.md)). The zone instances are rooms of the same
+   real-time server, so item 10 covers where they run; for free roam it also needs:
+   - **Redis** (not optional any more once there's more than one real-time process): the instances' listing, every
+     player's map place, statuses, auto-ghosts and placement all go through it.
+   - **Server regions**: one per continent players come from (`data/roam.json` `regions.list`, each with its own
+     real-time server address), and the game measuring its ping to each to pick one. Each region is more servers: ask first.
+   - **`API_INTERNAL_URL`** on the real-time server, so zone servers can save where players are, pay challenges and report
+     to the admin dashboard.
+   - **Bandwidth**: free roam is the biggest user (about 6 kB/s a player on average): see [COSTS.md](COSTS.md) before
+     choosing a host. Re-run the swarm (`server/tools/roam-test.ts --swarm 500`) against the real servers.
+   - **Voice chat** is a design note only ([FREE_ROAM.md](FREE_ROAM.md)): any version costs money — decide with the owner.
+   - **The two-player check, in free roam:** the two players on different networks (home Wi-Fi and a phone hotspot) meet in
+     the same region: the same instance, each on the other's map (sharing with everyone), a challenge sent and answered.
 
 What changed for localhost since this file was written, and matters online too:
 - The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`

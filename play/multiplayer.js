@@ -25,6 +25,8 @@
 //   mp/client.js) — leave() then lets it be; label(o) → the text over each car (null: its name); spread: false (a race
 //   puts every car on its own grid slot: none is moved aside); M.car(id) → { pose, handle } (the spectator's camera)
 //   M.toNearest() → your car beside the nearest other player (the development key F9), or why not
+//   (Phase 7 Step 4, free roam) lod(o, distM) → 'full' | 'simple' | 'marker' (simple: no sound; marker: not drawn — the maps
+//   show it); nameOpacity(o, distM) → 0..1 (0: no name); a car's o.alpha fades it in and out (adapter.setOpacity(handle, a))
 //
 // Two windows of one browser share its sign-in, and an account joining twice replaces itself: in development each
 // window can be a guest of its own instead (?mp&player=A, ?mp&player=B: POST /rt/ticket { player }).
@@ -98,7 +100,7 @@ export function ticketGetter(account, player = null) {
   };
 }
 
-export async function joinMultiplayer({ account, world, look, adapter: A, player = null, netsim = null, serverNetsim = null, debug = false, settings = NET, net = null, label = null, spread = true }) {
+export async function joinMultiplayer({ account, world, look, adapter: A, player = null, netsim = null, serverNetsim = null, debug = false, settings = NET, net = null, label = null, spread = true, lod = null, nameOpacity = null }) {
   const ownNet = !net;
   const N = net ?? await connectNet({ account, world, look, player, netsim, serverNetsim, settings });
   const cars = new Map();          // id → { handle, loading, lookKey, spin: [], sound, label, damageKey, parts }
@@ -197,8 +199,14 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         const p = o.pose;
         c.name = o.name; c.pose = p; c.status = o.status;
         if (!c.handle || !p) { if (c.handle) A.drawCar(c.handle, null); if (c.label) c.label.hidden = true; continue; }
+        // (free roam: how much of it to draw, by how far away it is; fading in and out at the edge of what's seen)
+        const distM = mine ? Math.hypot(p.pos[0] - mine.pos[0], p.pos[2] - mine.pos[2]) : 0, detail = lod?.(o, distM) ?? 'full';
+        if (detail === 'marker') { A.drawCar(c.handle, null); c.label.hidden = true; if (c.sound) { c.sound.dispose(); c.sound = null; } continue; }
+        if (detail !== 'full' && c.sound) { c.sound.dispose(); c.sound = null; }
+        const alpha = o.alpha ?? 1;
+        if (A.setOpacity && Math.abs((c.alpha ?? 1) - alpha) > 0.02) { c.alpha = alpha; A.setOpacity(c.handle, alpha); }
         // (its sound: once the game's audio has started — browsers only allow sound after a key press)
-        if (!c.sound) { const s = o.look?.sound, au = A.audio(); if (au && s?.file) c.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline }); }
+        if (!c.sound && detail === 'full') { const s = o.look?.sound, au = A.audio(); if (au && s?.file) c.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline }); }
         // its wheels: turned by their own speed (the angle isn't sent: only how fast), riding their suspension
         const wheels = (p.wheels ?? []).map((w, i) => { c.spin[i] = ((c.spin[i] ?? 0) + w.omega * dt) % (Math.PI * 2); return { ...w, spin: c.spin[i] }; });
         const simPos = A.toSim(p.pos);
@@ -214,9 +222,10 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         // its name over it (and "reconnecting…" while its player is away)
         const at = A.screen([simPos[0], simPos[1] + 1.7, simPos[2]]);
         c.onScreen = !!A.screen(simPos);
-        c.label.hidden = !at;
+        const named = nameOpacity ? nameOpacity(o, distM) * alpha : 1;
+        c.label.hidden = !at || named <= 0.02;
         const paused = o.status === 'away' ? ' · reconnecting…' : p.flags & LIGHT.AWAY ? ' · paused (window in the background)' : '';
-        if (at) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${label?.(o) ?? o.name ?? 'Player'}${paused}`; c.label.style.opacity = paused ? '0.6' : '1'; }
+        if (at && named > 0.02) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${label?.(o) ?? o.name ?? 'Player'}${paused}`; c.label.style.opacity = String((paused ? 0.6 : 1) * named); }
       }
       for (const id of [...cars.keys()]) if (!seen.has(id)) drop(id);
       // (joined on top of someone — every new car arrives at the same place: the later one moves beside them)
