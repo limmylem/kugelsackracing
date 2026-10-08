@@ -23,6 +23,9 @@ export function createRaceBot({ session: S, courseFor, quests, cfg, skill = 0.9,
   let finish, done = new Promise(r => { finish = r; });
   const me = () => S.lobby?.players.find(p => p.uid === S.myUid);
   S.on('load', async m => {
+    // (a new race — a rematch: everything of the last one gone)
+    if (timer) stop();
+    Q = null; driver = null; rec = null; handed = false; lastT = null; lastResult = null;
     try {
       course = await courseFor(m.venue);
       quest = raceQuest({ raceId: m.raceId, venue: m.venue.venue, laps: m.laps, loop: course.loop, trackHash: course.trackHash ?? null });
@@ -83,7 +86,8 @@ export function createRaceBot({ session: S, courseFor, quests, cfg, skill = 0.9,
     net.sample(dt);
     if (Q.state.state === 'countdown' || Q.state.state === 'racing') {
       Q.tick({ t: t / 1000, dt, x: s.pos[0], z: s.pos[2], vx: s.vel[0], vz: s.vel[2], fx: fwd[0], fz: fwd[1], throttle: s.throttle, drivable: true, condition: 1 });
-      rec.sample(t / 1000, { x: s.pos[0], y: s.pos[1], z: s.pos[2], q: s.rot, vx: s.vel[0], vy: s.vel[1], vz: s.vel[2] });
+      // (recorded from the lights going out, as the game records a run)
+      if (goAt != null && t >= goAt) rec.sample((t - goAt) / 1000, { x: s.pos[0], y: s.pos[1], z: s.pos[2], q: s.rot, vx: s.vel[0], vy: s.vel[1], vz: s.vel[2] });
     }
     Q.drain();
     if (!handed && (Q.state.state === 'finished' || Q.state.state === 'results') && Q.outcome) {
@@ -94,7 +98,7 @@ export function createRaceBot({ session: S, courseFor, quests, cfg, skill = 0.9,
       if (behave.cutCheckpoint != null) result = { ...result, checkpoints: result.checkpoints.filter((_, i) => i !== behave.cutCheckpoint) };
       lastResult = result;
       say(`finished: ${result.rawTime} s`);
-      S.send({ t: 'run', result, recording: rec.finish({ questId: quest.id }) });
+      S.sendRun(result, rec.finish({ questId: quest.id }));
     }
   }
   function stop() { if (timer) clearInterval(timer); timer = null; }

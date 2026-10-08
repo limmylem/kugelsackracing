@@ -14,6 +14,8 @@
 //   POST   /internal/mp/races/:id/runs   { uid, result, recording } a player's run, handed in through the race server
 //   GET    /internal/mp/races/:id        its results (the race server waits for them confirmed)
 //   POST   /internal/mp/queue-stats      the queue's numbers, every few seconds
+//   POST   /internal/mp/act              { uid, action: friend-add | friend-accept | friend-remove | block | unblock | report, id?,
+//                                         name?, kind?, details?, ref? } — a player's, from the game's multiplayer screens
 
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -56,5 +58,6 @@ export async function mpRoutes(api: FastifyInstance, { config, G, mp }: { config
   app.post('/internal/mp/races', { ...big }, async (req: any) => { internal(req); return mp.recordRace(req.body); });
   app.post('/internal/mp/races/:id/runs', { ...big }, async (req: any) => { internal(req); return mp.submitRun(req.params.id, String(req.body?.uid ?? ''), { result: req.body?.result, recording: req.body?.recording }); });
   app.get('/internal/mp/races/:id', { config: { csrf: false } } as any, async (req: any) => { internal(req); return mp.raceView(req.params.id); });
+  app.post('/internal/mp/act', { config: { csrf: false, idempotent: false } } as any, async (req: any) => { internal(req); return mp.act(String(req.body?.uid ?? '').slice(0, 80), req.body ?? {}); });
   app.post('/internal/mp/queue-stats', { ...big }, async (req: any) => { internal(req); mp.queueStats(req.body ?? {}); return { ok: true }; });
 }

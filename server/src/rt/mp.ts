@@ -32,6 +32,7 @@ export function createRtApi({ url, secret, timeoutMs = 20000 }: { url: string; s
     submitRun: (id: string, uid: string, run: { result: unknown; recording?: unknown }) => call('POST', `/races/${encodeURIComponent(id)}/runs`, { uid, ...run }),
     race: (id: string) => call('GET', `/races/${encodeURIComponent(id)}`),
     queueStats: (s: unknown) => call('POST', '/queue-stats', s),
+    act: (uid: string, a: Record<string, unknown>) => call('POST', '/act', { ...a, uid }),
   };
 }
 export type RtApi = ReturnType<typeof createRtApi>;

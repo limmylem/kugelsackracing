@@ -87,7 +87,7 @@ test('development: two windows of one browser play as players of their own (?pla
     const a = await anon.post('/api/v1/rt/ticket', { player: 'A' }), b = await anon.post('/api/v1/rt/ticket', { player: 'B' });
     assert.equal(a.status, 200, a.text); assert.equal(b.status, 200, b.text);
     const ta = verifyTicket(T.config.rtSecret, a.body.ticket)!, tb = verifyTicket(T.config.rtSecret, b.body.ticket)!;
-    assert.deepEqual([ta.uid, ta.name, ta.guest], ['dev-player:A', 'Player A', true]);
+    assert.deepEqual([ta.uid, ta.name, ta.guest], ['dev-player-a', 'Player A', true], 'a guest account of its own (its cars and rating kept, for the races)');
     assert.notEqual(ta.uid, tb.uid, 'each window its own player: neither replaces the other');
     assert.equal((await anon.post('/api/v1/rt/ticket', { player: 'A B<script>' })).status, 400, 'a short name of letters and digits only');
   } finally { await T.close(); }
@@ -133,7 +133,7 @@ test('joining is refused cleanly: an old game, no ticket, a used or forged ticke
   env();
 });
 
-test('a ban reaches a player already in a room (through Redis), and the same account joining again replaces the first', async () => {
+test('a ban reaches a player already in a room (through Redis), and the same account joining again replaces the first (a race\'s room doesn\'t)', async () => {
   env();
   const T = await testApp('rtban', { env: { REDIS_URL: REDIS, RT_SECRET: SECRET } });
   try {
@@ -150,6 +150,10 @@ test('a ban reaches a player already in a room (through Redis), and the same acc
     assert.equal(notices[0]?.code, CODES.ELSEWHERE); assert.match(a.message, /another tab/);
     const me = (await p.get('/api/v1/me')).body.user.id;
     const bn: any[] = []; b.on('notice', n => bn.push(n));
+    // (but the same account joining a race's room isn't another tab: free roam stays on under its lobby)
+    const r = new Redis(REDIS); await r.publish('rt:kick', JSON.stringify({ uid: me, code: CODES.ELSEWHERE, scope: 'race' })); r.disconnect();
+    await sleep(300);
+    assert.equal(b.status, 'online', 'a race room\'s join doesn\'t close free roam'); assert.equal(bn.length, 0);
     assert.equal((await boss.post(`/api/v1/admin/players/${me}/ban`, { reason: 'Testing a ban reaching the game' })).status, 200);
     await until(() => b.status === 'offline', 5000, 'the banned player to be removed');
     assert.equal(bn[0]?.code, CODES.BANNED); assert.match(b.message, /banned/);

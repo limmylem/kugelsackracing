@@ -121,6 +121,15 @@ test('a race: a jump start costs its penalty; the finish window marks the slow D
   for (const pid of [1, 2, 3]) st(pid, 100);
   const jump = st(1, 500, 3);
   assert.ok(jump.some(e => e.type === 'jumpstart'), 'jump start detected');
+  // (the game putting its car on its slot just after the grid was announced: not a jump start)
+  const R2 = createRace({ cfg: CFG, settings: SET({ laps: 1 }), course: COURSE, now: 0 });
+  for (const i of [1, 2]) R2.join(i, { uid: `u${i}`, name: `P${i}`, rating: { mu: 25, sigma: 3 } });
+  R2.start(0); for (const i of [1, 2]) R2.loaded(i, {}, 0); R2.update(0);
+  const st2 = (pid, t, dx = 0) => { const sl = slots[R2.players.get(pid).slot]; return R2.carState(pid, { t, pos: [sl.x + dx, 0, sl.z], vel: [0, 0, 0] }); };
+  const early = [...st2(1, 100, 40), ...st2(1, 300, 40), ...st2(1, 600, 0), ...st2(2, 100, 40), ...st2(2, 1000, 40)];
+  assert.ok(!early.some(e => e.type === 'jumpstart'), 'off its slot while it was being put there: no penalty');
+  assert.ok(st2(1, 1500, 3).some(e => e.type === 'jumpstart'), 'on its slot, then off it: a jump start');
+  assert.ok(st2(2, CFG.race.jumpStart.settleSec * 1000 + 100, 40).some(e => e.type === 'jumpstart'), 'never on its slot after the settling time: a jump start');
   const drivers = new Map([[1, car(slots[R.players.get(1).slot], 0.95)], [2, car(slots[R.players.get(2).slot], 0.94)], [3, car(slots[R.players.get(3).slot], 0.5)]]);
   for (const d of drivers.values()) d.go(R.goAt);
   // (player 2's connection drops halfway and never comes back)

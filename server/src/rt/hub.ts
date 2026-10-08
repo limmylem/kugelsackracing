@@ -6,8 +6,9 @@
 //
 //   messages: status { state: 'menu' | 'free roam' } · invite { to, roomId } · join-friend { uid } · lobbies ·
 //   code { code } · party-create · party-invite { to } · party-join { partyId } · party-leave · party-queue { pings } ·
-//   friends (ask again: after a friend was added)
-//   sent: hello { friends, party } · friends { list } · invite { from, name, roomId, kind, code, lobby } ·
+//   ping { id } (→ pong: the queue's ping to this region) · friends (ask again) · friend-add { name | id } · friend-accept { id } · friend-remove { id } · block { id } ·
+//   unblock { id } · report { id, kind, details, ref } (kept by the API: POST /internal/mp/act)
+//   sent: hello { friends, incoming, outgoing, party } · friends { list, incoming, outgoing } · invite { from, name, roomId, kind, code, lobby } ·
 //   party-invite { partyId, from, name } · party { party } · party-queue { partyId } · lobbies { list } ·
 //   goto { roomId, spectate } · notice { text }
 
@@ -16,7 +17,7 @@ import { authorize, rtEnv } from './room.ts';
 import { setStatus, clearStatus, statuses, toUser, onUser, roomOfCode, getParty, putParty, dropParty } from './mp.ts';
 import { MP } from './mpData.ts';
 
-type Member = { client: Client; uid: string; name: string; friends: { id: string; name: string }[]; blocked: Set<string>; off: () => void; state: string; last: string; party: string | null };
+type Member = { client: Client; uid: string; name: string; friends: { id: string; name: string }[]; incoming: { id: string; name: string }[]; outgoing: { id: string; name: string }[]; blocked: Set<string>; off: () => void; state: string; last: string; party: string | null };
 
 export class HubRoom extends Room {
   maxClients = 10000;
@@ -30,14 +31,14 @@ export class HubRoom extends Room {
   }
   async onJoin(client: Client, options: any) {
     const t: any = client.auth;
-    let rel = { friends: [] as any[], blocked: [] as string[], blockedBy: [] as string[] };
+    let rel = { friends: [] as any[], blocked: [] as string[], blockedBy: [] as string[], incoming: [] as any[], outgoing: [] as any[] };
     try { if (rtEnv.api) rel = await rtEnv.api.relations(t.uid); } catch { /* none, for now */ }
-    const m: Member = { client, uid: t.uid, name: t.name, friends: rel.friends, blocked: new Set([...rel.blocked, ...rel.blockedBy, ...(t.mp?.blocked ?? [])]), off: () => {}, state: options?.state === 'free roam' ? 'free roam' : 'menu', last: '', party: null };
+    const m: Member = { client, uid: t.uid, name: t.name, friends: rel.friends, incoming: rel.incoming ?? [], outgoing: rel.outgoing ?? [], blocked: new Set([...rel.blocked, ...rel.blockedBy, ...(t.mp?.blocked ?? [])]), off: () => {}, state: options?.state === 'free roam' ? 'free roam' : 'menu', last: '', party: null };
     // (a message for this player, from anywhere: an invite, their party)
-    m.off = onUser(t.uid, msg => { if (msg?.from && m.blocked.has(msg.from)) return; if (msg?.t === 'party') m.party = msg.party?.id ?? null; client.send('mp', msg); });
+    m.off = onUser(t.uid, msg => { if (msg?.t === 'relations') { void this.reload(m); return; } if (msg?.from && m.blocked.has(msg.from)) return; if (msg?.t === 'party') m.party = msg.party?.id ?? null; client.send('mp', msg); });
     this.members.set(client.sessionId, m);
     await setStatus(t.uid, { state: m.state }).catch(() => {});
-    client.send('mp', { t: 'hello', friends: await this.friendList(m), party: null });
+    client.send('mp', { t: 'hello', friends: await this.friendList(m), incoming: m.incoming, outgoing: m.outgoing, party: null });
   }
   async onLeave(client: Client) {
     const m = this.members.get(client.sessionId);
@@ -62,8 +63,8 @@ export class HubRoom extends Room {
         const st = (await statuses([m.uid]).catch(() => ({} as any)))[m.uid];
         if (!st || ['menu', 'free roam'].includes(st.state)) await setStatus(m.uid, { state: m.state }).catch(() => {});
       }
-      const list = await this.friendList(m), key = JSON.stringify(list);
-      if (key !== m.last) { m.last = key; m.client.send('mp', { t: 'friends', list }); }
+      const list = await this.friendList(m), key = JSON.stringify([list, m.incoming, m.outgoing]);
+      if (key !== m.last) { m.last = key; m.client.send('mp', { t: 'friends', list, incoming: m.incoming, outgoing: m.outgoing }); }
     }
   }
 
@@ -74,9 +75,22 @@ export class HubRoom extends Room {
     const isFriend = (uid: string) => m.friends.some(f => f.id === uid) && !m.blocked.has(uid);
     switch (msg.t) {
       case 'status': m.state = msg.state === 'free roam' ? 'free roam' : 'menu'; await setStatus(m.uid, { state: m.state }); return;
-      case 'friends': {
-        try { if (rtEnv.api) { const rel = await rtEnv.api.relations(m.uid); m.friends = rel.friends; m.blocked = new Set([...rel.blocked, ...rel.blockedBy]); } } catch { /* as was */ }
-        m.last = ''; return this.refresh();
+      case 'ping': return c.send('mp', { t: 'pong', id: msg.id ?? null });
+      case 'friends': return this.reload(m);
+      // (friends, blocks and reports: kept by the API — the hub knows who's asking)
+      case 'friend-add': case 'friend-accept': case 'friend-remove': case 'block': case 'unblock': case 'report': {
+        if (!rtEnv.api) return say('Not available right now.');
+        const action = msg.t, id = typeof msg.id === 'string' ? msg.id : undefined;
+        let r: any;
+        try { r = await rtEnv.api.act(m.uid, { action, id, name: typeof msg.name === 'string' ? msg.name : undefined, kind: msg.kind, details: msg.details, ref: msg.ref }); }
+        catch (e: any) { return say(e?.message ?? 'That didn\'t work.'); }
+        if (action === 'report') return say(r?.already ? 'You\'ve reported them already: the admins will look at it.' : 'Reported: thanks — an admin will look at it.');
+        await this.reload(m);
+        // (the other player's lists change too)
+        const other = r?.id ?? id;
+        if (other) await toUser(other, { t: 'relations' }).catch(() => {});
+        const name = r?.name ?? [...m.friends, ...m.incoming, ...m.outgoing].find(f => f.id === other)?.name ?? 'them';
+        return say(action === 'friend-add' ? (r?.status === 'friend' ? `You and ${name} are friends.` : `Friend request sent to ${name}.`) : action === 'friend-accept' ? `You and ${name} are friends.` : action === 'friend-remove' ? 'Removed.' : action === 'block' ? 'Blocked: you won\'t see each other\'s chat or invites, and the queue keeps you apart.' : 'Unblocked.');
       }
       case 'invite': {
         if (!isFriend(msg.to)) return say('You can invite your friends.');
@@ -135,6 +149,12 @@ export class HubRoom extends Room {
         return;
       }
     }
+  }
+  // (their friends and blocks again, from the API: something changed)
+  async reload(m: Member) {
+    try { if (rtEnv.api) { const rel = await rtEnv.api.relations(m.uid); m.friends = rel.friends; m.incoming = rel.incoming ?? []; m.outgoing = rel.outgoing ?? []; m.blocked = new Set([...rel.blocked, ...rel.blockedBy]); } } catch { /* as was */ }
+    m.last = '';
+    return this.refresh();
   }
   async leaveParty(m: Member) {
     const party = m.party ? await getParty(m.party) : null;

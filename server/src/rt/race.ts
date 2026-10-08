@@ -7,7 +7,8 @@
 //   code; the host's settings), custom (the host's settings; listed in the lobby browser unless the host says not)
 //
 // The game's messages ('mp', JSON):  ready { v } · car { instanceId } · settings { settings } (host) · start (host) ·
-//   kick { uid } (host) · chat { text } · loaded { hash } · spectate · race · run { result, recording } ·
+//   kick { uid } (host) · chat { text } · block { uid } · loaded { hash } · spectate · race · run { result, recording } (a long
+//   recording first in pieces: run-part { i, of, data }) ·
 //   rematch { v } · ping { ms }
 // What it sends:  lobby (everything: settings, players, host, phase, venue, code) · chat · event (the race's) ·
 //   standings (4 a second while racing) · results (provisional) · confirmed (once the runs are checked) · notice
@@ -24,11 +25,14 @@ import { courseOf, setStatus, clearStatus, claimCode, renewCode, dropCode } from
 import { cleanChat } from '../names.ts';
 import { MP, NPC_DRIVERS } from './mpData.ts';
 
+const MAX_RUN_PARTS = 200;
+
 type Npc = { pid: string; id: number; name: string; driver: any; latest: any; latestF: any; entry: any };
 
 export class RaceRoom extends TestRoom {
   static races = new Set<RaceRoom>();
   kind: 'quick' | 'private' | 'custom' = 'custom';
+  scope = 'race';
   settings: any;
   code: string | null = null;
   host: string | null = null;
@@ -48,6 +52,7 @@ export class RaceRoom extends TestRoom {
   raceNo = 0;
   raceId: string | null = null;
   private lastStandings = 0;
+  loadMsg: any = null;
   private plan: any = null;
 
   async onCreate(options: any) {
@@ -126,6 +131,8 @@ export class RaceRoom extends TestRoom {
     if (!this.gates.has(t.uid)) this.gates.set(t.uid, createChatGate(MP.lobby.chat));
     void this.status(t.uid);
     this.sendTo(p, { t: 'chat-log', messages: this.chat.slice(-MP.lobby.chat.keep) });
+    // (joining a race under way — to watch, or back after a page reload: what's being raced)
+    if (r.phase !== 'lobby' && this.loadMsg) this.sendTo(p, this.loadMsg);
     this.broadcastLobby();
     void this.meta();
   }
@@ -205,11 +212,21 @@ export class RaceRoom extends TestRoom {
         if (!res.ok) this.say(p, res.why);
         break;
       }
+      // (blocked from here: their chat hidden from now on — the block itself is kept by the API, through the hub)
+      case 'block': if (typeof m.uid === 'string' && m.uid !== uid) { const t: any = p.t; t.mp ??= {}; t.mp.blocked = [...new Set([...(t.mp.blocked ?? []), m.uid.slice(0, 80)])].slice(-400); } return;
       case 'spectate': r.makeSpectator(uid); break;
       case 'race': r.makeRacer(uid); break;
+      case 'run-part': this.runPart(p, m); return;
       case 'run': void this.handIn(p, m); return;
       case 'rematch': this.votes.set(uid, !!m.v); this.checkRematch(); break;
-      case 'ping': if (Number.isFinite(m.ms)) this.pings.set(uid, Math.round(m.ms)); return;
+      case 'ping': {
+        if (!Number.isFinite(m.ms)) return;
+        const was = this.pings.get(uid), ms = Math.max(0, Math.min(9999, Math.round(m.ms)));
+        this.pings.set(uid, ms);
+        // (the lobby's ping column: shown again when someone's has changed by much)
+        if (r.phase === 'lobby' && (was == null || Math.abs(was - ms) > 20)) break;
+        return;
+      }
       default: return;
     }
     this.broadcastLobby();
@@ -230,12 +247,15 @@ export class RaceRoom extends TestRoom {
       }
     }
     this.raceNo++;
+    this.freshStates();
     // (the race's id from the start: each player's run is a quest named after it — mp/quest.js)
     this.raceId = `${this.roomId}-${this.raceNo}-${Date.now().toString(36)}`;
     this.results = null; this.votes.clear(); this.pending = [];
     r.start(now);
     this.handle(r.drain());
-    this.broadcastJson({ t: 'load', raceId: this.raceId, venue: this.venueView(), laps: r.laps, deadline: r.state.loadDeadline });
+    // (a real-world route's course with it, as stored: the game lays it out in its own world the way the server does)
+    this.loadMsg = { t: 'load', raceId: this.raceId, venue: this.venueView(), course: this.resolved?.venue?.kind === 'route' ? this.resolved.course : null, laps: r.laps, deadline: r.state.loadDeadline };
+    this.broadcastJson(this.loadMsg);
     this.broadcastLobby();
     void this.meta();
   }
@@ -265,7 +285,7 @@ export class RaceRoom extends TestRoom {
   handle(events: any[]) {
     for (const e of events) {
       if (e.type === 'phase') {
-        if (e.phase === 'countdown') this.startNpcs();
+        if (e.phase === 'countdown') { this.startNpcs(); this.freshStates(); }
         if (e.phase === 'racing') for (const n of this.npcs.values()) n.driver.go(this.race.goAt);
         if (e.phase === 'results') void this.finished(e);
         if (e.phase !== 'results') this.broadcastJson({ t: 'phase', phase: e.phase, at: e.at, goAt: e.goAt ?? this.race.goAt, deadline: e.deadline ?? null, lightsSec: e.lightsSec ?? MP.race.lightsSec });
@@ -276,11 +296,19 @@ export class RaceRoom extends TestRoom {
       }
       if (e.type === 'finish' && e.pid?.startsWith('npc:')) this.npcs.get(e.pid)?.driver.finish();
       if (e.type === 'dnf' && e.pid?.startsWith('npc:')) { this.npcs.delete(e.pid); }
+      // (a player out: their car taken off everyone's screen — even one still waiting to come back)
+      if (e.type === 'dnf' && !e.pid?.startsWith('npc:')) for (const o of this.players.values()) if (o.t.uid === e.pid) this.broadcastRoster({ status: { id: o.id, status: 'out' } });
       // (a flag is for the results' check and the player concerned, not everyone)
       if (e.type === 'flag') { const p = [...this.players.values()].find(x => x.t.uid === e.pid); if (p) this.sendTo(p, { t: 'event', e }); continue; }
       this.broadcastJson({ t: 'event', e });
       if (e.type === 'grid' || e.type === 'spectate' || e.type === 'late') this.broadcastLobby();
     }
+  }
+  // every car's last state forgotten: it's put somewhere else for the race (its grid slot — after the last race, the
+  // other end of town), which the live checks would take for a teleport and refuse, and every state after it
+  freshStates() {
+    const now = this.roomNow();
+    for (const p of this.players.values()) { p.latest = null; p.latestF = null; p.resetUntil = now + 3000; p.sentBase.clear(); }
   }
   startNpcs() {
     this.npcs.clear();
@@ -292,7 +320,7 @@ export class RaceRoom extends TestRoom {
       const d = NPC_DRIVERS.find((x: any) => `npc:${x.id}` === p.pid);
       const [lo, hi] = MP.npc.skill, skill = lo + (hi - lo) * (d?.skill ?? Math.random());
       const driver = createNpcDriver({ line: c.line, loop: c.loop, plan: this.plan, slot: c.grid.slots[p.slot], skill });
-      const entry = { id, name: p.name, guest: false, status: 'here', npc: true, look: { carId: d?.car ?? 'starter_car', paint: { colour: d?.colour ?? '#888' }, name: p.name }, events: [] };
+      const entry = { id, uid: p.pid, name: p.name, guest: false, status: 'here', npc: true, look: { carId: d?.car ?? 'starter_car', paint: { colour: d?.colour ?? '#888', finish: 'metallic' }, name: p.name }, events: [] };
       this.npcs.set(p.pid, { pid: p.pid, id: id++, name: p.name, driver, latest: null, latestF: null, entry });
     }
     // (everyone told about the NPCs' cars)
@@ -300,6 +328,11 @@ export class RaceRoom extends TestRoom {
   }
   protected virtualCars() { return [...this.npcs.values()].filter(n => n.latest).map(n => ({ id: n.id, latest: n.latest, latestF: n.latestF, entry: n.entry })); }
   protected carAccepted(p: Player, f: any) { this.handle(this.race.carState(p.t.uid, { t: f.time, pos: f.pos, vel: f.vel })); }
+  // (only the cars racing go to the others: not in the lobby, not a spectator's, not once its player is out)
+  protected relays(p: Player) {
+    const r = this.race, q = r?.players.get(p.t.uid);
+    return !!q && r.phase !== 'lobby' && q.role === 'racer' && q.status !== 'dnf';
+  }
 
   // ---------- the results ----------
   async finished(e: any) {
@@ -319,12 +352,29 @@ export class RaceRoom extends TestRoom {
   // (a run handed in as its player finishes — before the race is over: kept, and sent on once the race is reported)
   private pending: { uid: string; body: any }[] = [];
   private handed = new Set<string>();
+  // a long race's recording comes in pieces (a message is at most 64 kB): run-part { i, of, data } each, then the run
+  // with recording.parts — put back together here (at most MAX_RUN_PARTS, ~6 MB: hours of driving)
+  runParts = new Map<string, string[]>();
+  runPart(p: Player, m: any) {
+    const key = `${this.raceId}:${p.t.uid}`, of = Number(m.of), i = Number(m.i);
+    if (!this.raceId || !Number.isInteger(of) || !Number.isInteger(i) || of < 1 || of > MAX_RUN_PARTS || i < 0 || i >= of || typeof m.data !== 'string') return;
+    const list = this.runParts.get(key) ?? new Array(of).fill(null);
+    if (list.length !== of) return;
+    list[i] = m.data;
+    this.runParts.set(key, list);
+  }
   async handIn(p: Player, m: any) {
     if (!this.raceId || this.race.phase === 'lobby') return this.say(p, 'There\'s no race to hand a run in for.');
     const key = `${this.raceId}:${p.t.uid}`;
     if (this.handed.has(key)) return;
+    let recording = m.recording ?? null;
+    if (recording?.parts) {
+      const list = this.runParts.get(key);
+      this.runParts.delete(key);
+      recording = list && list.length === recording.parts && list.every(x => x != null) ? { ...recording, data: list.join(''), parts: undefined } : null;
+    }
     this.handed.add(key);
-    const body = { result: m.result ?? null, recording: m.recording ?? null };
+    const body = { result: m.result ?? null, recording };
     if (!this.results?.posted) { this.pending.push({ uid: p.t.uid, body }); return; }
     await this.forwardRun(p.t.uid, body);
   }
@@ -380,7 +430,8 @@ export class RaceRoom extends TestRoom {
     }
     return { t: 'lobby', roomId: this.roomId, kind: this.kind, code: this.code, host: this.host, settings: this.settings, venue: this.venueView(), venueError: this.venueError, serverNow: now, ...view, raceId: this.raceId, confirmed: this.results?.confirmed ?? null };
   }
-  broadcastLobby() { const v = this.lobbyView(); for (const p of this.players.values()) this.sendTo(p, { ...v, you: p.t.uid }); }
+  // (each told who they are, and which of their cars they can race here)
+  broadcastLobby() { const v = this.lobbyView(); for (const p of this.players.values()) this.sendTo(p, { ...v, you: p.t.uid, cars: (p.t.mp?.cars ?? []).map((c: any) => ({ ...c, allowed: carAllowed(c, this.settings) })) }); }
   broadcastJson(m: any) { for (const p of this.players.values()) this.sendTo(p, m); }
   sendTo(p: Player, m: any) { if (p.status !== 'here') return; try { p.client.send('mp', m); } catch { /* gone */ } }
   say(p: Player, text: string) { this.sendTo(p, { t: 'notice', text }); }

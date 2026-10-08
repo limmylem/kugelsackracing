@@ -1,8 +1,72 @@
 # Known issues, and what to revisit
 
-As of Phase 7 Step 1 (multiplayer's networking, first), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 7 Step 2 (multiplayer races, first), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 7 Step 2: lobbies, matchmaking and races (docs/MULTIPLAYER.md)
+
+### Fixed on the way: a route read back from the database could look changed
+
+A route's version (`route/model.js routeVersionOf`) hashed its stored path as JSON, and Postgres's `jsonb` hands an
+object's keys back in its own order — so the same route, read back, could have another version, and every run on
+it failed its check ("The route has changed since the run started"). Found by the bot races (a party's race,
+disqualified at random). The path's keys are now put in a fixed order before hashing (`canonPath`). This also fixed
+a latent Phase 6 bug: runs on generated tracks checked after an API restart.
+
+### Fixed on the way: concurrent queries on one transaction
+
+`server/src/economy/store.ts loadProfile` sent four queries at once on a transaction's single connection. pg queued
+them, so it worked, but pg 9 will refuse it (the deprecation warning in the bot races). They're one after another now.
+
+### Not in this step
+
+- **Collisions between players**: ghost mode only (Step 3).
+- **Pink slips between players**: none (nothing a player owns can be lost to another player).
+- **Real-world route runs aren't replayed input by input.** A multiplayer run on a route is checked on its gates,
+  laps and times (Phase 6 Step 3's checks on the race's quest), against the race server's own timing of the same
+  run (within 300 ms), and the server's live flags; a generated track's run is replayed as in Phase 6.
+- **Regions**: one ("local") until the game is online; the queue's ping is the round trip to this computer's
+  real-time server.
+
+### Things to know
+
+- **A computer that draws slowly** keeps real time in a race: the physics catches up each frame (up to a second of
+  it, instead of the usual 8 steps), because a race is timed on the server's clock. Only a computer whose physics
+  itself can't keep up would race slower. With no graphics card (software drawing, as in the browser tests and CI),
+  the city draws at 2–4 frames a second at the race venues downtown; the tests load less of it (`?view=600`: the
+  world 600 m round the car instead of 1.4 km). A player can use `?view=` too.
+- **Found by the browser test:** the lobby's connection was closed as idle after 15 s (nothing was sent while no cars
+  were drawn); the start lights showed outside the countdown (CSS overrode their `hidden`); other players' cars each
+  carried two real headlight lights (a race's worth of cars made every pixel slower: now one shared pair follows the
+  nearest car with its lights on); leaving free roam could wait for ever on a room already gone; and the test's own
+  "is it drawn" check had trusted the `hidden` attribute instead of what the browser computed. Then, with the race
+  driven to the end in both windows:
+  - joining a race's lobby closed your own free-roam connection as if it were another tab ("You joined from another
+    tab or device"), and free roam coming back after a race could close the race's connection the same way. One
+    connection per account now holds among rooms of one sort (free roam; races), not across them;
+  - a rematch's cars were refused by the live checks ("moved too far": the jump back to the grid, measured against
+    the last race's states); each race's grid now starts the checks afresh;
+  - at about one frame a second a run could be timed half a second off the server's own timing of it, and
+    disqualified: the game now times the run on the same clock its states are stamped with, and that clock is steered
+    towards the server's by the time passed rather than by the frame;
+  - **a quick race never started from the game**: matched, the game took its reserved seat with no address for the
+    real-time server (a reserved seat takes no ticket, and the browser has the address from its tickets), failed at
+    once, and the empty race closed. The bots had been given the address, so their races worked. The queue's address
+    now goes with the seat, and the bot races find the server from their tickets as the game does;
+  - leaving a lobby kept its state, so the next quick race looked matched at once;
+  - the account chip covered the results' Rematch button.
+- **TV cameras on real-world routes** are simple: beside the route every 170 m, up 7 m, on the outside of the bend.
+  A building can come between one and the car. Generated tracks use their own placed TV cameras (Phase 5).
+- **The lobby offers the official routes** (`data/multiplayer.json` venues.routes, one a baked region) and random,
+  the official tracks or a track code. Other published routes can be set through the lobby's settings message, not
+  picked from a list yet.
+- **Reporting from the lobby** asks for the reason in the browser's own prompt box.
+- **The 2,000-bot load test is the matchmaker's**: 2,000 players queue at once, are matched and take their seats
+  (262 race rooms), then leave. It doesn't race 2,000 players at once: the bot races cover races (8 at a time) and
+  Step 1's tests cover a room's ticks (256 players).
+- **Bots in the tests are kinematic** (`mp/npc.js`: a speed plan along the racing line), timed by the same
+  QuestSession as a person's run. The NPCs that fill a lobby are the same, driven by the server.
 
 ## Phase 7 Step 1: multiplayer networking (docs/MULTIPLAYER.md)
 

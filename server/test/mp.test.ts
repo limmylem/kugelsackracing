@@ -47,6 +47,34 @@ test('friends: a request, accepted by the other; a block ends it and keeps them 
   }
 });
 
+test('from the game\'s screens, through the race server (development players too): a friend request and its acceptance, the requests both ways, a block, a report', async () => {
+  const devA = await mp().devPlayer('A'), devB = await mp().devPlayer('B');
+  const act = async (uid: string, body: object) => { const r = await internal('POST', '/act', { uid, ...body }); return { status: r.statusCode, body: JSON.parse(r.body) }; };
+  assert.equal((await act(devA.id, { action: 'friend-add', name: 'Player B' })).body.status, 'outgoing');
+  const rel = JSON.parse((await internal('GET', `/relations/${devB.id}`)).body);
+  assert.deepEqual(rel.incoming.map((x: any) => x.name), ['Player A'], 'B sees the request');
+  assert.equal((await act(devB.id, { action: 'friend-accept', id: devA.id })).status, 200);
+  assert.deepEqual(JSON.parse((await internal('GET', `/relations/${devA.id}`)).body).friends.map((x: any) => x.name), ['Player B']);
+  // a report: kept as Phase 6's are (one open report of a kind; a reason needed)
+  assert.equal((await act(devA.id, { action: 'report', id: devB.id, kind: 'behaviour', details: 'no' })).status, 400);
+  const rep = await act(devA.id, { action: 'report', id: devB.id, kind: 'behaviour', details: 'Rude in the lobby chat.', ref: { roomId: 'r1', evil: 'x' } });
+  assert.equal(rep.body.ok, true);
+  assert.equal((await act(devA.id, { action: 'report', id: devB.id, kind: 'behaviour', details: 'Rude in the lobby chat.' })).body.already, true);
+  // a block: the friendship gone, kept apart
+  assert.equal((await act(devB.id, { action: 'block', id: devA.id })).status, 200);
+  const after = JSON.parse((await internal('GET', `/relations/${devA.id}`)).body);
+  assert.deepEqual(after.friends, []); assert.deepEqual(after.blockedBy, [devB.id]);
+  assert.equal((await act(devA.id, { action: 'nonsense' })).status, 400);
+  // (a guest — not a development player — makes a full account first, as with POST /friends)
+  const g = new Player(T.app, '10.80.201.1');
+  if ((await g.post('/api/auth/sign-in/anonymous', {})).status === 200) {
+    const gid = (await g.get('/api/v1/me')).body?.user?.id ?? (await g.get('/api/v1/me')).body?.id;
+    if (gid) assert.equal((await act(gid, { action: 'friend-add', name: 'Player B' })).status, 403);
+  }
+  // (the internal key, as every internal call)
+  assert.equal((await T.app.inject({ method: 'POST', url: '/api/v1/internal/mp/act', headers: { 'content-type': 'application/json' }, payload: JSON.stringify({ uid: devA.id, action: 'block', id: devB.id }) })).statusCode, 403);
+});
+
 test('a join ticket carries the rating, the cars (class and performance rating, worked out here) and the blocks; development players are guests of their own', async () => {
   const p = await player('Tess Ticket');
   const r = await p.post('/api/v1/rt/ticket', {});

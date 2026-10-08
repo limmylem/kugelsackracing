@@ -63,7 +63,8 @@ async function people(n: number, tag: string, { netsim = null } = {}) {
     const k = ++made, p = await signUp(app, app.deps.mailer.outbox, { email: `${tag}${k}@example.com`, name: `${tag.toUpperCase()} Racer ${k}`, ip: `10.${30 + (k >> 8)}.${k & 255}.1` });
     const ticket = async () => { const r = await p.post('/api/v1/rt/ticket', {}); if (r.status !== 200) throw new Error(r.text); return r.body; };
     const uid = verifyTicket(SECRET, (await ticket()).ticket).uid;
-    const session = createMpSession({ transport, endpoint: `http://localhost:${RT_PORT}`, getTicket: ticket, netsim });
+    // (the real-time server's address from each ticket, as in the browser — not given here)
+    const session = createMpSession({ transport, getTicket: ticket, netsim });
     out.push({ p, uid, session, name: `${tag.toUpperCase()} Racer ${k}` });
   }
   return out;

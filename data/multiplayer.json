@@ -39,12 +39,12 @@
     "gridOrders": ["rating", "random", "reverse"]
   },
   "race": {
-    "_note": "loadTimeoutSec: the race starts when everyone has loaded, or after this; anyone still loading starts late from the back of the grid (lateJoin: 'back') or watches (lateJoin: 'spectate'). countdownSec: from the start being announced to the lights going out (the lights themselves: the last lightsSec of it). jumpStart: a car more than toleranceM from its slot before the lights go out gets penaltySec. finishWindowSec: once the winner finishes, the others have this long. dnfGraceSec: a dropped player has this long to come back before they're out (their car removed). resultsWaitSec: how long the results wait for each player's run to be handed in and checked before it's counted as not handed in.",
+    "_note": "loadTimeoutSec: the race starts when everyone has loaded, or after this; anyone still loading starts late from the back of the grid (lateJoin: 'back') or watches (lateJoin: 'spectate'). countdownSec: from the start being announced to the lights going out (the lights themselves: the last lightsSec of it). jumpStart: a car more than toleranceM from its slot before the lights go out gets penaltySec (judged once it has been on its slot, or settleSec after the grid is announced: the game needs a moment to put it there). finishWindowSec: once the winner finishes, the others have this long. dnfGraceSec: a dropped player has this long to come back before they're out (their car removed). resultsWaitSec: how long the results wait for each player's run to be handed in and checked before it's counted as not handed in.",
     "loadTimeoutSec": 60,
     "lateJoin": "back",
     "countdownSec": 6,
     "lightsSec": 5,
-    "jumpStart": { "toleranceM": 1.5, "penaltySec": 5 },
+    "jumpStart": { "toleranceM": 1.5, "penaltySec": 5, "settleSec": 2 },
     "finishWindowSec": 45,
     "dnfGraceSec": 30,
     "resultsWaitSec": 45,
@@ -62,6 +62,17 @@
     "accelG": 0.45,
     "brakeG": 0.85,
     "topSpeed": 62
+  },
+  "venues": {
+    "_note": "The official multiplayer routes: one real-world route in each baked region (server/tools/seed-mp-routes.ts publishes them as world content, ids route_mp<region>). A lobby's host picks from these; a lobby on 'random' picks among every published route and the official generated tracks.",
+    "routes": [
+      { "id": "route_mpsf", "region": "sf", "name": "Market Street Sprint" },
+      { "id": "route_mpmk", "region": "mk", "name": "Milton Keynes Roundabouts" },
+      { "id": "route_mpmonaco", "region": "monaco", "name": "Monaco Harbour Run" },
+      { "id": "route_mptokyo", "region": "tokyo", "name": "Omotesando Climb" },
+      { "id": "route_mpstelvio", "region": "stelvio", "name": "Stelvio Pass" },
+      { "id": "route_mpmunich", "region": "munich", "name": "A99 Autobahn Blast" }
+    ]
   },
   "rank": {
     "_note": "The skill rating is OpenSkill (Plackett-Luce; mu 25, sigma 25/3 to start). It's shown as a tier, from the ordinal (mu - 3 sigma) — never the raw number. A new player is Unranked until placed (placementRaces).",

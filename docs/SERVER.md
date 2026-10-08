@@ -104,8 +104,15 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
     `/admin/settings/:key` (features and gradual rollouts, maintenance, the closed beta, the oldest game taken),
     `/admin/invites`, `/admin/players/:id/history`, `/admin/monitoring`, `/admin/retention`.
   - [SECURITY.md](SECURITY.md), [ABUSE.md](ABUSE.md), [OPERATIONS.md](OPERATIONS.md), [PRIVACY_DATA.md](PRIVACY_DATA.md).
-- **Multiplayer (Phase 7 Step 1):** `POST /rt/ticket` gives a signed-in player (or a guest) a one-use join ticket
-  for the real-time server, a separate process (`npm run rt -w @kr/server`, needs Redis): [MULTIPLAYER.md](MULTIPLAYER.md).
+- **Multiplayer (Phase 7 Steps 1 and 2):** `POST /rt/ticket` gives a signed-in player (or a guest) a one-use join
+  ticket for the real-time server, a separate process (`npm run rt -w @kr/server`; one process needs no Redis,
+  several share it). The ticket carries what matchmaking needs: the player's rating, their cars' classes and
+  performance ratings, who they've blocked, any queue cooldown. Races (Step 2): `/friends`, `/blocks`, `/mp/me` (your
+  tier), `/mp/races/:id` (a race's results, provisional then confirmed), `/mp/leaderboard`, and the admins'
+  `/admin/mp/dashboard` (the queue against its targets). The real-time server's own calls are under
+  `/internal/mp/…` (the `RT_SECRET` in `x-kr-internal`): a venue resolved, a race's results, each run handed in to be
+  checked, friends, blocks and reports from the game's screens, the queue's numbers. The tables: `friendships`,
+  `blocks`, `mp_ratings`, `mp_races`, `mp_race_players` (migration 0012). [MULTIPLAYER.md](MULTIPLAYER.md).
 - **Every write** needs:
   - an `Idempotency-Key` (a retry is applied once);
   - with a session cookie, the CSRF token from `/csrf` in `x-csrf-token`.

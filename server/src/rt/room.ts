@@ -63,7 +63,11 @@ function subscribeKicks() {
   if (kicksOn) return;
   kicksOn = true;
   void matchMaker.presence.subscribe('rt:kick', (m: any) => {
-    for (const room of TestRoom.live) for (const p of room.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except) room.kick(p, m.code ?? CODES.KICKED, m.message);
+    for (const room of TestRoom.live) {
+      // (the same account joining a room of another sort — free roam's while in a race's lobby — isn't another tab)
+      if (m?.scope && room.scope !== m.scope) continue;
+      for (const p of room.players.values()) if (p.t.uid === m?.uid && p.client.sessionId !== m.except) room.kick(p, m.code ?? CODES.KICKED, m.message);
+    }
   });
 }
 export const resetKicks = () => { kicksOn = false; };
@@ -91,6 +95,7 @@ export class TestRoom extends Room {
   grid = createGrid(NET.interest);
   tickMs: number[] = [];
   kicks = 0;
+  scope = 'roam';                                   // (one connection per account among the rooms of a sort: free roam, races)
   private unsub: (() => void) | null = null;
 
   roomNow() { return serverMs() - this.epoch; }
@@ -120,7 +125,7 @@ export class TestRoom extends Room {
   onJoin(client: Client, options: any) {
     const t = client.auth as Ticket;
     for (const o of this.players.values()) if (o.t.uid === t.uid) this.kick(o, CODES.ELSEWHERE);
-    void matchMaker.presence.publish('rt:kick', { uid: t.uid, except: client.sessionId, code: CODES.ELSEWHERE });
+    void matchMaker.presence.publish('rt:kick', { uid: t.uid, except: client.sessionId, code: CODES.ELSEWHERE, scope: this.scope });
     const ids = new Set([...this.players.values()].map(p => p.id));
     let id = 1; while (ids.has(id)) id++;
     // (the network simulator, on the server's side of this player's connection: development and tests only)
@@ -197,6 +202,8 @@ export class TestRoom extends Room {
   // (Phase 7 Step 2: a race room follows each car's progress; NPCs driven by the server are cars of their own)
   protected carAccepted(_p: Player, _f: any) {}
   protected virtualCars(): Iterable<{ id: number; latest: any; latestF: any; entry: any }> { return []; }
+  // (whether a player's car goes to the others: a race room sends only the cars racing)
+  protected relays(_p: Player) { return true; }
   protected onEvent(c: Client, bytes: Uint8Array) {
     const p = this.players.get(c.sessionId)!, now = this.roomNow();
     if (bytes.length > MAX_EVENT_BYTES) { this.strike(p, 'event too big'); return; }
@@ -240,7 +247,7 @@ export class TestRoom extends Room {
     if (p.down) p.down.send(go, bytes, { reliable }); else go(bytes);
   }
   protected rosterFull() { return [...[...this.players.values()].map(x => this.entry(x)), ...[...this.virtualCars()].map(v => v.entry)]; }
-  protected entry(p: Player) { return { id: p.id, name: p.t.name, guest: p.t.guest, status: p.status, look: p.look, events: p.events }; }
+  protected entry(p: Player) { return { id: p.id, uid: p.t.uid, name: p.t.name, guest: p.t.guest, status: p.status, look: p.look, events: p.events }; }
   protected broadcastRoster(msg: object, except?: Player) {
     const b = encodeValue(msg);
     for (const o of this.players.values()) if (o !== except && o.status === 'here') this.out(o, S2C.ROSTER, b, true);
@@ -265,13 +272,14 @@ export class TestRoom extends Room {
   tick() {
     const t0 = performance.now(), now = this.roomNow(), tick = ++this.tickNo;
     const list = [...this.players.values()], virt = [...this.virtualCars()];
-    this.grid.rebuild([...list.filter(p => p.status === 'here').map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })), ...virt.map(v => ({ id: v.id, pos: v.latestF?.pos ?? null }))]);
-    const byId = new Map<number, any>([...list.map(p => [p.id, p] as [number, any]), ...virt.map(v => [v.id, { ...v, status: 'here' }] as [number, any])]);
+    this.grid.rebuild([...list.filter(p => p.status === 'here' && this.relays(p)).map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })), ...virt.map(v => ({ id: v.id, pos: v.latestF?.pos ?? null }))]);
+    const byId = new Map<number, any>([...list.map(p => [p.id, p] as [number, any]), ...virt.map(v => [v.id, { ...v, status: 'here', virtual: true }] as [number, any])]);
     for (const r of list) {
       if (r.status !== 'here') continue;
       // (a dead connection: nothing heard for too long)
       if (now - r.lastHeard > NET.idleSec * 1000) { this.kick(r, CODES.IDLE); continue; }
-      const near = r.latestF ? this.grid.near({ id: r.id, pos: r.latestF.pos }) : [...byId.values()].filter(o => o !== r && o.latestF && o.status === 'here').map(o => ({ id: o.id, d: 0, every: 1 }));
+      // (a car that isn't sent — a spectator's — sees every car: it may be watching any of them)
+      const near = r.latestF && this.relays(r) ? this.grid.near({ id: r.id, pos: r.latestF.pos }) : [...byId.values()].filter(o => o !== r && o.latestF && o.status === 'here' && (o.virtual || this.relays(o))).map(o => ({ id: o.id, d: 0, every: 1 }));
       const keep = new Set<number>(), cars: any[] = [];
       for (const n of near) {
         keep.add(n.id);

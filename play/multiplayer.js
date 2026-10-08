@@ -21,6 +21,9 @@
 //   M.crash(outcome, build) · M.part(socket, state) · M.reset() · M.repair() · M.setLook(look)
 //   M.status · M.message · M.overlay.toggle() · M.leave()
 //   M.others() → [{ id, name, distM, drawn, why, onScreen, ageMs }]    each other player as this window sees it
+//   (Phase 7 Step 2) a race's room: joinMultiplayer({ net, … }) draws the cars of a connection already made (the race's:
+//   mp/client.js) — leave() then lets it be; label(o) → the text over each car (null: its name); spread: false (a race
+//   puts every car on its own grid slot: none is moved aside); M.car(id) → { pose, handle } (the spectator's camera)
 //   M.toNearest() → your car beside the nearest other player (the development key F9), or why not
 //
 // Two windows of one browser share its sign-in, and an account joining twice replaces itself: in development each
@@ -80,18 +83,24 @@ export function damageView(look, events, rules) {
   return out;
 }
 
-export async function joinMultiplayer({ account, world, look, adapter: A, player = null, netsim = null, serverNetsim = null, debug = false, settings = NET }) {
+// a connection of its own (free roam: this world's room), with a ticket from the API for each join
+async function connectNet({ account, world, look, player, netsim, serverNetsim, settings }) {
   const Colyseus = await import('../net/vendor/colyseus.js');
-  let endpoint = null;
-  const N = createNetClient({
-    transport: createColyseusTransport(Colyseus), world, look, netsim, serverNetsim, settings,
-    getTicket: async () => {
-      const t = await account.api.post('/rt/ticket', player ? { player } : {});
-      endpoint = rtEndpoint(globalThis.KR_SITE, t.url);
-      return { ticket: t.ticket, url: endpoint };
-    },
-  });
+  const N = createNetClient({ transport: createColyseusTransport(Colyseus), world, look, netsim, serverNetsim, settings, getTicket: ticketGetter(account, player) });
   await N.connect();
+  return N;
+}
+// a fresh join ticket from the API each time (they're used once); development: ?player=A's
+export function ticketGetter(account, player = null) {
+  return async () => {
+    const t = await account.api.post('/rt/ticket', player ? { player } : {});
+    return { ticket: t.ticket, url: rtEndpoint(globalThis.KR_SITE, t.url) };
+  };
+}
+
+export async function joinMultiplayer({ account, world, look, adapter: A, player = null, netsim = null, serverNetsim = null, debug = false, settings = NET, net = null, label = null, spread = true }) {
+  const ownNet = !net;
+  const N = net ?? await connectNet({ account, world, look, player, netsim, serverNetsim, settings });
   const cars = new Map();          // id → { handle, loading, lookKey, spin: [], sound, label, damageKey, parts }
   let mine = null, landedAt = null; // your car's last state (world frame), as sent; when it was first in the world
   let cleared = false;             // (joined on top of another car: moved beside it, once)
@@ -114,9 +123,9 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
     } else if (st === 'reconnecting') { banner.textContent = 'Multiplayer: the connection dropped. Reconnecting…'; banner.hidden = false; }
     else banner.hidden = true;
   };
-  N.on('status', showBanner);
+  const offs = [N.on('status', showBanner)];
   // (the page closed, reloaded or left: gone for the others now, not "reconnecting…" for the next 20 s)
-  const bye = () => { void N.leave(); };
+  const bye = () => { if (ownNet) void N.leave(); };
   addEventListener('pagehide', bye);
 
   // a window in the background draws no frames: a worker's timer (not slowed down like the page's) keeps the
@@ -146,14 +155,14 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
     c.sound?.dispose(); c.label?.remove();
     cars.delete(id);
   };
-  N.on('roster', r => { if (r.leave) drop(r.leave.id); });
-  N.on('event', e => {
+  offs.push(N.on('roster', r => { if (r.leave) drop(r.leave.id); }));
+  offs.push(N.on('event', e => {
     const c = cars.get(e.from);
     if (!c?.handle) return;
     if (e.kind === 'parts') A.setPart(c.handle, e.socket, e.to);
     if (e.kind === 'repair') { c.damageKey = null; for (const s of c.partsOff ?? []) A.setPart(c.handle, s, 'attached'); c.partsOff = new Set(); }
     if (e.kind === 'parts') (c.partsOff ??= new Set()).add(e.socket);
-  });
+  }));
 
   const api = {
     net: N, overlay,
@@ -207,11 +216,11 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         c.onScreen = !!A.screen(simPos);
         c.label.hidden = !at;
         const paused = o.status === 'away' ? ' · reconnecting…' : p.flags & LIGHT.AWAY ? ' · paused (window in the background)' : '';
-        if (at) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${o.name ?? 'Player'}${paused}`; c.label.style.opacity = paused ? '0.6' : '1'; }
+        if (at) { c.label.style.left = `${at.x}px`; c.label.style.top = `${at.y}px`; c.label.textContent = `${label?.(o) ?? o.name ?? 'Player'}${paused}`; c.label.style.opacity = paused ? '0.6' : '1'; }
       }
       for (const id of [...cars.keys()]) if (!seen.has(id)) drop(id);
       // (joined on top of someone — every new car arrives at the same place: the later one moves beside them)
-      if (!cleared && landedAt != null) {
+      if (spread && !cleared && landedAt != null) {
         if (nowMs - landedAt > 20000) cleared = true;
         else if (api.others().some(x => x.distM != null && x.distM < ON_TOP_M && x.id < N.id)) { cleared = true; api.toNearest(); }
       }
@@ -250,7 +259,9 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
     reset() { N.sendEvent({ kind: 'reset' }); },
     repair() { N.sendEvent({ kind: 'repair' }); },
     setLook(l) { N.setLook(l, []); },
-    leave() { removeEventListener('pagehide', bye); for (const id of [...cars.keys()]) drop(id); labels.remove(); banner.remove(); beat?.terminate(); overlay.dispose(); return N.leave(); },
+    // (a car as drawn now: the spectator's camera follows it)
+    car(id) { const c = cars.get(id); return c ? { pose: c.pose ?? null, handle: c.handle ?? null, name: c.name } : null; },
+    leave() { removeEventListener('pagehide', bye); for (const id of [...cars.keys()]) drop(id); labels.remove(); banner.remove(); beat?.terminate(); overlay.dispose(); offs.forEach(f => f()); return ownNet ? Promise.race([Promise.resolve(N.leave()).catch(() => {}), new Promise(r => setTimeout(r, 2000))]) : Promise.resolve(); },   // (a room already gone never answers a leave)
   };
   return api;
 }

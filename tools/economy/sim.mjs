@@ -4,7 +4,8 @@
 // crash test suite's real bills. What it doesn't model is the driving: a run's outcome comes from the
 // bot's skill and its car against the quest (data/economy.json simulation.performance). The shop is the game's
 // (garage/shop.js): prices now, level locks, kits, the day's used lot; with the garage full, the weakest car
-// is sold (for its sell value) to make room.
+// is sold (for its sell value) to make room. Multiplayer quick races (Phase 7 Step 2: simulation.multiplayer): now and
+// then the bot races people instead, paid by the server's own rules (mp/results.js payFor).
 //
 //   makePool(economy, config, seed) → { quests: [quest items, rated — track events among them], series: [series items] }
 //   simulate({ db, config, pool, crashTable, skill, hours, seed }) → { events, samples, totals, ... }
@@ -18,6 +19,7 @@ import { seriesBonus } from '../../garage/player/quests.js';
 import { rng as makeRng, hashSeed } from '../../ai/rng.js';
 import { trackFarming, capQuick } from '../../track/events/records.js';
 import { offer, lockOf, unlockRule, bundles, usedLot, dayOf, capacity } from '../../garage/shop.js';
+import { payFor } from '../../mp/results.js';
 
 const CLASS_ORDER = ['D', 'C', 'B', 'A', 'S', 'X'];
 
@@ -239,9 +241,49 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     return true;
   }
 
+  // ---------- multiplayer quick races (simulation.multiplayer) ----------
+  const MPS = SIM.multiplayer, mp = { races: 0, money: 0, xp: 0, seconds: 0, dnfs: 0, places: [] }, mpPaid = [];
+  function crashesOn(km, stars, what, reward = typical) {
+    const lambda = C.perKm * km * C.byStars[stars - 1] * (1 - skill * C.skillCut);
+    let n = 0; { let p = Math.exp(-lambda), s = p; const u = r(); while (u > s && n < 6) { n++; p *= lambda / n; s += p; } }
+    let dnf = false;
+    for (let i = 0; i < n; i++) {
+      let x = r() * Object.values(C.speeds).reduce((a, b) => a + b, 0), kmh = 30;
+      for (const [k, w] of Object.entries(C.speeds)) { x -= w; if (x <= 0) { kmh = +k; break; } }
+      const cost = crashCost(crashTable, car(), kmh, C.upgradeShare ?? 0.3), share = cost / Math.max(1, reward());
+      crashes.push({ t: st.t, kmh, cost, share, ...what });
+      if (kmh >= C.dnfAt) dnf = true;
+      // (the repair: in full if it can, else what it can, else the free basic repair)
+      const paid = Math.min(cost, Math.max(0, st.money));
+      if (paid < cost) safetyNet++;
+      st.money -= paid; spend.repairs += paid;
+    }
+    return dnf;
+  }
+  function mpRace() {
+    const km = MPS.km[0] + (MPS.km[1] - MPS.km[0]) * r(), secs = MPS.queueSeconds + MPS.loadSeconds + km * 1000 / MPS.speed + MPS.resultsSeconds;
+    st.t += secs; mp.races++; mp.seconds += secs;
+    // (a crash here against a multiplayer race's "gold", as a quest's against its: winning one of the usual length)
+    const gold = () => payFor([{ uid: 'me', place: 1, status: 'finished', car: { cls: car().cls } }], E.multiplayer, { ranked: true, humans: MPS.players, npcs: 0, km: (MPS.km[0] + MPS.km[1]) / 2 }).me.money;
+    const dnf = crashesOn(km, 2, { quest: 'multiplayer', tier: 'mp' }, gold);
+    // (a field matched to it by skill and car: even odds against each, a little better the more skilled — its rating
+    // takes a while to settle — and the noise of any race)
+    let place = 1;
+    for (let i = 1; i < MPS.players; i++) if (r() < 0.5 - MPS.carEdge * (skill - 0.55) + MPS.placeNoise * normal() * 0.25) place++;
+    const day = Math.floor(st.t / 86400), today = mpPaid.filter(d => d === day).length;
+    const field = Array.from({ length: MPS.players }, (_, i) => ({ uid: i ? `p${i}` : 'me', place: i ? (i < place ? i : i + 1) : place, status: 'finished', car: { cls: car().cls } }));
+    if (dnf) field[0].status = 'dnf';
+    const pay = payFor(field, E.multiplayer, { ranked: true, humans: MPS.players, npcs: 0, km, todayRaces: { me: today } }).me;
+    st.money += pay.money; st.xp += pay.xp; mp.money += pay.money; mp.xp += pay.xp;
+    if (dnf) mp.dnfs++; else { mp.places.push(place); if (pay.money > 0) mpPaid.push(day); }
+    events.push({ t: st.t, what: 'mp', place: dnf ? null : place, money: pay.money });
+    sample();
+  }
+
   // ---------- quests ----------
   while (st.t < hours * 3600) {
     while (shop()) { /* (as much as it can) */ }
+    if (MPS && E.multiplayer && r() < MPS.share) { mpRace(); continue; }
     const level = levelOf(st.xp, config);
     const open = pool.quests.filter(q => allowed(q) && rewardsOf(q, E).unlockLevel <= level && rewardsOf(q, E).fee <= st.money);
     if (!open.length) { stuck++; st.t += 300; events.push({ t: st.t, what: 'stuck', money: st.money }); continue; }
@@ -253,20 +295,7 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     st.money -= terms.fee; spend.fees += terms.fee; runs++;
     st.t += duration(q);
     // crashes along the way: what each costs to fix (the full repair), against what the quest pays
-    const lambda = C.perKm * q.rating.km * C.byStars[q.rating.stars - 1] * (1 - skill * C.skillCut);
-    let n = 0; { let p = Math.exp(-lambda), s = p; const u = r(); while (u > s && n < 6) { n++; p *= lambda / n; s += p; } }
-    let dnf = false;
-    for (let i = 0; i < n; i++) {
-      let x = r() * Object.values(C.speeds).reduce((a, b) => a + b, 0), kmh = 30;
-      for (const [k, w] of Object.entries(C.speeds)) { x -= w; if (x <= 0) { kmh = +k; break; } }
-      const cost = crashCost(crashTable, car(), kmh, C.upgradeShare ?? 0.3), share = cost / Math.max(1, typical());
-      crashes.push({ t: st.t, kmh, cost, share, quest: q.id, tier: terms.tier });
-      if (kmh >= C.dnfAt) dnf = true;
-      // (the repair: in full if it can, else what it can, else the free basic repair)
-      const paid = Math.min(cost, Math.max(0, st.money));
-      if (paid < cost) safetyNet++;
-      st.money -= paid; spend.repairs += paid;
-    }
+    const dnf = crashesOn(q.rating.km, q.rating.stars, { quest: q.id, tier: terms.tier });
     if (dnf) { events.push({ t: st.t, what: 'dnf', quest: q.id }); continue; }
     const score = scoreOf(q) + PF.noise * normal();
     const place = placeFor(q, score), medal = place != null ? (place <= 3 ? ['gold', 'silver', 'bronze'][place - 1] : null) : medalFor(q, score);
@@ -293,8 +322,8 @@ export function simulate({ db, config, pool, crashTable, skill = 0.55, hours = 8
     sample();
   }
   sample();
-  const earned = Object.values(income).reduce((a, x) => a + x.money, 0) + events.filter(e => e.what === 'series').reduce((a, e) => a + e.money, 0);
-  return { skill, hours, runs, stuck, safetyNet, firstUpgrade, secondCar, samples, events, spend, sold, income, crashes, earned, level: levelOf(st.xp, config), xp: st.xp, money: st.money, cars: st.cars.map(c => ({ carId: c.carId, rating: c.rating, cls: c.cls })), runLog: st.runLog ?? [], series: Object.keys(st.series).length };
+  const earned = Object.values(income).reduce((a, x) => a + x.money, 0) + events.filter(e => e.what === 'series').reduce((a, e) => a + e.money, 0) + mp.money;
+  return { mp, skill, hours, runs, stuck, safetyNet, firstUpgrade, secondCar, samples, events, spend, sold, income, crashes, earned, level: levelOf(st.xp, config), xp: st.xp, money: st.money, cars: st.cars.map(c => ({ carId: c.carId, rating: c.rating, cls: c.cls })), runLog: st.runLog ?? [], series: Object.keys(st.series).length };
 }
 
 // The crash suite's full repair for each car at each speed (the average of every crash there)

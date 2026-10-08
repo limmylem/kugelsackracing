@@ -45,7 +45,20 @@ export function evaluate(runs, economy, { payRuns = runs } = {}) {
   add('questPay', `Every quest type pays ${T.questPay.low}–${T.questPay.high}× the median of its tier an hour`, !flagged.length,
     flagged.length ? flagged.map(x => `${x.type} (tier ${x.tier}) ${x.flag}: ${x.ratio.toFixed(2)}×`).join(' · ') : `${pay.length} type × tier rows within range`);
   add('levels', `A medium player reaches level ${T.levels.min}–${T.levels.max} in ${M.hours} h`, M.level >= T.levels.min && M.level <= T.levels.max, `medium level ${M.level} (low ${runs.low.level}, high ${runs.high.level})`);
+  // multiplayer quick races (Phase 7 Step 2): an hour of racing people against an hour of quests, for the same player
+  if (T.multiplayerPay && Object.values(runs).every(R => R.mp?.races)) {
+    const rows = Object.entries(runs).map(([k, R]) => ({ k, ...mpVsQuests(R) }));
+    add('multiplayerPay', `Multiplayer races pay ${T.multiplayerPay.min}–${T.multiplayerPay.max}× an hour of quests`, rows.every(x => x.ratio >= T.multiplayerPay.min && x.ratio <= T.multiplayerPay.max),
+      rows.map(x => `${x.k}: ${money(x.mp, economy)}/h racing vs ${money(x.quests, economy)}/h on quests, ${x.ratio.toFixed(2)}×`).join(' · '));
+  }
   return out;
+}
+
+// what an hour of multiplayer races paid a bot, against an hour of its quests
+export function mpVsQuests(R) {
+  const q = Object.values(R.income), qs = q.reduce((a, x) => a + x.seconds, 0), qm = q.reduce((a, x) => a + x.money, 0);
+  const mp = R.mp.seconds ? R.mp.money / R.mp.seconds * 3600 : 0, quests = qs ? qm / qs * 3600 : 0;
+  return { mp, quests, ratio: quests ? mp / quests : 0 };
 }
 
 export function textReport(runs, checks, economy, { payRuns = runs } = {}) {
@@ -56,6 +69,7 @@ export function textReport(runs, checks, economy, { payRuns = runs } = {}) {
   for (const [k, R] of Object.entries(runs)) {
     const sp = R.spend, tot = sp.repairs + sp.parts + sp.cars + sp.fees || 1;
     L.push(`${k} (skill ${R.skill}): ${R.runs} quests, level ${R.level}, earned ${money(R.earned, economy)}, has ${money(R.money, economy)}; cars ${R.cars.map(c => `${c.carId} (${c.cls} ${c.rating})`).join(', ')}; ${R.series} series`);
+    if (R.mp?.races) { const v = mpVsQuests(R), pl = R.mp.places; L.push(`    multiplayer: ${R.mp.races} quick races (${R.mp.dnfs} DNF), average place ${pl.length ? (pl.reduce((a, b) => a + b, 0) / pl.length).toFixed(1) : '—'}, paid ${money(R.mp.money, economy)} and ${R.mp.xp} xp: ${money(v.mp, economy)}/h (quests ${money(v.quests, economy)}/h)`); }
     L.push(`    spent: repairs ${money(sp.repairs, economy)} (${Math.round(sp.repairs / tot * 100)}%), parts ${money(sp.parts, economy)} (${Math.round(sp.parts / tot * 100)}%), cars ${money(sp.cars, economy)} (${Math.round(sp.cars / tot * 100)}%), entry fees ${money(sp.fees, economy)} (${Math.round(sp.fees / tot * 100)}%)`);
   }
   L.push('', `Income an hour by quest type and tier (all skills${economy.simulation.payCheckSeeds?.length ? `, seeds ${economy.simulation.payCheckSeeds.join(', ')}` : ''}):`);

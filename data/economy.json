@@ -416,8 +416,20 @@
         }
       }
     },
+    "multiplayer": {
+      "_note": "Multiplayer quick races in the simulation (Phase 7 Step 2): now and then (share of its choices) the bot queues for one instead of a quest. A race takes queueSeconds + loadSeconds (loading, the countdown) + its km at speed m/s + resultsSeconds (the results checked, the podium); km is drawn from the official routes' range. The field is matched to the bot's skill (the queue matches by skill and car), so its place is even odds, nudged by its car's rating against the others' (the queue's performance window) and placeNoise. Crashes as a quest's, a crash at dnfAt km/h a DNF. Pay: mp/results.js payFor with data/economy.json multiplayer, its daily factor counting the bot's races that day.",
+      "share": 0.3,
+      "queueSeconds": 15,
+      "loadSeconds": 45,
+      "resultsSeconds": 40,
+      "km": [2, 6],
+      "players": 8,
+      "speed": 16,
+      "placeNoise": 0.3,
+      "carEdge": 0.15
+    },
     "targets": {
-      "_note": "firstUpgradeMinutes: a medium bot's first meaningful upgrade (at least meaningfulGain rating points in one buy) within this many minutes. secondCarHours: its second car between min and max hours. repairs: a crash's full repair as a share of a typical race reward (that quest's gold) — on average at most mean, never more than max. skilledVsAverage: what a high-skill bot earns against a medium one, between min and max. stuck: runs with no quest the bot can afford and enter (at most). questPay: each quest type's income an hour within [low, high] × the median of all types (per tier). levels: a medium bot's level after the simulated hours, from min to max (better tiers open with levels: not all at once).",
+      "_note": "firstUpgradeMinutes: a medium bot's first meaningful upgrade (at least meaningfulGain rating points in one buy) within this many minutes. secondCarHours: its second car between min and max hours. repairs: a crash's full repair as a share of a typical race reward (that quest's gold; in a multiplayer race, what winning one of the usual length pays) — on average at most mean, never more than max. skilledVsAverage: what a high-skill bot earns against a medium one, between min and max. stuck: runs with no quest the bot can afford and enter (at most). questPay: each quest type's income an hour within [low, high] × the median of all types (per tier). levels: a medium bot's level after the simulated hours, from min to max (better tiers open with levels: not all at once). multiplayerPay: what multiplayer quick races pay an hour against the same bot's quests an hour, between min and max (racing people neither the way to get rich nor not worth it).",
       "meaningfulGain": 10,
       "firstUpgradeMinutes": 30,
       "secondCarHours": {
@@ -440,6 +452,10 @@
       "levels": {
         "min": 6,
         "max": 12
+      },
+      "multiplayerPay": {
+        "min": 0.5,
+        "max": 1.4
       }
     }
   },

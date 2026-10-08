@@ -57,7 +57,11 @@ function release(w, keepMotion = true) {
     w.held = null;
 }
 export async function attachRealWorld(w, shared, { RAPIER }) {
-    const stream = await createWorldStream({ manifestUrl: w.track.mapV3.manifest, scene: w.scene, sim: w.sim, RAPIER });
+    // (?view=600: how far the world is loaded and drawn, in metres — less for a slow computer; the browser tests, drawing in
+    // software, use it. 1,400 m by default)
+    const view = Number(new URLSearchParams(globalThis.location?.search ?? '').get('view')) || null;
+    const options = view ? { loadRadius: Math.max(300, view), unloadRadius: Math.max(450, view * 1.5), physicsRadius: Math.min(750, Math.max(300, view)), physicsDrop: Math.min(1100, Math.max(450, view * 1.5)) } : {};
+    const stream = await createWorldStream({ manifestUrl: w.track.mapV3.manifest, scene: w.scene, sim: w.sim, RAPIER, options });
     w.stream = stream;
     w.RAPIER = RAPIER;
     w.spawning = true;
@@ -198,7 +202,9 @@ export function resetToRoad(w) {
 }
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 export function realWorldFrame(w, shared, seconds) {
-    const S = w.stream, v = w.sim.vehicle, p = v.body.translation(), vel = v.body.linvel();
+    // (watching another car in a multiplayer race — play/mpRace.js: the world streamed round that car, w.streamFocus,
+    // not round this one, parked out of sight)
+    const S = w.stream, v = w.sim.vehicle, f = w.streamFocus, p = f ? { x: f[0], y: f[1], z: f[2] } : v.body.translation(), vel = f ? { x: 0, y: 0, z: 0 } : v.body.linvel();
     const { shifted } = S.update([p.x, p.y, p.z], [vel.x, vel.y, vel.z], seconds);
     if (shifted) {
         // everything kept in the physics' frame moves with it

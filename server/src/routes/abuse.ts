@@ -21,8 +21,9 @@ import { AppError, notFound } from '../errors.ts';
 import { auditLog } from '../db/schema.ts';
 import { randomTag } from '../names.ts';
 import { scanForAbuse, maskIp, type AbuseRules } from '../abuse/detect.ts';
+import { fileReport, REPORT_KINDS } from '../abuse/reports.ts';
 
-export const REPORT_KINDS = ['cheating', 'name', 'behaviour', 'other'] as const;
+export { REPORT_KINDS };
 const ReportBody = z.object({
   targetName: z.string().trim().min(1).max(40).optional(), targetId: z.string().min(1).max(80).optional(),
   kind: z.enum(REPORT_KINDS), details: z.string().trim().min(5, 'Say what happened (a few words at least).').max(1000),
@@ -32,7 +33,6 @@ const Reason = z.string().trim().min(3, 'Say why (it goes in the log).').max(500
 const Resolve = z.object({ action: z.enum(['dismiss', 'warn', 'rename', 'suspend', 'ban']), days: z.number().int().min(1).max(365).optional(), note: Reason }).strict();
 const Review = z.object({ status: z.enum(['dismissed', 'actioned']), note: Reason }).strict();
 const Status = z.object({ status: z.enum(['open', 'resolved', 'dismissed', 'actioned', 'all']).default('open'), limit: z.coerce.number().int().min(1).max(200).default(50) });
-const REPORTS_PER_DAY = 10;
 
 export async function abuseRoutes(app0: FastifyInstance, { db, auth, G, rules }: { db: Db; auth: Auth; G: Guards; rules: AbuseRules }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
@@ -42,17 +42,8 @@ export async function abuseRoutes(app0: FastifyInstance, { db, auth, G, rules }:
 
   // ---------- a player's report ----------
   app.post('/reports', { schema: { body: ReportBody } }, async req => {
-    const s = await G.requireTerms(req), b = req.body;
-    const t = (await db.execute(b.targetId ? sql`select id, name from users where id = ${b.targetId}` : sql`select id, name from users where lower(name) = lower(${b.targetName!})`)).rows[0] as any;
-    if (!t) throw notFound('That player');
-    if (t.id === s.user.id) throw new AppError(400, 'BAD_REQUEST', 'You can\'t report yourself.');
-    const today = Number(((await db.execute(sql`select count(*) as n from reports where reporter_id = ${s.user.id} and created_at > now() - interval '24 hours'`)).rows[0] as any).n);
-    if (today >= REPORTS_PER_DAY) throw new AppError(429, 'RATE_LIMITED', `You can send ${REPORTS_PER_DAY} reports a day: thanks — the admins are looking at them.`);
-    // (the same report again while the first is open: one is enough)
-    const open = (await db.execute(sql`select id from reports where reporter_id = ${s.user.id} and target_id = ${t.id} and kind = ${b.kind} and status = 'open' limit 1`)).rows[0] as any;
-    if (open) return { ok: true as const, id: Number(open.id), already: true };
-    const r = (await db.execute(sql`insert into reports (reporter_id, target_id, target_name, kind, details, ref) values (${s.user.id}, ${t.id}, ${t.name}, ${b.kind}, ${b.details}, ${b.ref ? JSON.stringify(b.ref) : null}::jsonb) returning id`)).rows[0] as any;
-    return { ok: true as const, id: Number(r.id), already: false };
+    const s = await G.requireTerms(req);
+    return fileReport(db, s.user.id, req.body);
   });
 
   // ---------- the admins' queue: reports ----------

@@ -31,6 +31,7 @@ import { viewCourse } from '../../../route/model.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
 import { trackProjection } from '../../../track/build.js';
 import { decodePath } from '../economy/geometry.ts';
+import { fileReport, REPORT_KINDS } from '../abuse/reports.ts';
 
 const json = (f: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, f), 'utf8'));
 export const MP = json('data/multiplayer.json');
@@ -100,7 +101,9 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
   async function relations(userId: string) {
     const f = await rows(sql`select u.id, u.name from friendships f join users u on u.id = case when f.a_id = ${userId} then f.b_id else f.a_id end where (f.a_id = ${userId} or f.b_id = ${userId}) and f.status = 'accepted'`);
     const b = await rows(sql`select blocked_id as id from blocks where user_id = ${userId}`), by = await rows(sql`select user_id as id from blocks where blocked_id = ${userId}`);
-    return { friends: f.map(r => ({ id: r.id, name: r.name })), blocked: b.map(r => r.id), blockedBy: by.map(r => r.id) };
+    const req = await rows(sql`select u.id, u.name, f.requested_by from friendships f join users u on u.id = case when f.a_id = ${userId} then f.b_id else f.a_id end where (f.a_id = ${userId} or f.b_id = ${userId}) and f.status = 'pending'`);
+    return { friends: f.map(r => ({ id: r.id, name: r.name })), blocked: b.map(r => r.id), blockedBy: by.map(r => r.id),
+      incoming: req.filter(r => r.requested_by !== userId).map(r => ({ id: r.id, name: r.name })), outgoing: req.filter(r => r.requested_by === userId).map(r => ({ id: r.id, name: r.name })) };
   }
 
   // ---------- ratings, cooldowns, what a ticket carries ----------
@@ -315,5 +318,29 @@ export function createMpService({ db, tracks, economy, economyConfig, log = () =
     };
   }
 
-  return { friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); } };
+  // ---------- what a player does from the game's multiplayer screens (through the hub: it knows who they are) ----------
+  async function act(uid: string, a: any) {
+    const id = typeof a?.id === 'string' ? a.id.slice(0, 80) : undefined;
+    switch (a?.action) {
+      case 'friend-add': {
+        // (as POST /friends: a guest makes a full account first — the development players, guests of their own, aside)
+        const me = await one(sql`select is_anonymous from users where id = ${uid}`);
+        if (!me) throw new AppError(404, 'NOT_FOUND', 'There\'s no such player.');
+        if (me.is_anonymous && !uid.startsWith('dev-player-')) throw new AppError(403, 'FORBIDDEN', 'Make a full account to add friends (your progress comes with you).');
+        return requestFriend(uid, { id, name: typeof a.name === 'string' ? a.name.slice(0, 40) : undefined });
+      }
+      case 'friend-accept': return acceptFriend(uid, id!);
+      case 'friend-remove': return removeFriend(uid, id!);
+      case 'block': return block(uid, id!);
+      case 'unblock': return unblock(uid, id!);
+      case 'report': {
+        const kind = REPORT_KINDS.includes(a.kind) ? a.kind : 'behaviour', details = String(a.details ?? '').trim().slice(0, 1000);
+        if (details.length < 5) throw new AppError(400, 'BAD_REQUEST', 'Say what happened (a few words at least).');
+        const ref = a.ref && typeof a.ref === 'object' ? Object.fromEntries(Object.entries(a.ref).filter(([k, v]) => ['raceId', 'roomId', 'place'].includes(k) && typeof v === 'string').map(([k, v]) => [k, String(v).slice(0, 80)])) : undefined;
+        return fileReport(db, uid, { targetId: id, kind, details, ref });
+      }
+    }
+    throw new AppError(400, 'BAD_REQUEST', 'Not something the game can do.');
+  }
+  return { act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); } };
 }

@@ -11,12 +11,14 @@
 //   await N.connect()            rejects with { code, message } (protocol.CODES / MESSAGES) when refused
 //   N.update(dtSec, local)       every frame: local() → this car's state (codec.js, world frame; `ageMs`: how old
 //                                the physics state is) or null when not driving
-//   N.sample(dtSec) → [{ id, name, guest, status, look, events, pose }]   every frame: the other cars as shown now
+//   N.sample(dtSec) → [{ id, uid, npc, name, guest, status, look, events, pose }]   every frame: the other cars as shown now
+//                                (uid: the player's account — a race room's lobby lists them by it; npc: a car the server drives)
 //   N.sendEvent({ kind, ... })   something that must arrive (damage, a reset, a part off, lights)
 //   N.setLook(look, events)      this car's look (and its damage so far): everyone else's game draws it
 //   N.on('status' | 'roster' | 'event' | 'notice', fn)
 //   N.status: 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline'    N.message (why offline)
 //   N.stats: ping, jitter, loss, upKBs, downKBs, … (the network overlay)   N.roomNow()   N.leave()
+//   N.stampAt() → the clock this car's states are stamped with (a steady one, steered towards the server's)
 
 import { NET } from './settings.js';
 import { PROTOCOL, C2S, S2C, ALL, CODES, messageFor } from './protocol.js';
@@ -45,7 +47,10 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
     const t = now(), want = roomNow();
     if (stamp.local == null || Math.abs(want - (stamp.room + (t - stamp.local))) > 2000) { stamp.local = t; stamp.room = want; stamp.rate = 1; return want; }
     const est = stamp.room + (t - stamp.local) * stamp.rate, err = want - est;
-    stamp.rate += Math.max(-0.005, Math.min(0.005, 1 + Math.max(-0.1, Math.min(0.1, err / 500)) - stamp.rate));
+    // (steered by the time gone by, not per state: a game drawing a frame a second sends one a second, and would take
+    // minutes to catch up otherwise — half a percent each 33 ms)
+    const most = 0.005 * Math.min(20, Math.max(1, (t - stamp.local) / 33));
+    stamp.rate += Math.max(-most, Math.min(most, 1 + Math.max(-0.1, Math.min(0.1, err / 500)) - stamp.rate));
     stamp.room = est; stamp.local = t;
     return est;
   };
@@ -64,7 +69,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
   const player = (e) => {
     let p = players.get(e.id);
     if (!p) players.set(e.id, p = { id: e.id, remote: createRemote({ interp: S.interp, sendHz: net.sendHz }), base: null, lastStateAt: -Infinity });
-    Object.assign(p, { name: e.name ?? p.name, guest: e.guest ?? p.guest, status: e.status ?? p.status ?? 'here', look: e.look !== undefined ? e.look : p.look, events: e.events ?? p.events ?? [] });
+    Object.assign(p, { uid: e.uid ?? p.uid ?? null, npc: e.npc ?? p.npc ?? false, name: e.name ?? p.name, guest: e.guest ?? p.guest, status: e.status ?? p.status ?? 'here', look: e.look !== undefined ? e.look : p.look, events: e.events ?? p.events ?? [] });
     return p;
   };
   const send = (type, bytes, reliable) => { if (!conn) return; bw.up += bytes.length + WS_UP; bw.upTotal += bytes.length + WS_UP; conn.send(type, bytes, { reliable }); };
@@ -204,7 +209,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
         const pose = p.remote.sample(t, dt);
         // (no state for a while and not away: out of range — not drawn)
         const gone = p.status !== 'away' && now() - p.lastStateAt > 3000;
-        out.push({ id: p.id, name: p.name, guest: p.guest, status: p.status, look: p.look, events: p.events, pose: gone ? null : pose });
+        out.push({ id: p.id, uid: p.uid, npc: p.npc, name: p.name, guest: p.guest, status: p.status, look: p.look, events: p.events, pose: gone ? null : pose });
       }
       return out;
     },
@@ -213,6 +218,9 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
     on(k, fn) { listeners[k].add(fn); return () => listeners[k].delete(fn); },
     leave() { setStatus('offline', ''); links?.up.close(); links?.down.close(); const c = conn; conn = null; return c?.leave(); },
     roomNow,
+    // (the clock this car's states are stamped with, now — without steering it: a race times its run on it, so the run
+    // and the server's view of the same car agree)
+    stampAt() { return stamp.local == null ? roomNow() : stamp.room + (now() - stamp.local) * stamp.rate; },
     get id() { return me; },
     get status() { return status; },
     get message() { return message; },

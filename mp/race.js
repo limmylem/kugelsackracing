@@ -10,7 +10,8 @@
 //   - the grid: by rating (the best at the front), at random, or the last race's order reversed (settings.gridOrder)
 //   - countdown: the lights go out at goAt, a time on the server's clock, sent ahead to everyone (Step 1's time sync
 //     puts every client's clock within a few ms of it). A car more than jumpStart.toleranceM from its slot before
-//     then has jumped the start: jumpStart.penaltySec added to its time.
+//     then has jumped the start: jumpStart.penaltySec added to its time. (Judged once the car has been on its slot, or
+//     jumpStart.settleSec after the grid was announced: the game needs a moment to put it there.)
 //   - racing: each racer's progress from their car states, on the server — the route's own tracker (route/tracker.js:
 //     checkpoints in order, laps, the finish), each crossing timed between the two states either side of it on the
 //     server's clock. Positions: the finished by time, then by distance along the race, then the out.
@@ -58,6 +59,7 @@ export function createRace({ cfg, settings, course, now = 0, seed = 1 }) {
     p.tracker = createTracker({ line: course.line, loop: course.loop, startS: g.startS, finishS: g.finishS, checkpoints: course.checkpoints ?? [], laps, corridor: course.corridor ?? {} });
     const slot = slots[p.slot] ?? slots.at(-1);
     p.tracker.begin(slot.x, slot.z);
+    p.settled = false;
     if (S.phase === 'racing') p.tracker.start();
   }
   // the grid: who starts where
@@ -158,7 +160,10 @@ export function createRace({ cfg, settings, course, now = 0, seed = 1 }) {
       const slot = slots[p.slot];
       // the start: before the lights go out, a car off its slot has jumped it
       if (S.goAt != null && t < S.goAt) {
-        if (slot && !p.jumped && !p.late && Math.hypot(x - slot.x, z - slot.z) > C.jumpStart.toleranceM && p.last) {
+        const off = slot ? Math.hypot(x - slot.x, z - slot.z) > C.jumpStart.toleranceM : false;
+        if (!off) p.settled = true;
+        const judged = p.settled || t >= (S.countdownAt ?? -Infinity) + (C.jumpStart.settleSec ?? 0) * 1000;
+        if (slot && !p.jumped && !p.late && off && judged && p.last) {
           p.jumped = true; p.penaltyMs += C.jumpStart.penaltySec * 1000;
           ev.push(emit({ type: 'jumpstart', pid, penaltySec: C.jumpStart.penaltySec }));
         }

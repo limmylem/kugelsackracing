@@ -63,7 +63,16 @@ import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 import { createAudio, remoteCarSound } from './audio.js';
-import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode } from '../play/multiplayer.js';
+import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticketGetter } from '../play/multiplayer.js';
+// multiplayer races (Phase 7 Step 2): the session, the race as the game plays it, the screens
+import { createMpSession } from '../mp/client.js';
+import { createMpRace } from '../play/mpRace.js';
+import { createMpScreens } from '../play/mpScreens.js';
+import { createColyseusTransport } from '../net/transport.js';
+import { createRouteDressing } from '../play/routeDressing.js';
+import { paletteOf, guideStyle } from '../play/palette.js';
+import { viewCourse } from '../route/model.js';
+import { eventCourse } from '../track/events/prepare.js';
 import { account as accountNow } from '../account/session.js';
 import { createDyno, createTacho } from './gauges.js';
 import { InputManager } from './input.js';
@@ -613,8 +622,8 @@ export async function enter(file) {
   shared.renderer.domElement.style.display = 'block';
   shared.last = performance.now();
   if (!shared.looping) { shared.looping = true; requestAnimationFrame(loop); }
-  // (Phase 7: ?mp — this world's room, the other players in it)
-  if (multiplayerOptions()) void startMultiplayer(active);
+  // (Phase 7: ?mp — this world's room, the other players in it; and races: the menu, lobbies, the queue)
+  if (multiplayerOptions()) { void startMultiplayer(active); void startMpRaces(); }
 }
 
 export function exit() {
@@ -995,6 +1004,8 @@ async function buildWorld(file) {
       applyConditions(w, null);
       w.lightsNow = () => {
         const r = routeRun?.state;
+        // (a multiplayer race's: the server's countdown)
+        if (shared.mpRace?.run?.course) { const l = shared.mpRace.lights(); if (l.red || l.green) return l; }
         if (r?.phase === 'countdown') return startLights({ phase: 'countdown', left: r.count, total: 3 });
         if (r?.phase === 'driving') return startLights({ phase: 'go', since: r.sinceGo ?? 99 });
         // (a track event's countdown: quest/session.js)
@@ -1075,8 +1086,11 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
-    view = w.sim.advance(paused ? 0 : seconds, input);
+    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    // (a multiplayer race keeps real time on a computer that draws slowly: the physics catches up to a second a frame)
+    const simSeconds = shared.simFrameCap ? Math.min(Math.max((now - (shared.lastSim ?? now)) / 1000, 0), shared.simFrameCap) : seconds;
+    shared.lastSim = now;
+    view = w.sim.advance(paused ? 0 : simSeconds, input);
     shared.gearMode = v.drivetrain.mode;
     effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
     if (view.stepsThisFrame) w.recorder.record(w.sim.time, view.current);
@@ -1091,6 +1105,8 @@ function frame(w, now) {
   // (a quest's own clock is the physics' ticks: this is its intro, HUD and the like)
   w.quests?.frame(T ? 0 : seconds);
   npcRaceEvents(w);
+  // (a multiplayer race: its run on the server's clock, the others' cars, the screens — play/mpRace.js, mpScreens.js)
+  if (shared.mpRace && !T) { shared.mpView = view; shared.mpRace.frame(seconds); shared.mpScreens?.frame(seconds); }
 
   // Draw everything part-way between the last two physics states
   const place = (obj, pa, pb) => {
@@ -1111,6 +1127,7 @@ function frame(w, now) {
   b.bonnetUp = T ? 0 : bonnetUp(b);
   w.rig.update(w.camera, w.car, b, seconds, CAMERAS[shared.camMode], shared.spec.camera);
   w.quests?.camera(w.camera);                               // (a quest's intro flies its own camera)
+  shared.mpRace?.camera(w.camera, seconds);                 // (watching a multiplayer race: any car, any camera)
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
   if (D.glass) D.glass.opacity = inside ? 0.1 : D.glass.userData.opacity ?? D.glassOpacity;
   const light = daylight(w, P.timeOfDay ?? 13);
@@ -2035,6 +2052,7 @@ function handleAction(w, act, inp) {
   if (s.tests?.world === w) return;                   // a test is driving
   if (act === 'reset' && routeRun) { routeRun.resetNow(); return; }          // (a route: back to its last checkpoint)
   if (act === 'reset' && w.quests?.active) { w.quests.resetNow(); return; }   // (a quest: the same)
+  if (act === 'reset' && shared.mpRace?.racing) { shared.mpRace.resetNow(); return; }   // (a multiplayer race: the same)
   if (act === 'reset') {
     const toStart = !!(s.input.keys.ShiftLeft || s.input.keys.ShiftRight);
     resetCar(w, toStart);
@@ -2239,6 +2257,8 @@ function debugCommands(session) {
 async function startMultiplayer(w) {
   const o = multiplayerOptions();
   if (!o || shared.mpStarting) return;
+  // (in a race: its own room draws the cars — free roam's comes back after)
+  if (shared.mpS?.race && shared.mpS.phase && shared.mpS.phase !== 'lobby') return;
   // (a room per world: players in different worlds have different coordinates — ?mp=<name> picks which of that
   // world's rooms)
   const room = `${o.room ?? 'free'}@${w.file}`.slice(0, 64);
@@ -2271,6 +2291,83 @@ async function startMultiplayer(w) {
   } finally { shared.mpStarting = false; }
 }
 
+// Races (Phase 7 Step 2: play/mpScreens.js, play/mpRace.js; docs/MULTIPLAYER.md): F7 or the Multiplayer button opens the
+// menu — a quick race, a private or custom lobby, a code, the lobby browser, friends and the party. ?mpauto (the browser
+// tests): the autopilot drives your car in a race once it's GO
+async function startMpRaces() {
+  const o = multiplayerOptions();
+  if (!o || shared.mpS || shared.mpRacesStarting) return;
+  shared.mpRacesStarting = true;
+  try {
+    const A = await accountNow();
+    if (!A?.me && !o.player) return;
+    const Colyseus = await import('../net/vendor/colyseus.js');
+    const cfg = await (await fetch('data/multiplayer.json', { cache: 'no-cache' })).json();
+    const S = createMpSession({ transport: createColyseusTransport(Colyseus), getTicket: ticketGetter(A, o.player), look: mpLook(), netsim: o.netsim, serverNetsim: o.serverNetsim });
+    const R = createMpRace({ S, game: mpRaceGame(), cfg, quests: shared.session.player.quests.config, autopilot: new URLSearchParams(location.search).has('mpauto') });
+    const regions = await bakedRegions();
+    const M = createMpScreens({ S, R, cfg, game: {
+      currency: shared.session.db.economy?.currency ?? '$', region: globalThis.KR_SITE?.region ?? cfg.queue.regions[0] ?? 'local',
+      routes: cfg.venues.routes.filter(r => regions.some(x => x.id === r.region)).map(r => ({ id: r.id, name: `${r.name} (${regions.find(x => x.id === r.region)?.name ?? r.region})` })),
+      self: () => `You are ${o.player ? `Player ${o.player}` : A?.me?.name ?? 'a guest'}`,
+      say: (text, kind) => shared.flash.show(text, kind === 'bad' ? 'warn' : kind === 'info' ? 'ok' : kind, 3),
+      // (out of the race: free roam's room again, where you are)
+      leaveRace: () => { R.end(); if (active) void startMultiplayer(active); },
+    } });
+    Object.assign(shared, { mpS: S, mpRace: R, mpScreens: M });
+    globalThis.__krMpS = S; globalThis.__krMpRace = R; globalThis.__krMpScreens = M;   // (the console and the browser tests)
+    await S.hub('free roam').catch(e => console.warn(`multiplayer hub: ${e.message}`));
+  } catch (e) { console.warn('multiplayer races:', e); }
+  finally { shared.mpRacesStarting = false; }
+}
+// what a multiplayer race needs of the game (play/mpRace.js)
+function mpRaceGame() {
+  const A = () => mpAdapter.cached ??= mpAdapter();
+  return {
+    // to the venue: a real-world route's region (its course laid out in that world's frame), or a generated track built
+    // here (its course and hash from what was built: the server checks the hash)
+    async goTo(venue, stored, { onProgress }) {
+      if (shared.mp) { await shared.mp.leave(); shared.mp = null; shared.mpRoom = null; }
+      if (active?.quests?.active) active.quests.stop();
+      if (venue.venue.kind === 'route') {
+        if (!stored) throw new Error('The route didn\'t come with the race.');
+        const file = regionFile(venue.frame.region);
+        onProgress(`Going to ${venue.name}…`);
+        if (active?.file !== file) await switchWorld(file);
+        if (!active?.stream || regionIdOf(active) !== venue.frame.region) throw new Error(`The ${venue.frame.region} region isn't in this game.`);
+        return { course: viewCourse(stored, active.stream.projection), hash: null };
+      }
+      onProgress(`Building ${venue.name}…`);
+      await switchWorld(`track:${venue.venue.code}`);
+      if (!active?.trackData) throw new Error('The track couldn\'t be built.');
+      const course = eventCourse(active.trackData);
+      return { course, hash: course.trackHash };
+    },
+    adapters: () => active.questGame.adapters(),
+    dressing: course => createRouteDressing({ THREE, parent: active.stream.world, compiled: course, guides: course.guides, palette: paletteOf(shared.prefs?.palette), style: guideStyle(shared.prefs?.guides) }),
+    drawCars: (net, { label }) => joinMultiplayer({ account: null, world: 'race', look: null, adapter: A(), net, label, spread: false }),
+    localState() {
+      const w = active, view = shared.mpView, v = w?.sim.vehicle;
+      if (!w || !view || w.spawning) return null;
+      const av = v.body.angvel();
+      return localState({ snapshot: view.current, angvel: [av.x, av.y, av.z], tick: w.sim.stepCount, toWorld: A().toWorld, headlights: (w.light?.night ?? 0) > 0.3, ageMs: view.alpha * w.sim.dt * 1000 });
+    },
+    simTime: () => active?.sim.time ?? 0,
+    car: () => { const id = shared.session.player.profile.currentCar; return { ...active.questGame.carSummary(id), instanceId: id }; },
+    carNow: () => active.questGame.carNow(),
+    // (watching: your own car out of sight, held where it is; the ground streamed round the car being watched)
+    hideCar: on => { const w = active; if (!w?.car) return; const was = !w.car.visible; w.car.visible = !on; if (on && !was) rwOf(w).holdCar(w); else if (!on && was) rwOf(w).releaseCar(w); },
+    focus: p => { if (active) active.streamFocus = p ?? null; },
+    // (in a race: the physics keeps real time — the race is on the server's clock. A computer that draws slowly but
+    // steps the physics quickly catches up every frame, up to a second of it, not 8 steps)
+    realTime: on => { const st = shared.settings; st.normalMaxSteps ??= st.maxStepsPerFrame; st.maxStepsPerFrame = on ? Math.max(st.normalMaxSteps, Math.ceil(1 * st.stepHz)) : st.normalMaxSteps; shared.simFrameCap = on ? 1 : null; },
+    toSim: p => A().toSim(p), toWorld: p => A().toWorld(p),
+    carView: h => h?.vis?.group?.visible ? { pos: h.vis.group.position.toArray(), quat: h.vis.group.quaternion.toArray() } : null,
+    tvCameras: () => active?.tvCams ?? null,
+    say: (text, kind) => shared.flash.show(text, kind === 'bad' ? 'warn' : kind === 'info' ? 'ok' : kind, 3),
+  };
+}
+
 // your car's look for the others: the car, what's fitted, the paint, the engine's sound, its damage so far
 function mpLook() {
   const s = shared.session, G = s.garage, parts = {};
@@ -2282,6 +2379,7 @@ const mpDents = () => { const d = shared.session.damage; return (d.shell?.dents?
 const WHEEL_ORDER = ['FL', 'FR', 'RL', 'RR'];
 
 // how the game draws another player's car (play/multiplayer.js's adapter)
+const mpLightPool = { vis: null, on: null, frame: -1, best: Infinity };
 function mpAdapter() {
   const sn = shared.session, db = sn.db;
   const toWorld = p => { const S = active?.stream; if (!S) return [p[0], p[1], p[2]]; const [x, z] = S.toWorld(p[0], p[2]); return [x, p[1], z]; };
@@ -2300,13 +2398,12 @@ function mpAdapter() {
       let taillamp = null;
       vis.root.traverse(o => { if (o.isMesh && /tail/i.test(o.material?.name ?? '')) taillamp ??= o.material; });
       vis.details = { taillamp, lampOff: taillamp?.emissiveIntensity ?? 1, lampOn: taillamp ? 3 / Math.max(0.05, ...taillamp.emissive.toArray()) : 1, glass: null, glassOpacity: 1, steeringWheel: null };
-      addHeadlights(vis);
       shared.visuals.add(vis);
       vis.group.visible = false;
       active?.scene.add(vis.group);
       return { vis, car };
     },
-    dropCar(h) { h.vis.group.removeFromParent(); dropCar(h.vis); },
+    dropCar(h) { if (mpLightPool.on === h.vis) { for (const l of mpLightPool.vis.headlights) { l.intensity = 0; l.removeFromParent(); l.target.removeFromParent(); } mpLightPool.on = null; } h.vis.group.removeFromParent(); dropCar(h.vis); },
     // (the overlay: whether it's really there to see — visible, in the scene being drawn)
     shown(h) { const g = h.vis.group; let o = g; while (o.parent) o = o.parent; return g.visible && !!active && o === active.scene; },
     // your car put down here (the world frame), facing headingDeg — the others see it jump, not slide
@@ -2330,7 +2427,18 @@ function mpAdapter() {
       };
       placeCar(vis, snap, snap, 1);
       updateCarDetails(vis, snap, snap, 1);
-      for (const l of vis.headlights ?? []) l.intensity = p.flags & 2 ? 60 * Math.max(0.2, active?.light?.night ?? 1) : 0;
+      // (headlights: one pair of lights for every other car, lighting the road ahead of the nearest with its lights on —
+      // a light costs every pixel drawn, and a race has up to 15 other cars; made the first night they're needed)
+      if (p.flags & 2) {
+        const P = mpLightPool, frame = shared.renderer.info.render.frame, d = active ? active.camera.position.distanceTo(vis.group.position) : Infinity;
+        if (P.frame !== frame) { P.frame = frame; P.best = Infinity; }
+        if (d < P.best) {
+          P.best = d;
+          if (!P.vis) { P.vis = { group: new THREE.Group() }; addHeadlights(P.vis); }
+          if (P.on !== vis) { for (const l of P.vis.headlights) vis.group.add(l, l.target); P.on = vis; }
+          for (const l of P.vis.headlights) l.intensity = 60 * Math.max(0.2, active?.light?.night ?? 1);
+        }
+      } else if (mpLightPool.on === vis) for (const l of mpLightPool.vis.headlights) l.intensity = 0;
     },
     setDamage(h, view) { h.vis.setDamage(view, db.damage); },
     // a part loose (hanging where it settles) or torn off (gone from the car), or back on

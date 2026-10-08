@@ -7,11 +7,16 @@
 //   DATABASE_URL=… node server/tools/seed-mp-routes.ts [--regions mk,sf]
 //   seedMpRoutes(content, { regions }) → [{ id, region, name, km, loop }]    (the tests seed their own database)
 
-const NAMES: Record<string, string> = {
-  mk: 'Milton Keynes Roundabouts', sf: 'Market Street Sprint', monaco: 'Monaco Harbour Run', tokyo: 'Omotesando Climb', stelvio: 'Stelvio Pass', munich: 'A99 Autobahn Blast',
-};
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export async function seedMpRoutes(content: any, { regions }: { regions?: string[] } = {}) {
+// (their names: data/multiplayer.json venues.routes — the lobby offers the same list)
+const MP = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../data/multiplayer.json'), 'utf8'));
+const NAMES: Record<string, string> = Object.fromEntries(MP.venues.routes.map((r: any) => [r.region, r.name]));
+
+// (extra: routes of the tests' own — [{ id, region, name, kind, waypoints: [[lat, lon], …] }])
+export async function seedMpRoutes(content: any, { regions, extra = [] }: { regions?: string[]; extra?: any[] } = {}) {
   // (the map's own TypeScript, loaded at run time: not part of the server's typecheck)
   const realRoutes = '../../tests/map/realRoutes.ts', harness = '../../tests/map/harness.ts';
   const { REAL_ROUTES } = await import(realRoutes);
@@ -22,13 +27,15 @@ export async function seedMpRoutes(content: any, { regions }: { regions?: string
   const { newItem } = await import('../../content/quests.js');
   const author = { id: null, name: 'Kugelsack Racing' };
   const out = [];
-  for (const region of regions) {
-    const R = REAL_ROUTES[region];
-    if (!R) continue;
-    const M = await mapHarness(region), N = createNetwork(M.graph(), { P: M.P, region, version: M.manifest.version });
-    const course = bakeRoute(N, { ...newRoute(region, R.kind), waypoints: R.waypoints.map(([lat, lon]) => ({ lat, lon })), grid: { count: 8 } });
-    const id = `route_mp${region}`, [lat, lon] = R.waypoints[0];
-    const item = { ...newItem('route', { id, location: { lat, lon }, name: NAMES[region] ?? `${region} route`, region, routeKind: R.kind, author: author.name }), course, description: `Multiplayer: ${R.what}.` };
+  const todo = [...regions.filter(r => REAL_ROUTES[r]).map(region => ({ id: `route_mp${region}`, region, name: NAMES[region] ?? `${region} route`, ...REAL_ROUTES[region] })), ...extra];
+  const nets = new Map();
+  for (const R of todo) {
+    const region = R.region;
+    if (!nets.has(region)) { const M = await mapHarness(region); nets.set(region, createNetwork(M.graph(), { P: M.P, region, version: M.manifest.version })); }
+    const N = nets.get(region);
+    const course = bakeRoute(N, { ...newRoute(region, R.kind), waypoints: R.waypoints.map(([lat, lon]: number[]) => ({ lat, lon })), grid: { count: 8 } });
+    const id = R.id, [lat, lon] = R.waypoints[0];
+    const item = { ...newItem('route', { id, location: { lat, lon }, name: R.name, region, routeKind: R.kind, author: author.name }), course, description: `Multiplayer: ${R.what ?? 'a test route'}.` };
     const state = (await content.getState(id)).state;
     if (state.draft || state.published) await content.update(id, item, author); else await content.create(item, author);
     await content.publish(id, author);

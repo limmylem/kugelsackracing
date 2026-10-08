@@ -1,8 +1,10 @@
-# Multiplayer: the networking foundation (Phase 7 Step 1)
+# Multiplayer
 
-Players drive in the same world and see each other's cars. This step covers the network model, the real-time
-server, the protocol, time sync, showing other cars, connections and the debug tools. It doesn't cover races
-between players or collisions between their cars (other cars are drawn kinematically: they don't push yours yet).
+Step 1 (below, first): the networking foundation. Players drive in the same world and see each other's cars: the
+network model, the real-time server, the protocol, time sync, showing other cars, connections and the debug tools.
+Step 2 ([Lobbies, matchmaking and races](#phase-7-step-2-lobbies-matchmaking-and-races), after it): races between
+players, from a quick race or a lobby to verified results. Collisions between players' cars are off in both (ghost
+mode: other cars don't push yours); car contact comes in Step 3.
 
 Everything here runs on this computer only (deployment is paused, [DEPLOYMENT.md](DEPLOYMENT.md)). It has been
 tested on simulated bad networks from the start, never only on localhost.
@@ -265,7 +267,7 @@ two windows (below).
 | 4012 `FULL` | Room or server full | The server is full right now. Try again in a minute. |
 | 4013 `TICKET` | Bad, expired or reused ticket | Couldn't sign you in to the game server. Sign in again, then retry. |
 | 4014 `KICKED` | Removed (checks, an admin) | You were removed from the session. |
-| 4015 `ELSEWHERE` | Joined from another tab or device | You joined from another tab or device, so this one was disconnected. |
+| 4015 `ELSEWHERE` | Joined from another tab or device (into a room of the same sort: free roam, or a race — a race's lobby doesn't close your free roam) | You joined from another tab or device, so this one was disconnected. |
 | 4016 `IDLE` | Nothing heard for 15 s | Lost the connection to the game server. |
 | 4017 `CLOSED` | The room or server closed | The game server is restarting. Reconnecting… |
 | 4018 `GUESTS` | Guests not allowed | Make a full account to join this room (your progress comes with you). |
@@ -357,10 +359,13 @@ docker compose up --build                     # everything: the game and API, Re
 or by hand:
 
 ```sh
-redis-server
-npm run rt -w @kr/server                      # the real-time server on :2567
+npm run rt -w @kr/server                      # the real-time server on :2567 (one process; no Redis needed)
 npm start -w @kr/server                       # the API and the game on :8787 (RT_URL=ws://localhost:2567)
 ```
+
+Redis is optional: without `REDIS_URL` the real-time server is one process, keeping its presence (who's where,
+invite codes, parties, kicks) in memory. With it (`REDIS_URL=redis://localhost:6379`), several processes share
+them (`--processes 4`).
 
 **Two windows on one computer:**
 1. Open `http://localhost:8787/?mp&player=A` in one window and `http://localhost:8787/?mp&player=B` in a second
@@ -380,3 +385,167 @@ as a different player, work with plain `?mp`.
 - The API: `RT_URL`, `RT_SECRET` (in development made from `BETTER_AUTH_SECRET`), `REDIS_URL`.
 - The real-time server: `RT_PORT`, `RT_HOST`, `RT_PUBLIC_ADDRESS`, `REDIS_URL`, `RT_SECRET`.
 - `server/config/<env>.json` `rt`: `allowGuests`, `maxPlayers`, `netsim`, `devPlayers` (development and test only).
+
+---
+
+# Phase 7 Step 2: lobbies, matchmaking and races
+
+Players race each other: a quick race found by matchmaking, or a lobby of their own (private, with an invite code,
+or custom and listed). Everyone loads the same route or track, sees the same countdown on the server's clock, races
+with live positions worked out by the server, and gets results that are checked before they count — then pay and
+rank changes. Players who drop can come back; spectators can watch any race. It reuses Step 1's networking, rooms,
+time sync and bots; Phase 4's QuestSession, timing and reset rules; Phase 5's generated tracks and their hashes; and
+Phase 6's accounts, rewards, run verification and reports.
+
+Everything works on **one real-time process with no Redis** (`npm run rt`); Redis only lets several processes share
+the work. The rules and numbers are in `data/multiplayer.json` (and the pay in `data/economy.json` `multiplayer`).
+
+**Not in this step:** collisions between players (ghost mode only: the lobby's collision setting has just that one
+choice); pink-slip races between players (nothing a player owns can be lost to another); input-replay verification
+of real-world route runs (a run on a route is checked on its gates, times and the race server's own timing; generated
+tracks' runs are replayed as in Phase 6).
+
+## Lobbies
+
+| Kind | How you get in | Who sets it up |
+|---|---|---|
+| Quick race | **Quick race** in the menu: matchmaking puts you in one | The queue: the venue for the region, one lap, ranked |
+| Private lobby | Its **invite code** (6 letters), or a friend's invite, or joining a friend | Its host |
+| Custom lobby | The **lobby browser** (when its host lists it), an invite, a code-less join from a friend | Its host |
+
+The host chooses the venue (a real-world route, today's or this week's official track, a track code, or random),
+laps, the car classes allowed, NPCs in the empty places, time of day, weather and the grid order (by rating, random,
+or the last race reversed). Collision mode is ghost only. Players pick which of their cars to race (among those
+allowed). Chat goes through the name/profanity filter (`server/src/names.ts` `cleanChat`); a player can mute (this
+game only), block (kept by the API: chat, invites and the queue keep you apart) or report (Phase 6 Step 5's reports)
+anyone in the lobby. The host can kick (they can't come back for `lobby.kickBanSec`); when the host leaves, the
+longest-standing player is the host.
+
+## Matchmaking
+
+`mp/match.js` (pure) runs every `queue.cycleMs` over everyone waiting in a region's queue room
+(`server/src/rt/queue.ts`). A race is built round the longest-waiting player:
+1. **region and ping** first: the region's ping limit widens with the wait (`pingLimitsMs`, a step every
+   `pingStepSec`);
+2. then **skill** (the OpenSkill ordinal, within a window that widens with the wait: `skill`);
+3. then **car class** (strictly: `classStrict`) and **performance rating** (within `performance`, widening too).
+
+Parties are matched as one (all their members together). After `fillAfterSec` a race may start short of a full grid
+(`grid.quickMinHumans` people at least); after `npcOfferSec` a player still alone is offered NPCs in the empty places.
+
+**Targets** (`queue.targets`): queue time p50 ≤ 10 s and p95 ≤ 45 s; a race's skill spread p95 ≤ 12 ordinal points
+and performance spread p95 ≤ 120; one class a race. The queue reports its numbers to the API every 5 s; the admin
+page's **Multiplayer** dashboard (`GET /api/v1/admin/mp/dashboard`) shows them against the targets.
+
+On this computer (4 cores, 16 GB), 2,000 bots queuing at once against one process with no Redis
+(`mp-load-test.ts --bots 2000 --workers 4`): all matched and seated; queue time p50 5.0 s, p95 31.2 s, longest
+49.4 s; skill spread p95 9.1, performance spread p95 77, one class in every race; 264 races, 7.6 players a race
+(242 full grids); the matchmaker's cycle p95 28 ms, at worst 52 ms, against its 500 ms interval.
+
+## Skill rating
+
+OpenSkill (Plackett–Luce), updated once a ranked race (a quick race) is confirmed. Players see a **tier**, never the
+number: Bronze, Silver, Gold, Platinum, Diamond, Champion (three divisions each), from the ordinal mu − 3σ
+(`mp/rank.js`). A player is Unranked until `rank.placementRaces` races. Leaving a ranked race early counts as last.
+
+## Race flow
+
+`mp/race.js` (pure: the tests drive it directly) is the race; the race room (`server/src/rt/race.ts`) feeds it.
+
+1. **Loading.** Everyone loads the venue: a real-world route in its region (the route's course comes with the
+   `load` message, laid out in that region's map frame — the frame the server tracks cars in), or a generated track
+   built by the game, whose **hash** must match the server's (Phase 5): a player whose track differs watches instead.
+   The race starts when everyone has loaded, or after `race.loadTimeoutSec`; anyone still loading starts from the
+   back of the grid when they're in (`lateJoin: 'back'`) or watches.
+2. **Grid**: by rating, random, or the last race reversed.
+3. **Countdown**: the lights go out at `goAt`, a moment on the server's clock sent ahead (`race.countdownSec`), and
+   every game's clock is synced to it (Step 1): five red lights over the last `race.lightsSec`, then out. The game
+   releases its car on the physics step at `goAt`. A car more than `jumpStart.toleranceM` off its slot before then
+   gets `jumpStart.penaltySec` (judged once it's been on its slot, or `settleSec` after the grid: the game needs a
+   moment to put it there).
+4. **Racing**: the server follows every car's progress with the route's own tracker (checkpoints in order, laps),
+   times each line crossing between the two states either side of it, and sends **live positions** 4 times a second
+   (finished by time, then by distance, then the out). Its live checks flag progress no car could make, or a
+   checkpoint passed out of order, for the results' check. Each game times its own run with the same QuestSession as
+   a quest (Phase 4: gates, laps, sub-tick timing, the reset and corridor rules: R puts you back at the last
+   checkpoint) — on the server's clock.
+5. **Finish**: once the winner finishes, the others have `race.finishWindowSec`; anyone still racing then is DNF.
+
+## Disconnects
+
+- A **short drop** reconnects by itself (Step 1); the car waits, marked as reconnecting.
+- A **long drop**: after `race.dnfGraceSec` the player is out (DNF) and their car is taken off everyone's screen.
+- **Leaving** a ranked race early counts as last place; more than `leaving.freeLeaves` in `leaving.windowHours` and
+  the queue makes you wait (`leaving.cooldownMinutes`, longer each time).
+- The **host** leaving passes the lobby on; **everyone but one** leaving: the last one finishes alone.
+
+## Results
+
+1. **Provisional** standings as soon as the race ends (the server's own times).
+2. Each finisher's game hands in its run through the race room; the API checks it (Phase 6 Step 3: `quest/validate.js`
+   on the race's quest — gates, laps, times — plus the run's time against the race server's, within 300 ms, and the
+   server's live flags). A run that fails, or no run at all, is **disqualified**, and the standings close up.
+3. **Confirmed**: pay by place (`data/economy.json` `multiplayer`, in the economy simulation too), xp, and — for a
+   ranked race — rating and tier changes. Paid once, through the ledger (Phase 6).
+4. The **podium**, then a **rematch** vote (more than half: back to the lobby together) or back to the menu.
+
+## Spectating
+
+Anyone can watch: a lobby you're in (**Watch instead**), a friend's race (**Watch** in the friends list), a listed
+lobby (**Watch** in the browser), or by joining with a code once it's under way. Finished and DNF players can watch
+too (**W**). While watching: **← →** another car, **C** the camera — chase, in the car, or **TV** cameras beside the
+route (a generated track's own TV cameras, Phase 5).
+
+## Friends, invites and parties
+
+The hub room (`server/src/rt/hub.ts`) is where a player is while they're on the multiplayer screens: their friends
+with online status and what they're doing (in a lobby, racing, watching, free roam), friend requests (add by name),
+invites to a lobby, joining a friend, and **parties** (up to `queue.maxPartySize`): the leader's Quick race queues
+everyone. Friends, blocks and reports are kept by the API; the hub passes them on (`POST /internal/mp/act`), so the
+development players (`?player=A`) can use them too.
+
+## Venues
+
+`data/multiplayer.json` `venues.routes`: one official real-world route a baked region, published as world content by
+`server/tools/seed-mp-routes.ts` (ids `route_mp<region>`; run it once on a database:
+`DATABASE_URL=… node server/tools/seed-mp-routes.ts`). A quick race's venue per region is the real-time server's
+`quickVenue` setting; "random" picks among the published routes and the official tracks.
+
+## The game's side
+
+- `mp/client.js` — the session: the hub, the queue, the lobby and race (the same for the screens and the bots).
+- `play/mpScreens.js` — the screens: menu (**F7** or the **Multiplayer** button at the top), lobby, loading, lights,
+  race HUD, results with podium and rematch, the watching bar. Each has an id (`#mpMenu`, `#mpLobby`, `#mpLoading`,
+  `#mpLights`, `#mpHud`, `#mpResults`, `#mpWatch`).
+- `play/mpRace.js` — the race as the game plays it: to the venue, the car on its slot, released at `goAt`, the run
+  timed on the server's clock and handed in, the others' cars drawn (Step 1), and the spectator's cameras.
+
+## The tests (Step 2)
+
+| Test | What it covers |
+|---|---|
+| `tests/unit/mp.test.mjs` | The rules, pure: settings, ratings and tiers, matchmaking, the race (jump starts and the settling time, the finish window, DNFs, leaving, hashes, late loaders, impossible progress), results and pay, NPC drivers, a route's version not depending on key order. |
+| `server/test/mp.test.ts` (Postgres) | The API: friends and blocks, ticket claims and development players, the internal key, a ranked race confirmed (a failed run moving the standings, pay and ratings), leaving cooldowns, the dashboard. |
+| `server/tools/mp-race-test.ts` (Postgres; one real-time process, no Redis) | Bot races end to end (`reports/mp-races.md`): A — 8 bots matched onto a real-world route, ranked; the countdown within a few ms in every bot through a 60 ± 10 ms network; a drop on the final lap; a run that fails the check (disqualified, pay and ratings follow); rematch. B — 8 bots on today's generated track; one built it differently and watches. C — a party queues together; a lone player takes the NPC offer. D — disconnects in the lobby, at the countdown, mid-race for good; the host leaving; everyone but one leaving. E — chat filter, block, mute, kick (and can't come back), report. F — a spectator. |
+| `server/tools/mp-load-test.ts` (Postgres) | 2,000 bots queue at once, in worker processes, against one real-time process with no Redis: all matched and seated, queue times and match quality within the targets, the matchmaker's cycle well inside its interval (`reports/mp-matchmaking-load.md`). |
+| `server/tools/mp-browser-race.ts` (Postgres, Chromium) | The game in the browser, as people play it: two windows as Player A and B (`?mp&player=A`, `?mp&player=B`, driven by the autopilot once it's GO: `&mpauto`), bots filling the grid; one real-time process, no Redis. Every check is on what's **drawn**: each screen visible, in the window, not covered (the element at its middle is itself), its text against the server's own state, its pixels in a screenshot — and for what lasts a moment, the frames each window painted (Chrome's screencast for the lights; the text in each painted frame for the results' title). <ul><li>The lobby: private, joined by its code typed in; players with car and class, ready, rank, as the server has them; chat filter and mute; free roam still on under it.</li><li>Loading.</li><li>The lights: red painted in both windows, then out within a few ms of the server's `goAt` (aimed by the clock, put out within a frame of it), the green painted.</li><li>The race HUD: each window's own place and the standings in the server's order; the other cars in each window's 3D view, and in the picture.</li><li>The results: provisional (the race server's confirmation held back, as if the checks were slow, until both windows have painted it), then confirmed in the server's order with pay and rank; both runs pass the check; the podium.</li><li>A rematch, B watching it (Watch instead): the bar names the car the chase camera is on; switching car; the in-car and TV cameras.</li><li>A quick race matched from two clicks, to its lights (`--quick`: the setup and this part only).</li></ul> |
+
+Last runs on this computer: the bot races 29 of 29, the browser races 29 of 29, the load test 5 of 5.
+
+## Trying it on this computer
+
+1. Start everything (`docker compose up --build`, or `npm run rt -w @kr/server` and `npm start -w @kr/server`), and
+   publish the official routes once: `DATABASE_URL=… node server/tools/seed-mp-routes.ts`.
+2. Open `http://localhost:8787/?mp&player=A` and `http://localhost:8787/?mp&player=B` in two windows side by side.
+   On the welcome, pick **Just drive** (or sign in).
+3. In A, open the menu (**F7**, or the **Multiplayer** button at the top) and click **Private lobby**. Its invite
+   code is at the top right of the lobby.
+4. In B, open the menu, type the code under Race and click **Join**. Both lobbies list both players.
+5. As the host, A picks the venue (Real-world route → Market Street Sprint, say) and laps. Both click **Ready**; A
+   clicks **Start the race**.
+6. Both windows load the route, then show the lights. Drive off when they go out. Your place and the standings are
+   top right. **R** puts you back at the last checkpoint.
+7. After the finish: the results, provisional, then confirmed with your pay and rank. **Rematch** or **Back to the
+   menu**.
+8. **Quick race** in both windows (from the menu) matches A and B into one race by themselves. Waiting alone, you're
+   offered NPCs after 40 s.

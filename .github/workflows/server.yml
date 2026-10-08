@@ -68,6 +68,12 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser.ts
       - name: Multiplayer in two windows of one browser (one sign-in; ?player=A/B; each window draws the other's car, moving; a background window stays; F8, F9)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-two-windows.ts
+      - name: Multiplayer races with bots (one real-time process, no Redis; reports/mp-races.md) — a ranked quick race on a real-world route, a generated track, a party and the NPC offer, disconnects, chat and kicks, a spectator
+        run: node server/tools/mp-race-test.ts
+      - name: Matchmaking under load (2,000 bots queuing at once against one process; queue times and match quality within data/multiplayer.json's targets)
+        run: node server/tools/mp-load-test.ts --bots 2000 --workers 4
+      - name: Multiplayer races in the browser (what each screen draws — lobby, loading, the lights against the server's clock, live positions, a spectator's cameras, confirmed results; a quick race)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser-race.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
         run: node server/tools/dr-test.ts
       - name: Rollback drill (a broken release with a migration, its alert, rolled back on the newer schema; docs/OPERATIONS.md)

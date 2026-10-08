@@ -67,6 +67,18 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
      (step 1), before inviting beta testers.
    - Later: WebTransport, which needs HTTP/3 and UDP through to the real-time server (not through Cloudflare's
      proxy), so a host that allows it.
+10. **Multiplayer races** (Phase 7 Step 2, [MULTIPLAYER.md](MULTIPLAYER.md#phase-7-step-2-lobbies-matchmaking-and-races)):
+   - **Redis is optional now**: one real-time process keeps rooms, presence, invite codes and parties in memory.
+     Only several processes need it (so the first deploy can skip Redis's cost; ask before adding it).
+   - **The real-time server calls the API** (`API_INTERNAL_URL`, default `http://localhost:8787`): set it to the
+     API's private address on the host (Render's internal hostname), with `RT_SECRET` the same on both.
+   - **Regions:** `data/multiplayer.json` `queue.regions` is `["local"]`. Online, list the regions the real-time
+     servers run in, give each its quick-race venue (the real-time server's `quickVenue`), and have the game measure
+     its ping to each (`site/ping.html` has the measuring).
+   - **Publish the official routes** on the production database once: `DATABASE_URL=… node server/tools/seed-mp-routes.ts`.
+   - **The two-player check, as a race:** the two players on different networks also make a private lobby, join it by
+     its code, race to confirmed results, and one of them watches a race.
+   - **The matchmaking dashboard** (admin page, Multiplayer) against its targets, once real players queue.
 
 What changed for localhost since this file was written, and matters online too:
 - The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`
