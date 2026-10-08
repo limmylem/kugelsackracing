@@ -64,8 +64,15 @@ The point: no loading screen, no hitch, no jump, nothing lost — at any speed.
   When the source changes (the car left that zone, or that zone's view of it stalled), the new zone's drawing is **lined up
   in time** with the old one: the two zones' clocks differ, but the car's own physics step number is the same in both, so
   the moment last drawn is found in the new zone's clock (`clockOffset`) and its interpolation carries on from there
-  (`net/remote.js` `align`). The few centimetres left are eased away over at least 350 ms (longer for a bigger offset).
-  Measured: the offset at a switch is 2 cm at the median, under 10 cm at worst, at 200 km/h.
+  (`net/remote.js` `align`). The few centimetres left are eased away over at least 350 ms (longer for a bigger offset),
+  and the old drawing's velocity is handed over to the new one's over 150–500 ms rather than in one frame (the two views'
+  speeds differ slightly, more if the old one was predicting: a change of speed in one frame is a kink the eye catches).
+  Measured: the offset at a switch is 2 cm at the median, under 10 cm at worst, at 200 km/h. "Fresh" and "stalled" allow
+  for how often the car is sent: a car beyond 700 m comes a few times a second (Step 1's interest rings).
+- **A lost zone connection is joined again.** If a zone closes the connection (a network drop it can't come back from, a
+  server restart, nothing heard for `NET.idleSec`) or a join fails or doesn't answer in 20 s, the game joins that zone
+  again while the car is in it: after 1 s, doubling to 30 s. A ban, the same account joining elsewhere, or an old game
+  version stays offline.
 - **Nothing lost**: the car's look and damage are sent to each zone it joins; its settings, party and auto-ghost go with
   it; a challenge stays in the zone it started in until it's over (the game keeps that zone joined, wherever it drives).
 - **Fading at the edge.** A car that comes into view from a zone this player isn't in fades in over half a second, and
@@ -185,19 +192,22 @@ game says why. The car's damage is the economy's (Phase 6: the car's own state),
 | The rules | `mp/roam.js` (zones, placement, privacy, contact, auto-ghost, meets, coming back), `mp/challenge.js` |
 | The game's zones and handoffs | `mp/roamClient.js`; the game: `play/roam.js`; headless: `mp/roamBot.js` |
 | The API | `server/src/roam/service.ts`, `server/src/routes/roam.ts`; tables `roam_players`, `roam_challenges`, `roam_challenge_players`, `meet_events` (migration 0014) |
-| The live dashboard | the admin page's **Free roam** tab (`GET /api/v1/admin/roam/dashboard`): players and connections per zone and instance, handoffs a minute, bandwidth, CPU and memory per process, tick times, and the hosting cost at the live numbers. Each zone process reports every 5 s. |
+| The live dashboard | the admin page's **Free roam** tab (`GET /api/v1/admin/roam/dashboard`): players and connections per zone and instance, handoffs a minute, bandwidth, CPU and memory per process, tick times, and the hosting cost at the live numbers. Each zone process reports every 5 s; one silent for 20 s is left out of the totals and listed as silent. |
 
 ## Hosting cost per 1,000 free roam players
 
-From the bot swarm's measurements (below), at `data/roam.json` `costs` (Render Standard, about $25 a month a core; Render
-Key Value about $10; bandwidth past the included amount about $0.15 a GB — *check* each before paying):
+Mostly bandwidth, and that depends on how crowded the world is: a player's download grows with the cars within 1.5 km.
+At `data/roam.json` `costs` (Render Standard, about $25 a month a core; Render Key Value about $10; bandwidth past the
+included amount about $0.15 a GB — *check* each before paying):
 
-- **1,000 monthly active players** (20 hours a month each in free roam, 10% on at once in the evening): one zone server
-  is plenty — about **$45 a month** (the server, ~170 GB of bandwidth, Redis).
-- **1,000 players on at once, all month** (the worst case): about **$950 a month**, nearly all of it bandwidth (6 kB/s a
-  player is ~15 GB a player a month).
+| | download a player | 1,000 monthly active (20 h a month each, 10% on at once) | 1,000 on at once, all month |
+|---|---|---|---|
+| A very dense crowd (the 150-bot swarm: ~85 cars in view each, at half a game's send rate) — measured | 35 kB/s | **about $390 a month** | **about $13,300 a month** |
+| A spread-out world (~10 cars in view each) — an estimate from the swarm's ~0.4 kB/s a car in view, doubled for the full send rate | ~8 kB/s | **about $100 a month** | **about $3,100 a month** |
 
-Also in [COSTS.md](COSTS.md). The live figure is on the admin dashboard.
+Nearly all of the second column is bandwidth (8 kB/s is ~20 GB a player a month). What would change it most: sending
+each car once rather than through every zone the two players share (KNOWN_ISSUES.md), and a host with cheap or
+included egress. Also in [COSTS.md](COSTS.md); the live figure is on the admin dashboard. Nothing has been bought.
 
 ## The tests
 
@@ -205,9 +215,42 @@ Also in [COSTS.md](COSTS.md). The live figure is on the admin dashboard.
 |---|---|
 | `tests/unit/roam.test.mjs` | The rules, pure: zones and the zones a car is in (the handoff's hysteresis, corners, a teleport); placement (party, friends, players near, ping; blocked; the cap and the friend slots; a handoff's group); seeing (blocks, location, appear offline, join friend, names); contact (both on, the party, passive, auto-ghost, challenges); the auto-ghost (repeats, light or blameless hits); challenges (asking, declining and its doubling cooldown, no answer, spam, blocked players, groups); flashing headlights; a sprint route on the real Milton Keynes road graph, the rolling start, a jump start, results, the check (edited records caught), the pay and its caps; follow-the-leader; meets, the map, coming back, regions. |
 | `server/test/roam.test.ts` (Postgres) | The API: settings (kept, validated, in the ticket with friends); coming back (the spot, the car, its damage; the garage when the region's gone or the spot's off road); challenges checked then paid by place, an edited record paying nothing, paid once, the pair's and the player's daily caps; auto-ghost dropping the safety rating; scheduled meets (admins only); the dashboard and the cost; the internal key. |
-| `server/tools/roam-test.ts` (Postgres; Redis for G) | End to end with bots made of the game's own client code (`reports/roam-test.md`): **A** friends and parties always in one instance (a full one too, after driving into the next zone), blocked players never; **B** privacy and blocks on the map, in the world, names, join friend, the friends list; **C** challenges — the route, decline and cooldown, passive, a blocked player declined silently, flashing headlights, the rolling start, results checked and paid, the second paid less, a party's group challenge; **D** a bot ramming others auto-ghosted, its safety rating down; **E** leaving and coming back to the same spot, car and damage; chat, the wheel, emotes, inspect, meets, a report with its replay; **F** `--handoffs 1000` at 200 km/h; **G** `--swarm 500`. |
+| `server/tools/roam-test.ts` (Postgres; Redis for G) | End to end with bots made of the game's own client code (`reports/roam-test.md`): **A** friends and parties always in one instance (a full one too, after driving into the next zone), blocked players never; **B** privacy and blocks on the map, in the world, names, join friend, the friends list; **C** challenges — the route, decline and cooldown, passive, a blocked player declined silently, flashing headlights, the rolling start, results checked and paid, the second paid less, a party's group challenge; **D** a bot ramming others auto-ghosted, its safety rating down; **E** leaving and coming back to the same spot, car and damage; chat, the wheel, emotes, inspect, meets, a report with its replay; **F** `--handoffs 1000` at 200 km/h; **G** `--swarm 500` (see below). Also: a zone connection the server closes is joined again. |
 | `server/tools/roam-browser.ts` (Postgres, Chromium) | Two game windows (Player A and B) in Milton Keynes: the same zone and instance, each drawing the other's car with its name, the minimap following B's privacy setting, a "Driver" when B shares with nobody, the free-roam screen, inspect, a challenge from the screen answered from the prompt, nearby chat, contact and passive mode in the HUD. |
+
+**How the swarm (G) runs on one computer.** 500 bots — the game's own client code — in 4 processes, 4 zone server
+processes sharing Redis, the API, and three "watcher" games parked in the middle (the game's frame cost is timed there).
+All on 4 cores, so: the zones are 1 km (`--swarm-zone-tiles 2`: 15–16 zones, ~2.6 connections a bot; still finer than
+the game's 2 km); the bots run at the lowest priority and the watchers' process at a raised one (the bots stand in for
+other players' computers); and 1 bot in 25 reads the other cars as a game does — the rest receive them (the zone servers
+send every bot the same) without reading them, which 500 games' worth of would need far more cores than this computer
+has. The report says how fast the bots' cars actually reached the zones (states a second a connection; a game sends 30).
+The thread CPU clock here counts in 4 ms steps, so the tick's own CPU time is reported as a mean, not per tick.
 
 ### Results (this computer: 4 cores)
 
-See "Last runs" below for the numbers from the final runs.
+The last full run (`--handoffs 1000 --swarm 500`, A–G): 55 of 56 checks passed; the one missed is the handoff snaps.
+
+- **A–E**: all passed — friends, parties and a full instance's friend slots; blocked players placed apart; two friends
+  handed over together; a zone connection closed by the server joined again; privacy on the map, in the world and in
+  names; join friend; blocks both ways at once; challenges (route shown first, decline and cooldown, passive, blocked,
+  flashing headlights, the rolling start, checked and paid, the second paid less, a party's group challenge); the
+  rammer auto-ghosted everywhere with its safety rating down; coming back to the same spot, car and damage; chat, the
+  wheel, emotes, inspect, meets, a report with its replay.
+- **F, 1,000 handoffs at 200 km/h** (25 drivers in 3 processes, 393 s): nothing lost (look, damage, settings — 4,412
+  zone answers), no car drawn from a frozen view, 1,476 times a watching game's view of a car moved zone. Every frame of
+  every car within 700 m: 46 snaps in 1.75 million car-frames (2.6 per 100,000); **24 of them within half a second of a
+  switch** (1.6% of switches: 11–16 cm off where the car moves ~90 cm a frame; once 4.2 m). With 10 drivers (400
+  handoffs) it was 1 in 598 switches, worst 27 cm: the misses come with the load (late states under 4 busy cores), not
+  with the switch itself. The game's cost of merging and sampling the zones: p50 0.27 ms, p95 0.61 ms a frame.
+- **G, 500 bots** (1 km zones): 15 zones, 35 instances, 4 processes; 1,302 connections for 503 players; 1,299 of 1,315
+  zone connections online at the end (16 joining); 272 handoffs. Zone tick p50 at worst 2.89 ms (p95 10.4 ms; mean CPU
+  2.55 ms); zone servers 2.07 ms of CPU a second per connection (Step 1's budget: 3.91); the watching game's frame p95
+  2.17 ms drawing ~127 cars; download 14.6 kB/s a bot on average (p95 29.8), upload p95 0.95. **But the bots' cars
+  reached the zones at only 2.8 states a second (a game sends 30)**: 500 games' worth of sending needs more cores than
+  this computer has beside the servers, so the load above is lighter than 500 real players'. Not verified here.
+- **G, 150 bots** (same zones, to get nearer a game's rate): 15.3 states a second; 414 connections; 3.53 ms of CPU a
+  second per connection (budget 3.91); tick p50 at worst 3.40 ms; frame p95 2.14 ms drawing ~86 cars; **download 35 kB/s
+  a bot on average, 74 at p95** — every bot sees ~85 others within 1.5 km (a very dense crowd), and a car near a border
+  arrives once through each zone the two players share. Over Step 1's 48 kB/s (a target for 30 cars nearby).
+- **The browser test** (`server/tools/roam-browser.ts --local-libs`): 14 of 14.

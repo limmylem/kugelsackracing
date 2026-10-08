@@ -1,8 +1,79 @@
 # Known issues, and what to revisit
 
-As of Phase 7 Step 3 (car-to-car contact, first), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 7 Step 4 (free roam, first), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 7 Step 4: free roam (docs/FREE_ROAM.md)
+
+### Fixed on the way (found by the free roam tests)
+
+- **Handing a car over between zones made it jump.** Each zone server sends its states with its own delay and clock,
+  so switching which zone a car was drawn from moved it by up to a few metres. The game now lines the zones' clocks up
+  by the physics tick both stamp, keeps a car on the zone that's sending fresh states, and blends any small leftover
+  over at least `blendMs` (longer the bigger it is), drawing the car's real velocity meanwhile. A car that really
+  leaves fades out instead of vanishing.
+- **A lost zone connection stayed lost.** If a zone closed a player's connection (or a join failed, or never answered),
+  the game kept the dead connection and never joined that zone again: every car in it was invisible until the player
+  drove out and back in. The 500-bot swarm found it — half its zone connections were gone by the end (the test's own
+  bots had sat idle while the others joined, and the zones rightly closed them after `NET.idleSec`). The game now joins
+  a lost zone again (1 s, doubling to 30 s), the swarm drives each bot from the moment it's in, and two checks guard
+  it: section A closes a connection from the server and expects it back with the car seen again; the swarm expects
+  98% of all zone connections online at the end.
+- **A kink at a handoff.** When a car's source zone changed, its position was eased but its velocity changed in one
+  frame: a few centimetres' kink, seen as a snap in 38 of 1,484 switches in one run. The velocity is handed over too
+  now (over 150–500 ms).
+- **Far cars counted as frozen.** A car beyond 700 m is sent a few times a second, so it's predicted between states
+  most of the time; "fresh" and "frozen" now allow for how far apart its states come.
+- **The swarm's frame-cost check measured nothing** after the other sections had run (their loop was stopped but not
+  forgotten, so the swarm's watchers were never stepped): it passed with 0 cars drawn.
+- **An idle database connection closed by the server ended the process** (node-postgres's pool error, unhandled):
+  seen when the test dropped its database; a database restart would have done the same to the API. Logged now.
+- **The first roster had no names or privacy.** It was built before the zone had the player's free-roam record; a
+  `joining` hook fills the record first.
+- **Two invites from one flash near a border.** Every zone the car was in saw the flashing; only the home zone looks
+  now, and an answer goes back to the zone the invite came from.
+- **A challenge lost its zone.** The cars drove out of the zone that ran it before the finish; the game keeps that zone
+  open (pinned) until the results.
+- **A rolling start could wait forever** for a car that never got rolling: it's called off after `maxHoldSec` (30 s).
+- **Flashing was looked for sideways** (the car's forward axis was wrong in the detector).
+- **Leaving lost the car and its damage.** The last save ran after the player had been removed from the zone.
+- **Inspect showed the wrong car**: the one on the player's ticket, not the one they were driving.
+- **The hub's notices crashed on one process** (`toUser(...).catch` with the local presence), and a block or a new
+  friendship told only one of the two players.
+
+### Things to know
+
+- **A handoff still snaps now and then under load.** In the last 1,000-handoff run (25 drivers on 4 busy cores), 24 of
+  1,476 times a watching game's view of a car moved zone it snapped within half a second: 11–16 cm off where the car
+  moves ~90 cm a frame, and once 4.2 m. With 10 drivers (400 handoffs) it was 1 in 598, worst 27 cm. What's left comes
+  with late states (the new zone's view correcting a prediction just after the switch), not with the switch itself; the
+  4.2 m one wasn't seen again. `ROAM_DEBUG=1 node server/tools/roam-test.ts --only F` prints each snap near a switch
+  with what the views were doing.
+- **500 bots can't send at a game's rate on this computer.** In the 500-bot swarm the bots' cars reached the zones at 2.8
+  states a second (a game sends 30): 500 games' worth of sending needs more cores than are left beside the zone servers.
+  The swarm's server numbers are for that lighter load, and its new check says so (it fails). With 150 bots (15.3 a
+  second) the zone servers used 3.53 ms of CPU a second per connection — Step 1's budget is 3.91, so at a game's full
+  rate a zone process may carry fewer than 256 connections (not measured). Re-run with the bots on other computers
+  (DEPLOYMENT.md item 12; that costs money: ask first).
+- **Download in a dense crowd is over Step 1's target.** With 150 bots each seeing ~85 cars within 1.5 km, at half a
+  game's rate: 35 kB/s a player on average, 74 at the 95th percentile (Step 1's target: 48 with 30 cars nearby). Two
+  reasons: every car within 1.5 km is sent, however many (the far ones 3 times a second); and a car near a border
+  arrives once through each zone the two players share (~1.8 times on average with 1 km zones). Proposed: each car sent
+  to each player by one zone (its home zone where the player has it, another shared one otherwise), with both sending
+  for a moment around a change so the switch can still be lined up; and a cap on the cars sent at full rate in a crowd.
+  Not done — it changes how zones send: to agree first.
+- **Contact across a zone border is agreed one-sidedly.** Two players near a border can have different home zones;
+  each reports to its own, which checks it against its own view of both cars (as Step 3 does when one report is
+  missing). Both games still get one agreed result each, but the two zones don't compare notes.
+- **`?player=` development players don't come back where they left.** The zone servers save them, but the
+  development page doesn't ask `GET /roam/me` for them; signed-in players do.
+- **Voice chat isn't built** (a design note in FREE_ROAM.md): every version needs a media server (an SFU), which costs
+  money. Decided with the owner first.
+- **The browser test needs `--local-libs` here**: the page loads three.js, Rapier and MapLibre from jsDelivr, which this
+  computer can't reach; the option serves them from node_modules (14 of 14 then).
+- **Not checked on two networks yet.** Everything ran on this computer (Phase 7 Step 1's deferred check, now with free
+  roam: two players on different networks in the same zone and instance).
 
 ## Phase 7 Step 3: car-to-car contact (docs/CONTACT.md)
 

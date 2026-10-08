@@ -78,20 +78,23 @@ ask first ([DEPLOYMENT.md](DEPLOYMENT.md) "To do when we deploy" 9).
   - 100 players at once for 3 hours every evening is about 360 GB a month;
   - check the host's included bandwidth before choosing (*check*).
 
-**Multiplayer free roam (Phase 7 Step 4; [FREE_ROAM.md](FREE_ROAM.md)), per 1,000 players.** Measured with 500 bots
-driving Milton Keynes across 47 zones (`node server/tools/roam-test.ts --swarm 500`): each player receives about
-6 kB/s on average (16 kB/s at the 95th percentile, in the busiest spots) and sends about 1 kB/s; the zone servers used
-about 3 ms of CPU a second per player (a core carries roughly 350 players). At Render Standard (about $25 a month a
-core, *check*), Render Key Value (about $10, *check*) and about $0.15 a GB past the included bandwidth (*check*):
+**Multiplayer free roam (Phase 7 Step 4; [FREE_ROAM.md](FREE_ROAM.md)), per 1,000 players.** Mostly bandwidth, and it
+depends on how crowded the world is (a player's download grows with the cars within 1.5 km). Measured with the bot swarm
+(`node server/tools/roam-test.ts --swarm 150`): in a very dense crowd (~85 cars in view each, at half a game's send rate)
+each player receives about 35 kB/s on average (74 at the 95th percentile) and the zone servers use about 3.5 ms of CPU a
+second per connection (a player holds 1–4 connections, ~1.7 on average with 2 km zones). At Render Standard (about $25
+a month a core, *check*), Render Key Value (about $10, *check*) and about $0.15 a GB past the included bandwidth (*check*):
 
-| | Zone servers | Bandwidth | Redis | Total |
-|---|---|---|---|---|
-| 1,000 monthly active players (20 h a month each in free roam, 10% on at once in the evening) | 1 instance, $25 | ~170 GB, ~$10 | $10 | **about $45 a month** |
-| 1,000 players on at once, all month (the worst case) | 6 instances, $150 | ~15 TB, ~$2,300 | $10 | **about $950 a month** at the measured average; bandwidth is nearly all of it |
+| | Download a player | 1,000 monthly active players (20 h a month each, 10% on at once in the evening) | 1,000 on at once, all month (the worst case) |
+|---|---|---|---|
+| Very dense crowd — measured | 35 kB/s | **about $390 a month** | **about $13,300 a month** |
+| Spread-out world (~10 cars in view) — estimated from ~0.4 kB/s a car in view, doubled for a game's full send rate | ~8 kB/s | **about $100 a month** | **about $3,100 a month** |
 
-The admin page's **Free roam** tab shows the same estimate from the live numbers. Bandwidth is the thing to watch: a host
-with cheap or included egress (or Cloudflare in front of the WebSockets, which doesn't charge for it) changes the second
-row most. Nothing here has been bought.
+The admin page's **Free roam** tab shows the estimate from the live numbers. Bandwidth is the thing to watch: sending each
+car once instead of through every zone two players share (FREE_ROAM.md, KNOWN_ISSUES.md) cuts it, and a host with cheap
+or included egress (or Cloudflare in front of the WebSockets) changes the last column most. (An earlier version of this
+section said 6 kB/s and about $45 / $950: that swarm had lost half its connections without noticing — see
+KNOWN_ISSUES.md.) Nothing here has been bought.
 
 ## Budget alerts to set (when we deploy)
 

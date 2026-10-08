@@ -115,7 +115,8 @@ export class RoamRoom extends TestRoom {
   referee: ReturnType<typeof createReferee> | null = null;
   slowTicks = 0;
 
-  static async onAuth(token: string, options: any) { return authorize(token, options, { count: !options?.extra }); }
+  // ("server full" refuses a player coming in, never one already here: a neighbouring zone, a handoff, a lost connection joined again)
+  static async onAuth(token: string, options: any) { return authorize(token, options, { count: !(options?.extra || options?.handoff || options?.rejoin) }); }
 
   onCreate(options: any) {
     this.region = typeof options?.region === 'string' ? options.region.slice(0, 32) : 'local';

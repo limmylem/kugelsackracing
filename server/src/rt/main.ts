@@ -4,7 +4,8 @@
 //                                             through Redis; a player can join through any of them)
 // Settings: REDIS_URL (optional: without it, one process with everything in memory; several processes need it), RT_SECRET (in development made from BETTER_AUTH_SECRET, like the API),
 // RT_PORT, RT_HOST, RT_PUBLIC_ADDRESS (how browsers reach this process: host:port), APP_ENV (server/config/<env>.json "rt"),
-// API_INTERNAL_URL (Phase 7 Step 2: the API, for lobbies and races — default http://localhost:8787).
+// API_INTERNAL_URL (Phase 7 Step 2: the API, for lobbies and races — default http://localhost:8787), RT_MAX_PLAYERS (the
+// config's rt.maxPlayers: connections across every process before "server full" — a free-roam player holds 1–4).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -31,7 +32,7 @@ if (n > 1 && !process.env.RT_CHILD) {
   if ((env === 'staging' || env === 'production') && !process.env.RT_SECRET) throw new Error('RT_SECRET is needed in staging and production');
   const secret = rtSecretOf(process.env.RT_SECRET, process.env.BETTER_AUTH_SECRET ?? 'local-development-only-secret-change-me-0123');
   const log = (msg: string, extra: object = {}) => console.log(JSON.stringify({ time: new Date().toISOString(), msg, ...extra }));
-  const rt = await startRt({ port, host, publicAddress: process.env.RT_PUBLIC_ADDRESS ?? `localhost:${port}`, redisUrl: process.env.REDIS_URL || null, secret, rt: file.rt, api: { url: process.env.API_INTERNAL_URL ?? 'http://localhost:8787' }, log });
+  const rt = await startRt({ port, host, publicAddress: process.env.RT_PUBLIC_ADDRESS ?? `localhost:${port}`, redisUrl: process.env.REDIS_URL || null, secret, rt: { ...file.rt, ...(process.env.RT_MAX_PLAYERS ? { maxPlayers: Number(process.env.RT_MAX_PLAYERS) } : {}) }, api: { url: process.env.API_INTERNAL_URL ?? 'http://localhost:8787' }, log });
   setInterval(() => { for (const r of rt.rooms()) { const m = r.metrics(); log('rt room', { room: r.roomId, world: r.world, players: m.players, tickMsP95: +m.tickMsP95.toFixed(2) }); } }, 60000).unref();
   for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => { void rt.stop().then(() => process.exit(0)); });
 }

@@ -171,33 +171,39 @@ export function createRoamService({ db, economy, log = () => {}, now = () => Dat
     const prev = statsLog.get(s.process);
     statsLog.set(s.process, { ...s, at: s.at ?? now(), prev: prev ? { at: prev.at, counters: prev.counters, bytes: bytesOf(prev) } : null });
     const t = now();
+    // (a process gone 10 minutes — stopped, or replaced by a deploy — forgotten)
+    for (const [k, x] of statsLog) if (t - x.at > 600000) statsLog.delete(k);
     if (!history.length || t - history.at(-1).at >= 60000) { const d = dashboard(); history.push({ at: t, players: d.totals.players, instances: d.totals.instances, downKBs: d.totals.downKBs, handoffsPerMin: d.totals.handoffsPerMin, cpu: d.totals.cpu }); while (history.length > 24 * 60) history.shift(); }
   }
-  const bytesOf = (s: any) => (s.rooms ?? []).reduce((a: any, r: any) => ({ in: a.in + (r.bytesIn ?? 0), out: a.out + (r.bytesOut ?? 0) }), { in: 0, out: 0 });
+  const bytesOf = (s: any) => (s.rooms ?? []).reduce((a: any, r: any) => ({ in: a.in + (r.bytesIn ?? 0), out: a.out + (r.bytesOut ?? 0), states: a.states + (r.statesIn ?? 0) }), { in: 0, out: 0, states: 0 });
   function dashboard() {
     const t = now(), live = [...statsLog.values()].filter(s => t - s.at < 20000);
     const zones = new Map<string, any>();
-    let handoffsPerMin = 0, downKBs = 0, upKBs = 0, cpu = 0, rss = 0, homes = 0;
+    let handoffsPerMin = 0, downKBs = 0, upKBs = 0, statesPerSec = 0, cpu = 0, rss = 0, homes = 0;
     for (const s of live) {
       for (const r of s.rooms ?? []) {
         const key = `${r.region}:${r.zone}`, z = zones.get(key) ?? { region: r.region, zone: r.zone, players: 0, instances: [] as any[] };
-        z.players += r.players; homes += r.homes ?? 0; z.instances.push({ group: r.group, players: r.players, tickMsP50: r.tickMsP50 ?? null, tickMsP95: r.tickMsP95, challenges: r.challenges ?? 0, process: s.process });
+        z.players += r.players; homes += r.homes ?? 0; z.instances.push({ group: r.group, players: r.players, tickMsP50: r.tickMsP50 ?? null, tickMsP95: r.tickMsP95, tickCpuMsMean: r.tickCpuMsMean ?? null, challenges: r.challenges ?? 0, process: s.process });
         zones.set(key, z);
       }
       if (s.prev) {
         const dt = Math.max(1, (s.at - s.prev.at) / 1000), b = bytesOf(s);
         handoffsPerMin += Math.max(0, (s.counters?.handoffs ?? 0) - (s.prev.counters?.handoffs ?? 0)) / dt * 60;
         downKBs += Math.max(0, b.out - s.prev.bytes.out) / 1024 / dt; upKBs += Math.max(0, b.in - s.prev.bytes.in) / 1024 / dt;
+        statesPerSec += Math.max(0, b.states - (s.prev.bytes.states ?? 0)) / dt;
       }
       cpu += s.cpu ?? 0; rss += s.rssMB ?? 0;
     }
     // (a player near a border is connected to up to 4 zones: connections; each is at home in one zone: players)
     const connections = [...zones.values()].reduce((a, z) => a + z.players, 0), players = homes || connections;
     return {
-      at: t, processes: live.map(s => ({ process: s.process, rooms: (s.rooms ?? []).length, players: (s.rooms ?? []).reduce((a: number, r: any) => a + r.players, 0), cpu: s.cpu, rssMB: s.rssMB, counters: s.counters,
-        tickMsP50: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP50 ?? 0)), tickMsP95: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP95 ?? 0)) })),
+      at: t, processes: live.map(s => ({ process: s.process, ageS: Math.round((t - s.at) / 1000), rooms: (s.rooms ?? []).length, players: (s.rooms ?? []).reduce((a: number, r: any) => a + r.players, 0), cpu: s.cpu, rssMB: s.rssMB, counters: s.counters,
+        tickMsP50: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP50 ?? 0)), tickMsP95: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickMsP95 ?? 0)),
+        tickCpuMsMean: Math.max(0, ...(s.rooms ?? []).map((r: any) => r.tickCpuMsMean ?? 0)) })),
       zones: [...zones.values()].sort((a, b) => b.players - a.players),
-      totals: { players, connections, instances: [...zones.values()].reduce((a, z) => a + z.instances.length, 0), zones: zones.size, handoffsPerMin: Math.round(handoffsPerMin), downKBs: Math.round(downKBs), upKBs: Math.round(upKBs), cpu: +cpu.toFixed(2), rssMB: rss },
+      // (a zone process that has stopped reporting for 20 s: left out of the numbers, listed here)
+      silent: [...statsLog.values()].filter(s => t - s.at >= 20000).map(s => ({ process: s.process, ageS: Math.round((t - s.at) / 1000) })),
+      totals: { players, connections, instances: [...zones.values()].reduce((a, z) => a + z.instances.length, 0), zones: zones.size, handoffsPerMin: Math.round(handoffsPerMin), downKBs: Math.round(downKBs), upKBs: Math.round(upKBs), statesPerSec: Math.round(statesPerSec), cpu: +cpu.toFixed(2), rssMB: rss },
       cost: costPer1000({ players, downKBs, cpu }),
       history: history.slice(-180), targets: ROAM.targets,
     };

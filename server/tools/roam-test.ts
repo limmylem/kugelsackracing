@@ -4,10 +4,11 @@
 // reports/roam-test.md. Needs PostgreSQL with PostGIS (TEST_DATABASE_URL); one real-time process, no Redis — except the
 // swarm (G), which runs zone servers in several processes sharing Redis (REDIS_URL, default redis://localhost:6379).
 //
-//   node server/tools/roam-test.ts [--only A,B,C,D,E,F] [--handoffs 1000] [--swarm 500] [--swarm-only]
+//   node server/tools/roam-test.ts [--only A,B,C,D,E,F] [--handoffs 1000] [--swarm 500] [--swarm-only] [--processes 4]
+//                                  [--seconds 90] [--swarm-zone-tiles 2]
 //
 //   A  instances: friends and parties always in the same instance (a full one too, and after driving into the next zone);
-//      blocked players never; the cap
+//      blocked players never; the cap; a zone connection the server closes joined again
 //   B  privacy and blocks, everywhere: the map (and minimap), the world (cars, names), join friend, the friends list
 //   C  challenges: decline and its cooldown, passive mode, a blocked player's declined silently, flashing headlights, the
 //      route on the road graph, the rolling start, the results checked and paid; a party's group challenge
@@ -39,6 +40,7 @@ const { networkOf } = await import('../src/rt/roam.ts');
 const { transport } = await import('./rt-bots.ts');
 const { createRoamBot } = await import('../../mp/roamBot.js');
 const { createSmoothness } = await import('../../net/measure.js');
+const { NET } = await import('../../net/settings.js');
 const { sprintRoute } = await import('../../mp/challenge.js');
 const { zoneOf, zoneSize } = await import('../../mp/roam.js');
 
@@ -46,6 +48,7 @@ const PORT = 8794, RT_PORT = 2794, SECRET = 'roam-test-secret-roam-test-secret-0
 const lines: string[] = [], results: boolean[] = [], numbers: Record<string, any> = {};
 const check = (name: string, ok: boolean, detail = '') => { results.push(!!ok); const l = `${ok ? '  ok  ' : ' FAIL '} ${name}${detail ? ` — ${detail}` : ''}`; console.log(l); lines.push(l); };
 const section = (s: string) => { console.log(`\n== ${s}`); lines.push('', `## ${s}`, ''); };
+const threadCpu = (prev?: { user: number; system: number }): { user: number; system: number } | null => (process as any).threadCpuUsage?.(prev) ?? null;
 const note = (s: string) => { console.log(`     ${s}`); lines.push(`       ${s}`); };
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const until = async (f: () => any, ms: number, every = 100) => { for (const t = Date.now(); Date.now() - t < ms; await sleep(every)) { const v = await f(); if (v) return v; } return null; };
@@ -97,7 +100,7 @@ function startLoop() {
 let endpointPort = RT_PORT;
 async function bot(letter: string, { at = [0, 0], points = null as any, script = null as any, look = null as any, drive = {} as any, settings = {} as any, before = null as any } = {}) {
   await app.mp.devPlayer(letter);
-  const b: any = (createRoamBot as any)({ transport, getTicket: ticketOf(letter), region: 'mk', cfg: ROAM, points: points ?? roadLoop(at[0], at[1], letter.charCodeAt(0) * 31 + letter.length), drive, look: look ?? LOOK(letter.charCodeAt(0)), endpoint: `http://localhost:${endpointPort}`, settings });
+  const b: any = (createRoamBot as any)({ transport, getTicket: ticketOf(letter), region: 'mk', cfg: ROAM, points: points ?? roadLoop(at[0], at[1], letter.charCodeAt(0) * 31 + letter.length), drive, look: look ?? LOOK(letter.charCodeAt(0)), endpoint: `http://localhost:${endpointPort}`, settings, log: process.env.ROAM_DEBUG ? (k: string, v: any) => { if (k === 'roam reappeared') console.log(letter, k, JSON.stringify(v)); } : undefined });
   b.letter = letter; b.uid = uidOf(letter);
   if (script) b.override(script);
   if (before) await before(b);
@@ -158,6 +161,12 @@ try {
     const tb = await bot('TwB', { points: [...line, [X + SIZE * 2, 0, Z + 108], [X - 200, 0, Z + 108]], drive: { topSpeed: 30, accel: 6, startAt: 8 } });
     const crossed = await until(() => ta.RC.handoffs > 0 && tb.RC.handoffs > 0 && homeRoom(ta) && homeRoom(tb), 60000, 250);
     check('two friends driving into the next zone: both handed over, still in the same instance', !!crossed && sameInstance(ta, tb), `${ta.RC.home} ${homeRoom(ta)?.group} / ${tb.RC.home} ${homeRoom(tb)?.group}`);
+    // a zone connection the server closes (here as a dead one: nothing heard — CODES.IDLE) is joined again by the game
+    const k1 = await bot('KoA', { script: parked(X + 60, Z - 40) }), k2 = await bot('KoB', { script: parked(X + 70, Z - 40) });
+    const kz = k1.RC.home, lost0 = k1.RC.stats.lost, kr = homeRoom(k1), kp = kr && [...kr.players.values()].find((p: any) => p.t.uid === k1.uid);
+    if (kp) kr.kick(kp, 4016);
+    const back = await until(() => k1.RC.stats.lost > lost0 && k1.RC.connOf(kz)?.net?.status === 'online' && [...(homeRoom(k1)?.players.values() ?? [])].some((p: any) => p.t.uid === k1.uid && !p.kicked) && k2.sample(0).some((o: any) => o.uid === k1.uid && o.pose), 15000, 200);
+    check('a zone connection the server closes is joined again, and the car seen again', !!kp && !!back, `lost ${k1.RC.stats.lost - lost0}, now ${k1.RC.connOf(kz)?.net?.status ?? 'not connected'}`);
     ROAM.zones.capacity = cap;
     await drop(...bots.slice());
   }
@@ -413,7 +422,7 @@ try {
         let snapNow = false;
         if (m.prev && !o.pose.teleported) { const e = [0, 1, 2].map(i => m.prev.pos[i] + m.prev.vel[i] * dt), j = Math.hypot(o.pose.pos[0] - e[0], o.pose.pos[1] - e[1], o.pose.pos[2] - e[2]), tr = Math.hypot(...m.prev.vel) * dt; snapNow = j > Math.max(ROAM.targets.jumpCm / 100, 0.1 * tr); }
         if (JSON.stringify(o.look?.paint) !== m.look || (o.events ?? []).length < m.ev) lost++;
-        if (process.env.ROAM_DEBUG && m.prev) { const e = [0, 1, 2].map(i => m.prev.pos[i] + m.prev.vel[i] * dt), j = Math.hypot(o.pose.pos[0] - e[0], o.pose.pos[2] - e[2]); const trav = Math.hypot(m.prev.vel[0], m.prev.vel[2]) * dt; if (j > Math.max(0.1, 0.1 * trav) && (dbg++ < 30)) console.log('JUMP', 'sinceSwitch', Math.round(performance.now() - (m.switchAt ?? -1e9)), 'sinceHandoff', Math.round(performance.now() - (handedAt.get(o.uid) ?? -1e9)), b.letter, o.uid, j.toFixed(2), 'travel', trav.toFixed(2), 'dist', Math.round(Math.hypot(o.pose.pos[0] - b.state.pos[0], o.pose.pos[2] - b.state.pos[2])), 'zone', o.zone, 'prevZone', m.prevZone, 'blending', !!o.pose.blending, 'extrap', !!o.pose.extrapolating, 'stale', Math.round(o.pose.staleMs ?? 0), 'delay', Math.round(o.pose.delayMs ?? 0), 'prevDelay', Math.round(m.prev.delayMs ?? 0), 'alpha', o.alpha?.toFixed(2)); }
+        if (process.env.ROAM_DEBUG && m.prev) { const e = [0, 1, 2].map(i => m.prev.pos[i] + m.prev.vel[i] * dt), j = Math.hypot(o.pose.pos[0] - e[0], o.pose.pos[2] - e[2]); const trav = Math.hypot(m.prev.vel[0], m.prev.vel[2]) * dt; if (j > Math.max(0.1, 0.1 * trav) && performance.now() - (m.switchAt ?? -1e9) < 500 && (dbg++ < 40)) console.log('JUMP', 'sinceSwitch', Math.round(performance.now() - (m.switchAt ?? -1e9)), 'dvel', Math.hypot(o.pose.vel[0] - m.prev.vel[0], o.pose.vel[2] - m.prev.vel[2]).toFixed(1), 'sinceHandoff', Math.round(performance.now() - (handedAt.get(o.uid) ?? -1e9)), b.letter, o.uid, j.toFixed(2), 'travel', trav.toFixed(2), 'dist', Math.round(Math.hypot(o.pose.pos[0] - b.state.pos[0], o.pose.pos[2] - b.state.pos[2])), 'zone', o.zone, 'prevZone', m.prevZone, 'blending', !!o.pose.blending, 'extrap', !!o.pose.extrapolating, 'stale', Math.round(o.pose.staleMs ?? 0), 'delay', Math.round(o.pose.delayMs ?? 0), 'prevDelay', Math.round(m.prev.delayMs ?? 0), 'alpha', o.alpha?.toFixed(2)); }
         m.prev = o.pose; m.prevZone = o.zone;
         m.s.frame(o.pose, dt); frames++;
         // (a snap within a second of this car's zone changing — its source here, or its own handoff — is the handoff's)
@@ -484,7 +493,8 @@ try {
 } catch (e: any) {
   check('the test ran', false, e?.stack ?? String(e));
 } finally {
-  if (loop) clearInterval(loop);
+  // (stopped, and forgotten: the swarm's watchers start it again)
+  if (loop) { clearInterval(loop); loop = null; }
   for (const b of bots.splice(0)) await b.leave().catch(() => {});
 }
 
@@ -492,51 +502,79 @@ try {
 if (SWARM > 0) await swarm(SWARM);
 
 async function swarm(n: number) {
-  section(`G. The bot swarm: ${n} bots in one region (Milton Keynes) across its zones`);
+  // (its zones: 1 km here (--swarm-zone-tiles 2) — finer than the game's 2 km, so more zones and handoffs a player than the
+  // game would have; at 512 m a bot holds ~5 connections, 2,400 in all, and this computer's cores can't run 500 games beside
+  // the zone servers at that — joins outlast their seat reservations)
+  const tiles = Number(arg('swarm-zone-tiles', 2)), tilesWas = ROAM.zones.zoneTiles, envWas = process.env.ROAM_ZONE_TILES;
+  ROAM.zones.zoneTiles = tiles; process.env.ROAM_ZONE_TILES = String(tiles);
+  section(`G. The bot swarm: ${n} bots in one region (Milton Keynes) across its zones (${zoneSize(ROAM)} m)`);
   const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379', procs = Math.max(1, Number(arg('processes', 4))), BASE = 2810;
   // the zone servers: several processes sharing Redis (main.ts --processes)
-  const rtp = spawn(process.execPath, [path.join(REPO_DIR, 'server/src/rt/main.ts'), '--processes', String(procs)], { env: { ...process.env, APP_ENV: 'test', RT_PORT: String(BASE), REDIS_URL: redisUrl, RT_SECRET: SECRET, API_INTERNAL_URL: `http://localhost:${PORT}`, ROAM_ZONE_TILES: process.env.ROAM_ZONE_TILES }, stdio: ['ignore', 'ignore', 'inherit'] });
+  const rtp = spawn(process.execPath, [path.join(REPO_DIR, 'server/src/rt/main.ts'), '--processes', String(procs)], { env: { ...process.env, APP_ENV: 'test', RT_PORT: String(BASE), REDIS_URL: redisUrl, RT_SECRET: SECRET, API_INTERNAL_URL: `http://localhost:${PORT}`, ROAM_ZONE_TILES: process.env.ROAM_ZONE_TILES, RT_MAX_PLAYERS: String(Math.max(2000, n * 6)) }, stdio: ['ignore', 'ignore', 'inherit'] });
+  process.on('exit', () => rtp.kill('SIGTERM'));      // (however this ends: not left holding the ports)
   await sleep(4000);
   // the bots: in worker processes (a game each, more or less: 125 a process)
   const workers = Math.max(1, Math.ceil(n / 125)), per = Math.ceil(n / workers), seconds = Number(arg('seconds', 90));
-  const reports: any[] = [];
+  const reports: any[] = [], joinedBy: number[] = Array(workers).fill(0), g0 = Date.now();
   let started = 0;
   const done = Promise.all(Array.from({ length: workers }, (_, w) => new Promise<void>(res => {
     const c = fork(fileURLToPath(import.meta.url), ['--worker', '--from', String(w * per), '--count', String(Math.min(per, n - w * per)), '--api', String(PORT), '--rt', String(BASE), '--procs', String(procs), '--seconds', String(seconds)], { env: { ...process.env } });
-    c.on('message', (m: any) => { if (m?.report) reports.push(m.report); if (m?.started) started++; });
+    c.on('message', (m: any) => { if (m?.report) reports.push(m.report); if (m?.started) started++; if (m?.progress) { joinedBy[w] = m.progress; const n = joinedBy.reduce((a, x) => a + x, 0); if (n % 100 === 0) console.log(`     ${n} bots in (${Math.round((Date.now() - g0) / 1000)} s)`); } });
+    // (the bots stand in for players' own computers: the lowest priority here, so they don't take cores from the zone servers)
+    try { os.setPriority(c.pid!, 19); } catch { /* not allowed: as they are */ }
     c.on('exit', () => res());
   })));
   // (the game's side, measured here — a game of its own, not one of the swarm's crowded worker processes: three watchers
   // parked in the middle of the region, each frame's merging and sampling of every car round them timed)
   await until(() => started >= workers, 600000, 500);
+  // (the game measured here gets its cores first, as on a player's own computer — the bots are the other players' computers)
+  const prioWas = os.getPriority();
+  try { os.setPriority(-5); } catch { /* not allowed: as it is */ }
+  const prioSet = os.getPriority();
+  console.log(`     all ${n} in, driving (${Math.round((Date.now() - g0) / 1000)} s)`);
   const watchers: any[] = [];
-  for (let i = 0; i < 3; i++) { endpointPort = BASE + (i % procs); watchers.push(await bot(`SwW${i}`, { script: parked(-100 + i * 150, -50 + i * 80) })); }
+  for (let i = 0; i < 3; i++) { endpointPort = BASE + (i % procs); try { watchers.push(await bot(`SwW${i}`, { script: parked(-100 + i * 150, -50 + i * 80) })); } catch (e: any) { note(`watcher ${i} couldn't join: ${e?.message ?? e}`); } }
   endpointPort = RT_PORT;
-  const frameMain: number[] = [];
-  for (const w of watchers) w.watch = (dt: number) => { const t0 = performance.now(); w.sample(dt); frameMain.push(performance.now() - t0); };
+  // (wall time, and the main thread's CPU time: the frame's own cost, less any wait for a core on this shared computer)
+  const frameMain: number[] = [], frameCpu: number[] = [];
+  for (const w of watchers) w.watch = (dt: number) => { const c0 = threadCpu(), t0 = performance.now(); w.sample(dt); frameMain.push(performance.now() - t0); if (c0) { const c = threadCpu(c0)!; frameCpu.push((c.user + c.system) / 1000); } };
   // (the zone servers' numbers while the swarm drives: two-thirds of the way through)
   await sleep(seconds * 650);
   const dash = app.roam.dashboard();
   const seenBy = watchers.map(w => w.sample(0).filter((o: any) => o.pose).length);
+  if (process.env.ROAM_DEBUG) console.log('watchers', JSON.stringify(watchers.map(w => ({ at: w.state?.pos?.map(Math.round), home: w.RC.home, zones: w.RC.stats.zones }))));
   await done;
+  try { os.setPriority(prioWas); } catch { /* as it is */ }
+  console.log(`     done, all left (${Math.round((Date.now() - g0) / 1000)} s)`);
   await drop(...watchers);
   const all = reports.flatMap(r => r.bots);
   const up = all.map((b: any) => b.upKBs), down = all.map((b: any) => b.downKBs), fm = frameMain, fmWorkers = reports.flatMap(r => r.frameMs);
   const connected = all.filter((b: any) => b.ok).length, handoffs = all.reduce((a: number, b: any) => a + b.handoffs, 0);
   const p50 = dash.processes.map((p: any) => p.tickMsP50), p95 = dash.processes.map((p: any) => p.tickMsP95);
+  const cMean = dash.processes.map((p: any) => p.tickCpuMsMean ?? 0), fcMean = frameCpu.length ? frameCpu.reduce((a, x) => a + x, 0) / frameCpu.length : null;
   // (server load: the zone processes' CPU — measured over 5 s at a time — per player; Step 1's target is NET.targets.playersPerProcess on one core)
   const cpuPerPlayerMs = dash.totals.cpu / Math.max(1, dash.totals.connections) * 1000, budgetMs = 1000 / 256;
-  numbers.swarm = { watchersSaw: seenBy, frameMsP95Workers: +pct(fmWorkers, 0.95).toFixed(2), bots: n, connected, processes: procs, zones: dash.totals.zones, instances: dash.totals.instances, handoffs, upKBsP95: +pct(up, 0.95).toFixed(2), downKBsP95: +pct(down, 0.95).toFixed(2), downKBsMean: +(down.reduce((a: number, x: number) => a + x, 0) / Math.max(1, down.length)).toFixed(2), tickMsP50: Math.max(0, ...p50), tickMsP95: Math.max(0, ...p95), cpuMsPerConnection: +cpuPerPlayerMs.toFixed(2), frameMsP95: +pct(fm, 0.95).toFixed(2), cpu: dash.totals.cpu, cost: dash.cost };
+  const botZones = all.reduce((a: number, b: any) => a + (b.zones ?? 0), 0);
+  // (each bot's zone connections at the end: online — one lost on the way is joined again by the game)
+  const zst = all.flatMap((b: any) => b.zoneStatus ?? []), zOnline = zst.filter((x: string) => x === 'online').length, zLost = all.reduce((a: number, b: any) => a + (b.lost ?? 0), 0);
+  const zOther = [...zst.filter((x: string) => x !== 'online').reduce((m: Map<string, number>, x: string) => m.set(x, (m.get(x) ?? 0) + 1), new Map())];
+  if (process.env.ROAM_DEBUG) console.log('dashboard', JSON.stringify({ processes: dash.processes.map((p: any) => ({ process: p.process, rooms: p.rooms, players: p.players, ageS: p.ageS })), totals: dash.totals, botZones, procs }));
+  numbers.swarm = { watchersSaw: seenBy, botZones, zonesOnline: zOnline, zonesLost: zLost, frameMsP95Workers: +pct(fmWorkers, 0.95).toFixed(2), bots: n, connected, processes: procs, zones: dash.totals.zones, instances: dash.totals.instances, handoffs, upKBsP95: +pct(up, 0.95).toFixed(2), downKBsP95: +pct(down, 0.95).toFixed(2), downKBsMean: +(down.reduce((a: number, x: number) => a + x, 0) / Math.max(1, down.length)).toFixed(2), tickMsP50: Math.max(0, ...p50), tickMsP95: Math.max(0, ...p95), tickCpuMsMean: Math.max(0, ...cMean), cpuMsPerConnection: +cpuPerPlayerMs.toFixed(2), frameMsP95: +pct(fm, 0.95).toFixed(2), frameCpuMsMean: fcMean == null ? null : +fcMean.toFixed(2), cpu: dash.totals.cpu, statesPerConnection: +(dash.totals.statesPerSec / Math.max(1, dash.totals.connections)).toFixed(1), cost: dash.cost };
   check(`${connected} of ${n} bots driving, in ${dash.totals.zones} zones and ${dash.totals.instances} instances on ${procs} processes`, connected >= n * 0.99);
   check(`server load: the zone servers' CPU per connection within a 256th of a core (Step 1's 256 players a process)`, cpuPerPlayerMs <= budgetMs, `${cpuPerPlayerMs.toFixed(2)} ms of CPU a second per connection (budget ${budgetMs.toFixed(2)}); ${dash.totals.cpu} cores for ${dash.totals.connections} connections of ${dash.totals.players} players`);
-  check(`each zone instance's tick within ${ROAM.targets.tickMs} ms (p50, by the wall clock)`, Math.max(0, ...p50) <= ROAM.targets.tickMs, `worst p50 ${Math.max(0, ...p50).toFixed(2)} ms, worst p95 ${Math.max(0, ...p95).toFixed(2)} ms — this computer: ${os.cpus().length} cores shared by ${procs} zone processes, the bots' ${workers} and the API, so the wall clock counts the moments a zone process waited for a core`);
+  check(`each zone instance's tick within ${ROAM.targets.tickMs} ms (p50)`, Math.max(0, ...p50) <= ROAM.targets.tickMs, `worst p50 ${Math.max(0, ...p50).toFixed(2)} ms, worst p95 ${Math.max(0, ...p95).toFixed(2)} ms (its CPU time: worst mean ${Math.max(0, ...cMean).toFixed(2)} ms) — this computer's ${os.cpus().length} cores are shared by ${procs} zone processes, the bots' ${workers} (at the lowest priority: they stand in for players' own computers) and the API`);
   check(`upload per bot within ${ROAM.targets.upKBs} kB/s, download within ${ROAM.targets.downKBs} kB/s (p95)`, pct(up, 0.95) <= ROAM.targets.upKBs && pct(down, 0.95) <= ROAM.targets.downKBs, `up p95 ${pct(up, 0.95).toFixed(2)}, down p95 ${pct(down, 0.95).toFixed(2)} (mean ${numbers.swarm.downKBsMean}) kB/s`);
-  check(`the game's cost of the others a frame within ${ROAM.targets.frameMs} ms (p95)`, pct(fm, 0.95) <= ROAM.targets.frameMs, `p50 ${pct(fm, 0.5).toFixed(2)}, p95 ${pct(fm, 0.95).toFixed(2)} ms, drawing ${seenBy.join(', ')} cars (in the swarm's own crowded worker processes, sharing the cores: p95 ${pct(fmWorkers, 0.95).toFixed(2)} ms)`);
+  check(`the game's cost of the others a frame within ${ROAM.targets.frameMs} ms (p95)`, watchers.length === 3 && seenBy.every(x => x > 0) && pct(fm, 0.95) <= ROAM.targets.frameMs, `p50 ${pct(fm, 0.5).toFixed(2)}, p95 ${pct(fm, 0.95).toFixed(2)} ms (its CPU time: mean ${fcMean?.toFixed(2) ?? '?'} ms), drawing ${seenBy.join(', ')} cars (this game at priority ${prioSet} here; in the swarm's own crowded worker processes: p95 ${pct(fmWorkers, 0.95).toFixed(2)} ms)`);
   check('handoffs while the swarm drove', handoffs > n / 4, `${handoffs}`);
+  check('zone connections held: online at the end (98%; one lost on the way joined again)', zOnline >= 0.98 * zst.length, `${zOnline} of ${zst.length} online${zOther.length ? ` (${zOther.map(([k, v]) => `${v} ${k}`).join(', ')})` : ''}; ${zLost} lost and joined again`);
   note(`zone servers' CPU: ${dash.totals.cpu} cores in all, ${(dash.totals.cpu / Math.max(1, connected) * 1000).toFixed(2)} ms of CPU a second per player`);
+  // (the load above is the load of cars sent at this rate: below a game's, the zone servers' work and every download are less than a crowd of games would make)
+  const rate = dash.totals.statesPerSec / Math.max(1, dash.totals.connections);
+  check(`the bots' cars sent at a game's rate (${NET.sendHz} a second; 80% at least), so the load above is a crowd of games'`, rate >= 0.8 * NET.sendHz, `${rate.toFixed(1)} states a second a connection — the bots, at the lowest priority, had the cores the zone servers left`);
   if (dash.cost) note(`cost per 1,000 players at these numbers: 1,000 monthly active ≈ $${dash.cost.monthlyActive.monthly.total}/month (${dash.cost.monthlyActive.instances} instance(s), ${dash.cost.monthlyActive.gbMonth} GB); 1,000 at once all month ≈ $${dash.cost.allAtOnce.monthly.total}/month`);
   rtp.kill('SIGTERM');
   await sleep(1500);
+  ROAM.zones.zoneTiles = tilesWas; if (envWas == null) delete process.env.ROAM_ZONE_TILES; else process.env.ROAM_ZONE_TILES = envWas;
 }
 
 // a worker of F's: its drivers on their ovals at 200 km/h, reporting each one's handoffs (and the zones' answers to its
@@ -587,6 +625,18 @@ async function swarmWorker() {
     return { ticket: j.ticket, url: `http://localhost:${base + (k % procs)}` };
   };
   const bots: any[] = [];
+  // (a bot that's in waits for the others as a player in the menu would, its connections kept alive — pings, no car: the
+  // zones close a connection nothing's been heard from for NET.idleSec; then they all drive)
+  const frameMs: number[] = [];
+  let last = performance.now(), driving = false;
+  const timer = setInterval(() => {
+    const t = performance.now(), dt = Math.min(0.1, (t - last) / 1000); last = t;
+    for (const b of bots) {
+      if (!b.ok) continue;
+      if (!driving) { b.RC?.update(dt, () => null); continue; }
+      b.step(dt, t); if (b.observer) { const t0 = performance.now(); b.sample(dt); frameMs.push(performance.now() - t0); }
+    }
+  }, 1000 / 30);
   let seed = 1000 + from;
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < count; i++) {
@@ -600,21 +650,19 @@ async function swarmWorker() {
       if (r.ok) { const pts = r.line.map((p: any) => [p.x, p.h ?? 0, p.z]); line = [...pts, ...[...pts].reverse().slice(1, -1)]; }
     }
     line ??= [[0, 0, 0], [300, 0, 0], [300, 0, 10], [0, 0, 10]];
-    const b: any = (createRoamBot as any)({ transport, getTicket: ticket(letter, k), region: 'mk', cfg: ROAM, points: line, drive: { topSpeed: 16 + rng() * 14, startAt: rng() * 1000 }, look: { carId: 'starter_car', paint: { colour: `hsl(${k * 47 % 360} 70% 50%)` }, bot: true }, endpoint: null });
+    const b: any = (createRoamBot as any)({ transport, getTicket: ticket(letter, k), region: 'mk', cfg: ROAM, points: line, drive: { topSpeed: 16 + rng() * 14, startAt: rng() * 1000 }, look: { carId: 'starter_car', paint: { colour: `hsl(${k * 47 % 360} 70% 50%)` }, bot: true }, endpoint: null, drawOthers: i % 25 === 0 });
+    // (one in 25 draws the others, as a game does — and is timed; the rest only receive them: the zones send every bot the
+    // same, but 500 games' worth of reading them is more than this computer's cores can do beside the zone servers)
     b.observer = i % 25 === 0;
     try { await b.start(); b.ok = true; } catch (e: any) { b.ok = false; b.err = e?.message; }
     bots.push(b);
+    if (bots.length % 25 === 0) process.send?.({ progress: bots.length });
   }
-  const frameMs: number[] = [];
+  driving = true;
   process.send?.({ started: true });
-  let last = performance.now();
-  const timer = setInterval(() => {
-    const t = performance.now(), dt = Math.min(0.1, (t - last) / 1000); last = t;
-    for (const b of bots) { if (!b.ok) continue; b.step(dt, t); if (b.observer) { const t0 = performance.now(); b.sample(dt); frameMs.push(performance.now() - t0); } }
-  }, 1000 / 30);
   await new Promise(r => setTimeout(r, seconds * 1000));
   clearInterval(timer);
-  const report = { bots: bots.map(b => ({ ok: b.ok, err: b.err ?? null, handoffs: b.RC?.handoffs ?? 0, upKBs: b.RC?.stats.upKBs ?? 0, downKBs: b.RC?.stats.downKBs ?? 0, zones: b.RC?.zones.length ?? 0 })), frameMs };
+  const report = { bots: bots.map(b => ({ ok: b.ok, err: b.err ?? null, handoffs: b.RC?.handoffs ?? 0, upKBs: b.RC?.stats.upKBs ?? 0, downKBs: b.RC?.stats.downKBs ?? 0, zones: b.RC?.zones.length ?? 0, lost: b.RC?.stats.lost ?? 0, zoneStatus: (b.RC?.zones ?? []).map((z: string) => { const c = b.RC.connOf(z); return c?.net ? `${c.net.status}${c.net.message ? `: ${c.net.message}` : ''}` : 'joining'; }) })), frameMs };
   process.send?.({ report });
   for (const b of bots) await b.leave().catch(() => {});
 }

@@ -8,6 +8,7 @@
 //     — a race room: by its id, a seat the matchmaker reserved, or a new lobby; N.conn.sendJson / onJson its messages
 //     transport: transport.js · getTicket() → { ticket, url } (POST /api/v1/rt/ticket) · netsim: conditions
 //     (net/netsim.js) on this side · serverNetsim: '150,30,0.05' for the server's side (development/tests)
+//     drawOthers: false — a load-test bot that never draws the other cars: their states are counted (bandwidth), not read
 //   await N.connect()            rejects with { code, message } (protocol.CODES / MESSAGES) when refused
 //   N.update(dtSec, local)       every frame: local() → this car's state (codec.js, world frame; `ageMs`: how old
 //                                the physics state is) or null when not driving
@@ -16,7 +17,7 @@
 //   N.sendEvent({ kind, ... })   something that must arrive (damage, a reset, a part off, lights)
 //   N.setLook(look, events)      this car's look (and its damage so far): everyone else's game draws it
 //   N.on('status' | 'roster' | 'event' | 'notice', fn)
-//   N.status: 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline'    N.message (why offline)
+//   N.status: 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline'    N.message (why offline)    N.code (its CODES number, or 0)
 //   N.stats: ping, jitter, loss, upKBs, downKBs, … (the network overlay)   N.roomNow()   N.leave()
 //   N.stampAt() → the clock this car's states are stamped with (a steady one, steered towards the server's)
 //   N.setNear(id, n, maxMs)  N.present(id, maxMs) → Phase 7 Step 3: a car near this one drawn nearer the present, and
@@ -43,7 +44,7 @@ function slerp(a, b, u) {
 }
 const blendPose = (a, b, u) => ({ ...a, pos: lerp3(a.pos, b.pos, u), rot: slerp(a.rot, b.rot, u), vel: lerp3(a.vel, b.vel, u), ang: lerp3(a.ang, b.ang, u) });                     // (a WebSocket frame's header (masked from the client) + the type)
 
-export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test', join = null }) {
+export function createNetClient({ transport, endpoint = null, getTicket, world = 'test', look = null, events = [], netsim = null, serverNetsim = null, settings = NET, now = () => performance.now(), roomName = 'test', join = null, drawOthers = true }) {
   const S = settings, clock = createClock({ now });
   const listeners = { status: new Set(), roster: new Set(), event: new Set(), notice: new Set() };
   const emit = (k, v) => { for (const f of listeners[k]) { try { f(v); } catch (e) { console.error(e); } } };
@@ -77,7 +78,9 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
   // simulator's datagram mode — complete states every time, both ways)
   let fullStates = netsim?.mode === 'datagram';
 
-  const setStatus = (s, m = '') => { if (status === s && message === m) return; status = s; message = m; emit('status', { status, message }); };
+  // (code: why it went offline — protocol.CODES, or the socket's close code; 0 when not known)
+  let code = 0;
+  const setStatus = (s, m = '', c = 0) => { if (status === s && message === m) return; status = s; message = m; code = s === 'offline' ? c : 0; emit('status', { status, message, code }); };
   const roomNow = () => clock.serverNow();
   const player = (e) => {
     let p = players.get(e.id);
@@ -108,6 +111,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
         break;
       }
       case S2C.SNAPSHOT: {
+        if (!drawOthers) break;
         const snap = decodeSnapshot(bytes), t = roomNow();
         for (const c of snap.cars) {
           // (players come from the roster, which arrives in order; a state for one it hasn't announced yet — it can
@@ -146,7 +150,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       case S2C.NOTICE: {
         const n = decodeValue(bytes);
         emit('notice', n);
-        if (n.code) setStatus('offline', n.message ?? messageFor(n.code));
+        if (n.code) setStatus('offline', n.message ?? messageFor(n.code), n.code);
         break;
       }
     }
@@ -160,7 +164,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       if (join?.how === 'reservation') t = { ticket: null, url: endpoint };
       else {
         try { t = await getTicket(); }
-        catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code)); throw { code, message: messageFor(code) }; }
+        catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code), code); throw { code, message: messageFor(code) }; }
       }
       try {
         fullStates ||= !!transport.unreliable;
@@ -168,14 +172,14 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
         conn = links ? withNetsim(c, { ...links, unreliable: { up: [C2S.STATE], down: [S2C.SNAPSHOT] } }) : c;
       } catch (e) {
         const code = e?.code ?? 0, m = messageFor(code, e?.message ?? 'Couldn\'t reach the game server.');
-        setStatus('offline', m);
+        setStatus('offline', m, code);
         throw { code, message: m };
       }
       for (const type of Object.values(S2C)) conn.on(type, b => onMessage(type, b));
       conn.onStatus((s, info) => {
         if (s === 'dropped') setStatus('reconnecting', 'Connection lost: reconnecting…');
         else if (s === 'back') { forceKey = true; setStatus('online'); }
-        else if (s === 'left' && status !== 'offline') setStatus('offline', info.code === 4000 || info.code === 1000 ? '' : messageFor(info.code, info.reason || 'Disconnected from the game server.'));
+        else if (s === 'left' && status !== 'offline') setStatus('offline', info.code === 4000 || info.code === 1000 ? '' : messageFor(info.code, info.reason || 'Disconnected from the game server.'), info.code ?? 0);
       });
       // (connected: wait for the welcome, then say this car's look)
       const t0 = now();
@@ -250,6 +254,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
     get id() { return me; },
     get status() { return status; },
     get message() { return message; },
+    get code() { return code; },
     get conn() { return conn; },
     get clock() { return clock; },
     get players() { return players; },

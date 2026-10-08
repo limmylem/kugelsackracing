@@ -449,12 +449,13 @@ function showRoam() {
           h('dt', {}, 'Load'), h('dd', {}, `${T.cpu} CPU cores in all, ${Math.round(T.rssMB)} MB of memory`),
           ...(c ? [h('dt', {}, 'Hosting cost at these numbers'), h('dd', {}, `1,000 monthly active players ≈ $${c.monthlyActive.monthly.total}/month (${c.monthlyActive.instances} server${c.monthlyActive.instances === 1 ? '' : 's'}, ${c.monthlyActive.gbMonth} GB); 1,000 on at once all month ≈ $${c.allAtOnce.monthly.total}/month${c.perPlayer.measured ? '' : ' (assumed figures: too few players to measure)'}`)] : [])),
         h('h3', {}, 'Processes'),
-        h('table', {}, h('thead', {}, h('tr', {}, ...['Process', 'Instances', 'Connections', 'Tick p50 / p95', 'CPU', 'Memory', 'Handoffs so far'].map(t => h('th', {}, t)))),
-          h('tbody', {}, ...d.processes.map(p => h('tr', {}, h('td', {}, p.process), h('td', {}, String(p.rooms)), h('td', {}, String(p.players)), h('td', {}, `${(p.tickMsP50 ?? 0).toFixed(2)} / ${(p.tickMsP95 ?? 0).toFixed(2)} ms`), h('td', {}, `${p.cpu} cores`), h('td', {}, `${p.rssMB} MB`), h('td', {}, String(p.counters?.handoffs ?? 0)))))),
+        h('table', {}, h('thead', {}, h('tr', {}, ...['Process', 'Instances', 'Connections', 'Tick p50 / p95 (mean CPU)', 'CPU', 'Memory', 'Handoffs so far'].map(t => h('th', {}, t)))),
+          h('tbody', {}, ...d.processes.map(p => h('tr', {}, h('td', {}, p.process), h('td', {}, String(p.rooms)), h('td', {}, String(p.players)), h('td', {}, `${(p.tickMsP50 ?? 0).toFixed(2)} / ${(p.tickMsP95 ?? 0).toFixed(2)} ms (${(p.tickCpuMsMean ?? 0).toFixed(2)} ms)`), h('td', {}, `${p.cpu} cores`), h('td', {}, `${p.rssMB} MB`), h('td', {}, String(p.counters?.handoffs ?? 0)))))),
         h('h3', {}, 'Zones'),
         h('table', {}, h('thead', {}, h('tr', {}, ...['Region', 'Zone', 'Connections', 'Instances (players, tick p95)'].map(t => h('th', {}, t)))),
           h('tbody', {}, ...d.zones.slice(0, 100).map(z => h('tr', {}, h('td', {}, z.region), h('td', {}, z.zone), h('td', {}, String(z.players)), h('td', {}, z.instances.map(i => `${i.group}: ${i.players} (${(i.tickMsP95 ?? 0).toFixed(1)} ms${i.challenges ? `, ${i.challenges} challenge${i.challenges === 1 ? '' : 's'}` : ''})`).join(' · ')))))));
       if (!d.processes.length) live.prepend(h('p', { class: 'muted' }, 'No zone server has reported in the last 20 seconds (is the real-time server running, with API_INTERNAL_URL pointing here?).'));
+      if (d.silent?.length) live.prepend(h('div', { class: 'msg bad' }, `Not reporting (left out of the numbers): ${d.silent.map(p => `${p.process}, ${p.ageS} s`).join(' · ')}`));
     } catch (e) { live.replaceChildren(h('div', { class: 'msg bad' }, errText(e))); }
   }
   async function loadMeets() {

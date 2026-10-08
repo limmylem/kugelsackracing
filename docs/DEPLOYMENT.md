@@ -96,7 +96,12 @@ In order. Nothing here has been done yet; each needs the owner (accounts, money,
      real-time server address), and the game measuring its ping to each to pick one. Each region is more servers: ask first.
    - **`API_INTERNAL_URL`** on the real-time server, so zone servers can save where players are, pay challenges and report
      to the admin dashboard.
-   - **Bandwidth**: free roam is the biggest user (about 6 kB/s a player on average): see [COSTS.md](COSTS.md) before
+   - **The "server full" cap** (`rt.maxPlayers`, or `RT_MAX_PLAYERS` on the real-time server) counts connections across all
+     its processes, and a free-roam player near a border holds up to 4 (about 1.7 on average with the default 2 km zones;
+     about 5 in the swarm's 512 m zones). Only a player coming in is refused, never one already driving, but
+     `production.json`'s 500 would let in only ~300 free-roam players: set it from the servers' size (Step 1's target is
+     256 connections a process).
+   - **Bandwidth**: free roam is the biggest user (from ~8 kB/s a player in a spread-out world to 35+ in a dense crowd): see [COSTS.md](COSTS.md) before
      choosing a host. Re-run the swarm (`server/tools/roam-test.ts --swarm 500`) against the real servers.
    - **Voice chat** is a design note only ([FREE_ROAM.md](FREE_ROAM.md)): any version costs money — decide with the owner.
    - **The two-player check, in free roam:** the two players on different networks (home Wi-Fi and a phone hotspot) meet in

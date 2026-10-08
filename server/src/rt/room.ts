@@ -40,6 +40,8 @@ async function totalPlayers() {
   for (const v of Object.values(all)) { const [c, at] = String(v).split(':').map(Number); if (now - at < 30000) n += c; }
   return n;
 }
+// this thread's CPU time so far, or since prev (µs: process.threadCpuUsage — null on a Node without it)
+const threadCpu = (prev?: { user: number; system: number }): { user: number; system: number } | null => (process as any).threadCpuUsage?.(prev) ?? null;
 // every room's join check (the test room, and Phase 7 Step 2's hub, queue and race rooms): the game's version, the
 // ticket (signed, in date, used once), not banned, a guest only where guests may play, room on the server
 export async function authorize(token: string, options: any, { count = true }: { count?: boolean } = {}) {
@@ -96,6 +98,9 @@ export class TestRoom extends Room {
   players = new Map<string, Player>();
   grid = createGrid(NET.interest);
   tickMs: number[] = [];
+  // (the tick's own CPU time: its wall time less any wait for a core. The thread CPU clock may count in coarse steps — 4 ms
+  // on some kernels — so one tick's can't be read; their mean over many ticks can)
+  tickCpuMs: number[] = [];
   kicks = 0;
   scope = 'roam';                                   // (one connection per account among the rooms of a sort: free roam, races)
   private unsub: (() => void) | null = null;
@@ -292,6 +297,7 @@ export class TestRoom extends Room {
 
   // ---------- the tick ----------
   tick() {
+    const c0 = threadCpu();
     const t0 = performance.now(), now = this.roomNow(), tick = ++this.tickNo;
     const list = [...this.players.values()], virt = [...this.virtualCars()];
     this.grid.rebuild([...list.filter(p => p.status === 'here' && this.relays(p)).map(p => ({ id: p.id, pos: p.latestF?.pos ?? null })), ...virt.map(v => ({ id: v.id, pos: v.latestF?.pos ?? null }))]);
@@ -320,15 +326,16 @@ export class TestRoom extends Room {
     }
     this.tickMs.push(performance.now() - t0);
     if (this.tickMs.length > 600) this.tickMs.shift();
+    if (c0) { const c = threadCpu(c0)!; this.tickCpuMs.push((c.user + c.system) / 1000); if (this.tickCpuMs.length > 600) this.tickCpuMs.shift(); }
   }
 
   summary() {
     const m = this.metrics(), sum = (k: 'bytesIn' | 'bytesOut') => m.perPlayer.reduce((a, p) => a + p[k], 0);
-    return { players: m.players, tickMsP50: +m.tickMsP50.toFixed(3), tickMsP95: +m.tickMsP95.toFixed(3), tickMsMax: +m.tickMsMax.toFixed(3), kicks: m.kicks, bytesIn: sum('bytesIn'), bytesOut: sum('bytesOut') };
+    return { players: m.players, tickMsP50: +m.tickMsP50.toFixed(3), tickMsP95: +m.tickMsP95.toFixed(3), tickMsMax: +m.tickMsMax.toFixed(3), tickCpuMsMean: +m.tickCpuMsMean.toFixed(3), kicks: m.kicks, bytesIn: sum('bytesIn'), bytesOut: sum('bytesOut'), statesIn: m.perPlayer.reduce((a, p) => a + p.statesIn, 0) };
   }
   metrics() {
     const s = [...this.tickMs].sort((a, b) => a - b), q = (x: number) => s.length ? s[Math.min(s.length - 1, Math.floor(s.length * x))] : 0;
-    return { players: this.players.size, tickMsP50: q(0.5), tickMsP95: q(0.95), tickMsMax: s[s.length - 1] ?? 0, kicks: this.kicks,
+    return { players: this.players.size, tickMsP50: q(0.5), tickMsP95: q(0.95), tickMsMax: s[s.length - 1] ?? 0, tickCpuMsMean: this.tickCpuMs.length ? this.tickCpuMs.reduce((a, x) => a + x, 0) / this.tickCpuMs.length : 0, kicks: this.kicks,
       perPlayer: [...this.players.values()].map(p => ({ id: p.id, uid: p.t.uid, status: p.status, bytesIn: p.bytesIn, bytesOut: p.bytesOut, statesIn: p.statesIn, dropped: p.dropped, strikes: p.checks.reasons })) };
   }
 }

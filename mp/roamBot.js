@@ -2,7 +2,8 @@
 // the zones and handoffs (mp/roamClient.js), Step 1's connections — with a scripted car instead of physics (net/bot.js's
 // route driver, or a script). The tests and the bot swarm drive these; nothing here is test-only logic.
 //
-//   const B = createRoamBot({ transport, getTicket, region, cfg, points, drive, look, endpoint, netsim, serverNetsim, now, settings })
+//   const B = createRoamBot({ transport, getTicket, region, cfg, points, drive, look, endpoint, netsim, serverNetsim, now, settings, log, drawOthers })
+//     drawOthers: false — a load-test bot: the other cars' states received (and counted) but not read (net/client.js)
 //     points: [[x, y, z]] a line to drive (world frame) · drive: net/bot.js createRouteDriver options
 //   await B.start()          the hub joined (free roam), the home zone placed and joined
 //   B.step(dt, frameAt)      the car moved and sent (its position for frameAt); returns its state      B.override(fn | null): fn(state, dt) → state (scripts)
@@ -15,7 +16,7 @@ import { createMpSession } from './client.js';
 import { createRoamClient } from './roamClient.js';
 import { createRouteDriver } from '../net/bot.js';
 
-export function createRoamBot({ transport, getTicket, region, cfg, points, drive = {}, look = null, endpoint = null, netsim = null, serverNetsim = null, now = () => performance.now(), settings = {}, tileSize = 512, keep = 400 }) {
+export function createRoamBot({ transport, getTicket, region, cfg, points, drive = {}, look = null, endpoint = null, netsim = null, serverNetsim = null, now = () => performance.now(), settings = {}, tileSize = 512, keep = 400, log = () => {}, drawOthers = true }) {
   const S = createMpSession({ transport, endpoint, getTicket, netsim, serverNetsim });
   const D = createRouteDriver(points, { closed: true, topSpeed: 30, ...drive });
   let RC = null, state = null, tick = 0, script = null;
@@ -35,7 +36,7 @@ export function createRoamBot({ transport, getTicket, region, cfg, points, drive
       S.on('notice', text => push({ t: 'notice', text, via: 'hub' }));
       state = { ...D.step(1 / 60), tick: ++tick };
       if (script) state = script(state, 0) ?? state;
-      RC = createRoamClient({ transport, getTicket, hub: () => S, region, cfg, look, settings, netsim, serverNetsim, endpoint, now, tileSize });
+      RC = createRoamClient({ transport, getTicket, hub: () => S, region, cfg, look, settings, netsim, serverNetsim, endpoint, now, tileSize, log, drawOthers });
       RC.on('mp', push);
       await RC.start(state.pos);
       return B;
