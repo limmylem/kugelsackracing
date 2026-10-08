@@ -580,7 +580,8 @@ Last runs on this computer: the contact tests 248 of 249. The 8 cars made 69 agr
 1.3–1.6 kB/s and downloads 9.4 kB/s (targets 10 and 20). The honest 3-minute race was driven again in 10.9 s. The one
 miss: the spin at 250 ms ping, drawn 5.2 m off for a moment just after the hit (the limit 3.0 m). It wasn't seen again
 in 15 more runs of it (worst 2.1 m): [KNOWN_ISSUES.md](KNOWN_ISSUES.md). The Step 2 bot races, with quick races now
-on reduced contact, 28 of 29 (the countdown's spread 8.7 ms against 8: the clock sync is unchanged by this step).
+on reduced contact, 28 of 29 (the countdown's spread 8.7 ms against 8; that race twice more, 11 of 11 each, spreads
+3.6 and 4.2 ms: the clock sync is unchanged by this step). Step 1's real-time test 13 of 13.
 
 ### Trying contact on this computer
 
