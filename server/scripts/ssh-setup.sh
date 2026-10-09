@@ -21,8 +21,13 @@ if ! why=$(ssh-keygen -y -P '' -f ~/.ssh/ognistrada_deploy 2>&1 > /dev/null); th
     hint="that's the PUBLIC half (the file ognistrada_deploy.pub): the secret must be the private file ognistrada_deploy, without .pub"
   elif grep -qi 'passphrase' <<<"$why"; then
     hint="the key has a passphrase, which GitHub can't type: on your computer run  ssh-keygen -p -f ~/.ssh/ognistrada_deploy  (old passphrase, then just Enter twice for none), then paste the file into the secret again — the server needs no change"
+  elif grep -q '^PuTTY-User-Key-File' ~/.ssh/ognistrada_deploy; then
+    hint="that's a PuTTY key (.ppk): GitHub needs the OpenSSH file ognistrada_deploy made with ssh-keygen (docs/GO_LIVE.md Part 0)"
   elif ! grep -q -- '-----BEGIN' ~/.ssh/ognistrada_deploy || ! grep -q -- '-----END' ~/.ssh/ognistrada_deploy; then
-    hint="the -----BEGIN or -----END line is missing: paste the whole file, both lines included"
+    # (which line is missing — the key's own text is never shown; 'b3BlbnNzaC1rZXktdjE' is every OpenSSH key's fixed start)
+    missing=$({ grep -q -- '-----BEGIN' ~/.ssh/ognistrada_deploy || printf 'the -----BEGIN line'; } ; { grep -q -- '-----END' ~/.ssh/ognistrada_deploy || printf '%sthe -----END line' "$(grep -q -- '-----BEGIN' ~/.ssh/ognistrada_deploy || printf ' and ')"; })
+    body=''; grep -q '^b3BlbnNzaC1rZXktdjE' ~/.ssh/ognistrada_deploy && body=' (the middle of the key is there: only the first and/or last line were left out when copying)'
+    hint="$missing is missing$body — the secret had $(grep -c . ~/.ssh/ognistrada_deploy) line(s); the file has about 7: paste the whole file, from -----BEGIN OPENSSH PRIVATE KEY----- to -----END OPENSSH PRIVATE KEY-----"
   elif [ "$(wc -l < ~/.ssh/ognistrada_deploy)" -lt 3 ]; then
     hint="its line breaks were lost (it arrived as $(wc -l < ~/.ssh/ognistrada_deploy) line(s)): copy the file with  pbcopy < ~/.ssh/ognistrada_deploy  (Mac) or open it in a plain text editor and copy everything"
   else
