@@ -1,46 +1,68 @@
-# One environment deployed (docs/DEPLOYMENT.md): called by server.yml after every test passes on main (staging, then
-# production with approval) and by rollback.yml (an earlier commit). In order, so nothing ever points at something
-# that isn't there yet:
-#   1. the map files, cars, parts and sounds (assets/) → R2, only what changed
-#   2. the API server (Render) at this commit — its migrations run as it starts, and only add, so the game already
-#      online keeps working — and wait until it says it's this commit, healthy
-#   3. the game (Cloudflare Pages) built for this environment
+# Production deployed (docs/DEPLOYMENT.md "Deploying"): called by server.yml once every test has passed on main and
+# the image is built (while the repository variable DEPLOY_ENABLED is "true"), and by rollback.yml (an earlier commit).
+# The environment "production" holds it until the owner approves. In order, so nothing ever points at something that
+# isn't there yet:
+#   1. the map files, cars, parts and sounds (assets/) → R2 (ognistrada-tiles), only what changed
+#   2. the server (the VPS in Sydney) at this commit — server/scripts/deploy-server.sh: deploy/compose.yml and the
+#      settings (.env) put there, the image ghcr.io/limmylem/kugelsackracing:<commit> pulled and started. The API's
+#      migrations run as it starts, and only add, so the game already online keeps working; the real-time server
+#      finishes the races running first. Then a wait until both say they're this commit, healthy
+#   3. the game (Cloudflare Pages, the project ognistrada) built for production
 #   4. every check of tools/check-deploy.mjs
-# Its settings are the GitHub environment's (docs/DEPLOYMENT.md "GitHub"): variables GAME_URL, API_URL, TILES_URL,
-# RT_URL, PAGES_PROJECT, R2_BUCKET, RENDER_SERVICE_ID, OTHER_API_URL, HSTS; secrets CLOUDFLARE_API_TOKEN,
-# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, RENDER_API_KEY; and the repository variable CLOUDFLARE_ACCOUNT_ID.
+# Its settings (docs/GO_LIVE.md Part 5): the repository variables CLOUDFLARE_ACCOUNT_ID, SERVER_HOST, TURNSTILE_SITE_KEY,
+# HSTS ("on" once everything works over HTTPS), SENTRY_CLIENT_DSN (optional) and SERVER_SSH_HOST_KEY (optional: pins
+# the server's SSH key); the secrets CLOUDFLARE_API_TOKEN, DEPLOY_SSH_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
+# the server's own (DATABASE_URL, BETTER_AUTH_SECRET, EDGE_SECRET, TURNSTILE_SECRET_KEY, RESEND_SMTP_KEY, ADMIN_EMAIL,
+# ALERT_EMAIL; SENTRY_DSN and LOADTEST_TOKEN optional).
 name: deploy
 
 on:
   workflow_call:
     inputs:
-      environment: { type: string, required: true }
-      ref: { type: string, required: false, default: '' }
+      ref:
+        description: The commit to deploy (its full hash; empty — the commit that called)
+        type: string
+        required: false
+        default: ''
 
-concurrency:
-  group: deploy-${{ inputs.environment }}
-  cancel-in-progress: false
+permissions:
+  contents: read
+  packages: read
+
+# (bash with pipefail everywhere)
+defaults:
+  run:
+    shell: bash
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # (production: its required reviewers approve this in GitHub before it runs)
+    # (the owner approves this in GitHub before it runs; one deploy at a time, a rollback waiting its turn)
     environment:
-      name: ${{ inputs.environment }}
-      url: ${{ vars.GAME_URL }}
+      name: production
+      url: https://ognistrada.com
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    timeout-minutes: 45
     env:
-      SHA: ${{ inputs.ref || github.sha }}
-      ENV_NAME: ${{ inputs.environment }}
+      GAME: https://ognistrada.com
+      API: https://api.ognistrada.com
+      TILES: https://tiles.ognistrada.com
+      RT: wss://rt.ognistrada.com
+      HSTS: ${{ vars.HSTS == 'on' && 'on' || 'off' }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: '${{ inputs.ref || github.sha }}', fetch-depth: 0 }
+        with: { ref: '${{ inputs.ref || github.sha }}' }
       - name: The commit
-        run: echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        run: |
+          echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "deploying $(git log -1 --format='%H %s' | cut -c1-120)"
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
 
-      - name: 1. Map files, cars, parts, sounds → R2 (only what changed)
+      - name: 1. Map files, cars, parts, sounds → R2 (ognistrada-tiles; only what changed)
         env:
           RCLONE_CONFIG_R2_TYPE: s3
           RCLONE_CONFIG_R2_PROVIDER: Cloudflare
@@ -49,37 +71,72 @@ jobs:
           RCLONE_CONFIG_R2_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
           RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
         run: |
-          sudo apt-get install -y -qq rclone > /dev/null
-          rclone sync assets "r2:${{ vars.R2_BUCKET }}/assets" --checksum --transfers 16 --fast-list --stats-one-line --stats 30s \
+          if [ -z "$RCLONE_CONFIG_R2_ACCESS_KEY_ID" ] || [ -z "$RCLONE_CONFIG_R2_SECRET_ACCESS_KEY" ]; then
+            echo "::error title=No R2 key::the secrets R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY aren't set: make the R2 API token (Object Read & Write on ognistrada-tiles and ognistrada-backups) and add its two values (docs/GO_LIVE.md step 7)"
+            exit 1
+          fi
+          command -v rclone > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq rclone > /dev/null; }
+          rclone sync assets r2:ognistrada-tiles/assets --checksum --transfers 16 --fast-list --stats-one-line --stats 30s \
             --header-upload "Cache-Control: public, max-age=3600"
 
-      - name: 2. The API server (Render) at this commit
-        env: { RENDER_API_KEY: '${{ secrets.RENDER_API_KEY }}' }
-        run: |
-          curl -fsS -X POST "https://api.render.com/v1/services/${{ vars.RENDER_SERVICE_ID }}/deploys" \
-            -H "authorization: Bearer $RENDER_API_KEY" -H 'content-type: application/json' \
-            -d "{\"commitId\":\"$SHA\"}" > /dev/null
-          echo "deploying $SHA…"
-          for i in $(seq 1 80); do
-            v=$(curl -fsS "${{ vars.API_URL }}/api/v1/health" 2>/dev/null || true)
-            if echo "$v" | grep -q "\"version\":\"$SHA\"" && echo "$v" | grep -q '"ok":true'; then echo "$v"; exit 0; fi
-            sleep 15
-          done
-          echo "the API didn't come up at $SHA: $v"; exit 1
+      - name: 2a. SSH to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVER_HOST: ${{ vars.SERVER_HOST }}
+          SERVER_SSH_HOST_KEY: ${{ vars.SERVER_SSH_HOST_KEY }}
+        run: bash server/scripts/ssh-setup.sh
 
-      - name: 3. The game (Cloudflare Pages)
+      - name: 2b. The server at this commit (the API, the real-time server, the tunnel)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          EDGE_SECRET: ${{ secrets.EDGE_SECRET }}
+          RESEND_SMTP_KEY: ${{ secrets.RESEND_SMTP_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_CLIENT_DSN: ${{ vars.SENTRY_CLIENT_DSN }}
+          LOADTEST_TOKEN: ${{ secrets.LOADTEST_TOKEN }}
+        run: bash server/scripts/deploy-server.sh
+
+      - name: 3. The game (Cloudflare Pages, ognistrada)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        # (GITHUB_SHA: the version the game shows is the commit deployed — a rollback's, not the run's)
         run: |
-          node tools/build-site.mjs --env "$ENV_NAME" --game "${{ vars.GAME_URL }}" --api "${{ vars.API_URL }}" \
-            --tiles "${{ vars.TILES_URL }}" --rt "${{ vars.RT_URL }}" ${{ vars.HSTS == 'on' && '--hsts' || '' }}
-          npx --yes wrangler@4 pages deploy ".cache/site/$ENV_NAME" --project-name "${{ vars.PAGES_PROJECT }}" \
-            --branch main --commit-hash "$SHA" --commit-message "$(git log -1 --format=%s "$SHA" | cut -c1-200)"
+          hsts=(); [ "$HSTS" != on ] || hsts=(--hsts)
+          GITHUB_SHA="$SHA" node tools/build-site.mjs --env production --game "$GAME" --api "$API" --tiles "$TILES" --rt "$RT" "${hsts[@]}"
+          npx --yes wrangler@4 pages deploy .cache/site/production --project-name ognistrada --branch main \
+            --commit-hash "$SHA" --commit-message "$(git log -1 --format=%s "$SHA" | cut -c1-200)"
 
       - name: 4. Checks (tools/check-deploy.mjs)
         run: |
           sleep 20
-          node tools/check-deploy.mjs --env "$ENV_NAME" --game "${{ vars.GAME_URL }}" --api "${{ vars.API_URL }}" \
-            --tiles "${{ vars.TILES_URL }}" --rt "${{ vars.RT_URL }}" ${{ vars.HSTS == 'on' && '--hsts' || '' }} \
-            ${{ inputs.environment == 'production' && '--www' || '' }} ${{ vars.OTHER_API_URL && format('--other {0}', vars.OTHER_API_URL) || '' }}
+          hsts=(); [ "$HSTS" != on ] || hsts=(--hsts)
+          node tools/check-deploy.mjs --env production --game "$GAME" --api "$API" --tiles "$TILES" --rt "$RT" --www "${hsts[@]}"
+
+      - name: Deployed
+        run: |
+          echo "### Deployed ${SHA:0:7} to production" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(git log -1 --format=%s "$SHA" | cut -c1-200) — the game at $GAME, the server's history: /opt/ognistrada/deployed.log" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: If it failed — rolling back
+        if: failure()
+        run: |
+          last=$(ssh server 'tail -n 5 /opt/ognistrada/deployed.log' 2> /dev/null || true)
+          {
+            echo "### The deploy of ${SHA:0:7} failed"
+            echo "Whatever finished above is live; the rest is as it was. To put production back to the last commit that"
+            echo "worked: **Actions → rollback → Run workflow**, ref = that commit, then approve it. The server's last deploys"
+            echo "(/opt/ognistrada/deployed.log: when, which commit — the newest last):"
+            echo '```'; echo "${last:-(not readable)}"; echo '```'
+            echo "Or the commit of the last successful run of this workflow (Actions → server → its production job)."
+            echo "The server's own logs: ssh ubuntu@<the server> 'cd /opt/ognistrada && docker compose logs --tail 100 api rt'"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

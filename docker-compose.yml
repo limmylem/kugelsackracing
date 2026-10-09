@@ -7,11 +7,13 @@
 #   ws://localhost:2567     the real-time server: multiplayer (docs/MULTIPLAYER.md; open the game with ?mp)
 #   localhost:6379          Redis: the real-time server's rooms, join tickets and bans
 #   docker compose up --build
-# Development values only: nothing here is a real secret. Staging and production take theirs from Render's
-# environment (render.yaml).
+# Development values only: nothing here is a real secret. Production runs from deploy/compose.yml, its settings
+# written by the deploy workflow (docs/DEPLOYMENT.md). Everything here starts again by itself if it stops (until
+# `docker compose stop` or `down`).
 services:
   db:
     image: postgis/postgis:16-3.4
+    restart: unless-stopped
     environment:
       POSTGRES_USER: kr
       POSTGRES_PASSWORD: kr
@@ -24,15 +26,18 @@ services:
       retries: 20
   mailpit:
     image: axllent/mailpit:v1.21
+    restart: unless-stopped
     ports: ["8025:8025"]
   tiles:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     volumes:
       - ./assets:/srv/assets:ro
       - ./docker/tiles.nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports: ["8788:80"]
   server:
     build: .
+    restart: unless-stopped
     environment:
       APP_ENV: development
       PUBLIC_URL: http://localhost:8787
@@ -52,6 +57,7 @@ services:
       redis: { condition: service_healthy }
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -60,17 +66,20 @@ services:
   rt:
     build: .
     command: ["node", "server/src/rt/main.ts"]
+    restart: unless-stopped
     environment:
       APP_ENV: development
       RT_PORT: "2567"
       RT_PUBLIC_ADDRESS: localhost:2567
       REDIS_URL: redis://redis:6379
+      # (lobbies, races, free roam: the API, over Compose's own network)
+      API_INTERNAL_URL: http://server:8787
       # (the join tickets' key: made from this, the same as the server's)
       BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
     ports: ["2567:2567"]
-    # (the image's health check is the API's: this one only needs its port open)
+    # (the image's health check is the API's: this one is the real-time server's own, /health)
     healthcheck:
-      test: ["CMD", "node", "-e", "require('net').connect(2567,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2567/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
     depends_on:

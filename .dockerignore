@@ -1,5 +1,5 @@
 # what the server image leaves out (Dockerfile): dependencies (installed in it), the repository's history,
-# secrets, tests, tools and docs, local data and reports, source files for models
+# secrets, tests, tools and docs, the server's setup and deploy files, local data and reports, source files for models
 node_modules
 **/node_modules
 .git
@@ -17,9 +17,13 @@ docs
 design
 incoming
 reports
+deploy
+docker
 .scratch
 .cache
 server/.data
 data/.backup
 packages/*/dist
 *.original.glb
+dump.rdb
+**/.DS_Store

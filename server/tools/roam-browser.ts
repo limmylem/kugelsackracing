@@ -1,3 +1,4 @@
+// @ts-nocheck — (the page's own modules are imported inside the browser: not this program's)
 // Free roam in the game, in the browser (Phase 7 Step 4; docs/FREE_ROAM.md): two windows as Player A and Player B
 // (?mp&player=A, ?mp&player=B), driven into the Milton Keynes region — the real game, its real-world map and zones. What's
 // checked is what each window really shows: the other car drawn in its 3D scene with its name over it, the other player on

@@ -1,60 +1,171 @@
-# The database's backups (docs/SERVER.md "Backups"): every day, production's database dumped and encrypted
-# (AES-256, a passphrase only GitHub's secrets hold), kept 30 days as a workflow artifact — and every backup
-# restored straight away into a fresh PostgreSQL with PostGIS and checked, so a backup that can't be restored
-# is noticed the day it's made. Run by hand with "restore to staging" to put the newest backup into the
-# staging database (the restore test on staging).
+# The database's backups (docs/DISASTER_RECOVERY.md; docs/SERVER.md "Backups"): every night, production's database
+# (PlanetScale) dumped and encrypted (AES-256, a passphrase only GitHub's secrets hold: server/scripts/backup.sh),
+# restored straight away into a fresh PostgreSQL with PostGIS and checked (server/scripts/restore.sh) — so a backup
+# that can't be restored is noticed the day it's made — then kept in the private R2 bucket ognistrada-backups as
+# daily/<date>.dump.gpg (R2 deletes each after 35 days). Nothing is kept on GitHub: the repository is public.
+# Healthchecks.io is told when it's done (the secret HEALTHCHECKS_BACKUP_URL, if set), so a night without one emails.
+# Run by hand with "drill" for the restore test: the image production runs is also started on the restored copy, and
+# must answer healthy with its database.
+# The PostgreSQL tools must be at least as new as the database: PG_MAJOR (17 unless the repository variable PG_MAJOR or
+# the run's input says otherwise). PlanetScale runs 17 or 18: if it's 18, set the repository variable PG_MAJOR to 18
+# (backup.sh stops with that advice when the tools are too old).
 name: backup
+
 on:
   schedule:
-    - cron: '17 3 * * *'           # (03:17 UTC every day)
+    - cron: '17 16 * * *'           # (16:17 UTC every day: about 03:00 in Adelaide)
   workflow_dispatch:
     inputs:
-      restore_to_staging:
-        description: 'Also restore this backup into the staging database (it replaces staging''s data)'
+      drill:
+        description: 'Restore test: also start the image production runs on the restored copy, and check it answers healthy'
         type: boolean
         default: false
+      pg_major:
+        description: 'PostgreSQL major version of the tools and the scratch database (empty: the variable PG_MAJOR, or 17)'
+        type: string
+        default: ''
+
 permissions:
   contents: read
-  actions: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+# (bash with pipefail: a failing script before a tee fails its step)
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  backup:
+  # (until the database exists — docs/GO_LIVE.md Part 3 — there's nothing to back up: a notice, not a failure)
+  ready:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:16-3.4
+    outputs:
+      ok: ${{ steps.s.outputs.ok }}
+    steps:
+      - id: s
         env:
-          POSTGRES_PASSWORD: ci-only-password
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+          HAS_DB: ${{ secrets.DATABASE_URL != '' }}
+        run: |
+          if [ "$HAS_DB" = true ]; then echo ok=true >> "$GITHUB_OUTPUT"
+          else echo "::notice title=No backup::the secret DATABASE_URL isn't set yet (docs/GO_LIVE.md Part 5): nothing to back up, skipped"; fi
+
+  backup:
+    needs: ready
+    if: needs.ready.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    env:
+      PG_MAJOR: ${{ inputs.pg_major || vars.PG_MAJOR || '17' }}
+      SCRATCH_URL: postgres://postgres:scratch-only-password@127.0.0.1:5432/postgres
+      HAS_HEALTHCHECKS: ${{ secrets.HEALTHCHECKS_BACKUP_URL != '' }}
     steps:
       - uses: actions/checkout@v4
-      - name: PostgreSQL 17's tools (they dump and restore 16 and 17)
+
+      - name: PostgreSQL ${{ env.PG_MAJOR }}'s tools, and a fresh PostgreSQL ${{ env.PG_MAJOR }} with PostGIS to restore into
         run: |
-          sudo apt-get install -y -q postgresql-common
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y -q postgresql-client-17
-          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+          case "$PG_MAJOR" in
+            16 | 17) postgis="$PG_MAJOR-3.5" ;;
+            18) postgis="18-3.6" ;;
+            *) echo "::error::PG_MAJOR $PG_MAJOR: no postgis/postgis image chosen for it here yet"; exit 1 ;;
+          esac
+          docker run -d --name scratch -p 127.0.0.1:5432:5432 -e POSTGRES_PASSWORD=scratch-only-password \
+            --health-cmd 'pg_isready -U postgres' --health-interval 3s "postgis/postgis:$postgis" > /dev/null
+          sudo apt-get install -y -q postgresql-common > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -q "postgresql-client-$PG_MAJOR" > /dev/null
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+          for _ in $(seq 1 60); do [ "$(docker inspect -f '{{.State.Health.Status}}' scratch)" = healthy ] && break; sleep 2; done
+          echo "postgis/postgis:$postgis: $(docker inspect -f '{{.State.Health.Status}}' scratch)"
+
       - name: Back up production (encrypted)
         env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
-        run: server/scripts/backup.sh "kugelsack-$(date -u +%Y-%m-%d).dump.gpg"
-      - name: Restore it into a fresh database, and check it
+        run: |
+          file="$RUNNER_TEMP/ognistrada-$(date -u +%Y-%m-%d).dump.gpg"
+          echo "FILE=$file" >> "$GITHUB_ENV"
+          bash server/scripts/backup.sh "$file"
+
+      - name: Restored into a fresh database, and checked
         env:
-          TARGET_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+          TARGET_URL: ${{ env.SCRATCH_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
-        run: server/scripts/restore.sh kugelsack-*.dump.gpg
-      - name: Keep it 30 days
-        uses: actions/upload-artifact@v4
-        with:
-          name: database-backup-${{ github.run_id }}
-          path: kugelsack-*.dump.gpg
-          retention-days: 30
-          if-no-files-found: error
-      - name: Restore into staging (by hand only)
-        if: github.event_name == 'workflow_dispatch' && inputs.restore_to_staging
+        run: bash server/scripts/restore.sh "$FILE" | tee restored.txt
+
+      - name: Kept in R2 (ognistrada-backups, daily/; deleted after 35 days)
         env:
-          TARGET_URL: ${{ secrets.STAGING_DATABASE_URL }}
-          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
-        run: server/scripts/restore.sh kugelsack-*.dump.gpg --clean
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: 'true'
+        run: |
+          if [ -z "$RCLONE_CONFIG_R2_ACCESS_KEY_ID" ] || [ -z "$RCLONE_CONFIG_R2_SECRET_ACCESS_KEY" ]; then
+            echo "::error title=No R2 key::the backup was made and restores, but can't be kept: the secrets R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY aren't set (docs/GO_LIVE.md step 7)"
+            exit 1
+          fi
+          command -v rclone > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq rclone > /dev/null; }
+          to="daily/$(basename "$FILE" | sed 's/^ognistrada-//')"
+          rclone copyto "$FILE" "r2:ognistrada-backups/$to" --stats-one-line
+          echo "kept: ognistrada-backups/$to ($(rclone size --json "r2:ognistrada-backups/$to" | jq -r .bytes) bytes)"
+          echo "KEPT=$to" >> "$GITHUB_ENV"
+          echo "BACKUPS=$(rclone lsf r2:ognistrada-backups/daily/ | sort | sed -n '1p;$p' | sed 's/.dump.gpg//' | paste -sd' ' | sed 's/ / to /') ($(rclone lsf r2:ognistrada-backups/daily/ | wc -l) kept)" >> "$GITHUB_ENV"
+
+      # (the restore test, by hand: the image production runs — the commit its API reports, or :main — on the restored copy)
+      - name: Drill — the server on the restored copy
+        if: github.event_name == 'workflow_dispatch' && inputs.drill
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          live=$(curl -fsS -m 15 https://api.ognistrada.com/api/v1/health 2> /dev/null | jq -r '.version // empty' || true)
+          tag=main; [[ "$live" =~ ^[0-9a-f]{40}$ ]] && tag=$live
+          image="ghcr.io/limmylem/kugelsackracing:$tag"
+          echo "DRILL_IMAGE=$image" >> "$GITHUB_ENV"
+          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
+          docker pull -q "$image"
+          # (settings for a copy that talks to no one: no email, no alerts, Cloudflare's test keys for the bot check)
+          docker run -d --name drill --network host \
+            -e APP_ENV=production -e PUBLIC_URL=https://restore-drill.invalid -e GAME_URL=https://restore-drill.invalid \
+            -e DATABASE_URL="$SCRATCH_URL" -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
+            -e TURNSTILE_SITE_KEY=1x00000000000000000000AA -e TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA \
+            "$image" > /dev/null
+          for _ in $(seq 1 60); do
+            h=$(curl -sS -m 5 http://127.0.0.1:8787/api/v1/health 2> /dev/null || true)
+            if jq -e '.ok == true and .db == "ok"' <<<"$h" > /dev/null 2>&1; then
+              echo "the server ($image) on the restored copy: $(jq -c '{ok, version, db}' <<<"$h")"
+              echo "DRILL=passed: $(jq -c '{ok, version, db}' <<<"$h")" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            [ "$(docker inspect -f '{{.State.Running}}' drill)" = true ] || break
+            sleep 3
+          done
+          echo "DRILL=FAILED" >> "$GITHUB_ENV"
+          echo "::error title=Restore test failed::the server ($image) didn't answer healthy on the restored copy: $(docker inspect -f '{{.State.Status}} (exit {{.State.ExitCode}})' drill)"
+          # (only the server's own words on why it stopped, never anything about a player: the logs are public)
+          docker logs drill 2>&1 | grep -v '^{' | tail -n 20 || true
+          docker logs drill 2>&1 | jq -Rr 'fromjson? | select(.level >= 40) | .msg' | tail -n 20 || true
+          exit 1
+
+      - name: Healthchecks.io told
+        if: always() && env.HAS_HEALTHCHECKS == 'true'
+        env:
+          HEALTHCHECKS_URL: ${{ secrets.HEALTHCHECKS_BACKUP_URL }}
+          OUTCOME: ${{ job.status }}
+        run: curl -fsS -m 10 --retry 3 -o /dev/null "$HEALTHCHECKS_URL$([ "$OUTCOME" = success ] || echo /fail)"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Backup $(date -u +%Y-%m-%d) — ${{ job.status }}"
+            echo "- PostgreSQL tools $PG_MAJOR; the backup: ${KEPT:-not kept} (encrypted, AES-256)"
+            echo "- restored into a fresh PostgreSQL with PostGIS and checked:"; echo '```'; cat restored.txt 2> /dev/null; echo '```'
+            echo "- in R2: ${BACKUPS:-?}"
+            [ -z "${DRILL:-}" ] || echo "- restore test (the server ${DRILL_IMAGE:-} on the restored copy): $DRILL"
+          } >> "$GITHUB_STEP_SUMMARY"

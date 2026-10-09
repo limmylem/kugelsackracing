@@ -20,9 +20,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Dependencies with known vulnerabilities (what's deployed: high or critical fails)
+      - name: "Dependencies with known vulnerabilities (what's deployed: high or critical fails)"
         run: npm audit --omit=dev --audit-level=high
-      - name: Development tools too (reported, critical fails)
+      - name: "Development tools too (reported, critical fails)"
         run: npm audit --audit-level=critical
   secrets:
     runs-on: ubuntu-latest

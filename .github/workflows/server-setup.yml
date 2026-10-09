@@ -1,0 +1,50 @@
+# The server's setup (deploy/server-setup.sh; docs/GO_LIVE.md step 8, docs/DEPLOYMENT.md): Docker, the security updates
+# by themselves (and the reboot at about 04:00 in Adelaide), the firewall, fail2ban, SSH by key only, swap, the deploy's
+# folder and the real-time server's secret. Run by hand, a dry run first (it says everything it would do and changes
+# nothing); safe to run again: it only changes what isn't so already — run it now and then to bring the packages up
+# to date too. The environment "infra" holds it until the owner approves.
+name: server-setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run: { description: 'Only say what would change', type: boolean, default: true }
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-setup
+  cancel-in-progress: false
+
+# (bash with pipefail everywhere)
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    environment: infra
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVER_HOST: ${{ vars.SERVER_HOST }}
+          SERVER_SSH_HOST_KEY: ${{ vars.SERVER_SSH_HOST_KEY }}
+        run: bash server/scripts/ssh-setup.sh
+      - name: deploy/server-setup.sh${{ inputs.dry_run && ' --dry-run' || '' }}
+        env:
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          scp -q deploy/server-setup.sh server:/tmp/ognistrada-server-setup.sh
+          # (sudo -n: ubuntu's sudo without a password, as OVHcloud's Ubuntu has it — never waits for one)
+          # shellcheck disable=SC2029
+          ssh server "sudo -n bash /tmp/ognistrada-server-setup.sh $DRY; s=\$?; rm -f /tmp/ognistrada-server-setup.sh; exit \$s" 2>&1 | tee setup.log
+          exit "${PIPESTATUS[0]}"
+      - name: Summary
+        if: always()
+        run: |
+          { echo '### server-setup (${{ inputs.dry_run && 'dry run: nothing changed' || 'for real' }})'; echo '```'; cat setup.log 2> /dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

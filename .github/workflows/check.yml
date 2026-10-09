@@ -1,30 +1,32 @@
-# The checks of tools/check-deploy.mjs on demand (docs/DEPLOYMENT.md "Checks"): an environment as players reach it.
-# (No approval needed: it only reads. The addresses from the domain — the repository variable DOMAIN, or ognistrada.com.)
+# The checks of tools/check-deploy.mjs on demand (docs/DEPLOYMENT.md "Checks"): production as players reach it — every
+# address over HTTPS, the game, the API and its database, the tiles, real time through the tunnel. No approval needed:
+# it only reads.
 name: check
 
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        type: choice
-        options: [staging, production]
-        required: true
-      hsts: { description: 'Expect HSTS', type: boolean, default: false }
+      hsts: { description: 'Expect HSTS (on by itself when the repository variable HSTS is "on")', type: boolean, default: false }
+
+permissions:
+  contents: read
+
+# (bash with pipefail everywhere)
+defaults:
+  run:
+    shell: bash
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      D: ${{ vars.DOMAIN || 'ognistrada.com' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: |
-          if [ "${{ inputs.environment }}" = production ]; then
-            node tools/check-deploy.mjs --env production --game "https://$D" --api "https://api.$D" --tiles "https://tiles.$D" --rt "wss://rt.$D" \
-              --www --other "https://staging-api.$D" ${{ inputs.hsts && '--hsts' || '' }}
-          else
-            node tools/check-deploy.mjs --env staging --game "https://staging.$D" --api "https://staging-api.$D" --tiles "https://staging-tiles.$D" \
-              --rt "wss://staging-rt.$D" --other "https://api.$D" ${{ inputs.hsts && '--hsts' || '' }}
-          fi
+      - name: Production
+        env:
+          HSTS: ${{ (inputs.hsts || vars.HSTS == 'on') && 'on' || 'off' }}
+        run: |
+          hsts=(); [ "$HSTS" != on ] || hsts=(--hsts)
+          node tools/check-deploy.mjs --env production --game https://ognistrada.com --api https://api.ognistrada.com \
+            --tiles https://tiles.ognistrada.com --rt wss://rt.ognistrada.com --www "${hsts[@]}"

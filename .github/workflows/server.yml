@@ -1,7 +1,9 @@
 # The server (docs/SERVER.md): on every push and pull request, its typecheck, every server test against a
 # PostgreSQL with PostGIS (and a Redis, for multiplayer), the browser's account flows, multiplayer's tests,
-# and a check of the dependencies for known vulnerabilities. On main, once all of that passes: deployed to staging by itself (and checked there),
-# then to production when someone approves it (the "production" environment's required reviewers).
+# and a check of the dependencies for known vulnerabilities. On main, once all of that passes: the server's image
+# built and pushed to ghcr.io/limmylem/kugelsackracing:<commit> (and :main), then — once the repository variable
+# DEPLOY_ENABLED is "true" — deployed to production when the owner approves it (deploy.yml; the "production"
+# environment's required reviewer). docs/DEPLOYMENT.md "Deploying".
 name: server
 on:
   push:
@@ -87,17 +89,55 @@ jobs:
       - name: The server's image builds
         run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .
 
-  # (docs/DEPLOYMENT.md: skipped until hosting is set up — the repository variable CLOUDFLARE_ACCOUNT_ID)
-  staging:
+  # (the image the server runs — the API and the real-time server — named by its commit; the newest 20 kept, so a
+  # rollback can go back that far: rollback.yml)
+  image:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CLOUDFLARE_ACCOUNT_ID != ''
-    uses: ./.github/workflows/deploy.yml
-    with: { environment: staging }
-    secrets: inherit
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # (one plain image for the server's processor: no attestations alongside, so each commit is one package
+      # version and pruning by count is safe; assets/ in a layer of its own, cached, pushed only when it changes)
+      - name: Build and push ghcr.io/limmylem/kugelsackracing:${{ github.sha }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          build-args: GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ghcr.io/limmylem/kugelsackracing:${{ github.sha }}
+            ghcr.io/limmylem/kugelsackracing:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Old images removed (the newest 20 kept)
+        uses: actions/delete-package-versions@v5
+        # (housekeeping: a refusal here doesn't stop the deploy)
+        continue-on-error: true
+        with:
+          package-name: kugelsackracing
+          package-type: container
+          min-versions-to-keep: 20
 
-  # (production's required reviewers approve it in GitHub before it runs: the deploy job's environment)
+  # (skipped until the repository variable DEPLOY_ENABLED is "true": docs/GO_LIVE.md; the owner approves each run in
+  # GitHub before it starts — the deploy job's environment)
   production:
-    needs: staging
+    needs: [test, image]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/deploy.yml
-    with: { environment: production }
     secrets: inherit

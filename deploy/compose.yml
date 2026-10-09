@@ -1,0 +1,70 @@
+# The game's server online (docs/DEPLOYMENT.md): Docker Compose on the VPS in Sydney, in /opt/ognistrada, the
+# project "ognistrada". The deploy workflow (.github/workflows/deploy.yml) copies this file there as compose.yml,
+# writes .env beside it (the settings and secrets, mode 600; IMAGE_TAG the commit it runs) and runs
+#   docker compose pull && docker compose up -d --remove-orphans
+# Three services, one image for the first two (Dockerfile):
+#   api          the API (node server/src/main.ts) on 8787
+#   rt           the real-time server (node server/src/rt/main.ts) on 2567: one process, everything in memory (no Redis)
+#   cloudflared  the Cloudflare Tunnel: api.ognistrada.com → http://api:8787, rt.ognistrada.com → http://rt:2567
+#                (the routes are kept in Cloudflare: tools/cloudflare-setup.mjs)
+# No port is published: nothing reaches the containers but the tunnel, which connects out (and Docker's published
+# ports would bypass the firewall). Each restarts by itself if it stops, and after the server reboots.
+# By hand on the server: cd /opt/ognistrada && docker compose ps | logs --tail 100 api rt | restart api
+name: ognistrada
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 10m, max-file: '3' }
+
+services:
+  api:
+    image: ${IMAGE:-ghcr.io/limmylem/kugelsackracing}:${IMAGE_TAG:?IMAGE_TAG (the commit to run) is not set}
+    command: ['node', 'server/src/main.ts']
+    env_file: .env
+    restart: unless-stopped
+    logging: *logging
+    # (the migrations run as it starts: a minute or two allowed before a failed check counts)
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/api/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  rt:
+    image: ${IMAGE:-ghcr.io/limmylem/kugelsackracing}:${IMAGE_TAG:?IMAGE_TAG (the commit to run) is not set}
+    command: ['node', 'server/src/rt/main.ts']
+    env_file: .env
+    environment:
+      RT_PORT: '2567'
+      RT_HOST: 0.0.0.0
+      # (how browsers reach it: through the tunnel, wss://rt.ognistrada.com)
+      RT_PUBLIC_ADDRESS: rt.ognistrada.com
+      # (lobbies, races, free roam: the API over Docker's own network, not through Cloudflare)
+      API_INTERNAL_URL: http://api:8787
+      RT_DRAIN_SEC: '600'
+    restart: unless-stopped
+    logging: *logging
+    # (stopped for a deploy, it finishes the races running first — up to RT_DRAIN_SEC — then exits: Docker waits
+    # that long, and a minute more, before it kills it)
+    stop_grace_period: 11m
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:2567/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    # (a fixed version: pulled once, not asked for again at every deploy)
+    pull_policy: missing
+    command: ['tunnel', '--no-autoupdate', 'run']
+    # (only the tunnel's token, from .env: none of the game's secrets)
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN (the tunnel's token) is not set}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      api: { condition: service_healthy }
+      rt: { condition: service_healthy }
