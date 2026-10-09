@@ -7,8 +7,10 @@
 // toleranceMs; nothing flagged by the live checks). Once every player's is in, or the wait is over, the results are
 // confirmed: a finisher whose run fails the check — or who never handed one in — is disqualified (DSQ), below the
 // DNFs, and everyone behind them moves up. NPCs' results are the server's own.
+// (Phase 7 Step 5: the owner's choice, server/config antiCheat.action — 'flag', the default, keeps such a result where it
+// is, paid as normal, and marks it flagged for an admin to review; 'disqualify' is the above)
 //
-//   confirmResults(provisional, verdicts, { toleranceMs }) → [{ …, place, provisionalPlace, status: finished | dnf | dsq, verified, problems }]
+//   confirmResults(provisional, verdicts, { toleranceMs, action }) → [{ …, place, provisionalPlace, status: finished | dnf | dsq, verified, problems, flagged? }]
 //     verdicts: { [uid]: { ok, problems, rawMs } }    (a human finisher missing from it: not handed in; rawMs: the run's
 //               own time before penalties, against the race server's before its penalties — the two may penalise a
 //               jump start differently, the server's penalty is the one that counts)
@@ -17,7 +19,7 @@
 //   payFor(confirmed, rules, { ranked, humans, npcs, km, todayRaces }) → { [uid]: { money, xp, why } }   (rules: economy
 //                                              config multiplayer; each finisher's car class from its result's car.cls)
 
-export function confirmResults(provisional, verdicts, { toleranceMs = 300 } = {}) {
+export function confirmResults(provisional, verdicts, { toleranceMs = 300, action = 'disqualify' } = {}) {
   const out = provisional.map(r => {
     if (r.npc) return { ...r, provisionalPlace: r.place, verified: null, problems: [] };
     const v = verdicts?.[r.uid];
@@ -31,8 +33,8 @@ export function confirmResults(provisional, verdicts, { toleranceMs = 300 } = {}
       }
       for (const f of r.flags ?? []) if (f.kind === 'progress') { problems.push('Moved further along the route than the car could have.'); break; }
     }
-    const dsq = r.status === 'finished' && problems.length > 0;
-    return { ...r, provisionalPlace: r.place, status: dsq ? 'dsq' : r.status, verified: r.status === 'finished' ? !dsq : null, problems };
+    const failed = r.status === 'finished' && problems.length > 0, dsq = failed && action === 'disqualify';
+    return { ...r, provisionalPlace: r.place, status: dsq ? 'dsq' : r.status, verified: r.status === 'finished' ? !failed : null, problems, ...(failed && !dsq ? { flagged: true } : {}) };
   });
   const rank = r => r.status === 'finished' ? 0 : r.status === 'dnf' ? 1 : 2;
   out.sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? a.timeMs - b.timeMs : a.provisionalPlace - b.provisionalPlace));

@@ -164,7 +164,7 @@ export function createNetClient({ transport, endpoint = null, getTicket, world =
       if (join?.how === 'reservation') t = { ticket: null, url: endpoint };
       else {
         try { t = await getTicket(); }
-        catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code), code); throw { code, message: messageFor(code) }; }
+        catch (e) { const code = e?.code === 'BANNED' ? CODES.BANNED : CODES.TICKET; setStatus('offline', messageFor(code), code); throw { code, message: messageFor(code), why: e?.code ?? null }; }
       }
       try {
         fullStates ||= !!transport.unreliable;

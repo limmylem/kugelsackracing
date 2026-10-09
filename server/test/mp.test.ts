@@ -1,12 +1,14 @@
 // Multiplayer on the API (Phase 7 Step 2; docs/MULTIPLAYER.md): friends and blocks, what a join ticket carries, the
 // leaving cooldown, development players, and a race's results — each run checked (the Phase 6 Step 3 rules, and the
-// race server's own time), a failed one disqualified and the others moved up, ratings moved (ranked races only), each
-// player paid by place. The race server is played by the test here (its internal calls); the bot races
+// race server's own time), a failed one disqualified and the others moved up (antiCheat "disqualify") or kept, paid and
+// flagged for an admin (Phase 7 Step 5: "flag", the default), ratings moved (ranked races only), each player paid by place;
+// the race server's flags (the live checks). The race server is played by the test here (its internal calls); the bot races
 // (server/tools/mp-race-test.ts) run the whole thing through the real-time server.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { sql } from 'drizzle-orm';
 import { testApp, signUp, makeStaff, Player } from './helpers.ts';
 import { verifyTicket } from '../src/rt/tickets.ts';
 import { seedMpRoutes } from '../tools/seed-mp-routes.ts';
@@ -100,6 +102,11 @@ test('the race server\'s calls need its key', async () => {
 });
 
 test('a ranked race: runs checked, a failed one disqualified (the others move up), ratings moved, pay by place, a leaver counted', async () => {
+  // (antiCheat "disqualify": the owner's other choice — "flag", the default, is the next test)
+  T.config.antiCheat.action = 'disqualify';
+  try { await rankedRace(); } finally { T.config.antiCheat.action = 'flag'; }
+});
+async function rankedRace() {
   const ps = [await player('Rae One'), await player('Sid Two'), await player('Tom Three'), await player('Uma Four'), await player('Vic Five')];
   const ids: string[] = [];
   for (const p of ps) ids.push(verifyTicket(T.config.rtSecret, (await p.post('/api/v1/rt/ticket', {})).body.ticket)!.uid);
@@ -142,6 +149,52 @@ test('a ranked race: runs checked, a failed one disqualified (the others move up
   // (players see it too)
   const pv = await ps[1].get(`/api/v1/mp/races/${raceId}`);
   assert.equal(pv.status, 200); assert.equal(pv.body.state, 'confirmed');
+}
+
+test('antiCheat "flag" (the default): a run that fails its check keeps its place and its pay, and is flagged for an admin with the reasons — once', async () => {
+  assert.equal(T.config.antiCheat.action, 'flag');
+  const ps = [await player('Flo Flagged'), await player('Gil Good')];
+  const ids: string[] = [];
+  for (const p of ps) ids.push(verifyTicket(T.config.rtSecret, (await p.post('/api/v1/rt/ticket', {})).body.ticket)!.uid);
+  const v = await mp().venue({ kind: 'route', id: 'route_mpmk' }), course = v.check, raceId = `flag-${Date.now()}`;
+  const quest = raceQuest({ raceId, venue: v.venue, laps: 1, loop: course.loop });
+  const runs: any[] = [0.97, 0.9].map((skill, i) => driveRun({ course, quest, quests: QCFG, cfg: FAST, skill, slot: i }));
+  const results = runs.map((r, i) => ({ pid: ids[i], uid: ids[i], name: `P${i}`, place: i + 1, status: 'finished', timeMs: r.timeMs, penaltyMs: 0, flags: [], car: { cls: 'D' } }));
+  const rec = { id: raceId, kind: 'custom', ranked: false, venue: v.venue, settings: { laps: 1 }, courseVersion: course.version, km: course.length / 1000, results };
+  assert.equal((await internal('POST', '/races', rec)).statusCode, 200);
+  // (the race server's report again — it retrying after a lost answer: the same race, nothing new)
+  assert.equal(JSON.parse((await internal('POST', '/races', rec)).body).id, raceId);
+  const bad = { ...runs[0].result, checkpoints: runs[0].result.checkpoints.slice(1) };
+  assert.equal(JSON.parse((await internal('POST', `/races/${raceId}/runs`, { uid: ids[0], result: bad, recording: null })).body).verdict.ok, false);
+  await internal('POST', `/races/${raceId}/runs`, { uid: ids[1], result: runs[1].result, recording: null });
+  const view = await mp().finalize(raceId);
+  const by = Object.fromEntries(view.confirmed.map((r: any) => [r.uid, r]));
+  assert.equal(by[ids[0]].status, 'finished'); assert.equal(by[ids[0]].place, 1, 'its place kept'); assert.equal(by[ids[0]].flagged, true); assert.equal(by[ids[0]].verified, false);
+  assert.ok(by[ids[0]].pay.money > 0 && by[ids[0]].pay.paid, 'paid as normal');
+  assert.ok(!by[ids[1]].flagged && by[ids[1]].verified);
+  const flags = (await T.app.deps.db.execute(sql`select kind, user_ids, evidence, status from abuse_flags where kind = 'mp-verify' and key = ${`mp-verify:${raceId}:${ids[0]}`}`)).rows as any[];
+  assert.equal(flags.length, 1); assert.deepEqual(flags[0].user_ids, [ids[0]]); assert.equal(flags[0].evidence.raceId, raceId); assert.match(flags[0].evidence.problems.join(' '), /checkpoint/i);
+  // paid once: confirmed again (the sweep, a second report) pays nothing more
+  const money = Number(((await T.app.deps.db.execute(sql`select coalesce(sum(amount), 0) as m from ledger where user_id = ${ids[0]} and ref->>'mpRace' = ${raceId}`)).rows[0] as any).m);
+  await mp().finalize(raceId); await internal('POST', '/races', rec);
+  assert.equal(Number(((await T.app.deps.db.execute(sql`select coalesce(sum(amount), 0) as m from ledger where user_id = ${ids[0]} and ref->>'mpRace' = ${raceId}`)).rows[0] as any).m), money);
+  assert.equal(Number(((await T.app.deps.db.execute(sql`select count(*) as n from abuse_flags where key = ${`mp-verify:${raceId}:${ids[0]}`}`)).rows[0] as any).n), 1);
+});
+
+test('the race server\'s flags: a player the live checks keep refusing, flagged (its key once) for the admins\' list — never banned', async () => {
+  const p = await player('Liv Live');
+  const uid = verifyTicket(T.config.rtSecret, (await p.post('/api/v1/rt/ticket', {})).body.ticket)!.uid;
+  const flag = { key: `room1:${uid}:1`, kind: 'live-checks', uid, reasons: { 'moved too far': 28, 'too fast': 4 }, room: 'room1', world: 'race', raceId: 'room1-1-x', phase: 'racing' };
+  const no = await T.app.inject({ method: 'POST', url: '/api/v1/internal/mp/flags', headers: { 'content-type': 'application/json', 'x-kr-internal': 'nope' }, payload: JSON.stringify(flag) });
+  assert.equal(no.statusCode, 403);
+  assert.equal((await internal('POST', '/flags', flag)).statusCode, 200);
+  assert.equal((await internal('POST', '/flags', { ...flag, reasons: { 'moved too far': 40 } })).statusCode, 200, 'again (a retry): brought up to date');
+  assert.equal((await internal('POST', '/flags', { ...flag, kind: 'ban-them' })).statusCode, 400, 'only the live checks\' kind');
+  const boss = await makeStaff(T.app, await player('Fran Flags'), `franflags${n}@example.com`, 'admin');
+  const list = (await boss.get('/api/v1/admin/flags')).body.flags.filter((f: any) => f.kind === 'live-checks');
+  assert.equal(list.length, 1); assert.equal(list[0].accounts[0].id, uid); assert.equal(list[0].evidence.strikes, 40); assert.equal(list[0].evidence.raceId, 'room1-1-x');
+  assert.equal(list[0].accounts[0].banned, false);
+  assert.equal((await p.get('/api/v1/me')).status, 200, 'still playing');
 });
 
 test('leaving ranked races early: a cooldown after the free ones, longer each time', async () => {

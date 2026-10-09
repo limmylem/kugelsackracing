@@ -1,7 +1,7 @@
 // Phase 6 Step 5: running the game (docs/OPERATIONS.md, docs/SUPPORT.md) — the public status; features switched off and
 // maintenance without a deploy; the "please refresh" check for an old game; support and feedback with the game's version
 // and device; an admin's answer by email; a player's whole history; the monitoring numbers; alerts sent once, again
-// while they last, and when they're put right.
+// while they last, and when they're put right; (Phase 7 Step 5) the real-time server going quiet — the alert and the status.
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { sql } from 'drizzle-orm';
 import { CLIENT_PROTOCOL } from '@kr/shared';
 import { testApp, Player, signUp, makeStaff } from './helpers.ts';
 import { createMetrics } from '../src/ops/metrics.ts';
-import { createAlerter, evaluate, DEFAULT_ALERTS } from '../src/ops/alerts.ts';
+import { createAlerter, evaluate, DEFAULT_ALERTS, createRtWatch, RT_SILENT_SEC } from '../src/ops/alerts.ts';
 
 let T: Awaited<ReturnType<typeof testApp>>, boss: Player, ann: Player, ed: Player;
 before(async () => {
@@ -187,6 +187,35 @@ test('alerts: each problem sent once, again an hour later if it lasts, and when 
   const quiet = createMetrics({ now: () => t });
   quiet.record({ route: 'GET /x', status: 500, ms: 5000 });
   assert.equal(evaluate(quiet, healthy, DEFAULT_ALERTS).size, 0);
+});
+
+test('the real-time server going quiet: "unknown" just after the API starts, "up" while its numbers come, then "down" and an alert (with RT_URL); the status says so', async () => {
+  let t = 0;
+  const W = createRtWatch({ url: 'wss://rt.example.com', now: () => t });
+  assert.equal(W.state(), 'unknown', 'just started: not heard from yet');
+  t = RT_SILENT_SEC * 1000 + 1000;
+  assert.equal(W.state(), 'down', 'nothing at all since the API started');
+  W.heard(); assert.equal(W.state(), 'up');
+  t += (RT_SILENT_SEC - 1) * 1000; assert.equal(W.state(), 'up');
+  t += 2000; assert.equal(W.state(), 'down');
+  const M = createMetrics({ now: () => t }), healthy = { db: { ok: true, ms: 3, waiting: 0, total: 2, idle: 2 }, queue: { waiting: 0, oldestMs: 0 }, money: { lastHour: 0, weekHourly: 0 } };
+  const now = evaluate(M, healthy, DEFAULT_ALERTS, W.view());
+  assert.deepEqual([...now.keys()], ['realtime']);
+  assert.match(now.get('realtime')!, /isn't reporting: nothing from it for 91 s/); assert.match(now.get('realtime')!, /https:\/\/rt\.example\.com\/health/);
+  W.heard();
+  assert.equal(evaluate(M, healthy, DEFAULT_ALERTS, W.view()).size, 0, 'back: the alerter says "Fixed"');
+  // without RT_URL (development, the tests): never an alert; 'unknown' until it's heard from
+  const L = createRtWatch({ url: null, now: () => t });
+  t += 600_000;
+  assert.equal(L.state(), 'unknown'); assert.equal(evaluate(M, healthy, DEFAULT_ALERTS, L.view()).size, 0);
+  // GET /status: 'unknown' here (no RT_URL), 'up' once the real-time server's numbers come in — with its key
+  assert.equal((await new Player(T.app, '10.80.9.1').get('/api/v1/status')).body.rt, 'unknown');
+  const stats = (key: string) => T.app.inject({ method: 'POST', url: '/api/v1/internal/mp/roam/stats', headers: { 'x-kr-internal': key, 'content-type': 'application/json' }, payload: JSON.stringify({ process: 'p1', at: Date.now(), rooms: [] }) });
+  assert.equal((await stats('not-the-key')).statusCode, 403);
+  assert.equal((await new Player(T.app, '10.80.9.2').get('/api/v1/status')).body.rt, 'unknown', 'a call without the key doesn\'t count');
+  assert.equal((await stats(T.config.rtSecret)).statusCode, 200);
+  const s = await new Player(T.app, '10.80.9.3').get('/api/v1/status');
+  assert.equal(s.body.rt, 'up'); assert.equal(s.body.api, 'up');
 });
 
 test('every database connection busy: 503 BUSY with when to retry (the game retries), not a 500 (the load test\'s finding)', async () => {

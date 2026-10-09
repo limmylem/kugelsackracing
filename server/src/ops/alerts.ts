@@ -8,6 +8,9 @@
 //   queue       results waiting to be checked: more than queueWaiting, or one waiting over queueOldestSec
 //   money       money made in the last hour (rewards, grants) over moneyPerHour, or over moneySpike × the hourly
 //               average of the last week
+//   realtime    (Phase 7 Step 5) the real-time server not reporting: its numbers come every 5 s (rt/server.ts → POST
+//               /internal/mp/roam/stats) — nothing for RT_SILENT_SEC, when RT_URL says there is one (createRtWatch;
+//               GET /status says the same: rt up, down, or unknown just after the API starts)
 // The site being down altogether, and spending over budget, can't be seen from inside: an external uptime monitor and
 // each provider's billing alerts do those (docs/OPERATIONS.md).
 
@@ -37,8 +40,30 @@ export async function healthNow(db: Db, pool: any, tracks: { queue(): { waiting:
   return { db: { ok, ms, waiting: pool?.waitingCount ?? 0, total: pool?.totalCount ?? 0, idle: pool?.idleCount ?? 0 }, queue: tracks.queue(), money };
 }
 
+// the real-time server's heartbeat, as the API hears it: its numbers every few seconds
+//   const W = createRtWatch({ url: RT_URL })   W.heard()   W.state() → 'up' | 'down' | 'unknown'   W.view() (for evaluate)
+// (with RT_URL it's expected: before its first report, 'unknown' for RT_SILENT_SEC after the API starts, then 'down'. Without,
+// 'unknown' until it's heard from — local development's may or may not be running)
+export const RT_SILENT_SEC = 90;
+export type RtState = { state: 'up' | 'down' | 'unknown'; expected: boolean; silentSec: number | null; health: string | null };
+export function createRtWatch({ url, now = () => Date.now() }: { url: string | null; now?: () => number }) {
+  const started = now(), expected = !!url, health = url ? `${url.replace(/^ws/, 'http')}/health` : null;
+  let last = 0;
+  const W = {
+    heard() { last = now(); },
+    silentSec: () => Math.round((now() - (last || started)) / 1000),
+    state(): RtState['state'] {
+      const quiet = now() - (last || started) >= RT_SILENT_SEC * 1000;
+      if (last) return quiet ? 'down' : 'up';
+      return expected && quiet ? 'down' : 'unknown';
+    },
+    view: (): RtState => ({ state: W.state(), expected, silentSec: last || expected ? W.silentSec() : null, health }),
+  };
+  return W;
+}
+
 // what's wrong now: key → message
-export function evaluate(m: Metrics, h: Health, R: AlertRules): Map<string, string> {
+export function evaluate(m: Metrics, h: Health, R: AlertRules, rt: RtState | null = null): Map<string, string> {
   const out = new Map<string, string>(), w = m.window(5);
   if (w.requests >= R.minRequests && w.errorRate > R.errorRate) out.set('errors', `Server errors: ${w.serverErrors} of ${w.requests} requests in the last 5 minutes (${(w.errorRate * 100).toFixed(1)}%; the limit is ${R.errorRate * 100}%).`);
   if (w.requests >= R.minRequests && w.p95 > R.slowP95Ms) out.set('slow', `Slow answers: the slowest 5% took over ${w.p95} ms in the last 5 minutes (the limit is ${R.slowP95Ms} ms). Slowest: ${w.routes.slice(0, 3).map(r => `${r.route} ${r.p95} ms`).join(', ')}.`);
@@ -48,6 +73,7 @@ export function evaluate(m: Metrics, h: Health, R: AlertRules): Map<string, stri
   if (h.queue.waiting > R.queueWaiting || h.queue.oldestMs > R.queueOldestSec * 1000) out.set('queue', `The verification queue is backing up: ${h.queue.waiting} waiting, the oldest for ${Math.round(h.queue.oldestMs / 1000)} s.`);
   if (h.money.lastHour > R.moneyPerHour || (h.money.weekHourly > 0 && h.money.lastHour > R.moneySpike * h.money.weekHourly && h.money.lastHour > R.moneyPerHour / 10))
     out.set('money', `Unusual money creation: ${h.money.lastHour.toLocaleString('en-GB')} made in the last hour (a normal hour this week: ${Math.round(h.money.weekHourly).toLocaleString('en-GB')}). Check the economy dashboard and the abuse flags.`);
+  if (rt?.expected && rt.state === 'down') out.set('realtime', `The real-time server isn't reporting: nothing from it for ${rt.silentSec} s, so races, lobbies and free roam are probably down. Check ${rt.health} and its container on the server (docker compose ps; docker compose logs rt).`);
   return out;
 }
 

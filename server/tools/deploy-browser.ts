@@ -3,8 +3,10 @@
 // the API, the tiles and the real-time server each on an address of its own, as they will be —
 //   http://ognistrada.test        the site build (tools/build-site.mjs --local), served as Cloudflare Pages
 //                                 serves it (its _headers and _redirects)
-//   http://api.ognistrada.test    the server in 'tools' mode (staging's and production's), its admin and editor
-//                                 pages for their roles only;   ws://rt.ognistrada.test → the same server
+//   http://api.ognistrada.test    the server in 'tools' mode (production's), its admin and editor pages for their
+//                                 roles only
+//   ws://rt.ognistrada.test       the real-time server (its own process online: here in this one, everything in
+//                                 memory as on the VPS — no Redis), the API its internal address (API_INTERNAL_URL)
 //   http://tiles.ognistrada.test  assets/, as R2 serves it (byte ranges; CORS for our own addresses only)
 //   http://evil.test              somewhere else
 // Chromium maps every one of them to this machine. Checked:
@@ -15,7 +17,8 @@
 //   the editor's code: refused for a player; for an editor from the API's address, the modules it shares with
 //   the game from the game's (loaded once)
 //   map files: /assets/ on the game's address → the tiles address; a byte range; CORS refused elsewhere
-//   the real-time stand-in: ping → pong from the game; refused from elsewhere
+//   the real-time server: /health (ok, the commit); a ticket from the API (its url the real-time server's), and a
+//   room joined with it from the game's page; a join without a ticket refused from elsewhere
 //   the API refuses other sites' pages
 //
 //   node server/tools/deploy-browser.ts
@@ -28,18 +31,20 @@ import { sql } from 'drizzle-orm';
 import { freshDatabase, testConfig, totp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 import { REPO_DIR } from '../src/config.ts';
+import { startRt } from '../src/rt/server.ts';
 
-const P = { game: 8811, api: 8812, tiles: 8813, evil: 8814 };
-const U = { game: `http://ognistrada.test:${P.game}`, api: `http://api.ognistrada.test:${P.api}`, tiles: `http://tiles.ognistrada.test:${P.tiles}`, rt: `ws://rt.ognistrada.test:${P.api}`, evil: `http://evil.test:${P.evil}` };
+const P = { game: 8811, api: 8812, tiles: 8813, evil: 8814, rt: 8815 };
+const U = { game: `http://ognistrada.test:${P.game}`, api: `http://api.ognistrada.test:${P.api}`, tiles: `http://tiles.ognistrada.test:${P.tiles}`, rt: `ws://rt.ognistrada.test:${P.rt}`, evil: `http://evil.test:${P.evil}` };
+const RT_SECRET = 'deploy-browser-rt-secret-0123456789-abcdefghij', VERSION = 'deploy-browser-test';
 let pw: any;
 try { pw = await import('playwright-core'); } catch { pw = await import(process.env.PLAYWRIGHT_CORE ?? '/opt/node-tools/node_modules/playwright-core/index.mjs'); }
 const results: boolean[] = [];
 const check = (name: string, ok: boolean, detail = '') => { results.push(ok); console.log(`${ok ? '  ok  ' : ' FAIL '} ${name}${detail ? ` — ${detail}` : ''}`); };
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.png': 'image/png', '.svg': 'image/svg+xml', '.pmtiles': 'application/octet-stream', '.gz': 'application/gzip' };
 
-// ---------- the site, built as for staging (http here) ----------
+// ---------- the site, built as for production (http here) ----------
 const siteDir = path.join(REPO_DIR, '.cache/site/local');
-execFileSync('node', [path.join(REPO_DIR, 'tools/build-site.mjs'), '--env', 'staging', '--local', '--out', siteDir, '--game', U.game, '--api', U.api, '--tiles', U.tiles, '--rt', U.rt], { stdio: 'inherit' });
+execFileSync('node', [path.join(REPO_DIR, 'tools/build-site.mjs'), '--env', 'production', '--local', '--out', siteDir, '--game', U.game, '--api', U.api, '--tiles', U.tiles, '--rt', U.rt], { stdio: 'inherit' });
 
 // as Cloudflare Pages serves it: _redirects (in order, :splat), _headers (the /* block), index.html for a folder
 const redirects = fs.readFileSync(path.join(siteDir, '_redirects'), 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#')).map(l => { const [from, to, code] = l.trim().split(/\s+/); return { from, to, code: Number(code ?? 302) }; });
@@ -81,9 +86,10 @@ const tiles = http.createServer((req, res) => {
 const evil = http.createServer((_req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><title>elsewhere</title>'); });
 
 const database = await freshDatabase('deploy');
-const config = testConfig(database.url, { serveClient: 'tools', logLevel: (process.env.LOG as any) ?? 'warn' }, { PUBLIC_URL: U.api, GAME_URL: U.game, TILES_URL: U.tiles, RT_URL: U.rt });
+const config = testConfig(database.url, { serveClient: 'tools', logLevel: (process.env.LOG as any) ?? 'warn' }, { PUBLIC_URL: U.api, GAME_URL: U.game, TILES_URL: U.tiles, RT_URL: U.rt, RT_SECRET });
 const app = await buildApp({ config });
 await app.listen({ port: P.api, host: '127.0.0.1' });
+const rt = await startRt({ port: P.rt, host: '127.0.0.1', publicAddress: `rt.ognistrada.test:${P.rt}`, secret: RT_SECRET, rt: config.rt, api: { url: `http://127.0.0.1:${P.api}` }, version: VERSION });
 await Promise.all([[pages, P.game], [tiles, P.tiles], [evil, P.evil]].map(([s, port]: any) => new Promise<void>(r => s.listen(port, '127.0.0.1', r))));
 const outbox = app.deps.mailer.outbox as any[];
 const linkFor = async (to: string, kind: string) => {
@@ -131,7 +137,7 @@ try {
   check('the emailed link is on the API\'s address', link.startsWith(U.api), link.slice(0, 60));
   const pia = await me(page);
   check('back on the game\'s address, signed in (the API\'s cookie, sent from the game)', pia?.displayName === 'Pia Pitlane' && new URL(page.url()).origin === U.game, page.url());
-  check('the page knows where everything is', await page.evaluate(() => { const { version, ...rest } = (globalThis as any).KR_SITE; return JSON.stringify(rest) + (version ? '' : ' (no version)'); }) === JSON.stringify({ env: 'staging', api: U.api, game: U.game, tiles: U.tiles, rt: U.rt }));
+  check('the page knows where everything is (multiplayer on)', await page.evaluate(() => { const { version, ...rest } = (globalThis as any).KR_SITE; return JSON.stringify(rest) + (version ? '' : ' (no version)'); }) === JSON.stringify({ env: 'production', api: U.api, game: U.game, tiles: U.tiles, rt: U.rt, multiplayer: true }));
 
   // ---------- the economy: writes (CSRF) and server-sent events across addresses ----------
   const start = (p: any) => p.evaluate(async () => {
@@ -158,16 +164,22 @@ try {
   check('map files: /assets/ on the game\'s address goes to the tiles address', a.viaRedirect.ok && a.viaRedirect.url.startsWith(U.tiles), JSON.stringify(a.viaRedirect));
   check('map files: straight from the tiles address, a byte range (PMTiles)', a.direct.startsWith(U.tiles) && a.status === 206 && a.length === 128 && /^bytes 0-127\//.test(a.range ?? ''), JSON.stringify(a));
 
-  // ---------- the real-time stand-in ----------
-  const rtPing = (p: any) => p.evaluate((url: string) => new Promise(resolve => {
-    const ws = new WebSocket(`${url}/rt/health`), t0 = performance.now();
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'ping', t: 7 }));
-    ws.onmessage = e => { const m = JSON.parse(e.data); ws.close(); resolve({ pong: m.type === 'pong' && m.t === 7, ms: Math.round(performance.now() - t0) }); };
-    ws.onclose = e => resolve({ pong: false, code: e.code });
-    setTimeout(() => resolve({ pong: false, timeout: true }), 5000);
-  }), U.rt);
-  const pong = await rtPing(page);
-  check('real time: ping → pong from the game\'s address (WebSocket)', pong.pong === true, JSON.stringify(pong));
+  // ---------- the real-time server ----------
+  const health = await (await fetch(`http://127.0.0.1:${P.rt}/health`)).json() as any;
+  check('real time: /health is ok and says its commit', health.ok === true && health.version === VERSION && health.draining === false, JSON.stringify(health));
+  const joined = await page.evaluate(async () => {
+    // (as the game does it: play/multiplayer.js ticketGetter and rtEndpoint — the ticket's url, wss:// → https://)
+    const { account } = await import('/account/session.js');
+    const { createColyseusTransport } = await import('/net/transport.js'), { PROTOCOL } = await import('/net/protocol.js');
+    const Colyseus = await import('/net/vendor/colyseus.js');
+    const r = await (await account()).api.post('/rt/ticket', {}), t = { ticket: r.ticket, url: String(r.url).replace(/^ws(s?):/, 'http$1:') }, t0 = performance.now();
+    try {
+      const c = await createColyseusTransport(Colyseus).join(t.url, 'test', { ticket: t.ticket, protocol: PROTOCOL, world: 'deploy-test' });
+      const roomId = c.roomId; await c.leave();
+      return { url: t.url, roomId, ms: Math.round(performance.now() - t0) };
+    } catch (e: any) { return { url: t.url, error: `${e.code} ${e.message}` }; }
+  });
+  check('real time: a ticket from the API, and a room joined with it from the game\'s page', joined.url === U.rt.replace(/^ws:/, 'http:') && !!joined.roomId, JSON.stringify(joined));
 
   // ---------- the admin page ----------
   const r403 = await page.goto(`${U.api}/admin/`);
@@ -213,10 +225,10 @@ try {
   const elsewhere = await e.evaluate(async (U: any) => {
     const api = await fetch(`${U.api}/api/v1/health`, { credentials: 'include' }).then(() => 'read', () => 'refused');
     const t = await fetch(`${U.tiles}/assets/map/sf/manifest.json`).then(() => 'read', () => 'refused');
-    const ws = await new Promise(resolve => { const s = new WebSocket(`${U.rt}/rt/health`); s.onopen = () => s.send('ping'); s.onmessage = () => resolve('answered'); s.onclose = (ev: any) => resolve(`closed ${ev.code}`); setTimeout(() => resolve('timeout'), 4000); });
-    return { api, tiles: t, ws };
+    const rt = await fetch(`${U.rt.replace(/^ws:/, 'http:')}/matchmake/joinOrCreate/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ world: 'x' }) }).then(r => r.ok ? 'joined' : 'refused', () => 'refused');
+    return { api, tiles: t, rt };
   }, U);
-  check('another site\'s page: the API, the tiles and the real-time server refuse it', elsewhere.api === 'refused' && elsewhere.tiles === 'refused' && elsewhere.ws === 'closed 1008', JSON.stringify(elsewhere));
+  check('another site\'s page: the API and the tiles refuse it; the real-time server lets nobody in without a ticket', elsewhere.api === 'refused' && elsewhere.tiles === 'refused' && elsewhere.rt === 'refused', JSON.stringify(elsewhere));
   check('no errors on the pages', errors.length === 0, errors.join('\n   '));
   void idOf;
 } catch (err: any) {
@@ -226,10 +238,12 @@ try {
   if (lastPage) console.log('last page', lastPage.url(), (await lastPage.evaluate(() => document.body?.innerText ?? '').catch(() => '')).slice(0, 400));
 } finally {
   await browser.close();
+  await rt.stop();
   await app.close();
   for (const s of [pages, tiles, evil]) s.close();
   await database.drop();
 }
 const failed = results.filter(r => !r).length;
 console.log(failed ? `\n${failed} of ${results.length} failed` : `\n${results.length} of ${results.length} ok`);
-process.exitCode = failed ? 1 : 0;
+// (out at once: the real-time server's timers would keep this process going, as in mp-browser.ts)
+process.exit(failed ? 1 : 0);

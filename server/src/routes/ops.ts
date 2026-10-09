@@ -1,9 +1,11 @@
 // Running the game (Phase 6 Step 5; docs/OPERATIONS.md, docs/SUPPORT.md):
 //   GET  /status                          public: up or not, maintenance and its message, the API's compatibility
-//                                         number (the status page and the game's start-up check read it)
+//                                         number (the status page and the game's start-up check read it); rt: 'up' |
+//                                         'down' | 'unknown' — the real-time server (added in app.ts: ops/alerts.ts createRtWatch)
 //   GET  /admin/settings · PUT /admin/settings/:key     the switches: features, maintenance, closedBeta, client
 //   GET  /admin/invites · POST /admin/invites · POST /admin/invites/:code/revoke     the closed beta's codes
-//   POST /support · POST /feedback        a player's message to the team, with the game's version and device
+//   POST /support · POST /feedback        a player's message to the team, with the game's version and device (feedback:
+//                                         and the game's last errors, if the player sends them — Phase 7 Step 5)
 //   GET  /admin/support · POST /admin/support/:id · POST /admin/support/:id/reply
 //   GET  /admin/players/:id/history       everything about a player in one place: the ledger, results, reports by and
 //                                         about them, flags, support, the admins' actions
@@ -46,7 +48,13 @@ const SupportBody = z.object({
   category: z.enum(['account', 'payment', 'bug', 'cheating', 'progress', 'other']), message: z.string().trim().min(10, 'Tell us a little more (10 characters at least).').max(4000),
   contactEmail: z.email().max(254).optional(), client: ClientInfo,
 }).strict();
-const FeedbackBody = z.object({ message: z.string().trim().min(3).max(4000), mood: z.enum(['love', 'like', 'meh', 'dislike']).optional(), client: ClientInfo }).strict();
+// (Phase 7 Step 5) the game's last errors with a feedback message (account/errors.js: addresses without their queries, a
+// short stack) — kept with the device info, shown to admins only
+export const ClientError = z.object({
+  at: z.string().max(40), kind: z.enum(['error', 'rejection', 'console']), message: z.string().max(300),
+  source: z.string().max(300).optional(), stack: z.string().max(1500).optional(), count: z.number().int().min(1).max(1_000_000),
+}).strict();
+const FeedbackBody = z.object({ message: z.string().trim().min(3).max(4000), mood: z.enum(['love', 'like', 'meh', 'dislike']).optional(), client: ClientInfo, errors: z.array(ClientError).max(20).optional() }).strict();
 const TICKETS_PER_DAY = 5;
 
 export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, mailer, settings, metrics, health }: { config: Config; db: Db; auth: Auth; G: Guards; mailer: Mailer; settings: SiteSettingsStore; metrics: Metrics; health: () => Promise<Health> }) {
@@ -149,12 +157,12 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
   });
 
   // ---------- support and feedback ----------
-  const ticket = async (req: any, kind: 'support' | 'feedback', b: { category?: string; message: string; contactEmail?: string; client: object; mood?: string }) => {
+  const ticket = async (req: any, kind: 'support' | 'feedback', b: { category?: string; message: string; contactEmail?: string; client: object; mood?: string; errors?: object[] }) => {
     const s = await G.requireUser(req);
     const today = Number(((await db.execute(sql`select count(*) as n from support_tickets where user_id = ${s.user.id} and created_at > now() - interval '24 hours'`)).rows[0] as any).n);
     if (today >= TICKETS_PER_DAY) throw new AppError(429, 'RATE_LIMITED', 'You\'ve sent several messages today: we\'ll answer those first.');
     const contact = s.user.isAnonymous ? (b.contactEmail ?? null) : null;
-    const r = (await db.execute(sql`insert into support_tickets (user_id, kind, category, message, contact_email, client) values (${s.user.id}, ${kind}, ${b.category ?? b.mood ?? null}, ${b.message}, ${contact}, ${JSON.stringify(b.client)}::jsonb) returning id`)).rows[0] as any;
+    const r = (await db.execute(sql`insert into support_tickets (user_id, kind, category, message, contact_email, client) values (${s.user.id}, ${kind}, ${b.category ?? b.mood ?? null}, ${b.message}, ${contact}, ${JSON.stringify(b.errors?.length ? { ...b.client, errors: b.errors } : b.client)}::jsonb) returning id`)).rows[0] as any;
     return { ok: true as const, id: Number(r.id) };
   };
   app.post('/support', { schema: { body: SupportBody } }, async req => ticket(req, 'support', req.body));
@@ -164,7 +172,7 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     const q = req.query;
     const rows = (await db.execute(sql`select t.*, u.name, u.email, u.is_anonymous from support_tickets t left join users u on u.id = t.user_id
       where (${q.kind} = 'all' or t.kind = ${q.kind}) and (${q.status} = 'all' or t.status = ${q.status}) order by t.created_at desc limit ${q.limit}`)).rows as any[];
-    return { tickets: rows.map(r => ({ id: Number(r.id), kind: r.kind, category: r.category, message: r.message, client: r.client, status: r.status, createdAt: iso(r.created_at), note: r.note,
+    return { tickets: rows.map(r => ({ id: Number(r.id), kind: r.kind, category: r.category, message: r.message, client: r.client ? (({ errors, ...c }) => c)(r.client) : r.client, errors: r.client?.errors ?? [], status: r.status, createdAt: iso(r.created_at), note: r.note,
       player: r.user_id ? { id: r.user_id, name: r.name, email: r.is_anonymous ? r.contact_email : r.email, guest: !!r.is_anonymous } : null })) };
   });
   app.post('/admin/support/:id', { config: { role: 'admin' }, schema: { params: z.object({ id: z.coerce.number().int().positive() }), body: z.object({ status: z.enum(['open', 'closed']), note: z.string().trim().max(2000).default('') }).strict() } }, async req => {

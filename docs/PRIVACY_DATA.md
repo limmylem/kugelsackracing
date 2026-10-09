@@ -6,13 +6,21 @@ this file current: the release checklist ([SECURITY.md](SECURITY.md)) asks for a
 added here before it ships.
 
 **Where things are:**
-- **The database:** PostgreSQL on Neon, AWS Asia Pacific (Singapore). Encrypted at rest by Neon. Backups are encrypted with AES-256 and kept 30 days ([SERVER.md](SERVER.md#backups)).
-- **The server:** Render, Singapore.
-- **The edge:** Cloudflare, worldwide.
+- **The database:** PostgreSQL on PlanetScale, AWS Asia Pacific (Sydney). Encrypted at rest by PlanetScale (*check*
+  its security page), reached only over TLS.
+- **Backups:** nightly, encrypted with AES-256 before they leave GitHub's runner, kept 35 days in a private Cloudflare R2
+  bucket (`ognistrada-backups`; R2 picks the data centre, hinted to Oceania — *check*) ([SERVER.md](SERVER.md#backups)).
+  PlanetScale keeps its own backups too.
+- **The server** (the API and the real-time server): an OVHcloud VPS in Sydney. It keeps no player data of its own
+  except its logs.
+- **The edge:** Cloudflare, worldwide (the game's pages, the map files, and every request to the server through the
+  Cloudflare Tunnel).
 - **Email:** Resend, Tokyo.
 - **Errors:** Sentry, US.
+- **Deploys and backups** run on GitHub Actions (US); the backups pass through it encrypted, and nothing is kept there.
 
-All of these are paused until we deploy ([DEPLOYMENT.md](DEPLOYMENT.md)).
+Online since Phase 7 Step 5 (friends testing; [DEPLOYMENT.md](DEPLOYMENT.md)). Before that the plan was Render and Neon in
+Singapore; nothing was ever stored there.
 
 **Who can see it:**
 - **The player:** their own data, all of it through "Download my data" (`GET /api/v1/me/export`).
@@ -51,7 +59,7 @@ All of these are paused until we deploy ([DEPLOYMENT.md](DEPLOYMENT.md)).
 
 | Data | What | Where | Kept |
 |---|---|---|---|
-| Server logs | Each request: method, address with tokens and secret values removed, the player's internet address, status, time. Never passwords, cookies or tokens (`server/src/app.ts`). | Render's logs | Render's retention: 7 days on the starter plan |
+| Server logs | Each request: method, address with tokens and secret values removed, the player's internet address, status, time. Never passwords, cookies or tokens (`server/src/app.ts`). The real-time server logs joins by account id. | The VPS in Sydney (Docker's logs) | Rotated: at most 30 MB a container, so days to weeks depending on traffic; gone when the server is rebuilt |
 | Error reports | Errors from the server and the game, with nothing personal: no name, email, address, cookies or typed text (`sendDefaultPii: false`, scrubbed in `beforeSend`) | Sentry (US) | Sentry's retention: 30 days on the free plan |
 | Email | The email address, and the email itself (verification, password reset, support answers) | Resend (Tokyo); Mailpit on this computer | Resend's logs: 30 days |
 | Bot check | Cloudflare Turnstile sees the browser's address and signals about the browser while checking it isn't a bot, under Cloudflare's privacy policy | Cloudflare | Cloudflare's policy |
@@ -110,9 +118,11 @@ test must change with it.
 1. **The minimum age**, above.
 2. **The owner's legal identity** in the policy: the name and address of the controller, and the contact email.
    - GDPR art. 27: an EU representative may be needed if the game targets EU players. UK: a UK representative.
-3. **Transfers out of the EU and UK** to Singapore (Render, Neon), the US (Sentry) and Japan (Resend):
+3. **Transfers out of the EU and UK** to Australia (OVHcloud, PlanetScale on AWS, both in Sydney), the US (Sentry,
+   GitHub) and Japan (Resend); Cloudflare worldwide:
    - which transfer mechanism each provider offers (SCCs, the UK IDTA addendum, the EU–Japan adequacy decision);
-   - whether to pick EU regions instead (Neon and Render both have Frankfurt).
+   - for now the players are all in Australia (friends testing); before EU or UK players join, decide whether that's
+     enough or EU regions are needed (OVHcloud and PlanetScale both have EU regions).
 4. **Google Fonts and jsDelivr** see players' IP addresses. A German court (LG München, 2022) found that unlawful without consent.
    - Recommendation: serve the fonts and libraries from the game's own address (no cost, a small change).
    - Until then, a consent question may be needed for EU players.

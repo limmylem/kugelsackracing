@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { tierOf, tierChange, START } from '../../mp/rank.js';
-import { matchQueue, percentile } from '../../mp/match.js';
+import { matchQueue, percentile, regionsFor } from '../../mp/match.js';
 import { createRace } from '../../mp/race.js';
 import { confirmResults, ratingOrder, payFor } from '../../mp/results.js';
 import { normaliseSettings, inviteCode, normaliseCode, createChatGate, nextHost, carAllowed } from '../../mp/lobby.js';
@@ -26,42 +26,84 @@ test('tiers: unranked until placed, then by the ordinal (never the number); a ch
 
 const party = (id, since, players, extra = {}) => ({ id, since, players: players.map(([skill, pr, cls = 'C'], i) => ({ uid: `${id}-${i}`, skill, pr, cls })), pings: { local: 20 }, ...extra });
 
-test('matchmaking: similar players fill a race at once; far apart ones wait until the windows have grown', () => {
+const FILL = CFG.queue.npcFillSec * 1000;
+
+test('matchmaking: similar players fill a race at once; the windows grow as the anchor waits, and hold in a big queue', () => {
   const eight = Array.from({ length: 8 }, (_, i) => party(`p${i}`, 0, [[10 + i * 0.3, 500 + i * 3]]));
   const m = matchQueue(eight, 1000, CFG);
-  assert.equal(m.matches.length, 1); assert.equal(m.matches[0].players.length, 8);
+  assert.equal(m.matches.length, 1); assert.equal(m.matches[0].players.length, 8); assert.ok(!m.matches[0].npcFill, 'a full grid: no NPCs');
   assert.ok(m.matches[0].quality.skillSpread < 3 && m.matches[0].quality.sameClass);
-  // (a strong player and a weak one: not straight away; together once both have waited)
+  // (6 apart: a full grid once the window has grown, not at once)
+  const near = [party('a', 0, [[10, 500]]), ...Array.from({ length: 7 }, (_, i) => party(`n${i}`, 0, [[16, 500]]))];
+  assert.equal(matchQueue(near, 1000, CFG).matches.length, 0);
+  assert.equal(matchQueue(near, 9000, CFG).matches[0]?.players.length, 8, 'the window grows: a full grid');
+  // (a strong player and a weak one, nobody else: not straight away — together at the fill, NPCs in the empty slots)
   const two = [party('a', 0, [[2, 500]]), party('b', 0, [[30, 500]])];
   assert.equal(matchQueue(two, 1000, CFG).matches.length, 0);
-  const late = matchQueue(two, 200000, CFG);
-  assert.equal(late.matches.length, 0, 'never a race spanning more than the widest window');
-  const near = [party('a', 0, [[10, 500]]), party('b', 0, [[16, 500]])];
-  assert.equal(matchQueue(near, 1000, CFG).matches.length, 0);
-  assert.equal(matchQueue(near, (CFG.queue.fillAfterSec + 1) * 1000, CFG).matches.length, 1, 'the window grows, and a slow queue starts with fewer');
+  assert.equal(matchQueue(two, FILL - 500, CFG).matches.length, 0);
+  const fill = matchQueue(two, FILL, CFG).matches;
+  assert.equal(fill.length, 1); assert.equal(fill[0].players.length, 2); assert.ok(fill[0].npcFill, 'a small queue races each other, whatever their skill');
+  // (a big queue — more than a grid: the windows hold; the outlier races NPCs at the fill, the rest a full grid at once)
+  const big = [party('weak', 0, [[2, 500]]), ...Array.from({ length: 8 }, (_, i) => party(`s${i}`, 1000, [[30 + i * 0.2, 500]]))];
+  const now = matchQueue(big, 2000, CFG).matches;
+  assert.equal(now.length, 1); assert.equal(now[0].players.length, 8); assert.ok(!now[0].entries.some(e => e.id === 'weak'));
+  const pair = matchQueue(big.slice(0, 2), FILL, CFG).matches, alone = matchQueue(big, FILL, CFG).matches.find(x => x.entries.some(e => e.id === 'weak'));
+  assert.equal(pair.length, 1, 'with one other left: together');
+  assert.equal(alone.players.length, 1); assert.ok(alone.npcFill, 'in a big queue: on its own, with NPCs');
 });
 
 test('matchmaking: car class, ping and parties', () => {
-  const mixed = [...Array.from({ length: 4 }, (_, i) => party(`c${i}`, 0, [[10, 500, 'C']])), ...Array.from({ length: 4 }, (_, i) => party(`b${i}`, 0, [[10, 600, 'B']]))];
-  const m = matchQueue(mixed, (CFG.queue.fillAfterSec + 1) * 1000, CFG);
+  // (a big queue keeps the classes apart: at the fill the B cars race each other, the C cars each other)
+  const mixed = [...Array.from({ length: 5 }, (_, i) => party(`c${i}`, 0, [[10, 500, 'C']])), ...Array.from({ length: 4 }, (_, i) => party(`b${i}`, 0, [[10, 560, 'B']]))];
+  const m = matchQueue(mixed, FILL, CFG);
   assert.equal(m.matches.length, 2);
-  for (const g of m.matches) assert.ok(g.quality.sameClass, 'never two classes in one race');
+  for (const g of m.matches) assert.ok(g.quality.sameClass && g.npcFill, 'one class a race');
+  // (a small queue — friends in different classes: together at the fill, whatever the cars)
+  const friends = matchQueue([party('f0', 0, [[10, 500, 'C']]), party('f1', 0, [[12, 700, 'A']]), party('f2', 2000, [[3, 300, 'D']])], FILL, CFG).matches;
+  assert.equal(friends.length, 1); assert.equal(friends[0].players.length, 3); assert.ok(friends[0].npcFill && !friends[0].quality.sameClass);
   // (a party of three stays together; five singles fill the rest)
   const p = [party('team', 0, [[10, 500], [11, 505], [9, 495]]), ...Array.from({ length: 6 }, (_, i) => party(`s${i}`, 100, [[10, 500]]))];
   const r = matchQueue(p, 1000, CFG).matches[0];
   assert.equal(r.players.length, 8); assert.ok(r.entries.some(e => e.id === 'team'));
-  // (far away: only once the anchor has waited long enough for its ping limit)
-  const far = [party('near', 0, [[10, 500]], { pings: { local: 20 } }), party('far', 0, [[10, 500]], { pings: { local: 200 } })];
-  assert.equal(matchQueue(far, (CFG.queue.fillAfterSec + 1) * 1000, CFG).matches.length, 0);
-  assert.equal(matchQueue(far, (CFG.queue.pingStepSec * 2 + 1) * 1000, CFG).matches.length, 1);
+  // (far away: a full grid goes without them at first — within its ping limit; at the fill a small queue takes them)
+  const far = [party('far', 0, [[10, 500]], { pings: { local: 200 } }), ...Array.from({ length: 8 }, (_, i) => party(`n${i}`, 0, [[10, 500]]))];
+  const first = matchQueue(far, 1000, CFG).matches;
+  assert.equal(first.length, 1); assert.ok(!first[0].entries.some(e => e.id === 'far'));
+  assert.equal(matchQueue(far.slice(0, 2), FILL, CFG).matches[0]?.players.length, 2);
+  assert.equal(matchQueue([far[0]], FILL, CFG).matches.length, 1, 'a laggy player alone goes at the fill too');
 });
 
-test('matchmaking: a lone player is offered NPCs, and races at once on saying yes', () => {
+test('matchmaking (Phase 7 Step 5): nobody waits past the fill — a lone player races NPCs by themselves (no offer to take), at once on asking', () => {
   const lone = [party('solo', 0, [[10, 500]])];
-  assert.deepEqual(matchQueue(lone, (CFG.queue.npcOfferSec + 1) * 1000, CFG).offers, ['solo']);
-  const yes = matchQueue([{ ...lone[0], npcOk: true, offered: true }], (CFG.queue.npcOfferSec + 2) * 1000, CFG);
-  assert.equal(yes.matches.length, 1); assert.ok(yes.matches[0].npcFill);
+  assert.equal(matchQueue(lone, FILL - 500, CFG).matches.length, 0);
+  const m = matchQueue(lone, FILL, CFG);
+  assert.equal(m.matches.length, 1); assert.ok(m.matches[0].npcFill); assert.equal(m.matches[0].players.length, 1);
+  assert.equal(m.offers, undefined, 'nothing offered: it just goes');
+  const now = matchQueue([{ ...lone[0], npcOk: true }], 1000, CFG).matches;
+  assert.equal(now.length, 1); assert.ok(now[0].npcFill, 'asked to go now: at once, NPCs in the empty slots');
+  // (asked to go now with friends waiting too — a small queue, any cars: they all come along)
+  const along = matchQueue([{ ...lone[0], npcOk: true }, party('f1', 500, [[25, 800, 'A']]), party('f2', 900, [[4, 300, 'D']])], 1000, CFG).matches;
+  assert.equal(along.length, 1); assert.equal(along[0].players.length, 3);
+  assert.ok(CFG.queue.npcFillSec <= 20 && CFG.queue.targets.waitP95Sec >= CFG.queue.npcFillSec);
   assert.equal(percentile([1, 2, 3, 4, 100], 0.5), 3);
+});
+
+test('online (Phase 7 Step 5): the server regions by environment; multiplayer on by itself where the site says so', async () => {
+  const ROAM = JSON.parse(fs.readFileSync(new URL('../../data/roam.json', import.meta.url), 'utf8'));
+  for (const byEnv of [CFG.regions, ROAM.regions.list]) {
+    assert.deepEqual(regionsFor(byEnv, 'production'), [{ id: 'au', name: 'Australia (Sydney)' }]);
+    for (const env of ['development', 'test', 'local', undefined]) assert.deepEqual(regionsFor(byEnv, env).map(r => r.id), ['local']);
+  }
+  const { multiplayerOptions } = await import('../../play/multiplayer.js');
+  const at = search => ({ search });
+  const online = { env: 'production', multiplayer: true };
+  assert.equal(multiplayerOptions(at(''), { env: 'local' }), null, 'locally: off unless asked');
+  assert.equal(multiplayerOptions(at(''), undefined), null);
+  assert.equal(multiplayerOptions(at(''), online)?.auto, true, 'online: on by itself');
+  assert.equal(multiplayerOptions(at('?mp=0'), online), null, '?mp=0: off');
+  assert.equal(multiplayerOptions(at('?mp'), { env: 'local' })?.auto, false, '?mp: on anywhere');
+  assert.equal(multiplayerOptions(at('?mp=lobby2&player=A'), {})?.room, 'lobby2');
+  assert.equal(multiplayerOptions(at('?mp&player=A'), online)?.player, 'A');
 });
 
 // ---------- the race ----------
@@ -187,6 +229,12 @@ test('results: a run that fails the check is disqualified and the others move up
   assert.ok(pay.b.money > 0); assert.equal(pay.a.money, 0); assert.equal(pay.d.money, 0);
   const tired = payFor(conf, ECON.multiplayer, { ranked: true, humans: 4, npcs: 1, todayRaces: { b: 100 } });
   assert.ok(tired.b.money < pay.b.money, 'after the day\'s full-pay races, less');
+  // (Phase 7 Step 5: antiCheat "flag", the server's default — the failed runs keep their places and pay, flagged for review)
+  const kept = confirmResults(prov, { a: { ok: false, problems: ['Missed checkpoint 2.'] }, b: { ok: true, rawMs: 61050 }, c: { ok: true, rawMs: 64000 } }, { toleranceMs: 300, action: 'flag' });
+  const k = Object.fromEntries(kept.map(r => [r.uid, r]));
+  assert.equal(k.a.status, 'finished'); assert.equal(k.a.place, k.a.provisionalPlace); assert.equal(k.a.flagged, true); assert.equal(k.a.verified, false);
+  assert.equal(k.c.flagged, true); assert.ok(!k.b.flagged && k.b.verified);
+  assert.ok(payFor(kept, ECON.multiplayer, { ranked: true, humans: 4, npcs: 1 }).a.money > 0, 'paid as normal');
 });
 
 test('lobby rules: settings clamped, the collision mode (a quick race the public one), codes, the chat\'s pace, the next host, car classes', () => {
@@ -218,7 +266,8 @@ test('a course\'s version doesn\'t depend on how its stored path\'s keys are ord
 
 test('matchmaking (Phase 7 Step 3): safety ratings kept close — clean drivers race clean drivers, careless ones each other', () => {
   const withSafety = (e, safety) => ({ ...e, players: e.players.map(p => ({ ...p, safety })) });
-  const q = [...Array.from({ length: 4 }, (_, i) => withSafety(party(`clean${i}`, i * 10, [[10 + i * 0.2, 500]]), 90)), ...Array.from({ length: 4 }, (_, i) => withSafety(party(`rough${i}`, i * 10 + 5, [[10 + i * 0.2, 500]]), 15))];
+  // (more than a grid waiting: the windows hold, even at the fill — a small queue would race together)
+  const q = [...Array.from({ length: 5 }, (_, i) => withSafety(party(`clean${i}`, i * 10, [[10 + i * 0.2, 500]]), 90)), ...Array.from({ length: 5 }, (_, i) => withSafety(party(`rough${i}`, i * 10 + 5, [[10 + i * 0.2, 500]]), 15))];
   const { matches } = matchQueue(q, 25000, CFG);
   assert.ok(matches.length >= 2, `two races: ${matches.length}`);
   for (const m of matches) {
@@ -226,10 +275,8 @@ test('matchmaking (Phase 7 Step 3): safety ratings kept close — clean drivers 
     assert.equal(kinds.size, 1, `one kind a race: ${m.players.map(p => p.uid).join(', ')}`);
     assert.ok(m.quality.safetySpread <= CFG.contact.match.start + CFG.contact.match.growPerSec * 25 + 1e-9);
   }
-  // (waiting, the window grows — up to its most: 40 apart race together after a while; 60 apart never do, and the NPC
-  // offer is there for them instead)
-  const pair = d => [withSafety(party('a', 0, [[10, 500]]), 90), withSafety(party('b', 0, [[10, 500]]), 90 - d)];
-  assert.equal(matchQueue(pair(40), 25000, CFG).matches.length, 0, 'not at first');
-  assert.equal(matchQueue(pair(40), 120000, CFG).matches.length, 1, 'the window has grown wide enough after two minutes');
-  assert.equal(matchQueue(pair(60), 600000, CFG).matches.length, 0, 'never past its most');
+  // (waiting, the window grows: 20 apart fill a grid after a few seconds, not at once)
+  const grid = d => [withSafety(party('a', 0, [[10, 500]]), 90), ...Array.from({ length: 7 }, (_, i) => withSafety(party(`b${i}`, 0, [[10, 500]]), 90 - d))];
+  assert.equal(matchQueue(grid(20), 1000, CFG).matches.length, 0, 'not at first');
+  assert.equal(matchQueue(grid(20), 11000, CFG).matches[0]?.players.length, 8, 'the window has grown wide enough');
 });

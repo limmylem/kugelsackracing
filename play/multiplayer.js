@@ -20,7 +20,7 @@
 //   M.frame(dt, local)          every frame: local() → your car's state (codec.js) or null
 //   M.crash(outcome, build) · M.part(socket, state) · M.reset() · M.repair() · M.setLook(look)
 //   M.status · M.message · M.overlay.toggle() · M.leave()
-//   M.others() → [{ id, name, distM, drawn, why, onScreen, ageMs }]    each other player as this window sees it
+//   M.others() → [{ id, netId, name, distM, drawn, why, onScreen, ageMs }]    each other player as this window sees it
 //   (Phase 7 Step 2) a race's room: joinMultiplayer({ net, … }) draws the cars of a connection already made (the race's:
 //   mp/client.js) — leave() then lets it be; label(o) → the text over each car (null: its name); spread: false (a race
 //   puts every car on its own grid slot: none is moved aside); M.car(id) → { pose, handle } (the spectator's camera)
@@ -42,14 +42,15 @@ import { LIGHT } from '../net/protocol.js';
 import { createNetOverlay } from '../net/overlay.js';
 import { packCrash, packDents, unpackDents, dentsOf } from '../garage/damageLog.js';
 
-// ?mp (or ?mp=<room name>) turns it on; ?netsim=150,30,0.05[,datagram] and ?servernetsim=… add a bad network on
-// this side and on the server's; ?netdebug shows the overlay from the start; ?player=A (development) plays this
-// window as a guest of its own
-export function multiplayerOptions(loc = globalThis.location) {
-  const q = new URLSearchParams(loc?.search ?? '');
-  if (!q.has('mp')) return null;
+// Online (Phase 7 Step 5: the site's build says multiplayer: true) it's on without asking — auto: for a signed-in
+// player; ?mp (or ?mp=<room name>) turns it on anywhere, ?mp=0 off; ?netsim=150,30,0.05[,datagram] and ?servernetsim=…
+// add a bad network on this side and on the server's; ?netdebug shows the overlay from the start; ?player=A
+// (development) plays this window as a guest of its own
+export function multiplayerOptions(loc = globalThis.location, site = globalThis.KR_SITE) {
+  const q = new URLSearchParams(loc?.search ?? ''), mp = q.get('mp');
+  if (mp === '0' || (mp == null && site?.multiplayer !== true)) return null;
   const player = /^[A-Za-z0-9_-]{1,16}$/.test(q.get('player') ?? '') ? q.get('player') : null;
-  return { room: q.get('mp') || null, player, netsim: parseConditions(q.get('netsim')), serverNetsim: q.get('servernetsim') || null, debug: q.has('netdebug') };
+  return { room: mp || null, auto: mp == null, player, netsim: parseConditions(q.get('netsim')), serverNetsim: q.get('servernetsim') || null, debug: q.has('netdebug') };
 }
 
 // development or tests (not online): the extra keys and hints
@@ -231,7 +232,7 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
       // (joined on top of someone — every new car arrives at the same place: the later one moves beside them)
       if (spread && !cleared && landedAt != null) {
         if (nowMs - landedAt > 20000) cleared = true;
-        else if (api.others().some(x => x.distM != null && x.distM < ON_TOP_M && x.id < N.id)) { cleared = true; api.toNearest(); }
+        else if (api.others().some(x => x.distM != null && x.distM < ON_TOP_M && x.netId != null && x.netId < N.id)) { cleared = true; api.toNearest(); }
       }
       overlayAt -= dt;
       if (overlayAt <= 0) { overlayAt = 0.25; overlay.update(); }
@@ -246,13 +247,13 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
     // how long since its last state arrived
     others() {
       const out = [];
+      // (N.players never holds this player; free roam's are keyed by ids of their own: netId is the room's — play/roam.js)
       for (const pl of N.players.values()) {
-        if (pl.id === N.id) continue;
         const c = cars.get(pl.id), p = c?.pose, ageMs = Number.isFinite(pl.lastStateAt) ? performance.now() - pl.lastStateAt : null;
         const distM = p && mine ? Math.hypot(p.pos[0] - mine.pos[0], p.pos[2] - mine.pos[2]) : null;
         const shown = !!(c?.handle && p && A.shown?.(c.handle));
         const why = shown ? (c.onScreen ? '' : 'off screen') : pl.status === 'away' ? 'reconnecting' : !pl.base ? 'no state yet' : ageMs > 3000 ? 'no update for 3 s (out of range?)' : !c ? 'not seen yet' : c.loading ? 'loading its model' : 'not in the scene';
-        out.push({ id: pl.id, name: pl.name ?? `#${pl.id}`, distM, drawn: shown, onScreen: !!c?.onScreen, why, ageMs, paused: !!(p && p.flags & LIGHT.AWAY), status: pl.status });
+        out.push({ id: pl.id, netId: pl.netId !== undefined ? pl.netId : pl.id, name: pl.name ?? `#${pl.id}`, distM, drawn: shown, onScreen: !!c?.onScreen, why, ageMs, paused: !!(p && p.flags & LIGHT.AWAY), status: pl.status });
       }
       return out.sort((a, b) => (a.distM ?? 1e9) - (b.distM ?? 1e9));
     },

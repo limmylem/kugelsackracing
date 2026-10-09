@@ -12,7 +12,10 @@
 //   - a race's results: reported by the race server as it ends (provisional), each player's run handed in through it
 //     and checked (quest/validate.js against the race's quest and course — Phase 6 Step 3's rules — and against what
 //     the race server saw), then confirmed (mp/results.js): ratings moved, each player paid (the economy), the
-//     standings kept. Confirmed when every finisher's run is in, or race.resultsWaitSec after the race.
+//     standings kept. Confirmed when every finisher's run is in, or race.resultsWaitSec after the race. A run that
+//     fails: disqualified, or (Phase 7 Step 5: antiCheat.action 'flag', the default) kept and flagged for an admin.
+//     Paid once whatever happens: confirmed once per race (its state; one at a time in this process), a race reported
+//     again (the race server retrying) answered with the first, and economy.payRace pays a race id once (its ledger)
 //   - the queue's numbers, as the race server reports them (the admin page's dashboard)
 //   - development (config rt.devPlayers): ?player=A in a window is a guest user of its own, made on first use
 
@@ -32,6 +35,7 @@ import { transverseMercator } from '../../../map/build/format/projection.js';
 import { trackProjection } from '../../../track/build.js';
 import { decodePath } from '../economy/geometry.ts';
 import { fileReport, REPORT_KINDS } from '../abuse/reports.ts';
+import { flagForReview } from '../abuse/detect.ts';
 import { safetyAfterRace, safetyTier } from '../../../mp/contact.js';
 import { checkContacts, checkTrail } from '../../../mp/verify.js';
 import { createReplayer } from './replay.ts';
@@ -44,7 +48,7 @@ const MAX_FRIENDS = 200;
 type Db = any;
 export type Venue = { kind: 'route'; id: string } | { kind: 'track'; code: string } | { kind: 'official'; which?: 'daily' | 'weekly' } | { kind: 'random' };
 
-export function createMpService({ db, tracks, economy, economyConfig, roam = null, log = () => {}, now = () => Date.now() }: { db: Db; tracks: any; economy: any; economyConfig: any; roam?: any; log?: (o: object, m: string) => void; now?: () => number }) {
+export function createMpService({ db, tracks, economy, economyConfig, roam = null, antiCheat = { action: 'flag' }, log = () => {}, now = () => Date.now() }: { db: Db; tracks: any; economy: any; economyConfig: any; roam?: any; antiCheat?: { action: 'flag' | 'disqualify' }; log?: (o: object, m: string) => void; now?: () => number }) {
   const rows = async (q: any) => (await db.execute(q)).rows as any[];
   const one = async (q: any) => (await rows(q))[0] ?? null;
   const pair = (a: string, b: string) => a < b ? [a, b] : [b, a];
@@ -280,7 +284,13 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
     const verdicts = Object.fromEntries(players.filter(p => p.verdict).map(p => [p.user_id, p.verdict]));
     // (a player with no account here — a bot's made-up id — is the race server's word alone)
     const provisional = (race.provisional as any[]).map(r => r.npc || known.has(r.uid) ? r : { ...r, npc: true, unrated: true });
-    const confirmed = confirmResults(provisional, verdicts, { toleranceMs: 300 });
+    const confirmed = confirmResults(provisional, verdicts, { toleranceMs: 300, action: antiCheat.action });
+    // (a run that failed its check, kept: for an admin to review — the reasons, the race)
+    for (const r of confirmed) if (r.flagged && known.has(r.uid)) {
+      const checked = (r.problems as string[]).some(x => !/handed in/.test(x));
+      await flagForReview(db, { kind: 'mp-verify', key: `${raceId}:${r.uid}`, userIds: [r.uid], score: checked ? 60 : 30,
+        evidence: { raceId, venue: race.venue, ranked: race.ranked, place: r.place, timeMs: r.timeMs ?? null, problems: r.problems } }).catch(e => log({ err: e, race: raceId }, 'flagging a race result failed'));
+    }
     // ratings: a ranked race moves them (the order: mp/results ratingOrder)
     const rated = confirmed.filter(r => !r.npc && known.has(r.uid));
     const before: Record<string, any> = {};
@@ -322,7 +332,7 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
       out.push(entry);
     }
     await db.execute(sql`update mp_races set state = 'confirmed', confirmed = ${JSON.stringify(out)}::jsonb, confirmed_at = now() where id = ${raceId}`);
-    log({ race: raceId, players: out.length, dsq: out.filter(r => r.status === 'dsq').length }, 'multiplayer race confirmed');
+    log({ race: raceId, players: out.length, dsq: out.filter(r => r.status === 'dsq').length, flagged: out.filter(r => r.flagged).length }, 'multiplayer race confirmed');
     return raceView(raceId);
   }
   async function raceView(raceId: string) {

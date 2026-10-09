@@ -8,7 +8,7 @@ export type Db = ReturnType<typeof openDb>['db'];
 
 export function openDb(url: string, { max = 10 } = {}) {
   const pool = new pg.Pool({ connectionString: url, max, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000,
-    // (Neon and other hosted Postgres: TLS when the URL asks for it — sslmode=require)
+    // (PlanetScale and other hosted Postgres: TLS when the URL asks for it — sslmode=require)
     ssl: /sslmode=(require|verify)/.test(url) ? { rejectUnauthorized: true } : undefined });
   // (an idle connection the database closed — a restart, a failover, an administrator: the pool drops it and opens
   // another when needed; unhandled, node-postgres's error would end the process)

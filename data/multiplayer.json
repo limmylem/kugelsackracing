@@ -1,29 +1,31 @@
 {
   "_note": "Multiplayer races (Phase 7 Step 2; docs/MULTIPLAYER.md 'Lobbies, matchmaking and races'). Read by the real-time server (rooms, the queue), the API (ratings, results, rewards, cooldowns), the game and the bots. Times in seconds unless named otherwise.",
   "grid": {
-    "_note": "maxPlayers: a race's grid (humans and NPCs). quickMinHumans: a quick race starts with at least this many players (fewer only by taking NPC fill).",
-    "maxPlayers": 8,
-    "quickMinHumans": 2
+    "_note": "maxPlayers: a race's grid (humans and NPCs).",
+    "maxPlayers": 8
+  },
+  "regions": {
+    "_note": "Server regions: where the real-time servers run (each with its own quick-race queue), by environment: APP_ENV on the servers, the site's env (site/config.js) in the game; an environment not named here has the default (mp/match.js regionsFor). Online (Phase 7 Step 5): one region, in Sydney. data/roam.json regions.list says the same for free roam.",
+    "production": [{ "id": "au", "name": "Australia (Sydney)" }],
+    "default": [{ "id": "local", "name": "This computer" }]
   },
   "queue": {
-    "_note": "Matching, in order: region (a party's best region by ping; pingLimitsMs: the first ping a party is matched on, then each next one as it waits), skill (the OpenSkill ordinal's gap to the group's average: start, growing per second waited, up to max), then car (class must match unless classStrict is false; performance rating gap: the same growth). A group goes when it's full, or when its oldest party has waited fillAfterSec and it has quickMinHumans. npcOfferSec: a party waiting this long is offered the race now with its empty slots filled by NPCs.",
+    "_note": "Matching, in order: region (a party's best region by ping; pingLimitsMs: the first ping a party is matched on, then each next one as it waits), skill (the OpenSkill ordinal's gap to the group's average: start, growing per second waited, up to max), then car (class must match unless classStrict is false; performance rating gap: the same growth). A group goes at once when it's full; otherwise once its oldest party has waited npcFillSec (or asked to go now), with whoever fits then and NPCs in the empty slots: nobody waits longer (Phase 7 Step 5). A small queue (everyone waiting fits on one grid) goes together then, whatever their skill, car, safety and ping: friends race each other, not NPCs each.",
     "cycleMs": 500,
-    "regions": ["local"],
     "pingLimitsMs": [80, 150, 250],
     "pingStepSec": 15,
     "skill": { "start": 4, "growPerSec": 0.25, "max": 20 },
     "performance": { "start": 30, "growPerSec": 3, "max": 160 },
     "classStrict": true,
-    "fillAfterSec": 20,
-    "npcOfferSec": 40,
+    "npcFillSec": 15,
     "maxPartySize": 4,
     "targets": {
-      "_note": "What the queue should manage (the dashboard and the load test check them): queue time percentiles, and how far apart a race's players are at the 95th percentile (skill: OpenSkill ordinal points; performance: rating points; ping: ms over the best).",
+      "_note": "What the queue should manage (the dashboard and the load test check them): queue time percentiles, and how far apart a race's players are at the 95th percentile (skill: OpenSkill ordinal points; performance: rating points; ping: ms over the best). sameClassShare: the races with one class only (not all: a small queue at the fill races together, whatever the cars).",
       "waitP50Sec": 10,
-      "waitP95Sec": 45,
+      "waitP95Sec": 20,
       "skillSpreadP95": 12,
       "performanceSpreadP95": 120,
-      "sameClassShare": 1
+      "sameClassShare": 0.95
     }
   },
   "lobby": {

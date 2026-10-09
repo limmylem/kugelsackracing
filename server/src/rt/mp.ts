@@ -4,7 +4,8 @@
 // Presence is Colyseus's: Redis when there is one (several processes), memory in one process without.
 //
 //   createRtApi({ url, secret }) → { relations(uid), venue(v), recordRace(rec), submitRun(id, uid, run), race(id), queueStats(s), act, saveEvidence(e),
-//     roamSave(rows), roamSettings(uid, s), roamIncident(i), roamChallenge(rec), roamStats(s) }
+//     roamSave(rows), roamSettings(uid, s), roamIncident(i), roamChallenge(rec), roamStats(s), flag(f) }
+//     (a failed call throws with the API's status: outbox.ts tries results again)
 //   courseOf(resolved) → route/model.js viewCourse in the race's frame (a region's map frame, or a generated track's), with its trackHash
 //   setStatus(uid, status) · statuses(uids) → { uid: status }    status: { state: 'menu' | 'queue' | 'lobby' | 'racing' | 'spectating' | 'free roam', roomId?, kind?, name? }
 //   toUser(uid, msg) · onUser(uid, fn) → off      codes: claimCode(roomId) → code, roomOfCode(code)
@@ -42,6 +43,8 @@ export function createRtApi({ url, secret, timeoutMs = 20000 }: { url: string; s
     roamIncident: (i: unknown) => call('POST', '/roam/incident', i),
     roamChallenge: (rec: unknown) => call('POST', '/roam/challenges', rec),
     roamStats: (s: unknown) => call('POST', '/roam/stats', s),
+    // (Phase 7 Step 5) a player the live checks keep refusing: flagged for the admins, not kicked (routes/abuse.ts)
+    flag: (f: { key: string; kind: 'live-checks'; uid: string; reasons: Record<string, number>; room?: string; world?: string; raceId?: string | null; phase?: string | null }) => call('POST', '/flags', f),
   };
 }
 export type RtApi = ReturnType<typeof createRtApi>;

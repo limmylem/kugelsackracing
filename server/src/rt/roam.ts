@@ -17,6 +17,8 @@
 //   - meets: parking in a meet spot's places, emotes, inspecting a car
 //   - reports: a player reported with the last replaySec of both cars as this zone kept them
 //   - where each player is, saved (the API) every saveEverySec and when they leave (from their home zone)
+//   - (Phase 7 Step 5) a challenge's record reaches the API however long that takes (outbox.ts); while the server drains
+//     for an update, players are told, no challenge starts, and crossing into the next zone still works
 //
 // The game's messages ('mp', JSON): settings { settings } · party { id } · home { home } · challenge { to, type, dest? } ·
 //   challenge-answer { id, yes } · challenge-cancel { id } · chat { scope: 'nearby' | 'party', text } · wheel { id, scope } ·
@@ -30,7 +32,9 @@ import zlib from 'node:zlib';
 import { matchMaker, type Client } from '@colyseus/core';
 import { LIGHT, S2C } from '../../../net/protocol.js';
 import { encodeValue } from '../../../net/codec.js';
-import { TestRoom, rtEnv, authorize, type Player } from './room.ts';
+import { TestRoom, rtEnv, authorize, drain, DRAINING, type Player } from './room.ts';
+import { send } from './outbox.ts';
+import { loadtestBot } from './tickets.ts';
 import { setStatus, clearStatus, toUser, onUser, getParty } from './mp.ts';
 import { cleanChat } from '../names.ts';
 import { MP, ROAM } from './mpData.ts';
@@ -116,7 +120,7 @@ export class RoamRoom extends TestRoom {
   slowTicks = 0;
 
   // ("server full" refuses a player coming in, never one already here: a neighbouring zone, a handoff, a lost connection joined again)
-  static async onAuth(token: string, options: any) { return authorize(token, options, { count: !(options?.extra || options?.handoff || options?.rejoin) }); }
+  static async onAuth(token: string, options: any) { const here = !!(options?.extra || options?.handoff || options?.rejoin); return authorize(token, options, { count: !here, continuing: here }); }
 
   onCreate(options: any) {
     this.region = typeof options?.region === 'string' ? options.region.slice(0, 32) : 'local';
@@ -315,7 +319,9 @@ export class RoamRoom extends TestRoom {
     await this.meta();
   }
   async save(list: { r: Roam; p: Player; f: any }[]) {
-    if (!rtEnv.api?.roamSave) return;
+    // (a load-test bot has no account: where it is isn't kept)
+    list = list.filter(x => !loadtestBot(x.r.uid));
+    if (!rtEnv.api?.roamSave || !list.length) return;
     const at = new Date().toISOString();
     const rows = list.map(({ r, p, f }) => { return { uid: r.uid, region: this.region, pos: f.pos.map((v: number) => Math.round(v * 100) / 100), heading: Math.round(yawOf(f.rot) * 1800 / Math.PI) / 10, carId: p?.look?.carId ?? r.car.carId ?? null, instanceId: r.car.instanceId ?? null, damage: p?.look?.damage ?? null, events: (p?.events ?? []).slice(-32), at }; });
     await rtEnv.api.roamSave(rows).catch((e: any) => rtEnv.log('rt roam save failed', { err: e?.message }));
@@ -417,6 +423,7 @@ export class RoamRoom extends TestRoom {
     const r = this.roam.get(p.t.uid)!, now = this.roomNow();
     if (r.settings.passive) return this.say(p, 'You\'re in passive mode: turn it off to challenge anyone.');
     if (r.challenge) return this.say(p, 'Finish the challenge you\'re in first.');
+    if (drain.on) return this.say(p, DRAINING);
     const targets = to === 'party' ? [...r.party].filter(u => this.playerOf(u)) : [String(to ?? '')];
     const at = p.latestF?.pos;
     if (!at) return this.say(p, 'Drive a little first.');
@@ -449,6 +456,7 @@ export class RoamRoom extends TestRoom {
   closed(inv: any) {
     const from = this.playerOf(inv.from);
     if (inv.state !== 'accepted') { if (from) this.sendTo(from, { t: 'challenge-declined', id: inv.id, why: inv.state }); return; }
+    if (drain.on) { for (const u of [inv.from, ...inv.accepted]) { const q = this.playerOf(u); if (q) { this.sendTo(q, { t: 'challenge-declined', id: inv.id, why: 'gone' }); this.say(q, DRAINING); } } return; }
     const racers = [inv.from, ...inv.accepted].filter(u => this.playerOf(u) && !this.roam.get(u)?.challenge);
     if (racers.length < 2) { if (from) this.sendTo(from, { t: 'challenge-declined', id: inv.id, why: 'gone' }); return; }
     const run = createChallengeRun({ cfg: ROAM, id: `rc_${this.roomId}_${inv.id}`, type: inv.type, racers, route: inv.route, now: this.roomNow(), leader: inv.from });
@@ -467,9 +475,11 @@ export class RoamRoom extends TestRoom {
     this.pushTouch();
     const results = run.results();
     let paid: any = null;
-    if (results.some((x: any) => x.status === 'finished')) {
-      try { paid = rtEnv.api?.roamChallenge ? await rtEnv.api.roamChallenge({ ...run.record(), region: run.region }) : null; }
-      catch (e: any) { rtEnv.log('rt roam challenge record failed', { err: e?.message }); }
+    const api = rtEnv.api;
+    if (results.some((x: any) => x.status === 'finished') && api?.roamChallenge) {
+      // (until the API has it — outbox.ts; the players don't wait more than a few seconds to see their result)
+      const rec = { ...run.record(), region: run.region };
+      paid = await Promise.race([send(`challenge ${run.id}`, () => api.roamChallenge(rec), rtEnv.log), new Promise(r => { setTimeout(() => r(null), 10000).unref(); })]);
     }
     for (const u of run.racers) { const q = this.playerOf(u); if (q) this.sendTo(q, { t: 'challenge-results', id: run.id, type: run.type, results: results.map((x: any) => ({ ...x, name: this.roam.get(x.uid)?.name ?? null })), verdict: paid?.verdict ?? null, pay: paid?.pay?.[u] ?? null }); }
   }
@@ -509,6 +519,10 @@ export class RoamRoom extends TestRoom {
     r.meet = { id: meet.id, spot: spot.n };
     this.sendTo(p, { t: 'meet-spot', meet: meet.id, spot });
   }
+
+  // (the server starts to drain for an update: everyone here told — a challenge under way carries on)
+  // (one notice a player: from their home zone, not each zone they're in near a border)
+  draining() { for (const p of this.players.values()) if (p.status === 'here' && this.roam.get(p.t.uid)?.home) this.say(p, DRAINING); }
 
   // (players: connections here; homes: the players whose home zone this is — each player is home in one zone: the distinct count)
   summaryRoam() { return { region: this.region, zone: this.zone, group: this.group, ...this.summary(), homes: [...this.roam.values()].filter(r => r.home).length, challenges: this.runs.size }; }

@@ -11,6 +11,10 @@
 //                   (selling everything, or losing its cars in pink slips): accounts made to feed another
 //   earning-rate    an account earning far faster than playing allows (economy settings: abuse.maxRewardPerHour)
 // Scores: higher is more likely; the queue is sorted by them. Thresholds in config/<env>.json abuse.
+// (Phase 7 Step 5) the game's own checks flag too — flagForReview — rather than acting (the owner: flag, never ban):
+//   live-checks       the race server dropped a player's impossible car states, again and again (rt/room.ts)
+//   mp-verify         a race's run that failed its check, kept (antiCheat.action 'flag': mp/service.ts)
+//   challenge-verify  a free-roam challenge's record that failed its check, kept and paid (roam/service.ts)
 
 import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
@@ -88,6 +92,16 @@ export async function scanForAbuse(db: Db, rules: AbuseRules = DEFAULT_RULES): P
     kinds[f.kind] = (kinds[f.kind] ?? 0) + 1;
   }
   return { flagged: flags.length, kinds };
+}
+
+// a flag from the game's own checks: once per key (the same one again — a retry, the next few minutes' — brings its
+// evidence up to date; a dismissed one stays dismissed)
+export const FLAG_KINDS = ['live-checks', 'mp-verify', 'challenge-verify'] as const;
+export async function flagForReview(db: Db, f: { kind: typeof FLAG_KINDS[number]; key: string; userIds: string[]; score: number; evidence: object }) {
+  if (!FLAG_KINDS.includes(f.kind) || !f.userIds.length) return { ok: false as const };
+  await db.execute(sql`insert into abuse_flags (kind, key, user_ids, score, evidence) values (${f.kind}, ${`${f.kind}:${f.key}`.slice(0, 300)}, array(select jsonb_array_elements_text(${JSON.stringify(f.userIds)}::jsonb)), ${Math.round(f.score)}, ${JSON.stringify(f.evidence)}::jsonb)
+    on conflict (key) do update set score = greatest(abuse_flags.score, excluded.score), evidence = excluded.evidence, updated_at = now()`);
+  return { ok: true as const };
 }
 
 // an address shown to admins in flags: enough to see they're the same, not the whole of it

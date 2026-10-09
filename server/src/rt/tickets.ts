@@ -6,6 +6,7 @@
 //
 //   signTicket(secret, { uid, name, role, guest, mp? }, ttlSec) → 'payload.signature' (base64url)
 //   verifyTicket(secret, ticket, now?) → { uid, name, role, guest, mp?, jti, exp } or null
+//   loadtestBot(uid) → a load-test bot's made-up player (Phase 7 Step 5: routes/rt.ts — no account: nothing of it is saved)
 // mp (Phase 7 Step 2): what the races need to know of the player, from the API — their rating, their cars (each one's
 // class and performance rating, worked out on the server), who they've blocked, and when they may queue again.
 
@@ -15,6 +16,9 @@ export type MpCar = { instanceId: string; carId: string; name: string; cls: stri
 export type MpClaims = { rating: { mu: number; sigma: number; races: number }; safety?: number; cars: MpCar[]; blocked: string[]; cooldownUntil: number | null;
   friends?: string[]; roam?: { settings: any; ghostUntil: number } | null };   // (Phase 7 Step 4: free roam)
 export type Ticket = { uid: string; name: string; role: string; guest: boolean; mp?: MpClaims; jti: string; exp: number };
+
+export const LOADTEST_PREFIX = 'loadtest-';
+export const loadtestBot = (uid: unknown) => typeof uid === 'string' && uid.startsWith(LOADTEST_PREFIX);
 
 const b64 = (b: Buffer) => b.toString('base64url');
 const mac = (secret: string, body: string) => createHmac('sha256', secret).update(body).digest();

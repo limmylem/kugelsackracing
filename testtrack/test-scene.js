@@ -67,6 +67,7 @@ import { createAudio, remoteCarSound } from './audio.js';
 import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticketGetter } from '../play/multiplayer.js';
 // multiplayer races (Phase 7 Step 2): the session, the race as the game plays it, the screens
 import { createMpSession } from '../mp/client.js';
+import { regionsFor } from '../mp/match.js';
 import { createMpRace } from '../play/mpRace.js';
 import { createMpScreens } from '../play/mpScreens.js';
 import { startRoam } from '../play/roam.js';
@@ -624,7 +625,7 @@ export async function enter(file) {
   shared.renderer.domElement.style.display = 'block';
   shared.last = performance.now();
   if (!shared.looping) { shared.looping = true; requestAnimationFrame(loop); }
-  // (Phase 7: ?mp — this world's room, the other players in it; and races: the menu, lobbies, the queue)
+  // (Phase 7: ?mp, or online by itself — this world's room, the other players in it; and races: the menu, lobbies, the queue)
   if (multiplayerOptions()) { void startMultiplayer(active); void startMpRaces(); }
 }
 
@@ -2268,7 +2269,14 @@ function debugCommands(session) {
 
 // ---------- multiplayer (Phase 7 Step 1: play/multiplayer.js, docs/MULTIPLAYER.md) ----------
 // ?mp joins this world's room (?mp=<name>: that room) with your account (development: ?player=A, a guest of this
-// window's own); F8 shows the network overlay, F9 (development) puts your car beside the nearest other player
+// window's own); online it's on without ?mp (Phase 7 Step 5: play/multiplayer.js multiplayerOptions; ?mp=0 off); F8
+// shows the network overlay, F9 (development) puts your car beside the nearest other player
+
+// (nobody signed in: asked for with ?mp, a warning; on by itself online, a quiet word once — nothing while offline)
+function notSignedIn(o, A) {
+  if (!o.auto) shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players');
+  else if (A?.online && !shared.mpSignInSaid) { shared.mpSignInSaid = true; shared.flash.show('Sign in to play online', 'ok', 3, 'and race the other players'); }
+}
 
 async function startMultiplayer(w) {
   const o = multiplayerOptions();
@@ -2285,7 +2293,7 @@ async function startMultiplayer(w) {
   shared.mpStarting = true;
   try {
     const A = await accountNow();
-    if (!A?.me && !o.player) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
+    if (!A?.me && !o.player) { notSignedIn(o, A); return; }
     shared.mp = await joinMultiplayer({ account: A, world: room, look: mpLook(), adapter: mpAdapter(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug });
     shared.mpRoom = room; shared.mpParts = mpAttach(); shared.mpLookKey = null;
     globalThis.__krMp = shared.mp; globalThis.__krMpWorld = room;   // (the console and the browser tests)
@@ -2318,7 +2326,7 @@ async function startRoamHere(w, o) {
   shared.mpStarting = true;
   try {
     const A = await accountNow();
-    if (!A?.me && !o.player) { shared.flash.show('Not online', 'warn', 4, 'Sign in (or play as a guest) to drive with other players'); return; }
+    if (!A?.me && !o.player) { notSignedIn(o, A); return; }
     // (the hub first: it places you in a zone's instance — with your party and friends — and joins friends)
     await startMpRaces();
     // (already starting — the page's own start of the race screens: wait for it)
@@ -2396,7 +2404,7 @@ async function startMpRaces() {
     const R = createMpRace({ S, game: mpRaceGame(), cfg, quests: shared.session.player.quests.config, autopilot: new URLSearchParams(location.search).has('mpauto') });
     const regions = await bakedRegions();
     const M = createMpScreens({ S, R, cfg, game: {
-      currency: shared.session.db.economy?.currency ?? '$', region: globalThis.KR_SITE?.region ?? cfg.queue.regions[0] ?? 'local',
+      currency: shared.session.db.economy?.currency ?? '$', region: globalThis.KR_SITE?.region ?? regionsFor(cfg.regions, globalThis.KR_SITE?.env)[0]?.id ?? 'local',
       routes: cfg.venues.routes.filter(r => regions.some(x => x.id === r.region)).map(r => ({ id: r.id, name: `${r.name} (${regions.find(x => x.id === r.region)?.name ?? r.region})` })),
       self: () => `You are ${o.player ? `Player ${o.player}` : A?.me?.name ?? 'a guest'}`,
       say: (text, kind) => shared.flash.show(text, kind === 'bad' ? 'warn' : kind === 'info' ? 'ok' : kind, 3),

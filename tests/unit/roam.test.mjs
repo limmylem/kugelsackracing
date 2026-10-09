@@ -260,5 +260,9 @@ test('meets, the map, coming back, regions', () => {
   assert.equal(nameOpacity(10, CFG), 1); assert.equal(nameOpacity(1000, CFG), 0);
   assert.equal(pickRegion({ eu: 40, us: 90 }, CFG), 'eu');
   assert.equal(pickRegion({ eu: 40, us: 70 }, CFG, 'us'), 'us');
+  // (no pings: the environment's first region — data/roam.json regions.list is keyed by environment)
+  assert.equal(pickRegion({}, CFG, null, 'production'), 'au');
+  assert.equal(pickRegion(null, CFG, null, 'development'), 'local');
+  assert.equal(pickRegion({ au: NaN }, CFG), 'local');
   assert.deepEqual(mapPoint([123, 0, 456], CFG), [120, 460]);
 });

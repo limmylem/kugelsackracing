@@ -1,5 +1,5 @@
 // The rollback drill (Phase 6 Step 5; docs/OPERATIONS.md "Rolling back"): a broken release deployed to a staging-like
-// database and rolled back, the way a deploy and Render's rollback do it:
+// database and rolled back, the way a deploy and the rollback workflow do it:
 //   1. version A (this code) serving, with players
 //   2. release B deployed: its migration applied first (additive, as the migrations test makes every one) — a new column
 //      and a new table — then B's server, which has a bug: its garage requests fail (500)
@@ -79,6 +79,6 @@ try {
 
 const ok = steps.every(s => s.ok);
 fs.mkdirSync(path.join(REPO_DIR, 'reports'), { recursive: true });
-fs.writeFileSync(path.join(REPO_DIR, 'reports/rollback-test.md'), `# Rollback drill\n\n${new Date().toISOString()} · ${ok ? '**passed**' : '**FAILED**'}\n\nA broken release (an additive migration, and a bug failing every garage request) deployed to a staging-like database, caught by the server-errors alert, and rolled back to the previous version on the newer schema (server/tools/rollback-test.ts).\n\n${steps.map(s => `- ${s.ok ? '✔' : '✖'} ${s.step}${s.note ? ` — ${s.note}` : ''}`).join('\n')}\n\nOnline, "rolled back" is one click (Render → Events → the previous deploy → Rollback) or the rollback workflow; docs/OPERATIONS.md.\n`);
+fs.writeFileSync(path.join(REPO_DIR, 'reports/rollback-test.md'), `# Rollback drill\n\n${new Date().toISOString()} · ${ok ? '**passed**' : '**FAILED**'}\n\nA broken release (an additive migration, and a bug failing every garage request) deployed to a staging-like database, caught by the server-errors alert, and rolled back to the previous version on the newer schema (server/tools/rollback-test.ts).\n\n${steps.map(s => `- ${s.ok ? '✔' : '✖'} ${s.step}${s.note ? ` — ${s.note}` : ''}`).join('\n')}\n\nOnline: Actions → rollback → the commit (docs/DEPLOYMENT.md "Rolling back").\n`);
 console.log(ok ? '\nRollback drill passed.' : '\nRollback drill FAILED.');
 process.exit(ok ? 0 : 1);

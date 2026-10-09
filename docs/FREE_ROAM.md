@@ -71,8 +71,10 @@ The point: no loading screen, no hitch, no jump, nothing lost — at any speed.
   for how often the car is sent: a car beyond 700 m comes a few times a second (Step 1's interest rings).
 - **A lost zone connection is joined again.** If a zone closes the connection (a network drop it can't come back from, a
   server restart, nothing heard for `NET.idleSec`) or a join fails or doesn't answer in 20 s, the game joins that zone
-  again while the car is in it: after 1 s, doubling to 30 s. A ban, the same account joining elsewhere, or an old game
-  version stays offline.
+  again while the car is in it: after 1 s, doubling to 30 s, with a fresh join ticket each time. While the real-time
+  server is restarting (an update, a crash: CLOSED, Colyseus's 4001) the game says so ("The game server is restarting.
+  Reconnecting…") until it's back (Phase 7 Step 5; `server/tools/rt-crash-test.ts`). A ban, the same account joining
+  elsewhere, an old game version, or the API refusing the ticket (signed out, the terms) stays offline.
 - **Nothing lost**: the car's look and damage are sent to each zone it joins; its settings, party and auto-ghost go with
   it; a challenge stays in the zone it started in until it's over (the game keeps that zone joined, wherever it drives).
 - **Fading at the edge.** A car that comes into view from a zone this player isn't in fades in over half a second, and
@@ -197,8 +199,9 @@ game says why. The car's damage is the economy's (Phase 6: the car's own state),
 ## Hosting cost per 1,000 free roam players
 
 Mostly bandwidth, and that depends on how crowded the world is: a player's download grows with the cars within 1.5 km.
-At `data/roam.json` `costs` (Render Standard, about $25 a month a core; Render Key Value about $10; bandwidth past the
-included amount about $0.15 a GB — *check* each before paying):
+At `data/roam.json` `costs` (a managed host's rates: about $25 a month a core, a managed Redis about $10, bandwidth past the
+included amount about $0.15 a GB — *check* each before paying; online it all runs on the one OVHcloud VPS, traffic
+unmetered and no Redis — docs/COSTS.md):
 
 | | download a player | 1,000 monthly active (20 h a month each, 10% on at once) | 1,000 on at once, all month |
 |---|---|---|---|

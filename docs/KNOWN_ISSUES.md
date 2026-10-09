@@ -268,13 +268,9 @@ two-browser test, the first to open the proving ground in a browser since then.
 
 ### On free plans: sleeping servers, short database history
 
-Everything runs on free plans while it's one person testing (docs/DEPLOYMENT.md "Free plans: what to watch").
-- **The API sleeps** after 15 minutes without a visit and takes about a minute to wake.
-- **Database history:** Neon keeps 6 hours of it to restore from. The daily backup covers the rest, so at worst a
-  day's progress is lost.
-- **Email:** at most 100 a day.
-
-**Upgrade before Phase 7's multiplayer testing or before inviting beta testers.**
+Done in Phase 7 Step 5: the server is an OVHcloud VPS (always on — nothing sleeps) and the database PlanetScale
+Postgres PS-5 (its own backups, besides the nightly encrypted one). Still on a free plan: **email** (Resend: at most
+100 a day — plenty for friends testing; docs/COSTS.md).
 
 ### Not yet checked online: the inbox test and the ping from Australia
 
@@ -308,7 +304,7 @@ Everything goes through correctly, and the books balance afterwards. But the slo
 At a person's pace (the default: arriving over 20 s, 5–20 s between actions) every action's p95 is under
 about 100 ms. The game shows each change at once, so only the confirmation waits.
 
-Render's free plan has a fraction of one CPU, so its limits are much lower. Before there are that many
+The server online (an OVHcloud VPS-1: 2 vCores, shared by the API and the real-time server) holds fewer. Before there are that many
 players:
 - a paid instance with more cores;
 - faster build checks: a cache of the car's stats for a build already worked out
@@ -318,7 +314,7 @@ players:
 
 Another tab's or device's changes come through the server's events (`GET /player/events`), which are
 sent by the process that made the change. With more than one server process, they'd need passing between
-them (PostgreSQL's `LISTEN`/`NOTIFY`). Render's free plan runs one process, so this doesn't happen yet.
+them (PostgreSQL's `LISTEN`/`NOTIFY`). Online the API is one process (the VPS), so this doesn't happen yet.
 Nothing goes wrong without it: each action is checked against the database, and the game catches up on
 its next action or reload.
 
@@ -344,7 +340,7 @@ them. Nothing fails, and the content comes back at a p95 of about 180 ms. But si
   CPU), so about 35 a second fit, and the burst queues behind them.
 - **Afterwards:** requests that land just as all those sign-ins finish wait too (`/me` at a p95 of about
   8 s).
-- **Render's free plan:** it has a fraction of one CPU, so a burst like this would take minutes.
+- **The server online (2 vCores):** about half as fast, so a burst like this would take about half a minute.
 
 Players stay signed in for 30 days, so it's only a burst of fresh sign-ins that queues. Before there are
 that many players:
@@ -392,11 +388,10 @@ Run on this computer. Everything passes except three suites that fail **the same
 
 The game never asks for that much at once. The editor's map asks by tiles, which are cached and small.
 
-### Free hosting sleeps
+### Free hosting sleeps (no longer)
 
-Render's free web services sleep after 15 minutes without a visit. The first request after that waits
-about a minute, and the game's chip says "Waking the server…" and keeps retrying. Neon's free databases
-also pause when idle, and wake in a second or so.
+Since Phase 7 Step 5 nothing sleeps (an always-on VPS, a PlanetScale database). The game's chip still says "Waking the
+server…" and keeps retrying when the API doesn't answer — now only during an update or a restart.
 
 ### Not verified here: the Docker image and the browser's Sentry
 

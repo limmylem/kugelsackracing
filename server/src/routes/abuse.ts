@@ -7,8 +7,12 @@
 //   GET  /admin/flags?status              accounts flagged by the abuse scan (abuse/detect.ts), highest score first
 //   POST /admin/flags/:id                 { status: dismissed | actioned, note } — logged
 //   POST /admin/abuse/scan                the scan now (it runs every hour by itself)
+// The real-time server's (RT_SECRET in x-kr-internal; Phase 7 Step 5):
+//   POST /internal/mp/flags               { key, kind: live-checks, uid, reasons, strikes, room, world, raceId?, phase? } a
+//                                         player whose game kept sending car movement it couldn't accept: flagged, not kicked
 // Nothing here bans anyone by itself: an admin decides, and says why.
 
+import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -20,7 +24,7 @@ import type { Guards, RequestSession } from '../session.ts';
 import { AppError, notFound } from '../errors.ts';
 import { auditLog } from '../db/schema.ts';
 import { randomTag } from '../names.ts';
-import { scanForAbuse, maskIp, type AbuseRules } from '../abuse/detect.ts';
+import { scanForAbuse, maskIp, flagForReview, type AbuseRules } from '../abuse/detect.ts';
 import { fileReport, REPORT_KINDS } from '../abuse/reports.ts';
 
 export { REPORT_KINDS };
@@ -34,7 +38,7 @@ const Resolve = z.object({ action: z.enum(['dismiss', 'warn', 'rename', 'suspend
 const Review = z.object({ status: z.enum(['dismissed', 'actioned']), note: Reason }).strict();
 const Status = z.object({ status: z.enum(['open', 'resolved', 'dismissed', 'actioned', 'all']).default('open'), limit: z.coerce.number().int().min(1).max(200).default(50) });
 
-export async function abuseRoutes(app0: FastifyInstance, { db, auth, G, rules }: { db: Db; auth: Auth; G: Guards; rules: AbuseRules }) {
+export async function abuseRoutes(app0: FastifyInstance, { db, auth, G, rules, rtSecret }: { db: Db; auth: Auth; G: Guards; rules: AbuseRules; rtSecret: string }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const admin = G.requireRole('admin');
   const log = (s: NonNullable<RequestSession>, action: string, targetId: string | null, reason: string | null, details: object = {}) => db.insert(auditLog).values({ actorId: s.user.id, action, targetId, reason, details });
@@ -110,5 +114,23 @@ export async function abuseRoutes(app0: FastifyInstance, { db, auth, G, rules }:
   app.post('/admin/abuse/scan', { config: { role: 'admin' } }, async req => {
     await admin(req);
     return { ok: true as const, ...(await scanForAbuse(db, rules)) };
+  });
+
+  // ---------- the real-time server's flags ----------
+  const secret = Buffer.from(rtSecret);
+  const LiveFlag = z.object({
+    key: z.string().min(1).max(200), kind: z.literal('live-checks'), uid: z.string().min(1).max(80), reasons: z.record(z.string().max(60), z.number()).default({}),
+    strikes: z.number().int().min(0).max(1e6).optional(), room: z.string().max(80).optional(), world: z.string().max(80).optional(), raceId: z.string().max(120).nullable().optional(), phase: z.string().max(20).nullable().optional(),
+  });
+  // (its key checked before the body is: nobody else learns what it takes)
+  const internal = async (req: { headers: Record<string, unknown> }) => {
+    const got = Buffer.from(String(req.headers['x-kr-internal'] ?? ''));
+    if (got.length !== secret.length || !timingSafeEqual(got, secret)) throw new AppError(403, 'FORBIDDEN', 'Not for you.');
+  };
+  app.post('/internal/mp/flags', { config: { csrf: false, idempotent: false } as any, preValidation: internal, schema: { body: LiveFlag } }, async req => {
+    const b = req.body, n = Object.values(b.reasons).reduce((a, x) => a + x, 0);
+    // (more dropped states, a higher score: a bug in the game's physics shows as a few; a modified game as many)
+    return flagForReview(db, { kind: 'live-checks', key: b.key, userIds: [b.uid], score: Math.min(80, 30 + Math.round(n / 10)),
+      evidence: { reasons: b.reasons, strikes: n, room: b.room ?? null, world: b.world ?? null, raceId: b.raceId ?? null, phase: b.phase ?? null } });
   });
 }

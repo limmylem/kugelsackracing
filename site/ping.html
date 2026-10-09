@@ -12,36 +12,33 @@
 </style>
 </head>
 <body>
-<!-- The real-time server's connection check (docs/DEPLOYMENT.md "Real time"): 20 WebSocket pings from this browser
-     to rt.<domain> and the round trips' times — through Cloudflare or straight to the host, whichever rt is set to. -->
+<!-- The real-time server's connection check (docs/DEPLOYMENT.md "Real time"): 20 requests from this browser to
+     rt.<domain>/health and the round trips' times — through Cloudflare and the tunnel. -->
 <h1>Connection check</h1>
-<p>Sends 20 pings to the game's real-time server and shows how long each round trip takes from here.</p>
+<p>Sends 20 requests to the game's real-time server and shows how long each round trip takes from here.</p>
 <button id="go">Check</button>
 <pre id="out"></pre>
 <script type="module">
 const out = document.getElementById('out'), say = t => { out.textContent += `${t}\n`; };
-document.getElementById('go').onclick = () => {
+document.getElementById('go').onclick = async () => {
   out.textContent = '';
   const rt = globalThis.KR_SITE?.rt;
   if (!rt) { say('No real-time server is set for this page.'); return; }
-  say(`Connecting to ${rt}/rt/health …`);
-  const ws = new WebSocket(`${rt}/rt/health`), times = [];
-  let n = 0, t0 = 0, opened = performance.now();
-  const ping = () => { t0 = performance.now(); ws.send(JSON.stringify({ type: 'ping', t: n })); };
-  ws.onopen = () => { say(`Connected in ${Math.round(performance.now() - opened)} ms.`); ping(); };
-  ws.onmessage = e => {
-    const m = JSON.parse(e.data);
-    if (m.type !== 'pong' || m.t !== n) return;
+  const url = `${rt.replace(/^ws(s?):/, 'http$1:').replace(/\/$/, '')}/health`, times = [];
+  say(`Asking ${url} …`);
+  // (the first one opens the connection, and says what the server is if it lets this page read it; then 20 timed)
+  let mode = 'cors';
+  try { const h = await (await fetch(url, { cache: 'no-store' })).json(); say(h.ok ? `The server is up (version ${String(h.version ?? '?').slice(0, 7)}${h.draining ? ', restarting' : ''}).` : 'The server answered, but not ok.'); }
+  catch { mode = 'no-cors'; }
+  for (let n = 0; n < 20; n++) {
+    const t0 = performance.now();
+    try { await fetch(`${url}?n=${n}`, { cache: 'no-store', mode }); }
+    catch { say(times.length ? `Stopped after ${times.length}: the server didn't answer.` : 'The server didn\'t answer: it may be restarting (an update takes under a minute). Try again.'); if (!times.length) return; break; }
     times.push(performance.now() - t0);
-    if (++n < 20) setTimeout(ping, 100);
-    else {
-      ws.close();
-      const s = [...times].sort((a, b) => a - b);
-      say(`20 round trips: median ${s[10].toFixed(0)} ms, best ${s[0].toFixed(0)} ms, worst ${s[19].toFixed(0)} ms.`);
-    }
-  };
-  ws.onclose = e => { if (n < 20) say(`Closed early (${e.code}${e.reason ? `: ${e.reason}` : ''}). A server asleep takes about a minute to wake: try again.`); };
-  ws.onerror = () => say('The connection failed.');
+    await new Promise(r => setTimeout(r, 100));
+  }
+  const s = [...times].sort((a, b) => a - b), k = s.length;
+  say(`${k} round trips: median ${s[k >> 1].toFixed(0)} ms, best ${s[0].toFixed(0)} ms, worst ${s[k - 1].toFixed(0)} ms.`);
 };
 </script>
 </body>

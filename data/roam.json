@@ -14,8 +14,8 @@
     "mapPrecisionM": 10
   },
   "regions": {
-    "_note": "Server regions (where zone servers run). A player connects to the nearest one with a good ping: the lowest measured ping, unless one within preferWithinMs of it is the region of their friends or party. goodPingMs: above this the game warns that free roam may feel laggy.",
-    "list": [{ "id": "local", "name": "This computer" }],
+    "_note": "Server regions (where zone servers run), by environment as data/multiplayer.json regions (APP_ENV, the site's env in the game; else the default: mp/match.js regionsFor) — online one, in Sydney (Phase 7 Step 5). A player connects to the nearest one with a good ping: the lowest measured ping, unless one within preferWithinMs of it is the region of their friends or party. goodPingMs: above this the game warns that free roam may feel laggy.",
+    "list": { "production": [{ "id": "au", "name": "Australia (Sydney)" }], "default": [{ "id": "local", "name": "This computer" }] },
     "preferWithinMs": 40,
     "goodPingMs": 150
   },
@@ -114,7 +114,7 @@
     "keepDays": 90
   },
   "costs": {
-    "_note": "Hosting cost per 1,000 free roam players (docs/COSTS.md; server/src/roam/service.ts costPer1000), from what the bot swarm measured per player (download, CPU), at these prices — check each pricing page before paying. Zone servers on instances of coresPerInstance cores at instanceMonthly a month (Render Standard: 1 CPU, 2 GB, about $25, check), each kept below coreTarget of its CPU; bandwidth beyond includedGB a month per instance at perGB (check); Redis (Render Key Value Starter, about $10, check). Two views: 1,000 monthly active players (each hoursPerPlayerMonth hours in free roam, peakShare of them on at once in the evening) and 1,000 on at once all month (the worst case). assumed: per player before anything's measured.",
+    "_note": "Hosting cost per 1,000 free roam players (docs/COSTS.md; server/src/roam/service.ts costPer1000), from what the bot swarm measured per player (download, CPU), at these prices — check each pricing page before paying. Zone servers on instances of coresPerInstance cores at instanceMonthly a month (a managed host's rate, about $25 a core, check), each kept below coreTarget of its CPU; bandwidth beyond includedGB a month per instance at perGB (check); Redis at redisMonthly (a managed one, check). Online (Phase 7 Step 5) it all runs on the one OVHcloud VPS in Sydney with the API (a fixed monthly price, its traffic unmetered: check), with no Redis — one real-time process — so these are what growing past it would cost, not today's bill (docs/COSTS.md). Two views: 1,000 monthly active players (each hoursPerPlayerMonth hours in free roam, peakShare of them on at once in the evening) and 1,000 on at once all month (the worst case). assumed: per player before anything's measured.",
     "coresPerInstance": 1,
     "coreTarget": 0.6,
     "instanceMonthly": 25,

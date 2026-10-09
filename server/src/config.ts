@@ -44,6 +44,9 @@ const FileConfig = z.object({
   // lasts, how many players (in all its processes) and a room take, whether the network simulator may be used, and
   // (development and tests only) whether a window may play as its own guest with ?player=A (two windows, one browser)
   rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), devPlayers: z.boolean() }),
+  // (Phase 7 Step 5) a result that fails its check — a race's run, a free-roam challenge: 'flag' keeps the result (paid
+  // as normal) and flags it for an admin to review; 'disqualify' takes it away (DSQ, nothing paid). Nothing bans by itself
+  antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
     reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
@@ -82,13 +85,16 @@ const Env = z.object({
   ALERT_WEBHOOK_URL: optional,
   // an external monitor reading /api/v1/metrics sends this as a bearer token (empty: that endpoint is off)
   METRICS_TOKEN: optional,
+  // (Phase 7 Step 5) the load test's bots (server/tools/online-bots.ts) send this in x-kr-loadtest for join tickets of their
+  // own: guests made up for the test, no account (empty: off)
+  LOADTEST_TOKEN: optional,
   // (Phase 7) the real-time server: the secret its join tickets are signed with (shared by the API and it; in
   // development and tests made from BETTER_AUTH_SECRET), and Redis (its presence; bans reach it through Redis)
   RT_SECRET: optional,
   REDIS_URL: optional,
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-  // (Render says which commit it deployed in RENDER_GIT_COMMIT: the health check reports it, and the deploy waits for it)
-  GIT_COMMIT: z.string().default(process.env.RENDER_GIT_COMMIT ?? 'dev'),
+  // (the commit the image was built from — the deploy sets it: the health check reports it, and the deploy waits for it)
+  GIT_COMMIT: z.string().default('dev'),
 });
 
 export type Config = ReturnType<typeof loadConfig>;
@@ -118,6 +124,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const gameUrl = url('GAME_URL', E.GAME_URL) ?? publicUrl, tilesUrl = url('TILES_URL', E.TILES_URL), rtUrl = url('RT_URL', E.RT_URL);
   if (f.data.botCheck.required && !(E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY)) throw new Error('The bot check is required here: set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY (docs/ABUSE.md)');
   if (E.EDGE_SECRET && E.EDGE_SECRET.length < 24) throw new Error('EDGE_SECRET must be at least 24 characters (openssl rand -hex 24)');
+  if (E.LOADTEST_TOKEN && E.LOADTEST_TOKEN.length < 32) throw new Error('LOADTEST_TOKEN must be at least 32 characters (openssl rand -hex 32)');
   if (E.RT_SECRET && E.RT_SECRET.length < 32) throw new Error('RT_SECRET must be at least 32 characters (openssl rand -base64 32)');
   if ((E.APP_ENV === 'staging' || E.APP_ENV === 'production') && rtUrl && !E.RT_SECRET) throw new Error('RT_SECRET is needed with RT_URL in staging and production (the real-time server\'s join tickets)');
   const origins = [new URL(publicUrl).origin, new URL(gameUrl).origin, ...(E.TRUSTED_ORIGINS ? E.TRUSTED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : [])];
@@ -133,6 +140,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     turnstile: E.TURNSTILE_SITE_KEY && E.TURNSTILE_SECRET_KEY ? { siteKey: E.TURNSTILE_SITE_KEY, secret: E.TURNSTILE_SECRET_KEY } : null,
     rtSecret: rtSecretOf(E.RT_SECRET, E.BETTER_AUTH_SECRET), redisUrl: E.REDIS_URL,
     alertEmail: E.ALERT_EMAIL, alertWebhook: E.ALERT_WEBHOOK_URL, metricsToken: E.METRICS_TOKEN,
+    loadtestToken: E.LOADTEST_TOKEN ?? null,
     ...f.data,
   };
 }

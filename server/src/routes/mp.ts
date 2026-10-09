@@ -4,6 +4,8 @@
 //   POST   /friends/:id/accept · DELETE /friends/:id     accept a request · remove a friend (or a request)
 //   POST   /blocks { id } · DELETE /blocks/:id           block a player (ends a friendship) · unblock
 //   GET    /mp/me                        your tier, races, wins and any queue cooldown
+//   GET    /mp/recent-players            the last ~20 players you raced or met in a free-roam challenge, newest first, and
+//                                        where you stand as friends (Phase 7 Step 5: mp/recent.ts)
 //   GET    /mp/races/:id                 a race's results: provisional, then confirmed (pay, rank changes)
 //   GET    /mp/leaderboard               the best-rated players (tiers, not numbers)
 //   GET    /admin/mp/dashboard           the queue: times and match quality against the targets (admins)
@@ -28,8 +30,10 @@ import { z } from '@kr/shared';
 import type { Config } from '../config.ts';
 import type { Guards } from '../session.ts';
 import { AppError } from '../errors.ts';
+import type { Db } from '../db/index.ts';
+import { recentPlayers } from '../mp/recent.ts';
 
-export async function mpRoutes(api: FastifyInstance, { config, G, mp }: { config: Config; G: Guards; mp: any }) {
+export async function mpRoutes(api: FastifyInstance, { config, G, mp, db }: { config: Config; G: Guards; mp: any; db: Db }) {
   const app = api.withTypeProvider<ZodTypeProvider>();
   const Id = z.object({ id: z.string().min(1).max(80) });
 
@@ -45,6 +49,7 @@ export async function mpRoutes(api: FastifyInstance, { config, G, mp }: { config
   app.post('/blocks', { schema: { body: Id.strict() } }, async req => { const s = await G.requireTerms(req); return mp.block(s.user.id, req.body.id); });
   app.delete('/blocks/:id', { schema: { params: Id } }, async req => { const s = await G.requireTerms(req); return mp.unblock(s.user.id, req.params.id); });
   app.get('/mp/me', async req => { const s = await G.requireTerms(req); return mp.me(s.user.id); });
+  app.get('/mp/recent-players', async (req, reply) => { const s = await G.requireTerms(req); reply.header('cache-control', 'no-store'); return { players: s.user.isAnonymous ? [] : await recentPlayers(db, s.user.id) }; });
   app.get('/mp/races/:id', { schema: { params: Id } }, async req => { await G.requireUser(req); return mp.raceView(req.params.id); });
   app.get('/mp/leaderboard', async () => ({ players: await mp.leaderboard(50) }));
   app.get('/admin/mp/dashboard', { config: { role: 'admin' } }, async () => mp.dashboard());

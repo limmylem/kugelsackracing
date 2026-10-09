@@ -96,7 +96,8 @@ If a secret ever leaks (the scan finds one, a laptop is lost, someone leaves):
    - `EDGE_SECRET`: `openssl rand -hex 24`.
    - `BACKUP_PASSPHRASE`.
    - OAuth client secrets, Resend and Sentry: in each provider's dashboard.
-2. **Put it in Render's environment** (and the Cloudflare rule for `EDGE_SECRET`), then redeploy.
+2. **Put it in GitHub's secrets** (Settings → Secrets and variables → Actions; and the Cloudflare rule for `EDGE_SECRET`), then
+   run the `deploy` workflow: it writes the server's `.env` from them (docs/DEPLOYMENT.md).
    - Changing `BETTER_AUTH_SECRET` signs everyone out, and makes the two-factor secrets unreadable: editors and admins turn two-factor sign-in on again.
 3. **Revoke the old one** at the provider.
 4. If it was committed: removing it from the history doesn't make it safe. Rotate it first; history rewrites are optional.

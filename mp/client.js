@@ -6,7 +6,7 @@
 //     getTicket() → { ticket, url }: a fresh one each join (they're used once)
 //   await S.hub()                  the hub: S.friends, S.requests { incoming, outgoing }, S.party; events 'friends' 'invite' 'party'
 //                                  'party-invite' 'goto' 'notice' — S.hubSend({ t: 'friend-add', name }) and the like (server/src/rt/hub.ts)
-//   await S.queue({ region, pings, car, party })   the quick-race queue: 'queued' 'npc-offer' then 'matched' — and the race joined by itself
+//   await S.queue({ region, pings, car, party })   the quick-race queue: 'queued' then 'matched' (NPCs fill the empty places after npcFillSec) — and the race joined by itself
 //   S.acceptNpcs(yes)  S.leaveQueue()
 //   await S.createLobby({ kind: 'private' | 'custom', settings })    await S.joinLobby(roomId, { spectate })    await S.joinCode(code)
 //   S.race: the lobby/race joined — S.race.net (net/client.js: cars), S.lobby (its latest view), S.chat, S.standings, S.results, S.confirmed
@@ -16,17 +16,64 @@
 //   S.mute(uid, on)   a player's chat hidden here (this game's choice: kept by the screens, nothing sent); S.muted
 //   S.me (this player in the lobby's view)  S.isHost  S.votes (the rematch vote: { yes, of })
 //   events: 'lobby' 'chat' 'phase' 'load' 'event' 'standings' 'results' 'confirmed' 'verdict' 'votes' 'notice' 'left' (and the hub's and queue's)
+// (Phase 7 Step 5) the server restarting — an update, a crash: a race or lobby lost for good says so in a notice (and its
+// 'left' has nothing more to say); the queue's 'queue-left' carries a message; the hub joins again by itself, with a
+// fresh ticket, waiting longer each time (NET.rejoin) — 'hub-back' — unless it was closed for good (banned, another tab,
+// an old game, signed out, S.close()).
 
 import { createNetClient } from '../net/client.js';
-import { PROTOCOL } from '../net/protocol.js';
+import { PROTOCOL, CODES, messageFor } from '../net/protocol.js';
+import { NET } from '../net/settings.js';
 
 // (leaving a room that's already gone — kicked, closed — never answers: give up waiting after a moment)
 const settle = (p, ms = 2000) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise(r => setTimeout(r, ms))]);
+// (a connection gone because the server went: closed for an update (CLOSED), shut down (Colyseus's 4001), or reconnecting
+// gave up (4003) — the server it was on isn't there any more)
+const GONE = new Set([CODES.CLOSED, 4001, 4003]);
+// (the hub closed for good, or no ticket for it — signed out, banned, an old game: not joined again)
+const FINAL = new Set([4000, 1000, CODES.BANNED, CODES.ELSEWHERE, CODES.VERSION, CODES.KICKED, CODES.TICKET, CODES.GUESTS, 'BANNED', 'UNAUTHENTICATED', 'TERMS_REQUIRED', 'FORBIDDEN', 'CLIENT_TOO_OLD']);
+const RESTARTED = {
+  race: 'The race server restarted, so this race was called off. Nothing was lost.',
+  lobby: 'The race server restarted, so the lobby closed. Nothing was lost.',
+  queue: 'The race server is restarting, so you left the queue. Nothing was lost: queue again in a minute.',
+};
 
 export function createMpSession({ transport, endpoint = null, getTicket, look = null, now = () => performance.now(), netsim = null, serverNetsim = null }) {
   const listeners = new Map();
   const emit = (k, v) => { for (const f of listeners.get(k) ?? []) { try { f(v); } catch (e) { console.warn(e); } } };
-  let hub = null, queue = null, race = null, codeWait = null;
+  let hub = null, queue = null, race = null, codeWait = null, hubState = 'menu', hubRetry = null, hubJoining = null, stopped = false;
+  const say = text => { S.notices.push(text); if (S.notices.length > 50) S.notices.shift(); emit('notice', text); };
+  // the hub joined again after the server went: a fresh ticket each try (S.hub), waiting longer each time
+  const rejoinHub = (n = 0) => {
+    if (stopped || hub || hubRetry) return;
+    const ms = Math.min(NET.rejoin.maxMs, NET.rejoin.firstMs * 2 ** n) * (0.8 + Math.random() * 0.4);
+    hubRetry = setTimeout(async () => {
+      hubRetry = null;
+      if (stopped || hub) return;
+      try { await joinHub(hubState); emit('hub-back', {}); }
+      catch (e) { if (FINAL.has(e?.code)) emit('hub-left', { code: e.code, reason: e.message }); else rejoinHub(n + 1); }
+    }, ms);
+    hubRetry.unref?.();
+  };
+  // (one join at a time: asked again meanwhile, the same one)
+  const joinHub = state => hub ? Promise.resolve(hub) : (hubJoining ??= openHub(state).finally(() => { hubJoining = null; }));
+  async function openHub(state) {
+    const t = await getTicket();
+    const h = await transport.join(endpoint ?? t.url, 'hub', { ticket: t.ticket, protocol: PROTOCOL, state });
+    hub = h;
+    hub.onJson(m => {
+      if (codeWait && m.t === 'goto') return codeWait.res(m.roomId);
+      if (codeWait && m.t === 'notice') return codeWait.rej(new Error(m.text));
+      if (m.t === 'hello') { S.friends = m.friends; S.requests = { incoming: m.incoming ?? [], outgoing: m.outgoing ?? [] }; S.party = m.party; emit('friends', S.friends); }
+      if (m.t === 'friends') { S.friends = m.list; S.requests = { incoming: m.incoming ?? [], outgoing: m.outgoing ?? [] }; emit('friends', S.friends); }
+      if (m.t === 'party') { S.party = m.party; emit('party', S.party); }
+      if (m.t === 'party-queue') emit('party-queue', m);
+      if (m.t === 'notice') say(m.text);
+      if (['invite', 'party-invite', 'goto', 'lobbies', 'pong', 'roam-place', 'roam-goto', 'chat'].includes(m.t)) emit(m.t, m);   // (Phase 7 Step 4: free roam's placing, joining a friend, party chat)
+    });
+    hub.onStatus((s, info) => { if (s === 'left' && hub === h) { hub = null; emit('hub-left', info); if (!FINAL.has(info?.code)) rejoinHub(); } });
+    return hub;
+  }
   const S = {
     friends: [], requests: { incoming: [], outgoing: [] }, party: null, lobby: null, myUid: null, muted: new Set(), votes: null,
     mute(uid, on = true) { if (on) S.muted.add(uid); else S.muted.delete(uid); S.chat = S.chat.filter(m => !S.muted.has(m.uid)); emit('chat-log', S.chat); }, chat: [], standings: null, results: null, confirmed: null, verdict: null, raceId: null, venue: null, phase: null, goAt: null, notices: [],
@@ -35,24 +82,12 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
     // (this player in the lobby's view, and whether they're its host)
     get me() { return S.lobby?.players.find(p => p.uid === S.myUid) ?? null; }, get isHost() { return !!S.lobby && S.lobby.host === S.myUid && S.lobby.kind !== 'quick'; },
 
-    async hub(state = 'menu') {
-      if (hub) return hub;
-      const t = await getTicket();
-      hub = await transport.join(endpoint ?? t.url, 'hub', { ticket: t.ticket, protocol: PROTOCOL, state });
-      hub.onJson(m => {
-        if (codeWait && m.t === 'goto') return codeWait.res(m.roomId);
-        if (codeWait && m.t === 'notice') return codeWait.rej(new Error(m.text));
-        if (m.t === 'hello') { S.friends = m.friends; S.requests = { incoming: m.incoming ?? [], outgoing: m.outgoing ?? [] }; S.party = m.party; emit('friends', S.friends); }
-        if (m.t === 'friends') { S.friends = m.list; S.requests = { incoming: m.incoming ?? [], outgoing: m.outgoing ?? [] }; emit('friends', S.friends); }
-        if (m.t === 'party') { S.party = m.party; emit('party', S.party); }
-        if (m.t === 'party-queue') emit('party-queue', m);
-        if (m.t === 'notice') { S.notices.push(m.text); emit('notice', m.text); }
-        if (['invite', 'party-invite', 'goto', 'lobbies', 'pong', 'roam-place', 'roam-goto', 'chat'].includes(m.t)) emit(m.t, m);   // (Phase 7 Step 4: free roam's placing, joining a friend, party chat)
-      });
-      hub.onStatus((s, info) => { if (s === 'left') { hub = null; emit('hub-left', info); } });
-      return hub;
+    async hub(state) {
+      stopped = false;
+      if (state) hubState = state;
+      return joinHub(hubState);
     },
-    hubSend(m) { hub?.sendJson(m); },
+    hubSend(m) { if (m?.t === 'status' && typeof m.state === 'string') hubState = m.state; hub?.sendJson(m); },
     // (the round trip to the real-time server, ms: the queue matches players by it)
     async ping() { await S.hub(); const id = Math.random().toString(36).slice(2), t0 = now(); return new Promise(res => { const off = S.on('pong', m => { if (m.id === id) { off(); res(Math.round(now() - t0)); } }); S.hubSend({ t: 'ping', id }); setTimeout(() => { off(); res(null); }, 3000); }); },
     lobbies() { return new Promise(res => { const off = S.on('lobbies', m => { off(); res(m.list); }); S.hubSend({ t: 'lobbies' }); setTimeout(() => { off(); res([]); }, 5000); }); },
@@ -61,11 +96,10 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       if (queue) return queue;
       const t = await getTicket();
       const url = endpoint ?? t.url;
-      try { queue = await transport.join(url, 'queue', { ticket: t.ticket, protocol: PROTOCOL, region, pings, car, party }); }
-      catch (e) { emit('notice', e.message); throw e; }
+      // (refused — the server restarting, a cooldown: the caller says why, once)
+      queue = await transport.join(url, 'queue', { ticket: t.ticket, protocol: PROTOCOL, region, pings, car, party });
       queue.onJson(async m => {
         if (m.t === 'queued') emit('queued', m);
-        if (m.t === 'npc-offer') emit('npc-offer', m);
         if (m.t === 'matched') {
           emit('matched', m);
           const q = queue; queue = null;
@@ -74,7 +108,8 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
           void settle(q?.leave());
         }
       });
-      queue.onStatus((s, info) => { if (s === 'left' && queue) { queue = null; emit('queue-left', info); } });
+      // (closed by the server: why, for the screens — the server restarting said plainly)
+      queue.onStatus((s, info) => { if (s === 'left' && queue) { queue = null; emit('queue-left', { ...info, message: info?.code === 4000 || info?.code === 1000 ? '' : GONE.has(info?.code) ? RESTARTED.queue : messageFor(info?.code, info?.reason || 'Disconnected from the game server.') }); } });
       return queue;
     },
     acceptNpcs(yes = true) { queue?.sendJson({ t: 'npc', yes }); },
@@ -111,7 +146,13 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       }, 500);
       race = { net, id: net.conn.roomId, keep };
       net.conn.onJson(m => onRace(m));
-      net.on('status', st => { if (st.status === 'offline') emit('left', st); emit('race-status', st); });
+      // (lost for good because the server went: a notice says so — the race called off, or the lobby closed — and 'left'
+      // has nothing more to say)
+      net.on('status', st => {
+        if (st.status === 'offline' && race?.net === net && GONE.has(st.code)) { say(['loading', 'countdown', 'racing'].includes(S.phase) ? RESTARTED.race : RESTARTED.lobby); emit('left', { ...st, message: '', restarted: true }); }
+        else if (st.status === 'offline') emit('left', st);
+        emit('race-status', st);
+      });
       return race;
     },
     send(m) { race?.net.conn?.sendJson(m); },
@@ -126,7 +167,7 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       S.send({ t: 'run', result, recording: rec, ...(ctext ? contactParts ? { contactParts } : { contact: ctext } : {}) });
     },
     async leaveRace() { const r = race; race = null; clearInterval(r?.keep); Object.assign(S, { lobby: null, phase: null, goAt: null, standings: null, results: null, confirmed: null, verdict: null, votes: null, raceId: null, venue: null, chat: [] }); await settle(r?.net.leave()); },
-    async close() { await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await settle(h?.leave()); },
+    async close() { stopped = true; clearTimeout(hubRetry); hubRetry = null; await S.leaveQueue(); await S.leaveRace(); const h = hub; hub = null; await settle(h?.leave()); },
   };
   function onRace(m) {
     switch (m.t) {
@@ -139,7 +180,8 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       case 'results': S.results = m; S.raceId = m.raceId; S.phase = 'results'; break;
       case 'confirmed': S.confirmed = m.race; break;
       case 'verdict': S.verdict = m.verdict; break;
-      case 'notice': S.notices.push(m.text); if (S.notices.length > 50) S.notices.shift(); break;
+      // (its text, as the hub's: the screens show it)
+      case 'notice': say(m.text); return;
       case 'votes': S.votes = m; break;
     }
     emit(m.t, m);

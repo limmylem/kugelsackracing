@@ -1,6 +1,8 @@
 // Multiplayer's real-time server (Phase 7 Step 1; docs/MULTIPLAYER.md), with real sockets and Redis: join tickets
 // from the API, joins refused with clear reasons (version, ticket, ban, guests, full), bans and second logins reaching
-// players already in a room, the live checks, interest management, reconnecting, and the clock.
+// players already in a room, the live checks (Phase 7 Step 5: flagging, never kicking), interest management,
+// reconnecting, and the clock; GET /health, results tried again until the API has them, draining for an update, and
+// the process itself (stopped by a deploy; a crash).
 // The longer runs — 8 bots on a real route, bad networks, 100 reconnects, bandwidth with 30 cars, several processes —
 // are server/tools/rt-test.ts.
 //
@@ -11,7 +13,8 @@ import assert from 'node:assert/strict';
 import { Redis } from 'ioredis';
 import { testApp, signUp, makeStaff, Player } from './helpers.ts';
 import { startRt } from '../src/rt/server.ts';
-import { setRtEnv, TestRoom } from '../src/rt/room.ts';
+import { setRtEnv, TestRoom, DRAINING } from '../src/rt/room.ts';
+import { send, pending } from '../src/rt/outbox.ts';
 import { signTicket, verifyTicket } from '../src/rt/tickets.ts';
 import { createChecks } from '../src/rt/checks.ts';
 import { loadConfig } from '../src/config.ts';
@@ -27,11 +30,11 @@ const SECRET = 'rt-test-secret-rt-test-secret-0123456789';
 const RT = { allowGuests: true, maxPlayers: 1000, roomMaxClients: 64, netsim: true, devPlayers: true };
 let rt: Awaited<ReturnType<typeof startRt>>;
 const logs: { msg: string; extra?: object }[] = [];
-const env = (over: Partial<typeof RT> = {}) => setRtEnv({ secret: SECRET, ...RT, ...over, log: (msg, extra) => logs.push({ msg, extra }) });
+const env = (over: Partial<typeof RT> & { api?: any } = {}) => setRtEnv({ secret: SECRET, ...RT, ...over, log: (msg, extra) => logs.push({ msg, extra }) });
 
 before(async () => {
   const r = new Redis(REDIS); await r.flushdb(); r.disconnect();
-  rt = await startRt({ port: PORT, redisUrl: REDIS, secret: SECRET, rt: RT, log: (msg, extra) => logs.push({ msg, extra }) });
+  rt = await startRt({ port: PORT, redisUrl: REDIS, secret: SECRET, rt: RT, log: (msg, extra) => logs.push({ msg, extra }), version: 'abc1234' });
 });
 after(async () => { await rt.stop(); setTimeout(() => process.exit(0), 200).unref(); });
 
@@ -163,8 +166,9 @@ test('a ban reaches a player already in a room (through Redis), and the same acc
   } finally { await T.close(); }
 });
 
-test('the live checks: impossible movement is never passed on, and a client that keeps sending it is removed', async () => {
-  env();
+test('the live checks: impossible movement is never passed on; a client that keeps sending it is flagged for the admins (once), never removed', async () => {
+  const flags: any[] = [];
+  env({ api: { flag: async (f: any) => { flags.push(f); return { ok: true }; } } });
   const cheat = client('cheat', { world: 'rt-checks' }), watch = client('watch', { world: 'rt-checks' });
   await cheat.connect(); await watch.connect();
   const fair = at(0, 0, 5);
@@ -174,15 +178,21 @@ test('the live checks: impossible movement is never passed on, and a client that
   const teleport = () => ({ ...fair(), tick: ++tick, pos: [(++k % 2) * 100, 0.5, 0] });
   const seen: number[] = [];
   const t0 = performance.now();
-  while (cheat.status === 'online' && performance.now() - t0 < 8000) {
+  while (cheat.status === 'online' && performance.now() - t0 < 4000) {
     cheat.update(1 / 60, teleport); watch.update(1 / 60, null);
     for (const c of watch.sample(1 / 60)) if (c.pose) seen.push(c.pose.pos[0]);
     await sleep(16);
   }
-  assert.equal(cheat.status, 'offline', 'removed'); assert.match(cheat.message, /can't accept/);
+  assert.equal(cheat.status, 'online', 'not removed (the owner\'s rule: flag, never kick)');
   assert.ok(seen.every(x => x < 20), `the other player never saw a teleport (furthest ${Math.max(...seen).toFixed(1)} m)`);
-  assert.ok(logs.some(l => l.msg === 'rt kicked by the live checks'), 'logged');
-  await watch.leave();
+  assert.ok(logs.some(l => l.msg === 'rt flagged by the live checks'), 'logged');
+  await until(() => flags.length > 0, 2000, 'the flag');
+  assert.equal(flags.length, 1, 'once, however many strikes since');
+  const room = [...TestRoom.live].find(r => r.world === 'rt-checks')!;
+  assert.equal(flags[0].kind, 'live-checks'); assert.equal(flags[0].uid, 'cheat'); assert.equal(flags[0].room, room.roomId);
+  assert.ok(flags[0].reasons['moved too far'] > 0 && Object.values(flags[0].reasons as Record<string, number>).reduce((a, x) => a + x, 0) >= NET.checks.strikes, JSON.stringify(flags[0].reasons));
+  assert.equal(room.kicks, 0);
+  await cheat.leave(); await watch.leave();
 });
 
 test('interest management: near cars every tick, far ones less often, the furthest not at all; only what changed is sent', async () => {
@@ -250,4 +260,82 @@ test('messages it can\'t read count against the sender; a state without its firs
   assert.equal(m.statesIn, 1, 'only the complete state taken');
   assert.ok((m.strikes as any)['unreadable message'] >= 2);
   await c.leave();
+});
+
+test('results tried again until the API has them (an API restarting for a deploy); a refusal it means isn\'t', async () => {
+  let calls = 0;
+  const got = await send('test', async () => { if (++calls < 3) throw Object.assign(new Error('The API said 503'), { status: 503 }); return { ok: calls }; }, (msg, extra) => logs.push({ msg, extra }), { firstMs: 20 });
+  assert.deepEqual(got, { ok: 3 }); assert.ok(logs.some(l => l.msg === 'rt result not sent yet: trying again'));
+  let refused = 0;
+  assert.equal(await send('test', async () => { refused++; throw Object.assign(new Error('Not a race.'), { status: 400 }); }, () => {}, { firstMs: 20 }), null);
+  assert.equal(refused, 1, 'a 400 isn\'t tried again');
+  // (given up after the time's up: logged)
+  assert.equal(await send('test', async () => { throw new Error('fetch failed'); }, (msg, extra) => logs.push({ msg, extra }), { firstMs: 20, giveUpMs: 150 }), null);
+  assert.ok(logs.some(l => l.msg === 'rt result lost'));
+  assert.equal(pending(), 0);
+});
+
+test('GET /health beside the matchmaking routes: up, its version and numbers; joining works as ever', async () => {
+  env();
+  const c = client('healthy', { world: 'rt-health' });
+  await c.connect();
+  const r = await fetch(`${ENDPOINT}/health`);
+  assert.equal(r.status, 200); assert.equal(r.headers.get('cache-control'), 'no-store');
+  const h: any = await r.json();
+  assert.equal(h.ok, true); assert.equal(h.version, 'abc1234'); assert.equal(h.process, rt.processId); assert.equal(h.draining, false);
+  assert.ok(h.players >= 1 && h.rooms >= 1 && h.races === 0 && Number.isInteger(h.uptimeSec), JSON.stringify(h));
+  assert.match(await (await fetch(`${ENDPOINT}/health`)).text(), /"ok":true/, 'the uptime monitor\'s keyword');
+  await c.leave();
+});
+
+// a process of its own: what's printed, and how it ended
+const spawnNode = async (args: string[], env: Record<string, string> = {}) => {
+  const { spawn } = await import('node:child_process');
+  const child = spawn(process.execPath, args, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const out: string[] = [];
+  child.stdout.on('data', b => out.push(String(b))); child.stderr.on('data', b => out.push(String(b)));
+  return { child, out: () => out.join(''), exited: new Promise<number | null>(r => child.on('exit', code => r(code))) };
+};
+
+test('the process (rt/main.ts): GET /health once it\'s up, with its version; SIGTERM with nothing under way stops it at once', async () => {
+  const port = PORT + 9;
+  const P = await spawnNode([new URL('../src/rt/main.ts', import.meta.url).pathname], { APP_ENV: 'test', RT_PORT: String(port), RT_HOST: '127.0.0.1', GIT_COMMIT: 'feed123', REDIS_URL: '', API_INTERNAL_URL: 'http://127.0.0.1:9', SENTRY_DSN: '' });
+  try {
+    let h: any = null;
+    for (let i = 0; i < 150 && !h; i++) { h = await fetch(`http://127.0.0.1:${port}/health`).then(r => r.json(), () => null); if (!h) await sleep(100); }
+    assert.equal(h?.ok, true, P.out()); assert.equal(h.version, 'feed123'); assert.equal(h.draining, false); assert.equal(h.races, 0);
+    const t0 = performance.now();
+    P.child.kill('SIGTERM');
+    assert.equal(await P.exited, 0, P.out());
+    assert.ok(performance.now() - t0 < 3000, `stopped in ${Math.round(performance.now() - t0)} ms`);
+    assert.match(P.out(), /"msg":"rt stopping".*"finished":true/);
+  } finally { P.child.kill('SIGKILL'); }
+});
+
+test('a crash (an exception nothing caught, a promise nobody handled): one JSON line in the log, and out with 1 for Docker to start it again', async () => {
+  const sentry = JSON.stringify(new URL('../src/sentry.ts', import.meta.url).href);
+  for (const [kind, boom] of [['uncaughtException', 'setTimeout(() => { throw new Error(\'boom (the test)\'); }, 10);'], ['unhandledRejection', 'void Promise.reject(new Error(\'boom (the test)\'));']]) {
+    const P = await spawnNode(['--input-type=module', '-e', `import { exitOnCrash } from ${sentry}; exitOnCrash('the test', null); ${boom} setInterval(() => {}, 1000);`]);
+    assert.equal(await P.exited, 1, P.out());
+    const line = JSON.parse(P.out().split('\n').find(l => l.startsWith('{"time"')) ?? 'null');
+    assert.equal(line?.level, 'fatal', P.out()); assert.equal(line.msg, 'the test crashed'); assert.equal(line.kind, kind); assert.match(line.err.message, /boom/);
+  }
+});
+
+// (last: it stops the server)
+test('draining for an update: nobody new joins (CLOSED, the restart message), /health says so; with nothing under way it stops at once, everyone told', async () => {
+  env();
+  const c = client('stays', { world: 'rt-drain' });
+  await c.connect();
+  const t0 = performance.now(), finished = await rt.drain(30);
+  assert.equal(finished, true); assert.ok(performance.now() - t0 < 1500, 'nothing under way: at once');
+  assert.equal(((await (await fetch(`${ENDPOINT}/health`)).json()) as any).draining, true);
+  const e = await refused(client('late', { world: 'rt-drain' }));
+  assert.equal(e?.code, CODES.CLOSED);
+  const raw = await transport.join(ENDPOINT, 'test', { ticket: ticket('late2'), protocol: PROTOCOL, world: 'rt-drain' }).then(() => null, (x: any) => x);
+  assert.equal(raw?.code, CODES.CLOSED); assert.equal(raw?.message, DRAINING, 'the server\'s own words');
+  assert.equal(c.status, 'online', 'who\'s here stays until it stops');
+  await rt.stop();
+  await until(() => c.status === 'offline', 3000, 'the room closed');
+  assert.equal(c.code, CODES.CLOSED);
 });

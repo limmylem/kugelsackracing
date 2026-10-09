@@ -16,7 +16,13 @@ import { createRouteDriver, testLoop } from '../../net/bot.js';
 import { createSmoothness } from '../../net/measure.js';
 import { parseConditions } from '../../net/netsim.js';
 import { NET } from '../../net/settings.js';
-import * as Colyseus from '@colyseus/sdk';
+// (the SDK on the ws package, not Node's own WebSocket: Node 22's never closes after a failed connection — no close event,
+// stuck connecting — so a bot's reconnecting stopped at its first try when the server had gone (a crash: rt-crash-test.ts);
+// ws closes as browsers do. The SDK picks its WebSocket when it's loaded)
+const nodeWebSocket = (globalThis as any).WebSocket;
+delete (globalThis as any).WebSocket;
+const Colyseus = await import('@colyseus/sdk');
+(globalThis as any).WebSocket = nodeWebSocket;
 
 export const transport = createColyseusTransport(Colyseus);
 

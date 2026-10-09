@@ -1,6 +1,6 @@
 // The launch screens in a real browser (Phase 6 Step 5), on this computer:
 //   a player: "Contact support" on the account page and the in-game Feedback button, each sent with the game's version and
-//   device; the credits page; the status page
+//   device (the feedback with the game's last errors — Phase 7 Step 5); the credits page; the status page
 //   an admin (two-factor sign-in): the Support tab shows both messages with their version and device, and answers one by
 //   email; the Launch tab closes sign-ups and makes an invite code; a new player can't sign up without it, and does with it
 //   (the code's use shown on the Launch tab); Reports & flags and Monitoring open; a player's full history
@@ -32,7 +32,7 @@ const newPage = async (answer = 'Browser test: launch screens') => {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net/, (r: any) => r.abort());
   const page = await ctx.newPage();
-  page.on('pageerror', (e: any) => errors.push(String(e)));
+  page.on('pageerror', (e: any) => { if (!/a test error/.test(String(e))) errors.push(String(e)); });   // (the feedback check's own are meant)
   page.on('dialog', (d: any) => d.type() === 'prompt' ? d.accept(answer) : d.accept());
   return { ctx, page };
 };
@@ -64,15 +64,20 @@ try {
       const { account } = await import('/account/session.js'), { mountAccountChip } = await import('/account/status.js');
       mountAccountChip(await account(), { welcome: false });
     });
+    // (Phase 7 Step 5) the game hits an error twice — its address with an invite code and a token: sent folded, without them
+    await page.evaluate(() => { for (let i = 0; i < 2; i++) setTimeout(() => { throw new Error('Boom (a test error) loading https://example.com/x.js?invite=ABCDE-FGHIJ&token=s3cret#t'); }, 0); });
+    await page.waitForTimeout(300);
     await page.click('#krFeedback');
     await page.waitForSelector('#krFeedbackBox textarea');
-    const info = await page.textContent('#krFeedbackBox .info');
+    const info = await page.textContent('#krFeedbackBox .info'), errShown = await page.textContent('#krFeedbackBox .errbox').catch(() => '');
     await page.click('#krFeedbackBox .moods button >> nth=0');
     await page.fill('#krFeedbackBox textarea', 'Love the real streets. The minimap could be bigger.');
     await page.click('#krFeedbackBox .send');
     await page.waitForSelector('#krFeedbackBox h2:text("Thanks!")', { timeout: 10000 });
     t = await tickets();
     check('the Feedback button: a mood and a message, with the version and device', t.length === 2 && t[1].kind === 'feedback' && !!t[1].client?.version && info!.includes(`Game version ${t[1].client.version}`), `${info} · ${JSON.stringify(t[1]?.client)}`);
+    const sentErr = t[1]?.client?.errors ?? [], e0 = sentErr.find((e: any) => /Boom/.test(e.message));
+    check('…with the game\'s last errors (shown before sending): a repeat folded with its count, the address without its query (no invite code, no token)', /2 errors/.test(errShown ?? '') && !!e0 && e0.count === 2 && /example\.com\/x\.js/.test(e0.message) && !/ABCDE|s3cret|invite=|#t/.test(JSON.stringify(sentErr)), `${(errShown ?? '').slice(0, 120)} · ${JSON.stringify(sentErr).slice(0, 300)}`);
 
     await page.goto(`${BASE}/account/credits.html`);
     await page.waitForFunction(() => document.body.textContent!.includes('OpenStreetMap') && document.querySelectorAll('tr, li').length > 10, null, { timeout: 10000 });
@@ -96,6 +101,12 @@ try {
   await adm.waitForSelector('text=My garage shows the wrong car', { timeout: 10000 });
   const sup = await adm.textContent('main');
   check('the Support tab: both messages, from whom, with the game and device', /My garage shows the wrong car/.test(sup!) && /minimap could be bigger/.test(sup!) && /pia@example\.com/.test(sup!) && /version/.test(sup!));
+  // (the feedback's errors: under it, collapsed until opened)
+  const errBox = adm.locator('tr:has-text("minimap could be bigger") details.errors');
+  const closed = await errBox.evaluate((d: any) => !d.open && d.querySelector('summary').textContent).catch(() => null);
+  await errBox.locator('summary').click().catch(() => {});
+  const opened = await errBox.evaluate((d: any) => d.open && d.innerText).catch(() => null);
+  check('…the feedback\'s errors under it, collapsed, opening to the message, where and how often', /1 recent error/.test(closed || '') && /Boom \(a test error\)/.test(opened || '') && /×2/.test(opened || ''), `${closed} · ${(opened || '').slice(0, 160)}`);
   const before = outbox.length;
   await adm.click('tr:has-text("My garage shows the wrong car") button:has-text("Answer")');
   for (let i = 0; i < 50 && outbox.length === before; i++) await adm.waitForTimeout(100);

@@ -7,7 +7,7 @@
 
 import { mpRoutes } from './routes/mp.ts';
 import { createMpService } from './mp/service.ts';
-import { rtRoutes } from './routes/rt.ts';
+import { rtRoutes, isLoadtest } from './routes/rt.ts';
 import { roamRoutes } from './routes/roam.ts';
 import { createRoamService } from './roam/service.ts';
 import { createRtBridge } from './rt/bridge.ts';
@@ -46,7 +46,6 @@ import { adminShopRoutes } from './routes/adminShop.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
-import { rtHealth } from './rt/health.ts';
 import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
 import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts';
 import { createSignals, scanForAbuse } from './abuse/detect.ts';
@@ -54,7 +53,7 @@ import { abuseRoutes } from './routes/abuse.ts';
 import { opsRoutes } from './routes/ops.ts';
 import { runRetention } from './ops/retention.ts';
 import { createMetrics, routeKind } from './ops/metrics.ts';
-import { createAlerter, evaluate, healthNow } from './ops/alerts.ts';
+import { createAlerter, evaluate, healthNow, createRtWatch } from './ops/alerts.ts';
 
 import { CLIENT_DIRS, CLIENT_FILES, inlineScriptHashes } from './clientFiles.ts';
 export { CLIENT_DIRS, CLIENT_FILES };
@@ -196,13 +195,14 @@ export async function buildApp(deps: AppDeps) {
     // loads — counting them, two page loads used up a minute's allowance)
     if (!req.url.startsWith('/api/') && !req.url.startsWith('/rt/')) return;
     if (fromRt(req)) return;
+    if (isLoadtest(config.loadtestToken, req)) return;     // (the load test's bots: Phase 7 Step 5, routes/rt.ts)
     await ipLimit(req);
     if (req.method !== 'POST') return;
     if (STRICT.test(req.url)) await authLimit(req);
     if (/^\/api\/auth\/+(sign-up|sign-in\/anonymous)/.test(req.url)) await signUpLimit(req);
   });
   app.addHook('preHandler', async req => {
-    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !fromRt(req)) await writeLimit(req);
+    if (req.url.startsWith(API_PREFIX) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !fromRt(req) && !isLoadtest(config.loadtestToken, req)) await writeLimit(req);
   });
 
   // ---------- launch readiness (Phase 6 Step 5): the game's version, maintenance, switched-off features, the bot
@@ -277,8 +277,12 @@ export async function buildApp(deps: AppDeps) {
     const s = req.sessionCache ? await req.sessionCache.catch(() => null) : null;
     metrics.record({ route: routeKind(req.method, req.routeOptions?.url ?? req.url), status: reply.statusCode, ms: reply.elapsedTime, userId: s?.user.id ?? null });
   });
+  // (Phase 7 Step 5: the real-time server's numbers, every 5 s, are its heartbeat — the alerts and GET /status say when they stop)
+  const rtWatch = createRtWatch({ url: config.rtUrl });
+  app.addHook('onResponse', async (req, reply) => { if (reply.statusCode === 200 && req.routeOptions?.url === `${API_PREFIX}/internal/mp/roam/stats`) rtWatch.heard(); });
+  app.addHook('preSerialization', async (req, _reply, payload: any) => req.routeOptions?.url === `${API_PREFIX}/status` && payload && typeof payload === 'object' ? { ...payload, rt: rtWatch.state() } : payload);
   const alerter = createAlerter({ db, mailer, email: config.alertEmail, webhook: config.alertWebhook, env: config.env, rules: config.alerts, log: (o, m) => app.log.warn(o, m) });
-  const alertTimer = setInterval(() => { void healthNow(db, opened?.pool ?? deps.pool, tracks).then(h => alerter.check(evaluate(metrics, h, config.alerts))).catch(e => app.log.warn({ err: e }, 'alert check failed')); }, 60_000);
+  const alertTimer = setInterval(() => { void healthNow(db, opened?.pool ?? deps.pool, tracks).then(h => alerter.check(evaluate(metrics, h, config.alerts, rtWatch.view()))).catch(e => app.log.warn({ err: e }, 'alert check failed')); }, 60_000);
   alertTimer.unref();
   app.addHook('onClose', async () => clearInterval(alertTimer));
   app.decorate('metrics', metrics);
@@ -376,11 +380,16 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('economy', economy);
   // (multiplayer: friends, ratings, the races' results — Phase 7 Step 2)
   // (free roam: settings, where players come back to, challenges paid, meets, the zone servers' numbers — Phase 7 Step 4)
-  const roam = createRoamService({ db, economy, log: (o, m) => app.log.info(o, m) });
-  const mp = createMpService({ db, tracks, economy, economyConfig, roam, log: (o, m) => app.log.info(o, m) });
+  const roam = createRoamService({ db, economy, antiCheat: config.antiCheat, log: (o, m) => app.log.info(o, m) });
+  const mp = createMpService({ db, tracks, economy, economyConfig, roam, antiCheat: config.antiCheat, log: (o, m) => app.log.info(o, m) });
   app.decorate('mp', mp);
   app.decorate('roam', roam);
   app.addHook('onReady', async () => { void mp.sweep().catch(e => app.log.warn({ err: e }, 'multiplayer sweep failed')); });
+  // (and every few minutes, Phase 7 Step 5: a race whose confirming failed — the database away a moment — confirmed and
+  // paid then, not at the next restart)
+  const mpSweeper = setInterval(() => { void mp.sweep().catch(e => app.log.warn({ err: e }, 'multiplayer sweep failed')); }, 5 * 60_000);
+  mpSweeper.unref();
+  app.addHook('onClose', async () => clearInterval(mpSweeper));
   app.addHook('onClose', async () => mp.close());
   app.decorate('economyConfig', economyConfig);
   app.addHook('onReady', async () => { await economyConfig.ensure(); });
@@ -398,19 +407,16 @@ export async function buildApp(deps: AppDeps) {
     await meRoutes(api, { config, db, auth, G, mailer });
     await adminRoutes(api, { config, db, auth, G, rtBridge });
     await rtRoutes(api, { config, G, mp });
-    await mpRoutes(api, { config, G, mp });
+    await mpRoutes(api, { config, G, mp, db });
     await roamRoutes(api, { config, G, roam });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, G });
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
-    await abuseRoutes(api, { db, auth, G, rules: config.abuse });
+    await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });
-
-  // ---------- the real-time server's stand-in (rt.<domain>; Phase 7 Step 1 replaces it) ----------
-  await rtHealth(app, { origins: config.trustedOrigins });
 
   // ---------- the game itself (development and tests: the same address as the API; staging and production:
   // only the admin and editor pages here, the game on GAME_URL — docs/DEPLOYMENT.md) ----------

@@ -6,6 +6,8 @@
 //
 //   mountAccountChip(A, { parent })   (A: account/session.js)
 
+import { watchErrors, recentErrors } from './errors.js';
+
 const CSS = `
 #krAccount{position:fixed;left:12px;bottom:12px;z-index:70;display:flex;align-items:center;gap:8px;font:600 12px/1 Barlow,system-ui,sans-serif;color:#e9ecef;background:rgba(10,14,20,.82);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:6px 11px 6px 9px;cursor:pointer;user-select:none}
 #krAccount:hover{background:rgba(20,26,34,.92)}
@@ -37,12 +39,14 @@ const CSS = `
 #krFeedbackBox .row{display:flex;gap:8px;justify-content:flex-end}#krFeedbackBox .row button{padding:8px 14px;border-radius:6px;border:1px solid #333c46;background:#1b2127;color:#e9ecef;cursor:pointer;font:600 14px Barlow,system-ui,sans-serif}
 #krFeedbackBox .row button.primary{background:#36b3f5;border-color:#36b3f5;color:#04121b}
 #krFeedbackBox small{color:#6b7480}
+#krFeedbackBox label.errs{display:flex;gap:6px;align-items:flex-start;color:#a3abb5;font-size:12px}#krFeedbackBox details{font-size:12px;color:#a3abb5}#krFeedbackBox details pre{margin:4px 0 0;max-height:140px;overflow:auto;white-space:pre-wrap;font:11px/1.35 'JetBrains Mono',monospace;background:#07090b;border-radius:6px;padding:6px}
 #krNotice button{font:700 13px Barlow,system-ui,sans-serif;border:0;border-radius:6px;padding:7px 12px;background:#1a1405;color:#f2c037;cursor:pointer;flex:none}`;
 
 const TEXT = { online: '', waking: 'Waking the server…', retrying: 'Reconnecting…', offline: 'Offline · free roam only' };
 
 export function mountAccountChip(A, { parent = document.body, welcome = true } = {}) {
   if (!A.server) return null;
+  watchErrors();
   if (!document.getElementById('krAccountCss')) { const s = document.createElement('style'); s.id = 'krAccountCss'; s.textContent = CSS; document.head.appendChild(s); }
   const chip = document.createElement('div');
   chip.id = 'krAccount'; chip.setAttribute('role', 'button'); chip.tabIndex = 0;
@@ -70,7 +74,17 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
     const { clientInfo, describe } = await import('./clientInfo.js');
     const fps = globalThis.__krFps ?? undefined, info = clientInfo({ fps });
     const box = document.createElement('div'); box.id = 'krFeedbackBox';
-    box.innerHTML = '<div><h2>Feedback</h2><div class="moods"></div><textarea rows="5" maxlength="4000" placeholder="What did you like, what bugged you, what would make it better?"></textarea><small class="info"></small><small class="err"></small><div class="row"><a class="sup" href="#">Need an answer? Contact support</a><span style="flex:1"></span><button class="cancel">Cancel</button><button class="primary send">Send</button></div></div>';
+    box.innerHTML = '<div><h2>Feedback</h2><div class="moods"></div><textarea rows="5" maxlength="4000" placeholder="What did you like, what bugged you, what would make it better?"></textarea><small class="info"></small><div class="errbox"></div><small class="err"></small><div class="row"><a class="sup" href="#">Need an answer? Contact support</a><span style="flex:1"></span><button class="cancel">Cancel</button><button class="primary send">Send</button></div></div>';
+    // (Phase 7 Step 5: the game's last errors, if it hit any — shown, and left out if the box is unticked)
+    const errors = recentErrors();
+    if (errors.length) {
+      const n = errors.reduce((a, e) => a + e.count, 0), lab = document.createElement('label'), tick = document.createElement('input'), more = document.createElement('details'), sum = document.createElement('summary'), pre = document.createElement('pre');
+      lab.className = 'errs'; tick.type = 'checkbox'; tick.checked = true; tick.className = 'senderrs';
+      lab.append(tick, `Also send the game's last ${errors.length === 1 && n === 1 ? 'error' : `${n} errors`} (what went wrong and where in the game's code: it helps us fix it)`);
+      sum.textContent = 'Show them'; pre.textContent = errors.map(e => `${e.at.slice(11, 19)} ${e.message}${e.count > 1 ? ` (×${e.count})` : ''}${e.source ? `\n  at ${e.source}` : ''}`).join('\n');
+      more.append(sum, pre);
+      box.querySelector('.errbox').append(lab, more);
+    }
     let mood = null;
     for (const [m, e] of [['love', '😍'], ['like', '🙂'], ['meh', '😐'], ['dislike', '🙁']]) { const b = document.createElement('button'); b.textContent = e; b.title = m; b.onclick = () => { mood = m; for (const x of box.querySelectorAll('.moods button')) x.classList.toggle('on', x === b); }; box.querySelector('.moods').append(b); }
     box.querySelector('.info').textContent = `Sent with it: ${describe(info)}.`;
@@ -81,7 +95,8 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
     box.querySelector('.send').onclick = async () => {
       const text = box.querySelector('textarea').value.trim(), err = box.querySelector('.err');
       if (text.length < 3) { err.textContent = 'A few words, please.'; return; }
-      try { await A.api.post('/feedback', { message: text, ...(mood ? { mood } : {}), client: info }); box.querySelector('div').innerHTML = '<h2>Thanks!</h2><p>We read every one.</p>'; setTimeout(close, 1500); }
+      const withErrors = errors.length && box.querySelector('.senderrs')?.checked;
+      try { await A.api.post('/feedback', { message: text, ...(mood ? { mood } : {}), client: info, ...(withErrors ? { errors } : {}) }); box.querySelector('div').innerHTML = '<h2>Thanks!</h2><p>We read every one.</p>'; setTimeout(close, 1500); }
       catch (x) { err.textContent = x.code === 'UNAUTHENTICATED' ? 'Sign in (or play as a guest) to send feedback.' : x.message; }
     };
     document.body.appendChild(box);

@@ -22,7 +22,7 @@
 //   RC.home · RC.zones · RC.group · RC.handoffs · RC.stats · RC.homeNet (the home connection: contact's clock) · RC.leave()
 
 import { createNetClient } from '../net/client.js';
-import { CODES } from '../net/protocol.js';
+import { CODES, messageFor } from '../net/protocol.js';
 import { createZoneTracker, zoneOf } from './roam.js';
 import { quat } from '../net/remote.js';
 
@@ -31,9 +31,14 @@ const FADE_MS = 500, STALE_MS = 350, FROZEN_MS = 600, MAX_BLEND_M = 3;
 // how far apart a view's newest states came (ms): a far car is sent less often (Step 1's interest rings)
 const spacing = buf => buf?.length >= 2 ? Math.max(0, buf[buf.length - 1].time - buf[buf.length - 2].time) : 0;
 // a zone's connection lost (the server closed it, a join failed or never answered): joined again while the car's in that
-// zone, after RETRY_MS, doubling each time to RETRY_MAX_MS — except for reasons that are final (a ban, another tab, an old game)
+// zone, after RETRY_MS, doubling each time to RETRY_MAX_MS, with a fresh ticket each time — except for reasons that are
+// final (a ban, another tab, an old game; no ticket because the API said no: signed out, the terms, an old game)
 const RETRY_MS = 1000, RETRY_MAX_MS = 30000, JOIN_MS = 20000;
 const FINAL = new Set([CODES.VERSION, CODES.BANNED, CODES.KICKED, CODES.ELSEWHERE, CODES.GUESTS]);
+const REFUSED = new Set(['BANNED', 'UNAUTHENTICATED', 'TERMS_REQUIRED', 'FORBIDDEN', 'CLIENT_TOO_OLD']);
+// (Phase 7 Step 5: the server went — restarting for an update (CLOSED), shut down (Colyseus's 4001), or reconnecting gave
+// up (4003): said so, and joined again as above)
+const GONE = new Set([CODES.CLOSED, 4001, 4003]);
 
 // how far ahead one zone's clock is of another's, from the same car's states in each (pairs: [[step, stamp]], oldest
 // first): at a step inside both, the stamp in b minus the stamp in a (each interpolated between its neighbouring states)
@@ -88,7 +93,7 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
       c.net = N; c.joining = false; c.roomId = N.conn?.roomId ?? null;
       retry.delete(zone);
       c.offs.push(N.on('status', s => {
-        emit('status', { zone, ...s });
+        emit('status', { zone, ...s, ...(s.status === 'offline' && GONE.has(s.code) ? { message: messageFor(CODES.CLOSED) } : {}) });
         // (closed by the server for good — not a ban, another tab or an old game: let go, to be joined again)
         if (s.status === 'offline' && conns.get(zone) === c && !FINAL.has(s.code)) lost(zone, c, s.message);
       }));
@@ -102,10 +107,12 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
         emit('mp', { ...m, zone, roomId: c.roomId });
       }));
       log('roam join', { zone, group: c.group, home: Z.home === zone });
+      // (online — again, after a lost connection: the notice put away)
+      emit('status', { zone, status: 'online', message: '', code: 0 });
       emit('zones', api.zones);
       return c;
     } catch (e) {
-      if (conns.get(zone) === c) { conns.delete(zone); if (!FINAL.has(e?.code)) later(zone); }
+      if (conns.get(zone) === c) { conns.delete(zone); if (!FINAL.has(e?.code) && !REFUSED.has(e?.why)) later(zone); }
       emit('status', { zone, status: 'offline', message: e?.message ?? String(e), code: e?.code ?? 0 });
       throw e;
     }

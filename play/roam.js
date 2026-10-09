@@ -69,8 +69,8 @@ export function roamNet(RC) {
   const L = { status: new Set(), roster: new Set(), event: new Set(), notice: new Set() };
   const emit = (k, v) => { for (const f of L[k]) { try { f(v); } catch (e) { console.warn(e); } } };
   const players = new Map(), ids = new Map(), looks = new Map();
-  let last = [];
-  RC.on('status', s => { if (s.zone === RC.home) emit('status', { status: s.status, message: s.message ?? '' }); });
+  let last = [], said = null;          // (the home zone's last word: kept while its connection is gone — "restarting…")
+  RC.on('status', s => { if (s.zone === RC.home) { said = { status: s.status, message: s.message ?? '' }; emit('status', said); } });
   RC.on('event', e => { const id = e.uid ? ids.get(e.uid) : null; if (id) emit('event', { ...e, from: id }); });
   const home = () => RC.homeNet;
   return {
@@ -78,7 +78,7 @@ export function roamNet(RC) {
     sample(dt) {
       last = RC.sample(dt);
       players.clear();
-      for (const o of last) { if (o.uid) ids.set(o.uid, o.id); if (!o.leaving && o.uid) looks.set(o.uid, { name: o.name, look: o.look, events: o.events }); players.set(o.id, { id: o.id, uid: o.uid, name: o.name, status: o.status ?? 'here', base: o.pose ? true : null, lastStateAt: o.pose ? performance.now() : -Infinity }); }
+      for (const o of last) { if (o.uid) ids.set(o.uid, o.id); if (!o.leaving && o.uid) looks.set(o.uid, { name: o.name, look: o.look, events: o.events }); players.set(o.id, { id: o.id, netId: o.zone === RC.home ? o.netId : null, uid: o.uid, name: o.name, status: o.status ?? 'here', base: o.pose ? { flags: o.pose.flags ?? 0 } : null, lastStateAt: o.pose ? performance.now() : -Infinity }); }
       // (a car leaving view keeps its look as it fades: the drawing would otherwise make it afresh)
       for (const uid of [...looks.keys()]) if (!last.some(o => o.uid === uid)) looks.delete(uid);
       return last.filter(o => !o.leaving || o.pose).map(o => o.leaving ? { ...o, ...(looks.get(o.uid) ?? {}) } : o);
@@ -92,9 +92,11 @@ export function roamNet(RC) {
     present: (id, maxMs, t) => { const uid = [...ids].find(([, v]) => v === id)?.[0]; const p = uid && RC.player(uid); return p ? p.net.present(p.id, maxMs, p.net === home() ? t : undefined) : null; },
     setNear(id, n, maxMs) { const uid = [...ids].find(([, v]) => v === id)?.[0]; const p = uid && RC.player(uid); p?.net.setNear(p.id, n, maxMs); },
     setNudge(id, d) { const uid = [...ids].find(([, v]) => v === id)?.[0]; const p = uid && RC.player(uid); p?.net.setNudge(p.id, d); },
-    get id() { return 0; },
-    get status() { return home()?.status ?? 'connecting'; },
-    get message() { return home()?.message ?? ''; },
+    // (this player's id in the home zone's room — as conn.roomId is that room's; the cars above have stable ids of their own,
+    // and netId: theirs in the home zone, when they're in it)
+    get id() { return home()?.id ?? null; },
+    get status() { return home()?.status ?? said?.status ?? 'connecting'; },
+    get message() { return home()?.message ?? said?.message ?? ''; },
     get conn() { return { roomId: home()?.conn?.roomId ?? null }; },
     get players() { return players; },
     get stats() { const s = home()?.stats ?? { status: 'connecting', ping: 0, jitter: 0, loss: 0, upKBs: 0, downKBs: 0, bufferMs: 0, remotes: [], netsim: null }; const r = RC.stats; return { ...s, upKBs: r.upKBs, downKBs: r.downKBs, zones: r.zones, handoffs: r.handoffs }; },
@@ -117,7 +119,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   if (!player && account?.me) { try { back = await account.api.get('/roam/me'); } catch { back = null; } }
   const pose = game.carPose();
   await RC.start(pose?.pos ?? [0, 0, 0]);
-  const M = await joinMultiplayer({ account, world: `roam:${region}`, look, adapter: A, player, debug, net: N, spread: false,
+  const M = await joinMultiplayer({ account, world: `roam:${region}`, look, adapter: A, player, debug, net: N,
     lod: (o, d) => lodFor(d, cfg), nameOpacity: (o, d) => state.settings.names === false ? 0 : nameOpacity(d, cfg) });
 
   // (the page closed or reloaded: gone from every zone now, not "reconnecting…" for the next 20 s)

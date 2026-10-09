@@ -1,512 +1,300 @@
 # Deployment: the game online at ognistrada.com
 
-> **Status: paused, not yet deployed** (decided after the deployment step, before Phase 6 Step 4). The game runs
-> on localhost only, with Docker Compose ([SERVER.md](SERVER.md#running-it-on-your-computer)), until multiplayer
-> fully works; then a cheap paid server. No accounts have been made and the `infra` workflow has never run. Everything
-> below is built and ready (the workflows skip themselves while `CLOUDFLARE_ACCOUNT_ID` isn't set); what's left is
-> in [To do when we deploy](#to-do-when-we-deploy). Keep this file up to date with anything that will matter online.
+> **Status: being set up for friends testing (Phase 7 Step 5, approved by the owner on 2026-10-08).** Production
+> only, no staging: the owner and up to ~5 friends at once, all in Australia. The owner's step-by-step is
+> [GO_LIVE.md](GO_LIVE.md): Parts 0–5 are done (the accounts, the server at OVHcloud, the database at PlanetScale,
+> GitHub's secrets and variables). Next: the `infra` workflow, the R2 key, `server-setup`, the first deploy, the
+> monitors, and the test with a friend on another network (GO_LIVE.md steps 6–11).
 
-Every service, address and setting the online game uses; how to set it up, deploy it, roll it back and keep it
-running; and what to renew. For the server itself see [SERVER.md](SERVER.md), and for the economy
-[ECONOMY_SERVER.md](ECONOMY_SERVER.md).
-
-**Plan for now: free plans only** (decided Phase 6, deployment step), while it's one person testing. Everything is
-set up so going to the paid plan is a settings change: see [Upgrading](#upgrading-about-13-a-month).
-
-> **Reminder:** upgrade to at least the ~$13/month plan **before Phase 7 multiplayer testing, or before inviting
-> beta testers**, whichever comes first. The free plans sleep, and they lose data more easily (see
-> [Free plans: what to watch](#free-plans-what-to-watch)).
-
-## To do when we deploy
-
-In order. Nothing here has been done yet; each needs the owner (accounts, money, DNS).
-
-1. **Choose the plan.** The plan below is free plans; since the plan is now to go online once multiplayer works,
-   start on the paid one instead ([Upgrading](#upgrading-about-13-a-month), about $13 a month). Ask before paying.
-2. **Make the accounts** ([Setting it up](#setting-it-up-once) 1–5): Cloudflare (the domain's DNS, Pages, R2),
-   Neon (two databases with PostGIS), Resend (two keys, the sending domain), Render (two services from
-   `render.yaml`), and GitHub's environments, variables and secrets.
-3. **Run the `infra` workflow** (step 6): DNS records, the R2 buckets and their CORS, the Pages projects, the
-   redirect rule, Resend's domain records.
-4. **The first deploy** (step 7), then the [Checks](#checks): `tools/check-deploy.mjs` against staging, then
-   production.
-5. **Real email:** Resend instead of Mailpit (`SMTP_URL` on Render). On this computer every email goes to Mailpit;
-   the sending domain's SPF/DKIM records and real delivery have only been tested on paper. On this computer
-   signing up doesn't confirm the email at all, and admins need no authenticator app (`development.json`
-   `requireEmailVerification` and `staffMfa.required` off, at the owner's request). `staging.json` and
-   `production.json` keep both on: check they still do before the first deploy, and that the owner's account online
-   comes from `ADMIN_EMAIL` with its email confirmed (`make-owner.ts` refuses staging and production).
-6. **What only the real setup can check:** Cloudflare's CDN caching of the tiles (range requests through the
-   edge), WebSockets through Cloudflare to `rt.` ([Real time](#real-time-through-cloudflare-or-straight)), the
-   player's address via `EDGE_SECRET`, HSTS (turn `HSTS` on once HTTPS works everywhere), a status page or uptime
-   check (built in Phase 6 Step 5: [OPERATIONS.md](OPERATIONS.md); the outside monitor needs an account).
-7. **Hosts the game reaches besides its own:** jsDelivr (three.js, Rapier, MapLibre and its worker), Google Fonts,
-   `demotiles.maplibre.org` (the map's lettering) and `tiles.openfreemap.org` (the photoreal world's minimap). The
-   content security policy (`server/src/app.ts`, `tools/build-site.mjs`) allows them; recheck it if any moves.
-8. **Car-to-car contact's replays (Phase 7 Step 3):** the API drives each multiplayer run on a generated track again in
-   a worker thread — about 1/16 of the race's length of CPU per finisher (a 3-minute run: ~11 s). On the paid plan's
-   single small instance that's fine for a few races at once; watch the verification queue on the monitoring page
-   and add workers (or a bigger instance) before it backs up. Ramming evidence is kept in `mp_evidence` (tens of kB
-   each) with no expiry yet: add it to the retention jobs before the database fills.
-9. **Launch readiness (Phase 6 Step 5):** follow [LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST.md). For hosting, that means:
-   - Turnstile keys ([ABUSE.md](ABUSE.md)) and Cloudflare's WAF rules;
-   - `ALERT_EMAIL` and `ALERT_WEBHOOK_URL`, an uptime monitor and `status.` ([OPERATIONS.md](OPERATIONS.md#when-we-deploy));
-   - `METRICS_TOKEN` if a dashboard reads `/api/v1/metrics`;
-   - budget alerts on every paid service ([COSTS.md](COSTS.md));
-   - point-in-time recovery, with the paid database ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md));
-   - the DR drill once on real staging.
-10. **Multiplayer's real-time server** (Phase 7 Step 1, [MULTIPLAYER.md](MULTIPLAYER.md)). Built and tested on this
-   computer only; online it needs:
-   - **Where it runs, and Redis.** Both cost money and the region is the owner's choice: ask first. The real-time
-     server is a long-running Node process (`node server/src/rt/main.ts`, the same image as the API). Options:
-     a second Render service (Starter, $7 a month, Singapore) or a small machine nearer the players (Fly.io
-     `syd`, a few dollars a month); measure with `site/ping.html`. Redis: Render Key Value (Starter about $10 a
-     month; the free one has no persistence, which is fine for rooms and tickets) or Upstash (pay per request).
-   - **Secrets and settings:** `RT_SECRET` (the same long random value on the API and the real-time server: join
-     tickets), `REDIS_URL` on both (the API writes bans to it), `RT_PUBLIC_ADDRESS` on the real-time server (its
-     public `host:port`, or `rt.<domain>`), and `RT_URL=wss://rt.<domain>` on the API (`site/config.js` for the
-     game).
-   - **`rt.` moves** from the API's ping/pong stand-in (`server/src/rt/health.ts`) to the real-time server. Check
-     WebSockets through Cloudflare ([Real time](#real-time-through-cloudflare-or-straight)), including that
-     reconnecting works after Cloudflare drops an idle socket.
-   - **Several processes** (`--processes N`) need one public address each, or a proxy that routes by the room's
-     process (`RT_PUBLIC_ADDRESS_PATTERN`). One process holds 256 players, so start with one.
-   - **The two-player check** on different networks (CLAUDE.md): two players on different networks (home Wi-Fi
-     and a phone hotspot) sign in, join the same room (`?mp`) and see each other. Do it on the paid plan
-     (step 1), before inviting beta testers.
-   - Later: WebTransport, which needs HTTP/3 and UDP through to the real-time server (not through Cloudflare's
-     proxy), so a host that allows it.
-11. **Multiplayer races** (Phase 7 Step 2, [MULTIPLAYER.md](MULTIPLAYER.md#phase-7-step-2-lobbies-matchmaking-and-races)):
-   - **Redis is optional now**: one real-time process keeps rooms, presence, invite codes and parties in memory.
-     Only several processes need it (so the first deploy can skip Redis's cost; ask before adding it).
-   - **The real-time server calls the API** (`API_INTERNAL_URL`, default `http://localhost:8787`): set it to the
-     API's private address on the host (Render's internal hostname), with `RT_SECRET` the same on both.
-   - **Regions:** `data/multiplayer.json` `queue.regions` is `["local"]`. Online, list the regions the real-time
-     servers run in, give each its quick-race venue (the real-time server's `quickVenue`), and have the game measure
-     its ping to each (`site/ping.html` has the measuring).
-   - **Publish the official routes** on the production database once: `DATABASE_URL=… node server/tools/seed-mp-routes.ts`.
-   - **The two-player check, as a race:** the two players on different networks also make a private lobby, join it by
-     its code, race to confirmed results, and one of them watches a race.
-   - **The matchmaking dashboard** (admin page, Multiplayer) against its targets, once real players queue.
-12. **Free roam's zone servers** (Phase 7 Step 4, [FREE_ROAM.md](FREE_ROAM.md)). The zone instances are rooms of the same
-   real-time server, so item 10 covers where they run; for free roam it also needs:
-   - **Redis** (not optional any more once there's more than one real-time process): the instances' listing, every
-     player's map place, statuses, auto-ghosts and placement all go through it.
-   - **Server regions**: one per continent players come from (`data/roam.json` `regions.list`, each with its own
-     real-time server address), and the game measuring its ping to each to pick one. Each region is more servers: ask first.
-   - **`API_INTERNAL_URL`** on the real-time server, so zone servers can save where players are, pay challenges and report
-     to the admin dashboard.
-   - **The "server full" cap** (`rt.maxPlayers`, or `RT_MAX_PLAYERS` on the real-time server) counts connections across all
-     its processes, and a free-roam player near a border holds up to 4 (about 1.7 on average with the default 2 km zones;
-     about 5 in the swarm's 512 m zones). Only a player coming in is refused, never one already driving, but
-     `production.json`'s 500 would let in only ~300 free-roam players: set it from the servers' size (Step 1's target is
-     256 connections a process).
-   - **Bandwidth**: free roam is the biggest user (from ~8 kB/s a player in a spread-out world to 35+ in a dense crowd): see [COSTS.md](COSTS.md) before
-     choosing a host. Re-run the swarm (`server/tools/roam-test.ts --swarm 500`) against the real servers.
-   - **Voice chat** is a design note only ([FREE_ROAM.md](FREE_ROAM.md)): any version costs money — decide with the owner.
-   - **The two-player check, in free roam:** the two players on different networks (home Wi-Fi and a phone hotspot) meet in
-     the same region: the same instance, each on the other's map (sharing with everyone), a challenge sent and answered.
-
-What changed for localhost since this file was written, and matters online too:
-- The economy's settings: when the server starts, settings the game has gained (Phase 6 Step 4's `shop`, `sell`
-  values) are added to the active version as a new version, without changing anything already there. The first
-  start online with Step 4 makes that version: look for it in the admin page's Economy settings.
-- The per-address rate limit counts only `/api/` and `/rt/` (the game's own files were being counted: a page
-  load is hundreds of modules).
-- The content security policy allows the tiles and real-time addresses by name (`TILES_URL`, `RT_URL`), and
-  MapLibre's worker from jsDelivr (the maps were blocked).
+Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
+and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
+[OPERATIONS.md](OPERATIONS.md), and for losing something [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
 
 ## The addresses
 
 | Address | What | Where it runs |
 |---|---|---|
-| `ognistrada.com` | The game | Cloudflare Pages (project `ognistrada`) |
-| `www.ognistrada.com` | Redirects (301) to `ognistrada.com`, keeping the path | A Cloudflare redirect rule |
-| `api.ognistrada.com` | The API server, plus the admin and editor pages, served only to admin and editor accounts | Render, `ognistrada-production` (Singapore) |
-| `rt.ognistrada.com` | Real time: for now only a WebSocket ping/pong check | The same Render service (the real-time server, built in Phase 7 Step 1, replaces it: "To do when we deploy" 9) |
-| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, 277 MB) | Cloudflare R2, bucket `ognistrada-tiles` |
-| `staging.ognistrada.com` | The test version of the game | Pages project `ognistrada-staging` |
-| `staging-api.ognistrada.com`, `staging-rt.ognistrada.com` | The test API and real time | Render, `ognistrada-staging` (Singapore) |
-| `staging-tiles.ognistrada.com` | The test version's files | R2, bucket `ognistrada-tiles-staging` |
-| `status.ognistrada.com` | Status page | Later (Phase 6 Step 5) |
-| `noreply@ognistrada.com` | Sends verification and password-reset emails | Resend |
+| `ognistrada.com` | The game | Cloudflare Pages, project `ognistrada` |
+| `www.ognistrada.com` | Redirects (301) to `ognistrada.com`, keeping the path and query | A Cloudflare redirect rule |
+| `api.ognistrada.com` | The API, plus the admin and editor pages (only for admin and editor accounts) | The VPS in Sydney (container `api`), through the Cloudflare Tunnel |
+| `rt.ognistrada.com` | The real-time server: races, lobbies, free roam (WebSockets); `/health` | The VPS in Sydney (container `rt`), through the Cloudflare Tunnel |
+| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, about 280 MB) | Cloudflare R2, bucket `ognistrada-tiles` |
+| `noreply@ognistrada.com` | Sends verification, password-reset and support emails, and the alerts | Resend (region Tokyo) |
 
-Staging is written `staging-api`, not `api.staging`. Cloudflare's free certificate covers `ognistrada.com` and one
-level below it (`*.ognistrada.com`), but not two.
-
-**Staging and production share nothing:** each has its own Pages project, R2 bucket, Render service, Neon database
-and secrets. The checks confirm the databases differ.
+The backups are in a second R2 bucket, `ognistrada-backups`, which is private (no address at all).
 
 ## How the parts connect
 
+```
+players ──► Cloudflare (HTTPS, protection) ──┬─► ognistrada.com ........ the game (Pages)
+                                             ├─► tiles.ognistrada.com .. map files (R2: ognistrada-tiles)
+                                             └─► api. / rt.ognistrada.com ── the tunnel ──► the VPS (OVHcloud, Sydney)
+                                                                                             │ Docker Compose:
+                                                                                             ├─ cloudflared (the tunnel)
+                                                                                             ├─ api  :8787
+                                                                                             └─ rt   :2567 ──► api (inside)
+the VPS ──► the database (PlanetScale Postgres, AWS Sydney; TLS) · email (Resend, Tokyo)
+GitHub Actions ──► deploys (SSH to the VPS, Pages, R2) · nightly backups ──► R2: ognistrada-backups
+```
+
+- **The server opens no web ports.** `cloudflared` connects out to Cloudflare and carries `api.` and `rt.` to the
+  containers (the tunnel `ognistrada`, its routes kept in Cloudflare: `api.ognistrada.com → http://api:8787`,
+  `rt.ognistrada.com → http://rt:2567`, anything else 404). The firewall lets in only SSH, by key. There are no
+  certificates on the server: Cloudflare's cover every address.
 - **Telling the game where everything is.** Each page loads `/site/config.js` first. The site build
-  (`tools/build-site.mjs`) writes it for each environment, with the addresses of the API, the tiles and real time.
-  On a single local address (`npm start`, or the server in development) it's empty, and everything stays on one
-  address as before.
-- **The session cookie.** The API sets it on `api.ognistrada.com` only (host-only), with `HttpOnly`, `Secure` and
-  `SameSite=Lax`.
-  - `ognistrada.com` and `api.ognistrada.com` count as the same site, so the browser sends the cookie on the game's
-    requests to the API (`credentials: 'include'`). This doesn't depend on third-party cookies.
-  - The CSRF cookie is `SameSite=Strict`, on the API's address too.
-  - Email links and sign-in redirects go to the API's address, which sends the browser back to the game.
-- **CORS.**
-  - The API lets only `GAME_URL` (and its own address) read it, with cookies. It exposes `X-Request-Id`.
-  - The tiles allow only the game's and the API's addresses: R2's CORS settings, plus a Cloudflare response rule.
-    The rule sets `Access-Control-Allow-Origin` on every answer, cached or not, because R2's own answer would be
-    cached with the first visitor's origin.
-- **Map files.**
-  - The game asks for `assets/...` as before. `site/urls.js`'s `assetUrl()` sends the map streamers straight to the
-    tiles address.
-  - Anything else that asks the game's address for `/assets/...` gets a 302 there (`_redirects`).
-  - PMTiles reads byte ranges, which R2 serves (206 responses). Cloudflare caches the files (a cache rule; one hour,
-    from each file's `Cache-Control`).
-- **The admin page** is on the API's address, at `api.ognistrada.com/admin/`.
-  - Signed out: the server sends you to sign in on the game, then back.
-  - A player: refused (403).
-  - An admin: the page.
-  - `ognistrada.com/admin` redirects there.
-- **The editor's code.** The editor runs inside the game, but its code (`editor/`) isn't on the game's address.
-  - The game loads it from the API's address with the session (`site/urls.js`'s `importTool()`), and the server
-    serves it only to editor and admin accounts.
-  - The game's import map points the editor's imports of shared modules back to the game's address, so they load
-    once.
-  - `editor/access.js`, which only decides whether the editor's button shows, stays on the game's address.
-- **Real time.**
-  - `rt.ognistrada.com/rt/health` answers a ping with a pong (`server/src/rt/health.ts`).
-  - It goes through Cloudflare, like the API: the TLS certificate is managed, attacks are filtered, and the player's
-    IP address arrives with Cloudflare's header.
-  - `ognistrada.com/site/ping.html` measures the round trip from your browser. If, from Australia, it's clearly
-    slower than going straight to Render, switch `rt` to DNS only (see [Real time: through Cloudflare or straight](#real-time-through-cloudflare-or-straight)).
-- **The player's IP address** is used for rate limits and the account's sign-in list.
-  - Behind Cloudflare it comes from `CF-Connecting-IP`. The server only trusts that header when the request carries
-    Cloudflare's secret (`EDGE_SECRET`, added by a Cloudflare request rule).
-  - A request that skips Cloudflare (Render's own `onrender.com` address) is taken at the address Render saw.
-- **Cross-origin isolation (COOP/COEP) isn't needed.**
-  - The game doesn't use `SharedArrayBuffer`.
-  - Turning COEP on would block the libraries and fonts loaded from jsDelivr and Google Fonts.
-  - The pages do send `Cross-Origin-Opener-Policy: same-origin`, which needs nothing else.
+  (`tools/build-site.mjs`) writes it: the API's, the tiles' and real time's addresses, the commit, and
+  `multiplayer: true`, so the game plays online without `?mp` (`?mp=0` turns it off). Locally (`npm start`, or the
+  server in development) it's empty and everything stays on one address.
+- **The session cookie** is set on `api.ognistrada.com` only (host-only), `HttpOnly`, `Secure`, `SameSite=Lax`.
+  `ognistrada.com` and `api.ognistrada.com` are the same site, so the browser sends it on the game's requests to the
+  API (`credentials: 'include'`): no third-party cookies needed. The CSRF cookie is `SameSite=Strict`, on the API's
+  address too. Email links and sign-in redirects go to the API's address, which sends the browser back to the game.
+- **CORS.** The API lets only `GAME_URL` (and its own address) read it, with cookies. The tiles allow only the game's
+  and the API's addresses: R2's CORS settings, plus a Cloudflare response rule that sets `Access-Control-Allow-Origin`
+  on every answer, cached or not (R2's own answer would be cached with the first visitor's origin).
+- **Map files.** `site/urls.js`'s `assetUrl()` sends the map streamers straight to the tiles address; anything else
+  asking the game's address for `/assets/…` gets a 302 there (`_redirects`). PMTiles reads byte ranges (206), and
+  Cloudflare caches the files (a cache rule, an hour, from each file's `Cache-Control`).
+- **The admin page** is at `api.ognistrada.com/admin/` (`ognistrada.com/admin` redirects there). Signed out: sent to
+  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in.
+- **The editor's code** (`editor/`) isn't on the game's address: the game loads it from the API's with the session
+  (`site/urls.js`'s `importTool()`), served only to editors and admins. The game's import map points the editor's
+  imports of shared modules back at the game's address, so they load once. `editor/access.js` (whether the editor's
+  button shows) stays on the game's address.
+- **Real time.** The game asks the API for a one-use join ticket (`POST /api/v1/rt/ticket`), then joins a room on
+  `rt.ognistrada.com` with it (Colyseus over WebSockets, through Cloudflare and the tunnel). The real-time server
+  calls the API for lobbies, races and free roam inside Docker's own network (`API_INTERNAL_URL=http://api:8787`,
+  with `RT_SECRET`), and sends its numbers every 5 seconds — which is how the API knows it's up.
+- **The player's IP address** (rate limits, the sign-in list). Through the tunnel every request arrives from the
+  `cloudflared` container, so the address comes from `CF-Connecting-IP`, believed only when the request carries
+  Cloudflare's secret header (`x-kr-edge` = `EDGE_SECRET`, added by a Cloudflare rule for `api.` and `rt.`).
+- **Cross-origin isolation (COOP/COEP) isn't needed.** The game doesn't use `SharedArrayBuffer`, and COEP would block
+  the libraries and fonts from jsDelivr and Google Fonts. The pages do send `Cross-Origin-Opener-Policy: same-origin`.
 
-## The services
+## The services, and what they cost
 
-| Service | Plan | Cost | What it holds |
+| Service | Plan | A month | What it holds |
 |---|---|---|---|
-| Cloudflare | Free | $0 | DNS, HTTPS certificates, Pages (the game), R2 (files), rules |
-| Render | Free (Hobby workspace) | $0 | Two web services: the API and the real-time check, staging and production |
-| Neon | Free | $0 | Two PostgreSQL 16 databases with PostGIS, region AWS Asia Pacific (Singapore) |
+| OVHcloud | VPS-1, Sydney: 2 vCores, 4 GB, 40 GB, Ubuntu 24.04 | A$6.29 + GST ≈ US$4.60 | The API, the real-time server and the tunnel (Docker Compose, `/opt/ognistrada`) |
+| PlanetScale | Postgres PS-5, AWS `ap-southeast-2` (Sydney), PostGIS on | ≈ US$5 (*check* the invoice) | The database: accounts, the economy, results, world content, everything |
+| Cloudflare | Free (a card on file for R2) | $0 | DNS, certificates, Pages (the game), R2 (files and backups), Turnstile, the tunnel, rules |
 | Resend | Free | $0 | Email from `noreply@ognistrada.com` (region Tokyo) |
-| GitHub | Free | $0 | Code, tests, deploys, daily backups (Actions) |
-| Sentry | Free (optional) | $0 | Error reports |
-| The domain | Bought | (your registrar's yearly fee) | `ognistrada.com` |
+| GitHub | Free (public repository) | $0 | Code, tests, the image (`ghcr.io/limmylem/kugelsackracing`), deploys, the nightly backup |
+| UptimeRobot, Sentry, Healthchecks.io | Free | $0 | Watching it ([Monitoring and alerts](#monitoring-and-alerts)) |
+| The domain | `ognistrada.com` at Namecheap | ≈ US$1 (its yearly renewal) | |
+| **Total** | | **≈ US$10.50–11.50** | |
 
-The free plans' limits as of October 2026 (check each service's pricing page):
-- **Cloudflare:**
-  - Pages: unlimited bandwidth, 500 deploys a month, 25 MiB a file, 20,000 files. The game is about 860 files and
-    6 MB.
-  - R2: 10 GB storage, 1 million writes and 10 million reads a month, downloads free. Our files are about 280 MB in
-    each environment.
-- **Render (Hobby, free):**
-  - 512 MB of memory and 0.1 CPU per service.
-  - Sleeps after 15 minutes without a request or WebSocket message, and wakes in about a minute.
-  - 750 running hours a month, shared by both services.
-  - 5 GB of bandwidth a month, then $0.15/GB.
-  - Custom domains with free certificates.
-- **Neon (free), per project:** 0.5 GB of storage, 100 compute-hours a month, the database pausing after 5 minutes
-  idle, 6 hours of history to restore from, and 5 GB of network transfer a month.
-- **Resend (free):** 3,000 emails a month, at most 100 a day, one domain.
+Nothing else is paid for. **Ask the owner before anything that costs money** (a bigger server, a second server or
+region, Redis elsewhere, a paid plan of a free service), with a monthly estimate.
 
-## Free plans: what to watch
+The free plans' limits that matter (October 2026; *check* each pricing page):
+- **Cloudflare Pages:** 500 deploys a month, 25 MiB a file, 20,000 files (the game: about 910 files, 7 MB).
+- **Cloudflare R2:** 10 GB stored, 1 million writes and 10 million reads a month, downloads free. We use about
+  0.3 GB (the files) plus the backups (35 small files).
+- **Resend:** 3,000 emails a month, at most 100 a day, one domain. Its logs: a day on the free plan (*check*).
+- **The VPS:** OVHcloud's VPS traffic is unmetered at 250 Mbit/s (*check* the order page). Free roam is the biggest
+  user (8–35 kB/s a player: [COSTS.md](COSTS.md)); five friends are nowhere near it.
+- **PlanetScale PS-5:** its storage and connections are the plan's (*check* the dashboard). The game uses one pool of
+  at most `DATABASE_POOL_MAX` (10) connections from the API.
 
-What could cause problems, or lose data, and what's in place for each:
+## The server
 
-1. **Database history is only 6 hours (Neon free).** A mistake noticed later can't be undone from Neon alone.
-   - In place: `backup.yml` dumps production every day at 03:17 UTC, encrypted, test-restores it into a fresh
-     database, and keeps it 30 days.
-   - Keep `BACKUP_PASSPHRASE` somewhere safe; without it the backups can't be read.
-   - Worst case: up to a day's progress lost.
-2. **Database storage is 0.5 GB per project.** When it's full, writes fail; nothing is lost, but players can't save.
-   - What fills it: run recordings and replays, the ledger, world content.
-   - The economy dashboard on the admin page shows totals. Check Neon's dashboard for storage.
-3. **Neon compute is 100 hours a month per project.** With the database pausing when idle, that's plenty for one
-   tester. If it ran out, the database would stop until the next month.
-4. **The API sleeps (Render free).**
-   - The first visit after 15 quiet minutes waits about a minute; the game says "Waking the server…" and retries.
-   - WebSocket connections drop when it sleeps or restarts.
-   - The two services share 750 hours a month. If both stayed awake all month (2 × 730 hours), the second would stop
-     near the end of the month. While it's one tester, they sleep most of the time.
-5. **Render's bandwidth: 5 GB a month.** The game and its files come from Cloudflare (free bandwidth), so only the
-   API's answers count.
-6. **R2 needs a payment method on file**, even on the free plan. Cloudflare charges only beyond the free amounts.
-   Set a billing notification (Cloudflare → Billing → Notifications) so you hear if usage nears them.
-7. **Resend: 100 emails a day, shared by staging and production.**
-   - Past that, verification and reset emails fail until the next day; players can sign in later and ask for a new
-     link.
-   - Resend's free plan keeps its logs for one day.
-8. **The database is reachable from the internet (Neon free has no IP allow-list).**
-   - It's protected by a strong generated password and TLS (`sslmode=require`).
-   - The connection strings live only in Render's and GitHub's secret settings.
-   - Neon's IP allow-list is on its paid Scale plan. Render's paid Postgres can refuse outside connections entirely
-     (see [Upgrading](#upgrading-about-13-a-month)).
-9. **Singapore, not Australia.** Render has no Australian region, so the API is about 90–100 ms from Sydney. That's
-   fine for the API. Phase 7's real-time racing should be closer: see the end of [Upgrading](#upgrading-about-13-a-month).
+- **Ubuntu 24.04**, user `ubuntu`, set up by `deploy/server-setup.sh` (the `server-setup` workflow): Docker and Compose
+  from Ubuntu's own packages; security updates installed every night by themselves, and when one needs a reboot the
+  server reboots at 17:30 UTC (about 04:00 in Adelaide); the firewall (ufw) letting in only SSH; fail2ban; SSH by key
+  only; a 1 GB swap file; `/opt/ognistrada` for the deploy; the real-time server's secret, made once in
+  `/opt/ognistrada/rt.secret` (it never leaves the server: each deploy adds it to `.env` as `RT_SECRET`).
+- **Docker Compose** (`deploy/compose.yml` → `/opt/ognistrada/compose.yml`, the project `ognistrada`), three services,
+  the first two from one image, `ghcr.io/limmylem/kugelsackracing:<commit>`:
+  - `api`: `node server/src/main.ts` on 8787 (its migrations run as it starts);
+  - `rt`: `node server/src/rt/main.ts` on 2567, one process, everything in memory (no Redis);
+  - `cloudflared`: the tunnel, with `TUNNEL_TOKEN`.
+  No port is published. Each restarts by itself if it stops, and after a reboot (`restart: unless-stopped`); Docker's
+  health checks read `/api/v1/health` and `/health`. Logs rotate at 10 MB, three files a container.
+- **The settings** are in `/opt/ognistrada/.env` (mode 600), written by every deploy from GitHub's secrets and
+  variables ([SERVER.md](SERVER.md#settings-online) lists them).
+- **By hand** (rarely): `ssh -i ~/.ssh/ognistrada_deploy ubuntu@<SERVER_HOST>`, then
+  `cd /opt/ognistrada && docker compose ps` · `docker compose logs --tail 100 api rt` · `docker compose restart api`.
+  The deploys' history: `/opt/ognistrada/deployed.log` (one line a deploy: the time, the commit; newest last).
 
-### Considered: Oracle Cloud Always Free
+## The workflows
 
-Oracle's free virtual machines run in Sydney and Melbourne and don't sleep, which would help ping. They're not the
-better choice now:
-- **Smaller allowance:** Oracle has been reported to be cutting its free Arm allowance (from 4 cores and 24 GB to 2
-  cores and 12 GB, from 18 August 2026).
-- **Idle reclaiming:** free machines that sit mostly idle for a week (CPU, network and memory under 20%) can be
-  reclaimed, and a test server is idle most of the time.
-- **Capacity:** new free machines often fail with "out of host capacity".
-- **Everything is ours to run:** operating system updates, TLS, restarts, deploys and monitoring. That's more
-  security work than a managed host.
-
-Revisit for Phase 7 if Sydney latency matters before paying for a server there.
-
-## Setting it up (once)
-
-Steps marked **you** need your accounts. The rest is done by the `infra` workflow
-(`tools/cloudflare-setup.mjs`), because only GitHub Actions can reach Cloudflare's and Resend's APIs. The
-workflow is safe to run again.
-
-### 1. Cloudflare (you): the site, R2, three tokens
-
-1. Sign up at cloudflare.com and **Add a site**: `ognistrada.com`, Free plan.
-2. At your domain's registrar, replace its nameservers with the two Cloudflare shows. When the site says
-   **Active** (minutes to a day), Cloudflare is in charge of the DNS.
-3. **R2 → Purchase R2 (free plan)**: add a payment method. It isn't charged within the free amounts.
-4. Copy the **Account ID** (right-hand side of the site's overview).
-5. **My Profile → API Tokens → Create token**, three of them:
-   - **`ognistrada setup`**, for the `infra` workflow:
-     - Account: *Cloudflare Pages: Edit*, *Workers R2 Storage: Edit*.
-     - Zone `ognistrada.com`: *Zone: Read*, *DNS: Edit*, *Zone Settings: Edit*, *Transform Rules: Edit*,
-       *Single Redirect: Edit*, *Cache Rules: Edit*.
-     - Set it to expire in a year.
-   - **`ognistrada deploy`**, for deploys: Account: *Cloudflare Pages: Edit*, nothing else. Also a year.
-   - **R2 → Manage R2 API tokens → Create**: *Object Read & Write*, both buckets (`ognistrada-tiles`,
-     `ognistrada-tiles-staging`; create the token after the `infra` workflow has made them). Copy the **Access Key
-     ID** and **Secret Access Key**.
-6. Optional: **Email → DMARC Management**, so Cloudflare collects the DMARC reports for you.
-
-### 2. Neon (you): two databases
-
-1. Sign up at neon.com and create two projects: `ognistrada-staging` and `ognistrada-production`. Use PostgreSQL 16
-   and region **AWS Asia Pacific (Singapore)**, the same as Render.
-2. In each, **Connect** → copy the connection string **without** "-pooler" in the host (the direct one, with
-   `sslmode=require`).
-   - The server takes a lock while it migrates, which needs a direct connection.
-   - These become `DATABASE_URL` for that environment.
-3. Nothing else: the server switches PostGIS on and runs every migration when it starts.
-
-### 3. Resend (you): two keys
-
-1. Sign up at resend.com.
-2. **API Keys → Create**:
-   - One with *Full access*, named `ognistrada setup`: the `infra` workflow adds the domain and its DNS records with
-     it.
-   - Two with *Sending access*, named `ognistrada staging` and `ognistrada production`: these send the email.
-3. Each environment's `SMTP_URL` is `smtps://resend:THE-SENDING-KEY@smtp.resend.com:465`.
-
-### 4. Render (you): the API servers
-
-1. Sign up at render.com with GitHub → **New → Blueprint** → this repository. It reads `render.yaml` and makes
-   `ognistrada-staging` and `ognistrada-production` (Singapore, free).
-2. In each service's **Environment**, fill in the secrets it asks for:
-
-   | Setting | Value |
-   |---|---|
-   | `DATABASE_URL` | That environment's Neon connection string |
-   | `BETTER_AUTH_SECRET` | `openssl rand -base64 32`, different for each |
-   | `EDGE_SECRET` | `openssl rand -hex 24`, different for each (it also goes into GitHub, below) |
-   | `SMTP_URL` | From Resend (above) |
-   | `ADMIN_EMAIL` | Your email (that account becomes an admin once its email is confirmed) |
-   | `GOOGLE_*`, `DISCORD_*`, `SENTRY_*` | Optional (see SERVER.md); Google's redirect URI is `https://api.ognistrada.com/api/auth/callback/google` (and `staging-api…`) |
-
-   The addresses (`PUBLIC_URL`, `GAME_URL`, `TILES_URL`, `RT_URL`, `MAIL_FROM`, `HSTS`) come from `render.yaml`.
-3. Note each service's `….onrender.com` host and its ID (`srv-…`, in its URL).
-4. **Account Settings → API Keys → Create**: that's `RENDER_API_KEY`.
-
-### 5. GitHub (you): environments, variables, secrets
-
-**Settings → Environments:**
-
-| Environment | Variables | Secrets | Protection |
+| Workflow | When | What | Approval |
 |---|---|---|---|
-| `staging` | `GAME_URL=https://staging.ognistrada.com`, `API_URL=https://staging-api.ognistrada.com`, `TILES_URL=https://staging-tiles.ognistrada.com`, `RT_URL=wss://staging-rt.ognistrada.com`, `PAGES_PROJECT=ognistrada-staging`, `R2_BUCKET=ognistrada-tiles-staging`, `RENDER_SERVICE_ID=srv-…`, `OTHER_API_URL=https://api.ognistrada.com`, `HSTS=off` | — | none |
-| `production` | The same for production: `https://ognistrada.com`, `https://api.ognistrada.com`, `https://tiles.ognistrada.com`, `wss://rt.ognistrada.com`, `ognistrada`, `ognistrada-tiles`, its `srv-…`, `OTHER_API_URL=https://staging-api.ognistrada.com`, `HSTS=off` | — | **Required reviewers: you** |
-| `infra` | `RENDER_STAGING_HOST`, `RENDER_PRODUCTION_HOST` (the `….onrender.com` hosts) | `CLOUDFLARE_SETUP_TOKEN`, `RESEND_API_KEY` (full access), `EDGE_SECRET_STAGING`, `EDGE_SECRET_PRODUCTION` (the same values as in Render) | Required reviewers: you (recommended) |
-
-**Settings → Secrets and variables → Actions:**
-- Repository variable: `CLOUDFLARE_ACCOUNT_ID`. Setting it switches automatic deploys on.
-- Repository secrets:
-  - `CLOUDFLARE_API_TOKEN` (the deploy token), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `RENDER_API_KEY`;
-  - for the backups (SERVER.md): `PRODUCTION_DATABASE_URL`, `STAGING_DATABASE_URL`, `BACKUP_PASSPHRASE`.
-
-### 6. Cloudflare and Resend, set up (the `infra` workflow)
-
-1. **Actions → infra → Run workflow** with *dry run* ticked: it lists everything it would do.
-2. Run it again without *dry run*. It sets up:
-   - HTTPS: Full (strict), HTTP to HTTPS, TLS 1.2 at least;
-   - the two Pages projects on `ognistrada.com` and `staging.ognistrada.com`;
-   - the two R2 buckets with CORS, on `tiles.` and `staging-tiles.`;
-   - DNS for the API and real-time addresses, DNS only for now, so Render can issue their certificates;
-   - the `www` redirect, the edge-secret rule, the tiles' CORS rule and the tiles' cache rule;
-   - Resend's domain, its SPF and DKIM records, and a DMARC record.
-3. In Render, each service's **Settings → Custom Domains** turns *Verified*, with a certificate, within minutes.
-   Then run **infra** again with *proxy_api* ticked: the API and real-time addresses go through Cloudflare.
-4. In Resend, **Domains** shows `ognistrada.com` *Verified*. If it doesn't, run **infra** with *only* `email` once
-   the DNS has spread.
-
-### 7. The first deploy
-
-Push to `main`. When the tests pass, **staging** deploys. Then **production** waits for your approval: **Actions →
-the run → Review deployments**.
+| `infra` | By hand, a dry run first | Cloudflare and Resend set up (`tools/cloudflare-setup.mjs`): HTTPS settings, DNS records in the way, the Pages project and its domain, the R2 buckets (the tiles' CORS and address; the backups private, each file deleted after 35 days), the tunnel and its routes, the rules (www, the edge secret, the tiles' CORS, caching), Resend's domain (Tokyo) and its SPF, DKIM and DMARC records. Safe to run again: it only adds what's missing and puts right what's different. Uses the setup token. | `infra` environment |
+| `server-setup` | By hand, a dry run first; now and then to bring the packages up to date | `deploy/server-setup.sh` on the server over SSH ([The server](#the-server)). Safe to run again. | `infra` environment |
+| `server` | Every push and pull request | Typecheck, every server test, the browser tests (this file's layout: `deploy-browser.ts`), the dependency audit. On `main`: the image built and pushed (`:<commit>` and `:main`; the newest 20 kept), then `deploy` — once the repository variable `DEPLOY_ENABLED` is `"true"`. | — |
+| `deploy` | Called by `server` and `rollback` | [Deploying](#deploying) | `production` environment |
+| `rollback` | By hand: a commit | `deploy` at an earlier commit ([Rolling back](#rolling-back)) | `production` environment |
+| `check` | By hand | `tools/check-deploy.mjs` against production ([Checks](#checks)) | — |
+| `backup` | Every night (16:17 UTC, about 03:00 in Adelaide); by hand with *drill* | [Backups](#backups-and-restoring) | — |
+| `loadtest` | By hand | 20 online bots on demand (up to 200): half in free roam, half in quick races, for a couple of minutes against the real servers, each number against its target (`server/tools/online-bots.ts`; tickets with `LOADTEST_TOKEN`). GitHub's runners are in the US, so the pings include the trip to Sydney. | — |
 
 ## Deploying
 
-Every push to `main` runs `server.yml`: the tests, then `deploy.yml` for staging, then (approved) for production.
+Every push to `main` runs `server.yml`: the tests, the image, then (with `DEPLOY_ENABLED` on) `deploy.yml`, which waits
+for the owner's **Approve** (GitHub emails; Actions → the run → **Review deployments**). One deploy at a time. In order,
+so nothing ever points at something that isn't there yet:
+1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed).
+2. **The server** at this commit (`server/scripts/deploy-server.sh` over SSH): `compose.yml` and `.env` put there, the
+   tunnel's token read from Cloudflare (the deploy token's Tunnel Read), the image pulled, `docker compose up -d` on
+   the server by itself (a dropped connection can't leave it half done), then a wait — up to 13 minutes — until the API
+   and the real-time server, as players reach them, both say they're this commit and healthy. Images unused for a week
+   are removed from the server.
+3. **The game:** `tools/build-site.mjs` builds it, `wrangler pages deploy` publishes it to the Pages project `ognistrada`.
+4. **The checks** (`tools/check-deploy.mjs`). A failed check fails the deploy, and the run's summary says how to roll back.
 
-`deploy.yml`, for one environment:
-1. **Map files:** `assets/` to that environment's R2 bucket with `rclone sync --checksum`, so only changed files
-   upload.
-2. **The API:** Render deploys this commit (Render's API, `commitId`).
-   - The server's migrations run as it starts, one server at a time (an advisory lock).
-   - The workflow waits until `/api/v1/health` reports this commit and healthy.
-3. **The game:** `tools/build-site.mjs` builds it for this environment and `wrangler pages deploy` publishes it.
-4. **The checks:** `tools/check-deploy.mjs` (see [Checks](#checks)). A failed check fails the deploy.
+**What players notice.** The API restarts in seconds (there's one of it: requests in those seconds fail, and the game
+retries). **The real-time server drains first:** on SIGTERM nobody new joins, races under way finish and their results
+reach the API (up to `RT_DRAIN_SEC`, 600 s; Docker waits 11 minutes before killing it), then it stops and the new one
+starts. Free-roam players are told "The game server is restarting. Reconnecting…" when it stops, and join the new
+one. So deploy when few are racing, or expect the deploy to wait for the races.
 
-**Migrations only ever add** (new tables, new columns with defaults, new indexes). The game already online, and
-the API rolled back, keep working with the newer database. Removing or renaming something takes two deploys: first
-stop using it, then remove it.
+**Migrations only ever add** (tables, nullable or defaulted columns, indexes with `IF NOT EXISTS`): the game already
+online, and a server rolled back, keep working with the newer database. Removing or renaming takes two deploys: stop
+using it, then remove it ([OPERATIONS.md](OPERATIONS.md#safe-deploys)).
 
 ## Rolling back
 
 | What | One step |
 |---|---|
-| Everything, kept in step | **Actions → rollback → Run workflow**: the environment and the commit to go back to. It runs `deploy.yml` at that commit (map files, API, game, checks); production still needs your approval. |
-| The game alone | Cloudflare → Workers & Pages → `ognistrada` → Deployments → an earlier one → **Rollback**. |
-| The API alone | Render → `ognistrada-production` → Events → an earlier deploy → **Rollback**. |
-| A database mistake | Neon → the project → **Restore** (up to 6 hours back), or the latest `backup.yml` backup (SERVER.md "Restoring"). |
+| Everything, kept in step | **Actions → rollback → Run workflow**, the commit to go back to (from `/opt/ognistrada/deployed.log`, or the `server` runs whose production job succeeded), then approve it. It runs `deploy.yml` at that commit: map files, the server (that commit's image), the game, the checks. Only the newest 20 commits built on `main` have an image. |
+| The game alone | Cloudflare → Workers & Pages → `ognistrada` → Deployments → an earlier one → **Rollback** (Pages keeps every deployment). |
+| A feature alone | Switch it off on the admin page's Launch tab (seconds). |
+| A database mistake | PlanetScale's point-in-time restore, or a nightly backup ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)). |
 
-A rollback never undoes database migrations (they only add), so the older API works with the newer database.
+A rollback never undoes migrations; the older server runs on the newer schema (`server/tools/rollback-test.ts` drills it).
 
 ## Checks
 
-**Automatic:** after every deploy, and on demand from **Actions → check**. `tools/check-deploy.mjs` checks, from
-GitHub's runner:
-- every address loads over HTTPS with a valid certificate, and `http://` redirects to `https://`;
-- `www` redirects to the game (production);
-- HSTS, once it's switched on;
-- the game's page knows every address;
-- the game's `/assets/` goes to the tiles address, and `/admin` to the API's;
-- the editor's code isn't on the game's address;
-- the API is healthy, in this environment, with its database answering;
-- CORS: the game may read the API, another site may not;
-- the admin page and the editor's code, signed out, send you to sign in;
-- tiles:
-  - a byte range comes back (206), and comes from Cloudflare's cache the second time (`cf-cache-status: HIT`);
-  - CORS answers for the game's and the API's addresses, even from the cache, and not for another site;
-- real time: 10 WebSocket pings through Cloudflare all answered, with the round trip's time;
-- staging and production use different databases (each health check's `dbId`).
+**After every deploy, and on demand (Actions → check).** `tools/check-deploy.mjs`, from GitHub's runner, through
+Cloudflare as players reach it:
+- every address (the game, the API, the tiles, `rt.`) over HTTPS with a valid certificate; `http://` → `https://`;
+  `www` → the game with the path and query kept; HSTS, once it's on;
+- the API: healthy, `production`, its database answering; CORS for the game (with cookies), not for another site; the
+  admin page and the editor's code, signed out, send you to sign in;
+- the game: its page loads its settings first; `site/config.js` names every address and has `multiplayer: true`; it's
+  the commit the API runs; `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
+- the tiles: a byte range (206), from Cloudflare's cache the second time (`cf-cache-status: HIT`), CORS for the game's
+  and the API's addresses even from the cache, not for another site;
+- real time: `https://rt.ognistrada.com/health` is ok (and not draining), the same commit as the API, and 10 round
+  trips' times through Cloudflare and the tunnel; the API's `/api/v1/status` says `"rt":"up"`.
 
-**Before anything is online:** `node server/tools/deploy-browser.ts` (also in CI) runs the same layout on this
-machine in Chromium, each part on an address of its own: game, API, tiles, real time, and another site.
+**Before anything is online:** `node server/tools/deploy-browser.ts` (also in CI) runs the same layout on one machine
+in Chromium, each part on an address of its own (the game as built for production, the API, the tiles, the real-time
+server, another site): signing up across addresses, a purchase, server-sent events, map files, a real-time ticket and
+a room joined, the admin and editor pages for their roles.
 
-**By you, once at the start and after big changes:**
-1. **Sign up from a phone on mobile data** (Wi-Fi off) at `ognistrada.com`. The verification email should arrive in
-   the inbox, not spam: try a Gmail address and an Outlook/Hotmail address.
-   - In Gmail, **Show original** should say `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS`.
-   - In Outlook, the message details should show `spf=pass`, `dkim=pass`, `dmarc=pass`.
-2. Sign in and load the world. The map should stream in.
-3. Open `ognistrada.com/site/ping.html` and run the check: it shows the real-time round trip from where you are.
-4. **Two players on different networks in the same room:** moved to Phase 7 Step 1's tests, along with the real
-   multiplayer server. For now, `rt` only proves that WebSockets reach the server through Cloudflare.
+**By the owner, once at the start and after big changes:**
+1. Sign up from a phone on mobile data (Wi-Fi off). The verification email should arrive in the inbox, not spam: try
+   Gmail and Outlook. Gmail's **Show original**: `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS`.
+2. Sign in and load the world: the map streams in.
+3. **The two-network check** (deferred since Phase 7 Step 1): the owner on home Wi-Fi and a friend on a phone hotspot
+   sign up with invite codes, get the verification emails, meet in free roam and race each other.
+
+## Backups and restoring
+
+- **Nightly** (`backup.yml`, 16:17 UTC): production's database dumped (`server/scripts/backup.sh`, `pg_dump`'s custom
+  format), encrypted with AES-256 (`BACKUP_PASSPHRASE`), **restored straight away** into a fresh PostgreSQL with
+  PostGIS and checked (`server/scripts/restore.sh`), then kept in R2 `ognistrada-backups` as
+  `daily/<date>.dump.gpg`. R2 deletes each after **35 days**. Nothing is kept on GitHub (the repository is public).
+  Healthchecks.io is told it's done; a night without one emails the owner.
+- **The restore drill:** Actions → backup → Run workflow with *drill* ticked: the backup is restored, and the image
+  production runs is started on the restored copy and must answer healthy with its database. Every 3 months.
+- **PlanetScale's own backups** and point-in-time restore, on top (*check* how far back on PS-5 in its dashboard).
+- The PostgreSQL tools must be at least as new as the database: `PG_MAJOR` (17 unless the repository variable says 18).
+- Restoring, step by step: [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
+
+## Monitoring and alerts
+
+| What | Watches | Tells |
+|---|---|---|
+| **UptimeRobot** (free: four monitors, every 5 minutes — *check* the free plan's interval) | `https://ognistrada.com/` (up) · `https://api.ognistrada.com/api/v1/status`, keyword `"api":"up"` · the same address, keyword `"rt":"up"` (the API hears from the real-time server) · `https://rt.ognistrada.com/health`, keyword `"ok":true` | The owner's email (and its app); its public status page |
+| **The API's own alerts** (`server/src/ops/alerts.ts`, every minute) | Server errors, slow answers, the database, the verification queue, the economy's money, and **the real-time server going quiet** (nothing from it for 90 s: `realtime`) | `ALERT_EMAIL`, from `noreply@ognistrada.com`; once, hourly while it lasts, and "Fixed" |
+| **Sentry** (free) | Errors with their stack traces, nothing personal: the API and the real-time server (`SENTRY_DSN`, a secret) and the game (`SENTRY_CLIENT_DSN`, a variable; the API's `client-config` hands it to the game) | Email on a new kind of error or a spike |
+| **Healthchecks.io** (free) | The nightly backup: a check expecting a ping a day (`HEALTHCHECKS_BACKUP_URL`, a secret; the workflow pings `/fail` when it fails) | Email when a night is missed or fails |
+| **GitHub** | Failed workflows (a deploy, a backup) | Email to the owner |
+| **Docker** | Each container's health check; a stopped container is restarted | — |
+
+The admin page's Monitoring tab shows the live numbers ([OPERATIONS.md](OPERATIONS.md)).
+
+## Redis: not used
+
+With one real-time process on one server, rooms, presence, the matchmaking queue, parties, invite codes, one-use
+tickets and bans are all in that process's memory (Colyseus's `LocalPresence`). A deploy restarts it, so they start
+afresh (players simply join again). **Redis is needed only for a second real-time process or a second server**: they
+share their rooms, the queue and the free-roam instances through it.
+
+To add it (ask first if it costs anything):
+- **On this server** (a second process, `--processes 2`): a `redis` service in `deploy/compose.yml`
+  (`redis:7-alpine`, no published port, a little memory), and `REDIS_URL=redis://redis:6379` for `api` and `rt`. Free,
+  but each process needs an address of its own (`RT_PUBLIC_ADDRESS_PATTERN` and a tunnel route each).
+- **Across servers:** one Redis both reach, privately (a managed one near Sydney, or on one of the servers behind the
+  firewall over a private link) — a cost to estimate first.
+
+## Scaling later
+
+Nothing is rebuilt; each step adds:
+- **A bigger server** (OVHcloud VPS-2 or more): a resize in OVHcloud's control panel, then `server-setup` and a deploy.
+- **A second real-time server, or a region elsewhere** (players outside Australia): a new VPS set up the same way
+  (`server-setup`) running only `rt` and `cloudflared`, an `rt-<region>.ognistrada.com` route on a tunnel, Redis
+  ([above](#redis-not-used)), and a region entry in `data/multiplayer.json` `regions.production` and `data/roam.json`
+  `regions.list.production` (the game measures its ping to each and picks). The API stays one.
+- **More API capacity:** a second `api` container behind the same tunnel route (cloudflared spreads requests), once the
+  Monitoring tab's answer times say so. The database (PS-5) grows with a plan change in PlanetScale.
 
 ## Once everything works
 
-1. **HSTS:** browsers then refuse plain `http://` for a year.
-   1. Set `HSTS=on` in both GitHub environments.
-   2. Set `HSTS=on` on both Render services.
-   3. Run **infra** with *hsts* ticked: Cloudflare adds it on every address.
-   4. Deploy, and run **check** with *hsts* ticked.
+1. **HSTS** (browsers then refuse plain `http://` for a year): set the repository variable `HSTS` to `on`, run **infra**
+   with *hsts* ticked (Cloudflare adds it on every address), deploy, then run **check** with *hsts* ticked.
 2. **DMARC:** after a couple of weeks of reports showing only Resend sending as `ognistrada.com`, tighten it to
    `p=quarantine` (in `tools/cloudflare-setup.mjs`, then run **infra** with *only* `email`).
-
-## Real time: through Cloudflare or straight
-
-`rt.` goes through Cloudflare because that gives:
-- a managed certificate;
-- Cloudflare in front of the server against attacks;
-- the player's real IP address, carried by Cloudflare's header and trusted only with the edge secret.
-
-The extra hop from Cloudflare's Sydney data centre to Render's Singapore is usually small.
-
-`site/ping.html` measures it. To compare with going straight:
-1. Point `rt.` at Render without Cloudflare: in Cloudflare's DNS, switch the `rt` record's cloud to grey ("DNS
-   only").
-2. Run the ping page again.
-3. Keep whichever is clearly lower. Going straight, the server takes the address Render saw, so IP addresses still
-   work.
-
-## Upgrading (about $13 a month)
-
-| Part | Now | Upgraded | How |
-|---|---|---|---|
-| The API and real time | Render free | Render **Starter**, $7 a month per service: always on, 0.5 CPU | `render.yaml`: `plan: free` → `plan: starter` for production (staging can stay free), then sync the blueprint. Nothing else changes. |
-| The database | Neon free | **Render Postgres Basic-256mb**, $6 a month: private network (not reachable from the internet), daily backups | Not only a setting: the data moves (below). |
-| Real time on its own (later) | Inside the API | A second Render service, or a host in Sydney | Point `rt.` at it and set `RT_URL`. The game already reads it from `site/config.js`. |
-
-**Moving the database to Render Postgres**, about 10 minutes, with the game briefly offline:
-1. In Render, **New → PostgreSQL**: Basic-256mb, Singapore, PostgreSQL 16. In its **Access Control**, remove every
-   outside IP address.
-2. Put the game into maintenance by suspending the production web service in Render.
-3. From a computer with PostgreSQL 16+ tools:
-
-   ```sh
-   pg_dump --format=custom --no-owner "NEON_URL" > move.dump
-   pg_restore --no-owner --dbname="RENDER_EXTERNAL_URL" move.dump
-   ```
-
-   For this, temporarily allow your own IP address in the new database's Access Control, and remove it again
-   afterwards.
-4. Set `DATABASE_URL` on the service to the database's **Internal** URL, resume the service, and run **check**.
-5. Point the backup secrets at the new database. Keep the Neon project for a week, then delete it.
-
-(Staying on Neon and moving to its paid plan instead keeps the same connection string, so that is a setting
-change. Check Neon's pricing page.)
-
-**For Phase 7** (real-time racing), consider a real-time server in Sydney, for example a small machine on Fly.io
-(region `syd`, a few dollars a month). Measure with `site/ping.html` first.
+3. **Automatic deploys:** the repository variable `DEPLOY_ENABLED` = `true` (each still waits for approval).
 
 ## What expires, and renewing it
 
 | What | When | What to do |
 |---|---|---|
-| The domain `ognistrada.com` | Yearly, at your registrar | Keep auto-renew on, and the payment card up to date |
-| Cloudflare's certificates | Every few months | Automatic (Universal SSL) |
-| Render's certificates | Every few months | Automatic. If Render shows a renewal error, switch the API and real-time records to DNS only (run **infra** without *proxy_api*), let it renew, then switch back. |
-| Cloudflare API tokens (setup, deploy) | The expiry you set (a year) | Make new ones with the same permissions and replace the GitHub secrets. The old ones stop working on their own. |
-| R2 access keys | Never, unless you set an expiry | Replace yearly: make a new pair, update the GitHub secrets, delete the old pair |
-| Render API key, Resend keys | Never | Replace if anyone else may have seen them |
-| `BETTER_AUTH_SECRET` | Never; replace if exposed | A new one signs everyone out |
-| `EDGE_SECRET` | Never; replace if exposed | Set the new value on the Render service and in GitHub's `infra` environment, then run **infra**. Requests are briefly taken at Render's view of the address in between. |
-| `BACKUP_PASSPHRASE` | Never | **Never lose it.** Old backups need it. |
-| Backups | Each kept 30 days | Download one now and then and keep it elsewhere |
-| Free-plan allowances (Render hours, Neon compute) | Monthly | Reset automatically |
-| Google sign-in (if used) | The consent screen needs verification for over 100 users | Submit it before opening sign-ups widely |
+| The domain `ognistrada.com` | Yearly, at Namecheap | Keep auto-renew on and the card up to date. The DNS is Cloudflare's; the registration stays at Namecheap. |
+| Cloudflare API tokens (`ognistrada setup`, `ognistrada deploy`) | A year after they were made (October 2027) | Make new ones with the same permissions (GO_LIVE.md Part 1 step 7), replace `CLOUDFLARE_SETUP_TOKEN` (environment `infra`) and `CLOUDFLARE_API_TOKEN`, delete the old ones. Claude reminds the owner a month before. |
+| R2 access keys (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) | Never, unless an expiry was set | Replace yearly: a new token, the two secrets updated, the old token deleted |
+| Cloudflare's certificates | Every few months | Automatic (Universal SSL); there are none on the server |
+| The tunnel's token | Never | Read from Cloudflare at each deploy. To replace it: rotate it in Cloudflare (Zero Trust → Networks → Tunnels), then deploy. |
+| Resend keys, the deploy SSH key | Never | Replace if anyone else may have seen them |
+| `BETTER_AUTH_SECRET` | Never; replace if exposed | A new one signs everyone out, and editors and admins set up two-factor sign-in again |
+| `EDGE_SECRET` | Never; replace if exposed | Update the secret, run **infra** (*only* `rules`), then deploy |
+| `RT_SECRET` | Never | It's on the server only (`/opt/ognistrada/rt.secret`); deleting the file and re-running `server-setup` makes a new one |
+| `BACKUP_PASSPHRASE` | Never | **Never lose it**: every backup needs it. Keep it in the password manager. |
+| Backups | Each kept 35 days | Download one now and then and keep it elsewhere (it stays encrypted) |
+| Images on GitHub | The newest 20 kept | Pruned by `server.yml`; a rollback can go back only that far |
+| OVHcloud, PlanetScale | Monthly | Billed to the owner's card: keep it up to date |
+
+## Considered and not chosen
+
+- **Render** (the earlier plan, with staging): no Australian region (Singapore, ~90–100 ms from Sydney), the free plan
+  sleeps, and the paid always-on services plus Redis cost more than one VPS for this size.
+- **Fly.io:** a Sydney region, but billed per machine and per GB, and more parts to keep for one small server.
+- **Neon:** the earlier database (Singapore on the free plan; Sydney is possible). PlanetScale Postgres PS-5 is in
+  Sydney at about the same price, with backups included; Neon in Sydney stays the fallback.
+- **Hetzner:** cheapest per core, but no Australian location (the nearest is Singapore).
+- **Oracle Cloud Always Free:** in Sydney, but free machines idle for a week can be reclaimed, capacity is often short,
+  and the free allowance has been cut.
 
 ## Files
 
 | File | What |
 |---|---|
-| `render.yaml` | The Render services (the API and real time), their addresses and settings |
-| `tools/build-site.mjs` | Builds the game for Cloudflare Pages: `site/config.js`, `_headers`, `_redirects`, import map |
-| `tools/cloudflare-setup.mjs` | Sets up Cloudflare and Resend (run by `infra.yml`) |
+| `docs/GO_LIVE.md` | The owner's step-by-step (accounts, secrets, then what Claude runs) |
+| `deploy/compose.yml` | The server's three containers |
+| `deploy/server-setup.sh` | The server's setup (run by `server-setup.yml`) |
+| `server/scripts/ssh-setup.sh`, `server/scripts/deploy-server.sh` | SSH from a workflow; the server at one commit |
+| `server/scripts/backup.sh`, `server/scripts/restore.sh` | A backup made; a backup put back and checked |
+| `Dockerfile` | The image (API and real-time server) |
+| `tools/cloudflare-setup.mjs` | Cloudflare and Resend set up (run by `infra.yml`; its pure parts tested in `tests/unit/cloudflareSetup.test.mjs`) |
+| `tools/build-site.mjs` | The game for Cloudflare Pages: `site/config.js`, `_headers`, `_redirects`, the import map |
 | `tools/check-deploy.mjs` | The checks (run by `deploy.yml` and `check.yml`) |
-| `.github/workflows/server.yml` | Tests, then deploys (staging, then production with approval) |
-| `.github/workflows/deploy.yml` | One environment's deploy: files, API, game, checks |
-| `.github/workflows/rollback.yml`, `infra.yml`, `check.yml` | Rolling back, setting up, checking |
+| `.github/workflows/server.yml`, `deploy.yml`, `rollback.yml` | Tests and the image, then deploying; rolling back |
+| `.github/workflows/infra.yml`, `server-setup.yml`, `check.yml`, `backup.yml`, `loadtest.yml` | Setting up, checking, backups, the load test |
+| `server/tools/online-bots.ts` | The bots of the load test |
 | `site/config.js`, `site/urls.js` | Where the game finds the API, tiles and real time; the editor loader |
-| `site/ping.html` | The real-time round-trip check |
-| `server/src/rt/health.ts` | The real-time stand-in (ping/pong) |
 | `server/tools/deploy-browser.ts` | The whole layout tested in a browser, locally and in CI |

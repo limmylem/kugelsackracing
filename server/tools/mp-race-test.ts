@@ -6,21 +6,30 @@
 //
 //   A. a quick race: 8 bots matched from the queue onto a real-world route (Milton Keynes); ranked. The countdown's
 //      sync (every bot's lights out within a few ms of the server's, through a simulated 60 ms ± 10 ms network);
-//      one bot's connection drops on the final lap and comes back; one hands in a run that fails the check — it's
-//      disqualified, the others move up, pay and ratings follow
+//      one bot's connection drops on the final lap and comes back; one hands in a run that fails the check — with
+//      antiCheat "flag" (the default, Phase 7 Step 5) its result stands, paid, and it's flagged for the admins
 //   B. a quick race on a generated track (today's): 8 bots; one built the track differently (its hash) and watches
-//   C. a party of two queues together and lands in the same race; a lone player takes the NPC offer and races NPCs
+//   C. a party of two queues together and lands in the same race (with the two others waiting: a small queue goes
+//      together); a lone player races NPCs after the short wait (Phase 7 Step 5: by itself — nothing to accept)
 //   D. disconnects: in the lobby (back by itself), at the countdown (back, and races), mid-race for good (out after
 //      the grace), the host leaving (the host passes on), everyone but one leaving (the last one finishes alone)
 //   E. chat: the filter, a block, a mute; the host kicks a player, who can't come back in
 //   F. a spectator watches a race: the standings and the cars
+//   G. (Phase 7 Step 5) an update while a race is under way: the server drains — new lobbies and the queue refused, the
+//      lobby told; the race finishes and its results reach the API though it refuses them twice (tried again); then it
+//      stops, the racers told the race server restarted; started again, a player's hub joins it again by itself; an update
+//      that can't wait (RT_DRAIN_SEC up) calls off the race under way, its racers told so
+//   H. (Phase 7 Step 5, run before G) friends: a private lobby — its invite code, a friend joins by it, the host turns
+//      NPCs on and starts: the two of them and NPCs in the empty places race
 //
 //   node server/tools/mp-race-test.ts [--only A,B]     (TEST_DATABASE_URL; no Redis needed)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { freshDatabase, testConfig, signUp } from '../test/helpers.ts';
+import { sql } from 'drizzle-orm';
 import { buildApp } from '../src/app.ts';
+import { AppError } from '../src/errors.ts';
 import { REPO_DIR } from '../src/config.ts';
 import { startRt } from '../src/rt/server.ts';
 import { verifyTicket } from '../src/rt/tickets.ts';
@@ -30,6 +39,7 @@ import { createMpSession } from '../../mp/client.js';
 import { createRaceBot } from '../../mp/bot.js';
 import { percentile } from '../../mp/match.js';
 import { transport } from './rt-bots.ts';
+import { CODES } from '../../net/protocol.js';
 
 const args = process.argv.slice(2), only = (() => { const i = args.indexOf('--only'); return i >= 0 ? new Set(args[i + 1].split(',')) : null; })();
 const PORT = 8792, RT_PORT = 2792, SECRET = 'mp-race-test-secret-mp-race-test-0123456789';
@@ -47,12 +57,13 @@ const app: any = await buildApp({ config: testConfig(database.url, { serveClient
 await app.listen({ port: PORT, host: '127.0.0.1' });
 await seedMpRoutes(app.content, { regions: ['mk', 'sf'] });
 const today = await app.tracks.today();
-const rtLog: string[] = [];
-const rt = await startRt({
+const rtLog: string[] = [], rtSaid: string[] = [];
+const startOurRt = () => startRt({
   port: RT_PORT, secret: SECRET, redisUrl: null, rt: { allowGuests: true, maxPlayers: 5000, roomMaxClients: 64, netsim: true }, api: { url: `http://localhost:${PORT}` },
   quickVenue: { mk: { kind: 'route', id: 'route_mpmk' }, track: { kind: 'track', code: today.daily.code }, party: { kind: 'route', id: 'route_mpsf' } },
-  log: (m, e) => { if (/fail/.test(m)) rtLog.push(`${m} ${JSON.stringify(e)}`); },
+  log: (m, e) => { rtSaid.push(m); if (/fail|lost/.test(m)) rtLog.push(`${m} ${JSON.stringify(e)}`); },
 });
+let rt = await startOurRt();
 const courses = new Map();
 const courseFor = async v => { const k = JSON.stringify(v.venue); if (!courses.has(k)) courses.set(k, courseOf(await app.mp.venue(v.venue))); return courses.get(k); };
 
@@ -104,12 +115,12 @@ try {
     check('a drop on the final lap: back by itself, and finishes', dropper?.status === 'finished' && bots[5].log.some(l => /dropping/.test(l)), `${dropper?.status} P${dropper?.place}`);
     check('provisional results straight after; confirmed once the runs are checked', prov.length === 8 && conf.length === 8, `${prov.filter(r => r.status === 'finished').length} finished provisionally`);
     const before = prov.find(r => r.uid === A[7].uid);
-    const movedUp = conf.filter(r => r.status === 'finished' && r.provisionalPlace > r.place);
-    check('a run that fails the check: disqualified, and the others move up', cheat?.status === 'dsq' && (before.place === 8 || movedUp.length > 0), `the cheat: provisional P${before?.place} → ${cheat?.status} (${cheat?.problems?.[0]}); moved up: ${movedUp.length}`);
-    check('pay by place, through the server', conf.filter(r => r.status === 'finished').every(r => r.pay?.money > 0 && r.pay?.paid) && cheat?.pay?.money === 0, conf.filter(r => r.status === 'finished').map(r => `P${r.place} ${r.pay?.money}`).join(', '));
+    const flag = (await app.deps.db.execute(sql`select evidence from abuse_flags where kind = 'mp-verify' and ${A[7].uid} = any(user_ids)`)).rows[0] as any;
+    check('a run that fails the check: its result stands (antiCheat "flag"), flagged for the admins with the reasons', cheat?.status === 'finished' && cheat?.flagged && cheat.place === before?.place && flag?.evidence?.raceId === A[0].session.confirmed?.id, `the cheat: provisional P${before?.place} → P${cheat?.place} ${cheat?.status}; flagged: ${flag?.evidence?.problems?.[0]}`);
+    check('pay by place, through the server (the flagged one too)', conf.filter(r => r.status === 'finished').every(r => r.pay?.money > 0 && r.pay?.paid), conf.filter(r => r.status === 'finished').map(r => `P${r.place} ${r.pay?.money}`).join(', '));
     const rated = await Promise.all(A.map(x => app.mp.ratingOf(x.uid)));
-    const win = conf.find(r => r.place === 1);
-    check('ratings move (a ranked race): the winner up, the disqualified down', rated.every(r => r.races === 1) && rated[A.findIndex(x => x.uid === win.uid)].mu > 25 && rated[7].mu < 25, `winner mu ${rated[A.findIndex(x => x.uid === win.uid)].mu.toFixed(2)}, cheat mu ${rated[7].mu.toFixed(2)}`);
+    const win = conf.find(r => r.place === 1), last = conf.at(-1), mu = uid => rated[A.findIndex(x => x.uid === uid)].mu;
+    check('ratings move (a ranked race): the winner up, the last down', rated.every(r => r.races === 1) && mu(win.uid) > 25 && mu(last.uid) < 25, `winner mu ${mu(win.uid).toFixed(2)}, last mu ${mu(last.uid).toFixed(2)}`);
     check('rank changes shown after confirming', conf.every(r => r.rank?.ranked && r.rank.after), `${conf[0].rank?.before?.name} → ${conf[0].rank?.after?.name}`);
     json.A = { spread, prov: prov.map(r => [r.place, r.status, Math.round(r.timeMs)]), conf: conf.map(r => [r.place, r.status, r.pay?.money]) };
     // the podium and rematch: a majority voting yes takes them back to the lobby
@@ -155,18 +166,21 @@ try {
     // (three others queue too; the party lands with them)
     await sleep(500);
     await Promise.all(C.slice(2, 4).map(x => x.session.queue({ region: 'party', pings: { party: 30 } })));
-    const together = await until(() => C[0].session.race && C[1].session.race && C[0].session.race.id === C[1].session.race.id && C[0].session.race.id, (MP.queue.fillAfterSec + 10) * 1000);
-    check('a party: friends queue together and land in the same race', !!together && !!party, together ? `room ${together}, with ${C.slice(2, 4).filter(x => x.session.race?.id === together).length} others` : 'not together');
+    const together = await until(() => C[0].session.race && C[1].session.race && C[0].session.race.id === C[1].session.race.id && C[0].session.race.id, (MP.queue.npcFillSec + 10) * 1000);
+    const others = await until(() => C.slice(2, 4).every(x => x.session.race?.id === together), 10000);
+    check('a party: friends queue together and land in the same race — with the others waiting (a small queue goes together)', !!together && !!party && !!others, together ? `room ${together}, with ${C.slice(2, 4).filter(x => x.session.race?.id === together).length} others` : 'not together');
     for (const x of C.slice(0, 4)) await x.session.leaveRace();
-    // the lone one: offered NPCs after a wait, says yes, races them
+    // the lone one: races NPCs after the short wait, by itself — nothing to accept; meanwhile (another
+    // region) the party's leader queues again and the other never comes (their game closed): the leader isn't kept waiting
     const solo = C[4];
-    const offered = new Promise(r => { solo.session.on('npc-offer', m => r(m)); });
+    const bot = botFor(solo, 2), t0 = Date.now();
+    await C[0].session.queue({ region: 'party2', pings: { party2: 30 }, party: party?.id });
     await solo.session.queue({ region: 'solo', pings: { solo: 20 } });
-    const offer = await Promise.race([offered, sleep((MP.queue.npcOfferSec + 10) * 1000).then(() => null)]);
-    check('a slow queue: the empty slots offered to NPCs after the wait', !!offer, offer ? `after ${offer.waitedSec} s` : 'no offer');
-    solo.session.acceptNpcs(true);
-    const bot = botFor(solo, 2);
-    await until(() => solo.session.race, 10000);
+    const went = await until(() => solo.session.race, (MP.queue.npcFillSec + 10) * 1000), waitedSec = (Date.now() - t0) / 1000;
+    check('alone in the queue: a race with NPCs after the short wait, by itself (nothing to accept)', !!went && waitedSec >= MP.queue.npcFillSec - 1 && waitedSec <= MP.queue.npcFillSec + 5, `after ${waitedSec.toFixed(1)} s (the fill: ${MP.queue.npcFillSec} s)`);
+    const lead = await until(() => C[0].session.race, 5000);
+    check('a party member who never comes keeps nobody waiting: the rest of the party goes after the short wait', !!lead && !C[1].session.race, lead ? `after ${((Date.now() - t0) / 1000).toFixed(1)} s` : 'still waiting');
+    await C[0].session.leaveRace();
     const R = solo.session.race && raceOf(solo.session.race.id);
     await until(() => R?.race.phase === 'racing', 120000);
     const npcs = [...(R?.race.players.values() ?? [])].filter(p => p.npc).length;
@@ -276,6 +290,78 @@ try {
     const sees = await until(() => { const s = F[2].session.standings, cars = F[2].session.race?.net.sample(0.016).filter(c => c.pose); return s?.list?.length >= 2 && cars?.length >= 2 ? { s, cars } : null; }, 15000);
     check('a spectator joins a race under way: the standings and every car', !!sees && R.race.players.get(F[2].uid)?.role === 'spectator', sees ? `${sees.cars.length} cars, ${sees.s.list.length} in the standings` : 'nothing');
     for (const x of F) await x.session.close();
+  }
+
+  // ---------- H (before G) ----------
+  if (!only || only.has('H')) {
+    section('H. Friends: a private lobby, its invite code, NPCs in the empty places');
+    const [host, friend] = await people(2, 'h');
+    await host.session.createLobby({ kind: 'private', settings: { venue: { kind: 'route', id: 'route_mpsf' }, laps: 1 } });
+    const code = host.session.lobby?.code;
+    await friend.session.joinCode(` ${code?.toLowerCase().slice(0, 3)}-${code?.slice(3)} `);
+    const both = await until(() => host.session.lobby?.players.length === 2 && friend.session.race?.id === host.session.race?.id, 5000);
+    check('a private lobby: its invite code shown to the host; a friend joins by it (typed loosely)', !!both && /^[A-Z0-9]{6}$/.test(code ?? ''), code);
+    host.session.send({ t: 'settings', settings: { npcFill: true } });
+    const on = await until(() => friend.session.lobby?.settings?.npcFill === true, 5000);
+    check('the host turns NPCs on: the friend sees it', !!on);
+    [host, friend].forEach((x, i) => botFor(x, i));
+    for (const x of [host, friend]) x.session.send({ t: 'ready', v: true });
+    await sleep(300); host.session.send({ t: 'start' });
+    const roomId = host.session.race.id, R = raceOf(roomId);
+    await until(() => R?.race.phase === 'racing', 60000);
+    const racers = [...(R?.race.players.values() ?? [])].filter(p => p.role === 'racer'), npcs = racers.filter(p => p.npc).length;
+    check('the host starts: the two friends and NPCs in the empty places race', R?.race.phase === 'racing' && racers.length - npcs === 2 && npcs === R.race.maxRacers - 2, `${R?.race.phase}: ${racers.length - npcs} friends, ${npcs} NPCs`);
+    for (const x of [host, friend]) { await x.session.leaveRace(); await x.session.close(); }
+    await until(() => !raceOf(roomId), 15000);
+  }
+
+  // ---------- G (last: it stops the server, then starts another) ----------
+  if (!only || only.has('G')) {
+    section('G. An update while a race is under way: the server drains');
+    const G = await people(3, 'g');
+    const [host, b, w] = G;
+    await w.session.hub();
+    await host.session.createLobby({ kind: 'custom', settings: { venue: { kind: 'route', id: 'route_mpsf' }, laps: 1, name: 'Drain' } });
+    await b.session.joinLobby(host.session.race.id);
+    const R = raceOf(host.session.race.id);
+    G.slice(0, 2).forEach((x, i) => botFor(x, i));
+    for (const x of G.slice(0, 2)) x.session.send({ t: 'ready', v: true });
+    await sleep(300); host.session.send({ t: 'start' });
+    await until(() => R.race.phase === 'racing', 60000);
+    // (the API refuses the race's report twice — as if restarting itself: the race server tries again)
+    const record = app.mp.recordRace;
+    let refusals = 0;
+    app.mp.recordRace = async (rec: any) => { if (refusals < 2) { refusals++; throw new AppError(503, 'BUSY', 'Restarting (the test).'); } return record(rec); };
+    const t0 = Date.now(), drained = rt.drain(600);
+    const health = await (await fetch(`http://localhost:${RT_PORT}/health`)).json();
+    check('/health says it\'s draining, with the race under way', health.ok === true && health.draining === true && health.races === 1, JSON.stringify(health));
+    const lobby = await w.session.createLobby({ kind: 'custom', settings: { venue: { kind: 'route', id: 'route_mpsf' } } }).then(() => null, e => e);
+    const queued = await w.session.queue({ region: 'mk', pings: { mk: 40 } }).then(() => null, e => e);
+    check('meanwhile nobody new: a new lobby and the queue refused with the restart message', lobby?.code === CODES.CLOSED && queued?.code === CODES.CLOSED && /restarting for an update/.test(queued?.message ?? ''), `${lobby?.code} · ${queued?.code} "${queued?.message}"`);
+    const finished = await drained;
+    const report = await app.mp.raceView(R.results?.raceId ?? '').catch(() => null);
+    check('the race finishes first, and its results reach the API though it refused them twice', finished && R.race.phase === 'results' && refusals === 2 && !!report && rtSaid.includes('rt result not sent yet: trying again'), `drained in ${((Date.now() - t0) / 1000).toFixed(0)} s; report ${report?.state ?? 'missing'}`);
+    app.mp.recordRace = record;
+    await rt.stop();
+    const told = await until(() => G.slice(0, 2).every(x => x.session.notices.some(n => /race server restarted/.test(n))), 10000);
+    check('then it stops: the racers told the race server restarted (nothing lost)', !!told, host.session.notices.slice(-2).join(' | '));
+    // (started again — a deploy's new container: the hub joins it again by itself, with a fresh ticket)
+    rt = await startOurRt();
+    const back = await new Promise(r => { const off = w.session.on('hub-back', () => { off(); r(true); }); setTimeout(() => r(!!w.session.hubConn), 45000); });
+    check('the hub joins the new server again by itself', !!back && !!w.session.hubConn, back ? 'joined again' : 'not back');
+    // (an update that can't wait — RT_DRAIN_SEC up, or a crash: the race under way is called off, and its racers told so)
+    await host.session.createLobby({ kind: 'custom', settings: { venue: { kind: 'route', id: 'route_mpsf' }, laps: 1, name: 'Cut short' } });
+    await b.session.joinLobby(host.session.race.id);
+    const R2 = raceOf(host.session.race.id);
+    for (const x of G.slice(0, 2)) x.session.send({ t: 'ready', v: true });
+    await sleep(300); host.session.send({ t: 'start' });
+    await until(() => R2?.race.phase === 'racing', 60000);
+    const cut = await rt.drain(1);
+    await rt.stop();
+    const off = await until(() => G.slice(0, 2).every(x => x.session.notices.some(n => /this race was called off/.test(n))), 10000);
+    check('an update that can\'t wait (RT_DRAIN_SEC up): the race under way called off, its racers told so', cut === false && !!off, `${R2?.race.phase}: ${host.session.notices.at(-1)}`);
+    rt = await startOurRt();
+    for (const x of G) await x.session.close();
   }
 } catch (e: any) {
   check('ran to the end', false, e.stack ?? e.message);

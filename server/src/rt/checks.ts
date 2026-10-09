@@ -1,15 +1,15 @@
 // The live checks on what a client says its car is doing (Phase 7 Step 1; docs/MULTIPLAYER.md "What the server
 // checks"). Each player simulates their own car, so the server can't recompute it; it checks the states are possible
 // as they come in, and drops the ones that aren't (nobody else sees them). Each dropped state is a strike; too many
-// in a short while and the player is removed. A race's RESULT is checked properly afterwards, by replaying the run
-// (Phase 6 Step 3, tracks/verify): a modified client can't win by sending impossible states, because the replay
-// decides.
+// in a short while and the player is flagged for the admins (Phase 7 Step 5: never removed — room.ts strike). A race's
+// RESULT is checked properly afterwards, by replaying the run (Phase 6 Step 3, tracks/verify): a modified client can't
+// win by sending impossible states, because the replay decides.
 //
 //   const C = createChecks(NET.checks)
 //   C.state(prev, next, now, { resetOk }) → null (fine), 'stale' (older than the last: dropped, no strike — normal on a
 //                                         lossy link) or a reason it's impossible       (prev/next: dequantised, world frame)
 //   C.rate(now) → whether one more message fits the rate limit
-//   C.strike(reason, now) → whether the player has now had too many
+//   C.strike(reason, now) → whether the player has now had too many (in the last strikeWindowSec)
 
 type Limits = { maxSpeed: number; slackM: number; maxRatePerSec: number; futureMs: number; pastMs: number; strikes: number; strikeWindowSec: number; resetEverySec: number; worldLimitM: number };
 type S = { tick: number; time: number; pos: number[]; vel: number[] };

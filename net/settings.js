@@ -22,10 +22,14 @@ export const NET = {
     snapCm: 10,                  // a frame-to-frame jump beyond its motion bigger than this counts as a visible snap (tests)
   },
   // ---- the live checks on what a client sends (the race's result is checked afterwards by its replay) ----
+  // (strikes in strikeWindowSec: the player flagged for the admins — Phase 7 Step 5: never removed)
   checks: { maxSpeed: 110, slackM: 6, maxRatePerSec: 70, futureMs: 150, pastMs: 2500, strikes: 30, strikeWindowSec: 10, resetEverySec: 1.5, worldLimitM: 500000 },
   // ---- reconnecting ----
   reconnectSec: 20,            // a dropped player's car waits this long for them (paused for everyone else)
   idleSec: 15,                 // nothing from a client for this long: the connection is dead, closed
+  // (Phase 7 Step 5) the hub — friends, invites, parties — joined again by itself after the server restarted: the first
+  // try after firstMs, then twice as long each time up to maxMs (mp/client.js)
+  rejoin: { firstMs: 1000, maxMs: 30000 },
   // ---- targets (the tests measure against these; docs/MULTIPLAYER.md) ----
   targets: {
     upKBs: 10,                 // a player's upload, kB a second (WebSocket frames included)

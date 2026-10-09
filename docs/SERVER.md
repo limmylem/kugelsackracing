@@ -15,8 +15,8 @@ session cookie stays first-party.
 
 ## Running it on your computer
 
-Everything runs on this computer with Docker Compose (nothing online is needed, and nothing is deployed:
-[DEPLOYMENT.md](DEPLOYMENT.md) is paused):
+Everything runs on this computer with Docker Compose (nothing online is needed; the game online is in
+[DEPLOYMENT.md](DEPLOYMENT.md)):
 
 ```sh
 docker compose up --build
@@ -46,8 +46,8 @@ npm run server:dev                    # migrates the database, then serves on PU
 
 - **On this computer, signing up needs no email.** `server/config/development.json` has
   `requireEmailVerification` off: a new account is signed in as soon as it's made, and no confirmation email is
-  sent. `staffMfa.required` is off too, so the admin and editor pages don't ask for an authenticator app. Staging and
-  production keep both on (their own config files).
+  sent. `staffMfa.required` is off too, so the admin and editor pages don't ask for an authenticator app. Production
+  keeps both on (`server/config/production.json`).
 - **Your owner account** (an admin: every control on `/admin/` and the editor):
   ```sh
   npm run owner -w @kr/server -- --email you@example.com --password 'at least 10 characters' --name YourName
@@ -72,7 +72,7 @@ npm run server:dev                    # migrates the database, then serves on PU
 | `npm run test:browser -w @kr/server` | The account flows in Chromium: sign up, confirm, reset, guest to account, delete, offline. |
 | `npm run load-test -w @kr/server` | 500 players signing in at once and loading nearby content. |
 | `npm run test:browser:economy -w @kr/server` | The economy in Chromium: a change shown at once and confirmed, a refusal put back, offline and back, two tabs; the admin page's economy tools. |
-| `node server/tools/deploy-browser.ts` | The deployment's layout in Chromium: game, API, tiles and real time each on an address of its own (cookies, CORS, the admin and editor pages for their roles). |
+| `node server/tools/deploy-browser.ts` | The deployment's layout in Chromium: the game as built for production, the API, the tiles and the real-time server each on an address of its own (cookies, CORS, a real-time ticket and room, the admin and editor pages for their roles). |
 | `node server/tools/shop-browser.ts` | The shop, dealership, selling and the admin's shop in Chromium (docs/SHOP.md). |
 | `node server/tools/shop-load.ts` | 500 players browsing and buying in the shop at once, then the books checked. |
 | `npm run load-test:economy -w @kr/server` | 500 players in the garage and on the road, then the books checked (`--burst`: all at the same moment). |
@@ -152,43 +152,79 @@ Errors always have one shape: `{ error: { code, message, details?, requestId } }
 
 ## Hosting
 
-**Paused, not yet deployed:** the game runs on localhost until multiplayer works. The online setup (Cloudflare for the game, its files and DNS; Render for the API; Neon for the databases; Resend for
-email), how to deploy and roll back, and what to renew: [DEPLOYMENT.md](DEPLOYMENT.md).
+**Online since Phase 7 Step 5** (friends testing, production only): one OVHcloud VPS in Sydney running the API, the
+real-time server and a Cloudflare Tunnel in Docker Compose; PlanetScale Postgres in Sydney; Cloudflare for the game,
+its files, DNS and the way in; Resend for email. How it's set up, deployed, rolled back, checked and renewed:
+[DEPLOYMENT.md](DEPLOYMENT.md); the owner's steps: [GO_LIVE.md](GO_LIVE.md).
 
-In staging and production the server runs with `serveClient: "tools"`:
+Online the server runs with `serveClient: "tools"`:
 - It serves only the admin and editor pages (each to its role) and the modules they load.
-- The game itself is on `GAME_URL`, and its map files on `TILES_URL`.
-- Its settings for that: `GAME_URL`, `TILES_URL`, `RT_URL`, `EDGE_SECRET` (the player's address behind Cloudflare)
-  and `HSTS` (`server/.env.example`).
+- The game itself is on `GAME_URL` (Cloudflare Pages), its map files on `TILES_URL` (R2), real time on `RT_URL`.
+
+### Settings online
+
+Every deploy writes `/opt/ognistrada/.env` on the server (mode 600) from GitHub's secrets and variables
+(`server/scripts/deploy-server.sh`); `deploy/compose.yml` adds the real-time server's own. Both containers read the
+whole file. Nothing here is in the repository.
+
+| Setting | Value online | From |
+|---|---|---|
+| `APP_ENV` | `production` | the deploy |
+| `PUBLIC_URL` · `GAME_URL` · `TILES_URL` · `RT_URL` | `https://api.ognistrada.com` · `https://ognistrada.com` · `https://tiles.ognistrada.com` · `wss://rt.ognistrada.com` | the deploy |
+| `MAIL_FROM` | `Kugelsack Racing <noreply@ognistrada.com>` | the deploy |
+| `SMTP_URL` | `smtps://resend:<RESEND_SMTP_KEY>@smtp.resend.com:465` | the secret `RESEND_SMTP_KEY` |
+| `DATABASE_URL` | PlanetScale's direct connection (port 5432, `sslmode=verify-full`) | secret |
+| `DATABASE_POOL_MAX` | 10 (the default; not set) | — |
+| `BETTER_AUTH_SECRET`, `EDGE_SECRET`, `TURNSTILE_SECRET_KEY` | | secrets |
+| `TURNSTILE_SITE_KEY` | | variable |
+| `ADMIN_EMAIL`, `ALERT_EMAIL` | The owner's account (admin once its email is confirmed); where alerts go | secrets |
+| `HSTS` | `off` until the variable `HSTS` is `on` | variable |
+| `SENTRY_DSN` (optional) | Errors from the API and the real-time server | secret |
+| `SENTRY_CLIENT_DSN` (optional) | The game's errors (the API's `/api/v1/client-config` hands it to the game) | variable |
+| `LOADTEST_TOKEN` (optional) | Lets the `loadtest` workflow's bots get tickets: the header `x-kr-loadtest` | secret |
+| `RT_SECRET` | Signs the join tickets (API) and checks them (real-time server); the API's internal calls | `/opt/ognistrada/rt.secret`, made once on the server by `server-setup` |
+| `GIT_COMMIT` | The commit (the health checks report it; the deploy waits for it) | the image (`Dockerfile`'s build argument) |
+| `IMAGE_TAG` · `TUNNEL_TOKEN` | Compose's: the image's tag; `cloudflared`'s token (only that container gets it) | the deploy; read from Cloudflare |
+| **The real-time server only** (`deploy/compose.yml`) | | |
+| `RT_PORT` · `RT_HOST` | `2567` · `0.0.0.0` | compose |
+| `RT_PUBLIC_ADDRESS` | `rt.ognistrada.com` (how browsers reach it) | compose |
+| `API_INTERNAL_URL` | `http://api:8787` (the API over Docker's own network) | compose |
+| `RT_DRAIN_SEC` | `600`: on SIGTERM it waits up to this long for races under way to finish (Docker's `stop_grace_period` is 11 minutes) | compose |
+| `REDIS_URL` | Not set: one process, everything in memory ([DEPLOYMENT.md](DEPLOYMENT.md#redis-not-used)) | — |
+| `RT_MAX_PLAYERS` | Not set: `production.json`'s `rt.maxPlayers` (500) | — |
+
+Locally the same names apply (`server/.env.example`); `RT_SECRET` is then made from `BETTER_AUTH_SECRET`.
 
 ## Backups
 
-- **Daily** (`.github/workflows/backup.yml`, 03:17 UTC): production's database is dumped
+- **Nightly** (`.github/workflows/backup.yml`, 16:17 UTC, about 03:00 in Adelaide): production's database is dumped
   (`server/scripts/backup.sh`) and encrypted with AES-256 using `BACKUP_PASSPHRASE`.
-- **Checked the same day:** each backup is restored straight away into a fresh PostgreSQL with PostGIS,
-  so a broken one is noticed at once.
-- **Kept 30 days**, as workflow artifacts.
+- **Checked the same night:** each backup is restored straight away into a fresh PostgreSQL with PostGIS, so a broken
+  one is noticed at once. Healthchecks.io emails if a night is missed.
+- **Kept 35 days** in the private R2 bucket `ognistrada-backups` (`daily/<date>.dump.gpg`; R2 deletes older ones).
+  Nothing is kept on GitHub: the repository is public.
+- PlanetScale keeps its own backups and point-in-time restore besides ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)).
 
 ### Restoring
 
-1. Download the backup: Actions → backup → the run → the artifact `database-backup-…`. Unzip it to
-   get `kugelsack-YYYY-MM-DD.dump.gpg`.
-2. Restore it with PostgreSQL 16 or 17's tools:
+1. Download the backup: Cloudflare → R2 → `ognistrada-backups` → `daily/` → the file, or with the R2 keys
+   `rclone copyto r2:ognistrada-backups/daily/<date>.dump.gpg .`
+2. Restore it with PostgreSQL tools at least as new as the database (17 or 18):
 
    ```sh
-   TARGET_URL='postgres://…' BACKUP_PASSPHRASE='…' server/scripts/restore.sh kugelsack-YYYY-MM-DD.dump.gpg --clean
+   TARGET_URL='postgresql://…' BACKUP_PASSPHRASE='…' server/scripts/restore.sh <date>.dump.gpg --clean
    ```
 
-   `--clean` replaces what the target database has. The script decrypts the backup, restores it, and
-   prints the migrations, users, content, results and replays it finds.
-3. **To restore over production:** first stop the production service in Render (Settings → Suspend). Then
-   restore into production's `DATABASE_URL`, resume the service, and check `/api/v1/health` and the admin
-   page.
-4. **The restore test on staging:** Actions → backup → Run workflow, ticking "Also restore this backup into
-   the staging database". It makes a fresh backup and restores it over staging.
+   `--clean` replaces what the target database has. The script decrypts the backup, restores it, and prints the
+   migrations, users, content, results and replays it finds.
+3. **To restore over production:** maintenance on (or `docker compose stop api rt` on the server), restore into
+   production's `DATABASE_URL` (or a new database, then the secret `DATABASE_URL` changed and a redeploy), start
+   again, and check `/api/v1/health` and the admin page. The steps: [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
+4. **The restore drill:** Actions → backup → Run workflow with *drill* ticked: the backup restored, and the image
+   production runs started on it and checked healthy.
 
-This was tested on 2026-10-06 against a local database: restored with every table's rows the same, and a
-wrong passphrase refused.
+This was tested on 2026-10-06 against a local database: restored with every table's rows the same, and a wrong
+passphrase refused.
 
 ## Importing local content
 

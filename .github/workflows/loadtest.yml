@@ -1,0 +1,50 @@
+# The live load test (server/tools/online-bots.ts; docs/DEPLOYMENT.md): bots playing on the real servers — half in free
+# roam, half in quick races — for a couple of minutes, each check against its target, the report in the job's summary.
+# Run by hand. The bots are made-up guests (no accounts): their tickets come with the load-test token (LOADTEST_TOKEN,
+# the same in the repo's secrets and on the server). GitHub's runners are in the US, so the ping targets allow for the
+# distance to Sydney (the report says what it measured).
+name: loadtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      bots: { description: 'Bots (1–200)', type: number, default: 20 }
+      seconds: { description: 'How long they play (seconds; a race under way finishes)', type: number, default: 120 }
+      mode: { description: 'Free roam and races, or one of them', type: choice, options: [both, roam, race], default: both }
+
+# (one at a time: two would measure each other)
+concurrency: { group: loadtest, cancel-in-progress: false }
+
+permissions:
+  contents: read
+
+jobs:
+  bots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' }
+      - name: Online bots
+        env:
+          LOADTEST_TOKEN: ${{ secrets.LOADTEST_TOKEN }}
+          BOTS: ${{ inputs.bots }}
+          SECONDS_: ${{ inputs.seconds }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ -z "$LOADTEST_TOKEN" ]; then echo '::error::LOADTEST_TOKEN isn'"'"'t set in the repo'"'"'s secrets (and on the server): docs/DEPLOYMENT.md'; exit 1; fi
+          node server/tools/online-bots.ts --api https://api.ognistrada.com --rt wss://rt.ognistrada.com \
+            --bots "$BOTS" --seconds "$SECONDS_" --mode "$MODE" --report reports/online-bots.md
+      - name: The numbers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-bots
+          path: reports/online-bots.*
+          if-no-files-found: ignore
+          retention-days: 30

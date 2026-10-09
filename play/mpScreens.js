@@ -12,10 +12,14 @@
 //   M.toggle() / M.show(on)    the menu (F7, or the Multiplayer button)    M.frame(dt) every frame    M.dispose()
 //   Every screen has its id (#mpMenu #mpLobby #mpLoading #mpLights #mpHud #mpResults #mpWatch #mpToasts): the browser
 //   tests find them by it and check what's drawn. The lights record when they went out (window.__krMpLightsOut).
+// (Phase 7 Step 5) the menu's recent players (GET /mp/recent-players: who you raced or met in a free-roam challenge) and
+// the results' rows each with "Add friend" (a request through the hub, as the lobby's), then "Request sent"; the session's
+// notices — the race server restarting among them — as toasts above every screen, menu and race alike.
 
 import { cameraName } from './mpRace.js';
 import { fmtTime } from '../quest/timing.js';
 import { tierLabel } from '../mp/rank.js';
+import { account } from '../account/session.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ord = n => n == null ? '—' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
@@ -55,7 +59,8 @@ const CSS = `
 #mpWatch{position:fixed;z-index:58;left:50%;bottom:16px;transform:translateX(-50%);padding:6px 12px;pointer-events:none;text-align:center}
 #mpButton{position:fixed;z-index:57;left:50%;top:8px;transform:translateX(-50%)}
 #mpToasts{position:fixed;z-index:90;left:50%;top:60px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
-#mpToasts .mpBox{position:static;padding:7px 12px;pointer-events:auto}
+#mpToasts .mpBox{position:static;padding:7px 12px;pointer-events:auto;max-width:min(520px,94vw)}
+#mpToasts .mpBox.notice{border-color:rgba(255,189,74,.55);font-weight:600}
 `;
 
 export function createMpScreens({ S, R, game, cfg }) {
@@ -70,7 +75,10 @@ export function createMpScreens({ S, R, game, cfg }) {
   button.onclick = () => { button.blur(); toggle(); };
   document.body.appendChild(button);
 
-  let myVote = false, menuOpen = false, queueing = null, offer = null, lobbyList = null, lobbyKey = '', resultsKey = '', hudAt = 0, resultsHidden = false, menuKey = '';
+  let myVote = false, menuOpen = false, queueing = null, lobbyList = null, lobbyKey = '', resultsKey = '', hudAt = 0, resultsHidden = false, menuKey = '';
+  // (recent players: null until asked, then { list } or { error }; the requests sent from these screens this visit)
+  let recent = null, recentAt = 0;
+  const asked = new Set();
   const offs = [];
   const money = n => `${game.currency ?? '$'}${Math.round(n).toLocaleString('en-GB')}`;
   const toast = (html, actions = {}, secs = 12) => {
@@ -80,7 +88,39 @@ export function createMpScreens({ S, R, game, cfg }) {
     setTimeout(() => t.remove(), secs * 1000);
     return t;
   };
-  const notice = text => toast(esc(text), {}, 5);
+  // (the session's notices stay long enough to read — a long one longer — and a click puts one away)
+  const notice = text => { const t = toast(`${esc(text)} <button data-ok>OK</button>`, { ok: () => {} }, Math.min(15, Math.max(6, String(text).length / 12))); t.classList.add('notice'); t.setAttribute('role', 'status'); return t; };
+  const apiOf = async () => game.api ?? (await account()).api;
+  // where this player stands with another: live from the hub's lists, or as the API said
+  function friendState(uid, was = 'none') {
+    if (S.friends?.some(f => f.id === uid)) return 'friend';
+    if (S.requests?.incoming?.some(r => r.id === uid)) return 'incoming';
+    if (asked.has(uid) || S.requests?.outgoing?.some(r => r.id === uid)) return 'outgoing';
+    return S.hubConn ? 'none' : was;
+  }
+  // (a friend request: through the hub — the other player hears of it — or, without it, the API's POST /friends)
+  async function addFriend(uid) {
+    asked.add(uid);
+    resultsKey = ''; drawResults(); drawMenu();
+    if (S.hubConn) { S.hubSend({ t: 'friend-add', id: uid }); return; }
+    try { await (await apiOf()).post('/friends', { id: uid }); notice('Friend request sent.'); }
+    catch (e) { asked.delete(uid); notice(e.message ?? String(e)); resultsKey = ''; drawResults(); drawMenu(); }
+  }
+  async function loadRecent(force = false) {
+    if (!force && recent && performance.now() - recentAt < 30000) return;
+    recentAt = performance.now();
+    try { recent = { list: (await (await apiOf()).get('/mp/recent-players', { retries: 0 })).players ?? [] }; }
+    catch (e) { recent = { error: e.code === 'UNAUTHENTICATED' || e.code === 'TERMS_REQUIRED' ? 'Sign in to see who you raced recently.' : `Couldn't load them: ${e.message ?? e}` }; }
+    drawMenu();
+  }
+  const ago = iso => { const m = Math.max(0, (Date.now() - Date.parse(iso)) / 60000); return m < 2 ? 'just now' : m < 90 ? `${Math.round(m)} min ago` : m < 36 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  function recentHtml() {
+    if (!recent) return '<div class="dim">…</div>';
+    if (recent.error) return `<div class="dim">${esc(recent.error)}</div>`;
+    if (!recent.list.length) return '<div class="dim">Nobody yet: the players you race, or meet in a free-roam challenge, show up here.</div>';
+    const btn = p => { const st = friendState(p.id, p.friend); return st === 'friend' ? '<span class="good">Friends</span>' : st === 'outgoing' ? '<span class="dim" data-sent>Request sent</span>' : st === 'incoming' ? `<button class="primary" data-accept="${esc(p.id)}">Accept</button>` : `<button data-addrecent="${esc(p.id)}">Add friend</button>`; };
+    return `<table data-recent>${recent.list.map(p => `<tr data-uid="${esc(p.id)}"><td>${esc(p.name)}</td><td class="dim">${esc(p.where)} · ${esc(ago(p.at))}</td><td>${btn(p)}</td></tr>`).join('')}</table>`;
+  }
 
   // ---------- the session's news ----------
   offs.push(S.on('notice', text => notice(text)));
@@ -91,11 +131,11 @@ export function createMpScreens({ S, R, game, cfg }) {
   offs.push(S.on('party-invite', m => toast(`<b>${esc(m.name)}</b> asked you into their party <button class="primary" data-yes>Join the party</button> <button data-no>No</button>`, { yes: () => S.hubSend({ t: 'party-join', partyId: m.partyId }) }, 30)));
   offs.push(S.on('party-queue', m => { void quickRace({ party: m.partyId }); }));
   offs.push(S.on('goto', m => { void joinRoom(m.roomId, { spectate: !!m.spectate }); }));
-  offs.push(S.on('queued', () => drawMenu()));
-  offs.push(S.on('npc-offer', m => { offer = m; drawMenu(); }));
-  offs.push(S.on('matched', () => { queueing = null; offer = null; show(false); }));
-  offs.push(S.on('queue-left', info => { if (queueing) { queueing = null; offer = null; if (info?.message) notice(info.message); drawMenu(); } }));
-  offs.push(S.on('friends', () => drawMenu()));
+  // (the queue fills the empty places with NPCs by itself after npcFillSec: nobody waits longer)
+  offs.push(S.on('queued', m => { if (queueing && m?.npcFillSec) queueing.fillSec = m.npcFillSec; drawMenu(); }));
+  offs.push(S.on('matched', () => { queueing = null; show(false); }));
+  offs.push(S.on('queue-left', info => { if (queueing) { queueing = null; if (info?.message) notice(info.message); drawMenu(); } }));
+  offs.push(S.on('friends', () => { drawMenu(); if (!results.hidden) drawResults(); }));
   offs.push(S.on('party', () => drawMenu()));
   offs.push(S.on('lobbies', m => { lobbyList = m.list; drawMenu(); }));
   offs.push(S.on('lobby', () => { show(false); drawLobby(); }));
@@ -111,7 +151,7 @@ export function createMpScreens({ S, R, game, cfg }) {
   function show(on = !menuOpen) {
     menuOpen = on;
     menu.hidden = !on || !!S.race;
-    if (on && !S.race) { void S.hub().then(() => { S.hubSend({ t: 'friends' }); drawMenu(); }).catch(e => notice(`Multiplayer: ${e.message}`)); drawMenu(); }
+    if (on && !S.race) { void S.hub().then(() => { S.hubSend({ t: 'friends' }); drawMenu(); }).catch(e => notice(`Multiplayer: ${e.message}`)); void loadRecent(); drawMenu(); }
     // (in a lobby: the lobby is the menu)
     if (on && S.race) { lobby.hidden = false; drawLobby(true); }
   }
@@ -119,8 +159,8 @@ export function createMpScreens({ S, R, game, cfg }) {
   async function quickRace({ party = null } = {}) {
     try {
       const ping = await S.ping();
-      queueing = { since: performance.now(), party };
-      offer = null; drawMenu();
+      queueing = { since: performance.now(), party, fillSec: cfg.queue.npcFillSec };
+      drawMenu();
       await S.queue({ region: game.region ?? 'local', pings: { [game.region ?? 'local']: ping ?? 80 }, party: party ?? S.party?.id ?? null });
     } catch (e) { queueing = null; notice(e.message ?? String(e)); drawMenu(); }
   }
@@ -132,8 +172,7 @@ export function createMpScreens({ S, R, game, cfg }) {
     if (!menuOpen || S.race) { menu.hidden = true; return; }
     menu.hidden = false;
     const friends = S.friends ?? [], req = S.requests ?? { incoming: [], outgoing: [] }, party = S.party;
-    const q = queueing ? `<div class="row"><b>Looking for a race…</b> <span data-qtime>${Math.round((performance.now() - queueing.since) / 1000)} s</span> <button data-cancel>Cancel</button></div>
-      ${offer ? `<div class="row warn">Nobody else close enough yet. Race NPCs in the empty places? <button class="primary" data-npcyes>Race with NPCs</button> <button data-npcno>Keep waiting</button></div>` : ''}` : '';
+    const q = queueing ? `<div class="row"><b>Looking for a race…</b> <span data-qtime>${Math.round((performance.now() - queueing.since) / 1000)} s</span> <span class="dim">at most ${Math.round(queueing.fillSec)} s, then NPCs fill the empty places</span> <button class="primary" data-racenow>Race now</button> <button data-cancel>Cancel</button></div>` : '';
     const html = `<h2>Multiplayer</h2><div class="dim">${esc(game.self?.() ?? '')}</div>
       <h3>Race</h3>
       <div class="row"><button class="primary" data-quick ${queueing ? 'disabled' : ''}>Quick race</button><span class="dim">matched with players near your skill and car${party ? ` · your party of ${party.members.length} queues together` : ''}</span></div>${q}
@@ -146,6 +185,8 @@ export function createMpScreens({ S, R, game, cfg }) {
       ${req.incoming.length ? `<div>${req.incoming.map(r => `<div class="row">${esc(r.name)} wants to be friends <button class="primary" data-accept="${esc(r.id)}">Accept</button> <button data-unfriend="${esc(r.id)}">Decline</button></div>`).join('')}</div>` : ''}
       ${req.outgoing.length ? `<div class="dim">Asked: ${req.outgoing.map(r => esc(r.name)).join(', ')}</div>` : ''}
       <div class="row"><input data-friend placeholder="A player's name" maxlength="40"><button data-addfriend>Add friend</button></div>
+      <h3>Recent players <button data-recentload>Refresh</button></h3>
+      ${recentHtml()}
       <h3>Party</h3>
       ${party ? `<div class="row">${party.members.map(u => esc(party.names?.[u] ?? u)).join(', ')} ${party.leader === S.myUid || !S.myUid ? '<span class="dim">(you lead: Quick race queues everyone)</span>' : ''} <button data-partyleave>Leave the party</button></div>` : '<div class="row"><button data-partynew>Make a party</button><span class="dim">then invite friends: you queue together</span></div>'}
       <div class="row" style="justify-content:flex-end"><button data-close>Close</button></div>`;
@@ -159,9 +200,8 @@ export function createMpScreens({ S, R, game, cfg }) {
     const b = e.target.closest('button'); if (!b) return;
     const d = b.dataset;
     if ('quick' in d) void quickRace();
-    if ('cancel' in d) { queueing = null; offer = null; void S.leaveQueue(); drawMenu(); }
-    if ('npcyes' in d) { S.acceptNpcs(true); offer = null; drawMenu(); }
-    if ('npcno' in d) { S.acceptNpcs(false); offer = null; drawMenu(); }
+    if ('cancel' in d) { queueing = null; void S.leaveQueue(); drawMenu(); }
+    if ('racenow' in d) S.acceptNpcs(true);
     if ('private' in d || 'custom' in d) void S.createLobby({ kind: 'private' in d ? 'private' : 'custom', settings: { laps: 3 } }).then(() => show(false), err => notice(err.message));
     if ('joincode' in d) { const code = menu.querySelector('[data-code]').value; void S.joinCode(code).then(() => show(false), err => notice(err.message)); }
     if ('browse' in d) { lobbyList = null; S.hubSend({ t: 'lobbies' }); drawMenu(); }
@@ -171,6 +211,8 @@ export function createMpScreens({ S, R, game, cfg }) {
     if (d.partyinvite) S.hubSend({ t: 'party-invite', to: d.partyinvite });
     if (d.unfriend) S.hubSend({ t: 'friend-remove', id: d.unfriend });
     if (d.accept) S.hubSend({ t: 'friend-accept', id: d.accept });
+    if (d.addrecent) void addFriend(d.addrecent);
+    if ('recentload' in d) { recent = null; drawMenu(); void loadRecent(true); }
     if ('addfriend' in d) { const n = menu.querySelector('[data-friend]').value.trim(); if (n) S.hubSend({ t: 'friend-add', name: n }); menu.querySelector('[data-friend]').value = ''; }
     if ('partynew' in d) S.hubSend({ t: 'party-create' });
     if ('partyleave' in d) S.hubSend({ t: 'party-leave' });
@@ -355,17 +397,25 @@ export function createMpScreens({ S, R, game, cfg }) {
     const list = confirmed && conf.confirmed?.length ? conf.confirmed : res.results;
     const top = list.filter(r => r.status === 'finished').slice(0, 3);
     const mine = confirmed ? conf.confirmed.find(p => p.uid === S.myUid) : null;
+    // (Add friend: a person — not an NPC, not a guest (they can't have friends; the development players can) — and not
+    // already one; you a guest, none)
+    const dev = u => /^dev-player-/.test(u ?? ''), canAsk = !(S.me?.guest && !dev(S.myUid));
+    const befriend = (r, uid) => {
+      if (!canAsk || !uid || uid === S.myUid || r.npc || (r.guest && !dev(uid))) return '';
+      const st = friendState(uid);
+      return st === 'friend' ? '<span class="dim">Friend</span>' : st === 'outgoing' ? '<span class="dim" data-sent>Request sent</span>' : st === 'incoming' ? `<button class="primary" data-befriend="${esc(uid)}">Accept friend</button>` : `<button data-befriend="${esc(uid)}">Add friend</button>`;
+    };
     const row = r => {
       const uid = r.uid ?? r.pid, you = uid === S.myUid;
       const status = r.status === 'dsq' ? `<span class="bad">DSQ</span> <span class="dim">${esc(r.problems?.[0] ?? '')}</span>` : r.status === 'finished' ? `${fmtTime(r.timeMs / 1000)}${r.penaltyMs ? ` <span class="bad">+${r.penaltyMs / 1000}s</span>` : ''}` : `DNF${r.why ? ` <span class="dim">(${esc(r.why)})</span>` : ''}`;
       const pay = r.pay ? `${r.pay.money ? `<span class="good">+${money(r.pay.money)}</span>` : ''}${r.pay.xp ? ` +${r.pay.xp} xp` : ''}` : '';
       const rank = r.rank ? (tierLabel(r.rank.before) !== tierLabel(r.rank.after) ? `${esc(tierLabel(r.rank.before))} → <b class="${r.rank.change?.down ? 'bad' : 'good'}">${esc(tierLabel(r.rank.after))}</b>` : `<span class="tier">${esc(tierLabel(r.rank.after))}</span>${r.rank.change?.ordinalDelta ? ` <span class="${r.rank.change.ordinalDelta > 0 ? 'good' : 'bad'}">${r.rank.change.ordinalDelta > 0 ? '▲' : '▼'}</span>` : ''}`) : '';
-      return `<tr class="${you ? 'me' : ''}" data-uid="${esc(uid)}"><td>${r.place ?? '—'}.</td><td>${esc(you ? 'You' : r.name)}${r.npc ? ' <span class="dim">NPC</span>' : ''}</td><td>${status}</td>${confirmed ? `<td>${pay}</td><td>${rank}</td>` : ''}</tr>`;
+      return `<tr class="${you ? 'me' : ''}" data-uid="${esc(uid)}"><td>${r.place ?? '—'}.</td><td>${esc(you ? 'You' : r.name)}${r.npc ? ' <span class="dim">NPC</span>' : ''}</td><td>${status}</td>${confirmed ? `<td>${pay}</td><td>${rank}</td>` : ''}<td data-friendcell>${befriend(r, uid)}</td></tr>`;
     };
     const votes = S.votes;
     const html = `<h2 data-state="${confirmed ? 'confirmed' : 'provisional'}">Results · ${confirmed ? '<span class="good">confirmed</span>' : '<span class="warn">provisional — checking the runs…</span>'}</h2>
       ${top.length ? `<div class="podium" data-podium>${[1, 0, 2].filter(i => top[i]).map(i => `<div class="p${i + 1}" data-podium-place="${i + 1}">${i + 1}. ${esc((top[i].uid ?? top[i].pid) === S.myUid ? 'You' : top[i].name)}</div>`).join('')}</div>` : ''}
-      <table data-results><tr><th></th><th>Driver</th><th>Time</th>${confirmed ? '<th>Pay</th><th>Rank</th>' : ''}</tr>${list.map(row).join('')}</table>
+      <table data-results><tr><th></th><th>Driver</th><th>Time</th>${confirmed ? '<th>Pay</th><th>Rank</th>' : ''}<th></th></tr>${list.map(row).join('')}</table>
       ${S.verdict && !S.verdict.ok ? `<div class="bad">Your run didn't pass the check: ${esc((S.verdict.problems ?? []).join(' '))}</div>` : ''}
       ${mine?.rank ? `<div data-mytier>Your rank: ${esc(tierLabel(mine.rank.before))} → <b>${esc(tierLabel(mine.rank.after))}</b>${mine.rank.after?.placement ? ` <span class="dim">(${mine.rank.after.placement} placement race${mine.rank.after.placement > 1 ? 's' : ''} to go)</span>` : ''}${conf.ranked ? '' : ' <span class="dim">(not a ranked race: no change)</span>'}${mine.pay ? ` · <span class="good">+${money(mine.pay.money)}</span> +${mine.pay.xp} xp` : ''}</div>` : ''}
       <div class="row"><button class="primary" data-rematch>${myVote ? 'Voted: rematch ✓' : 'Rematch'}</button>${votes ? `<span class="dim" data-votes>${votes.yes} of ${votes.of} want a rematch</span>` : ''}
@@ -377,6 +427,7 @@ export function createMpScreens({ S, R, game, cfg }) {
   results.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     const d = b.dataset;
+    if (d.befriend) void addFriend(d.befriend);
     if ('rematch' in d) { myVote = !myVote; S.send({ t: 'rematch', v: myVote }); resultsKey = ''; drawResults(); }
     if ('watchothers' in d) { resultsHidden = true; results.hidden = true; R.watch(true); }
     if ('leaveres' in d) { leaving = true; void S.leaveRace().then(() => { results.hidden = true; game.leaveRace?.(); show(true); }); }

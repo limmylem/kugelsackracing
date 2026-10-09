@@ -44,8 +44,6 @@ if (process.env.MP_LOAD_WORKER) {
       await new Promise(res => {
         const timer = setTimeout(() => { r.timedOut = true; void q.leave(); res(); }, 240000);
         q.onJson(async m => {
-          // (offered NPCs for the empty slots — the last few of a rare class, say: yes, as a player waiting would)
-          if (m.t === 'npc-offer') { r.offered = true; q.sendJson({ t: 'npc', yes: true }); }
           if (m.t !== 'matched') return;
           clearTimeout(timer); r.waitMs = Date.now() - t0; r.quality = m.quality;
           try { const race = await transport.join(endpoint, 'race', { how: 'reservation', reservation: m.reservation }); r.seated = true; void q.leave(); setTimeout(() => { void race.leave(); }, 1500); }
@@ -96,7 +94,7 @@ if (process.env.MP_LOAD_WORKER) {
     waitP50: percentile(waits, 0.5), waitP95: percentile(waits, 0.95), waitMax: Math.max(...waits),
     races: made.length, humansPerRace: made.length ? made.reduce((a, m) => a + m.humans, 0) / made.length : 0, full: made.filter(m => m.humans === MP.grid.maxPlayers).length,
     skillP95: percentile(made.map(m => m.skillSpread), 0.95), prP95: percentile(made.map(m => m.performanceSpread), 0.95), pingOverP95: percentile(made.map(m => m.pingOver), 0.95),
-    sameClass: made.length ? made.filter(m => m.sameClass).length / made.length : 0, npcOffers: all.filter(r => r.offered).length, npcRaces: made.filter(m => m.npcFill).length,
+    sameClass: made.length ? made.filter(m => m.sameClass).length / made.length : 0, npcRaces: made.filter(m => m.npcFill).length,
     cycleMsP95: percentile(cycles, 0.95), cycleMsMax: Math.max(0, ...cycles),
     rssPeakMB: Math.round(Math.max(...mem) / 2 ** 20), cpuSec: Math.round((cpu.user + cpu.system) / 1e6), wallSec: Math.round(wall),
   };
@@ -105,7 +103,7 @@ if (process.env.MP_LOAD_WORKER) {
   check(`all ${N} bots queued and matched, and took their seats`, matched === N && seated === N && !errors.length, `${matched} matched, ${seated} seated, ${errors.length} errors${errors.length ? ` (${res.errorSample.join('; ')})` : ''}`);
   check(`queue time within target (p50 ≤ ${T.waitP50Sec} s, p95 ≤ ${T.waitP95Sec} s)`, res.waitP50 <= T.waitP50Sec && res.waitP95 <= T.waitP95Sec, `p50 ${res.waitP50.toFixed(1)} s, p95 ${res.waitP95.toFixed(1)} s, longest ${res.waitMax.toFixed(1)} s`);
   check(`match quality within target (skill spread p95 ≤ ${T.skillSpreadP95}, performance p95 ≤ ${T.performanceSpreadP95}, one class a race)`, res.skillP95 <= T.skillSpreadP95 && res.prP95 <= T.performanceSpreadP95 && res.sameClass >= T.sameClassShare, `skill ${res.skillP95.toFixed(1)}, performance ${res.prP95.toFixed(0)}, ping over best ${res.pingOverP95} ms, one class ${(res.sameClass * 100).toFixed(0)}%`);
-  check('races made', res.races > 0, `${res.races} races, ${res.humansPerRace.toFixed(1)} players a race (${res.full} full grids); ${res.npcOffers} offered NPCs, ${res.npcRaces} races with NPC fill`);
+  check('races made', res.races > 0, `${res.races} races, ${res.humansPerRace.toFixed(1)} players a race (${res.full} full grids); ${res.npcRaces} with NPCs in the empty places (the fill after ${MP.queue.npcFillSec} s)`);
   check('the server keeps up: the matchmaker\'s cycle well inside its interval', res.cycleMsP95 < MP.queue.cycleMs / 2, `p95 ${res.cycleMsP95.toFixed(1)} ms, at worst ${res.cycleMsMax.toFixed(1)} ms (every ${MP.queue.cycleMs} ms)`);
   lines.push('', `The server's process (the API and the real-time server together): peak memory ${res.rssPeakMB} MB, ${res.cpuSec} s of CPU in ${res.wallSec} s.`);
   const failed = results.filter(r => !r).length, summary = `${results.length - failed} of ${results.length} ok`;

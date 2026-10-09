@@ -6,6 +6,10 @@
 //   settingsOf(uid) · saveSettings(uid, s) · ticket(uid) → what a join ticket carries for free roam
 //   save(rows)  (the zone servers: where each player is)        comeBack(uid, { carIds? }) → restorePoint (mp/roam.js)
 //   challenge(record) → { verdict, pay: { uid: { money, xp, why } } }      myChallenges(uid)
+//     (a record that fails its check: Phase 7 Step 5's antiCheat.action — 'flag', the default, pays it as normal and flags
+//     it for an admin; 'disqualify' pays nothing. Once per challenge id: asked again — the zone server retrying — the
+//     first answer, and anyone it couldn't pay yet (the database away a moment: a 503, so it's asked again) paid then;
+//     economy.payRace pays an id once whatever happens)
 //   incident({ uid, hits, drop, until })                       meets: listMeets(now), createMeet(admin, m), cancelMeet(admin, id)
 //   stats(s) (a zone process's numbers) · dashboard() → zones, instances, handoffs, bandwidth, load, and the cost estimate
 
@@ -16,6 +20,7 @@ import crypto from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { REPO_DIR } from '../config.ts';
 import { AppError } from '../errors.ts';
+import { flagForReview } from '../abuse/detect.ts';
 import { restorePoint, meetEventState } from '../../../mp/roam.js';
 import { verifyChallenge, challengePay, groupKey } from '../../../mp/challenge.js';
 import { START } from '../../../mp/rank.js';
@@ -40,7 +45,7 @@ function graph(r: string) {
 }
 
 type Db = any;
-export function createRoamService({ db, economy, log = () => {}, now = () => Date.now() }: { db: Db; economy: any; log?: (o: object, m: string) => void; now?: () => number }) {
+export function createRoamService({ db, economy, antiCheat = { action: 'flag' }, log = () => {}, now = () => Date.now() }: { db: Db; economy: any; antiCheat?: { action: 'flag' | 'disqualify' }; log?: (o: object, m: string) => void; now?: () => number }) {
   const rows = async (q: any) => (await db.execute(q)).rows as any[];
   const one = async (q: any) => (await rows(q))[0] ?? null;
   const statsLog = new Map<string, any>();       // process → its latest numbers
@@ -103,25 +108,39 @@ export function createRoamService({ db, economy, log = () => {}, now = () => Dat
   async function challenge(rec: any) {
     if (typeof rec?.id !== 'string' || !Array.isArray(rec.racers) || rec.racers.length < 2) throw new AppError(400, 'BAD_REQUEST', 'Not a challenge.');
     const id = rec.id.slice(0, 120), was = await one(sql`select verdict from roam_challenges where id = ${id}`);
-    if (was) return { verdict: was.verdict, pay: Object.fromEntries((await rows(sql`select user_id, money, xp, why from roam_challenge_players where challenge_id = ${id}`)).map(r => [r.user_id, { money: r.money, xp: r.xp, why: r.why }])) };
-    const verdict = verifyChallenge(rec, ROAM), key = groupKey(rec.racers), km = Number.isFinite(rec.length) ? rec.length / 1000 : 0;
+    // (asked again — the zone server trying again after an answer that didn't reach it: the first answer; after the API
+    // stopped part-way through paying, anyone not paid yet paid now — economy.payRace pays an id once whatever happens)
+    const had: Record<string, any> = was ? Object.fromEntries((await rows(sql`select user_id, money, xp, why from roam_challenge_players where challenge_id = ${id}`)).map(r => [r.user_id, { money: r.money, xp: r.xp, why: r.why }])) : {};
+    const todo = (rec.results ?? []).filter((r: any) => rec.racers.includes(r.uid) && !had[r.uid]);
+    if (was && !todo.length) return { verdict: was.verdict, pay: had };
+    const verdict = was?.verdict ?? verifyChallenge(rec, ROAM), key = groupKey(rec.racers), km = Number.isFinite(rec.length) ? rec.length / 1000 : 0;
     // (how many times this same group has been paid today, and each player's paid challenges today: the caps)
     const day = sql`created_at > now() - interval '24 hours'`;
-    const groupToday = Number((await one(sql`select count(*) as n from roam_challenges c where group_key = ${key} and ${day} and exists (select 1 from roam_challenge_players p where p.challenge_id = c.id and p.money > 0)`))?.n ?? 0);
-    await db.execute(sql`insert into roam_challenges (id, type, region, players, group_key, km, record, verdict) values (${id}, ${String(rec.type).slice(0, 20)}, ${rec.region ?? null}, ${sql.raw(`ARRAY[${rec.racers.map((u: string) => `'${String(u).replace(/'/g, "''")}'`).join(',')}]::text[]`)}, ${key}, ${km}, ${JSON.stringify(rec)}::jsonb, ${JSON.stringify(verdict)}::jsonb)`);
-    const pay: Record<string, any> = {};
-    for (const r of rec.results ?? []) {
-      if (!rec.racers.includes(r.uid)) continue;
+    const groupToday = Number((await one(sql`select count(*) as n from roam_challenges c where group_key = ${key} and id <> ${id} and ${day} and exists (select 1 from roam_challenge_players p where p.challenge_id = c.id and p.money > 0)`))?.n ?? 0);
+    if (!was) await db.execute(sql`insert into roam_challenges (id, type, region, players, group_key, km, record, verdict) values (${id}, ${String(rec.type).slice(0, 20)}, ${rec.region ?? null}, ${sql.raw(`ARRAY[${rec.racers.map((u: string) => `'${String(u).replace(/'/g, "''")}'`).join(',')}]::text[]`)}, ${key}, ${km}, ${JSON.stringify(rec)}::jsonb, ${JSON.stringify(verdict)}::jsonb)`);
+    const pay: Record<string, any> = { ...had }, kept = verdict.ok || antiCheat.action === 'flag';
+    let unpaid = 0;
+    for (const r of todo) {
       const paidToday = Number((await one(sql`select count(*) as n from roam_challenge_players where user_id = ${r.uid} and money > 0 and ${day}`))?.n ?? 0);
-      let p = verdict.ok ? challengePay(ROAM, { km, place: r.place, players: rec.racers.length, pairToday: groupToday, paidToday }) : { money: 0, xp: 0, why: 'the challenge didn\'t pass its check' };
+      let p = kept ? challengePay(ROAM, { km, place: r.place, players: rec.racers.length, pairToday: groupToday, paidToday }) : { money: 0, xp: 0, why: 'the challenge didn\'t pass its check' };
       if (p.money > 0 || p.xp > 0) {
         try { const res = await economy.payRace(r.uid, { money: p.money, xp: p.xp, raceId: `${id}`, reason: `Free roam challenge: ${p.why}` }); if (!res?.paid) p = { money: 0, xp: 0, why: res?.why ?? 'not paid' }; }
-        catch (e) { log({ err: e, uid: r.uid }, 'paying a challenge failed'); p = { money: 0, xp: 0, why: 'not paid' }; }
+        // (the database away a moment: no row, so the zone server's next try pays it — below)
+        catch (e) { log({ err: e, uid: r.uid }, 'paying a challenge failed'); unpaid++; continue; }
       }
       pay[r.uid] = p;
       await db.execute(sql`insert into roam_challenge_players (challenge_id, user_id, place, status, time_ms, money, xp, why) values (${id}, ${r.uid}, ${r.place ?? null}, ${r.status}, ${r.timeMs ?? null}, ${p.money}, ${p.xp}, ${p.why}) on conflict do nothing`).catch(() => {});
     }
-    if (!verdict.ok) log({ challenge: id, problems: verdict.problems }, 'a challenge failed its check');
+    if (!verdict.ok) {
+      log({ challenge: id, problems: verdict.problems, action: antiCheat.action }, 'a challenge failed its check');
+      // (who the problems are about — each starts with their id — or, a problem with the whole record, everyone in it)
+      const about = rec.racers.filter((u: string) => verdict.problems.some((x: string) => x.startsWith(`${u}:`)));
+      for (const u of about.length ? about : rec.racers) {
+        await flagForReview(db, { kind: 'challenge-verify', key: `${id}:${u}`, userIds: [String(u).slice(0, 80)], score: 50,
+          evidence: { challengeId: id, type: rec.type ?? null, region: rec.region ?? null, km: Math.round(km * 100) / 100, problems: verdict.problems.slice(0, 20), paid: !!pay[u]?.money, action: antiCheat.action } }).catch(e => log({ err: e, challenge: id }, 'flagging a challenge failed'));
+      }
+    }
+    if (unpaid) throw new AppError(503, 'BUSY', 'Couldn\'t pay everyone in that challenge yet: try again.');
     return { verdict, pay };
   }
   async function myChallenges(uid: string, limit = 20) {

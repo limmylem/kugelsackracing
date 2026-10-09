@@ -14,7 +14,7 @@
 //      the other cars drawn in the 3D view
 //   5. the results: provisional, then confirmed — the table in the server's confirmed order with each player's pay and
 //      rank, the podium's top three, A's and B's own runs (timed by the game) passing the check — then a rematch vote
-//      back to the lobby screen
+//      back to the lobby screen; "Add friend" on a bot's row, clicked: "Request sent" (Phase 7 Step 5)
 //   6. the rematch: B watches instead (spectating a lobby you're in): the bar names the car its camera is on, that car
 //      on screen; → another car; the in-car and TV cameras
 //   7. a quick race: both click Quick race and are matched into one race, its loading and lights drawn
@@ -61,7 +61,7 @@ await app.listen({ port: PORT, host: '127.0.0.1' });
 await seedMpRoutes(app.content, { regions: [], extra: [ROUTE] });
 // (the real-time server's warnings — kicks by the live checks, failures — shown at the end if anything failed)
 const rtLog: string[] = [];
-const rt = await startRt({ port: RT_PORT, secret: SECRET, redisUrl: null, rt: { allowGuests: true, maxPlayers: 200, roomMaxClients: 64, netsim: true }, api: { url: `http://localhost:${PORT}` }, quickVenue: { '*': { kind: 'route', id: ROUTE.id } }, log: (m: string, e: any) => { if (/fail|kick/.test(m) || process.env.MP_DEBUG) rtLog.push(`${new Date().toISOString().slice(11, 19)} ${m} ${JSON.stringify(e ?? {})}`); } });
+const rt = await startRt({ port: RT_PORT, secret: SECRET, redisUrl: null, rt: { allowGuests: true, maxPlayers: 200, roomMaxClients: 64, netsim: true }, api: { url: `http://localhost:${PORT}` }, quickVenue: { '*': { kind: 'route', id: ROUTE.id } }, log: (m: string, e: any) => { if (/fail|kick|flag/.test(m) || process.env.MP_DEBUG) rtLog.push(`${new Date().toISOString().slice(11, 19)} ${m} ${JSON.stringify(e ?? {})}`); } });
 const raceOf = (roomId: string) => rt.races().find((r: any) => r.roomId === roomId);
 const courseFor = async v => courseOf(await app.mp.venue(v.venue));
 
@@ -357,6 +357,13 @@ try {
   check('the podium: the top three, drawn', pod.ok && top3.length === 3 && top3.every(n => podNames.includes(n)), pod.ok ? `${pod.text.split('\n').join(' · ')}` : pod.why);
   const tierA = await seen(A, '#mpResults [data-mytier]'), mine = view?.confirmed?.find(r => r.name === 'Player A');
   check('A\'s rank change and pay shown, as the server confirmed them', tierA.ok && !!mine && tierA.text.includes(mine.rank.after.name) && (!mine.pay?.money || tierA.text.includes(mine.pay.money.toLocaleString('en-GB'))), tierA.text ?? tierA.why);
+  // (Phase 7 Step 5) "Add friend" on the results: on each person's row but your own, none on an NPC's; clicked, "Request sent"
+  const fr = await A.evaluate(() => [...document.querySelectorAll('#mpResults [data-results] tr[data-uid]')].map(tr => ({ uid: tr.getAttribute('data-uid'), name: tr.children[1]?.textContent ?? '', add: !!tr.querySelector('[data-befriend]') })));
+  const botRow = fr.find(r => /^Bot/.test(r.name)), addOk = !!botRow?.add && fr.filter(r => /NPC/.test(r.name) || r.name === 'You').every(r => !r.add);
+  if (botRow?.add) { await A.bringToFront(); await click(A, `#mpResults tr[data-uid="${botRow.uid}"] [data-befriend]`); }
+  const sent = botRow?.add ? await until(async () => { const s = await seen(A, `#mpResults tr[data-uid="${botRow.uid}"] [data-sent]`); return s.ok ? s : null; }, 10000, 200) : null;
+  const asked = botRow ? await until(async () => (await app.mp.friends(botRow.uid)).friends.find(x => x.name === 'Player A')?.status === 'incoming', 10000, 300) : null;
+  check('the results: "Add friend" on each person\'s row (not yours, not an NPC\'s); clicked, it says "Request sent" and the request is made', addOk && !!sent && !!asked, `${fr.map(r => `${r.name.trim()}${r.add ? ' [Add friend]' : ''}`).join(' | ')} · after: ${sent?.text ?? 'no "Request sent"'} · the bot has the request: ${!!asked}`);
   await shot(A, '5-confirmed-A'); await shot(B, '5-confirmed-B');
   // the rematch: A and B vote (clicks), with a bot: back to the lobby screen
   await A.bringToFront(); await click(A, '#mpResults [data-rematch]'); await B.bringToFront(); await click(B, '#mpResults [data-rematch]');

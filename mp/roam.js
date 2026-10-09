@@ -23,6 +23,8 @@
 //   meetEventState(event, now, cfg) → { state: 'later' | 'announced' | 'live' | 'over', startsInSec }
 // COMING BACK. restorePoint(saved, { regions, roadDistance, spawnOf, cfg }) → { region, pos, heading, car, damage, garage, why }
 
+import { regionsFor } from './match.js';
+
 export const TILE = 512;
 
 // ---------- zones ----------
@@ -242,10 +244,11 @@ export const mapPoint = (pos, cfg) => { const k = cfg.zones.mapPrecisionM; retur
 export function lodFor(d, cfg) { const S = cfg.seeing; return d <= S.fullM ? 'full' : d <= S.simpleM ? 'simple' : 'marker'; }
 // a name's opacity over a car by distance (1 near, fading out to nameHideM)
 export function nameOpacity(d, cfg) { const S = cfg.seeing; return d <= S.nameFullM ? 1 : d >= S.nameHideM ? 0 : 1 - (d - S.nameFullM) / (S.nameHideM - S.nameFullM); }
-// the server region to use: the lowest ping, unless the friends' or party's is within preferWithinMs of it
-export function pickRegion(pings, cfg, preferred = null) {
+// the server region to use: the lowest ping, unless the friends' or party's is within preferWithinMs of it (no pings: the
+// environment's first region — env: the site's, by default)
+export function pickRegion(pings, cfg, preferred = null, env = globalThis.KR_SITE?.env) {
   const list = Object.entries(pings ?? {}).filter(([, ms]) => Number.isFinite(ms)).sort((a, b) => a[1] - b[1]);
-  if (!list.length) return cfg.regions.list[0]?.id ?? 'local';
+  if (!list.length) return regionsFor(cfg.regions.list, env)[0]?.id ?? 'local';
   const [best, bestMs] = list[0];
   if (preferred && Number.isFinite(pings[preferred]) && pings[preferred] - bestMs <= cfg.regions.preferWithinMs) return preferred;
   return best;

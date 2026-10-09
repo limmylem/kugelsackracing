@@ -14,6 +14,8 @@
 // What it sends:  lobby (everything: settings, players, host, phase, venue, code) · chat · event (the race's) ·
 //   standings (4 a second while racing) · results (provisional) · confirmed (once the runs are checked) · notice ·
 //   contact (the agreed result) · contact-rejected · ghosts (who touches nobody, and why) · ramming (to its victim)
+// (Phase 7 Step 5) the results and runs reach the API however long it takes (outbox.ts: tried again for ~15 minutes);
+// while the server drains for an update no race starts here, and it waits for the one under way (busy())
 
 import type { Client } from '@colyseus/core';
 import { CODES } from '../../../net/protocol.js';
@@ -22,7 +24,9 @@ import { createRace } from '../../../mp/race.js';
 import { normaliseSettings, carAllowed, createChatGate, nextHost } from '../../../mp/lobby.js';
 import { speedPlan, createNpcDriver } from '../../../mp/npc.js';
 import { tierOf } from '../../../mp/rank.js';
-import { TestRoom, rtEnv, type Player } from './room.ts';
+import { TestRoom, rtEnv, drain, DRAINING, type Player } from './room.ts';
+import { send } from './outbox.ts';
+import { loadtestBot } from './tickets.ts';
 import { courseOf, setStatus, clearStatus, claimCode, renewCode, dropCode } from './mp.ts';
 import { cleanChat } from '../names.ts';
 import { MP, NPC_DRIVERS } from './mpData.ts';
@@ -32,6 +36,8 @@ import { pitSpan, PIT } from '../../../track/gen/v2.js';
 import { safetyTier } from '../../../mp/contact.js';
 
 const MAX_RUN_PARTS = 200;
+// (just after the finish, the players' runs come in: a server stopping for an update waits this long for them)
+const RUNS_WAIT_MS = 30000;
 // (a car as the race keeps it: its mass and body box from the ticket — the API's word, for car-to-car contact)
 const STOCK = { mass: 1300, box: { halfExtents: [0.9, 0.6, 2.2], centre: [0, 0.7, 0] } };
 const carOf = (c: any) => ({ instanceId: c.instanceId, carId: c.carId, name: c.name, cls: c.cls, pr: c.pr, mass: c.mass ?? STOCK.mass, box: c.box ?? STOCK.box });
@@ -56,7 +62,7 @@ export class RaceRoom extends TestRoom {
   expected: string[] = [];
   expectBy = 0;
   pings = new Map<string, number>();
-  results: { raceId: string; posted: boolean; confirmed: any; polls: number; runs: Set<string> } | null = null;
+  results: { raceId: string; at: number; posted: boolean; confirmed: any; polls: number; runs: Set<string> } | null = null;
   votes = new Map<string, boolean>();
   raceNo = 0;
   raceId: string | null = null;
@@ -209,6 +215,7 @@ export class RaceRoom extends TestRoom {
       }
       case 'start': {
         if (!isHost) return this.say(p, 'Only the host starts the race.');
+        if (drain.on) return this.say(p, DRAINING);
         this.begin(now);
         break;
       }
@@ -275,7 +282,7 @@ export class RaceRoom extends TestRoom {
   // ---------- the race ----------
   begin(now: number) {
     const r = this.race;
-    if (r.phase !== 'lobby' || !this.course) return;
+    if (r.phase !== 'lobby' || !this.course || drain.on) return;
     // (NPCs into the empty slots, if this lobby has them)
     if (this.settings.npcFill) {
       const racing = [...r.players.values()].filter((x: any) => x.role === 'racer').length, want = Math.max(0, r.maxRacers - racing);
@@ -289,7 +296,7 @@ export class RaceRoom extends TestRoom {
     this.freshStates();
     // (the race's id from the start: each player's run is a quest named after it — mp/quest.js)
     this.raceId = `${this.roomId}-${this.raceNo}-${Date.now().toString(36)}`;
-    this.results = null; this.votes.clear(); this.pending = [];
+    this.results = null; this.votes.clear();
     this.referee = this.makeReferee();
     r.start(now);
     this.handle(r.drain());
@@ -320,7 +327,7 @@ export class RaceRoom extends TestRoom {
     const now = this.roomNow();
     if (this.referee && (r.phase === 'countdown' || r.phase === 'racing')) this.referee.tick();
     // quick: off once everyone expected is in (or after a short wait for anyone who isn't)
-    if (this.kind === 'quick' && r.phase === 'lobby' && this.course) {
+    if (this.kind === 'quick' && r.phase === 'lobby' && this.course && !drain.on) {
       const here = new Set([...this.players.values()].map(p => p.t.uid));
       if ((this.expected.length && this.expected.every(u => here.has(u))) || (here.size && now >= this.expectBy)) this.begin(now);
     }
@@ -394,7 +401,7 @@ export class RaceRoom extends TestRoom {
   // ---------- the results ----------
   async finished(e: any) {
     const r = this.race, raceId = this.raceId ?? `${this.roomId}-${this.raceNo}-${Date.now().toString(36)}`;
-    this.results = { raceId, posted: false, confirmed: null, polls: 0, runs: new Set() };
+    const res: NonNullable<RaceRoom['results']> = this.results = { raceId, at: this.roomNow(), posted: false, confirmed: null, polls: 0, runs: new Set<string>() };
     const results = e.results ?? r.results();
     this.broadcastJson({ t: 'results', raceId, results: results.map(({ flags, rating, ...x }: any) => x) });
     for (const n of this.npcs.values()) this.broadcastRoster({ leave: { id: n.id } });
@@ -405,11 +412,29 @@ export class RaceRoom extends TestRoom {
       // (Phase 7 Step 3: the agreed contacts — each run's pushes are checked against them — and each player's incidents)
       ...(this.referee ? this.referee.forRecord(results.filter((x: any) => !x.npc).map((x: any) => x.uid ?? x.pid)) : {}),
     };
-    try { await rtEnv.api?.recordRace(rec); this.results.posted = true; for (const m of this.pending.splice(0)) await this.forwardRun(m.uid, m.body); }
-    catch (err: any) { rtEnv.log('rt race report failed', { race: raceId, err: err?.message }); }
+    // (the server's about to stop for an update: no rematch here)
+    if (drain.on) this.broadcastJson({ t: 'notice', text: DRAINING });
+    const api = rtEnv.api;
+    // (load-test bots and NPCs only: nobody with an account — nothing for the API)
+    if (!api || !results.some((x: any) => !x.npc && !loadtestBot(x.uid ?? x.pid))) { this.reportOf(raceId).resolve(false); return; }
+    // (until the API has it: the runs handed in wait for it — reportOf)
+    const ok = (await send(`race ${raceId}`, () => api.recordRace(rec), rtEnv.log)) !== null;
+    res.posted = ok;
+    this.reportOf(raceId).resolve(ok);
   }
-  // (a run handed in as its player finishes — before the race is over: kept, and sent on once the race is reported)
-  private pending: { uid: string; body: any }[] = [];
+  // each race's report to the API, once it's in (or given up): a run handed in — even before the race is over, as its
+  // player finishes — is sent on after it
+  private reports = new Map<string, { done: Promise<boolean>; resolve: (ok: boolean) => void }>();
+  private reportOf(raceId: string) {
+    let r = this.reports.get(raceId);
+    if (!r) {
+      let resolve!: (ok: boolean) => void;
+      r = { done: new Promise<boolean>(res => { resolve = res; }), resolve };
+      this.reports.set(raceId, r);
+      while (this.reports.size > 8) this.reports.delete(this.reports.keys().next().value!);
+    }
+    return r;
+  }
   private handed = new Set<string>();
   // a long race's recording comes in pieces (a message is at most 64 kB): run-part { i, of, data } each, then the run
   // with recording.parts — put back together here (at most MAX_RUN_PARTS, ~6 MB: hours of driving)
@@ -423,9 +448,10 @@ export class RaceRoom extends TestRoom {
     this.runParts.set(key, list);
   }
   async handIn(p: Player, m: any) {
-    if (!this.raceId || this.race.phase === 'lobby') return this.say(p, 'There\'s no race to hand a run in for.');
-    const key = `${this.raceId}:${p.t.uid}`;
-    if (this.handed.has(key)) return;
+    const raceId = this.raceId;
+    if (!raceId || this.race.phase === 'lobby') return this.say(p, 'There\'s no race to hand a run in for.');
+    const key = `${raceId}:${p.t.uid}`;
+    if (this.handed.has(key) || loadtestBot(p.t.uid)) return;      // (a load-test bot's run: nothing for the API)
     let recording = m.recording ?? null;
     if (recording?.parts) {
       const list = this.runParts.get(key);
@@ -440,17 +466,26 @@ export class RaceRoom extends TestRoom {
       contact = list && list.length === m.contactParts && list.every(x => x != null) ? list.join('') : null;
     }
     this.handed.add(key);
-    const body = { result: m.result ?? null, recording, contact };
-    if (!this.results?.posted) { this.pending.push({ uid: p.t.uid, body }); return; }
-    await this.forwardRun(p.t.uid, body);
+    await this.forwardRun(raceId, p.t.uid, { result: m.result ?? null, recording, contact });
   }
-  async forwardRun(uid: string, body: any) {
-    try {
-      const v = await rtEnv.api!.submitRun(this.results!.raceId, uid, body);
-      const p = [...this.players.values()].find(x => x.t.uid === uid);
-      if (p) this.sendTo(p, { t: 'verdict', verdict: v?.verdict ?? null });
-    } catch (err: any) { rtEnv.log('rt run hand-in failed', { uid, err: err?.message }); }
+  async forwardRun(raceId: string, uid: string, body: any) {
+    const api = rtEnv.api;
+    if (!api || !(await this.reportOf(raceId).done)) return;
+    const v: any = await send(`run ${raceId} ${uid}`, () => api.submitRun(raceId, uid, body), rtEnv.log);
+    const p = [...this.players.values()].find(x => x.t.uid === uid);
+    if (p && v) this.sendTo(p, { t: 'verdict', verdict: v.verdict ?? null });
   }
+  // (Phase 7 Step 5: the server waits for this before it stops for an update — a race under way, or one just finished
+  // whose players' runs are still coming in)
+  busy() {
+    const ph = this.race?.phase, res = this.results;
+    if (ph === 'loading' || ph === 'countdown' || ph === 'racing') return true;
+    if (ph !== 'results' || !res || this.roomNow() - res.at > RUNS_WAIT_MS) return false;
+    return [...this.race.players.values()].some((q: any) => !q.npc && q.status === 'finished' && this.isHere(q.pid) && !this.handed.has(`${res.raceId}:${q.pid}`));
+  }
+  // (the server starts to drain: a lobby, or a race's podium, told — a race under way is told at its finish)
+  draining() { if (!['loading', 'countdown', 'racing'].includes(this.race?.phase)) this.broadcastJson({ t: 'notice', text: DRAINING }); }
+  protected flagRef() { return { raceId: this.raceId, phase: this.race?.phase ?? null }; }
   private polling = false;
   async pollResults() {
     const res = this.results;
@@ -465,6 +500,7 @@ export class RaceRoom extends TestRoom {
   checkRematch() {
     const r = this.race;
     if (r.phase !== 'results') return;
+    if (drain.on) { this.broadcastJson({ t: 'notice', text: DRAINING }); return; }
     const here = [...new Set([...this.players.values()].filter(p => p.status === 'here').map(p => p.t.uid))];
     const yes = here.filter(u => this.votes.get(u) === true).length;
     this.broadcastJson({ t: 'votes', yes, of: here.length });

@@ -4,8 +4,8 @@ How to see what the game is doing, how you're told when something goes wrong, an
 without a deploy: features off, maintenance, "please refresh". Also how deploys stay safe and how to roll one
 back. Recovering from a lost database, server or host: [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
 
-**Online parts are paused** like the rest of the hosting ([DEPLOYMENT.md](DEPLOYMENT.md)). Everything here
-runs locally and is tested; [When we deploy](#when-we-deploy) lists what to set up.
+**Online (Phase 7 Step 5):** production only, one server in Sydney ([DEPLOYMENT.md](DEPLOYMENT.md)). Everything here
+runs locally and is tested; [Online](#online) lists what's set up outside the game.
 
 ## The dashboard
 
@@ -31,8 +31,9 @@ plan can scrape it.
 
 ## Alerts
 
-`server/src/ops/alerts.ts`, checked every minute on each server. Sent to `ALERT_EMAIL`, and to a phone through
-`ALERT_WEBHOOK_URL`.
+`server/src/ops/alerts.ts`, checked every minute on each server. Sent to `ALERT_EMAIL` (from
+`noreply@ognistrada.com`, through Resend), and to a phone through `ALERT_WEBHOOK_URL` if it's set (the deploy doesn't
+set it yet: [Online](#online)).
 
 **Sending:**
 - once when a problem starts;
@@ -53,15 +54,17 @@ Any webhook that takes plain text works.
 | `database` | The database doesn't answer, takes over 1 s for `select 1`, or more than 5 requests are queueing for a connection |
 | `queue` | More than 20 results or tracks waiting, or one waiting over 2 minutes |
 | `money` | Over 5,000,000 made in an hour (rewards, grants, starting money), or 5× a normal hour this week |
+| `realtime` | (Phase 7 Step 5) The real-time server hasn't reported for 90 s (it sends its numbers every 5 s). Races, lobbies and free roam are probably down: `docker compose ps` and `docker compose logs rt` on the server. `GET /api/v1/status` says the same (`"rt": "up"`, `"down"`, or `"unknown"` just after the API starts). |
 
 **What can't be seen from inside:**
 
 | Alert | Covered by |
 |---|---|
-| **Site down** | An outside uptime monitor checking `https://api.ognistrada.com/api/v1/status` and the game's address every minute |
-| **Spending over budget** | Each provider's own billing alerts |
+| **Site down** | UptimeRobot: the game's address, `/api/v1/status` (`"api":"up"` and `"rt":"up"`) and `https://rt.ognistrada.com/health` (`"ok":true`) ([Online](#online)) |
+| **The nightly backup missed** | Healthchecks.io ([DEPLOYMENT.md](DEPLOYMENT.md#monitoring-and-alerts)) |
+| **Spending over budget** | Each provider's own billing alerts ([COSTS.md](COSTS.md)) |
 
-Both are in [When we deploy](#when-we-deploy). Errors with their stack traces also go to Sentry, which emails new kinds of error.
+Errors with their stack traces also go to Sentry, which emails new kinds of error.
 
 `server/test/ops.test.ts` checks:
 - each alert fires on its condition;
@@ -75,7 +78,7 @@ Both are in [When we deploy](#when-we-deploy). Errors with their stack traces al
 **`/site/status.html`** on the game's own address, so it loads when the server is down and says so.
 - It asks `GET /api/v1/status` every 30 seconds: the server, the database, maintenance and its message, and features switched off.
 - It shows "Everything is working", "Up, with some features off", "Down for maintenance", "Having problems" or "The game's server isn't answering".
-- **`status.ognistrada.com`**: point it at the page, or at the uptime monitor's own status page (most have a free public one that's independent of our hosting). Either is fine; the monitor's is the one that still works if Cloudflare Pages is down too.
+- **UptimeRobot's own public status page** is the one that still works if Cloudflare is down too. `status.ognistrada.com` isn't set up (it could point at either, later).
 
 ## Switches (no deploy needed)
 
@@ -93,11 +96,16 @@ The admin page's **Launch** tab (`PUT /api/v1/admin/settings/:key`):
 
 ## Safe deploys
 
-A deploy (`deploy.yml`) goes:
-1. CI must pass on the commit;
-2. staging, by itself, then checked;
-3. production, after your approval (the `production` environment's required reviewers);
-4. Render starts the new server, waits for `/api/v1/health` to answer, then moves traffic over. The old one finishes its requests (a clean stop on SIGTERM).
+A deploy (`deploy.yml`; [DEPLOYMENT.md](DEPLOYMENT.md#deploying)) goes:
+1. CI must pass on the commit, and its image is built;
+2. production, after your approval (the `production` environment's required reviewer) — there's no staging;
+3. on the server, `docker compose up -d` with the new image: the API stops cleanly (SIGTERM: it finishes its
+   requests) and the new one starts in seconds; the real-time server drains first (no new joins, races under way
+   finish, up to `RT_DRAIN_SEC`, 600 s);
+4. the deploy waits until both answer healthy at the new commit, publishes the game, then runs the checks.
+
+With one server there's a gap of a few seconds for the API at each deploy (the game retries): deploy when few are
+playing.
 
 **Database migrations that don't break the running version:**
 - The new server migrates when it starts, while the old one is still serving.
@@ -111,41 +119,43 @@ A deploy (`deploy.yml`) goes:
   2. after that's settled, drop it in a migration listed in the test's `ALLOWED_DESTRUCTIVE` with its reason.
 
 **Gradual rollouts:**
-- Render has no canary deploys on these plans, so new behaviour goes out behind a feature switch.
+- With one server there are no canary deploys, so new behaviour goes out behind a feature switch.
 - Deploy it with the switch at 10%, watch Monitoring, then raise it.
 
 ## Rolling back
 
 | What | How |
 |---|---|
-| Everything, kept in step | **Actions → rollback → Run workflow** (`rollback.yml`): the environment and the commit to go back to. Production still needs your approval. |
-| The API alone | Render → the service → Events → the previous deploy → **Rollback** (one click) |
-| The game alone | Cloudflare → Pages → Deployments → **Rollback** |
+| Everything, kept in step | **Actions → rollback → Run workflow** (`rollback.yml`): the commit to go back to (`/opt/ognistrada/deployed.log` on the server lists the deploys). It still needs your approval. |
+| The game alone | Cloudflare → Workers & Pages → `ognistrada` → Deployments → **Rollback** |
 | A feature alone | Switch it off on the Launch tab (seconds) |
 
 - **A rollback never undoes migrations.** The older server runs on the newer schema, which is why they only add.
 - **The rollback drill** (`node server/tools/rollback-test.ts`, report in `reports/rollback-test.md`; run in CI):
-  1. a broken release, with an additive migration and a bug failing every garage request, deployed to a staging-like database;
+  1. a broken release, with an additive migration and a bug failing every garage request, deployed to a production-like database;
   2. the server-errors alert fires on its first check;
   3. the previous version is started again on the newer schema;
   4. it serves every request and takes a purchase, the books balance, and the alert clears.
 
-## When we deploy
+## Online
 
-Add to [DEPLOYMENT.md](DEPLOYMENT.md)'s list. **Ask before anything that costs money.**
+What's set up outside the game ([DEPLOYMENT.md](DEPLOYMENT.md#monitoring-and-alerts); the owner's accounts:
+[GO_LIVE.md](GO_LIVE.md) step 10). **Ask before anything that costs money.**
 
-1. **Alerts:** set `ALERT_EMAIL` (your email) and `ALERT_WEBHOOK_URL` (an ntfy topic) on Render for production and staging. Free.
-2. **Uptime monitor and status page:** UptimeRobot or Better Stack (both have free plans).
-   - Monitor `https://api.ognistrada.com/api/v1/status` (keyword `"api":"up"`) and `https://ognistrada.com/`, every minute (5 on UptimeRobot's free plan).
-   - Alert your email and phone.
-   - Make its public status page, and point `status.ognistrada.com` at it.
-3. **Budgets:** a spending limit or alert on every paid service:
-   - **Render:** Billing → spend limit; its free plans can't be charged.
-   - **Neon:** Billing → usage alerts; the paid plan's compute hours.
-   - **Cloudflare:** Billing → notifications. R2 and Pages are free here; Workers paid only if turned on.
-   - **Resend:** the free plan caps itself at 3,000 emails a month.
-   - **Sentry:** the free plan; set a spike-protection quota.
-   - **GitHub Actions:** the free minutes; a spending limit of $0.
-4. **`METRICS_TOKEN`** if an external dashboard should read `/api/v1/metrics`.
-5. **Turnstile keys and Cloudflare's rules** ([ABUSE.md](ABUSE.md)).
-6. **Point-in-time recovery** ([DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)): it comes with the paid database plan.
+1. **Alerts:** `ALERT_EMAIL` (a GitHub secret, put in the server's settings by each deploy). `ALERT_WEBHOOK_URL` (a
+   phone, through an ntfy topic) isn't passed by the deploy yet: add it to `server/scripts/deploy-server.sh` if wanted.
+2. **UptimeRobot** (free), alerting the owner's email:
+   - `https://ognistrada.com/` (up);
+   - `https://api.ognistrada.com/api/v1/status`, keyword `"api":"up"`;
+   - the same address again, keyword `"rt":"up"` (the API hears from the real-time server);
+   - `https://rt.ognistrada.com/health`, keyword `"ok":true`.
+3. **Sentry** (free): `SENTRY_DSN` (secret: the API and the real-time server) and `SENTRY_CLIENT_DSN` (variable: the
+   game). Spike protection on.
+4. **Healthchecks.io** (free): one check, a ping a day, its URL in the secret `HEALTHCHECKS_BACKUP_URL`.
+5. **Budgets:** OVHcloud and PlanetScale bill a fixed monthly amount; Cloudflare → Billing → Notifications, a
+   usage alert at $1 (everything we use is free); GitHub Actions spending limit $0 ([COSTS.md](COSTS.md)).
+6. **`METRICS_TOKEN`** only if an external dashboard should read `/api/v1/metrics` (not set).
+7. **Turnstile** keys are set (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`); Cloudflare's WAF rules ([ABUSE.md](ABUSE.md)).
+8. **The server itself:** Docker restarts a stopped container; the OS installs security updates and reboots itself at
+   about 04:00 Adelaide time when one needs it. Logs: `docker compose logs --tail 100 api rt` on the server (kept up to
+   30 MB a container).

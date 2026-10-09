@@ -1,8 +1,10 @@
 // Free roam on the API (Phase 7 Step 4; docs/FREE_ROAM.md): settings (privacy, contact, passive) kept and carried in the
 // join ticket with friends; where a player was saved by the zone servers and where they come back to (or the garage, and
 // why); a challenge's record checked, then paid — capped against farming (the same pair, a player's day), an edited
-// record paying nothing, paid once; an auto-ghost dropping the safety rating; scheduled meets at a published meet spot;
-// the zone servers' numbers on the admin dashboard with the cost estimate; the internal key on every zone-server call.
+// record paying nothing (antiCheat "disqualify") or paid and flagged for an admin (Phase 7 Step 5: "flag", the default),
+// paid once (the rest paid on the zone server's next try when the API stopped part-way); an auto-ghost dropping the
+// safety rating; scheduled meets at a published meet spot; the zone servers' numbers on the admin dashboard with the
+// cost estimate; the internal key on every zone-server call.
 // The zone servers are played by the test (their internal calls); server/tools/roam-test.ts runs it all through them.
 
 import { test, before, after } from 'node:test';
@@ -83,7 +85,7 @@ function recordOf(id: string, racers: string[], { lengthM = 1600, va = 30, vb = 
   return { ...R.record(), region: 'mk' };
 }
 
-test('challenges: checked, then paid by place; an edited record pays nothing; paid once; the same pair capped a day; a player\'s day capped', async () => {
+test('challenges: checked, then paid by place; an edited record pays nothing (antiCheat "disqualify"); paid once; the same pair capped a day; a player\'s day capped', async () => {
   const a = await player('Cara Chase'), b = await player('Dev Duel');
   const A = await idOf(a), B = await idOf(b);
   const before = async (p: any) => (await p.get('/api/v1/player')).body?.profile?.money ?? (await p.get('/api/v1/player')).body?.money;
@@ -98,9 +100,10 @@ test('challenges: checked, then paid by place; an edited record pays nothing; pa
   const again = await internal('/roam/challenges', recordOf('rc_t1', [A, B]));
   assert.deepEqual(again.body.pay, r1.body.pay);
   assert.equal(await before(a), m0 + r1.body.pay[A].money);
-  // an edited record: a checkpoint skipped — checked, failed, nothing paid
+  // an edited record: a checkpoint skipped — checked, failed; with antiCheat "disqualify", nothing paid
   const bad = recordOf('rc_t2', [A, B]); bad.cars[A].passed.splice(1, 1);
-  const r2 = await internal('/roam/challenges', bad);
+  T.config.antiCheat.action = 'disqualify';
+  const r2 = await internal('/roam/challenges', bad).finally(() => { T.config.antiCheat.action = 'flag'; });
   assert.equal(r2.body.verdict.ok, false); assert.equal(r2.body.pay[A].money, 0);
   // the same pair: paid pairPerDay times in a day, then nothing (trading wins doesn't farm money)
   let paid = 1;
@@ -122,6 +125,46 @@ test('challenges: checked, then paid by place; an edited record pays nothing; pa
   // a player's list
   const mine = (await b.get('/api/v1/roam/challenges')).body.challenges;
   assert.ok(mine.length >= 3 && mine.some((c: any) => c.money > 0));
+});
+
+test('an edited challenge record with antiCheat "flag" (the default): paid as normal, and flagged for an admin — the one whose record it is, with the reasons, once', async () => {
+  assert.equal(T.config.antiCheat.action, 'flag');
+  const c = await player('Fay Flagged'), d = await player('Gus Gauge');
+  const C = await idOf(c), D = await idOf(d);
+  await c.get('/api/v1/player'); await d.get('/api/v1/player');
+  const bad = recordOf('rc_flag1', [C, D]); bad.cars[C].passed.splice(1, 1);
+  const r = await internal('/roam/challenges', bad);
+  assert.equal(r.body.verdict.ok, false);
+  assert.ok(r.body.pay[C].money > 0 && r.body.pay[D].money > 0, JSON.stringify(r.body.pay));
+  const flags = async () => (await T.app.deps.db.execute(sql`select user_ids, evidence from abuse_flags where kind = 'challenge-verify' and key like ${'challenge-verify:rc_flag1:%'}`)).rows as any[];
+  const f = await flags();
+  assert.deepEqual(f.map(x => x.user_ids[0]), [C], 'the player whose record was edited, not the other');
+  assert.match(f[0].evidence.problems.join(' '), /checkpoints/); assert.equal(f[0].evidence.paid, true);
+  // (the zone server asking again: the same answer, paid once, flagged once)
+  const again = await internal('/roam/challenges', bad);
+  assert.deepEqual(again.body.pay, r.body.pay);
+  assert.equal((await flags()).length, 1);
+  const boss = await makeStaff(T.app, await player('Hal Hawk'), `halhawk${n}@example.com`, 'admin');
+  assert.ok((await boss.get('/api/v1/admin/flags')).body.flags.some((x: any) => x.kind === 'challenge-verify' && x.accounts[0].id === C), 'on the admins\' list');
+});
+
+test('a challenge the API couldn\'t pay everyone for (the database away a moment): a 503, and the zone server\'s next try pays the rest — each once', async () => {
+  const e = await player('Eve Early'), f = await player('Fin Fault');
+  const E = await idOf(e), F = await idOf(f);
+  await e.get('/api/v1/player'); await f.get('/api/v1/player');
+  const economy = (T.app as any).economy, payRace = economy.payRace;
+  let fails = 1;
+  economy.payRace = async (uid: string, x: any) => { if (uid === F && fails-- > 0) throw new Error('Connection terminated unexpectedly (the test)'); return payRace(uid, x); };
+  try {
+    const rec = recordOf('rc_part1', [E, F]);
+    assert.equal((await internal('/roam/challenges', rec)).status, 503, 'tried again by the zone server (rt/outbox.ts)');
+    const r = await internal('/roam/challenges', rec);
+    assert.equal(r.status, 200);
+    assert.ok(r.body.pay[E].money > 0 && r.body.pay[F].money > 0, JSON.stringify(r.body.pay));
+    assert.deepEqual((await internal('/roam/challenges', rec)).body.pay, r.body.pay, 'asked again: the same');
+    const paid = async (uid: string) => Number(((await T.app.deps.db.execute(sql`select count(*) as n from ledger where user_id = ${uid} and ref->>'mpRace' = 'rc_part1'`)).rows[0] as any).n);
+    assert.equal(await paid(E), 1); assert.equal(await paid(F), 1);
+  } finally { economy.payRace = payRace; }
 });
 
 test('auto-ghosted for ramming: the safety rating drops, the ghost is carried in the next ticket', async () => {

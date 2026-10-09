@@ -147,22 +147,22 @@ production:
 
 All on Cloudflare's **free** plan. The DNS is already planned there ([DEPLOYMENT.md](DEPLOYMENT.md)).
 
-1. **Proxy everything.** `ognistrada.com`, `api.`, `tiles.` and `rt.` are orange-clouded, which brings DDoS protection at the edge (always on and unmetered on every plan) and hides Render's address.
-   - **Render's own `*.onrender.com` address** still answers. Requests through it skip Cloudflare's checks, but still meet the server's own limits, by the address Render saw (`EDGE_SECRET`: only Cloudflare's requests are believed about the player's address).
+1. **Proxy everything.** `ognistrada.com`, `api.`, `tiles.` and `rt.` are orange-clouded, which brings DDoS protection at the edge (always on and unmetered on every plan). `api.` and `rt.` reach the server only through the Cloudflare Tunnel (Phase 7 Step 5): the VPS has no open web ports, so there's no way round Cloudflare's checks.
+   - The server's own limits still apply, by the player's address as Cloudflare says it (`EDGE_SECRET`: only Cloudflare's requests are believed about it).
 2. **Security → WAF → Managed rules:** turn on the free managed ruleset.
 3. **Security → WAF → Rate limiting rules** (the free plan allows one):
    - match: URI path starts with `/api/auth/`;
    - limit: 60 requests in 10 seconds per IP;
    - action: block for 10 seconds.
 
-   This stops floods before they reach Render at all. The server's own limits stay as the finer layer.
+   This stops floods before they reach the server at all. The server's own limits stay as the finer layer.
 4. **Security → Bots:** leave "Bot Fight Mode" **off** for `api.` (it challenges the game's own API requests). Turnstile protects the forms instead.
 5. **Caching** (already in DEPLOYMENT.md):
    - map tiles and assets an hour;
    - published world content by its `Cache-Control` (`s-maxage=300` with an ETag);
    - leaderboards for signed-out visitors 15 s;
    - nothing private (the server marks every private answer `private, no-store`).
-6. **Turnstile:** add a site for `ognistrada.com` and `api.ognistrada.com`, and put its keys in Render's environment (production and staging; staging can use the always-pass test keys).
+6. **Turnstile:** add a site for `ognistrada.com` and `api.ognistrada.com`, and put its keys in GitHub's secrets and variables (`TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY`): the deploy passes them on.
 
 ## Files
 

@@ -11,6 +11,8 @@
 //   - answers pings with its clock (time sync), and stamps everything with it (ms since the room began);
 //   - keeps a dropped player's car for NET.reconnectSec (paused for everyone else) for them to come back to.
 // It never runs physics: it's a relay with checks (the race's result is checked afterwards by its replay).
+// (Phase 7 Step 5) a player whose game keeps sending what the checks refuse is flagged for the admins, never kicked;
+// and while the server drains for an update (server.ts) nobody new joins — CODES.CLOSED, DRAINING.
 
 import { Room, ServerError, type Client, matchMaker } from '@colyseus/core';
 import { NET } from '../../../net/settings.js';
@@ -20,6 +22,7 @@ import { createLink, parseConditions } from '../../../net/netsim.js';
 import { verifyTicket, type Ticket } from './tickets.ts';
 import { createChecks } from './checks.ts';
 import { createGrid } from './interest.ts';
+import { send } from './outbox.ts';
 
 export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any };
 let ENV: RtEnv;
@@ -31,6 +34,13 @@ const serverMs = () => performance.timeOrigin + performance.now();
 const refuse = (code: number, message = MESSAGES[code]) => new ServerError(403, `[${code}] ${message}`);
 const EVENT_KINDS = new Set(['impact', 'damage', 'parts', 'reset', 'repair', 'lights', 'horn']);
 const KEEP_EVENTS = 64, MAX_EVENT_BYTES = 8192, MAX_LOOK_BYTES = 16384, WS_DOWN = 4, WS_UP = 8;
+// (a player the live checks keep refusing: flagged at most once in this long, in a room)
+const FLAG_EVERY_MS = 5 * 60e3;
+
+// (Phase 7 Step 5) the server stopping for an update (server.ts drain): no new joins, lobbies, races or challenges; what's
+// under way finishes, then everyone's told it's restarting
+export const DRAINING = 'The server is restarting for an update. Try again in a minute.';
+export const drain = { on: false, since: 0 };
 
 // players across every process (Redis: a count per process, with when it was last refreshed)
 const LOAD = 'rt:load';
@@ -43,9 +53,11 @@ async function totalPlayers() {
 // this thread's CPU time so far, or since prev (µs: process.threadCpuUsage — null on a Node without it)
 const threadCpu = (prev?: { user: number; system: number }): { user: number; system: number } | null => (process as any).threadCpuUsage?.(prev) ?? null;
 // every room's join check (the test room, and Phase 7 Step 2's hub, queue and race rooms): the game's version, the
-// ticket (signed, in date, used once), not banned, a guest only where guests may play, room on the server
-export async function authorize(token: string, options: any, { count = true }: { count?: boolean } = {}) {
+// ticket (signed, in date, used once), not banned, a guest only where guests may play, room on the server — and not
+// while the server's draining for an update (continuing: a free-roam player already here crossing into the next zone)
+export async function authorize(token: string, options: any, { count = true, continuing = false }: { count?: boolean; continuing?: boolean } = {}) {
   if (Number(options?.protocol) !== PROTOCOL) throw refuse(CODES.VERSION, `${MESSAGES[CODES.VERSION]} (game ${options?.protocol ?? '?'}, server ${PROTOCOL})`);
+  if (drain.on && !continuing) throw refuse(CODES.CLOSED, DRAINING);
   const t = verifyTicket(ENV.secret, token);
   if (!t) throw refuse(CODES.TICKET);
   // (each ticket once: a copied one is worthless)
@@ -84,7 +96,7 @@ export type Player = {
   latest: any | null; latestF: any | null; resetUntil: number; lastReset: number; lastHeard: number;
   checks: ReturnType<typeof createChecks>; sentBase: Map<number, any>; eventTokens: number;
   up: ReturnType<typeof createLink> | null; down: ReturnType<typeof createLink> | null;
-  bytesIn: number; bytesOut: number; statesIn: number; dropped: number; kicked: boolean; fullStates: boolean;
+  bytesIn: number; bytesOut: number; statesIn: number; dropped: number; kicked: boolean; fullStates: boolean; flaggedAt: number;
   page?: string | null;              // (Phase 7 Step 4: the page this connection is from — a free-roam player is in several zones at once)
 };
 
@@ -128,6 +140,8 @@ export class TestRoom extends Room {
   }
 
   onDispose() { void Promise.resolve(matchMaker.presence.hdel('rt:rooms', this.roomId)).catch(() => {}); TestRoom.live.delete(this); this.unsub?.(); for (const p of this.players.values()) { p.up?.close(); p.down?.close(); } }
+  // (the server stopping: everyone told it's restarting — CLOSED, not Colyseus's own code — and the room gone)
+  onBeforeShutdown() { try { void this.disconnect(CODES.CLOSED).catch(() => {}); } catch { /* still being made */ } }
 
   onJoin(client: Client, options: any) {
     const t = client.auth as Ticket, page = this.pageOf(options);
@@ -141,7 +155,7 @@ export class TestRoom extends Room {
       id, client, t, look: null, events: [], status: 'here', latest: null, latestF: null, resetUntil: 0, lastReset: 0, lastHeard: this.roomNow(),
       checks: createChecks(NET.checks), sentBase: new Map(), eventTokens: 20,
       up: cond ? createLink({ ...cond, seed: id * 7 + 1 }) : null, down: cond ? createLink({ ...cond, seed: id * 7 + 2 }) : null,
-      bytesIn: 0, bytesOut: 0, statesIn: 0, dropped: 0, kicked: false,
+      bytesIn: 0, bytesOut: 0, statesIn: 0, dropped: 0, kicked: false, flaggedAt: -Infinity,
       // (its link may lose messages — WebTransport datagrams later: complete states every time, not changes)
       fullStates: !!options?.fullStates || !!(cond && cond.mode === 'datagram'),
       page,
@@ -279,12 +293,19 @@ export class TestRoom extends Room {
       this.out(o, S2C.ROSTER, b, true);
     }
   }
+  // (the owner's rule, Phase 7 Step 5: flag, never kick — a bug in the game's physics looks like this as much as a cheat.
+  // What's refused is dropped all the same, so nobody sees it; a player who keeps sending it — strikes in the window — is
+  // flagged for the admins, at most once in FLAG_EVERY_MS here)
   protected strike(p: Player, reason: string) {
-    if (p.checks.strike(reason, this.roomNow())) {
-      ENV.log('rt kicked by the live checks', { uid: p.t.uid, reasons: p.checks.reasons });
-      this.kick(p, CODES.KICKED, 'Your game sent car movement the server can\'t accept.');
-    }
+    const now = this.roomNow();
+    if (!p.checks.strike(reason, now) || now - p.flaggedAt < FLAG_EVERY_MS) return;
+    p.flaggedAt = now;
+    ENV.log('rt flagged by the live checks', { room: this.roomId, uid: p.t.uid, reasons: p.checks.reasons });
+    const api = ENV.api, key = `${this.roomId}:${p.t.uid}:${Math.floor(Date.now() / FLAG_EVERY_MS)}`;
+    if (api) void send('flag', () => api.flag({ key, kind: 'live-checks', uid: p.t.uid, reasons: p.checks.reasons, room: this.roomId, world: this.world, ...this.flagRef() }), ENV.log);
   }
+  // (what a flag says of where it happened: a race room's race)
+  protected flagRef(): { raceId?: string | null; phase?: string | null } { return {}; }
   kick(p: Player, code: number, message?: string) {
     if (p.kicked) return;
     this.kicks++; p.kicked = true;

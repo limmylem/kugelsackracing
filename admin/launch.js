@@ -1,6 +1,7 @@
 // The admin page's launch tools (Phase 6 Step 5; docs/ABUSE.md, docs/OPERATIONS.md, docs/SUPPORT.md):
 //   Reports & flags   players' reports and the abuse scan's flags — each reviewed with a reason (logged)
-//   Support           "Contact support" and feedback messages: read, answer by email, close
+//   Support           "Contact support" and feedback messages: read, answer by email, close (feedback: the game's last
+//                     errors, if the player sent them, collapsed under the message)
 //   Launch            maintenance and its message, features on and off, the closed beta and its invite codes, the
 //                     oldest game the server takes
 //   history(id)       one player's whole history (ledger, results, reports, flags, support, admin actions)
@@ -50,6 +51,12 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
   }
 
   // ---------- support and feedback ----------
+  // (Phase 7 Step 5: the game's last errors sent with a feedback message — collapsed, each its message, where, how often
+  // and its stack)
+  const errorsOf = list => list?.length ? h('details', { class: 'errors' }, h('summary', { class: 'muted' }, `${list.length} recent error${list.length === 1 ? '' : 's'} from the game`),
+    ...list.map(e => h('div', { style: 'margin:4px 0' }, h('div', {}, h('span', { class: 'muted' }, `${when(e.at)} · ${e.kind}${e.count > 1 ? ` · ×${e.count}` : ''} `), h('b', {}, e.message)),
+      e.source ? h('div', { class: 'muted', style: 'font:12px var(--f-mono)' }, e.source) : null,
+      e.stack ? h('pre', { style: 'margin:0;white-space:pre-wrap;font:11px var(--f-mono);color:var(--c-text-2);max-height:160px;overflow:auto' }, e.stack) : null))) : null;
   async function showSupport() {
     const box = main(), msg = h('div'), list = h('div');
     let kind = 'all', status = 'open';
@@ -62,7 +69,7 @@ export function createLaunchTools({ api, h, say, when, errText, main, pickPlayer
         list.replaceChildren(r.tickets.length ? table(['When', 'From', 'Message', 'Game and device', ''], r.tickets.map(t => h('tr', {},
           h('td', { class: 'when' }, when(t.createdAt)),
           h('td', {}, t.player ? who(t.player) : '—', h('div', { class: 'muted' }, t.player?.email ?? '(no email)')),
-          h('td', {}, h('b', {}, `${t.kind}${t.category ? ` · ${t.category}` : ''}`), h('div', { style: 'white-space:pre-wrap' }, t.message), t.note ? h('div', { class: 'muted', style: 'white-space:pre-wrap' }, t.note) : null),
+          h('td', {}, h('b', {}, `${t.kind}${t.category ? ` · ${t.category}` : ''}`), h('div', { style: 'white-space:pre-wrap' }, t.message), t.note ? h('div', { class: 'muted', style: 'white-space:pre-wrap' }, t.note) : null, errorsOf(t.errors)),
           h('td', {}, pre(t.client)),
           h('td', {}, h('div', { class: 'row' },
             t.player?.email && h('button', { class: 'btn secondary', onclick: async () => { const text = prompt('Your answer (emailed to them):'); if (!text || text.trim().length < 3) return; try { await api.post(`/admin/support/${t.id}/reply`, { message: text.trim(), close: true }); say(msg, 'Sent, and closed.', true); load(); } catch (e) { say(msg, errText(e)); } } }, 'Answer'),
