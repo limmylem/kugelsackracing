@@ -47,4 +47,4 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          { echo '### server-setup (${{ inputs.dry_run && 'dry run: nothing changed' || 'for real' }})'; echo '```'; cat setup.log 2> /dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### server-setup (${{ inputs.dry_run && 'dry run: nothing changed' || 'for real' }})'; echo '```'; cat setup.log 2> /dev/null || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

@@ -31,4 +31,4 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          { echo '### infra (${{ inputs.dry_run && 'dry run' || 'for real' }})'; echo '```'; cat setup.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### infra (${{ inputs.dry_run && 'dry run' || 'for real' }})'; echo '```'; cat setup.log 2> /dev/null || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

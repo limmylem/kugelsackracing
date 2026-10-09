@@ -14,8 +14,21 @@ set -euo pipefail
 
 install -d -m 700 ~/.ssh
 ( umask 077; printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/ognistrada_deploy )
-if ! ssh-keygen -y -f ~/.ssh/ognistrada_deploy > /dev/null 2>&1; then
-  echo "::error title=DEPLOY_SSH_KEY::it isn't a private key ssh can read: paste the whole file ognistrada_deploy, from the -----BEGIN line to the -----END line (docs/GO_LIVE.md Part 5)"
+# (what's wrong with it, as precisely as can be told — without ever printing it)
+if ! why=$(ssh-keygen -y -P '' -f ~/.ssh/ognistrada_deploy 2>&1 > /dev/null); then
+  first=$(head -n 1 ~/.ssh/ognistrada_deploy)
+  if [[ "$first" == ssh-* || "$first" == ecdsa-* ]]; then
+    hint="that's the PUBLIC half (the file ognistrada_deploy.pub): the secret must be the private file ognistrada_deploy, without .pub"
+  elif grep -qi 'passphrase' <<<"$why"; then
+    hint="the key has a passphrase, which GitHub can't type: on your computer run  ssh-keygen -p -f ~/.ssh/ognistrada_deploy  (old passphrase, then just Enter twice for none), then paste the file into the secret again — the server needs no change"
+  elif ! grep -q -- '-----BEGIN' ~/.ssh/ognistrada_deploy || ! grep -q -- '-----END' ~/.ssh/ognistrada_deploy; then
+    hint="the -----BEGIN or -----END line is missing: paste the whole file, both lines included"
+  elif [ "$(wc -l < ~/.ssh/ognistrada_deploy)" -lt 3 ]; then
+    hint="its line breaks were lost (it arrived as $(wc -l < ~/.ssh/ognistrada_deploy) line(s)): copy the file with  pbcopy < ~/.ssh/ognistrada_deploy  (Mac) or open it in a plain text editor and copy everything"
+  else
+    hint="ssh can't read it ($(tr -d '\n' <<<"$why" | cut -c1-120)): paste the whole private file ognistrada_deploy again"
+  fi
+  echo "::error title=DEPLOY_SSH_KEY::$hint (docs/GO_LIVE.md Part 5)"
   exit 1
 fi
 
