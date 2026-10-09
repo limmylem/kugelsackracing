@@ -1,19 +1,18 @@
-# Cloudflare and Resend set up as docs/DEPLOYMENT.md describes (tools/cloudflare-setup.mjs): run by hand, a dry run
-# first. Safe to run again: it only adds what's missing and puts right what's different.
+# Cloudflare and Resend set up for the game online (tools/cloudflare-setup.mjs; docs/DEPLOYMENT.md, docs/GO_LIVE.md):
+# run by hand, a dry run first. Safe to run again: it only adds what's missing and puts right what's different.
 name: infra
 
 on:
   workflow_dispatch:
     inputs:
       dry_run: { description: 'Only say what would change', type: boolean, default: true }
-      proxy_api: { description: 'API and real time through Cloudflare (after Render has issued their certificates)', type: boolean, default: false }
       hsts: { description: 'HSTS on every address (once everything works over HTTPS)', type: boolean, default: false }
-      only: { description: 'Parts (https,pages,r2,dns,rules,email)', type: string, default: 'https,pages,r2,dns,rules,email' }
+      only: { description: 'Steps (https,dns,pages,r2,tunnel,rules,email)', type: string, default: 'https,dns,pages,r2,tunnel,rules,email' }
 
 jobs:
   setup:
     runs-on: ubuntu-latest
-    # (an environment of its own: the setup token can change DNS, so only this job sees it)
+    # (an environment of its own, with the owner's approval: the setup token can change DNS, so only this job sees it)
     environment: infra
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +22,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_SETUP_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          RENDER_STAGING_HOST: ${{ vars.RENDER_STAGING_HOST }}
-          RENDER_PRODUCTION_HOST: ${{ vars.RENDER_PRODUCTION_HOST }}
-          EDGE_SECRET_STAGING: ${{ secrets.EDGE_SECRET_STAGING }}
-          EDGE_SECRET_PRODUCTION: ${{ secrets.EDGE_SECRET_PRODUCTION }}
+          EDGE_SECRET: ${{ secrets.EDGE_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           node tools/cloudflare-setup.mjs --only "${{ inputs.only }}" ${{ inputs.dry_run && '--dry-run' || '' }} \
-            ${{ inputs.proxy_api && '--proxy-api' || '' }} ${{ inputs.hsts && '--hsts' || '' }}
+            ${{ inputs.hsts && '--hsts' || '' }} 2>&1 | tee setup.log
+          exit "${PIPESTATUS[0]}"
+      - name: Summary
+        if: always()
+        run: |
+          { echo '### infra (${{ inputs.dry_run && 'dry run' || 'for real' }})'; echo '```'; cat setup.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
