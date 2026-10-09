@@ -22,8 +22,10 @@ const RULES = [
   ['database URL with a password', /\bpostgres(?:ql)?:\/\/[^:\s/'"]+:([^@\s'"]{6,})@(?!localhost|127\.0\.0\.1|postgres[:/]|db[:/]|mailpit)[a-z0-9.-]+\.[a-z]{2,}/i],
   ['secret in an env file', /^\s*(?:export\s+)?[A-Z0-9_]*(?:SECRET|PASSWORD|PASSPHRASE|TOKEN|API_KEY)\s*=\s*['"]?[A-Za-z0-9+/=_-]{16,}/m],
 ];
-// (values that are only ever test or example settings, never real)
-const ALLOWED = [/test-secret-test-secret/, /ci-only-password/, /devpass/, /correct horse battery/, /example\.com/, /kr:kr@/, /\$\{\{\s*secrets\./];
+// (values that are only ever test or example settings, never real; and server/scripts/ssh-setup.sh's advice naming a
+// private key's first and last lines — a real key's header is a line of its own)
+const ALLOWED = [/test-secret-test-secret/, /ci-only-password/, /devpass/, /correct horse battery/, /example\.com/, /kr:kr@/, /\$\{\{\s*secrets\./,
+  /paste the whole file, from -----BEGIN OPENSSH PRIVATE KEY----- to -----END OPENSSH PRIVATE KEY-----/];
 
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(f => f && !/^(node_modules|assets|incoming|reports)\/|\.(glb|png|jpg|pmtiles|gz|bin|wasm|mp3|ogg|wav)$/i.test(f));
 const finds = [];
