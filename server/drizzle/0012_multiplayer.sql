@@ -1,11 +1,11 @@
-CREATE TABLE "blocks" (
+CREATE TABLE IF NOT EXISTS "blocks" (
 	"user_id" text NOT NULL,
 	"blocked_id" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "blocks_user_id_blocked_id_pk" PRIMARY KEY("user_id","blocked_id")
 );
 --> statement-breakpoint
-CREATE TABLE "friendships" (
+CREATE TABLE IF NOT EXISTS "friendships" (
 	"a_id" text NOT NULL,
 	"b_id" text NOT NULL,
 	"status" text NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE "friendships" (
 	CONSTRAINT "friendships_a_id_b_id_pk" PRIMARY KEY("a_id","b_id")
 );
 --> statement-breakpoint
-CREATE TABLE "mp_race_players" (
+CREATE TABLE IF NOT EXISTS "mp_race_players" (
 	"race_id" text NOT NULL,
 	"user_id" text NOT NULL,
 	"provisional_place" integer NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE "mp_race_players" (
 	CONSTRAINT "mp_race_players_race_id_user_id_pk" PRIMARY KEY("race_id","user_id")
 );
 --> statement-breakpoint
-CREATE TABLE "mp_races" (
+CREATE TABLE IF NOT EXISTS "mp_races" (
 	"id" text PRIMARY KEY NOT NULL,
 	"kind" text NOT NULL,
 	"ranked" boolean NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE "mp_races" (
 	"confirmed_at" timestamp with time zone
 );
 --> statement-breakpoint
-CREATE TABLE "mp_ratings" (
+CREATE TABLE IF NOT EXISTS "mp_ratings" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"mu" real NOT NULL,
 	"sigma" real NOT NULL,
@@ -74,8 +74,8 @@ ALTER TABLE "mp_race_players" ADD CONSTRAINT "mp_race_players_user_id_users_id_f
 --> statement-breakpoint
 ALTER TABLE "mp_ratings" ADD CONSTRAINT "mp_ratings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
-CREATE INDEX "friendships_b" ON "friendships" USING btree ("b_id");
+CREATE INDEX IF NOT EXISTS "friendships_b" ON "friendships" USING btree ("b_id");
 --> statement-breakpoint
-CREATE INDEX "mp_race_players_user" ON "mp_race_players" USING btree ("user_id","created_at");
+CREATE INDEX IF NOT EXISTS "mp_race_players_user" ON "mp_race_players" USING btree ("user_id","created_at");
 --> statement-breakpoint
-CREATE INDEX "mp_races_state" ON "mp_races" USING btree ("state","created_at");
+CREATE INDEX IF NOT EXISTS "mp_races_state" ON "mp_races" USING btree ("state","created_at");
