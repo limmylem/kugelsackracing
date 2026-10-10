@@ -208,6 +208,13 @@ try {
   check('the editor\'s code: an editor (admin) gets it from the API\'s address', ed.m === 'function', JSON.stringify(ed).slice(0, 200));
   check('…and the modules it shares with the game from the game\'s (once)', ed.fromApi.length > 0 && ed.fromApi.every((n: string) => n.startsWith('/editor/')) && ed.shared.every((n: string) => n.startsWith(U.game)), JSON.stringify(ed.fromApi.filter((n: string) => !n.startsWith('/editor/'))).slice(0, 200));
 
+  // (its stylesheet too, linked as editor.js links it: from the API's address, with the session)
+  const css = await page.evaluate((api: string) => new Promise(res => {
+    const l = document.createElement('link'); l.rel = 'stylesheet'; l.crossOrigin = 'use-credentials'; l.href = `${api}/editor/editor.css`;
+    l.onload = () => res(`loaded, ${l.sheet?.cssRules.length ?? 0} rules`); l.onerror = () => res('refused'); document.head.appendChild(l);
+  }), U.api);
+  check('…and its stylesheet from the API\'s address', /^loaded, [1-9]/.test(String(css)), String(css));
+
   // a player, signed out at first
   const { page: p2 } = await newPage();
   await p2.goto(`${U.api}/admin/`);

@@ -79,7 +79,7 @@ export function createEditor({ game }) {
   }
 
   function build() {
-    if (!document.getElementById('editorCss')) { const l = document.createElement('link'); l.id = 'editorCss'; l.rel = 'stylesheet'; l.href = new URL('./editor.css', import.meta.url).href; document.head.appendChild(l); }
+    if (!document.getElementById('editorCss')) { const l = document.createElement('link'); l.id = 'editorCss'; l.rel = 'stylesheet'; l.crossOrigin = 'use-credentials'; l.href = new URL('./editor.css', import.meta.url).href; document.head.appendChild(l); }
     const mapEl = document.createElement('div'); mapEl.id = 'edMap'; document.body.appendChild(mapEl);
     root = document.createElement('div'); root.id = 'editor'; root.style.display = 'none';
     root.innerHTML = `

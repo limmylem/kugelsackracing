@@ -49,7 +49,7 @@ fs.rmSync(out, { recursive: true, force: true });
 const tracked = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
 const wanted = tracked.filter(f => {
   const top = f.split('/')[0];
-  if (KEEP.has(f)) return true;
+  if (KEEP.has(f) || /^tests\/targets\/[^/]+\.json$/.test(f)) return true;   // (and the cars' test targets: the test robot's)
   if (f.includes('/')) return CLIENT_DIRS.includes(top) && !LEAVE_OUT.has(top);
   return CLIENT_FILES.includes(f);
 });
