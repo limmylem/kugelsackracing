@@ -125,6 +125,11 @@ fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs
 /scenes/*
   Cache-Control: no-cache
 `);
+// (a page for addresses that don't exist: without one, Pages answers every unknown address with the game's main page)
+fs.writeFileSync(path.join(out, '404.html'), `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Not found</title></head>
+<body><h1>Not found</h1><p>There's nothing at this address. <a href="/">Back to the game</a></p></body></html>
+`);
 fs.writeFileSync(path.join(out, '_redirects'), `# (written by tools/build-site.mjs for ${env}: docs/DEPLOYMENT.md)
 /assets/* ${SITE.tiles}/assets/:splat 302
 /admin ${SITE.api}/admin/ 302
