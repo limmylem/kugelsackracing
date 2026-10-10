@@ -140,7 +140,7 @@ function viewSignUp({ guest = false } = {}) {
   const pw = field('Password', { type: 'password', required: true, minlength: 10, maxlength: 128, autocomplete: 'new-password' }, h('span', { class: 'hint muted' }, 'At least 10 characters.'));
   const birth = birthField(), terms = termsCheck(), bot = createBotCheck(cfg);
   // (the closed beta: an invite code — from the link someone sent, or typed)
-  const invite = cfg.closedBeta ? field('Invite code', { required: true, autocomplete: 'off', maxlength: 40, value: q.get('invite') ?? '', style: 'text-transform:uppercase' }, h('span', { class: 'hint muted' }, 'The game is in a closed beta: signing up needs an invite.')) : null;
+  const invite = cfg.closedBeta ? field('Invite code', { autocomplete: 'off', maxlength: 40, value: q.get('invite') ?? '', style: 'text-transform:uppercase' }, h('span', { class: 'hint muted' }, 'The game is in a closed beta: signing up needs an invite (the game\'s owner signs up without one).')) : null;
   const sec = h('section', {}, h('h2', {}, guest ? 'Make your account' : 'Create an account'),
     guest ? h('p', { class: 'muted' }, 'Everything you\'ve done as a guest comes with you.') : null,
     form([invite?.el, name.el, email.el, pw.el, birth.el, terms.el, bot.el].filter(Boolean), 'Create my account', async () => {
