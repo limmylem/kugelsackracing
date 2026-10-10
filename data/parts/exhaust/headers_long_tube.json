@@ -34,16 +34,15 @@
         "rpm": [0, 2000],
         "fade": 500
       }
-    },
-    {
-      "target": "soundMod.level",
-      "op": "multiply",
-      "value": 1.1
-    },
-    {
-      "target": "soundMod.tone",
-      "op": "multiply",
-      "value": 1.06
     }
-  ]
+  ],
+  "sound": {
+    "_note": "How it changes the engine's sound (garage/carSound.js, audio/dsp.js): exhaust.level and tone multiply how loud and how open; rasp (0..1) a hard, torn edge up the revs; pops (0..1) crackles and bangs lifting off, on the rev limiter and changing up.",
+    "exhaust": {
+      "level": 1.1,
+      "tone": 1.06,
+      "rasp": 0.45,
+      "pops": 0.1
+    }
+  }
 }

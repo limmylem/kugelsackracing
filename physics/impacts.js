@@ -9,6 +9,8 @@
 // strength: the change in the car's velocity it made (physics/carCollisions.js impactStrength): into
 // something fixed, the closing speed; less for something light (a cone moves out of the way: the push it
 // took says so); into another car, its share by the two cars' masses (each feels the same push);
+// sound: what it sounds like when that's more than its material (a collider's userData.sound: 'building', 'tree' —
+// Map v3's; audio/crash.js), or none.
 // material: what it hit ('concrete', 'metal', 'wood', 'tyres', 'ground' from the world's colliders, 'car',
 // 'plastic' for a loose prop); other: 'world' | 'car' | 'prop'; under: it's under the car (the floor
 // pan: only a hard landing counts). Something that gives (a tyre wall: rules.materials) takes some of the
@@ -79,7 +81,7 @@ export class ImpactSensor {
       const otherMass = dyn ? ob.mass() : Infinity, mRed = dyn ? mass * otherMass / (mass + otherMass) : mass;
       const under = nWorld[1] < -R.groundUp, material = materialOf(other), kind = otherCar ? 'car' : dyn ? 'prop' : 'world';
       let s = this.pairs.get(other.handle);
-      const shape = { point, normal, yRange: [yMin, yMax], extent: { min: lo, max: hi }, material, other: kind, under, mRed, mass, otherMass };
+      const shape = { point, normal, yRange: [yMin, yMax], extent: { min: lo, max: hi }, material, other: kind, under, mRed, mass, otherMass, sound: other.userData?.sound ?? null };
       const impact = (cl, imp) => impactOf(time, shape, cl, imp, R.materials?.[shape.material] ?? 1);
       if (!s || time - s.lastSeen > 0.1) {
         s = { start: time, closing, J: 0, emitted: false, lastEvent: s?.lastEvent ?? -Infinity, lastSeen: time };
@@ -128,6 +130,7 @@ function impactOf(time, sh, closing, impulse, give = 1) {
     time, point: sh.point, normal: sh.normal, yRange: sh.yRange, extent: sh.extent, closing, impulse,
     strength: impactStrength({ closing, impulse, mass: sh.mass, otherMass: sh.otherMass }) * give, material: sh.material, other: sh.other, under: sh.under,
     ...(sh.other === 'car' && { otherMass: sh.otherMass }),
+    ...(sh.sound && { sound: sh.sound }),
   };
 }
 

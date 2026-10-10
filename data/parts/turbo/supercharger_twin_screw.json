@@ -31,13 +31,20 @@
       "target": "engine.induction",
       "op": "set",
       "value": "supercharged"
-    },
-    {
-      "target": "soundMod.level",
-      "op": "multiply",
-      "value": 1.08
     }
   ],
+  "sound": {
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): supercharger — its rotors' whine, at the engine's revs per second × ratio (× lobes for a twin-screw or roots), as loud as gain at the redline (a twin-screw at any throttle, a centrifugal mostly flat out); exhaust.level / tone as it changes the engine's.",
+    "supercharger": {
+      "kind": "twin-screw",
+      "gain": 0.05,
+      "ratio": 2.4,
+      "lobes": 4
+    },
+    "exhaust": {
+      "level": 1.08
+    }
+  },
   "madeBy": {
     "generator": "tools/generators/engine.js",
     "design": "twin-screw",

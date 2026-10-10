@@ -42,6 +42,13 @@
       "q": 12,
       "spoolUp": 0.45,
       "spoolDown": 0.35
+    },
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): whistle — the shaft's whistle, its pitch following the spool (which chases the boost the curve gives at the revs × how open the throttle is, spoolUp s to rise and spoolDown s to fall) from fromHz to toHz, its level (gain at full boost) the spool and the throttle; blowoff — the throttle shutting on boost: a valve's hiss sweeping down from hz ('valve'), or with no valve the compressor's flutter ('flutter'), gain × the spool, for about `seconds`.",
+    "blowoff": {
+      "kind": "valve",
+      "gain": 0.05,
+      "hz": 2600,
+      "seconds": 0.3
     }
   },
   "madeBy": {

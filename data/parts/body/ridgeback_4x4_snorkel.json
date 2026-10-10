@@ -20,13 +20,14 @@
     "min": [-0.144, -0.37, -0.29],
     "max": [-0.033, 0.64, 0.25]
   },
-  "effects": [
-    {
-      "target": "soundMod.intake",
-      "op": "multiply",
-      "value": 1.3
+  "effects": [],
+  "sound": {
+    "_note": "How it changes the engine's sound (garage/carSound.js): intake.roar multiplies the induction roar heard at high throttle, intake.tone its pitch.",
+    "intake": {
+      "roar": 1.3,
+      "tone": 0.9
     }
-  ],
+  },
   "madeBy": {
     "generator": "tools/generators/offroad.js",
     "design": "up the right windscreen pillar",

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/site/config.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- (the page loads the game's data relative to the project's root, like index.html) -->
+<base href="../">
+<title>Audio test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui/theme.css">
+<style>
+  /* The audio test page (a development page; Phase 8 Step 1, docs/AUDIO.md): a virtual dyno — any car, any parts,
+     the revs, load, gears, clutch and boost by hand or swept — every layer heard alone or muted, the two engine
+     methods side by side, the cameras, the tyres and the echoes, with graphs of what the sound is being given and
+     what comes out. Built on ui/theme.css. */
+  html, body { margin: 0; min-height: 100%; background: var(--c-base); color: var(--c-text); font-family: Barlow, system-ui, sans-serif; }
+  body { display: grid; grid-template-columns: 380px minmax(0, 1fr); min-height: 100vh; }
+  aside { border-right: 1px solid var(--c-line-soft); background: var(--c-panel); padding: 14px 16px 30px; overflow: auto; max-height: 100vh; box-sizing: border-box; }
+  main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  h1 { font: 700 20px/1.2 'Barlow Condensed', sans-serif; letter-spacing: .04em; margin: 0 0 4px; }
+  h2 { font: 600 12px/1 Barlow, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--c-text-3); margin: 18px 0 8px; }
+  label.row { display: grid; grid-template-columns: 110px 1fr 64px; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+  label.row output { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right; color: var(--c-text-2); }
+  select, button { font: inherit; font-size: 13px; height: 30px; border-radius: var(--r-btn); border: 1px solid var(--c-line); background: var(--c-viewport); color: var(--c-text); padding: 0 10px; }
+  button { cursor: pointer; } button.on { background: var(--c-accent-tint); color: var(--c-accent); border-color: var(--c-accent); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; font-size: 13px; }
+  .parts select { width: 100%; margin: 2px 0; }
+  .parts .slot { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: center; font-size: 13px; }
+  canvas { width: 100%; height: 300px; background: var(--c-viewport); border-radius: 8px; display: block; }
+  #spectrum { height: 140px; }
+  .note { font-size: 12px; color: var(--c-text-3); line-height: 1.4; }
+  pre { font: 12px/1.5 'JetBrains Mono', monospace; background: var(--c-viewport); border-radius: 8px; padding: 10px 12px; margin: 0; white-space: pre-wrap; color: var(--c-text-2); }
+  .start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,8,11,.75); z-index: 50; }
+  .start button { height: 48px; font-size: 16px; padding: 0 24px; }
+  #audioOverlay { position: static !important; display: block !important; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Audio test</h1>
+  <div class="note">A virtual dyno: pick a car and its parts, then rev it by hand or sweep it. Everything here is the game's own sound (audio/), at the game's settings.</div>
+  <h2>Car and parts</h2>
+  <div class="parts" id="parts"></div>
+  <div class="btns" style="margin-top:8px"><button data-ab="A">Remember as A</button><button data-ab="B">Remember as B</button><button data-sweepab="A">Sweep A</button><button data-sweepab="B">Sweep B</button></div>
+  <h2>Engine</h2>
+  <div class="btns"><button id="start">Start</button><button id="stop">Stop</button><button id="sweep">Sweep up</button><button id="lift">Lift off</button><button id="limit">Hold the limiter</button></div>
+  <label class="row">revs <input type="range" id="rpm" min="0" max="9000" step="10" value="900"><output></output></label>
+  <label class="row">throttle <input type="range" id="throttle" min="0" max="1" step="0.01" value="0"><output></output></label>
+  <label class="row">load <input type="range" id="load" min="-1" max="1" step="0.01" value="0"><output></output></label>
+  <label class="row"><span><input type="checkbox" id="autoLoad" checked> load from throttle</span><span></span><span></span></label>
+  <label class="row">clutch <input type="range" id="clutch" min="0" max="1" step="0.01" value="1"><output></output></label>
+  <label class="row">misfire <input type="range" id="misfire" min="0" max="0.6" step="0.01" value="0"><output></output></label>
+  <label class="row">boost <input type="range" id="spool" min="0" max="1" step="0.01" value="0"><output></output></label>
+  <label class="row"><span><input type="checkbox" id="autoBoost" checked> boost from the turbo</span><span></span><span></span></label>
+  <div class="btns">gear <select id="gear"><option value="-1">R</option><option value="0">N</option><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select><button id="down">Shift down</button><button id="up">Shift up</button></div>
+  <h2>Engine method</h2>
+  <div class="btns"><button data-mode="granular">Granular (grains)</button><button data-mode="layers">Layers (loops)</button></div>
+  <h2>Hear alone / mute</h2>
+  <div class="checks" id="mutes"></div>
+  <div class="btns" style="margin-top:6px"><button id="soloNone">All on</button></div>
+  <h2>Where you listen</h2>
+  <div class="btns" id="views"></div>
+  <h2>Tyres and road</h2>
+  <label class="row">speed <input type="range" id="speed" min="0" max="80" step="0.5" value="0"><output></output></label>
+  <label class="row">grip used <input type="range" id="slip" min="0" max="3" step="0.01" value="0"><output></output></label>
+  <label class="row">surface <select id="surface"><option>tarmac</option><option>concrete</option><option>cobbles</option><option>gravel</option><option>dirt</option><option>grass</option><option>sand</option></select><span></span></label>
+  <div class="checks"><label><input type="checkbox" id="wet"> wet</label><label><input type="checkbox" id="kerb"> kerb</label><label><input type="checkbox" id="brake"> brakes</label></div>
+  <div class="btns" style="margin-top:6px"><button id="thump">A bump</button><button id="handbrake">Handbrake</button></div>
+  <h2>Echo</h2>
+  <div class="btns" id="echoes"></div>
+  <label class="row">walls apart <input type="range" id="width" min="6" max="60" step="1" value="18"><output></output></label>
+  <h2>Crashes</h2>
+  <div class="btns" id="crashes"></div>
+</aside>
+<main>
+  <canvas id="graph" width="1200" height="300"></canvas>
+  <canvas id="spectrum" width="1200" height="140"></canvas>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">
+    <pre id="info">—</pre>
+    <div id="overlayHost"></div>
+  </div>
+</main>
+<div class="start" id="startCover"><button id="go">Start the sound</button></div>
+<script type="module" src="dev/audio.js"></script>
+</body>
+</html>

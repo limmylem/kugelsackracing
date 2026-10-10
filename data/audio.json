@@ -1,0 +1,37 @@
+{
+  "_note": "The game's sound system (Phase 8 Step 1; docs/AUDIO.md; audio/system.js, audio/mix.js, audio/dsp.js). groups: each mixer group's level before the player's own volume for it (the settings' sliders, 0–100%). master: the compressor that holds loud moments together, then the look-ahead limiter (ceiling dBFS) so nothing ever clips. voices: other cars' sounds — the nearest `full` get the whole sound (engine, tyres, the lot), the next `simple` within simpleM a cheap one (one loop and a filter), none further; a car keeps its voice `hold` s before it changes (fading over `fade` s); on low quality only lowFull full voices. budget: the audio's CPU — audio thread work as a share of the time it plays (desktop, every sound on, an 8-car race), the main thread's ms a frame for the audio, and a low-end device taken as lowEndFactor × slower (its own share, on low quality). views: what each camera hears: exhaust, intake and gearbox levels, the tyres, road and wind, the exhaust's low-pass (muffle, Hz), the outside world's low-pass (outside: other cars and the environment, Hz) and the cabin's boom (dB at 110 Hz); roofOpen: the same with the roof down. distance: other cars (refM, rolloff: inverse distance; maxM: silent beyond); air: the low-pass at distance (Hz at refM, halving every halfM). doppler: speed of sound (m/s), most a pitch can move (share). occlusion: a car behind buildings or a hill: gain and low-pass (Hz), checked every `every` s. reverb: each place's echo — seconds long, how loud (send), how bright (hz) — and the slap between walls; probe: the rays round the listener (up and sideways, m). tyres: where scrub starts and the squeal and skid (combined slip: 1 is the tyre's grip limit) and the slip speed they need (m/s). surfaces: what each surface sounds like (audio/dsp.js SURFACES), by name (the worlds' surface tables), else by its sound. bumps: a thump through the suspension past compressionSpeed m/s (full at full), at most every `gap` s a wheel. brakes: the share of stops whose brakes squeal (below speed m/s, at light pressure). lowQuality: what the low setting turns off.",
+  "groups": { "engine": 1, "tyres": 0.9, "impacts": 1, "environment": 0.8, "others": 0.9, "ui": 0.7, "music": 0.6 },
+  "master": {
+    "compressor": { "threshold": -14, "knee": 10, "ratio": 3, "attack": 0.004, "release": 0.25 },
+    "limiter": { "ceiling": -1, "lookaheadMs": 3, "releaseMs": 80 }
+  },
+  "voices": { "full": 6, "simple": 12, "simpleM": 600, "hold": 0.8, "fade": 0.3, "lowFull": 3 },
+  "budget": { "audioShare": 0.15, "mainMs": 0.6, "lowEndFactor": 4, "lowEndShare": 0.6 },
+  "views": {
+    "chase": { "exhaust": 1, "intake": 0.55, "gearbox": 0.2, "tyres": 1, "road": 0.75, "wind": 0.35, "muffle": 20000, "outside": 20000, "boom": 0 },
+    "side": { "exhaust": 0.9, "intake": 0.7, "gearbox": 0.25, "tyres": 1, "road": 0.8, "wind": 0.3, "muffle": 20000, "outside": 20000, "boom": 0 },
+    "high": { "exhaust": 0.85, "intake": 0.5, "gearbox": 0.15, "tyres": 0.9, "road": 0.6, "wind": 0.3, "muffle": 20000, "outside": 20000, "boom": 0 },
+    "bonnet": { "exhaust": 0.55, "intake": 1, "gearbox": 0.35, "tyres": 0.75, "road": 0.8, "wind": 0.8, "muffle": 6000, "outside": 9000, "boom": 1 },
+    "cockpit": { "exhaust": 0.5, "intake": 0.85, "gearbox": 0.7, "tyres": 0.55, "road": 0.95, "wind": 0.45, "muffle": 1700, "outside": 2600, "boom": 4 },
+    "roofOpen": { "exhaust": 0.9, "intake": 0.9, "gearbox": 0.45, "tyres": 0.85, "road": 0.8, "wind": 1, "muffle": 9000, "outside": 12000, "boom": 1 }
+  },
+  "distance": { "refM": 6, "rolloff": 1.3, "maxM": 600, "air": { "hz": 18000, "halfM": 150 } },
+  "doppler": { "c": 343, "max": 0.3 },
+  "occlusion": { "gain": 0.5, "hz": 900, "every": 0.2 },
+  "reverb": {
+    "tunnel": { "seconds": 2.2, "send": 0.55, "hz": 3500 },
+    "under": { "seconds": 0.8, "send": 0.35, "hz": 5000 },
+    "street": { "seconds": 1.1, "send": 0.28, "hz": 6000 },
+    "open": { "seconds": 0.6, "send": 0.03, "hz": 4000 },
+    "slap": { "feedback": 0.3, "send": 0.22 },
+    "probe": { "up": 40, "side": 60, "every": 0.2 }
+  },
+  "tyres": { "scrub": [0.72, 1], "squeal": [0.95, 1.6], "skid": [1.6, 3], "slipFrom": [0.6, 3], "loadFull": 3000 },
+  "surfaces": {
+    "byName": { "tarmac": "tarmac", "asphalt": "tarmac", "verge": "tarmac", "kerb": "tarmac", "sausage": "tarmac", "concrete": "concrete", "cobbles": "cobbles", "gravel": "gravel", "dirt": "dirt", "mud": "dirt", "grass": "grass", "sand": "sand" },
+    "bySound": { "tarmac": "tarmac", "gravel": "gravel", "grass": "grass" }
+  },
+  "bumps": { "compressionSpeed": [0.9, 3], "gap": 0.12 },
+  "brakes": { "share": 0.35, "speed": 4, "pressure": [0.08, 0.6] },
+  "lowQuality": { "granular": false, "reverb": false, "occlusion": false }
+}

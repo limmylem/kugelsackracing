@@ -183,7 +183,7 @@
               "type": "number"
             },
             "sound": {
-              "type": "object"
+              "$ref": "#/$defs/partSound"
             }
           }
         }
@@ -1566,6 +1566,236 @@
           "description": "1: down (open), 0: up"
         }
       }
+    },
+    "partSound": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "properties": {
+        "whistle": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "fromHz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "toHz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "noise": {
+              "type": "number",
+              "minimum": 0
+            },
+            "q": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "spoolUp": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "spoolDown": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["fromHz", "toHz", "gain", "noise", "q", "spoolUp", "spoolDown"],
+          "description": "The turbo's whistle: its pitch following the spool from fromHz to toHz, gain at full boost, noise (rushing air round the tone), q (how narrow), spoolUp / spoolDown (s)"
+        },
+        "blowoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "kind": {
+              "enum": ["valve", "flutter"]
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hz": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["kind", "gain", "hz", "seconds"],
+          "description": "The throttle shutting on boost: a blow-off valve's hiss sweeping down from hz ('valve'), or with none the compressor's flutter ('flutter')"
+        },
+        "exhaust": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "level": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "tone": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "rasp": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "pops": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "description": "How it changes the engine's sound: level and tone multiply (how loud, how open); rasp and pops (0..1) add as shares"
+        },
+        "intake": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "roar": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tone": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "description": "Induction roar at high throttle (×) and its pitch (×)"
+        },
+        "supercharger": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "kind": {
+              "enum": ["twin-screw", "roots", "centrifugal"]
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ratio": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "lobes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["kind", "gain", "ratio"],
+          "description": "Its whine: at the engine's revs a second × ratio (× lobes for a twin-screw or roots), gain at the redline"
+        },
+        "gears": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "whine": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "teeth": {
+              "type": "integer",
+              "minimum": 5
+            },
+            "cut": {
+              "type": "boolean"
+            }
+          },
+          "required": ["whine", "teeth"],
+          "description": "Straight-cut gears: their whine (level; teeth sets its pitch), cut: an ignition cut on each upshift"
+        },
+        "limiter": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "hz": {
+              "type": "number",
+              "minimum": 1
+            },
+            "depth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": ["hz", "depth"],
+          "description": "How the rev limiter bounces: cuts a second, how far each drops the sound"
+        },
+        "idle": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {
+              "type": "string"
+            }
+          },
+          "properties": {
+            "lope": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.2
+            },
+            "lopeHz": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "description": "A cammy idle: how far its revs lope, how often"
+        }
+      },
+      "description": "What the part sounds like and how it changes the car's sound (garage/carSound.js merges every fitted part's into spec.audio; audio/dsp.js plays it)"
     }
   }
 }

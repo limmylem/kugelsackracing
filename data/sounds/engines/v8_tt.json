@@ -1,5 +1,5 @@
 {
-  "_note": "The Apex V8's 4.0 L twin-turbo V8's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A flat-plane V8: even firing, high revving, a hard, rasping howl rather than a burble; its turbos whistle on top (the engine's turbo).",
+  "_note": "The Apex V8's 4.0 L twin-turbo V8's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A flat-plane V8: even firing, high revving, a hard, rasping howl rather than a burble; its turbos whistle on top (the engine's turbo).",
   "engine": "apex_v8_engine",
   "cylinders": 8,
   "layers": [
@@ -58,6 +58,13 @@
       "off": "assets/sounds/engines/v8_tt/rpm8000_off.wav"
     }
   ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/v8_tt/sweep_on.wav",
+    "off": "assets/sounds/engines/v8_tt/sweep_off.wav",
+    "grains": "assets/sounds/engines/v8_tt/sweep.json",
+    "step": 0.012
+  },
   "mix": {
     "blend": 0.5,
     "level": 0.48,
@@ -82,7 +89,9 @@
   "limiter": {
     "file": "assets/sounds/engines/v8_tt/limiter.wav",
     "gain": 0.18,
-    "every": 0.06
+    "every": 0.06,
+    "hz": 16,
+    "depth": 0.9
   },
   "damage": {
     "bang": "assets/sounds/engines/v8_tt/bang.wav",
@@ -90,6 +99,26 @@
     "bent": "assets/sounds/engines/v8_tt/bent.wav",
     "bentGain": 0.55,
     "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.1,
+    "pops": 0.15
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.014,
+    "hz": 1.4,
+    "lope": 0.008,
+    "lopeHz": 3
+  },
+  "start": {
+    "crankRpm": 200,
+    "seconds": 0.8,
+    "flare": 1.8,
+    "gain": 0.16
   },
   "synth": {
     "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",

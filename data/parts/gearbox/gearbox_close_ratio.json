@@ -118,5 +118,13 @@
       ]
     }
   },
-  "tier": "sport"
+  "tier": "sport",
+  "sound": {
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): gears — straight-cut gears' whine (whine: its level; teeth: the input gear's, which sets its pitch, a new pitch in each gear), louder on and off the throttle; cut: an ignition cut on each upshift (a crackle with a loud exhaust).",
+    "gears": {
+      "whine": 0.012,
+      "teeth": 27,
+      "cut": false
+    }
+  }
 }

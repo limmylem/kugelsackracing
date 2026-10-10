@@ -1,5 +1,5 @@
 {
-  "_note": "The Ridgeback 4x4's 4.0 L V6's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A V6: six even firings a cycle — smoother and fuller than a four, a hollow snarl up high.",
+  "_note": "The Ridgeback 4x4's 4.0 L V6's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A V6: six even firings a cycle — smoother and fuller than a four, a hollow snarl up high.",
   "engine": "ridgeback_4x4_engine",
   "cylinders": 6,
   "layers": [
@@ -58,6 +58,13 @@
       "off": "assets/sounds/engines/v6/rpm5800_off.wav"
     }
   ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/v6/sweep_on.wav",
+    "off": "assets/sounds/engines/v6/sweep_off.wav",
+    "grains": "assets/sounds/engines/v6/sweep.json",
+    "step": 0.012
+  },
   "mix": {
     "blend": 0.5,
     "level": 0.46,
@@ -82,7 +89,9 @@
   "limiter": {
     "file": "assets/sounds/engines/v6/limiter.wav",
     "gain": 0.18,
-    "every": 0.06
+    "every": 0.06,
+    "hz": 11,
+    "depth": 0.8
   },
   "damage": {
     "bang": "assets/sounds/engines/v6/bang.wav",
@@ -90,6 +99,24 @@
     "bent": "assets/sounds/engines/v6/bent.wav",
     "bentGain": 0.55,
     "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.04,
+    "pops": 0.04
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.01,
+    "hz": 1.2
+  },
+  "start": {
+    "crankRpm": 180,
+    "seconds": 1.1,
+    "flare": 1.5,
+    "gain": 0.17
   },
   "synth": {
     "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",

@@ -31,5 +31,13 @@
       "minInterval": 0.35,
       "stopSpeed": 0.5
     }
+  },
+  "sound": {
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): gears — straight-cut gears' whine (whine: its level; teeth: the input gear's, which sets its pitch, a new pitch in each gear), louder on and off the throttle; cut: an ignition cut on each upshift (a crackle with a loud exhaust).",
+    "gears": {
+      "whine": 0.06,
+      "teeth": 19,
+      "cut": true
+    }
   }
 }

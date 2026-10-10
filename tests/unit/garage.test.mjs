@@ -87,7 +87,8 @@ test('the stock build is the Phase 1 starter car on the new model', () => {
   const fixes = k => /^engine\.(cylinders|overRev|condition|blown|wear|sound)(\.|$)/.test(k) || k === 'assists.revProtection.enabled' || k === 'gearbox.shiftTime';
   // (Phase 3 Step 3: the mechanical damage the physics works — none on a new car — and the rim's radius)
   // (Phase 4: anti-roll bars — none — and lift, for the parts that add to them)
-  const damage = k => k.startsWith('damage.') || k === 'wheels.rimRadius' || k.startsWith('suspension.antiRoll.') || k === 'wheels.lift' || /^(cooling|soundMod|cosmetic)\./.test(k);
+  // (Phase 8 Step 1: what it sounds like — spec.audio, from its parts' sound blocks)
+  const damage = k => k.startsWith('damage.') || k === 'wheels.rimRadius' || k.startsWith('suspension.antiRoll.') || k === 'wheels.lift' || /^(cooling|soundMod|cosmetic|audio)\./.test(k);
   const same = k => !k.startsWith('model.') && !(k in MODEL_V2) && !step4(k) && !fixes(k) && !damage(k);
   assert.deepEqual(Object.keys(b).filter(same).sort(), Object.keys(a).filter(same).sort());
   for (const k of Object.keys(a).filter(same)) assert.equal(b[k], a[k], k);

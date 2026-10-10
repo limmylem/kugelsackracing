@@ -5,6 +5,7 @@
 //
 //   const A = createTrackAmbience(ctx, out, { cfg, theme, grandstands: [{ x, y, z }] })
 //   A.update({ listener: [x, y, z], speed, inside }, dt)   A.cheer(kind ('overtake' | 'crash'), strength)   A.dispose()
+//   A.setTheme(theme)   (a name, or the layers themselves: the real world's, as its area changes — audio/environment.js)
 
 import { ambienceMix } from './soundMix.js';
 
@@ -65,6 +66,7 @@ export function createTrackAmbience(ctx, out, { cfg, theme = 'countryside', gran
     // something for the crowd to cheer (its kind's size, data/sounds/ambient.json crowd)
     cheer(kind = 'overtake', strength = 1) { cheer = Math.min(1, Math.max(cheer, (cfg.crowd?.[kind] ?? 0.6) * strength)); },
     get mix() { return mix; },
+    setTheme(t) { theme = t; },
     dispose() {
       alive = false;
       for (const l of [wind, sea, city, crowd, cheerNode]) { try { l.src.stop(); } catch { /* stopped */ } l.gain.disconnect(); }

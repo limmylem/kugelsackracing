@@ -176,6 +176,8 @@
 .g-dyno .peak .pr { font-family: var(--f-mono); font-size: 12px; color: var(--c-text-2); }
 .g-dyno .peak .pd { font-family: var(--f-mono); font-size: 13px; font-weight: 600; }
 .g-dyno .runs { display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+.g-dyno .run-row { display: flex; align-items: center; gap: 4px; }
+.g-dyno .run-row .icon-btn { flex: none; }
 .g-dyno .run { height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 10px; border-radius: var(--r-btn); border: 1px solid var(--c-line-soft) !important; width: 100%; text-align: left; }
 .g-dyno .run.overlay { background: var(--c-raised) !important; border-color: var(--c-line-strong) !important; }
 .g-dyno .run .rn { font-size: 14px; font-weight: 600; width: 52px; flex: none; }

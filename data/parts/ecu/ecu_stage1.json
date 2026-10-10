@@ -29,5 +29,15 @@
       "op": "add",
       "value": 200
     }
-  ]
+  ],
+  "sound": {
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): limiter — how the rev limiter bounces (hz: cuts a second; depth: how far each cut drops the sound); exhaust.pops — its overrun crackle map.",
+    "limiter": {
+      "hz": 16,
+      "depth": 0.88
+    },
+    "exhaust": {
+      "pops": 0.12
+    }
+  }
 }

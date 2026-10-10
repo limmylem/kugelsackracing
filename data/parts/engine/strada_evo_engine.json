@@ -48,6 +48,12 @@
           "q": 12,
           "spoolUp": 0.5,
           "spoolDown": 0.35
+        },
+        "blowoff": {
+          "kind": "valve",
+          "gain": 0.04,
+          "hz": 1900,
+          "seconds": 0.35
         }
       }
     },

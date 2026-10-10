@@ -1,5 +1,5 @@
 {
-  "_note": "The Kaze GT's 2.0 L flat-four's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A boxer's rumble: its unequal-length headers bring the pulses in unevenly (firing gaps), pairs of cylinders louder than the others; a strong low boom.",
+  "_note": "The Kaze GT's 2.0 L flat-four's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A boxer's rumble: its unequal-length headers bring the pulses in unevenly (firing gaps), pairs of cylinders louder than the others; a strong low boom.",
   "engine": "kaze_gt_engine",
   "cylinders": 4,
   "layers": [
@@ -58,6 +58,13 @@
       "off": "assets/sounds/engines/flat4/rpm7500_off.wav"
     }
   ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/flat4/sweep_on.wav",
+    "off": "assets/sounds/engines/flat4/sweep_off.wav",
+    "grains": "assets/sounds/engines/flat4/sweep.json",
+    "step": 0.012
+  },
   "mix": {
     "blend": 0.5,
     "level": 0.45,
@@ -82,7 +89,9 @@
   "limiter": {
     "file": "assets/sounds/engines/flat4/limiter.wav",
     "gain": 0.18,
-    "every": 0.06
+    "every": 0.06,
+    "hz": 15,
+    "depth": 0.86
   },
   "damage": {
     "bang": "assets/sounds/engines/flat4/bang.wav",
@@ -90,6 +99,26 @@
     "bent": "assets/sounds/engines/flat4/bent.wav",
     "bentGain": 0.55,
     "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.12,
+    "pops": 0.12
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.02,
+    "hz": 1.8,
+    "lope": 0.006,
+    "lopeHz": 3.5
+  },
+  "start": {
+    "crankRpm": 220,
+    "seconds": 0.9,
+    "flare": 1.75,
+    "gain": 0.16
   },
   "synth": {
     "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",

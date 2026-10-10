@@ -2,7 +2,7 @@
 // (higher when ahead of your best split, lower when behind), a lap's and a bonus's (and a drift banked),
 // a buzz for a missed checkpoint, a jump start or a drift lost, the finish, and on the results screen the
 // medal's fanfare (gold the longest), the reward's coins and a level-up. Made with Web Audio as they play (no files to load), quiet under the
-// car's own sounds; the game's mute (M) mutes them too.
+// car's own sounds; the game's mute (M) mutes them too. Through the game's sound system (audio/system.js): the menus-and-cues group.
 //
 // What plays when is pure (cueOf, resultCues: the Node tests check every event has its sound); the notes
 // of each are CUES.
@@ -10,6 +10,8 @@
 //   const snd = createQuestSounds({ muted: () => bool, volume })
 //   snd.event(e)   a quest event (quest/session.js's)      snd.results(res)   the results screen's
 //   snd.play(name)   snd.dispose()
+
+import { audioSystem, startAudio } from '../audio/system.js';
 
 // notes: f (Hz), at (s from the cue's start), len (s), wave, gain (0..1, before the master volume)
 const N = (f, at, len, gain = 0.5, wave = 'triangle') => ({ f, at, len, gain, wave });
@@ -66,13 +68,9 @@ export function createQuestSounds({ muted = () => false, volume = 0.35 } = {}) {
   let ctx = null, master = null;
   const timers = new Set();
   const audio = () => {
-    if (!ctx) {
-      const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
-      if (!AC) return null;
-      try { ctx = new AC(); } catch { return null; }
-      master = ctx.createGain(); master.gain.value = volume; master.connect(ctx.destination);
-    }
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const A = audioSystem();
+    if (!A) { startAudio(); return null; }
+    if (!ctx) { ctx = A.ctx; master = ctx.createGain(); master.gain.value = volume; master.connect(A.bus.ui); }
     return ctx;
   };
   function play(name) {
@@ -94,6 +92,6 @@ export function createQuestSounds({ muted = () => false, volume = 0.35 } = {}) {
     play,
     event(e) { const c = cueOf(e); if (c) play(c); },
     results(res) { for (const { cue, at } of resultCues(res)) { const id = setTimeout(() => { timers.delete(id); play(cue); }, at * 1000); timers.add(id); } },
-    dispose() { for (const id of timers) clearTimeout(id); timers.clear(); try { ctx?.close(); } catch { /* gone */ } ctx = null; },
+    dispose() { for (const id of timers) clearTimeout(id); timers.clear(); try { master?.disconnect(); } catch { /* gone */ } ctx = null; master = null; },
   };
 }

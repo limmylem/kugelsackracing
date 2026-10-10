@@ -1,5 +1,5 @@
 // New car types (physics/drivetrain.js, physics/vehicle.js, garage/stats.js, garage/garageScene.js,
-// testtrack/audio.js): FWD with torque steer and its understeer, AWD's centre differential, a 4WD's
+// audio/dsp.js): FWD with torque steer and its understeer, AWD's centre differential, a 4WD's
 // transfer case and diff locks, anti-roll bars, long-travel and solid-axle suspension, lift kits and
 // bigger tyres, front / mid / rear engines, convertibles' roofs, and a sound for each engine type.
 // The drive layouts' own tests are in the Step 6 suite (physics/testSuite.js: torque steer, AWD launch,

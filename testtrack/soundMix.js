@@ -1,5 +1,5 @@
 // The engine's sound worked out from the engine's state (no Web Audio here, so it's tested in Node;
-// testtrack/audio.js plays it): which loops of the engine's sound config (data/sounds/engines) play,
+// the game's sound plays it — audio/dsp.js, audio/mix.js): which loops of the engine's sound config (data/sounds/engines) play,
 // how loud and how fast; how loud the whole engine is and how open its tone; the intake's air; the
 // turbo's spool and whistle; and how rough a misfiring or floating engine runs.
 
@@ -77,7 +77,7 @@ export class TurboSpool {
   }
 }
 
-// What the cockpit hears of the engine and the wind (testtrack/audio.js). roof: spec.roof ({ kind:
+// What the cockpit hears of the engine and the wind (the earlier sound's; audio/mix.js viewMix now). roof: spec.roof ({ kind:
 // fixed | soft | hard | none, open }) or none (a fixed roof); inside: a cockpit or bonnet camera; speed:
 // m/s. A closed car sounds as it always has, with a little wind at speed; with the roof down (or no
 // roof) the engine's louder in the cockpit and the wind roars. → { engine (gain ×), wind (0..1) }
@@ -115,8 +115,9 @@ export function tyreMix(wheels, surfaces, speed) {
 // the crowd louder the nearer a grandstand, a cheer swelling when something happens and dying away.
 //   ambienceMix(cfg, theme, { stand (m to the nearest grandstand, or null), speed, inside, cheer (0..1) }) →
 //   { layers: { birds, wind, sea, city }, crowd, cheer }
+// (theme: a theme's name, or its layers themselves — the real world's, from its area: audio/environment.js areaTheme)
 export function ambienceMix(cfg, theme, { stand = null, speed = 0, inside = false, cheer = 0 } = {}) {
-  const T = cfg.themes?.[theme] ?? cfg.themes?.countryside ?? {}, masked = (1 - Math.min(0.7, Math.abs(speed) / 60)) * (inside ? cfg.inside ?? 0.45 : 1);
+  const T = theme && typeof theme === 'object' ? theme : cfg.themes?.[theme] ?? cfg.themes?.countryside ?? {}, masked = (1 - Math.min(0.7, Math.abs(speed) / 60)) * (inside ? cfg.inside ?? 0.45 : 1);
   const layers = {};
   for (const k of ['birds', 'wind', 'sea', 'city']) layers[k] = (T[k] ?? 0) * masked;
   const C = cfg.crowd ?? {}, near = stand == null ? 0 : 1 - smooth(C.near ?? 20, C.far ?? 260, stand);

@@ -1,13 +1,16 @@
 {
-  "_note": "Crash sounds (testtrack/audio.js plays them; npm run sounds makes the files from synth). impacts: for each sound family, three takes each of a tap, a crunch and a crash (garage/damage.js says which, by strength: data/damage.json classes); materials: which family each thing the car can hit sounds like (physics/impacts.js material). A hit plays one of its takes at random, a little higher or lower (pitch: ± share) and louder the harder it was within its class (gain: [at its weakest, at its hardest] for each class). scrape: a loop for sliding along metal or anything else, its level following the scrape (gain at full) and its pitch the speed. glass, light: a window or a light breaking. tear: a part tearing off. clatter: a torn-off part bouncing (light and heavy takes; gain [at clatterFrom, hardest]). rattle: a loop for loose parts rattling and flapping, its level following how much.",
+  "_note": "Crash sounds (audio/crash.js plays them; npm run sounds makes the files from synth). impacts: for each sound family, three takes each of a tap, a crunch and a crash (garage/damage.js says which, by strength: data/damage.json classes); materials: which family each thing the car can hit sounds like (physics/impacts.js material, or a collider's own sound: a building, a tree, a tyre wall, a rail). A hit plays one of its takes at random, a little higher or lower (pitch: ± share) and louder the harder it was within its class (gain: [at its weakest, at its hardest] for each class). scrape: a loop for sliding along metal or anything else, its level following the scrape (gain at full) and its pitch the speed. glass, light: a window or a light breaking. tear: a part tearing off. clatter: a torn-off part bouncing (light and heavy takes; gain [at clatterFrom, hardest]). rattle: a loop for loose parts rattling, its level following how much. flap: a hanging panel flapping in the wind. heavy: the low thump under a big crash.",
   "materials": {
     "metal": "metal",
     "concrete": "concrete",
     "ground": "concrete",
-    "wood": "concrete",
+    "wood": "tree",
     "car": "car",
     "plastic": "car",
-    "tyres": "car"
+    "tyres": "tyrewall",
+    "building": "building",
+    "rail": "metal",
+    "tree": "tree"
   },
   "impacts": {
     "metal": {
@@ -24,6 +27,21 @@
       "tap": ["assets/sounds/crash/car_tap_1.wav", "assets/sounds/crash/car_tap_2.wav", "assets/sounds/crash/car_tap_3.wav"],
       "crunch": ["assets/sounds/crash/car_crunch_1.wav", "assets/sounds/crash/car_crunch_2.wav", "assets/sounds/crash/car_crunch_3.wav"],
       "crash": ["assets/sounds/crash/car_crash_1.wav", "assets/sounds/crash/car_crash_2.wav", "assets/sounds/crash/car_crash_3.wav"]
+    },
+    "building": {
+      "tap": ["assets/sounds/crash/building_tap_1.wav", "assets/sounds/crash/building_tap_2.wav", "assets/sounds/crash/building_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/building_crunch_1.wav", "assets/sounds/crash/building_crunch_2.wav", "assets/sounds/crash/building_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/building_crash_1.wav", "assets/sounds/crash/building_crash_2.wav", "assets/sounds/crash/building_crash_3.wav"]
+    },
+    "tree": {
+      "tap": ["assets/sounds/crash/tree_tap_1.wav", "assets/sounds/crash/tree_tap_2.wav", "assets/sounds/crash/tree_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/tree_crunch_1.wav", "assets/sounds/crash/tree_crunch_2.wav", "assets/sounds/crash/tree_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/tree_crash_1.wav", "assets/sounds/crash/tree_crash_2.wav", "assets/sounds/crash/tree_crash_3.wav"]
+    },
+    "tyrewall": {
+      "tap": ["assets/sounds/crash/tyrewall_tap_1.wav", "assets/sounds/crash/tyrewall_tap_2.wav", "assets/sounds/crash/tyrewall_tap_3.wav"],
+      "crunch": ["assets/sounds/crash/tyrewall_crunch_1.wav", "assets/sounds/crash/tyrewall_crunch_2.wav", "assets/sounds/crash/tyrewall_crunch_3.wav"],
+      "crash": ["assets/sounds/crash/tyrewall_crash_1.wav", "assets/sounds/crash/tyrewall_crash_2.wav", "assets/sounds/crash/tyrewall_crash_3.wav"]
     }
   },
   "gain": {
@@ -63,8 +81,19 @@
     "file": "assets/sounds/crash/rattle.wav",
     "gain": 0.35
   },
+  "flap": {
+    "file": "assets/sounds/crash/flap.wav",
+    "gain": 0.4,
+    "perMetre": 0.6,
+    "fromSpeed": 6
+  },
+  "heavy": {
+    "gain": 0.5,
+    "hz": 42
+  },
   "synth": {
     "seed": 41,
-    "sampleRate": 32000
+    "sampleRate": 32000,
+    "later": ["building", "tree", "tyrewall"]
   }
 }

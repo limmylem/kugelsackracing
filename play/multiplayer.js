@@ -5,15 +5,17 @@
 // (its dents, glass, parts — garage/damageLog.js packCrash, the Phase 4 compact form), a reset and a part coming off
 // go as events that always arrive. Everyone else's car is drawn where net/remote.js says it was a moment ago: its
 // own model, parts and paint; its wheels turning at their speed, steering and riding the suspension; its brake,
-// reverse and head lights; its engine at its revs and its tyres squealing at their slip (positioned, quieter with
-// distance); its dents from its crashes, and its parts hanging or gone. Kinematic: other cars don't push yours yet
+// reverse and head lights; its engine at its revs and its tyres squealing at their slip (its own engine and parts' sound,
+// positioned, quieter and duller with distance, muffled behind buildings, Doppler — the nearest few in full, the far
+// ones simply: audio/voices.js); its dents from its crashes, and its parts hanging or gone. Kinematic: other cars don't push yours yet
 // (collisions between players: Step 3).
 //
 // The game provides the drawing (an adapter: testtrack/test-scene.js):
 //   { toWorld([x,y,z]), toSim([x,y,z]), makeCar(look) → handle, dropCar(handle), drawCar(handle, pose, wheels),
 //     shown(handle) → whether it's in the scene being drawn and visible, setDamage(handle, view),
 //     setPart(handle, socket, state), listener(posSim) → [x, y, z] in the camera's frame,
-//     audio() → the game's audio or null, carSound(audio, engine) (testtrack/audio.js remoteCarSound),
+//     audio() → the game's audio or null, carSound(audio, look, id) → { update(pose, wheels, posSim), dispose() } (its
+//     engine and tyres through the game's voices for other cars: audio/voices.js, testtrack/test-scene.js),
 //     screen(posSim) → { x, y } on screen or null, place(posWorld, headingDeg) (your car moved there), rules }
 //
 //   const M = await joinMultiplayer({ account, world, look, adapter, player, netsim, serverNetsim, debug })
@@ -25,7 +27,7 @@
 //   mp/client.js) — leave() then lets it be; label(o) → the text over each car (null: its name); spread: false (a race
 //   puts every car on its own grid slot: none is moved aside); M.car(id) → { pose, handle } (the spectator's camera)
 //   M.toNearest() → your car beside the nearest other player (the development key F9), or why not
-//   (Phase 7 Step 4, free roam) lod(o, distM) → 'full' | 'simple' | 'marker' (simple: no sound; marker: not drawn — the maps
+//   (Phase 7 Step 4, free roam) lod(o, distM) → 'full' | 'simple' | 'marker' (simple: drawn simply — its sound is the voices' own choice, by distance; marker: not drawn, not heard — the maps
 //   show it); nameOpacity(o, distM) → 0..1 (0: no name); a car's o.alpha fades it in and out (adapter.setOpacity(handle, a))
 //
 // Two windows of one browser share its sign-in, and an account joining twice replaces itself: in development each
@@ -203,11 +205,10 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         // (free roam: how much of it to draw, by how far away it is; fading in and out at the edge of what's seen)
         const distM = mine ? Math.hypot(p.pos[0] - mine.pos[0], p.pos[2] - mine.pos[2]) : 0, detail = lod?.(o, distM) ?? 'full';
         if (detail === 'marker') { A.drawCar(c.handle, null); c.label.hidden = true; if (c.sound) { c.sound.dispose(); c.sound = null; } continue; }
-        if (detail !== 'full' && c.sound) { c.sound.dispose(); c.sound = null; }
         const alpha = o.alpha ?? 1;
         if (A.setOpacity && Math.abs((c.alpha ?? 1) - alpha) > 0.02) { c.alpha = alpha; A.setOpacity(c.handle, alpha); }
         // (its sound: once the game's audio has started — browsers only allow sound after a key press)
-        if (!c.sound && detail === 'full') { const s = o.look?.sound, au = A.audio(); if (au && s?.file) c.sound = A.carSound(au, { sound: s.file, idleRpm: s.idle, redlineRpm: s.redline }); }
+        if (!c.sound) { const au = A.audio(); if (au) c.sound = A.carSound(au, o.look ?? {}, o.id); }
         // its wheels: turned by their own speed (the angle isn't sent: only how fast), riding their suspension
         const wheels = (p.wheels ?? []).map((w, i) => { c.spin[i] = ((c.spin[i] ?? 0) + w.omega * dt) % (Math.PI * 2); return { ...w, spin: c.spin[i] }; });
         const simPos = A.toSim(p.pos);
@@ -219,7 +220,7 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         const dk = `${o.events?.length ?? 0}|${o.look?.damage ? 1 : 0}`;
         if (dk !== c.damageKey) { c.damageKey = dk; const v = damageView(o.look, o.events, A.rules); c.dentCount = v.shell.dents.length + Object.values(v.parts).reduce((a, x) => a + x.length, 0); A.setDamage(c.handle, v); }
         // its sound, where it is
-        if (c.sound) { const slip = Math.max(0, ...wheels.filter(w => w.grounded).map(w => w.slip)); c.sound.update({ rpm: p.rpm, throttle: p.throttle, slip, speed: Math.hypot(...p.vel) }, A.listener(simPos), dt); }
+        if (c.sound) c.sound.update(p, wheels, simPos);
         // its name over it (and "reconnecting…" while its player is away)
         const at = A.screen([simPos[0], simPos[1] + 1.7, simPos[2]]);
         c.onScreen = !!A.screen(simPos);

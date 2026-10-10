@@ -1,5 +1,5 @@
 {
-  "_note": "The RS17's sound, for testtrack/audio.js: every file it plays and how. layers: loops at rpm points from idle to the redline (idle, low, mid, high, redline), each on load (throttle open) and off load (shut); the game plays the nearest rpm point, crossfading to the next over the middle of the gap (blend, by log rpm), and on / off load by the throttle (load: from … fully on); each plays at rpm ÷ its own rpm, so the loudest loop is never more than about 15% off its own pitch (the points are about 29% apart; a quieter one crossfading in or out, about 19%). mix: how loud at the redline on load (level), and at idle and off load as shares of that; the level rises as (rpm / redline)^curve, so it's louder and (from the loops) harsher up high, deeper and smoother down low; toneHz: a low-pass that opens with the revs. intake: the air rushing in at high throttle, band-passed from hz[0] to hz[1] with the revs, heard from throttle[0]. shift: the clunk as a gear goes in. limiter: the cut each time the rev limiter cuts the fuel (at most every `every` s). damage: a blown engine's bang, bent valves' clack, and how far a misfire or valve float drops a firing (rough). The files are made from `synth` by npm run sounds (tools/content/sound.mjs); real recordings can replace them (same names, or new ones here) and synth can go.",
+  "_note": "The RS17's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md): every file it plays and how. layers: loops at rpm points from idle to the redline (idle, low, mid, high, redline), each on load (throttle open) and off load (shut); the game plays the nearest rpm point, crossfading to the next over the middle of the gap (blend, by log rpm), and on / off load by the throttle (load: from … fully on); each plays at rpm ÷ its own rpm, so the loudest loop is never more than about 15% off its own pitch (the points are about 29% apart; a quieter one crossfading in or out, about 19%). mix: how loud at the redline on load (level), and at idle and off load as shares of that; the level rises as (rpm / redline)^curve, so it's louder and (from the loops) harsher up high, deeper and smoother down low; toneHz: a low-pass that opens with the revs. intake: the air rushing in at high throttle, band-passed from hz[0] to hz[1] with the revs, heard from throttle[0]. shift: the clunk as a gear goes in. limiter: the cut each time the rev limiter cuts the fuel (at most every `every` s). damage: a blown engine's bang, bent valves' clack, and how far a misfire or valve float drops a firing (rough). The files are made from `synth` by npm run sounds (tools/content/sound.mjs); real recordings can replace them (same names, or new ones here) and synth can go.",
   "engine": "stock_engine_rs17",
   "cylinders": 4,
   "layers": [
@@ -58,6 +58,13 @@
       "off": "assets/sounds/engines/rs17/rpm6800_off.wav"
     }
   ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/rs17/sweep_on.wav",
+    "off": "assets/sounds/engines/rs17/sweep_off.wav",
+    "grains": "assets/sounds/engines/rs17/sweep.json",
+    "step": 0.012
+  },
   "mix": {
     "blend": 0.5,
     "level": 0.42,
@@ -82,7 +89,9 @@
   "limiter": {
     "file": "assets/sounds/engines/rs17/limiter.wav",
     "gain": 0.18,
-    "every": 0.06
+    "every": 0.06,
+    "hz": 14,
+    "depth": 0.85
   },
   "damage": {
     "bang": "assets/sounds/engines/rs17/bang.wav",
@@ -90,6 +99,24 @@
     "bent": "assets/sounds/engines/rs17/bent.wav",
     "bentGain": 0.55,
     "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.05,
+    "pops": 0.06
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.012,
+    "hz": 1.5
+  },
+  "start": {
+    "crankRpm": 230,
+    "seconds": 0.85,
+    "flare": 1.6,
+    "gain": 0.15
   },
   "synth": {
     "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",

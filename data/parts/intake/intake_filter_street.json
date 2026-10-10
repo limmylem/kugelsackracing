@@ -25,13 +25,15 @@
         "rpm": [4000, 7200],
         "fade": 1000
       }
-    },
-    {
-      "target": "soundMod.intake",
-      "op": "multiply",
-      "value": 1.3
     }
   ],
+  "sound": {
+    "_note": "How it changes the engine's sound (garage/carSound.js): intake.roar multiplies the induction roar heard at high throttle, intake.tone its pitch.",
+    "intake": {
+      "roar": 1.3,
+      "tone": 1.05
+    }
+  },
   "bounds": {
     "min": [0, -0.0461, -0.0296],
     "max": [0.2, 0.1068, 0.292]

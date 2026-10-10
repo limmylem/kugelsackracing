@@ -98,6 +98,84 @@ export function engineLoop(S, { rpm, onLoad, cylinders, c, seed }) {
   return level(out, { rms: S.rms, peak: 0.95 });
 }
 
+// ---------- the sweep (granular: audio/dsp.js) ----------
+
+// The engine run from below idle to past the redline, one engine cycle at a time, each cycle `step` higher than the
+// last (so 1.2%: about 190 cycles, 12 s) — the same firings, resonances, clip and tone as engineLoop's at each rpm,
+// moving with it — and where each cycle starts: the game plays one cycle (a grain) at a time, the one recorded
+// nearest the revs. A grain starts a little before its first firing (the quiet before the pulse), so they join
+// where there's least to hear. → { samples, grains: [[start, length (samples), rpm]] }
+export function engineSweep(S, { rpm0, rpm1, step = 0.012, onLoad, cylinders, idleRpm, redlineRpm, seed }) {
+  const sr = S.sampleRate, rnd = random(seed), lo = Math.log(idleRpm), hi = Math.log(redlineRpm);
+  const cyc = [];
+  for (let rpm = rpm0, t = 0; rpm <= rpm1 * (1 + step); rpm *= 1 + step) { cyc.push({ rpm, t, len: 120 / rpm, c: clamp((Math.log(rpm) - lo) / (hi - lo), 0, 1) }); t += 120 / rpm; }
+  const end = cyc.at(-1).t + cyc.at(-1).len, n = Math.round((end + 0.15) * sr);
+  const pulse = new Float64Array(n), noise = new Float64Array(n), spread = S.cylinders;
+  const gaps = S.firing, offset = gaps ? gaps.reduce((a, g, i) => { a.push(a[i] + g * cylinders / gaps.reduce((x, y) => x + y, 0)); return a; }, [0]) : null;
+  let k = 0;
+  for (const C of cyc) {
+    const spacing = C.len * sr / cylinders, jitter = S.jitter * (1 - 0.5 * (1 - C.c)), load = onLoad ? 1 : S.offLoad.pulse;
+    for (let f = 0; f < cylinders; f++, k++) {
+      const at = C.t * sr + (offset ? offset[f] : f) * spacing + (rnd() - 0.5) * jitter * spacing;
+      const cyl = spread[k % spread.length], burble = onLoad ? 1 : 1 + (rnd() - 0.5) * S.offLoad.burble;
+      const a = load * burble * (1 + (cyl - 1) * (0.6 + 0.4 * C.c)) * (1 + (rnd() - 0.5) * 0.08);
+      const decay = S.pulseDecay * sr * (1 - 0.45 * C.c), rise = S.pulseRise * sr;
+      const nDecay = S.noiseDecay * sr, nAmt = a * (onLoad ? S.noise[0] + (S.noise[1] - S.noise[0]) * C.c : S.offLoad.noise);
+      for (let i = 0; i < decay * 6; i++) {
+        const j = Math.floor(at + i);
+        if (j < 0 || j >= n) continue;
+        pulse[j] += a * (1 - Math.exp(-i / rise)) * Math.exp(-i / decay);
+        if (i < nDecay * 6) noise[j] += nAmt * (rnd() * 2 - 1) * Math.exp(-i / nDecay);
+      }
+    }
+  }
+  // each stage with its settings for the cycle it's in (the filters' state carried across)
+  const segs = cyc.map((C, i) => ({ from: Math.round(C.t * sr), to: i + 1 < cyc.length ? Math.round(cyc[i + 1].t * sr) : n, C }));
+  const staged = (x, coefOf) => {
+    const y = new Float64Array(n);
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (const sg of segs) {
+      const c = coefOf(sg.C);
+      for (let i = sg.from; i < sg.to; i++) {
+        const v = c.b0 * x[i] + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+        x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v;
+      }
+    }
+    return y;
+  };
+  const drive = pulse.map((v, i) => v + noise[i]);
+  let out = new Float64Array(n);
+  for (const R of S.resonances) {
+    if (!onLoad && R.offLoad <= 0) continue;
+    const y = staged(drive, C => biquad('bandpass', R.hz[0] + (R.hz[1] - R.hz[0]) * C.c, R.q, sr));
+    for (const sg of segs) { const g = onLoad ? R.gain[0] + (R.gain[1] - R.gain[0]) * sg.C.c : R.offLoad; for (let i = sg.from; i < sg.to; i++) out[i] += g * y[i]; }
+  }
+  for (let i = 0; i < n; i++) out[i] += S.direct * pulse[i];
+  out = filter(out, biquad('highpass', S.highpass, 0.7, sr));
+  // (each cycle brought to a level — the RMS over the cycles round it — as each loop is, before its clip and after)
+  const levelled = (x, target) => {
+    const r = segs.map(sg => { let s2 = 0; for (let i = sg.from; i < sg.to; i++) s2 += x[i] * x[i]; return Math.sqrt(s2 / Math.max(1, sg.to - sg.from)); });
+    const sm = r.map((_, i) => { let s2 = 0, w = 0; for (let j = Math.max(0, i - 3); j <= Math.min(r.length - 1, i + 3); j++) { s2 += r[j]; w++; } return s2 / w; });
+    const y = new Float64Array(n);
+    segs.forEach((sg, i) => { const g0 = target / (sm[i] || 1), g1 = target / (sm[Math.min(i + 1, sm.length - 1)] || 1); for (let k2 = sg.from; k2 < sg.to; k2++) y[k2] = x[k2] * (g0 + (g1 - g0) * (k2 - sg.from) / Math.max(1, sg.to - sg.from)); });
+    return y;
+  };
+  out = levelled(out, 0.25);
+  for (const sg of segs) { const d = 1 + (onLoad ? S.clip[0] + (S.clip[1] - S.clip[0]) * sg.C.c : S.offLoad.clip); if (d > 1.001) for (let i = sg.from; i < sg.to; i++) out[i] = Math.tanh(out[i] * d) / Math.tanh(d); }
+  const toneOf = C => onLoad ? S.tone[0] * (S.tone[1] / S.tone[0]) ** C.c : S.offLoad.tone[0] * (S.offLoad.tone[1] / S.offLoad.tone[0]) ** C.c;
+  out = staged(staged(out, C => biquad('lowpass', toneOf(C), 0.7, sr)), C => biquad('lowpass', toneOf(C) * 1.4, 0.6, sr));
+  out = levelled(out, S.rms);
+  // (the very start and end faded, and nothing past 0.95)
+  for (let i = 0; i < Math.min(n, 200); i++) { out[i] *= i / 200; out[n - 1 - i] *= i / 200; }
+  const pk = peak(out);
+  if (pk > 0.95) for (let i = 0; i < n; i++) out[i] *= 0.95 / pk;
+  // where each grain starts: a little before its cycle's first firing
+  const before = C => 0.08 * C.len * sr / cylinders;
+  const starts = cyc.map(C => C.t * sr - before(C));
+  const grains = cyc.slice(0, -1).map((C, i) => [Math.max(1, starts[i]), starts[i + 1] - Math.max(1, starts[i]), C.rpm]);
+  return { samples: out, grains: grains.map(g => g.map(v => Math.round(v * 100) / 100)) };
+}
+
 // ---------- the one-off sounds ----------
 
 const buffer = (sr, seconds) => new Float64Array(Math.round(sr * seconds));
@@ -172,8 +250,10 @@ export function readWav(buf) {
   return { sr, samples: x };
 }
 
-// Every file an engine's sound config names, made from its synth settings: [{ file, samples }]
-export function engineSounds(cfg, { redlineRpm, idleRpm }) {
+// Every file an engine's sound config names, made from its synth settings: [{ file, samples }] (and the sweep's
+// grains: { file, json }). range: the lowest idle and highest redline of every engine that uses it (the sweep runs
+// from below the one to past the other)
+export function engineSounds(cfg, { redlineRpm, idleRpm }, range = { idleRpm, redlineRpm }) {
   const S = cfg.synth, sr = S.sampleRate, out = [], lo = Math.log(idleRpm), hi = Math.log(redlineRpm);
   cfg.layers.forEach((L, i) => {
     const c = clamp((Math.log(L.rpm) - lo) / (hi - lo), 0, 1);
@@ -184,6 +264,15 @@ export function engineSounds(cfg, { redlineRpm, idleRpm }) {
   out.push({ file: cfg.limiter.file, samples: limiterCut(sr, S.seed + 3) });
   out.push({ file: cfg.damage.bang, samples: bang(sr, S.seed + 4) });
   out.push({ file: cfg.damage.bent, samples: clack(sr, S.seed + 5) });
+  if (cfg.granular) {
+    const grains = { _note: `Where each engine cycle starts in ${path.basename(cfg.granular.on)} and ${path.basename(cfg.granular.off)}: [start, length (samples at sr), rpm] (tools/content/sound.mjs engineSweep).`, sr };
+    for (const onLoad of [true, false]) {
+      const r = engineSweep(S, { rpm0: range.idleRpm * 0.85, rpm1: range.redlineRpm * 1.08, step: cfg.granular.step ?? 0.012, onLoad, cylinders: cfg.cylinders, idleRpm, redlineRpm, seed: S.seed * 1000 + 500 + (onLoad ? 0 : 1) });
+      out.push({ file: onLoad ? cfg.granular.on : cfg.granular.off, samples: r.samples });
+      grains[onLoad ? 'on' : 'off'] = r.grains;
+    }
+    out.push({ file: cfg.granular.grains, json: grains });
+  }
   return out.map(f => ({ ...f, sr }));
 }
 
@@ -191,7 +280,8 @@ export function writeSounds(root, list) {
   for (const f of list) {
     const file = path.join(root, f.file);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, wav(f.samples, f.sr));
+    if (f.json) fs.writeFileSync(file, JSON.stringify(f.json) + '\n');
+    else fs.writeFileSync(file, wav(f.samples, f.sr));
   }
 }
 
@@ -231,13 +321,34 @@ export function impactSound(sr, seed, cls, material) {
     sweep(x, sr, V(big ? 75 : 150), V(big ? 38 : 85), D(0.03), D(big ? 0.2 : 0.04), A(1));
     const grit = filter(burst(x, sr, rnd, D(big ? 0.12 : mid ? 0.06 : 0.012), A(big ? 0.9 : 0.55), late), biquad('bandpass', V(1300), 0.6 + rnd() * 0.6, sr));
     for (let i = 0; i < x.length; i++) x[i] += grit[i] * (0.6 + 0.4 * rnd());
+  } else if (material === 'building') {
+    // (a wall of a building: a deep, dead thud that barely moves, brick grit, and in a big one its windows rattling)
+    sweep(x, sr, V(big ? 58 : 110), V(big ? 30 : 62), D(0.04), D(big ? 0.3 : 0.06), A(1.1));
+    const grit = filter(burst(x, sr, rnd, D(big ? 0.09 : mid ? 0.05 : 0.01), A(big ? 0.7 : 0.4), late), biquad('bandpass', V(900), 0.7, sr));
+    for (let i = 0; i < x.length; i++) x[i] += grit[i];
+    if (big) tinkles(x, sr, rnd, 0.05, 22, 0.5, 0.06, [2200, 6000]);
+  } else if (material === 'tree') {
+    // (a tree: the wood cracking, the trunk's thump, the leaves shaking; a big one creaks)
+    sweep(x, sr, V(big ? 95 : 160), V(big ? 55 : 95), D(0.03), D(big ? 0.18 : 0.05), A(0.9));
+    const crack = filter(burst(x, sr, rnd, D(big ? 0.012 : 0.005), A(big ? 1.1 : 0.6), late * 0.5), biquad('bandpass', V(2200), 1.4, sr));
+    const leaves = filter(burst(x, sr, rnd, D(big ? 0.45 : mid ? 0.22 : 0.06), A(big ? 0.35 : 0.2), 0.01 + late), biquad('highpass', V(2600), 0.7, sr));
+    for (let i = 0; i < x.length; i++) x[i] += crack[i] + leaves[i] * (0.5 + 0.5 * Math.sin(TAU * 13 * i / sr) ** 2);
+    if (big) sweep(x, sr, V(330), V(190), D(0.25), D(0.35), A(0.12), 0.06);
+  } else if (material === 'tyrewall') {
+    // (a tyre wall: it gives — a soft, rubbery thump, a smaller one as it pushes back, a squeak of rubber)
+    sweep(x, sr, V(big ? 100 : 150), V(big ? 55 : 80), D(0.05), D(big ? 0.12 : 0.07), A(0.9));
+    sweep(x, sr, V(big ? 90 : 130), V(big ? 60 : 85), D(0.04), D(0.06), A(big ? 0.45 : 0.3), 0.09 + late * 3);
+    const squeak = filter(burst(x, sr, rnd, D(0.03), A(0.12), late), biquad('bandpass', V(850), 3, sr));
+    for (let i = 0; i < x.length; i++) x[i] += squeak[i];
   } else {
     sweep(x, sr, V(big ? 110 : 190), V(big ? 60 : 120), D(0.03), D(big ? 0.14 : 0.06), A(0.9));
     partials(x, sr, [420, 870].map(h => vary(rnd, h, 0.15)), 0.002 + late, D(big ? 0.15 : 0.08), A(0.12));
     const click = filter(burst(x, sr, rnd, D(0.006), A(0.4), late * 0.5), biquad('bandpass', V(3800), 1.5, sr));
     for (let i = 0; i < x.length; i++) x[i] += click[i];
   }
-  if (mid || big) crumple(x, sr, rnd, 0.005, big ? 0.9 : 0.6, big ? 0.35 : 0.12);
+  // (the car's own panels crumpling: less into something that gives)
+  if (mid || big) crumple(x, sr, rnd, 0.005, (big ? 0.9 : 0.6) * (material === 'tyrewall' ? 0.35 : 1), big ? 0.35 : 0.12);
+  if (big && material === 'tyrewall') return level(softClip(x, 1.3), { peak: 0.85 });
   if (big) {
     const blast = filter(filter(burst(x, sr, rnd, 0.18, 0.9), biquad('lowpass', 3200, 0.6, sr)), biquad('lowpass', 4000, 0.6, sr));
     for (let i = 0; i < x.length; i++) x[i] += blast[i];
@@ -279,13 +390,17 @@ export function lightBreak(sr, seed) {
 export function crashSounds(cfg) {
   const S = cfg.synth, sr = S.sampleRate, out = [];
   let k = 0;
-  for (const [material, classes] of Object.entries(cfg.impacts)) for (const [cls, files] of Object.entries(classes)) files.forEach(f => out.push({ file: f, samples: impactSound(sr, S.seed * 1000 + k++, cls, material) }));
+  // (families added later — S.later — are made after everything else, so the earlier files stay as they were)
+  const later = new Set(S.later ?? []);
+  for (const [material, classes] of Object.entries(cfg.impacts)) if (!later.has(material)) for (const [cls, files] of Object.entries(classes)) files.forEach(f => out.push({ file: f, samples: impactSound(sr, S.seed * 1000 + k++, cls, material) }));
   for (const [material, f] of Object.entries(cfg.scrape.files)) out.push({ file: f, samples: scrapeLoop(sr, S.seed * 1000 + k++, material) });
   cfg.glass.files.forEach(f => out.push({ file: f, samples: glassBreak(sr, S.seed * 1000 + k++) }));
   cfg.light.files.forEach(f => out.push({ file: f, samples: lightBreak(sr, S.seed * 1000 + k++) }));
   if (cfg.tear) cfg.tear.files.forEach(f => out.push({ file: f, samples: tearSound(sr, S.seed * 1000 + k++) }));
   if (cfg.clatter) for (const [weight, files] of Object.entries(cfg.clatter.files)) files.forEach(f => out.push({ file: f, samples: clatterSound(sr, S.seed * 1000 + k++, weight === 'heavy') }));
   if (cfg.rattle) out.push({ file: cfg.rattle.file, samples: rattleLoop(sr, S.seed * 1000 + k++) });
+  for (const material of later) for (const [cls, files] of Object.entries(cfg.impacts[material] ?? {})) files.forEach(f => out.push({ file: f, samples: impactSound(sr, S.seed * 1000 + k++, cls, material) }));
+  if (cfg.flap) out.push({ file: cfg.flap.file, samples: flapLoop(sr, S.seed * 1000 + k++) });
   return out.map(f => ({ ...f, sr }));
 }
 
@@ -313,6 +428,17 @@ export function clatterSound(sr, seed, heavy) {
   for (let i = 0; i < x.length; i++) x[i] += click[i];
   if (heavy) debris(x, sr, rnd, 0.03, 8, 0.25, 0.3, 2200);
   return level(x, { peak: heavy ? 0.8 : 0.6 });
+}
+// A hanging panel flapping in the wind (a loop of one slap: the game plays it faster the faster the car goes): a flat,
+// plasticky slap and a scrape of its edge
+export function flapLoop(sr, seed, seconds = 0.25) {
+  const rnd = random(seed), x = buffer(sr, seconds), n = x.length;
+  sweep(x, sr, 240, 140, 0.01, 0.018, 0.9, 0.004);
+  const slap = filter(burst(x, sr, rnd, 0.006, 1, 0.003), biquad('bandpass', 1400, 1, sr));
+  const edge = filter(burst(x, sr, rnd, 0.03, 0.25, 0.012), biquad('bandpass', 3200, 2, sr));
+  for (let i = 0; i < n; i++) x[i] += slap[i] + edge[i];
+  for (let i = 0; i < 64; i++) x[n - 1 - i] *= i / 64;
+  return level(x, { peak: 0.8 });
 }
 // A loose panel rattling: knocks at a wandering rate, a tinny ring (a loop)
 export function rattleLoop(sr, seed, seconds = 2) {

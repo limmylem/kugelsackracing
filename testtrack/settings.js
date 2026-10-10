@@ -29,6 +29,9 @@ export function defaultSettings(spec) {
     guides: 'normal',           // normal / bold
     hudScale: 1,                // 0.6–1.6
     hints: true,
+    // the sound (audio/system.js): the whole and each group's volume (0..1), and its quality (low: fewer full voices
+    // for other cars, the engines' loops instead of their grains, no echo or muffling behind buildings — slow devices)
+    sound: { master: 1, engine: 1, tyres: 1, impacts: 1, environment: 1, others: 1, ui: 1, music: 1, quality: 'high' },
     input: clone(DEFAULT_INPUT), keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL),
   };
 }
@@ -61,6 +64,7 @@ const AID_ROWS = [
   ['revProtection', 'Rev protection', 'Refuses a downshift that would over-rev the engine (a money shift bends valves or blows it)'],
 ];
 
+const SOUND_ROWS = [['master', 'Everything'], ['engine', 'Engine'], ['tyres', 'Tyres and road'], ['impacts', 'Crashes'], ['environment', 'Wind and surroundings'], ['others', 'Other cars'], ['ui', 'Menus and cues'], ['music', 'Music']];
 const clockText = h => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 const bindingText = b => !b ? '—' : b.type === 'button' ? `button ${b.index}` : b.rest == null ? `axis ${b.index}${b.invert ? ' (flipped)' : ''}` : `axis ${b.index}`;
 
@@ -104,6 +108,10 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
         <label class="slider">track detail <select data-str="trackDetail">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.trackDetail ?? 'high') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <small class="pads">Generated tracks: how many trees and rocks, the crowd in the grandstands, shadows and screen sharpness (data/tracks.json performance.detail). Takes effect on the next track.</small>
         <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
+        <h3>Sound <small>M on / off · Shift+M what it costs</small></h3>
+        ${SOUND_ROWS.map(([k, n]) => `<label class="slider">${n} <input type="range" min="0" max="1" step="0.05" data-num="sound.${k}" value="${S.sound?.[k] ?? 1}"> <output>${Math.round((S.sound?.[k] ?? 1) * 100)}%</output></label>`).join('')}
+        <label class="slider">quality <select data-str="sound.quality">${[['high', 'High'], ['low', 'Low (slower devices)']].map(([v, n]) => `<option value="${v}" ${(S.sound?.quality ?? 'high') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <small class="pads">Low: fewer other cars heard in full, the engines' simpler sound, no echoes, and no muffling behind buildings.</small>
         <h3>Accessibility</h3>
         <label class="slider">colours <select data-str="palette">${Object.entries(PALETTES).map(([v, p]) => `<option value="${v}" ${(S.palette ?? 'standard') === v ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
         <small class="pads">Checkpoint gates, splits (ahead / behind), warnings and the route on the maps. Colour-blind friendly: blue for ahead, orange for behind, and gates and guides told apart by brightness as well as colour.</small>
@@ -136,7 +144,7 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
   const set = (path, value) => { const [a, b] = path.split('.'); if (b) settings[a][b] = value; else settings[a] = value; };
   el.addEventListener('input', e => {
     const t = e.target;
-    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') || t.dataset.num === 'hudScale' ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
+    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') || t.dataset.num === 'hudScale' || t.dataset.num.startsWith('sound.') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
   });
   el.addEventListener('change', e => {
     const t = e.target;

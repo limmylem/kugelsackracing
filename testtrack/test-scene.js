@@ -63,7 +63,15 @@ import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
-import { createAudio, remoteCarSound } from './audio.js';
+// the game's sound (Phase 8 Step 1; docs/AUDIO.md): one system for everything, your car and every other one through it
+import { startAudio as startSound, audioSettings } from '../audio/system.js';
+import { createGameAudio } from '../audio/game.js';
+import { occluded as occludedRay } from '../audio/environment.js';
+import { remoteEngineInput, tyreSound, engineInput, turboInput, surfaceMix, TurboSpool } from '../audio/mix.js';
+import { SURFACES } from '../audio/dsp.js';
+import { createAudioOverlay } from '../audio/overlay.js';
+import { computeStats } from '../garage/stats.js';
+import { roofOpen } from './soundMix.js';
 import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticketGetter } from '../play/multiplayer.js';
 // multiplayer races (Phase 7 Step 2): the session, the race as the game plays it, the screens
 import { createMpSession } from '../mp/client.js';
@@ -102,8 +110,6 @@ import { createEffectsPanel } from './effectsPanel.js';
 import { createSession, MODES } from '../physics/race.js';
 import { ReplayPlayer, ReplayRecorder } from '../physics/replay.js';
 import { tvCameras, nearestCamera, zoom as tvZoom } from '../track/cameras.js';
-import { tyreMix } from './soundMix.js';
-import { createTrackAmbience } from './trackAudio.js';
 import { createRaceRecording, createRacePlayer } from '../race/raceReplay.js';
 import { CarDamage } from '../garage/carDamage.js';
 import { DentBudget } from '../garage/dents.js';
@@ -378,7 +384,7 @@ function npcRaceEvents(w) {
   for (const e of race.drain()) {
     const r = race.racers.find(x => x.id === e.id), vis = r && w.others.get(r.carId);
     if (e.type === 'impact' && r) {
-      if (e.impact?.strength > 5) { w.ambience?.cheer('crash', Math.min(1, e.impact.strength / 20)); w.raceRec?.note(w.sim.time, 'crash', { id: r.carId }); }
+      if (e.impact?.strength > 5) { shared.audio?.env.cheer('crash', Math.min(1, e.impact.strength / 20)); w.raceRec?.note(w.sim.time, 'crash', { id: r.carId }); }
       w.fx.play(w.fx.impactEvent(r.carId, e.impact, e.result, groundUnder(r.car.vehicle)));
       if (vis && e.result && (e.result.dents?.length || e.result.broken?.length)) vis.setDamage(r.damage.view3d, shared.session.db.damage);
     } else if (e.type === 'npc-reset' && vis) {
@@ -411,7 +417,7 @@ function startRaceRecording(w, detachers) {
     if (race && sim.time - orderAt >= 1) {
       orderAt = sim.time;
       const now = race.standings().map(x => x.player ? 0 : race.racers.find(y => y.id === x.id)?.carId);
-      if (order) now.forEach((id, k) => { const was = order.indexOf(id); if (was > k) { R.note(sim.time, 'overtake', { id }); w.ambience?.cheer('overtake'); } });
+      if (order) now.forEach((id, k) => { const was = order.indexOf(id); if (was > k) { R.note(sim.time, 'overtake', { id }); shared.audio?.env.cheer('overtake'); } });
       order = now;
     }
   });
@@ -612,6 +618,7 @@ export async function enter(file) {
     catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
+  for (const w of worlds.values()) if (w !== active) dropNpcVoices(w);
   // (a track's own detail on the renderer; any other world the game's usual sharpness)
   shared.renderer.setPixelRatio(Math.min(devicePixelRatio, active.detail?.pixelRatio ?? 2));
   hideRealWorlds();
@@ -714,7 +721,7 @@ async function createShared() {
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
-  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); } },
+  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); } audioSettings(soundPrefs(prefs)); },
     { onRehint: () => { session.player.resetHints?.(); if (shared) shared.hints.shown.clear(); } });
   document.body.appendChild(panel.el);
   // Telemetry: your driving, and the last automated test
@@ -747,8 +754,8 @@ async function createShared() {
   session.onChange(() => {
     // (another car: picked in the garage, or a test drive — every world swaps to it)
     if (session.garage.car.id !== shared.carId) { switchCar(); return; }
-    // (another engine — a swap — or its sound: the new one's sound)
-    if (s.audio && s.audioSound !== spec.engine?.sound) restartAudio();
+    // (another engine — a swap — or another part's sound: the sound follows)
+    s.audio?.setSpec(spec);
     for (const w of worlds.values()) w.sim.retune();
     tuning.rebase();
     // (a blown engine written back: the car can't be driven until it's repaired)
@@ -781,7 +788,20 @@ async function createShared() {
     for (const w of worlds.values()) { w.camera.aspect = innerWidth / innerHeight; w.camera.updateProjectionMatrix(); }
   });
   // sound may only start after a user gesture
-  const startAudio = () => { if (!s.audio && !s.noAudio && active) try { s.audio = createAudio(spec); s.audioSound = spec.engine?.sound; s.audio.mute(s.muted); } catch { s.noAudio = true; } };
+  // (the game's sound: audio/system.js starts it on this key or click; then your car's, its engine started)
+  audioSettings(soundPrefs(s.prefs));
+  const startAudio = () => {
+    if (s.audio || s.noAudio || s.audioStarting || !active) return;
+    s.audioStarting = true;
+    startSound(soundPrefs(s.prefs)).then(A => {
+      s.audioStarting = false;
+      if (!A) { s.noAudio = true; return; }
+      s.audio = createGameAudio(A, { spec, occluded: (from, to) => active ? occludedRay(active.sim.vehicle.world, RAPIER, from, to) : false });
+      s.audio.mute(s.muted || !active || editorHooks.active);
+      s.audio.start();
+      s.audioOverlay ??= createAudioOverlay(A, () => s.audio);
+    });
+  };
   addEventListener('keydown', e => {
     if (!active) return;
     if (s.replay) { e.preventDefault(); s.replay.player.skip(); return; }      // (any key skips a crash replay)
@@ -841,18 +861,15 @@ function switchCar() {
     finally { s.switching = null; }
   })();
 }
-// The engine's sound again (another engine, or another car)
-function restartAudio() {
-  const s = shared;
-  try { s.audio?.ctx.close(); } catch { /* gone */ }
-  s.audio = null;
-  try { s.audio = createAudio(s.spec); s.audioSound = s.spec.engine?.sound; s.audio.mute(s.muted || !active); } catch { s.noAudio = true; }
-}
+// The engine's sound again (another engine, or another car): the sound follows the spec
+function restartAudio() { shared.audio?.setSpec(shared.spec); }
+// The settings' sound (volumes for each group, quality) as audio/system.js takes them
+function soundPrefs(prefs) { const S = prefs.sound ?? {}; return { volumes: { master: S.master ?? 1, engine: S.engine ?? 1, tyres: S.tyres ?? 1, impacts: S.impacts ?? 1, environment: S.environment ?? 1, others: S.others ?? 1, ui: S.ui ?? 1, music: S.music ?? 1 }, quality: S.quality ?? 'high' }; }
 
 // A world let go of (a generated track's, for the next one): its physics, its quests, and what it drew on
 // the GPU — nothing of it kept
 function disposeWorld(w) {
-  try { w.ambience?.dispose(); } catch { /* gone */ }
+  dropNpcVoices(w);
   if (shared.raceReplay?.w === w) shared.raceReplay.close();
   try { w.quests?.dispose(); } catch { /* gone */ }
   try { w.questGame?.dispose(); } catch { /* gone */ }
@@ -1134,7 +1151,7 @@ function frame(w, now) {
   updateCarDetails(w.carVis, a, b, alpha);
   if (!T) drawParts(w, b);
   syncParts(w.carVis, b);
-  if (!T) updateOtherCars(w, a, b, alpha);
+  if (!T) updateOtherCars(w, a, b, alpha, seconds);
   if (shared.mp && !T) mpFrame(w, view, seconds);
   if (!paused && !T) shared.input.feedback(b, seconds);
 
@@ -1147,7 +1164,8 @@ function frame(w, now) {
   const light = daylight(w, P.timeOfDay ?? 13);
   updateEffects(w, light, T ? 0 : stepsThisFrame * w.sim.dt);
   shared.flash.update(seconds);
-  if (shared.audio) { shared.audio.update(b, seconds, { exhaust: exhaustOff(), inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]), steam: w.fx.cars.get(0)?.steam ?? 0 }); updateSqueal(b); trackAmbience(w, b, seconds); }
+  if (shared.audio) shared.audio.update(b, seconds, audioFrame(w, b));
+  shared.audioOverlay?.update(seconds);
   shared.tacho.draw(b.engine);
   updateDebug(w, b);
   w.sun.position.copy(w.car.position).addScaledVector(w.sunDir, 40); // shadows follow the car
@@ -1523,7 +1541,7 @@ function crashEvents(w, v, now) {
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
     const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: impact.agreedScale ?? s.play.scale(impact) });
     (s.mp ?? s.mpRace?.drawn)?.crash(result, s.session.garage.build);   // (the others see your dents — in a race too: play/multiplayer.js)
-    if (impact.strength > 5) w.ambience?.cheer('crash', Math.min(1, impact.strength / 20));
+    if (impact.strength > 5) s.audio?.env.cheer('crash', Math.min(1, impact.strength / 20));
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
     const R = s.session.db.sessions.replay;
     if (s.play.replay && !s.tests && !s.replay && !s.replayDue && result.strength >= R.threshold && now - (s.lastReplay ?? -Infinity) > R.cooldown * 1000) {
@@ -1535,7 +1553,7 @@ function crashEvents(w, v, now) {
     for (const e of hintEvents(result, mode)) hint(e);
     saved.then(() => { if (!drivability(s.session.garage.car, ownedBySocket(s.session.db, s.session.player.profile, s.session.player.profile.currentCar), rules).ok) hint('undrivable'); });
     const [lo, hi] = result.class === 'tap' ? [C.tap, C.crunch] : result.class === 'crunch' ? [C.crunch, C.crash] : [C.crash, C.crash * 2.2];
-    if (!impact.quiet) s.audio?.crash.impact(result.class, impact.material, (result.strength - lo) / (hi - lo));
+    if (!impact.quiet) s.audio?.crash.impact(result.class, impact.sound ?? impact.material, (result.strength - lo) / (hi - lo));
     for (const b of result.broken) if (!brokenBefore.has(b)) { if (/glass/.test(b)) s.audio?.crash.glass(); else s.audio?.crash.light(); }
     // the effects: sparks off metal, bits of what was hit, dust on loose ground, glass shards
     if (!impact.quiet) w.fx.play(w.fx.impactEvent(0, impact, result, groundUnder(v)));
@@ -1811,28 +1829,20 @@ function updateHud(w, s, steps, sim) {
 
 // Skid marks: dark see-through strips laid behind sliding tyres. A fixed-size ring buffer, so the
 // oldest marks are reused once it fills up.
-// A generated track's ambience (testtrack/trackAudio.js): its theme's sounds and the grandstands' crowd,
-// heard from the camera; made once the game's sound is on (after a first key press)
-let ambientCfg = null;
-function trackAmbience(w, b, dt) {
-  const D = w.trackData;
-  if (!D?.dress) return;
-  if (!w.ambience) {
-    if (!ambientCfg) { ambientCfg = fetch('data/sounds/ambient.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => null); return; }
-    if (ambientCfg.then) { ambientCfg.then(c => { ambientCfg = c ?? { themes: {} }; }); ambientCfg = { pending: ambientCfg }; return; }
-    if (ambientCfg.pending) return;
-    const stands = (D.objects ?? []).filter(o => o.k === 'grandstand').map(o => ({ x: o.x, y: (D.centre.h[o.i] ?? 0) + 4, z: o.z }));
-    w.ambience = createTrackAmbience(shared.audio.ctx, shared.audio.master, { cfg: ambientCfg, theme: D.theme, grandstands: stands });
-  }
-  w.ambience.update({ listener: w.camera.position.toArray(), speed: b.speed, inside: ['cockpit', 'bonnet'].includes(CAMERAS[shared.camMode]) }, dt);
-}
-// Tyres: what they're on, heard (testtrack/soundMix.js tyreMix): a squeal on tarmac as they slide, a
-// rumble across a kerb, a swish on grass, a crunch of stones on gravel
-function updateSqueal(s) {
-  const m = tyreMix(s.wheels, active?.surfaces, s.speed), A = shared.audio;
-  A.squeal.set(m.squeal, m.pitch);
-  A.gravel.set(m.crunch, Math.abs(s.speed));
-  A.tyres?.set(m);
+// What the sound needs to know this frame besides the car's snapshot (audio/game.js): the camera, the roof, what the
+// tyres are on, the weather, steam, a loose exhaust or panel, the handbrake; the physics' world (the echo's rays,
+// whether a building hides another car), the listener (the camera), and where you are (Map v3's area, a track's
+// theme and its grandstands)
+function audioFrame(w, b) {
+  const D = w.trackData, cam = w.camera.position, loose = Object.values(shared.session.attach.states).filter(x => x?.state === 'loose').length;
+  w.audioStands ??= D?.dress ? (D.objects ?? []).filter(o => o.k === 'grandstand').map(o => ({ x: o.x, y: (D.centre.h[o.i] ?? 0) + 4, z: o.z })) : [];
+  return {
+    view: CAMERAS[shared.camMode], roofOpen: roofOpen(shared.spec.roof), surfaces: w.surfaces, wet: w.theme?.wet ? 1 : 0,
+    steam: w.fx.cars.get(0)?.steam ?? 0, exhaust: exhaustOff(), flap: Math.min(1, loose), handbrake: !!shared.lastInput?.handbrake, pedal: b.throttle,
+    world: w.sim.vehicle.world, RAPIER,
+    listener: { pos: [cam.x, cam.y, cam.z], vel: b.velocity ?? [0, 0, 0], toCamera: p => new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(w.camera.matrixWorldInverse).toArray() },
+    stream: w.track?.mapV3 ? w.stream : null, theme: D?.dress ? D.theme : null, stands: w.audioStands,
+  };
 }
 
 // ---------- World pieces ----------
@@ -2094,7 +2104,9 @@ function handleAction(w, act, inp) {
   if (act === 'debug') s.debug = !s.debug;
   if (act === 'hud') s.compact = !s.compact;
   if (act === 'dyno') s.dyno.toggle();
-  if (act === 'mute') { s.muted = !s.muted; s.audio?.mute(s.muted); }
+  // (Shift+M: the sound's debug overlay — audio/overlay.js: its CPU against the budget, the voices, the limiter, the echo)
+  if (act === 'mute' && (s.input.keys.ShiftLeft || s.input.keys.ShiftRight)) s.audioOverlay?.toggle();
+  else if (act === 'mute') { s.muted = !s.muted; s.audio?.mute(s.muted); }
   if (act === 'spoiler') {
     // the wing is a part: fitted and taken off through the garage, like any other
     (s.session.isFitted('basic_wing') ? s.session.remove('basic_wing', { quiet: true }) : s.session.install('basic_wing', { quiet: true }))
@@ -2510,6 +2522,37 @@ const mpAttach = () => Object.fromEntries(Object.entries(shared.session.attach.s
 const mpDents = () => { const d = shared.session.damage; return (d.shell?.dents?.length ?? 0) + Object.values(d.parts ?? {}).reduce((a, x) => a + (x?.length ?? 0), 0); };
 const WHEEL_ORDER = ['FL', 'FR', 'RL', 'RR'];
 
+// Another player's car's sound (play/multiplayer.js: the adapter's carSound): its engine and parts as its look has them
+// (the same sound as theirs: its spec worked out here from its parts — garage/stats.js), heard through the voices
+// for other cars (audio/voices.js: the nearest few in full), driven by its revs, throttle and gear and its wheels' slip
+const remoteSpecs = new Map();
+function remoteSpec(look, db) {
+  const key = JSON.stringify([look.carId, look.parts]);
+  if (remoteSpecs.has(key)) return remoteSpecs.get(key);
+  const car = db.cars[look.carId] ?? shared.session.garage.car;
+  let spec = null;
+  try {
+    const parts = Object.entries(look.parts ?? {}).filter(([, id]) => id && db.parts[id]);
+    const r = computeStats({ carId: car.id, sockets: Object.fromEntries(parts.map(([k]) => [k, k])) }, { ...db, owned: Object.fromEntries(parts.map(([k, id]) => [k, { instanceId: k, partId: id, condition: 100 }])) });
+    spec = r.spec;
+  } catch { /* (its parts aren't all here: its car's own engine below) */ }
+  if (!spec) { const E = db.parts[car.sockets.find(x => x.slot === 'engine')?.stock?.[0]]?.engine; spec = { engine: E ?? shared.spec.engine, audio: null }; }
+  if (remoteSpecs.size > 64) remoteSpecs.clear();
+  remoteSpecs.set(key, spec);
+  return spec;
+}
+function remoteCarSound(G, look, id, db) {
+  const spec = remoteSpec(look, db), h = G.voices.add(`mp:${id}`, spec), idle = spec.engine?.idleRpm ?? 900;
+  return {
+    // p: its pose (net/remote.js: pos, vel, rpm, throttle, gear…); wheels: its wheels (slip); simPos: where it's drawn
+    update(p, wheels, simPos) {
+      const speed = Math.hypot(...(p.vel ?? [0, 0, 0])), ty = tyreSound(wheels, speed, null, G.cfg.tyres);
+      h.update({ engine: remoteEngineInput(p, idle), chassis: { speed, ...ty } }, { pos: simPos, vel: p.vel });
+    },
+    dispose() { h.dispose(); },
+  };
+}
+
 // how the game draws another player's car (play/multiplayer.js's adapter)
 const mpLightPool = { vis: null, on: null, frame: -1, best: Infinity };
 function mpAdapter() {
@@ -2517,7 +2560,7 @@ function mpAdapter() {
   const toWorld = p => { const S = active?.stream; if (!S) return [p[0], p[1], p[2]]; const [x, z] = S.toWorld(p[0], p[2]); return [x, p[1], z]; };
   const toSim = p => { const S = active?.stream; if (!S) return [p[0], p[1], p[2]]; const [x, z] = S.toSim(p[0], p[2]); return [x, p[1], z]; };
   return {
-    toWorld, toSim, rules: db.damage, audio: () => shared.audio ?? null, carSound: remoteCarSound,
+    toWorld, toSim, rules: db.damage, audio: () => shared.audio ?? null, carSound: (G, look, id) => remoteCarSound(G, look, id, db),
     // its own model, fitted with its parts, in its paint (garage/visual.js, as the NPCs' are made)
     async makeCar(look) {
       const car = db.cars[look.carId] ?? sn.garage.car;
@@ -2665,16 +2708,34 @@ async function aiCarVisual(w, id) {
   w.aiDamage.set(id, new CarDamage({ car: sn.garage.car, build: sn.garage.build, view: sn.garage.view, boxes: shared.damageBoxes, rules: sn.db.damage, mode: shared.prefs.damage === 'off' ? 'off' : 'visual' }));
 }
 
-function updateOtherCars(w, a, b, alpha) {
+function updateOtherCars(w, a, b, alpha, dt = 1 / 60) {
   const byId = new Map((a.others || []).map(o => [o.id, o]));
   for (const [id, vis] of w.others) {
     const ob = b.others?.find(o => o.id === id);
-    if (!ob) { dropCar(vis); w.others.delete(id); w.aiDamage.delete(id); continue; }
+    if (!ob) { dropCar(vis); w.others.delete(id); w.aiDamage.delete(id); w.npcVoices?.get(id)?.h.dispose(); w.npcVoices?.delete(id); continue; }
     const oa = byId.get(id) || ob;
     placeCar(vis, oa, ob, alpha);
     updateCarDetails(vis, oa, ob, alpha);
+    if (shared.audio) npcVoice(w, shared.audio, id, ob, dt);
   }
 }
+// An NPC's (an AI car's) sound: the same as yours, from its own physics and its own parts (its spec), heard through the
+// voices for other cars (audio/voices.js: the nearest few in full, the far ones simply)
+function npcVoice(w, G, id, ob, dt) {
+  w.npcVoices ??= new Map();
+  let v = w.npcVoices.get(id);
+  if (!v || v.G !== G) {
+    const car = w.sim.cars.find(c => c.id === id);
+    if (!car) return;
+    v = { G, spec: car.vehicle.spec, h: G.voices.add(`npc:${w.file ?? w.name}:${id}`, car.vehicle.spec), turbo: new TurboSpool(), surf: new Float32Array(SURFACES.length) };
+    w.npcVoices.set(id, v);
+  }
+  const e = engineInput(ob.engine, v.spec.engine, { pedal: ob.throttle }), tu = turboInput(v.turbo, v.spec, dt, e.rpm, e.throttle);
+  const speed = Math.abs(ob.speed ?? 0), ty = tyreSound(ob.wheels, speed, w.surfaces, G.cfg.tyres), sm = surfaceMix(ob.wheels, w.surfaces, G.cfg.surfaces, speed, v.surf);
+  v.h.update({ engine: { ...e, spool: tu.spool, whistle: tu.whistle }, chassis: { speed, ...ty, surf: sm.surf, kerb: sm.kerb, kerbHz: sm.kerbHz } }, { pos: ob.position, vel: ob.velocity });
+}
+// (a world left: its NPCs' sounds go)
+function dropNpcVoices(w) { for (const v of w.npcVoices?.values() ?? []) v.h.dispose(); w.npcVoices?.clear(); }
 
 const liftText = F => F >= 0 ? `+${F.toFixed(0)} N lift` : `${(-F).toFixed(0)} N down`;
 // (the drive layout, for the HUD: the diffs, the transfer case, what's locked)

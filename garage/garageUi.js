@@ -654,7 +654,7 @@ export class GarageScreen {
             <div class="peak well"><span class="label" style="font-size:11px">Peak torque</span><span class="pv">${cur ? fmt(peak(cur, 't').nm) : '—'}<small> Nm</small></span><span class="pr">${cur ? `@ ${fmt(peak(cur, 't').rpm)} rpm` : ''}</span>${delta('t', 'Nm')}</div>
           </div>
           <div class="label" style="font-size:11px">Runs · click to overlay</div>
-          <div class="runs">${runs.map((r, i) => `<button class="run ${overlay === r ? 'overlay' : ''}" data-act="overlay:${r.id}" data-key="run:${r.id}"><span class="rn">${esc(r.name)}</span><span class="rt">${esc(r.note)}</span><span class="rp">${fmt(r.peakPower.hp)} hp · ${fmt(r.peakTorque.nm)} Nm</span><span class="rg" style="color:${i === 0 ? 'var(--c-accent)' : 'var(--c-text-2)'}">${i === 0 ? 'LATEST' : overlay === r ? 'OVERLAY' : ''}</span></button>`).join('') || '<div class="secondary-text">No runs yet.</div>'}</div>
+          <div class="runs">${runs.map((r, i) => `<div class="run-row"><button class="run ${overlay === r ? 'overlay' : ''}" data-act="overlay:${r.id}" data-key="run:${r.id}"><span class="rn">${esc(r.name)}</span><span class="rt">${esc(r.note)}</span><span class="rp">${fmt(r.peakPower.hp)} hp · ${fmt(r.peakTorque.nm)} Nm</span><span class="rg" style="color:${i === 0 ? 'var(--c-accent)' : 'var(--c-text-2)'}">${i === 0 ? 'LATEST' : overlay === r ? 'OVERLAY' : ''}</span></button><button class="icon-btn flat" data-act="dyno-listen:${r.id}" data-key="listen:${r.id}" title="Hear this run again (its exhaust, intake, turbo… as they were)" ${this.ui.dyno.t == null ? '' : 'disabled'}>${icon('volume_up', 'style="font-size:18px"')}</button></div>`).join('') || '<div class="secondary-text">No runs yet.</div>'}</div>
           <div style="flex:1"></div>
           <button class="btn primary" data-act="dyno-run" data-key="dyno-run" ${d.ok && this.ui.dyno.t == null ? '' : 'disabled'}>${icon(d.ok ? 'play_arrow' : 'lock')}${this.ui.dyno.t != null ? 'Running…' : 'Run dyno'}</button>
         </div></div></section>`;
@@ -1416,6 +1416,7 @@ export class GarageScreen {
       }
       case 'pf': { const [label, fin] = [rest[0], rest[1]], row = PART_FINISHES.find(r => r.label === label); for (const which of row.which) if (w.garage.fittedIn(which).length && failed(await w.paintPart(which, fin ? { finish: fin } : null))) return; return; }
       case 'dyno-run': return this.runDyno();
+      case 'dyno-listen': { const run = this.w.runs.find(r => r.id === +arg); return run && this.ui.dyno.t == null ? this.runDyno(run) : undefined; }
 
       // ---- the damage report ----
       case 'dmg-focus': {
@@ -1647,19 +1648,26 @@ export class GarageScreen {
     const apply = this.stage.querySelector('[data-act="apply-paint"]'); if (apply) apply.disabled = hex === this.w.paint.colour && p.finish === this.w.paint.finish;
   }
 
-  runDyno() {
-    const run = this.w.dynoRun();
+  // A dyno run, heard: the car's own engine flat out up the revs (garage/sounds.js) — or an earlier run's again
+  // (listen: its sound as it was then, so before and after a part can be heard one after the other)
+  runDyno(listen = null) {
+    const run = listen ?? this.w.dynoRun();
     if (!run) return;
+    run.sound ??= this.sounds.soundOf?.(this.w.stats().spec) ?? null;
+    if (listen) { this.dynoShown = run; this.ui.dyno.t = 0; this.render(); return this.#sweep(run); }
     this.ui.dyno.overlay = this.w.runs[1]?.id ?? null;
     this.dynoShown = run;
     this.ui.dyno.t = 0;
     this.render();
+    this.#sweep(run);
+  }
+  #sweep(run) {
     const start = performance.now(), seconds = 3.2;
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / 1000 / seconds);
       this.ui.dyno.t = t;
       const rpm = run.points[0].rpm + (run.points.at(-1).rpm - run.points[0].rpm) * t;
-      this.sounds.dyno(rpm);
+      this.sounds.dyno(rpm, run.sound);
       this.#drawDyno();
       if (t < 1) requestAnimationFrame(step);
       else { this.ui.dyno.t = null; this.dynoShown = null; this.sounds.dyno(null); this.render(); }

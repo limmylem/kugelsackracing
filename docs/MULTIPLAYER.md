@@ -208,8 +208,10 @@ teleport is flagged, so it moves at once instead of gliding across the map.
 own model, parts and paint):
 - **Wheels** turn at the sent wheel spin, steer with its steering, and sit on the suspension.
 - **Lights:** brake, reverse and headlights from the flags.
-- **Sound:** its engine at its RPM and throttle, and its tyres squealing at its slip (`remoteCarSound` in
-  `testtrack/audio.js`). Both are positioned and quieter with distance.
+- **Sound:** its own engine and parts' sound (worked out from its look's parts) at its RPM, throttle and gear, and
+  its tyres squealing at its slip (`remoteCarSound` in `testtrack/test-scene.js`, through `audio/voices.js`: the
+  nearest few heard in full, the far ones simply; Phase 8 Step 1, [AUDIO.md](AUDIO.md)). Positioned, quieter and
+  duller with distance, muffled behind buildings, with Doppler.
 - **Damage:** dents rebuilt from its crash events (the same deterministic rebuild as the garage), with glass and
   parts hanging or gone.
 

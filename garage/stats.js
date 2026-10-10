@@ -28,7 +28,8 @@
 //
 // A few values every car has for parts to change: cooling.capacity (the radiator, sized for the car's
 // own engine — car.json cooling.capacity, 1 if it hasn't one: physics/mechanical.js),
-// soundMod (level, tone, intake: how the engine sounds — testtrack/audio.js), cosmetic (smoke,
+// soundMod (level, tone, intake: how loud and open the engine is, and its intake — from the parts' sound blocks,
+// with the rest of what they sound like in spec.audio: garage/carSound.js), cosmetic (smoke,
 // underglow, fog: colours; tint: light | dark | limo — the drawing).
 //
 // The drive layout (car.json drivetrain.layout, or a part that sets it) says which differentials the
@@ -51,6 +52,7 @@ import { fullTorques } from '../physics/brakes.js';
 import { fingerprint } from './fingerprint.js';
 import { performance } from './rating.js';
 import { mechanicalLayout, specDamage } from './mechanical.js';
+import { soundOf } from './carSound.js';
 
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 export const SYSTEM_BLOCKS = ['engine', 'gearbox', 'clutch', 'differential', 'tyre', 'brakes', 'suspension'];
@@ -274,10 +276,18 @@ export function computeStats(build, db) {
     const f = fitted.find(x => x.part.engine);
     turbo = { f, value: { part: f.part.id, boost: clone(spec.engine.turbo.boost), efficiency: spec.engine.turbo.efficiency, ...(spec.engine.turbo.sound && { sound: clone(spec.engine.turbo.sound) }) } };
   }
-  // (the turbo, for what needs more than its torque: its whistle, testtrack/audio.js)
+  // (the turbo, for what needs more than its torque: its whistle and blow-off, audio/mix.js)
   if (turbo) {
     spec.turbo = turbo.value;
     for (const [path, to] of leaves(spec.turbo, 'turbo')) record(path, { step: 'boost', source: partSource(turbo.f), to, note: path.startsWith('turbo.boost') ? 'the boost it makes (bar), as fitted' : 'its sound' });
+  }
+  // (what it sounds like: every fitted part's sound block — garage/carSound.js, spec.audio.from says whose; soundMod
+  //  as it was, its level, tone and intake now from those blocks)
+  spec.audio = soundOf(fitted, spec);
+  spec.soundMod = { level: spec.soundMod.level * spec.audio.exhaust.level, tone: spec.soundMod.tone * spec.audio.exhaust.tone, intake: spec.soundMod.intake * spec.audio.intake.roar };
+  for (const [path, to] of leaves(spec.audio, 'audio')) {
+    const key = path.split('.').slice(1, 3).join('.'), by = [...spec.audio.from].reverse().find(x => x.keys.some(k => key === k || key.startsWith(`${k}.`) || k.startsWith(`${key}.`)));
+    record(path, by ? { step: 'sound', source: { kind: 'part', id: by.part, name: by.name }, to, note: 'how it sounds' } : { step: 'base', source: carSource, to, note: 'how it sounds: as its engine sounds (no part changes it)' });
   }
 
   // 5. condition: worn parts do less (their category's curves); a category on several parts (the four

@@ -1,9 +1,9 @@
-// The engine and turbo sounds: the engine's sound config (data/sounds/engines) has loops from idle to
-// the redline, on and off load, crossfaded by the revs and throttle and pitched only a little; louder
-// and harsher up high, deeper and smoother down low; the loops are seamless; the intake, gear-change
-// clunk and limiter cut are their own sounds; there are no pops; the turbo whistle plays only with a
-// turbo fitted, rising with the spool under throttle and fading off it, each turbo part sounding its
-// own. The audio code itself runs here on a stand-in for Web Audio.
+// The engine and turbo sounds' files and mixes: the engine's sound config (data/sounds/engines) has loops from idle to
+// the redline, on and off load, crossfaded by the revs and throttle and pitched only a little; louder and harsher up
+// high, deeper and smoother down low; the loops are seamless (and their Opus too: the manifest's pad round each);
+// the intake heard at high throttle; the turbo whistle only with a turbo fitted, rising with the spool under
+// throttle and fading off it, each turbo part sounding its own. The crash sounds (audio/crash.js) on a stand-in for
+// Web Audio (tests/fakeAudio.mjs). The engine itself, played: tests/unit/audio.test.mjs.
 // npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { harness, load, root } from '../harness.mjs';
 import { TurboSpool, engineLevels, intakeMix, layerMix, loadOf } from '../../testtrack/soundMix.js';
+import { turboInput } from '../../audio/mix.js';
 import { readWav } from '../../tools/content/sound.mjs';
 import { assignDeep } from '../../garage/session.js';
 
@@ -95,42 +96,11 @@ test('every loop is whole engine cycles and joins up without a click', () => {
 
 // ---------- the audio code, on a stand-in for Web Audio ----------
 
-class Param { constructor(v = 0) { this.value = v; this.events = []; } setTargetAtTime(v, t) { this.value = v; this.events.push(['target', v, t]); } setValueAtTime(v, t) { this.events.push(['at', v, t]); } }
-class Node { constructor(ctx, o = {}) { this.ctx = ctx; this.o = o; this.gain = new Param(o.gain ?? 1); this.frequency = new Param(o.frequency ?? 0); this.Q = new Param(o.Q ?? 1); this.playbackRate = new Param(o.playbackRate ?? 1); } connect(n) { this.out = n; return n; } start() { this.ctx.started.push(this); } stop() { this.stopped = true; } }
-function fakeAudio() {
-  const ctx = { currentTime: 0, sampleRate: 32000, started: [], destination: {}, createBuffer: (c, n) => ({ duration: n / 32000, getChannelData: () => new Float32Array(n) }), decodeAudioData: async b => ({ duration: 1, file: b.file }) };
-  Object.assign(globalThis, {
-    AudioContext: function () { return ctx; },
-    GainNode: class extends Node {}, BiquadFilterNode: class extends Node {}, OscillatorNode: class extends Node {}, WaveShaperNode: class extends Node {},
-    AudioBufferSourceNode: class extends Node { constructor(c, o) { super(c, o); this.buffer = o.buffer; this.loop = !!o.loop; } },
-  });
-  globalThis.fetch = async f => ({ ok: true, json: async () => JSON.parse(fs.readFileSync(path.join(root, f), 'utf8')), arrayBuffer: async () => Object.assign(new ArrayBuffer(8), { file: f }) });
-  return ctx;
-}
-const snap = (e, extra = {}) => ({ throttle: e.throttle, engine: { rpm: 900, throttle: 0.05, fuelCut: false, shifting: false, gear: '1', health: { misfire: 0, floating: false, blown: false }, ...e }, ...extra });
-async function running(spec) {
-  const ctx = fakeAudio(), { createAudio } = await import('../../testtrack/audio.js'), audio = createAudio(spec);
-  audio.update(snap({}), 1 / 60);
-  for (let i = 0; i < 50 && !audio.engine.config; i++) await new Promise(r => setTimeout(r, 5));
-  assert.ok(audio.engine.config, 'the sound config loaded');
-  const drive = (e, seconds = 0.5, extra) => { for (let i = 0; i < seconds * 60; i++) { ctx.currentTime += 1 / 60; audio.update(snap(e, extra), 1 / 60); } };
-  const oneOffs = () => ctx.started.filter(n => n instanceof AudioBufferSourceNode && !n.loop);
-  return { ctx, audio, drive, oneOffs };
-}
-
-test('no pops or crackles: lifting off at high revs plays only the loops; the limiter cut and the gear clunk come with their own events', async () => {
-  const { audio, drive, oneOffs } = await running(stock);
-  drive({ rpm: 6000, throttle: 1 }, 1);
-  drive({ rpm: 5800, throttle: 0 }, 1.5);                                  // a lift-off: no pops
-  assert.equal(oneOffs().length, 0);
-  drive({ rpm: 6800, throttle: 0, fuelCut: true }, 0.02);                  // the limiter cuts
-  assert.deepEqual(oneOffs().map(n => n.buffer.file), [cfg.limiter.file]);
-  drive({ rpm: 6000, throttle: 1, shifting: true }, 0.2); drive({ rpm: 4200, throttle: 1, shifting: false }, 0.1);   // a gear goes in
-  assert.deepEqual(oneOffs().map(n => n.buffer.file), [cfg.limiter.file, cfg.shift.file]);
-  // and the damage: the bang and the clack, when the game says
-  audio.bang(); audio.clunk();
-  assert.deepEqual(oneOffs().slice(2).map(n => n.buffer.file), [cfg.damage.bang, cfg.damage.bent]);
-});
+const { installFakeAudio } = await import('../fakeAudio.mjs');
+const F = installFakeAudio();
+const { createAudioSystem } = await import('../../audio/system.js');
+const { createCrashSounds } = await import('../../audio/crash.js');
+const Asys = await createAudioSystem({ context: new F.classes.AudioContext() });
 
 test('the intake\'s air: only at high throttle, louder and higher with the revs', () => {
   assert.equal(intakeMix(cfg, E, 5000, 0.3).gain, 0);
@@ -139,7 +109,7 @@ test('the intake\'s air: only at high throttle, louder and higher with the revs'
   assert.ok(high.gain <= cfg.intake.gain, 'subtle: never above its own level');
 });
 
-test('the turbo whistle: silent without a turbo; with one it rises with the spool under throttle and fades off it', async () => {
+test('the turbo whistle: silent without a turbo; with one it rises with the spool under throttle and fades off it', () => {
   // (no turbo fitted: nothing, whatever the engine does)
   const none = new TurboSpool();
   for (let i = 0; i < 120; i++) assert.equal(none.update(1 / 60, stock.turbo, 5000, 1).gain, 0);
@@ -158,15 +128,11 @@ test('the turbo whistle: silent without a turbo; with one it rises with the spoo
   assert.ok(m.at(-1).hz < top.hz - 1000, `${m.at(-1).hz.toFixed(0)} Hz against ${top.hz.toFixed(0)} Hz`);
   assert.ok(mEarly.spool < sEarly.spool, 'the medium turbo spools slower');
   assert.ok(m.at(-1).gain > top.gain, 'and is louder');
-  // in the audio code: the whistle's level follows it, none without a turbo
-  const plain = await running(stock);
-  plain.drive({ rpm: 5000, throttle: 1 }, 1);
-  assert.equal(plain.audio.turbo.spool.spool, 0);
-  const boosted = await running(turboSpec('turbo_kit'));
-  boosted.drive({ rpm: 5000, throttle: 1 }, 2);
-  assert.ok(boosted.audio.turbo.spool.spool > 0.9);
-  boosted.drive({ rpm: 5000, throttle: 0 }, 1.5);
-  assert.ok(boosted.audio.turbo.spool.spool < 0.1);
+  // the game's turbo input (audio/mix.js turboInput): none without a turbo; the part's whistle with one
+  const noTurbo = new TurboSpool(), boosted = new TurboSpool(), sp = turboSpec('turbo_kit');
+  for (let i = 0; i < 120; i++) { assert.equal(turboInput(noTurbo, stock, 1 / 60, 5000, 1).whistle, null); turboInput(boosted, sp, 1 / 60, 5000, 1); }
+  const w = turboInput(boosted, sp, 1 / 60, 5000, 1);
+  assert.ok(w.spool > 0.9 && w.whistle.gain > 0 && w.whistle.hz > sp.audio.whistle.fromHz);
 });
 
 test('taking the turbo off silences its whistle: the live spec (rebuilt in place) no longer has one', () => {
@@ -183,36 +149,41 @@ test('taking the turbo off silences its whistle: the live spec (rebuilt in place
   assert.equal(s.update(1 / 60, live.turbo, 5000, 1).gain, 0);
 });
 
-test('crash sounds: a take of the right strength for what was hit, a little different each time; the scrape loop follows the scrape', async () => {
+test('crash sounds: a take of the right strength for what was hit — a car, a rail, concrete, a building, a tree, a tyre wall — a little different each time; a big one\'s body thump; the scrape loop follows the scrape', async () => {
   const crashCfg = load('data/sounds/crash.json');
-  const { ctx, audio, drive, oneOffs } = await running(stock);
-  for (let i = 0; i < 50 && !audio.crash.config; i++) await new Promise(r => setTimeout(r, 5));
-  assert.ok(audio.crash.config, 'the crash sounds loaded');
-  const played = [];
-  for (const [cls, material] of [['tap', 'concrete'], ['crunch', 'metal'], ['crash', 'car'], ['crash', 'wood'], ['crunch', 'plastic']]) {
-    const src = audio.crash.impact(cls, material, 0.5), family = crashCfg.materials[material];
-    assert.ok(crashCfg.impacts[family][cls].includes(src.buffer.file), `${cls} into ${material}: one of ${family}'s ${cls} takes`);
-    played.push(src);
+  const crash = createCrashSounds(Asys);
+  await crash.ready;
+  assert.ok(crash.config, 'the crash sounds loaded');
+  for (const [cls, material, family] of [['tap', 'concrete', 'concrete'], ['crunch', 'metal', 'metal'], ['crash', 'car', 'car'], ['crash', 'wood', 'tree'], ['crunch', 'tyres', 'tyrewall'], ['crash', 'building', 'building'], ['tap', 'plastic', 'car']]) {
+    const src = crash.impact(cls, material, 0.5);
+    assert.equal(src.family, family, `${cls} into ${material}`);
   }
   // louder the harder: a crash louder than a crunch louder than a tap; within a class, harder louder
-  const gainOf = src => src.out.gain.value, avg = (cls, within) => Array.from({ length: 30 }, () => gainOf(audio.crash.impact(cls, 'concrete', within))).reduce((a, g) => a + g, 0) / 30;
+  const gainOf = src => [...src.outs][0].gain.value, avg = (cls, within) => Array.from({ length: 30 }, () => gainOf(crash.impact(cls, 'concrete', within))).reduce((a, g) => a + g, 0) / 30;
   assert.ok(avg('tap', 0.5) < avg('crunch', 0.5) && avg('crunch', 0.5) < avg('crash', 0.5));
   assert.ok(avg('crash', 0) < avg('crash', 1));
   assert.ok(avg('tap', 1) <= crashCfg.gain.tap[1] * 1.1, 'a tap stays quiet');
-  const rates = Array.from({ length: 12 }, () => audio.crash.impact('tap', 'metal', 0.5).playbackRate.value);
+  const rates = Array.from({ length: 12 }, () => crash.impact('tap', 'metal', 0.5).playbackRate.value);
   assert.ok(new Set(rates.map(r => r.toFixed(3))).size > 3 && rates.every(r => Math.abs(r - 1) <= crashCfg.pitch + 1e-9), 'a little higher or lower each time');
-  const files = new Set(Array.from({ length: 20 }, () => audio.crash.impact('crash', 'metal', 1).buffer.file));
-  assert.ok(files.size > 1, 'not always the same take');
-  assert.ok(audio.crash.glass().buffer.file.includes('glass') && audio.crash.light().buffer.file.includes('light'));
+  // (a big one: a low body thump under it — an oscillator of its own; a tap none)
+  const made0 = F.made; crash.impact('tap', 'metal', 1); const tapMade = F.made - made0, made1 = F.made; crash.impact('crash', 'metal', 1);
+  assert.ok(F.made - made1 >= tapMade + 2, `a crash makes its thump too (${F.made - made1} nodes against a tap's ${tapMade})`);
+  const takes = new Set(Array.from({ length: 20 }, () => crash.impact('crash', 'metal', 1).buffer));
+  assert.ok(takes.size > 1, 'not always the same take');
   // the scrape: silent until sliding along something, then the loop for what it is, louder with the scrape
-  const loops = ctx.started.filter(n => n instanceof AudioBufferSourceNode && n.loop && /scrape/.test(n.buffer.file));
-  assert.equal(loops.length, 2);
-  const level = file => loops.find(l => l.buffer.file.includes(file)).out.gain.value;
-  assert.deepEqual([level('metal'), level('concrete')], [0, 0]);
-  drive({ rpm: 3000, throttle: 0.3 }, 0.2, { scrape: { amount: 0.8, speed: 15, material: 'metal' } });
-  assert.ok(Math.abs(level('metal') - 0.8 * crashCfg.scrape.gain) < 1e-9 && level('concrete') === 0, 'along the guardrail: the metal scrape');
-  drive({ rpm: 3000, throttle: 0.3 }, 0.2, { scrape: { amount: 0.3, speed: 8, material: 'concrete' } });
-  assert.ok(Math.abs(level('concrete') - 0.3 * crashCfg.scrape.gain) < 1e-9 && level('metal') === 0, 'a concrete wall: quieter, the grinding one');
-  drive({ rpm: 3000, throttle: 0.3 }, 0.2, { scrape: null });
-  assert.deepEqual([level('metal'), level('concrete')], [0, 0], 'stopped sliding: silent');
+  const L = crash.loops, lv = f => L[f].gain.gain.value;
+  crash.update({ scrape: null }, 0.016, {});
+  assert.deepEqual([lv('metal'), lv('concrete')], [0, 0]);
+  crash.update({ scrape: { amount: 0.8, speed: 15, material: 'metal' } }, 0.016, {});
+  assert.ok(Math.abs(lv('metal') - 0.8 * crashCfg.scrape.gain) < 1e-9 && lv('concrete') === 0, 'along the guardrail: the metal scrape');
+  crash.update({ scrape: { amount: 0.3, speed: 8, material: 'building' } }, 0.016, {});
+  assert.ok(Math.abs(lv('concrete') - 0.3 * crashCfg.scrape.gain) < 1e-9 && lv('metal') === 0, 'a building\'s wall: the grinding one');
+  // a hanging panel flaps in the wind, faster the faster the car
+  crash.update({ speed: 30 }, 0.016, {}, { flap: 1, speed: 30 });
+  const fast = L.flap.src.playbackRate.value, loud = L.flap.gain.gain.value;
+  crash.update({ speed: 15 }, 0.016, {}, { flap: 1, speed: 15 });
+  assert.ok(loud > 0 && L.flap.src.playbackRate.value < fast);
+  crash.update({ speed: 30 }, 0.016, {}, { flap: 0, speed: 30 });
+  assert.equal(L.flap.gain.gain.value, 0);
+  crash.dispose();
 });

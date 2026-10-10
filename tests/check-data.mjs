@@ -57,10 +57,16 @@ for (const f of soundConfigs) {
   const file = `${soundDir}/${f}`, cfg = await readJson(file);
   for (const e of loaded.validator.validate('engine-sound.schema.json', cfg)) problems.push({ file, path: e.path, message: e.message });
   if (!db.parts[cfg.engine]?.engine) problems.push({ file, path: 'engine', message: `names ${cfg.engine}, which isn't an engine part` });
-  const named = [...(cfg.layers ?? []).flatMap(L => [L.on, L.off]), cfg.intake?.file, cfg.shift?.file, cfg.limiter?.file, cfg.damage?.bang, cfg.damage?.bent].filter(Boolean);
+  const named = [...(cfg.layers ?? []).flatMap(L => [L.on, L.off]), cfg.intake?.file, cfg.shift?.file, cfg.limiter?.file, cfg.damage?.bang, cfg.damage?.bent, cfg.granular?.on, cfg.granular?.off, cfg.granular?.grains].filter(Boolean);
   const missing = named.filter(n => !fs.existsSync(path.join(root, n)));
   if (missing.length) problems.push({ file, path: 'layers', message: `${missing.length} of its sound files aren't there (npm run sounds makes them): ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}` });
   (cfg.layers ?? []).forEach((L, i) => { if (i && L.rpm <= cfg.layers[i - 1].rpm) problems.push({ file, path: `layers.${i}.rpm`, message: 'the rpm points go up in order' }); });
+  // (granular: the sweep must reach from below idle to past the redline of every engine that uses it)
+  if (cfg.granular && fs.existsSync(path.join(root, cfg.granular.grains))) {
+    const g = await readJson(cfg.granular.grains);
+    for (const E of Object.values(db.parts).filter(p => p.engine?.sound === file).map(p => p.engine))
+      for (const side of ['on', 'off']) { const list = g[side] ?? [], lo = list[0]?.[2], hi = list.at(-1)?.[2]; if (!(lo <= E.idleRpm * 0.9 && hi >= E.redlineRpm * 1.03)) problems.push({ file, path: `granular.${side}`, message: `its sweep runs ${lo?.toFixed(0)}–${hi?.toFixed(0)} rpm: not below idle (${E.idleRpm}) to past the redline (${E.redlineRpm}) — npm run sounds` }); }
+  }
 }
 // the crash sounds: against their schema, every file there
 {
@@ -71,6 +77,16 @@ for (const f of soundConfigs) {
   const missing = named.filter(n => !fs.existsSync(path.join(root, n)));
   if (missing.length) problems.push({ file, path: 'impacts', message: `${missing.length} of its sound files aren't there (npm run sounds makes them): ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}` });
   for (const m of Object.values(cfg.materials ?? {})) if (!cfg.impacts?.[m]) problems.push({ file, path: 'materials', message: `sounds like "${m}", which has no impacts` });
+  if (cfg.flap && !fs.existsSync(path.join(root, cfg.flap.file))) problems.push({ file, path: 'flap', message: `${cfg.flap.file} isn't there (npm run sounds makes it)` });
+}
+// the sounds compressed for players (assets/sounds/manifest.json; tools/content/opus.mjs): every WAV's Opus there and
+// made from the WAV as it is now
+{
+  const file = 'assets/sounds/manifest.json', crypto = await import('node:crypto');
+  const man = fs.existsSync(path.join(root, file)) ? (await readJson(file)).files ?? {} : {};
+  const wavs = fs.readdirSync(path.join(root, 'assets/sounds'), { recursive: true }).map(String).filter(f => f.endsWith('.wav')).map(f => `assets/sounds/${f.split(path.sep).join('/')}`);
+  const stale = wavs.filter(w => { const m = man[w]; return !m || !fs.existsSync(path.join(root, m.opus)) || crypto.createHash('sha256').update(fs.readFileSync(path.join(root, w))).digest('hex').slice(0, 16) !== m.sha; });
+  if (stale.length) problems.push({ file, path: 'files', message: `${stale.length} sound file${stale.length > 1 ? 's\'' : '\'s'} Opus ${stale.length > 1 ? 'are' : 'is'} missing or out of date (npm run sounds, with ffmpeg): ${stale.slice(0, 3).join(', ')}${stale.length > 3 ? '…' : ''}` });
 }
 for (const part of Object.values(db.parts)) if (part.engine?.sound && !fs.existsSync(path.join(root, part.engine.sound))) problems.push({ file: `data/parts/${part.category}/${part.id}.json`, path: 'engine.sound', message: `${part.engine.sound} isn't there` });
 // what the outside of the car is made of (the effects: metal sparks, plastic doesn't), and the effects' own settings

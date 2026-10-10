@@ -21,6 +21,8 @@
     "tear": { "type": "object", "required": ["files", "gain"], "additionalProperties": false, "properties": { "files": { "$ref": "#/$defs/takes" }, "gain": { "type": "number", "minimum": 0 } } },
     "clatter": { "type": "object", "required": ["files", "heavyFrom", "gain"], "additionalProperties": false, "properties": { "files": { "type": "object", "required": ["light", "heavy"], "additionalProperties": false, "properties": { "light": { "$ref": "#/$defs/takes" }, "heavy": { "$ref": "#/$defs/takes" } } }, "heavyFrom": { "type": "number", "minimum": 0 }, "gain": { "$ref": "#/$defs/pair" } } },
     "rattle": { "type": "object", "required": ["file", "gain"], "additionalProperties": false, "properties": { "file": { "$ref": "#/$defs/file" }, "gain": { "type": "number", "minimum": 0 } } },
+    "flap": { "type": "object", "required": ["file", "gain", "perMetre"], "additionalProperties": false, "description": "A hanging panel flapping in the wind: one slap, looped faster the faster the car goes (perMetre: slaps a metre), from fromSpeed m/s", "properties": { "file": { "$ref": "#/$defs/file" }, "gain": { "type": "number", "minimum": 0 }, "perMetre": { "type": "number", "exclusiveMinimum": 0 }, "fromSpeed": { "type": "number", "minimum": 0 } } },
+    "heavy": { "type": "object", "required": ["gain", "hz"], "additionalProperties": false, "description": "Under a big crash, a low body thump (made as it plays): its level at the hardest, its pitch (Hz)", "properties": { "gain": { "type": "number", "minimum": 0 }, "hz": { "type": "number", "exclusiveMinimum": 0 } } },
     "synth": { "type": "object", "description": "How npm run sounds makes the files (tools/content/sound.mjs); none for recordings" }
   }
 }

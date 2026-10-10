@@ -38,18 +38,17 @@
         "rpm": [3000, 9000],
         "fade": 1000
       }
-    },
-    {
-      "target": "soundMod.level",
-      "op": "multiply",
-      "value": 1.12
-    },
-    {
-      "target": "soundMod.tone",
-      "op": "multiply",
-      "value": 0.97
     }
   ],
+  "sound": {
+    "_note": "How it changes the engine's sound (garage/carSound.js, audio/dsp.js): exhaust.level and tone multiply how loud and how open; rasp (0..1) a hard, torn edge up the revs; pops (0..1) crackles and bangs lifting off, on the rev limiter and changing up.",
+    "exhaust": {
+      "level": 1.12,
+      "tone": 0.97,
+      "rasp": 0.08,
+      "pops": 0.15
+    }
+  },
   "_note": "Cat-back exhaust, oval tip (street): single oval tip, from tools/generators/exhaust.js. It starts with the street cat-back's sound and gains: balance them.",
   "madeBy": {
     "generator": "tools/generators/exhaust.js",

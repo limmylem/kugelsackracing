@@ -29,7 +29,7 @@ export function tileColliders(d, RAPIER, B) {
             k += 3 + n * 2;
             const desc = RAPIER.ColliderDesc.convexHull(pts);
             if (desc)
-                out.push({ desc, userData: { material: 'concrete' } });
+                out.push({ desc, userData: { material: 'concrete', sound: 'building' } });
         }
     // railings and walls
     for (const [name, L] of Object.entries(d.lists)) {
@@ -43,7 +43,7 @@ export function tileColliders(d, RAPIER, B) {
     if (Tr)
         for (let k = 0; k < Tr.length; k += 5) {
             const h = Tr[k + 3] * 4 * 0.6;
-            out.push({ desc: RAPIER.ColliderDesc.cylinder(h / 2 + 0.5, 0.25).setTranslation(Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]), userData: { material: 'wood' } });
+            out.push({ desc: RAPIER.ColliderDesc.cylinder(h / 2 + 0.5, 0.25).setTranslation(Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]), userData: { material: 'wood', sound: 'tree' } });
         }
     return { pieces: out, ground };
 }

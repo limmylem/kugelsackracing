@@ -1,5 +1,5 @@
 {
-  "_note": "The Brute 500's 5.0 L V8's sound, for testtrack/audio.js (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A cross-plane V8: each bank fires unevenly, so the pulses come in lopsided pairs (firing gaps, and every other one weaker) — the deep burble; a big low boom and a loud mix.",
+  "_note": "The Brute 500's 5.0 L V8's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A cross-plane V8: each bank fires unevenly, so the pulses come in lopsided pairs (firing gaps, and every other one weaker) — the deep burble; a big low boom and a loud mix.",
   "engine": "brute_500_engine",
   "cylinders": 8,
   "layers": [
@@ -58,6 +58,13 @@
       "off": "assets/sounds/engines/v8/rpm6500_off.wav"
     }
   ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/v8/sweep_on.wav",
+    "off": "assets/sounds/engines/v8/sweep_off.wav",
+    "grains": "assets/sounds/engines/v8/sweep.json",
+    "step": 0.012
+  },
   "mix": {
     "blend": 0.5,
     "level": 0.56,
@@ -82,7 +89,9 @@
   "limiter": {
     "file": "assets/sounds/engines/v8/limiter.wav",
     "gain": 0.18,
-    "every": 0.06
+    "every": 0.06,
+    "hz": 12,
+    "depth": 0.9
   },
   "damage": {
     "bang": "assets/sounds/engines/v8/bang.wav",
@@ -90,6 +99,26 @@
     "bent": "assets/sounds/engines/v8/bent.wav",
     "bentGain": 0.55,
     "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.15,
+    "pops": 0.2
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.018,
+    "hz": 1.3,
+    "lope": 0.02,
+    "lopeHz": 2.6
+  },
+  "start": {
+    "crankRpm": 170,
+    "seconds": 1,
+    "flare": 1.9,
+    "gain": 0.18
   },
   "synth": {
     "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",

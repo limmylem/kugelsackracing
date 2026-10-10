@@ -1,16 +1,19 @@
-// The garage's sounds, made with WebAudio (no files): a whoosh as a part slides, a clunk as it seats,
-// a ratchet undoing bolts, the lift's hydraulic hum, and the engine on the dyno.
+// The garage's sounds, made with WebAudio (no files): a whoosh as a part slides, a clunk as it seats, a ratchet undoing
+// bolts, the lift's hydraulic hum — and on the dyno the car's real engine (Phase 8 Step 1: audio/car.js, the same
+// sound as on the road, its parts and all), so you hear what a part does before and after fitting it. Through the
+// game's sound system (audio/system.js): its menus-and-cues group, so the driving's sounds being off doesn't silence it.
+
+import { audioSystem, startAudio } from '../audio/system.js';
+import { createCarVoice } from '../audio/car.js';
+import { TurboSpool, turboInput } from '../audio/mix.js';
 
 export function createSounds() {
   let ctx = null, master = null, on = true, hum = null, engine = null;
   const audio = () => {
-    if (!ctx) {
-      const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
-      if (!AC) return null;
-      ctx = new AC();
-      master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination);
-    }
-    if (ctx.state === 'suspended') ctx.resume();
+    const A = audioSystem();
+    if (!A) { startAudio(); return null; }
+    if (!ctx) { ctx = A.ctx; master = new GainNode(ctx, { gain: 0.5 }); master.connect(A.bus.ui); }
+    if (ctx.state === 'suspended' && !A.muted) ctx.resume().catch(() => {});
     return ctx;
   };
   const noise = seconds => {
@@ -55,7 +58,7 @@ export function createSounds() {
     },
     // the lift's hydraulic pump while it moves
     lift(running) {
-      if (!running) { if (hum) { const h = hum; hum = null; h.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08); setTimeout(() => { h.o.stop(); h.o2.stop(); }, 400); } return; }
+      if (!running) { if (hum) { const h = hum; hum = null; h.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08); setTimeout(() => { h.o.stop(); h.o2.stop(); h.g.disconnect(); }, 400); } return; }
       if (!on || hum || !audio()) return;
       const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
       o.type = 'sawtooth'; o.frequency.value = 62; o2.type = 'square'; o2.frequency.value = 124.5;
@@ -64,21 +67,35 @@ export function createSounds() {
       o.connect(f); o2.connect(f); f.connect(g).connect(master); o.start(); o2.start();
       hum = { o, o2, g };
     },
-    // the engine on the dyno: rpm, or null to stop
-    dyno(rpm) {
-      if (rpm == null || !on) { if (engine) { const e = engine; engine = null; e.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.15); setTimeout(() => { e.o.stop(); e.o2.stop(); }, 700); } return; }
-      if (!audio()) return;
-      if (!engine) {
-        const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
-        o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.Q.value = 2;
-        g.gain.value = 0.0001; g.gain.setTargetAtTime(0.12, ctx.currentTime, 0.1);
-        o.connect(f); o2.connect(f); f.connect(g).connect(master); o.start(); o2.start();
-        engine = { o, o2, g, f };
+    // The car on the dyno: its own engine (sound: the run's — { engine, audio, turbo, gearbox }, a spec's), at rpm,
+    // flat out; null: the throttle shut (crackles, the blow-off, back to idle), then quiet. Each run keeps its sound,
+    // so a run before a part and one after can be heard again, one after the other (garage/garageUi.js).
+    dyno(rpm, sound = null) {
+      const A = audioSystem();
+      if (rpm == null || !on) {
+        if (engine) {
+          const e = engine; engine = null;
+          e.voice.update({ engine: { ...e.last, throttle: 0, pedal: 0, load: -0.9, rpm: e.spec.engine.idleRpm * 1.05, whistle: e.last?.whistle ? { ...e.last.whistle, gain: 0 } : null } }, 0);
+          clearTimeout(e.timer);
+          e.timer = setTimeout(() => { e.out.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); setTimeout(() => { e.voice.dispose(); e.out.disconnect(); }, 900); }, 1600);
+        }
+        return;
       }
-      const hz = rpm / 60 * 2;                    // a four-cylinder fires twice a turn
-      engine.o.frequency.setTargetAtTime(hz, ctx.currentTime, 0.03);
-      engine.o2.frequency.setTargetAtTime(hz * 0.5, ctx.currentTime, 0.03);
-      engine.f.frequency.setTargetAtTime(400 + rpm * 0.35, ctx.currentTime, 0.05);
+      if (!audio() || !A) return;
+      if (engine && sound && engine.spec !== sound) { const e = engine; engine = null; e.voice.dispose(); e.out.disconnect(); }
+      if (!engine) {
+        const spec = sound ?? null;
+        if (!spec?.engine) return;
+        const out = new GainNode(ctx, { gain: 1.4 }); out.connect(A.bus.ui);
+        engine = { spec, out, voice: createCarVoice(A, { spec, role: 'player', out }), last: null, turbo: new TurboSpool() };
+        engine.voice.setView({ ...A.cfg.views.chase, tyres: 0, road: 0, wind: 0 });
+      }
+      const E = engine.spec.engine, r = Math.min(E.redlineRpm, Math.max(E.idleRpm, rpm));
+      const tu = turboInput(engine.turbo, engine.spec, 1 / 60, r, 1);
+      engine.last = { rpm: r, throttle: 1, pedal: 1, load: 1, gear: 3, clutch: 1, shifting: false, fuelCut: rpm >= E.redlineRpm, misfire: 0, spool: tu.spool, whistle: tu.whistle };
+      engine.voice.update({ engine: engine.last }, 1 / 60);
     },
+    // (what the dyno's engine needs from a spec: kept with each run)
+    soundOf: spec => spec ? { engine: spec.engine, audio: spec.audio, turbo: spec.turbo ?? null, gearbox: spec.gearbox ?? null } : null,
   };
 }

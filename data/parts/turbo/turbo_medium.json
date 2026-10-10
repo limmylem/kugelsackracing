@@ -28,7 +28,7 @@
     }
   ],
   "sound": {
-    "_note": "The turbo's whistle (testtrack/audio.js), only heard with it fitted: its pitch follows the shaft speed — the spool, which chases the boost this turbo's curve gives at the revs times how open the throttle is, spoolUp s to rise and spoolDown s to fall — from fromHz to toHz at full boost; its level (gain at full boost) follows the spool and the throttle, so it rises under throttle and fades off it; noise: how much rushing air there is round the tone, q how narrow it is.",
+    "_note": "Its sound (garage/carSound.js, audio/dsp.js): whistle — the shaft's whistle, its pitch following the spool (which chases the boost the curve gives at the revs × how open the throttle is, spoolUp s to rise and spoolDown s to fall) from fromHz to toHz, its level (gain at full boost) the spool and the throttle; blowoff — the throttle shutting on boost: a valve's hiss sweeping down from hz ('valve'), or with no valve the compressor's flutter ('flutter'), gain × the spool, for about `seconds`.",
     "whistle": {
       "fromHz": 1700,
       "toHz": 6000,
@@ -37,6 +37,12 @@
       "q": 8,
       "spoolUp": 0.8,
       "spoolDown": 0.5
+    },
+    "blowoff": {
+      "kind": "valve",
+      "gain": 0.06,
+      "hz": 2000,
+      "seconds": 0.45
     }
   },
   "bounds": {
