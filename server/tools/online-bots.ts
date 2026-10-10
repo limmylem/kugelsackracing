@@ -51,7 +51,7 @@ function countingTransport(base: any, C2S: any, tally: any) {
       const c = await base.join(...a), me = { room: a[1], states: new Map<number, number>(), leaving: false };
       tally.conns.push(me);
       const send = c.send, leave = c.leave;
-      c.send = (type: number, bytes: any, opts: any) => { if (type === C2S.STATE) { const s = Math.floor(performance.now() / 1000); me.states.set(s, (me.states.get(s) ?? 0) + 1); } return send.call(c, type, bytes, opts); };
+      c.send = (type: number, bytes: any, opts: any) => { if (type === C2S.STATE) { const s = Math.floor(performance.now() / 1000); me.states.set(s, (me.states.get(s) ?? 0) + 1); tally.lastSentAt = Date.now(); } return send.call(c, type, bytes, opts); };
       c.leave = () => { me.leaving = true; return leave.call(c); };
       c.onStatus((s: string, info: any) => {
         if (s === 'dropped') tally.drops.push({ room: me.room, code: info?.code ?? null });
@@ -128,7 +128,7 @@ async function roamPart(o: any) {
   clearInterval(loop);
   const out = bots.map(b => {
     const r = [...b.meas.values()].map(m => m.result());
-    return { n: b.n, ok: !!b.ok, err: b.err ?? null, joinMs: b.joinMs ?? null, pings: b.pings, statesPerSec: sendRate(b.tally), drops: b.tally.drops, closed: b.tally.closed, lost: b.RC?.stats.lost ?? 0, handoffs: b.RC?.handoffs ?? 0,
+    return { n: b.n, ok: !!b.ok, err: b.err ?? null, joinMs: b.joinMs ?? null, pings: b.pings, statesPerSec: sendRate(b.tally), lastSentAt: b.tally.lastSentAt ?? 0, drops: b.tally.drops, closed: b.tally.closed, lost: b.RC?.stats.lost ?? 0, handoffs: b.RC?.handoffs ?? 0,
       saw: b.meas.size, frames: r.reduce((a, x) => a + x.frames, 0), snaps: r.reduce((a, x) => a + x.snaps, 0), worstJumpCm: Math.max(0, ...r.map(x => x.worstJumpCm)), notes: r.flatMap(x => x.notes).slice(0, 3) };
   });
   for (const b of bots) await b.leave().catch(() => {});
@@ -223,13 +223,15 @@ async function racePart(o: any) {
       if (racing(b) && Number.isFinite(p) && p > 0) b.pings.push(p);
       const r = b.S.raceId && b.races.get(b.S.raceId);
       if (r?.results && Date.now() - r.at > 8000 && Date.now() < until - 20000) { await b.S.leaveRace(); await queueUp(b); }
+      // (no race and not in the queue — a race called off when the server restarted: back in the queue, as a player would)
+      else if (o.crash && b.queued && !b.S.race && !b.S.queueConn && Date.now() < until - 20000) await queueUp(b);
     }
     if (Date.now() >= until && !bots.some(racing)) break;
   }
   // (what's still waiting in the queue goes; a race still under way at the hard stop counts as not finished)
   const out = bots.map(b => {
     const r = [...b.meas.values()].map(m => m.result());
-    return { n: b.n, ok: b.queued > 0 && b.matched > 0, err: b.err, queued: b.queued, matched: b.matched, pings: b.pings, statesPerSec: sendRate(b.tally), drops: b.tally.drops, closed: b.tally.closed, notices: b.notices,
+    return { n: b.n, ok: b.queued > 0 && b.matched > 0, err: b.err, queued: b.queued, matched: b.matched, pings: b.pings, statesPerSec: sendRate(b.tally), lastSentAt: b.tally.lastSentAt ?? 0, drops: b.tally.drops, closed: b.tally.closed, notices: b.notices,
       races: [...b.races.values()].map(x => ({ raceId: x.raceId, venue: x.venue, status: x.results?.status ?? null, place: x.results?.place ?? null, confirmed: !!x.confirmed })),
       frames: r.reduce((a, x) => a + x.frames, 0), snaps: r.reduce((a, x) => a + x.snaps, 0), worstJumpCm: Math.max(0, ...r.map(x => x.worstJumpCm)), notes: r.flatMap(x => x.notes).slice(0, 3) };
   });
@@ -279,7 +281,7 @@ if (PART) {
 
   // the two parts, in processes of their own; this one reads the servers' numbers every two seconds
   const self = fileURLToPath(import.meta.url), part = (name: string, ids: number[]) => new Promise<any[]>(res => {
-    const kid = fork(self, [], { env: { ...process.env, ONLINE_BOTS_PART: JSON.stringify({ part: name, ids, api, rt: rtArg ? rt : null, token, seconds: SECONDS, raceWait: RACE_WAIT, region: REGION, queueRegion, pingGuess }) }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    const kid = fork(self, [], { env: { ...process.env, ONLINE_BOTS_PART: JSON.stringify({ part: name, ids, api, rt: rtArg ? rt : null, token, seconds: SECONDS, crash: args.includes('--crash'), raceWait: RACE_WAIT, region: REGION, queueRegion, pingGuess }) }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
     let got: any[] = [];
     kid.on('message', (m: any) => { if (m?.results) got = m.results; else if (m?.progress) console.log(`  ${JSON.stringify(m.progress)}`); else if (m?.note) console.log(`  ${m.note}`); });
     kid.on('exit', () => res(got));
@@ -313,8 +315,12 @@ if (PART) {
     const before = Math.max(0, ...samples.filter(x => !after || x.at < after.at).map(x => x.h?.players ?? 0));
     const gap = samples.filter(x => x.hStatus !== 200 || !x.h?.ok);
     check('the real-time server killed mid-run came back by itself (a new process)', !!after && gap.length > 0, after ? `down for about ${gap.length * 2} s; process ${first} → ${after.h.process}` : `still ${first ?? '?'}: it was never killed, or never came back`);
-    const back = after && samples.find(x => x.at >= after.at && (x.h?.players ?? 0) >= Math.ceil(before * 0.9));
-    check('the bots back on it by themselves: at least 90% of its players within 90 s', !!back && back.at - after.at <= 90000, back ? `${back.h.players} players (${before} before) ${Math.round((back.at - after.at) / 1000)} s after it was back` : `at most ${Math.max(0, ...samples.filter(x => after && x.at >= after.at).map(x => x.h?.players ?? 0))} players after (${before} before)`);
+    // (each bot back by itself, as a player would be: in free roam driving on the new process — its car's states sent
+    // after it was back; from a race called off, queued again and racing a new one)
+    const t = after?.at ?? Infinity, roamBack = roam.filter(b => b.lastSentAt > t + 5000), raceBack = race.filter(b => b.lastSentAt > t + 5000);
+    const lastPlayers = Math.max(0, ...samples.filter(x => x.at >= t).map(x => x.h?.players ?? 0));
+    check('every bot back by itself (free roam driving again; racers, their race called off, racing a new one)', !!after && roamBack.length === roam.length && raceBack.length === race.length,
+      `free roam ${roamBack.length}/${roam.length}, races ${raceBack.length}/${race.length}; its players ${lastPlayers} after (${before} before: a race called off doesn't come back)`);
     const sDown = samples.filter(x => x.sStatus !== 200 || !x.s?.ok);
     check('the API ok all along (the real-time server down only meanwhile)', samples.length > 0 && !sDown.length, `${samples.length} readings, ${sDown.length} not ok`);
   }
