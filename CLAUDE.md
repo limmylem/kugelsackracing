@@ -8,6 +8,14 @@
 - The pre-commit hook (`.githooks/pre-commit`) runs the data checks, model checks, physics tests and crash
   suite; let it run.
 
+## Deploys (the owner's choices, 2026-10-10)
+
+- The quickest way every time: a deploy waits only for the fast checks and the image (server.yml); the slow tests run
+  beside it, and a failure there is fixed (or rolled back) after.
+- Every time a deploy is waiting for approval, give the owner the direct link to its run
+  (https://github.com/limmylem/kugelsackracing/actions/runs/<id>) with "Review deployments → production → Approve and
+  deploy". Cancel older deploys still waiting, so only the newest needs approving (each includes everything before it).
+
 ## Reminders for the user (raise them at the right time)
 
 - **Going live for friends testing (Phase 7 Step 5, owner-approved 2026-10-08):** production only, no staging. One
