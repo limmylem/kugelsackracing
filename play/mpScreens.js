@@ -284,8 +284,11 @@ export function createMpScreens({ S, R, game, cfg }) {
     // (what's being typed is kept across a redraw)
     const typed = lobby.querySelector('[data-chat]')?.value ?? '', focused = document.activeElement?.hasAttribute?.('data-chat');
     lobbyKey = key;
+    // (and where the box was scrolled to: a small window scrolls the lobby, and a redraw mustn't jump it back)
+    const scrolled = lobby.scrollTop;
     lobby.innerHTML = html;
-    const inp = lobby.querySelector('[data-chat]'); inp.value = typed; if (focused) inp.focus();
+    lobby.scrollTop = scrolled;
+    const inp = lobby.querySelector('[data-chat]'); inp.value = typed; if (focused) inp.focus({ preventScroll: true });
     drawChat();
     if (whoMenu) openWho(whoMenu);
   }

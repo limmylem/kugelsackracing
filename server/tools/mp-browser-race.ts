@@ -236,14 +236,15 @@ try {
   await A.bringToFront();
   await A.locator('#mpLobby [data-chat]').fill('hello you shit drivers'); await A.locator('#mpLobby [data-chat]').press('Enter');
   // (B scrolls down to the chat, as a person would: in a window this small the lobby's columns stack)
-  await B.locator('#mpLobby [data-chatlog]').scrollIntoViewIfNeeded().catch(() => {});
-  const chatB = await until(async () => { const s = await seen(B, '#mpLobby [data-chatlog]'); return s.ok && /hello you \*+ drivers/.test(s.text) ? s : null; }, 10000);
+  // (scrolled to each time: the window is small, and the lobby redraws as players come and go)
+  const chatB = await until(async () => { await B.locator('#mpLobby [data-chatlog]').scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {}); const s = await seen(B, '#mpLobby [data-chatlog]'); return s.ok && /hello you \*+ drivers/.test(s.text) ? s : null; }, 10000);
   check('chat: A\'s message drawn in B\'s lobby, the swear word starred out', !!chatB, chatB?.text.split('\n').at(-1) ?? `B's log: ${(x => x.ok ? JSON.stringify(x.text) : x.why)(await seen(B, '#mpLobby [data-chatlog]'))} · B's session: ${await B.evaluate(() => { const S = (globalThis as any).__krMpS; return JSON.stringify({ chat: S.chat.map((m: any) => m.text), muted: [...S.muted], phase: S.phase, notices: S.notices.slice(-3) }); })} · the server: ${JSON.stringify({ chat: R0.chat.map((m: any) => m.text), players: [...R0.players.values()].map((p: any) => `${p.t.name}:${p.client.sessionId}`) })}`);
   await B.bringToFront();
   await click(B, `#mpLobby [data-who="${stA.myUid}"]`); await click(B, '#mpLobby [data-mute]');
   await A.bringToFront();
   await A.locator('#mpLobby [data-chat]').fill('can you hear me'); await A.locator('#mpLobby [data-chat]').press('Enter');
   await sleep(1500);
+  for (const P of [A, B]) await P.locator('#mpLobby [data-chatlog]').scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {});
   const muted = await seen(B, '#mpLobby [data-chatlog]'), mineA = await seen(A, '#mpLobby [data-chatlog]');
   check('a mute: B no longer sees A\'s messages (A still does)', muted.ok && !/can you hear me/.test(muted.text) && /can you hear me/.test(mineA.text ?? ''), `B: ${JSON.stringify(muted.text?.split('\n').slice(-2))}`);
   await shot(A, '1-lobby-A'); await shot(B, '1-lobby-B');
