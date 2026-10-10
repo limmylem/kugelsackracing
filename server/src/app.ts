@@ -165,7 +165,7 @@ export async function buildApp(deps: AppDeps) {
     crossOriginEmbedderPolicy: false,
     hsts: config.cookieSecure && config.hsts ? { maxAge: 31536000, includeSubDomains: true } : false,
   });
-  await app.register(cors, { origin: (origin, cb) => cb(null, !origin || config.trustedOrigins.includes(origin)), credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allowedHeaders: ['content-type', 'idempotency-key', CSRF_HEADER, REQUEST_ID_HEADER], exposedHeaders: [REQUEST_ID_HEADER, 'idempotent-replayed'], maxAge: 600 });
+  await app.register(cors, { origin: (origin, cb) => cb(null, !origin || config.trustedOrigins.includes(origin)), credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allowedHeaders: ['content-type', 'idempotency-key', CSRF_HEADER, REQUEST_ID_HEADER, CLIENT_HEADER, DEVICE_HEADER, BOT_CHECK_HEADER], exposedHeaders: [REQUEST_ID_HEADER, 'idempotent-replayed'], maxAge: 600 });
   await app.register(cookie, { secret: config.authSecret });
   await app.register(csrf, { sessionPlugin: '@fastify/cookie', cookieKey: 'kr_csrf', cookieOpts: { path: '/', httpOnly: true, sameSite: 'strict', secure: config.cookieSecure, signed: true }, getToken: req => req.headers[CSRF_HEADER] as string | undefined });
 

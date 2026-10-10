@@ -59,6 +59,9 @@ test('CORS: the game\'s own origin only, with cookies; others get nothing', asyn
   const ok = await pre(PUBLIC_URL);
   assert.equal(ok.headers['access-control-allow-origin'], PUBLIC_URL);
   assert.equal(ok.headers['access-control-allow-credentials'], 'true');
+  // (every header the game's own requests carry is allowed: one left out and the browser sends nothing at all)
+  const own = await T.app.inject({ method: 'OPTIONS', url: '/api/v1/health', headers: { origin: PUBLIC_URL, 'access-control-request-method': 'GET', 'access-control-request-headers': 'x-kr-client,x-kr-device,x-bot-check' } });
+  for (const h of ['x-kr-client', 'x-kr-device', 'x-bot-check']) assert.match(String(own.headers['access-control-allow-headers']), new RegExp(h), h);
   const evil = await pre('https://evil.example.com');
   assert.equal(evil.headers['access-control-allow-origin'], undefined);
   const get = await T.app.inject({ method: 'GET', url: '/api/v1/health', headers: { origin: 'https://evil.example.com' } });

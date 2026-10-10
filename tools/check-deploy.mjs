@@ -46,6 +46,10 @@ await tryIt('the API', async () => {
   check(health.ok && health.env === ENV && health.db === 'ok', 'the API: healthy, production, its database answering', JSON.stringify(health));
   const ok = await fetch(`${API}/api/v1/health`, { headers: { origin: G } });
   check(ok.headers.get('access-control-allow-origin') === G && ok.headers.get('access-control-allow-credentials') === 'true', 'CORS: the game may read the API (with its cookie)');
+  // (the browser asks first for a request with the game's own headers: every one of them must be allowed)
+  const pre = await fetch(`${API}/api/v1/health`, { method: 'OPTIONS', headers: { origin: G, 'access-control-request-method': 'GET', 'access-control-request-headers': 'x-kr-client,x-kr-device,x-bot-check,content-type' } });
+  const allowed = (pre.headers.get('access-control-allow-headers') ?? '').toLowerCase();
+  check(pre.status < 400 && ['x-kr-client', 'x-kr-device', 'x-bot-check'].every(h => allowed.includes(h)), 'CORS: the game\'s own headers allowed (the browser\'s preflight)', `${pre.status} ${allowed || 'none'}`);
   const no = await fetch(`${API}/api/v1/health`, { headers: { origin: EVIL } });
   check(!no.headers.get('access-control-allow-origin'), 'CORS: another site may not read the API');
   for (const p of ['/admin/', '/editor/editor.js']) {

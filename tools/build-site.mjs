@@ -2,7 +2,7 @@
 // as committed, for production (the only environment: the Pages project ognistrada, at ognistrada.com) —
 //   - without the map files, cars, parts and sounds (assets/: on the tiles address — R2), without the admin page
 //     and the editor's code (the API's address serves those, to their roles only; editor/access.js stays: it only
-//     decides whether the editor's button shows), and without the development pages
+//     decides whether the editor's button shows; and roads.js and markers3d.js, which the game imports), and without the development pages
 //   - site/config.js saying where the API, the tiles and the real-time server are, the commit, and multiplayer: true
 //     (Phase 7 Step 5: the game plays online without ?mp; ?mp=0 turns it off)
 //   - the main page's import map pointing the editor's imports of the game's modules back here (the editor's
@@ -41,7 +41,8 @@ const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short'
 const SITE = { env, api: url('api'), game: url('game'), tiles: url('tiles'), rt: url('rt'), version: process.env.GITHUB_SHA?.slice(0, 7) ?? commit, multiplayer: true };
 const out = path.resolve(opt('--out', path.join(root, '.cache/site', env)));
 const LEAVE_OUT = new Set(['assets', 'admin', 'editor', 'dev']);
-const KEEP = new Set(['editor/access.js']);
+// (editor/access.js, and the two helpers the game itself imports: roads.js for gunzipJson, markers3d.js for content's markers)
+const KEEP = new Set(['editor/access.js', 'editor/roads.js', 'editor/markers3d.js']);
 
 // ---------- the files ----------
 fs.rmSync(out, { recursive: true, force: true });
@@ -64,6 +65,20 @@ for (const f of wanted) {
   const n = fs.statSync(from).size;
   bytes += n; if (n > biggest.n) biggest = { f, n };
 }
+// (every module a published file imports by a relative path is published too: a file left out shows only in a
+// player's browser, as a page that never loads)
+const published = new Set(wanted.filter(f => fs.existsSync(path.join(root, f))));
+const missing = [];
+for (const f of published) {
+  if (!/\.m?js$/.test(f) || f.startsWith('packages/')) continue;
+  // (comment lines left out: examples there aren't imports)
+  const text = fs.readFileSync(path.join(root, f), 'utf8').split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+  for (const m of text.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|^\s*import\s+)['"](\.{1,2}\/[^'"]+)['"]/gm)) {
+    const to = path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1]));
+    if (!published.has(to)) missing.push(`${f} imports ${to}`);
+  }
+}
+if (missing.length) { console.error(`published files import files that aren't published:\n  ${missing.join('\n  ')}`); process.exit(1); }
 // (Cloudflare Pages: at most 25 MiB a file, 20,000 files)
 if (biggest.n > 25 * 1024 * 1024) { console.error(`${biggest.f} is over Pages' 25 MiB a file`); process.exit(1); }
 if (wanted.length > 19000) { console.error(`${wanted.length} files: over Pages' 20,000`); process.exit(1); }
@@ -92,7 +107,7 @@ const csp = [
   "default-src 'self'",
   // (the game's modules, inline module scripts and import maps; three.js, Rapier and Cesium from jsDelivr; Rapier's
   // WebAssembly; the editor's code from the API's address)
-  `script-src 'self' ${scriptHashes} 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)} https://challenges.cloudflare.com`,
+  `script-src 'self' ${scriptHashes} 'wasm-unsafe-eval' https://cdn.jsdelivr.net blob: ${origin(SITE.api)} https://challenges.cloudflare.com https://static.cloudflareinsights.com`,
   // (the bot check's widget, Cloudflare Turnstile: account pages)
   'frame-src https://challenges.cloudflare.com',
   "worker-src 'self' blob: https://cdn.jsdelivr.net",
