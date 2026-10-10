@@ -5,6 +5,11 @@ import { chromium } from 'playwright';
 
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
 const GAME = opt('--game', 'https://ognistrada.com');
+// (a few files fetched as they are: what comes back, and from where)
+for (const f of (opt('--files', '/editor/roads.js,/editor/markers3d.js,/testtrack/test-scene.js,/site/config.js')).split(',')) {
+  const r = await fetch(`${GAME}${f}`, { redirect: 'manual' });
+  console.log(`${f}: ${r.status} ${r.headers.get('content-type')} · ${r.headers.get('location') ?? ''} · cf-cache ${r.headers.get('cf-cache-status') ?? '-'} · ${(await r.text()).slice(0, 80).replace(/\s+/g, ' ')}`);
+}
 const browser = await chromium.launch();
 for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000], ['the game', `${GAME}/`, 45000]]) {
   console.log(`\n== ${name}: ${url}`);
