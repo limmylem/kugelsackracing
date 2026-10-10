@@ -4,8 +4,8 @@
 //
 //   assetUrl(url)          a /assets/… address on this page's own host → the same file on the tiles address
 //   apiBase                '' or the API's address
-//   importTool(path)       a module of the editor's, from the API's address with the session (a <script> with
-//                          crossorigin="use-credentials": the server serves it to editor accounts only)
+//   importTool(path)       a module of the editor's, from the API's address with the session (site/tool.js in a
+//                          <script> with crossorigin="use-credentials": the server serves it to editor accounts only)
 
 export const SITE = globalThis.KR_SITE ?? { env: 'local', api: '', game: '', tiles: '', rt: '' };
 export const apiBase = SITE.api ?? '';
@@ -25,9 +25,10 @@ export function importTool(path) {
     const s = document.createElement('script');
     s.type = 'module'; s.crossOrigin = 'use-credentials';
     globalThis[key] = { resolve, reject };
-    s.textContent = `import(${JSON.stringify(url)}).then(m => globalThis.${key}.resolve(m), e => globalThis.${key}.reject(e)).finally(() => { delete globalThis.${key}; });`;
-    s.onerror = () => reject(new Error(`Couldn't load ${url}`));
+    // (a file of the game's own that does the import — an inline script is refused by the content security policy)
+    s.src = new URL(`/site/tool.js?u=${encodeURIComponent(url)}&k=${key}`, here()).href;
+    s.onload = () => s.remove();
+    s.onerror = () => { s.remove(); reject(new Error(`Couldn't load ${url}`)); };
     document.head.appendChild(s);
-    s.remove();
   });
 }
