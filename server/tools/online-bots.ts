@@ -184,6 +184,8 @@ async function racePart(o: any) {
     S.on('results', (m: any) => { const r = b.races.get(m.raceId); if (r) { r.results = (m.results ?? []).find((x: any) => x.uid === S.myUid) ?? { status: 'listed' }; r.at = Date.now(); } });
     S.on('confirmed', (m: any) => { const r = b.races.get(m.race?.id); if (r) r.confirmed = true; });
     S.on('notice', (t: any) => { if (b.notices.length < 5) b.notices.push(String(t?.text ?? t)); });
+    // (the race lost to a restart — 'left', restarted: the game's screens leave it and go back to the menu; so does the bot)
+    S.on('left', (st: any) => { if (st?.restarted) b.gone = true; });
     bots.push(b);
   }
   // (the other cars as this game draws them, while racing: the race's connection's sample, measured as it's taken)
@@ -223,8 +225,8 @@ async function racePart(o: any) {
       if (racing(b) && Number.isFinite(p) && p > 0) b.pings.push(p);
       const r = b.S.raceId && b.races.get(b.S.raceId);
       if (r?.results && Date.now() - r.at > 8000 && Date.now() < until - 20000) { await b.S.leaveRace(); await queueUp(b); }
-      // (no race and not in the queue — a race called off when the server restarted: back in the queue, as a player would)
-      else if (o.crash && b.queued && !b.S.race && !b.S.queueConn && Date.now() < until - 20000) await queueUp(b);
+      // (a race called off when the server restarted: left, and back in the queue, as a player would)
+      else if (b.gone && Date.now() < until - 20000) { b.gone = false; await b.S.leaveRace(); await queueUp(b); }
     }
     if (Date.now() >= until && !bots.some(racing)) break;
   }
@@ -322,7 +324,7 @@ if (PART) {
     check('every bot back by itself (free roam driving again; racers, their race called off, racing a new one)', !!after && roamBack.length === roam.length && raceBack.length === race.length,
       `free roam ${roamBack.length}/${roam.length}, races ${raceBack.length}/${race.length}; its players ${lastPlayers} after (${before} before: a race called off doesn't come back)`);
     const sDown = samples.filter(x => x.sStatus !== 200 || !x.s?.ok);
-    check('the API ok all along (the real-time server down only meanwhile)', samples.length > 0 && !sDown.length, `${samples.length} readings, ${sDown.length} not ok`);
+    check('the API ok all along (the real-time server down only meanwhile)', samples.length > 0 && !sDown.length, `${samples.length} readings, ${sDown.length} not ok${sDown.length ? ` (${sDown.slice(0, 3).map(x => x.sStatus ? `${x.sStatus} ${JSON.stringify(x.s ?? null).slice(0, 80)}` : 'no answer: the request from here failed').join('; ')})` : ''}`);
   }
   if (!CRASH) check('no unexpected disconnects (dropped, closed by the server, a zone lost)', !drops.length && !closed.length && !lost, `${drops.length} dropped, ${closed.length} closed, ${lost} zone connections lost${[...drops, ...closed].length ? `: ${[...drops, ...closed].slice(0, 4).map(d => `bot ${d.n} ${d.room} ${d.code}${d.reason ? ` ${d.reason}` : ''}`).join('; ')}` : ''}`);
   const pings = all.flatMap(b => b.pings), p50 = pct(pings, 0.5), p95 = pct(pings, 0.95);
