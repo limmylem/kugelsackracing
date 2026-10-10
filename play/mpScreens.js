@@ -241,7 +241,7 @@ export function createMpScreens({ S, R, game, cfg }) {
       <td>${p.host ? '♛ ' : ''}<span class="${p.uid !== S.myUid && !p.npc ? 'who' : ''}" data-who="${esc(p.uid)}">${esc(p.name)}</span>${S.muted.has(p.uid) ? ' <span class="dim">(muted)</span>' : ''}</td>
       <td>${esc(p.car?.name ?? '—')} <span class="dim">${esc(p.car?.cls ?? '')}${p.car?.pr ? ` ${p.car.pr}` : ''}</span></td>
       <td class="${p.ready ? 'good' : 'dim'}" data-ready>${p.npc ? 'NPC' : p.ready ? 'Ready' : 'Not ready'}</td>
-      <td class="dim">${p.ping != null ? `${p.ping} ms` : '—'}</td>
+      <td class="dim" data-ping="${esc(p.uid)}"></td>
       <td>${p.tier ? `<span class="tier" title="${p.tier.placement ? `${p.tier.placement} placement race${p.tier.placement > 1 ? 's' : ''} to go` : ''}">${esc(tierLabel(p.tier))}</span>` : ''}</td>
       <td data-safety>${p.safety ? `<span class="tier sr${p.safety.value < 40 ? ' low' : ''}" title="Safety rating ${p.safety.value} of 100: clean races raise it, causing contact lowers it">${esc(p.safety.tier?.name ?? '')} ${p.safety.value}</span>` : ''}</td>
       <td>${host && p.uid !== S.myUid && !p.npc ? `<button data-kick="${esc(p.uid)}">Kick</button>` : ''}${p.away ? ' <span class="warn">reconnecting…</span>' : ''}</td></tr>`;
@@ -279,8 +279,11 @@ export function createMpScreens({ S, R, game, cfg }) {
         <div class="row"><input data-chat maxlength="${cfg.lobby.chat.maxLength}" placeholder="Say something" style="flex:1"><button data-send>Send</button></div>
         <div class="dim" data-whomenu></div>
       </div></div>`;
+    // (the pings change every few seconds: written into their cells, not a reason to draw the lobby again — a redraw
+    // scrolls a small window's lobby and swaps the buttons under a click)
+    const pings = () => { for (const p of L.players) { const td = lobby.querySelector(`[data-ping="${CSS.escape(p.uid)}"]`); if (td) td.textContent = p.ping != null ? `${p.ping} ms` : '—'; } };
     const key = html + (force ? Math.random() : '');
-    if (key === lobbyKey) return;
+    if (key === lobbyKey) { pings(); return; }
     // (what's being typed is kept across a redraw)
     const typed = lobby.querySelector('[data-chat]')?.value ?? '', focused = document.activeElement?.hasAttribute?.('data-chat');
     lobbyKey = key;
@@ -289,6 +292,7 @@ export function createMpScreens({ S, R, game, cfg }) {
     lobby.innerHTML = html;
     lobby.scrollTop = scrolled;
     const inp = lobby.querySelector('[data-chat]'); inp.value = typed; if (focused) inp.focus({ preventScroll: true });
+    pings();
     drawChat();
     if (whoMenu) openWho(whoMenu);
   }
