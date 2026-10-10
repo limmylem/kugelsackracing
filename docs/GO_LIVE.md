@@ -88,7 +88,7 @@ certificates to renew on it and only SSH (with your key) can reach it from the i
      - Zone Resources: Include → Specific zone → `ognistrada.com`
      - TTL: a year from today → Continue → Create → **copy the token** (it's shown once).
    - **`ognistrada deploy`** (used by every deploy):
-     - Account → **Cloudflare Pages** → Edit; Account → **Cloudflare Tunnel** → Read
+     - Account → **Cloudflare Pages** → Edit; Account → **Cloudflare Tunnel** → Edit (Read isn't enough to fetch the tunnel's token)
      - TTL: a year → create → copy.
 
    If a permission name isn't in the list exactly as written, pick the nearest and tell Claude which.

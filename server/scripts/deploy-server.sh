@@ -57,7 +57,7 @@ if [ -n "$tunnel_token" ]; then
   echo "::add-mask::$tunnel_token"
   echo "the tunnel's token: read from Cloudflare (tunnel $TUNNEL, $id)"
 else
-  echo "::warning title=The tunnel's token::couldn't read it from Cloudflare (${why:-?}) — keeping the one the server already has, if any. The deploy token (CLOUDFLARE_API_TOKEN) needs Account → Cloudflare Tunnel → Read (docs/GO_LIVE.md Part 1 step 7)."
+  echo "::warning title=The tunnel's token::couldn't read it from Cloudflare (${why:-?}) — keeping the one the server already has, if any. The deploy token (CLOUDFLARE_API_TOKEN) needs Account → Cloudflare Tunnel → Edit (Read is refused) (docs/GO_LIVE.md Part 1 step 7)."
 fi
 
 # ---------- the server's settings (.env) ----------

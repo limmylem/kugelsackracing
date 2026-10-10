@@ -137,7 +137,7 @@ for the owner's **Approve** (GitHub emails; Actions → the run → **Review dep
 so nothing ever points at something that isn't there yet:
 1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed).
 2. **The server** at this commit (`server/scripts/deploy-server.sh` over SSH): `compose.yml` and `.env` put there, the
-   tunnel's token read from Cloudflare (the deploy token's Tunnel Read), the image pulled, `docker compose up -d` on
+   tunnel's token read from Cloudflare (the deploy token's Tunnel Edit: Cloudflare gives a tunnel's token only to Edit), the image pulled, `docker compose up -d` on
    the server by itself (a dropped connection can't leave it half done), then a wait — up to 13 minutes — until the API
    and the real-time server, as players reach them, both say they're this commit and healthy. Images unused for a week
    are removed from the server.
