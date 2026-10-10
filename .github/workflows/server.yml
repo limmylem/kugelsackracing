@@ -14,9 +14,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: server-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
   # (the fast ones: a deploy waits for these)
   checks:
@@ -56,9 +53,13 @@ jobs:
       - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)
         run: npm run test:server
 
-  # (the slow ones: browsers, multiplayer, load, the drills — beside the deploy, not before it)
+  # (the slow ones: browsers, multiplayer, load, the drills — beside the deploy, not before it; a newer push's run
+  # takes over from an older one still going: it tests all of that and more. Deploys wait their turn in deploy.yml)
   test:
     runs-on: ubuntu-latest
+    concurrency:
+      group: server-test-${{ github.ref }}
+      cancel-in-progress: true
     services:
       postgres:
         image: postgis/postgis:16-3.4
