@@ -251,12 +251,26 @@ test('a damaged gearbox grinds going into gear and sometimes misses one; a worn 
   assert.ok(Math.abs(fl / fr - 0.5) < 0.02, `${fl.toFixed(0)} vs ${fr.toFixed(0)} N·m`);
 });
 
-test('clutch heat: hard launches one after another heat it past wearing, and it wears; one launch doesn\'t', () => {
-  const d = drive(H.garage().stats().spec), K = E.clutch;
-  let hot = 0;
-  for (let i = 0; i < 6; i++) { d.sim.resetCar({ position: [0, 0, -2500], headingDeg: 0 }); d.run(4, input(1)); hot = Math.max(hot, d.v.mechanical.clutchTemp); d.run(4, v => input(0, 0, v.forwardSpeed() > 0.3 ? 1 : 0)); if (i === 0) assert.ok(d.v.mechanical.clutchTemp < K.wearFrom); }
-  assert.ok(hot > K.wearFrom && d.v.mechanical.live.clutch > 0.01, `${hot.toFixed(0)}°C, wear ${d.v.mechanical.live.clutch}`);
-  assert.ok(d.v.mechanical.changes().clutch > 0);
+test('clutch heat: a hard launch warms it a little and it cools again; slipped against the brakes it heats past wearing and wears, over minutes; cooked, it fades and its heat levels off', () => {
+  const d = drive(H.garage().stats().spec), K = E.clutch, m = d.v.mechanical, ambient = E.cooling.ambient;
+  d.run(5, input(1));
+  const launch = m.clutchTemp;
+  assert.ok(launch > ambient + 5 && launch < ambient + 40, `one launch: ${launch.toFixed(0)}°C`);
+  d.run(8, v => input(0, 0, v.forwardSpeed() > 0.3 ? 1 : 0));
+  d.run(60, input(0));
+  assert.ok(m.clutchTemp - ambient < (launch - ambient) * 0.6, `from ${launch.toFixed(0)} cooled to ${m.clutchTemp.toFixed(0)}°C`);
+  // riding it: the pedal half out, flat out against the brakes
+  const ride = () => ({ ...input(1, 0, 1, 'wheel'), clutch: 0.5 }), ev = d.run(30, ride);
+  assert.ok(m.clutchTemp > 60 && m.clutchTemp < K.wearFrom && m.live.clutch === 0, `30 s of it: ${m.clutchTemp.toFixed(0)}°C, not wearing yet`);
+  ev.push(...d.run(90, ride));
+  assert.ok(m.clutchTemp > K.wearFrom && ev.some(e => e.type === 'clutchHot'), `${m.clutchTemp.toFixed(0)}°C`);
+  assert.ok(m.live.clutch > 0.005 && m.live.clutch < 0.1, `2 min of it: worn ${m.live.clutch.toFixed(3)}`);
+  assert.ok(m.changes().clutch > 0);
+  // revved to the limiter and let half out against the brakes: cooked, it fades, so its heat levels off
+  d.run(3, input(1, 0, 1, 'wheel'));
+  d.run(60, ride);
+  assert.ok(m.clutchTemp > K.fadeFrom && m.clutchTemp < K.fadeFull, `${m.clutchTemp.toFixed(0)}°C`);
+  assert.ok(d.v.drivetrain.faults.clutch < 0.5 && m.live.clutch < 0.6, `grip ${d.v.drivetrain.faults.clutch.toFixed(2)}, worn ${m.live.clutch.toFixed(2)}`);
 });
 
 test('a wheel torn off: that corner drops onto its hub and scrapes along the road', () => {

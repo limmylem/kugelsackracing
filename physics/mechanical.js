@@ -22,8 +22,9 @@
 // the torque, limpRpm rev limit) until it's down to recover; past cook it loses cookRate condition a
 // second (physics/engineHealth.js), and can seize. Boost leak: that share of the turbo's boost gone.
 // The clutch heats up slipping (heatCapacity J/°C, cooling a second); past wearFrom it wears, and a
-// worn clutch holds capacityLoss × wear less. Gearbox: past failFrom a gear can fail to go in (up to
-// failMax of the time; tried again after retry s), and it grinds from grindFrom. Diff: bias × damage of
+// worn clutch holds capacityLoss × wear less; past fadeFrom it fades (down to fadeTo of its grip at
+// fadeFull), so a cooked one slips and its heat levels off. Gearbox: past failFrom a gear can fail to
+// go in (up to failMax of the time; tried again after retry s), and it grinds from grindFrom. Diff: bias × damage of
 // the torque to one side (an open diff feels it; a limited-slip one mostly locks it out), and a surge of
 // ripple × damage once a turn (a chipped tooth: it judders under power).
 //
@@ -99,6 +100,8 @@ export class Mechanical {
     for (const k of CORNERS) this.live.pressure[k] = now.pressure[k] > was.pressure[k] ? now.pressure[k] : Math.min(this.live.pressure[k], now.pressure[k]);
     this.live.coolant = now.coolant > was.coolant ? now.coolant : Math.min(this.live.coolant, now.coolant);
     this.live.clutch = now.clutch < was.clutch ? now.clutch : Math.max(this.live.clutch, now.clutch);
+    // (a clutch replaced or repaired is a cold one: not the old one's heat, which would wear it again at once)
+    if (now.clutch < was.clutch) { this.clutchTemp = D.rules?.cooling?.ambient ?? 25; this.clutchHot = false; }
   }
   #stale() {
     const D = this.spec.damage, b = this.built;
@@ -157,13 +160,16 @@ export class Mechanical {
   #faults(D) {
     const dtr = this.v.drivetrain;
     if (!D) { dtr.faults = null; return; }
-    const R = D.rules, C = R.cooling, turbo = this.spec.turbo, leak = turbo?.boost && D.boost > 0 ? D.boost : 0;
+    const R = D.rules, C = R.cooling, K = R.clutch, turbo = this.spec.turbo, leak = turbo?.boost && D.boost > 0 ? D.boost : 0;
+    // (a cooked clutch fades: its facings lose grip past fadeFrom, down to fadeTo of it at fadeFull — it
+    // slips, but with less torque through it, so its heat levels off rather than running away)
+    const fade = K.fadeFrom != null ? (1 - K.fadeTo) * smoothstep(K.fadeFrom, K.fadeFull, this.clutchTemp) : 0;
     dtr.faults = {
       torque: this.limp ? C.limpTorque : 1,
       revLimit: this.limp ? C.limpRpm : null,
       // (a boost leak: the turbo's share of the torque, less that share of its boost)
       boost: leak ? rpm => { const b = (turbo.efficiency ?? 1) * curveAt(turbo.boost, rpm) / ATM; return (1 + b * (1 - leak)) / (1 + b); } : null,
-      clutch: 1 - R.clutch.capacityLoss * this.live.clutch,
+      clutch: (1 - K.capacityLoss * this.live.clutch) * (1 - fade),
       diffBias: R.differential.bias * D.differential,
       diffRipple: R.differential.ripple * D.differential,
       gearbox: D.gearbox,
@@ -255,7 +261,9 @@ export class Mechanical {
     }
 
     // the clutch: the heat of slipping
-    const K = R.clutch, slip = dtr.gear !== 0 && !dtr.shifting && dtr.clutch > 0 && !dtr.clutchLocked ? Math.abs(dtr.rpm - dtr.lockedRpm()) * Math.PI / 30 : 0;
+    // (the slip between the engine and the gearbox as they really turn: rolling back in 1st or forwards
+    // in reverse is the two speeds added, not the difference of their sizes)
+    const K = R.clutch, slip = dtr.gear !== 0 && !dtr.shifting && dtr.clutch > 0 && !dtr.clutchLocked ? Math.abs(dtr.omega - dtr.ratio(dtr.gear) * dtr.axleOmega()) : 0;
     this.clutchTemp += (Math.abs(dtr.clutchTorque) * slip / K.heatCapacity - K.cooling * (this.clutchTemp - C.ambient)) * dt;
     if (D && this.clutchTemp > K.wearFrom) this.live.clutch = Math.min(1, this.live.clutch + K.wearRate * (this.clutchTemp - K.wearFrom) * dt);
     const hot = this.clutchTemp > K.wearFrom || (this.clutchHot && this.clutchTemp > K.wearFrom - 15);

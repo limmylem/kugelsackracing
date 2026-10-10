@@ -13,7 +13,7 @@
   "conflicts": [],
   "provides": [],
   "clutch": {
-    "_note": "Friction coupling between engine and gearbox: it holds up to maxTorque (N·m) when fully closed, less as it opens, and slips beyond that. engageTime / releaseTime: seconds to close / open fully. Below idle its grip eases off (antiStallRpm → idleRpm) so the engine doesn't stall. Auto-clutch (keyboard / gamepad; a clutch pedal input overrides it): pulling away it slips to hold the engine near an rpm rising with throttle up to auto.launchRpm (it carries the engine's torque plus inertia × holdRate × the rpm error, so the engine settles there), closes once the car is rolling (engine would be above idle + auto.engageAbove) and opens when slowing to a stop.",
+    "_note": "Friction coupling between engine and gearbox: it holds up to maxTorque (N·m) when fully closed, less as it opens, and slips beyond that. engageTime / releaseTime: seconds to close / open fully. Below idle its grip eases off (antiStallRpm → idleRpm) so the engine doesn't stall. Auto-clutch (keyboard / gamepad; a clutch pedal input overrides it): pulling away it slips to hold the engine near an rpm rising with throttle up to auto.launchRpm (it carries the engine's torque plus inertia × holdRate × the rpm error, so the engine settles there), bringing the engine down to meet the gearbox half way as the car gets going, closes once they meet (no lower than idle + auto.engageAbove), opens when slowing to a stop and waits open while the brake holds the car at a stop.",
     "maxTorque": 240,
     "engageTime": 0.15,
     "releaseTime": 0.2,

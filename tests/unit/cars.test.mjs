@@ -158,9 +158,10 @@ test('the Strada Evo is the fastest car there is on the gravel rally stage', () 
     while (dist < length && sim.time < 400) { sim.step(ai(sim.vehicle, sim.dt)); dist += Math.abs(sim.vehicle.forwardSpeed()) * sim.dt; }
     return sim.time;
   };
+  // (the Apex V8 is close behind: it used to lose 20 s here cooking its clutch, before the clutch heat fix)
   const strada = stage('strada_evo');
   for (const rival of ['vortex_r', 'apex_v8', 'kaze_gt', 'brute_500']) {
     const t = stage(rival);
-    assert.ok(strada < t * 0.98, `Strada Evo ${strada.toFixed(1)} s against the ${db.cars[rival].name}'s ${t.toFixed(1)} s`);
+    assert.ok(strada < t * (rival === 'apex_v8' ? 1 : 0.98), `Strada Evo ${strada.toFixed(1)} s against the ${db.cars[rival].name}'s ${t.toFixed(1)} s`);
   }
 });

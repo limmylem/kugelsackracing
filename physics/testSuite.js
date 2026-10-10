@@ -21,6 +21,13 @@
 //  low range      a 4WD at the foot of a 30° dirt slope: in 2H it can't get up, in 4L it climbs
 //  diff locks     a 4WD in 4H with ice under its left wheels: open diffs let those spin, locked ones pull
 //
+// the clutch's heat (data/damage.json rules.clutch), the car itself:
+//
+//  clutch heat    ordinary driving (a run up through the gears, a cruise, stop-and-go, a crawl) keeps it
+//                 cool and unworn; a minute stopped in gear doesn't warm it; slipping it on the pedal
+//                 against the brakes, flat out, heats it past wearFrom and wears it, but over minutes;
+//                 a clutch repaired in the garage starts cold
+//
 // and two checks on the simulation itself:
 //
 //  framerate    — the same timed key presses driven at 30, 60 and 144 fps (and at jittery frame
@@ -55,6 +62,7 @@ export const TESTS = [
   { id: 'awdLaunch', name: 'AWD launch', unit: '%', digits: 0, check: true, about: 'the same engine, RWD against AWD: wheelspin over 3 s (an AWD / 4WD car: itself, 2H against 4H; others: test cars)' },
   { id: 'lowRange', name: '4L hill climb', unit: 'm', digits: 1, check: true, about: 'up a 30° dirt slope: 2H against 4L (a 4WD: itself; others: a 4WD test car)' },
   { id: 'diffLocks', name: 'Diff locks on split grip', unit: 'm', digits: 1, check: true, about: '4WD in 4H, ice under the left wheels: open against locked (the lockers it has), 6 s' },
+  { id: 'clutchHeat', name: 'Clutch heat', unit: '°C', digits: 0, check: true, about: 'ordinary driving keeps it cool and unworn, a minute stopped in gear doesn\'t warm it; slipping it against the brakes wears it, over minutes; a repaired one starts cold' },
   { id: 'framerate', name: 'Same at 30 / 60 / 144 fps', unit: '', check: true, about: 'same timed inputs → identical car' },
   { id: 'physicsCost', name: 'Physics cost per car', unit: 'ms/step', digits: 3, check: true, about: '10 cars at once' },
 ];
@@ -192,8 +200,8 @@ const spawnAt = (x, z, h, speed = 0) => ({ position: [x, 0, z], headingDeg: h * 
 // A fresh simulation for a run. The robot drives like a driver with a steering wheel: the car's own
 // aids (ABS, traction and stability control) as the spec has them, none of the keyboard / gamepad
 // steering assists (the drift assist would also let stability control allow bigger slides)
-const newSim = (ctx, run) => {
-  run.sim = createSimulation(ctx.RAPIER, { settings: ctx.settings, spec: ctx.spec, sockets: ctx.sockets, track: ctx.track });
+const newSim = (ctx, run, spec = ctx.spec) => {
+  run.sim = createSimulation(ctx.RAPIER, { settings: ctx.settings, spec, sockets: ctx.sockets, track: ctx.track });
   ctx.prepare?.(run.sim);
   Object.assign(run.sim.vehicle.aids, { countersteer: false, steering: false, drift: false });
   return run.sim;
@@ -603,4 +611,78 @@ function* diffLocks(ctx, run) {
   return { value: l.d, ok: l.d > 2 * o.d && l.d > 10, detail: `ice under ${o.ice || 'no wheel'}: open diffs ${o.d.toFixed(1)} m in 6 s (the icy wheels spin), ${l.locked.join(' and ') || 'nothing'} locked ${l.d.toFixed(1)} m` };
 }
 
-const GENERATORS = { zeroTo100, quarterMile, braking, skidpad, slalom, topSpeed, lap, torqueSteer, awdLaunch, lowRange, diffLocks, framerate, physicsCost };
+// The clutch's heat, down the straight with the car's own gearbox: the most it gets to in ordinary
+// driving (it must stay well under wearFrom and not wear), then a minute stopped in gear (parked, then
+// braked with the engine revving: it mustn't warm), then slipped on the pedal against the brakes flat
+// out for two minutes (past wearFrom, worn a little: a clutch takes minutes of that to wear out, not
+// seconds), then written back and repaired as the garage does it (its wear brought down: cold again)
+function* clutchHeat(ctx, run) {
+  const R = ctx.spec.damage?.rules, K = R?.clutch;
+  if (!K) return { value: null, detail: 'no damage rules: nothing to check' };
+  // (a copy of the spec's damage, so the write-back and the repair here don't reach other runs)
+  const { strip } = place(ctx), spec = { ...ctx.spec, damage: { ...ctx.spec.damage } }, sim = newSim(ctx, run, spec), v = sim.vehicle, m = v.mechanical;
+  const ambient = R.cooling?.ambient ?? 25, worn0 = spec.damage.clutch ?? 0;
+  sim.resetCar(spawnAt(strip.x, strip.z, strip.h));
+  yield* settle(sim);
+  const follow = follower(stripPath(strip), { integral: 0 }), hold = speedHolder();
+  let most = 0, hot = 0, hotAt = null;
+  // drive while pedals(v) gives [throttle, brake, clutch pedal] (null: done), at most `seconds`
+  function* drive(seconds, pedals) {
+    for (let i = 0; i < seconds / sim.dt; i++) {
+      const p = pedals(v);
+      if (!p) return;
+      sim.step({ ...wheelInput(v, follow(v, sim.dt), p[0], p[1]), clutch: p[2] ?? null });
+      most = Math.max(most, m.clutchTemp);
+      if (m.take().some(e => e.type === 'clutchHot')) hot++;
+      if (hotAt == null && m.clutchTemp > K.wearFrom) hotAt = sim.time;
+      yield;
+    }
+  }
+  const kmh = () => v.forwardSpeed() / KMH, stop = brake => () => kmh() > 1 ? [0, brake] : null;
+  run.status = 'ordinary driving';
+  yield* drive(20, () => kmh() < 100 ? [1, 0] : null);
+  yield* drive(10, () => { const h = hold(v.forwardSpeed(), 100 * KMH, sim.dt); return [h.throttle, h.brake]; });
+  yield* drive(15, stop(0.6));
+  for (let i = 0; i < 4; i++) {
+    yield* drive(3, () => [0, 0]);
+    yield* drive(15, () => kmh() < 50 ? [0.5, 0] : null);
+    yield* drive(15, stop(0.5));
+  }
+  yield* drive(20, () => { const h = hold(v.forwardSpeed(), 8 * KMH, sim.dt); return [h.throttle, h.brake]; });
+  yield* drive(10, stop(0.5));
+  const ordinary = { most, wear: m.live.clutch - worn0, hot };
+  run.progress = 0.3;
+  run.status = 'stopped in gear';
+  const before = m.clutchTemp;
+  most = 0;
+  yield* drive(60, () => [0, 0]);
+  yield* drive(15, () => [1, 1]);
+  yield* drive(5, () => [0, 0]);
+  const sitting = { before, most, after: m.clutchTemp };
+  run.progress = 0.5;
+  run.status = 'slipping it against the brakes';
+  const start = sim.time;
+  hotAt = null;
+  yield* drive(120, () => [1, 1, 0.5]);
+  const abuse = { temp: m.clutchTemp, wear: m.live.clutch - worn0, hot, after: hotAt == null ? null : hotAt - start };
+  // written back, then repaired: the garage's wear for it back where it was
+  spec.damage = { ...spec.damage, clutch: m.live.clutch };
+  yield* drive(sim.dt, () => [0, 0]);
+  const kept = m.clutchTemp;
+  spec.damage = { ...spec.damage, clutch: worn0 };
+  yield* drive(sim.dt, () => [0, 0]);
+  const repaired = { temp: m.clutchTemp, wear: m.live.clutch, hot: m.clutchHot };
+  const ok = ordinary.most < K.wearFrom - 50 && ordinary.wear === 0 && !ordinary.hot
+    && sitting.most <= sitting.before + 0.5 && sitting.after < sitting.before
+    && abuse.temp > K.wearFrom && abuse.hot > 0 && abuse.after > 30 && abuse.wear > 0.005 && abuse.wear < 0.2
+    && kept > K.wearFrom && Math.abs(repaired.temp - ambient) < 0.5 && !repaired.hot && repaired.wear === worn0;
+  return {
+    value: ordinary.most, ok,
+    detail: `ordinary driving: at most ${ordinary.most.toFixed(0)} °C (wearing from ${K.wearFrom}), ${ordinary.wear > 0 ? `worn ${(ordinary.wear * 100).toFixed(2)}%` : 'unworn'}`
+      + ` · a minute stopped in gear: ${sitting.before.toFixed(0)} → ${sitting.after.toFixed(0)} °C`
+      + ` · slipped against the brakes flat out: past ${K.wearFrom} °C ${abuse.after == null ? 'never' : `after ${abuse.after.toFixed(0)} s`}`
+      + `, ${abuse.temp.toFixed(0)} °C and ${(abuse.wear * 100).toFixed(1)}% worn in 2 min · repaired: ${repaired.temp.toFixed(0)} °C`,
+  };
+}
+
+const GENERATORS = { zeroTo100, quarterMile, braking, skidpad, slalom, topSpeed, lap, torqueSteer, awdLaunch, lowRange, diffLocks, clutchHeat, framerate, physicsCost };
