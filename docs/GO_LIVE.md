@@ -2,8 +2,32 @@
 
 The game online at `ognistrada.com` for you and up to ~5 friends at once, all in Australia. You make the accounts and
 pay; everything after that is done by GitHub Actions workflows that Claude prepares and runs, with your approval.
-**Nothing here has been done yet.** Work through Parts 0–5 in order (an hour or two, mostly waiting for emails and
-DNS), then tell Claude "Parts 0–5 done" — or stop at any step that looks different from what's written here and ask.
+**Done (2026-10-10): the game is live at https://ognistrada.com.** Every part below was set up, and the tests passed:
+the owner and a friend on different networks signed up with invite codes, met in free roam and raced; 20 bots online
+(8 of 8 checks); the real-time server killed mid-race and mid-free-roam (back by itself in 2–4 s, every bot back, the
+API up all along: 7 of 7); a rollback to the previous version and forward again; a backup restored and the server run
+on it. What follows is kept as the record, and for setting it up again from nothing.
+
+### What's in use, and what it costs
+
+| Service | What it does | Plan | A month |
+|---|---|---|---|
+| OVHcloud | The game server in Sydney (API, multiplayer, tunnel) | VPS-1 | A$6.29 + GST ≈ A$6.92 (≈ US$4.60) |
+| PlanetScale | The database in Sydney, its own backups | Postgres PS-5 (PostgreSQL 18) | ≈ US$5 |
+| Namecheap | The domain ognistrada.com | Yearly renewal (keep auto-renew on) | ≈ US$1 |
+| Cloudflare | DNS, HTTPS, the game's pages, map files and backups (R2), bot check, tunnel | Free (a card on file for R2) | $0 |
+| Resend · Sentry · Healthchecks.io · UptimeRobot · GitHub | Email; error alerts; missed-backup alerts; down alerts; code, tests, deploys | Free | $0 |
+| **Total** | | | **≈ US$10.50–11.50** |
+
+### Day to day
+
+- **Deploys:** every push to `main` runs the fast checks and builds the image (about 10 minutes); the deploy then
+  waits for your **Approve** (GitHub emails you; Claude gives you the run's link). The slow tests run alongside.
+- **Rolling back:** Actions → **rollback** → Run workflow → the earlier commit → approve. Tested 2026-10-10.
+- **Backups:** nightly at about 3 am Adelaide time, encrypted, kept 35 days; Healthchecks emails you if one is missed.
+- **Tests you can run any time:** Actions → **loadtest** (bots online, no approval) and **crash-live** (kills the
+  real-time server mid-run: approval needed, players online drop for a few seconds).
+- **Renewals:** the two Cloudflare tokens about a year after they were made (October 2027); the domain yearly.
 
 **Never paste a secret (a password, key or token) into a chat.** Every secret goes straight into GitHub's secret
 settings (Part 5). The repository is public: secrets there are hidden, even from the workflow logs.

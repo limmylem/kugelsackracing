@@ -4,6 +4,24 @@ As of Phase 7 Step 4 (free roam, first), Step 3 (car-to-car contact), Step 2 (mu
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
+## Phase 7 Step 5: online for friends testing (docs/GO_LIVE.md, docs/DEPLOYMENT.md)
+
+- **A race running when the real-time server crashes is called off**, not resumed: its racers are told ("Nothing was
+  lost"), nothing is paid, and they queue again. Free roam players are put back by themselves. (Live crash test,
+  2026-10-10: back in 2–4 s.)
+- **A player whose race server is gone for good waits about 60 s** (the connection's 30 retries) before "race called
+  off" shows; when it's back sooner they're told within seconds.
+- **Deploys are one at a time:** a deploy still waiting for approval holds up the newer ones until it's approved or
+  cancelled; each includes everything before it, so approving only the newest is enough.
+- **The slow tests run beside a deploy, not before it** (the owner's choice): a failure there is fixed, or rolled back,
+  after. Three of them are timing-sensitive on GitHub's shared runners (the clock sync, car contact, the browser race
+  test); each failure so far was fixed at its cause.
+- **Starts are a little slower since the clutch fix** (0–100 km/h 9.22 → 9.35 s); the Strada Evo now only just beats
+  the Apex V8 on the rally stage (it won before because the Apex burnt out its clutch).
+- **The editor's world map** (OpenFreeMap's style) shows blank stand-ins for a few icons its sprite hasn't got, and no US
+  road shields.
+- **Ping from GitHub's US runners is about 200 ms**: the load tests' targets allow for it; from Australia it's 20–30 ms.
+
 ## Phase 7 Step 4: free roam (docs/FREE_ROAM.md)
 
 ### Fixed on the way (found by the free roam tests)
