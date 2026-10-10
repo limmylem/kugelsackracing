@@ -6,8 +6,8 @@
 # Healthchecks.io is told when it's done (the secret HEALTHCHECKS_BACKUP_URL, if set), so a night without one emails.
 # Run by hand with "drill" for the restore test: the image production runs is also started on the restored copy, and
 # must answer healthy with its database.
-# The PostgreSQL tools must be at least as new as the database: PG_MAJOR (17 unless the repository variable PG_MAJOR or
-# the run's input says otherwise). PlanetScale runs 17 or 18: if it's 18, set the repository variable PG_MAJOR to 18
+# The PostgreSQL tools must be at least as new as the database: PG_MAJOR (18 unless the repository variable PG_MAJOR or
+# the run's input says otherwise). PlanetScale runs 18 here (found by the first restore test, 2026-10-10)
 # (backup.sh stops with that advice when the tools are too old).
 name: backup
 
@@ -21,7 +21,7 @@ on:
         type: boolean
         default: false
       pg_major:
-        description: 'PostgreSQL major version of the tools and the scratch database (empty: the variable PG_MAJOR, or 17)'
+        description: 'PostgreSQL major version of the tools and the scratch database (empty: the variable PG_MAJOR, or 18)'
         type: string
         default: ''
 
@@ -60,7 +60,7 @@ jobs:
       contents: read
       packages: read
     env:
-      PG_MAJOR: ${{ inputs.pg_major || vars.PG_MAJOR || '17' }}
+      PG_MAJOR: ${{ inputs.pg_major || vars.PG_MAJOR || '18' }}
       SCRATCH_URL: postgres://postgres:scratch-only-password@127.0.0.1:5432/postgres
       HAS_HEALTHCHECKS: ${{ secrets.HEALTHCHECKS_BACKUP_URL != '' }}
     steps:
@@ -165,7 +165,7 @@ jobs:
           {
             echo "### Backup $(date -u +%Y-%m-%d) — ${{ job.status }}"
             echo "- PostgreSQL tools $PG_MAJOR; the backup: ${KEPT:-not kept} (encrypted, AES-256)"
-            echo "- restored into a fresh PostgreSQL with PostGIS and checked:"; echo '```'; cat restored.txt 2> /dev/null; echo '```'
+            echo "- restored into a fresh PostgreSQL with PostGIS and checked:"; echo '```'; cat restored.txt 2> /dev/null || true; echo '```'
             echo "- in R2: ${BACKUPS:-?}"
             [ -z "${DRILL:-}" ] || echo "- restore test (the server ${DRILL_IMAGE:-} on the restored copy): $DRILL"
           } >> "$GITHUB_STEP_SUMMARY"
