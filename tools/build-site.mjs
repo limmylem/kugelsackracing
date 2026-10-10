@@ -111,7 +111,7 @@ const csp = [
   // (the bot check's widget, Cloudflare Turnstile: account pages)
   'frame-src https://challenges.cloudflare.com',
   "worker-src 'self' blob: https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net ${origin(SITE.api)}`,
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
   // (the API, the tiles, the real-time server — its WebSockets and its matchmaking over HTTPS; the photoreal world's
