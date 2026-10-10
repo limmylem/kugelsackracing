@@ -281,7 +281,7 @@ export function createMpScreens({ S, R, game, cfg }) {
       </div></div>`;
     // (the pings change every few seconds: written into their cells, not a reason to draw the lobby again — a redraw
     // scrolls a small window's lobby and swaps the buttons under a click)
-    const pings = () => { for (const p of L.players) { const td = lobby.querySelector(`[data-ping="${CSS.escape(p.uid)}"]`); if (td) td.textContent = p.ping != null ? `${p.ping} ms` : '—'; } };
+    const pings = () => { for (const td of lobby.querySelectorAll('[data-ping]')) { const p = L.players.find(x => x.uid === td.dataset.ping); td.textContent = p?.ping != null ? `${p.ping} ms` : '—'; } };
     const key = html + (force ? Math.random() : '');
     if (key === lobbyKey) { pings(); return; }
     // (what's being typed is kept across a redraw)
