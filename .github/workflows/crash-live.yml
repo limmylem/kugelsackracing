@@ -1,0 +1,59 @@
+# The live crash test (Phase 7 Step 5; docs/OPERATIONS.md): bots playing on the real servers — free roam and quick
+# races — and part-way through, the real-time server's process killed on the server (SIGKILL: a crash, not a stop).
+# It must come back by itself (Docker's restart policy), the bots must get back on by themselves, and the API must stay
+# up all along (server/tools/online-bots.ts --crash). Run by hand; it waits for the owner's approval (the environment
+# "production"): players online at the time are dropped for a few seconds too.
+name: crash-live
+
+on:
+  workflow_dispatch:
+    inputs:
+      bots: { description: 'Bots (1–50)', type: number, default: 20 }
+      kill_after: { description: 'Seconds into the run when the real-time server is killed', type: number, default: 60 }
+
+concurrency: { group: loadtest, cancel-in-progress: false }
+
+permissions:
+  contents: read
+
+jobs:
+  crash:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' }
+      - name: SSH to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVER_HOST: ${{ vars.SERVER_HOST }}
+          SERVER_SSH_HOST_KEY: ${{ vars.SERVER_SSH_HOST_KEY }}
+        run: bash server/scripts/ssh-setup.sh
+      - name: Bots, and the real-time server killed part-way
+        env:
+          LOADTEST_TOKEN: ${{ secrets.LOADTEST_TOKEN }}
+          BOTS: ${{ inputs.bots }}
+          KILL_AFTER: ${{ inputs.kill_after }}
+        run: |
+          node server/tools/online-bots.ts --api https://api.ognistrada.com --rt wss://rt.ognistrada.com \
+            --bots "$BOTS" --seconds $((KILL_AFTER + 150)) --mode both --crash --report reports/crash-live.md &
+          bots=$!
+          sleep "$KILL_AFTER"
+          # (the process itself, from the host: Docker sees a crash and starts it again — `docker kill` would count as
+          # stopped by hand)
+          ssh server 'pid=$(docker inspect -f "{{.State.Pid}}" "$(cd /opt/ognistrada && docker compose ps -q rt)") && sudo -n kill -9 "$pid" && echo "killed the real-time server (pid $pid) at $(date -u +%T)"'
+          wait "$bots"
+      - name: The numbers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crash-live
+          path: reports/crash-live.*
+          if-no-files-found: ignore
+          retention-days: 30

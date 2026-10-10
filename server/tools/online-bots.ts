@@ -305,7 +305,20 @@ if (PART) {
   check(`all ${BOTS} bots joined (free roam placed; the queue joined and a race seated)`, all.length === BOTS && !failedJoin.length,
     `${roam.filter(b => b.ok).length}/${roamN} in free roam${roam.length ? ` (p95 ${Math.round(pct(roam.filter(b => b.joinMs != null).map(b => b.joinMs), 0.95) || 0)} ms to join)` : ''}, ${race.filter(b => b.ok).length}/${raceN} raced${failedJoin.length ? `; ${failedJoin.slice(0, 3).map(b => `bot ${b.n}: ${b.err ?? 'not matched'}`).join('; ')}` : ''}`);
   const drops = all.flatMap(b => b.drops.map((d: any) => ({ n: b.n, ...d }))), closed = all.flatMap(b => b.closed.map((d: any) => ({ n: b.n, ...d }))), lost = roam.reduce((a, b) => a + (b.lost ?? 0), 0);
-  check('no unexpected disconnects (dropped, closed by the server, a zone lost)', !drops.length && !closed.length && !lost, `${drops.length} dropped, ${closed.length} closed, ${lost} zone connections lost${[...drops, ...closed].length ? `: ${[...drops, ...closed].slice(0, 4).map(d => `bot ${d.n} ${d.room} ${d.code}${d.reason ? ` ${d.reason}` : ''}`).join('; ')}` : ''}`);
+  // (--crash: the real-time server is killed during the run (.github/workflows/crash-live.yml) — the drops are the point;
+  // what counts is that it comes back by itself and the bots with it, the API all the while)
+  const CRASH = args.includes('--crash');
+  if (CRASH) {
+    const procs = samples.filter(x => x.h?.process), first = procs[0]?.h.process, after = procs.find(x => x.h.process !== first);
+    const before = Math.max(0, ...samples.filter(x => !after || x.at < after.at).map(x => x.h?.players ?? 0));
+    const gap = samples.filter(x => x.hStatus !== 200 || !x.h?.ok);
+    check('the real-time server killed mid-run came back by itself (a new process)', !!after && gap.length > 0, after ? `down for about ${gap.length * 2} s; process ${first} → ${after.h.process}` : `still ${first ?? '?'}: it was never killed, or never came back`);
+    const back = after && samples.find(x => x.at >= after.at && (x.h?.players ?? 0) >= Math.ceil(before * 0.9));
+    check('the bots back on it by themselves: at least 90% of its players within 90 s', !!back && back.at - after.at <= 90000, back ? `${back.h.players} players (${before} before) ${Math.round((back.at - after.at) / 1000)} s after it was back` : `at most ${Math.max(0, ...samples.filter(x => after && x.at >= after.at).map(x => x.h?.players ?? 0))} players after (${before} before)`);
+    const sDown = samples.filter(x => x.sStatus !== 200 || !x.s?.ok);
+    check('the API ok all along (the real-time server down only meanwhile)', samples.length > 0 && !sDown.length, `${samples.length} readings, ${sDown.length} not ok`);
+  }
+  if (!CRASH) check('no unexpected disconnects (dropped, closed by the server, a zone lost)', !drops.length && !closed.length && !lost, `${drops.length} dropped, ${closed.length} closed, ${lost} zone connections lost${[...drops, ...closed].length ? `: ${[...drops, ...closed].slice(0, 4).map(d => `bot ${d.n} ${d.room} ${d.code}${d.reason ? ` ${d.reason}` : ''}`).join('; ')}` : ''}`);
   const pings = all.flatMap(b => b.pings), p50 = pct(pings, 0.5), p95 = pct(pings, 0.95);
   check(`ping p50 ≤ ${P50} ms, p95 ≤ ${P95} ms (${near ? 'this computer' : 'from afar: the targets allow for the distance'})`, pings.length > 0 && p50 <= P50 && p95 <= P95, pings.length ? `p50 ${Math.round(p50)} ms, p95 ${Math.round(p95)} ms (${pings.length} samples; ${pingGuess} ms to /health before the start)` : 'no samples');
   const minRate = NET.sendHz * 0.8, rates = all.filter(b => b.statesPerSec > 0).map(b => b.statesPerSec), slow = all.filter(b => b.ok && b.statesPerSec < minRate);
@@ -314,11 +327,11 @@ if (PART) {
   const rf = roam.reduce((a, b) => a + b.frames, 0), rs = roam.reduce((a, b) => a + b.snaps, 0), cf = race.reduce((a, b) => a + b.frames, 0), cs = race.reduce((a, b) => a + b.snaps, 0);
   check(`the other cars as drawn: at most ${SNAPS} snaps per 100,000 car-frames (net/measure.js)`, frames > 0 && per <= SNAPS, frames ? `${snaps} in ${frames} car-frames: ${per.toFixed(1)} per 100,000 (free roam ${rs} in ${rf}, races ${cs} in ${cf}); worst jump ${Math.max(0, ...all.map(b => b.worstJumpCm))} cm` : 'no car-frames: nobody saw anyone');
   const hs = samples.filter(x => x.h), down = samples.filter(x => x.hStatus !== 200 || !x.h?.ok), peak = Math.max(0, ...hs.map(x => x.h.players ?? 0)), rooms = Math.max(0, ...hs.map(x => x.h.rooms ?? 0)), racesUnder = Math.max(0, ...hs.map(x => x.h.races ?? 0));
-  check(`the real-time server's /health: up all along, its players at least the bots (${BOTS}), not draining`, samples.length > 0 && !down.length && peak >= BOTS && !hs.some(x => x.h.draining),
+  if (!CRASH) check(`the real-time server's /health: up all along, its players at least the bots (${BOTS}), not draining`, samples.length > 0 && !down.length && peak >= BOTS && !hs.some(x => x.h.draining),
     `${samples.length} readings, ${down.length} not ok; at most ${peak} players (connections: free roam holds 2–4 a bot), ${rooms} rooms, ${racesUnder} races under way; version ${hs.at(-1)?.h.version ?? '?'}`);
   const sBad = samples.filter(x => x.sStatus !== 200 || !x.s?.ok || (x.s?.rt != null && x.s.rt !== 'up'));
-  check('the API\'s /api/v1/status: ok all along (and the real-time server "up" where it says)', samples.length > 0 && !sBad.length, `${samples.length} readings, ${sBad.length} not ok${sBad.length ? ` (${JSON.stringify(sBad[0].s ?? sBad[0].sStatus).slice(0, 120)})` : ''}; rt ${samples.at(-1)?.s?.rt ?? 'not reported'}`);
-  if (raceN) {
+  if (!CRASH) check('the API\'s /api/v1/status: ok all along (and the real-time server "up" where it says)', samples.length > 0 && !sBad.length, `${samples.length} readings, ${sBad.length} not ok${sBad.length ? ` (${JSON.stringify(sBad[0].s ?? sBad[0].sStatus).slice(0, 120)})` : ''}; rt ${samples.at(-1)?.s?.rt ?? 'not reported'}`);
+  if (raceN && !CRASH) {
     const byRace = new Map<string, any[]>();
     for (const b of race) for (const r of b.races) { if (!byRace.has(r.raceId)) byRace.set(r.raceId, []); byRace.get(r.raceId)!.push({ n: b.n, ...r }); }
     const done = [...byRace.values()].filter(rs => rs.every(r => r.status)), confirmed = [...byRace.values()].filter(rs => rs.some(r => r.confirmed)).length;
