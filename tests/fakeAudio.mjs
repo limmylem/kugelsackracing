@@ -26,7 +26,7 @@ export function installFakeAudio() {
   class Node {
     constructor(ctx, o = {}) {
       this.ctx = ctx; this.o = o; this.outs = new Set(); this.ins = 0; this.dead = false;
-      for (const k of ['gain', 'frequency', 'Q', 'playbackRate', 'delayTime', 'positionX', 'positionY', 'positionZ', 'threshold', 'knee', 'ratio', 'attack', 'release', 'detune']) this[k] = new Param(o[k] ?? (k === 'gain' || k === 'playbackRate' ? 1 : 0));
+      for (const k of ['gain', 'frequency', 'Q', 'playbackRate', 'delayTime', 'positionX', 'positionY', 'positionZ', 'threshold', 'knee', 'ratio', 'attack', 'release', 'detune', 'pan']) this[k] = new Param(o[k] ?? (k === 'gain' || k === 'playbackRate' ? 1 : 0));
       all.add(this);
     }
     connect(n) { this.outs.add(n); return n; }
@@ -59,9 +59,9 @@ export function installFakeAudio() {
     createGain() { return new GainNode(this); } createOscillator() { return new OscillatorNode(this); } createBiquadFilter() { return new BiquadFilterNode(this); } createBufferSource() { return new AudioBufferSourceNode(this); }
   }
   class OfflineAudioContext { decodeAudioData(bytes) { return decode(bytes); } }
-  class GainNode extends Node {} class BiquadFilterNode extends Node {} class WaveShaperNode extends Node {} class PannerNode extends Node {}
-  class ConvolverNode extends Node {} class DelayNode extends Node {} class DynamicsCompressorNode extends Node {} class AnalyserNode extends Node {}
-  const classes = { AudioContext, OfflineAudioContext, GainNode, BiquadFilterNode, WaveShaperNode, PannerNode, ConvolverNode, DelayNode, DynamicsCompressorNode, AnalyserNode, OscillatorNode, AudioBufferSourceNode, AudioWorkletNode };
+  class GainNode extends Node {} class BiquadFilterNode extends Node {} class WaveShaperNode extends Node {} class PannerNode extends Node {} class StereoPannerNode extends Node {}
+  class ConvolverNode extends Node {} class DelayNode extends Node {} class DynamicsCompressorNode extends Node {} class AnalyserNode extends Node {} class ChannelMergerNode extends Node {}
+  const classes = { AudioContext, OfflineAudioContext, GainNode, BiquadFilterNode, WaveShaperNode, PannerNode, StereoPannerNode, ConvolverNode, DelayNode, DynamicsCompressorNode, AnalyserNode, ChannelMergerNode, OscillatorNode, AudioBufferSourceNode, AudioWorkletNode };
   for (const [k, v] of Object.entries(classes)) { saved[k] = globalThis[k]; globalThis[k] = v; }
   saved.fetch = globalThis.fetch;
   globalThis.fetch = async f => {

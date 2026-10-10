@@ -22,7 +22,7 @@
     "tunnel": { "seconds": 2.2, "send": 0.55, "hz": 3500 },
     "under": { "seconds": 0.8, "send": 0.35, "hz": 5000 },
     "street": { "seconds": 1.1, "send": 0.28, "hz": 6000 },
-    "open": { "seconds": 0.6, "send": 0.03, "hz": 4000 },
+    "open": { "seconds": 0.6, "send": 0, "hz": 4000 },
     "slap": { "feedback": 0.3, "send": 0.22 },
     "probe": { "up": 40, "side": 60, "every": 0.2 }
   },

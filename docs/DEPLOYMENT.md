@@ -1,10 +1,10 @@
 # Deployment: the game online at ognistrada.com
 
-> **Status: being set up for friends testing (Phase 7 Step 5, approved by the owner on 2026-10-08).** Production
-> only, no staging: the owner and up to ~5 friends at once, all in Australia. The owner's step-by-step is
-> [GO_LIVE.md](GO_LIVE.md): Parts 0–5 are done (the accounts, the server at OVHcloud, the database at PlanetScale,
-> GitHub's secrets and variables). Next: the `infra` workflow, the R2 key, `server-setup`, the first deploy, the
-> monitors, and the test with a friend on another network (GO_LIVE.md steps 6–11).
+> **Status: live for friends testing (invite-only) since 2026-10-10** (Phase 7 Step 5, approved by the owner on
+> 2026-10-08). Production only, no staging: the owner and up to ~5 friends at once, all in Australia. How it was set
+> up, and the record of its tests: [GO_LIVE.md](GO_LIVE.md). Since then: Phase 8 Step 1, the game's sound
+> ([AUDIO.md](AUDIO.md)) — its code in `audio/` on the game's address, its sounds (Opus, with the WAV masters for
+> browsers without Opus) with the other files on the tiles' address; no change to the services or what they cost.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
@@ -18,7 +18,7 @@ and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md)
 | `www.ognistrada.com` | Redirects (301) to `ognistrada.com`, keeping the path and query | A Cloudflare redirect rule |
 | `api.ognistrada.com` | The API, plus the admin and editor pages (only for admin and editor accounts) | The VPS in Sydney (container `api`), through the Cloudflare Tunnel |
 | `rt.ognistrada.com` | The real-time server: races, lobbies, free roam (WebSockets); `/health` | The VPS in Sydney (container `rt`), through the Cloudflare Tunnel |
-| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, about 280 MB) | Cloudflare R2, bucket `ognistrada-tiles` |
+| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, about 280 MB; the sounds 30 MB of it, of which players fetch the 4 MB of Opus, only what's in use) | Cloudflare R2, bucket `ognistrada-tiles` |
 | `noreply@ognistrada.com` | Sends verification, password-reset and support emails, and the alerts | Resend (region Tokyo) |
 
 The backups are in a second R2 bucket, `ognistrada-backups`, which is private (no address at all).
@@ -135,7 +135,8 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 Every push to `main` runs `server.yml`: the fast checks and the image, then (with `DEPLOY_ENABLED` on) `deploy.yml` — the slow tests running beside it — which waits
 for the owner's **Approve** (GitHub emails; Actions → the run → **Review deployments**). One deploy at a time. In order,
 so nothing ever points at something that isn't there yet:
-1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed).
+1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed) — the map, the
+   cars and parts, and the sounds (`assets/sounds/`: the Opus, its `manifest.json`, the WAV masters).
 2. **The server** at this commit (`server/scripts/deploy-server.sh` over SSH): `compose.yml` and `.env` put there, the
    tunnel's token read from Cloudflare (the deploy token's Tunnel Edit: Cloudflare gives a tunnel's token only to Edit), the image pulled, `docker compose up -d` on
    the server by itself (a dropped connection can't leave it half done), then a wait — up to 13 minutes — until the API

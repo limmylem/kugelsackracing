@@ -198,13 +198,14 @@ export async function createAudioSystem({ volumes = pending.volumes ?? {}, quali
 // Two convolution reverbs made here (decaying noise, no recordings): a tunnel's long, dense one and a street's shorter
 // one with early reflections — and a slap (a short delay fed back) between close walls. set(surroundings) moves their
 // levels: in a tunnel the tunnel's; under a bridge a little of the tunnel's and the slap; between buildings the
-// street's and the slap (its delay from how far apart the walls are); in the open almost nothing.
+// street's and the slap (its delay from how far apart the walls are); in the open nothing (data/audio.json
+// reverb.open.send: 0 — more puts a touch of the street's there).
 function impulse(ctx, seconds, { early = [], hz = 5000, seed = 1 } = {}) {
-  const sr = ctx.sampleRate, n = Math.max(1, Math.round(sr * seconds)), b = ctx.createBuffer(2, n, sr);
+  const sr = ctx.sampleRate, n = Math.max(1, Math.round(sr * seconds)), b = ctx.createBuffer(1, n, sr);
   let s = seed >>> 0 || 1;
   const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 * 2 - 1; };
   const k = Math.exp(-2 * Math.PI * hz / sr);
-  for (let c = 0; c < 2; c++) {
+  for (let c = 0; c < 1; c++) {
     const d = b.getChannelData(c);
     let lp = 0;
     for (let i = 0; i < n; i++) { const tt = i / sr, env = Math.exp(-6.9 * tt / seconds) * Math.min(1, tt / 0.004); lp = lp * k + rnd() * (1 - k); d[i] = lp * env * 3; }
@@ -213,27 +214,57 @@ function impulse(ctx, seconds, { early = [], hz = 5000, seed = 1 } = {}) {
   return b;
 }
 function reverbOf(ctx, cfg, out) {
-  const R = cfg.reverb, input = new GainNode(ctx, { gain: 1 });
-  const tunnel = new ConvolverNode(ctx, { buffer: impulse(ctx, R.tunnel.seconds, { hz: R.tunnel.hz, seed: 7 }) });
-  const street = new ConvolverNode(ctx, { buffer: impulse(ctx, R.street.seconds, { hz: R.street.hz, seed: 11, early: [[0.018, 0.5], [0.031, 0.35], [0.047, 0.3], [0.066, 0.2]] }) });
-  const tunnelG = new GainNode(ctx, { gain: 0 }), streetG = new GainNode(ctx, { gain: 0 });
+  const R = cfg.reverb;
+  // (the sends summed to one channel: each echo is then one convolution per ear, not two)
+  const input = new GainNode(ctx, { gain: 1, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+  // an echo that's only connected while it's heard: one not needed (in the open, or low quality) costs nothing — its
+  // level glides to nothing, then its input's let go, and once its tail has rung out its output too (a convolver
+  // that's still connected works through its tail even when nothing goes in); connected again when it's wanted
+  // (one channel each — one convolution, not one per ear — spread by sending the right a little later than the left)
+  const wide = new ChannelMergerNode(ctx, { numberOfInputs: 2 }), late = new DelayNode(ctx, { delayTime: 0.011 });
+  late.connect(wide, 0, 1); wide.connect(out);
+  const echo = (ir, seconds) => {
+    const g = new GainNode(ctx, { gain: 0 }), conv = new ConvolverNode(ctx, { buffer: ir, channelCount: 1, channelCountMode: 'explicit' });
+    g.connect(conv);
+    let live = false, heard = false, want = 0, timer = null;
+    const later = (fn, s) => { clearTimeout(timer); timer = setTimeout(() => { timer = null; fn(); }, s * 1000); timer.unref?.(); };
+    return {
+      g, conv, get live() { return live; },
+      to(v, t, tau) {
+        want = v;
+        g.gain.setTargetAtTime(v, t, tau);
+        if (v > 1e-4) {
+          if (timer) { clearTimeout(timer); timer = null; }
+          if (!heard) { conv.connect(wide, 0, 0); conv.connect(late); heard = true; }
+          if (!live) { input.connect(g); live = true; }
+        } else if (live && !timer) {
+          later(() => {
+            if (want > 1e-4) return;
+            input.disconnect(g); live = false;
+            later(() => { if (!live && heard) { conv.disconnect(); heard = false; } }, seconds + 0.2);
+          }, tau * 10);
+        }
+      },
+    };
+  };
+  const tunnel = echo(impulse(ctx, R.tunnel.seconds, { hz: R.tunnel.hz, seed: 7 }), R.tunnel.seconds);
+  const street = echo(impulse(ctx, R.street.seconds, { hz: R.street.hz, seed: 11, early: [[0.018, 0.5], [0.031, 0.35], [0.047, 0.3], [0.066, 0.2]] }), R.street.seconds);
   const slapIn = new GainNode(ctx, { gain: 0 }), slap = new DelayNode(ctx, { maxDelayTime: 0.5, delayTime: 0.06 }), fb = new GainNode(ctx, { gain: R.slap.feedback }), slapLp = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 3500 });
-  input.connect(tunnel).connect(tunnelG).connect(out);
-  input.connect(street).connect(streetG).connect(out);
   input.connect(slapIn).connect(slap).connect(slapLp).connect(out);
   slapLp.connect(fb).connect(slap);
   let on = true;
   return {
     input,
-    enable(x) { on = x; if (!x) for (const g of [tunnelG, streetG, slapIn]) g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); },
+    enable(x) { on = x; if (!x) { tunnel.to(0, ctx.currentTime, 0.1); street.to(0, ctx.currentTime, 0.1); slapIn.gain.setTargetAtTime(0, ctx.currentTime, 0.1); } },
     set(s, C, t) {
       const R2 = C.reverb, tau = 0.3;
-      if (!on) { slapIn.gain.setTargetAtTime(0, t, tau); return; }
-      tunnelG.gain.setTargetAtTime(R2.tunnel.send * (s.tunnel ?? 0) + R2.under.send * 0.5 * (s.under ?? 0), t, tau);
-      streetG.gain.setTargetAtTime(R2.street.send * (s.street ?? 0) + R2.open.send * (s.open ?? 0) + R2.under.send * 0.4 * (s.under ?? 0), t, tau);
+      if (!on) return;
+      tunnel.to(R2.tunnel.send * (s.tunnel ?? 0) + R2.under.send * 0.5 * (s.under ?? 0), t, tau);
+      street.to(R2.street.send * (s.street ?? 0) + R2.open.send * (s.open ?? 0) + R2.under.send * 0.4 * (s.under ?? 0), t, tau);
       slapIn.gain.setTargetAtTime(R2.slap.send * Math.max(s.street ?? 0, (s.under ?? 0) * 0.8, (s.tunnel ?? 0) * 0.5), t, tau);
       if (s.width) slap.delayTime.setTargetAtTime(Math.min(0.45, Math.max(0.02, s.width / 343)), t, 0.5);
     },
-    nodes: { tunnel, street, tunnelG, streetG, slap, slapIn },
+    nodes: { tunnel: tunnel.conv, street: street.conv, tunnelG: tunnel.g, streetG: street.g, slap, slapIn },
+    get live() { return { tunnel: tunnel.live, street: street.live }; },
   };
 }

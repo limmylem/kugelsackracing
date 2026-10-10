@@ -4,11 +4,13 @@
 //
 //   'kr-engine'    an EngineVoice: 0 inputs, 3 outputs (exhaust, intake, gearbox), mono each
 //   'kr-chassis'   a ChassisVoice: 0 inputs, 3 outputs (tyres, road, wind)
+//   'kr-car'       another car's: its EngineVoice and ChassisVoice in one node, mixed to 1 output (processorOptions.mix:
+//                  the levels of exhaust, intake, gearbox, tyres, road) — heard from outside, so no more is needed
 //   'kr-limiter'   the master's Limiter (stereo in, stereo out); also the bank's door: sample data comes in through
 //                  its port, and every quarter second it says how the audio thread is doing
 //
 // Messages to a voice: { t: 's', s } its state · { t: 'cfg', cfg } · { t: 'ev', e, x } an event · { t: 'meter' } (it
-// answers { t: 'meter', … }) · { t: 'end' } (it stops and lets go). To the limiter: { t: 'bank', id, entry } ·
+// answers { t: 'meter', … }) · { t: 'end' } (it stops and lets go); to a 'kr-car', to: 'c' sends one to its chassis. To the limiter: { t: 'bank', id, entry } ·
 // { t: 'free', id } · { t: 'set', ceiling, release }; from it: { t: 'stats', cpuMs, audioMs, voices, bankBytes,
 // bankItems, peakIn, peakOut, minGain }.
 
@@ -82,6 +84,41 @@ class LimiterProcessor extends AudioWorkletProcessor {
   }
 }
 
+class CarProcessor extends AudioWorkletProcessor {
+  constructor(o) {
+    super();
+    const p = o?.processorOptions ?? {}, s = p.seed ?? seed++;
+    this.e = new EngineVoice(bank, sampleRate, s); this.c = new ChassisVoice(sampleRate, s + 7919);
+    this.mix = Float32Array.from(p.mix ?? [1, 0.55, 0.2, 1, 0.75]);
+    this.scratch(128);
+    this.alive = true;
+    work.voices++;
+    this.port.onmessage = ({ data: m }) => {
+      if (!this.e) return;
+      const v = m.to === 'c' ? this.c : this.e;
+      if (m.t === 's') v.set(m.s);
+      else if (m.t === 'cfg') v.configure(m.cfg);
+      else if (m.t === 'ev') (m.e === 'thump' || m.e === 'handbrake' ? this.c : this.e).event(m.e, m.x);
+      else if (m.t === 'meter') this.port.postMessage({ t: 'meter', meter: Array.from(this.e.meter), chassis: Array.from(this.c.meter), mode: this.e.mode, rpm: this.e.rpm, pops: this.e.popCount, cut: this.e.cut, lim: this.e.lim });
+      else if (m.t === 'end') this.alive = false;
+    };
+  }
+  scratch(n) { this.b = Array.from({ length: 6 }, () => new Float32Array(n)); this.eo = this.b.slice(0, 3); this.co = this.b.slice(3); }
+  process(inputs, outputs) {
+    if (!this.alive) { if (this.e) { work.voices--; this.e = this.c = null; } return false; }
+    const out = outputs[0]?.[0];
+    if (!out) return true;
+    const t0 = clock(), n = out.length;
+    if (this.b[0].length < n) this.scratch(n);
+    this.e.process(this.eo, n); this.c.process(this.co, n);
+    const [x0, x1, x2, x3, x4] = this.b, M = this.mix, a = M[0], b = M[1], c = M[2], d = M[3], e = M[4];
+    for (let i = 0; i < n; i++) out[i] = a * x0[i] + b * x1[i] + c * x2[i] + d * x3[i] + e * x4[i];
+    work.ms += clock() - t0;
+    return true;
+  }
+}
+
 registerProcessor('kr-engine', EngineProcessor);
+registerProcessor('kr-car', CarProcessor);
 registerProcessor('kr-chassis', ChassisProcessor);
 registerProcessor('kr-limiter', LimiterProcessor);

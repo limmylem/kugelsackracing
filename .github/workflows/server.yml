@@ -97,6 +97,8 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
       - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/launch-browser.ts
+      - name: The sound in a browser (docs/AUDIO.md) — an 8-car race with crashes through the whole audio graph (never past the limiter's ceiling, within its CPU budget), every Opus against its WAV, another car's voice changing detail without a click, the audio test page
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/audio-browser.mjs
       - name: Multiplayer (docs/MULTIPLAYER.md; reports/multiplayer-test.md) — 8 bots on a real route, bad networks, time sync, bandwidth with 8 and 30 cars, several processes, 256 players' tick, reconnect ×100
         run: node --expose-gc server/tools/rt-test.ts
       - name: Multiplayer in two browsers (each sees the other's car move smoothly, its wheels, lights, sound and dents; reconnecting; at 150 ms, 30 ms jitter, 5% loss)

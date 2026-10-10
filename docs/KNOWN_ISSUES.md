@@ -1,8 +1,23 @@
 # Known issues, and what to revisit
 
-As of Phase 7 Step 4 (free roam, first), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 8 Step 1 (the game's sound, first), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 8 Step 1: vehicle and world sound (docs/AUDIO.md)
+
+- **No music yet:** the music group and its slider are there, with nothing in it.
+- **Every sound is made by our own tools** (no recordings, no library bought): engines are convincing but not a
+  particular real car's; recordings can replace them file for file (docs/AUDIO.md lists what would be needed).
+- **The low-end budget is estimated,** not measured on a slow device: the desktop's time × 4 (data/audio.json
+  `budget.lowEndFactor`). On low quality the 8-car race used 8.7% of a 2.8 GHz cloud core (34.9% at × 4; budget 60%).
+- **The first seconds cost more:** the audio thread's code is compiled as it runs — the race's first 8 s took 18.5%
+  of real time against 12.6% after (budget 15%). Once per game, as the sound starts.
+- **Safari may not decode Opus;** it then fetches the WAV files instead (about 6× bigger, the same sound).
+- **Other players' cars** are heard from their network state (revs, throttle, gear, wheel slip): no damage sounds
+  from them (misfires, steam, a flapping bumper). Yours has them all; an NPC's engine misfires when it's damaged.
+- **Echoes** come from rays against the world's fixed colliders every 0.2 s; a gap in the colliders (a bridge without
+  a deck collider, say) sounds like open country.
 
 ## Phase 7 Step 5: online for friends testing (docs/GO_LIVE.md, docs/DEPLOYMENT.md)
 

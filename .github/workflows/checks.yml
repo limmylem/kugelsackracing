@@ -35,6 +35,8 @@ jobs:
         run: npm run economy-sim
       - name: Stress tests (a ten-car pile-up, a hundred crashes and repairs)
         run: npm run stress
+      - name: 'The sound under load (an 8-car race within its CPU budget, no clipping with crashes, 100 races with nothing kept: docs/AUDIO.md)'
+        run: npm run test:audio
       - name: Baked world tests (heights, railings at 50–300 km/h, 20 km streaming at 200 km/h, memory, physics on a real road)
         run: npm run test:world
       - name: 'World content at scale (50,000 markers: queries, per-frame work, memory)'

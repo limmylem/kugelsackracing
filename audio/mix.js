@@ -10,7 +10,7 @@
 //   surfaceMix(wheels, surfaces, cfg, speed)      what the road sounds like under the wheels
 //   Bumps, BrakeSqueal                            thumps through the suspension; brakes squealing as the car stops
 //   viewMix(cfg, view, roofOpen)                  what each camera hears
-//   doppler(rel, vSrc, vLis, cfg), airHz(d, cfg), audibleM(cfg)
+//   doppler(rel, vSrc, vLis, cfg), airHz(d, cfg), distanceGain(d, cfg), panOf(at), audibleM(cfg)
 //   rankVoices(cars, cfg, was, now, quality)      which other cars get a full voice, a simple one, or none
 //   surroundings(probe, cfg)                      a tunnel, under a bridge, a street of buildings, open country
 //   loopEntry(data, pad), sweepEntry(data, grains, sr)    sample data as the bank keeps it (audio/dsp.js Bank)
@@ -178,6 +178,14 @@ export function doppler(rel, vSrc, vLis, cfg) {
 }
 // the air muffling a far sound: the low-pass at d m
 export const airHz = (d, cfg) => clamp(cfg.air.hz * 0.5 ** (Math.max(0, d - cfg.refM) / cfg.air.halfM), 600, 20000);
+// how loud a sound d m away is (Web Audio's 'inverse' distance model: full up to refM, never quieter than at maxM)
+export const distanceGain = (d, cfg) => cfg.refM / (cfg.refM + cfg.rolloff * (clamp(finite(d, cfg.maxM), cfg.refM, cfg.maxM) - cfg.refM));
+// where it's heard, left −1 … right 1, from where it is in the camera's frame (x right, z behind: as an equal-power
+// PannerNode pans it — by its angle off straight ahead, behind as in front)
+export function panOf(at) {
+  const h = Math.hypot(at[0], at[2]);
+  return h > 1e-3 ? clamp(Math.asin(clamp(at[0] / h, -1, 1)) / (Math.PI / 2), -1, 1) : 0;
+}
 
 // ---------- other cars' voices ----------
 

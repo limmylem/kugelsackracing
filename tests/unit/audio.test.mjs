@@ -112,7 +112,8 @@ test('misfires: a damaged engine drops firings, a healthy one doesn\'t', () => {
 // ---------- parts ----------
 
 // lift off from high revs, a few times: how many pops
-const pops = spec => { const v = S.engine(spec), red = spec.engine.redlineRpm; render(v, 6, t => { const on = t % 1.5 < 0.7; return { rpm: red * (on ? 0.85 : 0.75), throttle: on ? 1 : 0, pedal: on ? 1 : 0, load: on ? 1 : -0.9, gear: 3 }; }); return v.popCount; };
+// (pops are random: counted over four runs, each its own seed — a part adding a little is then still seen)
+const pops = spec => [1, 2, 3, 4].reduce((n, seed) => { const v = S.engine(spec, { seed }), red = spec.engine.redlineRpm; render(v, 6, t => { const on = t % 1.5 < 0.7; return { rpm: red * (on ? 0.85 : 0.75), throttle: on ? 1 : 0, pedal: on ? 1 : 0, load: on ? 1 : -0.9, gear: 3 }; }); return n + v.popCount; }, 0);
 
 test('every part with sound settings changes the sound as it says', () => {
   const withSound = Object.values(S.db.parts).filter(p => p.sound && Object.keys(p.sound).some(k => !k.startsWith('_')));

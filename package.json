@@ -27,6 +27,8 @@
     "generate-parts": "node tools/generate-parts.mjs",
     "crash-test": "node tests/crash.mjs",
     "stress": "node --expose-gc tests/stress.mjs",
+    "test:audio": "node --expose-gc tests/audio.mjs",
+    "test:audio-browser": "node tools/audio-browser.mjs",
     "world:build": "node --max-old-space-size=8192 tools/world/build.mjs",
     "world:bake": "node --max-old-space-size=8192 tools/world/bake.mjs",
     "map:bake": "node --max-old-space-size=12000 map/bake/bake.ts",

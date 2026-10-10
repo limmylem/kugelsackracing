@@ -150,7 +150,9 @@ export class EngineVoice {
     this.cfg = cfg; this.mute = cfg.mute ?? null;
     if (first) { this.rpm = cfg.startOff ? 0 : cfg.idleRpm; this.mode = cfg.startOff ? 'off' : 'run'; this.offBy = cfg.startOff ? 'stop' : null; }
   }
-  set(s) { Object.assign(this.s, s); }
+  // (the first state before a sound's played: a running engine starts at its revs — another car's voice coming in
+  // while it's going — not at idle revving up)
+  set(s) { Object.assign(this.s, s); if (!this.t && this.cfg && this.mode === 'run' && +s.rpm > 0) this.rpm = +s.rpm; }
   // 'start' (the starter, then it catches), 'stop' (switched off: it runs down), 'shift' (a gear's clunk now)
   event(e) {
     if (!this.cfg) return;
@@ -268,6 +270,10 @@ export class EngineVoice {
     if (crank) this.st.set(1200, 0.8, sr);
     const lvlA = this.level, roarA = this.roar, whA = this.whGain, whHzA = this.whHz;
     this.level = levelB; this.roar = roarB; this.whGain = whB; this.whHz = whHzA + (whHzB - whHzA) * ease(0.03, sr, n);
+    // (nothing to hear — the engine off and its last sounds over: the block's silence, nothing worked out)
+    if (!running && lvlA < 1e-7 && whA < 1e-6 && roarA < 1e-6 && this.scGain < 1e-6 && this.gbGain < 1e-6 && this.popsLive === 0 && this.bovV.left <= 0 && this.thump.left <= 0 && !this.shot.data) {
+      this.t += n; this.modeT += dt; this.meter.fill(0); return;
+    }
     const whHz1 = this.whHz, intake = roarA > 1e-6 || roarB > 1e-6, turboOn = on || this.on('turbo') ? 1 : 0;
     const ex = this.ex, rasp = this.rasp, ind = this.ind, air = this.air, mech = this.mech, whf = this.wh, scn = this.scn, pops = this.pops, B = this.bovV, T = this.thump, S = this.shot;
     // (what changes sample by sample, kept here and put back after)
@@ -491,12 +497,15 @@ const CG = ['scrub', 'squeal', 'skid', 'road', 'wet', 'kerb', 'brake', 'wind'];
 
 export class ChassisVoice {
   constructor(sr, seed = 2) {
-    this.sr = sr; this.rnd = rng(seed); this.s = { ...CHASSIS_STATE }; this.mute = null;
+    this.sr = sr; this.rnd = rng(seed); this.s = { ...CHASSIS_STATE }; this.mute = null; this.lite = false;
     this.surf = new Float32Array(SURFACES.length);
     this.gA = new Float32Array(CG.length); this.gB = new Float32Array(CG.length); this.want = new Float32Array(CG.length);   // each level: last block's end, this one's
     this.f = {};
     for (const k of ['sqA', 'sqB', 'sqT', 'skid', 'scrub', 'road', 'cob', 'grav', 'dirt', 'grass', 'sand', 'wet', 'kerb', 'wind', 'click']) this.f[k] = new Svf();
     this.p0 = 0; this.p1 = 0; this.p2 = 0; this.brown = 0;
+    // (the noise's generators, xorshift in an int: seeded from the voice's own)
+    this.rs = (this.rnd() * 4294967295) | 0 || 1; this.rt = (this.rnd() * 4294967295) | 0 || 7; this.rr = (this.rnd() * 4294967295) | 0 || 13;
+    this.nW = new Float32Array(BLOCK); this.nP = new Float32Array(BLOCK); this.nB = new Float32Array(BLOCK);
     this.sqPh = 0; this.wobPh = 0; this.wobN = 0; this.rough = 0; this.kerbPh = 0; this.brPh = 0; this.brDrift = 0; this.cobPh = 0; this.cobA = 0;
     this.jointPh = 0; this.gust = 1; this.gustV = 1; this.crunch = 0;
     this.thumps = Array.from({ length: 4 }, () => ({ left: 0, env: 0, mul: 0, ph: 0, hz: 70, amp: 0 }));
@@ -504,7 +513,9 @@ export class ChassisVoice {
     this.meter = new Float32Array(CHASSIS_METERS.length); this.acc = new Float64Array(CHASSIS_METERS.length);
   }
   set(s) { Object.assign(this.s, s); if (s.surf) for (let i = 0; i < SURFACES.length; i++) this.surf[i] = s.surf[i] ?? 0; }
-  configure(c) { this.mute = c?.mute ?? null; }
+  // c.lite: another car's — heard from outside and further off: no scrub, one band of the squeal's noise, no wet
+  // hiss, no brakes, no wind (its squeal, its skid and its rolling are what carry)
+  configure(c) { this.mute = c?.mute ?? null; this.lite = !!c?.lite; }
   on(k) { return !this.mute || this.mute[k] !== false; }
   // 'thump' (a bump through the suspension: strength 0..1), 'handbrake' (its ratchet)
   event(e, strength = 1) {
@@ -522,10 +533,10 @@ export class ChassisVoice {
     const a = ease(0.04, sr, n), A = this.gA, B = this.gB, S = this.surf, F = this.f;
     // ---- each level's target for the block's end ----
     A.set(B);
-    const ty = this.on('tyres') ? 1 : 0, ro = this.on('road') ? 1 : 0, T = this.want;
-    T[0] = (+s.scrub || 0) * 0.09 * ty; T[1] = (+s.squeal || 0) * 0.32 * ty; T[2] = (+s.skid || 0) * 0.22 * ty;
-    T[3] = Math.min((v / 30) ** 1.3 * 0.11, 0.22) * ro; T[4] = (+s.wet || 0) * Math.min(1, v / 25) ** 1.5 * 0.12 * ro;
-    T[5] = (+s.kerb || 0) * 0.24 * ro; T[6] = (+s.brake || 0) * 0.05 * (this.on('brakes') ? 1 : 0); T[7] = (+s.wind || 0) * 0.3 * (this.on('wind') ? 1 : 0);
+    const ty = this.on('tyres') ? 1 : 0, ro = this.on('road') ? 1 : 0, T = this.want, full = this.lite ? 0 : 1;
+    T[0] = (+s.scrub || 0) * 0.09 * ty * full; T[1] = (+s.squeal || 0) * 0.32 * ty; T[2] = (+s.skid || 0) * 0.22 * ty;
+    T[3] = Math.min((v / 30) ** 1.3 * 0.11, 0.22) * ro; T[4] = (+s.wet || 0) * Math.min(1, v / 25) ** 1.5 * 0.12 * ro * full;
+    T[5] = (+s.kerb || 0) * 0.24 * ro; T[6] = (+s.brake || 0) * 0.05 * (this.on('brakes') ? 1 : 0) * full; T[7] = (+s.wind || 0) * 0.3 * (this.on('wind') ? 1 : 0) * full;
     for (let k = 0; k < CG.length; k++) B[k] = A[k] + (T[k] - A[k]) * a;
     const pitch = clamp(+s.pitch || 0, 0, 1), sqHz = (650 + pitch * 450) * dop;
     if (B[1] > 1e-6 || A[1] > 1e-6) { F.sqA.set(sqHz, 9, sr); F.sqB.set(sqHz * 1.9, 7, sr); F.sqT.set(sqHz * 1.6, 4, sr); }
@@ -538,60 +549,147 @@ export class ChassisVoice {
     const gust0 = this.gust; this.gust += (this.gustV - this.gust) * ease(0.3, sr, n);
     const kerbF = Math.max(6, +s.kerbHz || 20) / sr, cobRate = v / 0.18 / sr, jointRate = S[1] > 0.05 ? v / 4.5 / sr : 0;
     const crunchRate = (grav + dirt * 0.4) * (v * 5 + 30 * (+s.skid || 0)) / sr, roadOn = this.on('road') ? 1 : 0;
+    // (nothing to hear — standing still, nothing ringing: the block's silence, nothing worked out)
+    let quiet = !(crunchRate > 0 && v > 0.3) && this.clicks.left <= 0 && this.clicks.n <= 0;
+    for (let k = 0; quiet && k < CG.length; k++) if (A[k] > 1e-6 || B[k] > 1e-6) quiet = false;
+    for (let t = 0; quiet && t < 4; t++) if (this.thumps[t].left > 0) quiet = false;
+    if (quiet) { o0.fill(0, 0, n); o1.fill(0, 0, n); o2.fill(0, 0, n); this.meter.fill(0); return; }
+    // (each part its own pass over the block, the noise first: small loops the JIT works out whole, with the state
+    // in locals — one big loop calling out sample by sample cost several times as much)
+    if (this.nW.length < n) { this.nW = new Float32Array(n); this.nP = new Float32Array(n); this.nB = new Float32Array(n); }
+    this.#noise(n);
     const acc = this.acc;
     acc.fill(0);
-    for (let i = 0; i < n; i++) {
-      const k = (i + 1) / n, w = rnd() * 2 - 1;
-      // pink-ish and brown noise
-      this.p0 = 0.99765 * this.p0 + w * 0.099; this.p1 = 0.963 * this.p1 + w * 0.2965; this.p2 = 0.57 * this.p2 + w * 1.0527;
-      const pink = (this.p0 + this.p1 + this.p2 + w * 0.1848) * 0.2;
-      this.brown = this.brown * 0.985 + w * 0.06;
-      // the tyres: scrub (working hard, near the limit), squeal (past it), a skid (sliding)
-      let ty = 0;
-      const gs = A[0] + (B[0] - A[0]) * k, gq = A[1] + (B[1] - A[1]) * k, gk = A[2] + (B[2] - A[2]) * k;
-      if (gs > 1e-6) { F.scrub.tick(pink); ty += F.scrub.bp * gs * 2; }
-      this.wobPh += 9 / sr;
-      if (gq > 1e-6) {
-        this.wobN += ((rnd() - 0.5) - this.wobN) * 0.002;
-        this.sqPh += sqHz * (0.94 + 0.04 * sin1(this.wobPh) + 0.25 * this.wobN) / sr;
-        const saw = 2 * (this.sqPh - Math.floor(this.sqPh)) - 1;
-        F.sqA.tick(w); F.sqB.tick(w); F.sqT.tick(saw);
-        const sq = (F.sqA.bp * 1.6 + F.sqB.bp * 0.7 + F.sqT.bp * 0.5) * gq;
-        ty += sq; acc[3] += sq * sq;
-      }
-      if (gk > 1e-6) { this.rough += ((rnd() < 0.02 ? rnd() : this.rough * 0.999) - this.rough) * 0.05; F.skid.tick(w); ty += F.skid.bp * gk * (0.5 + this.rough); }
-      // the road: rolling on each surface, a kerb's stripes, bumps
-      let rd = 0;
-      const gr = A[3] + (B[3] - A[3]) * k;
-      if (gr > 1e-6) {
-        rd += F.road.tick(pink) * gr * tar * 2.2;
-        if (cob > 0.01) { this.cobPh += cobRate; if (this.cobPh >= 1) { this.cobPh -= 1; this.cobA = 0.4 + 0.6 * rnd(); } this.cobA *= 0.995; rd += F.cob.tick(w * this.cobA) * gr * cob * 3; }
-        if (dirt > 0.01) rd += F.dirt.tick(this.brown * 2) * gr * dirt * 3;
-        if (grass > 0.01) rd += F.grass.tick(pink) * gr * grass * (0.8 + 0.2 * sin1(this.wobPh * 0.3)) * 1.6;
-        if (sand > 0.01) { F.sand.tick(w); rd += F.sand.bp * gr * sand * 1.2; }
-        if (jointRate > 0) { this.jointPh += jointRate; if (this.jointPh >= 1) { this.jointPh -= 1; this.event('thump', 0.25 * S[1]); } }
-      }
-      if (crunchRate > 0 && v > 0.3) { this.crunch *= 0.993; if (rnd() < crunchRate) this.crunch = 0.4 + 0.6 * rnd(); F.grav.tick(w * this.crunch); rd += F.grav.bp * (grav + dirt * 0.5) * 0.35 * roadOn; }
-      const gw = A[4] + (B[4] - A[4]) * k, gkb = A[5] + (B[5] - A[5]) * k;
-      if (gw > 1e-6) { F.wet.tick(w); rd += F.wet.hp * gw; }
-      if (gkb > 1e-6) { this.kerbPh += kerbF; rd += F.kerb.tick(this.kerbPh - Math.floor(this.kerbPh) < 0.5 ? 1 : -1) * gkb; }
-      for (let t = 0; t < 4; t++) { const T = this.thumps[t]; if (T.left <= 0) continue; T.left--; T.env *= T.mul; T.ph += T.hz / sr; rd += T.amp * T.env * (sin1(T.ph) + 0.2 * w * T.env); }
-      acc[4] += rd * rd;
-      // the brakes squealing at low speed; the handbrake's ratchet
-      let br = 0;
-      const gb = A[6] + (B[6] - A[6]) * k;
-      if (gb > 1e-6) { this.brDrift += ((rnd() - 0.5) - this.brDrift) * 0.0005; this.brPh += (3400 + 600 * this.brDrift) / sr; br = gb * sin1(this.brPh) * (0.7 + 0.3 * sin1(this.wobPh * 0.7)); }
-      const C = this.clicks;
-      if (C.left > 0 || C.n > 0) { if (C.left > 0 && --C.next <= 0) { C.left--; C.next = Math.round(sr * 0.028); C.n = Math.round(sr * 0.0015); } if (C.n > 0) { C.n--; F.click.tick(w); br += F.click.bp * 0.5; } }
-      acc[5] += br * br;
-      // the wind, gusting
-      let wd = 0;
-      const gwd = A[7] + (B[7] - A[7]) * k;
-      if (gwd > 1e-6) { F.wind.tick(this.brown * 2 + pink * 0.5); wd = F.wind.bp * gwd * (gust0 + (this.gust - gust0) * k) * 2; }
-      o0[i] = ty * gain; o1[i] = (rd + br) * gain; o2[i] = wd * gain;
-      acc[0] += ty * ty; acc[1] += (rd + br) * (rd + br); acc[2] += wd * wd;
-    }
+    this.#tyres(o0, n, A, B, sqHz, full);
+    this.#road(o1, n, A, B, v, tar, cob, dirt, grass, sand, grav, kerbF, cobRate, jointRate, crunchRate, roadOn);
+    this.#wind(o2, n, A, B, gust0);
+    if (gain !== 1) for (let i = 0; i < n; i++) { o0[i] *= gain; o1[i] *= gain; o2[i] *= gain; }
+    let a0 = 0, a1 = 0, a2 = 0;
+    for (let i = 0; i < n; i++) { a0 += o0[i] * o0[i]; a1 += o1[i] * o1[i]; a2 += o2[i] * o2[i]; }
+    acc[0] = a0; acc[1] = a1; acc[2] = a2;
     for (let m = 0; m < acc.length; m++) this.meter[m] = Math.sqrt(acc[m] / n);
+  }
+
+  // white noise (xorshift, in a local), a pink-ish and a brown from it
+  #noise(n) {
+    const W = this.nW, P = this.nP, Br = this.nB;
+    let r = this.rs, p0 = this.p0, p1 = this.p1, p2 = this.p2, brown = this.brown;
+    for (let i = 0; i < n; i++) {
+      r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+      const w = r * 4.656612873077393e-10;
+      p0 = 0.99765 * p0 + w * 0.099; p1 = 0.963 * p1 + w * 0.2965; p2 = 0.57 * p2 + w * 1.0527;
+      brown = brown * 0.985 + w * 0.06;
+      W[i] = w; P[i] = (p0 + p1 + p2 + w * 0.1848) * 0.2; Br[i] = brown;
+    }
+    this.rs = r; this.p0 = p0; this.p1 = p1; this.p2 = p2; this.brown = brown;
+  }
+
+  // the tyres: scrub (working hard, near the limit), squeal (past it), a skid (sliding)
+  #tyres(out, n, A, B, sqHz, full) {
+    const gs0 = A[0], gs1 = B[0], gq0 = A[1], gq1 = B[1], gk0 = A[2], gk1 = B[2];
+    const scrub = gs0 > 1e-6 || gs1 > 1e-6, squeal = gq0 > 1e-6 || gq1 > 1e-6, skid = gk0 > 1e-6 || gk1 > 1e-6;
+    const sr = this.sr, W = this.nW, P = this.nP, F = this.f;
+    this.wobPh += 9 * n / sr;
+    if (!scrub && !squeal && !skid) { out.fill(0, 0, n); return; }
+    const fs = F.scrub, fk = F.skid, fA = F.sqA, fB = F.sqB, fT = F.sqT;
+    // (the band-passes written out — Svf.tick in locals)
+    let s1 = fs.z1, s2 = fs.z2, k1 = fk.z1, k2 = fk.z2, qA1 = fA.z1, qA2 = fA.z2, qB1 = fB.z1, qB2 = fB.z2, qT1 = fT.z1, qT2 = fT.z2;
+    let r = this.rt, wobPh = this.wobPh - 9 * n / sr, wobN = this.wobN, sqPh = this.sqPh, rough = this.rough, a3 = 0;
+    const wob = 9 / sr, sqK = sqHz / sr, kA = fA.k * (full ? 1.6 : 2), kB = fB.k * 0.7, kT = fT.k * 0.5, ks = fs.k * 2, kk = fk.k;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / n, w = W[i];
+      let ty = 0, v3, v1, v2;
+      if (scrub) {
+        const x = P[i]; v3 = x - s2; v1 = fs.a1 * s1 + fs.a2 * v3; v2 = s2 + fs.a2 * s1 + fs.a3 * v3; s1 = 2 * v1 - s1; s2 = 2 * v2 - s2;
+        ty += v1 * ks * (gs0 + (gs1 - gs0) * f);
+      }
+      wobPh += wob;
+      if (squeal) {
+        r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+        wobN += (r * 2.3283064365386963e-10 - wobN) * 0.002;
+        sqPh += sqK * (0.94 + 0.04 * sin1(wobPh) + 0.25 * wobN);
+        if (sqPh >= 1) sqPh -= Math.floor(sqPh);
+        v3 = w - qA2; v1 = fA.a1 * qA1 + fA.a2 * v3; v2 = qA2 + fA.a2 * qA1 + fA.a3 * v3; qA1 = 2 * v1 - qA1; qA2 = 2 * v2 - qA2;
+        let sq = v1 * kA;
+        if (full) { v3 = w - qB2; v1 = fB.a1 * qB1 + fB.a2 * v3; v2 = qB2 + fB.a2 * qB1 + fB.a3 * v3; qB1 = 2 * v1 - qB1; qB2 = 2 * v2 - qB2; sq += v1 * kB; }
+        v3 = 2 * sqPh - 1 - qT2; v1 = fT.a1 * qT1 + fT.a2 * v3; v2 = qT2 + fT.a2 * qT1 + fT.a3 * v3; qT1 = 2 * v1 - qT1; qT2 = 2 * v2 - qT2;
+        sq = (sq + v1 * kT) * (gq0 + (gq1 - gq0) * f);
+        ty += sq; a3 += sq * sq;
+      }
+      if (skid) {
+        r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+        const u = (r >>> 0) * 2.3283064365386963e-10;
+        rough += ((u < 0.02 ? u * 50 : rough * 0.999) - rough) * 0.05;
+        v3 = w - k2; v1 = fk.a1 * k1 + fk.a2 * v3; v2 = k2 + fk.a2 * k1 + fk.a3 * v3; k1 = 2 * v1 - k1; k2 = 2 * v2 - k2;
+        ty += v1 * kk * (gk0 + (gk1 - gk0) * f) * (0.5 + rough);
+      }
+      out[i] = ty;
+    }
+    fs.z1 = s1; fs.z2 = s2; fk.z1 = k1; fk.z2 = k2; fA.z1 = qA1; fA.z2 = qA2; fB.z1 = qB1; fB.z2 = qB2; fT.z1 = qT1; fT.z2 = qT2;
+    this.rt = r; this.wobN = wobN; this.sqPh = sqPh; this.rough = rough;
+    this.acc[3] = a3;
+  }
+
+  // the road: rolling on each surface, gravel's crunch, the wet, a kerb's stripes, bumps; the brakes squealing at low
+  // speed and the handbrake's ratchet
+  #road(out, n, A, B, v, tar, cob, dirt, grass, sand, grav, kerbF, cobRate, jointRate, crunchRate, roadOn) {
+    const sr = this.sr, W = this.nW, P = this.nP, Br = this.nB, F = this.f, rnd = this.rnd, S = this.surf, thumps = this.thumps, C = this.clicks;
+    const gr0 = A[3], gr1 = B[3], gw0 = A[4], gw1 = B[4], gb0 = A[5], gb1 = B[5], gB0 = A[6], gB1 = B[6];
+    const rolling = gr0 > 1e-6 || gr1 > 1e-6, wet = gw0 > 1e-6 || gw1 > 1e-6, kerb = gb0 > 1e-6 || gb1 > 1e-6, brakes = gB0 > 1e-6 || gB1 > 1e-6, crunching = crunchRate > 0 && v > 0.3;
+    const fR = F.road, fCob = F.cob, fDirt = F.dirt, fGrass = F.grass, fSand = F.sand, fGrav = F.grav, fWet = F.wet, fKerb = F.kerb, fClick = F.click;
+    let rd1 = fR.z1, rd2 = fR.z2, cobPh = this.cobPh, cobA = this.cobA, jointPh = this.jointPh, crunch = this.crunch, kerbPh = this.kerbPh, brPh = this.brPh, brDrift = this.brDrift;
+    let r = this.rr, a4 = 0, a5 = 0;
+    const wob0 = this.wobPh - 9 * n / sr, wob = 9 / sr, tarK = tar * 2.2;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / n, w = W[i];
+      let rd = 0;
+      if (rolling) {
+        const gr = gr0 + (gr1 - gr0) * f, x = P[i];
+        const v3 = x - rd2, v1 = fR.a1 * rd1 + fR.a2 * v3, v2 = rd2 + fR.a2 * rd1 + fR.a3 * v3; rd1 = 2 * v1 - rd1; rd2 = 2 * v2 - rd2;
+        rd += v2 * gr * tarK;
+        if (cob > 0.01) { cobPh += cobRate; if (cobPh >= 1) { cobPh -= 1; cobA = 0.4 + 0.6 * rnd(); } cobA *= 0.995; rd += fCob.tick(w * cobA) * gr * cob * 3; }
+        if (dirt > 0.01) rd += fDirt.tick(Br[i] * 2) * gr * dirt * 3;
+        if (grass > 0.01) rd += fGrass.tick(x) * gr * grass * (0.8 + 0.2 * sin1((wob0 + wob * (i + 1)) * 0.3)) * 1.6;
+        if (sand > 0.01) { fSand.tick(w); rd += fSand.bp * gr * sand * 1.2; }
+        if (jointRate > 0) { jointPh += jointRate; if (jointPh >= 1) { jointPh -= 1; this.event('thump', 0.25 * S[1]); } }
+      }
+      if (crunching) {
+        crunch *= 0.993;
+        r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+        if ((r >>> 0) * 2.3283064365386963e-10 < crunchRate) crunch = 0.4 + 0.6 * rnd();
+        fGrav.tick(w * crunch); rd += fGrav.bp * (grav + dirt * 0.5) * 0.35 * roadOn;
+      }
+      if (wet) { fWet.tick(w); rd += fWet.hp * (gw0 + (gw1 - gw0) * f); }
+      if (kerb) { kerbPh += kerbF; rd += fKerb.tick(kerbPh - Math.floor(kerbPh) < 0.5 ? 1 : -1) * (gb0 + (gb1 - gb0) * f); }
+      for (let t = 0; t < 4; t++) { const T = thumps[t]; if (T.left <= 0) continue; T.left--; T.env *= T.mul; T.ph += T.hz / sr; rd += T.amp * T.env * (sin1(T.ph) + 0.2 * w * T.env); }
+      a4 += rd * rd;
+      let br = 0;
+      if (brakes) {
+        r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+        brDrift += (r * 2.3283064365386963e-10 - brDrift) * 0.0005; brPh += (3400 + 600 * brDrift) / sr;
+        br = (gB0 + (gB1 - gB0) * f) * sin1(brPh) * (0.7 + 0.3 * sin1((wob0 + wob * (i + 1)) * 0.7));
+      }
+      if (C.left > 0 || C.n > 0) { if (C.left > 0 && --C.next <= 0) { C.left--; C.next = Math.round(sr * 0.028); C.n = Math.round(sr * 0.0015); } if (C.n > 0) { C.n--; fClick.tick(w); br += fClick.bp * 0.5; } }
+      a5 += br * br;
+      out[i] = rd + br;
+    }
+    fR.z1 = rd1; fR.z2 = rd2;
+    this.cobPh = cobPh; this.cobA = cobA; this.jointPh = jointPh; this.crunch = crunch; this.kerbPh = kerbPh - Math.floor(kerbPh); this.brPh = brPh - Math.floor(brPh); this.brDrift = brDrift; this.rr = r;
+    this.acc[4] = a4; this.acc[5] = a5;
+  }
+
+  // the wind, gusting
+  #wind(out, n, A, B, gust0) {
+    const g0 = A[7], g1 = B[7];
+    if (g0 <= 1e-6 && g1 <= 1e-6) { out.fill(0, 0, n); return; }
+    const fw = this.f.wind, Br = this.nB, P = this.nP, gust1 = this.gust, a1 = fw.a1, a2 = fw.a2, a3 = fw.a3, k = fw.k * 2;
+    let z1 = fw.z1, z2 = fw.z2;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / n, x = Br[i] * 2 + P[i] * 0.5;
+      const v3 = x - z2, v1 = a1 * z1 + a2 * v3, v2 = z2 + a2 * z1 + a3 * v3; z1 = 2 * v1 - z1; z2 = 2 * v2 - z2;
+      out[i] = v1 * k * (g0 + (g1 - g0) * f) * (gust0 + (gust1 - gust0) * f);
+    }
+    fw.z1 = z1; fw.z2 = z2;
   }
 }
 
