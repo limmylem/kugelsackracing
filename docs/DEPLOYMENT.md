@@ -123,7 +123,7 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 |---|---|---|---|
 | `infra` | By hand, a dry run first | Cloudflare and Resend set up (`tools/cloudflare-setup.mjs`): HTTPS settings, DNS records in the way, the Pages project and its domain, the R2 buckets (the tiles' CORS and address; the backups private, each file deleted after 35 days), the tunnel and its routes, the rules (www, the edge secret, the tiles' CORS, caching), Resend's domain (Tokyo) and its SPF, DKIM and DMARC records. Safe to run again: it only adds what's missing and puts right what's different. Uses the setup token. | `infra` environment |
 | `server-setup` | By hand, a dry run first; now and then to bring the packages up to date | `deploy/server-setup.sh` on the server over SSH ([The server](#the-server)). Safe to run again. | `infra` environment |
-| `server` | Every push and pull request | Typecheck, every server test, the browser tests (this file's layout: `deploy-browser.ts`), the dependency audit. On `main`: the image built and pushed (`:<commit>` and `:main`; the newest 20 kept), then `deploy` — once the repository variable `DEPLOY_ENABLED` is `"true"`. | — |
+| `server` | Every push and pull request | Typecheck, every server test, the browser tests (this file's layout: `deploy-browser.ts`), the dependency audit. Three jobs side by side: `checks` (audit, secrets, typecheck, server tests: about 5 minutes), `image` (on `main`: built and pushed, `:<commit>` and `:main`; the newest 20 kept) and `test` (browsers, multiplayer, load, the drills: an hour or more). `deploy` waits for `checks` and `image` only — once the repository variable `DEPLOY_ENABLED` is `"true"` — so a fix reaches players in minutes; a failure in `test` is fixed, or rolled back, after. | — |
 | `deploy` | Called by `server` and `rollback` | [Deploying](#deploying) | `production` environment |
 | `rollback` | By hand: a commit | `deploy` at an earlier commit ([Rolling back](#rolling-back)) | `production` environment |
 | `check` | By hand | `tools/check-deploy.mjs` against production ([Checks](#checks)) | — |
@@ -132,7 +132,7 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 
 ## Deploying
 
-Every push to `main` runs `server.yml`: the tests, the image, then (with `DEPLOY_ENABLED` on) `deploy.yml`, which waits
+Every push to `main` runs `server.yml`: the fast checks and the image, then (with `DEPLOY_ENABLED` on) `deploy.yml` — the slow tests running beside it — which waits
 for the owner's **Approve** (GitHub emails; Actions → the run → **Review deployments**). One deploy at a time. In order,
 so nothing ever points at something that isn't there yet:
 1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed).

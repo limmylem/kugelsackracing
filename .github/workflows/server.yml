@@ -1,9 +1,12 @@
 # The server (docs/SERVER.md): on every push and pull request, its typecheck, every server test against a
 # PostgreSQL with PostGIS (and a Redis, for multiplayer), the browser's account flows, multiplayer's tests,
-# and a check of the dependencies for known vulnerabilities. On main, once all of that passes: the server's image
-# built and pushed to ghcr.io/limmylem/kugelsackracing:<commit> (and :main), then — once the repository variable
-# DEPLOY_ENABLED is "true" — deployed to production when the owner approves it (deploy.yml; the "production"
-# environment's required reviewer). docs/DEPLOYMENT.md "Deploying".
+# and a check of the dependencies for known vulnerabilities. Three jobs side by side, so a fix reaches players in
+# minutes (the owner's choice): `checks` (the fast ones: the audit, secrets, typecheck, every server test), `image`
+# (on main: built and pushed to ghcr.io/limmylem/kugelsackracing:<commit> and :main at once) and `test` (the slow
+# ones: browsers, multiplayer, load, the drills). A deploy waits for `checks` and `image` only — once the repository
+# variable DEPLOY_ENABLED is "true", and when the owner approves it (deploy.yml; the "production" environment's
+# required reviewer); `test` goes on beside it, and a failure there is fixed, or rolled back, after. docs/DEPLOYMENT.md
+# "Deploying".
 name: server
 on:
   push:
@@ -15,7 +18,8 @@ concurrency:
   group: server-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  test:
+  # (the fast ones: a deploy waits for these)
+  checks:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,6 +55,34 @@ jobs:
         run: npm run server:typecheck
       - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)
         run: npm run test:server
+
+  # (the slow ones: browsers, multiplayer, load, the drills — beside the deploy, not before it)
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+      # (the real-time server's rooms, tickets and bans: docs/MULTIPLAYER.md)
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: World content at scale (50,000 markers in PostGIS against the Phase 4 limits)
         run: npm run --workspace @kr/server stress:content
       - name: Accounts in a browser (sign up, confirm, reset, a guest made an account, delete, offline)
@@ -94,7 +126,6 @@ jobs:
   # (the image the server runs — the API and the real-time server — named by its commit; the newest 20 kept, so a
   # rollback can go back that far: rollback.yml)
   image:
-    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -136,7 +167,7 @@ jobs:
   # (skipped until the repository variable DEPLOY_ENABLED is "true": docs/GO_LIVE.md; the owner approves each run in
   # GitHub before it starts — the deploy job's environment)
   production:
-    needs: [test, image]
+    needs: [checks, image]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     permissions:
       contents: read
