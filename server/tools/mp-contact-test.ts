@@ -469,6 +469,9 @@ try {
         ctx.P[i].session.send({ t: 'contact-report', other: ctx.P[1 - i].uid, ep: 900, at, kind: 'hit', closing: 9, n: [-f[0], -f[1]], point: [p.x, p.z], me: { x: p.x, z: p.z, vx: 0, vz: 0, yaw: m.yaw, w: 0 }, them: { x: o.pos[0], z: o.pos[2], vx: 0, vz: 0, yaw: o.yaw, w: 0 }, J: [f[0] * 2500, f[1] * 2500], predictMs: 0, track: [] });
       }
       if (ctx.cheat && t > 10.5 && !D.shoved) { D.shoved = true; const f = [Math.sin(m.yaw), Math.cos(m.yaw)]; b.sim.vehicle.body.applyImpulse({ x: f[0] * 2000, y: 0, z: f[1] * 2000 }, true); }
+      // (the cheat, once it's time for its fake, drops right back: the claim must be made from well clear of the other car,
+      // and on a slow machine the bump comes late, so backing off at 12 might not open the gap before the race ends)
+      if (ctx.cheat && t > 8 && !D.faked) return b.drive(0, 6);
       return b.metrics.agreed.length ? b.drive(0, 12) : b.drive(0, t < 3.5 ? 15 : 26);
     });
     const verifyRun = (uid, run, log) => {
