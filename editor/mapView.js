@@ -28,6 +28,10 @@ export async function createMapView({ container, regionManifest = null, regionBa
   const map = new ml.Map({ container, style, center: [center.lon, center.lat], zoom: start?.zoom ?? 15, pitch: 45, maxPitch: 80, attributionControl: { compact: true }, fadeDuration: 0, keyboard: false });
   const content = contentLayers(map, { prefix: 'ed' });
   let terrainOn = false;
+  // (OpenFreeMap's style names a few icons its sprite hasn't got — a blank one stands in — and its US road shields'
+  // filters read a number its tiles leave empty: both only warned in the console, so the shields go and the icons are blank)
+  map.on('styleimagemissing', e => { if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }); });
+  map.on('style.load', () => { for (const l of map.getStyle()?.layers ?? []) if (/shield/i.test(l.id)) map.removeLayer(l.id); });
   map.on('load', () => {
     try { map.setProjection?.({ type: 'globe' }); } catch { /* an older MapLibre: flat */ }
     if (world) { try { map.addSource('terrain', TERRAIN); } catch { /* none */ } }
