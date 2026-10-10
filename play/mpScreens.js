@@ -438,7 +438,8 @@ export function createMpScreens({ S, R, game, cfg }) {
 
   // ---------- keys in a race: watching (W), the car (← →) and camera (C); Esc: leave ----------
   function onKey(e) {
-    if (!S.race || e.target?.tagName === 'INPUT' || e.target?.tagName === 'SELECT') return;
+    // (typing in a box on screen isn't a key for the race — a hidden one, the lobby's chat kept in focus, doesn't count)
+    if (!S.race || (e.target?.tagName === 'INPUT' || e.target?.tagName === 'SELECT') && e.target.offsetParent !== null) return;
     const ph = S.phase, inRace = ph && ph !== 'lobby';
     if (e.code === 'F7') { e.preventDefault(); toggle(); return; }
     if (!inRace) return;

@@ -389,8 +389,14 @@ try {
   const v1 = watchB ? await until(async () => { const o = await onCar(); return o && Math.abs(o.ndc[0]) < 0.6 && Math.abs(o.ndc[1]) < 0.8 && o.ndc[2] < 1 && o.dist < 20 ? o : null; }, 20000) : null;
   check('B watching (Watch instead, in the lobby): the bar says whose car, and the chase camera is on that car', !!v1 && watchB.s.text.includes(v1.name), watchB ? `${watchB.s.text} · that car ${v1 ? `on screen at (${v1.ndc[0].toFixed(2)}, ${v1.ndc[1].toFixed(2)}), ${v1.dist.toFixed(1)} m away` : 'not on screen'}` : `B: ${(await seen(B, '#mpWatch')).why} · ${await diag(B)}`);
   await shot(B, '6-watching-B');
-  await B.bringToFront(); await B.keyboard.press('ArrowRight');
-  const v2 = await until(async () => { const s = await seen(B, '#mpWatch [data-watching]'), o = await onCar(); return s.ok && o && o.name !== v1?.name && s.text.includes(o.name) ? { s, o } : null; }, 8000);
+  // (nothing focused that takes keys — the lobby's chat box can keep it while hidden — and pressed again if the first
+  // press was lost to a slow frame: every 3 s, so at most a few presses and never round to the first car again)
+  await B.bringToFront(); await B.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
+  let pressedAt = 0;
+  const v2 = await until(async () => {
+    if (Date.now() - pressedAt > 3000) { pressedAt = Date.now(); await B.keyboard.press('ArrowRight'); }
+    const s = await seen(B, '#mpWatch [data-watching]'), o = await onCar(); return s.ok && o && o.name !== v1?.name && s.text.includes(o.name) ? { s, o } : null;
+  }, 10000);
   check('→ switches to another car: the bar and the camera follow it', !!v2, v2 ? `${v1?.name} → ${v2.s.text}` : (await seen(B, '#mpWatch')).text);
   await B.keyboard.press('KeyC');
   const cam2 = await until(async () => { const s = await seen(B, '#mpWatch [data-camera]'), o = await onCar(); return s.ok && /In car/.test(s.text) && o && o.dist < 3 ? { s, o } : null; }, 8000);
