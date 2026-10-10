@@ -241,7 +241,9 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('preHandler', async req => {
     if (req.method !== 'POST' || !req.url.startsWith('/api/auth/')) return;
     const p = req.url.split('?')[0].replace(/\/{2,}/g, '/'), S = await siteSettings.get();
-    if (S.closedBeta.on && p === '/api/auth/sign-up/email') {
+    // (the owner's own address needs no code: nobody else can make invite codes yet, and the account becomes the
+    // owner only once that email is confirmed — server/src/owner.ts)
+    if (S.closedBeta.on && p === '/api/auth/sign-up/email' && !(config.adminEmail && String((req.body as any)?.email ?? '').trim().toLowerCase() === config.adminEmail)) {
       const code = String((req.body as any)?.inviteCode ?? '').trim().toUpperCase();
       (req as any).inviteCode = null;
       const took = code ? (await db.execute(sql`update invite_codes set uses = uses + 1 where code = ${code} and not revoked and uses < max_uses and (expires_at is null or expires_at > now()) returning code`)).rows[0] : null;
