@@ -138,7 +138,7 @@ export async function drawBreakdown(top = 16) {
 }
 
 export async function measure(seconds = 30) {
-  const S = W().shared, P = S.prof, sim0 = W().active.sim.time, t0 = performance.now();
+  const S = W().shared, P = S.prof, sim0 = W().active.sim.time, t0 = performance.now(), programs0 = new Set(S.renderer.info.programs ?? []);
   P.reset();
   await sleep(seconds * 1000);
   const st = P.stats(), w = W().active;
@@ -155,6 +155,8 @@ export async function measure(seconds = 30) {
     // a 60th of a second's worth of steps)
     // (how long it ran, in real time and the simulation's: the garbage worked out from them — tools/bench.mjs)
     wallSeconds: (performance.now() - t0) / 1000, simSeconds: w.sim.time - sim0,
+    // (the shader programs compiled while it ran — each a hitch where it happens: what wasn't compiled ahead)
+    programsMade: (S.renderer.info.programs ?? []).filter(p => !programs0.has(p)).map(p => p.name),
     physicsStep: { stepMs: w.sim.perf.stepMs, perCarMs: w.sim.perf.perCarMs, cars: w.sim.perf.cars, per60thMs: w.sim.perf.stepMs * (S.settings.stepHz ?? 120) / 60 },
     viewport: [innerWidth, innerHeight, devicePixelRatio, S.renderer.getPixelRatio()],
   };

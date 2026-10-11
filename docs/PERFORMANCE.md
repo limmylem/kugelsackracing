@@ -142,7 +142,8 @@ stages, draw calls, triangles, memory and garbage.
 | **Far cars in one piece** (car detail, detailed cars) | same | The 10-car pile-up 414 → about 230 picture draws; triangles 642k → 185k |
 | **The spark lights never hidden** — hiding one changed the scene's light count, and every material was compiled again at the first sparks | `effects/threeRenderer.js` | No more shader-compile stutter at the first crash |
 | **Shaders compiled before they're needed**: the world's when it's entered, other players' and NPCs' cars while they're still hidden, the one-piece cars and broken glass and lamps ahead of time | `testtrack/test-scene.js` warmShaders, precompile | Shader-compile stutters in the benchmarks (see the report) |
-| **The crash replay's recording recycled** — 30 frames a second of every car's state had been the biggest maker of garbage (29% of it in a race) | `physics/replay.js` | Garbage in the 8-car race 4.4 → 1.0 MB/s, downtown 3.9 → 1.8; GC stutters 22 → 16 and 18 → 10 |
+| **The crash replay's recording recycled** — 30 frames a second of every car's state, each kept 6 s: long enough to outlive the quick collections | `physics/replay.js` | Nothing measurable in the garbage made (the physics' own small vectors are about 80% of it, and stay); what it saves is old objects for the full collections, too few in a benchmark run to count |
+| **Other players' network delays sorted without garbage** (a reused array sorted numerically, the same figures) | `net/remote.js` | Free roam with 29 others: the garbage outside the frame 8.0 → 3.4 MB/s (−58%); in all 83 → 78 MB/s |
 | **One-piece copies made into typed arrays, and not again for every dent** (the first version made 90% of the pile-up's garbage) | `garage/visual.js` | — (found by `--alloc` before it shipped) |
 | **Car models kept for the next race** (least recently used let go past an eighth of the meshes' budget) | `garage/visual.js` ModelCache | A race against the same cars again loads them at once |
 | **The map round a quest fetched while its card is open** | `map/render/worker.ts` prefetch | Fast travel or driving there reads this computer's cache, no download |
@@ -178,9 +179,12 @@ stages, draw calls, triangles, memory and garbage.
   nothing at all in download, for a transcoder and its WebAssembly. Worth it when photographic textures arrive.
 - **Shaders compiled during loading** (above), so the first crash, the first broken window, the first car of a new
   model and the first far car in one piece don't stutter.
-- **No garbage every frame in the hot code**: the crash replay recycles its frames; the one-piece copies are made into
-  arrays made once; `--alloc` shows what's left (the physics' small vectors, inside Rapier and the vehicle model —
-  left alone: the physics stays exactly as it is).
+- **Garbage**: the crash replay recycles its frames; the one-piece copies are made into arrays made once; other
+  players' network delays are sorted without making any. What's left is mostly the physics' own small vectors (the
+  vehicle model, the drivers: about 80% of it in a race) — left alone, the physics stays exactly as it is. Its cost,
+  measured (`--cpu`, `--gc`): the collector takes about 1–2% of the main thread; its quick collections pause it 2–5 ms
+  at most here, its full ones (one every second or two in a race) 4–11 ms, once 36 ms — drawn in software, the
+  collector's helper threads compete with the renderer for the CPU, so a player's computer does better.
 
 ## The CPU and threads
 
@@ -222,8 +226,8 @@ stages, draw calls, triangles, memory and garbage.
 ## Stutters, and the background
 
 - The causes are logged (above); the ones found and fixed: shader compiles at the first sparks (the lights' count) and
-  for new cars and broken glass (compiled ahead), and garbage collections from the replay's recording and the one-piece
-  copies (recycled).
+  for new cars and broken glass (compiled ahead), and garbage from the one-piece copies (made into arrays made once)
+  and other players' network delays (sorted without any).
 - **In the background** (another tab, minimised): the browser stops drawing (no frames), the sound is suspended, and
   the multiplayer connection stays (a worker's heartbeat keeps it alive and shows your car as paused to the others).
 
@@ -292,18 +296,21 @@ and its stutters are what changed.
 | heap MB | 129 → 123 (-5%) | 120 → 113 (-6%) | 300 → 303 | 238 → 248 (+5%) | 179 → 190 (+6%) |
 | meshes MB | 17 → 19 (+15%) | 16 → 18 (+7%) | 89 → 91 | 89 → 93 (+5%) | 30 → 34 (+13%) |
 | textures MB | 15 → 15 | 15 → 15 | 12 → 12 | 8 → 8 | 3 → 3 |
-| garbage MB/s | 4.4 → 1.0 (-77%) | 2.7 → 2.1 (-22%) | 3.9 → 1.8 (-53%) | 4.6 → 8.5 (+84%) | 5.4 → 6.1 (+13%) |
-| GC stutters | 22 → 16 (-27%) | 21 → 16 (-24%) | 18 → 10 (-44%) | 22 → 14 (-36%) | 7 → 8 (+14%) |
+| garbage, MB/s at 60 fps (Chrome's count; ± about 30% from run to run) | 141 → 154 | 138 → 91 (-34%) | 152–174 → 154–227 (3 runs) | 83 → 78 (-6%) | 155 → 159 |
+| …of it the physics and the drivers, MB a simulated second | 112 → 123 | 67 → 69 | 106 → 113 | 10 → 10 | 75 → 76 |
+| …the rest of the frame, KB a frame | 488 → 532 | 1209 → 384 (-68%) | 789–964 → 843–1941 (3 runs) | 1110 → 1090 | 1352 → 1391 |
+| …outside the frame (the network, timers), MB/s | 0.1 → 0.0 | 0.0 → 0.0 | 0.1 → 0.1 | 8.0 → 3.4 (-58%) | 1.2 → 1.5 |
 | shader-compile stutters | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 |
 | audio thread | 7.1% → 7.9% (+11%) | 5.1% → 5.1% | 5.9% → 6.7% (+13%) | 4.0% → 9.5% (+140%) | 5.1% → 9.5% (+85%) |
 | frame (software rendering) ms | 875 → 893 | 862 → 897 | 932 → 1273 (+36%) | 588 → 596 | 1184 → 1073 (-9%) |
 | drivable in s | 4.6 → 4.2 (-8%) | 4.5 → 4.8 (+8%) | 9.8 → 10.1 | 9.9 → 11.5 (+16%) | 5.2 → 6.4 (+23%) |
 
 - **Draw calls** fell by 16–60%, almost all of it the **shadows** (−72 to −95%): every car's shadow is one draw.
-- **Garbage**: the race 4.4 → 1.0 MB/s and downtown 3.9 → 1.8 MB/s (the replay's recording recycled); fewer GC stutters
-  in every race scene. Free roam measured high here (8.5 MB/s) while the 29 other cars' one-piece copies were first
-  being made; that's since made into exactly sized arrays, and each other player's car drawn from the same objects every
-  frame (see below).
+- **Garbage** (counted again, by Chrome: the page's own figure missed most of it): about the same before and after
+  in most scenes — it's mostly the physics' own (untouched) — except the night race, a third less (1.2 → 0.4 MB a
+  frame), and free roam's network, less than half (above). Medium and low make less again (the night race 74 / 69
+  MB/s, the pile-up 103 / 93). Downtown's varies most from run to run (843–1,941 KB a frame at high in three runs;
+  nothing in its allocation profile is the graphics').
 - **The pile-up's triangles** fell 29% (far cars in one piece); its picture draws barely, because at high all ten
   cars are near enough (300 m) and few enough (8) to be drawn whole — at medium and low (150 / 60 m, 6 / 4 cars) they
   fall further (below).
