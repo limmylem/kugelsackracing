@@ -1910,6 +1910,8 @@ function drawWorldButtons() {
 // The garage is a world too: you go in with the car as it is, and leave back to where you were; a
 // test drive from it goes to the test centre, with a button back
 let cameFrom = 'real', testDriving = false, garageTab = null;   // ('real': the low-poly world)
+// (the region of the real world a switch is for — another region's file goes through Real world, so its button is on)
+let wantReal = null;
 async function switchWorld(id, nested = false) {
   if (id === currentWorld || (switching && !nested)) return;
   switching = true;
@@ -1920,6 +1922,9 @@ async function switchWorld(id, nested = false) {
     test.hooks.switchTo = file => {
       // (a generated track: the Track world, on that track)
       if (file.startsWith('track:')) { trackOverride = file.slice(6); if (currentWorld === 'track') return test.enter(file); return switchWorld('track', true); }
+      // (a region of the real world: the Real world button's, at that region)
+      // (already there: the game goes to the region itself)
+      if (file.startsWith('scenes/map_v3.json') && worldList.some(x => x.id === 'real' && x.file === 'scenes/map_v3.json')) { if (currentWorld === 'real') return false; wantReal = file; return switchWorld('real', true); }
       const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true);
     };
     test.hooks.toGarage = () => { garageTab = 'damage'; return switchWorld('garage'); };
@@ -1955,7 +1960,10 @@ async function switchWorld(id, nested = false) {
       for (const k in keys) keys[k] = false;
       if (viewer) viewer.useDefaultRenderLoop = false; // pause the real world while away
       document.body.classList.add('test-mode');
-      await test.enter(target.track ? `track:${trackCode()}` : target.file);
+      // (the real world: the region last driven in, or the one a switch is for — San Francisco only the first time)
+      const real = target.id === 'real' && target.file === 'scenes/map_v3.json' ? (wantReal ?? test.realWorldFile?.() ?? target.file) : null;
+      wantReal = null;
+      await test.enter(target.track ? `track:${trackCode()}` : real ?? target.file);
     }
     currentWorld = id;
     $('backToGarage').hidden = !testDriving;
