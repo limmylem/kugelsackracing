@@ -210,13 +210,9 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         // (its sound: once the game's audio has started — browsers only allow sound after a key press)
         if (!c.sound) { const au = A.audio(); if (au) c.sound = A.carSound(au, o.look ?? {}, o.id); }
         // its wheels: turned by their own speed (the angle isn't sent: only how fast), riding their suspension
-        // (the same objects every frame, filled in — no garbage for each car each frame)
-        const ws = p.wheels ?? [], wheels = c.wheelBuf ??= [];
-        wheels.length = ws.length;
-        for (let i = 0; i < ws.length; i++) { c.spin[i] = ((c.spin[i] ?? 0) + ws[i].omega * dt) % (Math.PI * 2); Object.assign(wheels[i] ??= {}, ws[i]); wheels[i].spin = c.spin[i]; }
-        const simPos = A.toSim(p.pos), drawn = c.drawBuf ??= {};
-        Object.assign(drawn, p); drawn.pos = simPos;
-        A.drawCar(c.handle, drawn, wheels);
+        const wheels = (p.wheels ?? []).map((w, i) => { c.spin[i] = ((c.spin[i] ?? 0) + w.omega * dt) % (Math.PI * 2); return { ...w, spin: c.spin[i] }; });
+        const simPos = A.toSim(p.pos);
+        A.drawCar(c.handle, { ...p, pos: simPos }, wheels);
         // (the tests: what was drawn, frame by frame — globalThis.__krMpTrace = {} turns it on)
         const tr = globalThis.__krMpTrace;
         if (tr) { const list = tr[o.id] ??= []; list.push({ at: performance.now(), dt, pos: p.pos, vel: p.vel, rot: p.rot, ang: p.ang, shownAt: p.shownAt, flags: p.flags, rpm: p.rpm, spin: wheels[0]?.spin ?? null, extrapolating: p.extrapolating, correctionCm: p.correctionCm, teleported: p.teleported, sound: !!c.sound, dents: c.dentCount ?? 0 }); if (list.length > 6000) list.splice(0, 1000); }

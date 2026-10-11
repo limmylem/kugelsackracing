@@ -45,4 +45,7 @@ jobs:
         run: node tools/browsers.mjs --browsers ${{ matrix.browsers }} ${{ matrix.channels && format('--channels {0}', matrix.channels) || '' }} --tag ${{ matrix.tag }}
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: browsers-${{ matrix.tag }}, path: reports/browsers, retention-days: 30 }
+        with:
+          name: browsers-${{ matrix.tag }}
+          path: reports/browsers
+          retention-days: 30
