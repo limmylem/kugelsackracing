@@ -66,6 +66,8 @@ const wait = async (ms, what) => { for (const end = Date.now() + ms; Date.now() 
 const t0 = Date.now();
 try {
   await page.goto(`${base}/index.html?questBot&graphics=${preset}`);
+  // (the game page doesn't name its worlds' controls on window as the development page does: the same module's, named)
+  await page.evaluate(async () => { window.testWorld ??= (await import('/testtrack/test-scene.js')).debug; });
   if (!(await inWorld('scenes/map_v3'))) throw new Error('the real world never became drivable');
   await page.keyboard.press('Shift');
   log('in the real world');
