@@ -6,6 +6,7 @@
 //
 //   node tools/bench.mjs [--scenes track_race,night_rain,city,pileup,roam] [--seconds 30] [--tier medium] [--preset high] [--label name]
 //                        [--swiftshader] [--size 640x360] [--baseline reports/performance/baseline.json]
+//                        [--alloc] [--cpu] [--gc] (where the garbage is made; where the main thread's time goes; each collection's pause)
 //   (needs playwright-core and a Chromium: CHROMIUM=/path, else /opt/pw-browsers/chromium or Playwright's own; the roam
 //   scene runs the game's servers here too, which need PostgreSQL with PostGIS: TEST_DATABASE_URL)
 //
@@ -105,7 +106,19 @@ try {
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('HeapProfiler.startSampling', { samplingInterval: args.includes('--alloc') ? 16384 : 65536, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
     if (args.includes('--cpu')) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
+    // (--gc: every collection's pause on the page's main thread, from Chrome's trace — the quick ones, of the young
+    // objects, and the full ones, of the whole heap — how many, how long, the longest)
+    if (args.includes('--gc')) await browser.startTracing(page, { categories: ['devtools.timeline', 'v8'] });
     const r = await page.evaluate(async s => (await import('/perf/bench.js')).measure(s), B.seconds ?? seconds);
+    if (args.includes('--gc')) {
+      const T = JSON.parse(String(await browser.stopTracing())), ev = T.traceEvents ?? T;
+      const main = new Set(ev.filter(e => e.ph === 'M' && e.name === 'thread_name' && e.args?.name === 'CrRendererMain').map(e => `${e.pid}:${e.tid}`));
+      const g = { minor: [], major: [] };
+      for (const e of ev) if (e.ph === 'X' && (e.name === 'MinorGC' || e.name === 'MajorGC') && main.has(`${e.pid}:${e.tid}`)) g[e.name === 'MinorGC' ? 'minor' : 'major'].push(e.dur / 1000);
+      // (by simulated time: the physics makes most of the garbage, and drawn in software it runs behind real time)
+      r.gc = Object.fromEntries(Object.entries(g).map(([k, a]) => [k, { count: a.length, perSimMinute: a.length / Math.max(1e-6, r.simSeconds) * 60, msPerSimSecond: a.reduce((x, y) => x + y, 0) / Math.max(1e-6, r.simSeconds), longestMs: Math.max(0, ...a) }]));
+      console.log(`${''.padEnd(11)} collections on the main thread: quick ${r.gc.minor.count} (${r.gc.minor.msPerSimSecond.toFixed(1)} ms a simulated second, the longest ${r.gc.minor.longestMs.toFixed(1)} ms) · full ${r.gc.major.count} (${r.gc.major.perSimMinute.toFixed(1)} a simulated minute, ${r.gc.major.msPerSimSecond.toFixed(1)} ms a simulated second, the longest ${r.gc.major.longestMs.toFixed(1)} ms)`);
+    }
     const where = f => `${f.functionName || '(anonymous)'} ${f.url.replace(/^.*?\/\/[^/]+\//, '').replace(/^https:\/\/cdn[^ ]*\/npm\//, '')}:${f.lineNumber + 1}`;
     const by = new Map();
     {
