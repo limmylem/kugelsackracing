@@ -5,6 +5,11 @@
 > up, and the record of its tests: [GO_LIVE.md](GO_LIVE.md). Since then: Phase 8 Step 1, the game's sound
 > ([AUDIO.md](AUDIO.md)) — its code in `audio/` on the game's address, its sounds (Opus, with the WAV masters for
 > browsers without Opus) with the other files on the tiles' address; no change to the services or what they cost.
+> Then a new region, **Adelaide** (2026-10-11: the whole city, Henley Beach and Glenelg to Mount Lofty, Port Adelaide
+> to Mitcham; [MAP_README.md](../MAP_README.md#the-adelaide-bake-results)): 198 MB more on the tiles' address and in
+> the server's image; still within R2's free 10 GB, so no change to what it costs. Its road graph is the biggest
+> (89,000 segments): once someone drives there, the API and the real-time server each hold it in memory (about
+> 0.4 GB each, San Francisco's about 0.2 GB), which the VPS's 4 GB has room for.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
@@ -18,7 +23,7 @@ and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md)
 | `www.ognistrada.com` | Redirects (301) to `ognistrada.com`, keeping the path and query | A Cloudflare redirect rule |
 | `api.ognistrada.com` | The API, plus the admin and editor pages (only for admin and editor accounts) | The VPS in Sydney (container `api`), through the Cloudflare Tunnel |
 | `rt.ognistrada.com` | The real-time server: races, lobbies, free roam (WebSockets); `/health` | The VPS in Sydney (container `rt`), through the Cloudflare Tunnel |
-| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, about 280 MB; the sounds 30 MB of it, of which players fetch the 4 MB of Opus, only what's in use) | Cloudflare R2, bucket `ognistrada-tiles` |
+| `tiles.ognistrada.com` | Map files, the world, cars, parts, icons, sounds (`assets/`, about 490 MB: San Francisco 117 MB and Adelaide 198 MB of it, a player fetching only the tiles round them; the sounds 30 MB, of which players fetch the 4 MB of Opus, only what's in use) | Cloudflare R2, bucket `ognistrada-tiles` |
 | `noreply@ognistrada.com` | Sends verification, password-reset and support emails, and the alerts | Resend (region Tokyo) |
 
 The backups are in a second R2 bucket, `ognistrada-backups`, which is private (no address at all).
@@ -90,7 +95,7 @@ region, Redis elsewhere, a paid plan of a free service), with a monthly estimate
 The free plans' limits that matter (October 2026; *check* each pricing page):
 - **Cloudflare Pages:** 500 deploys a month, 25 MiB a file, 20,000 files (the game: about 910 files, 7 MB).
 - **Cloudflare R2:** 10 GB stored, 1 million writes and 10 million reads a month, downloads free. We use about
-  0.3 GB (the files) plus the backups (35 small files).
+  0.5 GB (the files) plus the backups (35 small files).
 - **Resend:** 3,000 emails a month, at most 100 a day, one domain. Its logs: a day on the free plan (*check*).
 - **The VPS:** OVHcloud's VPS traffic is unmetered at 250 Mbit/s (*check* the order page). Free roam is the biggest
   user (8–35 kB/s a player: [COSTS.md](COSTS.md)); five friends are nowhere near it.
@@ -180,7 +185,8 @@ Cloudflare as players reach it:
 - the API: healthy, `production`, its database answering; CORS for the game (with cookies), not for another site; the
   admin page and the editor's code, signed out, send you to sign in;
 - the game: its page loads its settings first; `site/config.js` names every address and has `multiplayer: true`; it's
-  the commit the API runs; `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
+  the commit the API runs (asked again for up to a minute: just after a deploy Pages can answer with the one before
+  for some seconds); `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
 - the tiles: a byte range (206), from Cloudflare's cache the second time (`cf-cache-status: HIT`), CORS for the game's
   and the API's addresses even from the cache, not for another site;
 - real time: `https://rt.ognistrada.com/health` is ok (and not draining), the same commit as the API, and 10 round

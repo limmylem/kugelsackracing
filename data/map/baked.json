@@ -6,6 +6,7 @@
     { "id": "tokyo", "name": "Tokyo (Shibuya)", "bbox": [139.69, 35.652, 139.712, 35.668], "manifest": "assets/map/tokyo/manifest.json" },
     { "id": "stelvio", "name": "Stelvio Pass", "bbox": [10.44, 46.525, 10.48, 46.545], "manifest": "assets/map/stelvio/manifest.json" },
     { "id": "munich", "name": "Munich (A9 / A99)", "bbox": [11.61, 48.225, 11.645, 48.245], "manifest": "assets/map/munich/manifest.json" },
-    { "id": "mk", "name": "Milton Keynes", "bbox": [-0.78, 52.03, -0.74, 52.05], "manifest": "assets/map/mk/manifest.json" }
+    { "id": "mk", "name": "Milton Keynes", "bbox": [-0.78, 52.03, -0.74, 52.05], "manifest": "assets/map/mk/manifest.json" },
+    { "id": "adelaide", "name": "Adelaide", "bbox": [138.49, -35.01, 138.72, -34.835], "manifest": "assets/map/adelaide/manifest.json" }
   ]
 }

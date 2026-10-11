@@ -163,8 +163,11 @@ the region's datums. On Ubuntu:
 
 ```sh
 sudo apt-get install gdal-bin python3-gdal osmium-tool proj-bin proj-data
-# geoid grids (if your PROJ doesn't fetch them from cdn.proj.org): put us_nga_egm08_25.tif and the
-# region's local geoid (e.g. us_noaa_g2018u0.tif for NAVD88) into .cache/map/proj/
+# geoid grids (the bake runs PROJ offline): put us_nga_egm08_25.tif and the region's local geoid
+# (e.g. us_noaa_g2018u0.tif for NAVD88) into .cache/map/proj/ — from cdn.proj.org, or the same files in
+# github.com/OSGeo/PROJ-data (raw.githubusercontent.com/OSGeo/PROJ-data/master/us_nga/us_nga_egm08_25.tif)
+# Every region needs us_nga_egm08_25.tif, Copernicus-only ones too: without it GDAL warps every source to
+# nodata, and the bake stops ("no elevation anywhere") rather than baking the region flat.
 # Planetiler 0.8.4 is downloaded into .cache/map/tools/ on first use
 ```
 
@@ -261,6 +264,54 @@ npm run map:typecheck                           # TypeScript
   - The Phase 1 physics tests pass on the Great Highway.
 - **In the browser:** drivable about 5 s after the page opens, with software rendering on the build
   machine.
+
+## The Adelaide bake (results)
+
+The whole city, baked like San Francisco (`data/map/regions/adelaide.json`, 2026-10-11): from Henley Beach and
+Glenelg on the coast to Mount Lofty and Crafers in the Adelaide Hills, from Port Adelaide and the Superway in the
+north to Somerton Park and Mitcham in the south, with the CBD, North Adelaide and the parklands in the middle. In the game: the full map (Tab) → **Regions** → Adelaide → **Travel**.
+
+- **Size:** 1,596 tiles of 512 m (21.5 × 19.5 km), 172 MB of tiles plus a 13 MB road graph, a 12 MB vector map
+  and a 36-chunk far layer: 198 MB in all, static files.
+- **Sources:** OpenStreetMap rebuilt from Overture (release 2026-09-23.1; Geofabrik couldn't be reached from the
+  bake machine) and Copernicus GLO-30 elevation. South Australia's 1 m LiDAR (ELVIS: GDA2020 / MGA zone 54 with
+  AHD heights, `EPSG:7854+5711`) would be better still, but ELVIS couldn't be reached either: add it to
+  `dem.sources` ahead of GLO-30 when it can be downloaded.
+- **Bake time:** about 6 minutes on 4 cores once the sources are downloaded (about 2 more the first time), at
+  about 7 GB of memory at most.
+- **Contents:** 89,356 road segments (49,360 junctions), 265,274 buildings (121,038 OSM footprints, 144,236 from
+  Overture only; 63,433 with estimated heights), 146,065 railing pieces, 456,489 trees and 9,864 car parks.
+- **Quick travel:** King William Street, The Parade (Norwood), Greenhill Road up into the hills, the Esplanade
+  (Glenelg South), the South Road Superway, Adelaide Bridge over the Torrens, the Heysen Tunnels on the South
+  Eastern Freeway, Adelaide Airport (the big car park) and the Britannia Roundabout.
+- **Tests (`npm run test:map -- --region adelaide`):**
+  - The baked centre lines are within 0.7 cm of OpenStreetMap (306,878 nodes).
+  - The drawn road is within 0.4 cm of the elevation profile, and physics within 0.4 cm (junctions 12 cm).
+  - All 3,112 tile edges are identical in physics.
+  - One vertical datum (EGM2008); no LiDAR, so no blend to check.
+  - The guard rail on Greenhill Road and the wall on King William Street hold at 50–300 km/h.
+  - Streaming: 20 km at 200 km/h with the ground always ready. Over 284 tiles the heap grows by 3 MB.
+  - Two bakes come out byte-identical.
+  - The Phase 1 physics tests pass on Anzac Highway's 1,320 m straight (the test looks on the coast spot's road,
+    and the Esplanade's longest straight is 653 m: it reports that as a failure).
+  - Three more fail, all bake behaviour every region has (docs/KNOWN_ISSUES.md, "Adelaide"): one dead end of
+    14,154 (Middleton Drive) lies on a road it isn't joined to; the 5 % sample of the drawn road's surface finds
+    one node 1.4 m from it (Brooks Lane, a 7.6 m piece between two junctions); and the railings test's parapet,
+    at the end of the Montefiore Road bridge, is hit from the road beside it, 1 m below the deck, and the car
+    slips under the deck's end (from the deck, it holds at 50–300 km/h).
+  - `npm run test:routes -- --only adelaide`: from North Adelaide down O'Connell Street and King William Road
+    over Adelaide Bridge (1.67 km), driven to the finish by the autopilot. `npm run test:npc -- --regions
+    adelaide`: NPCs at low, medium and high skill finish it cleanly.
+- **In the browser:** from San Francisco, the full map's **Travel** to Adelaide is drivable at Victoria Square in
+  12 s, and every quick-travel spot in 10–23 s, with software rendering on the build machine.
+- **Baking it found two bake bugs**, fixed for every region's next bake:
+  - with PROJ's EGM2008 geoid grid missing, GDAL warped the elevation to nothing and the region baked flat at 0 m
+    without a word: the bake now stops ([Baking a region](#baking-a-region));
+  - the loose-end join looked for the road an end lies on only near the middle of each piece of road, so a long
+    straight piece (200 m between nodes, common in Adelaide's suburbs) was never found and the T-junction stayed
+    unjoined; and an end a metre or two past a junction it already had was "joined" back onto it, folding back on
+    itself (47 such in Adelaide). Now every piece is found along its whole length, and those ends are left as
+    they are.
 
 ## Notes
 

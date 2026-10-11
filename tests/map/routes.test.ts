@@ -1,12 +1,12 @@
 // Routes on real roads (Phase 4 Step 2): one route in each of five baked regions in five countries —
 // city streets (Monaco), a city's steep streets (Tokyo, Shibuya), a mountain pass (Stelvio), a motorway
-// (Munich, A9) and a loop through roundabouts (Milton Keynes) — and the game's own San Francisco; each
-// routed from a few clicks, then driven in
+// (Munich, A9) and a loop through roundabouts (Milton Keynes) — and the game's own San Francisco and
+// Adelaide (North Adelaide down King William Road over the River Torrens); each routed from a few clicks, then driven in
 // the physics on the baked world's own colliders by a simple autopilot (route/autopilot.js) from grid slot
 // 1 to the finish, through every checkpoint in order, with the tracker (route/tracker.js) watching: no
 // resets, never off the route, never the wrong way.
 //
-//   npm run test:routes                      all five
+//   npm run test:routes                      all of them
 //   npm run test:routes -- --only stelvio    one
 //   npm run test:routes -- --verbose         the drive, every few seconds
 

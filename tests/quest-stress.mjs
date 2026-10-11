@@ -55,7 +55,7 @@ let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 21474836
 
 // ---------- the routes: real ones, from every baked region's road graph ----------
 // (shares of the 50,000: the busier the region, the more; Monaco small and packed — the densest place)
-const SHARE = { sf: 0.36, monaco: 0.1, tokyo: 0.14, stelvio: 0.12, munich: 0.12, mk: 0.16 };
+const SHARE = { sf: 0.3, monaco: 0.09, tokyo: 0.12, stelvio: 0.1, munich: 0.1, mk: 0.14, adelaide: 0.15 };
 const regions = read('data/map/baked.json').regions, R = {};
 let t0 = performance.now();
 for (const r of regions) {

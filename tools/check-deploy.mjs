@@ -60,9 +60,12 @@ await tryIt('the API', async () => {
 
 // ---------- the game ----------
 await tryIt('the game', async () => {
-  const page = await (await fetch(G)).text(), cfg = await (await fetch(`${G}/site/config.js`)).text();
+  const page = await (await fetch(G)).text(), configOf = async () => { const cfg = await (await fetch(`${G}/site/config.js`, { cache: 'no-store' })).text(); return { cfg, said: JSON.parse(cfg.match(/Object\.freeze\((\{.*\})\)/)?.[1] ?? '{}') }; };
   check(page.includes('/site/config.js'), 'the game\'s page loads its settings first');
-  const said = JSON.parse(cfg.match(/Object\.freeze\((\{.*\})\)/)?.[1] ?? '{}');
+  // (a deploy's checks run moments after Pages took the game: its address can answer with the one before for a little
+  // while — 2026-10-11, still the previous commit 20 s on — so the commit is asked again, for up to a minute)
+  let { cfg, said } = await configOf();
+  for (let k = 0; k < 6 && health?.version && !String(health.version).startsWith(said.version ?? '-'); k++) { await new Promise(r => setTimeout(r, 10000)); ({ cfg, said } = await configOf()); }
   const want = { env: ENV, api: API, game: G, tiles: TILES, rt: RT, multiplayer: true };
   check(Object.entries(want).every(([k, v]) => said[k] === v), 'the game knows where everything is (multiplayer on)', cfg.trim().split('\n').pop().slice(0, 200));
   check(!!health?.version && String(health.version).startsWith(said.version ?? '-'), 'the game is the commit the API runs', `game ${said.version} · API ${short(health?.version)}`);

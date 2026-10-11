@@ -25,7 +25,7 @@ import { createQuestSession } from '../../quest/session.js';
 import { groundHeight } from '../../physics/ai.js';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
-const only = opt('--only')?.split(','), regions = opt('--regions')?.split(',') ?? ['monaco', 'tokyo', 'stelvio', 'munich', 'sf', 'mk'];
+const only = opt('--only')?.split(','), regions = opt('--regions')?.split(',') ?? ['monaco', 'tokyo', 'stelvio', 'munich', 'sf', 'mk', 'adelaide'];
 const want = (k: string) => !only || only.includes(k);
 let failed = 0;
 const report = (pass: boolean, name: string, detail: string) => { if (!pass) failed++; console.log(`${pass ? '  ok  ' : ' FAIL '} ${name.padEnd(48)} ${detail}`); };

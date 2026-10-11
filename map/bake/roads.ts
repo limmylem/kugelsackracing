@@ -135,8 +135,16 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
   const uses = new Map<number, number>();
   for (const w of ways) w.nodes.forEach((p, i) => uses.set(p.id, (uses.get(p.id) ?? 0) + (i === 0 || i === w.nodes.length - 1 ? 2 : 1)));
   const kind = (t: Record<string, string>) => `${t.layer ?? 0}|${t.bridge && t.bridge !== 'no' ? 'b' : t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'culvert' ? 't' : 'g'}`;
+  // (each piece in every cell along it, not only its middle's: a long straight piece — 200 m between nodes is
+  // common in a suburb — would be missed by an end beside it, its middle far outside the cells searched)
   const C = 25, grid = new Map<string, [number, number][]>(), cell = (x: number, z: number) => `${Math.floor(x / C)},${Math.floor(z / C)}`;
-  ways.forEach((w, wi) => { for (let i = 0; i + 1 < w.nodes.length; i++) { const k = cell((w.nodes[i].x + w.nodes[i + 1].x) / 2, (w.nodes[i].z + w.nodes[i + 1].z) / 2); (grid.get(k) ?? grid.set(k, []).get(k)!).push([wi, i]); } });
+  ways.forEach((w, wi) => {
+    for (let i = 0; i + 1 < w.nodes.length; i++) {
+      const A = w.nodes[i], B = w.nodes[i + 1], steps = Math.ceil(Math.hypot(B.x - A.x, B.z - A.z) / C), keys = new Set<string>();
+      for (let s = 0; s <= steps; s++) keys.add(cell(A.x + (B.x - A.x) * s / (steps || 1), A.z + (B.z - A.z) * s / (steps || 1)));
+      for (const k of keys) (grid.get(k) ?? grid.set(k, []).get(k)!).push([wi, i]);
+    }
+  });
   const half = ways.map(w => sizeOf(w.tags, cfg).width / 2), kinds = ways.map(w => kind(w.tags));
   const inserts = new Map<number, { i: number; t: number; p: any }[]>(), joins: { wi: number; atStart: boolean; p: any }[] = [];
   let nextId = 9e15;
@@ -163,6 +171,9 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
       // beyond the junction; else a node of it within 1.5 m; else a new one on its line)
       const ends = [o.nodes[0], o.nodes[o.nodes.length - 1]];
       let p = ends.find(q => Math.hypot(q.x - best.px, q.z - best.pz) < Math.max(1.5, half[oi])) ?? [A, B].find(q => Math.hypot(q.x - best.px, q.z - best.pz) < 1.5) ?? null;
+      // (a way already through that node: its end is a metre or two past a junction it has — not joined
+      // again, which would fold its end back on itself)
+      if (p && w.nodes.some(q => q.id === p.id)) continue;
       if (!p) {
         p = { id: nextId++, x: best.px, z: best.pz, lat: A.lat + (B.lat - A.lat) * t, lon: A.lon + (B.lon - A.lon) * t, joined: true };
         (inserts.get(oi) ?? inserts.set(oi, []).get(oi)!).push({ i, t, p });

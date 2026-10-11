@@ -97,7 +97,7 @@ certificates to renew on it and only SSH (with your key) can reach it from the i
    - (Namecheap's own email forwarding and redirects for this domain stop working after this.)
    - Cloudflare emails you when the domain is **Active** (minutes, sometimes up to a day). You can carry on meanwhile.
 4. **R2:** left menu **R2 Object Storage** → enable it on the free plan and add a card. Nothing is charged within the
-   free amounts (10 GB; we use about 0.3 GB).
+   free amounts (10 GB; we use about 0.5 GB).
 5. **Account ID:** on the account's home page (or the domain's overview, right-hand column) → copy the **Account ID**.
    It isn't secret: it goes into GitHub as a variable (Part 5).
 6. **Turnstile** (the "are you human" check on sign-up): left menu **Turnstile** → **Add widget** → name `ognistrada`,
@@ -218,7 +218,7 @@ In the repository `limmylem/kugelsackracing` → **Settings**:
 ## Things to know
 
 - **Approvals:** every deploy and every setup run waits in GitHub until you click **Approve** (you get an email).
-- **Costs to watch:** OVH and PlanetScale bill monthly; Cloudflare R2 only past 10 GB (we use about 0.3 GB).
+- **Costs to watch:** OVH and PlanetScale bill monthly; Cloudflare R2 only past 10 GB (we use about 0.5 GB).
 - **Renewals:** the domain at Namecheap (keep auto-renew on); the two Cloudflare tokens after a year (Claude will
   remind you; DEPLOYMENT.md "What expires").
 - **If something breaks:** you'll get an email; the server restarts itself; any deploy can be rolled back in one

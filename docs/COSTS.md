@@ -20,7 +20,7 @@ Approved by the owner on 2026-10-08: production only, the owner and up to ~5 fri
 | **Total** | | **≈ US$10.50–11.50** |
 
 No Redis (one real-time process keeps everything in memory) and no staging. R2 is free to 10 GB stored; we use about
-0.3 GB of files plus 35 nightly backups. OVHcloud's VPS traffic is unmetered (*check* the order page), so free roam's
+0.5 GB of files (0.3 GB before Adelaide was added) plus 35 nightly backups. OVHcloud's VPS traffic is unmetered (*check* the order page), so free roam's
 bandwidth costs nothing extra on this server.
 
 ## What one player uses (measured)

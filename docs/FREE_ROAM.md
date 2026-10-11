@@ -17,7 +17,7 @@ is ghosted for everyone automatically; blocked players never meet.
 
 1. Start everything: `docker compose up --build` (or `npm run rt -w @kr/server` and `npm start -w @kr/server`).
 2. Open `http://localhost:8787/?mp&player=A` and `http://localhost:8787/?mp&player=B` in two windows side by side.
-   Drive into a real-world region (Milton Keynes, San Francisco, …: the regions menu, or the full map).
+   Drive into a real-world region (Milton Keynes, San Francisco, Adelaide, …: the regions menu, or the full map).
 3. Each window shows "Free roam" and the zone it's in, and draws the other car with its name over it. **F9** (development)
    puts your car beside the other.
 4. **F6** opens the free-roam screen: *Nearby* (inspect a car, challenge, add friend, mute, block, report), *Friends*
