@@ -11,6 +11,13 @@ for (const f of (opt('--files', '/editor/roads.js,/editor/markers3d.js,/testtrac
   const r = await fetch(`${GAME}${f}`, { redirect: 'manual' });
   console.log(`${f}: ${r.status} ${r.headers.get('content-type')} · ${r.headers.get('location') ?? ''} · cf-cache ${r.headers.get('cf-cache-status') ?? '-'} · ${(await r.text()).slice(0, 80).replace(/\s+/g, ' ')}`);
 }
+// the quests' tiers as the live server prices them (its economy, as the database gives it back): a 2-star sprint with no
+// class rule is a Rookie quest, free to enter (the editor's own figure — the jsonb key order put class A first once)
+try {
+  const api = opt('--api', 'https://api.ognistrada.com'), cfg = await (await fetch(`${api}/api/v1/player/config`)).json(), { rewardsOf } = await import('../content/quests.js');
+  const r = rewardsOf({ kind: 'quest', type: 'sprint', rating: { stars: 2, km: 4.15 }, npc: { count: 3, skill: [0.4, 0.8] } }, cfg.economy);
+  console.log(`quest tiers: the live economy (version ${cfg.version}; byClass keys ${Object.keys(cfg.economy.quests.byClass).join('')}) prices a 2-star sprint with no class rule as ${r.tierName} (level ${r.unlockLevel}), entry ${r.fee || 'free'}, class ${r.rewardClass} — ${r.tierName === 'Rookie' && !r.fee ? 'ok' : 'WRONG'}`);
+} catch (e) { console.log(`quest tiers: couldn't check (${e.message})`); }
 const browser = await chromium.launch();
 for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000], ['the game', `${GAME}/`, 45000]]) {
   console.log(`\n== ${name}: ${url}`);
