@@ -18,6 +18,12 @@ try {
   const r = rewardsOf({ kind: 'quest', type: 'sprint', rating: { stars: 2, km: 4.15 }, npc: { count: 3, skill: [0.4, 0.8] } }, cfg.economy);
   console.log(`quest tiers: the live economy (version ${cfg.version}; byClass keys ${Object.keys(cfg.economy.quests.byClass).join('')}) prices a 2-star sprint with no class rule as ${r.tierName} (level ${r.unlockLevel}), entry ${r.fee || 'free'}, class ${r.rewardClass} — ${r.tierName === 'Rookie' && !r.fee ? 'ok' : 'WRONG'}`);
 } catch (e) { console.log(`quest tiers: couldn't check (${e.message})`); }
+// the garage's whole-car repair (full fix, quick fix): the live game's code leaves "no list of pieces" out rather than
+// sending null (which the server refused with a 400 until 2026-10-11)
+try {
+  const src = await (await fetch(`${GAME}/garage/workshop.js`)).text(), fixed = /\.\.\.\(items && \{ items \}\)/.test(src);
+  console.log(`whole-car repair: the live game ${fixed ? 'leaves an empty list of pieces out — ok' : 'still sends null — NOT the fixed version'}`);
+} catch (e) { console.log(`whole-car repair: couldn't check (${e.message})`); }
 const browser = await chromium.launch();
 for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000], ['the game', `${GAME}/`, 45000]]) {
   console.log(`\n== ${name}: ${url}`);
