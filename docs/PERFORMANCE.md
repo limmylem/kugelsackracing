@@ -213,6 +213,9 @@ stages, draw calls, triangles, memory and garbage.
   race and driving on (free roam), a race on a generated track, the garage, the test centre's pile-up and repairs —
   sampled every half minute. It passes when, from the end of the first round (everything loaded once) to the end of the
   last, the heap, geometries, textures, shaders, page elements and sound nodes haven't grown beyond a small allowance.
+  Run here for 16 minutes (two rounds at medium, in software): the heap 391 → 402 MB, geometries 480 → 506, textures
+  28 → 28, shaders 48 → 46, what the graphics card holds 96.8 → 96.8 MB — flat. The two hours: the `soak` workflow.
+  (Where the browser can't reach the CDN, as here, `CDN_LIBS` names a folder with pbf@4 and @mapbox/vector-tile@2.)
 
 ## Loading
 
@@ -284,7 +287,8 @@ acceleration on or update the graphics driver.
 
 `tests/perf/before-step2.json` (the game before this step, with only the measuring added) against
 `tests/perf/after-step2-high.json` (after, at the high preset — the closest to how the game was set before; high adds
-bloom). `node tools/perf-report.mjs <before> <after>` makes the table.
+bloom). `node tools/perf-report.mjs <before> <after>` makes the table. The garbage rows are from runs with Chrome's
+count (`tests/perf/before-step2-garbage.json` against `after-step2-{high,medium,low}-garbage.json`).
 
 How to read it, with no graphics card: the **frame time** here is the software renderer's — meaningless for players
 (and high's new bloom and MSAA passes cost the software renderer far more than a GPU). The **physics, AI and game
