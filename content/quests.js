@@ -172,14 +172,21 @@ export function withType(item, type) {
 
 // The lowest class a quest lets in (any car: the lowest class there is): the rewards follow the weakest
 // car that may enter, so an open quest isn't worth farming with a fast car
+// The car classes, lowest first (data/economy.json quests: by their tier, then their reward multiplier) — never by the
+// order of byClass's keys: the server keeps the economy in the database (jsonb), which puts keys in its own order (A
+// first), and a quest with no class rule then came out a class A quest: Pro tier, an entry fee, level 6 to enter
+export function classOrder(economy) {
+  const Q = economy.quests, T = Q.tierOfClass ?? {};
+  return Object.keys(Q.byClass).sort((a, b) => (T[a] ?? 99) - (T[b] ?? 99) || (Q.byClass[a] ?? 0) - (Q.byClass[b] ?? 0) || (a < b ? -1 : 1));
+}
 function rewardClass(item, economy) {
-  const order = Object.keys(economy.quests.byClass);
+  const order = classOrder(economy);
   const allowed = (item.entry?.classes ?? []).filter(c => order.includes(c));
   return allowed.length ? allowed.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] : order[0];
 }
 // the highest class a quest lets in (any: the highest there is): a pink slip's stakes
 function topClass(item, economy) {
-  const order = Object.keys(economy.quests.byClass), allowed = (item.entry?.classes ?? []).filter(c => order.includes(c));
+  const order = classOrder(economy), allowed = (item.entry?.classes ?? []).filter(c => order.includes(c));
   return allowed.length ? allowed.sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] : null;
 }
 
@@ -251,7 +258,7 @@ export function problems(item, { economy = null, classes = null, cars = null, ro
   if (!(Number.isInteger(E.minLevel) && E.minLevel >= 1 && E.minLevel <= 100)) out.push(err('entry.minLevel', 'The minimum level is a whole number from 1 to 100.'));
   // money: the rewards and the fee are the economy's, from the quest's rating and tier (nothing to set)
   if (economy) {
-    const r = rewardsOf(item, economy), order = Object.keys(economy.quests.byClass);
+    const r = rewardsOf(item, economy), order = classOrder(economy);
     if (!item.rating) out.push(warn('rating', 'Not rated yet: pick its route and save, and its difficulty and reward are worked out.'));
     // (a pink slip's stakes: both cars at most the tier's class)
     const rival = item.type === 'pink_slip' ? cars?.[item.params?.opponentCar] : null;

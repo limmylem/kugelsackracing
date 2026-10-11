@@ -9,7 +9,7 @@
 //   entryReasons({ quest, car, player, fee, config, economy }) → [reason]
 //   carsThatQualify(quest, cars) → [car]
 
-import { rewardsOf, TYPES } from '../content/quests.js';
+import { rewardsOf, TYPES, classOrder } from '../content/quests.js';
 
 export const TIERS = ['bronze', 'silver', 'gold'];
 export const SCORE_TYPES = new Set(['drift']);
@@ -147,7 +147,7 @@ export function entryReasons({ quest, car, player, fee = null, config, economy =
   if (quest.type === 'pink_slip' && car.carId && car.carId === (economy?.startingCar ?? 'starter_car')) out.push({ code: 'stake', text: 'You can\'t race your starter car for pink slips: pick another car.' });
   // (and the stakes follow the tier: a car of at most its class)
   else if (quest.type === 'pink_slip' && terms?.stakeMaxClass && car.className) {
-    const order = Object.keys(economy.quests.byClass);
+    const order = classOrder(economy);
     if (order.indexOf(car.className) > order.indexOf(terms.stakeMaxClass)) out.push({ code: 'stake', text: `A ${terms.tierName} pink slip stakes cars up to class ${terms.stakeMaxClass}: yours is class ${car.className}.` });
   }
   if (E.classes?.length && !E.classes.includes(car.className)) out.push({ code: 'class', text: `Needs a class ${E.classes.join(' or ')} car (yours is class ${car.className ?? '?'}).` });

@@ -485,3 +485,26 @@ test('PlayerService: pink slips change hands only in a pink-slip race', async ()
   assert.equal(s.profile.cars[won.won], undefined);
   assert.ok(!Object.values(s.profile.parts).some(x => x.installedOn?.car === won.won));
 });
+
+test('a quest\'s tier and fee are the same whatever order the economy\'s keys come in (the server\'s copy comes from jsonb: A first)', () => {
+  const E = JSON.parse(fs.readFileSync(new URL('../../data/economy.json', import.meta.url), 'utf8'));
+  // (as Postgres jsonb gives it back: keys of the same length sorted — A, B, C, D, S, X)
+  const jsonb = x => Array.isArray(x) ? x.map(jsonb) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort((a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0)).map(k => [k, jsonb(x[k])])) : x;
+  const S = jsonb(E);
+  assert.equal(Object.keys(S.quests.byClass)[0], 'A');
+  const quests = [
+    { kind: 'quest', type: 'sprint', rating: { stars: 2, km: 4.15 }, npc: { count: 3, skill: [0.4, 0.8] } },
+    { kind: 'quest', type: 'sprint', rating: { stars: 2, km: 4.15 }, entry: { classes: ['C', 'B'] } },
+    { kind: 'quest', type: 'circuit_race', rating: { stars: 4, km: 8 }, npc: { count: 7, skill: [0.6, 0.9] } },
+    { kind: 'quest', type: 'pink_slip', rating: { stars: 3, km: 3 }, entry: { classes: ['S', 'X'] }, params: { opponentCar: 'x' } },
+  ];
+  for (const q of quests) {
+    const a = rewardsOf(q, E), b = rewardsOf(q, S);
+    assert.deepEqual({ tier: b.tier, fee: b.fee, money: b.money, cls: b.rewardClass, stake: b.stakeMaxClass }, { tier: a.tier, fee: a.fee, money: a.money, cls: a.rewardClass, stake: a.stakeMaxClass }, JSON.stringify(q));
+  }
+  // (the owner's: a 2-star sprint with no class rule — a Rookie quest, free to enter, on either copy)
+  const r = rewardsOf(quests[0], S);
+  assert.equal(r.tierName, 'Rookie');
+  assert.equal(r.fee, 0);
+  assert.equal(r.rewardClass, 'D');
+});

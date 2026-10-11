@@ -147,6 +147,19 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
   let preview = null;
 
+  // the start button's words: the entry fee, or (when it can't start) what's in the way — not the fee, which read as if
+  // money were the problem when it was the level
+  function startLabel(reasons, fee, cur, p) {
+    const R = reasons[0], feeText = fee > 0 ? ` (${cur}${fee.toLocaleString('en-GB')})` : '';
+    if (!R) return `Start${feeText}`;
+    if (R.code === 'level') { const need = R.text.match(/level (\d+)/)?.[1]; return need ? `Opens at level ${need}` : 'Level too low'; }
+    if (R.code === 'money') return `Need ${cur}${Math.max(0, fee - (p.money ?? 0)).toLocaleString('en-GB')} more`;
+    if (R.code === 'busy') return 'In a quest';
+    if (R.code === 'damage') return 'Repair first';
+    if (CAR_CODES.has(R.code) || R.code === 'car' || R.code === 'stake') return 'Car not eligible';
+    return `Start${feeText}`;
+  }
+
   // ---------- the quest card ----------
   function carInfo(id) { const c = game.carSummary(id); return c ? { ...c, drivable: c.drivable } : null; }
   function reasonsFor(item, id = game.carInstanceId()) {
@@ -179,7 +192,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         <div class="money">${item.type === 'pink_slip' ? `Winner takes the loser\'s car · stakes up to class ${esc(r.stakeMaxClass ?? '?')}` : `Reward up to ${esc(cur)}${(r.money ?? 0).toLocaleString('en-GB')} · ${r.xp ?? 0} xp`}${r.fee > 0 ? ` · entry ${esc(cur)}${r.fee.toLocaleString('en-GB')}` : ' · free entry'}</div>
         ${seriesLine}
         <div class="qbest">${prog?.attempts ? `Your best: ${best ?? '—'}${prog.medal ? ` <span style="color:${MEDAL[prog.medal]}">● ${prog.medal}</span>` : ''} · ${prog.attempts} attempt${prog.attempts > 1 ? 's' : ''}` : 'Not tried yet'} · level ${levelOf(p.xp ?? 0, cfg)}</div>
-        <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">Start${r.fee > 0 ? ` (${esc(cur)}${r.fee.toLocaleString('en-GB')})` : ''}</button>
+        <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">${esc(startLabel(reasons, r.fee, cur, p))}</button>
         <button class="qbtn" data-guide>${guide ? 'Clear route' : 'Set route'}</button><span style="flex:1"></span><button class="qbtn" data-close>Close</button></div>`;
       el.querySelector('[data-start]').onclick = () => start(item);
       el.querySelector('[data-guide]').onclick = () => guide ? clearGuide(() => draw(c)) : setGuide(item, () => draw(c));
