@@ -18,3 +18,14 @@ server/.data/
 .env
 .env.*
 !.env.example
+
+# the devlog video tool (DEVLOG.md): its output — clips, videos, scripts — and any music you keep next to it.
+# Never committed: videos and music are big, and music may not be yours to share.
+devlog/out/
+devlog/music/
+devlog/**/*.mp4
+devlog/**/*.webm
+devlog/**/*.mov
+devlog/**/*.mp3
+devlog/**/*.m4a
+devlog/**/*.wav
