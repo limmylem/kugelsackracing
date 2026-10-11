@@ -87,6 +87,13 @@ const VIRTUAL_FRAMES = () => {
     },
   };
 };
+// (the names over other cars, on the camera car's screen only: the live site's load-test guests read "Bot 190" — shown
+// as "Rival")
+const RIVAL_NAME = () => {
+  const fix = el => { if (el.nodeType === 3 && /^Bot \d+$/.test(el.textContent)) el.textContent = 'Rival'; };
+  new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fix(m.target); for (const n of m.addedNodes ?? []) { fix(n); n.childNodes?.forEach(fix); } } })
+    .observe(document, { subtree: true, childList: true, characterData: true });
+};
 // "Recording mode": everything but the 3D view hidden (and, if wanted, the names over the other cars)
 const RECORDING_CSS = names => `
   body * { visibility: hidden !important; }
@@ -140,6 +147,7 @@ async function openGame({ who, width, height, scale, track, room, names, on = br
   const ctx = await on.newContext({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: 'no-preference' });
   if (TARGET === 'local') await localLibs(ctx);
   await ctx.addInitScript(VIRTUAL_FRAMES);
+  if (TARGET === 'live') await ctx.addInitScript(RIVAL_NAME);
   // (the game asks the API for a join ticket for "player <who>": answered here — locally signed, or the live
   // load-test ticket — so neither car is anyone's account)
   if (ticketFor) await ctx.route(/\/api\/v1\/rt\/ticket$/, async r => {

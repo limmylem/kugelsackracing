@@ -72,7 +72,7 @@ function Caption({ text, n }) {
   return (
     // (in the upper half, over the sky: clear of the car below and of the apps' buttons and text)
     <AbsoluteFill style={{ padding: `0 ${SAFE.right}px 0 ${SAFE.left}px`, justifyContent: 'center', alignItems: 'center', top: CAPTION_Y - 960, opacity: out }}>
-      <div style={{ textAlign: 'center', fontFamily: FONT, fontWeight: 800, fontSize: fit(text, 96, 72), lineHeight: 1.08, color: '#fff', ...outline(12), textShadow: '0 6px 24px rgba(0,0,0,.6)', maxWidth: 1080 - SAFE.left - SAFE.right }}>
+      <div style={{ textAlign: 'center', fontFamily: FONT, fontWeight: 800, fontSize: fit(text, 104, 78), lineHeight: 1.08, color: '#fff', ...outline(12), textShadow: '0 6px 24px rgba(0,0,0,.6)', maxWidth: 1080 - SAFE.left - SAFE.right }}>
         {list.map((w, i) => {
           const s = spring({ frame: frame - i * per, fps, config: { damping: 14, stiffness: 260 } });
           return <span key={i} style={{ display: 'inline-block', marginRight: '0.24em', transform: `translateY(${(1 - s) * 30}px) scale(${0.85 + 0.15 * s})`, opacity: s > 0.01 ? 1 : 0 }}>{w}</span>;

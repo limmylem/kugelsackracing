@@ -63,7 +63,7 @@ video (more, and the last ones are left out; the run's summary says so).
 `devlog/capture/shots.json` lists the shots: the track (a generated track's code: the game's **Track** world or
 `dev/tracks.html` makes them), and for each shot when it starts (seconds into the lap), how long it is, and the camera
 (`chase`, `bonnet`, `cockpit`, `side`, `high`). Shots marked `"multiplayer": true` are filmed with the second car.
-Set `"names": true` to show the players' names over the cars.
+`"names"` (on) shows the other player's name over their car ("Rival"); set it to `false` to hide it.
 
 ## On your own computer (optional)
 
