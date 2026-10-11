@@ -122,6 +122,9 @@ const seen = (P, sel) => P.evaluate(sel => {
   if (!top || !(top === e || e.contains(top))) return { ok: false, why: `covered by ${top?.id || top?.className || top?.tagName}` };
   return { ok: true, text: e.innerText, rect: [x0, y0, x1, y1] };
 }, sel);
+// (scrolled into the window at once, by the page itself: Playwright's scrollIntoViewIfNeeded first waits for two
+// frames the same, and at a frame a second its tries ran out before it scrolled)
+const scrollTo = (P, sel) => P.evaluate(sel => document.querySelector(sel)?.scrollIntoView({ block: 'nearest' }), sel).catch(() => {});
 // an element's text in each frame the window painted it (requestAnimationFrame runs once a frame, just before it's
 // drawn; drawn as \`seen\` has it): a screen that's up for less than this test's polling still counts if it was painted
 const recordTexts = (P, sel) => P.evaluate(sel => {
@@ -219,11 +222,13 @@ try {
   // bots in the empty places (by the lobby's id), ready
   crew = await bots(3); (globalThis as any).__crew = crew;
   for (const x of crew) { await x.session.joinLobby(roomId); x.session.send({ t: 'ready', v: true }); }
-  const five = await until(async () => { const s = await seen(A, '#mpLobby [data-players]'); return s.ok && crew.every(x => s.text.includes(x.name)) ? s : null; }, 20000);
-  const rows = five?.text.split('\n').filter(l => /Player|Bot/.test(l)) ?? [];
-  // (each row: the car and its class, ready or not, the rank — as the server has them)
-  const viewOk = !!five && R0.lobbyView().players.filter(p => p.role === 'racer').every(p => { const row = rows.find(l => l.includes(p.name)); return row && row.includes(p.car?.name ?? '§') && (p.ready ? /\bReady\b/.test(row) : /Not ready/.test(row)) && row.includes(p.tier?.name ?? '§'); });
-  check('the lobby screen: each player with their car and class, ready or not, and rank — as the server has them', viewOk, rows.join(' | '));
+  // (each row: the car and its class, ready or not, the rank — as the server has them; looked at until it shows them
+  // all as the server has them: a bot's ready comes a moment after its name)
+  const matches = rows => R0.lobbyView().players.filter(p => p.role === 'racer').every(p => { const row = rows.find(l => l.includes(p.name)); return row && row.includes(p.car?.name ?? '§') && (p.ready ? /\bReady\b/.test(row) : /Not ready/.test(row)) && row.includes(p.tier?.name ?? '§'); });
+  const lobbyRows = s => s?.text.split('\n').filter(l => /Player|Bot/.test(l)) ?? [];
+  const five = await until(async () => { const s = await seen(A, '#mpLobby [data-players]'); return s.ok && crew.every(x => s.text.includes(x.name)) && matches(lobbyRows(s)) ? s : null; }, 20000);
+  const rows = lobbyRows(five ?? await seen(A, '#mpLobby [data-players]'));
+  check('the lobby screen: each player with their car and class, ready or not, and rank — as the server has them', !!five, rows.join(' | '));
   // (and nothing of a race over it: no lights, no race HUD, no results)
   const stray = [];
   for (const [n, P] of [['A', A], ['B', B]]) for (const sel of ['#mpLights', '#mpHud', '#mpResults', '#mpLoading']) if ((await seen(P, sel)).ok) stray.push(`${n} ${sel}`);
@@ -236,15 +241,16 @@ try {
   await A.bringToFront();
   await A.locator('#mpLobby [data-chat]').fill('hello you shit drivers'); await A.locator('#mpLobby [data-chat]').press('Enter');
   // (B scrolls down to the chat, as a person would: in a window this small the lobby's columns stack)
-  // (scrolled to each time: the window is small, and the lobby redraws as players come and go)
-  const chatB = await until(async () => { await B.locator('#mpLobby [data-chatlog]').scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {}); const s = await seen(B, '#mpLobby [data-chatlog]'); return s.ok && /hello you \*+ drivers/.test(s.text) ? s : null; }, 10000);
-  check('chat: A\'s message drawn in B\'s lobby, the swear word starred out', !!chatB, chatB?.text.split('\n').at(-1) ?? `B's log: ${(x => x.ok ? JSON.stringify(x.text) : x.why)(await seen(B, '#mpLobby [data-chatlog]'))} · B's session: ${await B.evaluate(() => { const S = (globalThis as any).__krMpS; return JSON.stringify({ chat: S.chat.map((m: any) => m.text), muted: [...S.muted], phase: S.phase, notices: S.notices.slice(-3) }); })} · the server: ${JSON.stringify({ chat: R0.chat.map((m: any) => m.text), players: [...R0.players.values()].map((p: any) => `${p.t.name}:${p.client.sessionId}`) })}`);
+  // (scrolled to each time: the window is small, and the lobby redraws as players come and go; B's window in front
+  // first, as the person looking at it would have it)
   await B.bringToFront();
+  const chatB = await until(async () => { await scrollTo(B, '#mpLobby [data-chatlog]'); const s = await seen(B, '#mpLobby [data-chatlog]'); return s.ok && /hello you \*+ drivers/.test(s.text) ? s : null; }, 10000);
+  check('chat: A\'s message drawn in B\'s lobby, the swear word starred out', !!chatB, chatB?.text.split('\n').at(-1) ?? `B's log: ${(x => x.ok ? JSON.stringify(x.text) : x.why)(await seen(B, '#mpLobby [data-chatlog]'))} · B's session: ${await B.evaluate(() => { const S = (globalThis as any).__krMpS; return JSON.stringify({ chat: S.chat.map((m: any) => m.text), muted: [...S.muted], phase: S.phase, notices: S.notices.slice(-3) }); })} · the server: ${JSON.stringify({ chat: R0.chat.map((m: any) => m.text), players: [...R0.players.values()].map((p: any) => `${p.t.name}:${p.client.sessionId}`) })}`);
   await click(B, `#mpLobby [data-who="${stA.myUid}"]`); await click(B, '#mpLobby [data-mute]');
   await A.bringToFront();
   await A.locator('#mpLobby [data-chat]').fill('can you hear me'); await A.locator('#mpLobby [data-chat]').press('Enter');
   await sleep(1500);
-  for (const P of [A, B]) await P.locator('#mpLobby [data-chatlog]').scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {});
+  for (const P of [A, B]) await scrollTo(P, '#mpLobby [data-chatlog]');
   const muted = await seen(B, '#mpLobby [data-chatlog]'), mineA = await seen(A, '#mpLobby [data-chatlog]');
   check('a mute: B no longer sees A\'s messages (A still does)', muted.ok && !/can you hear me/.test(muted.text) && /can you hear me/.test(mineA.text ?? ''), `B: ${JSON.stringify(muted.text?.split('\n').slice(-2))}`);
   await shot(A, '1-lobby-A'); await shot(B, '1-lobby-B');
@@ -390,13 +396,13 @@ try {
   check('B watching (Watch instead, in the lobby): the bar says whose car, and the chase camera is on that car', !!v1 && watchB.s.text.includes(v1.name), watchB ? `${watchB.s.text} · that car ${v1 ? `on screen at (${v1.ndc[0].toFixed(2)}, ${v1.ndc[1].toFixed(2)}), ${v1.dist.toFixed(1)} m away` : 'not on screen'}` : `B: ${(await seen(B, '#mpWatch')).why} · ${await diag(B)}`);
   await shot(B, '6-watching-B');
   // (nothing focused that takes keys — the lobby's chat box can keep it while hidden — and pressed again if the first
-  // press was lost to a slow frame: every 3 s, so at most a few presses and never round to the first car again)
+  // press was lost to a slow frame: every 3 s for up to 20 s — at a frame a second a press can take a few to show)
   await B.bringToFront(); await B.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
   let pressedAt = 0;
   const v2 = await until(async () => {
     if (Date.now() - pressedAt > 3000) { pressedAt = Date.now(); await B.keyboard.press('ArrowRight'); }
     const s = await seen(B, '#mpWatch [data-watching]'), o = await onCar(); return s.ok && o && o.name !== v1?.name && s.text.includes(o.name) ? { s, o } : null;
-  }, 10000);
+  }, 20000);
   check('→ switches to another car: the bar and the camera follow it', !!v2, v2 ? `${v1?.name} → ${v2.s.text}` : (await seen(B, '#mpWatch')).text);
   await B.keyboard.press('KeyC');
   const cam2 = await until(async () => { const s = await seen(B, '#mpWatch [data-camera]'), o = await onCar(); return s.ok && /In car/.test(s.text) && o && o.dist < 3 ? { s, o } : null; }, 8000);
@@ -414,7 +420,11 @@ try {
   if (!QUICK_ONLY) for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpResults [data-leaveres]')).ok, 30000); await click(P, '#mpResults [data-leaveres]'); }
   else for (const P of [A, B]) { await P.bringToFront(); await click(P, '#mpButton'); }
   for (const x of crew) await x.session.close();
-  for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpMenu [data-quick]')).ok, 15000); await click(P, '#mpMenu [data-quick]'); }
+  // (both menus up, then Quick race clicked in both at once, by the pages themselves: at a frame a second a click
+  // waited seconds for its button to hold still, and a quick race fills with NPCs 15 s after its first player queues —
+  // one window after the other, they could land in two races)
+  for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpMenu [data-quick]')).ok, 15000); }
+  await Promise.all([A, B].map(P => P.evaluate(sel => (document.querySelector(sel) as HTMLElement | null)?.click(), '#mpMenu [data-quick]')));
   const quick = await until(async () => { const [a, b] = [await state(A), await state(B)]; return a?.roomId && a.roomId === b?.roomId ? [a, b] : null; }, 60000);
   const qLoad = quick ? await Promise.all([shown(A, '#mpLoading', 30000), shown(B, '#mpLoading', 30000)]) : null;
   const why = async P => P.evaluate(() => { const S = (globalThis as any).__krMpS; return JSON.stringify({ phase: S.phase, room: S.lobby?.roomId ?? null, race: !!S.race, party: S.party?.id ?? null, notices: S.notices.slice(-4), toasts: document.querySelector('#mpToasts')?.textContent ?? '', menu: (document.querySelector('#mpMenu') as any)?.innerText?.split('\n').slice(0, 8).join(' / ') ?? '' }); });
