@@ -64,7 +64,12 @@ import { createSimulation } from '../physics/sim.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 // the game's sound (Phase 8 Step 1; docs/AUDIO.md): one system for everything, your car and every other one through it
-import { startAudio as startSound, audioSettings } from '../audio/system.js';
+import { startAudio as startSound, audioSettings, audioSystem } from '../audio/system.js';
+import { createProfiler } from '../perf/profiler.js';
+import { createGraphics, createLiveReflections } from '../perf/graphics.js';
+import { createPerfOverlay } from '../perf/overlay.js';
+import { createMemoryBudget, createSceneMeter } from '../perf/memory.js';
+import { graphicsOf, withPreset } from '../perf/quality.js';
 import { createGameAudio } from '../audio/game.js';
 import { occluded as occludedRay } from '../audio/environment.js';
 import { remoteEngineInput, tyreSound, engineInput, turboInput, surfaceMix, TurboSpool } from '../audio/mix.js';
@@ -101,7 +106,7 @@ import { createDamageReport, createDash } from './dashboard.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
-import { ModelCache, createCarVisual, setEnvironment, skyEnvironment } from '../garage/visual.js';
+import { ModelCache, createCarVisual, setEnvironment, skyEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
 import { EffectsDirector } from '../effects/director.js';
 import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
@@ -112,7 +117,7 @@ import { ReplayPlayer, ReplayRecorder } from '../physics/replay.js';
 import { tvCameras, nearestCamera, zoom as tvZoom } from '../track/cameras.js';
 import { createRaceRecording, createRacePlayer } from '../race/raceReplay.js';
 import { CarDamage } from '../garage/carDamage.js';
-import { DentBudget } from '../garage/dents.js';
+import { DentBudget, setDentDetail } from '../garage/dents.js';
 import { Hints, crashEvents as hintEvents } from '../garage/hints.js';
 import { drivability, ownedBySocket } from '../garage/repair.js';
 import { createHintCard } from './hintCard.js';
@@ -153,7 +158,11 @@ let shared = null, active = null;
 const worlds = new Map();
 // Debug handle for the browser console: (await import('./testtrack/test-scene.js')).debug.active
 // (debug.frame(ms) draws one frame by hand, e.g. in a background tab where the browser pauses animation)
-export const debug = { get active() { return active; }, get shared() { return shared; }, frame: now => active && frame(active, now), runTests: (ids, o) => runTests(ids, o) };
+export const debug = { get active() { return active; }, get shared() { return shared; }, frame: now => active && frame(active, now), runTests: (ids, o) => runTests(ids, o),
+  // (the graphics settings as shared.prefs.graphics has them now, applied — the tests' and the console's)
+  applyGraphics: () => applyGraphics(),
+  // (the benchmarks on this computer, as the settings' button runs them)
+  runOwnBenchmarks: say => runOwnBenchmarks(say) };
 // The page can let the tests switch worlds its own way (so its world buttons follow): switchTo(file)
 // toGarage(): tow the car to the garage (the page goes there, open on the damage report)
 export const hooks = { switchTo: null, toGarage: null };
@@ -361,9 +370,38 @@ function questGame(w) {
   };
   return G;
 }
-// a car model's glb (kept: NPCs share models)
-const glbs = new Map();
-const glbOf = file => { if (!glbs.has(file)) glbs.set(file, fetch(file).then(r => r.arrayBuffer())); return glbs.get(file); };
+// a car model's glb (kept: NPCs share models — the least recently used let go when the heap is over its budget)
+const glbs = new Map();     // file → { p, bytes, usedAt }
+const glbOf = file => {
+  let e = glbs.get(file);
+  if (!e) { e = { p: fetch(file).then(r => r.arrayBuffer()), bytes: 0 }; e.p.then(b => { e.bytes = b.byteLength; }, () => glbs.delete(file)); glbs.set(file, e); }
+  e.usedAt = performance.now();
+  return e.p;
+};
+const glbBytes = () => { let n = 0; for (const e of glbs.values()) n += e.bytes; return n; };
+function evictGlbs(want) {
+  let freed = 0;
+  for (const [f, e] of [...glbs.entries()].sort((a, b) => a[1].usedAt - b[1].usedAt)) { if (freed >= want) break; if (performance.now() - e.usedAt < 60000) continue; glbs.delete(f); freed += e.bytes; }
+  return freed;
+}
+// the memory budgets (perf/memory.js): the tier the graphics preset is for (data/performance.json tiers.*.memoryMB)
+const tierOfPreset = p => ({ low: 'low', medium: 'medium', high: 'high', ultra: 'high' })[p] ?? 'medium';
+function memoryBudget() {
+  // (what the world holds, walked a little each frame — memoryFrame — the last whole walk's totals what's checked)
+  const meter = shared.sceneMeter = createSceneMeter(() => active?.scene), scene = () => meter.last;
+  const budgets = () => shared.perfCfg.tiers[tierOfPreset(shared.G.preset)].memoryMB;
+  // (car models no car uses now: kept up to an eighth of the meshes' budget, for the next race's)
+  const keep = () => { shared.models.keepBytes = budgets().meshes * 1048576 / 8; };
+  keep();
+  return createMemoryBudget({ budgets: () => { keep(); return budgets(); }, sources: [
+    { name: 'the world', kind: 'meshes', bytes: () => scene().meshes },
+    { name: 'the world', kind: 'textures', bytes: () => scene().textures },
+    { name: 'car models kept', kind: 'meshes', bytes: () => shared.models.idleBytes(), evict: b => shared.models.trim(Math.max(0, shared.models.idleBytes() - b)) },
+    { name: 'sound', kind: 'audio', bytes: () => (audioSystem()?.bankMB ?? 0) * 1048576 },
+    { name: 'model files', kind: 'heap', bytes: glbBytes, evict: evictGlbs },
+    { name: 'heap', kind: 'heap', bytes: () => performance.memory?.usedJSHeapSize ?? 0 },
+  ] });
+}
 // An NPC's car as drawn: its own model and build (from the parts system), in its driver's colour, its
 // wheels and lamps like any car's, its dents from its own crash damage
 async function npcVisual(w, r) {
@@ -374,6 +412,8 @@ async function npcVisual(w, r) {
   vis.wheelVis = Object.fromEntries(Object.entries(r.rig?.wheels ?? s.rig.wheels).map(([k, rig]) => [k, { pivot: vis.wheels[k], rig }]));
   vis.details = { taillamp: null, lampOff: 1, lampOn: 1, glass: null, glassOpacity: 1, steeringWheel: null };
   if (!w.npcRace || !w.npcRace.npcs.includes(r)) { dropCar(vis); return; }     // (the race was over before it loaded)
+  await precompile(vis.group, w);
+  if (!w.npcRace || !w.npcRace.npcs.includes(r)) { dropCar(vis); return; }
   w.scene.add(vis.group);
   w.others.set(r.carId, vis);
 }
@@ -493,7 +533,7 @@ function raceReplayFrame(w, now, seconds) {
   RR.ui.querySelector('[data-tag]').textContent = P.paused ? 'PAUSED' : 'REPLAY';
   daylight(w, shared.prefs.timeOfDay ?? 13);
   w.rain?.update(w.camera, seconds); floodFrame(w);
-  w.fxDraw.render(w.scene, w.camera);
+  shared.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
 }
 
@@ -606,7 +646,7 @@ export const trackUiNow = () => shared?.trackUi ?? null;
 
 export async function enter(file) {
   if (!shared) {
-    try { shared = await createShared(); applyHudScale(); }
+    try { shared = await createShared(); applyHudScale(); applyGraphics(); }
     catch (e) { startup?.fail(e); throw e; }
   }
   shared.hud.style.display = 'block';
@@ -619,8 +659,8 @@ export async function enter(file) {
   }
   active = worlds.get(file);
   for (const w of worlds.values()) if (w !== active) dropNpcVoices(w);
-  // (a track's own detail on the renderer; any other world the game's usual sharpness)
-  shared.renderer.setPixelRatio(Math.min(devicePixelRatio, active.detail?.pixelRatio ?? 2));
+  // (the graphics settings on this world: its shadows, scenery, render distance)
+  applyWorldGraphics(active);
   hideRealWorlds();
   if (active.stream) { rwOf(active).showRealWorld(active); active.content?.show(true); }
   // record this world's car; the gearbox mode carries over between worlds
@@ -634,6 +674,10 @@ export async function enter(file) {
   if (!shared.looping) { shared.looping = true; requestAnimationFrame(loop); }
   // (Phase 7: ?mp, or online by itself — this world's room, the other players in it; and races: the menu, lobbies, the queue)
   if (multiplayerOptions()) { void startMultiplayer(active); void startMpRaces(); }
+  // (the shaders it will need, compiled now)
+  void warmShaders(active);
+  // (the first launch: a short benchmark picks the graphics preset — not under automation, which says what it wants)
+  if (shared.prefs.graphics == null && (!navigator.webdriver || new URLSearchParams(location.search).has('autodetect'))) void detectGraphics(false);
 }
 
 export function exit() {
@@ -690,7 +734,7 @@ async function createShared() {
   const getJson = async url => (await fetch(url, { cache: 'no-cache' })).json();
   // the car: built from its parts by the garage (data/cars, data/parts); `spec` is the one live object
   // every car drives on, rebuilt in place when parts change (window.garage in the console)
-  const [settings, session, effectsCfg] = await Promise.all([getJson('physics/settings.json'), garageSession(), getJson('data/effects.json')]);
+  const [settings, session, effectsCfg, perfCfg] = await Promise.all([getJson('physics/settings.json'), garageSession(), getJson('data/effects.json'), getJson('data/performance.json')]);
   const spec = session.spec;
   const tacho = createTacho(spec.engine), dyno = createDyno(spec.engine), dash = createDash(), report = createDamageReport();
   hud.prepend(tacho.canvas);
@@ -709,10 +753,12 @@ async function createShared() {
   await RAPIER.init();
 
   startup.step('graphics (WebGL)');
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  // what chrome, metallic paint and the like reflect (only those finishes use it)
-  setEnvironment(skyEnvironment(renderer));
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // (anti-aliasing is the graphics settings' — perf/graphics.js: the canvas has none of its own, so it can change while playing)
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  const prof = createProfiler({ renderer, stutterFactor: perfCfg.stutterFactor });
+  // what chrome, metallic paint and the like reflect (only those finishes use it; the graphics settings' reflections)
+  const skyEnv = skyEnvironment(renderer);
+  setEnvironment(skyEnv);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   Object.assign(renderer.domElement.style, { position: 'fixed', inset: '0', zIndex: '1', display: 'none' });
@@ -721,8 +767,15 @@ async function createShared() {
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
-  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); } audioSettings(soundPrefs(prefs)); },
-    { onRehint: () => { session.player.resetHints?.(); if (shared) shared.hints.shown.clear(); } });
+  // the graphics settings (perf/quality.js, perf/graphics.js; data/performance.json quality): the preset, or custom
+  const gfx = createGraphics({ renderer, cfg: perfCfg.quality });
+  // (?graphics=<preset>: that preset for this visit, not saved — the benchmarks and tests)
+  const askedPreset = new URLSearchParams(location.search).get('graphics');
+  if (perfCfg.quality.presets[askedPreset]) prefs.graphics = { preset: askedPreset };
+  gfx.set(graphicsOf(prefs.graphics, perfCfg.quality));
+  prof.target = gfx.targetMs;
+  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); applyGraphics(); } audioSettings(soundPrefs(prefs)); },
+    { onRehint: () => { session.player.resetHints?.(); if (shared) shared.hints.shown.clear(); }, graphics: { cfg: perfCfg.quality, stats: () => gfx.stats, detect: () => detectGraphics(true), bench: () => runOwnBenchmarks(t => shared.flash.show('Benchmarks', 'ok', 6, t)), benchResult: () => shared?.ownBench ?? null, tiers: perfCfg.tiers } });
   document.body.appendChild(panel.el);
   // Telemetry: your driving, and the last automated test
   const telemetry = new Telemetry({ seconds: 600, stepHz: settings.stepHz }), testTelemetry = new Telemetry({ seconds: 300, stepHz: settings.stepHz });
@@ -742,7 +795,8 @@ async function createShared() {
   document.body.appendChild(hintCard.el);
   const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
-    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
+    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
+    perfCfg, gfx, G: gfx.settings, skyEnv, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
     damageView: false, lastCrash: null,
     play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
     models: new ModelCache(), visuals: new Set(), copies: [],
@@ -785,6 +839,7 @@ async function createShared() {
   debugCommands(session);
   addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight);
+    gfx.resize();
     for (const w of worlds.values()) { w.camera.aspect = innerWidth / innerHeight; w.camera.updateProjectionMatrix(); }
   });
   // sound may only start after a user gesture
@@ -796,6 +851,7 @@ async function createShared() {
     startSound(soundPrefs(s.prefs)).then(A => {
       s.audioStarting = false;
       if (!A) { s.noAudio = true; return; }
+      A.setFullVoices?.(s.G.fullEngineSounds);
       s.audio = createGameAudio(A, { spec, occluded: (from, to) => active ? occludedRay(active.sim.vehicle.world, RAPIER, from, to) : false });
       s.audio.mute(s.muted || !active || editorHooks.active);
       s.audio.start();
@@ -990,7 +1046,7 @@ async function buildWorld(file) {
   // The effects (effects/: sparks, smoke, steam, dust, debris, skid marks…): marks sit just above whatever
   // is drawn on the ground (roads are drawn a few cm above the terrain); every car's, yours is 0
   const surfaces = track.surfaces ?? {};
-  const fx = new EffectsDirector(shared.effectsCfg, { level: shared.prefs.effects, surfaces, markLift: terrain ? 0.075 : 0.012 });
+  const fx = new EffectsDirector(shared.effectsCfg, { level: shared.G.effects, surfaces, markLift: terrain ? 0.075 : 0.012 });
   const fxDraw = createThreeEffects(fx, { renderer: shared.renderer, scene });
   fx.setCar(0, carEffectsInfo(shared.session, shared.damageBoxes));
 
@@ -1013,11 +1069,8 @@ async function buildWorld(file) {
     // theme's sky, light and weather; the start lights following the countdown
     if (trackData.dress) {
       w.trackCfg = (await trackConfigs()).tracks;
-      // (at the player's track detail: low, medium, high — data/tracks.json performance.detail)
-      const DT = w.trackCfg.performance?.detail, level = DT?.levels?.[shared.prefs.trackDetail] ? shared.prefs.trackDetail : DT?.default ?? 'high', detail = w.detail = { level, ...(DT?.levels?.[level] ?? {}) };
-      w.trackDress = dressMeshes(THREE, trackData, { spectators: shared.prefs.spectators ?? 'high', floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false, detail });
-      applyDetail(w);
-      w.stream.world.add(w.trackDress.group);
+      // (at the graphics settings' detail: scenery, the crowd, shadows — trackDetailOf)
+      dressTrack(w);
       w.roadMesh = trackRoad;
       w.camera.far = Math.max(2000, span * 6); w.camera.updateProjectionMatrix();
       // its time of day and weather: the theme's (an event's own when one starts: applyConditions)
@@ -1052,7 +1105,7 @@ async function buildWorld(file) {
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
     w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
-      questCard: (it, el) => w.quests.card(it, el), venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
+      questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
     // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
     w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
@@ -1063,27 +1116,37 @@ async function buildWorld(file) {
 function loop(now) {
   if (!active) { shared.looping = false; return; }
   requestAnimationFrame(loop);
+  // (the frame rate cap — the settings', or power saver's: the screen's frames in between not drawn)
+  if (!shared.gfx.due(now)) return;
   frame(active, now);
 }
 
 function frame(w, now) {
-  const seconds = Math.min(Math.max((now - shared.last) / 1000, 0), 0.25);
+  // (the frame profiler: each stage's time, the frames' steadiness, what caused a stutter — perf/profiler.js)
+  const PF = shared.prof;
+  PF.frameStart();
+  const frameMs = now - shared.last, seconds = Math.min(Math.max(frameMs / 1000, 0), 0.25);
   shared.last = now;
+  // (dynamic resolution: the last frame's time against the target; the profiler's stutters judged against it too)
+  if (frameMs > 0 && frameMs < 1000) shared.gfx.frameDone(frameMs, now);
+  PF.target = shared.gfx.targetMs;
   shared.fps += ((seconds > 0 ? 1 / seconds : 0) - shared.fps) * 0.05;
   globalThis.__krFps = shared.fps;        // (Phase 6 Step 5: the feedback button sends it with a message — account/status.js)
   // the editor's on: it flies its camera, nothing else moves
-  if (editorHooks.active) { editorHooks.frame?.(w, seconds, now); if (!editorHooks.hidden) w.fxDraw.render(w.scene, editorHooks.camera ?? w.camera); return; }
+  if (editorHooks.active) { editorHooks.frame?.(w, seconds, now); PF.lap('game'); if (!editorHooks.hidden) w.fxDraw.render(w.scene, editorHooks.camera ?? w.camera); PF.lap('render'); PF.frameEnd(); return; }
 
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
   // the race replay (after a race): it's what's drawn, and the world waits
-  if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) return; }
+  if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) { PF.lap('render'); PF.frameEnd(); return; } }
   // a crash replay playing (or due): it's what's drawn, and the world waits
-  if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) return; }
+  if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) { PF.lap('render'); PF.frameEnd(); return; } }
   for (const act of inp.pressed) handleAction(w, act, inp);
+  PF.lap('input');
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
+  PF.lap('streaming');
   shared.trackUi?.frame(!!w.trackData && shared.trip?.state === 'track', !!w.quests?.active);
   // (a generated track's weather and floodlights)
   if (w.rain) w.rain.update(w.camera, seconds);
@@ -1110,7 +1173,9 @@ function frame(w, now) {
     // (a multiplayer race keeps real time on a computer that draws slowly: the physics catches up to a second a frame)
     const simSeconds = shared.simFrameCap ? Math.min(Math.max((now - (shared.lastSim ?? now)) / 1000, 0), shared.simFrameCap) : seconds;
     shared.lastSim = now;
+    PF.lap('game');
     view = w.sim.advance(paused ? 0 : simSeconds, input);
+    PF.lap('physics'); PF.add('ai', w.sim.perf.takeAi(), 'physics');
     shared.gearMode = v.drivetrain.mode;
     effectsCars(w, view.current, view.stepsThisFrame * w.sim.dt);     // (simulation time: the effects keep pace with the physics)
     if (view.stepsThisFrame) w.recorder.record(w.sim.time, view.current);
@@ -1125,8 +1190,10 @@ function frame(w, now) {
   // (a quest's own clock is the physics' ticks: this is its intro, HUD and the like)
   w.quests?.frame(T ? 0 : seconds);
   npcRaceEvents(w);
+  PF.lap('game');
   // (a multiplayer race: its run on the server's clock, the others' cars, the screens — play/mpRace.js, mpScreens.js)
   if (shared.mpRace && !T) { shared.mpView = view; shared.mpRace.frame(seconds); shared.mpScreens?.frame(seconds); }
+  PF.lap('network');
   // (in a race too: parts shaken loose or torn off go to the others — the race's own connection)
   const RM = !T && shared.mpRace?.racing ? shared.mpRace.drawn : null;
   if (RM) {
@@ -1152,7 +1219,9 @@ function frame(w, now) {
   if (!T) drawParts(w, b);
   syncParts(w.carVis, b);
   if (!T) updateOtherCars(w, a, b, alpha, seconds);
+  PF.lap('game');
   if (shared.mp && !T) mpFrame(w, view, seconds);
+  PF.lap('network');
   if (!paused && !T) shared.input.feedback(b, seconds);
 
   b.bonnetUp = T ? 0 : bonnetUp(b);
@@ -1162,10 +1231,15 @@ function frame(w, now) {
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
   if (D.glass) D.glass.opacity = inside ? 0.1 : D.glass.userData.opacity ?? D.glassOpacity;
   const light = daylight(w, P.timeOfDay ?? 13);
+  PF.lap('game');
   updateEffects(w, light, T ? 0 : stepsThisFrame * w.sim.dt);
+  PF.lap('effects');
   shared.flash.update(seconds);
+  PF.lap('game');
   if (shared.audio) shared.audio.update(b, seconds, audioFrame(w, b));
   shared.audioOverlay?.update(seconds);
+  shared.perfOverlay.update();
+  PF.lap('audio');
   shared.tacho.draw(b.engine);
   updateDebug(w, b);
   w.sun.position.copy(w.car.position).addScaledVector(w.sunDir, 40); // shadows follow the car
@@ -1176,8 +1250,17 @@ function frame(w, now) {
   shared.graphs.update(now);
   shared.dents.flush();                                     // (denting, at most its budget a frame)
   shared.hintCard.update(seconds);
-  w.fxDraw.render(w.scene, w.camera);
+  carDetailFrame(w, now);
+  (shared.memory ??= memoryBudget()).frame(now);
+  shared.sceneMeter.step(400);
+  // (live reflections: a face of the cube round your car, your car itself left out of it)
+  if (shared.liveRefl) { const p = w.car.position; shared.liveRefl.update(w.scene, [p.x, p.y + 0.8, p.z], hide => { w.car.visible = !hide; }); }
+  PF.lap('game');
+  shared.gfx.render(w.fxDraw, w.scene, w.camera, { speed: Math.abs(v.forwardSpeed()) });
+  PF.lap('render');
   shared.fxPanel.update(w, seconds);
+  PF.lap('game');
+  PF.frameEnd();
 }
 
 // ---------- Sessions (physics/race.js), the crash replay (physics/replay.js), hints (garage/hints.js) ----------
@@ -1246,7 +1329,7 @@ function replayFrame(w, now, seconds, inp) {
   s.hintCard.update(seconds);
   s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
   daylight(w, s.prefs.timeOfDay ?? 13);
-  w.fxDraw.render(w.scene, w.camera);
+  s.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
 }
 // Backspace twice: the car towed to the garage — the session over (a race back to a test drive), the
@@ -1270,7 +1353,7 @@ function tow(w) {
 // scrapes (sparks) worked out from each one's snapshot
 function effectsCars(w, b, dt) {
   const fx = w.fx;
-  if (fx.level !== shared.prefs.effects) fx.setQuality(shared.prefs.effects);
+  if (fx.level !== shared.G.effects) fx.setQuality(shared.G.effects);
   fx.updateCar(0, b, dt);
   fx.sense(0, b);
   for (const o of b.others ?? []) {
@@ -1285,13 +1368,174 @@ function effectsCars(w, b, dt) {
 // A generated track's conditions (Phase 5 Step 4): its time of day and weather — an event's (quest
 // conditions), else its theme's — the sky, sun, fog and floodlights (a circuit at night), rain and a wet road,
 // and the grip hook (data/tracks.json conditions.applyGrip: off, until the weather system changes grip)
-// a track's detail level on the renderer and the sun: its shadows (and their map's size), the screen's sharpness
-function applyDetail(w) {
-  const D = w.detail;
-  if (!D) return;
-  w.sun.castShadow = !!D.shadowMap;
-  if (D.shadowMap && w.sun.shadow.mapSize.x !== D.shadowMap) { w.sun.shadow.mapSize.set(D.shadowMap, D.shadowMap); w.sun.shadow.map?.dispose(); w.sun.shadow.map = null; }
-  shared.renderer.setPixelRatio(Math.min(devicePixelRatio, D.pixelRatio ?? 2));
+// ---------- the graphics settings (Phase 8 Step 2: perf/quality.js, perf/graphics.js; docs/PERFORMANCE.md) ----------
+// The settings changed (the panel, the first launch's benchmark, the console): the renderer's (resolution, the cap,
+// anti-aliasing, bloom, motion blur), the effects', the sound's, and each world's. Never the physics.
+function applyGraphics() {
+  const G = shared.G = graphicsOf(shared.prefs.graphics, shared.perfCfg.quality);
+  shared.gfx.set(G);
+  shared.prof.target = shared.gfx.targetMs;
+  audioSystem()?.setFullVoices?.(G.fullEngineSounds);
+  // (damage detail: how fine a dentable copy of a mesh is, and the share of the denting's time a frame)
+  const Q = shared.perfCfg.quality;
+  setDentDetail(Q.damageEdgeM[G.damageDetail]);
+  shared.dents.ms = (shared.settings.budget?.dentsMs ?? 2) * Q.damageBudget[G.damageDetail];
+  setReflections(G.reflections);
+  for (const w of worlds.values()) applyWorldGraphics(w);
+}
+// The first launch's benchmark (perf/autodetect.js): once the car's on the ground, a few seconds at each preset from
+// the top down; the first that keeps its frame rate is kept (and saved). Run again from the settings (manual).
+async function detectGraphics(manual) {
+  if (shared.detecting) return;
+  shared.detecting = true;
+  try {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    for (let k = 0; k < 600 && (!active || active.spawning || (active.stream && !active.stream.readyAround?.(...(p => [p.x, p.z])(active.sim.vehicle.body.translation()), 60))); k++) await sleep(250);
+    const { detectPreset } = await import('../perf/autodetect.js');
+    const Q = shared.perfCfg.quality, P = shared.prof;
+    const r = await detectPreset({ cfg: Q, renderer: shared.renderer,
+      apply: G => { shared.G = G; shared.gfx.set(G); for (const w of worlds.values()) applyWorldGraphics(w); },
+      frames: async seconds => { const c0 = P.count; await sleep(seconds * 1000); return P.recent(Math.max(0, P.count - c0)); },
+      say: text => shared.flash.show('Graphics', 'ok', 2, text) });
+    shared.prefs.graphics = withPreset(shared.prefs.graphics ?? {}, Q, r.preset);
+    saveSettings(shared.prefs);
+    applyGraphics();
+    shared.graphicsDetected = r;
+    shared.flash.show('Graphics', 'ok', 5, `${r.preset[0].toUpperCase()}${r.preset.slice(1)}${manual ? '' : ' — picked for this computer'} · change it in the settings (O)`);
+    console.info('graphics: picked', r.preset, '—', r.why, r.tried);
+  } catch (e) { console.warn('graphics test:', e); applyGraphics(); }
+  finally { shared.detecting = false; }
+}
+// a generated track's dressing at the settings' detail (data/tracks.json performance.detail's form): the share of
+// scenery, trees in full within a share of the render distance, the crowd, the dressing's shadows
+function trackDetailOf(G) {
+  return { level: G.preset, scenery: G.scenery, treeNear: Math.round(G.renderDistance * 0.23), spectators: G.spectators, shadows: G.shadows !== 'off', shadowMap: G.shadows === 'off' ? 0 : shared.perfCfg.quality.shadowMap[G.shadows] };
+}
+const detailKey = d => `${d.scenery}|${d.treeNear}|${d.spectators}|${d.shadows}`;
+function dressTrack(w) {
+  const detail = w.detail = trackDetailOf(shared.G);
+  if (w.trackDress && w.dressKey === detailKey(detail)) return;
+  w.trackDress?.dispose();
+  w.trackDress = dressMeshes(THREE, w.trackData, { spectators: detail.spectators, floodMasts: w.trackCfg.conditions?.floodlit?.masts !== false, detail });
+  w.dressKey = detailKey(detail);
+  w.stream.world.add(w.trackDress.group);
+  if (w.theme) w.trackDress.setNight(!!w.theme.floodlit);
+}
+// one world: the sun's shadows (and their map's size), a track's dressing, the real world's render distance and scenery
+function applyWorldGraphics(w) {
+  const G = shared.G, size = G.shadows === 'off' ? 0 : shared.perfCfg.quality.shadowMap[G.shadows];
+  w.sun.castShadow = size > 0;
+  if (size && w.sun.shadow.mapSize.x !== size) { w.sun.shadow.mapSize.set(size, size); w.sun.shadow.map?.dispose(); w.sun.shadow.map = null; }
+  if (w.trackDress) dressTrack(w);
+  w.stream?.setGraphics?.({ renderDistance: G.renderDistance, scenery: G.scenery });
+  w.fx?.setQuality && w.fx.level !== G.effects && w.fx.setQuality(G.effects);
+}
+// ---------- the benchmarks on this computer (Settings → Graphics → "Run the benchmarks"; docs/PERFORMANCE.md) ----------
+// Nothing kept: a ten-car pile-up in the test centre (the AI cars taken away after), a drive through downtown San
+// Francisco on the autopilot (a trial: the session keeps nothing), each measured at the graphics settings as they are
+// — the frame rate, the worst 1%, stutters — against the targets of the tier the preset is for; then back where you were
+async function runOwnBenchmarks(say = () => {}) {
+  if (shared.ownBench?.running) return shared.ownBench;
+  const sleep = ms => new Promise(r => setTimeout(r, ms)), back = active?.file, P = shared.prof;
+  const tier = tierOfPreset(shared.G.preset), T = shared.perfCfg.tiers[tier].targets, out = [];
+  const R = shared.ownBench = { running: true, tier, preset: shared.G.preset, targets: T, scenes: out, at: new Date().toISOString() };
+  const ready = file => active && active.file === file && !active.spawning && (!active.stream || active.stream.readyAround?.(...(p => [p.x, p.z])(active.sim.vehicle.body.translation()), 60));
+  const go = async file => { if (active?.file !== file) await (hooks.switchTo ? hooks.switchTo(file) : enter(file)); for (let k = 0; k < 600 && !ready(file); k++) await sleep(250); };
+  const measure = async (name, seconds) => {
+    await sleep(3000); P.reset(); await sleep(seconds * 1000);
+    const st = P.stats();
+    out.push({ name, fps: st.fps, low1PctFps: st.low1PctFps, stutterShare: st.stutters.share, calls: st.calls, ok: st.fps >= T.fps * 0.95 && st.low1PctFps >= T.low1PctFps && st.stutters.share <= T.stutterShare });
+  };
+  try {
+    say('A ten-car pile-up…');
+    await go(TEST_CENTRE);
+    await pileup(active, 9, 60);
+    await measure('A ten-car pile-up', 15);
+    for (const c of [...active.sim.cars]) active.sim.removeCar(c.id);
+    say('Downtown on the autopilot…');
+    await go('scenes/map_v3.json');
+    const w = active, N = await w.questGame.network(), { newRoute, saveCourse } = await import('../route/model.js');
+    const WP = [[37.7936, -122.3955], [37.7880, -122.4075], [37.7765, -122.4170]];
+    const saved = saveCourse(N, { ...newRoute(N.region, 'p2p'), waypoints: WP.map(([lat, lon]) => ({ lat, lon })) });
+    if (saved?.course) {
+      await testDriveRoute({ compiled: viewCourse(saved.course, w.stream.projection), item: { course: saved.course }, autopilot: true });
+      await measure('Downtown on the autopilot', 20);
+      routeRun?.end();
+    }
+  } catch (e) { R.error = String(e?.message ?? e); console.warn('benchmarks:', e); }
+  finally {
+    if (back) await go(back).catch(() => {});
+    R.running = false;
+    R.ok = out.length > 0 && out.every(x => x.ok);
+    console.info('benchmarks on this computer:', JSON.stringify(R));
+    say(`${R.ok ? 'On target' : 'Below target'} for the ${tier} tier: ${out.map(x => `${x.name.toLowerCase()} ${x.fps.toFixed(0)} fps (worst 1% ${x.low1PctFps.toFixed(0)})`).join(' · ')}`);
+  }
+  return R;
+}
+
+// A quest's card open (where the player may well go next — its start, by fast travel or driving): the map round it
+// fetched into the cache meanwhile (map/render/streamer.ts prefetch), so getting there loads from this computer
+function prefetchAround(w, loc) {
+  if (!w?.stream?.prefetch || !loc || !Number.isFinite(loc.lat)) return;
+  const [x, z] = w.stream.projection.toXZ(loc.lat, loc.lon);
+  w.stream.prefetch(x, z, 700);
+}
+
+// ---------- shaders compiled before they're needed (no stutter the first time something appears) ----------
+// An object about to appear (another player's car, an NPC's): its materials compiled now, lit as the world is, while
+// it's still hidden — in the background where the browser can (KHR_parallel_shader_compile)
+async function precompile(object, w = active) {
+  if (!w || !object) return;
+  const was = object.visible;
+  object.visible = true;
+  const p = shared.renderer.compileAsync(object, w.camera, w.scene);
+  object.visible = was;
+  try { await p; } catch { /* drawn when it's drawn */ }
+}
+// A world once built: what's in it, and what comes later — the one-piece cars (near and far), a window and a lamp
+// broken (garage/visual.js crackedMaterial), lit as this world is. (The materials kept: a program goes when the last
+// material using it does.)
+async function warmShaders(w) {
+  if (w.warmed) return;
+  w.warmed = true;
+  const warm = new THREE.Group(), geo = new THREE.BoxGeometry(0.05, 0.05, 0.05), P = proxyMaterials();
+  const mats = [P.body, P.ghost];
+  for (const b of shared.session.garage.car.model.breakables ?? []) w.carVis?.nodes.get(b.node)?.traverse(o => { if (o.isMesh && !Array.isArray(o.material)) mats.push(crackedMaterial(o.material, b.kind, o.geometry)); });
+  for (const m of mats) warm.add(new THREE.Mesh(geo, m));
+  (shared.warmKeep ??= []).push(...mats.slice(2));
+  const t0 = performance.now();
+  try { await shared.renderer.compileAsync(w.scene, w.camera); await shared.renderer.compileAsync(warm, w.camera, w.scene); } catch (e) { console.warn('shaders:', e); }
+  w.warmMs = performance.now() - t0;
+}
+
+// Other cars' detail (the graphics settings' car detail and detailed cars), four times a second: the nearest few within
+// the car detail's distance drawn whole, the rest as one piece (garage/visual.js setDetail) — and every car's shadow
+// its one-piece copy's. (A little further to go back to one piece than to come out of it: no flicking at the edge.)
+function carDetailFrame(w, now) {
+  if (now - (w.detailAt ?? 0) < 250) return;
+  w.detailAt = now;
+  const G = shared.G, far = shared.perfCfg.quality.carDetailM[G.carDetail] ?? 300, cam = w.camera.position, list = [];
+  // (this world's cars only: its NPCs and AI cars, and the other players' drawn in its scene)
+  const seen = new Set(), inScene = g => { let o = g; while (o.parent) o = o.parent; return o === w.scene; };
+  const add = vis => { if (vis && !seen.has(vis) && vis !== w.carVis && vis.setDetail && inScene(vis.group)) { seen.add(vis); list.push({ vis, d: vis.group.position.distanceTo(cam) }); } };
+  for (const vis of w.others.values()) add(vis);
+  for (const vis of shared.visuals) add(vis);
+  list.sort((a, b) => a.d - b.d);
+  // (making a car's one-piece copy takes a few milliseconds: a few each time, nearest first — the rest as they were)
+  const t0 = performance.now(), canMake = () => performance.now() - t0 < 3;
+  if (w.carVis?.setDetail) w.carVis.setDetail('full', canMake());
+  list.forEach(({ vis, d }, i) => vis.setDetail(i < G.detailedCars && d < far * (vis.detail === 'simple' ? 1 : 1.1) ? 'full' : 'simple', canMake()));
+}
+// what paint and chrome reflect: nothing (matte), the sky, or the surroundings (a cube map round your car)
+function setReflections(kind) {
+  if (kind === 'live' && !shared.liveRefl) shared.liveRefl = createLiveReflections(THREE, shared.renderer);
+  if (kind !== 'live' && shared.liveRefl) { shared.liveRefl.dispose(); shared.liveRefl = null; }
+  const env = kind === 'off' ? null : kind === 'live' ? shared.liveRefl.texture : shared.skyEnv;
+  if (shared.envNow === env) return;
+  shared.envNow = env;
+  setEnvironment(env);
+  for (const v of shared.visuals) v.setEnvironment?.(env);
+  for (const w of worlds.values()) { w.carVis?.setEnvironment?.(env); for (const v of w.others.values()) v.setEnvironment?.(env); }
 }
 function applyConditions(w, cond = null) {
   const D = w.trackData, C = w.trackCfg?.conditions;
@@ -2074,7 +2318,9 @@ function handleAction(w, act, inp) {
   const s = shared, v = w.sim.vehicle;
   if (act === 'settings') { s.panel.toggle(); return; }
   if (s.panel.open) return;
-  if (act === 'tuning') s.tuning.toggle();
+  // (Shift+P: the performance overlay — perf/overlay.js: frame times, where they go, draw calls, stutters; P: tuning)
+  if (act === 'tuning' && (s.input.keys.ShiftLeft || s.input.keys.ShiftRight)) s.perfOverlay.toggle();
+  else if (act === 'tuning') s.tuning.toggle();
   if (act === 'telemetry') s.graphs.toggle();
   if (s.tests?.world === w) return;                   // a test is driving
   if (act === 'reset' && routeRun) { routeRun.resetNow(); return; }          // (a route: back to its last checkpoint)
@@ -2576,6 +2822,7 @@ function mpAdapter() {
       shared.visuals.add(vis);
       vis.group.visible = false;
       active?.scene.add(vis.group);
+      await precompile(vis.group);
       return { vis, car };
     },
     dropCar(h) { if (mpLightPool.on === h.vis) { for (const l of mpLightPool.vis.headlights) { l.intensity = 0; l.removeFromParent(); l.target.removeFromParent(); } mpLightPool.on = null; } h.vis.group.removeFromParent(); dropCar(h.vis); },
@@ -2594,12 +2841,17 @@ function mpAdapter() {
       if (!p) { vis.group.visible = false; return; }
       if (!vis.group.parent && active) active.scene.add(vis.group);
       vis.group.visible = true;
-      const front = shared.spec.wheels.front ?? ['FL', 'FR'], names = WHEEL_ORDER.filter(n => vis.wheelVis[n]);
-      const snap = {
-        position: p.pos, rotation: { x: p.rot[0], y: p.rot[1], z: p.rot[2], w: p.rot[3] },
-        wheels: names.map((name, i) => ({ name, length: wheels[i]?.length ?? 0.2, spin: wheels[i]?.spin ?? 0, steerAngle: front.includes(name) ? p.steer : 0, bend: 0, off: vis.partState?.(sn.garage.car.model.sockets?.[name]) === 'detached' })),
-        steering: { wheelAngle: p.steer * (shared.spec.steering?.ratio ?? 14) }, brakeLights: !!(p.flags & 1),
-      };
+      // (the same objects every frame, filled in: thirty players' cars, sixty times a second, would be a lot of garbage)
+      const front = shared.spec.wheels.front ?? ['FL', 'FR'], names = vis.wheelNames ??= WHEEL_ORDER.filter(n => vis.wheelVis[n]);
+      const snap = vis.snapBuf ??= { position: null, rotation: { x: 0, y: 0, z: 0, w: 1 }, wheels: names.map(name => ({ name, length: 0.2, spin: 0, steerAngle: 0, bend: 0, off: false })), steering: { wheelAngle: 0 }, brakeLights: false };
+      snap.position = p.pos;
+      snap.rotation.x = p.rot[0]; snap.rotation.y = p.rot[1]; snap.rotation.z = p.rot[2]; snap.rotation.w = p.rot[3];
+      for (let i = 0; i < names.length; i++) {
+        const W = snap.wheels[i], name = names[i];
+        W.length = wheels[i]?.length ?? 0.2; W.spin = wheels[i]?.spin ?? 0; W.steerAngle = front.includes(name) ? p.steer : 0;
+        W.off = vis.partState?.(sn.garage.car.model.sockets?.[name]) === 'detached';
+      }
+      snap.steering.wheelAngle = p.steer * (shared.spec.steering?.ratio ?? 14); snap.brakeLights = !!(p.flags & 1);
       placeCar(vis, snap, snap, 1);
       updateCarDetails(vis, snap, snap, 1);
       // (headlights: one pair of lights for every other car, lighting the road ahead of the nearest with its lights on —

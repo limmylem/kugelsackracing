@@ -44,7 +44,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     const waiting = new Map();
     let nextWorker = 0;
     for (const w of workers)
-        w.onmessage = e => { const m = e.data, r = waiting.get(m.key); waiting.delete(m.key); r?.(m); };
+        w.onmessage = e => { const m = e.data; if (m.type === 'prefetched')
+            return; const r = waiting.get(m.key); waiting.delete(m.key); r?.(m); };
     const fetchTile = t => { const key = `${t.i}_${t.j}`, url = `${base}tiles/${key}.m3t`; return O.loadTile ? O.loadTile(key, url) : new Promise(resolve => { waiting.set(key, resolve); workers[nextWorker++ % workers.length].postMessage({ type: 'load', key, url, version: manifest.version }); }); };
     // ---------- the far world: the whole region, drawn wherever detailed tiles haven't come in ----------
     // (a mask of the detailed tiles in, one texel a tile, read by the far meshes' shader to leave a hole
@@ -192,6 +193,18 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     }
     const groundReady = entry => !!entry?.physics && entry.added >= entry.groundPieces;
     const entryAt = (wx, wz) => tiles.get(`${Math.floor(wx / T)}_${Math.floor(wz / T)}`);
+    // ---------- the graphics settings (Phase 8 Step 2: perf/quality.js) ----------
+    // render distance: how far tiles are loaded (never less than the physics needs: what it drives on is the same on every
+    // setting) and how far each tile's detail reaches; scenery: the share of trees drawn
+    let detailScale = 1, scenery = 1;
+    const RANGE = { loadRadius: O.loadRadius, unloadRadius: O.unloadRadius };
+    function setGraphics({ renderDistance = RANGE.loadRadius, scenery: sc = 1 } = {}) {
+        detailScale = renderDistance / RANGE.loadRadius;
+        O.loadRadius = Math.max(renderDistance, O.physicsDrop + 150);
+        O.unloadRadius = Math.max(O.loadRadius * 1.5, O.physicsDrop + 400);
+        scenery = sc;
+        lastPlan = -Infinity;
+    }
     // ---------- each frame ----------
     let lastPlan = -Infinity;
     function update(pos, vel, dt = 1 / 60) {
@@ -227,7 +240,11 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
                 wantPhysics(e);
             else if (d > O.physicsDrop + speed * 2)
                 dropPhysics(e);
-            e.obj?.setDetail(distTo(e, wx, wz));
+            e.obj?.setDetail(distTo(e, wx, wz) / detailScale);
+            if (e.obj && e.scenery !== scenery) {
+                e.obj.setScenery?.(scenery);
+                e.scenery = scenery;
+            }
         }
         // a few milliseconds of colliders, the car's own tile and those ahead first
         physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));
@@ -260,8 +277,23 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         }
         return { shifted };
     }
+    // Where the player may go next (a quest's start on its card, a fast-travel target): the tiles within radiusM of it
+    // (the world frame) fetched into the workers' cache now — nothing decoded or drawn — nearest first
+    const prefetched = new Set();
+    function prefetch(wx, wz, radiusM = 600) {
+        if (O.loadTile || !workers.length)
+            return 0;
+        const urls = manifest.tiles.map(t => ({ t, d: distTo(t, wx, wz) })).filter(x => x.d < radiusM && !tiles.has(`${x.t.i}_${x.t.j}`)).sort((a, b) => a.d - b.d)
+            .map(({ t }) => `${base}tiles/${t.i}_${t.j}.m3t`).filter(u => !prefetched.has(u));
+        if (!urls.length)
+            return 0;
+        for (const u of urls)
+            prefetched.add(u);
+        workers[workers.length - 1].postMessage({ type: 'prefetch', urls, version: manifest.version });
+        return urls.length;
+    }
     return {
-        manifest, projection: P, world, stats, update,
+        manifest, projection: P, world, stats, update, setGraphics, prefetch,
         get origin() { return origin; },
         toWorld: (x, z) => [x + origin[0], z + origin[1]],
         toSim: (x, z) => [x - origin[0], z - origin[1]],

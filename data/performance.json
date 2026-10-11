@@ -1,0 +1,60 @@
+{
+  "_note": "Performance (Phase 8 Step 2; docs/PERFORMANCE.md): the device tiers, what each must reach at its own preset, the budgets the game keeps to, and the benchmark scenes (perf/bench.js, tools/bench.mjs). targets: fps — the average frame rate; low1PctFps — the worst 1% of frames' average as a frame rate; stutterShare — at most this share of frames longer than stutterFactor × the target frame time; mainThreadMs — the game's own work a frame on the main thread (every stage but rendering's GPU wait); timeToDrivableS — opening the game to driving, on a normal connection (network). memoryMB: what the graphics card holds (textures, meshes) and the sound (decoded audio), and the JavaScript heap — over budget, what was used longest ago is let go first.",
+  "tiers": {
+    "low": {
+      "examples": ["An older laptop or a Chromebook with integrated graphics: Intel UHD 620 / Iris Plus, AMD Vega 6, 4 cores, 8 GB", "Intel N100 / Celeron N5100 Chromebooks"],
+      "preset": "low",
+      "targets": { "fps": 30, "low1PctFps": 20, "stutterShare": 0.01, "mainThreadMs": 22, "timeToDrivableS": 25 },
+      "memoryMB": { "textures": 256, "meshes": 256, "audio": 32, "heap": 700 }
+    },
+    "medium": {
+      "examples": ["A typical laptop: Intel Iris Xe (11th–13th gen Core i5/i7), AMD Radeon 680M, Apple M1/M2, 8–16 GB"],
+      "preset": "medium",
+      "targets": { "fps": 60, "low1PctFps": 40, "stutterShare": 0.005, "mainThreadMs": 11, "timeToDrivableS": 15 },
+      "memoryMB": { "textures": 512, "meshes": 512, "audio": 64, "heap": 1000 }
+    },
+    "high": {
+      "examples": ["A gaming PC: GeForce RTX 3060 / Radeon RX 6600 or better, a 6-core CPU or better, 16 GB+"],
+      "preset": "high",
+      "targets": { "fps": 60, "low1PctFps": 50, "stutterShare": 0.003, "mainThreadMs": 9, "timeToDrivableS": 10 },
+      "memoryMB": { "textures": 1024, "meshes": 768, "audio": 96, "heap": 1500 }
+    }
+  },
+  "quality": {
+    "_note": "The graphics settings (perf/quality.js; the settings panel's Graphics; docs/PERFORMANCE.md). A preset is a full set of them; changing any one makes it custom. None of them touches the physics (its rate and tyre model are the same on every one). renderDistance: m drawn round the car (the real world's tiles loaded and the camera's far plane; generated tracks' scenery). shadows: off, or the sun's shadow map size (low 1024, medium 2048, high 4096). reflections: off (paint and chrome matte), sky (the sky's reflection), live (the surroundings, a face of a cube map a frame). effects: data/effects.json quality. antialias: off, fxaa (a cheap pass on the finished picture), msaa (4 samples). bloom and motionBlur: post-processing (motion blur: the edges of the picture streak with speed). carDetail: how far cars are drawn whole (low 60 m, medium 150 m, high 300 m, ultra 600 m; further: their body as one piece). damageDetail: how finely a crash dents the body — the longest edge of a dentable copy of each mesh (damageEdgeM) and the share of the denting's time a frame it may take (damageBudget). scenery: the share of trees, rocks and the like drawn (0–1). spectators: data/tracks.json's crowd (off, low, medium, high). detailedCars: at most this many of the nearest cars drawn whole. fullEngineSounds: other cars heard in full (data/audio.json voices). resolution: the render scale (of the screen's pixels, up to maxPixelRatio a CSS pixel); dynamicResolution lowers it down to minResolution to hold the frame rate (fpsCap, or the screen's). fpsCap: 30, 60, 120 or 0 (the screen's own rate). powerSaver: on battery (or always), at most 30 fps and the resolution no higher than powerSaverResolution.",
+    "presets": {
+      "low":    { "renderDistance": 700,  "shadows": "off",    "reflections": "off",  "effects": "low",    "antialias": "off",  "bloom": false, "motionBlur": false, "carDetail": "low",    "damageDetail": "low",    "scenery": 0.35, "spectators": "low",    "detailedCars": 4,  "fullEngineSounds": 3, "resolution": 0.8, "maxPixelRatio": 1,   "dynamicResolution": true,  "minResolution": 0.5,  "fpsCap": 30 },
+      "medium": { "renderDistance": 1000, "shadows": "low",    "reflections": "sky",  "effects": "medium", "antialias": "fxaa", "bloom": false, "motionBlur": false, "carDetail": "medium", "damageDetail": "medium", "scenery": 0.65, "spectators": "medium", "detailedCars": 6,  "fullEngineSounds": 6, "resolution": 1,   "maxPixelRatio": 1.5, "dynamicResolution": true,  "minResolution": 0.6,  "fpsCap": 60 },
+      "high":   { "renderDistance": 1400, "shadows": "medium", "reflections": "sky",  "effects": "high",   "antialias": "msaa", "bloom": true,  "motionBlur": false, "carDetail": "high",   "damageDetail": "high",   "scenery": 1,    "spectators": "high",   "detailedCars": 8,  "fullEngineSounds": 6, "resolution": 1,   "maxPixelRatio": 2,   "dynamicResolution": true,  "minResolution": 0.7,  "fpsCap": 60 },
+      "ultra":  { "renderDistance": 2000, "shadows": "high",   "reflections": "live", "effects": "high",   "antialias": "msaa", "bloom": true,  "motionBlur": true,  "carDetail": "ultra",  "damageDetail": "high",   "scenery": 1,    "spectators": "high",   "detailedCars": 12, "fullEngineSounds": 8, "resolution": 1,   "maxPixelRatio": 2,   "dynamicResolution": false, "minResolution": 0.75, "fpsCap": 0 }
+    },
+    "default": "medium",
+    "carDetailM": { "low": 60, "medium": 150, "high": 300, "ultra": 600 },
+    "shadowMap": { "low": 1024, "medium": 2048, "high": 4096 },
+    "damageBudget": { "low": 0.25, "medium": 0.5, "high": 1 },
+    "damageEdgeM": { "low": 0.14, "medium": 0.1, "high": 0.07 },
+    "powerSaver": { "fps": 30, "resolution": 0.75 },
+    "dynamic": { "_note": "Dynamic resolution: down by `down` when the last `window` s of frames averaged over `over` x the target frame time; up by `up` after `steady` s with no frame over `under` x it (not back to a scale that failed for `retry` s).", "window": 0.5, "over": 1.15, "under": 1.25, "down": 0.1, "up": 0.05, "steady": 3, "retry": 10 },
+    "autoDetect": { "_note": "The first launch's benchmark (perf/autodetect.js): a few seconds of the world drawn at a preset, from the top down, the first that holds its frame rate kept (the 90th percentile frame within `slack` x its target). Software graphics (no graphics card) are low at once. Run again from the settings.", "seconds": 3, "warmup": 1, "slack": 1.15, "order": ["high", "medium", "low"], "ultraIfUnderMs": 8 }
+  },
+  "ci": {
+    "_note": "The performance check on every change to main (.github/workflows/perf.yml; tools/bench.mjs --baseline): each benchmark against the baseline run (tests/perf/ci-baseline.json, made on the same kind of machine: GitHub's, no graphics card — software rendering, so the CPU-side figures, not the frame rate). A figure worse by more than its tolerance's warn share is a warning; by more than its fail share, the check fails. Changes are measured against the larger of the baseline and its floor (tiny figures jump by large shares). Counts (draw calls, triangles) and sizes are steady from run to run; times on a shared machine vary, so their tolerances are wider.",
+    "tolerance": {
+      "default": { "warn": 0.25, "fail": 0.6 },
+      "draw calls": { "warn": 0.1, "fail": 0.25 }, "triangles": { "warn": 0.1, "fail": 0.25 },
+      "meshes MB": { "warn": 0.1, "fail": 0.25 }, "textures MB": { "warn": 0.1, "fail": 0.25 }, "heap MB": { "warn": 0.15, "fail": 0.35 },
+      "garbage MB/s": { "warn": 0.5, "fail": 1.5 }, "drivable s": { "warn": 0.3, "fail": 0.8 }, "shader stutters": { "warn": 0, "fail": 2 }
+    },
+    "floor": { "default": 0.5, "draw calls": 20, "triangles": 20000, "heap MB": 20, "meshes MB": 5, "textures MB": 2, "garbage MB/s": 1, "drivable s": 2, "shader stutters": 1 }
+  },
+  "stutterFactor": 2,
+  "network": { "megabitsPerSecond": 25, "latencyMs": 40, "_note": "a normal home connection, for the time-to-drivable targets" },
+  "run": { "seconds": 30, "warmup": 5 },
+  "benchmarks": {
+    "track_race": { "world": "track", "code": "0CV2C-D0B1W-D2700-06G00-00R9Y-W", "questBot": true, "what": "A dressed generated track (the busiest theme of the mixed GP preset, seed 777: forest — code), an 8-car race: you on the autopilot and seven NPC racers." },
+    "night_rain": { "world": "track", "code": "0CV2C-D0B1W-D2700-06G00-00R9Y-W", "questBot": true, "what": "The same track at night in the rain: floodlights, rain, a wet road; you and three NPCs." },
+    "city": { "world": "map_v3", "questBot": true, "what": "The real world downtown (San Francisco, Market Street), an 8-car race through its streets: you on the autopilot and seven NPC racers (a grid's eight places)." },
+    "roam": { "world": "map_v3", "roam": { "players": 30, "radiusM": 350 }, "query": { "mp": "", "player": "Bench" }, "what": "Free roam with 30 players at The Embarcadero (San Francisco): you, standing, and 29 other players driving the streets within 350 m of you (headless players: the game's own network code). Needs the game's servers (PostgreSQL)." },
+    "pileup": { "world": "test_centre", "what": "A 10-car pile-up: nine AI cars at 60 km/h into each other 45 m in front of you — crashes, dents, sparks, smoke." }
+  }
+}

@@ -1,0 +1,48 @@
+# The browsers (Phase 8 Step 2; docs/PERFORMANCE.md's browser table; tools/browsers.mjs): the game in Chrome, Edge,
+# Chromium, Firefox and WebKit on Linux, and WebKit (Safari's engine) on macOS — what each supports, the test centre
+# driven on the low and high presets, the graphics settings switched while driving, and a browser missing something
+# the game needs told what to use. On changes to the game's page and its start-up, and by hand. Never deploys.
+name: browsers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'dev/world.html'
+      - 'testtrack/**'
+      - 'perf/**'
+      - 'audio/system.js'
+      - 'map/build/**'
+      - 'tools/browsers.mjs'
+      - '.github/workflows/browsers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browsers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, browsers: 'chromium,firefox,webkit', channels: 'chrome,msedge', install: 'chromium firefox webkit', tag: linux }
+          - { os: macos-latest, browsers: 'webkit,chromium', channels: '', install: 'webkit chromium', tag: macos }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: |
+          npm i --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps ${{ matrix.install }}
+      - name: Each browser (Linux runs Chrome and Edge as installed on the machine)
+        run: node tools/browsers.mjs --browsers ${{ matrix.browsers }} ${{ matrix.channels && format('--channels {0}', matrix.channels) || '' }} --tag ${{ matrix.tag }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: browsers-${{ matrix.tag }}, path: reports/browsers, retention-days: 30 }

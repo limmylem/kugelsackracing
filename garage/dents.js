@@ -100,10 +100,17 @@ export function tessellate(source, maxEdge = MAX_EDGE) {
   return out;
 }
 
-// The shared finer copy of a model's geometry
+// How fine (the graphics settings' damage detail, Phase 8 Step 2: perf/quality.js): the longest edge a dentable copy
+// has — coarser, fewer vertices to push and to draw; a mesh dented already keeps its own until it's repaired
+let edgeNow = MAX_EDGE;
+export function setDentDetail(maxEdge = MAX_EDGE) { edgeNow = maxEdge; }
+
+// The shared finer copy of a model's geometry (at the detail now)
 export function finerOf(geometry) {
-  let f = finer.get(geometry);
-  if (!f) { finer.set(geometry, f = tessellate(geometry)); f.userData.finerOf = f; prepare(f); }
+  let m = finer.get(geometry);
+  if (!m) finer.set(geometry, m = new Map());
+  let f = m.get(edgeNow);
+  if (!f) { m.set(edgeNow, f = tessellate(geometry, edgeNow)); f.userData.finerOf = f; prepare(f); }
   return f;
 }
 

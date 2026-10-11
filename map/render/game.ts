@@ -200,9 +200,9 @@ export function realWorldFrame(w, shared, seconds) {
     w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
   }
   // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
-  // after the scene), counted here and started again
+  // after the scene), as the frame profiler counted them (perf/profiler.js)
   const info = shared.renderer?.info;
-  if (info) { info.autoReset = false; w.perf.calls = info.render.calls; w.perf.triangles = info.render.triangles; info.reset(); }
+  if (info) { const L = shared.prof?.last ?? info.render; w.perf.calls = L.calls; w.perf.triangles = L.triangles; }
   const ms = seconds * 1000, now = performance.now();
   w.perf.frameMs += (ms - w.perf.frameMs) * 0.05;
   if (ms > w.perf.worstMs || now - w.perf.worstAt > 2000) { w.perf.worstMs = ms; w.perf.worstAt = now; }

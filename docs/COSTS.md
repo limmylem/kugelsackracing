@@ -67,6 +67,7 @@ per active player.** For 1,000 monthly active players that's 45,000 passes a mon
 | Errors (Sentry) | $0 (free plan) | $0 | $0 or about $26 (*check*) |
 | Alerts (ntfy), uptime monitor and status page (UptimeRobot or Better Stack) | $0 | $0 | $0 |
 | Backups (GitHub Actions, kept in R2) | $0 (free minutes; R2's free storage) | $0 | $0 |
+| The performance, browser and long-play checks (GitHub Actions: `perf`, `browsers`, `soak` — Phase 8 Step 2) | $0 (free minutes: the repository is public; no paid GPU machine — the owner's choice) | $0 | $0 |
 | Domain | About $1 a month (yearly) | | |
 | **Total** | **About US$11 a month** | **About US$11–20 a month per 1,000** | **About US$60–90 a month** |
 

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Renderer benchmark: WebGPU against WebGL 2</title>
+<!-- Phase 8 Step 2 (docs/PERFORMANCE.md, "WebGPU or WebGL 2"): the same scene drawn by three.js's WebGPURenderer and its
+     WebGLRenderer — n meshes of the game's kind (a handful of standard materials, a sun, fog), and the instanced and
+     merged versions of the same — the CPU's time to submit a frame and the frame time, a few seconds each.
+     ?renderer=webgl|webgpu&n=1000&mode=meshes|instanced (tools/renderer-bench.mjs runs them all) -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "three/nodes": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/nodes/Nodes.js"
+} }
+</script>
+<style>html, body { margin: 0; background: #111; color: #ddd; font: 13px system-ui; } #out { position: fixed; left: 8px; top: 8px; }</style>
+</head>
+<body>
+<div id="out">…</div>
+<script type="module">
+import * as THREE from 'three';
+const q = new URLSearchParams(location.search), kind = q.get('renderer') ?? 'webgl', n = +(q.get('n') ?? 1000), mode = q.get('mode') ?? 'meshes', seconds = +(q.get('seconds') ?? 4);
+const out = document.getElementById('out');
+async function make() {
+  if (kind === 'webgpu') {
+    if (!navigator.gpu || !(await navigator.gpu.requestAdapter().catch(() => null))) return null;
+    const { default: WebGPURenderer } = await import('three/addons/renderers/webgpu/WebGPURenderer.js');
+    const r = new WebGPURenderer({ antialias: false });
+    await r.init?.();
+    return r;
+  }
+  return new THREE.WebGLRenderer({ antialias: false });
+}
+const renderer = await make();
+if (!renderer) { out.textContent = 'no WebGPU here'; window.__result = { renderer: kind, supported: false }; }
+else {
+  renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 2000);
+  scene.background = new THREE.Color('#8fbbe6'); scene.fog = new THREE.Fog('#8fbbe6', 200, 900);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x556655, 1.1));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(30, 60, 20); scene.add(sun);
+  const mats = ['#c8452f', '#3a6fb0', '#e0c050', '#555', '#2e7d32', '#999'].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.2 }));
+  const geo = new THREE.BoxGeometry(2, 1.2, 4, 4, 2, 4);
+  const side = Math.ceil(Math.sqrt(n)), at = i => [(i % side - side / 2) * 8, 0.6, (Math.floor(i / side) - side / 2) * 8 - 40];
+  if (mode === 'instanced') {
+    const per = Math.ceil(n / mats.length);
+    mats.forEach((m, k) => { const im = new THREE.InstancedMesh(geo, m, per), M = new THREE.Matrix4(); for (let j = 0; j < per; j++) { const p = at(j * mats.length + k); im.setMatrixAt(j, M.makeTranslation(p[0], p[1], p[2])); } scene.add(im); });
+  } else for (let i = 0; i < n; i++) { const m = new THREE.Mesh(geo, mats[i % mats.length]); m.position.set(...at(i)); scene.add(m); }
+  camera.position.set(0, 60, 120); camera.lookAt(0, 0, -40);
+  const cpu = [], frames = [];
+  let last = performance.now(), t0 = last, warm = 30;
+  const draw = () => { const a = performance.now(); camera.position.x = Math.sin(a / 2000) * 30; camera.lookAt(0, 0, -40); renderer.render(scene, camera); return performance.now() - a; };
+  await new Promise(done => {
+    const tick = () => {
+      const now = performance.now(), c = draw();
+      if (warm > 0) { warm--; t0 = now; } else { cpu.push(c); frames.push(now - last); }
+      last = now;
+      if (now - t0 < seconds * 1000 || warm > 0) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+  const avg = xs => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length), p95 = xs => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length * 0.95)] ?? 0;
+  window.__result = { renderer: kind, supported: true, mode, n, frames: frames.length, cpuMs: +avg(cpu).toFixed(2), cpuP95Ms: +p95(cpu).toFixed(2), frameMs: +avg(frames).toFixed(2), backend: kind === 'webgpu' ? (renderer.backend?.isWebGPUBackend ? 'WebGPU' : 'WebGL 2 (its fallback)') : 'WebGL 2' };
+  out.textContent = JSON.stringify(window.__result);
+}
+</script>
+</body>
+</html>

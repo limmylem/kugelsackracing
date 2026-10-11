@@ -5,7 +5,9 @@
 // the arrays back without copying them. Everything but making the three.js objects stays off the
 // page's thread.
 //
-// Page → worker: { type: 'load', key, url, version }, { type: 'forget' } (empties the cache)
+// Page → worker: { type: 'load', key, url, version }, { type: 'prefetch', urls, version } (Phase 8 Step 2: the tiles
+// round where the player is likely to go next — a quest's start, fast travel — fetched into the cache while a menu is
+// open, so arriving there is a cache read, not a download), { type: 'forget' } (empties the cache)
 // Worker → page: { type: 'tile', key, tile, bytes, cached, ms } | { type: 'error', key, error }
 
 import { MeshoptDecoder } from '../vendor/meshopt_decoder.module.js';
@@ -42,6 +44,19 @@ function vertexNormals(P, I) {
 self.onmessage = async e => {
   const m = e.data;
   if (m.type === 'forget') { await tx('readwrite', s => s.clear()); return; }
+  if (m.type === 'prefetch') {
+    // (one after another, quietly: a tile already kept at this bake is left; a failure is tried again when it's wanted)
+    for (const url of m.urls) {
+      try {
+        const hit: any = await cacheGet(url);
+        if (hit && hit.version === m.version) continue;
+        const r = await fetch(url, { cache: 'no-cache' });
+        if (r.ok) await cachePut(url, { version: m.version, bytes: new Uint8Array(await r.arrayBuffer()) });
+      } catch { /* later */ }
+    }
+    self.postMessage({ type: 'prefetched', count: m.urls.length });
+    return;
+  }
   if (m.type !== 'load') return;
   const t0 = performance.now();
   try {

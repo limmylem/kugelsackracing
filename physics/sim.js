@@ -105,7 +105,10 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
 
   // Physics cost, smoothed (ms): a whole step, our car, the other cars, Rapier's own step; `peak` is
   // the slowest recent step. budget (settings.budget) is what the physics may use per drawn frame.
-  const perf = { stepMs: 0, vehicleMs: 0, carsMs: 0, worldMs: 0, peakMs: 0, cars: 1, perCarMs: 0, budget: settings.budget ?? null };
+  // aiMs: the time since the last take() in the AI cars' drivers and the step listeners (an NPC race's drivers and its
+  // logic, telemetry) — the frame profiler's AI (perf/profiler.js); only timed, nothing about the steps changes
+  const perf = { stepMs: 0, vehicleMs: 0, carsMs: 0, worldMs: 0, peakMs: 0, cars: 1, perCarMs: 0, budget: settings.budget ?? null, aiMs: 0,
+    takeAi() { const x = this.aiMs; this.aiMs = 0; return x; } };
   const ema = (a, x) => a + (x - a) * 0.02;
 
   // One fixed step with this input
@@ -116,7 +119,7 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     vehicle.step(dt, input);
     const t1 = now();
     // (a car off the physics — an NPC far away, run along its racing line instead: race/race.js — skips it)
-    for (const c of cars) if (!c.offPhysics) c.vehicle.step(dt, c.driver(c.vehicle, dt));
+    for (const c of cars) if (!c.offPhysics) { const ta = now(), inp = c.driver(c.vehicle, dt); perf.aiMs += now() - ta; c.vehicle.step(dt, inp); }
     for (const fn of preWorld) fn(api, steps, dt);
     const t2 = now();
     vehicle.sensor.before(); vehicle.parts.before();
@@ -130,7 +133,9 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     timer.update(dt, vehicle.forwardSpeed(), vehicle.brake);
     if (lapTimer) { const p = vehicle.body.translation(); lapTimer.update(dt, p.x, p.z); }
     steps++;
+    const t4 = now();
     for (const fn of listeners) fn(api, steps);
+    perf.aiMs += now() - t4;
     perf.stepMs = ema(perf.stepMs, t3 - t0);
     perf.vehicleMs = ema(perf.vehicleMs, t1 - t0);
     perf.carsMs = ema(perf.carsMs, t2 - t1);

@@ -4,6 +4,7 @@
 
 import { ACTIONS, DEFAULT_INPUT, DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_WHEEL } from './input.js';
 import { PALETTES } from '../play/palette.js';
+import { graphicsOf, withPreset, withSetting, PRESETS } from '../perf/quality.js';
 
 const STORE = 'driveWorld.settings.v1';
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -20,8 +21,9 @@ export function defaultSettings(spec) {
     crashReplay: true,          // a slow-motion replay after a big crash (never in a race)
     spoilerAngle: 8,
     altitude: 0,
-    effects: 'medium',          // visual effects quality: low / medium / high (data/effects.json)
-    trackDetail: 'high',        // generated tracks' detail: low / medium / high (data/tracks.json performance.detail)
+    // the graphics (Phase 8 Step 2: perf/quality.js, data/performance.json quality): { preset, values } — null until the
+    // first launch's benchmark picks a preset (perf/autodetect.js); the effects' quality and tracks' detail are in it
+    graphics: null,
     timeOfDay: 13,              // the test worlds' time of day (hours)
     // accessibility (play/palette.js): the quests' colours, how visible the route guides are, the HUDs' size,
     // and the first-time hints
@@ -70,7 +72,9 @@ const bindingText = b => !b ? '—' : b.type === 'button' ? `button ${b.index}` 
 
 // input: the InputManager (for capturing rebinds); onChange(settings) after any change; onRehint(): every
 // first-time hint unseen again
-export function createSettingsPanel(settings, spec, input, onChange, { onRehint = null } = {}) {
+// graphics: { cfg (data/performance.json quality), stats() (perf/graphics.js), detect() (the first launch's benchmark, run
+// again) } — the Graphics section
+export function createSettingsPanel(settings, spec, input, onChange, { onRehint = null, graphics = null } = {}) {
   const el = document.createElement('div');
   el.id = 'settings';
   el.hidden = true;
@@ -102,11 +106,7 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
         <label class="row"><input type="checkbox" data-bool="handbrakeClutch" ${S.handbrakeClutch ? 'checked' : ''}> <span><b>Clutch in with handbrake</b><small>Keeps the engine revving through handbrake turns</small></span></label>
         <h3>Aero and air <small>K fits / removes the spoiler (its angle is its setting: garage.tune("basic_wing", "angle", 12)) · J puts an AI car ahead to slipstream</small></h3>
         <label class="slider">test altitude <input type="range" min="0" max="4000" step="100" data-num="altitude" value="${S.altitude}"> <output>${S.altitude} m</output></label>
-        <h3>Effects <small>. opens the effects panel</small></h3>
-        <label class="slider">quality <select data-str="effects">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.effects ?? 'medium') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">How many particles (smoke, sparks, dust…), how big and how long they last, how far away cars' effects play, soft edges where they meet surfaces (medium and high) and little lights where sparks fly (high).</small>
-        <label class="slider">track detail <select data-str="trackDetail">${[['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, n]) => `<option value="${v}" ${(S.trackDetail ?? 'high') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">Generated tracks: how many trees and rocks, the crowd in the grandstands, shadows and screen sharpness (data/tracks.json performance.detail). Takes effect on the next track.</small>
+        ${graphicsRows()}
         <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
         <h3>Sound <small>M on / off · Shift+M what it costs</small></h3>
         ${SOUND_ROWS.map(([k, n]) => `<label class="slider">${n} <input type="range" min="0" max="1" step="0.05" data-num="sound.${k}" value="${S.sound?.[k] ?? 1}"> <output>${Math.round((S.sound?.[k] ?? 1) * 100)}%</output></label>`).join('')}
@@ -141,13 +141,51 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
       </section></div>`;
   }
 
+  // ---------- graphics (perf/quality.js): a preset, or any setting changed (custom) ----------
+  function graphicsRows() {
+    if (!graphics) return '';
+    const Q = graphics.cfg, G = graphicsOf(settings.graphics, Q), sel = (key, opts) => `<select data-gfx="${key}">${opts.map(([v, n]) => `<option value="${v}" ${String(G[key]) === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+    const lmh = [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], st = graphics.stats?.() ?? {};
+    const row = (name, html, help = '') => `<label class="slider">${name} ${html}</label>${help ? `<small class="pads">${help}</small>` : ''}`;
+    return `<h3>Graphics <small>Shift+P what each frame costs${st.scale ? ` · now ${Math.round(st.scale * 100)}% resolution${st.fpsLimit ? `, at most ${st.fpsLimit} fps` : ''}${st.saving ? ' (power saver)' : ''}` : ''}</small></h3>
+      ${row('preset', `<select data-gfx-preset>${[...PRESETS.map(p => [p, p[0].toUpperCase() + p.slice(1)]), ['custom', 'Custom']].map(([v, n]) => `<option value="${v}" ${G.preset === v ? 'selected' : ''} ${v === 'custom' && G.preset !== 'custom' ? 'disabled' : ''}>${n}</option>`).join('')}</select>`, 'Low: older laptops and Chromebooks (30 fps). Medium: a typical laptop (60 fps). High: a gaming PC. Ultra: the most there is. Change anything below and it\'s Custom. None of it changes how the car drives.')}
+      <button data-gfx-detect>${graphics.detecting ? 'Testing this computer…' : 'Test this computer and pick for me'}</button>
+      <button data-gfx-bench>${graphics.benchResult?.()?.running ? 'Running the benchmarks…' : 'Run the benchmarks (about a minute)'}</button>
+      ${(() => { const B = graphics.benchResult?.(); if (!B || B.running) return ''; return `<small class="pads">At ${B.preset} (the ${B.tier} tier's targets: ${B.targets.fps} fps, worst 1% ${B.targets.low1PctFps}): ${B.scenes.map(x => `${x.ok ? '✔' : '✖'} ${x.name}: ${x.fps.toFixed(0)} fps, worst 1% ${x.low1PctFps.toFixed(0)}, stutters ${(x.stutterShare * 100).toFixed(1)}%`).join(' · ') || B.error || 'nothing measured'}</small>`; })()}
+      ${row('render distance', `<input type="range" min="500" max="2500" step="100" data-gfx-num="renderDistance" value="${G.renderDistance}"> <output>${G.renderDistance} m</output>`)}
+      ${row('resolution', `<input type="range" min="0.5" max="1" step="0.05" data-gfx-num="resolution" value="${G.resolution}"> <output>${Math.round(G.resolution * 100)}%</output>`)}
+      ${row('sharpest', sel('maxPixelRatio', [[1, '1× (fastest)'], [1.5, '1.5×'], [2, '2× (high-DPI screens)']]))}
+      <label class="row"><input type="checkbox" data-gfx-bool="dynamicResolution" ${G.dynamicResolution ? 'checked' : ''}> <span><b>Dynamic resolution</b><small>Lowers the resolution by itself to keep the frame rate, never below the minimum.</small></span></label>
+      ${row('minimum', `<input type="range" min="0.4" max="1" step="0.05" data-gfx-num="minResolution" value="${G.minResolution}"> <output>${Math.round(G.minResolution * 100)}%</output>`)}
+      ${row('frame rate cap', sel('fpsCap', [[30, '30'], [60, '60'], [120, '120'], [0, 'Unlimited (the screen\'s)']]))}
+      ${row('power saver', sel('powerSaver', [['off', 'Off'], ['battery', 'On battery'], ['always', 'Always']]), 'At most 30 fps and a lower resolution — for laptops (on battery: where the browser can tell).')}
+      ${row('shadows', sel('shadows', [['off', 'Off'], ...lmh]))}
+      ${row('reflections', sel('reflections', [['off', 'Off'], ['sky', 'Sky'], ['live', 'Live (surroundings)']]))}
+      ${row('effects', sel('effects', lmh), 'Particles, sparks and smoke: how many, how long they last, soft edges (medium, high), little lights where sparks fly (high).')}
+      ${row('anti-aliasing', sel('antialias', [['off', 'Off'], ['fxaa', 'FXAA (fast)'], ['msaa', 'MSAA 4×']]))}
+      <label class="row"><input type="checkbox" data-gfx-bool="bloom" ${G.bloom ? 'checked' : ''}> <span><b>Bloom</b><small>A glow round bright lights.</small></span></label>
+      <label class="row"><input type="checkbox" data-gfx-bool="motionBlur" ${G.motionBlur ? 'checked' : ''}> <span><b>Motion blur</b><small>The edges of the picture streak at speed.</small></span></label>
+      ${row('car detail', sel('carDetail', [...lmh, ['ultra', 'Ultra']]), 'How far away cars are drawn whole (further: their body as one piece).')}
+      ${row('detailed cars', `<input type="range" min="2" max="16" step="1" data-gfx-num="detailedCars" value="${G.detailedCars}"> <output>${G.detailedCars}</output>`, 'At most this many of the nearest cars drawn whole.')}
+      ${row('damage detail', sel('damageDetail', lmh), 'How finely a crash dents the body.')}
+      ${row('scenery', `<input type="range" min="0.2" max="1" step="0.05" data-gfx-num="scenery" value="${G.scenery}"> <output>${Math.round(G.scenery * 100)}%</output>`, 'Trees, rocks and the like.')}
+      ${row('spectators', sel('spectators', [['off', 'Off'], ...lmh]))}
+      ${row('full engine sounds', `<input type="range" min="1" max="12" step="1" data-gfx-num="fullEngineSounds" value="${G.fullEngineSounds}"> <output>${G.fullEngineSounds}</output>`, 'Other cars heard in full (the rest, simply).')}`;
+  }
+  const setGraphics = (key, value) => { settings.graphics = key === null ? withPreset(settings.graphics ?? {}, graphics.cfg, value) : withSetting(settings.graphics ?? {}, graphics.cfg, key, value); changed(); };
+
   const set = (path, value) => { const [a, b] = path.split('.'); if (b) settings[a][b] = value; else settings[a] = value; };
   el.addEventListener('input', e => {
     const t = e.target;
+    if (t.dataset.gfxNum) { const k = t.dataset.gfxNum, v = +t.value; t.nextElementSibling.textContent = k === 'renderDistance' ? `${v} m` : /resolution|scenery/i.test(k) ? `${Math.round(v * 100)}%` : String(v); return; }
     if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') || t.dataset.num === 'hudScale' || t.dataset.num.startsWith('sound.') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
   });
   el.addEventListener('change', e => {
     const t = e.target;
+    if (t.dataset.gfxPreset !== undefined) { setGraphics(null, t.value); return; }
+    if (t.dataset.gfx) { const k = t.dataset.gfx, num = ['fpsCap', 'maxPixelRatio'].includes(k); setGraphics(k, num ? +t.value : t.value); return; }
+    if (t.dataset.gfxNum) { setGraphics(t.dataset.gfxNum, +t.value); return; }
+    if (t.dataset.gfxBool) { setGraphics(t.dataset.gfxBool, t.checked); return; }
     if (t.dataset.aid) { settings.aids[t.dataset.aid] = t.checked; changed(); }
     if (t.dataset.bool) { settings[t.dataset.bool] = t.checked; changed(); }
     if (t.dataset.str === 'collisions') { settings.collisions = t.value || null; changed(); }
@@ -159,6 +197,9 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
     if (!t) return;
     if (t.dataset.reset !== undefined) { Object.assign(settings, defaultSettings(spec)); changed(); return; }
     if (t.dataset.rehint !== undefined) { onRehint?.(); t.textContent = 'They\'ll show again'; return; }
+    // (the panel closed while they run: open, it pauses the game — the results are here when it's opened again)
+    if (t.dataset.gfxBench !== undefined && graphics?.bench && !graphics.benchResult?.()?.running) { el.hidden = true; input.capture = null; const p = graphics.bench(); p.finally?.(() => render()); return; }
+    if (t.dataset.gfxDetect !== undefined && graphics?.detect && !graphics.detecting) { graphics.detecting = true; render(); graphics.detect().finally(() => { graphics.detecting = false; render(); }); return; }
     const [group, id] = (t.dataset.bind || '').split('.');
     if (!group) return;
     t.textContent = id === 'steer' ? 'turn left…' : 'press…';
