@@ -69,6 +69,18 @@ test('the garage through the server: buy, fit, take off, sell — the price the 
   await ledgerOk();
 });
 
+test('the whole car repaired (the garage\'s full fix and quick fix): no list of pieces is all of them, left out or sent as null', async () => {
+  const car = (await ann.get('/api/v1/player')).body.profile.currentCar;
+  // (taken as asked — not refused as a bad request; this car's undamaged, so "nothing to repair" is the answer)
+  for (const opts of [{ kind: 'full' }, { kind: 'quick', items: null }, { kind: 'full', items: null }]) {
+    const r = await act(ann, 'repairCar', { carInstanceId: car, opts });
+    assert.ok(r.status === 200 || (r.status === 409 && /perfect already|nothing to repair/i.test(r.body.error.message)), `${JSON.stringify(opts)}: ${r.status} ${r.text.slice(0, 200)}`);
+  }
+  // (a list that isn't one: still refused)
+  assert.equal((await act(ann, 'repairCar', { carInstanceId: car, opts: { kind: 'full', items: 'all' } })).status, 400);
+  await ledgerOk();
+});
+
 test('double spend: 50 purchases at once with money for one — exactly one goes through', async () => {
   const uid = await idOf('ben@example.com');
   await ben.get('/api/v1/player');

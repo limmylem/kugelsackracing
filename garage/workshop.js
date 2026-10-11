@@ -450,7 +450,8 @@ export class Workshop {
     return this.problemsCache.value;
   }
   // repair problems (items: [{ target, scope }], none: everything), quick or full
-  repairCar({ kind = 'full', items = null } = {}) { return this.service.repairCar(this.carInstanceId, { kind, items }); }
+  // (no items: all of it — left out, not sent as null: the server's check takes a list or nothing)
+  repairCar({ kind = 'full', items = null } = {}) { return this.service.repairCar(this.carInstanceId, { kind, ...(items && { items }) }); }
   // a spare in place of a damaged part (it can be undone, like fitting any part)
   replaceWithSpare(socket, instanceId) { return this.#change(`${this.db.parts[this.profile.parts[instanceId]?.partId]?.name ?? 'spare'} fitted`, 'parts', () => this.service.replaceWithSpare(this.carInstanceId, socket, instanceId)); }
   // The safety net: { needed (the car can't carry on), cost (of the quick repairs that would fix that),

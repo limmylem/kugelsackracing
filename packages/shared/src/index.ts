@@ -281,7 +281,8 @@ export const PLAYER_ACTION_ARGS = {
   repairPart: z.object({ instanceId: InstanceId }).strict(),
   repairParts: z.object({ instanceIds: z.array(InstanceId).min(1).max(200) }).strict(),
   repairBody: z.object({ carInstanceId: InstanceId }).strict(),
-  repairCar: z.object({ carInstanceId: InstanceId, opts: z.object({ kind: z.enum(['quick', 'full']).optional(), items: z.array(RepairItem).max(200).optional() }).strict().optional() }).strict(),
+  // (items: none — left out or null, as games before 2026-10-11 sent it — is the whole car)
+  repairCar: z.object({ carInstanceId: InstanceId, opts: z.object({ kind: z.enum(['quick', 'full']).optional(), items: z.array(RepairItem).max(200).nullish() }).strict().optional() }).strict(),
   replaceWithSpare: z.object({ carInstanceId: InstanceId, socket: Socket, instanceId: InstanceId }).strict(),
   basicRepair: z.object({ carInstanceId: InstanceId }).strict(),
   installPart: z.object({ carInstanceId: InstanceId, instanceId: InstanceId, opts: z.object({ socket: Socket.optional(), auto: z.boolean().optional() }).strict().optional() }).strict(),
