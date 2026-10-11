@@ -133,6 +133,11 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 | `rollback` | By hand: a commit | `deploy` at an earlier commit ([Rolling back](#rolling-back)) | `production` environment |
 | `check` | By hand | `tools/check-deploy.mjs` against production ([Checks](#checks)) | — |
 | `backup` | Every night (16:17 UTC, about 03:00 in Adelaide); by hand with *drill* | [Backups](#backups-and-restoring) | — |
+| `perf` | Every push to `main` that changes the game, and by hand | The five benchmark scenes ([docs/PERFORMANCE.md](PERFORMANCE.md)) on GitHub's free machines (no graphics card: software rendering, so the CPU's side, draw calls, memory, garbage and loading are compared, not frame rates) against `tests/perf/ci-baseline.json`; worse beyond `data/performance.json` `ci` warns or fails. Never deploys, and a deploy never waits for it. Free (public repository). | — |
+| `browsers` | Pushes to `main` that change the game's page or start-up, and by hand | Chrome, Edge, Chromium, Firefox and WebKit on Linux, WebKit and Chromium on macOS (Safari's engine): what each supports, the game driven on low and high, the settings switched while driving, an old browser told what to use (`tools/browsers.mjs`). Free. | — |
+| `soak` | By hand, and Sundays | The long play test: two hours round and round (free roam, races, the garage, the test centre's pile-up), memory sampled; fails if it grew after the first round (`tools/memory-soak.mjs`). Free. | — |
+| `slow-tail` | By hand | The end of `server`'s slow tests on their own (the browser race test, the drills, the load tests, the image) — never deploys | — |
+| `live-look` | By hand | The live game opened in a browser, read only: errors on its pages, a few seconds' driving and its sound, the quests' tiers as the live server prices them (`tools/live-look.mjs`) | — |
 | `loadtest` | By hand | 20 online bots on demand (up to 200): half in free roam, half in quick races, for a couple of minutes against the real servers, each number against its target (`server/tools/online-bots.ts`; tickets with `LOADTEST_TOKEN`). GitHub's runners are in the US, so the pings include the trip to Sydney. | — |
 
 ## Deploying
@@ -302,6 +307,7 @@ Nothing is rebuilt; each step adds:
 | `tools/check-deploy.mjs` | The checks (run by `deploy.yml` and `check.yml`) |
 | `.github/workflows/server.yml`, `deploy.yml`, `rollback.yml` | Tests and the image, then deploying; rolling back |
 | `.github/workflows/infra.yml`, `server-setup.yml`, `check.yml`, `backup.yml`, `loadtest.yml` | Setting up, checking, backups, the load test |
+| `.github/workflows/perf.yml`, `browsers.yml`, `soak.yml`, `slow-tail.yml`, `live-look.yml` | The performance check and the browsers (Phase 8 Step 2: [PERFORMANCE.md](PERFORMANCE.md)); the slow tests on their own; the live game looked at |
 | `server/tools/online-bots.ts` | The bots of the load test |
 | `site/config.js`, `site/urls.js` | Where the game finds the API, tiles and real time; the editor loader |
 | `server/tools/deploy-browser.ts` | The whole layout tested in a browser, locally and in CI |

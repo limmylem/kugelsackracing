@@ -136,7 +136,10 @@ export class GarageScene {
     // walls and ceiling (seen from inside), with light strips overhead and a darker dado
     const walls = new THREE.Mesh(new THREE.BoxGeometry(24, 7, 24), new THREE.MeshStandardMaterial({ color: '#1c2126', roughness: 0.92, side: THREE.BackSide }));
     walls.position.y = 3.49; s.add(walls);   // (its floor just under the floor, not fighting it)
-    const dado = new THREE.Mesh(new THREE.BoxGeometry(23.8, 1.2, 23.8), new THREE.MeshStandardMaterial({ color: '#15191d', roughness: 0.95, side: THREE.BackSide }));
+    // (the dado: only its four sides — its top would be a dark ceiling at 1.2 m over the whole room, seen from the
+    // underside view's low camera with the car raised above it)
+    const dadoSide = new THREE.MeshStandardMaterial({ color: '#15191d', roughness: 0.95, side: THREE.BackSide }), none = new THREE.MeshBasicMaterial({ visible: false });
+    const dado = new THREE.Mesh(new THREE.BoxGeometry(23.8, 1.2, 23.8), [dadoSide, dadoSide, none, none, dadoSide, dadoSide]);
     dado.position.y = 0.59; s.add(dado);
     const strip = new THREE.MeshBasicMaterial({ color: '#e9eef2' });
     for (const x of [-2.2, 0, 2.2]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 7), strip); m.rotation.x = Math.PI / 2; m.position.set(x, 6.98, 0); s.add(m); }

@@ -19,7 +19,7 @@
 //   whenAudio(fn)              fn(A) once the system's up (now, if it is)
 //   audioSystem()              the system, or null before the first key or click
 //   A.ctx · A.bus[group] · A.cfg (data/audio.json) · A.worklet (whether the worklet's there) · A.quality
-//   A.setVolumes({ master, engine, … 0..1 }) · A.setQuality('high' | 'low') · A.mute(on) (everything) · A.silence(groups, on)
+//   A.setVolumes({ master, engine, … 0..1 }) · A.setQuality('high' | 'low') · A.setFullVoices(n) · A.mute(on) (everything) · A.silence(groups, on)
 //   (some: the driving's, while it's not on screen) · A.setView(viewMix) ·
 //   A.setReverb({ tunnel, under, street, open, width })
 //   await A.engine(path, { mode }) → the engine's sound (refcounted: A.release(sound)) · await A.buffer(file) (refcounted:
@@ -103,6 +103,8 @@ export async function createAudioSystem({ volumes = pending.volumes ?? {}, quali
   const A = {
     ctx, cfg, bus, master, pre, outside, verb, worklet, quality, muted,
     get nodes() { return nodes.size; },
+    // (the decoded sound held, MB — the memory budget's: perf/memory.js)
+    get bankMB() { return last.bankBytes / 1048576; },
     setVolumes(v = {}) {
       Object.assign(vol, Object.fromEntries(Object.entries(v).filter(([, x]) => Number.isFinite(x))));
       for (const g of GROUPS) bus[g].gain.setTargetAtTime((cfg.groups[g] ?? 1) * Math.max(0, Math.min(1.5, vol[g])) * (silenced.has(g) ? 0 : 1), t(), 0.05);
@@ -112,6 +114,9 @@ export async function createAudioSystem({ volumes = pending.volumes ?? {}, quali
     silence(groups, on) { for (const g of groups) on ? silenced.add(g) : silenced.delete(g); this.setVolumes(); },
     get volumes() { return { ...vol }; },
     setQuality(q) { this.quality = q === 'low' ? 'low' : 'high'; verb.enable(this.quality !== 'low' || !!cfg.lowQuality.reverb); },
+    // other cars heard in full (the graphics settings' full engine sounds; null: data/audio.json voices.full)
+    fullVoices: null,
+    setFullVoices(n) { this.fullVoices = Number.isFinite(n) ? Math.max(0, Math.round(n)) : null; },
     mute(on) { this.muted = !!on; master.gain.setTargetAtTime(on ? 0 : Math.max(0, Math.min(1, vol.master)), t(), 0.03); if (!on && ctx.state === 'suspended' && !hidden()) ctx.resume().catch(() => {}); },
     // what the camera hears of the outside world (audio/mix.js viewMix: outside Hz)
     setView(view) { outside.frequency.setTargetAtTime(Math.min(20000, view.outside ?? 20000), t(), 0.25); },

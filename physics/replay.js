@@ -11,26 +11,49 @@
 // (two frames and how far between them), t, done }; skip() ends it at once. camera(t) → a slow pan
 // round the crash: { position, target } in the world (focus: where it happened).
 
-const pick = s => ({
-  id: s.id ?? 0, position: [...s.position], rotation: { ...s.rotation }, brakeLights: !!s.brakeLights,
-  steering: { wheelAngle: s.steering?.wheelAngle ?? 0 },
-  wheels: (s.wheels ?? []).map(w => ({ name: w.name, length: w.length, steerAngle: w.steerAngle, spin: w.spin, radius: w.radius, bend: w.bend, off: !!w.off })),
-  ...(s.looseParts?.length && { looseParts: s.looseParts.map(p => ({ socket: p.socket, position: [...p.position], rotation: { ...p.rotation } })) }),
-});
+// a car's state as the drawing needs it, written into a record kept from before (Phase 8 Step 2: the frames are
+// recycled — 30 a second of every car's, each kept 6 s: long enough to outlive the quick collections, so they piled up
+// for the slow, full ones)
+function pick(s, o = null) {
+  o ??= { id: 0, position: [0, 0, 0], rotation: { x: 0, y: 0, z: 0, w: 1 }, brakeLights: false, steering: { wheelAngle: 0 }, wheels: [] };
+  o.id = s.id ?? 0;
+  const p = s.position, r = s.rotation, R = o.rotation;
+  o.position[0] = p[0]; o.position[1] = p[1]; o.position[2] = p[2];
+  R.x = r.x; R.y = r.y; R.z = r.z; R.w = r.w;
+  o.brakeLights = !!s.brakeLights;
+  o.steering.wheelAngle = s.steering?.wheelAngle ?? 0;
+  const ws = s.wheels ?? [];
+  o.wheels.length = ws.length;
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i], d = o.wheels[i] ??= {};
+    d.name = w.name; d.length = w.length; d.steerAngle = w.steerAngle; d.spin = w.spin; d.radius = w.radius; d.bend = w.bend; d.off = !!w.off;
+  }
+  if (s.looseParts?.length) o.looseParts = s.looseParts.map(q => ({ socket: q.socket, position: [...q.position], rotation: { ...q.rotation } }));
+  else delete o.looseParts;
+  return o;
+}
 
 export class ReplayRecorder {
-  constructor({ record = 6, rate = 30 } = {}) { this.seconds = record; this.rate = rate; this.frames = []; this.last = -Infinity; }
-  clear() { this.frames = []; this.last = -Infinity; }
+  constructor({ record = 6, rate = 30 } = {}) { this.seconds = record; this.rate = rate; this.frames = []; this.free = []; this.last = -Infinity; }
+  clear() { this.free.push(...this.frames); this.frames = []; this.last = -Infinity; }
   // time: the simulation's (s); snapshot: the simulation's (with others and debris)
   record(time, snapshot) {
     if (time - this.last < 1 / this.rate - 1e-6 && time >= this.last) return false;
     if (time < this.last) this.clear();                     // (the simulation started again)
     this.last = time;
-    this.frames.push({ t: time, cars: [pick(snapshot), ...(snapshot.others ?? []).map(pick)], debris: (snapshot.debris ?? []).map(d => ({ id: d.id, position: [...d.position], rotation: { ...d.rotation } })) });
-    while (this.frames.length && this.frames[0].t < time - this.seconds) this.frames.shift();
+    // (a frame gone out of the window used again, its cars' records with it)
+    const f = this.free.pop() ?? { t: 0, cars: [], debris: [] }, others = snapshot.others ?? [];
+    f.t = time;
+    f.cars.length = 1 + others.length;
+    f.cars[0] = pick(snapshot, f.cars[0]);
+    for (let i = 0; i < others.length; i++) f.cars[i + 1] = pick(others[i], f.cars[i + 1]);
+    f.debris = snapshot.debris?.length ? snapshot.debris.map(d => ({ id: d.id, position: [...d.position], rotation: { ...d.rotation } })) : [];
+    this.frames.push(f);
+    while (this.frames.length && this.frames[0].t < time - this.seconds) this.free.push(this.frames.shift());
     return true;
   }
-  window(at, before, after) { return this.frames.filter(f => f.t >= at - before - 1e-9 && f.t <= at + after + 1e-9); }
+  // (copies: the frames kept are used again as the recording goes on)
+  window(at, before, after) { return structuredClone(this.frames.filter(f => f.t >= at - before - 1e-9 && f.t <= at + after + 1e-9)); }
   // (how much it holds, roughly: what a replay costs to keep)
   get bytes() { return JSON.stringify(this.frames).length; }
 }

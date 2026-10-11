@@ -1,0 +1,1514 @@
+{
+ "label": "baseline",
+ "at": "2026-10-11T04:45:37.177Z",
+ "tier": "medium",
+ "seconds": 40,
+ "software": true,
+ "scenes": {
+  "track_race": {
+   "frames": 45,
+   "seconds": 39.377200012207034,
+   "avgMs": 875.0488891601562,
+   "p50Ms": 877.5999755859375,
+   "p95Ms": 1034,
+   "p99Ms": 1060.300048828125,
+   "worst1PctMs": 1060.300048828125,
+   "fps": 1.1427932911951557,
+   "low1PctFps": 0.9431292595951775,
+   "stages": {
+    "input": 0.3288888962732421,
+    "streaming": 0.18222222675879796,
+    "physics": 21.502222209506563,
+    "ai": 6.315555551317003,
+    "network": 0.0066666667660077415,
+    "audio": 1.0911111103163824,
+    "effects": 0.04000000059604645,
+    "render": 5.548888916439481,
+    "game": 3.8133333153194853,
+    "other": 836.2199937608507
+   },
+   "stageShare": {
+    "input": 0.0003758520242096405,
+    "streaming": 0.0002082423382465967,
+    "physics": 0.024572595286811577,
+    "ai": 0.007217374514215395,
+    "network": 0.000007618622054827352,
+    "audio": 0.0012469144568180593,
+    "effects": 0.000045711732328964116,
+    "render": 0.0063412330272941955,
+    "game": 0.0043578517298380895,
+    "other": 0.9556265988331551
+   },
+   "stutters": {
+    "count": 45,
+    "perMinute": 68.56759747170935,
+    "share": 1,
+    "byCause": {
+     "garbage collection": 22,
+     "browser": 23
+    }
+   },
+   "relStutters": {
+    "count": 0,
+    "share": 0
+   },
+   "heapMB": 129.37920761108398,
+   "allocMBps": 4.421974764260327,
+   "collections": 22,
+   "calls": 386.4347826086956,
+   "triangles": 785652.9347826086,
+   "stutterList": [
+    {
+     "at": 143842.5,
+     "ms": 789.1999999997206,
+     "cause": "browser",
+     "stages": {
+      "input": 1.2,
+      "physics": 29.2,
+      "ai": 11.2,
+      "audio": 1.7,
+      "render": 8,
+      "game": 4.3
+     }
+    },
+    {
+     "at": 144631.69999999972,
+     "ms": 855.2000000001863,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 16.1,
+      "ai": 5.7,
+      "audio": 0.7,
+      "render": 3.9,
+      "game": 2.9
+     }
+    },
+    {
+     "at": 145486.8999999999,
+     "ms": 924.7999999998137,
+     "cause": "browser",
+     "stages": {
+      "physics": 16.5,
+      "ai": 5.6,
+      "audio": 3,
+      "render": 8.1,
+      "game": 9.2
+     }
+    },
+    {
+     "at": 146411.69999999972,
+     "ms": 880.6000000000931,
+     "cause": "browser",
+     "stages": {
+      "input": 0.5,
+      "physics": 20,
+      "ai": 4.9,
+      "audio": 0.7,
+      "render": 5.8,
+      "game": 4.1
+     }
+    },
+    {
+     "at": 147292.2999999998,
+     "ms": 827.2000000001863,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 16.4,
+      "ai": 4.5,
+      "audio": 1,
+      "render": 4.6,
+      "game": 3.3
+     }
+    },
+    {
+     "at": 148119.5,
+     "ms": 642.6999999997206,
+     "cause": "browser",
+     "stages": {
+      "physics": 15.1,
+      "ai": 4.9,
+      "audio": 0.8,
+      "render": 4.3,
+      "game": 3
+     }
+    },
+    {
+     "at": 148762.19999999972,
+     "ms": 738,
+     "cause": "garbage collection",
+     "stages": {
+      "input": 0.5,
+      "physics": 19.5,
+      "ai": 4.1,
+      "audio": 0.7,
+      "render": 4.2,
+      "game": 3.2
+     }
+    },
+    {
+     "at": 149500.19999999972,
+     "ms": 761.8999999999069,
+     "cause": "browser",
+     "stages": {
+      "physics": 18.3,
+      "ai": 3.8,
+      "audio": 0.9,
+      "render": 4,
+      "game": 2.6
+     }
+    },
+    {
+     "at": 150262.09999999963,
+     "ms": 824.3000000002794,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 18.3,
+      "ai": 3.8,
+      "audio": 0.8,
+      "render": 4.5,
+      "game": 2.6
+     }
+    },
+    {
+     "at": 151086.3999999999,
+     "ms": 909.6999999997206,
+     "cause": "browser",
+     "stages": {
+      "physics": 27.8,
+      "ai": 6.9,
+      "audio": 1.1,
+      "render": 3.9,
+      "game": 4.2
+     }
+    }
+   ],
+   "memory": {
+    "heapMB": 129.37920761108398,
+    "geometries": 136,
+    "textures": 8,
+    "meshMB": 16.572697639465332,
+    "textureMB": 15.291748046875,
+    "programs": 29
+   },
+   "draws": {
+    "total": {
+     "calls": 76,
+     "shadow": 188
+    },
+    "by": {
+     "starter_car › mesh": {
+      "calls": 10,
+      "shadow": 19,
+      "triangles": 4503
+     },
+     "starter_car › tyre 180/55 R": {
+      "calls": 4,
+      "shadow": 7,
+      "triangles": 2772
+     },
+     "starter_car › wheel_stock": {
+      "calls": 4,
+      "shadow": 7,
+      "triangles": 2992
+     },
+     "hana_roadster › tyre 195/50 R": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 2016
+     },
+     "hana_roadster › wheel_FL": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 1536
+     },
+     "Mesh": {
+      "calls": 6,
+      "shadow": 0,
+      "triangles": 421110
+     },
+     "starter_car › seat": {
+      "calls": 2,
+      "shadow": 4,
+      "triangles": 272
+     },
+     "track-world › route-dressing": {
+      "calls": 5,
+      "shadow": 0,
+      "triangles": 154
+     },
+     "hana_roadster › seat_driver": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 96
+     },
+     "hana_roadster › body_shell": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 304
+     },
+     "ridgeback_4x4 › tyre 265/70 R": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 1008
+     },
+     "ridgeback_4x4 › wheel_FL": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 768
+     },
+     "starter_car › bumper_front": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 147
+     },
+     "starter_car › bonnet": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 228
+     },
+     "starter_car › fender_left": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 156
+     },
+     "starter_car › skirt_left": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 36
+     }
+    }
+   },
+   "audio": {
+    "share": 0.071282327586207,
+    "voices": 8,
+    "worklet": true
+   },
+   "cars": 8,
+   "physicsStep": {
+    "stepMs": 2.5884810548606922,
+    "perCarMs": 0.2893588600236512,
+    "cars": 8,
+    "per60thMs": 5.1769621097213845
+   },
+   "viewport": [
+    640,
+    360,
+    1,
+    1
+   ],
+   "loadMs": 4613,
+   "note": "8-car race",
+   "errors": []
+  },
+  "night_rain": {
+   "frames": 47,
+   "seconds": 40.51240002441406,
+   "avgMs": 861.9659579662566,
+   "p50Ms": 874.7000122070312,
+   "p95Ms": 968.9000244140625,
+   "p99Ms": 1290.0999755859375,
+   "worst1PctMs": 1290.0999755859375,
+   "fps": 1.160138623524558,
+   "low1PctFps": 0.7751337252338293,
+   "stages": {
+    "input": 0.28297872873062785,
+    "streaming": 0.20851063633218725,
+    "physics": 13.287234062844135,
+    "ai": 4.234042563336961,
+    "network": 0,
+    "audio": 0.9085106424828793,
+    "effects": 0.031914894092590254,
+    "render": 4.112765951359526,
+    "game": 3.138297882485897,
+    "other": 835.7617031665559
+   },
+   "stageShare": {
+    "input": 0.00032829455283627987,
+    "streaming": 0.00024190124262465343,
+    "physics": 0.015415033436116615,
+    "ai": 0.004912076311374133,
+    "network": 0,
+    "audio": 0.0010539982862274994,
+    "effects": 0.00003702570130250971,
+    "render": 0.00477137862968891,
+    "game": 0.0036408605855972236,
+    "other": 0.9695994319061884
+   },
+   "stutters": {
+    "count": 47,
+    "perMinute": 69.60831741147348,
+    "share": 1,
+    "byCause": {
+     "garbage collection": 21,
+     "browser": 26
+    }
+   },
+   "relStutters": {
+    "count": 0,
+    "share": 0
+   },
+   "heapMB": 120.14604568481445,
+   "allocMBps": 2.698391632244662,
+   "collections": 21,
+   "calls": 249.60416666666666,
+   "triangles": 772837.625,
+   "stutterList": [
+    {
+     "at": 138207.5,
+     "ms": 678.8999999999069,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 8.2,
+      "ai": 3.7,
+      "audio": 1.2,
+      "render": 3,
+      "game": 2.6
+     }
+    },
+    {
+     "at": 138886.3999999999,
+     "ms": 929.8999999999069,
+     "cause": "browser",
+     "stages": {
+      "physics": 12.2,
+      "ai": 3.2,
+      "audio": 0.5,
+      "render": 4.6,
+      "game": 2.9
+     }
+    },
+    {
+     "at": 139816.2999999998,
+     "ms": 877.6000000000931,
+     "cause": "browser",
+     "stages": {
+      "physics": 9.5,
+      "ai": 2.3,
+      "audio": 0.7,
+      "render": 3.1,
+      "game": 2.4
+     }
+    },
+    {
+     "at": 140693.8999999999,
+     "ms": 828.1000000000931,
+     "cause": "browser",
+     "stages": {
+      "physics": 10.4,
+      "ai": 2.6,
+      "audio": 0.6,
+      "render": 3.4,
+      "game": 2.5
+     }
+    },
+    {
+     "at": 141522,
+     "ms": 812.3999999999069,
+     "cause": "browser",
+     "stages": {
+      "physics": 8.5,
+      "ai": 3.3,
+      "audio": 1,
+      "render": 3.2,
+      "game": 3
+     }
+    },
+    {
+     "at": 142334.3999999999,
+     "ms": 821.5,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 11.5,
+      "ai": 2.4,
+      "audio": 0.5,
+      "render": 3.9,
+      "game": 2.7
+     }
+    },
+    {
+     "at": 143155.8999999999,
+     "ms": 874.7000000001863,
+     "cause": "browser",
+     "stages": {
+      "physics": 9.6,
+      "ai": 3.9,
+      "audio": 0.5,
+      "render": 3.2,
+      "game": 2.7
+     }
+    },
+    {
+     "at": 144030.6000000001,
+     "ms": 857,
+     "cause": "browser",
+     "stages": {
+      "physics": 9.6,
+      "ai": 2.5,
+      "audio": 0.7,
+      "render": 3,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 144887.6000000001,
+     "ms": 739.6999999997206,
+     "cause": "browser",
+     "stages": {
+      "physics": 18.5,
+      "ai": 3.3,
+      "audio": 0.6,
+      "render": 3.2,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 145627.2999999998,
+     "ms": 620.4000000003725,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 9.5,
+      "ai": 2.5,
+      "audio": 0.9,
+      "render": 3.5,
+      "game": 3.1
+     }
+    }
+   ],
+   "memory": {
+    "heapMB": 120.14604568481445,
+    "geometries": 108,
+    "textures": 8,
+    "meshMB": 16.347477912902832,
+    "textureMB": 15.291748046875,
+    "programs": 29
+   },
+   "draws": {
+    "total": {
+     "calls": 75,
+     "shadow": 161
+    },
+    "by": {
+     "starter_car › mesh": {
+      "calls": 10,
+      "shadow": 20,
+      "triangles": 4128
+     },
+     "starter_car › tyre 180/55 R": {
+      "calls": 4,
+      "shadow": 8,
+      "triangles": 3024
+     },
+     "starter_car › wheel_stock": {
+      "calls": 4,
+      "shadow": 8,
+      "triangles": 3264
+     },
+     "hana_roadster › tyre 195/50 R": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 2016
+     },
+     "hana_roadster › wheel_FL": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 1536
+     },
+     "starter_car › seat": {
+      "calls": 2,
+      "shadow": 4,
+      "triangles": 288
+     },
+     "Mesh": {
+      "calls": 6,
+      "shadow": 0,
+      "triangles": 421110
+     },
+     "track-world › route-dressing": {
+      "calls": 5,
+      "shadow": 0,
+      "triangles": 154
+     },
+     "hana_roadster › seat_driver": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 96
+     },
+     "hana_roadster › body_shell": {
+      "calls": 0,
+      "shadow": 4,
+      "triangles": 304
+     },
+     "starter_car › bumper_front": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 132
+     },
+     "starter_car › bumper_rear": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 132
+     },
+     "starter_car › bonnet": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 228
+     },
+     "starter_car › boot": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 168
+     },
+     "starter_car › fender_left": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 156
+     },
+     "starter_car › skirt_left": {
+      "calls": 1,
+      "shadow": 2,
+      "triangles": 36
+     }
+    }
+   },
+   "audio": {
+    "share": 0.051481681034482835,
+    "voices": 5,
+    "worklet": true
+   },
+   "cars": 4,
+   "physicsStep": {
+    "stepMs": 1.6923303355079027,
+    "perCarMs": 0.372710267694887,
+    "cars": 4,
+    "per60thMs": 3.3846606710158054
+   },
+   "viewport": [
+    640,
+    360,
+    1,
+    1
+   ],
+   "loadMs": 4450,
+   "note": "4-car race, night rain",
+   "errors": []
+  },
+  "city": {
+   "frames": 43,
+   "seconds": 40.09540002441406,
+   "avgMs": 932.4511633584666,
+   "p50Ms": 944.2000122070312,
+   "p95Ms": 1057.5999755859375,
+   "p99Ms": 1186,
+   "worst1PctMs": 1186,
+   "fps": 1.0724422246396677,
+   "low1PctFps": 0.8431703204047217,
+   "stages": {
+    "input": 0.25581396059241407,
+    "streaming": 1.7697674756826356,
+    "physics": 22.99767432101937,
+    "ai": 5.77209301882012,
+    "network": 0.004651162860005401,
+    "audio": 1.1581395323886428,
+    "effects": 0.10232558292011883,
+    "render": 7.890697678854299,
+    "game": 3.251162795133369,
+    "other": 889.2488403320312
+   },
+   "stageShare": {
+    "input": 0.0002743456929916128,
+    "streaming": 0.0018979733687160146,
+    "physics": 0.02466367701037257,
+    "ai": 0.006190236277930544,
+    "network": 0.0000049881034447455905,
+    "audio": 0.0012420377365580204,
+    "effects": 0.000109738275784403,
+    "render": 0.008462317372669566,
+    "game": 0.00348668426067855,
+    "other": 0.9536680045839281
+   },
+   "stutters": {
+    "count": 43,
+    "perMinute": 64.34653347838005,
+    "share": 1,
+    "byCause": {
+     "browser": 25,
+     "garbage collection": 18
+    }
+   },
+   "relStutters": {
+    "count": 0,
+    "share": 0
+   },
+   "heapMB": 300.4183931350708,
+   "allocMBps": 3.9059773629432515,
+   "collections": 18,
+   "calls": 478.47727272727275,
+   "triangles": 646984.2727272727,
+   "stutterList": [
+    {
+     "at": 136615.2999999998,
+     "ms": 968.9000000003725,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.5,
+      "physics": 17.7,
+      "ai": 4,
+      "audio": 4.2,
+      "render": 5.8,
+      "game": 3.2
+     }
+    },
+    {
+     "at": 137584.2000000002,
+     "ms": 756.2999999998137,
+     "cause": "browser",
+     "stages": {
+      "streaming": 1,
+      "physics": 16.4,
+      "ai": 4.2,
+      "audio": 1.4,
+      "render": 5.9,
+      "game": 3.1
+     }
+    },
+    {
+     "at": 138340.5,
+     "ms": 804,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 0.6,
+      "physics": 15.6,
+      "ai": 5,
+      "audio": 1,
+      "render": 10.5,
+      "game": 2.8
+     }
+    },
+    {
+     "at": 139144.5,
+     "ms": 852.2999999998137,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.9,
+      "physics": 15,
+      "ai": 4,
+      "audio": 0.9,
+      "render": 5.2,
+      "game": 2.8
+     }
+    },
+    {
+     "at": 139996.7999999998,
+     "ms": 895.2000000001863,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 0.9,
+      "physics": 28.7,
+      "ai": 8.2,
+      "audio": 1.2,
+      "render": 10.7,
+      "game": 5.2
+     }
+    },
+    {
+     "at": 140892,
+     "ms": 846.7999999998137,
+     "cause": "browser",
+     "stages": {
+      "streaming": 2.3,
+      "physics": 18.1,
+      "ai": 4,
+      "audio": 0.9,
+      "render": 5.6,
+      "game": 2.9
+     }
+    },
+    {
+     "at": 141738.7999999998,
+     "ms": 895,
+     "cause": "browser",
+     "stages": {
+      "input": 0.6,
+      "streaming": 0.6,
+      "physics": 15.5,
+      "ai": 3.6,
+      "audio": 0.9,
+      "render": 6.3,
+      "game": 3
+     }
+    },
+    {
+     "at": 142633.7999999998,
+     "ms": 893.5,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 1.1,
+      "physics": 26.6,
+      "ai": 5.5,
+      "audio": 1.2,
+      "render": 10,
+      "game": 4.9
+     }
+    },
+    {
+     "at": 143527.2999999998,
+     "ms": 981.1000000005588,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.9,
+      "physics": 16.9,
+      "ai": 3.3,
+      "audio": 0.9,
+      "render": 6.9,
+      "game": 3.3
+     }
+    },
+    {
+     "at": 144508.40000000037,
+     "ms": 708.7999999998137,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 0.7,
+      "physics": 16.3,
+      "ai": 3.8,
+      "audio": 0.9,
+      "render": 11.6,
+      "game": 3.1
+     }
+    }
+   ],
+   "memory": {
+    "heapMB": 300.4183931350708,
+    "geometries": 581,
+    "textures": 17,
+    "meshMB": 88.83226585388184,
+    "textureMB": 12.333414713541666,
+    "programs": 31
+   },
+   "draws": {
+    "total": {
+     "calls": 201,
+     "shadow": 126
+    },
+    "by": {
+     "baked world › tile ": {
+      "calls": 50,
+      "shadow": 7,
+      "triangles": 76887
+     },
+     "starter_car › mesh": {
+      "calls": 10,
+      "shadow": 10,
+      "triangles": 2752
+     },
+     "baked world › terrain": {
+      "calls": 15,
+      "shadow": 0,
+      "triangles": 197461
+     },
+     "baked world › water": {
+      "calls": 14,
+      "shadow": 0,
+      "triangles": 288
+     },
+     "baked world › walls_block": {
+      "calls": 9,
+      "shadow": 3,
+      "triangles": 22968
+     },
+     "baked world › roofs": {
+      "calls": 9,
+      "shadow": 2,
+      "triangles": 9996
+     },
+     "baked world › roads": {
+      "calls": 9,
+      "shadow": 0,
+      "triangles": 55680
+     },
+     "starter_car › tyre 180/55 R": {
+      "calls": 4,
+      "shadow": 4,
+      "triangles": 2016
+     },
+     "starter_car › wheel_stock": {
+      "calls": 4,
+      "shadow": 4,
+      "triangles": 2176
+     },
+     "hana_roadster › tyre 195/50 R": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 2016
+     },
+     "hana_roadster › wheel_FL": {
+      "calls": 0,
+      "shadow": 8,
+      "triangles": 1536
+     },
+     "baked world › paved": {
+      "calls": 8,
+      "shadow": 0,
+      "triangles": 40380
+     },
+     "baked world › markings": {
+      "calls": 8,
+      "shadow": 0,
+      "triangles": 7100
+     },
+     "baked world › walls_tower": {
+      "calls": 5,
+      "shadow": 2,
+      "triangles": 1522
+     },
+     "baked world › far terrain": {
+      "calls": 6,
+      "shadow": 0,
+      "triangles": 112265
+     },
+     "baked world › far landmark_walls": {
+      "calls": 6,
+      "shadow": 0,
+      "triangles": 8960
+     }
+    }
+   },
+   "audio": {
+    "share": 0.0594019396551725,
+    "voices": 8,
+    "worklet": true
+   },
+   "cars": 8,
+   "physicsStep": {
+    "stepMs": 2.7785036320285785,
+    "perCarMs": 0.3117495858196977,
+    "cars": 8,
+    "per60thMs": 5.557007264057157
+   },
+   "viewport": [
+    640,
+    360,
+    1,
+    1
+   ],
+   "loadMs": 9769,
+   "note": "8-car race downtown",
+   "errors": []
+  },
+  "roam": {
+   "frames": 68,
+   "seconds": 40.00939984130859,
+   "avgMs": 588.3735270780676,
+   "p50Ms": 586.7999877929688,
+   "p95Ms": 689.9000244140625,
+   "p99Ms": 729.9000244140625,
+   "worst1PctMs": 729.9000244140625,
+   "fps": 1.6996006006016589,
+   "low1PctFps": 1.370050646049456,
+   "stages": {
+    "input": 0.27794118137920604,
+    "streaming": 2.251470571055132,
+    "physics": 5.017647041993983,
+    "ai": 0.2720588287886451,
+    "network": 2.648529398090699,
+    "audio": 2.1176470570704518,
+    "effects": 0.05441176551668083,
+    "render": 10.116176443941454,
+    "game": 2.78529411203721,
+    "other": 562.8323561724494
+   },
+   "stageShare": {
+    "input": 0.00047238899880403315,
+    "streaming": 0.003826600734802262,
+    "physics": 0.00852799592618011,
+    "ai": 0.0004623913488081651,
+    "network": 0.004501442155706102,
+    "audio": 0.003599154210059275,
+    "effects": 0.00009247826935194737,
+    "render": 0.017193459559915247,
+    "game": 0.0047338875456707065,
+    "other": 0.9565902105887417
+   },
+   "stutters": {
+    "count": 68,
+    "perMinute": 101.97603603609953,
+    "share": 1,
+    "byCause": {
+     "browser": 46,
+     "garbage collection": 22
+    }
+   },
+   "relStutters": {
+    "count": 0,
+    "share": 0
+   },
+   "heapMB": 237.55583381652832,
+   "allocMBps": 4.606354491865191,
+   "collections": 22,
+   "calls": 284.15942028985506,
+   "triangles": 300317.884057971,
+   "stutterList": [
+    {
+     "at": 70561.5,
+     "ms": 680.1000000005588,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.9,
+      "physics": 3.2,
+      "network": 2.5,
+      "audio": 1.8,
+      "render": 9.4,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 71241.60000000056,
+     "ms": 572.0999999996275,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.8,
+      "physics": 2.3,
+      "network": 2,
+      "audio": 2,
+      "render": 16.5,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 71813.70000000019,
+     "ms": 571.7999999998137,
+     "cause": "browser",
+     "stages": {
+      "streaming": 2,
+      "physics": 2.4,
+      "network": 2.3,
+      "audio": 1.9,
+      "render": 9.8,
+      "game": 2.2
+     }
+    },
+    {
+     "at": 72385.5,
+     "ms": 498.5,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.6,
+      "physics": 2.3,
+      "network": 2,
+      "audio": 2.8,
+      "render": 9.2,
+      "game": 2.9
+     }
+    },
+    {
+     "at": 72884,
+     "ms": 566.7000000001863,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.6,
+      "physics": 2.8,
+      "network": 1.9,
+      "audio": 1.7,
+      "render": 7.7,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 73450.70000000019,
+     "ms": 656.6000000005588,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.5,
+      "physics": 4.1,
+      "network": 5.4,
+      "audio": 3,
+      "render": 6.7,
+      "game": 2.3
+     }
+    },
+    {
+     "at": 74107.30000000075,
+     "ms": 562.3999999994412,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 0.7,
+      "physics": 3,
+      "network": 3.3,
+      "audio": 1.5,
+      "render": 7.9,
+      "game": 2.1
+     }
+    },
+    {
+     "at": 74669.70000000019,
+     "ms": 581.1000000005588,
+     "cause": "browser",
+     "stages": {
+      "streaming": 0.7,
+      "physics": 2.1,
+      "network": 1.9,
+      "audio": 1.5,
+      "render": 8.6,
+      "game": 2
+     }
+    },
+    {
+     "at": 75250.80000000075,
+     "ms": 729.5,
+     "cause": "garbage collection",
+     "stages": {
+      "streaming": 0.8,
+      "physics": 4.9,
+      "network": 2.7,
+      "audio": 2.6,
+      "render": 8.6,
+      "game": 2.7
+     }
+    },
+    {
+     "at": 75980.30000000075,
+     "ms": 544.3999999994412,
+     "cause": "browser",
+     "stages": {
+      "input": 1.9,
+      "streaming": 0.6,
+      "physics": 2.5,
+      "network": 2.3,
+      "audio": 2.4,
+      "render": 14.2,
+      "game": 3
+     }
+    }
+   ],
+   "memory": {
+    "heapMB": 237.55583381652832,
+    "geometries": 545,
+    "textures": 9,
+    "meshMB": 88.60329627990723,
+    "textureMB": 8.104166666666666,
+    "programs": 27
+   },
+   "draws": {
+    "total": {
+     "calls": 218,
+     "shadow": 54
+    },
+    "by": {
+     "starter_car › mesh": {
+      "calls": 24,
+      "shadow": 10,
+      "triangles": 11208
+     },
+     "baked world › tile ": {
+      "calls": 20,
+      "shadow": 7,
+      "triangles": 54254
+     },
+     "baked world › terrain": {
+      "calls": 17,
+      "shadow": 0,
+      "triangles": 95754
+     },
+     "baked world › water": {
+      "calls": 17,
+      "shadow": 0,
+      "triangles": 192
+     },
+     "starter_car › glass_windscreen": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 252
+     },
+     "starter_car › glass_rear": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 252
+     },
+     "starter_car › glass_side_left": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 108
+     },
+     "starter_car › glass_side_right": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 108
+     },
+     "starter_car › light_head_left": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 432
+     },
+     "starter_car › light_tail_left": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 108
+     },
+     "starter_car › light_head_right": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 432
+     },
+     "starter_car › light_tail_right": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 108
+     },
+     "starter_car › dashboard": {
+      "calls": 8,
+      "shadow": 1,
+      "triangles": 1332
+     },
+     "baked world › roofs": {
+      "calls": 6,
+      "shadow": 3,
+      "triangles": 5444
+     },
+     "baked world › walls_block": {
+      "calls": 6,
+      "shadow": 3,
+      "triangles": 10684
+     },
+     "starter_car › tyre 180/55 R": {
+      "calls": 4,
+      "shadow": 4,
+      "triangles": 2016
+     }
+    }
+   },
+   "audio": {
+    "share": 0.039601293103448336,
+    "voices": 9,
+    "worklet": true
+   },
+   "cars": 30,
+   "online": {
+    "ping": 1136.6000000005588,
+    "upKBs": 0.09059655610007823,
+    "downKBs": 16.25695371301498,
+    "zones": [
+     {
+      "zone": "1,-2",
+      "group": "g1",
+      "home": true,
+      "status": "online",
+      "ping": 1136.6000000005588,
+      "upKBs": 0.09059655610007823,
+      "downKBs": 16.25695371301498,
+      "players": 29
+     }
+    ]
+   },
+   "drawnOthers": 27,
+   "physicsStep": {
+    "stepMs": 0.412420509764483,
+    "perCarMs": 0.3079163523671346,
+    "cars": 1,
+    "per60thMs": 0.824841019528966
+   },
+   "viewport": [
+    640,
+    360,
+    1,
+    1
+   ],
+   "loadMs": 9897,
+   "note": "free roam, 30 players (25 others' cars drawn, the nearest 105 m away)",
+   "errors": []
+  },
+  "pileup": {
+   "frames": 34,
+   "seconds": 40.26890051269531,
+   "avgMs": 1184.3794268439797,
+   "p50Ms": 1130.5999755859375,
+   "p95Ms": 2393.60009765625,
+   "p99Ms": 2445.10009765625,
+   "worst1PctMs": 2445.10009765625,
+   "fps": 0.8443240209471586,
+   "low1PctFps": 0.4089812114271108,
+   "stages": {
+    "input": 0.3970588276929715,
+    "streaming": 0,
+    "physics": 18.16764716541066,
+    "ai": 0.6911764723413131,
+    "network": 0.00294117651441518,
+    "audio": 0.7735294191276326,
+    "effects": 0.4735294179443051,
+    "render": 8.94117644253899,
+    "game": 5.838235280093024,
+    "other": 1149.0941202500287
+   },
+   "stageShare": {
+    "input": 0.0003352463059502947,
+    "streaming": 0,
+    "physics": 0.015339380905848778,
+    "ai": 0.00058357689831129,
+    "network": 0.0000024833059809663732,
+    "audio": 0.0006531094694787627,
+    "effects": 0.00039981226219550325,
+    "render": 0.007549250045962532,
+    "game": 0.004929362286923703,
+    "other": 0.970207768056242
+   },
+   "stutters": {
+    "count": 34,
+    "perMinute": 50.65944125682951,
+    "share": 1,
+    "byCause": {
+     "browser": 27,
+     "garbage collection": 7
+    }
+   },
+   "relStutters": {
+    "count": 3,
+    "share": 0.08823529411764706
+   },
+   "heapMB": 178.83279418945312,
+   "allocMBps": 5.394509031256562,
+   "collections": 7,
+   "calls": 499.8857142857143,
+   "triangles": 642179.7714285714,
+   "stutterList": [
+    {
+     "at": 39857.299999999814,
+     "ms": 2265,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 20.8,
+      "ai": 0.7,
+      "audio": 1.1,
+      "render": 11.3,
+      "game": 6.2
+     }
+    },
+    {
+     "at": 42122.299999999814,
+     "ms": 2445.0999999996275,
+     "cause": "browser",
+     "stages": {
+      "physics": 19.6,
+      "ai": 0.8,
+      "audio": 0.6,
+      "render": 7.7,
+      "game": 7.1
+     }
+    },
+    {
+     "at": 44567.39999999944,
+     "ms": 2235.5,
+     "cause": "browser",
+     "stages": {
+      "physics": 23.3,
+      "ai": 0.9,
+      "audio": 0.8,
+      "render": 6.2,
+      "game": 4.7
+     }
+    },
+    {
+     "at": 46802.89999999944,
+     "ms": 2218.600000000559,
+     "cause": "browser",
+     "stages": {
+      "input": 0.6,
+      "physics": 14.5,
+      "ai": 0.5,
+      "audio": 0.6,
+      "render": 6.1,
+      "game": 4.3
+     }
+    },
+    {
+     "at": 49021.5,
+     "ms": 2030.7999999998137,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 17.3,
+      "ai": 0.7,
+      "audio": 0.6,
+      "render": 9,
+      "game": 3.1
+     }
+    },
+    {
+     "at": 51052.299999999814,
+     "ms": 1786.5999999996275,
+     "cause": "browser",
+     "stages": {
+      "physics": 20.2,
+      "audio": 0.8,
+      "effects": 0.5,
+      "render": 11.9,
+      "game": 4.7
+     }
+    },
+    {
+     "at": 52838.89999999944,
+     "ms": 1972.7999999998137,
+     "cause": "browser",
+     "stages": {
+      "physics": 19,
+      "ai": 0.8,
+      "audio": 1.1,
+      "render": 9.1,
+      "game": 5.1
+     }
+    },
+    {
+     "at": 54811.699999999255,
+     "ms": 1963.2000000001863,
+     "cause": "browser",
+     "stages": {
+      "physics": 17.8,
+      "ai": 0.6,
+      "audio": 0.7,
+      "render": 8.5,
+      "game": 2.9
+     }
+    },
+    {
+     "at": 56774.89999999944,
+     "ms": 2057,
+     "cause": "garbage collection",
+     "stages": {
+      "physics": 32.8,
+      "ai": 1.2,
+      "audio": 4.3,
+      "render": 8.7,
+      "game": 4.6
+     }
+    },
+    {
+     "at": 58831.89999999944,
+     "ms": 2170,
+     "cause": "browser",
+     "stages": {
+      "input": 0.6,
+      "physics": 35.1,
+      "ai": 2.1,
+      "audio": 0.6,
+      "render": 8.8,
+      "game": 2.5
+     }
+    }
+   ],
+   "memory": {
+    "heapMB": 178.83279418945312,
+    "geometries": 130,
+    "textures": 3,
+    "meshMB": 29.79343032836914,
+    "textureMB": 3.3541666666666665,
+    "programs": 12
+   },
+   "draws": {
+    "total": {
+     "calls": 414,
+     "shadow": 64
+    },
+    "by": {
+     "starter_car › mesh": {
+      "calls": 100,
+      "shadow": 14,
+      "triangles": 1094464
+     },
+     "starter_car › tyre 180/55 R": {
+      "calls": 40,
+      "shadow": 6,
+      "triangles": 11592
+     },
+     "starter_car › wheel_stock": {
+      "calls": 40,
+      "shadow": 6,
+      "triangles": 12512
+     },
+     "starter_car › seat": {
+      "calls": 20,
+      "shadow": 4,
+      "triangles": 1152
+     },
+     "Mesh": {
+      "calls": 14,
+      "shadow": 0,
+      "triangles": 45312
+     },
+     "starter_car › bumper_rear": {
+      "calls": 10,
+      "shadow": 3,
+      "triangles": 7924
+     },
+     "starter_car › boot": {
+      "calls": 10,
+      "shadow": 3,
+      "triangles": 728
+     },
+     "starter_car › exhaust": {
+      "calls": 10,
+      "shadow": 3,
+      "triangles": 520
+     },
+     "starter_car › glass_rear": {
+      "calls": 10,
+      "shadow": 3,
+      "triangles": 364
+     },
+     "starter_car › light_tail_right": {
+      "calls": 10,
+      "shadow": 3,
+      "triangles": 156
+     },
+     "starter_car › skirt_right": {
+      "calls": 10,
+      "shadow": 2,
+      "triangles": 144
+     },
+     "starter_car › glass_side_left": {
+      "calls": 10,
+      "shadow": 2,
+      "triangles": 144
+     },
+     "starter_car › glass_side_right": {
+      "calls": 10,
+      "shadow": 2,
+      "triangles": 144
+     },
+     "starter_car › light_tail_left": {
+      "calls": 10,
+      "shadow": 2,
+      "triangles": 144
+     },
+     "starter_car › bumper_front": {
+      "calls": 10,
+      "shadow": 1,
+      "triangles": 33568
+     },
+     "starter_car › bonnet": {
+      "calls": 10,
+      "shadow": 1,
+      "triangles": 836
+     }
+    }
+   },
+   "audio": {
+    "share": 0.051481681034482835,
+    "voices": 8,
+    "worklet": true
+   },
+   "cars": 10,
+   "physicsStep": {
+    "stepMs": 2.4032465773467333,
+    "perCarMs": 0.1900764199731071,
+    "cars": 10,
+    "per60thMs": 4.806493154693467
+   },
+   "viewport": [
+    640,
+    360,
+    1,
+    1
+   ],
+   "loadMs": 5212,
+   "note": "9 cars driving into each other at 60 km/h, 45 m ahead",
+   "errors": []
+  }
+ }
+}

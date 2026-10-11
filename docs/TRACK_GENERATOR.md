@@ -186,9 +186,11 @@ the stripes pass, a swish on grass, a crunch on gravel and sand.
 
 ## Detail levels and performance
 
-The **track detail** setting (Settings → Effects): low, medium, high (`data/tracks.json`
-performance.detail.levels — the share of trees and rocks, how near trees are drawn in full, the
-grandstands' crowd, shadows and their map size, the screen's sharpness), with targets per level.
+The track's detail (since Phase 8 Step 2: the **graphics settings** — Settings → Graphics, [PERFORMANCE.md](PERFORMANCE.md):
+scenery, spectators, shadows, render distance; changed while on a track, the dressing is made again at once) in the
+form of `data/tracks.json` performance.detail.levels — the share of trees and rocks, how near trees are drawn in full,
+the grandstands' crowd, shadows and their map size — whose low, medium and high levels and targets the Node tests
+below still use.
 
 - `npm run test:track-perf` (`tests/track-perf.ts`): 50 different tracks loaded in a row (made, built,
   dressed, a physics world) — each within 3 s (slowest 1.5 s measured), memory not growing (−6 MB from the

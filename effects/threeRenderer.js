@@ -12,7 +12,8 @@
 //    made), so only new ones are uploaded.
 //  - Lights: a few small flickering point lights where sparks fly (the quality's `lights`).
 //
-// render(scene, camera) draws the scene and the effects (in place of renderer.render).
+// render(scene, camera, out) draws the scene and the effects (in place of renderer.render), into out (a render target)
+// or the screen.
 
 import * as THREE from 'three';
 import { STYLES } from './particles.js';
@@ -190,11 +191,14 @@ export function createThreeEffects(director, { renderer, scene }) {
   copy.frustumCulled = false;
   copyScene.add(copy);
   const size = new THREE.Vector2();
+  // (its anti-aliasing: the graphics settings' — 4 samples with msaa, none otherwise)
+  let samples = 4;
   const ensureTarget = () => {
     renderer.getDrawingBufferSize(size);
-    if (target && target.width === size.x && target.height === size.y) return target;
+    const want = renderer.capabilities.isWebGL2 ? samples : 0;
+    if (target && target.width === size.x && target.height === size.y && target.samples === want) return target;
     target?.dispose(); target?.depthTexture?.dispose();
-    target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: renderer.capabilities.isWebGL2 ? 4 : 0, depthBuffer: true });
+    target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: want, depthBuffer: true });
     target.depthTexture = new THREE.DepthTexture(size.x, size.y, THREE.UnsignedIntType);
     copy.material.map = target.texture;
     copy.material.needsUpdate = true;
@@ -250,28 +254,32 @@ export function createThreeEffects(director, { renderer, scene }) {
     if (lights.length !== P.Q.lights) makeLights(P.Q.lights);
     lights.forEach((l, k) => {
       const s = director.lights[k];
-      l.visible = !!s;
+      // (never hidden — a hidden light isn't counted, and a scene's count changing recompiles every material: a stutter
+      // at the first sparks — just dark when there are none)
+      if (!s) l.intensity = 0;
       if (s) { l.position.set(...s.position); l.color.setRGB(...s.colour); l.intensity = s.intensity * (2 + 3 * (light?.night ?? 0)) * (0.7 + 0.6 * Math.random()); }
     });
     Object.assign(stats, { drawn: nl, glowing: ng, marks: M.count });
     stats.uploadMs += ((performance.now() - t0) - stats.uploadMs) * 0.1;
   }
 
-  // The scene and the effects (in place of renderer.render(scene, camera))
-  function render(sceneToDraw, camera) {
+  // The scene and the effects (in place of renderer.render(scene, camera)) — into `out` (the post-processing's
+  // picture: perf/graphics.js), else the screen
+  function render(sceneToDraw, camera, out = null) {
     const t0 = performance.now(), soft = P.Q.soft && renderer.capabilities.isWebGL2;
     uniforms.uSoft.value = soft ? 0.6 : 0;
     if (soft) {
       const t = ensureTarget();
       renderer.setRenderTarget(t);
       renderer.render(sceneToDraw, camera);
-      renderer.setRenderTarget(null);
+      renderer.setRenderTarget(out);
       uniforms.uDepth.value = t.depthTexture;
       uniforms.uResolution.value.set(t.width, t.height);
       uniforms.uNear.value = camera.near; uniforms.uFar.value = camera.far;
       renderer.render(copyScene, copyCamera);
       for (const b of [lit, glow]) { b.mat.depthTest = false; }
     } else {
+      renderer.setRenderTarget(out);
       renderer.render(sceneToDraw, camera);
       for (const b of [lit, glow]) { b.mat.depthTest = true; }
     }
@@ -292,5 +300,5 @@ export function createThreeEffects(director, { renderer, scene }) {
     copy.geometry.dispose(); copy.material.dispose();
   }
 
-  return { update, render, dispose, stats, marks, get lights() { return lights; } };
+  return { update, render, dispose, stats, marks, get lights() { return lights; }, get samples() { return samples; }, set samples(n) { samples = n; } };
 }

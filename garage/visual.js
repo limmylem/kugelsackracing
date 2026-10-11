@@ -75,7 +75,10 @@ export class ModelCache {
   constructor({ load } = {}) {
     // (models from npm run import are meshopt-compressed: EXT_meshopt_compression)
     this.load = load ?? (url => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
-    this.entries = new Map();     // key → { refs, promise, template }
+    this.entries = new Map();     // key → { refs, promise, template, usedAt, bytes }
+    // (Phase 8 Step 2: models no car uses any more kept, most recently used first, up to keepBytes — the next car with
+    // one loads at once — the least recently used let go past it: trim. 0: let go at once)
+    this.keepBytes = 0;
     this.textures = new Map();    // image key → { texture, refs }
     this.loads = new Map();       // key → times it was loaded (the debug console's "loaded once" check)
   }
@@ -99,8 +102,24 @@ export class ModelCache {
   release(key) {
     const e = this.entries.get(key);
     if (!e || --e.refs > 0) return;
+    e.usedAt = performance.now();
+    if (this.keepBytes > 0 && e.template) { this.trim(); return; }
     this.entries.delete(key);
     e.promise.then(t => this.#dispose(t), () => {});
+  }
+  // the models kept that no car uses: their memory (geometry and textures, about), and the least recently used let go
+  // until they fit in maxBytes (keepBytes) → bytes let go
+  idleBytes() { let n = 0; for (const e of this.entries.values()) if (e.refs <= 0 && e.template) n += e.bytes ??= templateBytes(e.template); return n; }
+  trim(maxBytes = this.keepBytes) {
+    let idle = this.idleBytes(), freed = 0;
+    if (idle <= maxBytes) return 0;
+    const lru = [...this.entries.entries()].filter(([, e]) => e.refs <= 0 && e.template).sort((a, b) => a[1].usedAt - b[1].usedAt);
+    for (const [key, e] of lru) {
+      if (idle <= maxBytes) break;
+      this.entries.delete(key); this.#dispose(e.template);
+      idle -= e.bytes; freed += e.bytes;
+    }
+    return freed;
   }
 
   // What's loaded: [{ model, cars using it (clones), times loaded }]
@@ -153,6 +172,19 @@ export class ModelCache {
   }
 }
 
+// about what a model takes on the graphics card: its geometry's buffers and its textures' pixels (with mipmaps)
+function templateBytes(t) {
+  let n = 0;
+  const seen = new Set();
+  t.traverse(o => {
+    if (!o.isMesh) return;
+    for (const a of Object.values(o.geometry.attributes)) n += a.array?.byteLength ?? 0;
+    n += o.geometry.index?.array.byteLength ?? 0;
+    for (const m of [o.material].flat()) for (const slot of TEXTURE_SLOTS) { const x = m?.[slot]; if (x && !seen.has(x)) { seen.add(x); n += (x.image?.width ?? 0) * (x.image?.height ?? 0) * 4 * 4 / 3; } }
+  });
+  return n;
+}
+
 // FNV-1a over bytes (a texture's identity)
 function hash(bytes) {
   let h = 0x811c9dc5;
@@ -177,6 +209,8 @@ export function finishMaterial(src, finish, colour, env = environment) {
       for (const k of ['clearcoat', 'clearcoatRoughness', 'iridescence', 'iridescenceIOR', 'sheen', 'sheenRoughness']) if (finish[k] !== undefined) m[k] = finish[k];
       if (finish.sheenColour) m.sheenColor.set(finish.sheenColour);
     }
+    // (marked, reflecting or not: the graphics settings' reflections can turn it on or off — setEnvironment below)
+    if (finish.reflective) m.userData.reflective = finish.envIntensity ?? 1;
     if (finish.reflective && env) { m.envMap = env; m.envMapIntensity = finish.envIntensity ?? 1; }
   }
   const c = colour ?? finish?.colour;
@@ -365,6 +399,16 @@ diffuseColor.rgb = mix(diffuseColor.rgb, uCrack, kc); diffuseColor.a = mix(diffu
 // ---------- a car ----------
 
 // environment: what this car's reflective finishes reflect (the garage's workshop), if not the game's
+// the one-piece copies' materials (setDetail), one each for every car: as seen (its vertices' colours) and as a shadow
+// only (nothing drawn in the picture)
+let PROXY = null;
+export function proxyMaterials() {
+  return PROXY ??= {
+    body: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.25, name: 'car (one piece)' }),
+    ghost: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, name: 'car shadow only' }),
+  };
+}
+
 export async function createCarVisual({ car, finishes, models, paint, environment: env }) {
   const body = await models.acquire(car.model.file);
   return new CarVisual({ car, finishes, models, body, paint: paint ?? car.paint, environment: env });
@@ -450,6 +494,7 @@ export class CarVisual {
     }
     this.#cosmetics(cosmeticOf(build, view));
     await Promise.all(jobs);
+    this.proxyDirty = this.proxyShape = true;
   }
 
   // ---- cosmetics: window tint on the glass, underglow and fog lights (lights of their colour) ----
@@ -613,7 +658,8 @@ export class CarVisual {
     const glow = object.userData.glow;
     object.traverse(o => {
       if (!o.isMesh) return;
-      o.castShadow = true;
+      // (a car whose shadow is its one-piece copy's — setDetail — casts none from its parts)
+      o.castShadow = !this.shadowProxy;
       if (!this.sources.has(o)) this.sources.set(o, o.material);
       o.material = this.#materialFor(this.sources.get(o), look);
       if (glow !== undefined) o.material = Array.isArray(o.material) ? o.material.map(m => this.#glowing(m, glow)) : this.#glowing(o.material, glow);
@@ -655,6 +701,17 @@ export class CarVisual {
   }
 
   // The car's paint: a colour and a paint finish (data/finishes.json). Everything painted follows it.
+  // what this car's reflective finishes reflect now (the graphics settings: null, matte; the sky; the surroundings)
+  setEnvironment(env) {
+    this.root.traverse(o => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m?.userData?.reflective) continue;
+        if (!!m.envMap !== !!env) m.needsUpdate = true;
+        m.envMap = env; m.envMapIntensity = m.userData.reflective;
+      }
+    });
+  }
   setPaint({ colour, finish }) {
     const overlay = this.overlay;
     if (overlay) this.showCondition(null);
@@ -671,6 +728,7 @@ export class CarVisual {
     for (const x of this.offCar.values()) { x.object.traverse(o => { delete o.userData.oneSided; }); this.#bothSides(x.object, true); }
     this.#sweep();
     if (overlay) this.showCondition(overlay);
+    this.proxyDirty = true;
   }
 
   // ---- crash damage ----
@@ -972,8 +1030,97 @@ export class CarVisual {
     finally { if (gizmos) this.showSockets(true); }
   }
 
+  // ---- detail (Phase 8 Step 2: the graphics settings' car detail; docs/PERFORMANCE.md) ----
+  // The car as one piece: every mesh drawn now merged into one (each material's colour as the vertices' colour), in the
+  // car frame. Drawn in place of the whole car when it's far ('simple': a draw call instead of thirty), and always as the
+  // car's shadow ('full': its parts cast none — a car's shadow is one draw, not one a part; its copy draws nothing in the
+  // picture itself). Made again (when next wanted) after its parts, paint or dents change.
+  // canMake: whether a copy may be made now (the caller's budget: a frame makes few) → whether it's as asked
+  setDetail(level, canMake = true) {
+    if (this.disposed) return true;
+    const simple = level === 'simple';
+    // (made again: its parts changed — its shape, for the shadow too — or, while it's what's seen, its paint; at most
+    // every 2 s. Not for dents: too small to see on a car that far, and no part of a shadow)
+    const stale = this.proxy && (this.proxyShape || (simple && this.proxyDirty)) && performance.now() - this.proxyAt > 2000;
+    if (!this.proxy || stale) { if (!canMake) return !!this.proxy && this.detail === (simple ? 'simple' : 'full'); this.#makeProxy(); }
+    if (!this.shadowProxy) { this.shadowProxy = true; this.root.traverse(o => { if (o.isMesh) o.castShadow = false; }); }
+    this.detail = simple ? 'simple' : 'full';
+    this.root.parent.visible = !simple;
+    this.proxy.material = simple ? proxyMaterials().body : proxyMaterials().ghost;
+    return true;
+  }
+  #makeProxy() {
+    const old = this.proxy;
+    this.group.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(this.group.matrixWorld).invert(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3(), c = new THREE.Color();
+    // (what's drawn now — hidden nodes, a part torn off and anything not visible left out — as pieces: a mesh and one of
+    // its materials' ranges; then sized, and written into arrays made once)
+    const pieces = [];
+    const walk = o => {
+      if (!o.visible || o.name?.startsWith('gizmo ')) return;
+      if (o.isMesh && o.geometry?.attributes.position) {
+        const mats = Array.isArray(o.material) ? o.material : null, I = o.geometry.index, all = I ? I.count : o.geometry.attributes.position.count;
+        if (mats) for (const gr of o.geometry.groups) pieces.push([o, mats[gr.materialIndex], gr.start, Math.min(gr.count, all - gr.start)]);
+        else pieces.push([o, o.material, 0, all]);
+      }
+      for (const ch of o.children) walk(ch);
+    };
+    walk(this.root);
+    // (sized exactly first — the vertices each piece uses, counted — so nothing's made twice or bigger than it needs)
+    let remap = new Int32Array(0), nV = 0, nI = 0;
+    pieces.forEach(([o, , start, count]) => {
+      const P = o.geometry.attributes.position, I = o.geometry.index;
+      if (remap.length < P.count) remap = new Int32Array(P.count);
+      remap.fill(-1, 0, P.count);
+      let u = 0;
+      for (let k = start; k < start + count; k++) { const i = I ? I.getX(k) : k; if (remap[i] < 0) { remap[i] = 1; u++; } }
+      nV += u; nI += count;
+    });
+    const pos = new Float32Array(nV * 3), nor = new Float32Array(nV * 3), col = new Uint8Array(nV * 3), idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
+    let n = 0, ni = 0;
+    for (const [mesh, mat, start, count] of pieces) {
+      const g = mesh.geometry, P = g.attributes.position, N = g.attributes.normal, I = g.index;
+      m4.multiplyMatrices(inv, mesh.matrixWorld); nm.getNormalMatrix(m4);
+      c.copy(mat?.color ?? c.set(0.5, 0.5, 0.5));
+      if (mat?.transparent) c.multiplyScalar(0.25).addScalar(0.04);
+      if (mat?.emissive && (mat.emissiveIntensity ?? 0) > 0.5) c.add(mat.emissive);
+      const r = Math.round(Math.min(1, c.r) * 255), gg = Math.round(Math.min(1, c.g) * 255), b = Math.round(Math.min(1, c.b) * 255);
+      // (only the vertices this piece uses, in a compact list)
+      if (remap.length < P.count) remap = new Int32Array(P.count);
+      remap.fill(-1, 0, P.count);
+      for (let k = start; k < start + count; k++) {
+        const i = I ? I.getX(k) : k;
+        let j = remap[i];
+        if (j < 0) {
+          j = remap[i] = n++;
+          v.fromBufferAttribute(P, i).applyMatrix4(m4); pos[j * 3] = v.x; pos[j * 3 + 1] = v.y; pos[j * 3 + 2] = v.z;
+          if (N) v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); else v.set(0, 1, 0);
+          nor[j * 3] = v.x; nor[j * 3 + 1] = v.y; nor[j * 3 + 2] = v.z;
+          col[j * 3] = r; col[j * 3 + 1] = gg; col[j * 3 + 2] = b;
+        }
+        idx[ni++] = j;
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, proxyMaterials().ghost);
+    mesh.name = 'car (one piece)';
+    mesh.castShadow = true;
+    // (as the car's shadow only: drawn into the shadow map, nothing drawn in the picture — no vertices there)
+    mesh.onBeforeShadow = () => { g.drawRange.count = Infinity; };
+    mesh.onBeforeRender = () => { g.drawRange.count = this.detail === 'simple' ? Infinity : 0; };
+    this.group.add(mesh);
+    if (old) { old.removeFromParent(); old.geometry.dispose(); }
+    this.proxy = mesh; this.proxyDirty = this.proxyShape = false; this.proxyAt = performance.now();
+  }
+
   dispose() {
     this.disposed = true;
+    if (this.proxy) { this.proxy.removeFromParent(); this.proxy.geometry.dispose(); this.proxy = null; }
     this.root.traverse(o => { if (o.isMesh) this.dentBudget?.drop(o); });
     for (const s of [...this.attached.keys()]) this.#detach(s);
     this.showSockets(false);

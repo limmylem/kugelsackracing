@@ -6,6 +6,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Real World Drive</title>
 <script>
+  // Too old a browser (Phase 8 Step 2; docs/PERFORMANCE.md; perf/features.js NEEDED): what the game needs, checked
+  // before anything loads — missing any, a message saying what to use instead of a page that never starts. (Plain old
+  // JavaScript on purpose: it has to run in the browsers it turns away.)
+  (function () {
+    var miss = [], c;
+    try { c = document.createElement('canvas').getContext('webgl2'); } catch (e) { c = null; }
+    if (!c) miss.push('WebGL 2');
+    else { var x = c.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); }
+    if (!('noModule' in HTMLScriptElement.prototype)) miss.push('JavaScript modules');
+    if (!(HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) miss.push('import maps');
+    if (typeof WebAssembly !== 'object') miss.push('WebAssembly');
+    if (typeof Worker !== 'function') miss.push('Web Workers');
+    if (!window.indexedDB) miss.push('IndexedDB');
+    if (typeof DecompressionStream !== 'function') miss.push('DecompressionStream');
+    if (!miss.length) return;
+    window.KR_TOO_OLD = miss;
+    var onlyGl = miss.length === 1 && miss[0] === 'WebGL 2';
+    document.addEventListener('DOMContentLoaded', function () {
+      var d = document.createElement('div');
+      d.id = 'tooOld';
+      d.setAttribute('style', 'position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#e8edf2;font:16px/1.5 system-ui,sans-serif;padding:24px');
+      d.innerHTML = '<div style="max-width:560px"><h2 style="margin:0 0 12px">This browser can\'t run the game</h2>' +
+        (onlyGl ? '<p>It has no WebGL 2 right now: hardware acceleration may be off in the browser\'s settings, or the graphics driver may need an update. Turn it on (or update), then reload.</p>'
+                : '<p>It\'s missing ' + miss.join(', ') + '. Please use an up-to-date <b>Chrome</b>, <b>Edge</b> or <b>Firefox</b>, or <b>Safari 16.4 or newer</b> (macOS 13 / iOS 16.4).</p>') +
+        '<p style="opacity:.7;font-size:14px">The game needs a computer with a graphics card from about 2015 on: most laptops and Chromebooks are fine.</p></div>';
+      document.body.appendChild(d);
+    });
+  })();
+</script>
+<script>
   // The old photorealistic map's library (Cesium, several MB) only behind its debug flag: ?photoreal=1
   window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/';
   if (new URLSearchParams(location.search).has('photoreal')) {

@@ -34,8 +34,8 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: `${nm}/three/${new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')}`, contentType: 'text/javascript' }));
     await page.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: `${nm}/@dimforge/rapier3d-compat/dist/rapier.mjs`, contentType: 'text/javascript' }));
-    await page.addInitScript(l => { const k = 'driveWorld.settings.v1'; let s = {}; try { s = JSON.parse(localStorage.getItem(k)) ?? {}; } catch { /* none */ } localStorage.setItem(k, JSON.stringify({ ...s, trackDetail: l })); }, level);
-    await page.goto(`http://localhost:${port}/dev/world.html?world=track&code=${code}&questBot`);
+    // (the graphics preset of that name: its scenery, crowd and shadows — data/performance.json quality)
+    await page.goto(`http://localhost:${port}/dev/world.html?world=track&code=${code}&questBot&graphics=${level}`);
     await page.waitForFunction(() => window.testWorld?.active?.trackData && window.testWorld.active.quests, null, { timeout: 300000 });
     // the race: seven NPCs and you
     const started = await page.evaluate(async () => {
@@ -58,7 +58,7 @@ try {
       const tick = now => { times.push(now - last); last = now; calls = Math.max(calls, R.info.render.calls); tris = Math.max(tris, R.info.render.triangles); R.info.reset(); if (now - t0 < secs * 1000) requestAnimationFrame(tick); else { R.info.autoReset = true; res({ times, calls, tris, cars: (window.testWorld.active.npcRace?.npcs.length ?? 0) + 1 }); } };
       requestAnimationFrame(tick);
     }), seconds);
-    const lv = await page.evaluate(() => { const w = window.testWorld.active; return { level: w.detail?.level, shadows: w.sun.castShadow, pref: window.testWorld.shared.prefs.trackDetail }; });
+    const lv = await page.evaluate(() => { const w = window.testWorld.active; return { level: w.detail?.level, shadows: w.sun.castShadow }; });
     const t = r.times.slice(10).sort((a, b) => a - b), p95 = t[Math.floor(t.length * 0.95)], p50 = t[Math.floor(t.length / 2)], T = DT.targets[level];
     const ok = p95 <= T.frameMs && lv.level === level;
     if (!ok) failed++;

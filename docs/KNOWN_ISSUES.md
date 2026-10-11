@@ -1,8 +1,33 @@
 # Known issues, and what to revisit
 
-As of Phase 8 Step 1 (the game's sound, first), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 8 Step 2 (performance and graphics settings, first), Step 1 (the game's sound), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 8 Step 2: performance and graphics settings (docs/PERFORMANCE.md)
+
+- **Frame rates on real graphics cards aren't measured here:** this machine and CI draw in software (no GPU — the
+  owner's choice of free CI). The tiers' targets are checked on real computers with the game's own test (Settings →
+  Graphics → "Test this computer"; Shift+P), and CI compares the CPU's side, draw calls, memory and garbage instead.
+- **The first launch's test takes a few seconds** at each preset from high down (up to about 12 s on a slow computer),
+  the picture changing as it goes; it happens once (and again only when asked).
+- **WebGL 2, not WebGPU:** three.js r160's WebGPU renderer was 2–5× slower on the CPU and can't run the game's own
+  shaders; to look at again with a newer three.js (`tools/renderer-bench.mjs`).
+- **No compressed textures (KTX2):** the game has almost none to compress (58 KB in all the car models); add them with
+  photographic textures.
+- **No occlusion culling:** what large buildings hide is still drawn when it's within its detail distance (the city's
+  tiles keep that to about 250 draws).
+- **The physics and the NPC drivers run on the main thread** (on purpose: no frame of input delay; 8 cars with
+  collisions take about 5 ms per 60th of a second here, within the 6 ms budget).
+- **The physics makes a lot of short-lived garbage** (its small vectors: about 130 MB per simulated second in an 8-car
+  race). Left as it is: the collector takes about 1–2% of the main thread for it, in pauses of about a millisecond
+  (`tools/bench.mjs --cpu`), and rewriting the vehicle model's arithmetic isn't worth any risk to the physics.
+- **Safari is tested as WebKit** (Playwright's build of Safari's engine, on macOS in CI), not Safari itself.
+- **Live reflections (ultra) draw the scene again** a face every other frame: a high-end setting.
+- **A far car in one piece shows no new dents** until it's near again (dents too small to see at that distance), and
+  its wheels don't turn; its shadow is its one piece's too, so a shadow doesn't show a door hanging open.
+- **Old track detail settings are forgotten:** the graphics settings replace "effects quality" and "track detail"
+  (the first launch's test picks a preset for everyone once).
 
 ## Adelaide, a new region (2026-10-11; MAP_README.md, "The Adelaide bake")
 

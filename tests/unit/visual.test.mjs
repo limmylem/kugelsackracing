@@ -288,3 +288,56 @@ test('a part made to fit each car is drawn with that car\'s model; a wing\'s ele
   const lit = []; vis.attached.get('socket_underglow').object.traverse(o => { if (o.isMesh && o.material.name === 'light_aux') lit.push(o.material); });
   assert.ok(lit.length && lit.every(m => m.emissive.getHexString() === '2f8cff'), 'the underglow strips glow blue');
 });
+
+// Phase 8 Step 2 (docs/PERFORMANCE.md): a far car in one piece, every car's shadow its one piece's
+test('a car in one piece: one mesh in place of the whole (far away), the shadow its one piece\'s (near), made again when its parts change', async () => {
+  const g = fresh(), vis = await createCarVisual({ car, finishes: db.finishes, models: cache() });
+  await vis.applyBuild(g.build, g.view);
+  const meshes = [];
+  vis.root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  assert.ok(meshes.length > 10, `${meshes.length} meshes drawn whole`);
+  assert.ok(vis.setDetail('full'));
+  assert.equal(vis.detail, 'full');
+  assert.ok(vis.proxy && vis.proxy.castShadow, 'its one piece casts the shadow');
+  vis.root.traverse(o => { if (o.isMesh) assert.equal(o.castShadow, false, `${o.name}: no shadow of its own`); });
+  // (shadow only: nothing of it drawn in the picture)
+  vis.proxy.onBeforeRender(); assert.equal(vis.proxy.geometry.drawRange.count, 0);
+  vis.proxy.onBeforeShadow(); assert.equal(vis.proxy.geometry.drawRange.count, Infinity);
+  const tris = (vis.proxy.geometry.index.count / 3);
+  const all = meshes.reduce((a, o) => a + (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3, 0);
+  assert.equal(tris, all, 'every triangle drawn now, in one piece');
+  vis.setDetail('simple');
+  assert.equal(vis.detail, 'simple');
+  assert.equal(vis.root.parent.visible, false, 'the whole car hidden');
+  vis.proxy.onBeforeRender(); assert.equal(vis.proxy.geometry.drawRange.count, Infinity, 'its one piece drawn');
+  // (a copy is made at most a frame's budget at a time: none allowed now, and it has one — kept)
+  const was = vis.proxy;
+  assert.ok(vis.setDetail('full', false)); assert.equal(vis.proxy, was);
+  // a part changed: made again (not before 2 s from the last)
+  vis.proxyShape = true; vis.proxyAt = performance.now() - 3000;
+  vis.setDetail('full');
+  assert.notEqual(vis.proxy, was, 'made again after a parts change');
+  vis.dispose();
+});
+
+test('car models no car uses any more: kept up to keepBytes for the next race, the least recently used let go first', async () => {
+  const models = cache(), urls = ['assets/parts/stock/starter_car/seat.glb', 'assets/parts/stock/starter_car/wheel_stock.glb', 'assets/parts/stock/starter_car/mirror_left.glb'];
+  for (const u of urls) { await models.acquire(u); }
+  // (nothing kept: let go at once — as before)
+  models.release(urls[0]);
+  assert.equal(models.entries.has(urls[0]), false);
+  models.keepBytes = 1e9;
+  models.release(urls[1]); models.release(urls[2]);
+  assert.ok(models.entries.has(urls[1]) && models.entries.has(urls[2]), 'kept, nobody using them');
+  const idle = models.idleBytes();
+  assert.ok(idle > 0);
+  // (taken again: at once, the same model, not loaded again)
+  await models.acquire(urls[1]);
+  assert.equal(models.stats().find(s => s.model === urls[1]).loaded, 1);
+  models.release(urls[1]);
+  // (over the budget: the least recently used goes first — urls[2], released before urls[1] was used again)
+  const freed = models.trim(models.idleBytes() - 1);
+  assert.ok(freed > 0);
+  assert.equal(models.entries.has(urls[2]), false, 'the least recently used let go');
+  assert.equal(models.entries.has(urls[1]), true, 'the one used since kept');
+});

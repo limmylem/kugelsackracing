@@ -43,6 +43,8 @@ const out = path.resolve(opt('--out', path.join(root, '.cache/site', env)));
 const LEAVE_OUT = new Set(['assets', 'admin', 'editor', 'dev']);
 // (editor/access.js, and the two helpers the game itself imports: roads.js for gunzipJson, markers3d.js for content's markers)
 const KEEP = new Set(['editor/access.js', 'editor/roads.js', 'editor/markers3d.js']);
+// (and single files the game never loads: the benchmarks' own scenes — tools/bench.mjs drives them on a dev page)
+const LEAVE_OUT_FILES = new Set(['perf/bench.js']);
 
 // ---------- the files ----------
 fs.rmSync(out, { recursive: true, force: true });
@@ -50,6 +52,7 @@ const tracked = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '
 const wanted = tracked.filter(f => {
   const top = f.split('/')[0];
   if (KEEP.has(f) || /^tests\/targets\/[^/]+\.json$/.test(f)) return true;   // (and the cars' test targets: the test robot's)
+  if (LEAVE_OUT_FILES.has(f)) return false;
   if (f.includes('/')) return CLIENT_DIRS.includes(top) && !LEAVE_OUT.has(top);
   return CLIENT_FILES.includes(f);
 });

@@ -1,0 +1,78 @@
+# The performance check (Phase 8 Step 2; docs/PERFORMANCE.md): the five benchmark scenes (tools/bench.mjs) on every
+# change to the game on main, against the baseline (tests/perf/ci-baseline.json) — a figure worse by more than
+# data/performance.json ci allows warns or fails this check. GitHub's free machines have no graphics card (the owner's
+# choice: no paid GPU machine), so the picture is drawn in software and frame rates mean little here: what's compared
+# is the CPU's side (physics, AI, the game, network, audio, streaming), draw calls, triangles, memory, garbage, shader
+# stutters and loading. Real frame rates: the game's own benchmark (Settings → Graphics → test this computer, Shift+P).
+# Never deploys, and a deploy never waits for it (server.yml).
+name: perf
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'testtrack/**'
+      - 'perf/**'
+      - 'physics/**'
+      - 'garage/**'
+      - 'effects/**'
+      - 'audio/**'
+      - 'map/**'
+      - 'world/**'
+      - 'track/**'
+      - 'play/**'
+      - 'race/**'
+      - 'ai/**'
+      - 'net/**'
+      - 'mp/**'
+      - 'data/**'
+      - 'tools/bench.mjs'
+      - '.github/workflows/perf.yml'
+  workflow_dispatch:
+    inputs:
+      scenes: { description: 'Scenes (comma-separated; empty: all five)', type: string, default: '' }
+
+permissions:
+  contents: read
+
+concurrency: { group: perf, cancel-in-progress: true }
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: |
+          npm i --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: The benchmarks (software rendering, 640×360, the high preset) against the baseline
+        run: |
+          CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" \
+          node tools/bench.mjs --swiftshader --size 640x360 --seconds 25 --preset high --label ci \
+            ${{ inputs.scenes && format('--scenes {0}', inputs.scenes) || '' }} \
+            --baseline tests/perf/ci-baseline.json --summary "$GITHUB_STEP_SUMMARY"
+      - name: The figures (to keep as tests/perf/ci-baseline.json when there's none yet, or after an intended change)
+        if: always()
+        run: cat reports/performance/ci.metrics.json || true
+      - name: Driving the same on every graphics setting (the physics tests at each preset, and after switching while driving)
+        if: always()
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/physics-presets.mjs --swiftshader
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: perf-ci, path: 'reports/performance/ci*.json', retention-days: 30 }

@@ -147,6 +147,9 @@ export function tileObjects(tile: any, { barriers: B }: any) {
     const sh = shapes(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     kinds.forEach((list, kind) => {
       if (!list.length) return;
+      // (in a shuffled order, the same every time: drawing the first n of them thins the trees evenly — the graphics
+      // settings' scenery, setScenery)
+      for (let a = list.length - 1, r = list.length * 7919 + kind; a > 0; a--) { r = (r * 16807) % 2147483647; const b = r % (a + 1); [list[a], list[b]] = [list[b], list[a]]; }
       const top = new THREE.InstancedMesh(kind ? sh.conifer : sh.canopy, kind ? mat.conifer : mat.canopy, list.length), trunk = new THREE.InstancedMesh(sh.trunk, mat.trunk, list.length);
       list.forEach((k, n) => {
         const sc = T.data[k + 3] * 4;
@@ -157,6 +160,7 @@ export function tileObjects(tile: any, { barriers: B }: any) {
         trunk.setMatrixAt(n, m4);
       });
       top.castShadow = true; trees.add(top, trunk);
+      top.userData.all = trunk.userData.all = list.length;
     });
     group.add(trees);
   }
@@ -229,6 +233,8 @@ export function tileObjects(tile: any, { barriers: B }: any) {
   return {
     group, header: tile.header,
     counts: () => ({ meshes: group.children.length }),
+    // the share of the trees drawn (the graphics settings' scenery: the first of them in their shuffled order)
+    setScenery(f) { for (const m of trees.children as any[]) m.count = Math.max(0, Math.round(m.userData.all * Math.min(1, Math.max(0, f)))); },
     // what to draw at this distance (m) from the camera
     setDetail(d) {
       const lod = d < 650 ? 0 : d < 1700 ? 1 : 2;

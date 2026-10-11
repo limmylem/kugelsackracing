@@ -37,7 +37,7 @@ export function createVoices(A, { occluded = null } = {}) {
       clock += dt;
       const L = listener;
       for (const c of cars.values()) c.d = c.pos && L?.pos ? Math.hypot(c.pos[0] - L.pos[0], c.pos[1] - L.pos[1], c.pos[2] - L.pos[2]) : Infinity;
-      const lods = rankVoices([...cars.values()].map(c => ({ id: c.id, d: c.d })), cfg.voices, was, clock, A.quality);
+      const lods = rankVoices([...cars.values()].map(c => ({ id: c.id, d: c.d })), A.fullVoices != null ? { ...cfg.voices, full: A.fullVoices, lowFull: Math.min(cfg.voices.lowFull, A.fullVoices) } : cfg.voices, was, clock, A.quality);
       const every = cfg.occlusion.every, occOn = !!occluded && (A.quality !== 'low' || cfg.lowQuality.occlusion);
       for (const c of cars.values()) {
         const lod = c.pos ? lods.get(c.id) ?? 'off' : 'off';

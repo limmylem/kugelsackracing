@@ -1,0 +1,36 @@
+# The long play test (Phase 8 Step 2; docs/PERFORMANCE.md; tools/memory-soak.mjs): the game played round and round for
+# two hours — free roam in the real world, a race downtown, a race on a generated track, the garage, the test centre's
+# pile-up — its memory sampled every half minute; it fails if memory grew after the first round. By hand (it takes
+# the two hours), and weekly. Never deploys. Free (public repository).
+name: soak
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes: { description: 'How long to play (minutes)', type: string, default: '120' }
+      preset: { description: 'The graphics preset', type: choice, options: [low, medium, high, ultra], default: medium }
+  schedule:
+    - cron: '41 17 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: |
+          npm i --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Two hours of play, its memory sampled every half minute
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/memory-soak.mjs --swiftshader --minutes ${{ inputs.minutes || '120' }} --preset ${{ inputs.preset || 'medium' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: soak, path: reports/performance/soak.json, retention-days: 30 }
