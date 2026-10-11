@@ -5,6 +5,8 @@
 name: slow-tail
 on:
   workflow_dispatch:
+    inputs:
+      race_only: { description: 'Only the browser race test (the drills, the load tests and the image skipped)', type: boolean, default: false }
 permissions:
   contents: read
 jobs:
@@ -40,17 +42,17 @@ jobs:
       - name: Multiplayer races in the browser (what each screen draws — lobby, loading, the lights against the server's clock, live positions, a spectator's cameras, confirmed results; a quick race)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser-race.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
-        if: success() || failure()
+        if: (success() || failure()) && !inputs.race_only
         run: node server/tools/dr-test.ts
       - name: Rollback drill (a broken release with a migration, its alert, rolled back on the newer schema; docs/OPERATIONS.md)
-        if: success() || failure()
+        if: (success() || failure()) && !inputs.race_only
         run: node server/tools/rollback-test.ts
       - name: The economy under load (500 players in the garage and on the road; the books balanced after)
-        if: success() || failure()
+        if: (success() || failure()) && !inputs.race_only
         run: npm run --workspace @kr/server load-test:economy
       - name: The whole game under load (500 players at once, every step within its limit; reports/load-test.md)
-        if: success() || failure()
+        if: (success() || failure()) && !inputs.race_only
         run: npm run --workspace @kr/server load-test:full -- --players 500
       - name: The server's image builds
-        if: success() || failure()
+        if: (success() || failure()) && !inputs.race_only
         run: docker build -t kr-server:ci --build-arg GIT_COMMIT=${{ github.sha }} .

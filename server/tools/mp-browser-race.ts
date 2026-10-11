@@ -420,7 +420,11 @@ try {
   if (!QUICK_ONLY) for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpResults [data-leaveres]')).ok, 30000); await click(P, '#mpResults [data-leaveres]'); }
   else for (const P of [A, B]) { await P.bringToFront(); await click(P, '#mpButton'); }
   for (const x of crew) await x.session.close();
-  for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpMenu [data-quick]')).ok, 15000); await click(P, '#mpMenu [data-quick]'); }
+  // (both menus up, then Quick race clicked in both at once, by the pages themselves: at a frame a second a click
+  // waited seconds for its button to hold still, and a quick race fills with NPCs 15 s after its first player queues —
+  // one window after the other, they could land in two races)
+  for (const P of [A, B]) { await P.bringToFront(); await until(async () => (await seen(P, '#mpMenu [data-quick]')).ok, 15000); }
+  await Promise.all([A, B].map(P => P.evaluate(sel => (document.querySelector(sel) as HTMLElement | null)?.click(), '#mpMenu [data-quick]')));
   const quick = await until(async () => { const [a, b] = [await state(A), await state(B)]; return a?.roomId && a.roomId === b?.roomId ? [a, b] : null; }, 60000);
   const qLoad = quick ? await Promise.all([shown(A, '#mpLoading', 30000), shown(B, '#mpLoading', 30000)]) : null;
   const why = async P => P.evaluate(() => { const S = (globalThis as any).__krMpS; return JSON.stringify({ phase: S.phase, room: S.lobby?.roomId ?? null, race: !!S.race, party: S.party?.id ?? null, notices: S.notices.slice(-4), toasts: document.querySelector('#mpToasts')?.textContent ?? '', menu: (document.querySelector('#mpMenu') as any)?.innerText?.split('\n').slice(0, 8).join(' / ') ?? '' }); });
