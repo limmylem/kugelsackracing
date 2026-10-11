@@ -15,7 +15,7 @@ import net from 'node:net';
 import path from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname, args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
-const minutes = +opt('--minutes', 120), preset = opt('--preset', 'medium'), every = +opt('--every', 30);
+const minutes = +opt('--minutes', 120), preset = opt('--preset', 'medium'), every = +opt('--every', 30), pace = args.includes('--quick') ? 0.2 : 1;
 // (what may grow from the end of the first round to the end: a share, and a little on top)
 const ALLOW = { heapMB: [0.15, 25], geometries: [0.1, 40], textures: [0.1, 10], programs: [0.1, 6], gpuMB: [0.1, 20], dom: [0.1, 200], audioNodes: [0.2, 40] };
 let pw;
@@ -62,7 +62,8 @@ const quitQuest = () => page.evaluate(() => { const q = window.testWorld?.active
 const timeline = [], rounds = [];
 let round = 0, stopAt = Date.now() + minutes * 60000, lastSample = 0;
 const tick = async what => { if (Date.now() - lastSample < every * 1000) return; lastSample = Date.now(); const s = await sample().catch(e => ({ error: e.message })); timeline.push({ t: Math.round((Date.now() - t0) / 1000), round, what, ...s }); };
-const wait = async (ms, what) => { for (const end = Date.now() + ms; Date.now() < end;) { await tick(what); await sleep(2000); } };
+// (--quick: each part of a round a fifth as long — to see which part leaves something behind, with --every 5)
+const wait = async (ms, what) => { for (const end = Date.now() + ms * pace; Date.now() < end;) { await tick(what); await sleep(2000); } };
 const t0 = Date.now();
 try {
   await page.goto(`${base}/index.html?questBot&graphics=${preset}`);

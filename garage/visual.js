@@ -1121,7 +1121,9 @@ export class CarVisual {
   dispose() {
     this.disposed = true;
     if (this.proxy) { this.proxy.removeFromParent(); this.proxy.geometry.dispose(); this.proxy = null; }
-    this.root.traverse(o => { if (o.isMesh) this.dentBudget?.drop(o); });
+    // (a dented mesh's own copy of its geometry goes with the car — only a repair let go of it before, so every dented
+    // car that left a race or the pile-up left its dented parts' copies on the graphics card: the long play test)
+    this.root.traverse(o => { if (o.isMesh) { this.dentBudget?.drop(o); clearDents(o); } });
     for (const s of [...this.attached.keys()]) this.#detach(s);
     this.showSockets(false);
     this.models.release(this.car.model.file);

@@ -341,3 +341,19 @@ test('car models no car uses any more: kept up to keepBytes for the next race, t
   assert.equal(models.entries.has(urls[2]), false, 'the least recently used let go');
   assert.equal(models.entries.has(urls[1]), true, 'the one used since kept');
 });
+
+test('a dented car let go of: its dented parts\' own geometry goes with it', async () => {
+  const { setDents } = await import('../../garage/dents.js');
+  const g = fresh(), vis = await createCarVisual({ car, finishes: db.finishes, models: cache() });
+  await vis.applyBuild(g.build, g.view);
+  const bonnet = meshesAt(vis, 'socket_bonnet')[0], shared = bonnet.geometry;
+  bonnet.geometry.computeBoundingBox();
+  const c = bonnet.geometry.boundingBox.getCenter(new THREE.Vector3());
+  assert.ok(setDents(bonnet, [{ p: c, d: new THREE.Vector3(0, -1, 0), depth: 0.05, radius: 0.3 }], 0.08) > 0, 'dented');
+  const own = bonnet.geometry;
+  assert.notEqual(own, shared, 'a dented mesh has its own copy');
+  let disposed = 0;
+  own.addEventListener('dispose', () => disposed++);
+  vis.dispose();
+  assert.equal(disposed, 1);
+});

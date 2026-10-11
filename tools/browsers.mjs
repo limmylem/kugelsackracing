@@ -34,7 +34,9 @@ for (const run of runs) {
   results.push(R);
   let browser;
   try {
-    browser = await pw[run.type].launch({ ...(run.channel && { channel: run.channel }), ...(run.type === 'chromium' && !run.channel && process.env.CHROMIUM && { executablePath: process.env.CHROMIUM }), args: run.type === 'chromium' ? ['--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] : [] });
+    // (Firefox on a machine with no graphics card: WebGL only if forced past its blocklist, onto the system's software GL)
+    browser = await pw[run.type].launch({ ...(run.channel && { channel: run.channel }), ...(run.type === 'chromium' && !run.channel && process.env.CHROMIUM && { executablePath: process.env.CHROMIUM }), args: run.type === 'chromium' ? ['--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] : [],
+      ...(run.type === 'firefox' && { firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false, 'media.autoplay.default': 0 } }) });
     R.version = browser.version();
     const page = async () => {
       const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
@@ -105,16 +107,19 @@ for (const run of runs) {
       await ctx.close();
     }
     R.ok = Object.values(R.features.needed).every(Boolean) && Object.values(R.runs).every(r => r.ok) && R.oldBrowser.ok && (R.switching?.ok ?? false) && !!R.autodetect?.ok && (R.ownBench?.ok ?? true);
+    // (no WebGL at all here — a machine with no graphics card, a browser with no software fallback: the game can't be
+    // driven in it here; what it supports and the old-browser message are still checked. Not a failure of the game's)
+    if (!R.ok && R.features.needed.webgl2 === false && Object.entries(R.features.needed).every(([k, v]) => v || k === 'webgl2') && R.oldBrowser.ok) R.skipped = 'no WebGL on this machine (no graphics card, and no software fallback in this browser here)';
   } catch (e) { R.errors.push(String(e.message ?? e).slice(0, 300)); }
   finally { await browser?.close(); }
 }
 server.kill();
 
 // the table
-const row = r => `${r.ok ? '  ok  ' : ' FAIL '} ${r.browser.padEnd(9)} ${String(r.version ?? '?').padEnd(16)} ${r.features ? `needs: ${Object.entries(r.features.needed).filter(([, v]) => !v).map(([k]) => k).join(', ') || 'all there'} · extras: ${Object.entries(r.features.extras).map(([k, v]) => `${k} ${v ? 'yes' : 'no'}`).join(', ')}` : ''}
-         ${Object.entries(r.runs).map(([k, v]) => `${k}: ${v.ok ? `${v.frames} frames (${v.fps?.toFixed(1)} fps), ${v.speed?.toFixed(1)} m/s, loaded in ${v.loadS?.toFixed(1)} s` : `FAILED ${v.why ?? ''} ${(v.errors ?? []).join(' | ')}`}`).join(' · ')} · switching settings: ${r.switching ? (r.switching.ok ? 'ok' : `FAILED ${JSON.stringify(r.switching)}`) : '—'} ${r.ownBench ? ` · the settings' benchmarks: ${r.ownBench.ok ? r.ownBench.scenes.join(', ') : `FAILED ${r.ownBench.error}`}` : ''} · first launch picked: ${r.autodetect?.ok ? `${r.autodetect.preset} (${r.autodetect.why})` : `NO ${r.autodetect?.why ?? ''}`} · old browser told: ${r.oldBrowser?.ok ? 'yes' : 'NO'}${r.errors.length ? ` · ${r.errors.join(' | ')}` : ''}`;
+const row = r => `${r.ok ? '  ok  ' : r.skipped ? ' SKIP ' : ' FAIL '} ${r.browser.padEnd(9)} ${String(r.version ?? '?').padEnd(16)} ${r.features ? `needs: ${Object.entries(r.features.needed).filter(([, v]) => !v).map(([k]) => k).join(', ') || 'all there'} · extras: ${Object.entries(r.features.extras).map(([k, v]) => `${k} ${v ? 'yes' : 'no'}`).join(', ')}` : ''}
+         ${Object.entries(r.runs).map(([k, v]) => `${k}: ${v.ok ? `${v.frames} frames (${v.fps?.toFixed(1)} fps), ${v.speed?.toFixed(1)} m/s, loaded in ${v.loadS?.toFixed(1)} s` : `FAILED ${v.why ?? ''} ${(v.errors ?? []).join(' | ')}`}`).join(' · ')} · switching settings: ${r.switching ? (r.switching.ok ? 'ok' : `FAILED ${JSON.stringify(r.switching)}`) : '—'} ${r.ownBench ? ` · the settings' benchmarks: ${r.ownBench.ok ? r.ownBench.scenes.join(', ') : `FAILED ${r.ownBench.error}`}` : ''} · first launch picked: ${r.autodetect?.ok ? `${r.autodetect.preset} (${r.autodetect.why})` : `NO ${r.autodetect?.why ?? ''}`} · old browser told: ${r.oldBrowser?.ok ? 'yes' : 'NO'}${r.errors.length ? ` · ${r.errors.join(' | ')}` : ''}${r.skipped ? ` · not driven here: ${r.skipped}` : ''}`;
 for (const r of results) console.log(row(r));
 const dir = path.join(ROOT, 'reports/browsers');
 fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, `${tag}.json`), JSON.stringify({ at: new Date().toISOString(), tag, results }, null, 1));
-process.exit(results.every(r => r.ok) ? 0 : 1);
+process.exit(results.every(r => r.ok || r.skipped) ? 0 : 1);
