@@ -65,5 +65,6 @@ test('fast travel: every baked region is known, and a quest\'s region is found f
   }
   assert.equal(regionOf(HOME, baked.regions).id, 'sf');
   assert.equal(regionOf({ lat: 43.7384, lon: 7.4246 }, baked.regions).id, 'monaco');
+  assert.equal(regionOf({ lat: -34.9285, lon: 138.6007 }, baked.regions).id, 'adelaide', 'Victoria Square');
   assert.equal(regionOf({ lat: 0, lon: 0 }, baked.regions), null);
 });

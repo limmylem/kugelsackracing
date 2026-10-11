@@ -125,6 +125,12 @@ export async function bakeElevation({ region, grid, P, cacheDir, mask = null as 
     }
   }
   const heights = Float32Array.from(await readRaster(out + '.tif')), source = Uint8Array.from(await readRaster(out + '-src.tif'));
+  // (no point from any source: PROJ without a geoid grid it needs warps every source to nodata rather than failing,
+  // and the region would bake flat at 0 m — stop, and drop what was made so the next bake does it again)
+  if (!source.some(v => v === SOURCE.lidar || v === SOURCE.copernicus || v === SOURCE.blend)) {
+    for (const f of [out + '.tif', out + '-src.tif', ...Object.values(files)]) fs.rmSync(f, { force: true });
+    throw new Error(`no elevation anywhere in ${region.id}: every source warped to nodata — is PROJ missing a geoid grid? Put us_nga_egm08_25.tif (and the sources' own, e.g. us_noaa_g2018u0.tif) into ${path.resolve(cacheDir, '..', 'proj')}/ (MAP_README.md, Baking a region)`);
+  }
   for (let k = 0; k < heights.length; k++) if (!(heights[k] > -500)) heights[k] = 0;
   return { heights, source, sources: described, file: out + '.tif', sourceFile: out + '-src.tif' };
 }

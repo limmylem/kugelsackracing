@@ -1,0 +1,116 @@
+{
+  "_note": "A Map v3 region (MAP_README.md). bbox [west, south, east, north] in degrees; the projection is a transverse Mercator centred on it. osm: the OpenStreetMap extract to clip it from (Geofabrik), and the fallback when that can't be downloaded (Overture's OSM-derived data, rebuilt as an .osm.pbf). dem: elevation sources, best first; each a bare-earth DTM (never a surface model) with its horizontal and vertical datum, converted to EGM2008 heights; blendBand: metres over which a better source fades into the next. spots: quick-travel places (auto: found in the data).",
+  "id": "adelaide",
+  "name": "Adelaide",
+  "bbox": [
+    138.49,
+    -35.01,
+    138.72,
+    -34.835
+  ],
+  "tileSize": 512,
+  "cell": 2,
+  "spawn": {
+    "lat": -34.9275,
+    "lon": 138.6,
+    "bearing": 0,
+    "name": "King William Street, Victoria Square"
+  },
+  "osm": {
+    "extract": "https://download.geofabrik.de/australia-oceania/australia-latest.osm.pbf",
+    "fallback": "overture"
+  },
+  "overture": {
+    "release": "2026-09-23.1"
+  },
+  "dem": {
+    "datum": "EGM2008",
+    "blendBand": 80,
+    "sources": [
+      {
+        "name": "Copernicus GLO-30",
+        "kind": "dsm",
+        "resolution": 30,
+        "crs": "EPSG:4326+3855",
+        "datum": "WGS84, EGM2008 heights",
+        "licence": "Copernicus DEM licence (free, attribution)",
+        "attribution": "Copernicus DEM \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA",
+        "glo30": true
+      }
+    ]
+  },
+  "spots": [
+    {
+      "id": "city",
+      "name": "King William Street",
+      "kind": "dense city",
+      "lat": -34.9238,
+      "lon": 138.5999,
+      "bearing": 0
+    },
+    {
+      "id": "suburb",
+      "name": "The Parade, Norwood",
+      "kind": "suburb",
+      "lat": -34.9215,
+      "lon": 138.63,
+      "bearing": 90
+    },
+    {
+      "id": "mountain",
+      "name": "Greenhill Road",
+      "kind": "mountain road with rails",
+      "lat": -34.9432,
+      "lon": 138.6722,
+      "bearing": 160
+    },
+    {
+      "id": "coast",
+      "name": "Esplanade",
+      "kind": "coast",
+      "lat": -34.989,
+      "lon": 138.5095,
+      "bearing": 175
+    },
+    {
+      "id": "interchange",
+      "name": "South Road Superway",
+      "kind": "highway interchange",
+      "lat": -34.8616,
+      "lon": 138.568,
+      "bearing": 325
+    },
+    {
+      "id": "bridge",
+      "name": "Adelaide Bridge",
+      "kind": "bridge",
+      "lat": -34.9147,
+      "lon": 138.5988,
+      "bearing": 176
+    },
+    {
+      "id": "tunnel",
+      "name": "Heysen Tunnels",
+      "kind": "tunnel",
+      "lat": -34.9707,
+      "lon": 138.6753,
+      "bearing": 144
+    },
+    {
+      "id": "carpark",
+      "name": "Adelaide Airport",
+      "kind": "big car park",
+      "lat": -34.9414,
+      "lon": 138.5318,
+      "bearing": 0
+    },
+    {
+      "id": "roundabout",
+      "name": "Britannia Roundabout",
+      "kind": "roundabout",
+      "lat": -34.9278,
+      "lon": 138.623,
+      "bearing": 90
+    }
+  ]
+}

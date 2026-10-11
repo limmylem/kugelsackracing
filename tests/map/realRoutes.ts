@@ -9,4 +9,5 @@ export const REAL_ROUTES: Record<string, any> = {
   munich: { what: 'motorway', kind: 'p2p', waypoints: [[48.22174, 11.62972], [48.2483, 11.6430]], classes: ['motorway'] },
   sf: { what: 'city streets, the game\'s own region', kind: 'p2p', waypoints: [[37.7936, -122.3955], [37.7880, -122.4075], [37.7765, -122.4170]], roads: ['Market Street', 'Powell Street'] },
   mk: { what: 'roundabouts, a loop', kind: 'loop', waypoints: [[52.04408, -0.76447], [52.03807, -0.75242], [52.03413, -0.76187], [52.04101, -0.77558]], roads: ['North Saxon Roundabout', 'South Saxon Roundabout', 'H6 Childs Way'], laps: 1 },
+  adelaide: { what: 'city streets, a bridge over the Torrens', kind: 'p2p', waypoints: [[-34.9070, 138.5970], [-34.9140, 138.5988], [-34.9190, 138.5990]], roads: ["O'Connell Street", 'King William Road'] },
 };

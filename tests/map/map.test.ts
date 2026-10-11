@@ -122,6 +122,8 @@ async function roadsTest() {
     let hit = null;
     for (let a = -2; a <= 2 && !hit; a++) for (let b = -2; b <= 2 && !hit; b++) for (const [o, k] of cells.get(`${Math.floor(x / C) + a},${Math.floor(z / C) + b}`) ?? []) {
       if (o.way === s.way || o.structure !== s.structure || o.layer !== s.layer) continue;
+      // (a stub a few metres past a junction with that road — its other end one of the road's own nodes: joined there)
+      if ([o.from, o.to].includes(n === s.from ? s.to : s.from)) continue;
       const P = o.points, ax = P[k], az = P[k + 1], dx = P[k + 3] - ax, dz = P[k + 4] - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
       if (Math.hypot(x - ax - dx * t, z - az - dz * t) < o.width / 2 - 0.5) { hit = o; break; }
     }

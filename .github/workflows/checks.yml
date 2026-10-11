@@ -49,11 +49,11 @@ jobs:
         run: node --test tests/map/unit.test.ts
       - name: Map v3 baked-map tests (roads, heights, seams, datum, railings, streaming, memory, determinism, physics)
         run: npm run test:map
-      - name: 'Routes on real roads (six regions, five countries: routed, then driven to the finish in the physics)'
+      - name: 'Routes on real roads (seven regions, six countries: routed, then driven to the finish in the physics)'
         run: npm run test:routes
       - name: Quests on real roads (every quest type driven to a valid result; the same time at 30, 60 and 144 fps; 50 restarts)
         run: npm run test:quests
-      - name: Quests at scale (50,000 quests with routes in six regions; the finder, the editor's checks, 200 km/h free roam)
+      - name: Quests at scale (50,000 quests with routes in seven regions; the finder, the editor's checks, 200 km/h free roam)
         # (known over target at this density — the nearby query re-run in the most crowded places, opening the
         # finder: docs/KNOWN_ISSUES.md "At 50,000 quests". Reported, not yet blocking.)
         continue-on-error: true

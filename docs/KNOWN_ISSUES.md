@@ -4,6 +4,25 @@ As of Phase 8 Step 1 (the game's sound, first), Phase 7 Step 5 (online for frien
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
+## Adelaide, a new region (2026-10-11; MAP_README.md, "The Adelaide bake")
+
+- **Elevation from a 30 m surface model** (Copernicus GLO-30): South Australia's 1 m LiDAR (ELVIS) couldn't be
+  downloaded on the bake machine. Hills, the coast and the plains are right; in the CBD a junction's height can
+  carry the model's noise. Southbound on King William Road into North Terrace the road crests at +7.5 % then
+  +17 % over 4 m: above about 100 km/h a car bottoms out there and stops (the route test's autopilot did, at
+  116 km/h, so its Adelaide route ends before it). Overall Adelaide has the fewest sharp grade changes of any region
+  (more than 10 % within 4 m: 2.6 per 10 km of road, San Francisco 9.4, Tokyo 22, Monaco 64). The fix: the LiDAR
+  as the region's first elevation source, then a bake.
+- **`npm run test:map -- --region adelaide`: two road checks fail**, both bake behaviour that every region has:
+  - one dead end of 14,154 lies on another road without joining it: Middleton Drive, which OpenStreetMap (via
+    Overture) ends 10.8 m short of McMurray Avenue's straight 176 m piece — beyond the join's 6 m — while the curve
+    the bake fits through McMurray's nodes brings the road under its end. The two meet within 4 cm: no step.
+  - the road-surface check's 5 % sample finds one OSM node 1.4 m from the drawn surface: Brooks Lane, a 7.6 m
+    piece between two junctions, where the two junction fans leave a gap and the ground shows 7 cm below.
+- **Its road graph is the biggest** (89,000 segments): about 0.4 GB in memory in each of the API and the
+  real-time server once someone drives there (docs/DEPLOYMENT.md), and about 0.2 GB of a browser's memory once Set
+  route or a quest there loads it (San Francisco's: about half).
+
 ## Phase 8 Step 1: vehicle and world sound (docs/AUDIO.md)
 
 - **No music yet:** the music group and its slider are there, with nothing in it.

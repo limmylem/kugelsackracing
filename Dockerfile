@@ -20,7 +20,7 @@ FROM node:22-bookworm-slim
 LABEL org.opencontainers.image.source=https://github.com/limmylem/kugelsackracing
 ENV NODE_ENV=production APP_ENV=production PORT=8787 HOST=0.0.0.0
 WORKDIR /app
-# (the map files, cars, parts and sounds first, in a layer of their own: 277 MB that a change to the code doesn't
+# (the map files, cars, parts and sounds first, in a layer of their own: about 490 MB that a change to the code doesn't
 # copy, push or pull again — the server reads the maps' manifests and road graphs from it; the code after it, without
 # them: COPY --exclude, Dockerfile syntax 1.19 or later, as the first line asks)
 COPY assets assets

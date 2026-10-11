@@ -165,8 +165,9 @@ Errors stop publishing; warnings don't.
 
 ## Real roads (the regions)
 
-Besides San Francisco, five small regions are baked from Overture (OpenStreetMap's roads) and Copernicus
-GLO-30 elevation (`data/map/regions/*.json`, `node map/bake/bake.ts --region <id>`), one per test:
+Besides San Francisco, six regions are baked from Overture (OpenStreetMap's roads) and Copernicus GLO-30
+elevation (`data/map/regions/*.json`, `node map/bake/bake.ts --region <id>`), one per test — five small ones, and
+Adelaide, a whole city like San Francisco:
 
 | Region | Country | What it tests |
 | --- | --- | --- |
@@ -175,6 +176,7 @@ GLO-30 elevation (`data/map/regions/*.json`, `node map/bake/bake.ts --region <id
 | `stelvio` | Italy | a mountain pass's hairpins |
 | `munich` | Germany | a motorway (A9) and its overpasses |
 | `mk` | United Kingdom | a loop through Milton Keynes' roundabouts and dual carriageways |
+| `adelaide` | Australia | Adelaide's city streets: from North Adelaide down O'Connell Street and King William Road, over the River Torrens on Adelaide Bridge, to the city's edge (the whole city is baked: [MAP_README.md](../MAP_README.md#the-adelaide-bake-results)) |
 
 Driving these found bake bugs that every region had, San Francisco included. All are fixed in the bake
 (`map/bake/roads.ts`, `terrain.ts`, `tiles.ts`, `details.ts`):
@@ -203,7 +205,7 @@ Driving these found bake bugs that every region had, San Francisco included. All
   - shortcut detection (another road, close to itself, crossing itself);
   - validation messages, the grid, the numbers;
   - routes as content (shape, the quest link, published together, flagged when the roads change).
-- **`npm run test:routes`** (`tests/map/routes.test.ts`): a route in each of the six regions, routed from
+- **`npm run test:routes`** (`tests/map/routes.test.ts`): a route in each of the seven regions, routed from
   a few clicks, then driven in the physics on the baked world's own colliders by the autopilot, from grid
   slot 1 to the finish. Every checkpoint in order, no resets, never off the route, never the wrong way.
 - **`npm run perf:route`** (`tests/route-perf.mjs`): a 60 km tour of San Francisco.
