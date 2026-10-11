@@ -91,6 +91,9 @@ export function createGraphics({ renderer, cfg }) {
 
   const GX = {
     get settings() { return G; },
+    // (whether the picture is drawn into a target of its own — through the finishing passes — not straight to the
+    // screen: shaders compiled ahead are compiled for that)
+    get drawsToTarget() { return needsPost(); },
     // (the frame time wanted: the cap's, else the screen's — at least 60 a second's worth)
     get targetMs() { return targetMs(); },
     set(next) {

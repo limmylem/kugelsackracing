@@ -216,7 +216,19 @@ stages, draw calls, triangles, memory and garbage.
 
 ## Loading
 
-- **Time to drivable** targets per tier (above). `tools/bench.mjs --network` measures it over a normal home connection.
+- **Time to drivable** targets per tier (above). `tools/bench.mjs --network` measures it over a normal home connection
+  (25 Mbit/s, 40 ms; a first visit — nothing cached), here drawing in software:
+
+  | | The game before Step 2 | Low | Medium | High |
+  |---|---|---|---|---|
+  | The 8-car race on a generated track | 9.2 s | 9.3 s | 9.4 s | 9.5 s |
+  | The 8-car race downtown (Map v3) | 11.7 s | 10.4 s | 11.5 s | 14.8 s |
+  | Target (the tier's) | — | 25 s | 15 s | 10 s |
+
+  Low and medium are within their targets. High downtown isn't, here. Its world's shaders compile before it's
+  drivable, and this machine compiles them one after another, in software, on the same CPU that draws. A gaming PC
+  compiles them on its graphics card's driver, in parallel. It's to be checked there: Settings → Graphics, "Test this
+  computer" and Shift+P.
 - **What players download**: the site (`tools/build-site.mjs`) leaves out the editor, the admin page, the development
   and test pages and the benchmarks' scenes (`perf/bench.js`); the finishing passes (bloom, FXAA) load only when one
   is turned on; the first launch's benchmark only on the first launch.

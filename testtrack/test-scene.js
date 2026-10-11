@@ -1488,9 +1488,17 @@ async function precompile(object, w = active) {
   if (!w || !object) return;
   const was = object.visible;
   object.visible = true;
-  const p = shared.renderer.compileAsync(object, w.camera, w.scene);
+  const p = compileFor(object, w);
   object.visible = was;
   try { await p; } catch { /* drawn when it's drawn */ }
+}
+// (compiled for where they'll be drawn: through the finishing passes the picture is drawn into a target of its own,
+// which takes other versions of the shaders than the screen — no tone mapping, linear colour — so compiled for the
+// screen they'd be compiled again at first sight; the versions are settled before compileAsync's first await)
+function compileFor(object, w, scene = w.scene) {
+  const R = shared.renderer, was = R.getRenderTarget();
+  R.setRenderTarget(shared.gfx?.drawsToTarget ? (shared.compileTarget ??= new THREE.WebGLRenderTarget(1, 1)) : null);
+  try { return R.compileAsync(object, w.camera, scene); } finally { R.setRenderTarget(was); }
 }
 // A world once built: what's in it, and what comes later — the one-piece cars (near and far), a window and a lamp
 // broken (garage/visual.js crackedMaterial), lit as this world is. (The materials kept: a program goes when the last
@@ -1504,7 +1512,7 @@ async function warmShaders(w) {
   for (const m of mats) warm.add(new THREE.Mesh(geo, m));
   (shared.warmKeep ??= []).push(...mats.slice(2));
   const t0 = performance.now();
-  try { await shared.renderer.compileAsync(w.scene, w.camera); await shared.renderer.compileAsync(warm, w.camera, w.scene); } catch (e) { console.warn('shaders:', e); }
+  try { await compileFor(w.scene, w, null); await compileFor(warm, w); } catch (e) { console.warn('shaders:', e); }
   w.warmMs = performance.now() - t0;
 }
 

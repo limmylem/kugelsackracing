@@ -32,9 +32,7 @@ const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
 await ctx.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: `${nm}/three/${new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')}`, contentType: 'text/javascript' }));
 await ctx.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: `${nm}/@dimforge/rapier3d-compat/dist/rapier.mjs`, contentType: 'text/javascript' }));
 await ctx.route(/fonts\.(googleapis|gstatic)\.com|cesium|openfreemap|demotiles/, r => r.abort());
-const esbuild = await import('esbuild'), bundles = new Map();
-const bundle = async pkg => bundles.get(pkg) ?? bundles.set(pkg, (await esbuild.build({ stdin: { contents: `export * from '${pkg}'; export { default } from '${pkg}';`, resolveDir: ROOT }, bundle: true, format: 'esm', write: false, logLevel: 'silent' }).catch(() => esbuild.build({ stdin: { contents: `export * from '${pkg}';`, resolveDir: ROOT }, bundle: true, format: 'esm', write: false }))).outputFiles[0].text).get(pkg);
-await ctx.route(/cdn\.jsdelivr\.net\/npm\/(pbf|@mapbox\/vector-tile)@/, async r => r.fulfill({ body: await bundle(/pbf@/.test(r.request().url()) ? 'pbf' : '@mapbox/vector-tile'), contentType: 'text/javascript' }));
+// (pbf@4 and @mapbox/vector-tile@2 from the CDN, as the game has them: node_modules has a newer pbf, with no default export)
 await ctx.route('https://cdn.jsdelivr.net/npm/maplibre-gl@*/dist/**', r => { const f = new URL(r.request().url()).pathname.split('/dist/')[1]; return r.fulfill({ path: `${nm}/maplibre-gl/dist/${f}`, contentType: f.endsWith('.css') ? 'text/css' : 'text/javascript' }); });
 const page = await ctx.newPage(), errors = [];
 page.on('pageerror', e => errors.push(String(e.message ?? e).slice(0, 200)));
