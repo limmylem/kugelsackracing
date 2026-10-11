@@ -180,7 +180,8 @@ Cloudflare as players reach it:
 - the API: healthy, `production`, its database answering; CORS for the game (with cookies), not for another site; the
   admin page and the editor's code, signed out, send you to sign in;
 - the game: its page loads its settings first; `site/config.js` names every address and has `multiplayer: true`; it's
-  the commit the API runs; `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
+  the commit the API runs (asked again for up to a minute: just after a deploy Pages can answer with the one before
+  for some seconds); `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
 - the tiles: a byte range (206), from Cloudflare's cache the second time (`cf-cache-status: HIT`), CORS for the game's
   and the API's addresses even from the cache, not for another site;
 - real time: `https://rt.ognistrada.com/health` is ok (and not draining), the same commit as the API, and 10 round
