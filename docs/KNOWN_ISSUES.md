@@ -23,6 +23,9 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   race). Left as it is: the collector takes about 1–2% of the main thread for it, in pauses of about a millisecond
   (`tools/bench.mjs --cpu`), and rewriting the vehicle model's arithmetic isn't worth any risk to the physics.
 - **Safari is tested as WebKit** (Playwright's build of Safari's engine, on macOS in CI), not Safari itself.
+- **Firefox isn't driven in CI:** on GitHub's Linux machines it has no WebGL at all (no graphics card, no software
+  fallback even forced on); what it supports and the old-browser message are checked. Firefox is to be tried on a real
+  computer.
 - **Live reflections (ultra) draw the scene again** a face every other frame: a high-end setting.
 - **A far car in one piece shows no new dents** until it's near again (dents too small to see at that distance), and
   its wheels don't turn; its shadow is its one piece's too, so a shadow doesn't show a door hanging open.

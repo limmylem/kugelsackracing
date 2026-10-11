@@ -264,6 +264,11 @@ switches settings while driving, and checks a browser missing something is told 
 | performance.memory | no — no heap figure in the overlay | yes | no | no |
 | WebGPU | no — not used (above) | yes | partly | 26+ |
 
+On GitHub's machines (October 2026): Chromium 141, Chrome 154, Edge 154 and WebKit 26 on Linux, and WebKit and
+Chromium on macOS, each driven on low and high with every setting switched while driving — all pass. Firefox 142 on
+Linux has no WebGL there at all (no graphics card, and no software fallback, even forced on), so it isn't driven
+there: what it supports, and the message for a browser missing something, are still checked (`SKIP` in the report).
+
 (Filled in from the `browsers` workflow's report: `reports/browsers/*.json` in its artifacts. Run here, Chromium 141
 in software: everything needed there; the test centre driven on low and high; every setting switched while driving;
 the settings' own benchmarks run; the first launch picked low, as it should for software graphics; a browser without
