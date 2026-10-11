@@ -53,12 +53,16 @@ fs.mkdirSync(OUT, { recursive: true });
 // ---------- the browser ----------
 let chromium;
 try { ({ chromium } = await import('playwright')); } catch { console.error('Run npm ci in devlog/ first (Playwright).'); process.exit(2); }
-const browser = await chromium.launch({
+const launch = () => chromium.launch({
   executablePath: process.env.CHROMIUM || undefined,
   // (software WebGL: GitHub's runners have no GPU)
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
     ...(process.env.DEVLOG_NO_PROXY ? ['--no-proxy-server'] : [])],
 });
+const browser = await launch();
+// (the second car: a browser of its own — in the same one its small frames would wait behind the camera car's big
+// ones in their shared graphics process)
+let rivalBrowser = null;
 
 // The page's animation frames, on our clock: window.__devlog.start() hands them over, step(ms) runs one frame at
 // a time later by ms. (Before start() the game runs as usual: loading, building the track.)
@@ -132,8 +136,8 @@ if (TARGET === 'local') {
   };
 }
 
-async function openGame({ who, width, height, scale, track, room, names }) {
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: 'no-preference' });
+async function openGame({ who, width, height, scale, track, room, names, on = browser }) {
+  const ctx = await on.newContext({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: 'no-preference' });
   if (TARGET === 'local') await localLibs(ctx);
   await ctx.addInitScript(VIRTUAL_FRAMES);
   // (the game asks the API for a join ticket for "player <who>": answered here — locally signed, or the live
@@ -187,7 +191,7 @@ const othersSeen = page => page.evaluate(() => {
   const M = globalThis.__krMp;
   if (!M) return 'not online (no multiplayer started)';
   const o = M.others?.() ?? [];
-  return `${M.status ?? M.net?.status ?? '?'}; ${o.length ? o.map(x => `${x.name} ${Math.round(x.distM)} m away${x.onScreen ? ', on screen' : ''}`).join(' · ') : 'no other car'}`;
+  return `${M.status ?? M.net?.status ?? '?'}; ${o.length ? o.map(x => `${x.name} ${Math.round(x.distM)} m away, ${x.drawn ? 'drawn' : `not drawn${x.why ? ` (${x.why})` : ''}`}${x.onScreen ? ', on screen' : ''}, last heard ${Math.round(x.ageMs ?? -1)} ms ago`).join(' · ') : 'no other car'}`;
 }).catch(e => `(${e.message})`);
 const step = (page, ms) => page.evaluate(m => window.__devlog.step(m), ms);
 // (the names over other cars: marked to be kept when "names" is on)
@@ -202,9 +206,11 @@ async function run(shots, { track, multiplayer }) {
   await rec.page.evaluate(() => window.__devlog.start());
   let rival = null;
   if (multiplayer) {
-    rival = await openGame({ who: 'rival', width: 320, height: 240, scale: 1, track, room, names: false });
+    rivalBrowser ??= await launch();
+    rival = await openGame({ who: 'rival', width: 320, height: 240, scale: 1, track, room, names: false, on: rivalBrowser });
     log('the second car is up');
-    await rival.page.evaluate(() => window.__devlog.start());
+    // (nobody watches it: drawn tiny, so its steps are quick)
+    await rival.page.evaluate(() => { window.__devlog.start(); window.__devlogShared().renderer.setPixelRatio(0.25); });
     const e = await startAutopilot(rival.page); if (e) throw new Error(`rival: ${e}`);
     // the rival goes first: a head start (game seconds), so it's on the road ahead of the camera car
     for (let k = 0; k < Math.round((SHOTS.rivalHeadStart ?? 1.5) * 20); k++) { await step(rival.page, 50); await sleep(60); }
@@ -212,15 +218,25 @@ async function run(shots, { track, multiplayer }) {
   const e = await startAutopilot(rec.page); if (e) throw new Error(e);
   const dt = 1000 / FPS;
   let t = 0;                        // game seconds since the autopilot started
-  // Both pages step together, and each step takes the same real time (the period): the other car's states then
-  // arrive evenly, as they would from a player, and it moves smoothly on screen
+  // Both pages go forward the same game time each frame, and each frame takes the same real time (the period). The
+  // camera car's frame is slow (a second or more to draw); the rival takes its share of game time in small steps
+  // spread over the period (one about every RIVAL_STEP_MS), so its car states reach the server at a steady, ordinary
+  // pace — states seconds apart are stamped unevenly by the game's clock and refused (net/client.js stampNow,
+  // server/src/rt/checks.ts) — and its car moves smoothly on the camera car's screen
+  const RIVAL_STEP_MS = 700;
   let period = multiplayer ? null : 0;
   const advance = async (ms, shoot) => {
     const t0 = performance.now();
-    if (rival) await step(rival.page, ms);
+    let rivalSteps = null;
+    if (rival && !period) await step(rival.page, ms);
+    else if (rival) {
+      const n = Math.max(1, Math.round(period / RIVAL_STEP_MS));
+      rivalSteps = (async () => { for (let i = 0; i < n; i++) { await step(rival.page, ms / n); const wait = t0 + (i + 1) * period / n - performance.now(); if (wait > 0) await sleep(wait); } })();
+    }
     await step(rec.page, ms);
     // (the page's screenshot: the 3D view and any names over the cars; the frame is drawn while it's taken)
     const shot = shoot ? await rec.page.screenshot({ type: 'jpeg', quality: 92, animations: 'allow', caret: 'initial', timeout: 60000 }) : null;
+    if (rivalSteps) await rivalSteps;
     if (period) { const left = period - (performance.now() - t0); if (left > 0) await sleep(left); }
     t += ms / 1000;
     return { shot, took: performance.now() - t0 };
@@ -229,7 +245,7 @@ async function run(shots, { track, multiplayer }) {
     // (how long a step takes on this machine, screenshot and all: the period a little longer than that)
     const took = [];
     for (let k = 0; k < 6; k++) took.push((await advance(dt, true)).took);
-    period = Math.min(4000, Math.max(...took.slice(2)) * 1.25);
+    period = +process.env.DEVLOG_PERIOD || Math.min(4000, Math.max(...took.slice(2)) * 1.25);
     log(`a frame takes about ${Math.round(Math.max(...took.slice(2)))} ms: one every ${Math.round(period)} ms`);
     if (names()) await keepLabels(rec.page);
   }
@@ -259,6 +275,7 @@ async function run(shots, { track, multiplayer }) {
     }
     ff.stdin.end();
     await done;
+    if (multiplayer) log(`  ${s.name}, at its end: ${await othersSeen(rec.page)}`);
     made.push({ name: s.name, file: path.relative(DEVLOG, file), seconds, fps: FPS, multiplayer: !!multiplayer, camera: s.camera ?? 'chase', label: s.label ?? null });
     log(`${s.name}: ${seconds} s → ${path.relative(process.cwd(), file)}`);
   }
@@ -282,6 +299,7 @@ try {
   console.error(`capture failed: ${e.stack ?? e}`);
 } finally {
   await browser.close().catch(() => {});
+  await rivalBrowser?.close().catch(() => {});
   server?.kill();
   if (rt) { try { await rt.stop?.(); } catch {} }
 }
