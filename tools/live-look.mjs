@@ -11,6 +11,13 @@ for (const f of (opt('--files', '/editor/roads.js,/editor/markers3d.js,/testtrac
   const r = await fetch(`${GAME}${f}`, { redirect: 'manual' });
   console.log(`${f}: ${r.status} ${r.headers.get('content-type')} · ${r.headers.get('location') ?? ''} · cf-cache ${r.headers.get('cf-cache-status') ?? '-'} · ${(await r.text()).slice(0, 80).replace(/\s+/g, ' ')}`);
 }
+// Adelaide's map on the live addresses: the game's list of baked regions, and its manifest and a tile on the tiles' address
+try {
+  const tiles = opt('--tiles', 'https://tiles.ognistrada.com'), baked = await (await fetch(`${GAME}/data/map/baked.json`)).json();
+  const m = await (await fetch(`${tiles}/assets/map/adelaide/manifest.json`)).json(), t = m.tiles[Math.floor(m.tiles.length / 2)];
+  const r = await fetch(`${tiles}/assets/map/adelaide/tiles/${t.i}_${t.j}.m3t`, { headers: { Origin: GAME } });
+  console.log(`adelaide: in the game's regions ${baked.regions.some(x => x.id === 'adelaide') ? 'yes' : 'NO'} · manifest ${m.version}, ${m.tiles.length} tiles · tile ${t.i}_${t.j}: ${r.status}, ${(await r.arrayBuffer()).byteLength} bytes (${t.bytes} baked), CORS ${r.headers.get('access-control-allow-origin')}`);
+} catch (e) { console.log(`adelaide: couldn't check (${e.message})`); }
 // the quests' tiers as the live server prices them (its economy, as the database gives it back): a 2-star sprint with no
 // class rule is a Rookie quest, free to enter (the editor's own figure — the jsonb key order put class A first once)
 try {
@@ -53,6 +60,24 @@ for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000]
     await page.keyboard.up('KeyW');
     console.log(`  sound (in ${world ?? 'no world yet'}): ${S ? (S.error ?? `${S.state}, ${S.worklet ? 'on the worklet' : 'no worklet'}, quality ${S.quality}; engines ${S.engines.join(', ') || 'none'}; ${S.files} files; loudest ${S.peakDb.toFixed(1)} dBFS; the audio thread ${(S.cpu * 100).toFixed(1)}% of real time`) : 'not started'}`);
     console.log(`  sound files from the tiles: ${sounds.opus} Opus, ${sounds.wav} WAV, ${sounds.failed} failed`);
+    // Adelaide (2026-10-11): the full map's Regions list has it, its Travel goes there, the ground streams in from the
+    // tiles' address (the hint cards closed first, as a player would)
+    const tilesSeen = { ok: 0, failed: 0 };
+    page.on('response', r => { if (!/\/assets\/map\/adelaide\//.test(r.url())) return; if (r.status() >= 400) tilesSeen.failed++; else tilesSeen.ok++; });
+    for (const h of await page.locator('text=click to dismiss').all()) await h.click().catch(() => {});
+    await page.keyboard.press('Tab'); await page.waitForTimeout(3000);
+    const row = page.locator('#questFinder .r', { hasText: 'Adelaide' });
+    console.log(`  the full map's regions: ${(await page.locator('#questFinder .r').allInnerTexts().catch(() => [])).map(s => s.replace(/\s+/g, ' ')).join(' | ') || 'none shown'}`);
+    const t0 = Date.now();
+    if (await row.count()) await row.locator('button[data-region="adelaide"]').click().catch(e => console.log(`  Travel: ${e.message}`));
+    else console.log('  no Adelaide in the regions list');
+    let there = null;
+    for (let k = 0; k < 60 && !there; k++) {
+      await page.waitForTimeout(1000);
+      there = await page.evaluate(async () => { const w = (await import('/testtrack/test-scene.js')).debug.active; return w?.file?.includes('adelaide') && w.stream && !w.held && !w.spawning ? { label: document.getElementById('map3Label')?.textContent, where: document.getElementById('map3Where')?.innerText?.replace(/\n/g, ' · '), y: +w.sim.vehicle.body.translation().y.toFixed(1) } : null; }).catch(() => null);
+    }
+    console.log(`  Adelaide: ${there ? `drivable after ${((Date.now() - t0) / 1000).toFixed(1)} s · ${there.where} · height ${there.y} m · ${there.label}` : 'not reached in 60 s'} · ${tilesSeen.ok} of its files fetched, ${tilesSeen.failed} failed`);
+    await page.screenshot({ path: 'live-adelaide.png' });
   }
   await page.screenshot({ path: `live-${name.replace(/\W+/g, '-')}.png` });
 }
