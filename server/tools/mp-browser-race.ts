@@ -225,9 +225,9 @@ try {
   // (each row: the car and its class, ready or not, the rank — as the server has them; looked at until it shows them
   // all as the server has them: a bot's ready comes a moment after its name)
   const matches = rows => R0.lobbyView().players.filter(p => p.role === 'racer').every(p => { const row = rows.find(l => l.includes(p.name)); return row && row.includes(p.car?.name ?? '§') && (p.ready ? /\bReady\b/.test(row) : /Not ready/.test(row)) && row.includes(p.tier?.name ?? '§'); });
-  const rowsOf = s => s?.text.split('\n').filter(l => /Player|Bot/.test(l)) ?? [];
-  const five = await until(async () => { const s = await seen(A, '#mpLobby [data-players]'); return s.ok && crew.every(x => s.text.includes(x.name)) && matches(rowsOf(s)) ? s : null; }, 20000);
-  const rows = rowsOf(five ?? await seen(A, '#mpLobby [data-players]'));
+  const lobbyRows = s => s?.text.split('\n').filter(l => /Player|Bot/.test(l)) ?? [];
+  const five = await until(async () => { const s = await seen(A, '#mpLobby [data-players]'); return s.ok && crew.every(x => s.text.includes(x.name)) && matches(lobbyRows(s)) ? s : null; }, 20000);
+  const rows = lobbyRows(five ?? await seen(A, '#mpLobby [data-players]'));
   check('the lobby screen: each player with their car and class, ready or not, and rank — as the server has them', !!five, rows.join(' | '));
   // (and nothing of a race over it: no lights, no race HUD, no results)
   const stray = [];
