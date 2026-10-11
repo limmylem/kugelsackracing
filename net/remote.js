@@ -60,6 +60,9 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   const I = interp, interval = 1000 / sendHz;
   const buf = [];                       // states, oldest first, by time
   const lags = [];
+  // (sorted in an array of their own, made once: a copy sorted with a comparator made garbage for every comparison —
+  // the delays aren't whole numbers — the most of anything in free roam with 29 others; Phase 8 Step 2)
+  const lagsSorted = new Float64Array(LAGS);
   let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1, teleported = false;
   let shown = null;                     // what was drawn last frame: { pos, rot, vel, ang } (vel/ang: as drawn)
   let blend = null;                     // a correction under way: from the path shown { t0, T, p0, v0, q0, w0 } to the real one
@@ -123,7 +126,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       if (buf.length && state.time < buf[0].time) return;               // (too late to be any use)
       const lag = arrivedAt - state.time;
       lags.push(lag); if (lags.length > LAGS) lags.shift();
-      const sorted = [...lags].sort((a, b) => a - b), p50 = pct(sorted, 0.5), p95 = pct(sorted, 0.95);
+      lagsSorted.set(lags);
+      const sorted = lagsSorted.subarray(0, lags.length).sort(), p50 = pct(sorted, 0.5), p95 = pct(sorted, 0.95);
       stats.lagP50 = p50; stats.lagP95 = p95;
       // far enough back that 95% of states are in before they're needed (and the next one too)
       target = Math.max(p50 + I.minBufferMs, Math.min(p50 + I.maxBufferMs, p95 + interval / 2));
