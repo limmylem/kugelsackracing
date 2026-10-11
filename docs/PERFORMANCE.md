@@ -140,8 +140,8 @@ stages, draw calls, triangles, memory and garbage.
 |---|---|---|
 | **One draw for a car's shadow** — each car's one-piece copy casts its shadow, its parts none | `garage/visual.js` setDetail, `testtrack/test-scene.js` carDetailFrame | Shadow draws in the 8-car race 188 → 17 (−91%), downtown 126 → 23 (−82%) |
 | **Far cars in one piece** (car detail, detailed cars) | same | The 10-car pile-up 414 → about 230 picture draws; triangles 642k → 185k |
-| **The spark lights never hidden** — hiding one changed the scene's light count, and every material was compiled again at the first sparks | `effects/threeRenderer.js` | No more shader-compile stutter at the first crash |
-| **Shaders compiled before they're needed**: the world's when it's entered, other players' and NPCs' cars while they're still hidden, the one-piece cars and broken glass and lamps ahead of time | `testtrack/test-scene.js` warmShaders, precompile | Shader-compile stutters in the benchmarks (see the report) |
+| **The spark lights never hidden** — hiding one changed the scene's light count, and every material was compiled again at the first sparks | `effects/threeRenderer.js` | Found while testing the high effects (spark lights on); no recompiling at the first sparks |
+| **Shaders compiled before they're needed**: the world's when it's entered, other players' and NPCs' cars while they're still hidden, the one-piece cars and broken glass and lamps ahead of time — each for where it'll be drawn (through the finishing passes the picture is a target of its own, which takes other versions of the shaders than the screen) | `testtrack/test-scene.js` warmShaders, precompile, compileFor | Shaders compiled while the pile-up ran, from its set-up through the crash (high): 1 → 0 — the far cars' one-piece material, compiled at first for the screen. (The game before Step 2: 0, with no one-piece cars to compile.) |
 | **The crash replay's recording recycled** — 30 frames a second of every car's state, each kept 6 s: long enough to outlive the quick collections | `physics/replay.js` | Nothing measurable in the garbage made (the physics' own small vectors are about 80% of it, and stay); what it saves is old objects for the full collections, too few in a benchmark run to count |
 | **Other players' network delays sorted without garbage** (a reused array sorted numerically, the same figures) | `net/remote.js` | Free roam with 29 others: the garbage outside the frame 8.0 → 3.4 MB/s (−58%); in all 83 → 78 MB/s |
 | **One-piece copies made into typed arrays, and not again for every dent** (the first version made 90% of the pile-up's garbage) | `garage/visual.js` | — (found by `--alloc` before it shipped) |
@@ -261,7 +261,10 @@ switches settings while driving, and checks a browser missing something is told 
 | performance.memory | no — no heap figure in the overlay | yes | no | no |
 | WebGPU | no — not used (above) | yes | partly | 26+ |
 
-(Filled in from the `browsers` workflow's report: `reports/browsers/*.json` in its artifacts.)
+(Filled in from the `browsers` workflow's report: `reports/browsers/*.json` in its artifacts. Run here, Chromium 141
+in software: everything needed there; the test centre driven on low and high; every setting switched while driving;
+the settings' own benchmarks run; the first launch picked low, as it should for software graphics; a browser without
+DecompressionStream told what to use.)
 
 **Too old a browser** (index.html, before anything loads): missing any needed feature, the page says what's missing
 and to use an up-to-date Chrome, Edge or Firefox, or Safari 16.4 or newer — or, missing only WebGL 2, to turn hardware
