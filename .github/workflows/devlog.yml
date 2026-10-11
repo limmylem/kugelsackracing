@@ -13,10 +13,10 @@ on:
         type: string
         default: ''
       target:
-        description: 'Film the live site (what players see) or this commit''s game'
+        description: 'What to film: local = the game in this repository, with a private game server on GitHub''s computer (production untouched); live = ognistrada.com'
         type: choice
-        options: [live, local]
-        default: live
+        options: [local, live]
+        default: local
       multiplayer:
         description: 'A second car joins, so multiplayer shows'
         type: boolean

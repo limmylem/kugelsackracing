@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseScript, plan, LIMITS } from './remotion/timeline.js';
+import { copyFonts } from './lib/fonts.mjs';
 import { draft, commitsSince, lastDevlog, scriptText, postCaption, today } from './script/draft.mjs';
 
 const DEVLOG = path.dirname(fileURLToPath(import.meta.url));
@@ -67,6 +68,7 @@ for (const w of P.warnings) console.warn(`  note: ${w}`);
 console.log(`Rendering ${(P.frames / 30).toFixed(1)} s (${LIMITS.min}–${LIMITS.max} s): the hook, ${P.captions.length} caption${P.captions.length === 1 ? '' : 's'}, the end card; ${P.cuts.length} cuts from ${clips.length} clip${clips.length === 1 ? '' : 's'}${music ? ', with music' : ''}`);
 
 // ---------- Remotion ----------
+copyFonts(OUTDIR);
 const { bundle } = await import('@remotion/bundler');
 const { renderMedia, selectComposition } = await import('@remotion/renderer');
 const serveUrl = await bundle({ entryPoint: path.join(DEVLOG, 'remotion/index.jsx'), publicDir: OUTDIR, onProgress: () => {} });

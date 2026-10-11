@@ -272,8 +272,11 @@ let clips = [], failed = false;
 try {
   const solo = SHOTS.shots.filter(s => !s.multiplayer), duo = SHOTS.shots.filter(s => s.multiplayer);
   if (solo.length) clips.push(...await run(solo, { track: SHOTS.track, multiplayer: false }));
-  if (duo.length && MULTI) clips.push(...await run(duo, { track: SHOTS.multiplayerTrack ?? SHOTS.track, multiplayer: true }));
-  else if (duo.length) log(`(${duo.length} multiplayer shot${duo.length > 1 ? 's' : ''} left out: --multiplayer films them)`);
+  // (the second car's part failing leaves the solo shots: the video's still made, and the run says why)
+  if (duo.length && MULTI) {
+    try { clips.push(...await run(duo, { track: SHOTS.multiplayerTrack ?? SHOTS.track, multiplayer: true })); }
+    catch (e) { console.error(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}The multiplayer shots failed (the video is made without them): ${String(e.message ?? e).split('\n')[0]}`); if (process.env.DEVLOG_DEBUG) console.error(e.stack); }
+  } else if (duo.length) log(`(${duo.length} multiplayer shot${duo.length > 1 ? 's' : ''} left out: --multiplayer films them)`);
 } catch (e) {
   failed = true;
   console.error(`capture failed: ${e.stack ?? e}`);

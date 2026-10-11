@@ -8,10 +8,11 @@
     "capture": "node capture/capture.mjs",
     "render": "node render.mjs",
     "make": "node make.mjs",
-    "studio": "remotion studio remotion/index.jsx",
+    "studio": "node lib/fonts.mjs && remotion studio remotion/index.jsx --public-dir out",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@fontsource/barlow-condensed": "5.3.0",
     "@remotion/bundler": "4.0.534",
     "@remotion/cli": "4.0.534",
     "@remotion/renderer": "4.0.534",

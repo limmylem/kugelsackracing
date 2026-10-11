@@ -54,8 +54,8 @@ video (more, and the last ones are left out; the run's summary says so).
 
 | Box | What it does |
 |---|---|
-| Film the live site / this commit's game | **live** (default) films ognistrada.com as players see it. **local** films the game as it is in the repository, even before it's deployed. |
-| A second car joins | On (default): a second car races in the same private room. On the live site both cars use the load-test token (`LOADTEST_TOKEN`, already in the repository's secrets): made-up guests "Bot 190" and "Bot 191", never anyone's account, and nothing they do counts. If the token isn't there, it films one car and says so. |
+| What to film | **local** (default): the game as it is in the repository (what's deployed, or about to be), with its own private game server on GitHub's computer: production isn't touched. **live**: ognistrada.com itself, as players see it. |
+| A second car joins | On (default): a second car races in the same private room. Locally it needs nothing. On the live site both cars use the load-test token (`LOADTEST_TOKEN`, already in the repository's secrets): made-up guests ("Bot 190", "Bot 191"), never anyone's account, and nothing they do counts; without the token it films one car and says so. If the second car ever fails, you still get the video, without those shots. |
 | Mark this as this week's devlog | On (default): tags the commit `devlog-YYYY-MM-DD`. Turn it off for a test run. |
 
 ## Change what it films
@@ -75,14 +75,16 @@ cd kugelsackracing/devlog
 npm ci
 npx playwright install chromium
 
+(cd .. && npm ci)                      # the game's own packages (for filming the game in this folder)
+
 npm run draft                          # drafts out/script.txt: open it and edit the words
-npm run make -- --target live          # films ognistrada.com, then makes out/devlog-<date>.mp4 and out/post.txt
-npm run make -- --target live --reuse-clips --music ~/Music/my-track.mp3   # new words or music, without filming again
+npm run make -- --multiplayer          # films the game, then makes out/devlog-<date>.mp4 and out/post.txt
+npm run make -- --reuse-clips --music ~/Music/my-track.mp3   # new words or music, without filming again
 ```
 
-To film the repository's own game instead (`--target local`), run `npm ci` in the repository's folder first.
-`--multiplayer` adds the second car (on the live site it needs `LOADTEST_TOKEN` set in your terminal; never paste it
-into a chat). `--quick` does a fast, small test run. `npm run studio` opens Remotion's editor to see the template.
+`--target live` films ognistrada.com instead (with `--multiplayer` it needs `LOADTEST_TOKEN` set in your terminal;
+never paste it into a chat). `--quick` does a fast, small test run. `npm run studio` opens Remotion's editor to see
+the template.
 
 Everything it makes goes in `devlog/out/`, which git ignores: videos and music are never committed.
 

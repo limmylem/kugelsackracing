@@ -11,18 +11,14 @@ const CAPTION_Y = 700;
 const BRAND = '#e8433a', INK = '#0f141e';
 const FONT = '"Barlow Condensed", "Arial Narrow", "Liberation Sans Narrow", "DejaVu Sans Condensed", Impact, sans-serif';
 
-// The game's own typeface (Barlow Condensed, from Google Fonts — free, SIL Open Font License). If it can't be
-// fetched, the video still renders, in a system font.
+// The game's own typeface (Barlow Condensed, SIL Open Font License: lib/fonts.mjs puts it in the public folder). If it
+// isn't there, the video still renders, in a system font.
 function useBrandFont() {
   const [handle] = useState(() => delayRender('Loading the font', { timeoutInMilliseconds: 20000 }));
   useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=block';
-    document.head.appendChild(link);
-    const loaded = new Promise(r => { link.onload = r; link.onerror = r; })
-      .then(() => Promise.all(['700', '800'].map(w => document.fonts.load(`${w} 100px "Barlow Condensed"`))));
-    Promise.race([loaded, new Promise(r => setTimeout(r, 8000))]).catch(() => null).finally(() => continueRender(handle));
+    const faces = [['700', 'fonts/barlow-condensed-latin-700-normal.woff2'], ['800', 'fonts/barlow-condensed-latin-800-normal.woff2']];
+    Promise.all(faces.map(([weight, file]) => new FontFace('Barlow Condensed', `url(${staticFile(file)}) format("woff2")`, { weight }).load().then(f => document.fonts.add(f)).catch(() => null)))
+      .finally(() => continueRender(handle));
   }, [handle]);
 }
 
