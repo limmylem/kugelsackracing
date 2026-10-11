@@ -64,20 +64,27 @@ for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000]
     // tiles' address (the hint cards closed first, as a player would)
     const tilesSeen = { ok: 0, failed: 0 };
     page.on('response', r => { if (!/\/assets\/map\/adelaide\//.test(r.url())) return; if (r.status() >= 400) tilesSeen.failed++; else tilesSeen.ok++; });
-    for (const h of await page.locator('text=click to dismiss').all()) await h.click().catch(() => {});
+    // (each step held to a few seconds: the runner draws a frame a second or two, and a click waits for one)
+    for (const h of await page.locator('text=click to dismiss').all()) await h.click({ timeout: 5000 }).catch(() => {});
     await page.keyboard.press('Tab'); await page.waitForTimeout(3000);
     const row = page.locator('#questFinder .r', { hasText: 'Adelaide' });
     console.log(`  the full map's regions: ${(await page.locator('#questFinder .r').allInnerTexts().catch(() => [])).map(s => s.replace(/\s+/g, ' ')).join(' | ') || 'none shown'}`);
     const t0 = Date.now();
-    if (await row.count()) await row.locator('button[data-region="adelaide"]').click().catch(e => console.log(`  Travel: ${e.message}`));
-    else console.log('  no Adelaide in the regions list');
-    let there = null;
-    for (let k = 0; k < 60 && !there; k++) {
-      await page.waitForTimeout(1000);
-      there = await page.evaluate(async () => { const w = (await import('/testtrack/test-scene.js')).debug.active; return w?.file?.includes('adelaide') && w.stream && !w.held && !w.spawning ? { label: document.getElementById('map3Label')?.textContent, where: document.getElementById('map3Where')?.innerText?.replace(/\n/g, ' · '), y: +w.sim.vehicle.body.translation().y.toFixed(1) } : null; }).catch(() => null);
+    if (await row.count()) await row.locator('button[data-region="adelaide"]').click({ timeout: 10000 }).catch(e => console.log(`  Travel: ${e.message.split('\n')[0]}`));
+    else {
+      // (a signed-out visitor's full map has no quest finder, and so no regions list: into Adelaide the way the regions
+      // menu goes, by its world file)
+      console.log('  no regions list on the full map (signed out): entering Adelaide by its world file');
+      await page.keyboard.press('Escape');
+      void page.evaluate(async () => (await import('/testtrack/test-scene.js')).enter('scenes/map_v3.json?region=adelaide')).catch(e => console.log(`  enter: ${e.message.split('\n')[0]}`));
     }
-    console.log(`  Adelaide: ${there ? `drivable after ${((Date.now() - t0) / 1000).toFixed(1)} s · ${there.where} · height ${there.y} m · ${there.label}` : 'not reached in 60 s'} · ${tilesSeen.ok} of its files fetched, ${tilesSeen.failed} failed`);
-    await page.screenshot({ path: 'live-adelaide.png' });
+    let there = null;
+    while (!there && Date.now() - t0 < 90000) {
+      await page.waitForTimeout(1000);
+      there = await Promise.race([new Promise(r => setTimeout(() => r(null), 10000)), page.evaluate(async () => { const w = (await import('/testtrack/test-scene.js')).debug.active; return w?.file?.includes('adelaide') && w.stream && !w.held && !w.spawning ? { label: document.getElementById('map3Label')?.textContent, where: document.getElementById('map3Where')?.innerText?.replace(/\n/g, ' · '), y: +w.sim.vehicle.body.translation().y.toFixed(1) } : null; }).catch(() => null)]);
+    }
+    console.log(`  Adelaide: ${there ? `drivable after ${((Date.now() - t0) / 1000).toFixed(1)} s · ${there.where} · height ${there.y} m · ${there.label}` : 'not reached in 90 s'} · ${tilesSeen.ok} of its files fetched, ${tilesSeen.failed} failed`);
+    await page.screenshot({ path: 'live-adelaide.png', timeout: 20000 }).catch(e => console.log(`  screenshot: ${e.message.split('\n')[0]}`));
   }
   await page.screenshot({ path: `live-${name.replace(/\W+/g, '-')}.png` });
 }
