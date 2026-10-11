@@ -215,6 +215,11 @@ stages, draw calls, triangles, memory and garbage.
   last, the heap, geometries, textures, shaders, page elements and sound nodes haven't grown beyond a small allowance.
   Run here for 16 minutes (two rounds at medium, in software): the heap 391 → 402 MB, geometries 480 → 506, textures
   28 → 28, shaders 48 → 46, what the graphics card holds 96.8 → 96.8 MB — flat. The two hours: the `soak` workflow.
+  Its first run (on GitHub, 16 rounds) found a leak two rounds here couldn't: the heap 374 → 514 MB and 485 → 711
+  geometries — each pile-up's AI cars' dented copies of their geometry, left on the graphics card when the cars were
+  let go of (a car's dispose freed the dents on its socketed parts, not on the rest). Tracked geometry by geometry
+  (every one uploaded, against what any scene still draws), three rounds: before the fix 14 more left each round,
+  after it none (`garage/visual.js` dispose).
   (Where the browser can't reach the CDN, as here, `CDN_LIBS` names a folder with pbf@4 and @mapbox/vector-tile@2.)
 
 ## Loading
