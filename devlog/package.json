@@ -1,0 +1,23 @@
+{
+  "name": "ognistrada-devlog",
+  "private": true,
+  "type": "module",
+  "description": "The devlog video tool (DEVLOG.md): gameplay captured in a browser, a script drafted from git, a vertical video rendered with Remotion",
+  "scripts": {
+    "draft": "node script/draft.mjs",
+    "capture": "node capture/capture.mjs",
+    "render": "node render.mjs",
+    "make": "node make.mjs",
+    "studio": "remotion studio remotion/index.jsx",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.534",
+    "@remotion/cli": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "playwright": "1.56.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.534"
+  }
+}

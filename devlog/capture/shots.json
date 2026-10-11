@@ -1,0 +1,14 @@
+{
+  "//": "What the capture films (DEVLOG.md). track: a generated track's code (the game's Track world or dev/tracks.html makes them; this one is the game's default, a fast countryside circuit). Each shot: name, at (game seconds after the drive starts: the starting lights go green at about 6), seconds long, camera (chase, bonnet, cockpit, side, high). The video cuts between the shots in this order, the first under the title. Shots with multiplayer: true are filmed in a second run with another car on the grid (it starts rivalHeadStart seconds earlier, so it leads); names: true shows the players' names over the cars.",
+  "track": "08028-CG81C-D1K00-02R00-0003M-8",
+  "names": false,
+  "rivalHeadStart": 1.2,
+  "shots": [
+    { "name": "launch", "at": 5, "seconds": 4, "camera": "chase" },
+    { "name": "side", "at": 14, "seconds": 4, "camera": "side" },
+    { "name": "cockpit", "at": 24, "seconds": 4, "camera": "cockpit" },
+    { "name": "rival", "at": 2, "seconds": 6, "camera": "chase", "multiplayer": true },
+    { "name": "high", "at": 34, "seconds": 4, "camera": "high" },
+    { "name": "bonnet", "at": 44, "seconds": 4, "camera": "bonnet" }
+  ]
+}
