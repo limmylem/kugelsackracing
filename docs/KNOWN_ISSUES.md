@@ -13,12 +13,22 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   116 km/h, so its Adelaide route ends before it). Overall Adelaide has the fewest sharp grade changes of any region
   (more than 10 % within 4 m: 2.6 per 10 km of road, San Francisco 9.4, Tokyo 22, Monaco 64). The fix: the LiDAR
   as the region's first elevation source, then a bake.
-- **`npm run test:map -- --region adelaide`: two road checks fail**, both bake behaviour that every region has:
+- **`npm run test:map -- --region adelaide`: four checks fail**, all bake behaviour or the test's set-up, not
+  Adelaide's data:
   - one dead end of 14,154 lies on another road without joining it: Middleton Drive, which OpenStreetMap (via
     Overture) ends 10.8 m short of McMurray Avenue's straight 176 m piece — beyond the join's 6 m — while the curve
     the bake fits through McMurray's nodes brings the road under its end. The two meet within 4 cm: no step.
   - the road-surface check's 5 % sample finds one OSM node 1.4 m from the drawn surface: Brooks Lane, a 7.6 m
     piece between two junctions, where the two junction fans leave a gap and the ground shows 7 cm below.
+  - the railings test's parapet is at the end of the Montefiore Road bridge (by Morphett Street), where its deck
+    is 1 m above a road beside it: hit from that road at 15°, the car slips under the deck's end (2 of 16 hits).
+    The bake keeps the ground clear under a bridge's ends and nothing closes their sides, in every region; from
+    the deck the parapet holds at 50–300 km/h.
+  - the Phase 1 physics test runs on the coast spot's road, and the Esplanade's longest straight is 653 m (it
+    wants 900). On Anzac Highway's 1,320 m straight the same tests pass (0–100 in 9.28 s, 100–0 in 41.2 m).
+- **NPC racers** (`npm run test:npc -- --regions adelaide`, not blocking in CI): Adelaide's route at low, medium
+  and high skill finishes cleanly; the 8-car race finishes with every car but 1 stuck and 2 resets, as Monaco's and
+  Stelvio's do (docs/NPC_RACERS.md, "Known limits").
 - **Its road graph is the biggest** (89,000 segments): about 0.4 GB in memory in each of the API and the
   real-time server once someone drives there (docs/DEPLOYMENT.md), and about 0.2 GB of a browser's memory once Set
   route or a quest there loads it (San Francisco's: about half).

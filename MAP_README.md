@@ -287,11 +287,23 @@ north to Somerton Park and Mitcham in the south, with the CBD, North Adelaide an
 - **Tests (`npm run test:map -- --region adelaide`):**
   - The baked centre lines are within 0.7 cm of OpenStreetMap (306,878 nodes).
   - The drawn road is within 0.4 cm of the elevation profile, and physics within 0.4 cm (junctions 12 cm).
-  - Two road checks fail, both bake behaviour every region has (docs/KNOWN_ISSUES.md, "Adelaide"): one dead end
-    of 14,154 (Middleton Drive) lies on a road it isn't joined to, and the 5 % sample of the drawn road's surface
-    finds one node 1.4 m from it, on a 7.6 m piece between two junctions.
+  - All 3,112 tile edges are identical in physics.
+  - One vertical datum (EGM2008); no LiDAR, so no blend to check.
+  - The guard rail on Greenhill Road and the wall on King William Street hold at 50–300 km/h.
+  - Streaming: 20 km at 200 km/h with the ground always ready. Over 284 tiles the heap grows by 3 MB.
+  - Two bakes come out byte-identical.
+  - The Phase 1 physics tests pass on Anzac Highway's 1,320 m straight (the test looks on the coast spot's road,
+    and the Esplanade's longest straight is 653 m: it reports that as a failure).
+  - Three more fail, all bake behaviour every region has (docs/KNOWN_ISSUES.md, "Adelaide"): one dead end of
+    14,154 (Middleton Drive) lies on a road it isn't joined to; the 5 % sample of the drawn road's surface finds
+    one node 1.4 m from it (Brooks Lane, a 7.6 m piece between two junctions); and the railings test's parapet,
+    at the end of the Montefiore Road bridge, is hit from the road beside it, 1 m below the deck, and the car
+    slips under the deck's end (from the deck, it holds at 50–300 km/h).
   - `npm run test:routes -- --only adelaide`: from North Adelaide down O'Connell Street and King William Road
-    over Adelaide Bridge (1.67 km), driven to the finish by the autopilot.
+    over Adelaide Bridge (1.67 km), driven to the finish by the autopilot. `npm run test:npc -- --regions
+    adelaide`: NPCs at low, medium and high skill finish it cleanly.
+- **In the browser:** from San Francisco, the full map's **Travel** to Adelaide is drivable at Victoria Square in
+  12 s, and every quick-travel spot in 10–23 s, with software rendering on the build machine.
 - **Baking it found two bake bugs**, fixed for every region's next bake:
   - with PROJ's EGM2008 geoid grid missing, GDAL warped the elevation to nothing and the region baked flat at 0 m
     without a word: the bake now stops ([Baking a region](#baking-a-region));
