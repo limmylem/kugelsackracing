@@ -25,7 +25,11 @@ it in the browser. A server with PostGIS can take over later with no change to t
     world map). If that can't be reached, it shows the baked region's own map.
     - Drag to pan, right-drag to turn and tilt, the wheel zooms.
     - W A S D pan, Q / E turn, R / F tilt, Z / X zoom; Shift is faster.
-  - **3D**: a free-flying camera over the baked world the game drives in (San Francisco for now).
+  - **3D**: a free-flying camera over the baked world you opened the editor from (the region you last drove in).
+- **Every region**: the editor works in whichever baked region you're in (data/map/baked.json: San Francisco,
+  Adelaide, Monaco, Tokyo, …) — the one you came from, where you place a new route, or the one an opened route
+  belongs to ("Working in Adelaide"). Snapping and road heights use every region's roads. Markers can go anywhere
+  on the map; routes need a baked region's roads.
     - W A S D fly, Q / E down and up, right-drag or the arrow keys to look round.
     - The wheel sets the speed; Shift is faster.
 - **Find a place** with the search box:
