@@ -219,7 +219,8 @@ stages, draw calls, triangles, memory and garbage.
   geometries — each pile-up's AI cars' dented copies of their geometry, left on the graphics card when the cars were
   let go of (a car's dispose freed the dents on its socketed parts, not on the rest). Tracked geometry by geometry
   (every one uploaded, against what any scene still draws), three rounds: before the fix 14 more left each round,
-  after it none (`garage/visual.js` dispose).
+  after it none (`garage/visual.js` dispose). The two hours again with the fix (16 rounds): the heap 373 → 418 MB,
+  geometries 492 → 508 (the same 508 for the last rounds), textures 28 → 30, shaders 45 → 45 — flat.
   (Where the browser can't reach the CDN, as here, `CDN_LIBS` names a folder with pbf@4 and @mapbox/vector-tile@2.)
 
 ## Loading
