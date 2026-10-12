@@ -129,6 +129,8 @@ try {
   check('a kit: bought for less, every part fitted', m2 - await money() === 552, `${m2 - await money()}`);
 
   // ---------- the dealership ----------
+  // (no tab of its own: the shop's Cars)
+  await click('[data-act="tab:shop"]');
   await click('[data-act="tab:dealer"]');
   await page.waitForSelector('#garage-root [data-act="dealer-view:interior"]');
   await click('[data-act="dealer-view:interior"]');

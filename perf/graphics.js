@@ -28,6 +28,23 @@ const SPEED_BLUR = {
     }`,
 };
 
+// The finishing pass's tone mapping: three.js r160's output pass knows only its own, not the game's (effects/look.js
+// neutralToneMapping: three.js's "custom") — taught it here
+function customToneMapped(THREE, output) {
+  output.material.fragmentShader = output.material.fragmentShader.replace('#ifdef LINEAR_TONE_MAPPING', '#ifdef CUSTOM_TONE_MAPPING\n\t\t\t\tgl_FragColor.rgb = CustomToneMapping( gl_FragColor.rgb );\n\t\t\t#elif defined( LINEAR_TONE_MAPPING )');
+  const render = output.render;
+  output.render = function (renderer, ...rest) {
+    if (renderer.toneMapping === THREE.CustomToneMapping && (this._toneMapping !== renderer.toneMapping || this._outputColorSpace !== renderer.outputColorSpace)) {
+      this._toneMapping = renderer.toneMapping; this._outputColorSpace = renderer.outputColorSpace;
+      this.material.defines = { CUSTOM_TONE_MAPPING: '' };
+      if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) this.material.defines.SRGB_TRANSFER = '';
+      this.material.needsUpdate = true;
+    }
+    return render.call(this, renderer, ...rest);
+  };
+  return output;
+}
+
 export function createGraphics({ renderer, cfg }) {
   let G = null, post = null, loading = null, wantKey = '', onBattery = false, displayMs = 1000 / 60;
   const cap = createFrameCap(), dyn = createDynamicResolution(cfg.dynamic);
@@ -69,7 +86,7 @@ export function createGraphics({ renderer, cfg }) {
       render(r, writeBuffer, readBuffer) { const j = this.job; if (j) j.fxDraw.render(j.scene, j.camera, readBuffer); }
     }
     const scene = new ScenePass(), bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.45, 0.35, 0.92);
-    const blur = new ShaderPass(SPEED_BLUR), output = new OutputPass(), fxaa = new ShaderPass(FXAAShader);
+    const blur = new ShaderPass(SPEED_BLUR), output = customToneMapped(THREE, new OutputPass()), fxaa = new ShaderPass(FXAAShader);
     for (const p of [scene, bloom, blur, output, fxaa]) composer.addPass(p);
     return { composer, rt, samples, scene, bloom, blur, output, fxaa, fxaaShader: FXAAShader, setSizes() {
       const s = renderer.getSize(new THREE.Vector2()), pr = renderer.getPixelRatio();

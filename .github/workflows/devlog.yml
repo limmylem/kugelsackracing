@@ -1,0 +1,169 @@
+# The weekly devlog video (DEVLOG.md): the game filmed in a headless browser, a script drafted from this week's commits
+# (or yours), a 20–45 s vertical video rendered with Remotion. Only when you click it: Actions → devlog → Run workflow.
+# Download it from the run's page: Artifacts → devlog-video (the MP4, the script, the post's caption and hashtags).
+# It changes nothing in the game or its servers. With multiplayer on the live site, both cars are the load test's
+# made-up guests (LOADTEST_TOKEN, already in the repo's secrets) in a private room — never an account.
+name: devlog
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'Your script (optional). Hook | caption | caption | … (| between them; END: … for the end card''s line). Empty: drafted from this week''s commits'
+        type: string
+        default: ''
+      target:
+        description: 'What to film: local = the game in this repository, with a private game server on GitHub''s computer (production untouched); live = ognistrada.com'
+        type: choice
+        options: [local, live]
+        default: local
+      multiplayer:
+        description: 'A second car joins, so multiplayer shows'
+        type: boolean
+        default: true
+      music_url:
+        description: 'Background music (optional): a direct link to an mp3/m4a you have the right to use'
+        type: string
+        default: ''
+      reuse_clips_from:
+        description: 'Skip the filming (~30 min): the run ID of an earlier devlog run whose gameplay to use (the number in its address)'
+        type: string
+        default: ''
+      tag:
+        description: 'Mark this as this week''s devlog (tag devlog-YYYY-MM-DD: next week''s draft starts after it)'
+        type: boolean
+        default: true
+
+# (one at a time)
+concurrency: { group: devlog, cancel-in-progress: false }
+
+permissions:
+  contents: read
+
+env:
+  TZ: Australia/Adelaide
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      actions: read          # (reuse_clips_from: the earlier run's clips)
+    outputs:
+      date: ${{ steps.date.outputs.date }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # (every commit and tag: the draft starts after the last devlog-* tag)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            devlog/package-lock.json
+      - id: date
+        run: echo "date=$(date +%F)" >> "$GITHUB_OUTPUT"
+      - name: The tool's packages (Playwright, Remotion) and Chromium
+        working-directory: devlog
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium chromium-headless-shell
+      - name: The game's packages (filming this commit's game)
+        if: inputs.target == 'local' && inputs.reuse_clips_from == ''
+        run: npm ci --no-audit --no-fund
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' }
+
+      - name: The script
+        working-directory: devlog
+        env:
+          SCRIPT_TEXT: ${{ inputs.script }}
+          DATE: ${{ steps.date.outputs.date }}
+        run: |
+          mkdir -p out
+          if [ -n "$SCRIPT_TEXT" ]; then
+            node -e 'const fs=require("fs");fs.writeFileSync("out/script.txt", `# Devlog script for ${process.env.DATE} (from the workflow'"'"'s input)\n${process.env.SCRIPT_TEXT}\n`)'
+          else
+            node script/draft.mjs --out out/script.txt --today "$DATE"
+          fi
+          { echo '### The script'; echo; echo '```'; grep -v '^#' out/script.txt | sed '/^$/d'; echo '```'; echo;
+            echo 'Want other words? Run it again with your script in the first box, and the run ID of this run (the number at the end of this page'"'"'s address) in "Skip the filming": that takes a few minutes.'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: The gameplay, from an earlier run
+        if: inputs.reuse_clips_from != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: devlog-clips
+          path: devlog/out/clips
+          run-id: ${{ inputs.reuse_clips_from }}
+          github-token: ${{ github.token }}
+      - name: The gameplay, filmed (frame by frame)
+        if: inputs.reuse_clips_from == ''
+        working-directory: devlog
+        env:
+          TARGET: ${{ inputs.target }}
+          MULTIPLAYER: ${{ inputs.multiplayer }}
+          LOADTEST_TOKEN: ${{ inputs.target == 'live' && inputs.multiplayer && secrets.LOADTEST_TOKEN || '' }}
+        run: |
+          FLAGS="--target $TARGET"
+          if [ "$MULTIPLAYER" = "true" ]; then
+            if [ "$TARGET" = "live" ] && [ -z "$LOADTEST_TOKEN" ]; then
+              echo "::warning::No LOADTEST_TOKEN in the repo's secrets: filming one car only (DEVLOG.md)"
+            else
+              FLAGS="$FLAGS --multiplayer"
+            fi
+          fi
+          node capture/capture.mjs $FLAGS
+      - name: Keep the gameplay (for re-renders with other words)
+        if: inputs.reuse_clips_from == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: devlog-clips
+          path: devlog/out/clips
+          retention-days: 14
+
+      - name: The music
+        if: inputs.music_url != ''
+        working-directory: devlog
+        env:
+          MUSIC_URL: ${{ inputs.music_url }}
+        run: |
+          case "$MUSIC_URL" in https://*) ;; *) echo "::error::The music link must start with https://"; exit 1;; esac
+          ext=$(node -e 'const e=require("path").extname(new URL(process.env.MUSIC_URL).pathname).toLowerCase();console.log([".mp3",".m4a",".aac",".wav",".ogg",".opus"].includes(e)?e:".mp3")')
+          curl -fsSL --max-filesize 30000000 --max-time 120 -o "out/music-input$ext" "$MUSIC_URL"
+          echo "DEVLOG_MUSIC=$PWD/out/music-input$ext" >> "$GITHUB_ENV"
+      - name: The video (Remotion)
+        working-directory: devlog
+        env:
+          DATE: ${{ steps.date.outputs.date }}
+        run: |
+          export REMOTION_BROWSER=$(ls -d ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/headless_shell | tail -1)
+          node render.mjs --script out/script.txt --today "$DATE"
+          { echo '### The post'"'"'s caption'; echo; echo '```'; cat out/post.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: devlog-video
+          path: |
+            devlog/out/devlog-*.mp4
+            devlog/out/script.txt
+            devlog/out/post.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  # this week's devlog marked: devlog-YYYY-MM-DD on the commit it was made from (again today: moved to this one).
+  # (a tag pushed with the workflow's own token starts no other workflow)
+  tag:
+    needs: video
+    if: inputs.tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          TAG: devlog-${{ needs.video.outputs.date }}
+        run: |
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"
+          echo "Tagged $TAG: next week's draft starts after this commit" >> "$GITHUB_STEP_SUMMARY"

@@ -99,8 +99,9 @@ Changing any of them makes the preset **Custom**. What they do:
   on tracks, how near trees are drawn in full.
 - **Shadows**: the sun's shadow map size, or none. **Every car's shadow is one draw** — its one-piece copy (below) —
   not one for each of its 30-odd parts.
-- **Reflections**: what reflective paint and chrome reflect: nothing, the sky, or the surroundings (a small cube map
-  round your car, one face drawn every other frame).
+- **Reflections**: what paint, glass and chrome reflect: nothing, the sky (as the world's light has it — its time of
+  day, its weather, the sun's disc: made again only when that changes), or the surroundings (a small cube map round
+  your car, one face drawn every other frame).
 - **Effects**: `data/effects.json` quality — how many particles, how long they last, soft edges, spark lights.
 - **Anti-aliasing, bloom, motion blur**: the finishing passes (`perf/graphics.js`, three.js's EffectComposer: MSAA 4×
   on the picture's render target, or FXAA on the finished picture; bloom round bright lights; motion blur streaking the
@@ -126,6 +127,41 @@ low (as fast as the screen goes, at full resolution); the first whose frames kee
 percentile within 1.15× of it) is kept and saved — ultra where high runs well under even a fast screen's frame time.
 Software graphics (no graphics card at all) are low at once. A note says which was picked; it can be changed, or the
 test run again, from the settings. (Not under automation: the tests say which preset they want, `?graphics=low`.)
+
+## The look (2026-10-12)
+
+What makes the cars look like a racing game's (the first step towards Assetto Corsa's look; the cars' own shapes are
+the next) — on **every** preset, because none of it costs a low-end computer a frame (`effects/look.js`,
+`garage/visual.js`, `data/finishes.json`):
+
+- **Tone mapping**: Khronos PBR Neutral (`neutralToneMapping`; three.js r160 hasn't got it, so it's its "custom" tone
+  mapping, and the finishing pass is taught it: `perf/graphics.js`). Colours up to about 80% bright stay exactly as
+  they are — a car is the colour its player picked — and only what's brighter (the sun on a clear coat, the sky round
+  the sun, headlights) rolls off smoothly to white instead of clipping. A few sums a pixel.
+- **The sky**: a ball round the camera (drawn first, writing no depth: everything covers it) — the haze at the horizon
+  (the fog's colour: the world's edge fades into it) up to a deeper blue overhead, a glow round the sun and its disc
+  (brighter than white: the bloom, where it's on, takes it from there; the moon's, faint, at night; none under a
+  floodlit circuit's lights or thick cloud). One draw, a few sums a pixel of sky.
+- **What cars reflect** (reflections: sky): the same sky, with the ground below the horizon, made into an environment
+  map when the light changes (a new time of day, another world) — not every frame. Before, it was the same midday sky
+  at any time of day, at night too.
+- **Paint**: gloss — the factory finish — is now under a **clear coat** (a second, sharper reflection on top of the
+  colour, as on a real car); metallic and pearl have **flakes** under theirs (`addFlakes`: the paint's surface tilted a
+  little, 3 mm cell by cell, so it glints as the car or the camera moves — faded out where a cell is smaller than a
+  pixel, so a car further off doesn't shimmer). How much each reflects (`envIntensity`) is set so the colour stays
+  strong under a bright sky.
+- **Glass**: every model's glass is clear and smooth (`modelLooks`) and reflects what the paint does.
+- **Tyres**: round (32 faces round, smooth, a rounded shoulder: 960 triangles each, 252 before) with a picture: a
+  fictional maker's name and the size moulded into the sidewalls (reading the right way round on both sides), the
+  tread's grooves and the shoulders' blocks. One picture for every tyre (1024 × 128).
+- **Contact shadows** (`createContactShadows`): a soft dark patch right under every car, laid on the ground under its
+  four wheels as they ride — the car sits on the road instead of floating over it, which matters most on low (no sun
+  shadows at all). Every car's in **one draw** (instanced).
+
+Measured against the game before it (`tools/bench.mjs --swiftshader --size 640x360 --preset high`, the same machine):
+draw calls 140 → 144 in the 8-car race and 401 → 403 in the pile-up (the sky and the shadows' one draw each, and the
+sky's reflections made once); the frame times the same within the runs' noise; no shader compiled while playing.
+Carbon fibre's weave waits for the cars' own new models (it needs their surfaces' texture coordinates).
 
 ## What was changed, and what each change bought
 

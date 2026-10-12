@@ -16,6 +16,13 @@
   (https://github.com/limmylem/kugelsackracing/actions/runs/<id>) with "Review deployments → production → Approve and
   deploy". Cancel older deploys still waiting, so only the newest needs approving (each includes everything before it).
 
+## Devlog highlights
+
+- When a change players will notice is finished (a new city, a feature, a fix they'd feel), add one plain line for it
+  at the bottom of `devlog/highlights.md`, as it would read in a short video ("Adelaide is in the game: a whole city to
+  drive"; under ~12 words, no file names or jargon). The weekly devlog video uses those lines as its captions
+  (DEVLOG.md). Behind-the-scenes work (tests, docs, deploys, tools) gets no line.
+
 ## Reminders for the user (raise them at the right time)
 
 - **Going live for friends testing (Phase 7 Step 5, owner-approved 2026-10-08):** production only, no staging. One
