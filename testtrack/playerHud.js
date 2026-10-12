@@ -11,12 +11,12 @@
 //     lap: { label, time, best, progress } or null      stuck: [reasons] or null
 
 const CSS = `
-#playerHud { position: fixed; right: 16px; bottom: 40px; z-index: 6; width: 426px; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+#playerHud { position: fixed; right: 16px; bottom: 40px; z-index: 6; will-change: transform; width: 426px; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
   color: #fff; font: 600 12px/1.2 Barlow, system-ui, sans-serif; pointer-events: none; user-select: none; font-variant-numeric: tabular-nums; }
 body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { display: none !important; }
 #playerHud .ph-cluster { position: relative; display: flex; flex-direction: column; align-items: stretch; padding: 10px 12px 8px;
   border-radius: 110px 110px 26px 26px; background: radial-gradient(140% 120% at 50% 100%, rgba(26, 12, 14, .92), rgba(6, 6, 8, .86) 70%);
-  border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 16px 44px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); backdrop-filter: blur(6px); }
+  border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 10px 24px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06); }
 #playerHud .ph-dials { display: flex; align-items: flex-end; justify-content: center; }
 #playerHud .ph-dial { position: relative; flex: none; }
 /* the warning lights: dashboard.js's temperature gauge and lamps, then the tell-tales */
@@ -26,8 +26,8 @@ body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { di
 #playerHud .ph-warn .dash .lamps { display: flex; gap: 3px; }
 #playerHud .ph-warn .dl { display: inline-flex; align-items: center; gap: 1px; height: 22px; min-width: 22px; justify-content: center; border-radius: 5px; color: rgba(255, 255, 255, .2); }
 #playerHud .ph-warn .dl.text { font-size: 9px; font-weight: 800; letter-spacing: .05em; padding: 0 4px; }
-#playerHud .ph-warn .dl.amber { color: #ffb52e; background: rgba(255, 181, 46, .14); filter: drop-shadow(0 0 4px rgba(255, 181, 46, .6)); }
-#playerHud .ph-warn .dl.red { color: #ff4b3e; background: rgba(255, 75, 62, .16); filter: drop-shadow(0 0 4px rgba(255, 60, 50, .7)); }
+#playerHud .ph-warn .dl.amber { color: #ffb52e; background: rgba(255, 181, 46, .14); box-shadow: 0 0 6px rgba(255, 181, 46, .45); }
+#playerHud .ph-warn .dl.red { color: #ff4b3e; background: rgba(255, 75, 62, .16); box-shadow: 0 0 6px rgba(255, 60, 50, .5); }
 #playerHud .ph-warn .dl b { font-size: 9px; }
 #playerHud .ph-dial svg { display: block; width: 100%; height: 100%; overflow: visible; }
 #playerHud .ph-tach { width: 168px; height: 168px; margin-right: 12px; margin-bottom: 4px; }
@@ -43,7 +43,7 @@ body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { di
 #playerHud .redzone { fill: none; stroke: rgba(227, 18, 30, .75); stroke-width: 5; }
 #playerHud .unit { fill: #8B929B; font: 700 7.5px Barlow, system-ui, sans-serif; letter-spacing: .14em; text-anchor: middle; }
 #playerHud .needle { transition: transform .1s linear; transform-box: view-box; transform-origin: 100px 100px; }
-#playerHud .needle path { fill: #FF3B2F; filter: drop-shadow(0 0 3px rgba(255, 40, 40, .8)); }
+#playerHud .needle path { fill: #FF3B2F; stroke: rgba(255, 90, 70, .35); stroke-width: 2; }
 #playerHud .hub { fill: #1A1C20; stroke: #6E737A; stroke-width: 1.5; }
 #playerHud .hub-dot { fill: #2A2D32; }
 #playerHud .ph-digits { position: absolute; left: 0; right: 0; bottom: 30px; text-align: center; line-height: 1; }
