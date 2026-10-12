@@ -70,6 +70,19 @@ export function skyEnvironment(renderer, { sky = '#8fbbe6', horizon = '#eef3f7',
 
 // ---------- models, loaded once ----------
 
+// What a model's own materials are, whatever its file says: its glass clear and smooth, reflecting what the car's
+// paint does (the graphics settings' reflections — each car's glass is its own copy: #materialFor)
+function modelLooks(scene) {
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    for (const m of [o.material].flat()) {
+      if (!m?.isMeshStandardMaterial || !/glass/i.test(m.name) || !m.transparent) continue;
+      m.roughness = Math.min(m.roughness, 0.03); m.metalness = 0;
+      m.userData.reflective = 1;
+    }
+  });
+}
+
 export class ModelCache {
   // load(url) → Promise<{ scene, parser }> (a GLTFLoader, unless a test gives its own)
   constructor({ load } = {}) {
@@ -131,6 +144,7 @@ export class ModelCache {
     const gltf = await this.load(url);
     const scene = gltf.scene;
     if (gltf.parser) await this.#shareTextures(scene, gltf.parser, url);
+    modelLooks(scene);
     return scene;
   }
 
@@ -209,6 +223,7 @@ export function finishMaterial(src, finish, colour, env = environment) {
       for (const k of ['clearcoat', 'clearcoatRoughness', 'iridescence', 'iridescenceIOR', 'sheen', 'sheenRoughness']) if (finish[k] !== undefined) m[k] = finish[k];
       if (finish.sheenColour) m.sheenColor.set(finish.sheenColour);
     }
+    if (finish.flake) addFlakes(m, finish.flake);
     // (marked, reflecting or not: the graphics settings' reflections can turn it on or off — setEnvironment below)
     if (finish.reflective) m.userData.reflective = finish.envIntensity ?? 1;
     if (finish.reflective && env) { m.envMap = env; m.envMapIntensity = finish.envIntensity ?? 1; }
@@ -217,6 +232,30 @@ export function finishMaterial(src, finish, colour, env = environment) {
   if (c) { m.color.set(c); if (!finish?.keepTexture) m.map = null; }
   m.needsUpdate = true;
   return m;
+}
+
+// Metallic paint's flakes (a finish's flake: how strongly they catch the light): the paint's surface under its clear
+// coat tilted a little, cell by cell (cells of 3 mm, fixed on the body: they glint as the car or the camera moves),
+// faded out where a cell is smaller than a pixel (no shimmer on a car further off). The clear coat stays smooth.
+const FLAKES = /* glsl */`
+  varying vec3 vFlakeAt;
+  uniform float uFlake;
+  float flakeHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+  vec3 flaked(vec3 n) {
+    vec3 q = vFlakeAt * 330.0, cell = floor(q);
+    vec3 r = vec3(flakeHash(cell), flakeHash(cell + 17.31), flakeHash(cell + 41.7)) * 2.0 - 1.0;
+    float k = uFlake * (1.0 - smoothstep(0.45, 1.2, length(fwidth(q))));
+    return normalize(n + r * 0.4 * k);
+  }`;
+function addFlakes(m, strength) {
+  m.userData.flake = strength;
+  m.extensions = { ...(m.extensions ?? {}), derivatives: true };
+  m.onBeforeCompile = shader => {
+    shader.uniforms.uFlake = { value: m.userData.flake };
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFlakeAt;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlakeAt = transformed;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${FLAKES}`).replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = flaked(normal);');
+  };
+  m.customProgramCacheKey = () => 'flakes';
 }
 
 // A part's look, all things considered: its model, bounds and placeholder (from the first of it and the
@@ -238,39 +277,105 @@ export function resolveLook(part, parts, instance, carId = null) {
 
 // ---------- tyres ----------
 
-// The stock tyre's cross-section, from the bead to the edge of the tread: [share of the half width,
-// share of the sidewall height] (measured from the modelled starter car's tyre)
-const TYRE_PROFILE = [[0.8889, 0], [1, 0.6], [0.9444, 0.85], [0.6667, 1]];
-export const tyreKey = (fit, segments = 18) => `tyre:${+fit.rimRadius.toFixed(5)}:${+fit.width.toFixed(5)}:${+fit.sidewall.toFixed(5)}:${segments}`;
+// The stock tyre's cross-section, from the bead to the edge of the tread: [share of the half width, share of the
+// sidewall height] — the sidewall's bulge (its first four points: where its lettering is), then a rounded shoulder
+const TYRE_PROFILE = [[0.8889, 0], [0.97, 0.22], [1, 0.5], [0.985, 0.72], [0.95, 0.86], [0.88, 0.95], [0.78, 0.99], [0.6667, 1]];
+const SIDEWALL = 4;
+const TYRE_SEGMENTS = 32;
+export const tyreKey = (fit, segments = TYRE_SEGMENTS) => `tyre:${+fit.rimRadius.toFixed(5)}:${+fit.width.toFixed(5)}:${+fit.sidewall.toFixed(5)}:${segments}`;
 
-// A low-poly tyre round the x axis (the axle), flat-shaded, `segments` faces round: fit from tyreFit
-export function tyreGeometry(fit, segments = 18) {
+// A tyre round the x axis (the axle), `segments` faces round, smooth (its normals from the cross-section's own curve),
+// fit from tyreFit. Its picture (tyreTexture): the sidewalls' lettering on the lower half (reading the right way round
+// on both sides), the tread and shoulders on the upper half. Each band of the cross-section its own strip of vertices.
+export function tyreGeometry(fit, segments = TYRE_SEGMENTS) {
   const { rimRadius, width, sidewall } = fit, half = width / 2, rMid = rimRadius + sidewall / 2;
-  const section = [...TYRE_PROFILE.map(([u, v]) => [-u * half, rimRadius + v * sidewall]), ...TYRE_PROFILE.slice().reverse().map(([u, v]) => [u * half, rimRadius + v * sidewall])];
-  const at = ([x, r], a) => new THREE.Vector3(x, r * Math.sin(a), r * Math.cos(a));
-  const pos = [], ab = new THREE.Vector3(), ac = new THREE.Vector3(), n = new THREE.Vector3(), c = new THREE.Vector3();
-  const tri = (A, B, C) => {
-    // facing out of the tyre (away from the middle of its section)
-    n.crossVectors(ab.subVectors(B, A), ac.subVectors(C, A));
-    c.copy(A).add(B).add(C).divideScalar(3);
-    const a = Math.atan2(c.y, c.z), mid = new THREE.Vector3(0, rMid * Math.sin(a), rMid * Math.cos(a));
-    if (n.dot(c.sub(mid)) < 0) [B, C] = [C, B];
-    pos.push(A.x, A.y, A.z, B.x, B.y, B.z, C.x, C.y, C.z);
-  };
-  for (let i = 0; i < segments; i++) {
-    const a0 = i / segments * Math.PI * 2, a1 = (i + 1) / segments * Math.PI * 2;
-    for (let j = 0; j < section.length - 1; j++) {
-      const A = at(section[j], a0), B = at(section[j], a1), C = at(section[j + 1], a0), D = at(section[j + 1], a1);
-      tri(A, C, B); tri(B, C, D);
+  const left = TYRE_PROFILE.map(([u, v]) => [-u * half, rimRadius + v * sidewall]), right = left.map(([x, r]) => [-x, r]).reverse();
+  const section = [...left, ...right], last = section.length - 1, S = TYRE_PROFILE.length;
+  // (each point's normal in the section's plane: across its neighbours' chord, pointing away from the section's middle)
+  const normals = section.map((p, j) => {
+    const a = section[Math.max(0, j - 1)], b = section[Math.min(last, j + 1)];
+    let nx = b[1] - a[1], nr = -(b[0] - a[0]);
+    if (nx * p[0] + nr * (p[1] - rMid) < 0) { nx = -nx; nr = -nr; }
+    const l = Math.hypot(nx, nr) || 1;
+    return [nx / l, nr / l];
+  });
+  // (where each point is on the tread's half of the picture: its length along the section from one sidewall's top to
+  // the other's)
+  const along = [0];
+  for (let j = SIDEWALL; j <= last - (SIDEWALL - 1); j++) along.push(along.at(-1) + Math.hypot(section[j][0] - section[j - 1][0], section[j][1] - section[j - 1][1]));
+  const treadV = j => 0.5 + 0.5 * along[j - (SIDEWALL - 1)] / along.at(-1);
+  const pos = [], nor = [], uv = [], idx = [];
+  for (let j = 0; j < last; j++) {
+    const sideL = j < SIDEWALL - 1, sideR = j >= last - (SIDEWALL - 1), base = pos.length / 3;
+    for (const k of [j, j + 1]) {
+      const [x, r] = section[k], [nx, nr] = normals[k];
+      const v = sideL ? 0.5 * k / (SIDEWALL - 1) : sideR ? 0.5 * (last - k) / (SIDEWALL - 1) : treadV(k);
+      for (let i = 0; i <= segments; i++) {
+        const a = i / segments * Math.PI * 2, sa = Math.sin(a), ca = Math.cos(a);
+        pos.push(x, r * sa, r * ca); nor.push(nx, nr * sa, nr * ca);
+        uv.push(sideL ? 1 - i / segments : i / segments, v);
+      }
+    }
+    // (wound to face out of the tyre: the first face's turn checked against its normal)
+    const A = base, C = base + segments + 1;
+    const p = n => new THREE.Vector3(pos[n * 3], pos[n * 3 + 1], pos[n * 3 + 2]);
+    const face = new THREE.Vector3().crossVectors(p(C).sub(p(A)), p(A + 1).sub(p(A))), out = new THREE.Vector3(nor[A * 3], nor[A * 3 + 1], nor[A * 3 + 2]).add(new THREE.Vector3(nor[C * 3], nor[C * 3 + 1], nor[C * 3 + 2]));
+    const flip = face.dot(out) < 0;
+    for (let i = 0; i < segments; i++) {
+      const a = A + i, b = A + i + 1, c = C + i, d = C + i + 1;
+      if (flip) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.computeVertexNormals();          // (not indexed: every face its own normal, like the model's)
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
   return g;
 }
+
+// The tyres' picture (one for every tyre, made once — where there's a canvas: not in the tests): the lower half the
+// sidewall — a fictional maker's name and the size moulded in, twice round; the upper half the shoulders' blocks and
+// the tread's grooves. Painted in the rubber's own colours (a material showing it is white).
+let tyrePicture;
+export function tyreTexture() {
+  if (tyrePicture !== undefined) return tyrePicture;
+  const canvas = globalThis.document?.createElement?.('canvas');
+  const g = canvas?.getContext?.('2d');
+  if (!g) return (tyrePicture = null);
+  const W = 1024, H = 128;
+  canvas.width = W; canvas.height = H;
+  // (v runs up the picture: the sidewall from the rim (bottom) to its top (the middle); the tread's half above it,
+  // shoulder, tread, shoulder)
+  g.fillStyle = '#262628'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#1f1f21'; g.fillRect(0, 0, W, 64);
+  g.fillStyle = '#323235'; g.fillRect(0, 120, W, 3); g.fillRect(0, 70, W, 2);
+  g.fillStyle = '#7a7a7e'; g.textBaseline = 'middle';
+  for (const x0 of [0, W / 2]) {
+    g.font = 'bold 30px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+    g.fillText('OGNISTRADA', x0 + 30, 95);
+    g.font = '600 15px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+    g.fillStyle = '#606064';
+    g.fillText('STRADA SPORT  ·  RADIAL TUBELESS', x0 + 245, 95);
+    g.fillStyle = '#7a7a7e';
+  }
+  // the shoulders' blocks (each side of the tread) and the tread's grooves
+  const shoulder = Math.round(H / 2 * 0.24);
+  g.fillStyle = '#0f0f10';
+  for (let i = 0; i < 96; i++) { const x = (i + 0.5) * W / 96; g.fillRect(x, 64 - shoulder, 3, shoulder); g.fillRect(x, 0, 3, shoulder); }
+  for (const t of [0.3, 0.47, 0.53, 0.7]) g.fillRect(0, Math.round(64 * (1 - t)) - 1, W, 2);
+  for (let i = 0; i < 192; i++) { const x = (i + 0.25) * W / 192; g.fillRect(x, Math.round(64 * 0.3), 1, Math.round(64 * 0.17)); g.fillRect(x + 2, Math.round(64 * 0.53), 1, Math.round(64 * 0.17)); }
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.name = 'tyre';
+  return (tyrePicture = t);
+}
+
 export function tyreModel(fit) {
-  const mesh = new THREE.Mesh(tyreGeometry(fit), new THREE.MeshStandardMaterial({ name: 'tyre', color: '#1b1b1c', roughness: 0.62, metalness: 0.1 }));
+  const map = tyreTexture();
+  const mat = new THREE.MeshStandardMaterial({ name: 'tyre', color: map ? '#ffffff' : '#1b1b1c', map, roughness: 0.8, metalness: 0 });
+  // (its colour as a far car's one-piece copy shows it: the rubber's, not the picture's white)
+  mat.userData.flatColour = '#232325';
+  const mesh = new THREE.Mesh(tyreGeometry(fit), mat);
   mesh.name = `tyre ${fit.label}`;
   return mesh;
 }
@@ -683,7 +788,7 @@ export class CarVisual {
       return this.#ownMaterial(`paint|${f}|${c}`, () => finishMaterial(src, this.finishes[f], c, this.environment ?? environment));
     }
     if (finish || colour) return this.#ownMaterial(`${src.uuid}|${finish ?? ''}|${colour ?? ''}`, () => finishMaterial(src, this.finishes[finish], colour, this.environment ?? environment));
-    if (PER_CAR.test(src.name)) return this.#ownMaterial(`own|${src.uuid}`, () => src.clone());
+    if (PER_CAR.test(src.name)) return this.#ownMaterial(`own|${src.uuid}`, () => { const m = src.clone(); if (m.userData.reflective) { m.envMap = this.environment ?? environment; m.envMapIntensity = m.userData.reflective; } return m; });
     return src;
   }
   #ownMaterial(key, make) {
@@ -1081,7 +1186,7 @@ export class CarVisual {
     for (const [mesh, mat, start, count] of pieces) {
       const g = mesh.geometry, P = g.attributes.position, N = g.attributes.normal, I = g.index;
       m4.multiplyMatrices(inv, mesh.matrixWorld); nm.getNormalMatrix(m4);
-      c.copy(mat?.color ?? c.set(0.5, 0.5, 0.5));
+      if (mat?.userData?.flatColour) c.set(mat.userData.flatColour); else c.copy(mat?.color ?? c.set(0.5, 0.5, 0.5));
       if (mat?.transparent) c.multiplyScalar(0.25).addScalar(0.04);
       if (mat?.emissive && (mat.emissiveIntensity ?? 0) > 0.5) c.add(mat.emissive);
       const r = Math.round(Math.min(1, c.r) * 255), gg = Math.round(Math.min(1, c.g) * 255), b = Math.round(Math.min(1, c.b) * 255);

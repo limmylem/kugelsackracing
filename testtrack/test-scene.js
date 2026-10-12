@@ -106,7 +106,8 @@ import { createDamageReport, createDash } from './dashboard.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
-import { ModelCache, createCarVisual, setEnvironment, skyEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { ModelCache, createCarVisual, setEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { neutralToneMapping, skyDome, setSky, skyLook, createSkyReflections, createContactShadows } from '../effects/look.js';
 import { EffectsDirector } from '../effects/director.js';
 import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
@@ -763,9 +764,14 @@ async function createShared() {
   // (anti-aliasing is the graphics settings' — perf/graphics.js: the canvas has none of its own, so it can change while playing)
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   const prof = createProfiler({ renderer, stutterFactor: perfCfg.stutterFactor });
-  // what chrome, metallic paint and the like reflect (only those finishes use it; the graphics settings' reflections)
-  const skyEnv = skyEnvironment(renderer);
-  setEnvironment(skyEnv);
+  // the picture's tone mapping (effects/look.js): colours as they are, only the brightest — the sun on clear coat, the
+  // sky's glow — rolled off to white
+  neutralToneMapping(THREE, renderer, 1);
+  // what paint, glass, chrome and the like reflect (the graphics settings' reflections: sky): the sky as each world's
+  // light has it (daylight) — made first at midday, so the first cars are made with something to reflect
+  const skyRefl = createSkyReflections(THREE, renderer);
+  skyRefl.update(skyLookOf(lightAt(13)));
+  setEnvironment(skyRefl.texture);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   Object.assign(renderer.domElement.style, { position: 'fixed', inset: '0', zIndex: '1', display: 'none' });
@@ -803,7 +809,7 @@ async function createShared() {
   const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
     hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
-    perfCfg, gfx, G: gfx.settings, skyEnv, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
+    perfCfg, gfx, G: gfx.settings, skyRefl, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
     damageView: false, lastCrash: null,
     play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
     models: new ModelCache(), visuals: new Set(), copies: [],
@@ -983,6 +989,10 @@ async function buildWorld(file) {
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 150 });
   scene.add(sun, sun.target);
+  // the sky round the world, and the soft shadows right under the cars (effects/look.js: daylight sets the sky;
+  // carShadowsFrame lays the shadows)
+  const skyBall = skyDome(THREE), contact = createContactShadows(THREE);
+  scene.add(skyBall, contact.mesh);
 
   // Fixed shapes (same as the colliders)
   const trees = [];
@@ -1058,7 +1068,7 @@ async function buildWorld(file) {
   fx.setCar(0, carEffectsInfo(shared.session, shared.damageBoxes));
 
   const w = {
-    file, name: track.name, track, sim, scene, camera, sun, hemi, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
+    file, name: track.name, track, sim, scene, camera, sun, hemi, skyBall, contact, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
     aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
@@ -1545,7 +1555,9 @@ function carDetailFrame(w, now) {
 function setReflections(kind) {
   if (kind === 'live' && !shared.liveRefl) shared.liveRefl = createLiveReflections(THREE, shared.renderer);
   if (kind !== 'live' && shared.liveRefl) { shared.liveRefl.dispose(); shared.liveRefl = null; }
-  const env = kind === 'off' ? null : kind === 'live' ? shared.liveRefl.texture : shared.skyEnv;
+  // (the sky's: as the world on screen has it — made again if its light changed while reflections were off)
+  if (kind === 'sky' && active?.skyLook && shared.skyFor !== active.skyLook) { shared.skyRefl.update(active.skyLook); shared.skyFor = active.skyLook; }
+  const env = kind === 'off' ? null : kind === 'live' ? shared.liveRefl.texture : shared.skyRefl.texture;
   if (shared.envNow === env) return;
   shared.envNow = env;
   setEnvironment(env);
@@ -1610,10 +1622,41 @@ function daylight(w, hours) {
         w.sun.color.set(F.key); w.sun.intensity = F.keyIntensity; w.sunDir = new THREE.Vector3(0.25, 1, 0.15).normalize();
       }
     }
+    // the sky round the world (effects/look.js), and the haze the world's edge fades into: its horizon
+    w.skyLook = skyLookOf(L, { sky: w.scene.background, fog: w.scene.fog.color, sunColour: w.sun.color, sunDir: w.sunDir, theme: w.theme, floodlit: !!(w.theme?.floodlit && L.night > 0.3) });
+    setSky(w.skyBall, w.skyLook);
+    w.scene.fog.color.copy(w.skyLook.horizon); w.scene.background.copy(w.skyLook.horizon);
   }
   const lamps = w.carVis.headlights;
   if (lamps) for (const l of lamps) l.intensity = w.light.night * 60;
+  // (what the cars reflect: this world's sky — made again only when it's changed, and not with reflections off)
+  if (w === active && shared.skyFor !== w.skyLook && shared.G.reflections === 'sky') setReflections('sky');
+  carShadowsFrame(w);
   return w.light;
+}
+// The sky for a light (effects/look.js): the zenith a deeper blue than the sky's colour, the horizon the fog's (a plain
+// world's paler than its sky: haze), the sun's disc and glow where its light comes from (the moon's, faint, at night;
+// none under a floodlit circuit's lights or thick cloud)
+const ZENITH = new THREE.Color(0.5, 0.7, 0.98), WHITE = new THREE.Color(1, 1, 1), GROUND = new THREE.Color('#4a4743');
+function skyLookOf(L, { sky = null, fog = null, sunColour = null, sunDir = null, theme = null, floodlit = false } = {}) {
+  const srgb = THREE.SRGBColorSpace, day = 1 - L.night, grey = theme?.grey ?? 0;
+  sky ??= new THREE.Color().setRGB(...L.background, srgb); fog ??= new THREE.Color().setRGB(...L.fog, srgb);
+  const horizon = fog.clone();
+  if (!theme) horizon.lerp(WHITE, 0.3 * day);
+  const zenith = sky.clone().multiply(ZENITH).lerp(sky, grey);
+  const ground = GROUND.clone().multiplyScalar(0.08 + 0.92 * day).lerp(horizon, 0.15);
+  const sun = floodlit ? 0 : 16 * L.key.intensity * (1 - grey) * (theme?.sunScale ?? 1);
+  return skyLook({ zenith, horizon, ground, sunDir: sunDir?.clone() ?? new THREE.Vector3(...L.key.dir), sunColour: sunColour?.clone() ?? new THREE.Color().setRGB(...L.key.colour, srgb), sun, glow: floodlit ? 0 : day * (1 - grey) });
+}
+// the soft shadows under this world's cars: yours, the NPCs' and AI cars', the other players' drawn here — darker
+// without the sun's shadows (they're all there is under a car then)
+function carShadowsFrame(w) {
+  const list = w.shadowCars ??= [], inScene = g => { let o = g; while (o.parent) o = o.parent; return o === w.scene; };
+  list.length = 0;
+  if (w.carVis) list.push(w.carVis);
+  for (const vis of w.others.values()) list.push(vis);
+  for (const vis of shared.visuals) if (!list.includes(vis) && inScene(vis.group)) list.push(vis);
+  w.contact.update(list, shared.G.shadows === 'off' ? 0.8 : 0.6);
 }
 // Move the effects on and get them ready to draw (seen from the camera, in the world's wind)
 function updateEffects(w, light, dt) {

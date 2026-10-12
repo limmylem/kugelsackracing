@@ -175,16 +175,18 @@ test('tyres: made round the rim, resized with the tyre size', async () => {
   let rMin = Infinity, rMax = 0, xMax = 0;
   for (let i = 0; i < p.count; i++) { const r = Math.hypot(p.getY(i), p.getZ(i)); rMin = Math.min(rMin, r); rMax = Math.max(rMax, r); xMax = Math.max(xMax, Math.abs(p.getX(i))); }
   assert.ok(Math.abs(rMin - 0.1905) < 1e-6 && Math.abs(rMax - 0.2895) < 1e-6 && Math.abs(xMax - 0.09) < 1e-6);
-  assert.equal(p.count, 18 * 7 * 6);                         // 18 faces round, 7 bands, 2 triangles each
-  // every face points out of the tyre
-  const n = geo.getAttribute('normal');
-  for (let i = 0; i < p.count; i += 3) {
-    const c = new THREE.Vector3(), mid = new THREE.Vector3();
-    for (let k = 0; k < 3; k++) c.add(new THREE.Vector3(p.getX(i + k), p.getY(i + k), p.getZ(i + k)));
-    c.divideScalar(3);
-    const a = Math.atan2(c.y, c.z); mid.set(0, 0.24 * Math.sin(a), 0.24 * Math.cos(a));
-    assert.ok(new THREE.Vector3(n.getX(i), n.getY(i), n.getZ(i)).dot(c.sub(mid)) > 0, `face ${i / 3} faces in`);
+  const I = geo.index, n = geo.getAttribute('normal'), uv = geo.getAttribute('uv');
+  assert.equal(I.count / 3, 32 * 15 * 2);                    // 32 faces round, 15 bands, 2 triangles each
+  // every face points out of the tyre (wound that way, and its normals too), its picture within the picture
+  const v = i => new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i));
+  for (let f = 0; f < I.count; f += 3) {
+    const [a, b, c] = [I.getX(f), I.getX(f + 1), I.getX(f + 2)], mid3 = v(a).add(v(b)).add(v(c)).divideScalar(3);
+    const ang = Math.atan2(mid3.y, mid3.z), out = mid3.clone().sub(new THREE.Vector3(0, 0.24 * Math.sin(ang), 0.24 * Math.cos(ang)));
+    const face = new THREE.Vector3().crossVectors(v(b).sub(v(a)), v(c).sub(v(a)));
+    assert.ok(face.dot(out) > 0, `face ${f / 3} is wound inwards`);
+    assert.ok(new THREE.Vector3(n.getX(a), n.getY(a), n.getZ(a)).dot(out) > 0, `face ${f / 3}'s normal points in`);
   }
+  for (let i = 0; i < uv.count; i++) assert.ok(uv.getX(i) >= 0 && uv.getX(i) <= 1 && uv.getY(i) >= 0 && uv.getY(i) <= 1);
   // fitting wider, lower tyres remakes the tyres (and the wheel's radius) around the same rims
   const g = fresh(), vis = await createCarVisual({ car, finishes: db.finishes, models: cache() });
   await vis.applyBuild(g.build, g.view);
@@ -235,7 +237,8 @@ test('paint: one per car, followed by the body and every painted part; finishes;
   g.state.parts[g.build.sockets.socket_bonnet].paint = { colour: '#00ff00' };
   await a.applyBuild(g.build, g.view);
   assert.equal(meshesAt(a, 'socket_bonnet')[0].material.color.getHexString(), '00ff00');
-  assert.equal(meshesAt(a, 'socket_bonnet')[0].material.roughness, 0.4);
+  assert.equal(meshesAt(a, 'socket_bonnet')[0].material.roughness, db.finishes.gloss.roughness);
+  assert.equal(meshesAt(a, 'socket_bonnet')[0].material.clearcoat, 1, 'gloss: under a clear coat');
 });
 
 test('a variant\'s look: its base part\'s model and bounds, its own look over the base\'s, the owner\'s over that', () => {
