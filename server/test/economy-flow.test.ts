@@ -179,9 +179,22 @@ test('the admin\'s tools: a player\'s books and items, grants and removals, a re
   assert.equal(v2.ledger.find((e: any) => e.kind === 'grant').actor, 'Boss Hog');
   const hist = await admin.get(`/api/v1/admin/players/${id}/items/${spare}/history`);
   assert.ok(hist.body.history.length >= 2, JSON.stringify(hist.body));
+  // a level, set: a player can't, a reason always; their xp the start of that level (data/quests.json levels); no
+  // higher than the top level; no money moved
+  assert.equal((await p.post(`/api/v1/admin/players/${id}/level`, { level: 50, reason: 'I want it' })).status, 403);
+  assert.equal((await admin.post(`/api/v1/admin/players/${id}/level`, { level: 4 })).status, 400);
+  const moneyBefore = (await profile(p)).money;
+  const lv = await admin.post(`/api/v1/admin/players/${id}/level`, { level: 4, reason: 'Lost their progress in the outage' });
+  assert.equal(lv.status, 200, lv.text);
+  assert.equal(lv.body.level, 4); assert.equal(lv.body.xp, 1500);
+  assert.equal((await profile(p)).xp, 1500);
+  assert.equal((await profile(p)).money, moneyBefore);
+  assert.equal((await admin.get(`/api/v1/admin/players/${id}/economy`)).body.economy.level, 4);
+  assert.equal((await admin.post(`/api/v1/admin/players/${id}/level`, { level: 999, reason: 'Too far' })).body.level, 50);
+  assert.equal((await admin.post(`/api/v1/admin/players/${id}/level`, { level: 1, reason: 'Back to the start' })).body.xp, 0);
   // every one in the admins' log, with its reason
   const audit = (await admin.get(`/api/v1/admin/audit?targetId=${id}`)).body.entries.map((e: any) => [e.action, e.reason]);
-  for (const a of ['grant-money', 'reverse-transaction', 'give-item', 'remove-item']) assert.ok(audit.some((x: any) => x[0] === a && x[1]), a);
+  for (const a of ['grant-money', 'set-level', 'reverse-transaction', 'give-item', 'remove-item']) assert.ok(audit.some((x: any) => x[0] === a && x[1]), a);
   // the settings: a change (who, why), the game's prices follow, a rollback
   const cfg = (await admin.get('/api/v1/admin/economy/config')).body;
   const data = JSON.parse(JSON.stringify(cfg.current.data));

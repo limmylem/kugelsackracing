@@ -26,6 +26,7 @@ import type { EconomyConfig } from './config.ts';
 import { loadProfile, saveProfile, type SaveMeta } from './store.ts';
 import type { TrackService } from '../tracks/service.ts';
 import { LocalPlayerService } from '../../../garage/player/service.js';
+import { levelOf, xpForLevel } from '../../../quest/rules.js';
 import { garageFor, carName } from '../../../garage/player/profile.js';
 import { viewCourse } from '../../../route/model.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
@@ -454,6 +455,17 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
       return { ok: true as const, ledgerId: r.ledgerId, rev: r.rev };
     }).then(r => { events.emit('change', userId, r.rev); return r; });
   }
+  // a player's level, set by hand: their xp becomes the start of that level (at most the game's top level); what it was
+  async function adminLevel(admin: User, userId: string, level: number, reason: string) {
+    return withPlayer(userId, async (tx, G) => {
+      const before = await loadProfile(tx, userId);
+      if (!before) throw new AppError(404, 'NOT_FOUND', 'That player hasn\'t played yet.');
+      const max = G.quests?.levels?.max ?? 100, to = Math.max(1, Math.min(max, level)), from = levelOf(before.xp ?? 0, G.quests);
+      const xp = xpForLevel(to, G.quests);
+      const r = await saveProfile(tx, userId, before, { ...before, xp }, { kind: 'level', reason, actorId: admin.id, action: 'admin', questsConfig: G.quests, ref: { level: to, was: from } });
+      return { ok: true as const, level: to, was: from, xp, rev: r.rev };
+    }).then(r => { events.emit('change', userId, r.rev); return r; });
+  }
   async function adminReverse(admin: User, ledgerId: number, reason: string) {
     const row = (await db.execute(sql`select * from ledger where id = ${ledgerId}`)).rows[0] as any;
     if (!row) throw new AppError(404, 'NOT_FOUND', 'There\'s no such transaction.');
@@ -493,7 +505,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace,
+    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminLevel, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

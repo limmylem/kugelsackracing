@@ -322,6 +322,8 @@ export const PLAYER_ACTION_ARGS = {
 export type PlayerActionName = keyof typeof PLAYER_ACTION_ARGS;
 export const PlayerActionBody = z.object({ args: z.record(z.string(), z.unknown()) }).strict();
 export const DriveStart = z.object({ carInstanceId: InstanceId, mode: z.enum(['free', 'test']).default('free') }).strict();
+// (a player's level set by an admin: their xp becomes the start of that level)
+export const AdminLevel = z.object({ level: z.number().int().min(1).max(1000), reason: z.string().trim().min(3).max(500) }).strict();
 export const AdminMoney = z.object({ amount: z.number().int().refine(n => n !== 0, 'not zero').refine(n => Math.abs(n) <= 100_000_000, 'too big'), reason: z.string().trim().min(3).max(500) }).strict();
 export const AdminItem = z.object({ give: z.object({ partId: DataId.optional(), carId: DataId.optional(), quantity: z.number().int().min(1).max(20).optional() }).strict().optional(), remove: z.object({ instanceId: InstanceId.optional(), carInstanceId: InstanceId.optional() }).strict().optional(), reason: z.string().trim().min(3).max(500) }).strict();
 export const AdminReverse = z.object({ reason: z.string().trim().min(3).max(500) }).strict();
