@@ -53,7 +53,8 @@ const PART_FINISHES = [
 ];
 const SORTS = [['performance', 'Performance: best first'], ['name', 'Name: A–Z'], ['category', 'Category'], ['price', 'Price: low to high'], ['condition', 'Condition: best first']];
 const FILTERS = [['all', 'All'], ['owned', 'Owned'], ['shop', 'Shop'], ['upgrades', 'Upgrades']];
-const TABS = [['parts', 'Parts', 'build'], ['damage', 'Damage', 'car_crash'], ['tuning', 'Tuning', 'tune'], ['paint', 'Paint', 'palette'], ['dyno', 'Dyno', 'monitoring'], ['inventory', 'Inventory', 'inventory_2'], ['shop', 'Shop', 'storefront'], ['dealer', 'Dealership', 'directions_car']];
+const TABS = [['parts', 'Parts', 'build'], ['damage', 'Damage', 'car_crash'], ['tuning', 'Tuning', 'tune'], ['paint', 'Paint', 'palette'], ['dyno', 'Dyno', 'monitoring'], ['inventory', 'Inventory', 'inventory_2'], ['shop', 'Shop', 'storefront']];
+// (the dealership is the shop's Cars: its tab is the shop's)
 const SEVERITY = { critical: ['Stops the car', 'var(--c-bad)'], major: ['Major', '#F28C28'], minor: ['Minor', 'var(--c-warn)'] };
 const ZONE_WORDS = { front: 'the front', rear: 'the back', left: 'the left side', right: 'the right side', roof: 'the body', engine: 'the engine bay', underbody: 'underneath', FL: 'the front-left wheel', FR: 'the front-right wheel', RL: 'the rear-left wheel', RR: 'the rear-right wheel' };
 const VIEW_WORDS = { front: 'front', rear: 'rear', side_left: 'left side', side_right: 'right side', roof: 'roof', engine_bay: 'engine bay', underbody: 'underside', wheel_FL: 'front-left wheel', wheel_FR: 'front-right wheel', wheel_RL: 'rear-left wheel', wheel_RR: 'rear-right wheel' };
@@ -273,7 +274,7 @@ export class GarageScreen {
         <div class="car-sub">${setup ? `Setup: ${esc(setup.name)}` : 'No setup'}${n ? ` <span class="warn">· ${n} change${n > 1 ? 's' : ''}</span>` : ''} · ${fmt(st.spec?.mass ?? 0)} kg</div></button>
       <div class="class-badge" title="Performance rating and class"><div class="cls">${d.ok && r ? r.class : '—'}</div><div class="pi">${d.ok && r ? r.index : '—'}</div></div>
       <div class="spacer"></div>
-      <nav class="tabs">${TABS.map(([id, name, ic]) => `<button class="tab ${this.ui.tab === id ? 'on' : ''}" data-act="tab:${id}" data-key="tab:${id}" title="${name}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>
+      <nav class="tabs">${TABS.map(([id, name, ic]) => `<button class="tab ${this.ui.tab === id || (id === 'shop' && this.ui.tab === 'dealer') ? 'on' : ''}" data-act="tab:${id}" data-key="tab:${id}" title="${name}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>
       <div class="spacer"></div>
       ${this.#levelChip()}
       <div class="g-wallet" title="Your money">${icon('account_balance_wallet')}<span>${esc(this.money(w.money))}</span></div>

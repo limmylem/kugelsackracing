@@ -18,7 +18,7 @@
 .g-top .tabs { display: flex; gap: 2px; height: var(--h-topbar); flex: none; }
 .g-top .tabs .tab { padding: 0 16px; }
 /* the car (and its setup): opens the cars-and-setups popover */
-.g-carbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 10px; margin-left: -4px; border-radius: var(--r-btn); text-align: left; min-width: 0; max-width: 300px; }
+.g-carbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 10px; margin-left: -4px; border-radius: var(--r-btn); text-align: left; min-width: 0; flex: 0 1 auto; overflow: hidden; max-width: 300px; }
 .g-carbtn:hover, .g-carbtn.on { background: var(--c-raised); }
 .g-carbtn .car-name { display: flex; align-items: center; gap: 2px; white-space: nowrap; }
 .g-carbtn .car-name .icon { font-size: 22px; color: var(--c-text-3); }
@@ -461,7 +461,7 @@
 .g-acct .txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; max-width: 140px; }
 .g-acct .txt b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .g-acct .txt small { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #FF5A45; }
-@media (max-width: 1400px) { .g-acct .txt { display: none; } .g-acct { padding: 0 3px; } }
+@media (max-width: 1700px) { .g-acct .txt { display: none; } .g-acct { padding: 0 3px; } }
 
 .pc-scrim { z-index: 40; backdrop-filter: blur(6px); background: radial-gradient(70% 70% at 50% 40%, rgba(90, 6, 12, .45), rgba(3, 4, 5, .86)); }
 .pc { --os-red: #E3121E; position: relative; width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; color: var(--c-text);
