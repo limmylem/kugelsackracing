@@ -263,27 +263,32 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
   }
 
   // ---------- the live checks, in a worker thread ----------
-  let worker: Worker | null = null;
+  let worker: Worker | null = null, closed = false;
   const queue: { kind: Kind; id: string; version: number }[] = [];
   let busy = false;
   function checkLater(kind: Kind, id: string, version: number) { queue.push({ kind, id, version }); pump(); }
   function pump() {
-    if (busy || !queue.length) return;
+    if (busy || closed || !queue.length) return;
     busy = true;
     const job = queue.shift()!;
-    run(job).catch(err => log({ err, job }, 'content live check failed')).finally(() => { busy = false; pump(); });
+    run(job).catch(err => { if (!closed) log({ err, job }, 'content live check failed'); }).finally(() => { busy = false; pump(); });
   }
   async function run(job: { kind: Kind; id: string; version: number }) {
     const r = ((await db.execute(sql`select * from catalogue_items where kind = ${job.kind} and id = ${job.id}`)).rows[0] as any);
     if (!r || r.version !== job.version) return;                    // (edited again since: that version's check is queued)
     const o = await overlay(), parts = { ...o.parts, [job.id]: { status: 'draft', set: r.set } };
-    worker ??= new Worker(new URL('./liveCheckWorker.ts', import.meta.url), { workerData: { repo: REPO_DIR } });
+    if (closed) return;                                              // (the server's closing: none started now)
+    if (!worker) { worker = new Worker(new URL('./liveCheckWorker.ts', import.meta.url), { workerData: { repo: REPO_DIR } }); worker.unref(); }
+    const w = worker;
     const result: any = await new Promise((resolve, reject) => {
-      const onMsg = (m: any) => { if (m.id === job.id) { worker!.off('message', onMsg); resolve(m); } };
-      worker!.on('message', onMsg);
-      worker!.once('error', reject);
-      worker!.postMessage({ id: job.id, overlay: { ...o, parts } });
+      const done = () => { w.off('message', onMsg); w.off('error', onError); w.off('exit', onExit); };
+      const onMsg = (m: any) => { if (m.id === job.id) { done(); resolve(m); } };
+      const onError = (e: any) => { done(); if (worker === w) worker = null; reject(e); };
+      const onExit = () => { done(); if (worker === w) worker = null; reject(new Error('the checks\' worker stopped')); };
+      w.on('message', onMsg); w.on('error', onError); w.on('exit', onExit);
+      w.postMessage({ id: job.id, overlay: { ...o, parts } });
     });
+    if (closed) return;
     const res = result.error ? { ok: false, problems: [`the checks went wrong: ${result.error}`] } : result.result;
     await db.execute(sql`update catalogue_items set checks = ${JSON.stringify({ version: job.version, ...res, at: new Date().toISOString() })}::jsonb where kind = ${job.kind} and id = ${job.id} and version = ${job.version}`);
     forget();
@@ -293,7 +298,8 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
     const pending = (await db.execute(sql`select kind, id, version from catalogue_items where set <> '{}'::jsonb and (checks is null or (checks->>'version')::int <> version)`)).rows as any[];
     for (const p of pending) checkLater(p.kind, p.id, p.version);
   }
-  async function close() { await worker?.terminate(); worker = null; }
+  // (the server closing: nothing more checked, the worker stopped — whatever it was checking is checked again on start)
+  async function close() { closed = true; queue.length = 0; const w = worker; worker = null; await w?.terminate(); }
 
   return { overlay, items, item, edit, setStatus, history, preview, exportCsv, importCsv, resume, close, idle: () => !busy && !queue.length };
 }

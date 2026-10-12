@@ -150,7 +150,8 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 
 ## Deploying
 
-Every push to `main` runs `server.yml`: the fast checks and the image, then (with `DEPLOY_ENABLED` on) `deploy.yml` — the slow tests running beside it — which waits
+Every push to `main` runs `server.yml`: the fast checks and the image, then (with `DEPLOY_ENABLED` on) `deploy.yml` — the slow tests running beside it (a
+little over an hour; stopped as failed at 150 minutes, so a stuck test can't hold a runner for GitHub's 6 hours) — which waits
 for the owner's **Approve** (GitHub emails; Actions → the run → **Review deployments**). One deploy at a time. In order,
 so nothing ever points at something that isn't there yet:
 1. **Map files:** `assets/` → R2 `ognistrada-tiles` (`rclone sync --checksum`: only what changed) — the map, the

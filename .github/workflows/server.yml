@@ -59,6 +59,8 @@ jobs:
   # takes over from an older one still going: it tests all of that and more. Deploys wait their turn in deploy.yml)
   test:
     runs-on: ubuntu-latest
+    # (all of it takes a little over an hour: a test stuck past this fails instead of holding the runner for 6 h)
+    timeout-minutes: 150
     concurrency:
       group: server-test-${{ github.ref }}
       cancel-in-progress: true
