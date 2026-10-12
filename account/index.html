@@ -129,20 +129,77 @@
     h2 { font-size: 30px; }
     .btn.primary { font-size: 18px !important; }
   }
+  /* the moving parts: speed lines and embers in the backdrop (still unless motion is welcome) */
+  .bg .lines span { position: absolute; left: 0; height: 1px; width: 22vw; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255, 90, 70, .55), transparent); }
+  .bg .embers span { position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%; opacity: 0; background: #ff5a3c; box-shadow: 0 0 8px 2px rgba(255, 50, 30, .6); }
+  .brand h1 { position: relative; }
+  .brand h1::before { content: ''; position: absolute; inset: 10% 15%; z-index: -1; background: radial-gradient(closest-side, rgba(227, 18, 30, .35), transparent); filter: blur(20px); opacity: .6; }
+  .road .streak { opacity: 0; }
+  .btn.primary { position: relative; overflow: hidden; }
+  .btn.primary::after { content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .38), transparent); pointer-events: none; opacity: 0; }
+
   @media (prefers-reduced-motion: no-preference) {
-    .road .glow { animation: pulse 4s ease-in-out infinite; }
+    /* the road draws itself in, then headlights race along it */
+    .road .glow { animation: pulse 4s ease-in-out 1.6s infinite; }
     @keyframes pulse { 50% { opacity: .55; } }
+    .road .draw { stroke-dasharray: 1000; animation: draw 1.8s cubic-bezier(.6, 0, .2, 1) both; }
+    @keyframes draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+    .road .streak { stroke-dasharray: 26 974; animation: race 3.2s linear 1.4s infinite; }
+    .road .streak.b { animation-duration: 4.6s; animation-delay: 2.9s; }
+    .road .streak.c { animation-duration: 5.4s; animation-delay: 4.1s; }
+    @keyframes race { 0% { stroke-dashoffset: 26; opacity: 0; } 6% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: -974; opacity: 0; } }
+    .bg .topo { animation: drift 40s ease-in-out infinite alternate; }
+    @keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.06) translate(-1.5%, 1%); } }
+    .bg .lines span { animation: zoom var(--t, 2.6s) linear var(--d, 0s) infinite; }
+    @keyframes zoom { 0% { transform: translateX(110vw); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateX(-30vw); opacity: 0; } }
+    .bg .embers span { animation: rise var(--t, 12s) linear var(--d, 0s) infinite; }
+    @keyframes rise { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: .9; } 80% { opacity: .5; } 100% { transform: translate(var(--x, 40px), -105vh); opacity: 0; } }
+
+    /* the logo arrives, then floats with a breathing red glow */
+    .brand h1 { animation: arrive .9s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes arrive { from { opacity: 0; transform: translateX(-40px) skewX(-6deg); } }
+    .logo { animation: float 6s ease-in-out 1s infinite; }
+    @keyframes float { 50% { transform: translateY(-8px); } }
+    .brand h1::before { animation: breathe 4s ease-in-out infinite; }
+    @keyframes breathe { 50% { opacity: 1; transform: scale(1.08); } }
+
+    /* each card slides in (on every switch: sign in, make an account…), its parts one after another */
+    section { animation: card .55s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes card { from { opacity: 0; transform: translateY(22px); } }
+    section > *, section > form > * { animation: part .45s cubic-bezier(.2, .8, .2, 1) both; }
+    @keyframes part { from { opacity: 0; transform: translateX(14px); } }
+    section > :nth-child(2), section > form > :nth-child(2) { animation-delay: .06s; }
+    section > :nth-child(3), section > form > :nth-child(3) { animation-delay: .12s; }
+    section > :nth-child(4), section > form > :nth-child(4) { animation-delay: .18s; }
+    section > :nth-child(5), section > form > :nth-child(5) { animation-delay: .24s; }
+    section > :nth-child(6), section > form > :nth-child(6) { animation-delay: .3s; }
+    section > :nth-child(n+7), section > form > :nth-child(n+7) { animation-delay: .36s; }
+    /* the red stripe runs out along the top, and a gleam runs along it now and then */
+    section::before { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent) no-repeat -40% 0 / 30% 100%, linear-gradient(90deg, var(--os-red), var(--os-red-hi) 80%, rgba(255, 74, 54, .4));
+      animation: stripe .7s cubic-bezier(.2, .8, .2, 1) .25s both, gleam 5s ease-in-out 1.2s infinite; }
+    @keyframes stripe { from { width: 0; } }
+    @keyframes gleam { 0%, 70% { background-position: -40% 0, 0 0; } 100% { background-position: 140% 0, 0 0; } }
+    /* the main button: a shine across it now and then, and on hover */
+    .btn.primary::after { opacity: 1; animation: shine 4.5s ease-in-out 1.5s infinite; }
+    .btn.primary:hover::after { animation-duration: 1.1s; animation-delay: 0s; }
+    @keyframes shine { 0%, 75% { left: -40%; } 100% { left: 130%; } }
+    .msg { animation: card .35s ease-out both; }
   }
 </style>
 </head>
 <body class="ui">
 <div class="bg" aria-hidden="true">
   <div class="topo"></div>
+  <div class="lines"><span style="top:49%;--t:3.5s;--d:2.4s"></span><span style="top:14%;--t:1.9s;--d:3.2s"></span><span style="top:54%;--t:2.8s;--d:5.5s"></span><span style="top:35%;--t:1.9s;--d:2.6s"></span><span style="top:16%;--t:2.2s;--d:3.3s"></span><span style="top:15%;--t:3.3s;--d:0.7s"></span><span style="top:36%;--t:2.9s;--d:3.5s"></span></div>
+  <div class="embers"><span style="left:9%;--t:14.2s;--d:5.6s;--x:-24px"></span><span style="left:7%;--t:14.0s;--d:1.9s;--x:27px"></span><span style="left:20%;--t:13.9s;--d:8.0s;--x:63px"></span><span style="left:89%;--t:10.6s;--d:8.1s;--x:-32px"></span><span style="left:49%;--t:9.9s;--d:10.0s;--x:64px"></span><span style="left:9%;--t:14.6s;--d:6.9s;--x:56px"></span><span style="left:56%;--t:16.0s;--d:6.5s;--x:36px"></span><span style="left:48%;--t:11.7s;--d:11.1s;--x:-18px"></span><span style="left:12%;--t:14.2s;--d:7.4s;--x:7px"></span><span style="left:95%;--t:13.0s;--d:8.5s;--x:-62px"></span><span style="left:17%;--t:13.6s;--d:2.3s;--x:7px"></span><span style="left:21%;--t:17.4s;--d:5.9s;--x:-61px"></span><span style="left:73%;--t:14.2s;--d:12.3s;--x:0px"></span><span style="left:45%;--t:15.3s;--d:8.3s;--x:68px"></span><span style="left:60%;--t:9.6s;--d:1.3s;--x:-11px"></span><span style="left:62%;--t:15.3s;--d:0.9s;--x:-1px"></span></div>
   <svg class="road" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-    <defs><filter id="road-blur" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="14"/></filter></defs>
-    <path class="glow" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ff1a24" stroke-width="22" stroke-opacity=".55" filter="url(#road-blur)"/>
-    <path d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ff3a2e" stroke-width="3.5"/>
-    <path d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ffd2c8" stroke-width="1" stroke-opacity=".7"/>
+    <defs><filter id="road-blur" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="14"/></filter><filter id="streak-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <path class="glow draw" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ff1a24" stroke-width="22" stroke-opacity=".55" filter="url(#road-blur)"/>
+    <path class="draw" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ff3a2e" stroke-width="3.5"/>
+    <path class="draw" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ffd2c8" stroke-width="1" stroke-opacity=".7"/>
+    <path class="streak" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" filter="url(#streak-glow)"/>
+    <path class="streak b" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ffd2c8" stroke-width="4" stroke-linecap="round" filter="url(#streak-glow)"/>
+    <path class="streak c" pathLength="1000" d="M-40 820 C 220 760 420 640 640 600 C 820 570 900 690 1040 710 C 1240 740 1380 380 1640 260" fill="none" stroke="#ff8a70" stroke-width="3" stroke-linecap="round" filter="url(#streak-glow)"/>
   </svg>
 </div>
 <div class="stage">
