@@ -33,21 +33,22 @@ const STATE_NAMES = { menu: 'Online', 'free roam': 'Free roam', queue: 'Looking 
 const CSS = `
 #mpMenu[hidden],#mpLobby[hidden],#mpLoading[hidden],#mpLights[hidden],#mpHud[hidden],#mpResults[hidden],#mpWatch[hidden],#mpButton[hidden]{display:none!important}
 /* (above the account chip and the HUD — 70 — and below the account's own dialogs, 95 and up) */
-.mpBox{position:fixed;z-index:80;background:linear-gradient(170deg,rgba(20,20,24,.97),rgba(10,10,12,.97));color:#eef1f5;border:1px solid rgba(255,255,255,.1);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);font:14px/1.45 Barlow,system-ui,sans-serif}
+.mpBox{position:fixed;z-index:80;background:linear-gradient(170deg,rgba(20,20,24,.97),rgba(10,10,12,.97));color:#eef1f5;border:1px solid rgba(255,255,255,.1);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);font:13px/1.4 Barlow,system-ui,sans-serif}
 #mpMenu::before,#mpLobby::before,#mpResults::before,#mpLoading::before{content:'';position:absolute;left:18px;top:-1px;width:30%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,#E3121E,#FF4A36)}
-.mpBox h2{margin:0 0 6px;font:italic 800 26px/1.1 Saira,'Barlow Condensed',Barlow,system-ui,sans-serif;font-stretch:125%;color:#fff}.mpBox h3{margin:16px 0 6px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9AA0A8}
-.mpBox button{font:600 14px Barlow,system-ui,sans-serif;color:#fff;background:#18181C;border:1px solid #34343B;border-radius:8px;padding:7px 14px;cursor:pointer;transition:background .15s,border-color .15s}.mpBox button:hover:not(:disabled){background:#222228;border-color:#55555C}
+.mpBox h2{margin:0 0 6px;font:italic 800 20px/1.15 Saira,'Barlow Condensed',Barlow,system-ui,sans-serif;font-stretch:125%;color:#fff}.mpBox h3{margin:10px 0 4px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9AA0A8}
+.mpBox button{font:600 13px Barlow,system-ui,sans-serif;color:#fff;background:#18181C;border:1px solid #34343B;border-radius:7px;padding:5px 11px;cursor:pointer;transition:background .15s,border-color .15s}.mpBox button:hover:not(:disabled){background:#222228;border-color:#55555C}
 .mpBox button.primary{background:linear-gradient(180deg,#FF4A36,#E3121E 48%,#B30A16 52%,#D8141F);border-color:#FF5A45;font-weight:700}.mpBox button.primary:hover:not(:disabled){background:linear-gradient(180deg,#FF6A52,#F01C28 48%,#C00D19 52%,#E81A25);box-shadow:0 0 14px rgba(255,40,40,.4)}.mpBox button.danger{background:#3a1416;border-color:#7d2f2f}.mpBox button:disabled{opacity:.45;cursor:not-allowed}
-.mpBox input,.mpBox select{font:14px Barlow,system-ui,sans-serif;background:#0A0A0C;color:#fff;border:1px solid #34343B;border-radius:8px;padding:7px 9px}.mpBox input:focus,.mpBox select:focus{outline:none;border-color:#E3121E;box-shadow:0 0 0 3px rgba(227,18,30,.2)}
+.mpBox input,.mpBox select{font:13px Barlow,system-ui,sans-serif;background:#0A0A0C;color:#fff;border:1px solid #34343B;border-radius:6px;padding:4px 6px}.mpBox input:focus,.mpBox select:focus{outline:none;border-color:#E3121E;box-shadow:0 0 0 3px rgba(227,18,30,.2)}
 .mpBox table{width:100%;border-collapse:collapse}.mpBox td,.mpBox th{padding:3px 5px;text-align:left;white-space:nowrap}.mpBox th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;font-weight:600}
-.mpBox tr.me td{color:#FF8A70}.mpBox .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0}.mpBox .dim{opacity:.65}.mpBox .good{color:#7ee08a}.mpBox .bad{color:#ff7a6a}.mpBox .warn{color:#ffbd4a}
+.mpBox tr.me td{color:#FF8A70}.mpBox .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0}.mpBox .dim{opacity:.65}.mpBox .good{color:#7ee08a}.mpBox .bad{color:#ff7a6a}.mpBox .warn{color:#ffbd4a}
 .mpBox .tier{display:inline-block;padding:0 6px;border-radius:9px;background:rgba(255,255,255,.12);font-size:11px;font-weight:700}
 .mpBox .tier.sr{background:rgba(94,200,255,.16)} .mpBox .tier.sr.low{background:rgba(255,123,114,.22)}
-#mpMenu{left:50%;top:50%;transform:translate(-50%,-50%);width:min(580px,96vw);max-height:90vh;overflow:auto;padding:22px 24px}
+#mpMenu{left:50%;top:50%;transform:translate(-50%,-50%);width:min(580px,96vw);max-height:90vh;overflow:auto;padding:18px 20px;font-size:14px}
+#mpMenu h2{font-size:26px}
 #mpMenu .mp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 #mpMenu .mp-x{width:36px;height:36px;padding:0;border-radius:50%;font-size:15px;line-height:1}
 #mpMenu .mp-hero{display:flex;align-items:center;gap:14px;padding:14px;border-radius:10px;background:linear-gradient(100deg,rgba(227,18,30,.16),rgba(255,255,255,.02));border:1px solid rgba(255,74,54,.3)}
-#mpMenu .mp-hero button{flex:none;padding:12px 26px;font:italic 800 18px Saira,'Barlow Condensed',Barlow,sans-serif;font-stretch:125%;letter-spacing:.06em;text-transform:uppercase;border-radius:8px}
+#mpMenu .mp-hero button{flex:none;padding:10px 24px;font:italic 800 18px Saira,'Barlow Condensed',Barlow,sans-serif;font-stretch:125%;letter-spacing:.04em;border-radius:8px}
 #mpMenu .mp-card{margin-top:12px;padding:4px 14px 8px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07)}
 #mpMenu .mp-card h3{margin-top:10px}
 #mpMenu h3 button{margin-left:8px;padding:3px 10px;font-size:12px;letter-spacing:0;text-transform:none}
