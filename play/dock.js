@@ -28,7 +28,7 @@ body.garage-mode #krDock, body.kr-in-race #krDock, body.roamPhoto #krDock { disp
 #krDock .dk-item:hover, #krDock #mpButton:hover, #krDock #roamHud > button:hover { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .1); }
 #krDock .dk-item.on, #krDock #mpButton.on, #krDock #roamHud.on > button { background: linear-gradient(180deg, rgba(227, 18, 30, .28), rgba(227, 18, 30, .12)); border-color: rgba(255, 74, 54, .55); color: #fff; }
 #krDock .dk-item.on::after, #krDock #mpButton.on::after, #krDock #roamHud.on > button::after { content: ''; position: absolute; left: -9px; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: #FF4A36; box-shadow: 0 0 8px #FF2A2A; }
-#krDock .dk-ic { font-family: 'Material Symbols Outlined'; font-size: 26px; line-height: 1; font-weight: 400; font-style: normal; letter-spacing: 0; text-transform: none; -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; }
+#krDock .dk-ic { display: block; width: 1em; height: 1em; overflow: hidden; white-space: nowrap; font-family: 'Material Symbols Outlined'; font-size: 26px; line-height: 1; font-weight: 400; font-style: normal; letter-spacing: 0; text-transform: none; -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; }
 #krDock .dk-item:hover .dk-ic, #krDock #mpButton:hover .dk-ic, #krDock #roamHud > button:hover .dk-ic { color: #FF6A52; }
 #krDock kbd { position: absolute; top: 4px; right: 4px; font: 700 8px/1 "JetBrains Mono", monospace; color: #8B929B; background: rgba(255, 255, 255, .06); border-radius: 3px; padding: 2px 3px; }
 #krDock .dk-badge { position: absolute; top: 2px; left: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E3121E; color: #fff; font: 700 11px/18px Barlow, system-ui, sans-serif; text-align: center; box-shadow: 0 0 10px rgba(255, 30, 30, .6); }
@@ -48,6 +48,15 @@ body.garage-mode #krDock, body.kr-in-race #krDock, body.roamPhoto #krDock { disp
   #krDock { left: 8px; top: auto; bottom: 200px; transform: none; padding: 5px; gap: 3px; }
   #krDock .dk-item, #krDock #mpButton, #krDock #roamHud > button { width: 50px; min-height: 48px; font-size: 9.5px; }
   #krDock .dk-ic { font-size: 22px; } #krDock .dk-brand { width: 50px; height: 38px; } #krDock kbd { display: none; }
+}
+/* a short window (a laptop with the browser's bars, a phone on its side): icons only, the names as you point at them, in
+   the middle of the left edge so every tile's on screen */
+@media (max-height: 640px) {
+  #krDock { top: 50%; bottom: auto; transform: translateY(-50%); padding: 5px; gap: 2px; max-height: none; }
+  #krDock .dk-item, #krDock #mpButton, #krDock #roamHud > button { width: 46px; min-height: 40px; padding: 4px 2px; font-size: 0; gap: 0; }
+  #krDock .dk-ic { font-size: 22px; } #krDock .dk-brand { width: 46px; height: 32px; } #krDock .dk-brand svg { width: 28px; height: 28px; }
+  #krDock kbd, #krDock #roamHud .tag, #krDock #roamHud .dk-meet { display: none; }
+  #krDock .dk-sep { margin: 1px 4px; }
 }
 `;
 

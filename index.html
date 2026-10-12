@@ -230,7 +230,8 @@
   #worlds button.on { background: #e8433a; opacity: 1; }
   /* (the worlds bar: admins' — and on a development or test server, everyone's; players use the dock, play/dock.js) */
   body:not(.kr-worlds) #worlds { display: none !important; }
-  @media (max-width: 760px) { #worlds { top: auto; bottom: 150px; } }
+  #worlds { z-index: 58; }   /* (above the dock, play/dock.js, where a small window brings them together) */
+  @media (max-width: 760px) { #worlds { top: auto; bottom: 150px; left: 66px; right: 8px; transform: none; overflow-x: auto; } }   /* (right of the dock) */
   /* The garage (garage/garage.js): its own screen over everything */
   body.garage-mode #worlds, body.garage-mode #testHud, body.garage-mode #backToGarage { display: none !important; }
   #backToGarage { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 20; }
