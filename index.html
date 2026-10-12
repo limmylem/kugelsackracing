@@ -90,6 +90,8 @@
   #testHud th { padding: 0 10px 2px 0; font-size: 10px; font-weight: 500; text-align: left; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.03em; }
   #testHud .tacho { float: right; margin: -6px -8px 0 8px; }
   #testHud.compact { width: min(430px, calc(100vw - 48px)); }
+  /* (the full HUD's numbers are the admins' — and every development or test server's; players drive with theirs, testtrack/playerHud.js) */
+  body:not(.kr-worlds) #testHud.ready { display: none !important; }
   #testHud.compact .engine { white-space: nowrap; }
   #testHud .engine { font-size: 12px; line-height: 1.55; margin: 2px 0 6px; }
   #testHud .engine b, #testHud .timer b { font-weight: 700; }
