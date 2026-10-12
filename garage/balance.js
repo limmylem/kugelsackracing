@@ -8,6 +8,7 @@
 
 import { Garage } from './data.js';
 import { STAT_KEYS } from './workshop.js';
+import { released } from './content.js';
 
 export const TIER_ORDER = ['stock', 'street', 'sport', 'race'];
 const brakeTorque = B => { const P = B.maxPressureBar * 1e5, t = e => 2 * e.padMu * P * e.pistonArea * e.discRadius; return 2 * (t(B.front) + t(B.rear)); };
@@ -41,8 +42,9 @@ export function forCar(db, carId, part) {
   if ((part.conflicts ?? []).some(t => c.given.has(t))) return false;
   if (!part.fits?.length) return true;
   // (what could go on it offers its tags too — but not a part that can't go on this car at all: a crate engine
-  // made for others, conflicts car:<id>)
-  if (!c.tags) { const own = new Set(car.tags ?? []); c.tags = new Set([...own, ...Object.values(db.parts).filter(p => (p.fits ?? []).every(need => [].concat(need).some(t => own.has(t))) && !(p.conflicts ?? []).some(t => own.has(t))).flatMap(p => p.provides ?? [])]); }
+  // made for others, conflicts car:<id>; nor one players can't have yet, a draft: a part doesn't go on a car only
+  // through something that isn't out — docs/CONTENT_PIPELINE.md)
+  if (!c.tags) { const own = new Set(car.tags ?? []); c.tags = new Set([...own, ...Object.values(db.parts).filter(p => released(p) && !p.retired && (p.fits ?? []).every(need => [].concat(need).some(t => own.has(t))) && !(p.conflicts ?? []).some(t => own.has(t))).flatMap(p => p.provides ?? [])]); }
   return part.fits.every(need => [].concat(need).some(t => c.tags.has(t)));     // (each a tag, or alternatives)
 }
 // (per data set and car: what its parts offer, and so on — worked out once)
@@ -132,7 +134,7 @@ export function fitWithNeeds(db, carId, partId, { exclude = [], base = null } = 
 function optionsFor(db, g, err, not) {
   const wants = [].concat(err.need);
   const meets = p => wants.some(w => w.startsWith('slot:') ? p.slot === w.slice(5) : w.startsWith('part:') ? p.id === w.slice(5) : p.provides?.includes(w));
-  return Object.values(db.parts).filter(p => !not.includes(p.id) && !p.retired && !p.todo?.length && meets(p) && forCar(db, g.build.carId, p) && g.socketsFor(p.id).length).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1)).map(p => p.id);
+  return Object.values(db.parts).filter(p => !not.includes(p.id) && !p.retired && !p.todo?.length && meets(p) && forCar(db, g.build.carId, p) && g.socketsFor(p.id).length).sort((a, b) => released(b) - released(a) || a.price - b.price || (a.id < b.id ? -1 : 1)).map(p => p.id);   // (what players can have first)
 }
 
 // A part's own difference to its slot's key stat(s) (the best of them, as a share of the value

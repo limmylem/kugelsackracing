@@ -20151,12 +20151,12 @@
       "crash": {
         "key": "ac7cb923c6f65b35",
         "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3, 228: more than 2 race wins"],
+        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,  228: more than 2 race wins"],
         "cars": {
           "brute_500": {
             "carKey": "2fb9160db7283cc2",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 228: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  228: more than 2 race wins"],
             "drivable": true,
             "repair": 3228,
             "loose": 1
@@ -20295,12 +20295,12 @@
       "crash": {
         "key": "cc1116a4b190fac7",
         "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3, 137: more than 2 race wins"],
+        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,  137: more than 2 race wins"],
         "cars": {
           "kaze_gt": {
             "carKey": "29ce227702942db4",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 137: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  137: more than 2 race wins"],
             "drivable": true,
             "repair": 3137,
             "loose": 2
@@ -20439,12 +20439,12 @@
       "crash": {
         "key": "c87b60fb6c919595",
         "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3, 159: more than 2 race wins"],
+        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,  159: more than 2 race wins"],
         "cars": {
           "strada_evo": {
             "carKey": "8d869ae0d3ae0101",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 159: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  159: more than 2 race wins"],
             "drivable": true,
             "repair": 3159,
             "loose": 1
@@ -71234,22 +71234,6 @@
             "problems": [],
             "clashes": {}
           },
-          "hana_roadster": {
-            "carKey": "ebc2eb226a25d970",
-            "ok": true,
-            "problems": [],
-            "clashes": {}
-          },
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": true,
-            "problems": [],
-            "clashes": {
-              "5.0 L V8 (Brute 500, stock)": 106,
-              "Bonnet (Kaze GT, stock)": 44
-            },
-            "known": "a known problem, kept until it's fixed — through 5.0 L V8 (Brute 500, stock) (106), Bonnet (Kaze GT, stock) (44): It only goes on the Kaze GT with the V8 swapped in (above), and on that V8 it goes through the Kaze GT's bonnet too. To fix: with the raised bonnet."
-          },
           "ridgeback_4x4": {
             "carKey": "c50e5f076f425095",
             "ok": true,
@@ -71269,20 +71253,6 @@
             "problems": [],
             "zeroTo100": 5.208,
             "braking": 35.715
-          },
-          "hana_roadster": {
-            "carKey": "ebc2eb226a25d970",
-            "ok": true,
-            "problems": [],
-            "zeroTo100": 6.033,
-            "braking": 41.16
-          },
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": true,
-            "problems": [],
-            "zeroTo100": 5.875,
-            "braking": 37.345
           },
           "ridgeback_4x4": {
             "carKey": "c50e5f076f425095",
@@ -71304,22 +71274,6 @@
             "problems": [],
             "drivable": true,
             "repair": 1074,
-            "loose": 2
-          },
-          "hana_roadster": {
-            "carKey": "ebc2eb226a25d970",
-            "ok": true,
-            "problems": [],
-            "drivable": true,
-            "repair": 1058,
-            "loose": 2
-          },
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": true,
-            "problems": [],
-            "drivable": true,
-            "repair": 1009,
             "loose": 2
           },
           "ridgeback_4x4": {
@@ -83691,7 +83645,7 @@
       "max": {
         "index": 667,
         "class": "B",
-        "parts": ["pistons_forged", "intake_race", "spool_56_matte", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "gearbox_close_ratio", "clutch_sport", "flywheel_light", "arb_front_sport", "arb_rear_sport", "rim_multispoke", "tyre_track_slick", "bonnet_vented", "bumper_front_splitter", "basic_wing", "weight_rear_seats", "weight_sound_deadening", "short_shifter", "roll_cage_bolt_in"],
+        "parts": ["pistons_forged", "intake_race", "spool_56_matte", "intercooler_race", "streetline_89_titanium_matte", "headers_long_tube", "ecu_standalone", "gearbox_close_ratio", "clutch_sport", "flywheel_light", "arb_front_sport", "arb_rear_sport", "rim_multispoke", "tyre_track_slick", "bonnet_vented", "bumper_front_splitter", "basic_wing", "weight_rear_seats", "weight_sound_deadening", "short_shifter", "roll_cage_bolt_in"],
         "tuning": [
           {
             "part": "ecu_standalone",
@@ -83736,15 +83690,10 @@
         "class": "C"
       },
       "max": {
-        "index": 736,
+        "index": 728,
         "class": "A",
-        "parts": ["brute_500_engine", "pistons_forged", "airflow_76_cold_air_matte", "streetline_76_stainless_matte", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "kaze_gt_gt_wing", "supercharger_twin_screw", "radiator_aluminium", "kaze_gt_swap_brute_v8", "short_shifter", "roll_cage_bolt_in", "kaze_gt_canards", "groundline_kaze_gt_0_carbon"],
+        "parts": ["intake_race", "kaze_gt_turbo_kit", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "kaze_gt_gt_wing", "short_shifter", "roll_cage_bolt_in", "groundline_kaze_gt_0_carbon"],
         "tuning": [
-          {
-            "part": "ecu_standalone",
-            "setting": "revRaise",
-            "value": 400
-          },
           {
             "part": "sport_suspension",
             "setting": "rideHeight",
@@ -83775,12 +83724,17 @@
       "max": {
         "index": 679,
         "class": "B",
-        "parts": ["crate_kmw_i4_20t", "intake_race", "coldcore_60_matte", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "pads_race", "rim_multispoke", "tyre_track_slick", "aerofoil_1p5_0p3_matte", "hana_roadster_roll_hoop"],
+        "parts": ["crate_kmw_i4_20t", "intake_race", "intercooler_race", "catback_race", "header_4into1", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "pads_race", "rim_multispoke", "tyre_track_slick", "basic_wing", "hana_roadster_roll_hoop"],
         "tuning": [
           {
             "part": "ecu_standalone",
             "setting": "revRaise",
             "value": 400
+          },
+          {
+            "part": "sport_suspension",
+            "setting": "springs",
+            "value": 160
           },
           {
             "part": "sport_suspension",
@@ -83798,7 +83752,7 @@
             "value": 32000
           },
           {
-            "part": "aerofoil_1p5_0p3_matte",
+            "part": "basic_wing",
             "setting": "angle",
             "value": 16
           }

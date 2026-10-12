@@ -18,8 +18,8 @@
 //
 // Part shapes come from the game (garage/detach.js bodyDef): { mass, half, centre (box, part frame),
 // origin (socket, car frame), type, axis, limits (rad), mount, open, pop, strength, plateNormal,
-// plateArea, hulls? } — hulls (its convex hulls, from its model) where it has them, its mass shared out by their
-// volumes; else a box. The part frame lines up with the car frame at rest, its origin at the socket. A wheel
+// plateArea, hulls? } — torn off and lying in the road, its hulls (its convex hulls, from its model) where it has them,
+// its mass shared out by their volumes; else, and while it's still on the car (loose), a box. The part frame lines up with the car frame at rest, its origin at the socket. A wheel
 // torn off (garage/detach.js wheelDef): { shape: 'wheel', mass, radius, halfWidth, centre, origin (its
 // centre), spin (rad/s about the axle) } — a cylinder that rolls away.
 
@@ -94,7 +94,9 @@ export class LooseParts {
   loosen(socket, def) {
     if (this.parts.has(socket) || def.type === 'none') return false;
     const car = this.v.body, q = car.rotation(), at = add(fromXYZ(car.translation()), rotate(q, def.origin));
-    const { body, collider, colliders } = partBody(this.R, this.world, def, { position: at, rotation: q, linvel: pointVel(car, at), angvel: fromXYZ(car.angvel()) }, this.rules, 0xffffffff);
+    // (still on the car, swinging or dragging: its box — a hanging bumper's real shape snags the road at speed; its
+    // hulls are for when it's torn off and lies in the road)
+    const { body, collider, colliders } = partBody(this.R, this.world, { ...def, hulls: null }, { position: at, rotation: q, linvel: pointVel(car, at), angvel: fromXYZ(car.angvel()) }, this.rules, 0xffffffff);
     let joint;
     if (def.type === 'hinge') {
       joint = this.world.createImpulseJoint(this.R.JointData.revolute(toXYZ(def.origin), { x: 0, y: 0, z: 0 }, toXYZ(def.axis)), car, body, true);

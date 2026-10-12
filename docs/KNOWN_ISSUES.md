@@ -18,6 +18,8 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **Collision hulls are the built-in splitter's** here (CoACD isn't installed in CI or on this machine): a little
   rounder than CoACD's. Installing CoACD (`pip install coacd`) and running `npm run content -- finish` again doesn't
   change hulls already made; delete a part's `collision` to have it made again.
+- **A part still hanging off the car is a box to the physics** (as before); its collision hulls are used once it's torn
+  off and lies in the road: a hanging bumper's real, curved shape snagged the road at 190 km/h (tests/unit/detach.test.mjs).
 - **The Blender add-on's test runs only where Blender is** (BLENDER_PYTHON or BLENDER; not in CI): the add-on's rules
   copy is checked everywhere.
 - **Thumbnails are drawn without a browser** (the icons' software renderer): flat-shaded like the game, no shadows on
