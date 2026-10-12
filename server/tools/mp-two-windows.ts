@@ -182,12 +182,12 @@ try {
   const far = (await look(B)).cars[0]?.fromMe;
   // (what F9 did, for a failure: the key seen, what toNearest said, where B's car went)
   await B.evaluate(() => { const g = globalThis as any, M = g.__krMp; g.__f9 = { keys: [], said: [] }; addEventListener('keydown', e => g.__f9.keys.push(e.code), true); if (M?.toNearest) { const o = M.toNearest.bind(M); M.toNearest = () => { const r = o(); g.__f9.said.push(r); return r; }; } });
-  const before = await look(B);
+  const f9Before = await look(B);
   await B.keyboard.press('F9');
   const trail: string[] = [];
   const near = await until(async () => { const l = await look(B); if (trail.length < 12) trail.push(`${l.ready ? '' : 'spawning '}me ${l.me?.map(v => v.toFixed(0)).join(',')} other ${l.cars[0]?.pos.map(v => v.toFixed(0)).join(',')} ${f(l.cars[0]?.fromMe)} m`); return l.ready && l.cars[0] && l.cars[0].fromMe < 6 ? l.cars[0].fromMe : null; }, 30000);
   check('F9 puts your car beside the nearest player', near != null, `${f(far)} m away, then ${f(near)} m`);
-  if (near == null) console.log('F9 DEBUG', JSON.stringify(await B.evaluate(() => (globalThis as any).__f9)), 'world', before.file, 'before: me', before.me?.map(v => v.toFixed(0)).join(','), '\n  ' + trail.join('\n  '));
+  if (near == null) console.log('F9 DEBUG', JSON.stringify(await B.evaluate(() => (globalThis as any).__f9)), 'world', f9Before.file, 'before: me', f9Before.me?.map(v => v.toFixed(0)).join(','), '\n  ' + trail.join('\n  '));
 
   check('no errors on the pages', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e: any) {
