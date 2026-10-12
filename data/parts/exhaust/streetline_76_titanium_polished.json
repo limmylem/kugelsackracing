@@ -4,7 +4,7 @@
   "category": "exhaust",
   "slot": "exhaust",
   "kind": "modifier",
-  "price": 810,
+  "price": 820,
   "mass": 5,
   "model": "assets/parts/exhaust/streetline/streetline_76.glb",
   "icon": "assets/icons/parts/streetline_76_titanium_polished.png",
@@ -70,9 +70,9 @@
     },
     "gain": 0.0416,
     "measuredOn": "starter_car",
-    "priceFactor": 1.11
+    "priceFactor": 1.1233
   },
-  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 4.16%: sport, $810, unlocked at level 2.",
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 4.16%: sport, $820, unlocked at level 2.",
   "bounds": {
     "min": [-0.1541, -0.0585, -0.18],
     "max": [0.1541, 0.0585, 0]

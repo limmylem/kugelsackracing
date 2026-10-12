@@ -51,10 +51,10 @@
     "level": 7
   },
   "bounds": {
-    "min": [-0.3989, 0, -0.3487],
-    "max": [0.3989, 0.5998, 0.341]
+    "min": [-0.399, 0, -0.3474],
+    "max": [0.399, 0.499, 0.341]
   },
-  "massOffset": [0, 0.271, 0],
+  "massOffset": [0, 0.226, 0],
   "status": "draft",
   "engineSpec": {
     "layout": "v",
@@ -64,7 +64,7 @@
     "boost": 0,
     "mounts": ["long"],
     "bay": "large",
-    "size": [0.7, 0.799, 0.714],
+    "size": [0.7, 0.799, 0.594],
     "peakTorque": 577,
     "peakPower": 440,
     "words": "5.7 L V8"
@@ -72,5 +72,5 @@
   "generated": {
     "engine": "kmw_v8_57"
   },
-  "_generated": "Made by npm run content -- build from data/engines/kmw_v8_57.json (and data/content/formulas.json engines): change those, not this file. 5.7 L V8: 577 N·m, 440 hp, 200.3 kg, 0.7 × 0.799 × 0.714 m (a large bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated)."
+  "_generated": "Made by npm run content -- build from data/engines/kmw_v8_57.json (and data/content/formulas.json engines): change those, not this file. 5.7 L V8: 577 N·m, 440 hp, 200.3 kg, 0.7 × 0.799 × 0.594 m (a large bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated)."
 }

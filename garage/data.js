@@ -292,7 +292,8 @@ export class Garage {
       for (let round = 0; round < 12; round++) {
         const bad = validateBuild(build, this.view).errors.filter(e => e.code !== 'required_empty' && back.some(p => p.socket === e.socket) && !leftOff.has(e.socket));
         if (!bad.length) break;
-        for (const e of bad) { leftOff.set(e.socket, `left ${this.db.parts[this.state.parts[build.sockets[e.socket]].partId].name} off: ${e.message}`); whyOff.push(e); build.sockets[e.socket] = null; }
+        // (a part with two things wrong comes off once)
+        for (const e of bad) { if (leftOff.has(e.socket)) continue; leftOff.set(e.socket, `left ${this.db.parts[this.state.parts[build.sockets[e.socket]].partId].name} off: ${e.message}`); whyOff.push(e); build.sockets[e.socket] = null; }
       }
       for (const p of back) {
         if (leftOff.has(p.socket)) { steps.push(leftOff.get(p.socket)); continue; }

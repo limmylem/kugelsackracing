@@ -51,10 +51,10 @@
     "level": 4
   },
   "bounds": {
-    "min": [-0.37, -0.0585, -0.276],
-    "max": [0.37, 0.4324, 0.2765]
+    "min": [-0.37, -0.055, -0.2758],
+    "max": [0.37, 0.3962, 0.2765]
   },
-  "massOffset": [0, 0.175, 0],
+  "massOffset": [0, 0.16, 0],
   "status": "draft",
   "engineSpec": {
     "layout": "flat",
@@ -64,7 +64,7 @@
     "boost": 0,
     "mounts": ["mid"],
     "bay": "medium",
-    "size": [0.55, 0.74, 0.46],
+    "size": [0.55, 0.74, 0.42],
     "peakTorque": 298,
     "peakPower": 222,
     "words": "3.0 L flat-six"
@@ -72,5 +72,5 @@
   "generated": {
     "engine": "kmw_flat6_30"
   },
-  "_generated": "Made by npm run content -- build from data/engines/kmw_flat6_30.json (and data/content/formulas.json engines): change those, not this file. 3.0 L flat-six: 298 N·m, 222 hp, 160 kg, 0.55 × 0.74 × 0.46 m (a medium bay or bigger). It needs nothing else fitted."
+  "_generated": "Made by npm run content -- build from data/engines/kmw_flat6_30.json (and data/content/formulas.json engines): change those, not this file. 3.0 L flat-six: 298 N·m, 222 hp, 160 kg, 0.55 × 0.74 × 0.42 m (a medium bay or bigger). It needs nothing else fitted."
 }

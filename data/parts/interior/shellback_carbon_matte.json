@@ -4,7 +4,7 @@
   "category": "interior",
   "slot": "seat",
   "kind": "component",
-  "price": 460,
+  "price": 1300,
   "mass": 4.9,
   "model": "assets/parts/interior/shellback/shellback/starter_car.glb",
   "icon": "assets/icons/parts/shellback_carbon_matte.png",
@@ -34,7 +34,7 @@
     "measuredOn": "starter_car",
     "priceFactor": 1
   },
-  "_generated": "Made by npm run content -- build from data/families/shellback.json (and data/content/formulas.json families.seat): change those, not this file. On the Starter coupe it improves weight by 0.791%: street, $460, unlocked at level 2.",
+  "_generated": "Made by npm run content -- build from data/families/shellback.json (and data/content/formulas.json families.seat): change those, not this file. On the Starter coupe it improves weight by 0.791%: race, $1,300, unlocked at level 5.",
   "bounds": {
     "min": [-0.2444, 0, -0.539],
     "max": [0.2444, 0.9, 0.321]
@@ -91,8 +91,8 @@
       }
     }
   },
-  "tier": "street",
+  "tier": "race",
   "unlock": {
-    "level": 2
+    "level": 5
   }
 }

@@ -64,7 +64,7 @@
     },
     "gain": 0.038,
     "measuredOn": "starter_car",
-    "priceFactor": 1.115
+    "priceFactor": 1.1154
   },
   "_generated": "Made by npm run content -- build from data/families/airflow.json (and data/content/formulas.json families.intake): change those, not this file. On the Starter coupe it improves power by 3.8%: sport, $290, unlocked at level 2.",
   "bounds": {

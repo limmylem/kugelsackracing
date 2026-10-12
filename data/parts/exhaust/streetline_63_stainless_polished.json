@@ -70,7 +70,7 @@
     },
     "gain": 0.0208,
     "measuredOn": "starter_car",
-    "priceFactor": 1.077
+    "priceFactor": 1.1053
   },
   "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 2.08%: street, $420.",
   "bounds": {

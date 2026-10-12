@@ -70,7 +70,7 @@
     },
     "gain": 0.0416,
     "measuredOn": "starter_car",
-    "priceFactor": 1.151
+    "priceFactor": 1.1507
   },
   "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 4.16%: sport, $840, unlocked at level 2.",
   "bounds": {

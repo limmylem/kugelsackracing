@@ -3,10 +3,10 @@
   "engines": {
     "_note": "Engines (data/engines/<id>.json → the crate engine part data/parts/engine/crate_<id>.json, garage/engines.js). Settings: layout (inline, v, flat, rotary), cylinders (rotors for a rotary), displacement (litres), aspiration (natural, turbo, supercharged), boost (bar, forced only), idle and redline (rpm), character (0 a lazy, torquey engine … 1 a peaky one that wants revs). The torque curve: peakTorque N·m at peakRpm, torque at idle a share of the peak (idleShare), falling to redlineShare at the redline and overRevShare 400 rpm past it; a forced engine's boost builds from idle to spoolRpm and holds to holdRpm. overrides in the engine's file (torqueCurve, mass, size) replace what these work out.",
     "layouts": {
-      "inline": { "label": "inline", "base": 45, "length": "0.18 + 0.105 * cylinders", "width": "0.5 + 0.02 * displacement", "height": "0.58 + 0.02 * displacement" },
-      "v": { "label": "V", "base": 45, "length": "0.3 + 0.05 * cylinders", "width": "0.6 + 0.035 * displacement", "height": "0.6 + 0.02 * displacement" },
-      "flat": { "label": "flat", "base": 55, "length": "0.25 + 0.05 * cylinders", "width": "0.62 + 0.04 * displacement", "height": "0.46" },
-      "rotary": { "label": "rotary", "base": 30, "length": "0.32 + 0.12 * cylinders", "width": "0.5", "height": "0.5" }
+      "inline": { "label": "inline", "base": 45, "length": "0.18 + 0.105 * cylinders", "width": "0.46 + 0.02 * displacement", "height": "0.48 + 0.02 * displacement" },
+      "v": { "label": "V", "base": 45, "length": "0.3 + 0.05 * cylinders", "width": "0.6 + 0.035 * displacement", "height": "0.48 + 0.02 * displacement" },
+      "flat": { "label": "flat", "base": 55, "length": "0.25 + 0.05 * cylinders", "width": "0.62 + 0.04 * displacement", "height": "0.42" },
+      "rotary": { "label": "rotary", "base": 30, "length": "0.32 + 0.12 * cylinders", "width": "0.5", "height": "0.46" }
     },
     "aspirations": {
       "natural": { "label": "naturally aspirated", "induction": "natural", "torquePerLitre": 100, "boostGain": 0, "mass": 0 },

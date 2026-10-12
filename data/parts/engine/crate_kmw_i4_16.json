@@ -10,7 +10,7 @@
   "icon": "assets/icons/parts/crate_kmw_i4_16.png",
   "fits": ["mount:long", "bay:compact"],
   "requires": [],
-  "conflicts": [],
+  "conflicts": ["car:starter_car"],
   "provides": ["engine_family:crate_kmw_i4_16", "engine_layout:inline4", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
   "engine": {
     "torqueCurve": [[850, 109], [1650, 124], [2450, 136], [3250, 146], [4050, 152], [4800, 156], [5500, 157], [5600, 157], [6400, 151], [7200, 141], [7600, 127]],
@@ -51,10 +51,10 @@
     "level": 2
   },
   "bounds": {
-    "min": [-0.2711, 0, -0.3006],
-    "max": [0.2022, 0.5447, 0.298]
+    "min": [-0.2523, 0, -0.2994],
+    "max": [0.187, 0.4557, 0.298]
   },
-  "massOffset": [0, 0.233, 0],
+  "massOffset": [0, 0.195, 0],
   "status": "draft",
   "engineSpec": {
     "layout": "inline",
@@ -64,7 +64,7 @@
     "boost": 0,
     "mounts": ["long"],
     "bay": "compact",
-    "size": [0.6, 0.532, 0.612],
+    "size": [0.6, 0.492, 0.512],
     "peakTorque": 157,
     "peakPower": 143,
     "words": "1.6 L inline-four"
@@ -72,5 +72,6 @@
   "generated": {
     "engine": "kmw_i4_16"
   },
-  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_16.json (and data/content/formulas.json engines): change those, not this file. 1.6 L inline-four: 157 N·m, 143 hp, 111.4 kg, 0.6 × 0.532 × 0.612 m (a compact bay or bigger). It needs nothing else fitted."
+  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_16.json (and data/content/formulas.json engines): change those, not this file. 1.6 L inline-four: 157 N·m, 143 hp, 111.4 kg, 0.6 × 0.492 × 0.512 m (a compact bay or bigger). It needs nothing else fitted.",
+  "_fit": "It doesn't fit the Starter coupe (through the body in 8 places): so it isn't for it."
 }

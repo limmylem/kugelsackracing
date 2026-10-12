@@ -4,7 +4,7 @@
   "category": "intake",
   "slot": "intake",
   "kind": "modifier",
-  "price": 150,
+  "price": 160,
   "mass": 1,
   "model": "assets/parts/intake/airflow/airflow_76_cone/starter_car.glb",
   "icon": "assets/icons/parts/airflow_76_cone_polished.png",
@@ -55,9 +55,9 @@
     },
     "gain": 0.0211,
     "measuredOn": "starter_car",
-    "priceFactor": 1.071
+    "priceFactor": 1.1429
   },
-  "_generated": "Made by npm run content -- build from data/families/airflow.json (and data/content/formulas.json families.intake): change those, not this file. On the Starter coupe it improves power by 2.11%: street, $150.",
+  "_generated": "Made by npm run content -- build from data/families/airflow.json (and data/content/formulas.json families.intake): change those, not this file. On the Starter coupe it improves power by 2.11%: street, $160.",
   "bounds": {
     "min": [0, -0.05, -0.0296],
     "max": [0.206, 0.1129, 0.292]

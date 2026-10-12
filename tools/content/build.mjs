@@ -26,7 +26,7 @@ import { expandFamily, priceFamilyParts } from './families.mjs';
 import { engineModel } from '../shapes/engine.js';
 import { shapeFor } from '../shapes/index.js';
 import { loadCar } from '../generators/lib/car.js';
-import { fitBuild } from '../generators/lib/fitcheck.js';
+import { fitBuild, fitCheck } from '../generators/lib/fitcheck.js';
 
 const round = (v, d = 4) => +v.toFixed(d);
 export const listDefs = (root, dir) => fs.existsSync(path.join(root, dir)) ? fs.readdirSync(path.join(root, dir)).filter(f => f.endsWith('.json')).sort().map(f => ({ file: `${dir}/${f}`, def: readJson(`${dir}/${f}`, root) })) : [];
@@ -59,7 +59,7 @@ export async function plan({ root = ROOT, only = null, project = null } = {}) {
     const heard = soundProblems(root, def);
     if (heard.length) { failed.push({ id: def.id, source: file, problems: heard }); continue; }
     const p = r.part;
-    jobs.push({ id: p.id, source: file, type: 'engine', part: p, look: null, models: [{ file: p.model, build: () => engineModel(p.id, { ...def, size: r.design.size, mount: [].concat(def.mount)[0] }) }] });
+    jobs.push({ id: p.id, source: file, type: 'engine', part: p, look: null, engineFit: true, models: [{ file: p.model, build: () => engineModel(p.id, { ...def, size: r.design.size, mount: [].concat(def.mount)[0] }) }] });
   }
   // part families → their parts (each fitted to every car it goes on, for a kind that's fitted)
   for (const { file, def } of listDefs(root, 'data/families')) {
@@ -96,9 +96,10 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
   for (const job of jobs) {
     for (const m of job.models) {
       if (!made.has(m.file)) {
-        let doc = null, problems = [], fit = null;
+        let doc = null, problems = [], fit = null, model = null;
         try {
-          const model = await m.build(), t = rules.types[job.type];
+          model = await m.build();
+          const t = rules.types[job.type];
           fit = model.fit ?? null;
           if (model.triangles > t.triangles * 2) problems.push(`${job.id}: its model has ${model.triangles.toLocaleString('en-GB')} triangles, over twice the ${t.label.toLowerCase()} budget (${t.triangles.toLocaleString('en-GB')})`);
           doc = quiet(await model.document());
@@ -106,7 +107,7 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
           const r = checkModel(inspect(doc), { rules, type: job.type, file: m.file });
           for (const x of r.findings) if (x.level === 'fail') problems.push(`${job.id}${m.car ? ` (on the ${project.db.cars[m.car].name})` : ''}: its model — ${x.text}${x.fix ? ` ${x.fix}` : ''}`);
         } catch (err) { problems.push(`${job.id}: its model couldn't be made: ${err.message}`); }
-        made.set(m.file, { doc, problems, fit, info: doc ? inspect(doc) : null });
+        made.set(m.file, { doc, problems, fit, info: doc ? inspect(doc) : null, tris: model?.tris?.() ?? null });
         log(`  model ${m.file}${fit?.clashes ? ` (${fit.clashes} clash${fit.clashes > 1 ? 'es' : ''} left)` : ''}`);
       }
       const r = made.get(m.file);
@@ -145,8 +146,24 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
   // write: the models, the icons, the part files, the index
   const writeIf = (full, bytes) => { fs.mkdirSync(path.dirname(full), { recursive: true }); if (!fs.existsSync(full) || !fs.readFileSync(full).equals(bytes)) fs.writeFileSync(full, bytes); };
   const written = new Set();
+  for (const j of ok) for (const m of j.models) if (!written.has(m.file)) { writeIf(path.join(root, m.file), Buffer.from(await io.writeBinary(made.get(m.file).doc))); written.add(m.file); }
+  // a crate engine in each car its mount and bay say it fits, as the garage fits it (the airbox and header that go
+  // with the car's own engine off): a car whose bonnet or body it would go through is one it isn't for
+  for (const j of ok.filter(j => j.engineFit)) {
+    const all = { ...project.db, parts: { ...project.db.parts, [j.id]: { ...j.part, conflicts: [] } } }, no = [];
+    for (const carId of Object.keys(all.cars).filter(c => forCar(all, c, all.parts[j.id])).sort()) {
+      const r = await fitCheck(all, carId, j.id);
+      if (r.error) { no.push({ carId, why: r.error }); continue; }
+      const through = Object.entries(r.clashes).filter(([owner]) => owner !== all.parts[all.cars[carId].sockets.find(x => x.slot === 'engine')?.stock?.[0]]?.name);
+      if (through.length) no.push({ carId, why: through.map(([o, n]) => `through ${o} in ${n} place${n > 1 ? 's' : ''}`).join(', ') });
+    }
+    if (no.length) {
+      j.part.conflicts = [...j.part.conflicts, ...no.map(x => `car:${x.carId}`)];
+      j.part._fit = `It doesn't fit the ${no.map(x => `${project.db.cars[x.carId].name} (${x.why})`).join('; ')}: so it isn't for ${no.length > 1 ? 'them' : 'it'}.`;
+      for (const x of no) out.clashes.push({ id: j.id, car: x.carId, left: true });
+    }
+  }
   for (const j of ok) {
-    for (const m of j.models) if (!written.has(m.file)) { writeIf(path.join(root, m.file), Buffer.from(await io.writeBinary(made.get(m.file).doc))); written.add(m.file); }
     writeIf(path.join(root, j.part.icon), await renderIcon(made.get(j.part.model).doc, { rules, type: j.type, look: j.look }));
     const file = `data/parts/${j.part.category}/${j.part.id}.json`, full = path.join(root, file), was = project.db.parts[j.part.id];
     if (was && !was.generated?.engine && !was.generated?.family) { failed.push({ id: j.id, source: j.source, problems: [`${j.id}: there's already a part "${j.id}" that wasn't made from ${j.source}: rename it in ${j.source}`] }); continue; }

@@ -67,7 +67,7 @@
     },
     "gain": 0.6124,
     "measuredOn": "starter_car",
-    "priceFactor": 1.119
+    "priceFactor": 1.1189
   },
   "_generated": "Made by npm run content -- build from data/families/spool.json (and data/content/formulas.json families.turbo): change those, not this file. On the Starter coupe it improves power by 61.2%: race, $4,140, unlocked at level 6.",
   "bounds": {

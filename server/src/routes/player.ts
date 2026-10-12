@@ -18,7 +18,7 @@ import { AppError } from '../errors.ts';
 import { PLAYER_ACTIONS, type Economy, type PlayerAction } from '../economy/service.ts';
 import type { EconomyConfig } from '../economy/config.ts';
 
-export async function playerRoutes(app0: FastifyInstance, { economy, config: econ, G }: { economy: Economy; config: EconomyConfig; G: Guards }) {
+export async function playerRoutes(app0: FastifyInstance, { economy, config: econ, content, G }: { economy: Economy; config: EconomyConfig; content?: { overlay: () => Promise<any> }; G: Guards }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const who = async (req: any) => { const s = await G.requireTerms(req); return { id: s.user.id, name: s.user.name }; };
 
@@ -63,10 +63,11 @@ export async function playerRoutes(app0: FastifyInstance, { economy, config: eco
   });
 
   app.get('/player/config', async (req, reply) => {
-    const a = await econ.active(), tag = `"e${a.version}"`;
+    // (and what the content manager has published: parts and cars out of drafts, their published changes)
+    const [a, o] = await Promise.all([econ.active(), content?.overlay() ?? null]), tag = `"e${a.version}c${o?.version ?? 0}"`;
     reply.header('etag', tag).header('cache-control', 'public, max-age=60');
     if (req.headers['if-none-match'] === tag) return reply.status(304).send();
-    return { version: a.version, economy: a.data.economy, quests: a.data.quests };
+    return { version: a.version, economy: a.data.economy, quests: a.data.quests, content: o };
   });
 
   app.get('/player/used-lot', async (req, reply) => {

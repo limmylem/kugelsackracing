@@ -5,8 +5,10 @@
 // stat or price changes made there, and sends the game what's published (applyContent).
 //
 //   statusOf(part) → 'draft' | 'review' | 'published'          released(part) → whether players get it
-//   applyContent(db, overlay) — overlay: { version, parts: { id: { status?, set?: { field: value } } } }
-//     (the parts' statuses and changed fields, in place; a part the overlay doesn't name keeps its file's)
+//   applyContent(db, overlay) — overlay: { version, parts: { id: { status?, set?: { field: value } } }, cars: { id: { status } } }
+//     (the parts' and cars' statuses and changed fields, in place — the game's own copy; a part the overlay doesn't
+//     name keeps its file's)
+//   withContent(db, overlay) → a db with them, the original untouched (the server's: its game data is shared)
 //   editProblems(part, changes, { formulas, tiers }) → [problem in words]   (what the content manager may change)
 //
 // No browser or Node APIs.
@@ -37,11 +39,30 @@ export function applyContent(db, overlay) {
     for (const [k, v] of Object.entries(o.set ?? {})) {
       if (!EDITABLE_FIELDS.has(k)) continue;
       if (!(k in file.fields)) file.fields[k] = part[k] === undefined ? undefined : clone(part[k]);
-      part[k] = clone(v);
+      if (v === null && k === 'unlock') delete part[k]; else part[k] = clone(v);
     }
+  }
+  for (const [id, o] of Object.entries(overlay.cars ?? {})) {
+    const car = db.cars[id];
+    if (!car) continue;
+    if (!FILE.has(car)) FILE.set(car, { status: car.status, fields: {} });
+    if (o.status) car.status = o.status;
   }
   db.contentVersion = overlay.version ?? null;
   return db;
+}
+export function withContent(db, overlay) {
+  if (!overlay?.parts && !overlay?.cars) return db;
+  const parts = { ...db.parts }, cars = { ...db.cars };
+  for (const [id, o] of Object.entries(overlay.parts ?? {})) {
+    if (!parts[id]) continue;
+    const p = { ...parts[id] };
+    if (o.status) p.status = o.status;
+    for (const [k, v] of Object.entries(o.set ?? {})) if (EDITABLE_FIELDS.has(k)) { if (v === null && k === 'unlock') delete p[k]; else p[k] = clone(v); }
+    parts[id] = p;
+  }
+  for (const [id, o] of Object.entries(overlay.cars ?? {})) if (cars[id] && o.status) cars[id] = { ...cars[id], status: o.status };
+  return { ...db, parts, cars, contentVersion: overlay.version ?? null };
 }
 function restore(part) {
   const file = FILE.get(part);
@@ -65,9 +86,9 @@ export function editProblems(part, changes, { formulas, tiers }) {
   if ('name' in changes && !(typeof changes.name === 'string' && changes.name.trim().length >= 3 && changes.name.length <= 80)) out.push('the name is 3 to 80 characters');
   // (the price within its tier's band for its slot: data/content/tiers.json)
   const tier = changes.tier ?? part.tier, rule = tiers?.slots?.[part.slot], band = tiers?.tiers?.[tier]?.price;
-  if ('price' in changes && rule?.street && band && part.tier !== 'stock') {
-    const lo = Math.round(band[0] * rule.street), hi = Math.round(band[1] * rule.street);
-    if (changes.price < lo || changes.price > hi) out.push(`$${changes.price.toLocaleString('en-GB')} is outside the ${tier} price band for ${part.slot} ($${lo.toLocaleString('en-GB')}–$${hi.toLocaleString('en-GB')})`);
+  if (('price' in changes || 'tier' in changes) && rule?.street && band && part.tier !== 'stock') {
+    const lo = Math.round(band[0] * rule.street), hi = Math.round(band[1] * rule.street), price = changes.price ?? part.price;
+    if (Number.isFinite(price) && (price < lo || price > hi)) out.push(`$${price.toLocaleString('en-GB')} is outside the ${tier} price band for ${part.slot} ($${lo.toLocaleString('en-GB')}–$${hi.toLocaleString('en-GB')})`);
   }
   if ('stats' in changes) {
     const kind = part.generated?.kind && formulas?.families?.[part.generated.kind];
@@ -88,7 +109,7 @@ export function editProblems(part, changes, { formulas, tiers }) {
 export function editFields(part, changes, { formulas }) {
   const set = {};
   if ('price' in changes) set.price = changes.price;
-  if ('unlockLevel' in changes) set.unlock = changes.unlockLevel ? { level: changes.unlockLevel } : undefined;
+  if ('unlockLevel' in changes) set.unlock = changes.unlockLevel ? { level: changes.unlockLevel } : null;
   if ('tier' in changes) set.tier = changes.tier;
   if ('name' in changes) set.name = changes.name.trim();
   if (changes.stats && Object.keys(changes.stats).length) {

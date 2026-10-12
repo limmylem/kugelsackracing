@@ -10,7 +10,7 @@
   "icon": "assets/icons/parts/crate_kmw_i4_20t.png",
   "fits": ["mount:long", "bay:compact"],
   "requires": ["clutch_rating:sport"],
-  "conflicts": [],
+  "conflicts": ["car:starter_car"],
   "provides": ["engine_family:crate_kmw_i4_20t", "engine_layout:inline4", "induction:turbo", "intake_flange:std", "exhaust_flange:std"],
   "engine": {
     "torqueCurve": [[850, 172], [1600, 220], [2350, 305], [3000, 343], [3100, 343], [3850, 343], [4550, 343], [4900, 343], [5300, 329], [6050, 286], [6800, 233], [7200, 202]],
@@ -72,10 +72,10 @@
     "level": 4
   },
   "bounds": {
-    "min": [-0.3059, 0, -0.3007],
-    "max": [0.2052, 0.5848, 0.298]
+    "min": [-0.2883, 0, -0.2995],
+    "max": [0.19, 0.4947, 0.298]
   },
-  "massOffset": [0, 0.236, 0],
+  "massOffset": [0, 0.198, 0],
   "status": "draft",
   "engineSpec": {
     "layout": "inline",
@@ -85,7 +85,7 @@
     "boost": 1,
     "mounts": ["long"],
     "bay": "compact",
-    "size": [0.6, 0.54, 0.62],
+    "size": [0.6, 0.5, 0.52],
     "peakTorque": 343,
     "peakPower": 245,
     "words": "2.0 L turbo inline-four"
@@ -93,5 +93,6 @@
   "generated": {
     "engine": "kmw_i4_20t"
   },
-  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_20t.json (and data/content/formulas.json engines): change those, not this file. 2.0 L turbo inline-four: 343 N·m, 245 hp, 133 kg, 0.6 × 0.54 × 0.62 m (a compact bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport)."
+  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_20t.json (and data/content/formulas.json engines): change those, not this file. 2.0 L turbo inline-four: 343 N·m, 245 hp, 133 kg, 0.6 × 0.5 × 0.52 m (a compact bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport).",
+  "_fit": "It doesn't fit the Starter coupe (through the body in 16 places, through Bonnet (stock) in 38 places): so it isn't for it."
 }

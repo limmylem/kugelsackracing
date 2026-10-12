@@ -73,7 +73,7 @@
     },
     "gain": 0.0271,
     "measuredOn": "starter_car",
-    "priceFactor": 1.607
+    "priceFactor": 1.6066
   },
   "_generated": "Made by npm run content -- build from data/families/aerofoil.json (and data/content/formulas.json families.spoiler): change those, not this file. On the Starter coupe it improves grip by 2.71%: sport, $980, unlocked at level 3.",
   "bounds": {

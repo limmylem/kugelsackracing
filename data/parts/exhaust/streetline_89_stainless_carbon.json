@@ -4,7 +4,7 @@
   "category": "exhaust",
   "slot": "exhaust",
   "kind": "modifier",
-  "price": 840,
+  "price": 1800,
   "mass": 9.1,
   "model": "assets/parts/exhaust/streetline/streetline_89.glb",
   "icon": "assets/icons/parts/streetline_89_stainless_carbon.png",
@@ -79,16 +79,16 @@
     },
     "gain": 0.0624,
     "measuredOn": "starter_car",
-    "priceFactor": 1.037
+    "priceFactor": 1.2
   },
-  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 6.24%: sport, $840, unlocked at level 4.",
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 6.24%: race, $1,800, unlocked at level 5.",
   "bounds": {
     "min": [-0.1784, -0.0685, -0.18],
     "max": [0.1784, 0.0685, 0]
   },
   "massOffset": [0, 0, -0.07],
-  "tier": "sport",
+  "tier": "race",
   "unlock": {
-    "level": 4
+    "level": 5
   }
 }

@@ -4,7 +4,7 @@
   "category": "turbo",
   "slot": "turbo",
   "kind": "modifier",
-  "price": 2680,
+  "price": 2400,
   "mass": 11.9,
   "model": "assets/parts/turbo/spool/spool_44/starter_car.glb",
   "icon": "assets/icons/parts/spool_44_matte.png",
@@ -69,7 +69,7 @@
     "measuredOn": "starter_car",
     "priceFactor": 1
   },
-  "_generated": "Made by npm run content -- build from data/families/spool.json (and data/content/formulas.json families.turbo): change those, not this file. On the Starter coupe it improves power by 37.7%: sport, $2,680, unlocked at level 3.",
+  "_generated": "Made by npm run content -- build from data/families/spool.json (and data/content/formulas.json families.turbo): change those, not this file. On the Starter coupe it improves power by 37.7%: sport, $2,400, unlocked at level 3.",
   "bounds": {
     "min": [-0.2269, -0.1604, -0.2287],
     "max": [0.0047, 0.2542, 0.23]

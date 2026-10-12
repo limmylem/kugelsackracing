@@ -72,10 +72,10 @@
     "level": 4
   },
   "bounds": {
-    "min": [-0.298, 0, -0.3059],
-    "max": [0.3007, 0.5848, 0.2052]
+    "min": [-0.298, 0, -0.2883],
+    "max": [0.2995, 0.4947, 0.19]
   },
-  "massOffset": [0, 0.236, 0],
+  "massOffset": [0, 0.198, 0],
   "status": "draft",
   "engineSpec": {
     "layout": "inline",
@@ -85,7 +85,7 @@
     "boost": 1,
     "mounts": ["trans"],
     "bay": "compact",
-    "size": [0.6, 0.54, 0.62],
+    "size": [0.6, 0.5, 0.52],
     "peakTorque": 343,
     "peakPower": 245,
     "words": "2.0 L turbo inline-four"
@@ -93,5 +93,5 @@
   "generated": {
     "engine": "kmw_i4_20t_trans"
   },
-  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_20t_trans.json (and data/content/formulas.json engines): change those, not this file. 2.0 L turbo inline-four: 343 N·m, 245 hp, 133 kg, 0.6 × 0.54 × 0.62 m (a compact bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport)."
+  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_20t_trans.json (and data/content/formulas.json engines): change those, not this file. 2.0 L turbo inline-four: 343 N·m, 245 hp, 133 kg, 0.6 × 0.5 × 0.52 m (a compact bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport)."
 }
