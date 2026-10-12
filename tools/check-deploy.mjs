@@ -75,6 +75,15 @@ await tryIt('the game', async () => {
   check([301, 302].includes(admin.status) && (admin.headers.get('location') ?? '').startsWith(API), 'the game\'s /admin/ goes to the API\'s', `${admin.status}`);
   const editor = await get(`${G}/editor/editor.js`);
   check(editor.status !== 200 || !(await editor.text()).includes('createEditor'), 'the editor\'s code isn\'t on the game\'s address');
+  // (Phase 8 Step 3: the content bundle — the cars' and parts' data in one file cached for good; each model at its
+  // versioned address on the tiles: docs/CONTENT_PIPELINE.md)
+  const manifest = await (await fetch(`${G}/data/bundle.json`, { cache: 'no-store' })).json().catch(() => null);
+  const bundle = manifest && await fetch(`${G}/${manifest.data}`);
+  const files = bundle?.ok ? Object.keys((await bundle.json()).files ?? {}).length : 0;
+  check(files > 600 && /immutable/.test(bundle.headers.get('cache-control') ?? ''), 'the content bundle: the game\'s data in one file, cached for good', `${files} files · ${bundle?.headers.get('cache-control') ?? 'none'}`);
+  const [model, v] = Object.entries(manifest?.models ?? {}).find(([f]) => f.startsWith('assets/cars/')) ?? [];
+  const m = model && await fetch(`${TILES}/${model}?v=${v}`, { headers: { origin: G } });
+  check(!!m?.ok && m.headers.get('access-control-allow-origin') === G, 'a model at its versioned address on the tiles, for the game', `${model}?v=${v} → ${m?.status ?? 'none'}`);
 });
 
 // ---------- the tiles ----------

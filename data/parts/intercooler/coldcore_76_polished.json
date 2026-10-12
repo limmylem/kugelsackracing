@@ -32,7 +32,7 @@
       "mass": 10.7
     },
     "gain": null,
-    "priceFactor": 1.134
+    "priceFactor": 1.1263
   },
   "_generated": "Made by npm run content -- build from data/families/coldcore.json (and data/content/formulas.json families.intercooler): change those, not this file. sport: priced by its settings, $760, unlocked at level 3.",
   "bounds": {

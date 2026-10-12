@@ -7,6 +7,8 @@
 //     (Phase 7 Step 5: the game plays online without ?mp; ?mp=0 turns it off)
 //   - the main page's import map pointing the editor's imports of the game's modules back here (the editor's
 //     code comes from the API's address, the modules it shares with the game from this one: loaded once)
+//   - the content bundles (tools/content/bundle.mjs: data/bundle.json, and the cars' and parts' data in one file
+//     named by its content, cached for good — Phase 8 Step 3)
 //   - _headers (security headers, the content security policy, caching) and _redirects (assets/ → the tiles
 //     address, admin/ → the API's; nothing for editor/: Pages redirects even a file it has, and editor/access.js
 //     is here — the editor's own code is loaded from the API's address by site/urls.js)
@@ -44,7 +46,7 @@ const LEAVE_OUT = new Set(['assets', 'admin', 'editor', 'dev']);
 // (editor/access.js, and the two helpers the game itself imports: roads.js for gunzipJson, markers3d.js for content's markers)
 const KEEP = new Set(['editor/access.js', 'editor/roads.js', 'editor/markers3d.js']);
 // (and single files the game never loads: the benchmarks' own scenes — tools/bench.mjs drives them on a dev page)
-const LEAVE_OUT_FILES = new Set(['perf/bench.js']);
+const LEAVE_OUT_FILES = new Set(['perf/bench.js', 'data/content/checks.json']);   // (and the content checks' results: the server's content manager reads them, not the game)
 
 // ---------- the files ----------
 fs.rmSync(out, { recursive: true, force: true });
@@ -85,6 +87,14 @@ if (missing.length) { console.error(`published files import files that aren't pu
 // (Cloudflare Pages: at most 25 MiB a file, 20,000 files)
 if (biggest.n > 25 * 1024 * 1024) { console.error(`${biggest.f} is over Pages' 25 MiB a file`); process.exit(1); }
 if (wanted.length > 19000) { console.error(`${wanted.length} files: over Pages' 20,000`); process.exit(1); }
+
+// ---------- the content bundles (Phase 8 Step 3: garage/contentBundle.js) ----------
+// (the cars' and parts' data in one file named by its content, and every model's version — data/bundle.json)
+{
+  const { buildBundle } = await import('./content/bundle.mjs');
+  const b = buildBundle({ root, out });
+  console.log(`content bundle ${b.version}: ${b.files} data files (${(b.bytes / 1048576).toFixed(1)} MB) in ${b.data}, ${b.models} models versioned`);
+}
 
 // ---------- where everything is ----------
 fs.mkdirSync(path.join(out, 'site'), { recursive: true });
@@ -140,6 +150,8 @@ fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs
   Cache-Control: no-cache
 /data/*
   Cache-Control: no-cache
+/bundles/*
+  Cache-Control: public, max-age=31536000, immutable
 /scenes/*
   Cache-Control: no-cache
 `);

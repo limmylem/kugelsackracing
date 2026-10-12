@@ -1,5 +1,5 @@
 {
-  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type coupe) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has (the import warns outside them).",
+  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type coupe) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has, the whole car as it's imported (mirrors and all: the game's cars are a little smaller than real ones) — the import warns outside them.",
   "type": "coupe",
   "label": "Coupe",
   "donor": "kaze_gt",
@@ -52,8 +52,8 @@
     "floor": 0.2
   },
   "sizes": {
-    "length": [4, 4.8],
-    "width": [1.72, 1.95],
+    "length": [3.9, 4.9],
+    "width": [1.72, 2.2],
     "height": [1.22, 1.42],
     "wheelbase": [2.4, 2.8]
   }

@@ -46,7 +46,7 @@
       "toughness": 1
     },
     "gain": null,
-    "priceFactor": 1.114
+    "priceFactor": 1.1143
   },
   "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. street: priced by its settings, $390, unlocked at level 2.",
   "bounds": {

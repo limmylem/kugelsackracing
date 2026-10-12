@@ -32,7 +32,7 @@
       "mass": 0.82
     },
     "gain": null,
-    "priceFactor": 1.233
+    "priceFactor": 1.2308
   },
   "_generated": "Made by npm run content -- build from data/families/gripline.json (and data/content/formulas.json families.steering_wheel): change those, not this file. race: priced by its settings, $1,800, unlocked at level 7.",
   "bounds": {

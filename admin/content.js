@@ -65,7 +65,7 @@ export function createContentTools({ api, h, say, when, errText, main }) {
         h('table', {}, h('tr', {}, h('th', {}, h('input', { type: 'checkbox', checked: allPicked, onchange: e => { for (const x of all) e.target.checked ? picked.add(`${x.kind}:${x.id}`) : picked.delete(`${x.kind}:${x.id}`); draw(); } })), h('th', {}, ''), h('th', {}, 'Name'), h('th', {}, q.kind === 'part' ? 'Tier' : 'Class'), h('th', {}, 'Price'), h('th', {}, 'Status'), h('th', {}, 'Checks')),
           ...all.map(x => h('tr', { style: shown === `${x.kind}:${x.id}` ? 'background:var(--c-raised)' : '' },
             h('td', {}, h('input', { type: 'checkbox', checked: picked.has(`${x.kind}:${x.id}`), onchange: e => { e.target.checked ? picked.add(`${x.kind}:${x.id}`) : picked.delete(`${x.kind}:${x.id}`); drawBulk(); } })),
-            h('td', {}, x.icon ? h('img', { src: iconUrl(x.icon), width: 40, height: 40, loading: 'lazy', alt: '' }) : ''),
+            h('td', {}, x.thumb ? h('img', { src: iconUrl(x.thumb), width: 64, height: 40, loading: 'lazy', alt: '', style: 'object-fit:cover;border-radius:3px' }) : x.icon ? h('img', { src: iconUrl(x.icon), width: 40, height: 40, loading: 'lazy', alt: '' }) : ''),
             h('td', {}, h('a', { href: '#', onclick: e => { e.preventDefault(); open(x.kind, x.id); } }, x.name), h('div', { class: 'muted' }, `${x.id}${x.family ? ` · ${x.family}` : ''}${x.slot ? ` · ${x.slot}` : ''}`)),
             h('td', {}, x.tier ?? '—'), h('td', {}, money(x.price)),
             h('td', {}, badge(x.status, STATUS_KIND[x.status]), x.live && x.status !== 'published' ? h('div', { class: 'muted' }, 'an older version is in the game') : '', x.edited ? h('div', { class: 'muted' }, `edited (v${x.version})`) : ''),
@@ -105,7 +105,9 @@ export function createContentTools({ api, h, say, when, errText, main }) {
       const C = x.checks ?? {};
       if (kind === 'part') for (const k of ['fit', 'drive', 'crash', 'sound', 'budget', 'economy', 'classes']) {
         const c = C[k]; if (!c) continue;
-        checkRows.push(h('tr', {}, h('td', {}, k), h('td', {}, c.ok ? h('span', { style: 'color:var(--c-good)' }, '✔') : h('span', { style: 'color:var(--c-bad-soft)' }, '✘')), h('td', {}, (c.problems ?? []).slice(0, 6).join(' · ') || (c.cars ? `${Object.keys(c.cars).length} car${Object.keys(c.cars).length > 1 ? 's' : ''}` : c.note ?? ''))));
+        // (a known problem kept until it's fixed: data/content/check-rules.json fit.known)
+        const known = Object.entries(c.cars ?? {}).filter(([, r]) => r.known).map(([car, r]) => `${car}: ${r.known}`);
+        checkRows.push(h('tr', {}, h('td', {}, k), h('td', {}, c.ok ? h('span', { style: 'color:var(--c-good)' }, known.length ? '✔ (known)' : '✔') : h('span', { style: 'color:var(--c-bad-soft)' }, '✘')), h('td', {}, [...(c.problems ?? []).slice(0, 6), ...known].join(' · ') || (c.cars ? `${Object.keys(c.cars).length} car${Object.keys(c.cars).length > 1 ? 's' : ''}` : c.note ?? ''))));
       } else if (C.max) checkRows.push(h('tr', {}, h('td', {}, 'classes'), h('td', {}, C.ok ? '✔' : '✘'), h('td', {}, `stock ${C.stock?.class} (${C.stock?.index}), fully upgraded ${C.max.class} (${C.max.index})${(C.problems ?? []).length ? ` — ${C.problems.join('; ')}` : ''}`)));
       if (x.liveChecks) checkRows.push(h('tr', {}, h('td', {}, `live (v${x.liveChecks.version})`), h('td', {}, x.liveChecks.ok ? '✔' : '✘'), h('td', {}, (x.liveChecks.problems ?? []).join(' · ') || 'its tier and the class limits, with this version')));
       // the edit form: name, tier, price, unlock level and its family's stats (each with its allowed range)
@@ -128,7 +130,7 @@ export function createContentTools({ api, h, say, when, errText, main }) {
       const carSel = h('select', { onchange: () => show3d(carSel.value) }, ...x.cars.map(c => h('option', { value: c.id }, c.name)));
       const why3d = h('div', { class: 'muted' });
       detail.replaceChildren(
-        h('div', { class: 'row', style: 'align-items:center' }, x.icon ? h('img', { src: iconUrl(x.icon), width: 72, height: 72, alt: '' }) : '', h('div', {}, h('h2', {}, x.name), h('div', { class: 'muted' }, `${x.id}${x.family ? ` · ${x.family}` : ''} · version ${x.version}`))),
+        h('div', { class: 'row', style: 'align-items:center' }, x.thumb ? h('img', { src: iconUrl(x.thumb), width: 180, height: 112, alt: 'Studio thumbnail', style: 'border-radius:4px' }) : x.icon ? h('img', { src: iconUrl(x.icon), width: 72, height: 72, alt: '' }) : '', h('div', {}, h('h2', {}, x.name), h('div', { class: 'muted' }, `${x.id}${x.family ? ` · ${x.family}` : ''} · version ${x.version}`))),
         h('div', { class: 'row' }, badge(x.status, STATUS_KIND[x.status]), x.live ? badge('in the game') : badge('not in the game'), x.edited ? badge('edited here') : ''),
         h('div', { class: 'row' }, statusBtn('published', 'Publish', 'primary'), statusBtn('review', 'To review', 'secondary'), statusBtn('draft', 'Back to draft', 'ghost')),
         dmsg,

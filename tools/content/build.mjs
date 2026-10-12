@@ -15,6 +15,8 @@ import { checkModel } from './check.mjs';
 import { autoFix } from './fix.mjs';
 import { renderIcon } from './icon.mjs';
 import { inspect } from './inspect.mjs';
+import { finishModel } from './finish.mjs';
+import { collisionHulls } from './collision.mjs';
 import { modelIO, quiet } from './io.mjs';
 import { formatJson, writeJson } from './json.mjs';
 import { loadProject } from './project.mjs';
@@ -145,8 +147,16 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
 
   // write: the models, the icons, the part files, the index
   const writeIf = (full, bytes) => { fs.mkdirSync(path.dirname(full), { recursive: true }); if (!fs.existsSync(full) || !fs.readFileSync(full).equals(bytes)) fs.writeFileSync(full, bytes); };
-  const written = new Set();
-  for (const j of ok) for (const m of j.models) if (!written.has(m.file)) { writeIf(path.join(root, m.file), Buffer.from(await io.writeBinary(made.get(m.file).doc))); written.add(m.file); }
+  // (each model finished as the importer finishes one: its levels of detail, big textures compressed — and, for a part
+  // that comes off in a crash, its collision hulls, worked out once a model)
+  const written = new Set(), hulls = new Map();
+  for (const j of ok) for (const m of j.models) if (!written.has(m.file)) { const doc = made.get(m.file).doc; await finishModel(doc, { rules }); writeIf(path.join(root, m.file), Buffer.from(await io.writeBinary(doc))); written.add(m.file); }
+  const hullsOf = async file => { if (!hulls.has(file)) hulls.set(file, rules.collision ? await collisionHulls(made.get(file).info.triangles, rules.collision) : null); return hulls.get(file); };
+  for (const j of ok.filter(j => j.part.detach?.detachable && made.has(j.part.model))) {
+    const c = await hullsOf(j.part.model);
+    if (c) j.part.collision = c;
+    for (const v of Object.values(j.part.byCar ?? {})) if (made.has(v.model)) { const cv = await hullsOf(v.model); if (cv) v.collision = cv; }
+  }
   // a crate engine in each car its mount and bay say it fits, as the garage fits it (the airbox and header that go
   // with the car's own engine off): a car whose bonnet or body it would go through is one it isn't for
   for (const j of ok.filter(j => j.engineFit)) {

@@ -10,6 +10,25 @@
   "properties": {
     "originTolerance": { "type": "number", "exclusiveMinimum": 0 },
     "textureMaxSize": { "type": "integer", "minimum": 16 },
+    "lods": {
+      "type": "object", "required": ["from", "levels"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "from": { "type": "integer", "minimum": 0 },
+        "levels": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "object", "required": ["ratio"], "additionalProperties": false, "properties": { "ratio": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "error": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } } }
+      }
+    },
+    "ktx2": {
+      "type": "object", "required": ["from"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": { "from": { "type": "integer", "minimum": 16 }, "quality": { "type": "integer", "minimum": 1, "maximum": 255 } }
+    },
+    "collision": {
+      "type": "object", "required": ["maxHulls", "maxPoints"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": { "maxHulls": { "type": "integer", "minimum": 1, "maximum": 16 }, "maxPoints": { "type": "integer", "minimum": 4, "maximum": 64 }, "concavity": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "cells": { "type": "integer", "minimum": 8, "maximum": 96 } }
+    },
+    "dent": {
+      "type": "object", "required": ["maxEdge", "maxTriangles"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": { "maxEdge": { "type": "number", "exclusiveMinimum": 0 }, "maxTriangles": { "type": "integer", "minimum": 1 }, "maxCarTriangles": { "type": "integer", "minimum": 1 } }
+    },
     "materials": {
       "type": "object", "required": ["names", "patterns"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
       "properties": { "names": { "type": "array", "items": { "type": "string" } }, "patterns": { "type": "array", "items": { "type": "string" } }, "finishes": { "type": "boolean" } }

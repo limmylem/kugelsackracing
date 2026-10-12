@@ -139,8 +139,10 @@ test('every part with sound settings changes the sound as it says', () => {
       assert.ok((Af.exhaust.tone > B.exhaust.tone) === (cb > ca), `${part.id}: tone ×${(Af.exhaust.tone / B.exhaust.tone).toFixed(2)}, centre ${ca.toFixed(0)} → ${cb.toFixed(0)} Hz`);
     }
     if (Sd.exhaust?.rasp) {
+      // (its rasp by itself: its tone kept as it was — a darker tone takes from the same band)
       const h = spec => band(spectrum(render1(spec, { mute: { intake: false, pops: false } }, steady(r, { throttle: 1, pedal: 1, load: 1 })), Math.round(0.5 * SR), 32768), 1800, 6000);
-      assert.ok(h(after) > h(before), `${part.id}: rasp — the 1.8–6 kHz share ${h(before).toFixed(3)} → ${h(after).toFixed(3)}`);
+      const hb = h(before), ha = h({ ...after, audio: { ...Af, exhaust: { ...Af.exhaust, tone: B.exhaust.tone } } });
+      assert.ok(ha > hb, `${part.id}: rasp — the 1.8–6 kHz share ${hb.toFixed(3)} → ${ha.toFixed(3)}`);
     }
     if (Sd.exhaust?.pops) assert.ok(pops(after) > pops(before), `${part.id}: pops ${pops(before)} → ${pops(after)}`);
     if (Sd.intake?.roar) {

@@ -13,7 +13,9 @@
 //    tyre from its tyre part's size, so the tyre is cut off here (its faces are the ones textured like
 //    the tread) and its measured size is checked against the stock tyre and rim parts
 // and sets each stock part's model and bounds (its extent in the socket's frame, for placeholders) in
-// its data/parts file. Run it again whenever the source model changes.
+// its data/parts file. Each model written is finished (tools/content/finish.mjs: its levels of detail, its big
+// textures compressed), and a stock part that can come off in a crash gets its collision hulls. Run it again
+// whenever the source model changes.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,6 +25,10 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { cloneDocument, getBounds, prune } from '@gltf-transform/functions';
 import { tyreFit } from '../garage/tyres.js';
 import { formatJson } from './content/json.mjs';
+import { loadRules } from './content/rules.mjs';
+import { finishModel } from './content/finish.mjs';
+import { collisionHulls } from './content/collision.mjs';
+import { inspect } from './content/inspect.mjs';
 
 // (--root: another copy of the game's folders, e.g. a test's)
 const args = process.argv.slice(2), rootArg = args.indexOf('--root');
@@ -41,6 +47,7 @@ const quiet = doc => doc.setLogger(new Logger(Logger.Verbosity.WARN));
 const source = quiet(await io.read(path.join(root, car.model.source)));
 const bodyOut = `assets/cars/${carId}/body.glb`, partsDir = `assets/parts/stock/${carId}`;
 const round = v => +v.toFixed(4);
+const rules = loadRules(root);
 
 // The part meshes: what hangs under each socket's node (its own name, or `node` — but not a socket
 // drawn at another car.json socket, like a tyre on its wheel), by stock part
@@ -65,10 +72,11 @@ const written = [];
 async function write(doc, file) {
   await doc.transform(prune({ keepLeaves: true }));   // (empty socket nodes are the point of the body)
   if (dryRun) { written.push(`${file} (not written: --dry-run)`); return; }
+  const did = await finishModel(doc, { rules });
   fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   const bytes = await io.writeBinary(doc);
   fs.writeFileSync(path.join(root, file), bytes);
-  written.push(`${file} (${(bytes.byteLength / 1024).toFixed(1)} KB)`);
+  written.push(`${file} (${(bytes.byteLength / 1024).toFixed(1)} KB${did.length ? `; ${did.join('; ')}` : ''})`);
 }
 
 // 1. the body: the source without the part meshes
@@ -97,8 +105,9 @@ for (const [partId, e] of byPart) {
   for (const s of doc.getRoot().listScenes()) if (s !== scene) s.dispose();
   if (def.rim) cutTyre(doc, node, partId, def, e.sockets);
   const b = getBounds(scene);
+  const collision = def.detach?.detachable && rules.collision ? await collisionHulls(inspect(doc).triangles, rules.collision) : null;
   await write(doc, `${partsDir}/${name}.glb`);
-  partUpdates[partId] = { model: `${partsDir}/${name}.glb`, bounds: { min: b.min.map(round), max: b.max.map(round) } };
+  partUpdates[partId] = { model: `${partsDir}/${name}.glb`, bounds: { min: b.min.map(round), max: b.max.map(round) }, ...(collision ? { collision } : {}) };
 }
 
 // 3. the data: the car's body and each stock part's model and bounds
@@ -108,7 +117,7 @@ if (!dryRun) {
     // (a part another car's model already draws — the same engine in two cars — keeps that model)
     const was = part(id).model;
     if (was && !was.startsWith(`${partsDir}/`)) { console.warn(`  note: ${id} is drawn with ${was} (another car's): kept; this car's is at ${u.model}`); delete partUpdates[id]; continue; }
-    setJson(partFile[id], p => { p.model = u.model; p.bounds = u.bounds; });
+    setJson(partFile[id], p => { p.model = u.model; p.bounds = u.bounds; if (u.collision) p.collision = u.collision; });
   }
 }
 console.log(`${car.name}: split ${rel(path.join(root, car.model.source))}\n${written.map(w => `  ${w}`).join('\n')}\n${Object.entries(partUpdates).map(([id, u]) => `  ${id} → ${u.model}`).join('\n')}`);

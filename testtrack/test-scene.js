@@ -106,7 +106,7 @@ import { createDamageReport, createDash } from './dashboard.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
-import { ModelCache, createCarVisual, setEnvironment, skyEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { ModelCache, createCarVisual, setTextureRenderer, setEnvironment, skyEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
 import { EffectsDirector } from '../effects/director.js';
 import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
@@ -762,6 +762,7 @@ async function createShared() {
   startup.step('graphics (WebGL)');
   // (anti-aliasing is the graphics settings' — perf/graphics.js: the canvas has none of its own, so it can change while playing)
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  setTextureRenderer(renderer);       // (compressed (KTX2) model textures are decoded for it: garage/visual.js)
   const prof = createProfiler({ renderer, stutterFactor: perfCfg.stutterFactor });
   // what chrome, metallic paint and the like reflect (only those finishes use it; the graphics settings' reflections)
   const skyEnv = skyEnvironment(renderer);

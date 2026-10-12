@@ -26,6 +26,7 @@ import { classProblems } from './classes.mjs';
 import { loadRules, readJson } from './rules.mjs';
 import { partShape } from '../../garage/partShape.js';
 import { Garage } from '../../garage/data.js';
+import { applyStats, editableStats } from '../../garage/families.js';
 import { released } from '../../garage/content.js';
 
 const R = readJson('data/content/check-rules.json'), tiers = readJson('data/content/tiers.json'), rules = loadRules();
@@ -35,17 +36,31 @@ let H = null, C = null, S = null;
 const fitted = (db, carId, partId) => { const f = fitWithNeeds(db, carId, partId); return f.ok ? f : { ...f, ok: false }; };
 
 // ---------- fit and clipping ----------
+// (no worse than the car's own stock part in that place: a panel modelled with the car meets the body, so what the
+// stock one goes through is allowed — and a few triangles more, or a small share of the part's, for a different shape)
+const stockClashes = new Map();
 async function fit(db, part, carId) {
   if (!partShape(part, db.parts, carId).model) return { ok: true, problems: [], note: 'no model yet: nothing to fit' };
+  const stock = db.cars[carId].sockets.find(s => s.slot === part.slot)?.stock?.[0];
+  if (stock === part.id) return { ok: true, problems: [], note: 'the car\'s own stock part: what the others are measured against' };
   const r = await fitCheck(db, carId, part.id);
   if (r.error) return { ok: false, problems: [`it can't be fitted: ${r.error}`] };
-  const engine = Object.keys(r.clashes).filter(o => db.parts[Object.values(db.cars[carId].sockets).find(s => s.slot === 'engine')?.stock?.[0]]?.name === o);
-  const mounted = ENGINE_MOUNTED.has(part.slot), problems = [];
+  const key = `${carId}|${part.slot}`;
+  if (!stockClashes.has(key)) stockClashes.set(key, stock && db.parts[stock] && partShape(db.parts[stock], db.parts, carId).model ? fitCheck(db, carId, stock).then(x => x.clashes ?? {}, () => ({})) : Promise.resolve({}));
+  const base = await stockClashes.get(key), allow = Math.max(R.fit.extra, Math.floor(R.fit.share * (r.triangles ?? 0)));
+  // (the engine it bolts to: the one fitted — a swap's, if it needed one — else the car's own)
+  const engineId = (r.with ?? []).find(id => db.parts[id]?.slot === 'engine') ?? db.cars[carId].sockets.find(s => s.slot === 'engine')?.stock?.[0];
+  const engine = db.parts[engineId]?.name, touch = Math.max(R.fit.engineTouch, Math.floor((R.fit.engineShare ?? 0) * (r.triangles ?? 0)));
+  // (a problem players' parts already had, kept until it's fixed: check-rules.json fit.known — published parts only)
+  const known = released(part) ? R.fit.known?.[part.id] : null, waived = known?.cars?.[carId] ?? {};
+  const mounted = ENGINE_MOUNTED.has(part.slot), problems = [], kept = [];
   for (const [owner, n] of Object.entries(r.clashes)) {
-    if (mounted && engine.includes(owner) && n <= R.fit.engineTouch) continue;
-    problems.push(`it goes through ${owner} (${n} place${n > 1 ? 's' : ''})`);
+    if (mounted && owner === engine && n <= touch) continue;
+    if (n <= (base[owner] ?? 0) + allow) continue;
+    if (waived[owner] != null && n <= waived[owner]) { kept.push(`${owner} (${n})`); continue; }
+    problems.push(`it goes through ${owner} (${n} place${n > 1 ? 's' : ''}${base[owner] ? `; the stock ${db.parts[stock].name}: ${base[owner]}` : ''})`);
   }
-  return { ok: !problems.length, problems, clashes: r.clashes };
+  return { ok: !problems.length, problems, clashes: r.clashes, ...(Object.keys(base).length ? { stock: base } : {}), ...(kept.length ? { known: `a known problem, kept until it's fixed — through ${kept.join(', ')}: ${known.why}` } : {}) };
 }
 
 // ---------- a short drive ----------
@@ -96,7 +111,8 @@ async function sound(db, part, carId) {
   if (!S) { const A = await import('../../tests/audioHarness.mjs'); S = { ...(await A.soundHarness()), A }; }
   const problems = [];
   let before, after;
-  try { before = S.spec(carId); after = S.spec(carId, [part.id]); }
+  // (fitted as the shop would, with whatever it needs: a swap kit, a gearbox…)
+  try { before = S.spec(carId); const f = fitWithNeeds(db, carId, part.id); if (!f.ok) throw new Error(f.error); after = f.garage.stats().spec; }
   catch (err) { return { ok: false, problems: [`it can't be fitted to hear it: ${err.message}`] }; }
   const level = spec => { const v = S.engine(spec, { mute: { intake: false, pops: true } }); const x = S.A.render(v, R.sound.seconds, () => ({ rpm: spec.engine.redlineRpm * 0.75, throttle: 1, pedal: 1, load: 1, gear: 3 }), { channels: [0] }); return { rms: S.A.rms(x, x.length >> 1), peak: S.A.peak(x), finite: x.every(Number.isFinite) }; };
   let a, b;
@@ -163,6 +179,23 @@ async function economy(db, part) {
   return out;
 }
 
+// ---------- its stats at the ends of their allowed ranges ----------
+// (a family's part as the content manager could edit it: each stat at the bottom and the top of its range, the rest as
+// they are — the short drive must still pass, so any edit within the ranges is covered: garage/liveChecks.js)
+const F = readJson('data/content/formulas.json');
+async function ranges(db, part, carId) {
+  const kind = F.families[part.generated?.kind];
+  if (!kind) return { ok: true, problems: [], note: 'not a family\'s part' };
+  const problems = [], tried = [];
+  for (const [k, S] of Object.entries(editableStats(kind))) for (const [end, v] of [['bottom', S.range[0]], ['top', S.range[1]]]) {
+    const p2 = { ...part, ...applyStats(part, F, { ...part.generated.stats, [k]: v }) }, db2 = { ...db, parts: { ...db.parts, [part.id]: p2 } };
+    const r = await drive(db2, p2, carId);
+    tried.push(`${k} ${end}`);
+    for (const x of r.problems) problems.push(`with its ${S.label} at ${v}${S.unit ? ` ${S.unit}` : ''} (the ${end} of its range), on the ${db.cars[carId].name}: ${x}`);
+  }
+  return { ok: !problems.length, problems, tried: tried.length };
+}
+
 const PER_CAR = { fit, drive, crash };
 export async function checkPart(db, partId, { kinds, cars }) {
   const part = db.parts[partId], out = {};
@@ -173,8 +206,9 @@ export async function checkPart(db, partId, { kinds, cars }) {
         for (const c of cars) res[c] = await PER_CAR[kind](db, part, c);
         const failed = Object.entries(res).filter(([, r]) => !r.ok);
         out[kind] = { ok: !failed.length, problems: failed.flatMap(([c, r]) => r.problems.map(p => `on the ${db.cars[c].name}: ${p}`)), cars: res };
-      } else if (kind === 'sound') out.sound = cars.length ? await sound(db, part, cars[0]) : { ok: true, problems: [], note: 'it goes on no car' };
+      } else if (kind === 'sound') out.sound = cars.length ? await sound(db, part, cars.find(c => db.cars[c].sockets.some(s => s.stock?.includes(part.id))) ?? cars[0]) : { ok: true, problems: [], note: 'it goes on no car' };
       else if (kind === 'budget') out.budget = await budget(db, part);
+      else if (kind === 'ranges') out.ranges = cars.length ? await ranges(db, part, cars[0]) : { ok: true, problems: [], note: 'it goes on no car' };
       else if (kind === 'economy') out.economy = await economy(db, part);
     } catch (err) { out[kind] = { ok: false, problems: [`the ${kind} check went wrong: ${err.message}`] }; }
   }

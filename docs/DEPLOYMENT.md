@@ -10,6 +10,14 @@
 > the server's image; still within R2's free 10 GB, so no change to what it costs. Its road graph is the biggest
 > (89,000 segments): once someone drives there, the API and the real-time server each hold it in memory (about
 > 0.4 GB each, San Francisco's about 0.2 GB), which the VPS's 4 GB has room for.
+> Then Phase 8 Step 3, the content pipeline ([CONTENT_PIPELINE.md](CONTENT_PIPELINE.md)), 2026-10-12: the admin page's
+> **Content** tab (the content manager: the server keeps each part's status, versions and history — two new tables,
+> `catalogue_items` and `catalogue_history`, migration 0015 — and tells the game what's published in
+> `/api/v1/player/config`); the game's data served as a **content bundle** (built with the site:
+> `data/bundle.json`, never cached, and `bundles/data-<hash>.json`, cached for good — one download instead of ~700),
+> every model fetched at an address with its version and kept in the browser's cache; models with levels of detail
+> (+2 MB on the tiles' address) and **studio thumbnails** (`assets/thumbs/`, a few MB). No change to the services or
+> what they cost.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
@@ -152,7 +160,10 @@ so nothing ever points at something that isn't there yet:
    the server by itself (a dropped connection can't leave it half done), then a wait — up to 13 minutes — until the API
    and the real-time server, as players reach them, both say they're this commit and healthy. Images unused for a week
    are removed from the server.
-3. **The game:** `tools/build-site.mjs` builds it, `wrangler pages deploy` publishes it to the Pages project `ognistrada`.
+3. **The game:** `tools/build-site.mjs` builds it — with the content bundle (`tools/content/bundle.mjs`: the cars' and
+   parts' data in one file named by its content, and every model's version from the files step 1 put on R2) —
+   and `wrangler pages deploy` publishes it to the Pages project `ognistrada`. (`data/content/checks.json`, the content
+   checks' results, stays out: the server reads it, the game doesn't.)
 4. **The checks** (`tools/check-deploy.mjs`). A failed check fails the deploy, and the run's summary says how to roll back.
 
 **What players notice.** The API restarts in seconds (there's one of it: requests in those seconds fail, and the game

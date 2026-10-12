@@ -1,5 +1,8 @@
 // Importing a model (npm run import): check it, fix what can be fixed, check it again, and if it passes
 // put it in the game —
+// Every model is finished on its way in (tools/content/finish.mjs: levels of detail, big textures compressed), and a
+// part that comes off in a crash gets its collision hulls and its detach block (mounts from the model).
+//
 //  - a part (spoiler_ducktail.glb): its model in assets/parts/<category>/, an icon in
 //    assets/icons/parts/, and a starting definition in data/parts/<category>/ (slot, bounds, model, an
 //    estimated mass from its volume, the type's template — fits, aero… — and a price and stats marked
@@ -27,6 +30,7 @@ import { inspect } from './inspect.mjs';
 import { modelIO, readModel } from './io.mjs';
 import { editJson, writeJson } from './json.mjs';
 import { readJson, rel, typeFromName } from './rules.mjs';
+import { finishModel, partDamage } from './finish.mjs';
 
 const TOOLS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const round = (v, d = 4) => +v.toFixed(d);
@@ -45,13 +49,16 @@ export async function importFile(file, project, options = {}) {
   try { doc = await readModel(file); }
   catch (err) { return { ok: false, type, message: `${path.basename(file)} can't be read (${err.message}): export it again as glTF Binary (.glb).` }; }
   const carId = type === 'car' ? base.replace(/^car_/, '') : null;
-  const ctx = { rules, type, db: project.db, knownSockets: project.knownSockets, car: carId ? project.db.cars[carId] ?? null : null, file: rel(file, root), estimateMass: true };
+  const existingCar = carId ? project.db.cars[carId] ?? null : null;
+  const ctx = { rules, type, db: project.db, knownSockets: project.knownSockets, templates: project.templates, car: existingCar ?? templateCar(options, project), newCar: type === 'car' && !existingCar, file: rel(file, root), estimateMass: true };
   const before = checkModel(inspect(doc), ctx);
   const did = await autoFix(doc, { rules, type, scale: options.scale, placeOrigin: options.placeOrigin, paint: options.paint, materials: options.materials, compress: type !== 'car' });
   const info = inspect(doc), after = checkModel(info, ctx);
   const out = { ok: false, type, before, after, did, written: [], notes: [] };
   if (after.verdict === 'fail') return { ...out, message: `${path.basename(file)} still has problems after fixing what could be fixed: it stays in ${rel(path.dirname(file), root)} until they're fixed (see above).` };
 
+  // (a car's are finished as it's split into its body and parts: tools/split-car.mjs)
+  if (type !== 'car') out.finished = await finishModel(doc, { rules });
   const io = await modelIO(), bytes = await io.writeBinary(doc);
   const result = type === 'car' ? await placeCar(carId, doc, bytes, project, out, options) : await placePart(options.id ?? base, type, doc, info, bytes, project, out, options);
   if (!result.ok) return result;
@@ -77,15 +84,16 @@ async function placePart(base, type, doc, info, bytes, project, out, options = {
   if (options.byCar && !existing) return { ...out, message: `${id} isn't a part yet: import its own model before a car's version of it.` };
   write(root, model, bytes); out.written.push(model);
   const bounds = { min: info.bounds.min.map(v => round(v)), max: info.bounds.max.map(v => round(v)) };
+  const damage = await partDamage(info, type, rules, existing?.detach ?? options.defaults?.detach ?? null);
   if (options.byCar) {
-    editJson(path.join(root, defFile), p => { p.byCar = { ...p.byCar, [options.byCar]: { model, bounds } }; });
+    editJson(path.join(root, defFile), p => { p.byCar = { ...p.byCar, [options.byCar]: { model, bounds, ...(damage.collision ? { collision: damage.collision } : {}) } }; });
     out.written.push(defFile);
     out.notes.push(`${id}: its ${options.byCar} version`);
     return { ...out, ok: true, id, part: readJson(defFile, root) };
   }
   write(root, icon, await renderIcon(doc, { rules, type })); out.written.push(icon);
   if (existing) {
-    editJson(path.join(root, defFile), p => { p.model = model; p.icon = icon; p.bounds = bounds; delete p.modelTodo; delete p.placeholder; Object.assign(p, options.set ?? {}); });
+    editJson(path.join(root, defFile), p => { p.model = model; p.icon = icon; p.bounds = bounds; if (damage.collision) p.collision = damage.collision; if (damage.detach && !p.detach) p.detach = damage.detach; delete p.modelTodo; delete p.placeholder; Object.assign(p, options.set ?? {}); });
     out.written.push(defFile);
     out.notes.push(`${id} was already a part: its model, icon and bounds are replaced; the rest of ${defFile} is as it was`);
     return { ...out, ok: true, id, part: readJson(defFile, root) };
@@ -107,6 +115,8 @@ async function placePart(base, type, doc, info, bytes, project, out, options = {
   }
   if (tpl.aero) tpl.aero.point = [0, round(info.bounds.max[1] * 0.75, 3), round(info.centroid[2], 3)];
   const { _massHow, todo: _t, ...defaults } = options.defaults ?? {};
+  if (damage.detach) tpl.detach = damage.detach;
+  if (damage.collision) tpl.collision = damage.collision;
   Object.assign(def, tpl, defaults, options.set ?? {}, {
     todo,
     _todo: `Made by ${options.madeBy ?? 'npm run import'} on ${new Date().toISOString().slice(0, 10)}. To do: ${todo.map(x => TODO_WORDS[x] ?? x).join('; ')}. Check the mass too (${mass.value} kg ${mass.how}). Then delete "todo" and the shop sells it.`,
@@ -135,6 +145,13 @@ export function nameFor(id, type, rules) {
 }
 
 // ---------- a car ----------
+
+// (a new car's import, checked as the car it starts from: its sockets — a socket the donor has no use for, like a boot
+// on a pickup, isn't missing — and its body type's sizes: options.standards, from data/content/templates)
+function templateCar(options, project) {
+  const donor = project.db.cars[options.donor ?? 'starter_car'];
+  return donor ? { standards: options.standards ?? donor.standards, sockets: donor.sockets } : null;
+}
 
 async function placeCar(id, doc, bytes, project, out, options = {}) {
   const { root, db, rules } = project;

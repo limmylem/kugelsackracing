@@ -1,8 +1,29 @@
 # Known issues, and what to revisit
 
-As of Phase 8 Step 2 (performance and graphics settings, first), Step 1 (the game's sound), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 8 Step 3 (the content pipeline, first), Step 2 (performance and graphics settings), Step 1 (the game's sound), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
+
+## Phase 8 Step 3: the content pipeline (docs/CONTENT_PIPELINE.md)
+
+- **Four part combinations players already had go through the car** (found by the new fit check; kept, with their
+  limits, in `data/content/check-rules.json` fit.known, until fixed — leaving them off those cars now would make a
+  player's car with one fitted undrivable):
+  - the **ducktail spoiler** on the Ridgeback 4x4 and the Vortex R sinks into the body (it's shaped for a coupe's boot
+    lid): to fix with a version for each, or leave it off them once no player has it fitted there;
+  - the **V8 swapped into the Kaze GT** (and the twin-screw supercharger on it) goes through the Kaze GT's bonnet, and
+    the **turbo four swap** touches its underside: to fix with a raised (cowl) bonnet for the Kaze GT that the swaps need.
+- **Six draft parts fail their checks** and stay drafts until they're changed: three carbon Groundline body kits (a
+  60 km/h crash costs more than two race wins to fix) and three Kevlar Shellback seats (too cheap for what they do).
+- **Collision hulls are the built-in splitter's** here (CoACD isn't installed in CI or on this machine): a little
+  rounder than CoACD's. Installing CoACD (`pip install coacd`) and running `npm run content -- finish` again doesn't
+  change hulls already made; delete a part's `collision` to have it made again.
+- **The Blender add-on's test runs only where Blender is** (BLENDER_PYTHON or BLENDER; not in CI): the add-on's rules
+  copy is checked everywhere.
+- **Thumbnails are drawn without a browser** (the icons' software renderer): flat-shaded like the game, no shadows on
+  the car itself, tyres as plain rings.
+- **The class limits are found by search** (the most powerful build of each car with every part, drafts too): a combination
+  the search doesn't try could, in principle, be stronger; the search tries every part's best settings.
 
 ## Phase 8 Step 2: performance and graphics settings (docs/PERFORMANCE.md)
 
@@ -13,8 +34,8 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   the picture changing as it goes; it happens once (and again only when asked).
 - **WebGL 2, not WebGPU:** three.js r160's WebGPU renderer was 2–5× slower on the CPU and can't run the game's own
   shaders; to look at again with a newer three.js (`tools/renderer-bench.mjs`).
-- **No compressed textures (KTX2):** the game has almost none to compress (58 KB in all the car models); add them with
-  photographic textures.
+- **Compressed textures (KTX2) only for big ones:** the game's own models have almost none to compress (58 KB in all the
+  car models); since Step 3 the import makes any texture of 512 px or more KTX2 (docs/CONTENT_PIPELINE.md).
 - **No occlusion culling:** what large buildings hide is still drawn when it's within its detail distance (the city's
   tiles keep that to about 250 draws).
 - **The physics and the NPC drivers run on the main thread** (on purpose: no frame of input delay; 8 cars with

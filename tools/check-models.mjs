@@ -63,7 +63,7 @@ async function checkFile(file) {
   }
   for (const j of jobs) {
     if (!j.type) { print({ verdict: 'fail', findings: [{ level: 'fail', check: 'type', text: "Can't tell what this model is from its file name.", fix: `Name it after what it is (${Object.keys(project.rules.types).slice(0, 6).join('_…, ')}_…, e.g. spoiler_ducktail.glb, or car_<id>.glb for a car), or say: --type spoiler` }] }, j.title); continue; }
-    print(checkModel(info, { rules: project.rules, type: j.type, scale: j.scale ?? 1, car: j.car, db: project.db, knownSockets: project.knownSockets, file, estimateMass: !uses.length }), j.title);
+    print(checkModel(info, { rules: project.rules, type: j.type, scale: j.scale ?? 1, car: j.car, db: project.db, knownSockets: project.knownSockets, templates: project.templates, file, estimateMass: !uses.length }), j.title);
   }
   return out;
 }

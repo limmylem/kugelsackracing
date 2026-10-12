@@ -31,7 +31,7 @@
       "mass": 0.51
     },
     "gain": null,
-    "priceFactor": 1.522
+    "priceFactor": 1.5
   },
   "_generated": "Made by npm run content -- build from data/families/readout.json (and data/content/formulas.json families.gauges): change those, not this file. street: priced by its settings, $350.",
   "bounds": {

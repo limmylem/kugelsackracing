@@ -46,7 +46,7 @@
       "toughness": 1.3
     },
     "gain": null,
-    "priceFactor": 1.254
+    "priceFactor": 1.2538
   },
   "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. race: priced by its settings, $1,630, unlocked at level 6.",
   "bounds": {

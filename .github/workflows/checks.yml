@@ -1,5 +1,6 @@
 # The same checks as the pre-commit hook (.githooks/pre-commit), on every push and pull request: the
-# data against its schemas, every model against the model rules, the unit tests, the headless physics
+# data against its schemas, every model against the model rules, every part's content checks up to date and passing,
+# the unit tests, the headless physics
 # test suite and the crash test suite (the damage balance) — and here also the stress tests (a ten-car
 # pile-up within its frame budget, a hundred crashes and repairs without growing memory or slowing
 # down), quests at scale and a new player's first hours end to end (docs/PROGRESSION.md), the baked real
@@ -23,8 +24,10 @@ jobs:
         run: npm run check
       - name: Models (model rules)
         run: npm run check-models
-      - name: Modelling docs up to date with the rules
+      - name: Modelling docs up to date with the rules (and the Blender add-on's copy of them)
         run: npm run guide -- --check
+      - name: 'Content: every part made from its definition, and its automatic checks up to date and passing (docs/CONTENT_PIPELINE.md)'
+        run: npm run content -- verify
       - name: Unit tests
         run: npm run test:unit
       - name: Physics tests (headless)

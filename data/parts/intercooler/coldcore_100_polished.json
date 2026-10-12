@@ -32,7 +32,7 @@
       "mass": 13.5
     },
     "gain": null,
-    "priceFactor": 1.116
+    "priceFactor": 1.117
   },
   "_generated": "Made by npm run content -- build from data/families/coldcore.json (and data/content/formulas.json families.intercooler): change those, not this file. race: priced by its settings, $1,730, unlocked at level 6.",
   "bounds": {

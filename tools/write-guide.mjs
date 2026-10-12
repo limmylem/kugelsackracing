@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, loadRules } from './content/rules.mjs';
+import { addonRules } from './blender/build.mjs';
 
 const rules = loadRules(), check = process.argv.includes('--check');
 const ORIGIN = { centre: 'middle', min: { x: 'right-hand edge', y: 'bottom', z: 'back' }, max: { x: 'left-hand edge', y: 'top', z: 'front' }, within: 'anywhere inside', any: 'anywhere' };
@@ -115,7 +116,9 @@ const guideFile = path.join(ROOT, 'docs/MODELLING_GUIDE.md'), promptFile = path.
 const guide = fs.readFileSync(guideFile, 'utf8'), a = guide.indexOf('<!-- rules:start'), b = guide.indexOf('<!-- rules:end -->');
 if (a < 0 || b < 0) { console.error('docs/MODELLING_GUIDE.md has no <!-- rules:start --> … <!-- rules:end --> markers'); process.exit(1); }
 const newGuide = guide.slice(0, a) + tables + guide.slice(b + '<!-- rules:end -->'.length);
-const stale = [[guideFile, guide, newGuide], [promptFile, fs.existsSync(promptFile) ? fs.readFileSync(promptFile, 'utf8') : '', prompts]].filter(([, was, now]) => was !== now);
+// (and the Blender add-on's copy of the rules: tools/blender/ognistrada_tools)
+const addonFile = path.join(ROOT, 'tools/blender/ognistrada_tools/model_rules.json');
+const stale = [[guideFile, guide, newGuide], [promptFile, fs.existsSync(promptFile) ? fs.readFileSync(promptFile, 'utf8') : '', prompts], [addonFile, fs.existsSync(addonFile) ? fs.readFileSync(addonFile, 'utf8') : '', addonRules()]].filter(([, was, now]) => was !== now);
 if (check) { for (const [f] of stale) console.log(`${path.relative(ROOT, f)} is out of date: npm run guide`); process.exit(stale.length ? 1 : 0); }
 for (const [f, , now] of stale) { fs.writeFileSync(f, now); console.log(`wrote ${path.relative(ROOT, f)}`); }
 if (!stale.length) console.log('The docs are up to date.');

@@ -48,6 +48,8 @@ jobs:
         run: node tools/scan-secrets.mjs
       - name: The credits screen lists every data source and package (npm run credits)
         run: node tools/credits.mjs --check
+      - name: 'Content: every part made from its definition, its checks up to date and passing for everything players have (docs/CONTENT_PIPELINE.md; about 15 s)'
+        run: npm run content -- verify
       - name: Typecheck
         run: npm run server:typecheck
       - name: Server tests (accounts, roles, world content, tracks, the economy, the API's defences)
@@ -95,6 +97,10 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/economy-browser.ts
       - name: The deployment's layout in a browser (game, API, tiles, real time on addresses of their own; cookies, CORS, the admin and editor pages for their roles)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
+      - name: The content manager in a browser (docs/CONTENT_PIPELINE.md — parts listed and filtered, one opened with its checks and a 3D preview on a car, published, a bulk price change)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/content-browser.ts --local-libs
+      - name: Models in a browser (a far car drawn from its levels of detail, a KTX2 texture decoded, the content bundle's models downloaded once and cached)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/model-browser.mjs
       - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/launch-browser.ts
       - name: The sound in a browser (docs/AUDIO.md) — an 8-car race with crashes through the whole audio graph (never past the limiter's ceiling, within its CPU budget), every Opus against its WAV, another car's voice changing detail without a click, the audio test page

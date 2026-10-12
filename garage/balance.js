@@ -143,7 +143,8 @@ export function partGain(db, carId, part, tiers) {
   const fitted = fitWithNeeds(db, carId, part.id);
   if (!fitted.ok) return { ok: false, error: fitted.error, with: fitted.with };
   let base = new Garage(db, null, carId);
-  if (fitted.with.length) {
+  if (part.tyreSize) base = roadTyres(db, carId) ?? base;
+  else if (fitted.with.length) {
     const b = new Garage(db, null, carId);
     if (fitted.with.every(id => b.install(id, { auto: true }).ok) && b.stats().spec) base = b;
   }
@@ -152,6 +153,21 @@ export function partGain(db, carId, part, tiers) {
   for (const k of stats) { const K = KEY_STATS[k], a = K.of(s0), b = K.of(s1); gains[k] = a == null || b == null ? null : a !== 0 ? (K.up ? b - a : a - b) / Math.abs(a) : K.up ? b : -b; }
   const best = stats.filter(k => gains[k] != null).sort((a, b) => gains[b] - gains[a])[0] ?? null;
   return { ok: true, gain: best ? gains[best] : null, stat: best, gains, with: fitted.with, garage: fitted.garage };
+}
+
+// (a tyre is measured against the car on its own size of tyre in the reference car's compound — an ordinary road tyre —
+// so a car whose stock tyres are already sporty doesn't make every tyre look worse: the car as it is, its tyres made
+// road ones; null if it has none to change)
+function roadTyres(db, carId) {
+  const car = db.cars[carId], refTyre = db.parts[db.cars[REFERENCE_CAR]?.sockets.find(s => s.slot === 'tyre')?.stock?.[0]], ref = refTyre?.tyreSize?.compound;
+  if (!refTyre?.tyre || !ref) return null;
+  const stock = [...new Set(car.sockets.filter(s => s.slot === 'tyre').map(s => s.stock?.[0]).filter(Boolean))].map(id => db.parts[id]).filter(p => p?.tyreSize && p.tyreSize.compound !== ref);
+  if (!stock.length) return null;
+  // (its size, the reference tyre's rubber: its grip curves)
+  const copies = Object.fromEntries(stock.map(p => [`${p.id}__${ref}`, { ...p, id: `${p.id}__${ref}`, tyreSize: { ...p.tyreSize, compound: ref }, tyre: refTyre.tyre }]));
+  const db2 = { ...db, parts: { ...db.parts, ...copies } }, g = new Garage(db2, null, carId);
+  for (const id of Object.keys(copies)) if (!g.install(id, { auto: true }).ok) return null;
+  return g.stats().spec ? g : null;
 }
 
 // Class rules (data/content/balance.json): a car is its own class stock, and its most powerful build at most

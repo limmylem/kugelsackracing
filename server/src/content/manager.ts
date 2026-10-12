@@ -32,6 +32,8 @@ const clone = (x: any) => x === undefined ? undefined : JSON.parse(JSON.stringif
 export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {}) {
   const formulas = readJson('data/content/formulas.json'), tiers = readJson('data/content/tiers.json'), balance = readJson('data/content/balance.json');
   const checks = readMaybe('data/content/checks.json', { parts: {}, classes: {} });
+  // (each part's studio thumbnail: tools/content/thumbnail.mjs)
+  const thumbs = readMaybe('data/content/thumbs.json', { thumbs: {} }).thumbs ?? {};
   let cached: { at: number; overlay: any } | null = null;
 
   // ---------- the published picture, for the game ----------
@@ -75,7 +77,7 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
     }
     return { kind, id, name: latest.name, slot: latest.slot ?? null, category: latest.category ?? null, family: latest.generated?.family ?? latest.generated?.engine ?? latest.generated?.table ?? null,
       tier: latest.tier ?? latest.class ?? null, price: latest.price ?? null, unlockLevel: latest.unlock?.level ?? null, status, live, version: row?.version ?? 0, edited,
-      checksOk: !failing.length, failing, problems, icon: latest.icon ?? null, model: kind === 'car' ? latest.model?.file ?? null : latest.model ?? null, retired: !!latest.retired, latest, file, row };
+      checksOk: !failing.length, failing, problems, icon: latest.icon ?? null, thumb: kind === 'part' && thumbs[id] ? `assets/thumbs/${id}.webp?v=${thumbs[id]}` : null, model: kind === 'car' ? latest.model?.file ?? null : latest.model ?? null, retired: !!latest.retired, latest, file, row };
   }
 
   async function items(q: { kind?: Kind; q?: string; slot?: string; family?: string; tier?: string; status?: string; problems?: string; limit?: number; offset?: number } = {}) {

@@ -2,7 +2,12 @@
 // sockets, which way it faces, its size, its wheels on the ground…), each a PASS, WARN or FAIL with
 // what's wrong in plain words and how to fix it. From inspect(doc) (./inspect.mjs).
 //
-//   checkModel(info, { rules, type, scale, car, db, knownSockets }) → { type, findings, verdict }
+// Levels of detail are checked against their share of the budget ("LOD1 has 3× too many triangles"), body panels
+// and car bodies for the size of the finer copy the game makes to dent them, a car's sockets one by one ("Front
+// bumper missing socket …": a failure for a new car, whose donor's socket positions won't fit it) and its size
+// against its body type's (data/content/templates).
+//
+//   checkModel(info, { rules, type, scale, car, db, knownSockets, templates, newCar }) → { type, findings, verdict }
 //   formatReport(file, result) → the lines to print
 
 import { allowedMaterial, allowedMaterialList } from './rules.mjs';
@@ -70,6 +75,56 @@ function common(info, { rules, type }, f) {
     else if (n > budget) f.warn('triangles', `${n.toLocaleString('en-GB')} triangles: over the budget for ${what} (${budget.toLocaleString('en-GB')}).`, 'Simplify it if you can: every triangle is drawn on every car that has it.');
     else f.pass('triangles', `${n.toLocaleString('en-GB')} triangles (budget ${budget.toLocaleString('en-GB')}).`);
   }
+
+  // levels of detail: each within its share of the budget
+  const L = rules.lods;
+  if (L && budget && info.triangleCount) {
+    for (const lv of info.lods ?? []) {
+      const spec = L.levels[lv.level - 1], name = `LOD${lv.level}`, n = lv.triangles.toLocaleString('en-GB');
+      if (!spec) { f.warn('lods', `It has an ${name}, but the game only uses ${L.levels.length === 1 ? 'LOD1' : `LOD1–LOD${L.levels.length}`}.`, `Delete the objects named …__lod${lv.level}.`); continue; }
+      const b = Math.max(1, Math.round(budget * spec.ratio)), times = lv.triangles / b, share = `${Math.round(spec.ratio * 100)}% of the model's ${budget.toLocaleString('en-GB')}`;
+      const fix = `Simplify the objects named …__lod${lv.level} (Blender: a Decimate modifier, ratio about ${Math.min(1, b / lv.triangles).toFixed(2)}, applied), or delete them and the importer makes ${name} itself.`;
+      // (one the importer made: as near its budget as its error allowed — over half again, the model's shape is why)
+      if (!lv.own) {
+        if (times > 1.5) f.warn('lods', `${name}, made by the importer, has ${n} triangles: it couldn't get near its budget of ${b.toLocaleString('en-GB')} (${share}) without spoiling the shape.`, 'Simplify the model itself, or make its LOD1 by hand (objects named …__lod1).');
+        else f.pass('lods', `${name}: ${n} triangles, made by the importer (budget ${b.toLocaleString('en-GB')}).`);
+        continue;
+      }
+      if (lv.triangles >= info.triangleCount) f.fail('lods', `${name} has ${n} triangles: no fewer than the model itself (${info.triangleCount.toLocaleString('en-GB')}), so it saves nothing.`, fix);
+      else if (times > 2) f.fail('lods', `${name} has ${Math.round(times)}× too many triangles: ${n}, where its budget is ${b.toLocaleString('en-GB')} (${share}).`, fix);
+      else if (times > 1) f.warn('lods', `${name} has ${n} triangles: over its budget of ${b.toLocaleString('en-GB')} (${share}).`, fix);
+      else f.pass('lods', `${name}: ${n} triangles${lv.own ? ' (its own)' : ''} (budget ${b.toLocaleString('en-GB')}).`);
+    }
+    if (!info.lods?.length) f.pass('lods', info.triangleCount >= L.from ? 'No levels of detail yet: the importer makes them.' : `No levels of detail: under ${L.from} triangles, it needs none.`);
+  }
+}
+
+// dents: the finer copy the game makes to dent it isn't too big (once its size is right: a model in the wrong unit is one
+// mistake, said once)
+function dents(info, { rules, type }, f) {
+  const D = rules.dent, dents = type === 'car' || ['body', 'aero'].includes(rules.types[type]?.category);
+  if (D && dents && info.triangleCount) {
+    const n = dentTriangles(info, D.maxEdge), max = type === 'car' ? D.maxCarTriangles ?? D.maxTriangles : D.maxTriangles, what = `To dent it, the game makes a copy with about ${n.toLocaleString('en-GB')} triangles`;
+    const fix = `Its faces are very big (the copy has no edge longer than ${+(D.maxEdge * 100).toFixed(1)} cm) or it's very large: check its size, and that hidden faces inside it are deleted.`;
+    if (n > max * 2) f.fail('dents', `${what}: far more than the ${max.toLocaleString('en-GB')} it can take without a stutter.`, fix);
+    else if (n > max) f.warn('dents', `${what}: more than the ${max.toLocaleString('en-GB')} it can take without a stutter.`, fix);
+    else f.pass('dents', `${what} (most ${max.toLocaleString('en-GB')}).`);
+  }
+}
+
+// About how many triangles garage/dents.js's finer copy has (each triangle split till no edge is longer than maxEdge):
+// between what its area makes (too few: slivers split more) and what its longest edges make (too many) — measured
+// against the real copies of the game's cars and panels, 0.75–0.9 of them, so a quarter on
+export function dentTriangles(info, maxEdge) {
+  let byArea = 0, byEdge = 0;
+  for (const { p: [a, b, c] } of info.triangles) {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const area = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2;
+    const L = Math.max(Math.hypot(...u), Math.hypot(...v), Math.hypot(c[0] - b[0], c[1] - b[1], c[2] - b[2]));
+    byArea += Math.max(1, area / (0.24 * maxEdge * maxEdge));
+    byEdge += Math.max(1, Math.ceil(L / maxEdge)) ** 2;
+  }
+  return Math.round(1.25 * Math.sqrt(byArea * byEdge));
 }
 
 // ---------- a part ----------
@@ -114,6 +169,7 @@ function part(info, { rules, type, scale = 1, file, estimateMass = false }, f) {
   if (!info.closed && estimateMass) f.warn('shape', "The mesh has holes (open edges), so its volume, and the mass the importer estimates from it, can't be trusted.", 'Close the holes (Blender: select the open edges › F), or set the mass by hand in the part file.');
   else if (!info.closed) f.pass('shape', 'Open mesh (fine: its mass is set in its part file).');
   else if (!out.length) f.pass('shape', `Closed mesh: ${(info.volume * 1000 * s[0] * s[1] * s[2]).toFixed(1)} litres.`);
+  if (!out.length) dents(info, { rules, type }, f);
 }
 
 // the factor everything's out by, if a common unit mistake explains it
@@ -135,7 +191,7 @@ function originWords(ax, rule, d) {
 
 // ---------- a car ----------
 
-function car(info, { rules, car: def, db, knownSockets = [] }, f) {
+function car(info, { rules, car: def, db, knownSockets = [], templates = {}, newCar = false }, f) {
   const R = rules.car, names = new Set(info.sockets.map(s => s.name)), at = n => info.sockets.find(s => s.name === n);
   const known = new Set([...R.requiredSockets, ...R.expectedSockets, ...knownSockets]);
 
@@ -149,7 +205,8 @@ function car(info, { rules, car: def, db, knownSockets = [] }, f) {
   const stillMissing = missing.filter(n => !typos.some(t => t.close === n));
   if (stillMissing.length) f.fail('sockets', `It has no ${list(stillMissing)}: every car needs these to put its wheels on.`, `Add an empty (Blender: Add › Empty › Plain Axes) named exactly ${list(stillMissing)} at the centre of each wheel, at ride height.`);
   const missingOther = missingExpected.filter(n => !typos.some(t => t.close === n));
-  if (missingOther.length) f.warn('sockets', `No ${list(missingOther)}: parts that go there are drawn where car.json puts the socket instead.`, 'Add an empty for each at the point the part attaches (see docs/MODELLING_GUIDE.md › Sockets).');
+  // (one line a socket, in words: a new car's are failures — the car it starts from has its sockets somewhere else)
+  for (const n of missingOther) (newCar ? f.fail : f.warn)('sockets', `${socketLabel(n, def, rules)} missing socket "${n}"${newCar ? ': a new car needs it, or its parts go where the car it starts from has them' : ': parts that go there are drawn where car.json puts the socket instead'}.`, `Add an empty (Blender: Add › Empty › Plain Axes, or the Ognistrada add-on's Add socket) named exactly ${n} at the point the part attaches (see docs/MODELLING_GUIDE.md › Sockets).`);
   const odd = unknown.filter(n => !typos.some(t => t.n === n));
   if (odd.length) f.warn('sockets', `${list(odd.map(n => `"${n}"`))} ${odd.length > 1 ? "aren't sockets" : "isn't a socket"} the game knows.`, 'Rename it to a socket from the guide, or add the socket to car.json if it\'s a new one.');
   if (!missing.length && !typos.length) f.pass('sockets', `All ${R.requiredSockets.length} wheel sockets${missingOther.length ? '' : ` and the ${R.expectedSockets.filter(n => !uses || uses.has(n)).length} part sockets`} are there.`);
@@ -169,10 +226,18 @@ function car(info, { rules, car: def, db, knownSockets = [] }, f) {
   if (wrong.length) {
     const guess = unitGuess([dims.width, dims.height, dims.length], { x: R.size.width, y: R.size.height, z: R.size.length });
     f.fail('size', `It's ${list(wrong.map(([k, v]) => `${fmtM(v)} m ${k === 'length' ? 'long' : k === 'width' ? 'wide' : 'tall'} (a car is ${R.size[k][0]}–${R.size[k][1]} m)`))}.${guess ? ` Everything is ${guess.words}: it was probably ${guess.cause}.` : ''}`, guess ? `Export it in metres. ${BLENDER_SCALE}` : 'Model it at its real size in metres.');
-  } else f.pass('size', `${fmtM(dims.length)} m long, ${fmtM(dims.width)} m wide, ${fmtM(dims.height)} m tall.`);
+  } else { f.pass('size', `${fmtM(dims.length)} m long, ${fmtM(dims.width)} m wide, ${fmtM(dims.height)} m tall.`); dents(info, { rules, type: 'car' }, f); }
+  // (its body type's usual proportions: data/content/templates)
+  // (the whole car as it's imported — a body split from it has no bumpers or mirrors)
+  const tpl = templates[def?.standards?.type], whole = info.primitives.some(p => /wheel|tyre|tire|bumper|mirror/i.test(`${p.mesh} ${p.node}`));
+  if (tpl?.sizes && whole && !wrong.length) {
+    const odd = Object.entries(dims).filter(([k, v]) => tpl.sizes[k] && (v < tpl.sizes[k][0] || v > tpl.sizes[k][1]));
+    if (odd.length) f.warn('size', `For ${a(tpl.label)} it's ${list(odd.map(([k, v]) => `${fmtM(v)} m ${k === 'length' ? 'long' : k === 'width' ? 'wide' : 'tall'} (most are ${tpl.sizes[k][0]}–${tpl.sizes[k][1]} m)`))}.`, `Check it's the right size, or that its body type (standards.type in car.json: ${tpl.type}) is right.`);
+  }
   if (FL && FR && RL && RR) {
     const wb = (FL.position[2] + FR.position[2]) / 2 - (RL.position[2] + RR.position[2]) / 2, track = Math.abs(FL.position[0] - FR.position[0]);
     if (wb < R.wheelbase[0] || wb > R.wheelbase[1]) f.warn('size', `The wheelbase (front to rear axle) is ${fmtM(wb)} m; cars are ${R.wheelbase[0]}–${R.wheelbase[1]} m.`, 'Check the wheel sockets are at the wheel centres.');
+    else if (whole && tpl?.sizes?.wheelbase && (wb < tpl.sizes.wheelbase[0] || wb > tpl.sizes.wheelbase[1])) f.warn('size', `The wheelbase is ${fmtM(wb)} m; ${a(tpl.label)}'s is usually ${tpl.sizes.wheelbase[0]}–${tpl.sizes.wheelbase[1]} m.`, 'Check the wheel sockets are at the wheel centres, and the body type.');
     if (track < R.track[0] || track > R.track[1]) f.warn('size', `The track (left to right wheel) is ${fmtM(track)} m; cars are ${R.track[0]}–${R.track[1]} m.`, 'Check the wheel sockets are at the wheel centres.');
   }
 
@@ -228,6 +293,28 @@ function stockRadius(def, db) {
 }
 
 // ---------- helpers ----------
+
+// A socket in words, by the part type that goes there: socket_bumper_front → "Front bumper", socket_fender_FL → "Left
+// front wing", socket_seat_driver → "Seat (driver)" — from car.json's slot for it, or the socket's name (the Blender
+// add-on, tools/blender/ognistrada_tools, says the same)
+const SIDES = { FL: 'left', FR: 'right', RL: 'left', RR: 'right' };
+export function socketLabel(name, def, rules) {
+  const typeOf = k => rules.types[k] ?? Object.values(rules.types).find(x => x.slot === k);
+  const fromCar = def?.sockets?.find(s => s.name === name)?.slot;
+  if (fromCar && typeOf(fromCar) && !/^(seat|wheels?|tyre)$/.test(fromCar)) return typeOf(fromCar).label.replace(/ \(.*\)$/, '');
+  const parts = name.replace(/^socket_/, '').split('_');
+  const tries = [parts.join('_'), parts.map(w => SIDES[w] ?? w).join('_'), ...parts.slice(1).map((_, i) => parts.slice(0, parts.length - 1 - i).join('_'))];
+  for (const [i, k] of tries.entries()) {
+    const t = typeOf(k);
+    if (!t) continue;
+    const rest = i >= 2 ? parts.slice(k.split('_').length) : [];
+    return t.label.replace(/ \(.*\)$/, '') + (rest.length ? ` (${rest.join(' ')})` : '');
+  }
+  // (a corner's: socket_wheel_FL → "Left front wheel")
+  const corner = { FL: 'left front', FR: 'right front', RL: 'left rear', RR: 'right rear' }[parts.at(-1)];
+  const words = corner ? `${corner} ${parts.slice(0, -1).join(' ')}` : parts.join(' ');
+  return words[0].toUpperCase() + words.slice(1);
+}
 
 export function closest(name, candidates) {
   let best = null, bestD = Infinity;

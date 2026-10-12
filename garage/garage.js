@@ -8,7 +8,7 @@
 //   await garage.enter({ leave: () => …, testDrive: () => … })
 
 import * as THREE from 'three';
-import { ModelCache } from './visual.js';
+import { ModelCache, setTextureRenderer } from './visual.js';
 import { modelRig } from '../physics/sockets.js';
 import { garageSession } from './session.js';
 import { Workshop } from './workshop.js';
@@ -24,6 +24,7 @@ const MODE_KEY = 'driveWorld.garage.mode';
 async function create() {
   const session = await garageSession();
   const renderer = new THREE.WebGLRenderer({ antialias: true });
+  setTextureRenderer(renderer);       // (compressed textures are decoded for it)
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;

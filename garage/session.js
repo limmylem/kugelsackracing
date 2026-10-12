@@ -13,6 +13,7 @@
 //    .help() … (the game adds its own: debug(name, fn, help));
 //  - saveEdits: tuning-panel edits written back to the car or part file each value comes from.
 
+import { bundled, openBundle } from './contentBundle.js';
 import { applyContent } from './content.js';
 import { Garage, loadGarageData } from './data.js';
 import { recordStore } from '../quest/recordStore.js';
@@ -48,7 +49,10 @@ export function assignDeep(target, source) {
 }
 
 async function create() {
-  const readJson = async p => { const r = await fetch(p, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
+  // (Phase 8 Step 3: the data from the content bundle where the site has one — one download, cached until it changes —
+  // else file by file: garage/contentBundle.js)
+  await openBundle();
+  const readJson = async p => { const b = bundled(p); if (b !== undefined) return b; const r = await fetch(p, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
   const { db, problems } = await loadGarageData(readJson);
   if (problems.length) console.warn(`The car and part data has ${problems.length} problem(s) (npm run check):\n${problems.map(p => `  ${p.file} ${p.path}: ${p.message}`).join('\n')}`);
 

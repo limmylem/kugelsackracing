@@ -13,11 +13,14 @@ const norm = a => { const l = Math.hypot(...a) || 1; return a.map(x => x / l); }
 
 // A part's shape (its bounds, or its base part's) for the physics: { mass, half, centre (part frame),
 // origin (its socket, car frame), type, axis, limits (rad), mount, open, pop, strength, plateNormal,
-// plateArea, edge, looseDrag }; rng picks a hanging part's mount; carId: a part made to fit each car takes
-// that car's bounds
+// plateArea, edge, looseDrag, hulls? }; rng picks a hanging part's mount; carId: a part made to fit each car takes
+// that car's bounds (and collision). hulls: its collision shape from its model (part.collision: convex hulls, each
+// its corners and volume — tools/content/collision.mjs), where it has one; else the physics makes it a box
 export function bodyDef(part, socket, parts, rng = Math.random, carId = null) {
-  let bounds = carId ? part.byCar?.[carId]?.bounds ?? null : null;
+  let bounds = carId ? part.byCar?.[carId]?.bounds ?? null : null, collision = carId && part.byCar?.[carId] ? part.byCar[carId].collision ?? null : undefined;
   for (let p = part, i = 0; p && i < 8 && !bounds; p = p.variantOf ? parts[p.variantOf] : null, i++) bounds = p.bounds;
+  // (a car's own version without hulls of its own: a box, not another car's hulls)
+  if (collision === undefined) for (let p = part, i = 0; p && i < 8 && !collision; p = p.variantOf ? parts[p.variantOf] : null, i++) collision = p.collision ?? null;
   bounds ??= { min: [-0.15, -0.15, -0.15], max: [0.15, 0.15, 0.15] };
   const D = part.detach ?? {}, half = [0, 1, 2].map(k => (bounds.max[k] - bounds.min[k]) / 2), centre = [0, 1, 2].map(k => (bounds.max[k] + bounds.min[k]) / 2);
   const thin = [0, 1, 2].reduce((a, k) => half[k] < half[a] ? k : a, 0), plateNormal = [0, 0, 0];
@@ -31,6 +34,7 @@ export function bodyDef(part, socket, parts, rng = Math.random, carId = null) {
     mount: D.mounts?.length ? D.mounts[Math.floor(rng() * D.mounts.length) % D.mounts.length] : [0, 0, 0],
     open: D.open ?? 0, pop: D.pop ?? 0, strength: D.attachStrength ?? 1000, looseDrag: D.looseDrag ?? 0,
     plateNormal, plateArea: 4 * [0, 1, 2].filter(k => k !== thin).reduce((x, k) => x * half[k], 1), edge,
+    ...(collision?.hulls?.length ? { hulls: collision.hulls, volumes: collision.volumes } : {}),
   };
 }
 

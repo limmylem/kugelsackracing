@@ -32,7 +32,7 @@
       "mass": 0.98
     },
     "gain": null,
-    "priceFactor": 1
+    "priceFactor": 0.9946
   },
   "_generated": "Made by npm run content -- build from data/families/gripline.json (and data/content/formulas.json families.steering_wheel): change those, not this file. sport: priced by its settings, $690, unlocked at level 3.",
   "bounds": {

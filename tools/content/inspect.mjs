@@ -1,18 +1,20 @@
 // What's in a model (a gltf-transform Document), in the numbers the checks, the importer and the icon
 // renderer work from: its triangles (in the scene's frame, each with its material), its bounds and
 // volume (and whether it's closed, so the volume means something), its materials and textures, its
-// socket nodes (where they are and which way they face), and what a game model mustn't have.
+// socket nodes (where they are and which way they face), and what a game model mustn't have. Its levels of detail
+// (tools/content/lods.mjs: the "lods" scene, or nodes named <name>__lod1… it brought) are counted apart, in lods.
 
 const TRIANGLES = 4;
+const LOD_SCENE = 'lods', LOD_NAME = /__lod(\d+)$/;
 const TEXTURE_GETTERS = ['getBaseColorTexture', 'getEmissiveTexture', 'getNormalTexture', 'getMetallicRoughnessTexture', 'getOcclusionTexture'];
 
 const apply = (m, v) => [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12], m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13], m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14]];
 const dirOf = (m, k) => { const v = [m[4 * k], m[4 * k + 1], m[4 * k + 2]], l = Math.hypot(...v) || 1; return v.map(x => x / l); };
 
 export function inspect(doc) {
-  const root = doc.getRoot(), scene = root.getDefaultScene() ?? root.listScenes()[0] ?? null;
+  const root = doc.getRoot(), scenes = root.listScenes().filter(s => s.getName() !== LOD_SCENE), scene = root.getDefaultScene() ?? scenes[0] ?? null;
   const info = {
-    scenes: root.listScenes().length, cameras: root.listCameras().length, animations: root.listAnimations().length, skins: root.listSkins().length, lights: 0,
+    scenes: scenes.length, lods: [], cameras: root.listCameras().length, animations: root.listAnimations().length, skins: root.listSkins().length, lights: 0,
     extensions: root.listExtensionsUsed().map(e => e.extensionName),
     materials: root.listMaterials().map(m => ({ name: m.getName(), textured: TEXTURE_GETTERS.some(g => m[g]?.()), colour: m.getBaseColorFactor(), metalness: m.getMetallicFactor(), roughness: m.getRoughnessFactor() })),
     textures: root.listTextures().map(t => ({ name: t.getName() || t.getURI() || '(unnamed)', mime: t.getMimeType(), size: t.getSize(), bytes: t.getImage()?.byteLength ?? 0 })),
@@ -20,8 +22,17 @@ export function inspect(doc) {
     bounds: null, volume: 0, centroid: [0, 0, 0], closed: false, otherModes: 0,
   };
   if (!scene) return finish(info);
+  // (a level of detail: its triangles counted for its level, and nothing else of it looked at)
+  const lod = (level, mesh, own) => {
+    let n = 0;
+    for (const p of mesh?.listPrimitives() ?? []) if (p.getMode() === TRIANGLES) n += Math.floor((p.getIndices()?.getCount() ?? p.getAttribute('POSITION')?.getCount() ?? 0) / 3);
+    const L = info.lods[level - 1] ??= { level, triangles: 0, own };
+    L.triangles += n;
+  };
+  for (const s of root.listScenes()) if (s.getName() === LOD_SCENE) s.traverse(n => { const lv = n.getExtras()?.lod ?? +(n.getName().match(LOD_NAME)?.[1] ?? 0); if (lv && n.getMesh()) lod(lv, n.getMesh(), false); });
   const walk = node => {
-    const m = node.getWorldMatrix(), name = node.getName();
+    const m = node.getWorldMatrix(), name = node.getName(), lv = name.match(LOD_NAME);
+    if (lv && node.getMesh()) { lod(+lv[1], node.getMesh(), true); return; }
     info.nodes.push(name);
     if (node.getExtension('KHR_lights_punctual')) info.lights++;
     if (/socket/i.test(name)) info.sockets.push({ name, position: apply(m, [0, 0, 0]), axes: [0, 1, 2].map(k => dirOf(m, k)), node });
@@ -72,6 +83,7 @@ function finish(info) {
     info.closed = edges.size > 0 && shared / edges.size > 0.95;
   }
   info.triangleCount = T.length;
+  info.lods = info.lods.filter(Boolean);
   return info;
 }
 

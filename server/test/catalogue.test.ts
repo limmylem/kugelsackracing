@@ -15,7 +15,8 @@ let T: Awaited<ReturnType<typeof testApp>>, ann: Player, admin: Player;
 const checks = JSON.parse(fs.readFileSync(path.join(REPO_DIR, 'data/content/checks.json'), 'utf8'));
 const part = (id: string) => { for (const dir of fs.readdirSync(path.join(REPO_DIR, 'data/parts'))) { const f = path.join(REPO_DIR, 'data/parts', dir, `${id}.json`); if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } return null; };
 // (a draft family part whose content checks pass, and one of the same family with a different price to edit)
-const draft = Object.keys(checks.parts).find(id => checks.parts[id].ok && part(id)?.status === 'draft' && part(id)?.generated?.family && part(id)?.tier !== 'race');
+// (one a new player can buy: unlocked from level 1)
+const draft = Object.keys(checks.parts).find(id => checks.parts[id].ok && part(id)?.status === 'draft' && part(id)?.generated?.family && part(id)?.tier !== 'race' && (part(id)?.unlock?.level ?? 1) <= 1);
 const act = (p: Player, action: string, args: object) => p.post(`/api/v1/player/actions/${action}`, { args });
 const waitChecked = async (id: string) => { for (let i = 0; i < 600; i++) { const r = (await admin.get(`/api/v1/admin/content/items/part/${id}`)).body; if (r.liveChecks && r.liveChecks.version === r.version) return r; await new Promise(res => setTimeout(res, 100)); } throw new Error('live checks never finished'); };
 

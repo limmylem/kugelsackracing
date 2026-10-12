@@ -10,12 +10,18 @@
 //   npm run content -- new-car <id> --type <hatchback|saloon|coupe|estate|suv|pickup|sports> [--name "…"] [--model file.glb]
 //   npm run content -- status [ids…] --to <draft|review|published>   a part's workflow status in the repository
 //   npm run content -- report                  every family and engine: how many parts, their tiers and prices, problems
+//   npm run content -- targets [family]        the targets (data/content/targets.json): a 50+ variant family made and
+//                                               checked within the hour, a new car playable — measured, and recorded
+//   npm run content -- thumbnails [ids…] [--all]   each part's studio thumbnail (assets/thumbs), made again where what
+//                                               it shows changed (npm run content -- check makes them too)
+//   npm run content -- finish [ids…] [--dry-run]   what the importer does, done to what's in the game already: levels of
+//                                               detail, big textures compressed, collision hulls for parts that come off
 
 import { performance } from 'node:perf_hooks';
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = n => rest.includes(n), opt = n => { const i = rest.indexOf(n); return i >= 0 ? rest[i + 1] : null; };
-const ids = rest.filter((a, i) => !a.startsWith('--') && !(i > 0 && rest[i - 1].startsWith('--') && !['--check', '--quick', '--all'].includes(rest[i - 1])));
+const ids = rest.filter((a, i) => !a.startsWith('--') && !(i > 0 && rest[i - 1].startsWith('--') && !['--check', '--quick', '--all', '--dry-run', '--no-thumbnails'].includes(rest[i - 1])));
 const colour = process.stdout.isTTY, bold = s => colour ? `\x1b[1m${s}\x1b[0m` : s, red = s => colour ? `\x1b[31m${s}\x1b[0m` : s, green = s => colour ? `\x1b[32m${s}\x1b[0m` : s;
 const t0 = performance.now(), took = () => `${((performance.now() - t0) / 1000).toFixed(1)} s`;
 
@@ -47,6 +53,12 @@ switch (cmd) {
     const { runChecks, formatChecks } = await import('./content/checks.mjs');
     const r = await runChecks({ only: ids.length ? ids : null, quick: flag('--quick'), all: flag('--all'), log: console.log });
     console.log(formatChecks(r, { colour }));
+    // (and the thumbnails of what changed: tools/content/thumbnail.mjs)
+    if (!flag('--no-thumbnails')) {
+      const { makeThumbnails } = await import('./content/thumbnail.mjs');
+      const t = await makeThumbnails({ only: ids.length ? ids : null });
+      if (t.made.length) console.log(`${t.made.length} thumbnail${t.made.length > 1 ? 's' : ''} made (assets/thumbs).`);
+    }
     console.log(`\n${took()}.`);
     process.exit(r.failed.length ? 1 : 0);
   }
@@ -67,7 +79,7 @@ switch (cmd) {
   }
   case 'status': {
     const { setStatus } = await import('./content/workflow.mjs');
-    const r = setStatus(ids, opt('--to'));
+    const r = await setStatus(ids, opt('--to'));
     for (const p of r.problems) console.log(red(`  ✘ ${p}`));
     console.log(`${r.changed.length} part${r.changed.length === 1 ? '' : 's'} now ${opt('--to')}.`);
     process.exit(r.problems.length ? 1 : 0);
@@ -77,7 +89,25 @@ switch (cmd) {
     console.log(await report());
     process.exit(0);
   }
+  case 'targets': {
+    const { measureTargets } = await import('./content/targets.mjs');
+    const r = await measureTargets({ family: ids[0] ?? null, log: console.log });
+    console.log(`\n${r.ok ? green('✔ Targets met') : red('✘ Targets not met')}: ${r.words} — ${took()}.`);
+    process.exit(r.ok ? 0 : 1);
+  }
+  case 'thumbnails': {
+    const { makeThumbnails } = await import('./content/thumbnail.mjs');
+    const r = await makeThumbnails({ only: ids.length ? ids : null, all: flag('--all'), log: console.log });
+    console.log(`${r.made.length} made, ${r.kept} up to date, ${r.none.length} with nothing to show (no model) — ${took()}.`);
+    process.exit(0);
+  }
+  case 'finish': {
+    const { finishExisting } = await import('./content/finishAll.mjs');
+    const r = await finishExisting({ only: ids.length ? ids : null, dryRun: flag('--dry-run'), log: console.log });
+    console.log(`\n${r.lods.length} model${r.lods.length === 1 ? '' : 's'} given levels of detail, ${r.textures.length} with textures compressed, ${r.collision.length} part${r.collision.length === 1 ? '' : 's'} given collision hulls${flag('--dry-run') ? ' (--dry-run: nothing written)' : ''} — ${took()}.${!flag('--dry-run') && (r.lods.length || r.collision.length) ? ' Next: npm run content -- check' : ''}`);
+    process.exit(0);
+  }
   default:
-    console.log('npm run content -- build | check | verify | new-car | status | report   (docs/CONTENT_PIPELINE.md)');
+    console.log('npm run content -- build | check | verify | new-car | status | report | targets | thumbnails | finish   (docs/CONTENT_PIPELINE.md)');
     process.exit(cmd ? 2 : 0);
 }

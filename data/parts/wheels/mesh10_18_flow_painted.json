@@ -46,7 +46,7 @@
       "toughness": 1.1
     },
     "gain": null,
-    "priceFactor": 1
+    "priceFactor": 1.005
   },
   "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. sport: priced by its settings, $670, unlocked at level 3.",
   "bounds": {

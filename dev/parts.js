@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Garage, loadGarageData } from '../garage/data.js';
-import { ModelCache, createCarVisual, finishMaterial, placeholderBox, placeholderWing, resolveLook, setEnvironment, skyEnvironment, tyreModel } from '../garage/visual.js';
+import { ModelCache, setTextureRenderer, createCarVisual, finishMaterial, placeholderBox, placeholderWing, resolveLook, setEnvironment, skyEnvironment, tyreModel } from '../garage/visual.js';
 import { tyreFit } from '../garage/tyres.js';
 import { iconFor } from '../garage/workshop.js';
 import { KEEPS_LOOK } from '../garage/partShape.js';
@@ -21,6 +21,7 @@ const rules = await readJson('data/content/model-rules.json').catch(() => null);
 
 // ---------- the 3D view ----------
 const view = $('view'), renderer = new THREE.WebGLRenderer({ antialias: true });
+setTextureRenderer(renderer);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;

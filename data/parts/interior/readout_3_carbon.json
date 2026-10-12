@@ -31,7 +31,7 @@
       "mass": 0.69
     },
     "gain": null,
-    "priceFactor": 1.186
+    "priceFactor": 1.1831
   },
   "_generated": "Made by npm run content -- build from data/families/readout.json (and data/content/formulas.json families.gauges): change those, not this file. sport: priced by its settings, $700, unlocked at level 3.",
   "bounds": {

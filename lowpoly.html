@@ -55,13 +55,14 @@ import * as THREE from 'three';
 import Pbf from 'pbf';
 import { VectorTile, classifyRings } from '@mapbox/vector-tile';
 import { modelRig, wheelTransform } from './physics/sockets.js';
-import { ModelCache, createCarVisual, setEnvironment, skyEnvironment } from './garage/visual.js';
+import { ModelCache, createCarVisual, setEnvironment, setTextureRenderer, skyEnvironment } from './garage/visual.js';
 import { garageSession } from './garage/session.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ---------- Scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+setTextureRenderer(renderer);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);

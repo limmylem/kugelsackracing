@@ -513,10 +513,22 @@
         "additionalProperties": false,
         "properties": {
           "model": { "type": "string" },
-          "bounds": { "$ref": "#/properties/bounds" }
+          "bounds": { "$ref": "#/properties/bounds" },
+          "collision": { "$ref": "#/properties/collision" }
         }
       },
-      "description": "Its own model on each car it's made to fit (a roll cage, a strut brace): { carId: { model, bounds } }; other cars draw model"
+      "description": "Its own model on each car it's made to fit (a roll cage, a strut brace): { carId: { model, bounds, collision? } }; other cars draw model"
+    },
+    "collision": {
+      "type": "object",
+      "required": ["method", "hulls", "volumes"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["coacd", "built-in"], "description": "What made them: CoACD (if it was installed) or the built-in splitter" },
+        "hulls": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "array", "minItems": 12, "maxItems": 384, "items": { "type": "number" } } },
+        "volumes": { "type": "array", "items": { "type": "number", "minimum": 0 } }
+      },
+      "description": "Its collision shape when it comes off in a crash (physics/looseParts.js): convex hulls, each its corners x, y, z, … in the part's frame (m), and each one's volume (m³; its mass is shared out by them). Made from the model by npm run import / npm run content -- collision (tools/content/collision.mjs): don't edit by hand"
     },
     "upgrade": {
       "type": "object",
