@@ -13,6 +13,7 @@
 //    .help() … (the game adds its own: debug(name, fn, help));
 //  - saveEdits: tuning-panel edits written back to the car or part file each value comes from.
 
+import { applyContent } from './content.js';
 import { Garage, loadGarageData } from './data.js';
 import { recordStore } from '../quest/recordStore.js';
 import { changes, changesText, explain, labelOf, num, totalsText } from './report.js';
@@ -67,7 +68,7 @@ async function create() {
   if (A?.server && A.me && !A.me.needsTerms) {
     // (Phase 6 Step 2: the server's economy — garage/player/remote.js. Its settings are the prices shown;
     // the last profile it sent is kept here only to show offline, where nothing changes until it's back)
-    try { const cfg = await A.api.get('/player/config', { retries: 1 }); db.economy = cfg.economy; quests.config = cfg.quests; } catch { /* the files' own, to show */ }
+    try { const cfg = await A.api.get('/player/config', { retries: 1 }); db.economy = cfg.economy; quests.config = cfg.quests; if (cfg.content) applyContent(db, cfg.content); } catch { /* the files' own, to show */ }
     const cache = new IdbStorage({ key: A.profileKey, legacy: false });
     player = new RemotePlayerService({ api: A.api, db, quests, onStatus: st => globalThis.dispatchEvent?.(new CustomEvent('kr-economy', { detail: st })) });
     try { loaded = await player.init(); }

@@ -34,6 +34,7 @@ export async function adminContentRoutes(app0: FastifyInstance, { db, manager, G
 
   app.get('/admin/content/items', { ...admin, schema: { querystring: Filters } }, async req => { await me(req); return manager.items(req.query); });
   app.get('/admin/content/items/:kind/:id', { ...admin, schema: { params: z.object({ kind: Kind, id: Id }) } }, async req => { await me(req); return manager.item(req.params.kind, req.params.id); });
+  app.get('/admin/content/preview/:car/:part', { ...admin, schema: { params: z.object({ car: Id, part: Id }) } }, async req => { await me(req); return manager.preview(req.params.car, req.params.part); });
   app.post('/admin/content/edit', { ...admin, schema: { body: z.object({ ids: z.array(Id).min(1).max(1000), changes: Changes, reason: Reason }) } }, async req => {
     const a = await me(req), r = await manager.edit({ ids: req.body.ids, changes: req.body.changes, actorId: a.id, reason: req.body.reason });
     await log(a.id, 'content-edit', req.body.reason, { ids: req.body.ids.slice(0, 200), count: req.body.ids.length, changes: req.body.changes });

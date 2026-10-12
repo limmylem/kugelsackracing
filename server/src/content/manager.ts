@@ -19,7 +19,8 @@ import { AppError, badRequest, notFound } from '../errors.ts';
 import { gameData } from '../economy/config.ts';
 import { editFields, editNeeds, editProblems, STATUSES, statusOf, withContent } from '../../../garage/content.js';
 import { editableStats } from '../../../garage/families.js';
-import { forCar } from '../../../garage/balance.js';
+import { fitWithNeeds, forCar } from '../../../garage/balance.js';
+import { Garage } from '../../../garage/data.js';
 
 const readJson = (p: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, p), 'utf8'));
 const readMaybe = (p: string, fallback: any) => fs.existsSync(path.join(REPO_DIR, p)) ? readJson(p) : fallback;
@@ -177,6 +178,27 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
 
   async function history(kind: Kind, id: string) { return (await item(kind, id)).history; }
 
+  // A part on a car, for the 3D preview: the car's stock build with the part's latest version fitted (and what it needs
+  // first) — or put in its socket anyway, with why it wouldn't go on — and every part the build uses
+  async function preview(carId: string, partId: string) {
+    const { game, row } = await state(), v = view(game, 'part', partId, row('part', partId));
+    if (!v) throw notFound(`The part "${partId}"`);
+    if (!game.cars[carId]) throw notFound(`The car "${carId}"`);
+    const db2 = { ...withContent(game, await overlay()), parts: { ...withContent(game, await overlay()).parts, [partId]: v.latest } };
+    const r = fitWithNeeds(db2, carId, partId);
+    let build = r.garage.build, owned = r.garage.state.parts;
+    if (!r.ok) {
+      const g = new Garage(db2, null, carId), id = 'preview_copy', sockets = { ...g.build.sockets };
+      owned = { ...g.state.parts, [id]: { instanceId: id, partId, condition: 100 } };
+      for (const s of g.socketsFor(partId)) sockets[s] = id;
+      build = { ...g.build, sockets };
+    }
+    const parts: Record<string, any> = {};
+    const add = (id: string) => { for (let p = db2.parts[id], n = 0; p && n < 8 && !parts[p.id]; p = p.variantOf ? db2.parts[p.variantOf] : null, n++) parts[p.id] = p; };
+    for (const x of Object.values<any>(owned)) add(x.partId);
+    return { car: db2.cars[carId], finishes: db2.finishes, build, owned, parts, fitted: r.ok, why: r.ok ? null : r.error, with: r.with ?? [] };
+  }
+
   // ---------- CSV ----------
   const COLS = ['kind', 'id', 'name', 'slot', 'family', 'tier', 'price', 'unlock_level', 'status', 'live', 'checks', 'stats', 'problems'];
   const cell = (v: any) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -271,7 +293,7 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
   }
   async function close() { await worker?.terminate(); worker = null; }
 
-  return { overlay, items, item, edit, setStatus, history, exportCsv, importCsv, resume, close, idle: () => !busy && !queue.length };
+  return { overlay, items, item, edit, setStatus, history, preview, exportCsv, importCsv, resume, close, idle: () => !busy && !queue.length };
 }
 export type ContentManager = ReturnType<typeof createContentManager>;
 

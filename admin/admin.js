@@ -83,15 +83,19 @@ let launch = null;
 const launchTools = () => launch ??= createLaunchTools({ api, h, say, when, errText,
   main: () => { tabs(); const m = $('main'); m.className = ''; m.replaceChildren(); return m; },
   pickPlayer: id => { showAdmin(); pick(id); }, replayEvidence: id => replayEvidence(id) });
+// (Phase 8 Step 3: the content manager — parts and cars, their workflow, checks, edits: admin/content.js)
+let contentTools = null;
+const showContent = async () => { contentTools ??= (await import('./content.js')).createContentTools({ api, h, say, when, errText, main: () => { tabs(); const m = $('main'); m.className = ''; m.style.gridTemplateColumns = ''; m.replaceChildren(); return m; } }); contentTools.showContent(); };
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
-  nav.replaceChildren(...[['Players', showAdmin], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
+  nav.replaceChildren(...[['Players', showAdmin], ['Content', showContent], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
     ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
   const main = $('main');
   main.className = '';
+  main.style.gridTemplateColumns = '';
   const results = h('div', { class: 'list' }), searchMsg = h('div');
   const q = h('input', { type: 'search', placeholder: 'Name, email or id', autofocus: true, maxlength: 100 });
   const search = async () => {
