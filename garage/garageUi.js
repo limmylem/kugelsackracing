@@ -37,6 +37,8 @@ import { Garage } from './data.js';
 import { hasDamage } from './mechanical.js';
 import { ZONE_VIEW } from './damageReport.js';
 import { Hints } from './hints.js';
+import { profileCard, profileStats } from './profileCard.js';
+import { account } from '../account/session.js';
 
 const PRESETS = [['Arctic White', '#EDEFF0'], ['Cement Grey', '#8C9092'], ['Graphite', '#3A3F45'], ['Midnight Black', '#111316'], ['Signal Red', '#C8202B'], ['Sunburst Orange', '#E3701E'], ['Canary Yellow', '#E8C21C'], ['Lime', '#8DC63F'],
   ['Racing Green', '#1F4D3A'], ['Teal', '#1E7F80'], ['Sky Blue', '#5EA8DB'], ['Deep Blue', '#1D3E8A'], ['Plum', '#5B2A55'], ['Rose', '#C9677E'], ['Bronze', '#8A6A3E'], ['Sand', '#C8B48E'], ['Factory Sage', '#6D9A91']];
@@ -115,6 +117,8 @@ export class GarageScreen {
   }
   set workshop(w) {
     this.w = w;
+    // (who's signed in, for the account button's name: asked once — the page's account is already known by now)
+    if (this.me === undefined) { this.me = null; account().then(A => { this.me = A.me; this.render(); }).catch(() => {}); }
     this.unlisten?.();
     this.unlisten = w.on(e => {
       if (this.quiet || e.kind === 'failed') return;     // (a failed change: the action that asked says why)
@@ -237,6 +241,25 @@ export class GarageScreen {
     return v === 'overview' ? 'ORBIT' : (this.area(this.ui.area)?.label ?? v).toUpperCase();
   }
 
+  // (the top bar's account button: the level as a little rev ring; it opens the player's card, garage/profileCard.js)
+  #levelChip() {
+    const s = profileStats(this.w.profile, this.w.db, this.w.levels), deg = Math.round(360 * s.share);
+    return `<button class="g-acct" data-act="profile" data-key="profile" title="Your account: level, money and stats">
+      <span class="ring" style="--deg:${deg}deg"><span>${s.level}</span></span><span class="txt"><b>${esc(this.me?.displayName ?? 'Account')}</b><small>${esc(s.rank?.name ?? 'Rookie')}</small></span></button>`;
+  }
+  // the player's multiplayer rank for their card (the server's: tier, races, wins; their place among the top 50)
+  async #loadRank() {
+    this.mpRank ??= { state: 'loading' };
+    try {
+      const A = await account();
+      if (!A.me) { this.mpRank = { state: 'off', why: 'Sign in to race ranked and get a rank.' }; return this.render(); }
+      if (!A.online) { this.mpRank = { state: 'off' }; return this.render(); }
+      const [m, board] = await Promise.all([A.api.get('/mp/me'), A.api.get('/mp/leaderboard').catch(() => ({ players: [] }))]);
+      const place = board.players?.find(x => x.id === A.me.id)?.place ?? null;
+      this.mpRank = { state: 'ok', tier: m.tier, races: m.races ?? 0, wins: m.wins ?? 0, safety: m.safety ?? null, place };
+    } catch (e) { this.mpRank = { state: 'off', why: e?.code === 'TERMS' ? 'Accept the terms to race ranked.' : undefined }; }
+    if (this.ui.dialog?.kind === 'profile') this.render();
+  }
   #top() {
     const w = this.w, st = this.stats, preview = this.ui.panel === 'compare' ? this.preview?.after : null, r = (preview ?? st).totals?.rating, d = w.drivable;
     const n = w.changes().length, setup = w.activeSetup, pop = this.ui.pop;
@@ -249,6 +272,7 @@ export class GarageScreen {
       <div class="spacer"></div>
       <nav class="tabs">${TABS.map(([id, name, ic]) => `<button class="tab ${this.ui.tab === id ? 'on' : ''}" data-act="tab:${id}" data-key="tab:${id}" title="${name}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>
       <div class="spacer"></div>
+      ${this.#levelChip()}
       <div class="g-wallet" title="Your money">${icon('account_balance_wallet')}<span>${esc(this.money(w.money))}</span></div>
       <div class="actions">
         <button class="icon-btn settings" data-act="pop:settings" data-key="pop:settings" title="Garage settings and the save">${icon('settings')}</button>
@@ -1014,6 +1038,11 @@ export class GarageScreen {
   }
   #dialog() {
     const d = this.ui.dialog, w = this.w;
+    if (d.kind === 'profile') {
+      // (its gauge sweeps up when it opens, not every time the screen is drawn again)
+      const fresh = Date.now() - d.at < 400;
+      return profileCard({ s: profileStats(w.profile, w.db, w.levels), me: this.me, price: n => this.money(n), fresh, mp: this.mpRank });
+    }
     const box = (ic, colour, title, text, list, buttons) => `<div class="scrim"><div class="dialog" role="dialog" aria-modal="true">
       <div style="padding:24px 28px 8px;display:flex;gap:16px;align-items:flex-start">
         <div style="width:44px;height:44px;flex:none;border-radius:8px;background:color-mix(in srgb, ${colour} 14%, transparent);display:flex;align-items:center;justify-content:center;color:${colour}">${icon(ic, 'style="font-size:26px"')}</div>
@@ -1186,6 +1215,10 @@ export class GarageScreen {
       case 'test': return this.actions.testDrive();
       case 'leave': return this.actions.leave();
       case 'dialog-cancel': this.ui.dialog = null; return this.render();
+      case 'profile':
+        this.ui.dialog = { kind: 'profile', at: Date.now() }; this.ui.pop = null;
+        this.#loadRank();
+        return this.render();
       case 'hint-close': this.ui.hint = null; return this.render();
       case 'pop': this.ui.pop = this.ui.pop === arg ? null : arg; this.ui.renaming = null; this.ui.confirm = null; return this.render();
       case 'mode': w.mode = arg; this.actions.modeChanged?.(arg); if (this.ui.panel === 'compare' && this.ui.candidate !== 'remove') { const c = this.#cand(this.ui.candidate); this.preview = c ? w.preview(this.ui.socket, c) : null; } return this.render();
