@@ -13,3 +13,5 @@ Your profile card: level, rank, money and stats at a glance
 A handy side dock: garage, races and chat one click away
 A real car's dashboard: rev counter, speedometer and warning lights
 The garage fits properly in Safari
+Cars and parts load faster, and stay saved between visits
+Parts knocked off in a crash tumble in their real shape
