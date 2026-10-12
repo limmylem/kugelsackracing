@@ -1,0 +1,82 @@
+{
+  "id": "streetline_63_titanium_polished",
+  "name": "Streetline cat-back exhaust, 63 mm, polished (titanium)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 420,
+  "mass": 4.2,
+  "model": "assets/parts/exhaust/streetline/streetline_63.glb",
+  "icon": "assets/icons/parts/streetline_63_titanium_polished.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0208,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    }
+  ],
+  "sound": {
+    "exhaust": {
+      "level": 1.1,
+      "tone": 0.908,
+      "rasp": 0.06,
+      "pops": 0.16
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "look": {
+    "materials": {
+      "chrome": {
+        "finish": "polished"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "streetline",
+    "kind": "exhaust",
+    "key": "63_titanium_polished",
+    "settings": {
+      "diameter": 63,
+      "tips": "dual",
+      "material": "titanium",
+      "finish": "polished"
+    },
+    "stats": {
+      "topEnd": 0.0208,
+      "lowEnd": 0,
+      "mass": 4.2,
+      "loudness": 1.1,
+      "tone": 0.908,
+      "rasp": 0.06,
+      "pops": 0.16
+    },
+    "gain": 0.0208,
+    "measuredOn": "starter_car",
+    "priceFactor": 1.077
+  },
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 2.08%: street, $420.",
+  "bounds": {
+    "min": [-0.1298, -0.0485, -0.18],
+    "max": [0.1298, 0.0485, 0]
+  },
+  "massOffset": [0, 0, -0.068],
+  "tier": "street"
+}

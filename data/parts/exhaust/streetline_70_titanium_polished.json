@@ -1,0 +1,85 @@
+{
+  "id": "streetline_70_titanium_polished",
+  "name": "Streetline cat-back exhaust, 70 mm, polished (titanium)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 420,
+  "mass": 4.6,
+  "model": "assets/parts/exhaust/streetline/streetline_70.glb",
+  "icon": "assets/icons/parts/streetline_70_titanium_polished.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.032,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    }
+  ],
+  "sound": {
+    "exhaust": {
+      "level": 1.16,
+      "tone": 0.902,
+      "rasp": 0.12,
+      "pops": 0.24
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "look": {
+    "materials": {
+      "chrome": {
+        "finish": "polished"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "streetline",
+    "kind": "exhaust",
+    "key": "70_titanium_polished",
+    "settings": {
+      "diameter": 70,
+      "tips": "dual",
+      "material": "titanium",
+      "finish": "polished"
+    },
+    "stats": {
+      "topEnd": 0.032,
+      "lowEnd": 0,
+      "mass": 4.6,
+      "loudness": 1.16,
+      "tone": 0.902,
+      "rasp": 0.12,
+      "pops": 0.24
+    },
+    "gain": 0.032,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 3.2%: street, $420, unlocked at level 2.",
+  "bounds": {
+    "min": [-0.1429, -0.0539, -0.18],
+    "max": [0.1429, 0.0539, 0]
+  },
+  "massOffset": [0, 0, -0.069],
+  "tier": "street",
+  "unlock": {
+    "level": 2
+  }
+}

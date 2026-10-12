@@ -1,0 +1,99 @@
+{
+  "id": "spool_44_matte",
+  "name": "Spool 44 turbo kit, matte black",
+  "category": "turbo",
+  "slot": "turbo",
+  "kind": "modifier",
+  "price": 2680,
+  "mass": 11.9,
+  "model": "assets/parts/turbo/spool/spool_44/starter_car.glb",
+  "icon": "assets/icons/parts/spool_44_matte.png",
+  "fits": [],
+  "requires": ["slot:intercooler"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger", "car:brute_500", "car:kaze_gt"],
+  "provides": ["forced_induction:turbo"],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "boost",
+      "curve": [[1150, 0], [2150, 0.225], [3150, 0.427], [3750, 0.45], [6500, 0.45], [7200, 0.405]],
+      "efficiency": 0.85,
+      "max": 0.5
+    },
+    {
+      "target": "engine.induction",
+      "op": "set",
+      "value": "turbo"
+    }
+  ],
+  "sound": {
+    "whistle": {
+      "fromHz": 2500,
+      "toHz": 8500,
+      "gain": 0.0524,
+      "noise": 0.5,
+      "q": 9,
+      "spoolUp": 0.548,
+      "spoolDown": 0.45
+    },
+    "blowoff": {
+      "kind": "valve",
+      "gain": 0.06,
+      "hz": 2000,
+      "seconds": 0.45
+    }
+  },
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "spool",
+    "kind": "turbo",
+    "key": "44_matte",
+    "settings": {
+      "size": 44,
+      "ar": 0.632,
+      "finish": "matte"
+    },
+    "stats": {
+      "boost": 0.45,
+      "spoolRpm": 2150,
+      "fullRpm": 3150,
+      "torqueGain": 0.377,
+      "mass": 11.9,
+      "whistleLow": 2500,
+      "whistleHigh": 8500
+    },
+    "gain": 0.3775,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/spool.json (and data/content/formulas.json families.turbo): change those, not this file. On the Starter coupe it improves power by 37.7%: sport, $2,680, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.2269, -0.1604, -0.2287],
+    "max": [0.0047, 0.2542, 0.23]
+  },
+  "massOffset": [-0.12, 0.035, 0.005],
+  "byCar": {
+    "hana_roadster": {
+      "model": "assets/parts/turbo/spool/spool_44/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.2269, -0.3404, -0.2287],
+        "max": [0.015, 0.0188, 0.23]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/turbo/spool/spool_44/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.2869, -0.2804, -0.2287],
+        "max": [0.0069, 0.0571, 0.23]
+      }
+    }
+  },
+  "_fit": "It can't be made to fit the Brute 500, Kaze GT (its best fit still goes through the car), so it isn't for them.",
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

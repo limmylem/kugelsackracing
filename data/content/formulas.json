@@ -1,0 +1,275 @@
+{
+  "_note": "How content's stats, prices and unlock levels are worked out from its settings (Phase 8 Step 3; docs/CONTENT_PIPELINE.md). Each stat is a formula (garage/formulas.js: + − × ÷ ^, brackets, the settings and the stats before it by name, a table's fields as table.field, and min, max, clamp, lerp, smoothstep, round, sqrt, pow, iff) and the range it must be within: a part or engine whose stat comes out of its range isn't made, and an edit in the content manager can't take it there. Change a number here and npm run content -- build makes every part again from it; the checks (npm run content -- check) then say whether they still pass.",
+  "engines": {
+    "_note": "Engines (data/engines/<id>.json → the crate engine part data/parts/engine/crate_<id>.json, garage/engines.js). Settings: layout (inline, v, flat, rotary), cylinders (rotors for a rotary), displacement (litres), aspiration (natural, turbo, supercharged), boost (bar, forced only), idle and redline (rpm), character (0 a lazy, torquey engine … 1 a peaky one that wants revs). The torque curve: peakTorque N·m at peakRpm, torque at idle a share of the peak (idleShare), falling to redlineShare at the redline and overRevShare 400 rpm past it; a forced engine's boost builds from idle to spoolRpm and holds to holdRpm. overrides in the engine's file (torqueCurve, mass, size) replace what these work out.",
+    "layouts": {
+      "inline": { "label": "inline", "base": 45, "length": "0.18 + 0.105 * cylinders", "width": "0.5 + 0.02 * displacement", "height": "0.58 + 0.02 * displacement" },
+      "v": { "label": "V", "base": 45, "length": "0.3 + 0.05 * cylinders", "width": "0.6 + 0.035 * displacement", "height": "0.6 + 0.02 * displacement" },
+      "flat": { "label": "flat", "base": 55, "length": "0.25 + 0.05 * cylinders", "width": "0.62 + 0.04 * displacement", "height": "0.46" },
+      "rotary": { "label": "rotary", "base": 30, "length": "0.32 + 0.12 * cylinders", "width": "0.5", "height": "0.5" }
+    },
+    "aspirations": {
+      "natural": { "label": "naturally aspirated", "induction": "natural", "torquePerLitre": 100, "boostGain": 0, "mass": 0 },
+      "turbo": { "label": "turbocharged", "induction": "turbo", "torquePerLitre": 100, "boostGain": 0.7, "mass": 18 },
+      "supercharged": { "label": "supercharged", "induction": "natural", "torquePerLitre": 100, "boostGain": 0.6, "mass": 15 }
+    },
+    "stats": {
+      "peakTorque": { "label": "peak torque", "unit": "N·m", "formula": "displacement * aspiration.torquePerLitre * (1.04 - 0.08 * character) * (1 + boost * aspiration.boostGain)", "range": [60, 900], "digits": 0 },
+      "peakRpm": { "label": "peak torque rpm", "unit": "rpm", "formula": "round(idle + (redline - idle) * iff(boost > 0, 0.3 + 0.15 * character, 0.45 + 0.4 * character), 50)", "range": [1500, 9000] },
+      "idleShare": { "label": "torque at idle", "unit": "%", "formula": "iff(boost > 0, 0.5, 0.78 - 0.12 * character)", "range": [0.3, 0.9] },
+      "redlineShare": { "label": "torque at the redline", "unit": "%", "formula": "iff(boost > 0, 0.68, 0.8 + 0.14 * character)", "range": [0.5, 1] },
+      "overRevShare": { "label": "torque past the redline", "unit": "%", "formula": "redlineShare - 0.09", "range": [0.4, 1] },
+      "holdRpm": { "label": "where full boost ends", "unit": "rpm", "formula": "round(idle + (redline - idle) * iff(boost > 0, 0.68, 0), 50)", "range": [0, 9000] },
+      "mass": { "label": "mass", "unit": "kg", "formula": "layout.base + 13 * cylinders + 9 * displacement + aspiration.mass", "range": [50, 320], "digits": 1 },
+      "inertia": { "label": "rotating inertia", "unit": "kg·m²", "formula": "0.06 + 0.012 * cylinders + 0.015 * displacement", "range": [0.06, 0.4], "digits": 3 },
+      "friction": { "label": "internal friction at rest", "unit": "N·m", "formula": "4.6 * displacement", "range": [3, 40], "digits": 2 }
+    },
+    "ranges": {
+      "_note": "What an engine's settings may be",
+      "cylinders": [2, 12],
+      "displacement": [0.6, 8],
+      "boost": [0, 2],
+      "idle": [550, 1200],
+      "redline": [4500, 9500],
+      "character": [0, 1],
+      "peakPower": [40, 900],
+      "_peakPower": "peak power (hp) is measured from the torque curve made"
+    },
+    "requires": {
+      "_note": "What an engine needs fitted with it: for each, the first step whose amount it's over (by: peakTorque N·m or peakPower hp) names the tag it needs — the clutch to hold it, a stronger gearbox, more cooling",
+      "clutch": { "by": "peakTorque", "steps": [[480, "clutch_rating:race"], [300, "clutch_rating:sport"]], "why": "a clutch that holds its torque" },
+      "gearbox": { "by": "peakTorque", "steps": [[420, "gearbox:uprated"]], "why": "a gearbox for its torque" },
+      "cooling": { "by": "peakPower", "steps": [[280, "cooling:uprated"]], "why": "a radiator for its heat" }
+    },
+    "economy": {
+      "_note": "A crate engine's tier by its peak power (hp: the first tier it's under), its price within its tier's band (data/content/tiers.json, slot engine) by where its power sits in the tier, and its unlock level the same way",
+      "tierByPower": [["street", 180], ["sport", 330], ["race", 900]],
+      "unlock": { "street": [1, 2], "sport": [3, 5], "race": [6, 9] }
+    },
+    "running": {
+      "_note": "What every crate engine starts with for how it runs (the physics: physics/engine.js, physics/engineHealth.js), as the game's own engines do",
+      "idle": { "gain": 0.002, "maxThrottle": 0.3 },
+      "limiter": { "hysteresis": 150 },
+      "overRev": { "valveFloat": 0.02, "bentValves": 0.1, "blown": 0.25, "floatWear": 5, "bendTime": 0.05, "bentLoss": 40, "bentWear": 15, "blowTime": 0.03, "misfireBelow": 70, "misfire": 0.35, "drag": 0.2 },
+      "turbo": { "efficiency": 0.85, "sound": { "whistle": { "fromHz": 2400, "toHz": 7800, "gain": 0.055, "noise": 0.35, "q": 12, "spoolUp": 0.5, "spoolDown": 0.35 }, "blowoff": { "kind": "valve", "gain": 0.05, "hz": 2200, "seconds": 0.4 } } }
+    }
+  },
+  "finishes": {
+    "_note": "A part family's finishes (data/families: finishes): each one a variant of every part the family makes — the same shape and stats, its own look (data/finishes.json: finish, colour), price × price (kept within the tier's band) and, for kinds where the finish is what it's made of (spoilers, seats, body kits: finishMass), mass × mass",
+    "polished": { "label": "polished", "finish": "polished", "price": 1.12, "mass": 1 },
+    "painted": { "label": "painted", "finish": "painted", "price": 1, "mass": 1 },
+    "carbon": { "label": "carbon", "finish": "carbon", "price": 1.6, "mass": 0.62 },
+    "chrome": { "label": "chrome", "finish": "chrome", "price": 1.25, "mass": 1.03 },
+    "matte": { "label": "matte black", "finish": "matte_black", "price": 1, "mass": 1 }
+  },
+  "economy": {
+    "_note": "A family's part's tier, price and unlock level (tools/content/families.mjs). Measured kinds (economy: measured): what it does to its slot's key stat on a car (the starter car if it fits, else the first it fits: tools/content/balance.mjs partGain) puts it in a tier — the tiers' gain bands (data/content/tiers.json) split where they overlap — and its price follows the slot's own parts' prices for what they do, within its tier's band (× its finish's price); a part that does less than the lowest tier allows, or more than the highest, isn't made. Other kinds: a tier from their settings (tierBy) and a price within its band by value (0..1). Unlock levels: where it sits in its tier, between these levels.",
+    "unlock": { "street": [1, 2], "sport": [2, 4], "race": [5, 8] }
+  },
+  "families": {
+    "_note": "Part families by kind (data/families/<id>.json: kind, settings, finishes): each kind's slot, its model rules type and shape (tools/shapes), its settings (a range, a list of values, or a table whose fields formulas use as setting.field), its stats from formulas, how it's priced, and whether its model is fitted to each car (fit: tools/generators/lib/fitcheck.js — tried bigger to smaller, moved, until it clears the body; a car it can't be made to clear — its best fit still through the body or another part, or through the engine in more than fit.engineTouch places — is one it doesn't go on: conflicts car:<id>). Every family's parts are checked on every car they fit (npm run content -- check).",
+    "wheels": {
+      "label": "wheel", "slot": "wheels", "category": "wheels", "type": "rim", "shape": "wheel", "maker": "Spoke & Co", "purpose": "looks", "finishMaterial": "rim_finish",
+      "shapeKeys": ["diameter", "width", "spokes"],
+      "name": "{diameter}\" {family} wheel, {finish} ({construction})",
+      "settings": {
+        "diameter": { "label": "diameter", "unit": "\"", "range": [13, 24], "integer": true },
+        "width": { "label": "width", "unit": "\"", "range": [5, 12], "default": "round(5 + (diameter - 13) * 0.5, 0.5)" },
+        "offset": { "label": "offset", "unit": "mm", "range": [0, 55], "default": "35" },
+        "spokes": { "label": "spokes", "range": [3, 20], "default": "5", "integer": true },
+        "construction": { "label": "construction", "table": {
+          "cast": { "label": "cast", "mass": 1, "toughness": 1, "tier": "street" },
+          "flow": { "label": "flow-formed", "mass": 0.88, "toughness": 1.1, "tier": "sport" },
+          "forged": { "label": "forged", "mass": 0.75, "toughness": 1.3, "tier": "race" } } }
+      },
+      "stats": {
+        "mass": { "label": "mass (each)", "unit": "kg", "formula": "construction.mass * finish.mass * (1.1 + 0.0265 * diameter^2 * (width / 6)^0.7)", "range": [4, 20], "digits": 1 },
+        "inertia": { "label": "turning inertia", "unit": "kg·m²", "formula": "0.6 * mass * (diameter * 0.0127)^2", "range": [0.03, 1.2], "digits": 3 },
+        "toughness": { "label": "toughness", "formula": "construction.toughness", "range": [0.5, 2], "digits": 2 }
+      },
+      "economy": { "tier": "construction.tier", "value": "clamp((diameter - 13) / 9, 0, 1)" }
+    },
+    "exhaust": {
+      "label": "cat-back exhaust", "slot": "exhaust", "category": "exhaust", "type": "exhaust", "shape": "exhaust", "maker": "Boomtube", "finishMaterial": "chrome",
+      "shapeKeys": ["diameter", "tips"],
+      "name": "{family} cat-back exhaust, {diameter} mm, {finish} ({material})",
+      "settings": {
+        "diameter": { "label": "pipe diameter", "unit": "mm", "range": [50, 110] },
+        "tips": { "label": "tips", "values": ["single", "dual", "quad"], "default": "dual" },
+        "material": { "label": "material", "table": {
+          "steel": { "label": "mild steel", "mass": 1, "tone": 1 },
+          "stainless": { "label": "stainless", "mass": 0.85, "tone": 0.97 },
+          "titanium": { "label": "titanium", "mass": 0.55, "tone": 0.92 } } }
+      },
+      "stats": {
+        "topEnd": { "label": "torque from 3,000 rpm", "unit": "%", "formula": "(diameter - 50) * 0.0016", "range": [0, 0.12], "digits": 4 },
+        "lowEnd": { "label": "torque under 2,500 rpm", "unit": "%", "formula": "-max(0, diameter - 80) * 0.0012", "range": [-0.05, 0], "digits": 4 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "material.mass * (6 + 0.12 * (diameter - 50))", "range": [3, 25], "digits": 1 },
+        "loudness": { "label": "loudness", "formula": "1 + (diameter - 50) * 0.008", "range": [1, 1.6], "digits": 2 },
+        "tone": { "label": "tone", "formula": "material.tone * (1 - (diameter - 50) * 0.001)", "range": [0.8, 1.05], "digits": 3 },
+        "rasp": { "label": "rasp", "formula": "clamp((diameter - 55) * 0.008, 0, 0.6)", "range": [0, 1], "digits": 2 },
+        "pops": { "label": "pops", "formula": "clamp((diameter - 50) * 0.012, 0, 0.8)", "range": [0, 1], "digits": 2 }
+      },
+      "economy": "measured"
+    },
+    "spoiler": {
+      "label": "wing", "slot": "spoiler", "category": "aero", "type": "spoiler", "shape": "wing", "maker": "Downforce Lab", "finishMass": true,
+      "shapeKeys": ["span", "chord", "elements", "riser", "style"],
+      "name": "{family} wing, {span} m, {finish}",
+      "settings": {
+        "span": { "label": "span", "unit": "m", "range": [0.9, 1.7] },
+        "chord": { "label": "chord", "unit": "m", "range": [0.12, 0.38] },
+        "elements": { "label": "elements", "range": [1, 2], "default": "1", "integer": true },
+        "riser": { "label": "riser height", "unit": "m", "range": [0.04, 0.4], "default": "0.18" },
+        "mount": { "label": "mounting", "values": ["boot", "deck", "roof"], "default": "boot" },
+        "style": { "label": "style", "table": {
+          "wing": { "label": "wing", "lift": 0.8, "drag": 0.075 },
+          "ducktail": { "label": "ducktail", "lift": 0.55, "drag": 0.06 } }, "default": "wing" }
+      },
+      "stats": {
+        "area": { "label": "wing area", "unit": "m²", "formula": "span * chord * elements^0.8", "range": [0.1, 0.9], "digits": 3 },
+        "downforce": { "label": "downforce (lift coefficient)", "formula": "area * style.lift * (0.7 + riser)", "range": [0.04, 0.6], "digits": 3 },
+        "drag": { "label": "drag coefficient", "formula": "downforce * style.drag + 0.004", "range": [0.004, 0.06], "digits": 4 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "finish.mass * (area * 9 + 0.8 + riser * 4)", "range": [1, 20], "digits": 1 }
+      },
+      "economy": "measured",
+      "fit": { "axes": { "dh": [0, 0.04, 0.08, 0.12, 0.16, 0.2], "lift": [0.004, 0.012, 0.024], "dz": [0, -0.04, 0.04, -0.08] }, "weights": { "dh": 1, "lift": 1, "dz": 1.5 } }
+    },
+    "intake": {
+      "label": "intake", "slot": "intake", "category": "intake", "type": "intake", "shape": "intake", "maker": "Airwerk",
+      "shapeKeys": ["style", "diameter"],
+      "name": "{family} intake, {diameter} mm, {finish}",
+      "settings": {
+        "diameter": { "label": "pipe diameter", "unit": "mm", "range": [60, 110] },
+        "style": { "label": "style", "table": {
+          "cone": { "label": "cone filter", "gain": 0.025, "low": 0, "roar": 1.3, "mass": 1.2 },
+          "cold_air": { "label": "cold air", "gain": 0.045, "low": -0.02, "roar": 1.6, "mass": 2 },
+          "stacks": { "label": "velocity stacks", "gain": 0.075, "low": -0.03, "roar": 2, "mass": 3 } } }
+      },
+      "stats": {
+        "topEnd": { "label": "torque from 4,000 rpm", "unit": "%", "formula": "style.gain * diameter / 90", "range": [0, 0.12], "digits": 4 },
+        "lowEnd": { "label": "torque under 1,500 rpm", "unit": "%", "formula": "style.low", "range": [-0.05, 0], "digits": 3 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "style.mass * diameter / 90", "range": [0.5, 8], "digits": 1 },
+        "roar": { "label": "intake roar", "formula": "style.roar * (0.8 + diameter / 450)", "range": [1, 2.5], "digits": 2 }
+      },
+      "economy": "measured",
+      "fit": { "axes": { "duct": ["level", "down"], "way": ["z", "x", "-z"], "reach": [1, 0.7, 0.45], "dx": [0, 0.08, 0.16, 0.24, 0.3, -0.08], "dy": [0, -0.06, -0.12, -0.18, -0.24, -0.3, 0.04], "dz": [0, 0.08, -0.08, 0.16] }, "weights": { "reach": 1, "way": 1.5 }, "attach": 0.07 }
+    },
+    "turbo": {
+      "label": "turbo kit", "slot": "turbo", "category": "turbo", "type": "turbo", "shape": "turbo", "maker": "Spoolwell",
+      "shapeKeys": ["size"],
+      "name": "{family} {size} turbo kit, {finish}",
+      "settings": {
+        "size": { "label": "compressor inducer", "unit": "mm", "range": [40, 76] },
+        "ar": { "label": "turbine A/R", "range": [0.5, 1.1], "default": "0.6 + (size - 40) * 0.008" }
+      },
+      "stats": {
+        "boost": { "label": "peak boost", "unit": "bar", "formula": "0.35 + (size - 40) * 0.024", "range": [0.3, 1.3], "digits": 2 },
+        "spoolRpm": { "label": "half boost at", "unit": "rpm", "formula": "round(1900 + (size - 40) * 55 + (ar - 0.6) * 1600, 50)", "range": [1500, 6000] },
+        "fullRpm": { "label": "full boost at", "unit": "rpm", "formula": "round(spoolRpm + 900 + (size - 40) * 20, 50)", "range": [2500, 7000] },
+        "torqueGain": { "label": "torque added at full boost", "unit": "%", "formula": "boost * 0.85 / 1.01325", "range": [0.2, 0.85], "digits": 3 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "8 + (size - 40) * 0.35 + ar * 4", "range": [6, 30], "digits": 1 },
+        "whistleLow": { "label": "whistle from", "unit": "Hz", "formula": "round(2600 - (size - 40) * 20, 50)", "range": [1200, 3200] },
+        "whistleHigh": { "label": "whistle to", "unit": "Hz", "formula": "round(8800 - (size - 40) * 70, 50)", "range": [4500, 9500] }
+      },
+      "requires": [
+        { "needs": "slot:intercooler" },
+        { "when": "torqueGain >= 0.75", "needs": "clutch_rating:race" },
+        { "when": "torqueGain >= 0.4 && torqueGain < 0.75", "needs": "clutch_rating:sport" },
+        { "when": "torqueGain >= 0.55", "needs": "pistons:forged" }
+      ],
+      "conflicts": ["induction:turbo", "forced_induction:supercharger"],
+      "provides": ["forced_induction:turbo"],
+      "economy": "measured",
+      "fit": { "axes": { "k": [1, 0.85, 0.7], "up": [null, 0.04], "dx": [0, -0.06, -0.12, -0.18, -0.24], "dy": [0, -0.06, -0.12, -0.18, -0.24, 0.06], "dz": [0, 0.08, -0.08, 0.16, -0.16] }, "weights": { "k": 2, "up": 1 }, "attach": 0.07 }
+    },
+    "intercooler": {
+      "label": "intercooler", "slot": "intercooler", "category": "intercooler", "type": "intercooler", "shape": "intercooler", "maker": "Coolstack",
+      "shapeKeys": ["width", "height", "thickness"],
+      "name": "{family} intercooler, {thickness} mm core, {finish}",
+      "settings": {
+        "width": { "label": "core width", "unit": "m", "range": [0.45, 0.8], "default": "0.6" },
+        "height": { "label": "core height", "unit": "m", "range": [0.16, 0.34], "default": "0.24" },
+        "thickness": { "label": "core thickness", "unit": "mm", "range": [45, 110] }
+      },
+      "stats": {
+        "core": { "label": "core volume", "unit": "L", "formula": "width * height * thickness", "range": [3, 30], "digits": 1 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "2 + core * 0.8", "range": [3, 25], "digits": 1 }
+      },
+      "economy": { "tierBy": { "by": "thickness", "steps": [["street", 65], ["sport", 85], ["race", 111]] }, "value": "clamp((core - 3) / 24, 0, 1)" },
+      "fit": { "axes": { "kw": [1, 0.9, 0.8, 0.7, 0.6], "kh": [1, 0.85, 0.7, 0.55, 0.45], "dz": [0, 0.03, -0.03, 0.06, -0.06, 0.1, -0.1], "dy": [0, -0.04, 0.04, -0.08, 0.08] }, "weights": { "kw": 1.5, "kh": 1.5 } }
+    },
+    "seat": {
+      "label": "seat", "slot": "seat", "category": "interior", "type": "seat", "shape": "seat", "maker": "Cockpit Co", "finishMass": false,
+      "shapeKeys": ["style", "width"],
+      "name": "{family} {style} seat, {finish} ({shell})",
+      "settings": {
+        "style": { "label": "style", "values": ["bucket", "fixed"], "default": "bucket" },
+        "width": { "label": "width", "unit": "m", "range": [0.46, 0.6], "default": "0.52" },
+        "mount": { "label": "rails", "values": ["std", "wide"], "default": "std" },
+        "shell": { "label": "shell", "table": {
+          "steel": { "label": "steel frame", "mass": 16 },
+          "fibreglass": { "label": "fibreglass", "mass": 9.5 },
+          "kevlar": { "label": "kevlar", "mass": 7 },
+          "carbon": { "label": "carbon", "mass": 5.2 } } }
+      },
+      "stats": {
+        "mass": { "label": "mass", "unit": "kg", "formula": "shell.mass * (0.9 + (width - 0.5) * 2)", "range": [3, 25], "digits": 1 }
+      },
+      "economy": "measured",
+      "fit": { "axes": { "lean": [0.18, 0.12, 0.07, 0.03], "kh": [1, 0.94, 0.88, 0.82], "kw": [1, 0.94, 0.88], "dz": [0, 0.03, 0.06, -0.03, 0.09] }, "weights": { "lean": 1, "kh": 1.5, "kw": 1.5, "dz": 1 } }
+    },
+    "steering_wheel": {
+      "label": "steering wheel", "slot": "steering_wheel", "category": "interior", "type": "steering_wheel", "shape": "steering_wheel", "maker": "Cockpit Co", "purpose": "looks",
+      "shapeKeys": ["diameter", "dish", "spokes", "grip"],
+      "name": "{family} steering wheel, {diameter} mm, {finish}",
+      "settings": {
+        "diameter": { "label": "diameter", "unit": "mm", "range": [300, 380] },
+        "dish": { "label": "dish", "unit": "mm", "range": [0, 90], "default": "30" },
+        "spokes": { "label": "spokes", "range": [3, 4], "default": "3", "integer": true },
+        "grip": { "label": "grip", "table": {
+          "leather": { "label": "leather", "tier": "street", "mass": 1 },
+          "suede": { "label": "suede", "tier": "sport", "mass": 0.95 },
+          "carbon": { "label": "carbon and suede", "tier": "race", "mass": 0.8 } } }
+      },
+      "stats": {
+        "mass": { "label": "mass", "unit": "kg", "formula": "grip.mass * (0.5 + diameter / 1000 * 1.6)", "range": [0.8, 4], "digits": 2 }
+      },
+      "economy": { "tier": "grip.tier", "value": "clamp((380 - diameter) / 80, 0, 1)" },
+      "fit": { "axes": { "boss": [0, 0.02, 0.04, 0.06, 0.08], "k": [1, 0.94, 0.88] }, "weights": { "boss": 1, "k": 1.5 } }
+    },
+    "gauges": {
+      "label": "gauge pod", "slot": "gauges", "category": "interior", "type": "gauges", "shape": "gauges", "maker": "Cockpit Co", "purpose": "looks",
+      "shapeKeys": ["count", "size", "layout"],
+      "name": "{family} {count}-gauge pod, {finish}",
+      "settings": {
+        "count": { "label": "gauges", "range": [1, 4], "integer": true },
+        "size": { "label": "gauge size", "unit": "mm", "range": [52, 60], "default": "52" },
+        "layout": { "label": "where", "values": ["pillar", "dash"], "default": "pillar" }
+      },
+      "stats": {
+        "mass": { "label": "mass", "unit": "kg", "formula": "0.15 + count * size / 52 * 0.18", "range": [0.2, 3], "digits": 2 }
+      },
+      "economy": { "tierBy": { "by": "count", "steps": [["street", 3], ["sport", 4], ["race", 5]] }, "value": "clamp((count - 1) / 3, 0, 1)" },
+      "fit": { "axes": { "layout": [null, "dash"], "dz": [0, -0.04, -0.08, 0.04], "dy": [0, -0.03, -0.06, -0.09], "dx": [0, -0.05, 0.05, -0.1, 0.1] }, "weights": { "layout": 2 } }
+    },
+    "body_kit": {
+      "label": "aero kit", "slot": "aero_kit", "category": "aero", "type": "aero_kit", "shape": "body_kit", "maker": "Downforce Lab", "finishMass": true, "perCar": true,
+      "shapeKeys": ["car", "depth", "diffuser", "canards"],
+      "name": "{family} aero kit ({car}), {finish}",
+      "settings": {
+        "car": { "label": "car", "cars": true },
+        "depth": { "label": "splitter and skirt depth", "unit": "m", "range": [0.02, 0.1] },
+        "diffuser": { "label": "diffuser", "range": [0, 1], "default": "0.5" },
+        "canards": { "label": "dive planes", "range": [0, 1], "default": "0", "integer": true }
+      },
+      "stats": {
+        "liftFront": { "label": "front downforce", "formula": "-(0.03 + depth * 1.1 + canards * 0.03)", "range": [-0.2, 0], "digits": 3 },
+        "liftRear": { "label": "rear downforce", "formula": "-(0.02 + diffuser * 0.1)", "range": [-0.2, 0], "digits": 3 },
+        "drag": { "label": "drag", "formula": "0.004 + depth * 0.08 + canards * 0.004 + diffuser * 0.006", "range": [0, 0.03], "digits": 4 },
+        "mass": { "label": "mass", "unit": "kg", "formula": "finish.mass * (3 + depth * 40 + diffuser * 4)", "range": [2, 25], "digits": 1 }
+      },
+      "economy": "measured"
+    }
+  }
+}

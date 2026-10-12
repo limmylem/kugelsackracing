@@ -14,6 +14,7 @@
 //
 // now: ms since 1970 (or an ISO time). Prices are whole money units.
 
+import { released } from './content.js';
 import { carPrice, curve, setSize } from './player/profile.js';
 import { Garage } from './data.js';
 import { fingerprint } from './fingerprint.js';
@@ -62,7 +63,8 @@ export function saleOn(db, kind, id, now = Date.now()) {
 }
 // An item's unlock rule: its own, else its tier's (a part) or class's (a car) — shop.unlock
 export function unlockRule(db, kind, id) {
-  const own = entryOf(db, kind, id).unlock;
+  // (a part's own: the catalogue's, else its file's — a family's part has one from its gain: data/content/formulas.json)
+  const own = entryOf(db, kind, id).unlock ?? (kind === 'part' ? db.parts[id]?.unlock : null);
   if (own) return own;
   const U = shopOf(db).unlock ?? {};
   return kind === 'car' ? U.carClasses?.[db.cars[id]?.class] ?? null : U.partTiers?.[db.parts[id]?.tier] ?? null;
@@ -88,6 +90,7 @@ export function offer(db, kind, id, now = Date.now()) {
   let why = null;
   if (e.hidden) why = `${def.name} isn't for sale.`;
   else if (kind === 'part' && def.retired) why = `${def.name} isn't sold any more.`;
+  else if (!released(def)) why = `${def.name} isn't out yet.`;
   else if (kind === 'part' && def.todo?.length) why = `${def.name} isn't for sale yet: its ${def.todo.join(', ')} ${def.todo.length > 1 ? 'are' : 'is'} still to be filled in.`;
   else if (e.from && t < Date.parse(e.from)) why = `${def.name} goes on sale ${new Date(e.from).toUTCString().slice(0, 22)}.`;
   else if (e.until && t >= Date.parse(e.until)) why = `${def.name} was only on sale until ${new Date(e.until).toUTCString().slice(0, 22)}.`;
@@ -204,7 +207,7 @@ export function usedLot(db, day = dayOf()) {
     const aftermarket = [];
     if (r() < (L.aftermarket?.chance ?? 0.5)) {
       const want = 1 + Math.floor(r() * (L.aftermarket?.max ?? 4));
-      const pool = Object.values(db.parts).filter(p => p.tier && p.tier !== 'stock' && !p.todo?.length && !p.retired && (L.aftermarket?.tiers?.[p.tier] ?? 0) > 0 && def.sockets.some(s => takes(def, s, p))).sort((a, b) => a.id < b.id ? -1 : 1);
+      const pool = Object.values(db.parts).filter(p => p.tier && p.tier !== 'stock' && !p.todo?.length && !p.retired && released(p) && (L.aftermarket?.tiers?.[p.tier] ?? 0) > 0 && def.sockets.some(s => takes(def, s, p))).sort((a, b) => a.id < b.id ? -1 : 1);
       for (let k = 0; k < want * 3 && aftermarket.length < want && pool.length; k++) {
         const tier = r.weighted(L.aftermarket.tiers), from = pool.filter(p => p.tier === tier && !aftermarket.includes(p.id));
         if (!from.length) continue;

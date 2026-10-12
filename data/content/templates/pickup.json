@@ -1,0 +1,61 @@
+{
+  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type pickup) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has (the import warns outside them).",
+  "type": "pickup",
+  "label": "Pickup",
+  "donor": "ridgeback_4x4",
+  "standards": {
+    "type": "pickup",
+    "engineMount": "long",
+    "bay": "large",
+    "boltPattern": "6x139.7",
+    "rims": [16, 18],
+    "seatMount": "std",
+    "steeringColumn": "std",
+    "bumperMount": "tube",
+    "spoilerMount": "roof",
+    "exhaustRoute": "side"
+  },
+  "design": {
+    "style": "suv",
+    "length": 5.3,
+    "width": 1.9,
+    "height": 1.84,
+    "clearance": 0.28,
+    "beltline": 1.2,
+    "frontAxle": 1.45,
+    "rearAxle": -1.75,
+    "track": 1.6,
+    "wheel": {
+      "radius": 0.401,
+      "rimDiameter": 17,
+      "width": 0.265
+    },
+    "bonnet": {
+      "rear": 0.75,
+      "front": 1.05,
+      "back": 1.15
+    },
+    "roof": {
+      "front": 0.45,
+      "rear": -0.85,
+      "height": 1.84
+    },
+    "deck": {
+      "front": -1.05,
+      "height": 1.05
+    },
+    "engine": {
+      "at": [0, 0.8, 1.42],
+      "size": [0.66, 0.55, 0.6]
+    },
+    "seatZ": -0.15,
+    "floor": 0.45,
+    "columnDeg": 24
+  },
+  "sizes": {
+    "length": [4.9, 5.6],
+    "width": [1.8, 2.05],
+    "height": [1.7, 1.95],
+    "wheelbase": [2.9, 3.4]
+  }
+}

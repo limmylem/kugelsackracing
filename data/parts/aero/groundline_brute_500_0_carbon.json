@@ -1,0 +1,64 @@
+{
+  "id": "groundline_brute_500_0_carbon",
+  "name": "Groundline aero kit (Brute 500), carbon",
+  "category": "aero",
+  "slot": "aero_kit",
+  "kind": "component",
+  "price": 5750,
+  "mass": 4.6,
+  "model": "assets/parts/aero/groundline/groundline_brute_500_0.glb",
+  "icon": "assets/icons/parts/groundline_brute_500_0_carbon.png",
+  "fits": ["car:brute_500"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "contactMaterial": "carbon",
+  "toughness": 0.8,
+  "aeroEffect": {
+    "liftFront": -0.085,
+    "liftRear": -0.08,
+    "drag": 0.0116
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "groundline",
+    "kind": "body_kit",
+    "key": "brute_500_0_carbon",
+    "settings": {
+      "car": "brute_500",
+      "depth": 0.05,
+      "diffuser": 0.6,
+      "canards": 0,
+      "finish": "carbon"
+    },
+    "stats": {
+      "liftFront": -0.085,
+      "liftRear": -0.08,
+      "drag": 0.0116,
+      "mass": 4.6
+    },
+    "gain": 0.0159,
+    "measuredOn": "brute_500",
+    "priceFactor": 1.602
+  },
+  "_generated": "Made by npm run content -- build from data/families/groundline.json (and data/content/formulas.json families.body_kit): change those, not this file. On the Brute 500 it improves grip by 1.59%: race, $5,750, unlocked at level 6.",
+  "bounds": {
+    "min": [-1, -0.1019, -2.38],
+    "max": [1, 0.0199, 2.49]
+  },
+  "massOffset": [0.009, -0.016, 0.286],
+  "tier": "race",
+  "unlock": {
+    "level": 6
+  }
+}

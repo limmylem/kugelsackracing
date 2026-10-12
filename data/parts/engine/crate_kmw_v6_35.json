@@ -1,0 +1,76 @@
+{
+  "id": "crate_kmw_v6_35",
+  "name": "Kugel Motorworks 3.5 L V6 (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 6500,
+  "mass": 154.5,
+  "model": "assets/parts/engine/crate_kmw_v6_35.glb",
+  "icon": "assets/icons/parts/crate_kmw_v6_35.png",
+  "fits": ["mount:long", "bay:medium"],
+  "requires": ["clutch_rating:sport"],
+  "conflicts": [],
+  "provides": ["engine_family:crate_kmw_v6_35", "engine_layout:v6", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[700, 252], [1350, 285], [2050, 314], [2700, 333], [3350, 345], [4000, 350], [4150, 350], [4700, 343], [5350, 327], [6000, 305], [6400, 273]],
+    "idleRpm": 700,
+    "redlineRpm": 6000,
+    "inertia": 0.184,
+    "induction": "natural",
+    "cylinders": 6,
+    "sound": "data/sounds/engines/v6.json",
+    "friction": {
+      "base": 16.1,
+      "perKrpm": 8.05,
+      "perKrpm2": 0.9338
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 4
+  },
+  "bounds": {
+    "min": [-0.362, 0, -0.3002],
+    "max": [0.362, 0.5628, 0.298]
+  },
+  "massOffset": [0, 0.255, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 6,
+    "displacement": 3.5,
+    "aspiration": "natural",
+    "boost": 0,
+    "mounts": ["long"],
+    "bay": "medium",
+    "size": [0.6, 0.723, 0.67],
+    "peakTorque": 350,
+    "peakPower": 257,
+    "words": "3.5 L V6"
+  },
+  "generated": {
+    "engine": "kmw_v6_35"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kmw_v6_35.json (and data/content/formulas.json engines): change those, not this file. 3.5 L V6: 350 N·m, 257 hp, 154.5 kg, 0.6 × 0.723 × 0.67 m (a medium bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport)."
+}

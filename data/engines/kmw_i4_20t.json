@@ -1,0 +1,17 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): its settings here, its torque curve, mass and size from data/content/formulas.json engines (overrides: torqueCurve, mass, size to set them yourself). npm run content -- build makes its crate engine part, data/parts/engine/crate_<id>.json, and its model.",
+  "id": "kmw_i4_20t",
+  "maker": "Kugel Motorworks",
+  "layout": "inline",
+  "cylinders": 4,
+  "displacement": 2.0,
+  "aspiration": "turbo",
+  "boost": 1.0,
+  "idle": 850,
+  "redline": 6800,
+  "character": 0.4,
+  "mount": "long",
+  "sound": "i4_turbo",
+  "colour": "black",
+  "status": "draft"
+}

@@ -1,0 +1,58 @@
+{
+  "id": "mesh10_17_cast_polished",
+  "name": "17\" Mesh-10 wheel, polished (cast)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 340,
+  "mass": 9.6,
+  "model": "assets/parts/wheels/mesh10/mesh10_17.glb",
+  "icon": "assets/icons/parts/mesh10_17_cast_polished.png",
+  "fits": ["wheel_hub:std", "rim_fits:17"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:17"],
+  "contactMaterial": "metal",
+  "toughness": 1,
+  "rim": {
+    "diameter": 17,
+    "width": 7,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "polished"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "mesh10",
+    "kind": "wheels",
+    "key": "17_cast_polished",
+    "settings": {
+      "diameter": 17,
+      "width": 7,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "cast",
+      "finish": "polished"
+    },
+    "stats": {
+      "mass": 9.6,
+      "inertia": 0.268,
+      "toughness": 1
+    },
+    "gain": null,
+    "priceFactor": 1.133
+  },
+  "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. street: priced by its settings, $340.",
+  "bounds": {
+    "min": [-0.0979, -0.2319, -0.2319],
+    "max": [0.1109, 0.2319, 0.2319]
+  },
+  "massOffset": [0.017, 0, 0],
+  "tier": "street"
+}

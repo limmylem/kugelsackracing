@@ -1,0 +1,61 @@
+{
+  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type hatchback) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has (the import warns outside them).",
+  "type": "hatchback",
+  "label": "Hatchback",
+  "donor": "vortex_r",
+  "standards": {
+    "type": "hatchback",
+    "engineMount": "trans",
+    "bay": "medium",
+    "boltPattern": "5x100",
+    "rims": [16, 18],
+    "seatMount": "std",
+    "steeringColumn": "std",
+    "bumperMount": "std",
+    "spoilerMount": "roof",
+    "exhaustRoute": "std"
+  },
+  "design": {
+    "style": "hatch",
+    "frontDrive": true,
+    "length": 4.3,
+    "width": 1.8,
+    "height": 1.45,
+    "clearance": 0.12,
+    "beltline": 0.95,
+    "frontAxle": 1.35,
+    "rearAxle": -1.29,
+    "track": 1.55,
+    "wheel": {
+      "radius": 0.319,
+      "rimDiameter": 18,
+      "width": 0.225
+    },
+    "bonnet": {
+      "rear": 0.75,
+      "front": 0.68,
+      "back": 0.92
+    },
+    "roof": {
+      "front": 0.3,
+      "rear": -1.55,
+      "height": 1.45
+    },
+    "deck": {
+      "front": -1.75,
+      "height": 1
+    },
+    "engine": {
+      "at": [0, 0.5, 1.28],
+      "size": [0.66, 0.5, 0.5]
+    },
+    "seatZ": -0.2,
+    "floor": 0.22
+  },
+  "sizes": {
+    "length": [3.7, 4.4],
+    "width": [1.65, 1.85],
+    "height": [1.35, 1.55],
+    "wheelbase": [2.35, 2.7]
+  }
+}

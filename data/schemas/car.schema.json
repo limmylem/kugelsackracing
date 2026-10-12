@@ -12,6 +12,10 @@
   },
   "additionalProperties": false,
   "properties": {
+    "status": {
+      "enum": ["draft", "review", "published"],
+      "description": "Where it is in the content workflow (docs/CONTENT_PIPELINE.md): only a published car is sold or driven by others. A car without one is published; npm run content -- new-car makes a draft."
+    },
     "standards": {
       "description": "The shared standards the car is built to (data/content/standards.json): garage/standards.js turns them into the tags parts fit by",
       "type": "object",

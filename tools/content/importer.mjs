@@ -53,7 +53,7 @@ export async function importFile(file, project, options = {}) {
   if (after.verdict === 'fail') return { ...out, message: `${path.basename(file)} still has problems after fixing what could be fixed: it stays in ${rel(path.dirname(file), root)} until they're fixed (see above).` };
 
   const io = await modelIO(), bytes = await io.writeBinary(doc);
-  const result = type === 'car' ? await placeCar(carId, doc, bytes, project, out) : await placePart(options.id ?? base, type, doc, info, bytes, project, out, options);
+  const result = type === 'car' ? await placeCar(carId, doc, bytes, project, out, options) : await placePart(options.id ?? base, type, doc, info, bytes, project, out, options);
   if (!result.ok) return result;
   // the original, out of the way
   if (!options.keepOriginal) {
@@ -136,14 +136,14 @@ export function nameFor(id, type, rules) {
 
 // ---------- a car ----------
 
-async function placeCar(id, doc, bytes, project, out) {
+async function placeCar(id, doc, bytes, project, out, options = {}) {
   const { root, db, rules } = project;
   let def = db.cars[id];
   const source = def?.model?.source ?? `data/cars/${id}/${id}.glb`;
   write(root, source, bytes); out.written.push(source);
   if (!def) {
-    def = newCar(id, doc, project, out);
-    out.notes.push(`new car ${id}: data/cars/${id}/car.json started from the starter car's; to do: ${def.todo.join(', ')}`);
+    def = newCar(id, doc, project, out, options);
+    out.notes.push(`new car ${id}: data/cars/${id}/car.json started from the ${project.db.cars[options.donor ?? 'starter_car']?.name ?? 'starter car'}'s; to do: ${def.todo.join(', ')}`);
   }
   // its body and stock part models
   const r = spawnSync(process.execPath, [path.join(TOOLS, 'split-car.mjs'), id, '--root', root], { encoding: 'utf8' });
@@ -155,24 +155,31 @@ async function placeCar(id, doc, bytes, project, out) {
   return { ...out, ok: true, id };
 }
 
-// A car.json from the starter car's: this model's socket positions, its own copies of the parts that
-// only fit the starter car (its body panels, whose models the split makes), marked todo
-function newCar(id, doc, project, out) {
-  const { root } = project, tpl = readJson('data/cars/starter_car/car.json', root), car = clone(tpl);
+// A car.json from another car's (options.donor: the starter car's, unless a body template names another — data/content/
+// templates): this model's socket positions, its own copies of the parts that only fit the donor (its body panels,
+// whose models the split makes; its engine, gearbox…), its shared standards (options.standards), marked todo and,
+// with a status (options.status), a draft until the content manager publishes it
+function newCar(id, doc, project, out, options = {}) {
+  const { root } = project, donor = options.donor ?? 'starter_car', tpl = readJson(`data/cars/${donor}/car.json`, root), car = clone(tpl);
   const sockets = new Map(inspect(doc).sockets.map(s => [s.name, s]));
-  Object.assign(car, { id, name: nameFor(`car_${id}`, 'car'), price: 0 });
-  car.tags = car.tags.map(t => t === 'car:starter_car' ? `car:${id}` : t);
+  Object.assign(car, { id, name: options.name ?? nameFor(`car_${id}`, 'car'), price: 0 });
+  car.tags = car.tags.map(t => t === `car:${donor}` ? `car:${id}` : t === `chassis:${donor}` ? `chassis:${id}` : t);
+  if (options.standards) car.standards = clone(options.standards);
+  if (options.status) car.status = options.status;
   car.model = { ...car.model, source: `data/cars/${id}/${id}.glb`, file: `assets/cars/${id}/body.glb` };
   delete car._tuning;
+  delete car.icon;
+  const mine = f => f === `car:${donor}` ? `car:${id}` : f === `chassis:${donor}` ? `chassis:${id}` : f;
   for (const s of car.sockets) {
     const node = sockets.get(s.name);
     if (node) s.position = node.position.map(v => round(v));
     s.stock = s.stock.map(pid => {
       const part = readPart(root, pid);
-      if (!part?.fits?.includes('car:starter_car')) return pid;
-      const copyId = `${pid.replace(/_starter_car$/, '')}_${id}`, file = `data/parts/${part.category}/${copyId}.json`;
+      // (a part made for the donor alone: its fits name the donor, or a list of alternatives in its fits does)
+      if (!(part?.fits ?? []).flat().some(f => f === `car:${donor}` || f === `chassis:${donor}`)) return pid;
+      const copyId = `${pid.replace(new RegExp(`^${donor}_|_${donor}$`), '')}_${id}`.replace(/^_+/, ''), file = `data/parts/${part.category}/${copyId}.json`;
       if (!fs.existsSync(path.join(root, file))) {
-        writeJson(path.join(root, file), { ...part, id: copyId, name: part.name.replace(/\(stock\)/, `(${car.name}, stock)`), model: '', fits: part.fits.map(f => f === 'car:starter_car' ? `car:${id}` : f) });
+        writeJson(path.join(root, file), { ...part, id: copyId, name: part.name.replace(/\(([^)]*)stock\)/, `(${car.name}, stock)`), model: '', icon: `assets/icons/parts/${copyId}.png`, fits: part.fits.map(f => Array.isArray(f) ? f.map(mine) : mine(f)) });
         addToIndex(root, 'data/parts/index.json', 'parts', `${part.category}/${copyId}.json`);
         out.written.push(file);
       }
@@ -180,7 +187,7 @@ function newCar(id, doc, project, out) {
     });
   }
   car.todo = ['price', 'chassis (mass, centre of mass, inertia)', 'dimensions and aero', 'engine and drivetrain (its stock parts)', 'socket positions the model has no node for'];
-  car._todo = `Made by npm run import from the starter car's car.json on ${new Date().toISOString().slice(0, 10)}: everything but the model's socket positions is the starter car's. Fill in the to-dos, then delete "todo".`;
+  car._todo = `Made by ${options.madeBy ?? 'npm run import'} from the ${tpl.name}'s car.json on ${new Date().toISOString().slice(0, 10)}: everything but the model's socket positions${options.standards ? ' and its standards' : ''} is the ${tpl.name}'s. Fill in the to-dos, then delete "todo".`;
   writeJson(path.join(root, `data/cars/${id}/car.json`), car);
   addToIndex(root, 'data/cars/index.json', 'cars', `${id}/car.json`);
   out.written.push(`data/cars/${id}/car.json`);

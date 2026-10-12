@@ -1,0 +1,64 @@
+{
+  "id": "groundline_strada_evo_1_carbon",
+  "name": "Groundline aero kit (Strada Evo), carbon",
+  "category": "aero",
+  "slot": "aero_kit",
+  "kind": "component",
+  "price": 5810,
+  "mass": 4.6,
+  "model": "assets/parts/aero/groundline/groundline_strada_evo_1.glb",
+  "icon": "assets/icons/parts/groundline_strada_evo_1_carbon.png",
+  "fits": ["car:strada_evo"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "contactMaterial": "carbon",
+  "toughness": 0.8,
+  "aeroEffect": {
+    "liftFront": -0.115,
+    "liftRear": -0.08,
+    "drag": 0.0156
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "groundline",
+    "kind": "body_kit",
+    "key": "strada_evo_1_carbon",
+    "settings": {
+      "car": "strada_evo",
+      "depth": 0.05,
+      "diffuser": 0.6,
+      "canards": 1,
+      "finish": "carbon"
+    },
+    "stats": {
+      "liftFront": -0.115,
+      "liftRear": -0.08,
+      "drag": 0.0156,
+      "mass": 4.6
+    },
+    "gain": 0.0166,
+    "measuredOn": "strada_evo",
+    "priceFactor": 1.601
+  },
+  "_generated": "Made by npm run content -- build from data/families/groundline.json (and data/content/formulas.json families.body_kit): change those, not this file. On the Strada Evo it improves grip by 1.66%: race, $5,810, unlocked at level 6.",
+  "bounds": {
+    "min": [-0.925, -0.082, -2.23],
+    "max": [0.925, 0.246, 2.34]
+  },
+  "massOffset": [0.009, 0.005, 0.265],
+  "tier": "race",
+  "unlock": {
+    "level": 6
+  }
+}

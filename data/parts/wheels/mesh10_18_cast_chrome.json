@@ -1,0 +1,61 @@
+{
+  "id": "mesh10_18_cast_chrome",
+  "name": "18\" Mesh-10 wheel, chrome (cast)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 410,
+  "mass": 11.5,
+  "model": "assets/parts/wheels/mesh10/mesh10_18.glb",
+  "icon": "assets/icons/parts/mesh10_18_cast_chrome.png",
+  "fits": ["wheel_hub:std", "rim_fits:18"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "contactMaterial": "metal",
+  "toughness": 1,
+  "rim": {
+    "diameter": 18,
+    "width": 7.5,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "chrome"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "mesh10",
+    "kind": "wheels",
+    "key": "18_cast_chrome",
+    "settings": {
+      "diameter": 18,
+      "width": 7.5,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "cast",
+      "finish": "chrome"
+    },
+    "stats": {
+      "mass": 11.5,
+      "inertia": 0.361,
+      "toughness": 1
+    },
+    "gain": null,
+    "priceFactor": 1.242
+  },
+  "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. street: priced by its settings, $410, unlocked at level 2.",
+  "bounds": {
+    "min": [-0.1043, -0.2446, -0.2446],
+    "max": [0.1173, 0.2446, 0.2446]
+  },
+  "massOffset": [0.017, 0, 0],
+  "tier": "street",
+  "unlock": {
+    "level": 2
+  }
+}

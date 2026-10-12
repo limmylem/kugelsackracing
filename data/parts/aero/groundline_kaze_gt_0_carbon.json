@@ -1,0 +1,64 @@
+{
+  "id": "groundline_kaze_gt_0_carbon",
+  "name": "Groundline aero kit (Kaze GT), carbon",
+  "category": "aero",
+  "slot": "aero_kit",
+  "kind": "component",
+  "price": 6000,
+  "mass": 4.6,
+  "model": "assets/parts/aero/groundline/groundline_kaze_gt_0.glb",
+  "icon": "assets/icons/parts/groundline_kaze_gt_0_carbon.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "contactMaterial": "carbon",
+  "toughness": 0.8,
+  "aeroEffect": {
+    "liftFront": -0.085,
+    "liftRear": -0.08,
+    "drag": 0.0116
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 1800,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "groundline",
+    "kind": "body_kit",
+    "key": "kaze_gt_0_carbon",
+    "settings": {
+      "car": "kaze_gt",
+      "depth": 0.05,
+      "diffuser": 0.6,
+      "canards": 0,
+      "finish": "carbon"
+    },
+    "stats": {
+      "liftFront": -0.085,
+      "liftRear": -0.08,
+      "drag": 0.0116,
+      "mass": 4.6
+    },
+    "gain": 0.0188,
+    "measuredOn": "kaze_gt",
+    "priceFactor": 1.6
+  },
+  "_generated": "Made by npm run content -- build from data/families/groundline.json (and data/content/formulas.json families.body_kit): change those, not this file. On the Kaze GT it improves grip by 1.88%: race, $6,000, unlocked at level 6.",
+  "bounds": {
+    "min": [-0.93, -0.102, -2.1],
+    "max": [0.93, 0.02, 2.21]
+  },
+  "massOffset": [0, -0.016, 0.258],
+  "tier": "race",
+  "unlock": {
+    "level": 6
+  }
+}

@@ -7,6 +7,7 @@
 
 import { Garage } from '../../garage/data.js';
 import { STAT_KEYS } from '../../garage/workshop.js';
+import { perfKey } from '../../garage/families.js';
 
 const stat = (s, key) => STAT_KEYS.find(k => k.key === key).of(s);
 export const TIER_ORDER = ['stock', 'street', 'sport', 'race'];
@@ -88,7 +89,10 @@ export function fitWithNeeds(db, carId, partId, { exclude = [], base = null } = 
           .find(p => { const t = new Garage(db, JSON.parse(JSON.stringify(g.state)), carId); return t.install(p.id, { auto: true }).ok && t.install(id, { auto: true }).ok; });
         if (kit) { g.install(kit.id, { auto: true }); added.push(kit.id); continue; }
       }
-      const need = r.errors.find(e => (e.code === 'requires' || e.code === 'does_not_fit') && e.need);
+      // (what the part itself needs first: what it puts out of place — a stock airbox on a swapped engine — comes off
+      // by itself once that's met)
+      const needs = r.errors.filter(e => (e.code === 'requires' || e.code === 'does_not_fit') && e.need);
+      const need = needs.find(e => e.part === id) ?? needs[0];
       const fix = depth < 4 && need && cheapestFor(db, g, need, [partId, ...exclude, ...added]);
       if (!fix) return r.errors[0]?.message ?? 'can\'t go on';
       const err = fit(fix, depth + 1);
@@ -165,11 +169,14 @@ export function tierProblems(db, tiers, carId = REFERENCE_CAR, gains = null) {
   // (tyres against tyres of their own rim size: a size up grips more whatever it costs)
   const bySlot = new Map(), sizeGroup = p => p.tyreSize ? `${p.slot} (${(p.fits ?? []).flat().find(t => t.startsWith('rim:'))?.slice(4)}")` : p.slot;
   for (const p of live) if (p.tier !== 'stock' && !p.purpose && mine(p) && tiers.slots[p.slot]?.stat && gains.get(p.id)?.gain != null) { const k = sizeGroup(p); if (!bySlot.has(k)) bySlot.set(k, []); bySlot.get(k).push(p); }
+  // (a family's part in a dearer finish — chrome — costs more for its looks, not what it does: its price for what it
+  // does is its price ÷ its finish's share; and two parts that perform the same, a finish apart, aren't compared)
+  const forWhat = p => p.price / (p.generated?.priceFactor ?? 1), same = new Map(), keyOf = p => { if (!same.has(p.id)) same.set(p.id, perfKey(p)); return same.get(p.id); };
   for (const [slot, list] of bySlot) {
-    list.sort((a, b) => a.price - b.price);
+    list.sort((a, b) => forWhat(a) - forWhat(b));
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
       const a = list[i], b = list[j], ga = gains.get(a.id).gain, gb = gains.get(b.id).gain;
-      if (b.price > a.price && gb <= ga + 0.001) out.push({ id: b.id, problem: `does no more for ${slot} (${pct(gb)}) than ${a.name} (${pct(ga)}), which costs less (${money(a.price)} against ${money(b.price)})` });
+      if (forWhat(b) > forWhat(a) + 0.5 && gb <= ga + 0.001 && keyOf(a) !== keyOf(b)) out.push({ id: b.id, problem: `does no more for ${slot} (${pct(gb)}) than ${a.name} (${pct(ga)}), which costs less (${money(forWhat(a))} against ${money(forWhat(b))}${b.generated?.priceFactor > 1 ? ' before its finish' : ''})` });
     }
   }
   return out;

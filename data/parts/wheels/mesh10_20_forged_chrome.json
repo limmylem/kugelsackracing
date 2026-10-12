@@ -1,0 +1,61 @@
+{
+  "id": "mesh10_20_forged_chrome",
+  "name": "20\" Mesh-10 wheel, chrome (forged)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 1800,
+  "mass": 11.3,
+  "model": "assets/parts/wheels/mesh10/mesh10_20.glb",
+  "icon": "assets/icons/parts/mesh10_20_forged_chrome.png",
+  "fits": ["wheel_hub:std", "rim_fits:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:20"],
+  "contactMaterial": "metal",
+  "toughness": 1.3,
+  "rim": {
+    "diameter": 20,
+    "width": 8.5,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "chrome"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "mesh10",
+    "kind": "wheels",
+    "key": "20_forged_chrome",
+    "settings": {
+      "diameter": 20,
+      "width": 8.5,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "forged",
+      "finish": "chrome"
+    },
+    "stats": {
+      "mass": 11.3,
+      "inertia": 0.437,
+      "toughness": 1.3
+    },
+    "gain": null,
+    "priceFactor": 1.125
+  },
+  "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. race: priced by its settings, $1,800, unlocked at level 7.",
+  "bounds": {
+    "min": [-0.1169, -0.27, -0.27],
+    "max": [0.1299, 0.27, 0.27]
+  },
+  "massOffset": [0.018, 0, 0],
+  "tier": "race",
+  "unlock": {
+    "level": 7
+  }
+}

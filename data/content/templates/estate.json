@@ -1,0 +1,60 @@
+{
+  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type estate) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has (the import warns outside them).",
+  "type": "estate",
+  "label": "Estate",
+  "donor": "strada_evo",
+  "standards": {
+    "type": "estate",
+    "engineMount": "long",
+    "bay": "medium",
+    "boltPattern": "5x114.3",
+    "rims": [16, 18],
+    "seatMount": "std",
+    "steeringColumn": "std",
+    "bumperMount": "std",
+    "spoilerMount": "roof",
+    "exhaustRoute": "std"
+  },
+  "design": {
+    "style": "hatch",
+    "length": 4.65,
+    "width": 1.77,
+    "height": 1.48,
+    "clearance": 0.15,
+    "beltline": 0.95,
+    "frontAxle": 1.37,
+    "rearAxle": -1.26,
+    "track": 1.52,
+    "wheel": {
+      "radius": 0.322,
+      "rimDiameter": 17,
+      "width": 0.235
+    },
+    "bonnet": {
+      "rear": 0.7,
+      "front": 0.68,
+      "back": 0.92
+    },
+    "roof": {
+      "front": 0.25,
+      "rear": -1.85,
+      "height": 1.48
+    },
+    "deck": {
+      "front": -2.05,
+      "height": 1
+    },
+    "engine": {
+      "at": [0, 0.5, 1.28],
+      "size": [0.6, 0.5, 0.55]
+    },
+    "seatZ": -0.35,
+    "floor": 0.24
+  },
+  "sizes": {
+    "length": [4.4, 5],
+    "width": [1.72, 1.9],
+    "height": [1.42, 1.6],
+    "wheelbase": [2.6, 2.95]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "id": "crate_kmw_flat6_30",
+  "name": "Kugel Motorworks 3.0 L flat-six (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 5590,
+  "mass": 160,
+  "model": "assets/parts/engine/crate_kmw_flat6_30.glb",
+  "icon": "assets/icons/parts/crate_kmw_flat6_30.png",
+  "fits": ["mount:mid", "bay:medium"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["engine_family:crate_kmw_flat6_30", "engine_layout:flat6", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[850, 211], [1500, 240], [2150, 263], [2800, 280], [3450, 292], [4050, 297], [4400, 298], [4700, 296], [5350, 283], [6000, 263], [6400, 237]],
+    "idleRpm": 850,
+    "redlineRpm": 6000,
+    "inertia": 0.177,
+    "induction": "natural",
+    "cylinders": 6,
+    "sound": "data/sounds/engines/v6.json",
+    "friction": {
+      "base": 13.8,
+      "perKrpm": 6.9,
+      "perKrpm2": 0.8004
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 4
+  },
+  "bounds": {
+    "min": [-0.37, -0.0585, -0.276],
+    "max": [0.37, 0.4324, 0.2765]
+  },
+  "massOffset": [0, 0.175, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "flat",
+    "cylinders": 6,
+    "displacement": 3,
+    "aspiration": "natural",
+    "boost": 0,
+    "mounts": ["mid"],
+    "bay": "medium",
+    "size": [0.55, 0.74, 0.46],
+    "peakTorque": 298,
+    "peakPower": 222,
+    "words": "3.0 L flat-six"
+  },
+  "generated": {
+    "engine": "kmw_flat6_30"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kmw_flat6_30.json (and data/content/formulas.json engines): change those, not this file. 3.0 L flat-six: 298 N·m, 222 hp, 160 kg, 0.55 × 0.74 × 0.46 m (a medium bay or bigger). It needs nothing else fitted."
+}

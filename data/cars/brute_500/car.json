@@ -946,6 +946,16 @@
       "blockedBy": [],
       "focus": "wheel_RL",
       "stock": []
+    },
+    {
+      "name": "socket_aero_kit",
+      "slot": "aero_kit",
+      "required": false,
+      "position": [0, 0.15, 0],
+      "pull": [0, -1, 0],
+      "blockedBy": [],
+      "focus": "front",
+      "stock": []
     }
   ],
   "socketGroups": {

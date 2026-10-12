@@ -1,0 +1,98 @@
+{
+  "id": "gripline_330_leather_carbon",
+  "name": "Gripline steering wheel, 330 mm, carbon",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 420,
+  "mass": 1.03,
+  "model": "assets/parts/interior/gripline/gripline_330_leather/starter_car.glb",
+  "icon": "assets/icons/parts/gripline_330_leather_carbon.png",
+  "fits": ["steering_column:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "looks",
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "gripline",
+    "kind": "steering_wheel",
+    "key": "330_leather_carbon",
+    "settings": {
+      "diameter": 330,
+      "dish": 30,
+      "spokes": 3,
+      "grip": "leather",
+      "finish": "carbon"
+    },
+    "stats": {
+      "mass": 1.03
+    },
+    "gain": null,
+    "priceFactor": 1.235
+  },
+  "_generated": "Made by npm run content -- build from data/families/gripline.json (and data/content/formulas.json families.steering_wheel): change those, not this file. street: priced by its settings, $420, unlocked at level 2.",
+  "bounds": {
+    "min": [-0.182, -0.182, -0.099],
+    "max": [0.182, 0.184, 0]
+  },
+  "massOffset": [0, 0.002, -0.071],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/apex_v8.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.119],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/brute_500.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/strada_evo.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/gripline/gripline_330_leather/vortex_r.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    }
+  },
+  "tier": "street",
+  "unlock": {
+    "level": 2
+  }
+}

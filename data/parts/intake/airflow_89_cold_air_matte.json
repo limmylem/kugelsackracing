@@ -1,0 +1,110 @@
+{
+  "id": "airflow_89_cold_air_matte",
+  "name": "Airflow intake, 89 mm, matte black",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 310,
+  "mass": 2,
+  "model": "assets/parts/intake/airflow/airflow_89_cold_air/starter_car.glb",
+  "icon": "assets/icons/parts/airflow_89_cold_air_matte.png",
+  "fits": [
+    ["intake_flange:rs", "intake_flange:std"]
+  ],
+  "requires": [],
+  "conflicts": ["car:ridgeback_4x4", "car:strada_evo", "car:vortex_r"],
+  "provides": ["intake:cold_air"],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0445,
+      "when": {
+        "rpm": [4000, 7200],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.98,
+      "when": {
+        "rpm": [0, 1500],
+        "fade": 500
+      }
+    }
+  ],
+  "sound": {
+    "intake": {
+      "roar": 1.6,
+      "tone": 1.02
+    },
+    "exhaust": {
+      "tone": 1.02
+    }
+  },
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "airflow",
+    "kind": "intake",
+    "key": "89_cold_air_matte",
+    "settings": {
+      "diameter": 89,
+      "style": "cold_air",
+      "finish": "matte"
+    },
+    "stats": {
+      "topEnd": 0.0445,
+      "lowEnd": -0.02,
+      "mass": 2,
+      "roar": 1.6
+    },
+    "gain": 0.0445,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/airflow.json (and data/content/formulas.json families.intake): change those, not this file. On the Starter coupe it improves power by 4.45%: sport, $310, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.0215, -0.24, -0.1056],
+    "max": [0.3, 0.0986, 0.305]
+  },
+  "massOffset": [0.161, -0.084, 0.131],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/intake/airflow/airflow_89_cold_air/apex_v8.glb",
+      "bounds": {
+        "min": [-0.003, -0.4, -0.0296],
+        "max": [0.46, 0.0294, 0.51]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intake/airflow/airflow_89_cold_air/brute_500.glb",
+      "bounds": {
+        "min": [-0.0015, -0.34, -0.0296],
+        "max": [0.46, 0.0295, 0.66]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intake/airflow/airflow_89_cold_air/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.0121, -0.46, -0.0296],
+        "max": [0.3, 0.0269, 0.51]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/intake/airflow/airflow_89_cold_air/kaze_gt.glb",
+      "bounds": {
+        "min": [0, -0.28, -0.66],
+        "max": [0.3601, 0.0586, 0.0296]
+      }
+    }
+  },
+  "_fit": "It can't be made to fit the Ridgeback 4x4, Strada Evo, Vortex R (its best fit still goes through the car), so it isn't for them.",
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

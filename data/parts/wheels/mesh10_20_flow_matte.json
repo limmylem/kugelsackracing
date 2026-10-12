@@ -1,0 +1,61 @@
+{
+  "id": "mesh10_20_flow_matte",
+  "name": "20\" Mesh-10 wheel, matte black (flow-formed)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 750,
+  "mass": 12.9,
+  "model": "assets/parts/wheels/mesh10/mesh10_20.glb",
+  "icon": "assets/icons/parts/mesh10_20_flow_matte.png",
+  "fits": ["wheel_hub:std", "rim_fits:20"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:20"],
+  "contactMaterial": "metal",
+  "toughness": 1.1,
+  "rim": {
+    "diameter": 20,
+    "width": 8.5,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "matte_black"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "mesh10",
+    "kind": "wheels",
+    "key": "20_flow_matte",
+    "settings": {
+      "diameter": 20,
+      "width": 8.5,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "flow",
+      "finish": "matte"
+    },
+    "stats": {
+      "mass": 12.9,
+      "inertia": 0.499,
+      "toughness": 1.1
+    },
+    "gain": null,
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/mesh10.json (and data/content/formulas.json families.wheels): change those, not this file. sport: priced by its settings, $750, unlocked at level 4.",
+  "bounds": {
+    "min": [-0.1169, -0.27, -0.27],
+    "max": [0.1299, 0.27, 0.27]
+  },
+  "massOffset": [0.018, 0, 0],
+  "tier": "sport",
+  "unlock": {
+    "level": 4
+  }
+}

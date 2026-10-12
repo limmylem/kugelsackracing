@@ -1,0 +1,139 @@
+{
+  "id": "aerofoil_1p5_0p22_carbon",
+  "name": "Aerofoil wing, 1.5 m, carbon",
+  "category": "aero",
+  "slot": "spoiler",
+  "kind": "component",
+  "price": 980,
+  "mass": 2.8,
+  "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/starter_car.glb",
+  "icon": "assets/icons/parts/aerofoil_1p5_0p22_carbon.png",
+  "fits": ["spoiler_mount:boot"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "contactMaterial": "carbon",
+  "toughness": 0.7,
+  "aero": {
+    "liftCoefficient": -0.232,
+    "dragCoefficient": 0.0214,
+    "point": [0, 0.22, 0],
+    "angle": {
+      "min": 0,
+      "max": 16,
+      "default": 8,
+      "scaleAtMin": 0.45,
+      "scaleAtMax": 1.5
+    }
+  },
+  "tuning": {
+    "angle": {
+      "label": "angle",
+      "unit": "°",
+      "min": 0,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "apply": [
+        {
+          "op": "angle"
+        }
+      ]
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "none",
+    "attachStrength": 2200,
+    "looseThreshold": 12,
+    "detachThreshold": 8
+  },
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "aerofoil",
+    "kind": "spoiler",
+    "key": "1p5_0p22_carbon",
+    "settings": {
+      "span": 1.5,
+      "chord": 0.22,
+      "elements": 1,
+      "riser": 0.18,
+      "mount": "boot",
+      "style": "wing",
+      "finish": "carbon"
+    },
+    "stats": {
+      "area": 0.33,
+      "downforce": 0.232,
+      "drag": 0.0214,
+      "mass": 2.8
+    },
+    "gain": 0.0271,
+    "measuredOn": "starter_car",
+    "priceFactor": 1.607
+  },
+  "_generated": "Made by npm run content -- build from data/families/aerofoil.json (and data/content/formulas.json families.spoiler): change those, not this file. On the Starter coupe it improves grip by 2.71%: sport, $980, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.758, 0.008, -0.154],
+    "max": [0.758, 0.2564, 0.132]
+  },
+  "massOffset": [0, 0.174, 0.01],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/apex_v8.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/brute_500.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.194],
+        "max": [0.758, 0.2564, 0.092]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/strada_evo.glb",
+      "bounds": {
+        "min": [-0.758, 0, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/aero/aerofoil/aerofoil_1p5_0p22/vortex_r.glb",
+      "bounds": {
+        "min": [-0.758, 0.02, -0.154],
+        "max": [0.758, 0.2564, 0.132]
+      }
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

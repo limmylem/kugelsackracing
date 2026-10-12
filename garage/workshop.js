@@ -8,6 +8,7 @@
 //   const w = new Workshop({ db, service })
 //   w.partsFor('socket_turbo') · w.preview('socket_turbo', candidate) · await w.install(…) · await w.undo()
 
+import { released } from './content.js';
 import { Garage } from './data.js';
 import { takes } from './validate.js';
 import { dyno } from '../physics/engine.js';
@@ -145,7 +146,7 @@ export class Workshop {
   catalogue() {
     const owned = new Map(), now = Date.now();
     for (const p of Object.values(this.profile.parts)) owned.set(p.partId, (owned.get(p.partId) ?? 0) + 1);
-    return Object.values(this.db.parts).map(part => ({ part, o: offer(this.db, 'part', part.id, now) })).filter(({ part, o }) => o.forSale || (part.todo?.length && !part.retired && !shopOf(this.db).catalogue?.parts?.[part.id]?.hidden)).map(({ part, o }) => {
+    return Object.values(this.db.parts).map(part => ({ part, o: offer(this.db, 'part', part.id, now) })).filter(({ part, o }) => o.forSale || (part.todo?.length && !part.retired && released(part) && !shopOf(this.db).catalogue?.parts?.[part.id]?.hidden)).map(({ part, o }) => {
       const n = setSize(this.db, part, this.carDef.id);
       return { part, set: n, price: o.price * n, each: o.price, list: o.list * n, sale: o.sale, until: o.until, lock: this.lock(o.unlock), fits: this.fitsCar(part), owned: owned.get(part.id) ?? 0, brand: makerOf(this.db, part) };
     });
@@ -290,7 +291,7 @@ export class Workshop {
     // (the shop's: parts the player has no spare of — or not enough for a set)
     for (const part of Object.values(this.db.parts)) {
       if (part.retired || !takes(this.carDef, def, part) || (spares.get(part.id)?.length ?? 0) >= setSize(this.db, part, this.carDef.id)) continue;
-      { const o = offer(this.db, 'part', part.id); if (!o.forSale && !part.todo?.length) continue; }
+      { const o = offer(this.db, 'part', part.id); if (!o.forSale && (!part.todo?.length || !released(part))) continue; }
       if (here.part?.id === part.id) continue;
       consider(part, null, 0);
     }

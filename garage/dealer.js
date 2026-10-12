@@ -6,6 +6,7 @@
 //   dealerCar(db, carId, money) → { id, def, name, type, class, price, affordable, hp, nm, kg, zeroTo100,
 //                                   top, grip, layout, gears, rating, about }
 
+import { released } from './content.js';
 import { Garage } from './data.js';
 import { carPrice } from './player/profile.js';
 
@@ -32,6 +33,7 @@ export function dealerCar(db, carId, money = Infinity) {
 export function dealerList(db, money = Infinity) {
   const byType = new Map();
   for (const id of Object.keys(db.cars)) {
+    if (!released(db.cars[id])) continue;            // (a car still in the content workflow: not shown)
     const c = dealerCar(db, id, money);
     if (!byType.has(c.type)) byType.set(c.type, []);
     byType.get(c.type).push(c);
