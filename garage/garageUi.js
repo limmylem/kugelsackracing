@@ -243,7 +243,10 @@ export class GarageScreen {
 
   // (the top bar's account button: the level as a little rev ring; it opens the player's card, garage/profileCard.js)
   #levelChip() {
-    const s = profileStats(this.w.profile, this.w.db, this.w.levels), deg = Math.round(360 * s.share);
+    let s;
+    // (the stats can't be worked out — a save the card doesn't expect: the button still, the card says what it can)
+    try { s = profileStats(this.w.profile, this.w.db, this.w.levels); } catch (err) { console.warn('The account button:', err); s = { level: '–', share: 0, rank: null }; }
+    const deg = Math.round(360 * s.share);
     return `<button class="g-acct" data-act="profile" data-key="profile" title="Your account: level, money and stats">
       <span class="ring" style="--deg:${deg}deg"><span>${s.level}</span></span><span class="txt"><b>${esc(this.me?.displayName ?? 'Account')}</b><small>${esc(s.rank?.name ?? 'Rookie')}</small></span></button>`;
   }
@@ -1041,7 +1044,8 @@ export class GarageScreen {
     if (d.kind === 'profile') {
       // (its gauge sweeps up when it opens, not every time the screen is drawn again)
       const fresh = Date.now() - d.at < 400;
-      return profileCard({ s: profileStats(w.profile, w.db, w.levels), me: this.me, price: n => this.money(n), fresh, mp: this.mpRank });
+      try { return profileCard({ s: profileStats(w.profile, w.db, w.levels), me: this.me, price: n => this.money(n), fresh, mp: this.mpRank }); }
+      catch (err) { console.warn('The account card:', err); this.ui.dialog = null; return ''; }
     }
     const box = (ic, colour, title, text, list, buttons) => `<div class="scrim"><div class="dialog" role="dialog" aria-modal="true">
       <div style="padding:24px 28px 8px;display:flex;gap:16px;align-items:flex-start">

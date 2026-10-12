@@ -128,6 +128,8 @@ const csp = [
   ...(local ? [] : ['upgrade-insecure-requests']),
 ].join('; ');
 const hsts = args.includes('--hsts') ? '\n  Strict-Transport-Security: max-age=31536000; includeSubDomains' : '';
+// (every file no-cache: the browser asks each time — a quick "not modified" when it hasn't changed — so a deploy is
+// what the next load runs, not a module the browser kept)
 fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs for ${env}: docs/DEPLOYMENT.md)
 /*
   Content-Security-Policy: ${csp}
@@ -136,11 +138,6 @@ fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs
   X-Frame-Options: DENY
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()${hsts}
-/site/config.js
-  Cache-Control: no-cache
-/data/*
-  Cache-Control: no-cache
-/scenes/*
   Cache-Control: no-cache
 `);
 // (a page for addresses that don't exist: without one, Pages answers every unknown address with the game's main page)
