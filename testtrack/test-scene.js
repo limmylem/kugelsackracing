@@ -145,7 +145,9 @@ const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); Track
 // the region of the real world last driven in (scenes/map_v3.json, or ?region=<id>): the page's Real world, and
 // leaving the garage, go back there — not to San Francisco; kept in this browser, so the game opens there next time too
 const LAST_REAL = 'kr.lastRealWorld.v1';
-let lastRealFile = (() => { try { const f = localStorage.getItem(LAST_REAL); return /^scenes\/map_v3\.json(\?region=[\w-]+)?$/.test(f ?? '') ? f : null; } catch { return null; } })();
+// ({ file, at }: and when — free roam's saved place, from another computer, wins only if it's newer)
+// (or, from the first version of this, the file alone)
+let [lastRealFile, lastRealAt] = (() => { try { const raw = localStorage.getItem(LAST_REAL) ?? 'null', v = raw.startsWith('scenes/') ? { file: raw, at: 0 } : JSON.parse(raw); return /^scenes\/map_v3\.json(\?region=[\w-]+)?$/.test(v?.file ?? '') ? [v.file, Number(v.at) || 0] : [null, 0]; } catch { return [null, 0]; } })();
 export const realWorldFile = () => lastRealFile;
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
@@ -665,7 +667,8 @@ export async function enter(file) {
     catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
-  if (file.startsWith('scenes/map_v3.json')) { lastRealFile = file; try { localStorage.setItem(LAST_REAL, file); } catch { /* not kept */ } }
+  // (the time only when the region changes: the page opening where it was, or San Francisco the first time, isn't a choice)
+  if (file.startsWith('scenes/map_v3.json')) { if (file !== lastRealFile) lastRealAt = lastRealFile ? Date.now() : 0; lastRealFile = file; try { localStorage.setItem(LAST_REAL, JSON.stringify({ file, at: lastRealAt })); } catch { /* not kept */ } }
   for (const w of worlds.values()) if (w !== active) dropNpcVoices(w);
   // (the graphics settings on this world: its shadows, scenery, render distance)
   applyWorldGraphics(active);
@@ -2611,6 +2614,7 @@ async function startRoamHere(w, o) {
     const G = mpRaceGame(), Ad = mpAdapter.cached ??= mpAdapter(), P = () => active?.stream?.projection;
     const R = await startRoam({ account: A, region, cfg: roamCfg, mpCfg, adapter: Ad, look: mpLook(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug, S, game: {
       regionId: () => regionIdOf(active),
+      regionChosenAt: () => lastRealAt,
       carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
       place: (pos, h) => Ad.place(pos, h),
       async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },
