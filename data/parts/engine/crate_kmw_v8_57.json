@@ -1,0 +1,76 @@
+{
+  "id": "crate_kmw_v8_57",
+  "name": "Kugel Motorworks 5.7 L V8 (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 10740,
+  "mass": 200.3,
+  "model": "assets/parts/engine/crate_kmw_v8_57.glb",
+  "icon": "assets/icons/parts/crate_kmw_v8_57.png",
+  "fits": ["mount:long", "bay:large"],
+  "requires": ["clutch_rating:race", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": [],
+  "provides": ["engine_family:crate_kmw_v8_57", "engine_layout:v8", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[650, 426], [1350, 482], [2100, 527], [2800, 557], [3550, 574], [4050, 577], [4250, 575], [4950, 558], [5700, 528], [6400, 490], [6800, 438]],
+    "idleRpm": 650,
+    "redlineRpm": 6400,
+    "inertia": 0.241,
+    "induction": "natural",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8.json",
+    "friction": {
+      "base": 26.22,
+      "perKrpm": 13.11,
+      "perKrpm2": 1.5208
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "race",
+  "unlock": {
+    "level": 7
+  },
+  "bounds": {
+    "min": [-0.399, 0, -0.3474],
+    "max": [0.399, 0.499, 0.341]
+  },
+  "massOffset": [0, 0.226, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 8,
+    "displacement": 5.7,
+    "aspiration": "natural",
+    "boost": 0,
+    "mounts": ["long"],
+    "bay": "large",
+    "size": [0.7, 0.799, 0.594],
+    "peakTorque": 577,
+    "peakPower": 440,
+    "words": "5.7 L V8"
+  },
+  "generated": {
+    "engine": "kmw_v8_57"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kmw_v8_57.json (and data/content/formulas.json engines): change those, not this file. 5.7 L V8: 577 N·m, 440 hp, 200.3 kg, 0.7 × 0.799 × 0.594 m (a large bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated)."
+}

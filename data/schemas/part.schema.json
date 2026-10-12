@@ -56,17 +56,70 @@
     },
     "generated": {
       "type": "object",
-      "required": ["table", "key"],
+      "anyOf": [{ "required": ["table", "key"] }, { "required": ["family", "key"] }, { "required": ["engine"] }],
       "additionalProperties": false,
       "properties": {
         "table": {
-          "type": "string"
+          "type": "string",
+          "description": "the variant table (data/variants/<table>.json) it was made from"
+        },
+        "family": {
+          "type": "string",
+          "description": "the part family (data/families/<family>.json) it was made from"
+        },
+        "kind": {
+          "type": "string",
+          "description": "its family's kind (data/content/formulas.json families)"
+        },
+        "engine": {
+          "type": "string",
+          "description": "the engine (data/engines/<engine>.json) it was made from"
         },
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "which combination of the table's or family's settings it is"
+        },
+        "settings": {
+          "type": "object",
+          "description": "its family's settings it was made from (diameter, finish…)"
+        },
+        "stats": {
+          "type": "object",
+          "description": "the stats its family's formulas worked out (data/content/formulas.json)"
+        },
+        "measuredOn": {
+          "type": "string",
+          "description": "the car its gain was measured on"
+        },
+        "priceFactor": {
+          "type": "number",
+          "description": "its finish's share of its price (a chrome finish: 1.25): its price for what it does is its price ÷ this"
+        },
+        "gain": {
+          "type": ["number", "null"],
+          "description": "what it does to its slot's key stat on the car it was measured on (a share): what its tier, price and unlock level came from"
         }
       },
-      "description": "Made by npm run generate-variants from a variant table (data/variants/<table>.json): edit the table, not this file"
+      "description": "Made by npm run generate-variants (a variant table) or npm run content -- build (a part family or an engine): edit the table, family or engine, not this file"
+    },
+    "status": {
+      "enum": ["draft", "review", "published"],
+      "description": "Where it is in the content workflow (docs/CONTENT_PIPELINE.md): only published parts reach players. A part without one is published. The content manager (the admin page) moves it on; the live game's status is the database's."
+    },
+    "unlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Its own unlock rule, worked out from its gain and tier (data/content/formulas.json economy): the level a player needs to buy it. Without one, its tier's (data/economy.json shop.unlock)."
+    },
+    "engineSpec": {
+      "type": "object",
+      "description": "A crate engine's settings and what they came to (garage/engines.js): layout, cylinders, displacement, aspiration, bay size, mounts, peak torque and power"
     },
     "mass": {
       "type": "number",
@@ -460,10 +513,22 @@
         "additionalProperties": false,
         "properties": {
           "model": { "type": "string" },
-          "bounds": { "$ref": "#/properties/bounds" }
+          "bounds": { "$ref": "#/properties/bounds" },
+          "collision": { "$ref": "#/properties/collision" }
         }
       },
-      "description": "Its own model on each car it's made to fit (a roll cage, a strut brace): { carId: { model, bounds } }; other cars draw model"
+      "description": "Its own model on each car it's made to fit (a roll cage, a strut brace): { carId: { model, bounds, collision? } }; other cars draw model"
+    },
+    "collision": {
+      "type": "object",
+      "required": ["method", "hulls", "volumes"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["coacd", "built-in"], "description": "What made them: CoACD (if it was installed) or the built-in splitter" },
+        "hulls": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "array", "minItems": 12, "maxItems": 384, "items": { "type": "number" } } },
+        "volumes": { "type": "array", "items": { "type": "number", "minimum": 0 } }
+      },
+      "description": "Its collision shape when it comes off in a crash (physics/looseParts.js): convex hulls, each its corners x, y, z, … in the part's frame (m), and each one's volume (m³; its mass is shared out by them). Made from the model by npm run import / npm run content -- collision (tools/content/collision.mjs): don't edit by hand"
     },
     "upgrade": {
       "type": "object",

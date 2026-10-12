@@ -6,6 +6,7 @@
 import { Garage } from '../../garage/data.js';
 import { fingerprint } from '../../garage/fingerprint.js';
 import { fitWithNeeds, forCar } from './balance.mjs';
+import { perfKey } from '../../garage/families.js';
 
 const ratingOf = g => g.stats().totals?.rating ?? null;
 const clone = x => JSON.parse(JSON.stringify(x));
@@ -27,7 +28,10 @@ function climb(db, carId, forSale, rounds, start, keepFirst) {
   const steps = start ? [`${start.what} → ${start.rating}`] : [], firstMoves = [];
   // (every upgrade for sale that goes on this car: the stock parts are what it starts from — less the
   //  ones that can't make it faster: looks, safety gear)
-  const candidates = Object.values(db.parts).filter(p => forSale(p) && p.tier !== 'stock' && !['looks', 'safety'].includes(p.purpose) && forCar(db, carId, p));
+  // (and of the parts that perform the same — a family's finishes — only one: the cheapest)
+  const seen = new Set();
+  const candidates = Object.values(db.parts).filter(p => forSale(p) && p.tier !== 'stock' && !['looks', 'safety'].includes(p.purpose) && forCar(db, carId, p))
+    .sort((a, b) => a.price - b.price).filter(p => { const k = perfKey(p); if (seen.has(k)) return false; seen.add(k); return true; });
   for (let round = 0; round < rounds; round++) {
     let improved = null;
     const moves = [];

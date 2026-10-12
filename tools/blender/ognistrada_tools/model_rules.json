@@ -1,0 +1,1366 @@
+{
+  "_note": "What a model must be like to go in the game: read by npm run check-models, npm run import and the part preview page, and written out in plain English in docs/MODELLING_GUIDE.md (npm run guide rewrites its tables from this file). Lengths in metres, in the socket's frame (the car frame for a car): +x the car's left, +y up, +z forward. size: [min, max] of the model's extent along each axis. origin: where the model's origin (its socket) must be on each axis — centre (the middle of the model), min / max (its lowest / highest point: left, down or back is min), within (anywhere inside it) — give or take originTolerance. triangles: the budget (over it: a warning; over twice it: a failure). template.detach: how it comes loose and off in a crash (garage/detach.js; mounts 'ends': worked out from the model, the two ends of its longest side). density: kg per m³ of the model's volume, for the mass the importer estimates (clamped to massRange).",
+  "originTolerance": 0.03,
+  "textureMaxSize": 1024,
+  "lods": {
+    "_note": "Levels of detail (tools/content/lods.mjs): a model with at least `from` triangles gets each level made by meshoptimizer's simplifier when it's imported (or brings its own: Blender objects named <name>__lod1), at `ratio` of its triangles, as near as `error` (a share of its size) allows. A level's budget is the model's triangle budget × its ratio: over it, a warning; over twice it, a failure. The game draws a far car in one piece from level 1.",
+    "from": 600,
+    "levels": [
+      {
+        "ratio": 0.35,
+        "error": 0.02
+      }
+    ]
+  },
+  "ktx2": {
+    "_note": "Compressed textures (tools/content/ktx2.mjs, KTX2 / Basis Universal): a texture at least `from` pixels on its longer side is compressed when it's imported — colour (base colour, emissive) as ETC1S at `quality`, normal maps and the rest as UASTC — and the game decodes it on the graphics card (its transcoder fetched only when a model has one). The game's own palettes are far smaller and stay PNG.",
+    "from": 512,
+    "quality": 160
+  },
+  "collision": {
+    "_note": "Collision shapes (tools/content/collision.mjs) for parts that can come off in a crash (their type's template has detach): up to maxHulls convex hulls of up to maxPoints corners each — CoACD's if it's installed (pip install coacd), else the built-in splitter's (a grid of `cells` across the model; a hull is split while more than `concavity` of it is empty space). Kept in the part's file as collision; physics/looseParts.js uses them for a part lying in the road.",
+    "maxHulls": 4,
+    "maxPoints": 16,
+    "concavity": 0.25,
+    "cells": 40
+  },
+  "dent": {
+    "_note": "Dents (garage/dents.js): to dent a part the game makes a finer copy of it, no edge longer than maxEdge (m). Its triangles, worked out from the model: over maxTriangles (a car body: maxCarTriangles — the starter car's, the most today, is about 112,000), a warning (the first dent stutters); over twice it, a failure.",
+    "maxEdge": 0.07,
+    "maxTriangles": 30000,
+    "maxCarTriangles": 150000
+  },
+  "materials": {
+    "_note": "The material names a model may use: paint is the car's paint (it follows the player's colour), car_atlas the shared colour-palette texture, glass and light_* the car's own (light_aux: an extra lamp: fog lights, light bars, underglow — it glows the part's light colour), rim_finish a rim's face (it takes the rim's finish: chrome, black…), caliper and seat_fabric surfaces in their own colour that keep it whatever the part's finish, and any finish in data/finishes.json (chrome, carbon, titanium, raw_metal…) for surfaces that are always that finish",
+    "names": ["paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric"],
+    "patterns": ["^light_[a-z0-9_]+$"],
+    "finishes": true
+  },
+  "icon": {
+    "_note": "Icons: a transparent PNG size × size, drawn from azimuth (degrees round +y from the front, +90 = the car's left) and elevation; the paint drawn in paintColour so every icon matches",
+    "size": 256,
+    "paintColour": "#9aa4ae",
+    "azimuth": 35,
+    "elevation": 22
+  },
+  "types": {
+    "spoiler": {
+      "label": "Spoiler or wing",
+      "category": "aero",
+      "slot": "spoiler",
+      "names": ["spoiler", "wing", "ducktail"],
+      "size": {
+        "x": [0.8, 1.9],
+        "y": [0.03, 0.6],
+        "z": [0.05, 0.7]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "min",
+        "z": "within"
+      },
+      "attach": "the middle of the boot lid where it bolts on, at the bottom of its feet",
+      "triangles": 2000,
+      "density": 250,
+      "massRange": [1, 25],
+      "icon": {
+        "azimuth": 215,
+        "elevation": 26
+      },
+      "template": {
+        "fits": ["spoiler_mount:boot"],
+        "aero": {
+          "liftCoefficient": -0.15,
+          "dragCoefficient": 0.012,
+          "point": [0, 0.15, 0],
+          "angle": {
+            "min": 0,
+            "max": 16,
+            "default": 8,
+            "scaleAtMin": 0.45,
+            "scaleAtMax": 1.5
+          }
+        },
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1500,
+          "looseThreshold": 12,
+          "detachThreshold": 6
+        },
+        "todo": ["price", "aero"]
+      }
+    },
+    "rim": {
+      "label": "Wheel (rim only)",
+      "category": "wheels",
+      "slot": "wheels",
+      "names": ["rim", "wheel"],
+      "size": {
+        "x": [0.1, 0.35],
+        "y": [0.35, 0.55],
+        "z": [0.35, 0.55]
+      },
+      "origin": {
+        "x": "within",
+        "y": "centre",
+        "z": "centre"
+      },
+      "attach": "the wheel's centre on its axle; the outer face towards +x",
+      "triangles": 3000,
+      "density": 600,
+      "massRange": [4, 20],
+      "icon": {
+        "azimuth": 62,
+        "elevation": 12
+      },
+      "template": {
+        "fits": ["bolt_pattern:4x100"],
+        "contactMaterial": "metal",
+        "todo": ["price", "rim"]
+      }
+    },
+    "bonnet": {
+      "label": "Bonnet",
+      "category": "body",
+      "slot": "bonnet",
+      "names": ["bonnet", "hood"],
+      "size": {
+        "x": [1, 1.9],
+        "y": [0.01, 0.3],
+        "z": [0.6, 1.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "max",
+        "z": "min"
+      },
+      "attach": "the middle of its back edge (the hinge line), level with its top surface",
+      "triangles": 1500,
+      "density": 300,
+      "massRange": [4, 30],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [-110, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 10,
+          "detachThreshold": 85,
+          "looseDrag": 0.12,
+          "open": 0.5,
+          "pop": 1.2
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "boot": {
+      "label": "Boot lid",
+      "category": "body",
+      "slot": "boot",
+      "names": ["boot", "trunk", "bootlid"],
+      "size": {
+        "x": [1, 1.9],
+        "y": [0.01, 0.5],
+        "z": [0.2, 1.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "max",
+        "z": "max"
+      },
+      "attach": "the middle of its front edge (the hinge line), level with its top surface",
+      "triangles": 1500,
+      "density": 400,
+      "massRange": [4, 25],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2000,
+          "looseThreshold": 20,
+          "detachThreshold": 85,
+          "looseDrag": 0.03,
+          "open": 0.3,
+          "pop": 1
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "bumper_front": {
+      "label": "Front bumper",
+      "category": "body",
+      "slot": "bumper_front",
+      "names": ["bumper_front", "front_bumper"],
+      "size": {
+        "x": [1.3, 2.1],
+        "y": [0.08, 0.7],
+        "z": [0.08, 0.7]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "centre",
+        "z": "within"
+      },
+      "attach": "the middle of where it meets the body",
+      "triangles": 1500,
+      "density": 160,
+      "massRange": [2, 25],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 900,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.02
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "bumper_rear": {
+      "label": "Rear bumper",
+      "category": "body",
+      "slot": "bumper_rear",
+      "names": ["bumper_rear", "rear_bumper"],
+      "size": {
+        "x": [1.3, 2.1],
+        "y": [0.08, 0.7],
+        "z": [0.08, 0.7]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "centre",
+        "z": "within"
+      },
+      "attach": "the middle of where it meets the body",
+      "triangles": 1500,
+      "density": 160,
+      "massRange": [2, 25],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 900,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.02
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "door_left": {
+      "label": "Left door",
+      "category": "body",
+      "slot": "door_left",
+      "names": ["door_left", "left_door"],
+      "size": {
+        "x": [0.02, 0.3],
+        "y": [0.3, 1.1],
+        "z": [0.6, 1.7]
+      },
+      "origin": {
+        "x": "within",
+        "y": "centre",
+        "z": "max"
+      },
+      "attach": "its front edge (the hinge line), halfway up",
+      "triangles": 1500,
+      "density": 390,
+      "massRange": [8, 40],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [0, 1, 0],
+            "limits": [-70, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 12,
+          "detachThreshold": 90,
+          "looseDrag": 0.05,
+          "pop": 2
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "door_right": {
+      "label": "Right door",
+      "category": "body",
+      "slot": "door_right",
+      "names": ["door_right", "right_door"],
+      "size": {
+        "x": [0.02, 0.3],
+        "y": [0.3, 1.1],
+        "z": [0.6, 1.7]
+      },
+      "origin": {
+        "x": "within",
+        "y": "centre",
+        "z": "max"
+      },
+      "attach": "its front edge (the hinge line), halfway up",
+      "triangles": 1500,
+      "density": 390,
+      "massRange": [8, 40],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [0, 1, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 12,
+          "detachThreshold": 90,
+          "looseDrag": 0.05,
+          "pop": 2
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "fender_left": {
+      "label": "Left front wing (fender)",
+      "category": "body",
+      "slot": "fender_left",
+      "names": ["fender_left", "left_fender"],
+      "size": {
+        "x": [0.02, 0.35],
+        "y": [0.15, 0.9],
+        "z": [0.5, 1.6]
+      },
+      "origin": {
+        "x": "min",
+        "y": "max",
+        "z": "within"
+      },
+      "attach": "its inner edge where it bolts to the body, at the top",
+      "triangles": 1500,
+      "density": 150,
+      "massRange": [1, 15],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 700,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.015
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "fender_right": {
+      "label": "Right front wing (fender)",
+      "category": "body",
+      "slot": "fender_right",
+      "names": ["fender_right", "right_fender"],
+      "size": {
+        "x": [0.02, 0.35],
+        "y": [0.15, 0.9],
+        "z": [0.5, 1.6]
+      },
+      "origin": {
+        "x": "max",
+        "y": "max",
+        "z": "within"
+      },
+      "attach": "its inner edge where it bolts to the body, at the top",
+      "triangles": 1500,
+      "density": 150,
+      "massRange": [1, 15],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 700,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.015
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "skirt_left": {
+      "label": "Left side skirt",
+      "category": "body",
+      "slot": "skirt_left",
+      "names": ["skirt_left", "left_skirt"],
+      "size": {
+        "x": [0.005, 0.25],
+        "y": [0.02, 0.35],
+        "z": [0.9, 2.6]
+      },
+      "origin": {
+        "x": "within",
+        "y": "centre",
+        "z": "centre"
+      },
+      "attach": "its middle",
+      "triangles": 1000,
+      "density": 220,
+      "massRange": [0.5, 12],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 600,
+          "looseThreshold": 30,
+          "detachThreshold": 65,
+          "looseDrag": 0.01
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "skirt_right": {
+      "label": "Right side skirt",
+      "category": "body",
+      "slot": "skirt_right",
+      "names": ["skirt_right", "right_skirt"],
+      "size": {
+        "x": [0.005, 0.25],
+        "y": [0.02, 0.35],
+        "z": [0.9, 2.6]
+      },
+      "origin": {
+        "x": "within",
+        "y": "centre",
+        "z": "centre"
+      },
+      "attach": "its middle",
+      "triangles": 1000,
+      "density": 220,
+      "massRange": [0.5, 12],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 600,
+          "looseThreshold": 30,
+          "detachThreshold": 65,
+          "looseDrag": 0.01
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "mirror_left": {
+      "label": "Left mirror",
+      "category": "body",
+      "slot": "mirror_left",
+      "names": ["mirror_left", "left_mirror"],
+      "size": {
+        "x": [0.06, 0.4],
+        "y": [0.04, 0.3],
+        "z": [0.02, 0.3]
+      },
+      "origin": {
+        "x": "min",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where its arm meets the door (its innermost point)",
+      "triangles": 800,
+      "density": 1000,
+      "massRange": [0.3, 4],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 300,
+          "looseThreshold": 20,
+          "detachThreshold": 15
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "mirror_right": {
+      "label": "Right mirror",
+      "category": "body",
+      "slot": "mirror_right",
+      "names": ["mirror_right", "right_mirror"],
+      "size": {
+        "x": [0.06, 0.4],
+        "y": [0.04, 0.3],
+        "z": [0.02, 0.3]
+      },
+      "origin": {
+        "x": "max",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where its arm meets the door (its innermost point)",
+      "triangles": 800,
+      "density": 1000,
+      "massRange": [0.3, 4],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 300,
+          "looseThreshold": 20,
+          "detachThreshold": 15
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "seat": {
+      "label": "Seat",
+      "category": "interior",
+      "slot": "seat",
+      "names": ["seat"],
+      "size": {
+        "x": [0.35, 0.75],
+        "y": [0.5, 1.3],
+        "z": [0.4, 1.1]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "min",
+        "z": "within"
+      },
+      "attach": "the middle of its base, on the floor",
+      "triangles": 2500,
+      "density": 190,
+      "massRange": [4, 30],
+      "template": {
+        "fits": ["car:starter_car"],
+        "todo": ["price"]
+      }
+    },
+    "steering_wheel": {
+      "label": "Steering wheel",
+      "category": "interior",
+      "slot": "steering_wheel",
+      "names": ["steering_wheel", "steering"],
+      "size": {
+        "x": [0.25, 0.45],
+        "y": [0.25, 0.45],
+        "z": [0.01, 0.25]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "centre",
+        "z": "within"
+      },
+      "attach": "its hub, on the steering column (the wheel faces +z towards the driver)",
+      "triangles": 2000,
+      "density": 1400,
+      "massRange": [0.8, 5],
+      "template": {
+        "fits": ["car:starter_car"],
+        "todo": ["price"]
+      }
+    },
+    "engine": {
+      "label": "Engine",
+      "category": "engine",
+      "slot": "engine",
+      "names": ["engine"],
+      "size": {
+        "x": [0.3, 1.1],
+        "y": [0.25, 1],
+        "z": [0.3, 1.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "min",
+        "z": "within"
+      },
+      "attach": "the middle of its base, on the engine mounts",
+      "triangles": 6000,
+      "density": 1200,
+      "massRange": [50, 300],
+      "originTolerance": 0.06,
+      "template": {
+        "fits": ["engine_mount:starter"],
+        "todo": ["price", "engine"]
+      }
+    },
+    "intake": {
+      "label": "Intake (air box, filter)",
+      "category": "intake",
+      "slot": "intake",
+      "names": ["intake", "airbox", "air_filter"],
+      "size": {
+        "x": [0.05, 0.7],
+        "y": [0.05, 0.5],
+        "z": [0.05, 0.8]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it joins the engine",
+      "triangles": 1500,
+      "density": 400,
+      "massRange": [0.5, 8],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "turbo": {
+      "label": "Turbo",
+      "category": "turbo",
+      "slot": "turbo",
+      "names": ["turbo", "turbocharger"],
+      "size": {
+        "x": [0.1, 0.6],
+        "y": [0.1, 0.5],
+        "z": [0.1, 0.6]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it bolts to the exhaust manifold",
+      "triangles": 2500,
+      "density": 2500,
+      "massRange": [4, 25],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "intercooler": {
+      "label": "Intercooler",
+      "category": "intercooler",
+      "slot": "intercooler",
+      "names": ["intercooler"],
+      "size": {
+        "x": [0.3, 1],
+        "y": [0.1, 0.5],
+        "z": [0.03, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "its middle",
+      "triangles": 1500,
+      "density": 600,
+      "massRange": [3, 20],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "exhaust": {
+      "label": "Exhaust (tip)",
+      "category": "exhaust",
+      "slot": "exhaust",
+      "names": ["exhaust", "exhaust_tip"],
+      "size": {
+        "x": [0.03, 0.4],
+        "y": [0.03, 0.3],
+        "z": [0.05, 1.6]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "max"
+      },
+      "attach": "the front of the tip, where it meets the pipe (the tip points back, towards −z)",
+      "triangles": 1200,
+      "density": 3000,
+      "massRange": [4, 25],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "engine_cover": {
+      "label": "Engine cover",
+      "category": "body",
+      "slot": "engine_cover",
+      "names": ["engine_cover", "enginecover"],
+      "size": {
+        "x": [1, 1.9],
+        "y": [0.01, 0.5],
+        "z": [0.2, 1.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "max",
+        "z": "max"
+      },
+      "attach": "the middle of its front edge (the hinge line), level with its top surface",
+      "triangles": 1500,
+      "density": 400,
+      "massRange": [4, 25],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2000,
+          "looseThreshold": 20,
+          "detachThreshold": 85,
+          "looseDrag": 0.03,
+          "open": 0.3,
+          "pop": 1
+        },
+        "todo": ["price", "fits"]
+      }
+    },
+    "roof": {
+      "label": "Roof (soft top, hardtop)",
+      "category": "body",
+      "slot": "roof",
+      "names": ["roof", "soft_top", "hardtop"],
+      "size": {
+        "x": [0.9, 1.9],
+        "y": [0.05, 1],
+        "z": [0.4, 1.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "max"
+      },
+      "attach": "the middle of the roof, level with its top",
+      "triangles": 1500,
+      "density": 200,
+      "massRange": [5, 45],
+      "template": {
+        "fits": ["roof:convertible"],
+        "contactMaterial": "plastic",
+        "todo": ["price", "fits"]
+      }
+    },
+    "brakes": {
+      "label": "Brake kit (disc and caliper)",
+      "category": "brakes",
+      "slot": "brakes",
+      "names": ["brakes", "brake_kit"],
+      "size": {
+        "x": [0.02, 0.2],
+        "y": [0.2, 0.48],
+        "z": [0.2, 0.48]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the wheel hub's centre (the disc's centre on the axle), the outer face towards +x: drawn at every wheel",
+      "triangles": 1500,
+      "density": 3500,
+      "massRange": [4, 40],
+      "icon": {
+        "azimuth": 62,
+        "elevation": 12
+      },
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "supercharger": {
+      "label": "Supercharger",
+      "category": "turbo",
+      "slot": "supercharger",
+      "names": ["supercharger", "blower"],
+      "size": {
+        "x": [0.15, 0.7],
+        "y": [0.1, 0.5],
+        "z": [0.15, 0.75]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it bolts to the engine",
+      "triangles": 2500,
+      "density": 2200,
+      "massRange": [5, 40],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "radiator": {
+      "label": "Radiator",
+      "category": "engine",
+      "slot": "radiator",
+      "names": ["radiator"],
+      "size": {
+        "x": [0.3, 0.95],
+        "y": [0.15, 0.65],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "its middle",
+      "triangles": 1200,
+      "density": 700,
+      "massRange": [1, 15],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "strut_brace": {
+      "label": "Strut brace",
+      "category": "suspension",
+      "slot": "strut_brace",
+      "names": ["strut_brace"],
+      "size": {
+        "x": [0.6, 1.6],
+        "y": [0.02, 0.25],
+        "z": [0.03, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar, on the line between the strut tops",
+      "triangles": 800,
+      "density": 1500,
+      "massRange": [1, 8],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "roll_cage": {
+      "label": "Roll cage or hoop",
+      "category": "interior",
+      "slot": "roll_cage",
+      "names": ["roll_cage", "cage", "roll_hoop"],
+      "size": {
+        "x": [0.8, 1.85],
+        "y": [0.4, 1.6],
+        "z": [0.05, 2.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "the middle of the cabin above the seats (socket_cage): the cage goes where the cabin has room for it, front to back",
+      "triangles": 4000,
+      "density": 1200,
+      "massRange": [5, 70],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "harness": {
+      "label": "Harness",
+      "category": "interior",
+      "slot": "harness",
+      "names": ["harness"],
+      "size": {
+        "x": [0.2, 0.6],
+        "y": [0.3, 1],
+        "z": [0.02, 1]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the seat back, where the straps cross",
+      "triangles": 800,
+      "density": 600,
+      "massRange": [0.5, 5],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "gauges": {
+      "label": "Gauge pod",
+      "category": "interior",
+      "slot": "gauges",
+      "names": ["gauges", "gauge_pod"],
+      "size": {
+        "x": [0.04, 0.45],
+        "y": [0.04, 0.4],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where the pod sits on the dash or pillar",
+      "triangles": 1000,
+      "density": 700,
+      "massRange": [0.2, 3],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "shifter": {
+      "label": "Gear lever",
+      "category": "drivetrain",
+      "slot": "shifter",
+      "names": ["shifter", "gear_lever"],
+      "size": {
+        "x": [0.03, 0.25],
+        "y": [0.1, 0.45],
+        "z": [0.03, 0.25]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "min",
+        "z": "within"
+      },
+      "attach": "the middle of its base, on the tunnel",
+      "triangles": 600,
+      "density": 1500,
+      "massRange": [0.2, 4],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "fog_lights": {
+      "label": "Fog lights (a pair)",
+      "category": "cosmetic",
+      "slot": "fog_lights",
+      "names": ["fog_lights", "fog"],
+      "size": {
+        "x": [0.3, 1.9],
+        "y": [0.04, 0.3],
+        "z": [0.02, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "the middle between the two lamps (socket_fog_lights): they stand on the front bumper's face, in front of the socket",
+      "triangles": 1000,
+      "density": 900,
+      "massRange": [0.5, 6],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "underglow": {
+      "label": "Underglow strips",
+      "category": "cosmetic",
+      "slot": "underglow",
+      "names": ["underglow"],
+      "size": {
+        "x": [0.8, 2.1],
+        "y": [0.004, 0.08],
+        "z": [1.8, 5]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the floor",
+      "triangles": 600,
+      "density": 900,
+      "massRange": [0.3, 4],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "front_lip": {
+      "label": "Front lip or splitter",
+      "category": "aero",
+      "slot": "front_lip",
+      "names": ["front_lip", "lip", "splitter"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.01, 0.25],
+        "z": [0.05, 0.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of its front edge, under the bumper (socket_front_lip)",
+      "triangles": 1200,
+      "density": 600,
+      "massRange": [1, 10],
+      "template": {
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
+        "todo": ["price", "effects"]
+      }
+    },
+    "canards": {
+      "label": "Canards (dive planes)",
+      "category": "aero",
+      "slot": "canards",
+      "names": ["canards", "dive_planes"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.02, 0.35],
+        "z": [0.05, 0.5]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle between the bumper corners (socket_canards)",
+      "triangles": 800,
+      "density": 600,
+      "massRange": [0.3, 4],
+      "template": {
+        "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
+        "todo": ["price", "effects"]
+      }
+    },
+    "mud_flaps": {
+      "label": "Mud flaps",
+      "category": "body",
+      "slot": "mud_flaps",
+      "names": ["mud_flaps", "mudflaps"],
+      "size": {
+        "x": [1, 2.2],
+        "y": [0.15, 0.55],
+        "z": [0.005, 3.6]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "any"
+      },
+      "attach": "between the flaps, at the height of their tops (socket_mud_flaps): they hang behind the wheels",
+      "triangles": 600,
+      "density": 1100,
+      "massRange": [1, 8],
+      "template": {
+        "contactMaterial": "rubber",
+        "todo": ["price", "effects"]
+      }
+    },
+    "aero_kit": {
+      "label": "Aero kit",
+      "category": "aero",
+      "slot": "aero_kit",
+      "names": ["aero_kit"],
+      "size": {
+        "x": [1.4, 2.3],
+        "y": [0.05, 0.7],
+        "z": [2.5, 5.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the car at floor level (socket_aero_kit)",
+      "triangles": 3000,
+      "density": 500,
+      "massRange": [2, 25],
+      "template": {
+        "contactMaterial": "carbon",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
+        "todo": ["price", "effects"]
+      }
+    },
+    "bull_bar": {
+      "label": "Bull bar",
+      "category": "body",
+      "slot": "bull_bar",
+      "names": ["bull_bar", "nudge_bar"],
+      "size": {
+        "x": [1.2, 2.2],
+        "y": [0.3, 1.1],
+        "z": [0.05, 0.55]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar where it bolts to the chassis (socket_bull_bar)",
+      "triangles": 2500,
+      "density": 1200,
+      "massRange": [8, 70],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "winch": {
+      "label": "Winch",
+      "category": "body",
+      "slot": "winch",
+      "names": ["winch"],
+      "size": {
+        "x": [0.25, 0.75],
+        "y": [0.1, 0.4],
+        "z": [0.1, 0.45]
+      },
+      "origin": {
+        "x": "within",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "its mounting plate (socket_winch)",
+      "triangles": 1500,
+      "density": 2500,
+      "massRange": [10, 60],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "snorkel": {
+      "label": "Snorkel",
+      "category": "body",
+      "slot": "snorkel",
+      "names": ["snorkel"],
+      "size": {
+        "x": [0.05, 0.35],
+        "y": [0.5, 1.6],
+        "z": [0.05, 0.6]
+      },
+      "origin": {
+        "x": "any",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "where it goes into the wing (socket_snorkel): it runs up the outside of it",
+      "triangles": 800,
+      "density": 400,
+      "massRange": [1, 10],
+      "template": {
+        "contactMaterial": "plastic",
+        "todo": ["price", "effects"]
+      }
+    },
+    "roof_rack": {
+      "label": "Roof rack",
+      "category": "body",
+      "slot": "roof_rack",
+      "names": ["roof_rack"],
+      "size": {
+        "x": [0.8, 1.7],
+        "y": [0.05, 0.35],
+        "z": [0.8, 2.4]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the rack, its feet on the roof (socket_roof_rack)",
+      "triangles": 2500,
+      "density": 600,
+      "massRange": [5, 40],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "light_bar": {
+      "label": "Light bar",
+      "category": "body",
+      "slot": "light_bar",
+      "names": ["light_bar"],
+      "size": {
+        "x": [0.3, 1.6],
+        "y": [0.04, 0.25],
+        "z": [0.03, 0.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the bar, on its brackets",
+      "triangles": 1000,
+      "density": 1200,
+      "massRange": [1, 10],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "rally_lights": {
+      "label": "Rally light pod",
+      "category": "body",
+      "slot": "rally_lights",
+      "names": ["rally_lights", "light_pod"],
+      "size": {
+        "x": [0.4, 1.5],
+        "y": [0.08, 0.4],
+        "z": [0.05, 0.35]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the pod where it straps on (socket_rally_lights)",
+      "triangles": 1500,
+      "density": 700,
+      "massRange": [2, 15],
+      "template": {
+        "contactMaterial": "plastic",
+        "todo": ["price", "effects"]
+      }
+    },
+    "skid_plates": {
+      "label": "Skid plates",
+      "category": "body",
+      "slot": "skid_plates",
+      "names": ["skid_plates", "skid_plate"],
+      "size": {
+        "x": [0.5, 1.7],
+        "y": [0.003, 0.25],
+        "z": [0.5, 3.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "any",
+        "z": "within"
+      },
+      "attach": "the middle of the plates, under the car (socket_skid_plates)",
+      "triangles": 800,
+      "density": 2500,
+      "massRange": [5, 60],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "rock_sliders": {
+      "label": "Rock sliders",
+      "category": "body",
+      "slot": "rock_sliders",
+      "names": ["rock_sliders"],
+      "size": {
+        "x": [1.3, 2.3],
+        "y": [0.03, 0.3],
+        "z": [1.4, 3.3]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "any",
+        "z": "within"
+      },
+      "attach": "the middle between the two sills (socket_rock_sliders): they hang under the sills",
+      "triangles": 1500,
+      "density": 1500,
+      "massRange": [5, 50],
+      "template": {
+        "contactMaterial": "metal",
+        "todo": ["price", "effects"]
+      }
+    },
+    "lift_kit": {
+      "label": "Lift kit",
+      "category": "suspension",
+      "slot": "lift_kit",
+      "names": ["lift_kit"],
+      "size": {
+        "x": [1, 2.1],
+        "y": [0.1, 0.8],
+        "z": [1.8, 3.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the car between the axles (socket_lift_kit)",
+      "triangles": 2000,
+      "density": 1500,
+      "massRange": [3, 50],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    }
+  },
+  "car": {
+    "_note": "A car's body (npm run import: car_<id>.glb; its parts sit under their socket nodes, to be split off by npm run build:car). requiredSockets must be there; expectedSockets should be (parts go there); mirrorTolerance: how far a left socket may be from mirroring its right one",
+    "names": ["car"],
+    "size": {
+      "length": [3, 5.6],
+      "width": [1.4, 2.2],
+      "height": [1, 2.1]
+    },
+    "wheelbase": [2, 3.4],
+    "track": [1.1, 1.9],
+    "groundTolerance": 0.05,
+    "wheelHeightTolerance": 0.015,
+    "wheelRadius": [0.24, 0.42],
+    "mirrorTolerance": 0.01,
+    "triangles": 25000,
+    "paintMaterial": "paint",
+    "requiredSockets": ["socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR"],
+    "expectedSockets": ["socket_bonnet", "socket_boot", "socket_bumper_front", "socket_bumper_rear", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_engine", "socket_intake", "socket_turbo", "socket_exhaust_tip", "socket_spoiler"],
+    "icon": {
+      "azimuth": 35,
+      "elevation": 18
+    }
+  },
+  "finishNames": ["carbon", "chrome", "gloss", "gloss_black", "matte", "matte_black", "metallic", "painted", "pearl", "polished", "raw_metal", "rubber", "titanium"],
+  "_copy": "A copy of data/content/model-rules.json (and the finishes' names) for the Blender add-on: written by npm run guide / npm run blender-addon — edit that file, not this one."
+}

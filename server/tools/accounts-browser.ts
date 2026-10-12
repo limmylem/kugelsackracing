@@ -11,7 +11,7 @@
 //   node server/tools/accounts-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig, totp } from '../test/helpers.ts';
+import { freshDatabase, testConfig, totp, endTest } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 
 const PORT = Number(process.env.PORT ?? 8791), BASE = `http://localhost:${PORT}`;
@@ -176,4 +176,4 @@ try {
 }
 const failed = results.filter(r => !r).length;
 console.log(failed ? `\n${failed} of ${results.length} failed` : `\n${results.length} of ${results.length} ok`);
-process.exitCode = failed ? 1 : 0;
+endTest(failed);

@@ -1,0 +1,97 @@
+{
+  "id": "readout_3_carbon",
+  "name": "Readout 3-gauge pod, carbon",
+  "category": "interior",
+  "slot": "gauges",
+  "kind": "component",
+  "price": 700,
+  "mass": 0.69,
+  "model": "assets/parts/interior/readout/readout_3/starter_car.glb",
+  "icon": "assets/icons/parts/readout_3_carbon.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "looks",
+  "look": {
+    "finish": "carbon"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "readout",
+    "kind": "gauges",
+    "key": "3_carbon",
+    "settings": {
+      "count": 3,
+      "size": 52,
+      "layout": "pillar",
+      "finish": "carbon"
+    },
+    "stats": {
+      "mass": 0.69
+    },
+    "gain": null,
+    "priceFactor": 1.1831
+  },
+  "_generated": "Made by npm run content -- build from data/families/readout.json (and data/content/formulas.json families.gauges): change those, not this file. sport: priced by its settings, $700, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.102, -0.06, -0.0625],
+    "max": [0.102, 0.016, 0.03]
+  },
+  "massOffset": [0, -0.022, -0.014],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/interior/readout/readout_3/apex_v8.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/readout/readout_3/brute_500.glb",
+      "bounds": {
+        "min": [-0.102, 0, -0.0225],
+        "max": [0.102, 0.076, 0.07]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/readout/readout_3/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.038, 0, 0.0175],
+        "max": [0.038, 0.204, 0.11]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/interior/readout/readout_3/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.102, -0.06, -0.0225],
+        "max": [0.102, 0.016, 0.07]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/readout/readout_3/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/readout/readout_3/strada_evo.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.204, 0.07]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/readout/readout_3/vortex_r.glb",
+      "bounds": {
+        "min": [-0.102, 0, -0.0225],
+        "max": [0.102, 0.076, 0.07]
+      }
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

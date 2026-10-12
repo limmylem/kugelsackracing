@@ -11,6 +11,7 @@ import type { Db } from '../db/index.ts';
 import { REPO_DIR } from '../config.ts';
 import { AppError } from '../errors.ts';
 import { loadGarageData } from '../../../garage/data.js';
+import { withContent } from '../../../garage/content.js';
 
 export type EconomyData = { economy: any; quests: any };
 export type ConfigVersion = { version: number; data: EconomyData; reason: string; actorId: string | null; basedOn: number | null; createdAt: string; active: boolean };
@@ -26,6 +27,7 @@ export const gameData = () => baseData ??= loadGarageData(readJson).then(({ db, 
 
 export function createEconomyConfig(db: Db) {
   let current: { version: number; data: EconomyData; checkedAt: number } | null = null;
+  let content: { overlay: () => Promise<any> } | null = null;
   const rowOut = (r: any): ConfigVersion => ({ version: r.version, data: r.data, reason: r.reason, actorId: r.actor_id, basedOn: r.based_on, createdAt: new Date(r.created_at).toISOString(), active: r.active });
 
   // (the first version: the repository's files. Later, settings the game has gained since — a new section, a new
@@ -88,8 +90,14 @@ export function createEconomyConfig(db: Db) {
   }
   return {
     ensure, active, check,
-    // the game's own data with this version's economy (what the player service prices from)
-    async gameDb() { const [{ db: game }, a] = await Promise.all([gameData(), active()]); return { version: a.version, db: { ...game, economy: a.data.economy }, quests: a.data.quests }; },
+    // the game's own data with this version's economy, and what the content manager has published (Phase 8 Step 3:
+    // parts and cars in the workflow, their published changes) — what the player service prices and checks from
+    async gameDb() {
+      const [{ db: game }, a, o] = await Promise.all([gameData(), active(), content?.overlay() ?? null]);
+      return { version: a.version, contentVersion: o?.version ?? 0, db: { ...withContent(game, o), economy: a.data.economy }, quests: a.data.quests };
+    },
+    // (the content manager, once it's made: server/src/content/manager.ts)
+    useContent(c: { overlay: () => Promise<any> }) { content = c; },
     async history(limit = 50) { return (await db.execute(sql`select * from economy_config order by version desc limit ${limit}`)).rows.map(rowOut); },
     async get(version: number) { const r = (await db.execute(sql`select * from economy_config where version = ${version}`)).rows[0]; if (!r) throw new AppError(404, 'NOT_FOUND', 'There\'s no such version.'); return rowOut(r); },
     change: (data: EconomyData, by: { actorId: string; reason: string; basedOn: number | null }) => activate(data, by),

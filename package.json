@@ -25,6 +25,7 @@
     "sounds": "node tools/sounds.mjs",
     "models-todo": "node tools/models-todo.mjs",
     "generate-parts": "node tools/generate-parts.mjs",
+    "content": "node tools/content.mjs",
     "crash-test": "node tests/crash.mjs",
     "stress": "node --expose-gc tests/stress.mjs",
     "test:audio": "node --expose-gc tests/audio.mjs",
@@ -58,7 +59,8 @@
     "test:server": "npm run --workspace @kr/server test",
     "server:typecheck": "tsc -p server/tsconfig.json",
     "credits": "node tools/credits.mjs",
-    "scan-secrets": "node tools/scan-secrets.mjs"
+    "scan-secrets": "node tools/scan-secrets.mjs",
+    "blender-addon": "node tools/blender/build.mjs --zip"
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
@@ -84,6 +86,7 @@
     "geotiff": "^3.0.5",
     "hyparquet": "^1.31.2",
     "hyparquet-compressors": "^1.1.2",
+    "ktx2-encoder": "^0.6.0",
     "maplibre-gl": "^6.11.2",
     "meshoptimizer": "^0.22.0",
     "pbf": "^5.1.2",

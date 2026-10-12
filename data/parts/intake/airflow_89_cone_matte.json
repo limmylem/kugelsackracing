@@ -1,0 +1,108 @@
+{
+  "id": "airflow_89_cone_matte",
+  "name": "Airflow intake, 89 mm, matte black",
+  "category": "intake",
+  "slot": "intake",
+  "kind": "modifier",
+  "price": 160,
+  "mass": 1.2,
+  "model": "assets/parts/intake/airflow/airflow_89_cone/starter_car.glb",
+  "icon": "assets/icons/parts/airflow_89_cone_matte.png",
+  "fits": [
+    ["intake_flange:rs", "intake_flange:std"]
+  ],
+  "requires": [],
+  "conflicts": ["car:ridgeback_4x4", "car:vortex_r"],
+  "provides": ["intake:cone"],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0247,
+      "when": {
+        "rpm": [4000, 7200],
+        "fade": 1000
+      }
+    }
+  ],
+  "sound": {
+    "intake": {
+      "roar": 1.3,
+      "tone": 1.02
+    },
+    "exhaust": {
+      "tone": 1.02
+    }
+  },
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "airflow",
+    "kind": "intake",
+    "key": "89_cone_matte",
+    "settings": {
+      "diameter": 89,
+      "style": "cone",
+      "finish": "matte"
+    },
+    "stats": {
+      "topEnd": 0.0247,
+      "lowEnd": 0,
+      "mass": 1.2,
+      "roar": 1.3
+    },
+    "gain": 0.0247,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/airflow.json (and data/content/formulas.json families.intake): change those, not this file. On the Starter coupe it improves power by 2.47%: street, $160, unlocked at level 2.",
+  "bounds": {
+    "min": [0, -0.0586, -0.0296],
+    "max": [0.219, 0.1262, 0.292]
+  },
+  "massOffset": [0.116, 0.027, 0.169],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/intake/airflow/airflow_89_cone/apex_v8.glb",
+      "bounds": {
+        "min": [-0.0029, -0.1786, -0.0296],
+        "max": [0.379, 0.0294, 0.292]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/intake/airflow/airflow_89_cone/brute_500.glb",
+      "bounds": {
+        "min": [-0.0015, -0.1186, -0.139],
+        "max": [0.532, 0.0662, 0.0601]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intake/airflow/airflow_89_cone/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.0121, -0.2386, -0.0296],
+        "max": [0.219, 0.027, 0.292]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/intake/airflow/airflow_89_cone/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.0081, -0.1186, -0.1096],
+        "max": [0.439, 0.0662, 0.212]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intake/airflow/airflow_89_cone/strada_evo.glb",
+      "bounds": {
+        "min": [-0.0104, -0.3586, -0.0296],
+        "max": [0.299, 0.0277, 0.292]
+      }
+    }
+  },
+  "_fit": "It can't be made to fit the Ridgeback 4x4, Vortex R (its best fit still goes through the car), so it isn't for them.",
+  "tier": "street",
+  "unlock": {
+    "level": 2
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "_note": "A part family (docs/CONTENT_PIPELINE.md): npm run content -- build makes a part for every combination of the settings listed here and every finish, its stats from data/content/formulas.json (families.<kind>), its tier, price and unlock level from what it does. Change this file, not the parts it makes.",
+  "id": "spool",
+  "kind": "turbo",
+  "name": "Spool",
+  "settings": { "size": [44, 50, 56, 62] },
+  "finishes": ["polished", "matte"],
+  "status": "draft"
+}

@@ -1,0 +1,62 @@
+{
+  "_note": "A car body template (docs/CONTENT_PIPELINE.md): what a new car of this type starts as (npm run content -- new-car <id> --type sports) — its proportions (design: the placeholder model and where every socket goes, tools/content/placeholderCar.mjs carSockets), its shared standards (data/content/standards.json: so the parts made to them fit it), and the car whose physics, sockets and stock parts it starts from (donor). sizes: the proportions a car of this type usually has, the whole car as it's imported (mirrors and all: the game's cars are a little smaller than real ones) — the import warns outside them.",
+  "type": "sports",
+  "label": "Sports car",
+  "donor": "apex_v8",
+  "standards": {
+    "type": "sports",
+    "engineMount": "mid",
+    "bay": "large",
+    "boltPattern": "5x112",
+    "rims": [18, 20],
+    "seatMount": "std",
+    "steeringColumn": "std",
+    "bumperMount": "std",
+    "spoilerMount": "deck",
+    "exhaustRoute": "std"
+  },
+  "design": {
+    "style": "mid",
+    "length": 4.55,
+    "width": 1.93,
+    "height": 1.2,
+    "clearance": 0.1,
+    "beltline": 0.82,
+    "frontAxle": 1.45,
+    "rearAxle": -1.22,
+    "track": 1.63,
+    "wheel": {
+      "radius": 0.347,
+      "rimDiameter": 20,
+      "width": 0.265
+    },
+    "bonnet": {
+      "rear": 0.55,
+      "front": 0.55,
+      "back": 0.78
+    },
+    "roof": {
+      "front": 0.1,
+      "rear": -0.75,
+      "height": 1.2
+    },
+    "deck": {
+      "front": -1.95,
+      "height": 0.95
+    },
+    "engineCover": -0.8,
+    "engine": {
+      "at": [0, 0.42, -1.12],
+      "size": [0.75, 0.55, 0.7]
+    },
+    "seatZ": -0.25,
+    "floor": 0.16,
+    "columnDeg": 22
+  },
+  "sizes": {
+    "length": [3.9, 4.7],
+    "width": [1.85, 2.25],
+    "height": [1.1, 1.28],
+    "wheelbase": [2.25, 2.8]
+  }
+}

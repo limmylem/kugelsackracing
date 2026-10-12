@@ -48,3 +48,38 @@ test('no commits: still something to say', () => {
   const d = draft({ commits: [], date: '2026-10-11' });
   assert.ok(d.hook && d.captions.length);
 });
+
+// ---------- version 2 ----------
+import { playerFacing } from '../script/draft.mjs';
+
+test('v2: a commit that only touches tests, docs, tools, workflows or this tool is left out', () => {
+  assert.equal(playerFacing({ subject: 'x', files: ['tests/a.mjs', 'docs/A.md', '.github/workflows/x.yml'] }), false);
+  assert.equal(playerFacing({ subject: 'x', files: ['devlog/capture/capture.mjs', 'DEVLOG.md'] }), false);
+  assert.equal(playerFacing({ subject: 'x', files: ['server/tools/mp-browser-race.ts'] }), false);
+  assert.equal(playerFacing({ subject: 'x', files: ['docs/A.md', 'garage/view.js'] }), true);
+  const d = draft({ date: '2026-10-11', commits: [
+    { hash: 'a', subject: 'Devlog tool: the other player\'s name shown over their car', files: ['devlog/capture/capture.mjs'] },
+    { hash: 'b', subject: 'Adelaide, a whole city baked like San Francisco: the Regions list travels there', files: ['assets/map/adelaide.pmtiles', 'data/regions.json', 'docs/MAP.md'] },
+  ] });
+  assert.ok(!d.captions.some(c => /other player's name/.test(c)), d.captions.join(' / '));
+  assert.ok(d.captions.some(c => /Adelaide/.test(c)), d.captions.join(' / '));
+});
+
+test('v2: never a caption cut mid-phrase', () => {
+  assert.equal(clean('Regions: back to one you were in works again, the garage and the Real world button go back to the region you were last in'), 'Regions: back to one you were in works again');
+  assert.equal(clean('The game opens where you left off, not always San Francisco: the last region kept in the browser'), 'The game opens where you left off');
+  // (one long clause with no break: left out rather than cut)
+  assert.equal(clean('the lobby writes the players pings into their cells instead of drawing itself again every few seconds'), '');
+  for (const s of ['the garage and the', 'a fix for the', 'works with']) assert.ok(!/\b(and|the|for|with)$/.test(clean(s)), clean(s));
+});
+
+test('v2: the highlights come first, as written, and a HOOK: line sets the title', () => {
+  const d = draft({ date: '2026-10-11', highlights: ['HOOK: A whole new city to race', 'Adelaide is in the game', 'engines sound real now'], commits: [
+    { hash: 'a', subject: 'The garage\'s full fix of the whole car works again', files: ['garage/fix.js'] },
+    { hash: 'b', subject: 'Adelaide, a whole city baked like San Francisco', files: ['assets/map/a.pmtiles'] },
+  ] });
+  assert.equal(d.hook, 'A whole new city to race');
+  assert.deepEqual(d.captions.slice(0, 2), ['Adelaide is in the game', 'Engines sound real now']);
+  assert.ok(d.captions.some(c => /garage/i.test(c)), 'commits fill the rest');
+  assert.equal(d.captions.filter(c => /Adelaide/.test(c)).length, 1, 'no commit repeats a highlight');
+});

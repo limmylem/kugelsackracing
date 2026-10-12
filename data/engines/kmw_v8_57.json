@@ -1,0 +1,16 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): a big, lazy V8. Its settings here, its torque curve, mass and size from data/content/formulas.json engines.",
+  "id": "kmw_v8_57",
+  "maker": "Kugel Motorworks",
+  "layout": "v",
+  "cylinders": 8,
+  "displacement": 5.7,
+  "aspiration": "natural",
+  "idle": 650,
+  "redline": 6400,
+  "character": 0.35,
+  "mount": "long",
+  "sound": "v8",
+  "colour": "orange",
+  "status": "draft"
+}

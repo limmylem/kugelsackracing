@@ -1,0 +1,59 @@
+{
+  "_note": "Shared standards (Phase 8 Step 3, docs/CONTENT_PIPELINE.md): what a car is built to, so parts made to a standard fit every car built to it without listing cars part by part. A car lists its standards (car.json standards); garage/standards.js turns them into the tags parts' fits, requires and conflicts already use (garage/validate.js) — engine mounts and bay sizes, wheel bolt patterns and rim sizes, seat and steering wheel mounts, bumper, spoiler and exhaust mounting. All fictional: no maker's standard is copied.",
+  "types": {
+    "hatchback": { "label": "Hatchback" },
+    "saloon": { "label": "Saloon" },
+    "coupe": { "label": "Coupe" },
+    "estate": { "label": "Estate" },
+    "suv": { "label": "SUV" },
+    "pickup": { "label": "Pickup" },
+    "sports": { "label": "Sports car" }
+  },
+  "engineMounts": {
+    "_note": "Engine mount families: how the engine sits and bolts in. An engine is built for one family (data/engines: mounts).",
+    "long": { "label": "Longitudinal, front", "about": "In line with the car, in the front: rear- and all-wheel drive" },
+    "trans": { "label": "Transverse, front", "about": "Across the car, in the front: front-wheel drive" },
+    "mid": { "label": "Longitudinal, mid", "about": "Behind the seats" }
+  },
+  "bays": {
+    "_note": "Engine bay size classes, smallest first: a bay takes an engine its size or smaller. The size of an engine: its length, width and height at most these (metres).",
+    "order": ["compact", "medium", "large", "xl"],
+    "sizes": {
+      "compact": { "label": "Compact", "box": [0.62, 0.62, 0.62] },
+      "medium": { "label": "Medium", "box": [0.78, 0.74, 0.68] },
+      "large": { "label": "Large", "box": [0.92, 0.82, 0.72] },
+      "xl": { "label": "Extra large", "box": [1.08, 0.9, 0.76] }
+    }
+  },
+  "boltPatterns": {
+    "_note": "Wheel bolt patterns: studs × pitch circle (mm). A rim is drilled for one.",
+    "4x100": { "label": "4 × 100" },
+    "4x108": { "label": "4 × 108" },
+    "5x100": { "label": "5 × 100" },
+    "5x112": { "label": "5 × 112" },
+    "5x114.3": { "label": "5 × 114.3" },
+    "5x120": { "label": "5 × 120" },
+    "6x139.7": { "label": "6 × 139.7" }
+  },
+  "rimSizes": { "min": 13, "max": 24, "_note": "Rim diameters (inches) a car's standards may list: its wheels' range" },
+  "seatMounts": {
+    "std": { "label": "Standard rails", "about": "Four bolts, 400 × 360 mm" },
+    "wide": { "label": "Wide rails", "about": "Four bolts, 440 × 380 mm (larger cars)" }
+  },
+  "steeringColumns": {
+    "std": { "label": "Standard hub", "about": "Six-bolt quick-release boss" }
+  },
+  "bumperMounts": {
+    "std": { "label": "Clip and bolt", "about": "Clips along the top, two bolts each side" },
+    "tube": { "label": "Tube frame", "about": "Off-road: bolted to the chassis rails" }
+  },
+  "spoilerMounts": {
+    "boot": { "label": "Boot lid", "about": "Two or four bolts through the boot lid" },
+    "deck": { "label": "Engine deck", "about": "A mid-engined car's rear deck" },
+    "roof": { "label": "Roof edge", "about": "A hatch's or estate's roof spoiler" }
+  },
+  "exhaustRoutes": {
+    "std": { "label": "Under the floor, out the back" },
+    "side": { "label": "Out the side, ahead of the rear wheel" }
+  }
+}

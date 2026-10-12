@@ -83,15 +83,19 @@ let launch = null;
 const launchTools = () => launch ??= createLaunchTools({ api, h, say, when, errText,
   main: () => { tabs(); const m = $('main'); m.className = ''; m.replaceChildren(); return m; },
   pickPlayer: id => { showAdmin(); pick(id); }, replayEvidence: id => replayEvidence(id) });
+// (Phase 8 Step 3: the content manager — parts and cars, their workflow, checks, edits: admin/content.js)
+let contentTools = null;
+const showContent = async () => { contentTools ??= (await import('./content.js')).createContentTools({ api, h, say, when, errText, main: () => { tabs(); const m = $('main'); m.className = ''; m.style.gridTemplateColumns = ''; m.replaceChildren(); return m; } }); contentTools.showContent(); };
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
-  nav.replaceChildren(...[['Players', showAdmin], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
+  nav.replaceChildren(...[['Players', showAdmin], ['Content', showContent], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
     ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();
   const main = $('main');
   main.className = '';
+  main.style.gridTemplateColumns = '';
   const results = h('div', { class: 'list' }), searchMsg = h('div');
   const q = h('input', { type: 'search', placeholder: 'Name, email or id', autofocus: true, maxlength: 100 });
   const search = async () => {
@@ -199,6 +203,7 @@ function economyOf(id) {
     const msg = h('div');
     const ask = (text, fn) => async () => { const why = prompt(`${text}\n\nWhy? (required: it goes in the log)`); if (!why || why.trim().length < 3) return; try { await fn(why.trim()); say(msg, 'Done.', true); load(); } catch (err) { say(msg, errText(err)); } };
     const amount = h('input', { type: 'number', step: 1, placeholder: 'e.g. 500 or -500' }), amountWhy = h('input', { placeholder: 'Why (required)', maxlength: 500 });
+    const level = h('input', { type: 'number', step: 1, min: 1, value: e.economy.level, 'aria-label': 'Level' }), levelWhy = h('input', { placeholder: 'Why (required)', maxlength: 500 });
     const item = h('input', { placeholder: 'part id (or car id)', maxlength: 80 }), itemWhy = h('input', { placeholder: 'Why (required)', maxlength: 500 });
     const history = h('div');
     const showHistory = async iid => {
@@ -212,6 +217,9 @@ function economyOf(id) {
       h('div', { class: 'actions' },
         h('div', { class: 'action' }, h('label', {}, 'Give or take money', amount), amountWhy,
           h('button', { class: 'btn secondary', onclick: async () => { const n = Math.round(Number(amount.value)); if (!n || amountWhy.value.trim().length < 3) return say(msg, 'An amount (not zero) and a reason.'); if (!confirm(`${n > 0 ? 'Give' : 'Take'} ${money(Math.abs(n))}?`)) return; try { await api.post(`/admin/players/${encodeURIComponent(id)}/money`, { amount: n, reason: amountWhy.value.trim() }); say(msg, 'Done.', true); load(); } catch (err) { say(msg, errText(err)); } } }, 'Apply')),
+        // (their xp becomes the start of that level: what the level opens — quest tiers, parts — follows)
+        h('div', { class: 'action' }, h('label', {}, 'Set their level', level), levelWhy,
+          h('button', { class: 'btn secondary', onclick: async () => { const n = Math.round(Number(level.value)); if (!(n >= 1) || levelWhy.value.trim().length < 3) return say(msg, 'A level (1 or more) and a reason.'); if (n === e.economy.level) return say(msg, `They're level ${n} already.`); if (!confirm(`Set their level from ${e.economy.level} to ${n}? Their XP becomes the start of level ${n}.`)) return; try { const r = await api.post(`/admin/players/${encodeURIComponent(id)}/level`, { level: n, reason: levelWhy.value.trim() }); say(msg, `Level ${r.was} → ${r.level} (${r.xp.toLocaleString('en-GB')} XP).`, true); load(); } catch (err) { say(msg, errText(err)); } } }, 'Set')),
         h('div', { class: 'action' }, h('label', {}, 'Give a part or a car', item), itemWhy,
           h('button', { class: 'btn secondary', onclick: async () => { const v = item.value.trim(); if (!v || itemWhy.value.trim().length < 3) return say(msg, 'An id and a reason.'); const body = { give: /_car$|^(kaze_gt|hana_roadster|ridgeback_4x4|vortex_r|brute_500|strada_evo|apex_v8|starter_car)$/.test(v) ? { carId: v } : { partId: v }, reason: itemWhy.value.trim() }; try { await api.post(`/admin/players/${encodeURIComponent(id)}/items`, body); say(msg, 'Given.', true); load(); } catch (err) { say(msg, errText(err)); } } }, 'Give'))),
       h('h3', {}, 'Cars and their builds'),

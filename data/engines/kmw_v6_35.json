@@ -1,0 +1,16 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): its settings here, its torque curve, mass and size from data/content/formulas.json engines (overrides: torqueCurve, mass, size to set them yourself).",
+  "id": "kmw_v6_35",
+  "maker": "Kugel Motorworks",
+  "layout": "v",
+  "cylinders": 6,
+  "displacement": 3.5,
+  "aspiration": "natural",
+  "idle": 700,
+  "redline": 6000,
+  "character": 0.5,
+  "mount": "long",
+  "sound": "v6",
+  "colour": "silver",
+  "status": "draft"
+}

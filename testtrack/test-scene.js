@@ -103,10 +103,11 @@ import { bodyDef, wheelDef } from '../garage/detach.js';
 import { CORNERS } from '../garage/mechanical.js';
 import { testCar } from '../physics/testCars.js';
 import { createDamageReport, createDash } from './dashboard.js';
+import { createPlayerHud } from './playerHud.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
-import { ModelCache, createCarVisual, setEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { ModelCache, createCarVisual, setEnvironment, setTextureRenderer, proxyMaterials, crackedMaterial } from '../garage/visual.js';
 import { neutralToneMapping, skyDome, setSky, skyLook, createSkyReflections, createContactShadows } from '../effects/look.js';
 import { EffectsDirector } from '../effects/director.js';
 import { carEffectsInfo } from '../effects/carInfo.js';
@@ -753,6 +754,10 @@ async function createShared() {
   tacho.canvas.after(dash.el);
   document.body.appendChild(report.el);
   document.body.appendChild(dyno.el);
+  // (the players' HUD, playerHud.js; this one — #testHud, its full numbers on H — is the admins', index.html)
+  const playerHud = createPlayerHud(), playerDash = createDash();
+  playerHud.warnings.append(playerDash.el);
+  document.body.appendChild(playerHud.el);
   // the car's body model: where its sockets are (the physics) and how its wheels turn (the drawing)
   startup.step(`car model ${spec.model.file}`);
   const glbRes = await fetch(spec.model.file);
@@ -767,6 +772,7 @@ async function createShared() {
   startup.step('graphics (WebGL)');
   // (anti-aliasing is the graphics settings' — perf/graphics.js: the canvas has none of its own, so it can change while playing)
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  setTextureRenderer(renderer);       // (compressed (KTX2) model textures are decoded for it: garage/visual.js)
   const prof = createProfiler({ renderer, stutterFactor: perfCfg.stutterFactor });
   // the picture's tone mapping (effects/look.js): colours as they are, only the brightest — the sun on clear coat, the
   // sky's glow — rolled off to white
@@ -812,7 +818,7 @@ async function createShared() {
   document.body.appendChild(hintCard.el);
   const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
-    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
+    hud, info, flash, tacho, dyno, dash, report, playerHud, playerDash, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
     perfCfg, gfx, G: gfx.settings, skyRefl, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
     damageView: false, lastCrash: null,
     play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
@@ -2041,6 +2047,7 @@ function exhaustOff() { const st = shared.session.attach.stateOf('socket_exhaust
 function updateDash(b) {
   const s = shared, rows = s.session.mechanical.report(b.mechanical);
   s.dash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
+  s.playerDash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
   s.report.update(rows, b, s.prefs.damage ?? 'full', s.spec.steering.ratio);
 }
 
@@ -2088,6 +2095,11 @@ function updateHud(w, s, steps, sim) {
   const stuck = s.immobilized ? `<div class="test">CAN'T DRIVE · ${s.immobilized.join(' · ')}</div>` : '';
   const e = s.engine, T = s.timer, pct = x => Math.round(x * 100) + '%', radius = shared.spec.wheels.radius;
   const driven = s.wheels.filter(wh => wh.driven);
+  shared.playerHud.update({ place: w.name, kmh, gear: e.gear, mode: e.mode, rpm: e.rpm, redline: shared.spec.engine.redlineRpm, held: !!parked, limiter: e.fuelCut, blown: e.health.blown, floating: e.health.floating,
+    assists: s.assists, abs: s.absActive, tc: s.tcActive, esc: s.escActive, stuck: s.immobilized ?? null,
+    lap: s.lap ? { label: w.track.roads.find(r => r.startLine)?.style === 'gravel' ? 'Stage' : 'Lap', time: s.lap.running ? s.lap.t : null, best: s.lap.best, progress: s.lap.running ? s.lap.progress : null } : null });
+  // (driving: the loading messages done — players see their own HUD from here, index.html)
+  shared.hud.classList.add('ready');
   shared.hud.classList.toggle('compact', shared.compact);
   if (shared.compact) {
     shared.info.innerHTML = `

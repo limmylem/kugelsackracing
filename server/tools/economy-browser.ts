@@ -10,7 +10,7 @@
 //   node server/tools/economy-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig, signUp, makeStaff, passTwoFactorInPage } from '../test/helpers.ts';
+import { freshDatabase, testConfig, signUp, makeStaff, passTwoFactorInPage, endTest } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 
 const PORT = Number(process.env.PORT ?? 8787), BASE = `http://localhost:${PORT}`;  // (the test helpers' origin: the players are made through them)
@@ -172,4 +172,4 @@ try {
 }
 const failed = results.filter(r => !r).length;
 console.log(failed ? `\n${failed} of ${results.length} failed` : `\n${results.length} of ${results.length} ok`);
-process.exitCode = failed ? 1 : 0;
+endTest(failed);

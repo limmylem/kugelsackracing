@@ -8,7 +8,8 @@
   "_axes": "Car frame: +x left, +y up, +z forward, origin on the ground under the middle of the car. Units: metres, kilograms, newtons, radians, seconds.",
   "_tuning": "Tuned at the test centre (npm test, or the Tests tab in the tuning panel, P) to drive like a small, older, slightly soft rear-drive coupe: 0–100 km/h in about 9.1 s, 100–0 in about 41 m, 0.83 g on the skidpad with gentle understeer at the limit (it lets go at the front first) and about 4° of body roll, top speed about 191 km/h in 4th. Targets: tests/targets.json.",
   "_about": "Only what belongs to the body: chassis, dimensions, base aero, drive layout, the car's own electronics and controls, and its sockets. Everything else (engine, gearbox, suspension, wheels, tyres, panels…) is a part in data/parts, fitted at a socket; the stats calculator (garage/stats.js) builds the physics spec from the car plus its parts. `stock` lists the part the factory fits in each socket.",
-  "tags": ["car:starter_car", "chassis:starter", "engine_mount:starter", "gearbox_mount:starter", "diff_mount:starter", "spoiler_mount:boot", "bolt_pattern:4x100", "wheel_hub:std", "rim_fits:15", "rim_fits:16", "rim_fits:17", "brake_mount:std", "suspension_mount:std", "arb_mounts", "diff:std", "seat_mount:std", "steering_column:std", "exhaust_route:std", "intercooler_mount:std"],
+  "tags": ["car:starter_car", "chassis:starter", "engine_mount:starter", "gearbox_mount:starter", "diff_mount:starter", "wheel_hub:std", "brake_mount:std", "suspension_mount:std", "arb_mounts", "diff:std", "intercooler_mount:std"],
+  "standards": {"type": "coupe", "engineMount": "long", "bay": "medium", "boltPattern": "4x100", "rims": [15,17], "seatMount": "std", "steeringColumn": "std", "bumperMount": "std", "spoilerMount": "boot", "exhaustRoute": "std"},
   "model": {
     "_note": "The game draws the car from its body (file) with every part's model on its socket. file and the stock parts' models are made from source by tools/split-car.mjs (npm run build:car -- starter_car). The body faces +z with +x to the left and +y up, like the car frame, with the ground at y = 0. Its wheel sockets are the wheels' centres at ride height (the suspension mounts sit wheels.mountHeight above them); the right-hand wheel sockets are turned 180° round y so one wheel model fits all four, and the game spins each wheel about the car's axle. The steering wheel turns about socket_steering_wheel's z axis (the steering column). Any material named paintMaterial, on the body or a part, is the car's paint: each car in the game has its own. breakables: the glass and lights in the body that a hard enough hit breaks (garage/damage.js; data/damage.json breakables).",
     "source": "data/cars/starter_car/starter_car_v2.glb",
@@ -927,6 +928,16 @@
       "required": false,
       "position": [0, 0.28, 1.92],
       "pull": [0, 0, 1],
+      "blockedBy": [],
+      "focus": "front",
+      "stock": []
+    },
+    {
+      "name": "socket_aero_kit",
+      "slot": "aero_kit",
+      "required": false,
+      "position": [0, 0.15, 0],
+      "pull": [0, -1, 0],
       "blockedBy": [],
       "focus": "front",
       "stock": []

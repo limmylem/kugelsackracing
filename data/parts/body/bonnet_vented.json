@@ -40,5 +40,10 @@
     "liftFront": -0.07,
     "_note": "the vents let the air out from under the bonnet: less front lift than the stock one"
   },
-  "_note": "The stock bonnet with louvred vents: a little lighter, and less lift at the front. Made by npm run import."
+  "_note": "The stock bonnet with louvred vents: a little lighter, and less lift at the front. Made by npm run import.",
+  "collision": {
+    "method": "built-in",
+    "hulls": [[-0.7, -0.025, 0.017, 0.68, -0.049, 1.14, 0.467, -0.014, 0, -0.476, -0.034, 1.14, 0.103, -0.036, 0.659, -0.117, -0.02, 0.051, -0.472, -0.039, 0.557, 0.691, -0.037, 0.535, 0.017, -0.047, 1.14, 0.185, -0.027, 0.291, 0.365, -0.016, 0.937, -0.228, -0.013, 0.887, -0.685, -0.047, 0.864, -0.417, 0.001, 0.228, -0.15, -0.001, 0.443, 0.696, -0.03, 0.225]],
+    "volumes": [0.03071]
+  }
 }

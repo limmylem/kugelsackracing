@@ -40,6 +40,7 @@ for (const file of files) {
   const same = r.before && r.after && JSON.stringify(r.before.findings) === JSON.stringify(r.after.findings);
   if (r.before && !same) console.log(formatReport(rel(file), r.before, { colour, quiet: true, title: 'as it came' }));
   if (r.did?.length) console.log(r.did.map(d => `  fixed: ${d}`).join('\n'));
+  if (r.finished?.length) console.log(r.finished.map(d => `  made: ${d}`).join("\n"));
   if (r.after) console.log(formatReport(rel(file), r.after, { colour, quiet: true, title: same ? 'checked' : 'after fixing' }));
   if (!r.ok) { failed++; console.log(`  ✘ ${r.message}`); continue; }
   ok++;

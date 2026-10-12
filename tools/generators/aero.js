@@ -122,18 +122,19 @@ export function mudFlaps(id, car, s) {
 
 // The Apex's carbon aero kit: a splitter under the front bumper, dive planes, side blades along the
 // sills, and a diffuser with strakes under the back
+// (settings: protrude — how far the splitter reaches past the bumper, m; canards — 0 for none; diffuser — 0..1, its length)
 export async function aeroKit(id, car, s) {
   const m = new PartModel(id), at = car.socket('socket_aero_kit'), B = await car.bumperOutline();
   const p = (x, y, z) => [x - at[0], y - at[1], z - at[2]];
   // the splitter
   const half = B.halfWidth, low = B.low, t = 0.014;
   const pts = B.outline.map(([x, z]) => { const f = Math.max(0, (Math.abs(x) / half - 0.75) / 0.25); return [x, z - 0.1 * f * f]; });
-  const outline = [...pts.map(([x, z]) => [x, z + 0.09]), ...pts.map(([x, z]) => [x, z - 0.22]).reverse()].map(([x, z]) => [x - at[0], z - at[2]]);
+  const outline = [...pts.map(([x, z]) => [x, z + (s.protrude ?? 0.09)]), ...pts.map(([x, z]) => [x, z - 0.22]).reverse()].map(([x, z]) => [x - at[0], z - at[2]]);
   m.add(prism(outline, low - t - at[1], low - at[1], 'y'), 'carbon');
   // dive planes, two a side
   // (dive planes on the bumper's corners, ahead of the front wings)
   const wingFront = Math.max(...((await car.stockTris('socket_fender_FL')) ?? [[[0, 0, -9]]]).flat().map(q => q[2])) + 0.008;
-  for (const sx of [1, -1]) for (const [y, L0] of [[low + 0.12, 0.2], [low + 0.2, 0.16]]) {
+  for (const sx of (s.canards ?? 1) ? [1, -1] : []) for (const [y, L0] of [[low + 0.12, 0.2], [low + 0.2, 0.16]]) {
     const z = pts[0][1] - 0.05, L = Math.min(L0, z - wingFront);
     m.add(box(p(sx > 0 ? half + 0.003 : -half - 0.07, y, z - L), p(sx > 0 ? half + 0.07 : -half - 0.003, y + 0.006, z)), 'carbon');
   }
@@ -148,7 +149,7 @@ export async function aeroKit(id, car, s) {
   // the diffuser: a ramp under the back, and its strakes
   // (under the rear bumper: its floor and strakes below it)
   const rb = (await car.stockTris('socket_bumper_rear'))?.flat(), rz = rb ? Math.min(...rb.map(q => q[2])) : -car.collider.halfExtents[2], rLow = rb ? Math.min(...rb.map(q => q[1])) : car.sills.y;
-  const dl = 0.45, dw = half * 0.8, y0 = Math.min(car.sills.y, rLow) - 0.012;
+  const dl = 0.3 + 0.3 * (s.diffuser ?? 0.5), dw = half * 0.8, y0 = Math.min(car.sills.y, rLow) - 0.012;
   m.add(prism([[y0 - 0.008, rz + dl], [y0 - 0.008, rz + 0.02], [y0, rz + 0.02], [y0, rz + dl]].map(([y, z]) => [y - at[1], z - at[2]]), -dw, dw, 'x').map(t => t.map(([x, y, z]) => [x - at[0], y, z])), 'carbon');
   for (let i = 0; i < 5; i++) {
     const x = -dw * 0.8 + i * dw * 0.4;

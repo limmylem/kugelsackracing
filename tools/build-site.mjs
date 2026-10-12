@@ -7,6 +7,8 @@
 //     (Phase 7 Step 5: the game plays online without ?mp; ?mp=0 turns it off)
 //   - the main page's import map pointing the editor's imports of the game's modules back here (the editor's
 //     code comes from the API's address, the modules it shares with the game from this one: loaded once)
+//   - the content bundles (tools/content/bundle.mjs: data/bundle.json, and the cars' and parts' data in one file
+//     named by its content, cached for good — Phase 8 Step 3)
 //   - _headers (security headers, the content security policy, caching) and _redirects (assets/ → the tiles
 //     address, admin/ → the API's; nothing for editor/: Pages redirects even a file it has, and editor/access.js
 //     is here — the editor's own code is loaded from the API's address by site/urls.js)
@@ -39,12 +41,15 @@ const url = (name) => {
 // (the commit built: support and feedback messages say which version of the game they came from)
 const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 const SITE = { env, api: url('api'), game: url('game'), tiles: url('tiles'), rt: url('rt'), version: process.env.GITHUB_SHA?.slice(0, 7) ?? commit, multiplayer: true };
+// (each build's modules and styles under /v/<version>/: see "each deploy's code at an address of its own" below)
+const V = `/v/${SITE.version}`;
+const VERSIONED = [...CLIENT_DIRS.filter(d => !['assets', 'admin', 'editor'].includes(d)), 'packages'];
 const out = path.resolve(opt('--out', path.join(root, '.cache/site', env)));
 const LEAVE_OUT = new Set(['assets', 'admin', 'editor', 'dev']);
 // (editor/access.js, and the two helpers the game itself imports: roads.js for gunzipJson, markers3d.js for content's markers)
 const KEEP = new Set(['editor/access.js', 'editor/roads.js', 'editor/markers3d.js']);
 // (and single files the game never loads: the benchmarks' own scenes — tools/bench.mjs drives them on a dev page)
-const LEAVE_OUT_FILES = new Set(['perf/bench.js']);
+const LEAVE_OUT_FILES = new Set(['perf/bench.js', 'data/content/checks.json']);   // (and the content checks' results: the server's content manager reads them, not the game)
 
 // ---------- the files ----------
 fs.rmSync(out, { recursive: true, force: true });
@@ -86,6 +91,14 @@ if (missing.length) { console.error(`published files import files that aren't pu
 if (biggest.n > 25 * 1024 * 1024) { console.error(`${biggest.f} is over Pages' 25 MiB a file`); process.exit(1); }
 if (wanted.length > 19000) { console.error(`${wanted.length} files: over Pages' 20,000`); process.exit(1); }
 
+// ---------- the content bundles (Phase 8 Step 3: garage/contentBundle.js) ----------
+// (the cars' and parts' data in one file named by its content, and every model's version — data/bundle.json)
+{
+  const { buildBundle } = await import('./content/bundle.mjs');
+  const b = buildBundle({ root, out });
+  console.log(`content bundle ${b.version}: ${b.files} data files (${(b.bytes / 1048576).toFixed(1)} MB) in ${b.data}, ${b.models} models versioned`);
+}
+
 // ---------- where everything is ----------
 fs.mkdirSync(path.join(out, 'site'), { recursive: true });
 fs.writeFileSync(path.join(out, 'site/config.js'), `// (written by tools/build-site.mjs for ${env}: docs/DEPLOYMENT.md)\nglobalThis.KR_SITE = Object.freeze(${JSON.stringify(SITE)});\n`);
@@ -96,10 +109,35 @@ let html = fs.readFileSync(index, 'utf8');
 const m = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
 if (!m) { console.error('index.html has no import map'); process.exit(1); }
 const map = JSON.parse(m[1]);
-for (const dir of CLIENT_DIRS.filter(d => !['assets', 'admin', 'editor'].includes(d))) map.imports[`${SITE.api}/${dir}/`] = `/${dir}/`;
-map.imports[`${SITE.api}/packages/`] = '/packages/';
+for (const dir of VERSIONED) map.imports[`${SITE.api}/${dir}/`] = `${V}/${dir}/`;
 html = html.replace(m[0], `<script type="importmap">\n${JSON.stringify(map, null, 1)}\n</script>`);
 fs.writeFileSync(index, html);
+
+// ---------- each deploy's code at an address of its own ----------
+// A browser can keep a module it loaded before — and a page running new modules beside old ones is broken in ways
+// nobody meant. So each build's modules and styles are asked for under /v/<version>/ (the commit): every page's import
+// map sends /garage/, /play/ … there, its module scripts and style sheets point there, and a module's own relative
+// imports follow. Pages serves /v/<anything>/x as /x (_redirects), so nothing is copied twice.
+const htmlFiles = [...published].filter(f => f.endsWith('.html'));
+for (const f of htmlFiles) {
+  const file = path.join(out, f);
+  let page = fs.readFileSync(file, 'utf8');
+  const at = '/' + f;
+  const versioned = ref => {
+    if (/^(?:[a-z]+:|\/\/|#|data:)/i.test(ref)) return null;
+    const p = new URL(ref, `https://x${at}`).pathname;
+    return VERSIONED.includes(p.split('/')[1]) ? `${V}${p}` : null;
+  };
+  page = page.replace(/(<script\b[^>]*\btype="module"[^>]*\bsrc=")([^"]+)(")/g, (all, a, ref, b) => { const v = versioned(ref); return v ? a + v + b : all; });
+  page = page.replace(/(<link\b[^>]*\brel="stylesheet"[^>]*\bhref=")([^"]+)(")/g, (all, a, ref, b) => { const v = versioned(ref); return v ? a + v + b : all; });
+  if (/<script\b[^>]*type="module"/.test(page)) {
+    const mm = page.match(/<script type="importmap">([\s\S]*?)<\/script>/), pm = mm ? JSON.parse(mm[1]) : { imports: {} };
+    for (const dir of VERSIONED) pm.imports[`/${dir}/`] = `${V}/${dir}/`;
+    const tag = `<script type="importmap">\n${JSON.stringify(pm, null, 1)}\n</script>`;
+    page = mm ? page.replace(mm[0], tag) : page.replace(/<script\b[^>]*type="module"/, s => `${tag}\n${s}`);
+  }
+  fs.writeFileSync(file, page);
+}
 
 // ---------- headers and redirects ----------
 const origin = u => new URL(u.replace(/^ws(s?):/, 'http$1:')).origin;
@@ -128,6 +166,8 @@ const csp = [
   ...(local ? [] : ['upgrade-insecure-requests']),
 ].join('; ');
 const hsts = args.includes('--hsts') ? '\n  Strict-Transport-Security: max-age=31536000; includeSubDomains' : '';
+// (every file no-cache: the browser asks each time — a quick "not modified" when it hasn't changed — so a deploy is
+// what the next load runs, not a module the browser kept; but the content bundle, named by its content: cached for good)
 fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs for ${env}: docs/DEPLOYMENT.md)
 /*
   Content-Security-Policy: ${csp}
@@ -136,12 +176,10 @@ fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs
   X-Frame-Options: DENY
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()${hsts}
-/site/config.js
   Cache-Control: no-cache
-/data/*
-  Cache-Control: no-cache
-/scenes/*
-  Cache-Control: no-cache
+/bundles/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
 `);
 // (a page for addresses that don't exist: without one, Pages answers every unknown address with the game's main page)
 fs.writeFileSync(path.join(out, '404.html'), `<!doctype html>
@@ -152,5 +190,7 @@ fs.writeFileSync(path.join(out, '_redirects'), `# (written by tools/build-site.m
 /assets/* ${SITE.tiles}/assets/:splat 302
 /admin ${SITE.api}/admin/ 302
 /admin/* ${SITE.api}/admin/:splat 302
+/v/:version/assets/* ${SITE.tiles}/assets/:splat 302
+/v/:version/* /:splat 200
 `);
 console.log(`${env}: ${wanted.length} files, ${(bytes / 1048576).toFixed(1)} MB (the largest ${biggest.f}, ${(biggest.n / 1048576).toFixed(1)} MB) → ${path.relative(root, out)}`);

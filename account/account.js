@@ -43,7 +43,15 @@ function h(tag, attrs = {}, ...kids) {
 }
 const say = (text, good = false) => { $('msg').replaceChildren(text ? h('div', { class: `msg ${good ? 'good' : 'bad'}`, role: 'status' }, text) : ''); };
 const show = (...sections) => { $('view').replaceChildren(...sections); };
-const field = (label, attrs, hint = null) => { const i = h('input', attrs); return { el: h('label', {}, label, i, hint), input: i }; };
+// (a password: a Show button to see what's typed; aside: a link beside the label, like "Forgot your password?")
+const field = (label, attrs, hint = null, aside = null) => {
+  const i = h('input', attrs);
+  const box = attrs.type === 'password' ? h('span', { class: 'pw' }, i, h('button', { type: 'button', 'aria-label': 'Show the password', onclick: e => {
+    const shown = i.type === 'password'; i.type = shown ? 'text' : 'password';
+    e.currentTarget.textContent = shown ? 'Hide' : 'Show'; e.currentTarget.setAttribute('aria-label', shown ? 'Hide the password' : 'Show the password');
+  } }, 'Show')) : i;
+  return { el: h('label', {}, aside ? h('span', { class: 'lbl' }, label, aside) : label, box, hint), input: i };
+};
 // a form: its button busy while the request runs, the server's words if it says no
 const form = (els, label, run, { primary = true } = {}) => {
   const btn = h('button', { class: `btn ${primary ? 'primary' : 'secondary'}`, type: 'submit' }, label);
@@ -76,17 +84,18 @@ async function start() {
 // ---------- signed out ----------
 function socialButtons() {
   if (!cfg.social.length) return [];
-  return [h('div', { class: 'or' }, 'or'), ...cfg.social.map(p => h('button', { class: 'btn secondary', type: 'button', onclick: async () => {
+  return [h('div', { class: 'or' }, 'or'), h('div', { class: 'social' }, ...cfg.social.map(p => h('button', { class: 'btn secondary', type: 'button', 'aria-label': `Continue with ${p === 'google' ? 'Google' : 'Discord'}`, onclick: async () => {
     try {
       const r = await api.auth('/sign-in/social', { provider: p, callbackURL: nextUrl, newUserCallbackURL: here('terms'), errorCallbackURL: here(null) });
       if (r?.url && /^https:\/\//.test(r.url)) location.href = r.url;
     } catch (e) { say(e.message); }
-  } }, `Continue with ${p === 'google' ? 'Google' : 'Discord'}`))];
+  } }, p === 'google' ? 'Google' : 'Discord')))];
 }
 function viewSignIn() {
-  const email = field('Email', { type: 'email', required: true, autocomplete: 'username', maxlength: 254 }), pw = field('Password', { type: 'password', required: true, autocomplete: 'current-password', maxlength: 128 });
+  const email = field('Email', { type: 'email', required: true, autocomplete: 'username', maxlength: 254, placeholder: 'driver@example.com' });
+  const pw = field('Password', { type: 'password', required: true, autocomplete: 'current-password', maxlength: 128, placeholder: '••••••••' }, null, h('a', { href: here('forgot') }, 'Forgot your password?'));
   const resend = h('div'), bot = createBotCheck(cfg);
-  show(h('section', {}, h('h2', {}, 'Sign in'),
+  show(h('section', {}, h('h2', {}, 'Sign in'), h('p', { class: 'lede' }, 'Your garage, laps and leaderboards — on every device.'),
     form([email.el, pw.el, bot.el], 'Sign in', async () => {
       let r;
       try { r = await api.auth('/sign-in/email', { email: email.input.value.trim(), password: pw.input.value }, { headers: await bot.headers() }); }
@@ -105,8 +114,9 @@ function viewSignIn() {
       location.replace(next);
     }),
     resend, ...socialButtons(),
-    h('div', { class: 'links' }, h('a', { href: here('sign-up') }, 'Create an account'), h('a', { href: here('forgot') }, 'Forgot your password?')),
-    h('button', { class: 'btn ghost', type: 'button', onclick: playAsGuest }, 'Play as a guest')));
+    h('button', { class: 'btn guest', type: 'button', onclick: playAsGuest }, 'Play as a guest', h('span', { class: 'arrow', 'aria-hidden': 'true' }, '→')),
+    h('p', { class: 'caption' }, 'Make an account later and your progress comes with you.'),
+    h('p', { class: 'newhere' }, 'New here? ', h('a', { href: here('sign-up') }, 'Create an account'))));
 }
 // (a guest: the bot check first, on a little page of its own when it's on)
 async function playAsGuest() {

@@ -4,7 +4,7 @@
 // rim), and the part's triangles tested against everything else's: an edge of one passing through a
 // face of the other is a clash. The same test as the part preview page's (dev/parts.js).
 //
-//   const r = await fitCheck(db, 'kaze_gt', 'roll_cage_welded') → { ok, error, clashes: { owner: triangles } }
+//   const r = await fitCheck(db, 'kaze_gt', 'roll_cage_welded') → { ok, error, clashes: { owner: triangles }, triangles (the part's, tested) }
 
 import path from 'node:path';
 import { Garage } from '../../../garage/data.js';
@@ -71,14 +71,17 @@ async function placed(db, car, garage) {
       const b = partShape(part, db.parts, car.id).bounds, reach = Math.max(...[1, 2].flatMap(i => [Math.abs(b.min[i]), Math.abs(b.max[i])]));
       for (const [corner, name] of wheels) {
         const rimId = garage.build.sockets[name], d = rimId && db.parts[owned[rimId]?.partId]?.rim?.diameter, f = d ? Math.min(1, (d * 0.0254 / 2 - 0.034) / reach) : 1;
-        out.push({ socket: `${s.name}@${corner}`, home: name, part, tris: place(scaleBy(nodeMatrix(name, car.sockets.find(x => x.name === name)), [1, f, corner.endsWith('R') ? -f : f])) });
+        const m = scaleBy(nodeMatrix(name, car.sockets.find(x => x.name === name)), [1, f, corner.endsWith('R') ? -f : f]);
+        out.push({ socket: `${s.name}@${corner}`, home: name, part, model, matrix: m, look, tris: place(m) });
       }
       continue;
     }
-    out.push({ socket: s.name, home: s.node ?? s.name, part, tris: place(scaleBy(nodeMatrix(s.node ?? s.name, s), sc)) });
+    const m = scaleBy(nodeMatrix(s.node ?? s.name, s), sc);
+    out.push({ socket: s.name, home: s.node ?? s.name, part, model, matrix: m, look, tris: place(m) });
   }
   return { body, parts: out };
 }
+export { placed };
 
 // ---------- for the generators: fitting a part into a car as they make it ----------
 
@@ -173,7 +176,7 @@ export async function fitCheck(db, carId, partId, { detail = false } = {}) {
     const near = o.tris.map(t => ({ t, b: boxOf(t) })).filter(x => overlap(x.b, all));
     for (const a of own) for (const b of near) if (overlap(a.b, b.b) && (crosses(a.t, b.t) || crosses(b.t, a.t))) { clashes[o.owner] = (clashes[o.owner] ?? 0) + 1; if (detail) pairs.push({ owner: o.owner, part: a.t, other: b.t }); break; }
   }
-  return { ok: !Object.keys(clashes).length, clashes, with: fit.with, ...(detail && { pairs }) };
+  return { ok: !Object.keys(clashes).length, clashes, with: fit.with, triangles: own.length, ...(detail && { pairs }) };
 }
 
 // (an edge of triangle a passing through triangle b, not just touching it)

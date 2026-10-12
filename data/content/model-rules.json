@@ -1,7 +1,35 @@
 {
-  "_note": "What a model must be like to go in the game: read by npm run check-models, npm run import and the part preview page, and written out in plain English in docs/MODELLING_GUIDE.md (npm run guide rewrites its tables from this file). Lengths in metres, in the socket's frame (the car frame for a car): +x the car's left, +y up, +z forward. size: [min, max] of the model's extent along each axis. origin: where the model's origin (its socket) must be on each axis — centre (the middle of the model), min / max (its lowest / highest point: left, down or back is min), within (anywhere inside it) — give or take originTolerance. triangles: the budget (over it: a warning; over twice it: a failure). density: kg per m³ of the model's volume, for the mass the importer estimates (clamped to massRange).",
+  "_note": "What a model must be like to go in the game: read by npm run check-models, npm run import and the part preview page, and written out in plain English in docs/MODELLING_GUIDE.md (npm run guide rewrites its tables from this file). Lengths in metres, in the socket's frame (the car frame for a car): +x the car's left, +y up, +z forward. size: [min, max] of the model's extent along each axis. origin: where the model's origin (its socket) must be on each axis — centre (the middle of the model), min / max (its lowest / highest point: left, down or back is min), within (anywhere inside it) — give or take originTolerance. triangles: the budget (over it: a warning; over twice it: a failure). template.detach: how it comes loose and off in a crash (garage/detach.js; mounts 'ends': worked out from the model, the two ends of its longest side). density: kg per m³ of the model's volume, for the mass the importer estimates (clamped to massRange).",
   "originTolerance": 0.03,
   "textureMaxSize": 1024,
+  "lods": {
+    "_note": "Levels of detail (tools/content/lods.mjs): a model with at least `from` triangles gets each level made by meshoptimizer's simplifier when it's imported (or brings its own: Blender objects named <name>__lod1), at `ratio` of its triangles, as near as `error` (a share of its size) allows. A level's budget is the model's triangle budget × its ratio: over it, a warning; over twice it, a failure. The game draws a far car in one piece from level 1.",
+    "from": 600,
+    "levels": [
+      {
+        "ratio": 0.35,
+        "error": 0.02
+      }
+    ]
+  },
+  "ktx2": {
+    "_note": "Compressed textures (tools/content/ktx2.mjs, KTX2 / Basis Universal): a texture at least `from` pixels on its longer side is compressed when it's imported — colour (base colour, emissive) as ETC1S at `quality`, normal maps and the rest as UASTC — and the game decodes it on the graphics card (its transcoder fetched only when a model has one). The game's own palettes are far smaller and stay PNG.",
+    "from": 512,
+    "quality": 160
+  },
+  "collision": {
+    "_note": "Collision shapes (tools/content/collision.mjs) for parts that can come off in a crash (their type's template has detach): up to maxHulls convex hulls of up to maxPoints corners each — CoACD's if it's installed (pip install coacd), else the built-in splitter's (a grid of `cells` across the model; a hull is split while more than `concavity` of it is empty space). Kept in the part's file as collision; physics/looseParts.js uses them for a part lying in the road.",
+    "maxHulls": 4,
+    "maxPoints": 16,
+    "concavity": 0.25,
+    "cells": 40
+  },
+  "dent": {
+    "_note": "Dents (garage/dents.js): to dent a part the game makes a finer copy of it, no edge longer than maxEdge (m). Its triangles, worked out from the model: over maxTriangles (a car body: maxCarTriangles — the starter car's, the most today, is about 112,000), a warning (the first dent stutters); over twice it, a failure.",
+    "maxEdge": 0.07,
+    "maxTriangles": 30000,
+    "maxCarTriangles": 150000
+  },
   "materials": {
     "_note": "The material names a model may use: paint is the car's paint (it follows the player's colour), car_atlas the shared colour-palette texture, glass and light_* the car's own (light_aux: an extra lamp: fog lights, light bars, underglow — it glows the part's light colour), rim_finish a rim's face (it takes the rim's finish: chrome, black…), caliper and seat_fabric surfaces in their own colour that keep it whatever the part's finish, and any finish in data/finishes.json (chrome, carbon, titanium, raw_metal…) for surfaces that are always that finish",
     "names": ["paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric"],
@@ -54,6 +82,13 @@
           }
         },
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1500,
+          "looseThreshold": 12,
+          "detachThreshold": 6
+        },
         "todo": ["price", "aero"]
       }
     },
@@ -108,6 +143,20 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [-110, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 10,
+          "detachThreshold": 85,
+          "looseDrag": 0.12,
+          "open": 0.5,
+          "pop": 1.2
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -133,6 +182,20 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2000,
+          "looseThreshold": 20,
+          "detachThreshold": 85,
+          "looseDrag": 0.03,
+          "open": 0.3,
+          "pop": 1
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -158,6 +221,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 900,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.02
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -183,6 +255,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 900,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.02
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -208,6 +289,19 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [0, 1, 0],
+            "limits": [-70, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 12,
+          "detachThreshold": 90,
+          "looseDrag": 0.05,
+          "pop": 2
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -233,6 +327,19 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [0, 1, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 12,
+          "detachThreshold": 90,
+          "looseDrag": 0.05,
+          "pop": 2
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -258,6 +365,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 700,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.015
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -283,6 +399,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 700,
+          "looseThreshold": 35,
+          "detachThreshold": 70,
+          "looseDrag": 0.015
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -308,6 +433,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 600,
+          "looseThreshold": 30,
+          "detachThreshold": 65,
+          "looseDrag": 0.01
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -333,6 +467,15 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "hanging",
+          "mounts": "ends",
+          "attachStrength": 600,
+          "looseThreshold": 30,
+          "detachThreshold": 65,
+          "looseDrag": 0.01
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -358,6 +501,13 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 300,
+          "looseThreshold": 20,
+          "detachThreshold": 15
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -383,6 +533,13 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 300,
+          "looseThreshold": 20,
+          "detachThreshold": 15
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -573,6 +730,20 @@
       "template": {
         "fits": ["car:starter_car"],
         "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [0, 70]
+          },
+          "attachStrength": 2000,
+          "looseThreshold": 20,
+          "detachThreshold": 85,
+          "looseDrag": 0.03,
+          "open": 0.3,
+          "pop": 1
+        },
         "todo": ["price", "fits"]
       }
     },
@@ -855,6 +1026,13 @@
       "massRange": [1, 10],
       "template": {
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
         "todo": ["price", "effects"]
       }
     },
@@ -879,6 +1057,13 @@
       "massRange": [0.3, 4],
       "template": {
         "contactMaterial": "plastic",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
         "todo": ["price", "effects"]
       }
     },
@@ -927,6 +1112,13 @@
       "massRange": [2, 25],
       "template": {
         "contactMaterial": "carbon",
+        "detach": {
+          "detachable": true,
+          "looseType": "none",
+          "attachStrength": 1800,
+          "looseThreshold": 12,
+          "detachThreshold": 8
+        },
         "todo": ["price", "effects"]
       }
     },

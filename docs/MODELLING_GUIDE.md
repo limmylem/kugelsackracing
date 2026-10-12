@@ -109,6 +109,25 @@ its generator's settings and running it again — never the `.glb`. A part file 
 - **Not generated**: anything that has to follow a car's curves — bumpers, bonnets, fenders, widebody
   flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them).
 
+## The Blender add-on
+
+`npm run blender-addon` makes `tools/blender/dist/ognistrada_tools.zip`; in Blender, **Edit › Preferences › Add-ons ›
+Install from Disk**, pick it and tick **Ognistrada tools**. Its panel is in the 3D View's sidebar (**N**) ›
+**Ognistrada**: **Set up the scene** (metres), what the model is and its name, **Add socket** (an empty named exactly
+as the game wants, at the 3D cursor — for a car), **Place at origin** (the attach point to 0, 0, 0, by the type's
+rule), **Check** (these rules, in plain words with how to fix each) and **Export for the game** (checks, then writes
+`<type>_<name>.glb` with the right settings into the folder chosen — the game's `incoming/`). See
+[CONTENT_PIPELINE.md](CONTENT_PIPELINE.md).
+
+## Levels of detail, textures, crashes
+
+- **Levels of detail**: the importer makes a model's LOD1 (for far away) with meshoptimizer. To make your own, add a
+  copy named `<object>__lod1` with fewer triangles: it's checked against its budget (the model's budget × the share in
+  the rules: "LOD1 has 3× too many triangles…").
+- **Textures** of 512 px or more are compressed to KTX2 by the importer: keep them as PNG or JPEG in Blender.
+- **Parts that come off in a crash** (panels, bumpers, spoilers…) get collision hulls and their mounts from the model:
+  keep them closed and without stray faces far from the part.
+
 ## Tools
 
 | Command | What it does |
@@ -200,7 +219,7 @@ The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning
 
 ### Materials and textures
 
-Material names: `paint`, `car_atlas`, `glass`, `rim_finish`, `caliper`, `seat_fabric`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`, `titanium`. Textures at most 1024×1024, sides a power of two.
+Material names: `paint`, `car_atlas`, `glass`, `rim_finish`, `caliper`, `seat_fabric`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`, `titanium`, `polished`, `painted`. Textures at most 1024×1024, sides a power of two.
 
 <!-- rules:end -->
 

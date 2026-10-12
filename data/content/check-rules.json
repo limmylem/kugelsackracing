@@ -1,0 +1,56 @@
+{
+  "_note": "The automatic checks on every part (Phase 8 Step 3; npm run content -- check, tools/content/checks.mjs; docs/CONTENT_PIPELINE.md), on every car it fits: what each check runs and what passes. Results go in data/content/checks.json (the content manager shows them); a part that fails one can't be published, and npm run content -- verify (the pre-commit hook and CI) fails while any part's results are missing, out of date or failing.",
+  "fit": {
+    "_note": "Fit and clipping: the part fitted through the garage (with what it needs), every model of the build placed as the game draws it, and the part's triangles tested against everything else's (tools/generators/lib/fitcheck.js). It may go through the body or another part no more than the car's own stock part there does (panels modelled with the car meet it), give or take extra triangles or share of its own, whichever is more; what bolts onto the engine (a turbo, an intake, a supercharger, a header) may touch the engine fitted in up to engineTouch places, or engineShare of its triangles, whichever is more. The car's stock part itself is what the others are measured against.",
+    "engineTouch": 20,
+    "engineShare": 0.04,
+    "extra": 3,
+    "share": 0.02,
+    "known": {
+      "_note": "Problems the fit check found in parts players already have, kept (waived) until they're fixed: for each part, on each car, what it may go through and in how many places at most (any more, or anything else, fails again) and why. Leaving them off those cars now would make a player's car that has one fitted undrivable until it came off. The content manager shows them; docs/KNOWN_ISSUES.md lists them. A part that isn't published yet can't be waived: fix it.",
+      "spoiler_ducktail": {
+        "cars": { "ridgeback_4x4": { "the body": 56 }, "vortex_r": { "the body": 30 } },
+        "why": "Shaped for a coupe's boot lid: on the Ridgeback 4x4's tailgate and the Vortex R's hatch it sinks into the body. To fix: a version for each (byCar), or leave it off them (conflicts) once no player has it fitted there."
+      },
+      "brute_500_engine": {
+        "cars": { "kaze_gt": { "the body": 7, "Bonnet (Kaze GT, stock)": 14 } },
+        "why": "The V8 swapped into the Kaze GT (its V8 swap kit) is taller than the Kaze GT's bonnet. To fix: a raised (cowl) bonnet for the Kaze GT that the swap needs."
+      },
+      "strada_evo_engine": {
+        "cars": { "kaze_gt": { "Bonnet (Kaze GT, stock)": 7 } },
+        "why": "The turbo four swapped into the Kaze GT (its turbo four swap kit) touches the underside of the Kaze GT's bonnet. To fix: the raised bonnet above, or the engine sat lower in the swap."
+      },
+      "supercharger_twin_screw": {
+        "cars": { "kaze_gt": { "5.0 L V8 (Brute 500, stock)": 106, "Bonnet (Kaze GT, stock)": 44 } },
+        "why": "It only goes on the Kaze GT with the V8 swapped in (above), and on that V8 it goes through the Kaze GT's bonnet too. To fix: with the raised bonnet."
+      }
+    }
+  },
+  "drive": {
+    "_note": "A short drive at the test centre (physics/testSuite.js): 0–100 km/h from a standing start, then 100–0 braking. Everything about the car must stay a real number, the car upright and on its wheels, and both runs finish within these.",
+    "zeroTo100": 45,
+    "braking": 90
+  },
+  "crash": {
+    "_note": "A crash with the part on (garage/crashSuite.js): into the test centre's wall at kmh, front first. The damage, what came loose, whether it can carry on and what fixing it costs must all come out as real numbers, and the repair be at most maxOfWin times a race win (data/economy.json raceRewards).",
+    "kmh": 60,
+    "direction": "front",
+    "maxOfWin": 2
+  },
+  "sound": {
+    "_note": "Its sound (audio/dsp.js, the game's own code, rendered from the sound files): a part with sound settings, or an engine, on the first car it fits — a second at three-quarters of the redline, full throttle — must sound (not silent), stay a real signal, and change as its settings say (louder when its exhaust level is over 1). An engine's sound must have its cylinders and cover its revs.",
+    "seconds": 1,
+    "peak": 4
+  },
+  "budget": {
+    "_note": "Its models against the model rules (data/content/model-rules.json): triangles over the type's budget a warning, over twice it a failure; textures no bigger than textureMaxSize; a model file no bigger than maxBytes.",
+    "maxBytes": 400000
+  },
+  "economy": {
+    "_note": "Its price and what it does (tools/content/balance.mjs, data/content/tiers.json): its price within its tier's band for its slot, what it does within its tier's band (measured as the balance report does), and not far better value than the slot's other parts — gain per dollar at most valueOutlier times the best of the slot's hand-made parts (too cheap for what it does).",
+    "valueOutlier": 1.6
+  },
+  "classes": {
+    "_note": "Class limits (data/content/balance.json): the most powerful build of every car (tools/content/maxbuild.mjs: every part, drafts too — anything that could be published — every setting) at most maxClassJump classes above its stock class. Run when any part that changes how a car performs is new or changed."
+  }
+}

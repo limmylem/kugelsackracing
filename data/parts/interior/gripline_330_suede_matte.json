@@ -1,0 +1,98 @@
+{
+  "id": "gripline_330_suede_matte",
+  "name": "Gripline steering wheel, 330 mm, matte black",
+  "category": "interior",
+  "slot": "steering_wheel",
+  "kind": "component",
+  "price": 690,
+  "mass": 0.98,
+  "model": "assets/parts/interior/gripline/gripline_330_suede/starter_car.glb",
+  "icon": "assets/icons/parts/gripline_330_suede_matte.png",
+  "fits": ["steering_column:std"],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "looks",
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "gripline",
+    "kind": "steering_wheel",
+    "key": "330_suede_matte",
+    "settings": {
+      "diameter": 330,
+      "dish": 30,
+      "spokes": 3,
+      "grip": "suede",
+      "finish": "matte"
+    },
+    "stats": {
+      "mass": 0.98
+    },
+    "gain": null,
+    "priceFactor": 0.9946
+  },
+  "_generated": "Made by npm run content -- build from data/families/gripline.json (and data/content/formulas.json families.steering_wheel): change those, not this file. sport: priced by its settings, $690, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.182, -0.182, -0.099],
+    "max": [0.182, 0.184, 0]
+  },
+  "massOffset": [0, 0.002, -0.071],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/apex_v8.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.119],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/brute_500.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/strada_evo.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/gripline/gripline_330_suede/vortex_r.glb",
+      "bounds": {
+        "min": [-0.182, -0.182, -0.099],
+        "max": [0.182, 0.184, 0]
+      }
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

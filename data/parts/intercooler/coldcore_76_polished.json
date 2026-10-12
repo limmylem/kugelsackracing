@@ -1,0 +1,92 @@
+{
+  "id": "coldcore_76_polished",
+  "name": "Coldcore intercooler, 76 mm core, polished",
+  "category": "intercooler",
+  "slot": "intercooler",
+  "kind": "modifier",
+  "price": 760,
+  "mass": 10.7,
+  "model": "assets/parts/intercooler/coldcore/coldcore_76/apex_v8.glb",
+  "icon": "assets/icons/parts/coldcore_76_polished.png",
+  "fits": ["intercooler_mount:std"],
+  "requires": [],
+  "conflicts": ["car:starter_car"],
+  "provides": ["intercooler"],
+  "effects": [],
+  "look": {
+    "finish": "polished"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "coldcore",
+    "kind": "intercooler",
+    "key": "76_polished",
+    "settings": {
+      "width": 0.6,
+      "height": 0.24,
+      "thickness": 76,
+      "finish": "polished"
+    },
+    "stats": {
+      "core": 10.9,
+      "mass": 10.7
+    },
+    "gain": null,
+    "priceFactor": 1.1263
+  },
+  "_generated": "Made by npm run content -- build from data/families/coldcore.json (and data/content/formulas.json families.intercooler): change those, not this file. sport: priced by its settings, $760, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.3, -0.12, -0.2036],
+    "max": [0.3, 0.12, 0.042]
+  },
+  "massOffset": [0, 0, -0.007],
+  "byCar": {
+    "brute_500": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/brute_500.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2636],
+        "max": [0.3, 0.16, -0.018]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.3, -0.084, -0.2636],
+        "max": [0.3, 0.0856, -0.018]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.3, -0.084, -0.2636],
+        "max": [0.3, 0.0856, -0.018]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2636],
+        "max": [0.3, 0.16, -0.018]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/strada_evo.glb",
+      "bounds": {
+        "min": [-0.3, -0.084, -0.2636],
+        "max": [0.3, 0.0856, -0.018]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_76/vortex_r.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2636],
+        "max": [0.3, 0.16, -0.018]
+      }
+    }
+  },
+  "_fit": "It can't be made to fit the Starter coupe (its best fit still goes through the car), so it isn't for it.",
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

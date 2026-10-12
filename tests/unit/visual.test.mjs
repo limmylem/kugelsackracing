@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { Garage, loadGarageData } from '../../garage/data.js';
-import { ModelCache, createCarVisual, resolveLook, tyreGeometry } from '../../garage/visual.js';
+import { ModelCache, createCarVisual, lodOf, resolveLook, tyreGeometry } from '../../garage/visual.js';
 import { tyreFit } from '../../garage/tyres.js';
 import { glbJson } from '../../physics/sockets.js';
 
@@ -24,7 +24,7 @@ function standIn(url) {
   const materials = (json.materials || []).map(m => new THREE.MeshStandardMaterial({ name: m.name }));
   const make = i => {
     const n = json.nodes[i], o = n.mesh !== undefined ? new THREE.Group() : new THREE.Object3D();
-    o.name = n.name;
+    o.name = n.name; o.userData.name = n.name;
     if (n.translation) o.position.fromArray(n.translation);
     if (n.rotation) o.quaternion.fromArray(n.rotation);
     if (n.mesh !== undefined) for (const p of json.meshes[n.mesh].primitives) o.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), materials[p.material]));
@@ -321,6 +321,35 @@ test('a car in one piece: one mesh in place of the whole (far away), the shadow 
   vis.setDetail('full');
   assert.notEqual(vis.proxy, was, 'made again after a parts change');
   vis.dispose();
+});
+
+// Phase 8 Step 3 (docs/CONTENT_PIPELINE.md): a model's level of detail 1 (its lods scene) is what the car in one piece is
+// made from — a dented mesh's too
+test('a car in one piece is made from its models\' levels of detail where they have them', async () => {
+  const withLods = url => {
+    const m = standIn(url);
+    if (url !== car.model.file) return m;
+    const lods = new THREE.Group(), meshNodes = [];
+    lods.name = 'lods';
+    m.scene.traverse(o => { if (o.userData.name && o.children.some(c => c.isMesh)) meshNodes.push(o); });
+    for (const o of meshNodes) {
+      const l = new THREE.Group();
+      l.userData = { name: `${o.name}__lod1`, lodOf: o.userData.name, lod: 1 };
+      for (const c of o.children.filter(c => c.isMesh)) l.add(new THREE.Mesh(new THREE.TetrahedronGeometry(0.05), c.material));
+      lods.add(l);
+    }
+    return { scene: m.scene, scenes: [m.scene, lods] };
+  };
+  const g = fresh(), plain = await createCarVisual({ car, finishes: db.finishes, models: cache() });
+  const lodded = await createCarVisual({ car, finishes: db.finishes, models: new ModelCache({ load: async url => withLods(url) }) });
+  await plain.applyBuild(g.build, g.view); await lodded.applyBuild(g.build, g.view);
+  plain.setDetail('simple'); lodded.setDetail('simple');
+  const tris = v => v.proxy.geometry.index.count / 3;
+  let bodyMeshes = 0;
+  lodded.root.traverse(o => { if (o.isMesh && lodOf(o.geometry)) bodyMeshes++; });
+  assert.ok(bodyMeshes > 0, 'the body\'s meshes have their LOD1');
+  assert.equal(tris(lodded), tris(plain) - bodyMeshes * (12 - 4), 'each of the body\'s meshes drawn from its LOD1 (4 triangles, not 12)');
+  plain.dispose(); lodded.dispose();
 });
 
 test('car models no car uses any more: kept up to keepBytes for the next race, the least recently used let go first', async () => {

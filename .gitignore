@@ -19,6 +19,12 @@ server/.data/
 .env.*
 !.env.example
 
+# the Blender add-on as a zip (npm run blender-addon)
+tools/blender/dist/
+
+# a local Redis's save file (tests that start one): never the repository's
+dump.rdb
+
 # the devlog video tool (DEVLOG.md): its output — clips, videos, scripts — and any music you keep next to it.
 # Never committed: videos and music are big, and music may not be yours to share.
 devlog/out/

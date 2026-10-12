@@ -1,0 +1,77 @@
+{
+  "id": "crate_kmw_i4_16",
+  "name": "Kugel Motorworks 1.6 L inline-four (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 3770,
+  "mass": 111.4,
+  "model": "assets/parts/engine/crate_kmw_i4_16.glb",
+  "icon": "assets/icons/parts/crate_kmw_i4_16.png",
+  "fits": ["mount:long", "bay:compact"],
+  "requires": [],
+  "conflicts": ["car:starter_car"],
+  "provides": ["engine_family:crate_kmw_i4_16", "engine_layout:inline4", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[850, 109], [1650, 124], [2450, 136], [3250, 146], [4050, 152], [4800, 156], [5500, 157], [5600, 157], [6400, 151], [7200, 141], [7600, 127]],
+    "idleRpm": 850,
+    "redlineRpm": 7200,
+    "inertia": 0.132,
+    "induction": "natural",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/i4.json",
+    "friction": {
+      "base": 7.36,
+      "perKrpm": 3.68,
+      "perKrpm2": 0.4269
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "street",
+  "unlock": {
+    "level": 2
+  },
+  "bounds": {
+    "min": [-0.2523, 0, -0.2994],
+    "max": [0.187, 0.4557, 0.298]
+  },
+  "massOffset": [0, 0.195, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "inline",
+    "cylinders": 4,
+    "displacement": 1.6,
+    "aspiration": "natural",
+    "boost": 0,
+    "mounts": ["long"],
+    "bay": "compact",
+    "size": [0.6, 0.492, 0.512],
+    "peakTorque": 157,
+    "peakPower": 143,
+    "words": "1.6 L inline-four"
+  },
+  "generated": {
+    "engine": "kmw_i4_16"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_16.json (and data/content/formulas.json engines): change those, not this file. 1.6 L inline-four: 157 N·m, 143 hp, 111.4 kg, 0.6 × 0.492 × 0.512 m (a compact bay or bigger). It needs nothing else fitted.",
+  "_fit": "It doesn't fit the Starter coupe (through the body in 8 places): so it isn't for it."
+}

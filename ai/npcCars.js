@@ -8,6 +8,7 @@
 //   buildNpcCar(db, { carId, quest, target, seed, cfg, qcfg }) → { carId, garage, stats, rating, className, kw, kg, parts: [partId] }
 //   eligibleModels(db, quest, config) → [carId] the models the quest lets in (stock)
 
+import { released } from '../garage/content.js';
 import { Garage } from '../garage/data.js';
 import { entryReasons, CAR_CODES } from '../quest/rules.js';
 import { rng as makeRng, hashSeed } from './rng.js';
@@ -16,7 +17,7 @@ const summary = stats => ({ className: stats.totals.rating.class, kw: stats.tota
 const fitsQuest = (quest, stats, qcfg) => !entryReasons({ quest, car: summary(stats), player: null, fee: 0, config: qcfg }).some(r => CAR_CODES.has(r.code));
 
 export function eligibleModels(db, quest, qcfg) {
-  return Object.keys(db.cars).filter(id => !db.cars[id].hidden && fitsQuest(quest, new Garage(db, null, id).stats(), qcfg));
+  return Object.keys(db.cars).filter(id => !db.cars[id].hidden && released(db.cars[id]) && fitsQuest(quest, new Garage(db, null, id).stats(), qcfg));
 }
 
 // the rating to aim for: as fast as the quest's (or the NPC settings') class allows, a little under; an
@@ -37,7 +38,7 @@ export function buildNpcCar(db, { carId, quest, target, seed = 1, cfg, qcfg }) {
   let stats = g.stats(), best = Math.abs(stats.totals.rating.index - target);
   const fitted = [];
   const car = db.cars[carId], slots = new Set(car.sockets.map(s => s.slot));
-  const candidates = Object.values(db.parts).filter(p => slots.has(p.slot) && !p.retired && !p.todo?.length);
+  const candidates = Object.values(db.parts).filter(p => slots.has(p.slot) && !p.retired && !p.todo?.length && released(p));
   for (let round = 0; round < cfg.cars.maxParts && stats.totals.rating.index < target - cfg.cars.tolerance; round++) {
     let pick = null;
     for (const part of rng.shuffle(candidates).slice(0, 18)) {

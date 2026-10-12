@@ -1,0 +1,16 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): a flat-six for a mid-engined car. Its settings here, its torque curve, mass and size from data/content/formulas.json engines.",
+  "id": "kmw_flat6_30",
+  "maker": "Kugel Motorworks",
+  "layout": "flat",
+  "cylinders": 6,
+  "displacement": 3.0,
+  "aspiration": "natural",
+  "idle": 850,
+  "redline": 6000,
+  "character": 0.6,
+  "mount": "mid",
+  "sound": "v6",
+  "colour": "grey",
+  "status": "draft"
+}

@@ -30,6 +30,26 @@ export async function freshDatabase(tag: string) {
   };
 }
 
+// The end of a test program run in CI (the browser checks): its exit code, and it ends by itself once everything it
+// opened is closed. If anything's still open a while after — a connection, a timer or a worker left behind, worth
+// finding — it says what and ends anyway, rather than holding CI's job until its time runs out.
+export function endTest(failed: number, graceMs = 15_000) {
+  process.exitCode = failed ? 1 : 0;
+  setTimeout(() => {
+    const open = (process as any)._getActiveHandles().map((h: any) => {
+      const n = h?.constructor?.name ?? typeof h;
+      if (n === 'Socket') return `a connection (${h.localPort ?? 'pipe'} → ${h.remotePort ?? h._pipeName ?? '?'})`;
+      if (n === 'Server') return `a server (${JSON.stringify(h.address?.())})`;
+      if (n === 'Worker') return `a worker thread (#${h.threadId})`;
+      if (n === 'ChildProcess') return `a process (${h.spawnfile} ${h.pid})`;
+      if (n === 'Timeout') return `a timer (${h._idleTimeout} ms: ${String(h._onTimeout).replace(/\s+/g, ' ').slice(0, 80)})`;
+      return n;
+    });
+    console.log(`\n(still open ${graceMs / 1000} s after the end, so ended here: ${open.join('; ') || JSON.stringify(process.getActiveResourcesInfo())})`);
+    process.exit(failed ? 1 : 0);
+  }, graceMs).unref();
+}
+
 export function testConfig(databaseUrl: string, overrides: Record<string, unknown> = {}, env: Record<string, string> = {}) {
   return loadConfig({ APP_ENV: 'test', PUBLIC_URL, DATABASE_URL: databaseUrl, BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-0123456789', SMTP_URL: 'memory://', ...env }, overrides as any);
 }

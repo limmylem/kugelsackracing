@@ -11,7 +11,7 @@
   "icon": "assets/icons/parts/hana_roadster_swap_brute_v8.png",
   "fits": ["car:hana_roadster"],
   "requires": ["clutch_rating:race", "gearbox:uprated", "cooling:uprated"],
-  "conflicts": [],
+  "conflicts": ["forced_induction:supercharger", "forced_induction:turbo"],
   "provides": ["engine_swap:brute_v8"],
-  "_note": "Mounts, a crossmember and wiring to put the Brute 500's 5.0 L V8 in the Hana Roadster: absurd. It needs an uprated clutch (race), gearbox and radiator fitted first; then take the engine out and put the new one in."
+  "_note": "Mounts, a crossmember and wiring to put the Brute 500's 5.0 L V8 in the Hana Roadster: absurd. It needs an uprated clutch (race), gearbox and radiator fitted first; then take the engine out and put the new one in. The V8 fills the little bay: there's no room for a supercharger or a turbo with it (and with one the roadster went three classes up: data/content/balance.json)."
 }

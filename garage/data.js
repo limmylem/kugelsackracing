@@ -13,6 +13,7 @@ import { createValidator } from './jsonSchema.js';
 import { computeStats } from './stats.js';
 import { checkInstall, checkRemove, validateBuild } from './validate.js';
 import { fingerprint } from './fingerprint.js';
+import { standardProblems, standardTags } from './standards.js';
 
 export const SCHEMAS = ['car.schema.json', 'part.schema.json', 'blocks.schema.json', 'owned-part.schema.json', 'build.schema.json', 'garage.schema.json', 'finishes.schema.json', 'condition.schema.json', 'classes.schema.json', 'economy.schema.json', 'profile.schema.json', 'engine-sound.schema.json', 'damage.schema.json', 'crash-sound.schema.json', 'mechanical-sound.schema.json', 'effects.schema.json', 'sessions.schema.json', 'hints.schema.json'];
 
@@ -23,7 +24,7 @@ export async function loadGarageData(readJson) {
   const schemas = Object.fromEntries(await Promise.all(SCHEMAS.map(async f => [f, await readJson(`data/schemas/${f}`)])));
   const validator = createValidator(schemas), problems = [], cars = {}, parts = {};
   const check = (file, schema, data) => { for (const e of validator.validate(schema, data)) problems.push({ file, path: e.path, message: e.message }); };
-  const [carIndex, partIndex, finishFile, condition, classes, economy, damage, sessions, hints] = await Promise.all(['data/cars/index.json', 'data/parts/index.json', 'data/finishes.json', 'data/condition.json', 'data/classes.json', 'data/economy.json', 'data/damage.json', 'data/sessions.json', 'data/hints.json'].map(f => readJson(f)));
+  const [carIndex, partIndex, finishFile, condition, classes, economy, damage, sessions, hints, standards] = await Promise.all(['data/cars/index.json', 'data/parts/index.json', 'data/finishes.json', 'data/condition.json', 'data/classes.json', 'data/economy.json', 'data/damage.json', 'data/sessions.json', 'data/hints.json', 'data/content/standards.json'].map(f => readJson(f)));
   check('data/finishes.json', 'finishes.schema.json', finishFile);
   check('data/economy.json', 'economy.schema.json', economy);
   check('data/condition.json', 'condition.schema.json', condition);
@@ -59,6 +60,9 @@ export async function loadGarageData(readJson) {
       if (names.has(g) || car.sockets.some(s => s.slot === g)) problems.push({ file, path: `socketGroups.${g}`, message: 'is also a socket or slot name' });
     }
     if (car.paint && !finishes[car.paint.finish]?.paint) problems.push({ file, path: 'paint.finish', message: `"${car.paint.finish}" isn't a paint finish in data/finishes.json` });
+    // (its shared standards: the tags they give, with its own — data/content/standards.json, garage/standards.js)
+    for (const message of standardProblems(car.standards, standards)) problems.push({ file, path: 'standards', message });
+    if (car.standards) car.tags = [...new Set([...car.tags, ...standardTags(car.standards, standards)])];
   }
   for (const p of Object.values(parts)) {
     const file = `data/parts/${p.category}/${p.id}.json`;
@@ -69,7 +73,7 @@ export async function loadGarageData(readJson) {
       if (!(t.min <= t.default && t.default <= t.max)) problems.push({ file, path: `tuning.${name}`, message: `its default ${t.default} isn't within ${t.min}–${t.max}` });
   }
   if (!cars[economy.startingCar]) problems.push({ file: 'data/economy.json', path: 'startingCar', message: `there's no car "${economy.startingCar}"` });
-  return { db: { cars, parts, finishes, condition, classes, economy, damage, sessions, hints }, problems, validator };
+  return { db: { cars, parts, finishes, condition, classes, economy, damage, sessions, hints, standards }, problems, validator };
 }
 
 // ---------- The garage ----------
@@ -288,7 +292,8 @@ export class Garage {
       for (let round = 0; round < 12; round++) {
         const bad = validateBuild(build, this.view).errors.filter(e => e.code !== 'required_empty' && back.some(p => p.socket === e.socket) && !leftOff.has(e.socket));
         if (!bad.length) break;
-        for (const e of bad) { leftOff.set(e.socket, `left ${this.db.parts[this.state.parts[build.sockets[e.socket]].partId].name} off: ${e.message}`); whyOff.push(e); build.sockets[e.socket] = null; }
+        // (a part with two things wrong comes off once)
+        for (const e of bad) { if (leftOff.has(e.socket)) continue; leftOff.set(e.socket, `left ${this.db.parts[this.state.parts[build.sockets[e.socket]].partId].name} off: ${e.message}`); whyOff.push(e); build.sockets[e.socket] = null; }
       }
       for (const p of back) {
         if (leftOff.has(p.socket)) { steps.push(leftOff.get(p.socket)); continue; }

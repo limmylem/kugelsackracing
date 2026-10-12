@@ -1,0 +1,11 @@
+{
+  "_note": "A part family (docs/CONTENT_PIPELINE.md): npm run content -- build makes a part for every combination of the settings listed here and every finish, its stats from data/content/formulas.json (families.<kind>), its tier, price and unlock level from what it does. Change this file, not the parts it makes.",
+  "id": "mesh10",
+  "kind": "wheels",
+  "name": "Mesh-10",
+  "settings": { "diameter": [16, 17, 18, 19, 20], "construction": ["cast", "flow", "forged"], "spokes": 10 },
+  "finishes": ["polished", "painted", "chrome", "matte", "carbon"],
+  "skip": [{ "diameter": 16, "construction": "forged", "finish": "carbon" }],
+  "shape": { "spoke": "mesh", "lean": 0.26, "spokeWidth": 0.016, "concave": 0.02, "cap": "flat", "capMaterial": "chrome" },
+  "status": "draft"
+}

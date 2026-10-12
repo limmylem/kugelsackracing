@@ -20,7 +20,10 @@ export async function loadProject(root = ROOT) {
     for (const n of Object.values(car.model.sockets ?? {})) knownSockets.add(n);
     if (car.model.steeringWheel) knownSockets.add(car.model.steeringWheel);
   }
-  return { root, db, problems, rules, ruleProblems, knownSockets: [...knownSockets] };
+  // (the car body templates: data/content/templates)
+  const dir = path.join(root, 'data/content/templates'), templates = {};
+  if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) { const t = readJson(`data/content/templates/${f}`, root); templates[t.type] = t; }
+  return { root, db, problems, rules, ruleProblems, knownSockets: [...knownSockets], templates };
 }
 
 // Every model the game uses: { file → [{ kind: 'part', part, scale } | { kind: 'car', car, role: 'body' | 'source' }] }

@@ -1,5 +1,5 @@
 // The admins' economy tools (Phase 6 Step 2; the admin page): a player's ledger, cars, parts and builds,
-// with each item's history; money granted or taken away, items given or removed, a transaction reversed —
+// with each item's history; money granted or taken away, a level set, items given or removed, a transaction reversed —
 // always with a written reason, each in the admins' log; the economy's settings (every version, who changed
 // what and why, a change, a rollback); the dashboard (money earned and spent a day by where it came from,
 // all the money in the game, the average balance by level, players earning far more than normal).
@@ -7,7 +7,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { sql } from 'drizzle-orm';
-import { AdminItem, AdminMoney, AdminReverse, EconomyChange, z } from '@kr/shared';
+import { AdminItem, AdminLevel, AdminMoney, AdminReverse, EconomyChange, z } from '@kr/shared';
 import type { Db } from '../db/index.ts';
 import type { Guards } from '../session.ts';
 import type { Economy } from '../economy/service.ts';
@@ -53,6 +53,12 @@ export async function adminEconomyRoutes(app0: FastifyInstance, { db, economy, c
     const a = await me(req), u = await user(req.params.id);
     const r = await economy.adminMoney(a, u.id, req.body.amount, req.body.reason);
     await log(a.id, req.body.amount > 0 ? 'grant-money' : 'remove-money', u.id, req.body.reason, { amount: req.body.amount, ledgerId: r.ledgerId });
+    return r;
+  });
+  app.post('/admin/players/:id/level', { ...admin, schema: { params: Id, body: AdminLevel } }, async req => {
+    const a = await me(req), u = await user(req.params.id);
+    const r = await economy.adminLevel(a, u.id, req.body.level, req.body.reason);
+    await log(a.id, 'set-level', u.id, req.body.reason, { from: r.was, to: r.level });
     return r;
   });
   app.post('/admin/players/:id/items', { ...admin, schema: { params: Id, body: AdminItem } }, async req => {

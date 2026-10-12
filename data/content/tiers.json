@@ -56,6 +56,10 @@
         "race": [0.06, 0.12]
       }
     },
+    "engine": {
+      "street": 3000,
+      "_note": "A crate engine (data/engines, garage/engines.js): its tier and its price within the tier band by its power (data/content/formulas.json engines.economy) — not measured against a stat"
+    },
     "exhaust": {
       "street": 300,
       "stat": "power",

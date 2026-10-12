@@ -18,7 +18,8 @@
 //
 // Part shapes come from the game (garage/detach.js bodyDef): { mass, half, centre (box, part frame),
 // origin (socket, car frame), type, axis, limits (rad), mount, open, pop, strength, plateNormal,
-// plateArea }. The part frame lines up with the car frame at rest, its origin at the socket. A wheel
+// plateArea, hulls? } — torn off and lying in the road, its hulls (its convex hulls, from its model) where it has them,
+// its mass shared out by their volumes; else, and while it's still on the car (loose), a box. The part frame lines up with the car frame at rest, its origin at the socket. A wheel
 // torn off (garage/detach.js wheelDef): { shape: 'wheel', mass, radius, halfWidth, centre, origin (its
 // centre), spin (rad/s about the axle) } — a cylinder that rolls away.
 
@@ -51,19 +52,30 @@ function groundContact(world, collider) {
   });
   return out;
 }
+// (any of a part's colliders on something fixed)
+function touching(world, colliders) { for (const c of colliders) { const t = groundContact(world, c); if (t) return t; } return null; }
 const pointVel = (b, p) => add(fromXYZ(b.linvel()), cross(fromXYZ(b.angvel()), sub(p, fromXYZ(b.worldCom()))));
 
-// A part body: a box (a wheel: a cylinder across the car, def.shape 'wheel', its radius and halfWidth,
-// rolling on), at a pose, moving
+// A part body: its hulls, or a box (a wheel: a cylinder across the car, def.shape 'wheel', its radius and halfWidth,
+// rolling on), at a pose, moving. → { body, collider (the biggest), colliders }
 const ACROSS = { x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 };     // (a cylinder's axis, y, turned to x)
 function partBody(R, world, def, at, rules, groups) {
-  const wheel = def.shape === 'wheel';
+  const wheel = def.shape === 'wheel', mass = Math.max(rules.minMass, def.mass);
   const body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(...at.position).setRotation(at.rotation)
     .setLinvel(...(at.linvel ?? [0, 0, 0])).setAngvel(toXYZ(at.angvel ?? [0, 0, 0])).setLinearDamping(rules.linearDamping).setAngularDamping(wheel ? 0.05 : rules.angularDamping).setCcdEnabled(true));
-  const shape = wheel ? R.ColliderDesc.cylinder(def.halfWidth, def.radius).setRotation(ACROSS) : R.ColliderDesc.cuboid(...def.half.map(h => Math.max(0.01, h)));
-  const collider = world.createCollider(shape.setTranslation(...def.centre)
-    .setMass(Math.max(rules.minMass, def.mass)).setFriction(wheel ? 0.9 : 0.5).setRestitution(wheel ? 0.3 : 0.15).setCollisionGroups(groups), body);
-  return { body, collider };
+  const finish = d => d.setFriction(wheel ? 0.9 : 0.5).setRestitution(wheel ? 0.3 : 0.15).setCollisionGroups(groups);
+  // (its hulls, each its share of the mass by volume; one that won't make a hull — too flat, too few corners — left out)
+  const shapes = [];
+  if (!wheel && def.hulls?.length) {
+    const total = (def.volumes ?? []).reduce((a, v) => a + v, 0);
+    def.hulls.forEach((h, i) => { const d = R.ColliderDesc.convexHull(new Float32Array(h)); if (d) shapes.push([d, total > 0 ? (def.volumes[i] ?? 0) / total : 1 / def.hulls.length]); });
+    const got = shapes.reduce((a, [, w]) => a + w, 0);
+    for (const s of shapes) s[1] = got > 0 ? s[1] / got : 1 / shapes.length;
+  }
+  if (!shapes.length) shapes.push([(wheel ? R.ColliderDesc.cylinder(def.halfWidth, def.radius).setRotation(ACROSS) : R.ColliderDesc.cuboid(...def.half.map(h => Math.max(0.01, h)))).setTranslation(...def.centre), 1]);
+  const colliders = shapes.map(([d, w]) => world.createCollider(finish(d.setMass(Math.max(1e-3, mass * w))), body));
+  const collider = colliders[shapes.reduce((b, s, i) => s[1] > shapes[b][1] ? i : b, 0)];
+  return { body, collider, colliders };
 }
 
 export class LooseParts {
@@ -82,7 +94,9 @@ export class LooseParts {
   loosen(socket, def) {
     if (this.parts.has(socket) || def.type === 'none') return false;
     const car = this.v.body, q = car.rotation(), at = add(fromXYZ(car.translation()), rotate(q, def.origin));
-    const { body, collider } = partBody(this.R, this.world, def, { position: at, rotation: q, linvel: pointVel(car, at), angvel: fromXYZ(car.angvel()) }, this.rules, 0xffffffff);
+    // (still on the car, swinging or dragging: its box — a hanging bumper's real shape snags the road at speed; its
+    // hulls are for when it's torn off and lies in the road)
+    const { body, collider, colliders } = partBody(this.R, this.world, { ...def, hulls: null }, { position: at, rotation: q, linvel: pointVel(car, at), angvel: fromXYZ(car.angvel()) }, this.rules, 0xffffffff);
     let joint;
     if (def.type === 'hinge') {
       joint = this.world.createImpulseJoint(this.R.JointData.revolute(toXYZ(def.origin), { x: 0, y: 0, z: 0 }, toXYZ(def.axis)), car, body, true);
@@ -96,7 +110,7 @@ export class LooseParts {
       joint = this.world.createImpulseJoint(this.R.JointData.rope(0.04, toXYZ(add(def.origin, def.mount)), toXYZ(def.mount)), car, body, true);
     }
     joint.setContactsEnabled(false);
-    this.parts.set(socket, { socket, body, collider, joint, def, lastRel: null, load: 0, strain: 0, torn: false, rattle: 0, aero: 0 });
+    this.parts.set(socket, { socket, body, collider, colliders, joint, def, lastRel: null, load: 0, strain: 0, torn: false, rattle: 0, aero: 0 });
     return true;
   }
 
@@ -164,7 +178,7 @@ export class LooseParts {
       p.rattle = clamp(spin / 6, 0, 1) * 0.6 + clamp(acc / 80, 0, 1) * 0.5 + clamp(Math.hypot(...pointVel(car, centre)) / 40, 0, 1) * 0.2;
       this.rattle = Math.max(this.rattle, clamp(p.rattle, 0, 1));
       // on the ground: a scrape as it drags (where it touches: for the sparks)
-      const touch = groundContact(this.world, p.collider);
+      const touch = touching(this.world, p.colliders);
       if (touch) {
         const speed = Math.hypot(...pointVel(b, centre)), amount = clamp(speed / 20, 0, 1) * 0.8;
         if (speed > 1 && (!this.scrape || amount > this.scrape.amount)) this.scrape = { amount, speed, material: touch.material, socket: p.socket, position: touch.point };
@@ -187,8 +201,8 @@ export class DebrisPool {
   get count() { return this.pieces.length; }
 
   add({ def, at, key, owner }, time) {
-    const { body, collider } = partBody(this.R, this.world, def, at, this.rules, PIECE_NO_CARS);
-    const piece = { id: this.nextId++, key, owner, body, collider, born: time, lastVel: at.linvel ?? [0, 0, 0], lastClatter: time, carsFrom: time + this.rules.ignoreCarFor };
+    const { body, collider, colliders } = partBody(this.R, this.world, def, at, this.rules, PIECE_NO_CARS);
+    const piece = { id: this.nextId++, key, owner, body, collider, colliders, born: time, lastVel: at.linvel ?? [0, 0, 0], lastClatter: time, carsFrom: time + this.rules.ignoreCarFor };
     this.pieces.push(piece);
     while (this.pieces.length > this.rules.max) this.#remove(this.pieces[0]);
     return piece.id;
@@ -207,12 +221,12 @@ export class DebrisPool {
     for (const p of [...this.pieces]) {
       const b = p.body;
       if (time - p.born > R.maxAge || (near && Math.hypot(...sub(fromXYZ(b.translation()), near)) > R.maxDistance)) { this.#remove(p); continue; }
-      if (p.carsFrom != null && time >= p.carsFrom) { p.collider.setCollisionGroups(PIECE); p.carsFrom = null; }
+      if (p.carsFrom != null && time >= p.carsFrom) { for (const c of p.colliders) c.setCollisionGroups(PIECE); p.carsFrom = null; }
       if (b.isSleeping()) { p.lastVel = [0, 0, 0]; p.sliding = 0; continue; }
       const v = fromXYZ(b.linvel()), dv = Math.hypot(...sub(v, p.lastVel)) - 9.81 * dt;
       p.lastVel = v;
       // sliding along the ground (for the effects: a metal part throws sparks)
-      const speed = Math.hypot(v[0], v[2]), touch = speed > 2 ? groundContact(this.world, p.collider) : null;
+      const speed = Math.hypot(v[0], v[2]), touch = speed > 2 ? touching(this.world, p.colliders) : null;
       p.sliding = touch ? speed : 0; p.contact = touch?.point ?? null;
       if (dv > R.clatterFrom && time - p.lastClatter > R.clatterEvery && time - p.born > dt * 1.5) {
         p.lastClatter = time;

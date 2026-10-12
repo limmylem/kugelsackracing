@@ -3,7 +3,10 @@
 //
 //  - ModelCache: every model file is loaded once (meshopt-compressed or not), however many cars use it; each car gets a clone
 //    that shares its geometry, materials and textures (the same image in several files is one
-//    texture). Counted: a model no car uses any more is disposed.
+//    texture). Counted: a model no car uses any more is disposed. A model's levels of detail (its "lods" scene:
+//    tools/content/lods.mjs) are kept by the geometry they stand for (lodOf), for the car drawn in one piece; its
+//    compressed textures (KTX2: tools/content/ktx2.mjs) are decoded with three's KTX2Loader, whose transcoder is
+//    fetched only when a model has one (setTextureRenderer: the renderer it decodes for).
 //  - createCarVisual({ car, finishes, models, paint }) → a CarVisual (group: the car, in the car frame).
 //    applyBuild(visual, build, view) compares what's on each socket with the build and changes only
 //    what's different; a part being swapped stays in view until the new one has loaded. A part whose
@@ -41,6 +44,39 @@ import { blendDents, clearDents, finerOf, setDents } from './dents.js';
 import { dentSize } from './damage.js';
 import { bodyDef } from './detach.js';
 import { KEEPS_LOOK, partShape } from './partShape.js';
+import { cachedFetch, modelUrl } from './contentBundle.js';
+
+const LODS = new WeakMap();                    // a model's geometry → its level of detail 1's (tools/content/lods.mjs)
+export const lodOf = geometry => (geometry && LODS.get(geometry)) ?? null;
+let textureRenderer = null, ktx2 = null;
+// The renderer compressed (KTX2) textures are decoded for: the game's, set once it has one
+export function setTextureRenderer(renderer) { textureRenderer = renderer; if (ktx2) ktx2.then(l => l.detectSupport(renderer)); }
+const TRANSCODER = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/';
+function ktx2Loader() {
+  return ktx2 ??= import('three/addons/loaders/KTX2Loader.js').then(({ KTX2Loader }) => {
+    let path = TRANSCODER;
+    try { path = new URL('../libs/basis/', import.meta.resolve('three/addons/loaders/KTX2Loader.js')).href; } catch { /* (no import.meta.resolve: the CDN's) */ }
+    const l = new KTX2Loader().setTranscoderPath(path);
+    if (textureRenderer) l.detectSupport(textureRenderer);
+    else console.warn('A model has compressed (KTX2) textures but no renderer was given to decode them for: setTextureRenderer(renderer)');
+    return l;
+  });
+}
+// A model file: fetched — at its versioned address, from the browser's cache once it's been downloaded (garage/
+// contentBundle.js) — and parsed, with the KTX2 loader if (and only if) it has compressed textures
+async function loadModel(url) {
+  const src = modelUrl(url), res = await cachedFetch(src);
+  if (!res.ok) throw new Error(`${url}: ${res.status} ${res.statusText}`);
+  const buf = await res.arrayBuffer(), loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), path = src.split('?')[0];
+  if (usesKtx2(buf)) loader.setKTX2Loader(await ktx2Loader());
+  return loader.parseAsync(buf, path.slice(0, path.lastIndexOf('/') + 1));
+}
+// (a .glb's JSON chunk, or a .gltf's text, naming KHR_texture_basisu)
+function usesKtx2(buf) {
+  const v = new DataView(buf), glb = buf.byteLength > 20 && v.getUint32(0, true) === 0x46546c67;
+  const json = glb ? new Uint8Array(buf, 20, Math.min(v.getUint32(12, true), buf.byteLength - 20)) : new Uint8Array(buf);
+  return new TextDecoder().decode(json).includes('KHR_texture_basisu');
+}
 
 const TEXTURE_SLOTS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap'];
 const PHYSICAL = ['clearcoat', 'iridescence', 'sheen'];
@@ -88,7 +124,7 @@ export class ModelCache {
   // load(url) → Promise<{ scene, parser }> (a GLTFLoader, unless a test gives its own)
   constructor({ load } = {}) {
     // (models from npm run import are meshopt-compressed: EXT_meshopt_compression)
-    this.load = load ?? (url => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
+    this.load = load ?? loadModel;
     this.entries = new Map();     // key → { refs, promise, template, usedAt, bytes }
     // (Phase 8 Step 2: models no car uses any more kept, most recently used first, up to keepBytes — the next car with
     // one loads at once — the least recently used let go past it: trim. 0: let go at once)
@@ -145,6 +181,7 @@ export class ModelCache {
     const gltf = await this.load(url);
     const scene = gltf.scene;
     if (gltf.parser) await this.#shareTextures(scene, gltf.parser, url);
+    takeLods(gltf);
     modelLooks(scene);
     return scene;
   }
@@ -176,6 +213,7 @@ export class ModelCache {
   }
 
   #dispose(template) {
+    for (const g of template.userData.lodGeometries ?? []) g.dispose();
     const materials = new Set();
     template.traverse(o => { if (o.isMesh) { o.geometry.dispose(); for (const m of [o.material].flat()) materials.add(m); } });
     const keyed = new Set((template.userData.textureKeys ?? []).map(k => this.textures.get(k)?.texture));
@@ -187,10 +225,32 @@ export class ModelCache {
   }
 }
 
+// A model's levels of detail (its "lods" scene: each node's extras say which node it stands for — lodOf, by the name it
+// was given — and which level): level 1's geometry kept for each of that node's meshes (a mesh of several primitives is
+// a group of meshes, in the same order in both), for the car drawn in one piece; the rest let go
+function takeLods(gltf) {
+  const lods = gltf.scenes?.find(s => s.name === 'lods' && s !== gltf.scene);
+  if (!lods) return;
+  const byName = new Map(), geos = [];
+  gltf.scene.traverse(o => { const n = o.userData?.name; if (n && !byName.has(n)) byName.set(n, o); });
+  const meshesOf = o => o.isMesh ? [o] : o.children.filter(c => c.isMesh && !c.userData?.name);
+  lods.traverse(o => {
+    const base = o.userData?.lod === 1 ? byName.get(o.userData.lodOf) : null;
+    if (!base || o === lods) return;
+    const a = meshesOf(base), b = meshesOf(o);
+    a.forEach((m, i) => { if (b[i]?.geometry) { LODS.set(m.geometry, b[i].geometry); geos.push(b[i].geometry); } });
+  });
+  // (what isn't kept: the other levels' geometry)
+  const kept = new Set(geos);
+  lods.traverse(o => { if (o.isMesh && !kept.has(o.geometry)) o.geometry.dispose(); });
+  gltf.scene.userData.lodGeometries = geos;
+}
+
 // about what a model takes on the graphics card: its geometry's buffers and its textures' pixels (with mipmaps)
 function templateBytes(t) {
   let n = 0;
   const seen = new Set();
+  for (const g of t.userData.lodGeometries ?? []) { for (const a of Object.values(g.attributes)) n += a.array?.byteLength ?? 0; n += g.index?.array.byteLength ?? 0; }
   t.traverse(o => {
     if (!o.isMesh) return;
     for (const a of Object.values(o.geometry.attributes)) n += a.array?.byteLength ?? 0;
@@ -1163,21 +1223,24 @@ export class CarVisual {
     const inv = new THREE.Matrix4().copy(this.group.matrixWorld).invert(), m4 = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3(), c = new THREE.Color();
     // (what's drawn now — hidden nodes, a part torn off and anything not visible left out — as pieces: a mesh and one of
     // its materials' ranges; then sized, and written into arrays made once)
+    // (a mesh with a level of detail is drawn from it: its model's lods, made when it was imported — a dented one's
+    // too, from the model it was copied from: a car that far shows no dents)
     const pieces = [];
     const walk = o => {
       if (!o.visible || o.name?.startsWith('gizmo ')) return;
       if (o.isMesh && o.geometry?.attributes.position) {
-        const mats = Array.isArray(o.material) ? o.material : null, I = o.geometry.index, all = I ? I.count : o.geometry.attributes.position.count;
-        if (mats) for (const gr of o.geometry.groups) pieces.push([o, mats[gr.materialIndex], gr.start, Math.min(gr.count, all - gr.start)]);
-        else pieces.push([o, o.material, 0, all]);
+        const mats = Array.isArray(o.material) ? o.material : null, lod = mats ? null : lodOf(o.geometry) ?? lodOf(o.userData.dent?.shared);
+        const g = lod ?? o.geometry, I = g.index, all = I ? I.count : g.attributes.position.count;
+        if (mats) for (const gr of g.groups) pieces.push([o, mats[gr.materialIndex], gr.start, Math.min(gr.count, all - gr.start), g]);
+        else pieces.push([o, o.material, 0, all, g]);
       }
       for (const ch of o.children) walk(ch);
     };
     walk(this.root);
     // (sized exactly first — the vertices each piece uses, counted — so nothing's made twice or bigger than it needs)
     let remap = new Int32Array(0), nV = 0, nI = 0;
-    pieces.forEach(([o, , start, count]) => {
-      const P = o.geometry.attributes.position, I = o.geometry.index;
+    pieces.forEach(([, , start, count, geo]) => {
+      const P = geo.attributes.position, I = geo.index;
       if (remap.length < P.count) remap = new Int32Array(P.count);
       remap.fill(-1, 0, P.count);
       let u = 0;
@@ -1186,8 +1249,8 @@ export class CarVisual {
     });
     const pos = new Float32Array(nV * 3), nor = new Float32Array(nV * 3), col = new Uint8Array(nV * 3), idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
     let n = 0, ni = 0;
-    for (const [mesh, mat, start, count] of pieces) {
-      const g = mesh.geometry, P = g.attributes.position, N = g.attributes.normal, I = g.index;
+    for (const [mesh, mat, start, count, g] of pieces) {
+      const P = g.attributes.position, N = g.attributes.normal, I = g.index;
       m4.multiplyMatrices(inv, mesh.matrixWorld); nm.getNormalMatrix(m4);
       if (mat?.userData?.flatColour) c.set(mat.userData.flatColour); else c.copy(mat?.color ?? c.set(0.5, 0.5, 0.5));
       if (mat?.transparent) c.multiplyScalar(0.25).addScalar(0.04);

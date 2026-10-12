@@ -1,0 +1,87 @@
+{
+  "id": "streetline_57_stainless_matte",
+  "name": "Streetline cat-back exhaust, 57 mm, matte black (stainless)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 220,
+  "mass": 5.8,
+  "model": "assets/parts/exhaust/streetline/streetline_57.glb",
+  "icon": "assets/icons/parts/streetline_57_stainless_matte.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0112,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    }
+  ],
+  "sound": {
+    "exhaust": {
+      "level": 1.06,
+      "tone": 0.963,
+      "rasp": 0.02,
+      "pops": 0.08
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "look": {
+    "materials": {
+      "chrome": {
+        "finish": "matte_black"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "streetline",
+    "kind": "exhaust",
+    "key": "57_stainless_matte",
+    "settings": {
+      "diameter": 57,
+      "tips": "dual",
+      "material": "stainless",
+      "finish": "matte"
+    },
+    "stats": {
+      "topEnd": 0.0112,
+      "lowEnd": 0,
+      "mass": 5.8,
+      "loudness": 1.06,
+      "tone": 0.963,
+      "rasp": 0.02,
+      "pops": 0.08
+    },
+    "gain": 0.0112,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 1.12%: street, $220.",
+  "bounds": {
+    "min": [-0.1186, -0.0439, -0.18],
+    "max": [0.1186, 0.0439, 0]
+  },
+  "massOffset": [0, 0, -0.067],
+  "tier": "street",
+  "collision": {
+    "method": "built-in",
+    "hulls": [[-0.043, -0.033, -0.176, 0.107, 0.004, -0.02, -0.107, 0.002, -0.02, 0.063, 0.02, -0.142, 0, -0.044, -0.034, -0.039, 0.032, -0.095, 0, 0.038, -0.02, 0.056, -0.019, -0.078, 0.026, -0.028, -0.178, -0.024, 0.031, -0.166, -0.06, -0.022, -0.06, -0.029, -0.031, -0.115, 0.046, -0.024, 0, 0.022, 0.028, -0.098, -0.051, -0.021, -0.003, -0.07, 0.001, -0.139]],
+    "volumes": [0.001239]
+  }
+}

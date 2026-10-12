@@ -520,3 +520,22 @@ export const meetEvents = pgTable('meet_events', {
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(), hours: real('hours').notNull().default(2),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }), cancelled: boolean('cancelled').notNull().default(false), createdAt: created(),
 }, t => [index('meet_events_start').on(t.startsAt)]);
+
+// ---------- the content manager (Phase 8 Step 3; docs/CONTENT_PIPELINE.md; migration 0015) ----------
+// a part's or car's place in the content workflow: its latest version (status, the fields it sets, the edit as asked,
+// the live checks of it) and the version players have (live, live_set). No row: the game's own file.
+export const catalogueItems = pgTable('catalogue_items', {
+  id: text('id').notNull(), kind: text('kind').notNull(),                       // part | car
+  version: integer('version').notNull().default(1), status: text('status').notNull(),
+  set: jsonb('set').notNull().default({}), edits: jsonb('edits').notNull().default({}), checks: jsonb('checks'),
+  live: boolean('live').notNull().default(false), liveVersion: integer('live_version'), liveSet: jsonb('live_set').notNull().default({}),
+  actorId: text('actor_id'), updatedAt: updated(),
+}, t => [primaryKey({ name: 'catalogue_items_pk', columns: [t.kind, t.id] })]);
+// every change, append-only
+export const catalogueHistory = pgTable('catalogue_history', {
+  seq: bigserial('seq', { mode: 'number' }).primaryKey(), id: text('id').notNull(), kind: text('kind').notNull(),
+  version: integer('version').notNull(), action: text('action').notNull(), status: text('status').notNull(),
+  set: jsonb('set'), edits: jsonb('edits'), actorId: text('actor_id'), reason: text('reason'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('catalogue_history_item').on(t.kind, t.id, t.seq)]);
+

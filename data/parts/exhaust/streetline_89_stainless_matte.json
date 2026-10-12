@@ -1,0 +1,99 @@
+{
+  "id": "streetline_89_stainless_matte",
+  "name": "Streetline cat-back exhaust, 89 mm, matte black (stainless)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 1500,
+  "mass": 9.1,
+  "model": "assets/parts/exhaust/streetline/streetline_89.glb",
+  "icon": "assets/icons/parts/streetline_89_stainless_matte.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0624,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    },
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 0.9892,
+      "when": {
+        "rpm": [0, 2500],
+        "fade": 800
+      }
+    }
+  ],
+  "sound": {
+    "exhaust": {
+      "level": 1.31,
+      "tone": 0.932,
+      "rasp": 0.27,
+      "pops": 0.47
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "look": {
+    "materials": {
+      "chrome": {
+        "finish": "matte_black"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "streetline",
+    "kind": "exhaust",
+    "key": "89_stainless_matte",
+    "settings": {
+      "diameter": 89,
+      "tips": "dual",
+      "material": "stainless",
+      "finish": "matte"
+    },
+    "stats": {
+      "topEnd": 0.0624,
+      "lowEnd": -0.0108,
+      "mass": 9.1,
+      "loudness": 1.31,
+      "tone": 0.932,
+      "rasp": 0.27,
+      "pops": 0.47
+    },
+    "gain": 0.0624,
+    "measuredOn": "starter_car",
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 6.24%: race, $1,500, unlocked at level 5.",
+  "bounds": {
+    "min": [-0.1784, -0.0685, -0.18],
+    "max": [0.1784, 0.0685, 0]
+  },
+  "massOffset": [0, 0, -0.07],
+  "tier": "race",
+  "unlock": {
+    "level": 5
+  },
+  "collision": {
+    "method": "built-in",
+    "hulls": [[-0.065, -0.051, -0.171, 0.178, 0, -0.023, -0.013, 0.06, -0.02, 0.096, 0.032, -0.176, -0.178, 0, -0.037, 0.057, -0.049, -0.064, -0.067, -0.043, -0.043, -0.053, 0.051, -0.132, 0.041, -0.05, -0.164, 0.087, 0.023, 0, 0.042, 0.048, -0.098, -0.085, 0.025, 0, -0.016, -0.017, -0.108, 0.018, -0.021, 0, -0.103, -0.012, -0.107, 0.017, 0.033, -0.177]],
+    "volumes": [0.002906]
+  }
+}

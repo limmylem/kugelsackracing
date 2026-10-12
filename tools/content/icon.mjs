@@ -14,12 +14,16 @@ const PAD = 0.08;                 // margin round the model, of the size
 
 // (also: view — { azimuth, elevation } instead of the type's; keep(triangle) — only the triangles it
 // passes are drawn: a cutaway)
-export async function renderIcon(doc, { rules, type, size, paintColour, look = null, view: angle = null, keep = null }) {
+export async function renderIcon(doc, opts) { return renderInfo(inspect(doc), opts); }
+// The same from what's in a model (inspect: tools/content/inspect.mjs) — or several put together (a car with its parts:
+// tools/content/thumbnail.mjs), each triangle's own look in tri.look if it has one; raw: { data, width, height } (RGBA)
+// rather than a PNG
+export async function renderInfo(info, { rules, type, size, paintColour, look = null, view: angle = null, keep = null, raw = false }) {
   const view = { ...rules.icon, ...(type === 'car' ? rules.car.icon : rules.types[type]?.icon), ...angle };
-  const S = (size ?? view.size) * SS, info = inspect(doc);
-  if (keep) info.triangles = info.triangles.filter(keep);
+  const S = (size ?? view.size) * SS;
+  if (keep) info = { ...info, triangles: info.triangles.filter(keep) };
   const rgba = new Float32Array(S * S * 4), depth = new Float32Array(S * S).fill(Infinity);
-  if (!info.triangleCount) return encode(rgba, S);
+  if (!info.triangles.length) return encode(rgba, S, raw);
 
   // the camera: looking at the model's middle from azimuth / elevation
   const az = view.azimuth * Math.PI / 180, el = view.elevation * Math.PI / 180;
@@ -37,7 +41,7 @@ export async function renderIcon(doc, { rules, type, size, paintColour, look = n
   const materials = await materialLook(info, rules, paintColour ?? view.paintColour, look);
 
   info.triangles.forEach((tri, ti) => {
-    const P = pts[ti].map(toPx), m = materials.get(tri.mat) ?? materials.get(null);
+    const P = pts[ti].map(toPx), m = materials.get(tri.mat)?.get(tri.look ?? look) ?? materials.get(null).get(null);
     let n = norm(cross(sub(tri.p[1], tri.p[0]), sub(tri.p[2], tri.p[0])));
     if (dot(n, back) < 0) n = scale(n, -1);          // (both sides drawn)
     const diffuse = 0.36 + 0.64 * Math.max(0, dot(n, key)) + 0.22 * Math.max(0, dot(n, fill));
@@ -64,17 +68,18 @@ export async function renderIcon(doc, { rules, type, size, paintColour, look = n
       rgba[i * 4] = col[0]; rgba[i * 4 + 1] = col[1]; rgba[i * 4 + 2] = col[2]; rgba[i * 4 + 3] = 1;
     }
   });
-  return encode(rgba, S);
+  return encode(rgba, S, raw);
 }
 
 // Each material's colour (sRGB 0–1), metalness, roughness and texture, as the icon draws it: the paint
 // in the icon colour, a finish material in its finish, a part's look (a variant's finish) over it all
-async function materialLook(info, rules, paintColour, look) {
-  const out = new Map([[null, { colour: [0.6, 0.6, 0.6], metalness: 0, roughness: 0.7 }]]), images = new Map();
+// (by material, then by look: one model drawn in two looks — two variants on one car — is two)
+async function materialLook(info, rules, paintColour, base) {
+  const out = new Map([[null, new Map([[null, { colour: [0.6, 0.6, 0.6], metalness: 0, roughness: 0.7 }]])]]), images = new Map();
   const finishOf = id => id && rules.finishes[id] ? { ...rules.finishes[id], colour: rules.finishes[id].colour ?? null } : null;
   for (const tri of info.triangles) {
-    const mat = tri.mat;
-    if (!mat || out.has(mat)) continue;
+    const mat = tri.mat, look = tri.look ?? base;
+    if (!mat || out.get(mat)?.has(look)) continue;
     const name = mat.getName(), own = look?.materials?.[name] ?? {}, keeps = KEEPS_LOOK.test(name) && !look?.materials?.[name];
     const lookFinish = keeps ? null : finishOf(own.finish ?? look?.finish), lookColour = keeps ? null : own.colour ?? look?.colour;
     let entry;
@@ -90,7 +95,8 @@ async function materialLook(info, rules, paintColour, look) {
       }
     }
     if (entry.keep === false) delete entry.texture;
-    out.set(mat, entry);
+    if (!out.has(mat)) out.set(mat, new Map());
+    out.get(mat).set(look, entry);
   }
   return out;
 }
@@ -101,7 +107,7 @@ function sample(t, [u, v]) {
 }
 
 // supersampled → the icon size, alpha-weighted; a faint light edge so dark parts show on the dark UI
-async function encode(rgba, S) {
+async function encode(rgba, S, raw = false) {
   const s = S / SS, out = Buffer.alloc(s * s * 4), alpha = new Float32Array(s * s);
   for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
     let r = 0, g = 0, b = 0, a = 0;
@@ -117,6 +123,7 @@ async function encode(rgba, S) {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < s && Y < s) near = Math.max(near, alpha[Y * s + X]); }
     if (near > 0.3) { const o = i * 4; out[o] = out[o + 1] = out[o + 2] = 200; out[o + 3] = 46; }
   }
+  if (raw) return { data: out, width: s, height: s };
   return sharp(out, { raw: { width: s, height: s, channels: 4 } }).png({ compressionLevel: 9 }).toBuffer();
 }
 

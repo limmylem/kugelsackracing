@@ -1,0 +1,19 @@
+{
+  "_note": "The content pipeline's targets (Phase 8 Step 3; docs/CONTENT_PIPELINE.md), measured by npm run content -- targets (tools/content/targets.mjs), which adds each run to runs (the last 12 kept). family: a part family of at least variants parts made from its definition, every one checked on every car it fits (fit, a drive, a crash, its sound, its budget, its price) and ready to publish, in at most minutes. newCar: a new car from a body template — its model imported (a placeholder in the type's proportions stands in for the modeller's), its car.json, parts and standards, drivable and given its class — in at most minutes of the pipeline's own time; with the modeller's day that's a new car playable in under hours.",
+  "family": {
+    "variants": 50,
+    "minutes": 60
+  },
+  "newCar": {
+    "minutes": 30,
+    "hours": 24,
+    "type": "hatchback"
+  },
+  "runs": [
+    {
+      "date": "2026-10-12",
+      "what": "npm run content -- targets",
+      "result": "met — family mesh10: 74 variants made and checked in 8.8 min (target 50+ in 60); new hatchback: playable (class C) in 0.04 min of the pipeline's time (target 30; under 24 h with the modelling)"
+    }
+  ]
+}

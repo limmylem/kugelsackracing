@@ -1,0 +1,94 @@
+{
+  "id": "readout_2_matte",
+  "name": "Readout 2-gauge pod, matte black",
+  "category": "interior",
+  "slot": "gauges",
+  "kind": "component",
+  "price": 230,
+  "mass": 0.51,
+  "model": "assets/parts/interior/readout/readout_2/starter_car.glb",
+  "icon": "assets/icons/parts/readout_2_matte.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "looks",
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "readout",
+    "kind": "gauges",
+    "key": "2_matte",
+    "settings": {
+      "count": 2,
+      "size": 52,
+      "layout": "pillar",
+      "finish": "matte"
+    },
+    "stats": {
+      "mass": 0.51
+    },
+    "gain": null,
+    "priceFactor": 0.9857
+  },
+  "_generated": "Made by npm run content -- build from data/families/readout.json (and data/content/formulas.json families.gauges): change those, not this file. street: priced by its settings, $230.",
+  "bounds": {
+    "min": [-0.07, -0.06, -0.0625],
+    "max": [0.07, 0.016, 0.03]
+  },
+  "massOffset": [0, -0.022, -0.013],
+  "byCar": {
+    "apex_v8": {
+      "model": "assets/parts/interior/readout/readout_2/apex_v8.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.14, 0.07]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/interior/readout/readout_2/brute_500.glb",
+      "bounds": {
+        "min": [-0.038, -0.06, -0.0225],
+        "max": [0.038, 0.08, 0.07]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/interior/readout/readout_2/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.038, 0, 0.0175],
+        "max": [0.038, 0.14, 0.11]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/interior/readout/readout_2/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.038, -0.09, -0.0625],
+        "max": [0.038, 0.05, 0.03]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/interior/readout/readout_2/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.14, 0.07]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/interior/readout/readout_2/strada_evo.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0225],
+        "max": [0.038, 0.14, 0.07]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/interior/readout/readout_2/vortex_r.glb",
+      "bounds": {
+        "min": [-0.038, 0, -0.0625],
+        "max": [0.038, 0.14, 0.03]
+      }
+    }
+  },
+  "tier": "street"
+}

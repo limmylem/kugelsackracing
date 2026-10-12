@@ -1,0 +1,90 @@
+{
+  "id": "streetline_76_stainless_polished",
+  "name": "Streetline cat-back exhaust, 76 mm, polished (stainless)",
+  "category": "exhaust",
+  "slot": "exhaust",
+  "kind": "modifier",
+  "price": 820,
+  "mass": 7.8,
+  "model": "assets/parts/exhaust/streetline/streetline_76.glb",
+  "icon": "assets/icons/parts/streetline_76_stainless_polished.png",
+  "fits": [
+    ["exhaust_route:std", "exhaust_flange:rs"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "effects": [
+    {
+      "target": "engine.torqueCurve",
+      "op": "multiply",
+      "value": 1.0416,
+      "when": {
+        "rpm": [3000, 9000],
+        "fade": 1000
+      }
+    }
+  ],
+  "sound": {
+    "exhaust": {
+      "level": 1.21,
+      "tone": 0.945,
+      "rasp": 0.17,
+      "pops": 0.31
+    }
+  },
+  "detach": {
+    "detachable": true,
+    "looseType": "hanging",
+    "mounts": [[0, 0, -0.18]],
+    "attachStrength": 1500,
+    "looseThreshold": 50,
+    "detachThreshold": 90
+  },
+  "look": {
+    "materials": {
+      "chrome": {
+        "finish": "polished"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "streetline",
+    "kind": "exhaust",
+    "key": "76_stainless_polished",
+    "settings": {
+      "diameter": 76,
+      "tips": "dual",
+      "material": "stainless",
+      "finish": "polished"
+    },
+    "stats": {
+      "topEnd": 0.0416,
+      "lowEnd": 0,
+      "mass": 7.8,
+      "loudness": 1.21,
+      "tone": 0.945,
+      "rasp": 0.17,
+      "pops": 0.31
+    },
+    "gain": 0.0416,
+    "measuredOn": "starter_car",
+    "priceFactor": 1.1233
+  },
+  "_generated": "Made by npm run content -- build from data/families/streetline.json (and data/content/formulas.json families.exhaust): change those, not this file. On the Starter coupe it improves power by 4.16%: sport, $820, unlocked at level 2.",
+  "bounds": {
+    "min": [-0.1541, -0.0585, -0.18],
+    "max": [0.1541, 0.0585, 0]
+  },
+  "massOffset": [0, 0, -0.069],
+  "tier": "sport",
+  "unlock": {
+    "level": 2
+  },
+  "collision": {
+    "method": "built-in",
+    "hulls": [[-0.056, -0.043, -0.174, 0.15, -0.001, -0.024, -0.051, 0.031, 0, 0.085, 0.025, -0.169, 0.041, -0.041, -0.071, -0.154, 0, -0.037, -0.045, 0.043, -0.109, 0.048, 0.034, 0, -0.058, -0.04, -0.064, 0.042, 0.042, -0.094, 0.035, -0.043, -0.162, -0.019, 0.024, -0.179, -0.009, -0.019, -0.113, 0.045, -0.034, -0.004, -0.088, 0.017, -0.177, 0.092, 0.023, -0.048]],
+    "volumes": [0.002224]
+  }
+}

@@ -8,6 +8,7 @@
 //  - every combination of turbo, ECU, pistons, intercooler and clutch: the valid ones make power in
 //    the right order, the invalid ones are refused, each with a reason in plain words.
 // npm run test:unit
+import { released } from '../../garage/content.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -26,7 +27,8 @@ import { KEY_STATS, fitWithNeeds, forCar } from '../../tools/content/balance.mjs
 import { readJson } from '../../tools/content/rules.mjs';
 
 const H = await harness(), db = H.db, tiers = readJson('data/content/tiers.json');
-const forSale = Object.values(db.parts).filter(p => !p.retired && !p.todo?.length);
+// (what the shop sells: not retired, priced, and published — a draft isn't out yet: docs/CONTENT_PIPELINE.md)
+const forSale = Object.values(db.parts).filter(p => !p.retired && !p.todo?.length && released(p));
 const carOf = profile => new Garage(db, garageStateOf(profile, db));
 const newPlayer = async (money = 0, storage = new MemoryStorage()) => {
   const s = new LocalPlayerService({ db, storage });

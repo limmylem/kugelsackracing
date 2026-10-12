@@ -1,0 +1,89 @@
+{
+  "id": "coldcore_60_matte",
+  "name": "Coldcore intercooler, 60 mm core, matte black",
+  "category": "intercooler",
+  "slot": "intercooler",
+  "kind": "modifier",
+  "price": 300,
+  "mass": 8.9,
+  "model": "assets/parts/intercooler/coldcore/coldcore_60/apex_v8.glb",
+  "icon": "assets/icons/parts/coldcore_60_matte.png",
+  "fits": ["intercooler_mount:std"],
+  "requires": [],
+  "conflicts": ["car:starter_car"],
+  "provides": ["intercooler"],
+  "effects": [],
+  "look": {
+    "finish": "matte_black"
+  },
+  "status": "draft",
+  "generated": {
+    "family": "coldcore",
+    "kind": "intercooler",
+    "key": "60_matte",
+    "settings": {
+      "width": 0.6,
+      "height": 0.24,
+      "thickness": 60,
+      "finish": "matte"
+    },
+    "stats": {
+      "core": 8.6,
+      "mass": 8.9
+    },
+    "gain": null,
+    "priceFactor": 0.9928
+  },
+  "_generated": "Made by npm run content -- build from data/families/coldcore.json (and data/content/formulas.json families.intercooler): change those, not this file. street: priced by its settings, $300.",
+  "bounds": {
+    "min": [-0.3, -0.12, -0.1956],
+    "max": [0.3, 0.12, 0.034]
+  },
+  "massOffset": [0, 0.001, -0.008],
+  "byCar": {
+    "brute_500": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/brute_500.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/hana_roadster.glb",
+      "bounds": {
+        "min": [-0.3, -0.084, -0.2256],
+        "max": [0.3, 0.0856, 0.004]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2256],
+        "max": [0.3, 0.16, 0.004]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/strada_evo.glb",
+      "bounds": {
+        "min": [-0.3, -0.102, -0.2256],
+        "max": [0.3, 0.102, 0.004]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intercooler/coldcore/coldcore_60/vortex_r.glb",
+      "bounds": {
+        "min": [-0.3, -0.08, -0.2256],
+        "max": [0.3, 0.16, 0.004]
+      }
+    }
+  },
+  "_fit": "It can't be made to fit the Starter coupe (its best fit still goes through the car), so it isn't for it.",
+  "tier": "street"
+}

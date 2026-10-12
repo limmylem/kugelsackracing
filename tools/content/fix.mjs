@@ -33,7 +33,7 @@ export async function autoFix(doc, { rules, type, scale = null, placeOrigin = fa
   for (const a of root.listAnimations()) { a.dispose(); counts.animations++; }
   for (const s of root.listSkins()) { s.dispose(); counts.skins++; }
   root.listExtensionsUsed().find(e => e.extensionName === 'KHR_lights_punctual')?.dispose();
-  for (const s of root.listScenes()) if (s !== scene) { s.dispose(); counts.scenes++; }
+  for (const s of root.listScenes()) if (s !== scene && s.getName() !== 'lods') { s.dispose(); counts.scenes++; }     // (lods: its levels of detail)
   if (scene) root.setDefaultScene(scene);
   const removed = Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${n} ${n === 1 ? k.replace(/s$/, '') : k}`);
   if (removed.length) did.push(`removed ${removed.join(', ')}`);

@@ -1,0 +1,17 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): the 2.0 L turbo four made to sit across a front-wheel-drive car (a transverse mount). Its settings here, its torque curve, mass and size from data/content/formulas.json engines.",
+  "id": "kmw_i4_20t_trans",
+  "maker": "Kugel Motorworks",
+  "layout": "inline",
+  "cylinders": 4,
+  "displacement": 2.0,
+  "aspiration": "turbo",
+  "boost": 1.0,
+  "idle": 850,
+  "redline": 6800,
+  "character": 0.4,
+  "mount": "trans",
+  "sound": "i4_turbo",
+  "colour": "black",
+  "status": "draft"
+}

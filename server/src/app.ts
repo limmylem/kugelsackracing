@@ -43,6 +43,8 @@ import { createEconomy } from './economy/service.ts';
 import { playerRoutes } from './routes/player.ts';
 import { adminEconomyRoutes } from './routes/adminEconomy.ts';
 import { adminShopRoutes } from './routes/adminShop.ts';
+import { adminContentRoutes } from './routes/adminContent.ts';
+import { createContentManager } from './content/manager.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
@@ -398,6 +400,13 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('onClose', async () => mp.close());
   app.decorate('economyConfig', economyConfig);
   app.addHook('onReady', async () => { await economyConfig.ensure(); });
+  // (the content manager — Phase 8 Step 3: parts' and cars' workflow, edits and their live checks; the game's prices and
+  // shop from what it has published)
+  const contentManager = createContentManager(db, { log: (o: any, m: string) => app.log.warn(o, m) });
+  economyConfig.useContent(contentManager);
+  app.decorate('contentManager', contentManager);
+  app.addHook('onReady', async () => { void contentManager.resume().catch(e => app.log.warn({ err: e }, 'content checks resume failed')); });
+  app.addHook('onClose', async () => contentManager.close());
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
   sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
@@ -416,9 +425,10 @@ export async function buildApp(deps: AppDeps) {
     await roamRoutes(api, { config, G, roam });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
-    await playerRoutes(api, { economy, config: economyConfig, G });
+    await playerRoutes(api, { economy, config: economyConfig, content: contentManager, G });
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
+    await adminContentRoutes(api, { db, manager: contentManager, G });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });
@@ -499,7 +509,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { metrics: import('./ops/metrics.ts').Metrics; alerter: ReturnType<typeof import('./ops/alerts.ts').createAlerter>; siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig }
+  interface FastifyInstance { metrics: import('./ops/metrics.ts').Metrics; alerter: ReturnType<typeof import('./ops/alerts.ts').createAlerter>; siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig; contentManager: import('./content/manager.ts').ContentManager }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };

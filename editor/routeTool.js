@@ -47,7 +47,7 @@ export function createRouteTool({ THREE, api }) {
       if (!manifest) throw new Error('no baked region to draw routes on');
       P = transverseMercator(manifest.projection.lat0, manifest.projection.lon0);
       const G = await gunzipJson(await fetch(new URL(manifest.files.graph, api.regionBase()).href));
-      N = createNetwork(G, { P, region: manifest.region ?? manifest.id ?? 'sf', version: manifest.version, bbox: manifest.bbox ?? null });
+      N = createNetwork(G, { P, region: manifest.region ?? manifest.id, version: manifest.version, bbox: manifest.bbox ?? null });
       N.osmDate = manifest.sources?.osm?.date ?? null;
       return N;
     })();
@@ -379,6 +379,8 @@ export function createRouteTool({ THREE, api }) {
 
   return {
     network, show, attachMap, attachWorld, click, takeConsumed, key, panel, action, pickCheckpoint, draw,
+    // (another region's roads from now on — the editor's region changed: the next network() loads them)
+    resetNetwork() { N = null; loading = null; P = null; manifest = null; compiled = null; compiledKey = null; suggestions = []; },
     compile: course => compile(course),
     save: course => saveCourse(N, course),
     setRun(r) { run = r; draw(); api.renderProps(); },

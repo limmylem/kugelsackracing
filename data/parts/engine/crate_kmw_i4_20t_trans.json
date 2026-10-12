@@ -1,0 +1,97 @@
+{
+  "id": "crate_kmw_i4_20t_trans",
+  "name": "Kugel Motorworks 2.0 L turbo inline-four (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 6190,
+  "mass": 133,
+  "model": "assets/parts/engine/crate_kmw_i4_20t_trans.glb",
+  "icon": "assets/icons/parts/crate_kmw_i4_20t_trans.png",
+  "fits": ["mount:trans", "bay:compact"],
+  "requires": ["clutch_rating:sport"],
+  "conflicts": [],
+  "provides": ["engine_family:crate_kmw_i4_20t_trans", "engine_layout:inline4", "induction:turbo", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[850, 172], [1600, 220], [2350, 305], [3000, 343], [3100, 343], [3850, 343], [4550, 343], [4900, 343], [5300, 329], [6050, 286], [6800, 233], [7200, 202]],
+    "idleRpm": 850,
+    "redlineRpm": 6800,
+    "inertia": 0.138,
+    "induction": "turbo",
+    "cylinders": 4,
+    "sound": "data/sounds/engines/i4_turbo.json",
+    "friction": {
+      "base": 9.2,
+      "perKrpm": 4.6,
+      "perKrpm2": 0.5336
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    },
+    "turbo": {
+      "boost": [[850, 0.2], [1950, 0.6], [3000, 1], [4900, 1], [6800, 0.85]],
+      "efficiency": 0.85,
+      "sound": {
+        "whistle": {
+          "fromHz": 2400,
+          "toHz": 7800,
+          "gain": 0.055,
+          "noise": 0.35,
+          "q": 12,
+          "spoolUp": 0.5,
+          "spoolDown": 0.35
+        },
+        "blowoff": {
+          "kind": "valve",
+          "gain": 0.05,
+          "hz": 2200,
+          "seconds": 0.4
+        }
+      }
+    }
+  },
+  "tier": "sport",
+  "unlock": {
+    "level": 4
+  },
+  "bounds": {
+    "min": [-0.298, 0, -0.2883],
+    "max": [0.2995, 0.4947, 0.19]
+  },
+  "massOffset": [0, 0.198, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "inline",
+    "cylinders": 4,
+    "displacement": 2,
+    "aspiration": "turbo",
+    "boost": 1,
+    "mounts": ["trans"],
+    "bay": "compact",
+    "size": [0.6, 0.5, 0.52],
+    "peakTorque": 343,
+    "peakPower": 245,
+    "words": "2.0 L turbo inline-four"
+  },
+  "generated": {
+    "engine": "kmw_i4_20t_trans"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kmw_i4_20t_trans.json (and data/content/formulas.json engines): change those, not this file. 2.0 L turbo inline-four: 343 N·m, 245 hp, 133 kg, 0.6 × 0.5 × 0.52 m (a compact bay or bigger). It needs a clutch that holds its torque (clutch_rating:sport)."
+}

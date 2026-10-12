@@ -209,10 +209,13 @@ stages, draw calls, triangles, memory and garbage.
   draws.
 - **Levels of detail**: terrain (three levels by distance), buildings, roads, trees and railings by distance (scaled by
   the render distance), cars (whole or one piece), scenery's share and the crowd per preset.
-- **Compressed textures (KTX2/Basis): not used, deliberately.** Measured: every car and part model together carries
+- **Compressed textures (KTX2/Basis): for big ones only.** Measured: every car and part model together carries
   58 KB of textures (one small palette each); the rest of the textures (3–15 MB in a scene) are drawn on canvases at
-  start (windows, fences, street names). KTX2 would save a few MB of GPU memory against budgets of 256 MB and more, and
-  nothing at all in download, for a transcoder and its WebAssembly. Worth it when photographic textures arrive.
+  start (windows, fences, street names) — not worth a transcoder. Since Phase 8 Step 3 the import pipeline makes any
+  model texture of 512 px or more KTX2 (docs/CONTENT_PIPELINE.md), and the game fetches the transcoder only when a
+  model has one (garage/visual.js).
+- **Models' levels of detail** (Phase 8 Step 3): a far car in one piece is made from each model's LOD1 (35% of its
+  triangles, meshoptimizer's), where it has one — the starter car's body 544 triangles instead of 1,556.
 - **Shaders compiled during loading** (above), so the first crash, the first broken window, the first car of a new
   model and the first far car in one piece don't stutter.
 - **Garbage**: the crash replay recycles its frames; the one-piece copies are made into arrays made once; other

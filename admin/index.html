@@ -10,6 +10,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../ui/theme.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <style>
   /* the admin page (admin/admin.js): find a player, see their account, change their role, suspend or ban,
      sign them out everywhere; the log of every admin action */
@@ -20,6 +26,7 @@
   header .who { margin-left: auto; color: var(--c-text-2); font-size: var(--t-secondary); }
   main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: var(--s-6); padding: var(--s-6); max-width: 1400px; margin: 0 auto; }
   main.narrow { grid-template-columns: minmax(320px, 440px); justify-content: center; }
+  main:has(#contentDetail) { max-width: 1800px; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   section { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: var(--r-panel); padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
   h2 { margin: 0; font: 600 20px var(--f-title); letter-spacing: .02em; }
