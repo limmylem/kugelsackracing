@@ -47,7 +47,7 @@ const clips = listed.map(c => ({ ...c, abs: path.resolve(DEVLOG, c.file) })).fil
   .map(c => {
     let rel = path.relative(OUTDIR, c.abs);
     if (rel.startsWith('..')) { rel = path.join('clips-in', path.basename(c.abs)); fs.mkdirSync(path.join(OUTDIR, 'clips-in'), { recursive: true }); fs.copyFileSync(c.abs, path.join(OUTDIR, rel)); }
-    return { src: rel.split(path.sep).join('/'), seconds: c.seconds, name: c.name };
+    return { src: rel.split(path.sep).join('/'), seconds: c.seconds, name: c.name, sound: !!c.sound };
   });
 if (!clips.length) console.warn(`No clips in ${path.relative(process.cwd(), clipsDir)} (npm run capture makes them): the video will be captions on a plain background`);
 
@@ -62,10 +62,13 @@ if (musicFile) {
   fs.copyFileSync(musicFile, path.join(OUTDIR, music));
 }
 
-const props = { script, clips: clips.map(({ src, seconds }) => ({ src, seconds })), music, musicVolume: +opt('--music-volume', 0.35) };
+// (the game's own sound in the clips: on unless --game-volume 0; with music as well, a little quieter so both are heard)
+const withSound = clips.some(c => c.sound);
+const gameVolume = +opt('--game-volume', music ? 0.6 : 0.9);
+const props = { script, clips: clips.map(({ src, seconds, sound }) => ({ src, seconds, sound })), music, musicVolume: +opt('--music-volume', withSound && gameVolume ? 0.25 : 0.35), gameVolume };
 const P = plan({ script, clips: props.clips, fps: 30 });
 for (const w of P.warnings) console.warn(`  note: ${w}`);
-console.log(`Rendering ${(P.frames / 30).toFixed(1)} s (${LIMITS.min}–${LIMITS.max} s): the hook, ${P.captions.length} caption${P.captions.length === 1 ? '' : 's'}, the end card; ${P.cuts.length} cuts from ${clips.length} clip${clips.length === 1 ? '' : 's'}${music ? ', with music' : ''}`);
+console.log(`Rendering ${(P.frames / 30).toFixed(1)} s (${LIMITS.min}–${LIMITS.max} s): the hook, ${P.captions.length} caption${P.captions.length === 1 ? '' : 's'}, the end card; ${P.cuts.length} cuts from ${clips.length} clip${clips.length === 1 ? '' : 's'}${withSound && gameVolume ? ', with the game\'s sound' : ''}${music ? ', with music' : ''}`);
 
 // ---------- Remotion ----------
 copyFonts(OUTDIR);

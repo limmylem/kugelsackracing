@@ -24,25 +24,32 @@ function useBrandFont() {
 
 const outline = (px, color = INK) => ({ WebkitTextStroke: `${px}px ${color}`, paintOrder: 'stroke fill' });
 
-function Footage({ cuts, dim }) {
+function Footage({ cuts, dim, clips, gameVolume, total }) {
   return (
     <AbsoluteFill style={{ backgroundColor: INK }}>
       {cuts.map((c, i) => (
         <Sequence key={i} from={c.from} durationInFrames={c.to - c.from} layout="none">
-          <Shot cut={c} />
+          <Shot cut={c} sound={!!c.sound} gameVolume={gameVolume} total={total} />
         </Sequence>
       ))}
       <AbsoluteFill style={{ backgroundColor: `rgba(15,20,30,${dim})` }} />
     </AbsoluteFill>
   );
 }
-function Shot({ cut }) {
+function Shot({ cut, sound, gameVolume, total }) {
   const frame = useCurrentFrame(), n = cut.to - cut.from;
   // (a slow push in on every shot: still footage reads as moving)
   const zoom = interpolate(frame, [0, n], [1.0, 1.06]);
+  // the game's own sound: each cut eased in and out over a couple of frames (no click at a cut), the whole video's
+  // faded in at the start and out under the end
+  const volume = f => {
+    const edge = Math.min(1, (f + 1) / 2, (n - f) / 2), at = cut.from + f;
+    const whole = Math.min(1, at / 8, (total - at) / 45);
+    return Math.max(0, gameVolume * edge * whole);
+  };
   return (
     <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
-      <OffthreadVideo src={staticFile(cut.src)} trimBefore={cut.trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <OffthreadVideo src={staticFile(cut.src)} trimBefore={cut.trimBefore} muted={!sound || !gameVolume} volume={sound ? volume : 0} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     </AbsoluteFill>
   );
 }
@@ -97,14 +104,14 @@ function EndCard({ title, line, n }) {
   );
 }
 
-export function Devlog({ script, clips, music, musicVolume = 0.35, kicker = 'Devlog', site = 'ognistrada.com' }) {
+export function Devlog({ script, clips, music, musicVolume = 0.35, gameVolume = 0.9, kicker = 'Devlog', site = 'ognistrada.com' }) {
   useBrandFont();
   const { fps, durationInFrames } = useVideoConfig();
   const P = plan({ script, clips, fps });
   const fade = f => interpolate(f, [0, fps, durationInFrames - fps * 1.5, durationInFrames], [0, musicVolume, musicVolume, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <AbsoluteFill style={{ backgroundColor: INK }}>
-      <Footage cuts={P.cuts} dim={0.08} />
+      <Footage cuts={P.cuts} dim={0.08} clips={clips} gameVolume={gameVolume} total={durationInFrames} />
       <Sequence from={P.hook.from} durationInFrames={P.hook.to - P.hook.from}>
         <AbsoluteFill style={{ backgroundColor: 'rgba(15,20,30,.35)' }} />
         <Hook text={script.hook || 'Devlog'} kicker={kicker} n={P.hook.to - P.hook.from} />

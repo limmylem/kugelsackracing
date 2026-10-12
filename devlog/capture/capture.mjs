@@ -19,12 +19,18 @@
 //                    nothing counted — server/src/routes/rt.ts): needs LOADTEST_TOKEN in the environment. Never an
 //                    account of anyone's, and never the admin's.
 //   --quick          a short test run: every shot a second long (or --max-seconds), at 15 fps and half the size
+//   --no-sound       pictures only (by default each clip has the game's own sound: below)
+//
+// The sound: the game's own (engines, tyres, the other car, the world: audio/system.js), rendered in step with the
+// pictures. The camera window's AudioContext is an OfflineAudioContext in disguise (an init script; the game is
+// unchanged): rendered only when told to, 1/fps of a second after each frame — so a frame that took two seconds to draw
+// still has exactly its 1/30 s of sound — and each shot's stretch of it put into its clip.
 //
 // Writes <out>/<shot>.mp4 for each shot and <out>/clips.json (what was captured: names, lengths, size).
 // Needs the game's own packages (npm ci at the repository's root: three.js and Rapier are served from there in local
 // mode) and this folder's (npm ci in devlog/).
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +40,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), DEVLOG = path.resolve
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; }, flag = n => args.includes(n);
 const TARGET = opt('--target', process.env.DEVLOG_TARGET || 'local');
 const QUICK = flag('--quick');
+const SOUND = !flag('--no-sound'), SAMPLE_RATE = 48000;
 const FPS = +opt('--fps', QUICK ? 15 : 30);
 const MAX_SECONDS = +opt('--max-seconds', QUICK ? 1 : 60);
 const OUT = path.resolve(opt('--out', path.join(DEVLOG, 'out/clips')));
@@ -94,6 +101,64 @@ const RIVAL_NAME = () => {
   new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fix(m.target); for (const n of m.addedNodes ?? []) { fix(n); n.childNodes?.forEach(fix); } } })
     .observe(document, { subtree: true, childList: true, characterData: true });
 };
+// The game's sound, rendered in step with the frames: AudioContext made an OfflineAudioContext (one, the length of the
+// run), its rendering paused and resumed by window.__devlogAudio.advance(ms) — run after each frame — so the sound's
+// clock is the frames' own. (The game never sees the difference: resume/suspend/close are no-ops it may call freely.)
+const OFFLINE_AUDIO = ({ sampleRate, seconds }) => {
+  const Offline = window.OfflineAudioContext;
+  if (!Offline) return;
+  let made = null;
+  function DevlogAudioContext() {
+    if (made) return made;
+    const ctx = new Offline({ numberOfChannels: 2, length: Math.ceil(sampleRate * seconds), sampleRate });
+    const suspendAt = ctx.suspend.bind(ctx), carryOn = ctx.resume.bind(ctx), q = 128 / sampleRate;
+    ctx.resume = () => Promise.resolve();
+    ctx.suspend = () => Promise.resolve();
+    ctx.close = () => Promise.resolve();
+    let started = false, target = 0, rendered = null;
+    window.__devlogAudio = {
+      ctx,
+      get time() { return ctx.currentTime; },
+      async advance(ms) {
+        target += ms / 1000;
+        const t = Math.round(target / q) * q;
+        if (t <= ctx.currentTime + q / 2 || t >= seconds - q) return ctx.currentTime;
+        // (a moment first for the game's messages to its audio thread — the engines' state — to arrive)
+        await new Promise(r => setTimeout(r, 4));
+        const at = suspendAt(t);
+        if (!started) { started = true; rendered = ctx.startRendering(); } else await carryOn();
+        await at;
+        return ctx.currentTime;
+      },
+      // the rest rendered, and the stretches wanted taken out: [{ from, seconds }] → base64 of 16-bit stereo
+      async take(segments) {
+        if (!started) { started = true; rendered = ctx.startRendering(); } else await carryOn();
+        const buf = await rendered, L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+        return segments.map(({ from, seconds: n }) => {
+          const a = Math.round(from * sampleRate), len = Math.round(n * sampleRate), pcm = new Int16Array(len * 2);
+          let peak = 0;
+          for (let i = 0; i < len; i++) for (const [c, ch] of [[0, L], [1, R]]) { const v = ch[a + i] ?? 0; peak = Math.max(peak, Math.abs(v)); pcm[i * 2 + c] = Math.max(-32768, Math.min(32767, Math.round(v * 32767))); }
+          let bin = '';
+          const bytes = new Uint8Array(pcm.buffer);
+          for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+          return { pcm: btoa(bin), peak };
+        });
+      },
+    };
+    made = ctx;
+    return ctx;
+  }
+  window.AudioContext = DevlogAudioContext;
+  window.webkitAudioContext = DevlogAudioContext;
+};
+// a WAV file from 16-bit stereo samples
+function wav(pcm, sampleRate) {
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
+  h.writeUInt16LE(1, 20); h.writeUInt16LE(2, 22); h.writeUInt32LE(sampleRate, 24); h.writeUInt32LE(sampleRate * 4, 28); h.writeUInt16LE(4, 32);
+  h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([h, pcm]);
+}
 // "Recording mode": everything but the 3D view hidden (and, if wanted, the names over the other cars)
 const RECORDING_CSS = names => `
   body * { visibility: hidden !important; }
@@ -143,11 +208,12 @@ if (TARGET === 'local') {
   };
 }
 
-async function openGame({ who, width, height, scale, track, room, names, on = browser }) {
+async function openGame({ who, width, height, scale, track, room, names, on = browser, audioSeconds = 0 }) {
   const ctx = await on.newContext({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: 'no-preference' });
   if (TARGET === 'local') await localLibs(ctx);
   await ctx.addInitScript(VIRTUAL_FRAMES);
   if (TARGET === 'live') await ctx.addInitScript(RIVAL_NAME);
+  if (audioSeconds) await ctx.addInitScript(OFFLINE_AUDIO, { sampleRate: SAMPLE_RATE, seconds: audioSeconds });
   // (the game asks the API for a join ticket for "player <who>": answered here — locally signed, or the live
   // load-test ticket — so neither car is anyone's account)
   if (ticketFor) await ctx.route(/\/api\/v1\/rt\/ticket$/, async r => {
@@ -173,7 +239,14 @@ async function openGame({ who, width, height, scale, track, room, names, on = br
   }).catch(() => false);
   for (let t = Date.now(); !(await ready()); await sleep(1000)) if (Date.now() - t > 240000) throw new Error(`${who}: the track didn't load in 4 minutes`);
   // (anything asking for a key press or a click at the start — a sign-in hint, a cookie note — out of the way)
+  // (a key press is also what starts the game's sound: browsers allow it only after one)
   await page.keyboard.press('Escape').catch(() => {});
+  if (audioSeconds) {
+    const up = () => page.evaluate(async () => !!(await import('/audio/system.js')).audioSystem() && !!window.__devlogAudio).catch(() => false);
+    let ok = false;
+    for (let k = 0; k < 40 && !(ok = await up()); k++) await sleep(500);
+    log(ok ? '  the game\'s sound is on (rendered in step with the frames)' : '  the game\'s sound didn\'t start: these clips are silent');
+  }
   await page.addStyleTag({ content: RECORDING_CSS(names) });
   await page.evaluate(() => { window.__devlogShared().renderer.domElement.classList.add('devlog-view'); });
   return { ctx, page };
@@ -208,7 +281,10 @@ const keepLabels = page => page.evaluate(() => { for (const el of document.query
 // ---------- a run: one page (and the rival's), the shots in order along the lap ----------
 async function run(shots, { track, multiplayer }) {
   const room = multiplayer ? `devlog-${Date.now().toString(36)}` : null;
-  const rec = await openGame({ who: 'rec', width: 540, height: 960, scale: QUICK ? 1 : 2, track, room, names: !!SHOTS.names });
+  // (the sound's length: the whole run in game time, and a little over)
+  const audioSeconds = SOUND ? Math.max(...shots.map(s => (s.at ?? 0) + Math.min(s.seconds, MAX_SECONDS))) + 4 : 0;
+  const rec = await openGame({ who: 'rec', width: 540, height: 960, scale: QUICK ? 1 : 2, track, room, names: !!SHOTS.names, audioSeconds });
+  const sound = audioSeconds && await rec.page.evaluate(() => !!window.__devlogAudio).catch(() => false);
   log(`the game is up${room ? `: room ${room}` : ''}`);
   // (held still from here: it waits, drawing nothing, until it's stepped)
   await rec.page.evaluate(() => window.__devlog.start());
@@ -242,6 +318,8 @@ async function run(shots, { track, multiplayer }) {
       rivalSteps = (async () => { for (let i = 0; i < n; i++) { await step(rival.page, ms / n); const wait = t0 + (i + 1) * period / n - performance.now(); if (wait > 0) await sleep(wait); } })();
     }
     await step(rec.page, ms);
+    // (the sound for the time from this frame to the next)
+    if (sound) await rec.page.evaluate(m => window.__devlogAudio.advance(m), ms);
     // (the page's screenshot: the 3D view and any names over the cars; the frame is drawn while it's taken)
     const shot = shoot ? await rec.page.screenshot({ type: 'jpeg', quality: 92, animations: 'allow', caret: 'initial', timeout: 60000 }) : null;
     if (rivalSteps) await rivalSteps;
@@ -275,6 +353,7 @@ async function run(shots, { track, multiplayer }) {
     const ff = spawn(bin, ffArgs, { ...ffOpts, stdio: ['pipe', 'inherit', 'inherit'] });
     const done = new Promise((res, rej) => ff.on('close', c => (c === 0 ? res() : rej(new Error(`ffmpeg exited ${c}`)))));
     const frames = Math.round(seconds * FPS);
+    const soundFrom = sound ? await rec.page.evaluate(() => window.__devlogAudio.time) : null;
     const t0 = performance.now();
     for (let f = 0; f < frames; f++) {
       const { shot } = await advance(dt, true);
@@ -284,8 +363,24 @@ async function run(shots, { track, multiplayer }) {
     ff.stdin.end();
     await done;
     if (multiplayer) log(`  ${s.name}, at its end: ${await othersSeen(rec.page)}`);
-    made.push({ name: s.name, file: path.relative(DEVLOG, file), seconds, fps: FPS, multiplayer: !!multiplayer, camera: s.camera ?? 'chase', label: s.label ?? null });
+    made.push({ name: s.name, file: path.relative(DEVLOG, file), seconds, fps: FPS, multiplayer: !!multiplayer, camera: s.camera ?? 'chase', label: s.label ?? null, soundFrom, sound: false });
     log(`${s.name}: ${seconds} s → ${path.relative(process.cwd(), file)}`);
+  }
+  // the sound: the rest of the run rendered, each shot's stretch of it into its clip (a failure here leaves the clips
+  // silent, never lost)
+  if (sound) {
+    try {
+      const parts = await rec.page.evaluate(segs => window.__devlogAudio.take(segs), made.map(m => ({ from: m.soundFrom, seconds: m.seconds })));
+      for (const [i, m] of made.entries()) {
+        const file = path.join(DEVLOG, m.file), tmpWav = file.replace(/\.mp4$/, '.wav'), tmpMp4 = file.replace(/\.mp4$/, '.sound.mp4');
+        fs.writeFileSync(tmpWav, wav(Buffer.from(parts[i].pcm, 'base64'), SAMPLE_RATE));
+        const [bin, a, o] = ffmpegCommand(['-y', '-loglevel', 'error', '-i', file, '-i', tmpWav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', tmpMp4]);
+        execFileSync(bin, a, o);
+        fs.renameSync(tmpMp4, file); fs.rmSync(tmpWav);
+        m.sound = true; m.soundPeak = +parts[i].peak.toFixed(3);
+        log(`  ${m.name}: sound added (loudest ${(20 * Math.log10(Math.max(1e-6, parts[i].peak))).toFixed(1)} dBFS)`);
+      }
+    } catch (e) { console.error(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}The game's sound couldn't be added (the clips stay silent): ${String(e.message ?? e).split('\n')[0]}`); }
   }
   await rec.ctx.close();
   if (rival) await rival.ctx.close();

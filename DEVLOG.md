@@ -61,6 +61,13 @@ Don't like the script? Run it again with your own words. **It skips the filming,
 Tips: keep the hook under about 8 words and each caption under about 12. Four to six captions make a 20–45 second
 video (more, and the last ones are left out; the run's summary says so).
 
+## The game's sound
+
+Each video has the game's own sound: the engines, the tyres, the other car going by, all recorded in step with the
+pictures (version 2). It fades in at the start and out under the end card, with short fades at each cut so the quick
+cuts don't click. If you add music, the game's sound goes a little quieter so you hear both. On your own computer,
+`--no-sound` films without it and `--game-volume 0.5` makes it quieter in the video.
+
 ## Music (optional)
 
 - **Easiest:** leave it out and add a sound in the TikTok or Instagram app when you post. Their music is licensed for
@@ -112,7 +119,9 @@ Everything it makes goes in `devlog/out/`, which git ignores: videos and music a
 - **Filming** (`devlog/capture/capture.mjs`): a headless Chromium opens the game at phone size, drops into a
   generated race track, and the game's own autopilot drives the lap. GitHub's computers have no graphics card, so the
   game draws about one frame a second: instead of recording in real time, the tool runs the game one frame at a time
-  (1/30 of a second each) and takes a picture of each frame, so the footage is smooth. The game's buttons and panels
+  (1/30 of a second each) and takes a picture of each frame, so the footage is smooth. The sound is done the same way: the
+  game's sound system renders exactly 1/30 of a second of sound after each frame (an offline audio context in place
+  of the live one), so the sound matches the pictures however slowly they were drawn. The game's buttons and panels
   are hidden by the tool, without changing the game. The second car is a second browser window, run in step with the
   first.
 - **The script** (`devlog/script/draft.mjs`): the commit subjects since the last `devlog-*` tag (or the last 7 days),
