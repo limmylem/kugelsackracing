@@ -71,14 +71,15 @@ export function skyEnvironment(renderer, { sky = '#8fbbe6', horizon = '#eef3f7',
 // ---------- models, loaded once ----------
 
 // What a model's own materials are, whatever its file says: its glass clear and smooth, reflecting what the car's
-// paint does (the graphics settings' reflections — each car's glass is its own copy: #materialFor)
+// paint does (the graphics settings' reflections — each car's glass is its own copy: #materialFor); its metal (a rim's
+// face, chrome trim) reflecting too — metal with nothing to reflect is black
 function modelLooks(scene) {
   scene.traverse(o => {
     if (!o.isMesh) return;
     for (const m of [o.material].flat()) {
-      if (!m?.isMeshStandardMaterial || !/glass/i.test(m.name) || !m.transparent) continue;
-      m.roughness = Math.min(m.roughness, 0.03); m.metalness = 0;
-      m.userData.reflective = 1;
+      if (!m?.isMeshStandardMaterial) continue;
+      if (/glass/i.test(m.name) && m.transparent) { m.roughness = Math.min(m.roughness, 0.03); m.metalness = 0; m.userData.reflective = 1; }
+      else if (m.metalness >= 0.5) m.userData.reflective = 1;
     }
   });
 }
@@ -789,6 +790,8 @@ export class CarVisual {
     }
     if (finish || colour) return this.#ownMaterial(`${src.uuid}|${finish ?? ''}|${colour ?? ''}`, () => finishMaterial(src, this.finishes[finish], colour, this.environment ?? environment));
     if (PER_CAR.test(src.name)) return this.#ownMaterial(`own|${src.uuid}`, () => { const m = src.clone(); if (m.userData.reflective) { m.envMap = this.environment ?? environment; m.envMapIntensity = m.userData.reflective; } return m; });
+    // (a model's own reflective material, shared by every car with the model: what they all reflect)
+    if (src.userData?.reflective && !src.envMap && (this.environment ?? environment)) { src.envMap = this.environment ?? environment; src.envMapIntensity = src.userData.reflective; src.needsUpdate = true; }
     return src;
   }
   #ownMaterial(key, make) {

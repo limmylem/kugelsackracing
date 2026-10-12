@@ -1,0 +1,22 @@
+{
+  "_note": "The Starter coupe's model made in code (tools/placeholder-car.mjs, tools/content/carBody.mjs): its proportions, the look of an honest 1980s two-door; keepSockets: its sockets stay exactly where car.json has them (its physics was tuned on its first, hand-made model).",
+  "keepSockets": true,
+  "paint": "#6d9a91",
+  "style": "sedan",
+  "length": 4.02,
+  "width": 1.72,
+  "height": 1.31,
+  "clearance": 0.13,
+  "beltline": 0.85,
+  "frontAxle": 1.2,
+  "rearAxle": -1.2,
+  "track": 1.48,
+  "wheel": { "radius": 0.2895, "rimDiameter": 15, "width": 0.18 },
+  "bonnet": { "rear": 0.69, "front": 0.72, "back": 0.85 },
+  "roof": { "front": 0.05, "rear": -0.86, "height": 1.31 },
+  "deck": { "front": -1.39, "height": 0.87 },
+  "engine": { "at": [0, 0.55, 1.25], "size": [0.6, 0.5, 0.55] },
+  "seatZ": -0.22,
+  "floor": 0.25,
+  "look": { "plan": 4.2, "nose": 0.3, "tail": 0.26, "crown": 0.02, "lights": { "head": "block", "tail": "block" }, "grille": "bars", "rim": { "spokes": 8, "kind": "classic" }, "bonnetVent": false }
+}

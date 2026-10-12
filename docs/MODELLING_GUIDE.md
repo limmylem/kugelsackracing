@@ -83,6 +83,33 @@ and splits it into the body and a model per stock part (`npm run build:car`).
   `Socket_Mirror_Right`) and says what they should be.
 - The body's painted surfaces use `paint`; it must be there.
 
+### Cars made in code
+
+A car with a design, `data/cars/<id>/design.json` (the proportions its placeholder has, so its sockets stay where they
+are), can be made in code by `tools/content/carBody.mjs`: `node tools/placeholder-car.mjs <id> --import` makes
+`incoming/car_<id>.glb` and imports it like a modelled car (`--blocky`: the old low-poly placeholder instead). In
+progress (2026-10-12): the seven placeholder cars import and draw, but the parts fitted to each car's shape still have
+to be made again and checked against them before they go in the game; the Starter coupe keeps its hand-made model (its
+physics and damage tests were tuned on it). Every one is fictional — no real car's shape, lights or badge.
+
+- **The body** is lofted along the car: cross-sections (the sill's roll, the side bulging out and leaning in, the
+  shoulder, a crowned top) from the nose to the tail, its plan rounded at each end, smooth-shaded. The wheel arches
+  are cut round each tyre with room to move, the wells behind them closed. The glasshouse is a second loft on top: its
+  windscreen, side and rear windows (black seals and frit round them), the pillars and roof, lined inside.
+- **The panels** are cut from that one surface along its own lines, so they meet without a step: the bumpers (the
+  rear one closing the tail's underside, which the exhaust goes out through), the bonnet, the wings, the doors, the
+  sills, the boot or engine cover — each under its socket, with a thin dark shut line along its edges.
+- **The details are projected** onto the body: the headlights (a housing, a chrome reflector, projector lamps, a
+  running-light strip), the tail lights, the grille and intakes, the number plates, the badges, the door handles, a
+  bonnet vent or engine-cover louvres. The bonnet rises a little over a tall engine (at most 5 cm).
+- **The stock parts** are made too: the wheels (multi-spoke rims in `rim_finish`, the tyre band the split cuts off),
+  bucket seats, the steering wheel, the mirrors, the engine block, the exhaust tip, a convertible's soft top.
+- **The look of each kind** (`STYLES`: coupe, roadster, suv, hatch, muscle, sedan, mid — the sides' bulge and lean,
+  the shoulder and sill radii, the nose and tail rounding, the lights, the grille, the rims) can be changed per car in
+  its design's `look`.
+- **Afterwards**: `npm run generate-parts` makes the parts that are fitted to each car's shape again (seats, cages,
+  intakes, aero) — `npm test` checks every one of them clears the new body.
+
 ## Generated parts
 
 Mechanical parts aren't modelled by hand: `npm run generate-parts` builds them in code from settings
@@ -106,8 +133,9 @@ its generator's settings and running it again — never the `.glb`. A part file 
   turning, made to fit inside the rim.
 - **Wings** have their element as a node of its own, `wing_element`, turning about its middle: the game
   tips it to the wing's angle setting.
-- **Not generated**: anything that has to follow a car's curves — bumpers, bonnets, fenders, widebody
-  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them).
+- **Not generated here**: the extra body parts that have to follow a car's curves — widebody flares, hardtops,
+  aftermarket engine covers. Those are modelled (`docs/models_todo.md` lists them); a car's own stock panels come with
+  it (above).
 
 ## Tools
 
@@ -193,7 +221,7 @@ The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning
 | Wheelbase / track | 2–3.4 m / 1.1–1.9 m |
 | Wheel sockets | at each wheel's centre, 0.24–0.42 m up (the stock wheel's radius, give or take 1.5 cm) |
 | Left / right sockets | mirror each other to 1 cm |
-| Triangles | 25,000 for the whole car |
+| Triangles | 40,000 for the whole car |
 | Paint | the body's painted surfaces use the material `paint` |
 | Must have | `socket_wheel_FL`, `socket_wheel_FR`, `socket_wheel_RL`, `socket_wheel_RR` |
 | Should have | `socket_bonnet`, `socket_boot`, `socket_bumper_front`, `socket_bumper_rear`, `socket_door_left`, `socket_door_right`, `socket_fender_FL`, `socket_fender_FR`, `socket_skirt_left`, `socket_skirt_right`, `socket_mirror_left`, `socket_mirror_right`, `socket_seat_driver`, `socket_seat_passenger`, `socket_steering_wheel`, `socket_engine`, `socket_intake`, `socket_turbo`, `socket_exhaust_tip`, `socket_spoiler` |
