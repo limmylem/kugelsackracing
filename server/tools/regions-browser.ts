@@ -6,6 +6,9 @@
 //      the first free roam goes back there (a note says so) and puts the car where it was left; a region chosen after
 //      that is kept (not taken back to Monaco)
 //   C. nothing saved, nothing remembered: San Francisco, as before
+//   D. signed in, chosen in this browser since (the owner's report: to Adelaide, reloaded, landed in San Francisco): the
+//      account's place is in San Francisco, saved 10 minutes ago; this browser went to Adelaide just now — reloaded with
+//      ?mp it stays in Adelaide (no going back), and free roam saves Adelaide
 //
 //   node server/tools/regions-browser.ts [--local-libs]   (needs PostgreSQL: TEST_DATABASE_URL; playwright-core and
 //   Chromium: PLAYWRIGHT_CORE, CHROMIUM; jsDelivr, or CDN_LIBS with --local-libs — see mp-browser.ts)
@@ -33,12 +36,17 @@ const app: any = await buildApp({ config });
 await app.listen({ port: PORT, host: '127.0.0.1' });
 const far = await signUp(app, app.deps.mailer.outbox as any[], { email: 'far@example.com', name: 'Far Away', ip: '10.9.5.1' });
 await signUp(app, app.deps.mailer.outbox as any[], { email: 'new@example.com', name: 'New Comer', ip: '10.9.5.2' });
+const owner = await signUp(app, app.deps.mailer.outbox as any[], { email: 'owner@example.com', name: 'The Owner', ip: '10.9.5.3' });
 
 // where the far player left off in free roam: in Monaco, on a road about 150 m from the region's spawn (Casino Square),
 // as the zone servers save it (server/src/roam/service.ts save)
 const SAVED = { region: 'monaco', pos: [417.54, 53.31, -272.31], heading: 90 };
 const farId = (await far.get('/api/v1/me')).body.user.id as string;
 await app.deps.db.execute(sql`insert into roam_players (user_id, region, pos, heading, saved_at) values (${farId}, ${SAVED.region}, ${JSON.stringify(SAVED.pos)}::jsonb, ${SAVED.heading}, now())`);
+// (the owner's: San Francisco, on a road near the Embarcadero, 10 minutes ago)
+const ownerId = (await owner.get('/api/v1/me')).body.user.id as string;
+await app.deps.db.execute(sql`insert into roam_players (user_id, region, pos, heading, saved_at) values (${ownerId}, 'sf', ${JSON.stringify([3597.88, 2.87, -2563.44])}::jsonb, 315, now() - interval '10 minutes')`);
+const savedOf = async (uid: string) => (await app.deps.db.execute(sql`select region, pos, saved_at from roam_players where user_id = ${uid}`)).rows[0] as any;
 
 const browser = await pw.chromium.launch({ executablePath: process.env.CHROMIUM ?? '/opt/pw-browsers/chromium', args: ['--no-proxy-server', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const errors: string[] = [];
@@ -71,7 +79,7 @@ const open = async (P, url) => {
 // the notes free roam showed, what this browser remembers
 const look = (P) => P.evaluate(async () => {
   const { debug } = await import('/testtrack/test-scene.js'), w = debug.active, g = globalThis as any;
-  let stored = null; try { stored = localStorage.getItem('kr.lastRealWorld.v1'); } catch { /* none */ }
+  let stored = null; try { stored = JSON.parse(localStorage.getItem('kr.lastRealWorld.v1') ?? 'null'); } catch { /* none */ }
   if (!w?.sim) return { ready: false, stored, toasts: g.__toasts ?? [] };
   const p = w.sim.vehicle.body.translation(), xz = w.stream ? w.stream.toWorld(p.x, p.z) : [p.x, p.z];
   return { ready: !w.spawning && !!w.stream, file: w.file, manifest: w.track?.mapV3?.manifest ?? null, region: w.track?.mapV3?.manifest?.match(/assets\/map\/([^/]+)\//)?.[1] ?? null,
@@ -88,10 +96,11 @@ try {
     const { ctx, P } = await computer('A');
     await open(P, `${BASE}/?view=600`);
     const sf = await until(async () => { const l = await look(P); return l.ready ? l : null; }, 300000) ?? await look(P);
-    check('the first time: San Francisco (nothing remembered)', sf.region === 'sf' && sf.stored === 'scenes/map_v3.json', `${sf.region} · remembered ${JSON.stringify(sf.stored)}`);
+    check('the first time: San Francisco (nothing remembered; opening isn\'t a choice: at 0)', sf.region === 'sf' && sf.stored?.file === 'scenes/map_v3.json' && sf.stored?.at === 0, `${sf.region} · remembered ${JSON.stringify(sf.stored)}`);
+    const t0 = Date.now();
     enter(P, 'scenes/map_v3.json?region=monaco');
     const mc = await until(async () => { const l = await look(P); return l.ready && l.region === 'monaco' ? l : null; }, 300000) ?? await look(P);
-    check('to Monaco: this browser remembers it', mc.region === 'monaco' && mc.stored === 'scenes/map_v3.json?region=monaco', `${mc.region} · remembered ${JSON.stringify(mc.stored)}`);
+    check('to Monaco: this browser remembers it, and when', mc.region === 'monaco' && mc.stored?.file === 'scenes/map_v3.json?region=monaco' && mc.stored?.at >= t0 && mc.stored?.at <= Date.now(), `${mc.region} · remembered ${JSON.stringify(mc.stored)}`);
     const asked: string[] = [];
     P.on('request', (r: any) => asked.push(new URL(r.url()).pathname));
     await P.reload();
@@ -112,7 +121,7 @@ try {
     await signIn(P, 'far@example.com');
     await open(P, `${BASE}/?mp&view=600`);
     const first = await look(P);
-    check('nothing remembered in this browser: it starts in San Francisco', first.stored == null || first.stored === 'scenes/map_v3.json', `remembered ${JSON.stringify(first.stored)}, ${first.region ?? 'building'}`);
+    check('nothing remembered in this browser: it starts in San Francisco', first.stored == null || (first.stored.file === 'scenes/map_v3.json' && first.stored.at === 0), `remembered ${JSON.stringify(first.stored)}, ${first.region ?? 'building'}`);
     const there = await until(async () => { const l = await look(P); return l.ready && l.region === 'monaco' && l.roam === 'roam:monaco' && Math.hypot(l.xz[0] - SAVED.pos[0], l.xz[1] - SAVED.pos[2]) < 5 ? l : null; }, 600000) ?? await look(P);
     const d = there.xz ? Math.hypot(there.xz[0] - SAVED.pos[0], there.xz[1] - SAVED.pos[2]) : NaN;
     check('free roam goes back to Monaco by itself', there.region === 'monaco' && there.roam === 'roam:monaco', `${there.region}, free roam ${there.roam}`);
@@ -126,7 +135,7 @@ try {
     const later = await look(P);
     check('then to San Francisco: kept, not taken back to Monaco', !!sfNow && later.region === 'sf' && later.roam === 'roam:sf' && later.toasts.filter(t => /Going back/.test(t)).length === said,
       `${later.region}, free roam ${later.roam} · notes since: ${JSON.stringify(later.toasts.slice(there.toasts.length))}`);
-    check('…and this browser remembers San Francisco now', later.stored === 'scenes/map_v3.json', JSON.stringify(later.stored));
+    check('…and this browser remembers San Francisco now', later.stored?.file === 'scenes/map_v3.json' && later.stored?.at > 0, JSON.stringify(later.stored));
     await ctx.close();
   }
 
@@ -141,6 +150,31 @@ try {
     const later = await look(P);
     check('San Francisco, free roam there, and it stays', sf.region === 'sf' && later.region === 'sf' && later.roam === 'roam:sf' && !later.toasts.some(t => /Going back/.test(t)),
       `${later.region}, free roam ${later.roam} · notes ${JSON.stringify(later.toasts)}`);
+    await ctx.close();
+  }
+
+  // ---------- D. chosen in this browser since ----------
+  console.log('\n== D. signed in: the place saved in San Francisco 10 minutes ago; this browser went to Adelaide just now; reloaded with ?mp');
+  {
+    const { ctx, P } = await computer('D');
+    await signIn(P, 'owner@example.com');
+    // (without ?mp: no free roam, so nothing saved meanwhile — only this browser's choice)
+    await open(P, `${BASE}/?view=600`);
+    await until(async () => { const l = await look(P); return l.ready ? l : null; }, 300000);
+    const t0 = Date.now();
+    enter(P, 'scenes/map_v3.json?region=adelaide');
+    const ad = await until(async () => { const l = await look(P); return l.ready && l.region === 'adelaide' ? l : null; }, 300000) ?? await look(P);
+    check('to Adelaide: this browser remembers it, and when (just now)', ad.region === 'adelaide' && ad.stored?.file === 'scenes/map_v3.json?region=adelaide' && ad.stored?.at >= t0, `${ad.region} · remembered ${JSON.stringify(ad.stored)}`);
+    const asked: string[] = [];
+    P.on('request', (r: any) => asked.push(new URL(r.url()).pathname));
+    await open(P, `${BASE}/?mp&view=600`);
+    const on = await until(async () => { const l = await look(P); return l.ready && l.roam ? l : null; }, 300000) ?? await look(P);
+    await P.waitForTimeout(30000);
+    const later = await look(P), sfAsked = asked.filter(u => u.includes('/assets/map/sf/'));
+    check('reloaded with ?mp: it stays in Adelaide, free roam there', on.region === 'adelaide' && later.region === 'adelaide' && later.roam === 'roam:adelaide', `${on.region} then ${later.region}, free roam ${later.roam}`);
+    check('…no going back to San Francisco (no note of it, nothing of it asked for)', !later.toasts.some(t => /Going back/.test(t)) && sfAsked.length === 0, `notes ${JSON.stringify(later.toasts)} · ${sfAsked.length} San Francisco files asked for`);
+    const saved = await until(async () => { const r = await savedOf(ownerId); return r?.region === 'adelaide' ? r : null; }, 90000, 2000) ?? await savedOf(ownerId);
+    check('…and free roam saves Adelaide', saved?.region === 'adelaide', JSON.stringify(saved));
     await ctx.close();
   }
 

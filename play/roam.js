@@ -10,7 +10,7 @@
 //
 //   const R = await startRoam({ account, region, cfg, mpCfg, adapter, look, player, netsim, serverNetsim, debug, S, game })
 //     S: the hub session (mp/client.js) — placing, friends, the party, join friend, party chat
-//     game: { regionId(), carPose() → { pos [x, y, z] world frame, headingDeg, speed }, place(pos, headingDeg), switchRegion(id),
+//     game: { regionId(), carPose() → { pos [x, y, z] world frame, headingDeg, speed }, place(pos, headingDeg), switchRegion(id), regionChosenAt() (when this browser last changed region, ms: 0 never),
 //             maps(), latLonOf(x, z), xzOf(lat, lon), say(text, kind), photoMode(on), questsNear() → [{ id, name, route, x, z }],
 //             sim(), simTime(), carPhysics(), toSim, toWorld, contactHit, contactEffect, setOpacity(handle, a), horn() }
 //   R.M (play/multiplayer.js's api: frame, crash, part, reset, repair, setLook, overlay, others, toNearest)
@@ -21,6 +21,7 @@ import { createRoamClient } from '../mp/roamClient.js';
 import { lodFor, nameOpacity, meetEventState } from '../mp/roam.js';
 import { createContactClient } from '../mp/contactClient.js';
 import { createColyseusTransport } from '../net/transport.js';
+import { dockSlot } from './dock.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const km = m => m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
@@ -30,25 +31,34 @@ const CSS = `
 #roamHud button { font: inherit; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 7px; padding: 3px 8px; cursor: pointer; }
 #roamHud .tag { font: 700 10px "JetBrains Mono", monospace; letter-spacing: .06em; padding: 2px 6px; border-radius: 6px; background: #2b3444; }
 #roamHud .tag.contact { background: #7a3b1e; } #roamHud .tag.passive { background: #1e4f7a; } #roamHud .tag.ghosted { background: #6b1e1e; }
-#roamPanel { position: fixed; right: 14px; top: min(64px, 6vh); bottom: min(90px, 12vh); width: min(400px, 94vw); z-index: 60; color: #f2f4f7; background: rgba(14, 18, 26, .95); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; font: 13px/1.45 Barlow, system-ui, sans-serif; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
-#roamPanel.open { display: flex; }
-#roamPanel nav { display: flex; gap: 2px; padding: 8px 8px 0; flex-wrap: wrap; }
-#roamPanel nav button { flex: 1; font: 600 12px Barlow, system-ui, sans-serif; color: #c9d1d9; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 6px 4px; cursor: pointer; }
-#roamPanel nav button.on { color: #fff; border-bottom-color: #ffb02e; }
-#roamPanel .body { overflow: auto; padding: 10px 12px; flex: 1; }
-#roamPanel h4 { margin: 10px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #9aa4b2; }
-#roamPanel .row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
-#roamPanel .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#roamPanel .muted { color: #8b949e; font-size: 12px; }
-#roamPanel button.s { font: 600 11px Barlow, system-ui, sans-serif; color: #f2f4f7; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 3px 7px; cursor: pointer; }
-#roamPanel button.s:hover { background: rgba(255,255,255,.16); }
-#roamPanel button.s.go { background: #2f6f3e; border-color: #3f8f52; }
-#roamPanel button.s.warn { background: #6b2a24; border-color: #8a3a32; }
-#roamPanel label.opt { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-#roamPanel .badge { font: 700 9px "JetBrains Mono", monospace; padding: 1px 5px; border-radius: 5px; background: #2b3444; }
-#roamPanel .badge.friend { background: #1f5c3a; } #roamPanel .badge.party { background: #4a2f74; }
-#roamPanel .chatlog { height: 180px; overflow: auto; background: rgba(0,0,0,.25); border-radius: 8px; padding: 6px; font-size: 12px; }
-#roamPanel input[type=text], #roamPanel select { font: 13px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 7px; padding: 5px 7px; }
+#roamPanel { position: fixed; left: 112px; bottom: 84px; max-height: min(640px, calc(100vh - 110px)); width: min(420px, calc(100vw - 130px)); z-index: 60; color: #f2f4f7;
+  background: linear-gradient(170deg, rgba(20, 20, 24, .97), rgba(10, 10, 12, .97)); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; font: 14px/1.45 Barlow, system-ui, sans-serif; display: none; flex-direction: column; box-shadow: 0 18px 50px rgba(0,0,0,.6); overflow: hidden; }
+#roamPanel::before { content: ''; position: absolute; left: 18px; top: 0; width: 30%; height: 3px; border-radius: 0 0 3px 3px; background: linear-gradient(90deg, #E3121E, #FF4A36); }
+#roamPanel.open { display: flex; animation: roamIn .18s ease-out; }
+@keyframes roamIn { from { opacity: 0; transform: translateX(-10px); } }
+#roamPanel nav { display: flex; gap: 4px; padding: 14px 12px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+#roamPanel nav button { flex: 1; font: 700 13px Barlow, system-ui, sans-serif; letter-spacing: .03em; color: #9AA0A8; background: transparent; border: 0; border-bottom: 3px solid transparent; padding: 8px 4px 9px; cursor: pointer; transition: color .15s, border-color .15s; }
+#roamPanel nav button:hover { color: #fff; }
+#roamPanel nav button.on { color: #fff; border-bottom-color: #E3121E; }
+#roamPanel .body { overflow: auto; padding: 12px 16px 16px; flex: 1 1 auto; min-height: 0; }
+#roamPanel h4 { margin: 14px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .2em; color: #9AA0A8; }
+#roamPanel .row { display: flex; align-items: center; gap: 6px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.06); flex-wrap: wrap; }
+#roamPanel .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+#roamPanel .muted { color: #9AA0A8; font-size: 13px; }
+#roamPanel button.s { font: 600 12px Barlow, system-ui, sans-serif; color: #f2f4f7; background: #18181C; border: 1px solid #34343B; border-radius: 7px; padding: 5px 10px; cursor: pointer; transition: background .15s, border-color .15s; }
+#roamPanel button.s:hover { background: #222228; border-color: #55555C; }
+#roamPanel button.s.go { background: linear-gradient(180deg, #FF4A36, #C80F1B); border-color: #FF5A45; }
+#roamPanel button.s.go:hover { box-shadow: 0 0 12px rgba(255, 40, 40, .4); }
+#roamPanel button.s.warn { background: #3a1416; border-color: #7d2f2f; }
+#roamPanel label.opt { display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; }
+#roamPanel label.opt input { accent-color: #E3121E; width: 16px; height: 16px; }
+#roamPanel .badge { font: 700 9px "JetBrains Mono", monospace; padding: 2px 5px; border-radius: 4px; background: #2B2E34; }
+#roamPanel .badge.friend { background: #1f5c3a; } #roamPanel .badge.party { background: #5a1f74; }
+#roamPanel .chatlog { height: 240px; overflow: auto; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 8px 10px; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
+#roamPanel .chatlog:empty::before { content: 'No messages yet: say hi to the drivers near you.'; color: #6E737A; margin: auto; text-align: center; }
+#roamPanel input[type=text], #roamPanel select { font: 14px Barlow, system-ui, sans-serif; color: #fff; background: #0A0A0C; border: 1px solid #34343B; border-radius: 8px; padding: 7px 9px; }
+#roamPanel input[type=text]:focus, #roamPanel select:focus { outline: none; border-color: #E3121E; box-shadow: 0 0 0 3px rgba(227,18,30,.2); }
+@media (max-width: 760px) { #roamPanel { left: 8px; right: 8px; width: auto; top: 12px; bottom: auto; max-height: calc(100vh - 260px); } @keyframes roamIn { from { opacity: 0; } } }
 #roamPrompt { position: fixed; left: 50%; top: min(80px, 8vh); transform: translateX(-50%); z-index: 70; width: min(440px, 92vw); max-height: calc(100vh - 2 * min(80px, 8vh)); overflow: auto; box-sizing: border-box; color: #f2f4f7; background: rgba(14, 18, 26, .96); border: 1px solid rgba(255,176,46,.5); border-radius: 12px; padding: 12px 14px; font: 13px/1.45 Barlow, system-ui, sans-serif; display: none; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 #roamPrompt h3 { margin: 0 0 4px; font-size: 17px; }
 #roamPrompt .actions { display: flex; gap: 8px; margin-top: 10px; }
@@ -58,7 +68,7 @@ const CSS = `
 #roamWheel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 72; width: 300px; height: 300px; display: none; }
 #roamWheel button { position: absolute; width: 104px; transform: translate(-50%, -50%); font: 700 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(14, 18, 26, .9); border: 1px solid rgba(255,255,255,.2); border-radius: 18px; padding: 8px 6px; cursor: pointer; }
 #roamWheel button:hover { background: #2f6f3e; }
-#roamToasts { position: fixed; left: 14px; bottom: 60px; z-index: 47; display: flex; flex-direction: column; gap: 4px; pointer-events: none; font: 600 12px/1.35 Barlow, system-ui, sans-serif; }
+#roamToasts { position: fixed; left: 112px; bottom: 30px; z-index: 47; display: flex; flex-direction: column; gap: 4px; pointer-events: none; font: 600 12px/1.35 Barlow, system-ui, sans-serif; }
 #roamToasts div { color: #fff; background: rgba(14, 18, 26, .8); border-radius: 8px; padding: 4px 9px; max-width: 360px; }
 body.roamPhoto #roamHud, body.roamPhoto #roamToasts, body.roamPhoto #worldMini, body.roamPhoto #krMpBanner { display: none !important; }
 `;
@@ -140,7 +150,9 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const banner = document.createElement('div'); banner.id = 'roamChallenge';
   const wheel = document.createElement('div'); wheel.id = 'roamWheel';
   const toasts = document.createElement('div'); toasts.id = 'roamToasts';
-  for (const el of [hud, panel, prompt, banner, wheel, toasts]) document.body.appendChild(el);
+  for (const el of [panel, prompt, banner, wheel, toasts]) document.body.appendChild(el);
+  // (the status: a tile in the game's dock, play/dock.js, when it's there)
+  dockSlot('krDockRoam').appendChild(hud);
   const toast = (text, ms = 5000) => { const d = document.createElement('div'); d.textContent = text; toasts.appendChild(d); setTimeout(() => d.remove(), ms); while (toasts.children.length > 5) toasts.firstChild.remove(); };
   const say = (text, kind = 'ok') => game.say?.(text, kind);
   let tab = 'near', panelAt = 0;
@@ -149,7 +161,11 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   panel.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab) { tab = b.dataset.tab; render(); return; } act(b.dataset, b); });
   panel.addEventListener('change', e => { const el = e.target; if (el.dataset.set) setSetting(el.dataset.set, el.type === 'checkbox' ? el.checked : el.value); });
   panel.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && e.target.id === 'roamChatIn') sendChat(); });
-  const open = on => { panel.classList.toggle('open', on); if (on) render(); };
+  const open = on => {
+    panel.classList.toggle('open', on); if (on) render();
+    // (the dock: which tile is open; the chat seen)
+    dispatchEvent(new CustomEvent('kr:roam-panel', { detail: { open: on, tab } }));
+  };
   const isOpen = () => panel.classList.contains('open');
 
   function relOf(uid) { if (state.partyUids?.has(uid)) return 'party'; if (S.friends?.some(f => f.id === uid)) return 'friend'; return 'other'; }
@@ -159,6 +175,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   }
   function render() {
     for (const b of panel.querySelectorAll('nav button')) b.classList.toggle('on', b.dataset.tab === tab);
+    if (isOpen()) dispatchEvent(new CustomEvent('kr:roam-panel', { detail: { open: true, tab } }));
     const T = state.touch, st = state.settings;
     if (tab === 'near') {
       const list = nearList().slice(0, 30);
@@ -212,9 +229,13 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
     const T = state.touch, ghost = T.ghostUntil > Date.now();
     // (the next meet, counting down: scheduled meets are on the map at their meet spot too)
     const next = (state.meets ?? []).map(e => ({ ...e, ...meetEventState(e, Date.now(), cfg) })).find(e => e.state === 'live' || e.state === 'announced');
-    hud.innerHTML = `<span>Free roam</span><span class="tag ${ghost ? 'ghosted' : T.passive ? 'passive' : T.contact ? 'contact' : ''}">${ghost ? 'GHOSTED' : T.passive ? 'PASSIVE' : T.contact ? `CONTACT${T.with.length ? ` ${T.with.length}` : ''}` : 'GHOST'}</span><span class="muted">${N.last.filter(o => o.pose && !o.leaving).length} near</span>${next ? `<span class="muted">Meet: ${esc(next.title)} ${next.state === 'live' ? 'on now' : `in ${countdown(next.startsInSec)}`}</span>` : ''}<button data-a="panel">F6</button>`;
+    const near = N.last.filter(o => o.pose && !o.leaving).length, tag = ghost ? 'GHOSTED' : T.passive ? 'PASSIVE' : T.contact ? `CONTACT${T.with.length ? ` ${T.with.length}` : ''}` : 'GHOST';
+    const meet = next ? `Meet: ${next.title} ${next.state === 'live' ? 'on now' : `in ${countdown(next.startsInSec)}`}` : '';
+    // (a tile in the dock: the button opens the panel; how you are to the others under it, who's near on it)
+    const html = `<button data-a="panel" title="Free roam (F6)" data-tip="Free roam: drivers near you, friends, party, meets, settings (F6)"><span class="dk-ic" aria-hidden="true">groups</span>Free roam<kbd>F6</kbd><span class="dk-near" data-n="${near}" title="${near} near">${near}</span></button><span class="tag ${ghost ? 'ghosted' : T.passive ? 'passive' : T.contact ? 'contact' : ''}">${tag}</span><span class="muted near-text" hidden>${near} near</span>${meet ? `<span class="dk-meet">${esc(meet)}</span>` : ''}`;
+    if (hud.innerHTML !== html) hud.innerHTML = html;
   }
-  hud.addEventListener('click', e => { if (e.target.closest('button')) open(!isOpen()); });
+  hud.addEventListener('click', e => { if (!e.target.closest('button')) return; if (!isOpen() && tab === 'chat') tab = 'near'; open(!isOpen()); });
 
   function setSetting(k, v) {
     state.settings = { ...state.settings, [k]: v };
@@ -285,6 +306,14 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   }
   function photo(on) { document.body.classList.toggle('roamPhoto', on); game.photoMode?.(on); if (on) { open(false); toast('Photo mode: press Esc to come back', 4000); } }
   addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('roamPhoto')) photo(false); });
+  // the dock's chat tile: the panel on its chat (again: closed), the box ready to type in
+  const fromDock = e => {
+    const want = e.detail?.tab ?? tab;
+    if (e.detail?.toggle && isOpen() && tab === want) return open(false);
+    tab = want; open(true);
+    if (tab === 'chat') setTimeout(() => body.querySelector('#roamChatIn')?.focus(), 0);
+  };
+  addEventListener('kr:roam-open', fromDock);
 
   // the quick chat wheel (`): eight presets round the middle of the screen; a click or 1–8 says it to those near
   wheel.innerHTML = cfg.chat.wheel.map((w, i) => { const a = i / cfg.chat.wheel.length * Math.PI * 2 - Math.PI / 2; return `<button data-id="${w.id}" style="left:${150 + Math.cos(a) * 110}px;top:${150 + Math.sin(a) * 110}px">${i + 1}. ${esc(w.text)}</button>`; }).join('');
@@ -309,7 +338,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       case 'touch': if (m.zone === RC.home || m.challenge) { const was = state.touch; state.touch = m; if (m.ghostUntil > Date.now() && !(was.ghostUntil > Date.now())) toast('You\'ve hit other players too often: you\'re a ghost to everyone for a while.'); } return;
       case 'map': if (m.zone === RC.home) { state.map = m.players; drawMap(); } return;
       case 'notice': toast(m.text); return;
-      case 'chat': if (!state.muted.has(m.uid)) { state.chat.push(m); if (state.chat.length > 200) state.chat.shift(); toast(`${m.scope === 'party' ? '[party] ' : ''}${m.name}: ${m.text}`); if (isOpen() && tab === 'chat') render(); } return;
+      case 'chat': if (!state.muted.has(m.uid)) { state.chat.push(m); if (state.chat.length > 200) state.chat.shift(); toast(`${m.scope === 'party' ? '[party] ' : ''}${m.name}: ${m.text}`); if (isOpen() && tab === 'chat') render(); else if (m.uid !== myUid()) dispatchEvent(new CustomEvent('kr:roam-unread', { detail: { n: 1 } })); } return;
       case 'emote': if (!state.muted.has(m.uid)) toast(`${m.name} ${m.text}`); return;
       case 'inspect': return showInspect(m);
       case 'meet-spot': state.meet = { id: m.meet, spot: m.spot }; game.place([m.spot.x, 0, m.spot.z], m.spot.heading); toast(`Parked in spot ${m.spot.n}`); render(); return;
@@ -419,8 +448,10 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   goingBack = null;
   if (back && !back.garage) {
     if (back.region === region) { game.place(back.pos, back.heading ?? 0); toast('Back where you left off'); }
-    else if (first && game.switchRegion) { goingBack = back; toast(`Going back to ${back.region}, where you left off…`); setTimeout(() => game.switchRegion(back.region).catch(() => toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000)), 0); }
-    else toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000);
+    // (only when that place is newer than this browser's own choice of region — left off on another computer since)
+    else if (first && game.switchRegion && Date.parse(back.at ?? '') > (game.regionChosenAt?.() ?? 0) + 60000) { goingBack = back; toast(`Going back to ${back.region}, where you left off…`); setTimeout(() => game.switchRegion(back.region).catch(() => toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000)), 0); }
+    // (this browser chose this region since: where you are is where you meant to be — nothing to say)
+    else if (!first || !(game.regionChosenAt?.() > Date.parse(back.at ?? ''))) toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000);
   } else if (back?.why && back.why !== 'nothing saved') toast(`Starting at the garage: ${back.why}`, 7000);
 
   let hudAt = 0;
@@ -440,7 +471,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
     },
     horn() { RC.sendEvent({ kind: 'horn' }); game.horn?.(); },
     leave() {
-      clearInterval(meetTimer); C?.dispose(); offs.forEach(f => f()); removeEventListener('keydown', keys); removeEventListener('keyup', keysUp);
+      clearInterval(meetTimer); C?.dispose(); offs.forEach(f => f()); removeEventListener('keydown', keys); removeEventListener('keyup', keysUp); removeEventListener('kr:roam-open', fromDock);
       for (const el of [hud, panel, prompt, banner, wheel, toasts]) el.remove();
       document.body.classList.remove('roamPhoto');
       game.maps?.()?.setPlayers?.([]);

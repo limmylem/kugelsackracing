@@ -103,10 +103,12 @@ import { bodyDef, wheelDef } from '../garage/detach.js';
 import { CORNERS } from '../garage/mechanical.js';
 import { testCar } from '../physics/testCars.js';
 import { createDamageReport, createDash } from './dashboard.js';
+import { createPlayerHud } from './playerHud.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
-import { ModelCache, createCarVisual, setEnvironment, skyEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { ModelCache, createCarVisual, setEnvironment, proxyMaterials, crackedMaterial } from '../garage/visual.js';
+import { neutralToneMapping, skyDome, setSky, skyLook, createSkyReflections, createContactShadows } from '../effects/look.js';
 import { EffectsDirector } from '../effects/director.js';
 import { carEffectsInfo } from '../effects/carInfo.js';
 import { createThreeEffects } from '../effects/threeRenderer.js';
@@ -145,7 +147,9 @@ const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); Track
 // the region of the real world last driven in (scenes/map_v3.json, or ?region=<id>): the page's Real world, and
 // leaving the garage, go back there — not to San Francisco; kept in this browser, so the game opens there next time too
 const LAST_REAL = 'kr.lastRealWorld.v1';
-let lastRealFile = (() => { try { const f = localStorage.getItem(LAST_REAL); return /^scenes\/map_v3\.json(\?region=[\w-]+)?$/.test(f ?? '') ? f : null; } catch { return null; } })();
+// ({ file, at }: and when — free roam's saved place, from another computer, wins only if it's newer)
+// (or, from the first version of this, the file alone)
+let [lastRealFile, lastRealAt] = (() => { try { const raw = localStorage.getItem(LAST_REAL) ?? 'null', v = raw.startsWith('scenes/') ? { file: raw, at: 0 } : JSON.parse(raw); return /^scenes\/map_v3\.json(\?region=[\w-]+)?$/.test(v?.file ?? '') ? [v.file, Number(v.at) || 0] : [null, 0]; } catch { return [null, 0]; } })();
 export const realWorldFile = () => lastRealFile;
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
@@ -665,7 +669,8 @@ export async function enter(file) {
     catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
-  if (file.startsWith('scenes/map_v3.json')) { lastRealFile = file; try { localStorage.setItem(LAST_REAL, file); } catch { /* not kept */ } }
+  // (the time only when the region changes: the page opening where it was, or San Francisco the first time, isn't a choice)
+  if (file.startsWith('scenes/map_v3.json')) { if (file !== lastRealFile) lastRealAt = lastRealFile ? Date.now() : 0; lastRealFile = file; try { localStorage.setItem(LAST_REAL, JSON.stringify({ file, at: lastRealAt })); } catch { /* not kept */ } }
   for (const w of worlds.values()) if (w !== active) dropNpcVoices(w);
   // (the graphics settings on this world: its shadows, scenery, render distance)
   applyWorldGraphics(active);
@@ -749,6 +754,10 @@ async function createShared() {
   tacho.canvas.after(dash.el);
   document.body.appendChild(report.el);
   document.body.appendChild(dyno.el);
+  // (the players' HUD, playerHud.js; this one — #testHud, its full numbers on H — is the admins', index.html)
+  const playerHud = createPlayerHud(), playerDash = createDash();
+  playerHud.warnings.append(playerDash.el);
+  document.body.appendChild(playerHud.el);
   // the car's body model: where its sockets are (the physics) and how its wheels turn (the drawing)
   startup.step(`car model ${spec.model.file}`);
   const glbRes = await fetch(spec.model.file);
@@ -764,9 +773,14 @@ async function createShared() {
   // (anti-aliasing is the graphics settings' — perf/graphics.js: the canvas has none of its own, so it can change while playing)
   const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   const prof = createProfiler({ renderer, stutterFactor: perfCfg.stutterFactor });
-  // what chrome, metallic paint and the like reflect (only those finishes use it; the graphics settings' reflections)
-  const skyEnv = skyEnvironment(renderer);
-  setEnvironment(skyEnv);
+  // the picture's tone mapping (effects/look.js): colours as they are, only the brightest — the sun on clear coat, the
+  // sky's glow — rolled off to white
+  neutralToneMapping(THREE, renderer, 1);
+  // what paint, glass, chrome and the like reflect (the graphics settings' reflections: sky): the sky as each world's
+  // light has it (daylight) — made first at midday, so the first cars are made with something to reflect
+  const skyRefl = createSkyReflections(THREE, renderer);
+  skyRefl.update(skyLookOf(lightAt(13)));
+  setEnvironment(skyRefl.texture);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   Object.assign(renderer.domElement.style, { position: 'fixed', inset: '0', zIndex: '1', display: 'none' });
@@ -803,8 +817,8 @@ async function createShared() {
   document.body.appendChild(hintCard.el);
   const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
-    hud, info, flash, tacho, dyno, dash, report, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
-    perfCfg, gfx, G: gfx.settings, skyEnv, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
+    hud, info, flash, tacho, dyno, dash, report, playerHud, playerDash, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
+    perfCfg, gfx, G: gfx.settings, skyRefl, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
     damageView: false, lastCrash: null,
     play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
     models: new ModelCache(), visuals: new Set(), copies: [],
@@ -984,6 +998,10 @@ async function buildWorld(file) {
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 150 });
   scene.add(sun, sun.target);
+  // the sky round the world, and the soft shadows right under the cars (effects/look.js: daylight sets the sky;
+  // carShadowsFrame lays the shadows)
+  const skyBall = skyDome(THREE), contact = createContactShadows(THREE);
+  scene.add(skyBall, contact.mesh);
 
   // Fixed shapes (same as the colliders)
   const trees = [];
@@ -1059,7 +1077,7 @@ async function buildWorld(file) {
   fx.setCar(0, carEffectsInfo(shared.session, shared.damageBoxes));
 
   const w = {
-    file, name: track.name, track, sim, scene, camera, sun, hemi, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
+    file, name: track.name, track, sim, scene, camera, sun, hemi, skyBall, contact, car, carVis, wheelVis, details, comMarker, cones, lines, surfaces, fx, fxDraw, heightAt, others: new Map(),
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
     aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
@@ -1546,7 +1564,9 @@ function carDetailFrame(w, now) {
 function setReflections(kind) {
   if (kind === 'live' && !shared.liveRefl) shared.liveRefl = createLiveReflections(THREE, shared.renderer);
   if (kind !== 'live' && shared.liveRefl) { shared.liveRefl.dispose(); shared.liveRefl = null; }
-  const env = kind === 'off' ? null : kind === 'live' ? shared.liveRefl.texture : shared.skyEnv;
+  // (the sky's: as the world on screen has it — made again if its light changed while reflections were off)
+  if (kind === 'sky' && active?.skyLook && shared.skyFor !== active.skyLook) { shared.skyRefl.update(active.skyLook); shared.skyFor = active.skyLook; }
+  const env = kind === 'off' ? null : kind === 'live' ? shared.liveRefl.texture : shared.skyRefl.texture;
   if (shared.envNow === env) return;
   shared.envNow = env;
   setEnvironment(env);
@@ -1611,10 +1631,41 @@ function daylight(w, hours) {
         w.sun.color.set(F.key); w.sun.intensity = F.keyIntensity; w.sunDir = new THREE.Vector3(0.25, 1, 0.15).normalize();
       }
     }
+    // the sky round the world (effects/look.js), and the haze the world's edge fades into: its horizon
+    w.skyLook = skyLookOf(L, { sky: w.scene.background, fog: w.scene.fog.color, sunColour: w.sun.color, sunDir: w.sunDir, theme: w.theme, floodlit: !!(w.theme?.floodlit && L.night > 0.3) });
+    setSky(w.skyBall, w.skyLook);
+    w.scene.fog.color.copy(w.skyLook.horizon); w.scene.background.copy(w.skyLook.horizon);
   }
   const lamps = w.carVis.headlights;
   if (lamps) for (const l of lamps) l.intensity = w.light.night * 60;
+  // (what the cars reflect: this world's sky — made again only when it's changed, and not with reflections off)
+  if (w === active && shared.skyFor !== w.skyLook && shared.G.reflections === 'sky') setReflections('sky');
+  carShadowsFrame(w);
   return w.light;
+}
+// The sky for a light (effects/look.js): the zenith a deeper blue than the sky's colour, the horizon the fog's (a plain
+// world's paler than its sky: haze), the sun's disc and glow where its light comes from (the moon's, faint, at night;
+// none under a floodlit circuit's lights or thick cloud)
+const ZENITH = new THREE.Color(0.5, 0.7, 0.98), WHITE = new THREE.Color(1, 1, 1), GROUND = new THREE.Color('#4a4743');
+function skyLookOf(L, { sky = null, fog = null, sunColour = null, sunDir = null, theme = null, floodlit = false } = {}) {
+  const srgb = THREE.SRGBColorSpace, day = 1 - L.night, grey = theme?.grey ?? 0;
+  sky ??= new THREE.Color().setRGB(...L.background, srgb); fog ??= new THREE.Color().setRGB(...L.fog, srgb);
+  const horizon = fog.clone();
+  if (!theme) horizon.lerp(WHITE, 0.3 * day);
+  const zenith = sky.clone().multiply(ZENITH).lerp(sky, grey);
+  const ground = GROUND.clone().multiplyScalar(0.08 + 0.92 * day).lerp(horizon, 0.15);
+  const sun = floodlit ? 0 : 16 * L.key.intensity * (1 - grey) * (theme?.sunScale ?? 1);
+  return skyLook({ zenith, horizon, ground, sunDir: sunDir?.clone() ?? new THREE.Vector3(...L.key.dir), sunColour: sunColour?.clone() ?? new THREE.Color().setRGB(...L.key.colour, srgb), sun, glow: floodlit ? 0 : day * (1 - grey) });
+}
+// the soft shadows under this world's cars: yours, the NPCs' and AI cars', the other players' drawn here — darker
+// without the sun's shadows (they're all there is under a car then)
+function carShadowsFrame(w) {
+  const list = w.shadowCars ??= [], inScene = g => { let o = g; while (o.parent) o = o.parent; return o === w.scene; };
+  list.length = 0;
+  if (w.carVis) list.push(w.carVis);
+  for (const vis of w.others.values()) list.push(vis);
+  for (const vis of shared.visuals) if (!list.includes(vis) && inScene(vis.group)) list.push(vis);
+  w.contact.update(list, shared.G.shadows === 'off' ? 0.8 : 0.6);
 }
 // Move the effects on and get them ready to draw (seen from the camera, in the world's wind)
 function updateEffects(w, light, dt) {
@@ -1995,6 +2046,7 @@ function exhaustOff() { const st = shared.session.attach.stateOf('socket_exhaust
 function updateDash(b) {
   const s = shared, rows = s.session.mechanical.report(b.mechanical);
   s.dash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
+  s.playerDash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
   s.report.update(rows, b, s.prefs.damage ?? 'full', s.spec.steering.ratio);
 }
 
@@ -2042,6 +2094,11 @@ function updateHud(w, s, steps, sim) {
   const stuck = s.immobilized ? `<div class="test">CAN'T DRIVE · ${s.immobilized.join(' · ')}</div>` : '';
   const e = s.engine, T = s.timer, pct = x => Math.round(x * 100) + '%', radius = shared.spec.wheels.radius;
   const driven = s.wheels.filter(wh => wh.driven);
+  shared.playerHud.update({ place: w.name, kmh, gear: e.gear, mode: e.mode, rpm: e.rpm, redline: shared.spec.engine.redlineRpm, held: !!parked, limiter: e.fuelCut, blown: e.health.blown, floating: e.health.floating,
+    assists: s.assists, abs: s.absActive, tc: s.tcActive, esc: s.escActive, stuck: s.immobilized ?? null,
+    lap: s.lap ? { label: w.track.roads.find(r => r.startLine)?.style === 'gravel' ? 'Stage' : 'Lap', time: s.lap.running ? s.lap.t : null, best: s.lap.best, progress: s.lap.running ? s.lap.progress : null } : null });
+  // (driving: the loading messages done — players see their own HUD from here, index.html)
+  shared.hud.classList.add('ready');
   shared.hud.classList.toggle('compact', shared.compact);
   if (shared.compact) {
     shared.info.innerHTML = `
@@ -2611,6 +2668,7 @@ async function startRoamHere(w, o) {
     const G = mpRaceGame(), Ad = mpAdapter.cached ??= mpAdapter(), P = () => active?.stream?.projection;
     const R = await startRoam({ account: A, region, cfg: roamCfg, mpCfg, adapter: Ad, look: mpLook(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug, S, game: {
       regionId: () => regionIdOf(active),
+      regionChosenAt: () => lastRealAt,
       carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
       place: (pos, h) => Ad.place(pos, h),
       async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },

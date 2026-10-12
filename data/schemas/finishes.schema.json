@@ -22,6 +22,7 @@
         "metalness": { "$ref": "#/$defs/share" },
         "clearcoat": { "$ref": "#/$defs/share" },
         "clearcoatRoughness": { "$ref": "#/$defs/share" },
+        "flake": { "description": "metallic paint's flakes under the clear coat: how strongly they catch the light (garage/visual.js addFlakes)", "$ref": "#/$defs/share" },
         "iridescence": { "$ref": "#/$defs/share" },
         "iridescenceIOR": { "type": "number", "minimum": 1, "maximum": 2.333 },
         "sheen": { "$ref": "#/$defs/share" },

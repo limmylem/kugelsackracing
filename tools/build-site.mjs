@@ -39,6 +39,9 @@ const url = (name) => {
 // (the commit built: support and feedback messages say which version of the game they came from)
 const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 const SITE = { env, api: url('api'), game: url('game'), tiles: url('tiles'), rt: url('rt'), version: process.env.GITHUB_SHA?.slice(0, 7) ?? commit, multiplayer: true };
+// (each build's modules and styles under /v/<version>/: see "each deploy's code at an address of its own" below)
+const V = `/v/${SITE.version}`;
+const VERSIONED = [...CLIENT_DIRS.filter(d => !['assets', 'admin', 'editor'].includes(d)), 'packages'];
 const out = path.resolve(opt('--out', path.join(root, '.cache/site', env)));
 const LEAVE_OUT = new Set(['assets', 'admin', 'editor', 'dev']);
 // (editor/access.js, and the two helpers the game itself imports: roads.js for gunzipJson, markers3d.js for content's markers)
@@ -96,10 +99,35 @@ let html = fs.readFileSync(index, 'utf8');
 const m = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
 if (!m) { console.error('index.html has no import map'); process.exit(1); }
 const map = JSON.parse(m[1]);
-for (const dir of CLIENT_DIRS.filter(d => !['assets', 'admin', 'editor'].includes(d))) map.imports[`${SITE.api}/${dir}/`] = `/${dir}/`;
-map.imports[`${SITE.api}/packages/`] = '/packages/';
+for (const dir of VERSIONED) map.imports[`${SITE.api}/${dir}/`] = `${V}/${dir}/`;
 html = html.replace(m[0], `<script type="importmap">\n${JSON.stringify(map, null, 1)}\n</script>`);
 fs.writeFileSync(index, html);
+
+// ---------- each deploy's code at an address of its own ----------
+// A browser can keep a module it loaded before — and a page running new modules beside old ones is broken in ways
+// nobody meant. So each build's modules and styles are asked for under /v/<version>/ (the commit): every page's import
+// map sends /garage/, /play/ … there, its module scripts and style sheets point there, and a module's own relative
+// imports follow. Pages serves /v/<anything>/x as /x (_redirects), so nothing is copied twice.
+const htmlFiles = [...published].filter(f => f.endsWith('.html'));
+for (const f of htmlFiles) {
+  const file = path.join(out, f);
+  let page = fs.readFileSync(file, 'utf8');
+  const at = '/' + f;
+  const versioned = ref => {
+    if (/^(?:[a-z]+:|\/\/|#|data:)/i.test(ref)) return null;
+    const p = new URL(ref, `https://x${at}`).pathname;
+    return VERSIONED.includes(p.split('/')[1]) ? `${V}${p}` : null;
+  };
+  page = page.replace(/(<script\b[^>]*\btype="module"[^>]*\bsrc=")([^"]+)(")/g, (all, a, ref, b) => { const v = versioned(ref); return v ? a + v + b : all; });
+  page = page.replace(/(<link\b[^>]*\brel="stylesheet"[^>]*\bhref=")([^"]+)(")/g, (all, a, ref, b) => { const v = versioned(ref); return v ? a + v + b : all; });
+  if (/<script\b[^>]*type="module"/.test(page)) {
+    const mm = page.match(/<script type="importmap">([\s\S]*?)<\/script>/), pm = mm ? JSON.parse(mm[1]) : { imports: {} };
+    for (const dir of VERSIONED) pm.imports[`/${dir}/`] = `${V}/${dir}/`;
+    const tag = `<script type="importmap">\n${JSON.stringify(pm, null, 1)}\n</script>`;
+    page = mm ? page.replace(mm[0], tag) : page.replace(/<script\b[^>]*type="module"/, s => `${tag}\n${s}`);
+  }
+  fs.writeFileSync(file, page);
+}
 
 // ---------- headers and redirects ----------
 const origin = u => new URL(u.replace(/^ws(s?):/, 'http$1:')).origin;
@@ -128,6 +156,8 @@ const csp = [
   ...(local ? [] : ['upgrade-insecure-requests']),
 ].join('; ');
 const hsts = args.includes('--hsts') ? '\n  Strict-Transport-Security: max-age=31536000; includeSubDomains' : '';
+// (every file no-cache: the browser asks each time — a quick "not modified" when it hasn't changed — so a deploy is
+// what the next load runs, not a module the browser kept)
 fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs for ${env}: docs/DEPLOYMENT.md)
 /*
   Content-Security-Policy: ${csp}
@@ -136,11 +166,6 @@ fs.writeFileSync(path.join(out, '_headers'), `# (written by tools/build-site.mjs
   X-Frame-Options: DENY
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()${hsts}
-/site/config.js
-  Cache-Control: no-cache
-/data/*
-  Cache-Control: no-cache
-/scenes/*
   Cache-Control: no-cache
 `);
 // (a page for addresses that don't exist: without one, Pages answers every unknown address with the game's main page)
@@ -152,5 +177,7 @@ fs.writeFileSync(path.join(out, '_redirects'), `# (written by tools/build-site.m
 /assets/* ${SITE.tiles}/assets/:splat 302
 /admin ${SITE.api}/admin/ 302
 /admin/* ${SITE.api}/admin/:splat 302
+/v/:version/assets/* ${SITE.tiles}/assets/:splat 302
+/v/:version/* /:splat 200
 `);
 console.log(`${env}: ${wanted.length} files, ${(bytes / 1048576).toFixed(1)} MB (the largest ${biggest.f}, ${(biggest.n / 1048576).toFixed(1)} MB) → ${path.relative(root, out)}`);

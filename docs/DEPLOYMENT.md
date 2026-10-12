@@ -152,7 +152,10 @@ so nothing ever points at something that isn't there yet:
    the server by itself (a dropped connection can't leave it half done), then a wait — up to 13 minutes — until the API
    and the real-time server, as players reach them, both say they're this commit and healthy. Images unused for a week
    are removed from the server.
-3. **The game:** `tools/build-site.mjs` builds it, `wrangler pages deploy` publishes it to the Pages project `ognistrada`.
+3. **The game:** `tools/build-site.mjs` builds it, `wrangler pages deploy` publishes it to the Pages project `ognistrada`. Every file is
+   served `Cache-Control: no-cache` (`_headers`), and each build's modules and style sheets are asked for under
+   `/v/<commit>/` (every page's import map, module scripts and style sheets; `_redirects` serves `/v/<anything>/x` as
+   `/x`): a browser can't run a module kept from an older deploy beside the new ones.
 4. **The checks** (`tools/check-deploy.mjs`). A failed check fails the deploy, and the run's summary says how to roll back.
 
 **What players notice.** The API restarts in seconds (there's one of it: requests in those seconds fail, and the game
