@@ -104,6 +104,10 @@ export function roamNet(RC) {
   };
 }
 
+// (the page's first free roam: it may go back to the region you left off in — see 'coming back where you left'; the
+// place is kept for that region's start, as the server has saved this region's spot by then)
+let firstStart = true, goingBack = null;
+
 export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look, player = null, netsim = null, serverNetsim = null, debug = false, S, game }) {
   if (!document.getElementById('roamCss')) { const st = document.createElement('style'); st.id = 'roamCss'; st.textContent = CSS; document.head.appendChild(st); }
   const Colyseus = await import('../net/vendor/colyseus.js');
@@ -408,8 +412,14 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const meetTimer = setInterval(() => { void loadMeets(); }, 60000);
 
   // ---------- coming back where you left ----------
+  // (the page's first free roam: left off in another region — another computer, say — goes there; later, once you've
+  // chosen where to drive, a note only)
+  const first = firstStart; firstStart = false;
+  if (goingBack?.region === region) back = goingBack;
+  goingBack = null;
   if (back && !back.garage) {
     if (back.region === region) { game.place(back.pos, back.heading ?? 0); toast('Back where you left off'); }
+    else if (first && game.switchRegion) { goingBack = back; toast(`Going back to ${back.region}, where you left off…`); setTimeout(() => game.switchRegion(back.region).catch(() => toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000)), 0); }
     else toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000);
   } else if (back?.why && back.why !== 'nothing saved') toast(`Starting at the garage: ${back.why}`, 7000);
 

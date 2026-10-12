@@ -143,8 +143,9 @@ const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 // hidden — not only the first one found by its id, which left another region's minimap over this one, standing still)
 const hideRealWorlds = () => { RW2.hideRealWorld(); MapV3.hideRealWorld(); TrackScene.hideRealWorld(); for (const w of worlds.values()) { if (w.track?.mapV3) MapV3.hideRealWorld(w); w.content?.show(false); } };
 // the region of the real world last driven in (scenes/map_v3.json, or ?region=<id>): the page's Real world, and
-// leaving the garage, go back there — not to San Francisco
-let lastRealFile = null;
+// leaving the garage, go back there — not to San Francisco; kept in this browser, so the game opens there next time too
+const LAST_REAL = 'kr.lastRealWorld.v1';
+let lastRealFile = (() => { try { const f = localStorage.getItem(LAST_REAL); return /^scenes\/map_v3\.json(\?region=[\w-]+)?$/.test(f ?? '') ? f : null; } catch { return null; } })();
 export const realWorldFile = () => lastRealFile;
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
@@ -664,7 +665,7 @@ export async function enter(file) {
     catch (e) { shared.info.textContent = `Couldn't build this world: ${e?.message ?? e}`; console.error(e); throw e; }
   }
   active = worlds.get(file);
-  if (file.startsWith('scenes/map_v3.json')) lastRealFile = file;
+  if (file.startsWith('scenes/map_v3.json')) { lastRealFile = file; try { localStorage.setItem(LAST_REAL, file); } catch { /* not kept */ } }
   for (const w of worlds.values()) if (w !== active) dropNpcVoices(w);
   // (the graphics settings on this world: its shadows, scenery, render distance)
   applyWorldGraphics(active);
