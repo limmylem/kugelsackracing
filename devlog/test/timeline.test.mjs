@@ -51,3 +51,9 @@ test('the script: HOOK:, captions, END:, notes; or one line with |', () => {
   assert.deepEqual(parseScript('Just a hook'), { hook: 'Just a hook', captions: [], end: '' });
   assert.equal(parseScript('').hook, '');
 });
+
+test('v2: each cut says whether its clip has the game\'s sound', () => {
+  const P = plan({ script: { hook: 'Hook', captions: ['one two three'] }, clips: [{ src: 'a.mp4', seconds: 4, sound: true }, { src: 'b.mp4', seconds: 4 }], fps });
+  assert.ok(P.cuts.some(c => c.sound === true) && P.cuts.some(c => c.sound === false));
+  for (const c of P.cuts) assert.equal(c.sound, c.src === 'a.mp4');
+});

@@ -33,7 +33,7 @@ if (!opt('--script', null) && !opt('--script-text', null)) {
 // 2. the gameplay
 const clips = path.join(OUT, 'clips/clips.json');
 if (flag('--reuse-clips') && fs.existsSync(clips)) console.log('== The gameplay: the clips already filmed (out/clips)');
-else { console.log('== The gameplay: filming (frame by frame — several minutes)'); node('capture/capture.mjs', pass(['--target', '--multiplayer', '--quick', '--shots', '--fps', '--max-seconds', '--game', '--api'])); }
+else { console.log('== The gameplay: filming (frame by frame — several minutes)'); node('capture/capture.mjs', pass(['--target', '--multiplayer', '--quick', '--shots', '--fps', '--max-seconds', '--game', '--api', '--no-sound'])); }
 // 3. the video
 console.log('== The video');
-node('render.mjs', [...pass(['--script', '--script-text', '--music', '--music-volume', '--quick', '--out']), '--today', date]);
+node('render.mjs', [...pass(['--script', '--script-text', '--music', '--music-volume', '--game-volume', '--quick', '--out']), '--today', date]);

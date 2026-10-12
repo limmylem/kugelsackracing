@@ -27,6 +27,25 @@ game or on its servers changes.
 That's it. The run also marks this week's devlog (a git tag `devlog-YYYY-MM-DD`), so next week's script starts with
 the commits after it.
 
+## Tell it what's new (the best captions)
+
+The script is drafted from the week's commits, but commit messages are written for programmers. For captions that
+sound right, write them yourself during the week in **`devlog/highlights.md`**: one line for each thing players will
+notice, in plain words.
+
+1. On GitHub, open `devlog/highlights.md` and click the pencil (**Edit**).
+2. Add a line at the bottom, for example `Adelaide is in the game: a whole city to drive`. Add `HOOK: …` to choose the
+   video's title.
+3. Click **Commit changes**.
+
+The next video uses the lines added since the last one first, in order, then fills up to five captions from the
+commits. Old lines can stay: only new ones are used. The game's Claude session is asked to add a line there too
+whenever it finishes something players will notice (CLAUDE.md).
+
+How the commits are picked (version 2): only commits that changed the game itself count (tests, docs, tools, deploys
+and this tool are left out); bigger changes come first; and a caption is cut at a natural break, never in the middle of
+a sentence. The run's `script.txt` lists every commit, with `*` next to the ones that changed the game.
+
 ## Change the words
 
 Don't like the script? Run it again with your own words. **It skips the filming, so it takes about 5 minutes.**
@@ -41,6 +60,13 @@ Don't like the script? Run it again with your own words. **It skips the filming,
 
 Tips: keep the hook under about 8 words and each caption under about 12. Four to six captions make a 20–45 second
 video (more, and the last ones are left out; the run's summary says so).
+
+## The game's sound
+
+Each video has the game's own sound: the engines, the tyres, the other car going by, all recorded in step with the
+pictures (version 2). It fades in at the start and out under the end card, with short fades at each cut so the quick
+cuts don't click. If you add music, the game's sound goes a little quieter so you hear both. On your own computer,
+`--no-sound` films without it and `--game-volume 0.5` makes it quieter in the video.
 
 ## Music (optional)
 
@@ -93,7 +119,9 @@ Everything it makes goes in `devlog/out/`, which git ignores: videos and music a
 - **Filming** (`devlog/capture/capture.mjs`): a headless Chromium opens the game at phone size, drops into a
   generated race track, and the game's own autopilot drives the lap. GitHub's computers have no graphics card, so the
   game draws about one frame a second: instead of recording in real time, the tool runs the game one frame at a time
-  (1/30 of a second each) and takes a picture of each frame, so the footage is smooth. The game's buttons and panels
+  (1/30 of a second each) and takes a picture of each frame, so the footage is smooth. The sound is done the same way: the
+  game's sound system renders exactly 1/30 of a second of sound after each frame (an offline audio context in place
+  of the live one), so the sound matches the pictures however slowly they were drawn. The game's buttons and panels
   are hidden by the tool, without changing the game. The second car is a second browser window, run in step with the
   first.
 - **The script** (`devlog/script/draft.mjs`): the commit subjects since the last `devlog-*` tag (or the last 7 days),

@@ -67,7 +67,7 @@ export function plan({ script, clips, fps = 30 }) {
     const i = k % usable.length, clip = usable[i], clipFrames = Math.floor(clip.seconds * fps);
     let take = Math.min(len, clipFrames);
     if (pos[i] + take > clipFrames) pos[i] = 0;
-    cuts.push({ clip: i, src: clip.src, trimBefore: pos[i], from: t, to: t + take });
+    cuts.push({ clip: i, src: clip.src, sound: !!clip.sound, trimBefore: pos[i], from: t, to: t + take });
     pos[i] += take;
     t += take; k++;
   }
