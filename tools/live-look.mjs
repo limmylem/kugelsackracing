@@ -88,4 +88,20 @@ for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000]
   }
   await page.screenshot({ path: `live-${name.replace(/\W+/g, '-')}.png` });
 }
+// (the region you were last in: to Adelaide, then the page reloaded — where it opens, and what this browser remembers)
+{
+  console.log('\n== the last region, after a reload');
+  const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  page.on('pageerror', e => console.log(`  page error: ${String(e).slice(0, 300)}`));
+  const where = () => page.evaluate(async () => { const { debug } = await import('/testtrack/test-scene.js'); return { manifest: debug.active?.track?.mapV3?.manifest ?? null, kept: localStorage.getItem('kr.lastRealWorld.v1') }; }).catch(e => ({ error: e.message }));
+  await page.goto(`${GAME}/`, { waitUntil: 'load', timeout: 60000 });
+  await page.waitForFunction(async () => !!(await import('/testtrack/test-scene.js')).debug.active, null, { timeout: 120000 }).catch(() => {});
+  console.log(`  first: ${JSON.stringify(await where())}`);
+  await page.evaluate(async () => { const t = await import('/testtrack/test-scene.js'); await t.enter('scenes/map_v3.json?region=adelaide'); }).catch(e => console.log(`  enter: ${e.message}`));
+  console.log(`  after going to Adelaide: ${JSON.stringify(await where())}`);
+  await page.reload({ waitUntil: 'load', timeout: 60000 });
+  await page.waitForFunction(async () => !!(await import('/testtrack/test-scene.js')).debug.active, null, { timeout: 120000 }).catch(() => {});
+  await page.waitForTimeout(5000);
+  console.log(`  after the reload: ${JSON.stringify(await where())}`);
+}
 await browser.close();
