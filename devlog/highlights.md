@@ -8,3 +8,8 @@
 #   Adelaide is in the game: a whole city to drive
 #   HOOK: My racing game now has a whole new city
 
+A new look for signing in, with a road that comes alive
+Your profile card: level, rank, money and stats at a glance
+A handy side dock: garage, races and chat one click away
+A real car's dashboard: rev counter, speedometer and warning lights
+The garage fits properly in Safari
