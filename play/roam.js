@@ -10,7 +10,7 @@
 //
 //   const R = await startRoam({ account, region, cfg, mpCfg, adapter, look, player, netsim, serverNetsim, debug, S, game })
 //     S: the hub session (mp/client.js) — placing, friends, the party, join friend, party chat
-//     game: { regionId(), carPose() → { pos [x, y, z] world frame, headingDeg, speed }, place(pos, headingDeg), switchRegion(id),
+//     game: { regionId(), carPose() → { pos [x, y, z] world frame, headingDeg, speed }, place(pos, headingDeg), switchRegion(id), regionChosenAt() (when this browser last changed region, ms: 0 never),
 //             maps(), latLonOf(x, z), xzOf(lat, lon), say(text, kind), photoMode(on), questsNear() → [{ id, name, route, x, z }],
 //             sim(), simTime(), carPhysics(), toSim, toWorld, contactHit, contactEffect, setOpacity(handle, a), horn() }
 //   R.M (play/multiplayer.js's api: frame, crash, part, reset, repair, setLook, overlay, others, toNearest)
@@ -103,6 +103,10 @@ export function roamNet(RC) {
     get last() { return last; },
   };
 }
+
+// (the page's first free roam: it may go back to the region you left off in — see 'coming back where you left'; the
+// place is kept for that region's start, as the server has saved this region's spot by then)
+let firstStart = true, goingBack = null;
 
 export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look, player = null, netsim = null, serverNetsim = null, debug = false, S, game }) {
   if (!document.getElementById('roamCss')) { const st = document.createElement('style'); st.id = 'roamCss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -408,9 +412,17 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const meetTimer = setInterval(() => { void loadMeets(); }, 60000);
 
   // ---------- coming back where you left ----------
+  // (the page's first free roam: left off in another region — another computer, say — goes there; later, once you've
+  // chosen where to drive, a note only)
+  const first = firstStart; firstStart = false;
+  if (goingBack?.region === region) back = goingBack;
+  goingBack = null;
   if (back && !back.garage) {
     if (back.region === region) { game.place(back.pos, back.heading ?? 0); toast('Back where you left off'); }
-    else toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000);
+    // (only when that place is newer than this browser's own choice of region — left off on another computer since)
+    else if (first && game.switchRegion && Date.parse(back.at ?? '') > (game.regionChosenAt?.() ?? 0) + 60000) { goingBack = back; toast(`Going back to ${back.region}, where you left off…`); setTimeout(() => game.switchRegion(back.region).catch(() => toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000)), 0); }
+    // (this browser chose this region since: where you are is where you meant to be — nothing to say)
+    else if (!first || !(game.regionChosenAt?.() > Date.parse(back.at ?? ''))) toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000);
   } else if (back?.why && back.why !== 'nothing saved') toast(`Starting at the garage: ${back.why}`, 7000);
 
   let hudAt = 0;

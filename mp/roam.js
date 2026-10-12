@@ -234,7 +234,7 @@ export function restorePoint(saved, { regions, roadDistance = () => 0, spawnOf =
   if (!saved.pos.every(Number.isFinite)) return garage('the place saved isn\'t right');
   const d = roadDistance(saved.region, saved.pos[0], saved.pos[2]);
   if (d != null && d > P.maxOffRoadM) return garage('that spot isn\'t on a road');
-  return { garage: false, why: 'where you left', region: saved.region, pos: saved.pos, heading: saved.heading ?? 0, car: saved.carId ?? null, damage: saved.damage ?? null };
+  return { garage: false, why: 'where you left', region: saved.region, pos: saved.pos, heading: saved.heading ?? 0, car: saved.carId ?? null, damage: saved.damage ?? null, at: saved.at ?? null };
 }
 
 // ---------- the map ----------
