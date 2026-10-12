@@ -12,6 +12,24 @@
   },
   "additionalProperties": false,
   "properties": {
+    "standards": {
+      "description": "The shared standards the car is built to (data/content/standards.json): garage/standards.js turns them into the tags parts fit by",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "template": { "type": "string", "description": "The body template it was started from (data/content/templates)" },
+        "engineMount": { "type": "string" },
+        "bay": { "type": "string" },
+        "boltPattern": { "type": "string" },
+        "rims": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+        "seatMount": { "type": "string" },
+        "steeringColumn": { "type": "string" },
+        "bumperMount": { "type": "string" },
+        "spoilerMount": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+        "exhaustRoute": { "type": "string" }
+      }
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9_]+$"
