@@ -755,7 +755,8 @@ async function createShared() {
   document.body.appendChild(report.el);
   document.body.appendChild(dyno.el);
   // (the players' HUD, playerHud.js; this one — #testHud, its full numbers on H — is the admins', index.html)
-  const playerHud = createPlayerHud();
+  const playerHud = createPlayerHud(), playerDash = createDash();
+  playerHud.warnings.append(playerDash.el);
   document.body.appendChild(playerHud.el);
   // the car's body model: where its sockets are (the physics) and how its wheels turn (the drawing)
   startup.step(`car model ${spec.model.file}`);
@@ -816,7 +817,7 @@ async function createShared() {
   document.body.appendChild(hintCard.el);
   const hints = new Hints(session.db.hints, { seen: () => session.player.profile?.hints, mark: id => session.player.markHint(id) });
   const s = {
-    hud, info, flash, tacho, dyno, dash, report, playerHud, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
+    hud, info, flash, tacho, dyno, dash, report, playerHud, playerDash, mechSave: 0, settings, spec, session, glb, sockets, rig, damageBoxes, renderer, prof, prefs, input, panel, debug: false, camMode: 0, last: 0, hudTimer: 0, fps: 60, looping: false, effectsCfg,
     perfCfg, gfx, G: gfx.settings, skyRefl, perfOverlay: createPerfOverlay({ prof, gfx, renderer }),
     damageView: false, lastCrash: null,
     play: null, dents: new DentBudget(settings.budget?.dentsMs ?? 2), hints, hintCard, replay: null, replayDue: null, towArmed: 0,
@@ -2045,6 +2046,7 @@ function exhaustOff() { const st = shared.session.attach.stateOf('socket_exhaust
 function updateDash(b) {
   const s = shared, rows = s.session.mechanical.report(b.mechanical);
   s.dash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
+  s.playerDash.update(b, rows, s.spec.damage?.rules.cooling, 0.1);
   s.report.update(rows, b, s.prefs.damage ?? 'full', s.spec.steering.ratio);
 }
 
@@ -2092,7 +2094,7 @@ function updateHud(w, s, steps, sim) {
   const stuck = s.immobilized ? `<div class="test">CAN'T DRIVE · ${s.immobilized.join(' · ')}</div>` : '';
   const e = s.engine, T = s.timer, pct = x => Math.round(x * 100) + '%', radius = shared.spec.wheels.radius;
   const driven = s.wheels.filter(wh => wh.driven);
-  shared.playerHud.update({ place: w.name, kmh, gear: e.gear, rpm: e.rpm, redline: shared.spec.engine.redlineRpm, held: !!parked, limiter: e.fuelCut, blown: e.health.blown, floating: e.health.floating,
+  shared.playerHud.update({ place: w.name, kmh, gear: e.gear, mode: e.mode, rpm: e.rpm, redline: shared.spec.engine.redlineRpm, held: !!parked, limiter: e.fuelCut, blown: e.health.blown, floating: e.health.floating,
     assists: s.assists, abs: s.absActive, tc: s.tcActive, esc: s.escActive, stuck: s.immobilized ?? null,
     lap: s.lap ? { label: w.track.roads.find(r => r.startLine)?.style === 'gravel' ? 'Stage' : 'Lap', time: s.lap.running ? s.lap.t : null, best: s.lap.best, progress: s.lap.running ? s.lap.progress : null } : null });
   // (driving: the loading messages done — players see their own HUD from here, index.html)
