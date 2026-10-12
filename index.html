@@ -228,6 +228,8 @@
   #worlds button { border: none; border-radius: 7px; padding: 6px 10px; background: transparent; color: #fff; font: 600 12px system-ui, sans-serif; cursor: pointer; opacity: 0.75; }
   #worlds button:hover { opacity: 1; background: #fff1; }
   #worlds button.on { background: #e8433a; opacity: 1; }
+  /* (the worlds bar: admins' — and on a development or test server, everyone's; players use the dock, play/dock.js) */
+  body:not(.kr-worlds) #worlds { display: none !important; }
   @media (max-width: 760px) { #worlds { top: auto; bottom: 150px; } }
   /* The garage (garage/garage.js): its own screen over everything */
   body.garage-mode #worlds, body.garage-mode #testHud, body.garage-mode #backToGarage { display: none !important; }
@@ -1861,10 +1863,23 @@ let trackOverride = null;
 const trackCode = () => { if (trackOverride) return trackOverride; const q = new URLSearchParams(location.search).get('track'); if (q) return q; try { return localStorage.getItem('driveWorld.track.code') || DEFAULT_TRACK; } catch { return DEFAULT_TRACK; } };
 // ---------- The world editor (F2): editor accounts (editor/access.js); the account chip (account/) ----------
 let editor = null, editorAllowed = false;
+// The worlds bar along the top is for admins (on a development or test server, for everyone); players get around by the
+// dock down the left (play/dock.js): the garage, racing online, free roam and its chat, the account
+let dock = null;
+const DEV_SITE = (globalThis.KR_SITE?.env ?? 'local') !== 'production';
+const showWorlds = admin => document.body.classList.toggle('kr-worlds', DEV_SITE || !!admin);
+showWorlds(false);
+import('./play/dock.js').then(({ mountDock }) => {
+  dock = mountDock({ garage: () => switchWorld('garage'), editor: async () => { try { (await editorNow()).enter(); } catch (err) { console.error(err); } } });
+  dock.editor(editorAllowed);
+}).catch(e => console.warn(`The dock: ${e.message}`));
 Promise.all([import('./account/session.js'), import('./account/status.js'), import('./editor/access.js')]).then(async ([{ account }, { mountAccountChip }, { editorAccess }]) => {
   const A = await account();
   mountAccountChip(A);
-  const check = () => { const ok = editorAccess(A).allowed; if (ok !== editorAllowed) { editorAllowed = ok; drawWorldButtons(); } };
+  const check = () => {
+    showWorlds(A.me?.role === 'admin');
+    const ok = editorAccess(A).allowed; dock?.editor(ok); if (ok !== editorAllowed) { editorAllowed = ok; drawWorldButtons(); }
+  };
   A.on(check); check();
 }).catch(e => console.warn(`Account: ${e.message}`));
 async function editorNow() {
@@ -1973,7 +1988,7 @@ async function switchWorld(id, nested = false) {
 $('backToGarage').onclick = e => { e.currentTarget.blur(); switchWorld('garage'); };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.repeat || currentWorld === 'garage' || editor?.active) return;
-  if (e.code !== 'KeyT') return;
+  if (e.code !== 'KeyT' || !document.body.classList.contains('kr-worlds')) return;
   const i = worldList.findIndex(w => w.id === currentWorld);
   switchWorld(worldList[(i + 1) % worldList.length].id);
 });

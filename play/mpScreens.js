@@ -20,6 +20,7 @@ import { cameraName } from './mpRace.js';
 import { fmtTime } from '../quest/timing.js';
 import { tierLabel } from '../mp/rank.js';
 import { account } from '../account/session.js';
+import { dockSlot } from './dock.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ord = n => n == null ? '—' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
@@ -32,16 +33,25 @@ const STATE_NAMES = { menu: 'Online', 'free roam': 'Free roam', queue: 'Looking 
 const CSS = `
 #mpMenu[hidden],#mpLobby[hidden],#mpLoading[hidden],#mpLights[hidden],#mpHud[hidden],#mpResults[hidden],#mpWatch[hidden],#mpButton[hidden]{display:none!important}
 /* (above the account chip and the HUD — 70 — and below the account's own dialogs, 95 and up) */
-.mpBox{position:fixed;z-index:80;background:rgba(14,18,26,.96);color:#eef1f5;border:1px solid rgba(255,255,255,.12);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);font:13px/1.4 Barlow,system-ui,sans-serif}
-.mpBox h2{margin:0 0 6px;font-size:20px}.mpBox h3{margin:10px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
-.mpBox button{font:600 13px Barlow,system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:7px;padding:5px 11px;cursor:pointer}
-.mpBox button.primary{background:#2f7d43;border-color:#3f9a57}.mpBox button.danger{background:#7d2f2f;border-color:#9a3f3f}.mpBox button:disabled{opacity:.45;cursor:not-allowed}
-.mpBox input,.mpBox select{font:13px Barlow,system-ui,sans-serif;background:#0b0e14;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:4px 6px}
+.mpBox{position:fixed;z-index:80;background:linear-gradient(170deg,rgba(20,20,24,.97),rgba(10,10,12,.97));color:#eef1f5;border:1px solid rgba(255,255,255,.1);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);font:14px/1.45 Barlow,system-ui,sans-serif}
+#mpMenu::before,#mpLobby::before,#mpResults::before,#mpLoading::before{content:'';position:absolute;left:18px;top:-1px;width:30%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,#E3121E,#FF4A36)}
+.mpBox h2{margin:0 0 6px;font:italic 800 26px/1.1 Saira,'Barlow Condensed',Barlow,system-ui,sans-serif;font-stretch:125%;color:#fff}.mpBox h3{margin:16px 0 6px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#9AA0A8}
+.mpBox button{font:600 14px Barlow,system-ui,sans-serif;color:#fff;background:#18181C;border:1px solid #34343B;border-radius:8px;padding:7px 14px;cursor:pointer;transition:background .15s,border-color .15s}.mpBox button:hover:not(:disabled){background:#222228;border-color:#55555C}
+.mpBox button.primary{background:linear-gradient(180deg,#FF4A36,#E3121E 48%,#B30A16 52%,#D8141F);border-color:#FF5A45;font-weight:700}.mpBox button.primary:hover:not(:disabled){background:linear-gradient(180deg,#FF6A52,#F01C28 48%,#C00D19 52%,#E81A25);box-shadow:0 0 14px rgba(255,40,40,.4)}.mpBox button.danger{background:#3a1416;border-color:#7d2f2f}.mpBox button:disabled{opacity:.45;cursor:not-allowed}
+.mpBox input,.mpBox select{font:14px Barlow,system-ui,sans-serif;background:#0A0A0C;color:#fff;border:1px solid #34343B;border-radius:8px;padding:7px 9px}.mpBox input:focus,.mpBox select:focus{outline:none;border-color:#E3121E;box-shadow:0 0 0 3px rgba(227,18,30,.2)}
 .mpBox table{width:100%;border-collapse:collapse}.mpBox td,.mpBox th{padding:3px 5px;text-align:left;white-space:nowrap}.mpBox th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.6;font-weight:600}
-.mpBox tr.me td{color:#ffd24a}.mpBox .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0}.mpBox .dim{opacity:.65}.mpBox .good{color:#7ee08a}.mpBox .bad{color:#ff7a6a}.mpBox .warn{color:#ffbd4a}
+.mpBox tr.me td{color:#FF8A70}.mpBox .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0}.mpBox .dim{opacity:.65}.mpBox .good{color:#7ee08a}.mpBox .bad{color:#ff7a6a}.mpBox .warn{color:#ffbd4a}
 .mpBox .tier{display:inline-block;padding:0 6px;border-radius:9px;background:rgba(255,255,255,.12);font-size:11px;font-weight:700}
 .mpBox .tier.sr{background:rgba(94,200,255,.16)} .mpBox .tier.sr.low{background:rgba(255,123,114,.22)}
-#mpMenu{left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,96vw);max-height:94vh;overflow:auto;padding:14px 16px}
+#mpMenu{left:50%;top:50%;transform:translate(-50%,-50%);width:min(580px,96vw);max-height:90vh;overflow:auto;padding:22px 24px}
+#mpMenu .mp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+#mpMenu .mp-x{width:36px;height:36px;padding:0;border-radius:50%;font-size:15px;line-height:1}
+#mpMenu .mp-hero{display:flex;align-items:center;gap:14px;padding:14px;border-radius:10px;background:linear-gradient(100deg,rgba(227,18,30,.16),rgba(255,255,255,.02));border:1px solid rgba(255,74,54,.3)}
+#mpMenu .mp-hero button{flex:none;padding:12px 26px;font:italic 800 18px Saira,'Barlow Condensed',Barlow,sans-serif;font-stretch:125%;letter-spacing:.06em;text-transform:uppercase;border-radius:8px}
+#mpMenu .mp-card{margin-top:12px;padding:4px 14px 8px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07)}
+#mpMenu .mp-card h3{margin-top:10px}
+#mpMenu h3 button{margin-left:8px;padding:3px 10px;font-size:12px;letter-spacing:0;text-transform:none}
+#mpMenu table td{padding:6px 5px;border-bottom:1px solid rgba(255,255,255,.05)}
 #mpLobby{left:50%;top:50%;transform:translate(-50%,-50%);width:min(860px,98vw);max-height:96vh;overflow:auto;padding:12px 14px}
 #mpLobby .cols{display:flex;gap:14px;flex-wrap:wrap}#mpLobby .cols>div{flex:1 1 320px;min-width:0}
 #mpLobby .chat{height:120px;overflow:auto;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 6px;font-size:12px}
@@ -58,6 +68,7 @@ const CSS = `
 #mpResults .p1{height:80px;background:#b8921d}#mpResults .p2{height:62px;background:#7d858d}#mpResults .p3{height:48px;background:#8a5a2b}
 #mpWatch{position:fixed;z-index:58;left:50%;bottom:16px;transform:translateX(-50%);padding:6px 12px;pointer-events:none;text-align:center}
 #mpButton{position:fixed;z-index:57;left:50%;top:8px;transform:translateX(-50%)}
+body>#mpButton .dk-ic{display:none}body>#mpButton kbd{font:inherit;margin-left:4px;opacity:.7}
 #mpToasts{position:fixed;z-index:90;left:50%;top:60px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
 #mpToasts .mpBox{position:static;padding:7px 12px;pointer-events:auto;max-width:min(520px,94vw)}
 #mpToasts .mpBox.notice{border-color:rgba(255,189,74,.55);font-weight:600}
@@ -70,10 +81,12 @@ export function createMpScreens({ S, R, game, cfg }) {
   toasts.hidden = false;
   lights.innerHTML = '<i></i><i></i><i></i><i></i><i></i>';
   const button = document.createElement('button');
-  button.id = 'mpButton'; button.className = 'mpBox'; button.textContent = 'Multiplayer (F7)';
-  button.style.cssText = 'font:600 13px Barlow,system-ui,sans-serif;padding:6px 12px;cursor:pointer';
+  // (in the game's dock, play/dock.js, when it's there: a tile)
+  button.id = 'mpButton'; button.className = 'mpBox'; button.title = 'Multiplayer (F7)'; button.dataset.tip = 'Race online: quick race, lobbies, friends, party (F7)';
+  button.innerHTML = '<span class="dk-ic" aria-hidden="true">sports_score</span>Race<kbd>F7</kbd>';
+  button.setAttribute('aria-label', 'Multiplayer (F7)');
   button.onclick = () => { button.blur(); toggle(); };
-  document.body.appendChild(button);
+  dockSlot('krDockRace').appendChild(button);
 
   let myVote = false, menuOpen = false, queueing = null, lobbyList = null, lobbyKey = '', resultsKey = '', hudAt = 0, resultsHidden = false, menuKey = '';
   // (recent players: null until asked, then { list } or { error }; the requests sent from these screens this visit)
@@ -151,6 +164,7 @@ export function createMpScreens({ S, R, game, cfg }) {
   function show(on = !menuOpen) {
     menuOpen = on;
     menu.hidden = !on || !!S.race;
+    button.classList.toggle('on', on);
     if (on && !S.race) { void S.hub().then(() => { S.hubSend({ t: 'friends' }); drawMenu(); }).catch(e => notice(`Multiplayer: ${e.message}`)); void loadRecent(); drawMenu(); }
     // (in a lobby: the lobby is the menu)
     if (on && S.race) { lobby.hidden = false; drawLobby(true); }
@@ -173,11 +187,10 @@ export function createMpScreens({ S, R, game, cfg }) {
     menu.hidden = false;
     const friends = S.friends ?? [], req = S.requests ?? { incoming: [], outgoing: [] }, party = S.party;
     const q = queueing ? `<div class="row"><b>Looking for a race…</b> <span data-qtime>${Math.round((performance.now() - queueing.since) / 1000)} s</span> <span class="dim">at most ${Math.round(queueing.fillSec)} s, then NPCs fill the empty places</span> <button class="primary" data-racenow>Race now</button> <button data-cancel>Cancel</button></div>` : '';
-    const html = `<h2>Multiplayer</h2><div class="dim">${esc(game.self?.() ?? '')}</div>
-      <h3>Race</h3>
-      <div class="row"><button class="primary" data-quick ${queueing ? 'disabled' : ''}>Quick race</button><span class="dim">matched with players near your skill and car${party ? ` · your party of ${party.members.length} queues together` : ''}</span></div>${q}
-      <div class="row"><button data-private>Private lobby</button><button data-custom>Custom lobby</button>
-        <input data-code placeholder="Invite code" maxlength="12" size="9"><button data-joincode>Join</button></div>
+    const html = `<div class="mp-head"><div><h2>Multiplayer</h2><div class="dim">${esc(game.self?.() ?? '')}</div></div><button class="mp-x" data-close title="Close (F7)" aria-label="Close">✕</button></div>
+      <div class="mp-hero"><button class="primary" data-quick ${queueing ? 'disabled' : ''}>Quick race</button><span class="dim">Matched with players near your skill and car${party ? ` · your party of ${party.members.length} queues together` : ''}</span></div>${q}
+      <div class="mp-card"><h3>Your own race</h3><div class="row"><button data-private>Private lobby</button><button data-custom>Custom lobby</button></div>
+        <div class="row"><input data-code placeholder="Invite code" maxlength="12" size="9"><button data-joincode>Join</button></div></div>
       <h3>Lobbies <button data-browse>Refresh</button></h3>
       ${lobbyList ? (lobbyList.length ? `<table>${lobbyList.map(l => `<tr><td>${esc(l.name)}</td><td class="dim">${esc(l.venue ?? '')}</td><td>${l.players}/${l.max}</td><td>${l.phase === 'lobby' ? 'waiting' : 'racing'}</td><td><button data-join="${esc(l.roomId)}" ${l.phase !== 'lobby' ? 'disabled' : ''}>Join</button> <button data-watch="${esc(l.roomId)}">Watch</button></td></tr>`).join('')}</table>` : '<div class="dim">No open lobbies right now: make one.</div>') : '<div class="dim">…</div>'}
       <h3>Friends</h3>
@@ -189,7 +202,7 @@ export function createMpScreens({ S, R, game, cfg }) {
       ${recentHtml()}
       <h3>Party</h3>
       ${party ? `<div class="row">${party.members.map(u => esc(party.names?.[u] ?? u)).join(', ')} ${party.leader === S.myUid || !S.myUid ? '<span class="dim">(you lead: Quick race queues everyone)</span>' : ''} <button data-partyleave>Leave the party</button></div>` : '<div class="row"><button data-partynew>Make a party</button><span class="dim">then invite friends: you queue together</span></div>'}
-      <div class="row" style="justify-content:flex-end"><button data-close>Close</button></div>`;
+      `;
     if (html === menuKey) return;
     menuKey = html;
     const keep = menu.querySelector('[data-code]')?.value ?? '', keepF = menu.querySelector('[data-friend]')?.value ?? '';
@@ -495,6 +508,8 @@ export function createMpScreens({ S, R, game, cfg }) {
     }
     if (menuOpen && queueing) { const q = menu.querySelector('[data-qtime]'); if (q) q.textContent = `${Math.round((performance.now() - queueing.since) / 1000)} s`; }
     button.hidden = !!S.race;
+    // (in a race: the game's dock out of the way)
+    document.body.classList.toggle('kr-in-race', !!S.race);
   }
 
   return {
