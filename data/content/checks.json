@@ -20151,12 +20151,12 @@
       "crash": {
         "key": "ac7cb923c6f65b35",
         "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,  228: more than 2 race wins"],
+        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,   228: more than 2 race wins"],
         "cars": {
           "brute_500": {
             "carKey": "2fb9160db7283cc2",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  228: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   228: more than 2 race wins"],
             "drivable": true,
             "repair": 3228,
             "loose": 1
@@ -20295,12 +20295,12 @@
       "crash": {
         "key": "cc1116a4b190fac7",
         "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,  137: more than 2 race wins"],
+        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,   137: more than 2 race wins"],
         "cars": {
           "kaze_gt": {
             "carKey": "29ce227702942db4",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  137: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   137: more than 2 race wins"],
             "drivable": true,
             "repair": 3137,
             "loose": 2
@@ -20439,12 +20439,12 @@
       "crash": {
         "key": "c87b60fb6c919595",
         "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,  159: more than 2 race wins"],
+        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,   159: more than 2 race wins"],
         "cars": {
           "strada_evo": {
             "carKey": "8d869ae0d3ae0101",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  159: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   159: more than 2 race wins"],
             "drivable": true,
             "repair": 3159,
             "loose": 1

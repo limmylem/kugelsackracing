@@ -9,5 +9,11 @@
     "hours": 24,
     "type": "hatchback"
   },
-  "runs": []
+  "runs": [
+    {
+      "date": "2026-10-12",
+      "what": "npm run content -- targets",
+      "result": "met — family mesh10: 74 variants made and checked in 8.8 min (target 50+ in 60); new hatchback: playable (class C) in 0.04 min of the pipeline's time (target 30; under 24 h with the modelling)"
+    }
+  ]
 }
