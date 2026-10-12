@@ -50,10 +50,14 @@ execFileSync('node', [path.join(REPO_DIR, 'tools/build-site.mjs'), '--env', 'pro
 const redirects = fs.readFileSync(path.join(siteDir, '_redirects'), 'utf8').split('\n').filter(l => l.trim() && !l.startsWith('#')).map(l => { const [from, to, code] = l.trim().split(/\s+/); return { from, to, code: Number(code ?? 302) }; });
 const headerBlock = fs.readFileSync(path.join(siteDir, '_headers'), 'utf8').split('\n/')[0].split('\n').filter(l => /^\s+\S+:/.test(l)).map(l => { const i = l.indexOf(':'); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; });
 const pages = http.createServer((req, res) => {
-  const p = decodeURIComponent(new URL(req.url!, U.game).pathname);
+  let p = decodeURIComponent(new URL(req.url!, U.game).pathname);
   for (const r of redirects) {
-    const re = new RegExp(`^${r.from.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '(.*)')}$`), m = p.match(re);
-    if (m) { res.writeHead(r.code, { location: r.to.replace(':splat', m[1] ?? '') }); res.end(); return; }
+    // (:name a path segment, * the splat; 200: served from there, not redirected — each build's /v/<version>/)
+    const re = new RegExp(`^${r.from.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/:\w+/g, '[^/]+').replace(/\*/g, '(.*)')}$`), m = p.match(re);
+    if (!m) continue;
+    const to = r.to.replace(':splat', m[1] ?? '');
+    if (r.code === 200) { p = to; break; }
+    res.writeHead(r.code, { location: to }); res.end(); return;
   }
   // (this test only: the libraries the import maps take from jsDelivr, which this machine can't reach)
   if (p.startsWith('/node_modules/')) { const f = path.join(REPO_DIR, p); if (f.startsWith(path.join(REPO_DIR, 'node_modules')) && fs.existsSync(f)) { res.writeHead(200, { 'content-type': TYPES[path.extname(f)] ?? 'text/javascript', ...Object.fromEntries(headerBlock) }); fs.createReadStream(f).pipe(res); return; } }
