@@ -6,7 +6,7 @@
 #garage-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 30; touch-action: none; background: #0d1013; }
 #garage-root { position: fixed; inset: 0; z-index: 31; pointer-events: none; }
 #garage-root .layer { position: absolute; inset: 0; pointer-events: none; }
-#garage-root .stage { position: absolute; left: 0; top: 0; width: calc(100vw / var(--g-zoom, 1)); height: calc(100vh / var(--g-zoom, 1)); zoom: var(--g-zoom, 1); pointer-events: none; }
+#garage-root .stage { position: absolute; left: 0; top: 0; width: calc(100vw / var(--g-zoom, 1)); height: calc(100vh / var(--g-zoom, 1)); transform: scale(var(--g-zoom, 1)); transform-origin: 0 0; pointer-events: none; }
 #garage-root .stage > *, #garage-root .markers > *, #garage-root .stage .pe { pointer-events: auto; }
 
 /* top bar */
