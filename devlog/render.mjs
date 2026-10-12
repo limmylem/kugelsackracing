@@ -15,7 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseScript, plan, LIMITS } from './remotion/timeline.js';
 import { copyFonts } from './lib/fonts.mjs';
-import { draft, commitsSince, lastDevlog, scriptText, postCaption, today } from './script/draft.mjs';
+import { draft, commitsSince, highlightsSince, lastDevlog, scriptText, postCaption, today } from './script/draft.mjs';
 
 const DEVLOG = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; }, flag = n => args.includes(n);
@@ -30,7 +30,7 @@ let text = opt('--script-text', null), scriptFile = path.resolve(opt('--script',
 let topics = [];
 if (text == null) {
   if (!fs.existsSync(scriptFile)) {
-    const since = lastDevlog(date), d = draft({ commits: commitsSince(since), since, date });
+    const since = lastDevlog(date), d = draft({ commits: commitsSince(since), since, date, highlights: highlightsSince(since) });
     fs.writeFileSync(scriptFile, scriptText(d, date));
     topics = d.topics;
     console.log(`No script yet: drafted one from git (${path.relative(process.cwd(), scriptFile)})`);

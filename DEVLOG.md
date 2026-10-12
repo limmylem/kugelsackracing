@@ -27,6 +27,25 @@ game or on its servers changes.
 That's it. The run also marks this week's devlog (a git tag `devlog-YYYY-MM-DD`), so next week's script starts with
 the commits after it.
 
+## Tell it what's new (the best captions)
+
+The script is drafted from the week's commits, but commit messages are written for programmers. For captions that
+sound right, write them yourself during the week in **`devlog/highlights.md`**: one line for each thing players will
+notice, in plain words.
+
+1. On GitHub, open `devlog/highlights.md` and click the pencil (**Edit**).
+2. Add a line at the bottom, for example `Adelaide is in the game: a whole city to drive`. Add `HOOK: …` to choose the
+   video's title.
+3. Click **Commit changes**.
+
+The next video uses the lines added since the last one first, in order, then fills up to five captions from the
+commits. Old lines can stay: only new ones are used. The game's Claude session is asked to add a line there too
+whenever it finishes something players will notice (CLAUDE.md).
+
+How the commits are picked (version 2): only commits that changed the game itself count (tests, docs, tools, deploys
+and this tool are left out); bigger changes come first; and a caption is cut at a natural break, never in the middle of
+a sentence. The run's `script.txt` lists every commit, with `*` next to the ones that changed the game.
+
 ## Change the words
 
 Don't like the script? Run it again with your own words. **It skips the filming, so it takes about 5 minutes.**
