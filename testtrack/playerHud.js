@@ -11,7 +11,7 @@
 //     lap: { label, time, best, progress } or null      stuck: [reasons] or null
 
 const CSS = `
-#playerHud { position: fixed; right: 16px; bottom: 40px; z-index: 6; width: 400px; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+#playerHud { position: fixed; right: 16px; bottom: 40px; z-index: 6; width: 426px; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
   color: #fff; font: 600 12px/1.2 Barlow, system-ui, sans-serif; pointer-events: none; user-select: none; font-variant-numeric: tabular-nums; }
 body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { display: none !important; }
 #playerHud .ph-cluster { position: relative; display: flex; flex-direction: column; align-items: stretch; padding: 10px 12px 8px;
@@ -30,7 +30,7 @@ body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { di
 #playerHud .ph-warn .dl.red { color: #ff4b3e; background: rgba(255, 75, 62, .16); filter: drop-shadow(0 0 4px rgba(255, 60, 50, .7)); }
 #playerHud .ph-warn .dl b { font-size: 9px; }
 #playerHud .ph-dial svg { display: block; width: 100%; height: 100%; overflow: visible; }
-#playerHud .ph-tach { width: 168px; height: 168px; margin-right: -14px; margin-bottom: 4px; }
+#playerHud .ph-tach { width: 168px; height: 168px; margin-right: 12px; margin-bottom: 4px; }
 #playerHud .ph-speedo { width: 214px; height: 214px; }
 #playerHud .face { fill: url(#ph-face); }
 #playerHud .rim { fill: none; stroke: url(#ph-chrome); stroke-width: 6; }
