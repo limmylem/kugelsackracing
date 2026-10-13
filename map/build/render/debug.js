@@ -122,7 +122,7 @@ export function createMapDebug(w, opts) {
             // [ax, ay, az, bx, by, bz, classIndex, kind] per edge piece (kind: 0 road edge, 1 junction patch, 2 trim, 3 bridge, 4 tunnel)
             const E = d.lists.roadEdges.data, classes = d.header.roadClasses ?? [];
             for (let k = 0; k < E.length; k += 8) {
-                const kind = E[k + 7], colour = kind === 1 ? 0x30e0ff : kind === 2 ? 0xff40ff : kind === 3 ? 0xffe000 : kind === 4 ? 0xa060ff : CLASS_COLOUR[classes[E[k + 6]]] ?? 0xffffff;
+                const kind = Math.round(E[k + 7]), colour = kind === 1 ? 0x30e0ff : kind === 2 ? 0xff40ff : kind === 3 ? 0xffe000 : kind === 4 ? 0xa060ff : CLASS_COLOUR[classes[Math.round(E[k + 6])]] ?? 0xffffff;
                 put(colour).push(E[k], E[k + 1] + 0.08, E[k + 2], E[k + 3], E[k + 4] + 0.08, E[k + 5]);
             }
         }

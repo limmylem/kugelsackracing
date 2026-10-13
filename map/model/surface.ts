@@ -32,8 +32,10 @@ const newMesh = (): Mesh => ({ positions: [], colours: [], indices: [], surfaces
 // the height of a road's surface at s m along it, `off` m to its left (− right): profile less camber, eased onto
 // a junction's plane near its trims
 export function profileAt(g: Seg, s: number) {
-  const L = g.s[g.s.length - 1], k = Math.max(0, Math.min(g.s.length - 2, idx(g.s, s))), t = Math.max(0, Math.min(1, (s - g.s[k]) / ((g.s[k + 1] - g.s[k]) || 1)));
-  return s <= 0 ? g.h[0] : s >= L ? g.h[g.h.length - 1] : g.h[k] + (g.h[k + 1] - g.h[k]) * t;
+  // (the drawn profile when there is one — its vertical curves, map/model/heights.ts — else straight between points)
+  const S: number[] = (g as any).vs ?? g.s, Hh: number[] = (g as any).vh ?? g.h;
+  const L = S[S.length - 1], k = Math.max(0, Math.min(S.length - 2, idx(S, s))), t = Math.max(0, Math.min(1, (s - S[k]) / ((S[k + 1] - S[k]) || 1)));
+  return s <= 0 ? Hh[0] : s >= L ? Hh[Hh.length - 1] : Hh[k] + (Hh[k + 1] - Hh[k]) * t;
 }
 // planes: the junctions' planes at the road's two trimmed ends (a: its start), and dA, dB: how far the road's own
 // profile misses each at its trim (the profile's points can lie either side of a trim) — the profile is moved by them,
@@ -68,8 +70,41 @@ export function surfaceHeight(g: Seg, s: number, off: number, x: number, z: numb
 }
 function idx(S: number[], s: number) { let lo = 0, hi = S.length - 1; if (s <= S[0]) return 0; if (s >= S[hi]) return hi - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] <= s) lo = m; else hi = m; } return lo; }
 
-export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, cfg: any, { style = 'AU', crossings = new Map<number, string>() } = {}) {
-  const Sf = cfg.surface, H = cfg.heights, C = Sf.colours, mesh = newMesh(), marks = newMesh(), edges: number[] = [], classIdx: string[] = [];
+// a road's planes at its two trimmed ends (a: its start) and how far its own profile misses each at its trim (made up
+// along the road: surfaceHeight), and where its surface starts and ends (s0, s1: its trims, or past its ends by a cap)
+export function planesOf(g: Seg, G: { nodes: MNode[] }, T: { clusters: Cluster[] }, H: any) {
+  const planeOf = (k: number) => (G.nodes[k].kind === 'junction' ? (T.clusters[G.nodes[k].cluster] as any)?.plane ?? null : null);
+  const L = g.s[g.s.length - 1], s0 = g.trim0 > 0 ? g.trim0 : -Math.max(0, -g.trim0), s1 = g.trim1 > 0 ? L - g.trim1 : L + Math.max(0, -g.trim1);
+  const pa = g.trim0 > 0 ? planeOf(g.from) : null, pb = g.trim1 > 0 ? planeOf(g.to) : null;
+  const rA = pa ? rowAt(g, s0) : null, rB = pb ? rowAt(g, s1) : null;
+  const planes: any = { a: pa, b: pb, dA: rA ? planeAt({ plane: pa }, rA.x, rA.z) - profileAt(g, s0) : 0, dB: rB ? planeAt({ plane: pb }, rB.x, rB.z) - profileAt(g, s1) : 0 };
+  // (short, between two planes: the curve's ends — each plane's height at the road's middle and its slope along it)
+  if (H.shortRoadCurve && pa && pb && s1 - s0 < 2 * H.armEase && g.structure === 'ground') {
+    const slope = (p: any, r: any) => p.a * r.nz + p.b * (-r.nx);
+    planes.hermite = [planeAt({ plane: pa }, rA!.x, rA!.z), slope(pa, rA), planeAt({ plane: pb }, rB!.x, rB!.z), slope(pb, rB), s0, s1 - s0];
+  }
+  return { s0, s1, planes };
+}
+
+// the drawn road's height down each road's middle (seg.hd: the navigation graph's and the model file's) — eased onto
+// the planes, inside a junction its plane — so whatever reads a road's height reads what's drawn; seg.h, the solved
+// profile the surface is built from, stays as it is. Every road's, once (map/model/index.ts): the surface itself is
+// built a block at a time
+export function drawnHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, cfg: any) {
+  const H = cfg.heights;
+  for (const g of G.segs) {
+    if (g.internal) continue;
+    const L = g.s[g.s.length - 1], s0 = g.trim0 > 0 ? g.trim0 : 0, s1 = g.trim1 > 0 ? L - g.trim1 : L, pl = planesOf(g, G, T, H).planes;
+    (g as any).hd = g.s.map((sv: number, k: number) => (sv < s0 && pl.a ? planeAt({ plane: pl.a }, g.xs[k], g.zs[k]) : sv > s1 && pl.b ? planeAt({ plane: pl.b }, g.xs[k], g.zs[k]) : surfaceHeight(g, sv, 0, g.xs[k], g.zs[k], H, pl)));
+  }
+}
+
+// only: the roads and junction patches to build (by id) — a block of the region (map/bake/bakeV4.ts); each piece is the
+// same whichever others are built with it
+export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, cfg: any, { style = 'AU', crossings = new Map<number, string>(), only = null as null | { segs: Set<number>; clusters: Set<number> } } = {}) {
+  const Sf = cfg.surface, H = cfg.heights, C = Sf.colours, mesh = newMesh(), marks = newMesh(), edges: number[] = [];
+  // (the classes' numbers: the widths table's order, the same in every block's tiles; anything else after them)
+  const classIdx: string[] = Object.keys(cfg.widths.classes).filter(k => !k.startsWith('_'));
   const M = Sf.markingStyles[style] ?? Sf.markingStyles.AU, white = hex(M.lane), centreC = hex(M.centre), edgeC = hex(M.edge);
   const colourOf = (g: Seg) => hex(g.surface === 'concrete' ? C.concrete : g.surface === 'gravel' || g.surface === 'dirt' ? C.gravel : g.surface === 'cobbles' ? C.cobbles : C.asphalt);
   const surfIdx = (g: Seg) => Math.max(0, SURFACES.indexOf(g.surface === 'grass' || g.surface === 'sand' ? 'dirt' : g.surface));
@@ -89,18 +124,9 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // ---------- ribbons ----------
   const segPlanes = new Map<number, any>();
   for (const g of G.segs) {
-    if (g.internal) continue;
-    const L = g.s[g.s.length - 1], s0 = g.trim0 > 0 ? g.trim0 : -Math.max(0, -g.trim0), s1 = g.trim1 > 0 ? L - g.trim1 : L + Math.max(0, -g.trim1);
+    if (g.internal || (only && !only.segs.has(g.id))) continue;
+    const { s0, s1, planes } = planesOf(g, G, T, H), pa = planes.a, pb = planes.b;
     if (s1 - s0 < 0.05) continue;
-    const pa = g.trim0 > 0 ? planeOf(g.from) : null, pb = g.trim1 > 0 ? planeOf(g.to) : null;
-    // (how far the profile misses each plane at its trim: made up along the road)
-    const rA = pa ? rowAt(g, s0) : null, rB = pb ? rowAt(g, s1) : null;
-    const planes = { a: pa, b: pb, dA: rA ? planeAt({ plane: pa }, rA.x, rA.z) - profileAt(g, s0) : 0, dB: rB ? planeAt({ plane: pb }, rB.x, rB.z) - profileAt(g, s1) : 0 };
-    // (short, between two planes: the curve's ends — each plane's height at the road's middle and its slope along it)
-    if (H.shortRoadCurve && pa && pb && s1 - s0 < 2 * H.armEase && g.structure === 'ground') {
-      const slope = (p: any, r: any) => p.a * r.nz + p.b * (-r.nx);
-      (planes as any).hermite = [planeAt({ plane: pa }, rA!.x, rA!.z), slope(pa, rA), planeAt({ plane: pb }, rB!.x, rB!.z), slope(pb, rB), s0, s1 - s0];
-    }
     segPlanes.set(g.id, planes);
     // the rows: the trims, every point between, and every 2 m through the ease onto a plane
     const ss = new Set<number>([s0, s1]);
@@ -109,6 +135,19 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const easeRows = Sf.easeRows as number[];
     if (pa) for (const d of easeRows) if (d < H.armEase && s0 + d < s1 - 0.05) ss.add(s0 + d);
     if (pb) for (const d of easeRows) if (d < H.armEase && s1 - d > s0 + 0.05) ss.add(s1 - d);
+    // (and through each vertical curve, wherever the drawn profile's grade changes by more than curveRows between
+    // its samples — none along a steady grade — but none within curveRowGap m of a row already there)
+    const vs = (g as any).vs as number[] | undefined, vh = (g as any).vh as number[] | undefined;
+    if (vs && vh && Sf.curveRows > 0) {
+      const have = [...ss];
+      for (let i = 1; i + 1 < vs.length; i++) {
+        const v = vs[i];
+        if (v <= s0 + 0.05 || v >= s1 - 0.05) continue;
+        const g1 = (vh[i] - vh[i - 1]) / ((vs[i] - vs[i - 1]) || 1), g2 = (vh[i + 1] - vh[i]) / ((vs[i + 1] - vs[i]) || 1);
+        if (Math.abs(g2 - g1) <= Sf.curveRows || have.some(q => Math.abs(q - v) < Sf.curveRowGap)) continue;
+        ss.add(v); have.push(v);
+      }
+    }
     const rows = [...ss].sort((a, b) => a - b).map(s => rowAt(g, s));
     // each line's points, kept from folding (the first and last rows — shared with a patch or a joint — never move)
     const OFF = (r: any) => [r.hwL, r.dL, 0, -r.dR, -r.hwR];
@@ -151,7 +190,7 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // ---------- junction patches ----------
   for (const c of T.clusters) {
     const plane = (c as any).plane;
-    if (!plane) continue;
+    if (!plane || (only && !only.clusters.has(c.id))) continue;
     // (its colour: its main road's)
     const main = c.arms.slice().sort((p, q) => q.seg.rank - p.seg.rank)[0]?.seg, col = main ? colourOf(main) : hex(C.asphalt), sf = main ? surfIdx(main) : 0;
     const lv = c.arms.every(A => A.seg.structure === 'bridge') ? 1 : c.arms.every(A => A.seg.structure === 'tunnel') ? 2 : 0;
@@ -229,14 +268,6 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     }
     return n;
   }
-  // the roads' own heights (seg.h, the navigation graph's and the model file's) made the drawn road's down its middle:
-  // eased onto the planes, inside a junction its plane — so whatever reads a road's height reads what's drawn
-  for (const g of G.segs) {
-    if (g.internal) continue;
-    const L = g.s[g.s.length - 1], s0 = g.trim0 > 0 ? g.trim0 : 0, s1 = g.trim1 > 0 ? L - g.trim1 : L, pl = segPlanes.get(g.id);
-    if (!pl) continue;
-    g.h = g.s.map((sv: number, k: number) => (sv < s0 && pl.a ? planeAt({ plane: pl.a }, g.xs[k], g.zs[k]) : sv > s1 && pl.b ? planeAt({ plane: pl.b }, g.xs[k], g.zs[k]) : surfaceHeight(g, sv, 0, g.xs[k], g.zs[k], H, pl)));
-  }
   // (on the tiles' grid first — map/format's 1 cm quantum — so the vertices the repair shares stay shared in the tiles;
   // then the repair, until no side is left to split)
   const q = cfg.surface.quantum ?? 0.01;
@@ -253,36 +284,41 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
 export function repairTJunctions(mesh: Mesh, tol: number) {
   const P = mesh.positions, I = mesh.indices, nV = P.length / 3;
   // (vertices welded by position, 1 mm; edges by their welded ends, as numbers)
-  const wid = new Int32Array(nV), ids = new Map<string, number>();
-  for (let v = 0; v < nV; v++) { const k = `${Math.round(P[v * 3] * 1000)},${Math.round(P[v * 3 + 1] * 1000)},${Math.round(P[v * 3 + 2] * 1000)}`; let i = ids.get(k); if (i === undefined) { i = ids.size; ids.set(k, i); } wid[v] = i; }
-  const W = ids.size, edgeKey = (a: number, b: number) => { const p = wid[a], q = wid[b]; return p < q ? p * W + q : q * W + p; };
-  // (each edge: how many solid triangles have it, and the first one's slot + side)
-  const count = new Map<number, number>(), owner = new Map<number, number>();
-  for (let t = 0; t < I.length; t += 3) {
-    if (!mesh.solid[t / 3]) continue;
-    for (let e = 0; e < 3; e++) { const k = edgeKey(I[t + e], I[t + (e + 1) % 3]), c = count.get(k); count.set(k, (c ?? 0) + 1); if (c === undefined) owner.set(k, t + e); }
-  }
+  const wid = new Int32Array(nV), weld = welder(nV);
+  for (let v = 0; v < nV; v++) wid[v] = weld(Math.round(P[v * 3] * 1000), Math.round(P[v * 3 + 1] * 1000), Math.round(P[v * 3 + 2] * 1000));
+  const W = weld.count();
+  // (each edge kept with its lower welded end: the edges only one solid triangle has — the outline — by that triangle's
+  // slot + side, in the order they come)
+  const deg = new Int32Array(W + 1);
+  for (let t = 0; t < I.length; t += 3) { if (!mesh.solid[t / 3]) continue; for (let e = 0; e < 3; e++) deg[Math.min(wid[I[t + e]], wid[I[t + (e + 1) % 3]]) + 1]++; }
+  for (let p = 0; p < W; p++) deg[p + 1] += deg[p];
+  const fill = deg.slice(0, W), other = new Int32Array(deg[W]), slotOf = new Int32Array(deg[W]);
+  for (let t = 0; t < I.length; t += 3) { if (!mesh.solid[t / 3]) continue; for (let e = 0; e < 3; e++) { const p = wid[I[t + e]], q = wid[I[t + (e + 1) % 3]], lo = Math.min(p, q), at = fill[lo]++; other[at] = Math.max(p, q); slotOf[at] = t + e; } }
+  const outline: number[] = [];
+  for (let p = 0; p < W; p++) for (let i = deg[p]; i < deg[p + 1]; i++) { let c = 0; for (let j = deg[p]; j < deg[p + 1]; j++) if (other[j] === other[i]) c++; if (c === 1) outline.push(slotOf[i]); }
+  outline.sort((a, b) => a - b);
   // the outline's edges, by triangle and side, and its vertices
   const C = 2, cell = (x: number, z: number) => (Math.floor(x / C) + 1e5) * 2e5 + Math.floor(z / C) + 1e5;
-  const grid = new Map<number, [number, number][]>(), verts = new Map<number, number>();
-  for (const [k, n] of count) {
-    if (n !== 1) continue;
-    const te = owner.get(k)!, e = te % 3, t = te - e, a = I[t + e], b = I[t + (e + 1) % 3];
+  // (an outline edge as one number: its triangle's first slot + its side)
+  const grid = new Map<number, number[]>(), verts = new Map<number, number>();
+  for (const te of outline) {
+    const e = te % 3, t = te - e, a = I[t + e], b = I[t + (e + 1) % 3];
     verts.set(wid[a], a); verts.set(wid[b], b);
-    for (let x = Math.floor(Math.min(P[a * 3], P[b * 3]) / C); x <= Math.floor(Math.max(P[a * 3], P[b * 3]) / C); x++) for (let z = Math.floor(Math.min(P[a * 3 + 2], P[b * 3 + 2]) / C); z <= Math.floor(Math.max(P[a * 3 + 2], P[b * 3 + 2]) / C); z++) { const g = cell(x * C, z * C); (grid.get(g) ?? grid.set(g, []).get(g)!).push([t, e]); }
+    for (let x = Math.floor(Math.min(P[a * 3], P[b * 3]) / C); x <= Math.floor(Math.max(P[a * 3], P[b * 3]) / C); x++) for (let z = Math.floor(Math.min(P[a * 3 + 2], P[b * 3 + 2]) / C); z <= Math.floor(Math.max(P[a * 3 + 2], P[b * 3 + 2]) / C); z++) { const g = cell(x * C, z * C); (grid.get(g) ?? grid.set(g, []).get(g)!).push(te); }
   }
   // each outline vertex against the outline edges near it: [triangle, side] → the vertices to put into that side
-  const splits = new Map<string, { t: number; e: number; vs: { v: number; u: number }[] }>();
+  const splits = new Map<number, { t: number; e: number; vs: { v: number; u: number }[] }>();
   for (const v of verts.values()) {
     const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
-    for (const [t, e] of grid.get(cell(x, z)) ?? []) {
+    for (const te of grid.get(cell(x, z)) ?? []) {
+      const e = te % 3, t = te - e;
       const a = I[t + e], b = I[t + (e + 1) % 3], dx = P[b * 3] - P[a * 3], dz = P[b * 3 + 2] - P[a * 3 + 2], L2 = dx * dx + dz * dz;
       if (L2 < 1e-10 || a === v || b === v) continue;
       const u = ((x - P[a * 3]) * dx + (z - P[a * 3 + 2]) * dz) / L2;
       if (u <= 1e-6 || u >= 1 - 1e-6) continue;
       const d = Math.abs((x - P[a * 3]) * dz - (z - P[a * 3 + 2]) * dx) / Math.sqrt(L2), dy = Math.abs(P[a * 3 + 1] + (P[b * 3 + 1] - P[a * 3 + 1]) * u - y);
       if (d > tol || dy > 0.05) continue;
-      const sk = `${t}:${e}`, entry = splits.get(sk) ?? splits.set(sk, { t, e, vs: [] }).get(sk)!;
+      const entry = splits.get(te) ?? splits.set(te, { t, e, vs: [] }).get(te)!;
       if (!entry.vs.some(q => q.v === v)) entry.vs.push({ v, u });
     }
   }
@@ -329,4 +365,34 @@ function unfold(line: number[][], rows: any[]) {
     if (!changed) break;
   }
   return moved;
+}
+
+// vertices welded by position (whole numbers — mm, cm: the caller's — and anything else that must match, a colour),
+// each new one numbered from 0: weld(x, y, z, c?) → its number; weld.count() → how many. An open-addressed table of
+// typed arrays (a Map of large numbers, or of strings, spends most of its time making them)
+export function welder(capacity = 1 << 16) {
+  let cap = 1 << Math.ceil(Math.log2(Math.max(16, capacity * 2))), slots = new Int32Array(cap).fill(-1), n = 0;
+  let X = new Int32Array(cap >> 1), Y = new Int32Array(cap >> 1), Z = new Int32Array(cap >> 1), Cc = new Int32Array(cap >> 1);
+  const hash = (x: number, y: number, z: number, c: number) => { let h = Math.imul(x, 0x9e3779b1) ^ Math.imul(z, 0x85ebca77) ^ Math.imul(y, 0xc2b2ae3d) ^ Math.imul(c, 0x27d4eb2f); h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; return h >>> 0; };
+  const grow = () => {
+    cap *= 2; slots = new Int32Array(cap).fill(-1);
+    const nx = new Int32Array(cap >> 1), ny = new Int32Array(cap >> 1), nz = new Int32Array(cap >> 1), nc = new Int32Array(cap >> 1);
+    nx.set(X); ny.set(Y); nz.set(Z); nc.set(Cc); X = nx; Y = ny; Z = nz; Cc = nc;
+    for (let id = 0; id < n; id++) { let h = hash(X[id], Y[id], Z[id], Cc[id]) & (cap - 1); while (slots[h] >= 0) h = (h + 1) & (cap - 1); slots[h] = id; }
+  };
+  const weld = (xi: number, yi: number, zi: number, ci = 0) => {
+    if (xi > 2147483647 || xi < -2147483648 || zi > 2147483647 || zi < -2147483648 || yi > 2147483647 || yi < -2147483648) throw new Error(`welder: ${xi}, ${yi}, ${zi} out of range`);
+    let h = hash(xi, yi, zi, ci) & (cap - 1);
+    for (;;) {
+      const id = slots[h];
+      if (id < 0) break;
+      if (X[id] === xi && Z[id] === zi && Y[id] === yi && Cc[id] === ci) return id;
+      h = (h + 1) & (cap - 1);
+    }
+    if (n >= cap >> 1) { grow(); return weld(xi, yi, zi, ci); }
+    X[n] = xi; Y[n] = yi; Z[n] = zi; Cc[n] = ci; slots[h] = n;
+    return n++;
+  };
+  weld.count = () => n;
+  return weld;
 }

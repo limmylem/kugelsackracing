@@ -12,7 +12,7 @@
 //   rails        railings hit at 50, 100, 200 and 300 km/h, 15° and 60°: never through
 //   streaming    a 20 km route at 200 km/h with the game's streamer: the ground always there
 //   memory       the same run, past 100 tiles: memory and colliders level
-//   determinism  a small area baked twice: identical tiles and graph, byte for byte
+//   determinism  a small area baked twice: identical tiles and graph, byte for byte (Map v4: the second a block per tile)
 //   physics      the Phase 1 straight-line tests on a real road, against the car's targets
 //
 //   (--map v4: the same tests on the region's Map v4 bake, assets/map/<region>/v4/ — tests/map/v4.test.ts has v4's own)
@@ -435,11 +435,13 @@ async function determinismTest() {
   if (!fs.existsSync(path.join(M.root, '.cache/map', region, `${region}.osm.pbf`))) { report('determinism', 'baking twice', true, 'needs the bake\'s inputs in .cache/map (run a bake first)', true); return; }
   // (Map v4: its own bake, the road surface model's file with the rest)
   const bake = mapV === 'v4' ? (await import('../../map/bake/bakeV4.ts')).bakeV4 : (await import('../../map/bake/bake.ts')).bake;
+  // (Map v4 bakes a block of tiles at a time: the second bake a block for every tile, with a wider pad — the same files,
+  // or a block's edge shows)
   const [la, lo] = [manifest.spawn.lat, manifest.spawn.lon], dirs = [0, 1].map(k => fs.mkdtempSync(path.join(os.tmpdir(), `map-det-${k}-`)));
-  for (const out of dirs) await bake({ regionId: region, area: `${la},${lo},0.6`, out, log: () => {} });
+  for (const [k, out] of dirs.entries()) await bake({ regionId: region, area: `${la},${lo},${mapV === 'v4' ? 1.2 : 0.6}`, out, blocks: mapV === 'v4' && k === 1 ? { tiles: 1, pad: 400 } : null, log: () => {} } as any);
   const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz', ...(mapV === 'v4' ? ['roadmodel.json.gz'] : [])];
   const a = files(dirs[0]), diff = a.filter(f => !fs.readFileSync(path.join(dirs[0], f)).equals(fs.readFileSync(path.join(dirs[1], f))));
-  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${mapV === 'v4' ? ', road surface model' : ''})`);
+  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${mapV === 'v4' ? ', road surface model; the second bake a block per tile' : ''})`);
   for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
 }
 

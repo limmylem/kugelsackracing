@@ -1,7 +1,7 @@
 // Map v4: a baked region's drawn road surface round a place, top down, coloured by height (blue low … red high) with
 // its triangles' edges — for looking at steps and holes the tests find.
 //
-//   node map/debug/tileHeights.ts --region adelaide --at x,z --size 40 [--out output/heights.png] [--range 1]
+//   node map/debug/tileHeights.ts --region adelaide --at x,z --size 40 [--out output/heights.png] [--range 1] [--dir <a bake elsewhere>]
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +11,7 @@ import { decodeTile } from '../format/tileFormat.ts';
 import { plot } from './plot.ts';
 
 const args = process.argv.slice(2), opt = (n: string, d: string | null = null) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..'), dir = path.join(ROOT, 'assets/map', opt('--region', 'adelaide')!, opt('--map', 'v4') === 'v4' ? 'v4' : '');
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..'), dir = opt('--dir') ? path.resolve(opt('--dir')!) : path.join(ROOT, 'assets/map', opt('--region', 'adelaide')!, opt('--map', 'v4') === 'v4' ? 'v4' : '');
 const [cx, cz] = opt('--at')!.split(',').map(Number), size = +opt('--size', '40')!, T = 512;
 await MeshoptDecoder.ready;
 const tris: number[][][] = [];

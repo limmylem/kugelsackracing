@@ -18,9 +18,11 @@ import { buildGraph } from './graph.ts';
 import { assignWidths } from './widths.ts';
 import { buildTopology, unionStats } from './topology.ts';
 import { solveHeights } from './heights.ts';
-import { buildSurface } from './surface.ts';
+import { buildSurface, drawnHeights } from './surface.ts';
 
-export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSize, P, style = 'AU', log = (_: string) => {} }: { roads: Way[]; points?: any[]; demAt: (x: number, z: number) => number; cfg: any; v3roads: any; tileSize: number; P: Projection; style?: string; log?: (s: string) => void }) {
+// withSurface false: everything but the surface mesh — model.surfaceFor({ segs, clusters }) builds the surface of some of
+// it (the bake's blocks: the whole region's surface at once is more than a machine's memory)
+export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSize, P, style = 'AU', log = (_: string) => {}, withSurface = true }: { roads: Way[]; points?: any[]; demAt: (x: number, z: number) => number; cfg: any; v3roads: any; tileSize: number; P: Projection; style?: string; log?: (s: string) => void; withSurface?: boolean }) {
   const t0 = performance.now(), lap = (s: string) => log(`    ${s} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
   const G = buildGraph(roads, { cfg, v3roads, tileSize });
   // (border nodes: their lat/lon from the projection)
@@ -31,11 +33,14 @@ export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSi
   const T = buildTopology(G, cfg);
   lap(`junctions: ${T.stats.junctions} (${T.stats.clusters} patches, ${T.stats.merged} merged into clusters), ${T.stats.joints} joints, ${T.stats.ends} ends; ${T.stats.clamped} trims clamped, ${T.stats.unresolvedCorners} open corners, ${T.stats.unionFailures} union failures, ${unionStats.skipped} pieces a union couldn't take`);
   const Hs = solveHeights(G, T, demAt, cfg);
+  drawnHeights(G, T, cfg);
   lap(`heights: ${Hs.stats.chains} chains, ${Hs.stats.lifted} bridges lifted, ${Hs.stats.gradeLimited} grade-limited, junction planes moved ${Hs.stats.planesMoved} times to meet their neighbours`);
   // (OSM's crossings, stops and give ways, by node id: markings where they're mapped)
   const crossings = new Map<number, string>();
   for (const p of points) { const h = p.tags?.highway; if (h === 'crossing' || h === 'stop' || h === 'give_way') crossings.set(p.id, h); else if (p.tags?.crossing && p.tags.crossing !== 'no') crossings.set(p.id, 'crossing'); }
-  const surface = buildSurface(G, T, cfg, { style, crossings });
+  const surfaceFor = (only: { segs: Set<number>; clusters: Set<number> } | null) => buildSurface(G, T, cfg, { style, crossings, only });
+  if (!withSurface) return { nodes: G.nodes, segs: G.segs, clusters: T.clusters, chains: Hs.chains, surface: null as any, surfaceFor, stats: { graph: { nodes: G.nodes.length, segs: G.segs.length, joins: G.joins }, topology: T.stats, heights: Hs.stats, surface: null as any }, version: cfg.model };
+  const surface = surfaceFor(null);
   lap(`surface: ${(surface.mesh.indices.length / 3 / 1e3).toFixed(0)}k triangles (${surface.stats.ribbons} ribbons, ${surface.stats.patches} patches), ${(surface.marks.indices.length / 3 / 1e3).toFixed(0)}k marking triangles, ${surface.stats.folds} edge points unfolded, ${surface.stats.tJunctions} T-junctions closed, ${surface.stats.patchHoles} patches not covered`);
-  return { nodes: G.nodes, segs: G.segs, clusters: T.clusters, chains: Hs.chains, surface, stats: { graph: { nodes: G.nodes.length, segs: G.segs.length, joins: G.joins }, topology: T.stats, heights: Hs.stats, surface: surface.stats }, version: cfg.model };
+  return { nodes: G.nodes, segs: G.segs, clusters: T.clusters, chains: Hs.chains, surface, surfaceFor, stats: { graph: { nodes: G.nodes.length, segs: G.segs.length, joins: G.joins }, topology: T.stats, heights: Hs.stats, surface: surface.stats }, version: cfg.model };
 }

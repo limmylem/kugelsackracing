@@ -9,36 +9,52 @@
 
 import { selfIntersects } from './geom.ts';
 import { rowAt } from './geom.ts';
+import { welder } from './surface.ts';
 
 export function checkSurface(mesh: { positions: number[] | Float32Array; indices: number[] | Uint32Array; solid?: number[] | Uint8Array; level?: number[] | Uint8Array }, { segs = null as any[] | null, sampleEvery = 1, maxReports = 50, region = null as null | [number, number, number, number] } = {}) {
-  const P = mesh.positions, I = mesh.indices, solid = (t: number) => !mesh.solid || mesh.solid[t];
+  const P = mesh.positions, I = mesh.indices;
   const inRegion = (x: number, z: number) => !region || (x >= region[0] && x <= region[2] && z >= region[1] && z <= region[3]);
+  // (with a region, only the triangles reaching into it, or within a few metres: everything a point in it is judged by)
+  const keep = new Uint8Array(I.length / 3);
+  for (let t = 0; t < I.length; t += 3) {
+    if (mesh.solid && !mesh.solid[t / 3]) continue;
+    if (region) {
+      const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3, m = 4;
+      if (Math.max(P[a], P[b], P[c]) < region[0] - m || Math.min(P[a], P[b], P[c]) > region[2] + m || Math.max(P[a + 2], P[b + 2], P[c + 2]) < region[1] - m || Math.min(P[a + 2], P[b + 2], P[c + 2]) > region[3] + m) continue;
+    }
+    keep[t / 3] = 1;
+  }
+  const solid = (t: number) => keep[t] === 1;
   // ---- welded edges (1 mm)
-  const key = (v: number) => `${Math.round(P[v * 3] * 1000)},${Math.round(P[v * 3 + 1] * 1000)},${Math.round(P[v * 3 + 2] * 1000)}`;
-  const ids = new Map<string, number>(), vid: number[] = [], pos: number[][] = [];
-  const weld = (v: number) => { const k = key(v); let i = ids.get(k); if (i === undefined) { i = pos.length; ids.set(k, i); pos.push([P[v * 3], P[v * 3 + 1], P[v * 3 + 2]]); } return i; };
-  const edges = new Map<string, number>();
+  const ids = welder(), pos: number[][] = [];
+  const weld = (v: number) => { const i = ids(Math.round(P[v * 3] * 1000), Math.round(P[v * 3 + 1] * 1000), Math.round(P[v * 3 + 2] * 1000)); if (i === pos.length) pos.push([P[v * 3], P[v * 3 + 1], P[v * 3 + 2]]); return i; };
+  const tw: number[] = [];
   let triangles = 0;
   for (let t = 0; t < I.length; t += 3) {
     if (!solid(t / 3)) continue;
     const a = weld(I[t]), b = weld(I[t + 1]), c = weld(I[t + 2]);
     if (a === b || b === c || a === c) continue;
     triangles++;
-    for (const [p, q] of [[a, b], [b, c], [c, a]]) { const k = p < q ? `${p}:${q}` : `${q}:${p}`; edges.set(k, (edges.get(k) ?? 0) + 1); }
+    tw.push(a, b, c);
   }
-  void vid;
+  // (each edge kept with its lower end: those only one triangle has are the outline)
+  const NW = pos.length, deg = new Int32Array(NW + 1);
+  for (let k = 0; k < tw.length; k += 3) for (let e = 0; e < 3; e++) deg[Math.min(tw[k + e], tw[k + (e + 1) % 3]) + 1]++;
+  for (let p = 0; p < NW; p++) deg[p + 1] += deg[p];
+  const fill = deg.slice(0, NW), other = new Int32Array(deg[NW]);
+  for (let k = 0; k < tw.length; k += 3) for (let e = 0; e < 3; e++) { const p = tw[k + e], q = tw[k + (e + 1) % 3]; other[fill[Math.min(p, q)]++] = Math.max(p, q); }
   const boundary: number[][] = [];
-  for (const [k, n] of edges) if (n === 1) { const [p, q] = k.split(':').map(Number); boundary.push([p, q]); }
+  for (let p = 0; p < NW; p++) for (let i = deg[p]; i < deg[p + 1]; i++) { let c = 0; for (let j = deg[p]; j < deg[p + 1]; j++) if (other[j] === other[i]) c++; if (c === 1) boundary.push([p, other[i]]); }
   // ---- cracks: a boundary edge's vertex lying inside another boundary edge (in plan and height)
-  const C = 2, grid = new Map<string, number[]>();
-  boundary.forEach(([p, q], i) => { const a = pos[p], b = pos[q]; for (let x = Math.floor(Math.min(a[0], b[0]) / C); x <= Math.floor(Math.max(a[0], b[0]) / C); x++) for (let z = Math.floor(Math.min(a[2], b[2]) / C); z <= Math.floor(Math.max(a[2], b[2]) / C); z++) { const k = `${x},${z}`; (grid.get(k) ?? grid.set(k, []).get(k)!).push(i); } });
+  const C = 2, grid = new Map<number, number[]>(), ck = (x: number, z: number) => (x + 1e6) * 2e6 + z + 1e6;
+  boundary.forEach(([p, q], i) => { const a = pos[p], b = pos[q]; for (let x = Math.floor(Math.min(a[0], b[0]) / C); x <= Math.floor(Math.max(a[0], b[0]) / C); x++) for (let z = Math.floor(Math.min(a[2], b[2]) / C); z <= Math.floor(Math.max(a[2], b[2]) / C); z++) { const k = ck(x, z); (grid.get(k) ?? grid.set(k, []).get(k)!).push(i); } });
   const cracks: any[] = [];
   let crackCount = 0;
   boundary.forEach(([p, q]) => {
     for (const v of [p, q]) {
       const pt = pos[v];
       if (!inRegion(pt[0], pt[2])) continue;
-      for (const j of grid.get(`${Math.floor(pt[0] / C)},${Math.floor(pt[2] / C)}`) ?? []) {
+      for (const j of grid.get(ck(Math.floor(pt[0] / C), Math.floor(pt[2] / C))) ?? []) {
         const [r, s] = boundary[j];
         if (r === v || s === v) continue;
         const a = pos[r], b = pos[s], dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L2 = dx * dx + dz * dz;
@@ -51,11 +67,11 @@ export function checkSurface(mesh: { positions: number[] | Float32Array; indices
     }
   });
   // ---- overlaps: each solid triangle's middle, covered by another solid triangle of its level near its height
-  const TC = 4, tgrid = new Map<string, number[]>();
+  const TC = 4, tgrid = new Map<number, number[]>();
   for (let t = 0; t < I.length; t += 3) {
     if (!solid(t / 3)) continue;
     const xs = [I[t], I[t + 1], I[t + 2]].map(v => P[v * 3]), zs = [I[t], I[t + 1], I[t + 2]].map(v => P[v * 3 + 2]);
-    for (let x = Math.floor(Math.min(...xs) / TC); x <= Math.floor(Math.max(...xs) / TC); x++) for (let z = Math.floor(Math.min(...zs) / TC); z <= Math.floor(Math.max(...zs) / TC); z++) { const k = `${x},${z}`; (tgrid.get(k) ?? tgrid.set(k, []).get(k)!).push(t); }
+    for (let x = Math.floor(Math.min(...xs) / TC); x <= Math.floor(Math.max(...xs) / TC); x++) for (let z = Math.floor(Math.min(...zs) / TC); z <= Math.floor(Math.max(...zs) / TC); z++) { const k = ck(x, z); (tgrid.get(k) ?? tgrid.set(k, []).get(k)!).push(t); }
   }
   const overlaps: any[] = [];
   let overlapCount = 0, sampled = 0;
@@ -67,7 +83,7 @@ export function checkSurface(mesh: { positions: number[] | Float32Array; indices
     const area = Math.abs((P[v[1] * 3] - P[v[0] * 3]) * (P[v[2] * 3 + 2] - P[v[0] * 3 + 2]) - (P[v[2] * 3] - P[v[0] * 3]) * (P[v[1] * 3 + 2] - P[v[0] * 3 + 2])) / 2;
     if (area < 0.01) continue;
     sampled++;
-    for (const u of tgrid.get(`${Math.floor(cx / TC)},${Math.floor(cz / TC)}`) ?? []) {
+    for (const u of tgrid.get(ck(Math.floor(cx / TC), Math.floor(cz / TC))) ?? []) {
       if (u === t || (mesh.level && mesh.level[u / 3] !== mesh.level[t / 3])) continue;
       const h = heightIn(P, I, u, cx, cz, 1e-4);
       if (h == null || Math.abs(h - cy) > 0.5) continue;

@@ -9,6 +9,8 @@
 //   bucketTriangles(mesh, tileSize, pad)    tile key → the triangles touching that tile (its square grown by pad)
 //   clipToBox(mesh, tris, box, { cx, cz, solidOnly, weld, q })  → { positions, colours, indices, surfaces } (tile-local)
 
+import { welder } from '../model/surface.ts';
+
 export function snapMesh(mesh: { positions: number[] }, q = 0.01) { const P = mesh.positions; for (let i = 0; i < P.length; i++) P[i] = Math.round(P[i] / q) * q; }
 
 export function bucketTriangles(mesh: { positions: number[]; indices: number[] }, tileSize: number, pad = 0, keep: (t: number) => boolean = () => true) {
@@ -45,17 +47,34 @@ function clipPoly(poly: V[], axis: 0 | 2, value: number, keepBelow: boolean, q: 
 
 export function clipToBox(mesh: { positions: number[]; colours: number[]; indices: number[]; surfaces?: number[]; solid?: number[] }, tris: number[], box: [number, number, number, number], { cx = 0, cz = 0, weld = true, q = 0.01 } = {}) {
   const P = mesh.positions, C = mesh.colours, I = mesh.indices, [x0, z0, x1, z1] = box;
-  const positions: number[] = [], colours: number[] = [], indices: number[] = [], surfaces: number[] = [], ids = new Map<string, number>();
+  const positions: number[] = [], colours: number[] = [], indices: number[] = [], surfaces: number[] = [], ids = welder();
+  // (welded by position on the q grid and colour: a vertex's number is its weld number, so a new one is the next)
   const vert = (v: V) => {
-    const key = weld ? `${Math.round(v[0] / q)},${Math.round(v[1] / q)},${Math.round(v[2] / q)},${v[3]},${v[4]},${v[5]}` : null;
-    if (key) { const k = ids.get(key); if (k !== undefined) return k; }
+    if (weld) { const k = ids(Math.round(v[0] / q), Math.round(v[1] / q), Math.round(v[2] / q), (v[3] * 256 + v[4]) * 256 + v[5]); if (k < positions.length / 3) return k; }
     const k = positions.length / 3;
     positions.push(v[0] - cx, v[1], v[2] - cz); colours.push(v[3], v[4], v[5], v[6]);
-    if (key) ids.set(key, k);
     return k;
   };
   const get = (i: number): V => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2], C[i * 4], C[i * 4 + 1], C[i * 4 + 2], C[i * 4 + 3]];
+  // (a vertex of the mesh as it is — what vert(get(i)) gives, with nothing made on the way)
+  const vertOf = (i: number) => {
+    if (weld) { const k = ids(Math.round(P[i * 3] / q), Math.round(P[i * 3 + 1] / q), Math.round(P[i * 3 + 2] / q), (C[i * 4] * 256 + C[i * 4 + 1]) * 256 + C[i * 4 + 2]); if (k < positions.length / 3) return k; }
+    const k = positions.length / 3;
+    positions.push(P[i * 3] - cx, P[i * 3 + 1], P[i * 3 + 2] - cz); colours.push(C[i * 4], C[i * 4 + 1], C[i * 4 + 2], C[i * 4 + 3]);
+    return k;
+  };
   for (const t of tris) {
+    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+    const mx = Math.min(P[a], P[b], P[c]), Mx = Math.max(P[a], P[b], P[c]), mz = Math.min(P[a + 2], P[b + 2], P[c + 2]), Mz = Math.max(P[a + 2], P[b + 2], P[c + 2]);
+    if (Mx < x0 || mx > x1 || Mz < z0 || mz > z1) continue;
+    // (wholly inside: as it is — most of them)
+    if (mx >= x0 && Mx <= x1 && mz >= z0 && Mz <= z1) {
+      const v0 = vertOf(I[t]), v1 = vertOf(I[t + 1]), v2 = vertOf(I[t + 2]);
+      if (v0 === v1 || v1 === v2 || v0 === v2) continue;
+      indices.push(v0, v1, v2);
+      if (mesh.surfaces) surfaces.push(mesh.surfaces[t / 3]);
+      continue;
+    }
     const tri = [get(I[t]), get(I[t + 1]), get(I[t + 2])];
     let poly: V[] = tri;
     const xs = tri.map(v => v[0]), zs = tri.map(v => v[2]);

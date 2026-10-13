@@ -1,7 +1,7 @@
 {
   "_note": "Map v4's road surface model and everything made from it (MAP_README.md; map/model/). Every width, spacing, threshold and tolerance the v4 bake uses. Bump version after changing anything: the next bake redoes every tile and the game's tile cache drops the old ones. Map v3's own settings stay in data/map/bake.json (still read for terrain colours, surfaces, barriers, trees' density, buildings).",
-  "version": 1,
-  "model": "roads-4.1",
+  "version": 2,
+  "model": "roads-4.2",
   "graph": {
     "_note": "densify: m between points added on gentle curves (OSM's own nodes never move); straightSpacing: m between points along straight pieces (for the height profile); maxTurnPerPoint: degrees a curve may turn between two points before more are added; corner: a turn sharper than this (degrees) stays a corner; jointMaxTurn: two roads meeting end to end turning more than this (degrees) get a junction patch instead of a shared cross-section; jointMaxWidthChange: m of width change a shared cross-section takes (more: a patch); borderNodes: a graph node where a road crosses a tile border",
     "densify": 4,
@@ -40,7 +40,7 @@
     "taperLength": 15
   },
   "heights": {
-    "_note": "The road surface's heights, solved on the graph, from the elevation opened over demOpen m (what's left of buildings and trees in a surface model, bumps narrower than that, cut off) and blurred over demBlur m (the source is 30 m): each way's elevation profile (spikes out: a running median over `median` points either side; then a Gaussian, `smooth` m) → junction heights and planes (the profiles' heights where they reach the junction, a least-squares plane through them no steeper than junctionMaxSlope) → each segment bent to meet its ends, then held to maxGrade and to maxGradeChange (change of grade per metre: no crest that throws a car) by relaxation. Neighbouring junctions' planes are relaxed towards each other (planePasses) until the road between any two is no steeper than planeGrade (planeFollowsGround: or rather rises as the ground does there, within planeGrade). shortRoadCurve: a road between two planes shorter than two eases made one smooth curve meeting both planes' heights and slopes (else eased from each end). armEase: m over which (on a road shorter than twice it, half its length from each end) a road eases from its own profile and camber onto a junction's plane. Bridges ease straight between their ends and are lifted overpassClearance over what they cross; tunnels likewise below.",
+    "_note": "The road surface's heights, solved on the graph, from the elevation opened over demOpen m (what's left of buildings and trees in a surface model, bumps narrower than that, cut off) and blurred over demBlur m (the source is 30 m): each way's elevation profile (spikes out: a running median over `median` points either side; then a Gaussian, `smooth` m) → junction heights and planes (the profiles' heights where they reach the junction, a least-squares plane through them no steeper than junctionMaxSlope) → each segment bent to meet its ends, then held to maxGrade and to maxGradeChange (change of grade per metre: no crest that throws a car) by relaxation. Neighbouring junctions' planes are relaxed towards each other (planePasses) until the road between any two is no steeper than planeGrade (planeFollowsGround: or rather rises as the ground does there, within planeGrade). shortRoadCurve: a road between two planes shorter than two eases made one smooth curve meeting both planes' heights and slopes (else eased from each end). armEase: m over which (on a road shorter than twice it, half its length from each end) a road eases from its own profile and camber onto a junction's plane. drawnSmooth: what's drawn is the solved profile averaged over this many m either side — each change of grade a vertical curve twice as long, however far apart the points are (0: straight between points) — sampled every drawnStep m. Bridges ease straight between their ends and are lifted overpassClearance over what they cross; tunnels likewise below.",
     "demOpen": 12,
     "demBlur": 10,
     "median": 2,
@@ -52,7 +52,9 @@
     "planeGrade": 0.12,
     "planeFollowsGround": false,
     "shortRoadCurve": false,
-    "planePasses": 40,
+    "planePasses": 80,
+    "drawnSmooth": 6,
+    "drawnStep": 2,
     "armEase": 20,
     "camber": 0.02,
     "camberOneWay": 0.012,
@@ -73,9 +75,11 @@
     "snap": 0.002
   },
   "surface": {
-    "_note": "The surface's cross-section: visual edge, kerb's inner edge (drivable edge), half way, crown — mirrored. skirtDepth: a strip down from the visual edge (drawn only, not solid) so the ground's sink never shows as a gap. Dead ends run capLength m past their last node. Markings (cheap: one vertex-coloured mesh) by region style; lines markingWidth m wide, raised markingLift m, dashed dash/gap m. easeRows: m from a trim where a road's rows are, through its ease onto the junction's plane (closer near the trim). quantum: every vertex put on this grid (m: the tiles' position quantum) before T-junctions are closed, so the ones closed stay closed in the tiles.",
+    "_note": "The surface's cross-section: visual edge, kerb's inner edge (drivable edge), half way, crown — mirrored. skirtDepth: a strip down from the visual edge (drawn only, not solid) so the ground's sink never shows as a gap. Dead ends run capLength m past their last node. Markings (cheap: one vertex-coloured mesh) by region style; lines markingWidth m wide, raised markingLift m, dashed dash/gap m. easeRows: m from a trim where a road's rows are, through its ease onto the junction's plane (closer near the trim). curveRows: a row wherever the drawn profile's grade changes by more than this between its samples (its vertical curves; none along a steady grade), none within curveRowGap m of another. quantum: every vertex put on this grid (m: the tiles' position quantum) before T-junctions are closed, so the ones closed stay closed in the tiles.",
     "quantum": 0.01,
     "easeRows": [0.5, 1, 2, 3, 4.5, 6.5, 9, 12, 15.5],
+    "curveRows": 0.0015,
+    "curveRowGap": 0.5,
     "skirtDepth": 0.25,
     "capLength": 0.5,
     "markingWidth": 0.12,
@@ -157,12 +161,14 @@
     "piece": 4
   },
   "bake": {
-    "_note": "workers: tiles written in parallel (0: one per core less one); gzip level (9 is 3% smaller and twice as slow as 6)",
+    "_note": "workers: tiles written in parallel (0: one per core less one); gzip level (9 is 3% smaller and twice as slow as 6). The road surface is built blockTiles × blockTiles tiles at a time, from every road and junction reaching within blockPad m of the block — at least as far as anything in the block looks for a road: the ground's shaping (terrain margin + maxBlend + 40 m), the collision apron, the mask's buffers (each piece is built from its own inputs, so it's the same whichever block builds it, and blocks meet exactly) — the whole region's at once is more than a machine's memory.",
     "workers": 0,
-    "gzipLevel": 6
+    "gzipLevel": 6,
+    "blockTiles": 6,
+    "blockPad": 100
   },
   "tests": {
-    "_note": "Map v4's tests (tests/map/v4.test.ts): the limits each measurement is held to. widthShare: the drawn road at least this share of the model's width (5th percentile). maxCracksPer100k: T-junction cracks inside the road (a vertex of one piece within 3 mm of another's edge but not on it, road all round it) in the joined tiles' road surface, per 100,000 triangles — notches in the road's outline aren't counted. maxOverlapShare: road surface sampled with two solid layers within 0.5 m of each other. edgeInset/edgeSpacing: road edges sampled this far inside the drawn edge, this often (m); maxHoleShare: of those with no drawn road; maxGroundThroughShare: with the drawn ground over the road (near and middle detail); maxPhysicsGap: the collision surface this close to the drawn one (m). maxStep: a junction's join (m, beyond the road's own grade) — at most maxStepShare of the samples across joins over it, maxJoinHoleShare with no road. bumpSpeeds: km/h for the bump runs, bumpLimits the most vertical acceleration (m/s²) at each — 150 km/h through a city junction that follows the real grade can't be under 2.5 g. lampCoverage: the share of lit-class road with a lamp within lampReach m. badSpotRadius: m round each known bad spot re-checked. surfaceTiles: how many tiles (round the spawn and the bad spots) are joined for the watertight check; auditTiles: how many have every collider audited (all of them in a slice).",
+    "_note": "Map v4's tests (tests/map/v4.test.ts): the limits each measurement is held to. widthShare: the drawn road at least this share of the model's width (5th percentile). maxCracksPer100k: T-junction cracks inside the road (a vertex of one piece within 3 mm of another's edge but not on it, road all round it) in the joined tiles' road surface, per 100,000 triangles — notches in the road's outline aren't counted. maxOverlapShare: road surface sampled with two solid layers within 0.5 m of each other. edgeInset/edgeSpacing: road edges sampled this far inside the drawn edge, this often (m); maxHoleShare: of those with no drawn road; maxGroundThroughShare: with the drawn ground over the road (near and middle detail); maxPhysicsGap: the collision surface this close to the drawn one (m). maxStep: a junction's join (m, beyond the road's own grade) — at most maxStepShare of the samples across joins over it, maxJoinHoleShare with no road. bumpSpeeds: km/h for the bump runs, bumpLimits the most vertical acceleration (m/s²) at each (else collision.maxBumpAccel). lampCoverage: the share of lit-class road with a lamp within lampReach m. badSpotRadius: m round each known bad spot re-checked. surfaceTiles: how many tiles (round the spawn and the bad spots) are joined for the watertight check; auditTiles: how many have every collider audited (all of them in a slice).",
     "widthShare": 0.97,
     "maxCracksPer100k": 2,
     "maxOverlapShare": 0.006,
@@ -175,7 +181,7 @@
     "maxStepShare": 0.005,
     "maxJoinHoleShare": 0.001,
     "bumpSpeeds": [30, 80, 150],
-    "bumpLimits": { "30": 25, "80": 25, "150": 50 },
+    "bumpLimits": { "30": 25, "80": 25, "150": 25 },
     "lampCoverage": 0.8,
     "lampReach": 30,
     "badSpotRadius": 25,

@@ -21,7 +21,10 @@ import { MASK } from './mask.ts';
 
 export const LAMP_STRIDE = 9, LAMP_ESTIMATED = 1, LAMP_TUNNEL = 2, LAMP_JUNCTION = 4;
 
-export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt }: { model: any; osm: OsmData; cfg: any; surface: any; mask: any; groundAt: (x: number, z: number) => number; classAt: (x: number, z: number) => string }) {
+// box: the area's bounds when it has some (the bake's block): OSM's lamps further than 50 m from it skipped (a mapped
+// lamp stands in for estimated ones mappedRadius m round it, no further); the counts only of the lamps inside it
+export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt, box = null }: { model: any; osm: OsmData; cfg: any; surface: any; mask: any; groundAt: (x: number, z: number) => number; classAt: (x: number, z: number) => string; box?: [number, number, number, number] | null }) {
+  const inBox = (x: number, z: number, r = 0) => !box || (x >= box[0] - r && x < box[2] + r && z >= box[1] - r && z < box[3] + r);
   const Lc = cfg.lamps, out: number[] = [], stats = { mapped: 0, mappedDropped: 0, estimated: 0, junction: 0, tunnel: 0, crossing: 0, rejected: 0 };
   // (lamps already placed, on a grid: for the mapped-stands-in and spacing checks)
   const C = 32, grid = new Map<string, number[]>();
@@ -32,9 +35,10 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt }
   // ---- 1. OSM's
   for (const p of osm.points) {
     if (p.tags.highway !== 'street_lamp' && p.tags.man_made !== 'street_lamp') continue;
-    if (!clear(p.x, p.z)) { stats.mappedDropped++; continue; }
+    if (!inBox(p.x, p.z, 50)) continue;
+    if (!clear(p.x, p.z)) { if (inBox(p.x, p.z)) stats.mappedDropped++; continue; }
     // (its arm over the nearest road: towards it)
-    put(p.x, groundAt(p.x, p.z), p.z, Lc.height, nearestRoadYaw(model, p.x, p.z), 0); stats.mapped++;
+    put(p.x, groundAt(p.x, p.z), p.z, Lc.height, nearestRoadYaw(model, p.x, p.z), 0); if (inBox(p.x, p.z)) stats.mapped++;
   }
   // ---- 2. estimated, along each lit road
   const urban = new Set(['residential', 'commercial', 'industrial', 'parking']);
@@ -72,7 +76,7 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt }
         // (the arm points over the road: from the lamp back across)
         const yaw = Math.atan2(-at_ * r.nx, -at_ * r.nz);
         put(x, y, z, tunnel ? Lc.tunnelHeight : Lc.height, yaw, LAMP_ESTIMATED | (tunnel ? LAMP_TUNNEL : 0));
-        tunnel ? stats.tunnel++ : stats.estimated++;
+        if (inBox(x, z)) tunnel ? stats.tunnel++ : stats.estimated++;
       }
     }
   }
@@ -85,7 +89,7 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt }
       const g = A.seg, s = A.atStart ? A.trim : g.s[g.s.length - 1] - A.trim, r = rowAt(g, s), side = A.atStart ? 1 : -1, hw = side > 0 ? r.hwL : r.hwR;
       const [x, z] = at(r, side * (hw + Lc.offset));
       if (near(x, z, 6) || !clear(x, z)) continue;
-      put(x, groundAt(x, z), z, Lc.height, Math.atan2(-side * r.nx, -side * r.nz), LAMP_ESTIMATED | LAMP_JUNCTION); stats.junction++;
+      put(x, groundAt(x, z), z, Lc.height, Math.atan2(-side * r.nx, -side * r.nz), LAMP_ESTIMATED | LAMP_JUNCTION); if (inBox(x, z)) stats.junction++;
     }
   }
   // ---- crossings: a lamp each side of every mapped crossing on a road
@@ -99,7 +103,7 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt }
       for (const side of [1, -1]) {
         const hw = side > 0 ? r.hwL : r.hwR, [x, z] = at(r, side * (hw + Lc.offset));
         if (near(x, z, 4) || !clear(x, z)) continue;
-        put(x, groundAt(x, z), z, Lc.height, Math.atan2(-side * r.nx, -side * r.nz), LAMP_ESTIMATED); stats.crossing++;
+        put(x, groundAt(x, z), z, Lc.height, Math.atan2(-side * r.nx, -side * r.nz), LAMP_ESTIMATED); if (inBox(x, z)) stats.crossing++;
       }
     }
   }

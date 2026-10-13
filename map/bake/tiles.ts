@@ -97,6 +97,8 @@ export function tileBuilder(D: {
     }
     return [x, z];
   };
+  // (the roads by id: Map v4 builds a block of the region at a time, its roads some of the area's)
+  const segById = new Map(D.segs.map(s => [s.id, s]));
   // ---- everything bucketed by the tile its middle's in
   const tileOf = (x: number, z: number) => bucketKey(Math.floor(x / T), Math.floor(z / T));
   const buckets = new Map<string, any>();
@@ -250,7 +252,7 @@ export function tileBuilder(D: {
     const signs = b.signs.flatMap(k => { const S = D.labels.signs; return [S[k] - cx, S[k + 1], S[k + 2] - cz, S[k + 3], nameOf(D.labels.names[S[k + 4]]), nameOf(D.labels.names[S[k + 5]])]; });
     // the roads here, for where-am-I: [ax, az, bx, bz, name, rank, segment id] per piece of centreline
     const roadList: number[] = [];
-    for (const id of [...b.segs].sort((p, q) => p - q)) { const s = D.segs[id]; for (let q = 0; q + 1 < s.xs.length; q++) { const mx = (s.xs[q] + s.xs[q + 1]) / 2, mz = (s.zs[q] + s.zs[q + 1]) / 2; if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue; roadList.push(s.xs[q] - cx, s.zs[q] - cz, s.xs[q + 1] - cx, s.zs[q + 1] - cz, nameOf(s.name), s.rank, s.id); } }
+    for (const id of [...b.segs].sort((p, q) => p - q)) { const s = segById.get(id)!; for (let q = 0; q + 1 < s.xs.length; q++) { const mx = (s.xs[q] + s.xs[q + 1]) / 2, mz = (s.zs[q] + s.zs[q + 1]) / 2; if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue; roadList.push(s.xs[q] - cx, s.zs[q] - cz, s.xs[q + 1] - cx, s.zs[q + 1] - cz, nameOf(s.name), s.rank, s.id); } }
     const best = srcCount.indexOf(Math.max(srcCount[1], srcCount[2], srcCount[3]));
     const demOf = (k: number) => k === 1 ? D.demSources.find(s => s.kind === 'lidar-dtm') : k === 2 ? D.demSources.find(s => s.kind === 'dsm') : null;
     const dem = best === 3 ? { name: `${demOf(1)?.name} + ${demOf(2)?.name} (blended)`, resolution: demOf(1)?.resolution } : srcCount[1] + srcCount[2] + srcCount[3] === 0 ? { name: 'sea', resolution: null } : { name: demOf(best)?.name, resolution: demOf(best)?.resolution };

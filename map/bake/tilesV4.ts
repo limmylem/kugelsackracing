@@ -20,6 +20,7 @@ import { tileBuilder } from './tiles.ts';
 import { bucketTriangles, clipToBox } from './clip.ts';
 import { trimHulls } from '../collision/buildings.ts';
 import { LAMP_STRIDE } from '../model/lamps.ts';
+import { welder } from '../model/surface.ts';
 
 export function tileBuilderV4(D: any) {
   const empty = { positions: [], colours: [], indices: [], surfaces: [], segOf: [] };
@@ -61,7 +62,7 @@ export function tileBuilderV4(D: any) {
     time('hulls');
     // lamps, the road model's edges, the border's vertices, the exclusion mask
     t.lists.lamps = { stride: LAMP_STRIDE, data: Float32Array.from((lampsBy.get(key) ?? []).flatMap(k => [Lp[k] - cx, Lp[k + 1], Lp[k + 2] - cz, ...Array.from(Lp.slice(k + 3, k + LAMP_STRIDE))])) };
-    t.lists.roadEdges = { stride: 8, data: Float32Array.from((edgesBy.get(key) ?? []).flatMap(k => [E[k] - cx, E[k + 1], E[k + 2] - cz, E[k + 3] - cx, E[k + 4], E[k + 5] - cz, E[k + 6], E[k + 7]])) };
+    t.lists.roadEdges = { stride: 8, quantum: 0.05, data: Float32Array.from((edgesBy.get(key) ?? []).flatMap(k => [E[k] - cx, E[k + 1], E[k + 2] - cz, E[k + 3] - cx, E[k + 4], E[k + 5] - cz, E[k + 6], E[k + 7]])) };
     const border: number[] = [];
     if (t.meshes.roads) { const P = t.meshes.roads.positions, half = T / 2; for (let v = 0; v < P.length; v += 3) if (Math.abs(Math.abs(P[v]) - half) < 1e-6 || Math.abs(Math.abs(P[v + 2]) - half) < 1e-6) border.push(P[v], P[v + 1], P[v + 2], 1); }
     t.lists.roadBorder = { stride: 4, data: Float32Array.from(border) };
@@ -93,10 +94,10 @@ function offRoad(m: any, cx: number, cz: number, surface: any) {
 
 // a mesh's vertices merged by position (1 cm), colours dropped: the collision surface
 function weld(m: { positions: number[]; indices: number[] }) {
-  const ids = new Map<string, number>(), P: number[] = [], I: number[] = [], map: number[] = [];
+  const ids = welder(), P: number[] = [], I: number[] = [], map: number[] = [];
   for (let v = 0; v < m.positions.length / 3; v++) {
-    const k = `${Math.round(m.positions[v * 3] * 100)},${Math.round(m.positions[v * 3 + 1] * 100)},${Math.round(m.positions[v * 3 + 2] * 100)}`;
-    let id = ids.get(k); if (id === undefined) { id = P.length / 3; ids.set(k, id); P.push(m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]); }
+    const id = ids(Math.round(m.positions[v * 3] * 100), Math.round(m.positions[v * 3 + 1] * 100), Math.round(m.positions[v * 3 + 2] * 100));
+    if (id === P.length / 3) P.push(m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]);
     map.push(id);
   }
   // (only the ground you drive on: no triangle a millimetre thin in plan — the drawn mesh's stitches, which close its

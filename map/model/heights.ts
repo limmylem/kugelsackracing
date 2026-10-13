@@ -9,7 +9,11 @@
 //     bent to meet the planes (or ends) at its two ends; bridges and tunnels eased straight between the ground at
 //     their ends, a bridge lifted to clear a road it crosses; then held to maxGrade and maxGradeChange by
 //     relaxation, the ends fixed
-// Sets seg.h (per point), cluster.plane { cx, cz, a, b, c } (h = a·(x − cx) + b·(z − cz) + c), node.h.
+//  5. what's drawn: each chain's heights (straight between its points, which can be 12 m apart) averaged over
+//     drawnSmooth m either side — every change of grade a curve 2 × drawnSmooth m long (a vertical curve, as roads are
+//     built), so no point is a kink a car feels at speed — sampled every drawnStep m along each segment
+// Sets seg.h (per point), seg.vs / seg.vh (the drawn profile: s, height), cluster.plane { cx, cz, a, b, c }
+// (h = a·(x − cx) + b·(z − cz) + c), node.h.
 //
 //   solveHeights(G, T, demAt, cfg) → { chains, stats }
 //   planeAt(cluster, x, z)
@@ -117,6 +121,8 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   for (const ch of chains) solveChain(ch, G, clusterOf, demAt, Hc, stats);
   // ---- 5. bridges over roads: lifted to clear them (eased within the bridge), and the grades held again
   liftBridges(G, chains, Hc, stats);
+  // ---- 6. the drawn profile: vertical curves
+  drawnProfiles(chains, Hc);
   // (internal roads of a cluster: on its plane)
   for (const g of G.segs) if (g.internal) { const c = clusterOf(g.from) ?? clusterOf(g.to); g.h = g.xs.map((x: number, k: number) => (c ? planeAt(c, x, g.zs[k]) : g.smooth[k])); }
   return { chains, stats };
@@ -127,7 +133,7 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
 // each other (their heights, not their tilt) — planePasses rounds over every such road. A plane fitted to a noisy
 // patch of ground can't leave a cliff, or a dip, for its road; a real hill stays.
 function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: MNode[]; segs: Seg[] }, Hc: any, stats: any, demAt: (x: number, z: number) => number) {
-  const links: { cA: any; cB: any; pA: number[]; pB: number[]; span: number; rise: number }[] = [];
+  const links: { cA: any; cB: any; pA: number[]; pB: number[]; span: number; rise: number; mA: number; mB: number }[] = [];
   for (const ch of chains) {
     if (ch.cycle) continue;
     const cA = clusterOf(ch.start), cB = clusterOf(ch.end);
@@ -137,19 +143,28 @@ function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: M
     const posAt = (sc: number) => { let i = 0; while (i + 2 < n && S[i + 1] < sc) i++; const t = Math.max(0, Math.min(1, (sc - S[i]) / ((S[i + 1] - S[i]) || 1))); return [P[i].x + (P[i + 1].x - P[i].x) * t, P[i].z + (P[i + 1].z - P[i].z) * t]; };
     // (structures aside: a bridge's or tunnel's ends are held by their own rules)
     if (ch.parts.some((p: any) => p.seg.structure !== 'ground')) continue;
-    const pA = posAt(S0), pB = posAt(S1);
-    links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]) });
+    const pA = posAt(S0), pB = posAt(S1), d = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) || 1, ux = (pB[0] - pA[0]) / d, uz = (pB[1] - pA[1]) / d;
+    // (each plane's slope along the road between them)
+    links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]), mA: cA.plane.a * ux + cA.plane.b * uz, mB: cB.plane.a * ux + cB.plane.b * uz });
   }
   let moved = 0;
   for (let pass = 0; pass < Hc.planePasses; pass++) {
     let worst = 0;
     for (const L of links) {
       // (the road between them may rise as the ground does, give or take planeGrade — never more than maxGrade)
-      const hA = planeAt(L.cA, L.pA[0], L.pA[1]), hB = planeAt(L.cB, L.pB[0], L.pB[1]), want = Hc.planeFollowsGround ? Math.max(-Hc.maxGrade * L.span, Math.min(Hc.maxGrade * L.span, L.rise)) : 0;
-      const off = (hB - hA) - want, ex = Math.abs(off) - Hc.planeGrade * L.span;
+      const hA = planeAt(L.cA, L.pA[0], L.pA[1]), hB = planeAt(L.cB, L.pB[0], L.pB[1]);
+      // (a short road between them — its two eases meet — joins the planes in one curve: it should rise as their own
+      // slopes along it do, give or take what a curve bending no faster than maxGradeChange makes up over the span; a
+      // longer one follows the ground between its eases)
+      const short = L.span < 2 * Hc.armEase;
+      const want = short ? (L.mA + L.mB) / 2 * L.span : Hc.planeFollowsGround ? Math.max(-Hc.maxGrade * L.span, Math.min(Hc.maxGrade * L.span, L.rise)) : 0;
+      const tol = short ? Math.min(Hc.planeGrade * L.span, Math.max(0.05, Hc.maxGradeChange * L.span * L.span / 6)) : Hc.planeGrade * L.span;
+      const off = (hB - hA) - want, ex = Math.abs(off) - tol;
       if (ex <= 1e-3) continue;
       worst = Math.max(worst, ex);
-      const m = Math.sign(off) * ex / 2;
+      // (half the excess each round, shared between the two: where two roads between the same junctions ask for
+      // different things, the planes settle between them rather than satisfying whichever came last)
+      const m = Math.sign(off) * ex / 4;
       L.cA.plane.c += m; L.cB.plane.c -= m; moved++;
     }
     if (worst <= 1e-3) break;
@@ -267,9 +282,47 @@ function liftBridges(G: { nodes: MNode[]; segs: Seg[] }, chains: any[], Hc: any,
     stats.lifted++;
     // (a smooth hump: each need spread along the deck, no further than the structure)
     const S = ch.S;
-    const bump = S.map((s: number, i: number) => { if (!ch.isStruct[i]) return 0; let m = 0; for (let q = 0; q < n; q++) if (need[q] > 0) { let reach = 0; for (let r = q; r < n && ch.isStruct[r]; r++) reach = Math.max(reach, S[r] - S[q]); for (let r = q; r >= 0 && ch.isStruct[r]; r--) reach = Math.max(reach, S[q] - S[r]); reach = Math.max(10, Math.min(150, reach)); const d = Math.abs(S[q] - s); if (d >= reach) continue; const u = 1 - d / reach, f = u * u * (3 - 2 * u); m = Math.max(m, need[q] * Math.min(1, f * 1.6)); } return m; });
+    // (how far each point needing a lift may spread it: to the far end of its structure, 10–150 m — each structure's
+    // ends found once)
+    const runStart = new Array(n).fill(0), runEnd = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) runStart[i] = ch.isStruct[i] && i > 0 && ch.isStruct[i - 1] ? runStart[i - 1] : i;
+    for (let i = n - 1; i >= 0; i--) runEnd[i] = ch.isStruct[i] && i + 1 < n && ch.isStruct[i + 1] ? runEnd[i + 1] : i;
+    const lifts: { q: number; reach: number }[] = [];
+    for (let q = 0; q < n; q++) if (need[q] > 0) lifts.push({ q, reach: Math.max(10, Math.min(150, ch.isStruct[q] ? Math.max(S[runEnd[q]] - S[q], S[q] - S[runStart[q]]) : 0)) });
+    const bump = S.map((s: number, i: number) => { if (!ch.isStruct[i]) return 0; let m = 0; for (const { q, reach } of lifts) { const d = Math.abs(S[q] - s); if (d >= reach) continue; const u = 1 - d / reach, f = u * u * (3 - 2 * u); m = Math.max(m, need[q] * Math.min(1, f * 1.6)); } return m; });
     for (let i = 0; i < n; i++) h[i] += bump[i];
     relax(S, h, ch.fixed, ch.isStruct, Hc, stats);
     P.forEach((p: any, i: number) => { p.seg.h[p.k] = h[i]; if (p.also) p.also.seg.h[p.also.k] = h[i]; });
+  }
+}
+
+// each chain's heights (straight between its points) averaged over Hc.drawnSmooth m either side, sampled along each of
+// its segments every Hc.drawnStep m and at its own points (seg.vs: s along it, seg.vh: the height); seg.h at its points
+// the same. Never past the chain's trims — the window shrinks towards them, so each end's height is exactly as solved
+// (a junction's plane) — and a joint's point the same in both its segments
+function drawnProfiles(chains: any[], Hc: any) {
+  const R = Hc.drawnSmooth, step = Hc.drawnStep;
+  if (!(R > 0) || !(step > 0)) return;
+  for (const ch of chains) {
+    const S: number[] = ch.S, h: number[] = ch.h, n = S?.length ?? 0;
+    if (n < 2) continue;
+    // (the polyline's integral from the chain's start, at each point; between points a quadratic)
+    const I = new Float64Array(n);
+    for (let i = 1; i < n; i++) I[i] = I[i - 1] + (S[i] - S[i - 1]) * (h[i] + h[i - 1]) / 2;
+    const seg = (s: number) => { let lo = 0, hi = n - 1; if (s <= S[0]) return 0; if (s >= S[hi]) return hi - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] <= s) lo = m; else hi = m; } return lo; };
+    const at = (s: number) => { const i = seg(s), d = S[i + 1] - S[i]; return d > 1e-9 ? h[i] + (h[i + 1] - h[i]) * Math.max(0, Math.min(1, (s - S[i]) / d)) : h[i]; };
+    const integ = (s: number) => { const i = seg(s), d = S[i + 1] - S[i], t = Math.max(0, Math.min(d, s - S[i])), g = d > 1e-9 ? (h[i + 1] - h[i]) / d : 0; return I[i] + t * (h[i] + g * t / 2); };
+    const lo = ch.cycle ? S[0] : ch.S0, hi = ch.cycle ? S[n - 1] : ch.S1;
+    const drawn = (s: number) => { if (s <= lo || s >= hi) return at(s); const r = Math.min(R, s - lo, hi - s); return r < 0.05 ? at(s) : (integ(s + r) - integ(s - r)) / (2 * r); };
+    let base = 0;
+    for (const { seg: g, fwd } of ch.parts) {
+      const L = g.s[g.s.length - 1], chainS = (sl: number) => base + (fwd ? sl : L - sl);
+      const st = new Set<number>(g.s);
+      for (let v = step; v < L - step / 2; v += step) if (!g.s.some((q: number) => Math.abs(q - v) < step / 4)) st.add(v);
+      const vs = [...st].sort((a, b) => a - b);
+      g.vs = vs; g.vh = vs.map(v => drawn(chainS(v)));
+      g.h = g.s.map((v: number) => drawn(chainS(v)));
+      base += L;
+    }
   }
 }

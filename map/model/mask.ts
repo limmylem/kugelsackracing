@@ -54,17 +54,27 @@ export function surfaceIndex(model: any, cell = 4) {
 }
 
 export function exclusionMask(model: any, osm: OsmData, bounds: [number, number, number, number], cfg: any, tileSize: number) {
-  const X = cfg.exclusion, cell = X.cell, per = Math.round(tileSize / cell), tiles = new Map<string, Uint8Array>();
-  const tileOf = (x: number, z: number) => `${Math.floor(x / tileSize)}_${Math.floor(z / tileSize)}`;
-  const inBounds = (x: number, z: number) => x >= bounds[0] - tileSize && x <= bounds[2] + tileSize && z >= bounds[1] - tileSize && z <= bounds[3] + tileSize;
+  const X = cfg.exclusion, cell = X.cell, per = Math.round(tileSize / cell), tiles = new Map<number, Uint8Array>();
+  // (the mask is kept a little past the bounds — what's placed inside them looks no further than this — and no
+  // further: the bake's blocks each make their own)
+  const reach = 64, key = (i: number, j: number) => (i + 4096) * 8192 + j + 4096;
+  const inBounds = (x: number, z: number) => x >= bounds[0] - reach && x <= bounds[2] + reach && z >= bounds[1] - reach && z <= bounds[3] + reach;
+  let lastKey = NaN, last: Uint8Array | undefined;
+  const tileData = (i: number, j: number, make: boolean) => {
+    const k = key(i, j);
+    if (k === lastKey && last) return last;
+    let d = tiles.get(k);
+    if (!d && make) { d = new Uint8Array(per * per); tiles.set(k, d); }
+    if (d) { lastKey = k; last = d; }
+    return d;
+  };
   const set = (x: number, z: number, bit: number) => {
     if (!inBounds(x, z)) return;
-    const i = Math.floor(x / tileSize), j = Math.floor(z / tileSize), k = `${i}_${j}`;
-    let d = tiles.get(k); if (!d) { d = new Uint8Array(per * per); tiles.set(k, d); }
+    const i = Math.floor(x / tileSize), j = Math.floor(z / tileSize), d = tileData(i, j, true)!;
     const c = Math.min(per - 1, Math.floor((x - i * tileSize) / cell)), r = Math.min(per - 1, Math.floor((z - j * tileSize) / cell));
     d[r * per + c] |= bit;
   };
-  const get = (x: number, z: number) => { const i = Math.floor(x / tileSize), j = Math.floor(z / tileSize), d = tiles.get(`${i}_${j}`); if (!d) return 0; const c = Math.min(per - 1, Math.max(0, Math.floor((x - i * tileSize) / cell))), r = Math.min(per - 1, Math.max(0, Math.floor((z - j * tileSize) / cell))); return d[r * per + c]; };
+  const get = (x: number, z: number) => { const i = Math.floor(x / tileSize), j = Math.floor(z / tileSize), d = tileData(i, j, false); if (!d) return 0; const c = Math.min(per - 1, Math.max(0, Math.floor((x - i * tileSize) / cell))), r = Math.min(per - 1, Math.max(0, Math.floor((z - j * tileSize) / cell))); return d[r * per + c]; };
   // ---- every solid road triangle's cells (cells whose middles are in it), any layer; decks separately
   const M = model.surface.mesh, P = M.positions, I = M.indices;
   const fill = (t: number, fn: (x: number, z: number) => void) => {
@@ -76,18 +86,18 @@ export function exclusionMask(model: any, osm: OsmData, bounds: [number, number,
       if (l1 >= -1e-9 && l2 >= -1e-9 && l1 + l2 <= 1 + 1e-9) fn(x, z);
     }
   };
-  const roadCells: number[][] = [], deckCells: number[][] = [];
+  const roadCells: number[] = [], deckCells: number[] = [];
   for (let t = 0; t < I.length; t += 3) {
     if (!M.solid[t / 3]) continue;
-    fill(t, (x, z) => { set(x, z, MASK.road); roadCells.push([x, z]); if (M.level[t / 3] === 1) deckCells.push([x, z]); });
+    fill(t, (x, z) => { if (!inBounds(x, z)) return; set(x, z, MASK.road); roadCells.push(x, z); if (M.level[t / 3] === 1) deckCells.push(x, z); });
     // (a thin triangle with no cell middle in it still marks the cell its own middle is in)
     const mx = (P[I[t] * 3] + P[I[t + 1] * 3] + P[I[t + 2] * 3]) / 3, mz = (P[I[t] * 3 + 2] + P[I[t + 1] * 3 + 2] + P[I[t + 2] * 3 + 2]) / 3;
     set(mx, mz, MASK.road);
   }
   // ---- buffers: round every road cell (buffer m), under every deck cell (deckMargin m)
   const disc = (x: number, z: number, r: number, bit: number) => { for (let dx = -r; dx <= r + 1e-9; dx += cell) for (let dz = -r; dz <= r + 1e-9; dz += cell) if (dx * dx + dz * dz <= r * r + 1e-9) set(x + dx, z + dz, bit); };
-  for (const [x, z] of roadCells) disc(x, z, X.buffer, MASK.buffer);
-  for (const [x, z] of deckCells) disc(x, z, X.deckMargin, MASK.deck);
+  for (let k = 0; k < roadCells.length; k += 2) disc(roadCells[k], roadCells[k + 1], X.buffer, MASK.buffer);
+  for (let k = 0; k < deckCells.length; k += 2) disc(deckCells[k], deckCells[k + 1], X.deckMargin, MASK.deck);
   // ---- railways (their lines, railway m each side) and tunnel portals (portal m round each end that meets the ground)
   for (const w of osm.lines) {
     const r = w.tags.railway;
@@ -101,13 +111,12 @@ export function exclusionMask(model: any, osm: OsmData, bounds: [number, number,
   for (const g of model.segs) if (g.structure === 'tunnel') for (const nk of [g.from, g.to]) { const n = model.nodes[nk]; if (n.ground) disc(n.x, n.z, X.portal, MASK.rail); }
   return {
     at: get,
-    tile: (i: number, j: number) => ({ n: per, cell, data: tiles.get(`${i}_${j}`) ?? new Uint8Array(per * per) }),
+    tile: (i: number, j: number) => ({ n: per, cell, data: tiles.get(key(i, j)) ?? new Uint8Array(per * per) }),
     // nothing masked (road, buffer, deck, railway) under a crown of radius r — its middle and two rings of points
     crownFree(x: number, z: number, r: number, bits = MASK.road | MASK.buffer | MASK.deck | MASK.rail) {
       if (get(x, z) & bits) return false;
       for (const f of [0.5, 1]) for (let a = 0; a < 12; a++) if (get(x + Math.cos(a * Math.PI / 6) * r * f, z + Math.sin(a * Math.PI / 6) * r * f) & bits) return false;
       return true;
     },
-    tiles, tileOf,
   };
 }
