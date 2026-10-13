@@ -36,10 +36,16 @@ export function worldContent({ author = null } = {}) {
   })();
 }
 
-const GARAGES_SEEDED = 'kugelsack.content.garages.v1';
+const GARAGES_SEEDED = 'kugelsack.content.garages.v2';
 async function seedGarages(service) {
   const { newItem } = await import('./quests.js'), at = new Date().toISOString();
-  for (const g of (await readJson('data/world/garages.json')).garages ?? []) {
+  const file = await readJson('data/world/garages.json');
+  // (earlier starting garages, since replaced: archived if they're as they were made)
+  for (const id of file.retired ?? []) {
+    const st = (await service.getState(id)).state;
+    if (st?.published && st.published.author === 'Ogni Strada' && JSON.stringify(st.draft) === JSON.stringify(st.published)) await service.setState(id, { draft: null, published: null, archived: { ...st.published, status: 'archived', updated: at } });
+  }
+  for (const g of file.garages ?? []) {
     const st = (await service.getState(g.id)).state;
     if (st?.draft || st?.published || st?.archived) continue;
     const item = { ...newItem('garage', { id: g.id, location: g.location, name: g.name, author: 'Ogni Strada', now: at }), road: g.road ?? null, description: 'A drive-through garage: drive in under the canopy for your cars, parts and repairs.' };

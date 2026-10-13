@@ -10,6 +10,7 @@
 // its medal: stateOf).
 //
 //   const L = createContentLayer({ THREE, world, carNow, questCard(item, el) → drew it?, venueCard(item, el) → drew it?, stateOf(id), busy() })
+//   (guide: { set(item) → Promise, clear(), to() → id | null } — a garage's card has Route: the way there on the maps)
 //   (a race venue's card: its track events — play/trackUi.js, Phase 5 Step 3)
 //     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
 //   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
@@ -36,9 +37,11 @@ const CSS = `
 #contentCard li { margin: 2px 0; }
 #contentCard li.ok::before { content: '✔ '; color: #8fe08a; } #contentCard li.no::before { content: '✖ '; color: #ff8a7a; } #contentCard li.unknown::before { content: '• '; opacity: .6; }
 #contentCard .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .7; }
-#contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }`;
+#contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+#contentCard .foot > span { flex: 1; }
+#contentCard button[data-route] { margin-right: 6px; background: #3a6fe0; border-color: #5b8cff; }`;
 
-export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false, onGarage = null }) {
+export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false, onGarage = null, guide = null }) {
   const S = w.stream, P = S.projection;
   let C = null, items = [], places = new Float64Array(0), byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
@@ -48,7 +51,11 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
 
   if (!document.getElementById('contentCardCss')) { const s = document.createElement('style'); s.id = 'contentCardCss'; s.textContent = CSS; document.head.appendChild(s); }
   card = document.createElement('div'); card.id = 'contentCard'; document.body.appendChild(card);
-  card.addEventListener('click', e => { if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } else if (e.target.closest('[data-start]:not(:disabled)')) { cardDismissed = cardFor; hideCard(); } });
+  card.addEventListener('click', e => {
+    // (a garage's Route: the way there by road on the maps — again to clear it)
+    const R = e.target.closest('[data-route]');
+    if (R && guide) { const it = byId.get(cardFor); if (!it) return; R.disabled = true; Promise.resolve(guide.to() === it.id ? guide.clear() : guide.set(it)).finally(() => cardFor === it.id && showCard(it, card.dataset.pinned === '1')); return; }
+    if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } else if (e.target.closest('[data-start]:not(:disabled)')) { cardDismissed = cardFor; hideCard(); } });
 
   async function query(lat, lon) {
     if (!C || querying) return;
@@ -91,7 +98,7 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
         <ul>${req.length ? req.map(x => `<li class="${x.ok === true ? 'ok' : x.ok === false ? 'no' : 'unknown'}">${esc(x.text)}</li>`).join('') : '<li class="ok">Any car</li>'}</ul>
         <div class="money">${it.type === 'pink_slip' ? `Winner takes ${esc(C?.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')}` : `Reward ${esc(cur)}${(r?.money ?? 0).toLocaleString('en-GB')} · ${r?.xp ?? 0} xp`}${r?.fee > 0 ? ` · entry ${esc(cur)}${r.fee.toLocaleString('en-GB')}` : ''}${it.kind === 'quest' && r?.stars ? ` · ${'★'.repeat(r.stars)}` : ''}</div>
         ${it.conditions && (it.conditions.timeOfDay !== 'any' || it.conditions.weather !== 'any') ? `<div style="font-size:12px;opacity:.75">${esc([it.conditions.timeOfDay !== 'any' ? it.conditions.timeOfDay : null, it.conditions.weather !== 'any' ? it.conditions.weather : null].filter(Boolean).join(' · '))}</div>` : ''}` : ''}
-      <div class="foot"><span>${it.kind === 'quest' ? 'Starting quests comes soon' : esc(it.road?.name ?? '')}</span><button data-close>Close</button></div>`;
+      <div class="foot"><span>${it.kind === 'quest' ? 'Starting quests comes soon' : esc(it.road?.name ?? '')}</span>${it.kind === 'garage' && guide ? `<button data-route>${guide.to() === it.id ? 'Clear route' : 'Route'}</button>` : ''}<button data-close>Close</button></div>`;
     card.style.display = shown ? 'block' : 'none';
     card.dataset.pinned = pinned ? '1' : '';
   }

@@ -4,7 +4,8 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { testApp } from './helpers.ts';
-import { ensureStartingGarages, startingGarages } from '../src/content/garages.ts';
+import { newItem } from '../../content/quests.js';
+import { ensureStartingGarages, startingGarages, retiredGarages } from '../src/content/garages.ts';
 
 let T: Awaited<ReturnType<typeof testApp>>;
 before(async () => { T = await testApp('garages'); });
@@ -35,4 +36,21 @@ test('the starting garages: two or three in every baked region, published once, 
   assert.deepEqual(await ensureStartingGarages(db, C), []);
   const st = (await C.getState(list[1].id)).state;
   assert.ok(!st.published, 'still not published');
+});
+
+test('earlier starting garages: archived at start if untouched since, kept if an editor changed them', async () => {
+  const C = T.app.content as any, db = T.app.deps.db as any, seed = { id: null, name: 'Ogni Strada' };
+  const [a, b] = retiredGarages();
+  assert.ok(a && b, 'there are earlier ones');
+  const loc = startingGarages()[0].location;
+  for (const id of [a, b]) {
+    const r = await C.create({ ...(newItem as any)('garage', { id, location: loc, name: id }), road: null }, seed);
+    assert.equal(r.item.id, id); await C.publish(id, seed);
+  }
+  const moved = (await C.get(b, 'published')).item;
+  await C.update(b, { ...moved, name: 'Moved by an editor' }, { id: null, name: 'Ed' });
+  await ensureStartingGarages(db, C);
+  assert.ok(!(await C.getState(a)).state.published, `${a} archived`);
+  assert.ok((await C.getState(a)).state.archived, `${a} kept archived (restorable)`);
+  assert.ok((await C.getState(b)).state.published, `${b} kept: an editor changed it`);
 });
