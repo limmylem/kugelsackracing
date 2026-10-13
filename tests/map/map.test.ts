@@ -395,12 +395,18 @@ async function streamingTest() {
   };
   let waited = 0;
   while (!S.readyAround(...S.toSim(sx, sz) as [number, number], 30) && waited < 60) { await step(sx, sz, 0, 0); waited += dt; }
-  // carving the ground under something built (a garage — play/garageBuilding.js): a square 20 m across beside the start,
-  // its heightfield (the physics' ground, already made) lowered under the surface it's given, and put back after
+  // carving the ground under something built (a garage — play/garageBuilding.js): a square 20 m across on open ground
+  // near the start (nothing over it: no building, no road), its heightfield (the physics' ground, already made) lowered
+  // under the surface it's given, and put back after
   {
-    const [cx, cz] = [sx + 40, sz + 40], [px, pz] = S.toSim(cx, cz), before = S.heightAt(px, pz);
-    const hit = () => { const y = S.groundBelow(px, pz, before + 50, 200); return y; };
-    await step(sx, sz, 0, 0);
+    for (let k = 0; k < 600 && S.status.building > 0; k++) await step(sx, sz, 0, 0);
+    let spot: number[] | null = null;
+    for (let r = 30; r <= 240 && !spot; r += 30) for (let a = 0; a < 8 && !spot; a++) {
+      const x = sx + r * Math.cos(a * Math.PI / 4), z = sz + r * Math.sin(a * Math.PI / 4), [qx, qz] = S.toSim(x, z), t = S.heightAt(qx, qz), g = t == null ? null : S.groundBelow(qx, qz, t + 60, 200);
+      if (t != null && g != null && Math.abs(g - t) < 0.02) spot = [x, z];
+    }
+    const [cx, cz] = spot ?? [sx + 40, sz + 40], [px, pz] = S.toSim(cx, cz), before = S.heightAt(px, pz);
+    const hit = () => S.groundBelow(px, pz, before + 50, 200);
     const hitBefore = hit();
     S.carve('test', { polys: [[[cx - 10, cz - 10], [cx + 10, cz - 10], [cx + 10, cz + 10], [cx - 10, cz + 10]]], below: () => before - 1 });
     await step(sx, sz, 0, 0);
