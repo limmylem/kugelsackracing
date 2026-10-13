@@ -62,7 +62,9 @@ export function barriersV4({ osm, model, groundAt, demAt, surface, cfg, v3cfg, i
   const add = (type: string, a: number[], b: number[], h: number, flags: number) => (out[type] ??= []).push(a[0], a[1], a[2], b[0], b[1], b[2], h, flags);
   // (a piece stands on a road surface if any point along it — and either side of it by half its collider's thickness — is
   // over a road surface between its foot and its top)
-  const onRoad = (a: number[], b: number[], h: number, thick: number) => {
+  // (to its collider's top: the collider stands extraHeight over the rail, map/format/barriers.ts)
+  const onRoad = (a: number[], b: number[], hRail: number, thick: number, extra: number) => {
+    const h = hRail + extra;
     const L = Math.hypot(b[0] - a[0], b[2] - a[2]), n = Math.max(2, Math.ceil(L / 0.5)), nx = L ? -(b[2] - a[2]) / L : 0, nz = L ? (b[0] - a[0]) / L : 0, half = thick / 2 + 0.05;
     for (let q = 0; q <= n; q++) {
       const t = q / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, z = a[2] + (b[2] - a[2]) * t;
@@ -70,7 +72,7 @@ export function barriersV4({ osm, model, groundAt, demAt, surface, cfg, v3cfg, i
     }
     return false;
   };
-  const thick = (type: string) => Math.max(B.minThickness, B.types[type]?.thickness ?? 0.3);
+  const thick = (type: string) => Math.max(B.minThickness, B.types[type]?.thickness ?? 0.3), extra = (type: string) => B.types[type]?.extraHeight ?? B.extraHeight ?? 0;
   // ---- OSM's
   for (const w of osm.lines) {
     const type = w.tags.barrier;
@@ -86,7 +88,7 @@ export function barriersV4({ osm, model, groundAt, demAt, surface, cfg, v3cfg, i
         const end = (x: number, z: number) => { const line = groundAt(x, z), sides = reach.flatMap(r => [groundAt(x + nx * r, z + nz * r), groundAt(x - nx * r, z - nz * r)]); return { foot: WALLS.has(type) ? Math.min(line, sides[0], sides[1]) : line, top: Math.max(line, ...sides) }; };
         const E0 = end(x0, z0), E1 = end(x1, z1), h = Math.min(T.height + 4, Math.max(E0.top - E0.foot, E1.top - E1.foot) + T.height);
         const pa = [x0, E0.foot, z0], pb = [x1, E1.foot, z1];
-        if (onRoad(pa, pb, h, thick(type))) { stats.mappedDropped++; continue; }
+        if (onRoad(pa, pb, h, thick(type), extra(type))) { stats.mappedDropped++; continue; }
         add(type, pa, pb, h, 0); stats.mapped++;
       }
     }
@@ -121,7 +123,7 @@ export function barriersV4({ osm, model, groundAt, demAt, surface, cfg, v3cfg, i
           for (let q = k0; q < k - 1; q++) {
             const a = edge(rows[q]), b = edge(rows[q + 1]);
             if (!inArea((a[0] + b[0]) / 2, (a[2] + b[2]) / 2)) continue;
-            if (onRoad(a, b, B.types[type].height, thick(type))) { stats.estimatedDropped++; continue; }
+            if (onRoad(a, b, B.types[type].height, thick(type), extra(type))) { stats.estimatedDropped++; continue; }
             add(type, a, b, B.types[type].height, ESTIMATED); stats.estimated++;
           }
         }

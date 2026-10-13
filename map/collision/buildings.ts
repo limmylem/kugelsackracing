@@ -20,11 +20,15 @@ export function trimHulls(H: ArrayLike<number>, cx: number, cz: number, surface:
     const n = H[k], y0 = H[k + 1], y1 = H[k + 2], pts: number[][] = [];
     for (let q = 0; q < n; q++) pts.push([H[k + 3 + q * 2] + cx, H[k + 4 + q * 2] + cz]);
     k += 3 + n * 2;
+    // (a sliver — a footprint's convex pieces can include one, metres long and a millimetre wide — is no building: as a
+    // collider it's an invisible wall, its tip anywhere; gone, as the pieces trimmed below too small to matter)
+    let a2 = 0; for (let q = 0; q < n; q++) { const p = pts[q], o = pts[(q + 1) % n]; a2 += p[0] * o[1] - o[0] * p[1]; }
+    if (Math.abs(a2) / 2 < 0.25) { dropped++; continue; }
     const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]), r = C.roadClearance;
-    // the road triangles reaching within r of it (not slivers: grown by r they're covered by their neighbours), at a
-    // height within its span
+    // the road triangles reaching within r of it at a height within its span (slivers too: at the road's outer edge a
+    // T-junction's stitch has no neighbour beyond it)
     const tris = surface.trianglesIn(Math.min(...xs) - r, Math.min(...zs) - r, Math.max(...xs) + r, Math.max(...zs) + r)
-      .filter((t: any) => t.yHi > y0 - 0.3 && t.yLo < y1 && area2(t.pts) > 2e-3 && !apart(pts, t.pts, r));
+      .filter((t: any) => t.yHi > y0 - 0.3 && t.yLo < y1 && !apart(pts, t.pts, r));
     if (!tris.length) { out.push(n, y0, y1); for (const p of pts) out.push(p[0] - cx, p[1] - cz); continue; }
     // (each grown by r as a convex polygon of its own — its corners pushed out eight ways, their hull: Clipper's own
     // offsetting can hang on a soup of small triangles), together, taken off the piece
@@ -36,9 +40,13 @@ export function trimHulls(H: ArrayLike<number>, cx: number, cz: number, surface:
     if (Math.abs(before - after) < 0.01) { out.push(n, y0, y1); for (const p of pts) out.push(p[0] - cx, p[1] - cz); continue; }
     if (after < C.minHullArea || after > before + 0.01) { dropped++; continue; }
     trimmed++;
-    // (what's left, in triangles: each a convex piece)
+    // (what's left, in triangles: each a convex piece — none with a corner still on the road at its height, a hair
+    // in from the corner: the cut's last guard, the audit's own test)
+    const onRoad = (x: number, z: number) => surface.heightsAt(x, z).some((h: any) => h.y > y0 - 0.3 && h.y < y1);
     for (const tri of tessellate(rest.map((p: any) => p.map((q: any) => [q.x / S, q.y / S])))) {
       if (area2(tri) / 2 < 0.25) continue;
+      const mx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, mz = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+      if (onRoad(mx, mz) || tri.some(p => { const l = Math.hypot(p[0] - mx, p[1] - mz) || 1; return onRoad(p[0] - (p[0] - mx) / l * 0.1, p[1] - (p[1] - mz) / l * 0.1); })) continue;
       out.push(3, y0, y1); for (const p of tri) out.push(p[0] - cx, p[1] - cz);
     }
   }

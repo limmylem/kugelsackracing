@@ -129,7 +129,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   const clusterBox = model.clusters.map((c: any) => { const pts = c.rings.flat(2); return pts.length ? bbox(pts.map((p: number[]) => p[0]), pts.map((p: number[]) => p[1]), 1) : [Infinity, Infinity, -Infinity, -Infinity]; });
   const meets = (b: number[], q: number[]) => b[0] <= q[2] && b[2] >= q[0] && b[1] <= q[3] && b[3] >= q[1];
   const chk = { cracks: 0, overlaps: 0, sampled: 0, folds: 0, triangles: 0 }, st = { trees: 0, treesOff: 0, railMapped: 0, railDropped: 0, railEstimated: 0, lampMapped: 0, lampDropped: 0, lampEstimated: 0, lampTunnel: 0, lamps: 0 };
-  const railStats: any = {}, lampStats: any = {}, hullStats = { trimmed: 0, dropped: 0, paved: 0 }, ms: Record<string, number> = {};
+  const litBySeg = new Map<number, boolean>(), railStats: any = {}, lampStats: any = {}, hullStats = { trimmed: 0, dropped: 0, paved: 0 }, ms: Record<string, number> = {};
   // (each block's phases, timed: the bake's log)
   const bms: Record<string, number> = {}, timed = <R>(k: string, f: () => R): R => { const a = performance.now(), r = f(); bms[k] = (bms[k] ?? 0) + performance.now() - a; return r; };
   let blocks = 0;
@@ -161,6 +161,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
+    for (const [id, v] of lp.lit) litBySeg.set(id, v);
     const TB = tileBuilderV4({ region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface });
     for (let j = bj; j <= tj1; j++) for (let i = bi; i <= ti1; i++) {
       const t = TB.tile(i, j), cx = (i + 0.5) * T, cz = (j + 0.5) * T, a0 = performance.now();
@@ -197,7 +198,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (heights: the drawn road's, down its middle)
   const graph = encodeGraph(region.id, model.nodes, model.segs.map((g: any) => ({ ...g, h: g.hd ?? g.h, lanes: g.lanes })));
   fs.writeFileSync(path.join(outDir, 'graph.json.gz'), zlib.gzipSync(JSON.stringify(graph), { level: 9 }));
-  const roadModel = roadModelFile(model, region.id);
+  const roadModel = roadModelFile(model, region.id, litBySeg);
   fs.writeFileSync(path.join(outDir, 'roadmodel.json.gz'), zlib.gzipSync(JSON.stringify(roadModel), { level: 9 }));
   lap(`  far layer: ${farChunks.length} chunks; road graph: ${graph.segs.length} segments; road model file: ${roadModel.segs.length} roads, ${roadModel.junctions.length} junctions`);
 
@@ -275,11 +276,11 @@ function blurGrid(a: Float32Array, W: number, H: number, r: number) {
 
 // the road surface model as its own file, for the tests, the navigation and anything else that wants roads: every road
 // (its centre line, heights, widths each side, trims, class, structure…) and every junction patch (its outline and plane)
-function roadModelFile(model: any, region: string) {
+function roadModelFile(model: any, region: string, litBySeg: Map<number, boolean>) {
   const r2 = (v: number) => Math.round(v * 100) / 100;
   return {
     version: model.version, region,
-    segs: model.segs.map((g: any) => ({ id: g.id, from: g.from, to: g.to, way: g.osmWay, name: g.name, class: g.cls, link: g.link, rank: g.rank, oneway: g.oneway, lanes: g.lanes, lanesEstimated: g.lanesEstimated, drivable: r2(g.drivable), visual: r2(g.visual), widthEstimated: g.widthEstimated, adjusted: g.adjusted, structure: g.structure, layer: g.layer, surface: g.surface, lit: g.lit, internal: g.internal, trim: [r2(g.trim0), r2(g.trim1)],
+    segs: model.segs.map((g: any) => ({ id: g.id, from: g.from, to: g.to, way: g.osmWay, name: g.name, class: g.cls, link: g.link, rank: g.rank, oneway: g.oneway, lanes: g.lanes, lanesEstimated: g.lanesEstimated, drivable: r2(g.drivable), visual: r2(g.visual), widthEstimated: g.widthEstimated, adjusted: g.adjusted, structure: g.structure, layer: g.layer, surface: g.surface, lit: g.lit, lamps: litBySeg.get(g.id) ? 1 : 0, internal: g.internal, trim: [r2(g.trim0), r2(g.trim1)],
       points: g.xs.flatMap((x: number, k: number) => [r2(x), r2(g.zs[k]), r2((g.hd ?? g.h)[k])]), half: g.hwL.flatMap((v: number, k: number) => [r2(v), r2(g.hwR[k])]), osm: g.orig.map((o: boolean, k: number) => (o ? [k, g.osmNodes[k], g.lat[k], g.lon[k]] : null)).filter(Boolean) })),
     nodes: model.nodes.map((n: any) => [r2(n.x), r2(n.z), r2(n.h ?? 0), n.kind === 'junction' ? 2 : n.kind === 'joint' ? 1 : 0, n.cluster ?? -1]),
     junctions: model.clusters.map((c: any) => ({ id: c.id, nodes: c.nodes, plane: c.plane && { cx: r2(c.plane.cx), cz: r2(c.plane.cz), a: +c.plane.a.toFixed(5), b: +c.plane.b.toFixed(5), c: r2(c.plane.c) }, arms: c.arms.map((A: any) => [A.seg.id, A.atStart ? 1 : 0, r2(A.trim)]), rings: c.rings.map((poly: number[][][]) => poly.map(r => r.flatMap(p => [r2(p[0]), r2(p[1])]))) })),

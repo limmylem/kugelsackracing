@@ -4,16 +4,16 @@
   {
    "region": "adelaide",
    "map": "v3",
-   "lat": -34.9905,
-   "lon": 138.6098,
+   "lat": -34.989939,
+   "lon": 138.610407,
    "xz": [
-    438.23,
-    7543.92
+    493.66,
+    7481.68
    ],
    "bearing": 121,
    "tile": "0_14",
    "road": "Belair Road",
-   "note": "Belair Rd / Springbank Rd / Kays Rd: dual carriageway junction, ground showing between the fans, narrow carriageways (problems 1, 2, 5)",
+   "note": "Belair Rd / Springbank Rd / Kays Rd: dual carriageway junction, ground showing between the fans, narrow carriageways (problems 1, 2, 5); moved onto the junction itself (the screenshot's place was 35 m off the road), 2026-10-13",
    "source": "owner screenshot",
    "at": "2026-10-13"
   },

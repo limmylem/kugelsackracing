@@ -208,7 +208,8 @@ async function edgesTest() {
           if (!sims.has(key)) { if (sims.size >= 4) { for (const q of sims.values()) q.free(); sims.clear(); } sims.set(key, await M.simAround(x, z, { radius: 10 })); }
           const y = sims.get(key).ground(x, z, hit.y + 0.4, true, 1.5);
           phys++;
-          const dy = y == null ? Infinity : Math.abs(y - hit.y);
+          // (from the drawn road surface there — where two overlap, the car rides the upper: the overlaps are test 2's)
+          const dy = y == null ? Infinity : Math.min(...((await roadAt(x, z)) ?? [hit]).filter((h: any) => Math.abs(h.y - hit.y) < 0.5).map((h: any) => Math.abs(y - h.y)));
           worstPhys = Math.max(worstPhys, dy);
           if (dy > X.maxPhysicsGap) { physBad++; note(`physics ${y?.toFixed(3)} vs drawn ${hit.y.toFixed(3)} at ${x.toFixed(2)}, ${z.toFixed(2)} (${g.name ?? g.class}, ${g.structure}, side ${sd})`); }
         }
@@ -410,17 +411,18 @@ async function lampsTest() {
     }
   }
   report('lamps', `${lamps.length.toLocaleString('en-GB')} lamps (${est.toLocaleString('en-GB')} estimated)`, onRoad === 0 && lamps.length > 0, `${onRoad} standing on a road's lanes${at.length ? ` (${at.join('; ')})` : ''} (Map v3: no lamps at all)`, { lamps: lamps.length, estimated: est });
-  // along every lit-class road (not lit=no): within lampReach m of one
+  // along every road the bake lit (lit=yes, the always-lit classes and motorways everywhere, urban classes in built-up
+  // areas: the road model file's `lamps`; an older bake without it: every lit class): within lampReach m of one
   const C = 32, grid = new Map<string, number[][]>();
   for (const p of lamps) { const k = `${Math.floor(p[0] / C)},${Math.floor(p[1] / C)}`; (grid.get(k) ?? grid.set(k, []).get(k)!).push(p); }
   const near = (x: number, z: number, r: number) => { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const p of grid.get(`${Math.floor(x / C) + a},${Math.floor(z / C) + b}`) ?? []) if (Math.hypot(p[0] - x, p[1] - z) < r) return true; return false; };
   const lit = new Set([...cfg.lamps.urbanClasses, ...cfg.lamps.motorwayClasses]);
   let n = 0, covered = 0;
   for (const g of drivableRoads) {
-    if (g.structure === 'tunnel' || g.lit === 'no' || !lit.has(g.link ? 'link' : g.class)) continue;
+    if (g.structure === 'tunnel' || g.lit === 'no' || (g.lamps !== undefined ? !g.lamps : !lit.has(g.link ? 'link' : g.class))) continue;
     for (let s = 5; s < g.L - 5; s += 10) { const r = rowAt(g, s); if (!inner(r.x, r.z)) continue; n++; if (near(r.x, r.z, X.lampReach)) covered++; }
   }
-  report('lamps', `${n.toLocaleString('en-GB')} points along lit-class roads`, covered / n >= X.lampCoverage, `${pct(covered, n)} have a lamp within ${X.lampReach} m (at least ${pct(X.lampCoverage, 1)})`, { coverage: covered / n });
+  report('lamps', `${n.toLocaleString('en-GB')} points along lit roads`, covered / n >= X.lampCoverage, `${pct(covered, n)} have a lamp within ${X.lampReach} m (at least ${pct(X.lampCoverage, 1)})`, { coverage: covered / n });
   // the real lights: the nearest few, the farthest of them fading in as the next one out comes near
   const THREE = await import('three'), scene = new THREE.Scene(), Lr = lampLights(scene, manifest.lamps), cam = new THREE.PerspectiveCamera();
   const group = new THREE.Group(); scene.add(group);
@@ -455,8 +457,9 @@ async function badSpotsTest() {
           const hit = nearest((await roadAt(x, z))?.filter(h => Math.abs(h.y - r.h) < 2) ?? null, r.h);
           if (!hit) { holes++; note(`hole at ${x.toFixed(2)}, ${z.toFixed(2)} (${g.name ?? g.class}, ${g.structure}, h ${r.h.toFixed(2)}): drawn ${(await roadAt(x, z))?.map(h => h.y.toFixed(2)).join(' ')}`); continue; }
           if (g.structure === 'ground') { const g0 = await groundAt(x, z, 0); if (g0 != null && g0 > hit.y + 0.005) through++; }
-          const y = S.ground(x, z, hit.y + 0.4, true, 1.5);
-          if (y == null || Math.abs(y - hit.y) > X.maxPhysicsGap) physBad++;
+          // (on a drawn road surface there — where two overlap, the car rides the upper: the overlaps are test 2's)
+          const y = S.ground(x, z, hit.y + 0.4, true, 1.5), drawn = (await roadAt(x, z)) ?? [];
+          if (y == null || !drawn.some((h: any) => Math.abs(y - h.y) <= X.maxPhysicsGap)) { physBad++; note(`off the collision surface at ${x.toFixed(2)}, ${z.toFixed(2)} (${g.name ?? g.class}): physics ${y?.toFixed(3)}, drawn ${drawn.map((h: any) => h.y.toFixed(3)).join(' ')}`); }
         }
       }
     }

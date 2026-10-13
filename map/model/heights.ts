@@ -141,8 +141,9 @@ function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: M
     const P = chainPoints(ch), n = P.length, S = P.map(p => p.S), first = ch.parts[0], last = ch.parts[ch.parts.length - 1];
     const S0 = Math.max(0, first.fwd ? first.seg.trim0 : first.seg.trim1), S1 = Math.min(S[n - 1], S[n - 1] - Math.max(0, last.fwd ? last.seg.trim1 : last.seg.trim0));
     const posAt = (sc: number) => { let i = 0; while (i + 2 < n && S[i + 1] < sc) i++; const t = Math.max(0, Math.min(1, (sc - S[i]) / ((S[i + 1] - S[i]) || 1))); return [P[i].x + (P[i + 1].x - P[i].x) * t, P[i].z + (P[i + 1].z - P[i].z) * t]; };
-    // (structures aside: a bridge's or tunnel's ends are held by their own rules)
-    if (ch.parts.some((p: any) => p.seg.structure !== 'ground')) continue;
+    // (structures aside — a bridge's or tunnel's ends are held by their own rules — unless the road between the two is
+    // short: a little bridge over a creek between two junctions is drawn from one plane to the other like any short road)
+    if (ch.parts.some((p: any) => p.seg.structure !== 'ground') && S1 - S0 >= 2 * Hc.armEase) continue;
     const pA = posAt(S0), pB = posAt(S1), d = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) || 1, ux = (pB[0] - pA[0]) / d, uz = (pB[1] - pA[1]) / d;
     // (each plane's slope along the road between them)
     links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]), mA: cA.plane.a * ux + cA.plane.b * uz, mB: cB.plane.a * ux + cB.plane.b * uz });

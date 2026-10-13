@@ -588,6 +588,32 @@ north to Somerton Park and Mitcham in the south, with the CBD, North Adelaide an
     itself (47 such in Adelaide). Now every piece is found along its whole length, and those ends are left as
     they are.
 
+### Map v4 (2026-10-13)
+
+Adelaide is the first region on Map v4; the game loads `assets/map/adelaide/v4/`. The full report, with before and
+after pictures of the ten most complex junctions, three bridges and the known bad spots, is
+[MAP_V4_REPORT.md](MAP_V4_REPORT.md).
+
+- **Bake:** `npm run map:bake4 -- --region adelaide`: 21 minutes on 4 cores, 9.7 GB at most, in 49 blocks of 6 × 6 tiles.
+- **Size:** 1,596 tiles, 366 MB (Map v3's: 172 MB), plus the road graph and the road model file. 400 MB in all.
+- **Contents:**
+  - 103,068 roads and 32,600 junction patches, 17.7M road-surface triangles;
+  - 76,313 street lamps: 7,567 mapped in OSM, 68,746 estimated;
+  - 431,360 trees;
+  - 167,363 railing pieces: 100,647 mapped, 66,716 estimated;
+  - 265,255 buildings.
+- **Tests:** `npm run test:map4`: 27 of 27 pass on the whole region, among them:
+  - the narrowest drawn road at its full model width;
+  - 0.013% of 2.7M edge points with no road;
+  - the ground never through the road at near detail;
+  - every collider audited, and none over a lane;
+  - no tree on a road or through a deck;
+  - junction steps over 2 cm at 0.22% of joins;
+  - 150 km/h across junctions at 17.8 m/s² (Map v3: 21.1);
+  - 98.5% of lit roads with a lamp within 30 m;
+  - all 10 known bad spots pass;
+  - every tile border matched.
+
 ## Notes
 
 - **Browser tile cache.** The game keeps tiles in IndexedDB under the manifest's `version`. That is the

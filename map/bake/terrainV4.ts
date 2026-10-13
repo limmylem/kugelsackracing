@@ -90,19 +90,24 @@ export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box }:
       const q = rr * W + cc; if (y < lowest[q]) lowest[q] = y;
     }
   }
-  // (and under every vertex of the ground-level road within reach — its edges are its lowest points, and on a steep
-  // crossfall can be lower than any grid point under the road near them: the ground there would stand over the kerb)
+  // (and under the ground-level road's every edge within reach — sampled every metre along each triangle's sides, half a
+  // metre further: its edges are its lowest points, and on a steep crossfall can be lower than any grid point under the
+  // road near them; then no corner of a grid cell the road's edge crosses stands over it)
+  const reachE = Tc.margin + 0.5;
+  const under = (vx: number, vy: number, vz: number) => {
+    const ca = Math.max(0, Math.ceil((vx - reachE - g.x0) / g.cell) - c0), cb = Math.min(W - 1, Math.floor((vx + reachE - g.x0) / g.cell) - c0);
+    const ra = Math.max(0, Math.ceil((vz - reachE - g.z0) / g.cell) - r0), rb = Math.min(Hh - 1, Math.floor((vz + reachE - g.z0) / g.cell) - r0);
+    for (let r = ra; r <= rb; r++) for (let cc = ca; cc <= cb; cc++) {
+      const dx = xOf(cc) - vx, dz = zOf(r) - vz;
+      if (dx * dx + dz * dz > reachE * reachE) continue;
+      const q = r * W + cc; if (vy < lowest[q]) lowest[q] = vy;
+    }
+  };
   for (let t = 0; t < I.length; t += 3) {
     if (!M.solid[t / 3] || M.level[t / 3] !== 0 || (M.seg[t / 3] >= 0 && tunnelSegs.has(M.seg[t / 3]))) continue;
     for (let e = 0; e < 3; e++) {
-      const v = I[t + e] * 3, vx = P[v], vy = P[v + 1] - Tc.sink, vz = P[v + 2];
-      const ca = Math.max(0, Math.ceil((vx - Tc.margin - g.x0) / g.cell) - c0), cb = Math.min(W - 1, Math.floor((vx + Tc.margin - g.x0) / g.cell) - c0);
-      const ra = Math.max(0, Math.ceil((vz - Tc.margin - g.z0) / g.cell) - r0), rb = Math.min(Hh - 1, Math.floor((vz + Tc.margin - g.z0) / g.cell) - r0);
-      for (let r = ra; r <= rb; r++) for (let cc = ca; cc <= cb; cc++) {
-        const dx = xOf(cc) - vx, dz = zOf(r) - vz;
-        if (dx * dx + dz * dz > Tc.margin * Tc.margin) continue;
-        const q = r * W + cc; if (vy < lowest[q]) lowest[q] = vy;
-      }
+      const a = I[t + e] * 3, b = I[t + (e + 1) % 3] * 3, L = Math.hypot(P[b] - P[a], P[b + 2] - P[a + 2]), n = Math.max(1, Math.ceil(L));
+      for (let k = 0; k < n; k++) { const f = k / n; under(P[a] + (P[b] - P[a]) * f, P[a + 1] + (P[b + 1] - P[a + 1]) * f - Tc.sink, P[a + 2] + (P[b + 2] - P[a + 2]) * f); }
     }
   }
   // ---- 3. the ground: under the surface and its margin sink under it, then sloping back

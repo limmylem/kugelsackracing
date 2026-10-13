@@ -63,6 +63,8 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
   for (const [k, n] of G.nodes.entries()) {
     const arms = armsAt(k);
     n.arms = arms.length;
+    // (a node no road uses any more — one of a road given twice, dropped: map/model/graph.ts — is nothing)
+    if (arms.length === 0) { n.kind = 'end'; continue; }
     if (arms.length === 1) { n.kind = 'end'; stats.ends++; continue; }
     if (arms.length === 2 && arms[0].seg !== arms[1].seg) {
       const a = outDir(arms[0]), b = outDir(arms[1]), turn = 180 - Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
@@ -163,6 +165,8 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
   }
   // ---- 5. trims (a road between a junction and a joint or end: never past its other end)
   for (const g of G.segs) { g.trim0 = 0; g.trim1 = 0; g.internal = false; }
+  // (dead ends taken into a patch: the patch runs capLength past them, as a dead end's own cap does)
+  const absorbedEnds = new Set<number>();
   for (const [k, list] of [...arms]) for (const A0 of list) {
     let A = A0, node = k;
     for (let guard = 0; guard < 20; guard++) {
@@ -175,7 +179,7 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
       if (trim > room && (next || G.nodes[other].kind === 'end') && trim - L < J.maxTrim) {
         g.internal = true; stats.extended = (stats.extended ?? 0) + 1;
         G.nodes[other].kind = 'junction'; unite(other, node);
-        if (!next) { arms.set(other, [{ seg: g, atStart: !A.atStart, node: other, angle: 0, trim: 0, required: 0, L }]); corners.set(other, []); break; }
+        if (!next) { arms.set(other, [{ seg: g, atStart: !A.atStart, node: other, angle: 0, trim: 0, required: 0, L }]); corners.set(other, []); absorbedEnds.add(other); break; }
         const B: Arm = { seg: next, atStart: next.from === other, node: other, angle: 0, trim: 0, required: Math.max(J.minTrim, trim - L), L: next.s[next.s.length - 1] };
         arms.set(other, [{ seg: g, atStart: !A.atStart, node: other, angle: 0, trim: 0, required: 0, L }, B]);
         corners.set(other, []);
@@ -203,6 +207,11 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
       const cap: number[][] = [];
       for (const A of list) { cap.push(armEdge(A, 0, -1), armEdge(A, 0, +1)); }
       pieces.push([hull(cap)]);
+      // (a dead end taken into the patch: capLength past its last node, back from the road's way into it)
+      if (absorbedEnds.has(k) && list.length === 1) {
+        const A = list[0], d = outDir(A), c = cfg.surface.capLength, l = armEdge(A, 0, -1), r = armEdge(A, 0, +1);
+        pieces.push([hull([l, r, [r[0] - d[0] * c, r[1] - d[1] * c], [l[0] - d[0] * c, l[1] - d[1] * c]])]);
+      }
       for (const A of list) {
         const other = A.atStart ? A.seg.to : A.seg.from;
         if (A.seg.internal || inSet.has(other)) { internal.add(A.seg.id); continue; }

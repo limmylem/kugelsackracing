@@ -125,7 +125,8 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt, 
     // (the plane's height under the head, where the pool's middle is)
     out[k + 6] = y0 + sx * (hx - px) + sz * (hz - pz); out[k + 7] = sx; out[k + 8] = sz;
   }
-  return { lamps: out, stats };
+  // (and which roads the rule lit: the tests measure the lighting along those)
+  return { lamps: out, stats, lit: litSeg };
 }
 
 // a road's surface height at s, off m to its left (its profile less camber: near enough for a lamp's foot on a deck)

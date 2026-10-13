@@ -104,7 +104,7 @@ async function roadsTest() {
         covered ||= meshHeights(R, lx, lz).length > 0;
       }
       if (!any) continue;
-      if (!covered) uncovered++;
+      if (!covered) { uncovered++; note(`no road surface over OSM node ${id} at ${x.toFixed(2)}, ${z.toFixed(2)} (${s.name ?? s.class}, ${s.structure}, segment ${s.id}, point ${k} of ${s.points.length / 3})`); }
       if (mapV === 'v4') { meshN++; continue; }
       const inJunction = covered && best > 0.5;
       if (!inJunction) { meshWorst = Math.max(meshWorst, best); meshN++; }
@@ -168,7 +168,9 @@ async function heightTest() {
     if (vis === undefined && [-1, 0, 1].some(di => [-1, 0, 1].some(dj => !baked.has(`${t[0] + di}_${t[1] + dj}`)))) { edgeSkips++; continue; }
     if (!sims.has(key)) sims.set(key, await M.simAround(p.x, p.z, { radius: 10 }));
     // (what a wheel on this road stands on: the first solid ground below a point just over its surface)
-    const S = sims.get(key), phys = S.ground(p.x, p.z, p.h + 0.5, true, 3.4);
+    // (Map v4 puts a mesh vertex on every graph point — its cross-sections' crowns — and a ray straight down through a
+    // vertex can slip past it, Rapier's edge case, where no wheel ever is: 5 mm off it)
+    const off = mapV === 'v4' ? 0.005 : 0, S = sims.get(key), phys = S.ground(p.x + off, p.z + off, p.h + 0.5, true, 3.4);
     if (phys === null && edgeOfBake(t)) { edgeSkips++; continue; }
     const dv = vis === undefined ? Infinity : Math.abs(vis - p.h), dp = phys === null ? Infinity : Math.abs(phys - p.h);
     if (inFan(p) && vis !== undefined && phys !== null) { fans++; worstFan = Math.max(worstFan, dv, dp); continue; }

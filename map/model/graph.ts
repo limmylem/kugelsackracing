@@ -126,17 +126,20 @@ export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any;
       start = q;
     }
   }
-  // (two segments between the same two nodes, the same length near enough, on one line: one road given twice)
+  // (two segments between the same two places — the same nodes, or two at the same spot: a tile border's, which is each
+  // way's own — the same length near enough, on one line: one road given twice)
   {
     const len = (g: Seg) => g.s[g.s.length - 1], best = new Map<string, Seg>(), drop = new Set<Seg>();
     const score = (g: Seg) => Math.abs(g.layer) * 2 + (g.structure !== 'ground' ? 1 : 0) + g.xs.length * 1e-6;
+    const at = (k: number) => `${nodes[k].x.toFixed(1)},${nodes[k].z.toFixed(1)}`;
     for (const g of segs) {
       if (g.from === g.to) continue;
-      const k = g.from < g.to ? `${g.from}:${g.to}` : `${g.to}:${g.from}`, o = best.get(k);
+      const a = at(g.from), b = at(g.to), k = a < b ? `${a}:${b}` : `${b}:${a}`, o = best.get(k);
       if (!o) { best.set(k, g); continue; }
       if (Math.abs(len(o) - len(g)) > Math.max(1, 0.1 * len(o)) || o.structure !== g.structure) continue;
+      const same = (o.from === g.from && o.to === g.to) || (o.from === g.to && o.to === g.from);
       const mid = (x: Seg) => { const k2 = x.xs.length >> 1; return [x.xs[k2], x.zs[k2]]; }, [ax, az] = mid(o), [bx, bz] = mid(g);
-      if (Math.hypot(ax - bx, az - bz) > 3 && o.xs.length > 2 && g.xs.length > 2) continue;
+      if (Math.hypot(ax - bx, az - bz) > (same ? 3 : 0.5) && o.xs.length > 2 && g.xs.length > 2) continue;
       if (score(g) > score(o)) { drop.add(o); best.set(k, g); } else drop.add(g);
     }
     if (drop.size) {

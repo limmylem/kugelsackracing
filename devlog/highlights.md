@@ -24,3 +24,5 @@ Garage driveways meet the road smoothly
 Every garage now fits its spot: driveways flow off the road
 Garage driveways grip like real roads, with nothing invisible in the way
 Voice chat: talk to your party anywhere, or drivers nearby
+Adelaide's roads rebuilt: wider, smooth junctions, no holes or invisible walls
+Adelaide has street lights now: drive the city at night
