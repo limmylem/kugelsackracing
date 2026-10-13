@@ -230,7 +230,7 @@ async function promptFor(id, rules) {
     'Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels\' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.',
     '',
     'Rules:',
-    `- Up to ${budget.toLocaleString('en-GB')} triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.`,
+    `- Up to ${budget.toLocaleString('en-GB')} triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre and brake disc), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.`,
     '- Left and right mirror each other exactly (the left parts at +X, the right at −X).',
     '- Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.',
     '- Export as glTF Binary (.glb), +Y up.',
