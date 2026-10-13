@@ -199,6 +199,42 @@ test('importing a car: its car.json from the starter car\'s, its own body parts,
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('importing a car made as docs/car_prompts.md asks: a wheel made of a rim and a tyre side by side under its socket, the tyre an indexed mesh in "rubber" — gathered into one part, its tyre cut off', async () => {
+  const root = scratch();
+  try {
+    fs.cpSync(path.join(ROOT, 'assets'), path.join(root, 'assets'), { recursive: true });
+    const io = await modelIO(), doc = await readModel(path.join(ROOT, 'data/cars/starter_car/starter_car_v2.glb'));
+    const buffer = doc.getRoot().listBuffers()[0], mat = name => doc.createMaterial(name);
+    const rubber = mat('rubber'), finish = mat('rim_finish');
+    // (a ring round the x axis: inner and outer radius, half its width; indexed)
+    const ring = (r0, r1, hw, m, segs = 24) => {
+      const pos = [], idx = [];
+      for (let i = 0; i < segs; i++) { const a = i / segs * Math.PI * 2; for (const [r, x] of [[r0, -hw], [r1, -hw], [r1, hw], [r0, hw]]) pos.push(x, r * Math.sin(a), r * Math.cos(a)); }
+      for (let i = 0; i < segs; i++) for (let k = 0; k < 4; k++) { const a = i * 4 + k, b = i * 4 + (k + 1) % 4, c = ((i + 1) % segs) * 4 + (k + 1) % 4, d = ((i + 1) % segs) * 4 + k; idx.push(a, b, c, a, c, d); }
+      const prim = doc.createPrimitive().setMaterial(m).setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(pos)).setBuffer(buffer)).setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint16Array(idx)).setBuffer(buffer));
+      return doc.createMesh().addPrimitive(prim);
+    };
+    const rimR = 15 * 0.0254 / 2, tyreR = rimR + 0.18 * 0.55;
+    const rimMesh = ring(0.05, rimR, 0.08, finish), tyreMesh = ring(rimR, tyreR, 0.09, rubber);
+    for (const k of ['FL', 'FR', 'RL', 'RR']) {
+      const socket = doc.getRoot().listNodes().find(n => n.getName() === `socket_wheel_${k}`);
+      for (const c of socket.listChildren()) c.dispose();
+      socket.addChild(doc.createNode('rim').setMesh(rimMesh)).addChild(doc.createNode('tyre').setMesh(tyreMesh));
+    }
+    const file = path.join(root, 'incoming/car_twin2.glb');
+    fs.writeFileSync(file, await io.writeBinary(doc));
+    const r = await importFile(file, await loadProject(root));
+    assert.ok(r.ok, r.message);
+    assert.ok(r.notes.some(n => /gathered into wheel_FL_part/.test(n)), r.notes.join('\n'));
+    assert.ok(r.notes.some(n => /cut off the tyre \(\d+ triangles, its rubber\): rim 15\.00", tyre 180 mm wide, 289\.5 mm radius/.test(n)), r.notes.join('\n'));
+    // (the wheel is the starter car's shared part, which keeps its own model: this car's is written beside it)
+    const model = await readModel(path.join(root, 'assets/parts/stock/twin2/wheel_15.glb')), mats = model.getRoot().listMeshes().flatMap(m => m.listPrimitives()).map(p => p.getMaterial()?.getName());
+    assert.ok(mats.includes('rim_finish') && !mats.includes('rubber'), `the wheel's model: ${mats.join(', ')}`);
+    const ys = model.getRoot().listMeshes().flatMap(m => m.listPrimitives()).flatMap(p => Array.from(p.getAttribute('POSITION').getArray()).filter((_, i) => i % 3 === 1));
+    assert.ok(Math.abs(Math.max(...ys) - rimR) < 0.002, `the wheel without its tyre: ${Math.max(...ys)}`);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('variants: every combination with a predictable id, prices and stats by the table\'s rules; ids never change, dropped variants are retired', async () => {
   const root = scratch();
   try {

@@ -10,8 +10,9 @@
 //  - assets/parts/stock/<carId>/<name>.glb: each stock part's mesh, at the origin of its socket, with
 //    its materials and the shared texture. Sockets that hold the same part share one file (the four
 //    wheels: wheel_stock.glb; both seats: seat.glb). Wheels are the rim only: the game makes each
-//    tyre from its tyre part's size, so the tyre is cut off here (its faces are the ones textured like
-//    the tread) and its measured size is checked against the stock tyre and rim parts
+//    tyre from its tyre part's size, so the tyre is cut off here (its own primitive in the "rubber" material — as
+//    docs/car_prompts.md asks for — or else its faces are the ones textured like the tread) and its measured size is
+//    checked against the stock tyre and rim parts
 // and sets each stock part's model and bounds (its extent in the socket's frame, for placeholders) in
 // its data/parts file. Each model written is finished (tools/content/finish.mjs: its levels of detail, its big
 // textures compressed), and a stock part that can come off in a crash gets its collision hulls. Run it again
@@ -22,7 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Logger, NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { cloneDocument, getBounds, prune } from '@gltf-transform/functions';
+import { cloneDocument, getBounds, prune, unweldPrimitive } from '@gltf-transform/functions';
 import { tyreFit } from '../garage/tyres.js';
 import { formatJson } from './content/json.mjs';
 import { loadRules } from './content/rules.mjs';
@@ -58,7 +59,13 @@ for (const s of car.sockets) {
   if (s.node && socketNames.has(s.node)) continue;
   const node = nodeNamed(source, nodeOf(s)), stock = s.stock?.[0];
   if (!node || !stock || !node.listChildren().length) continue;
-  if (node.listChildren().length > 1) console.warn(`  note: ${nodeOf(s)} holds ${node.listChildren().length} nodes; only ${node.listChildren()[0].getName()} goes in ${stock}'s model`);
+  // (a part made of several nodes straight under its socket — a rim and its tyre side by side — gathered into one)
+  if (node.listChildren().length > 1) {
+    const group = source.createNode(`${nodeOf(s).replace(/^socket_/, '')}_part`);
+    for (const c of node.listChildren()) { node.removeChild(c); group.addChild(c); }
+    node.addChild(group);
+    console.log(`  ${nodeOf(s)}: its ${group.listChildren().length} nodes gathered into ${group.getName()} (${stock}'s model)`);
+  }
   const e = byPart.get(stock) ?? { sockets: [], nodes: [] };
   e.sockets.push(nodeOf(s)); e.nodes.push(node.listChildren()[0].getName());
   byPart.set(stock, e);
@@ -127,37 +134,58 @@ console.log(`${car.name}: split ${rel(path.join(root, car.model.source))}\n${wri
 function isUnder(n, top) { for (let x = n; x; x = x.getParentNode()) if (x === top) return true; return false; }
 function disposeTree(n) { for (const c of n.listChildren()) disposeTree(c); n.dispose(); }
 
-// Keep a wheel's rim only: the tyre is the triangles textured like the tread (the outermost vertices),
-// every one of whose corners is. Checks the cut-off tyre's size against the stock rim and tyre parts.
+// Keep a wheel's rim only: the tyre is its primitives in the "rubber" material (a model made from docs/car_prompts.md),
+// or else the triangles textured like the tread (the outermost vertices), every one of whose corners is. Checks the
+// cut-off tyre's size against the stock rim and tyre parts.
 function cutTyre(doc, node, partId, def, sockets) {
-  const prim = node.getMesh().listPrimitives()[0];
-  if (prim.getIndices()) throw new Error(`${partId}: an indexed wheel mesh isn't handled yet`);
-  const P = prim.getAttribute('POSITION').getArray(), UV = prim.getAttribute('TEXCOORD_0')?.getArray();
-  if (!UV) throw new Error(`${partId}: the wheel has no texture coordinates to tell its tyre by`);
-  const n = P.length / 3, radius = i => Math.hypot(P[3 * i + 1], P[3 * i + 2]);
-  let outer = 0; for (let i = 1; i < n; i++) if (radius(i) > radius(outer)) outer = i;
-  const isTyre = i => Math.abs(UV[2 * i] - UV[2 * outer]) < 1e-4 && Math.abs(UV[2 * i + 1] - UV[2 * outer + 1]) < 1e-4;
-  const keep = [], tyre = [];
-  for (let t = 0; t < n / 3; t++) ([0, 1, 2].every(k => isTyre(3 * t + k)) ? tyre : keep).push(t);
-  if (!tyre.length) { console.warn(`  note: ${partId}: found no tyre on the wheel to cut off`); return; }
-  for (const semantic of prim.listSemantics()) {
-    const acc = prim.getAttribute(semantic), size = acc.getElementSize(), src = acc.getArray();
-    const out = new src.constructor(keep.length * 3 * size);
-    keep.forEach((t, j) => out.set(src.subarray(t * 3 * size, (t + 1) * 3 * size), j * 3 * size));
-    prim.setAttribute(semantic, doc.createAccessor().setType(acc.getType()).setArray(out).setBuffer(acc.getBuffer()).setNormalized(acc.getNormalized()));
+  // (every mesh in the wheel — it may be a group: the rim and the tyre each a mesh of their own — with where it is in the
+  // wheel's frame)
+  const meshes = [];
+  const walk = (n, m) => { if (n.getMesh()) meshes.push({ mesh: n.getMesh(), m }); for (const c of n.listChildren()) walk(c, mul4(m, c.getMatrix())); };
+  walk(node, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  const rubber = meshes.flatMap(({ mesh, m }) => mesh.listPrimitives().filter(p => /^(rubber|tyre|tire)$/i.test(p.getMaterial()?.getName() ?? '')).map(p => ({ mesh, m, p })));
+  let tyreAt, tyreTris;              // (the tyre's corners, for its size: flat [x, y, z, …]; its triangles)
+  if (rubber.length) {
+    tyreAt = rubber.flatMap(({ m, p }) => { const a = p.getAttribute('POSITION').getArray(), out = []; for (let i = 0; i < a.length; i += 3) out.push(...apply4(m, a[i], a[i + 1], a[i + 2])); return out; });
+    tyreTris = rubber.reduce((n, { p }) => n + (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3, 0);
+    for (const { mesh, p } of rubber) { mesh.removePrimitive(p); p.dispose(); }
+  } else {
+    if (!node.getMesh()) throw new Error(`${partId}: the wheel's tyre must be in the "rubber" material (or the wheel one mesh, its tyre textured like the tread)`);
+    const mesh = node.getMesh(), prim = mesh.listPrimitives()[0];
+    if (prim.getIndices()) unweldPrimitive(prim);
+    const P = prim.getAttribute('POSITION').getArray(), UV = prim.getAttribute('TEXCOORD_0')?.getArray();
+    if (!UV) throw new Error(`${partId}: the wheel has no texture coordinates to tell its tyre by (or model the tyre in the "rubber" material)`);
+    const n = P.length / 3, radius = i => Math.hypot(P[3 * i + 1], P[3 * i + 2]);
+    let outer = 0; for (let i = 1; i < n; i++) if (radius(i) > radius(outer)) outer = i;
+    const isTyre = i => Math.abs(UV[2 * i] - UV[2 * outer]) < 1e-4 && Math.abs(UV[2 * i + 1] - UV[2 * outer + 1]) < 1e-4;
+    const keep = [], tyre = [];
+    for (let t = 0; t < n / 3; t++) ([0, 1, 2].every(k => isTyre(3 * t + k)) ? tyre : keep).push(t);
+    if (!tyre.length) { console.warn(`  note: ${partId}: found no tyre on the wheel to cut off`); return; }
+    tyreAt = tyre.flatMap(t => Array.from(P.subarray(9 * t, 9 * t + 9))); tyreTris = tyre.length;
+    for (const semantic of prim.listSemantics()) {
+      const acc = prim.getAttribute(semantic), size = acc.getElementSize(), src = acc.getArray();
+      const out = new src.constructor(keep.length * 3 * size);
+      keep.forEach((t, j) => out.set(src.subarray(t * 3 * size, (t + 1) * 3 * size), j * 3 * size));
+      prim.setAttribute(semantic, doc.createAccessor().setType(acc.getType()).setArray(out).setBuffer(acc.getBuffer()).setNormalized(acc.getNormalized()));
+    }
   }
   // what was cut off, against the parts' sizes
-  const verts = tyre.flatMap(t => [3 * t, 3 * t + 1, 3 * t + 2]), rs = verts.map(radius), xs = verts.map(i => Math.abs(P[3 * i]));
+  const rs = [], xs = [];
+  for (let i = 0; i < tyreAt.length; i += 3) { rs.push(Math.hypot(tyreAt[i + 1], tyreAt[i + 2])); xs.push(Math.abs(tyreAt[i])); }
   const inner = Math.min(...rs), out = Math.max(...rs), width = 2 * Math.max(...xs);
   // (the stock tyre: the part in a socket drawn at this wheel's socket)
   const tyreSocket = car.sockets.find(s => s.node && sockets.includes(s.node) && s.stock?.length);
   const stockTyre = tyreSocket && part(tyreSocket.stock[0]);
   const fit = stockTyre?.tyreSize && tyreFit(def.rim, stockTyre.tyreSize);
-  console.log(`  ${partId}: cut off the tyre (${tyre.length} of ${n / 3} triangles): rim ${(inner * 2 / 0.0254).toFixed(2)}", tyre ${(width * 1000).toFixed(0)} mm wide, ${(out * 1000).toFixed(1)} mm radius` +
+  console.log(`  ${partId}: cut off the tyre (${tyreTris} triangles${rubber.length ? ', its rubber' : ''}): rim ${(inner * 2 / 0.0254).toFixed(2)}", tyre ${(width * 1000).toFixed(0)} mm wide, ${(out * 1000).toFixed(1)} mm radius` +
     (fit ? ` — the parts say ${fit.label}: rim ${def.rim.diameter}", ${(fit.width * 1000).toFixed(0)} mm, ${(fit.radius * 1000).toFixed(1)} mm` : ''));
   if (fit && (Math.abs(fit.rimRadius - inner) > 0.003 || Math.abs(fit.radius - out) > 0.003 || Math.abs(fit.width - width) > 0.006))
     console.warn(`  note: the stock tyre and rim parts don't match the modelled wheel: the game's tyres won't look like the model's`);
 }
+
+// (column-major 4×4 matrices: a·b, and a point through one)
+function mul4(a, b) { const o = new Array(16).fill(0); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k]; return o; }
+function apply4(m, x, y, z) { return [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]]; }
 
 function setJson(file, edit) {
   const full = path.join(root, file), text = fs.readFileSync(full, 'utf8'), obj = JSON.parse(text);

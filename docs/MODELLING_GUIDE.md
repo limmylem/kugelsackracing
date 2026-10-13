@@ -82,6 +82,10 @@ and splits it into the body and a model per stock part (`npm run build:car`).
 - Socket names are **exact** (case matters): the checker spots near misses (`socket_whel_FL`,
   `Socket_Mirror_Right`) and says what they should be.
 - The body's painted surfaces use `paint`; it must be there.
+- **Made in Claude Design**: [car_prompts.md](car_prompts.md) has a ready prompt for each car (`npm run car-prompts`
+  writes it from the cars' data: every socket, part and size exact). A wheel there is its rim and, round it, a tyre in
+  the `rubber` material (cut off by the split; the game draws its own tyres); a part may be a group of meshes, and
+  several meshes straight under one socket are gathered into one part.
 
 ## Generated parts
 

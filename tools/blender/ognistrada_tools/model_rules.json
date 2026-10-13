@@ -1339,7 +1339,7 @@
     }
   },
   "car": {
-    "_note": "A car's body (npm run import: car_<id>.glb; its parts sit under their socket nodes, to be split off by npm run build:car). requiredSockets must be there; expectedSockets should be (parts go there); mirrorTolerance: how far a left socket may be from mirroring its right one",
+    "_note": "A car's body (npm run import: car_<id>.glb; its parts sit under their socket nodes, to be split off by npm run build:car). requiredSockets must be there; expectedSockets should be (parts go there); mirrorTolerance: how far a left socket may be from mirroring its right one; triangles: the whole car as modelled, its parts too (40,000 since the cars made in code, 2026-10-12: smooth bodies with their details — tools/content/carBody.mjs)",
     "names": ["car"],
     "size": {
       "length": [3, 5.6],
@@ -1352,7 +1352,7 @@
     "wheelHeightTolerance": 0.015,
     "wheelRadius": [0.24, 0.42],
     "mirrorTolerance": 0.01,
-    "triangles": 25000,
+    "triangles": 40000,
     "paintMaterial": "paint",
     "requiredSockets": ["socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR"],
     "expectedSockets": ["socket_bonnet", "socket_boot", "socket_bumper_front", "socket_bumper_rear", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_engine", "socket_intake", "socket_turbo", "socket_exhaust_tip", "socket_spoiler"],

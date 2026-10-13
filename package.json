@@ -25,6 +25,7 @@
     "sounds": "node tools/sounds.mjs",
     "models-todo": "node tools/models-todo.mjs",
     "generate-parts": "node tools/generate-parts.mjs",
+    "car-prompts": "node tools/car-prompts.mjs",
     "content": "node tools/content.mjs",
     "crash-test": "node tests/crash.mjs",
     "stress": "node --expose-gc tests/stress.mjs",
