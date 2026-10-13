@@ -15,6 +15,33 @@ import { readModel } from './content/io.mjs';
 import { ROOT, readJson } from './content/rules.mjs';
 import { tyreFit } from '../garage/tyres.js';
 
+// How to model it so it looks real (every car's prompt): what makes a racing game's car look like a car, not a toy —
+// smooth surfaces built from the car's own lines, bevelled edges and panel gaps, real light units and wheels
+const REALISM = [
+  'How to model it so it looks real (this matters most — the car must not look blocky or like a toy):',
+  '- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car\'s lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.',
+  '- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.',
+  '- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen\'s edge.',
+  '- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing\'s black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.',
+  '- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.',
+  '- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.',
+  '- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.',
+  '- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.',
+  '- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.',
+];
+
+// The follow-ups: sent one by one after the first model, each a pass over one thing (the doc's own section)
+const KEEP = ' Keep every node name, socket position, part size and material name exactly as they are, and the glb\'s structure the same.';
+const FOLLOW_UPS = [
+  ['1. The shape', 'Make the body\'s shape more realistic. Compare it with photos of real cars of this kind from the side, front, rear and three-quarters: fix the proportions (the overhangs, the glasshouse, the wheel arches round the wheels with a small even gap), make every surface curved and smooth (no flat or faceted areas: more vertices where it curves, subdivided), round off every corner, add the shoulder line and the tumblehome, flare the arches with rolled lips.' + KEEP],
+  ['2. Panel gaps and edges', 'Add the details that make it look manufactured: a 4 mm shut line round every panel (bonnet, boot, doors, wings, bumpers) with the edges turned in, a 2–5 mm bevel on every edge, black rubber seals round the glass, the black frit band round the windscreen, door handles, a fuel filler flap, wiper arms, washer jets, a fictional number plate in its recess.' + KEEP],
+  ['3. The lights', 'Make the headlights and tail lights look like real light units: a chrome reflector bowl or a projector lens behind a clear outer lens with thickness, a black inner surround, the indicator and side lamp in their own sections, LED strips or bulbs inside; the tail lights with a deep red lens, inner segments, the reversing light and indicator. Add a third brake light and the side repeaters.' + KEEP],
+  ['4. The wheels', 'Make the wheels look real: shape each spoke (tapered, with depth and rounded edges), add the outer lip, the wheel nuts and centre cap, the barrel behind the spokes and a ventilated brake disc behind them; a rounded sidewall on the tyre. Line the wheel arches in black and show the suspension behind the wheels.' + KEEP],
+  ['5. Grilles, intakes and underneath', 'Give every grille and intake real depth: slats or a honeycomb mesh with black behind it, never a flat shape; add the tow hook cover, fog lights or reflectors where they suit; model the underside (floor, exhaust pipe running back, fuel tank, suspension arms) in dark finishes.' + KEEP],
+  ['6. The interior', 'Make the interior look real through the windows: a dashboard with instrument dials, vents and a centre stack; door cards with handles and armrests; seats with bolsters, seams and headrests; a gear lever and handbrake; the headlining, sun visors and a rear-view mirror.' + KEEP],
+  ['7. The materials', 'Tune the materials so it looks like a photo: the paint glossy (roughness about 0.1, like clear-coated paint), chrome mirror-like (metalness 1, roughness about 0.05), the glass clear and slightly tinted, the rubber and black plastics rough (0.6–0.8), the lenses clear with the lamps behind them. Show me the car close up from the front three-quarters in daylight.' + KEEP],
+];
+
 // Each car's look: what Claude Design is asked for. Fictional cars, each with a character of its own (no real car's
 // shape, lights, grille or badge); the size, the sockets and the parts come from the data.
 const LOOKS = {
@@ -178,6 +205,8 @@ async function promptFor(id, rules) {
     '',
     'Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car\'s LEFT (as you sit in it), so −X is its right.',
     '',
+    ...REALISM,
+    '',
     'How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):',
     `1. One root node named "${id}".`,
     `2. The body, as meshes directly under the root, named exactly: ${body.map(n => `"${n}"`).join(', ')}.`,
@@ -198,10 +227,10 @@ async function promptFor(id, rules) {
     'The empty sockets (no mesh under them: for parts fitted in the game):',
     empty.map(n => `${n.name} ${xyz(n.position)}${turns[n.name] ? ` ${turns[n.name]}` : ''}`).join('; ') + '.',
     '',
-    'Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels\' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.',
+    'Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels\' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.',
     '',
     'Rules:',
-    `- Under ${budget.toLocaleString('en-GB')} triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.`,
+    `- Up to ${budget.toLocaleString('en-GB')} triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.`,
     '- Left and right mirror each other exactly (the left parts at +X, the right at −X).',
     '- Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.',
     '- Export as glTF Binary (.glb), +Y up.',
@@ -228,6 +257,11 @@ const out = [
   '',
   'Socket positions and the wheels\' size are exact: they\'re what the car\'s physics and every part are fitted to. The parts\' sizes are the current ones (the placeholder boxes): a little bigger or smaller is fine; the import measures each part again. The **Starter coupe** is the physics reference car: its tests measure its parts\' sizes, so after its new model is imported its reference figures are checked and updated with it.',
   '',
+  '## Making it look more real: follow-up prompts',
+  '',
+  'One prompt rarely gets a racing-game car first time. After the first model, send these one at a time in the same Claude Design conversation, looking at the car after each (close up, from every side), and repeat any that still needs it. Each keeps the names, sockets and sizes.',
+  '',
+  ...FOLLOW_UPS.flatMap(([title, text]) => [`**${title}**`, '', '```text', text, '```', '']),
   `_Written by \`npm run car-prompts\` (\`tools/car-prompts.mjs\`) from each car's data: change the data (or the looks in the tool) and run it again, rather than editing this file._`,
   '',
 ];

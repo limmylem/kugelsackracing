@@ -11,6 +11,52 @@ To put a car in the game:
 
 Socket positions and the wheels' size are exact: they're what the car's physics and every part are fitted to. The parts' sizes are the current ones (the placeholder boxes): a little bigger or smaller is fine; the import measures each part again. The **Starter coupe** is the physics reference car: its tests measure its parts' sizes, so after its new model is imported its reference figures are checked and updated with it.
 
+## Making it look more real: follow-up prompts
+
+One prompt rarely gets a racing-game car first time. After the first model, send these one at a time in the same Claude Design conversation, looking at the car after each (close up, from every side), and repeat any that still needs it. Each keeps the names, sockets and sizes.
+
+**1. The shape**
+
+```text
+Make the body's shape more realistic. Compare it with photos of real cars of this kind from the side, front, rear and three-quarters: fix the proportions (the overhangs, the glasshouse, the wheel arches round the wheels with a small even gap), make every surface curved and smooth (no flat or faceted areas: more vertices where it curves, subdivided), round off every corner, add the shoulder line and the tumblehome, flare the arches with rolled lips. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**2. Panel gaps and edges**
+
+```text
+Add the details that make it look manufactured: a 4 mm shut line round every panel (bonnet, boot, doors, wings, bumpers) with the edges turned in, a 2–5 mm bevel on every edge, black rubber seals round the glass, the black frit band round the windscreen, door handles, a fuel filler flap, wiper arms, washer jets, a fictional number plate in its recess. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**3. The lights**
+
+```text
+Make the headlights and tail lights look like real light units: a chrome reflector bowl or a projector lens behind a clear outer lens with thickness, a black inner surround, the indicator and side lamp in their own sections, LED strips or bulbs inside; the tail lights with a deep red lens, inner segments, the reversing light and indicator. Add a third brake light and the side repeaters. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**4. The wheels**
+
+```text
+Make the wheels look real: shape each spoke (tapered, with depth and rounded edges), add the outer lip, the wheel nuts and centre cap, the barrel behind the spokes and a ventilated brake disc behind them; a rounded sidewall on the tyre. Line the wheel arches in black and show the suspension behind the wheels. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**5. Grilles, intakes and underneath**
+
+```text
+Give every grille and intake real depth: slats or a honeycomb mesh with black behind it, never a flat shape; add the tow hook cover, fog lights or reflectors where they suit; model the underside (floor, exhaust pipe running back, fuel tank, suspension arms) in dark finishes. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**6. The interior**
+
+```text
+Make the interior look real through the windows: a dashboard with instrument dials, vents and a centre stack; door cards with handles and armrests; seats with bolsters, seams and headrests; a gear lever and handbrake; the headlining, sun visors and a rear-view mirror. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
+**7. The materials**
+
+```text
+Tune the materials so it looks like a photo: the paint glossy (roughness about 0.1, like clear-coated paint), chrome mirror-like (metalness 1, roughness about 0.05), the glass clear and slightly tinted, the rubber and black plastics rough (0.6–0.8), the lenses clear with the lamps behind them. Show me the car close up from the front three-quarters in daylight. Keep every node name, socket position, part size and material name exactly as they are, and the glb's structure the same.
+```
+
 _Written by `npm run car-prompts` (`tools/car-prompts.mjs`) from each car's data: change the data (or the looks in the tool) and run it again, rather than editing this file._
 
 ## Starter coupe (`car_starter_car.glb`)
@@ -29,6 +75,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 3.958 m long, 1.7 m wide (without mirrors) and 1.307 m tall. The wheel centres (exactly): front axle at z = 1.2, rear axle at z = -1.2, x = ±0.74, y = 0.29 — each wheel 0.579 m across: a 15" rim in a 180/55 R15 tyre (180 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "starter_car".
@@ -62,10 +119,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.45, 1.25); socket_intake (0.24, 0.56, 1.25); socket_turbo (-0.26, 0.5, 1.25); socket_intercooler (0, 0.4, 1.75); socket_header (0.2, 0.35, 1.2); socket_ecu (0.3, 0.6, 0.7); socket_gearbox (0, 0.35, 0.45); socket_clutch (0, 0.4, 0.65); socket_flywheel (0, 0.4, 0.72); socket_differential (0, 0.29, -1.2); socket_suspension (0, 0.4, 0); socket_arb_front (0, 0.25, 1.2); socket_arb_rear (0, 0.25, -1.2); socket_brakes (0, 0.29, 0.1); socket_brake_pads (0, 0.29, 0.1); socket_spoiler (0, 0.87, -1.85); socket_weight_rear_seats (0, 0.3, -0.75); socket_weight_sound_deadening (0, 0.35, -0.2); socket_supercharger (0, 0.68, 1.3); socket_radiator (0, 0.4, 1.7); socket_engine_swap (0, 0.18, 1.25); socket_shifter (0, 0.55, 0.13); socket_cage (0, 0.75, -0.32); socket_harness (0.38, 0.7, -0.42); socket_gauges (0.38, 0.92, 0.53); socket_strut_brace (0, 0.78, 1.2); socket_window_tint (0, 1, -0.2); socket_tyre_smoke (0, 0.05, -1.2); socket_underglow (0, 0.12, 0); socket_fog_lights (0, 0.28, 1.92); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -88,6 +145,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.24 m long, 1.78 m wide (without mirrors) and 1.29 m tall, 0.13 m ground clearance; the belt line (the bottom of the side windows) about 0.9 m up, the bonnet 0.62 m up at the nose rising to 0.86 m at the windscreen's foot (z = 0.55), the roof 1.29 m up from z = 0.05 to -0.95, the boot lid 0.92 m up from z = -1.35 back to the tail. The wheel centres (exactly): front axle at z = 1.25, rear axle at z = -1.32, x = ±0.76, y = 0.313 — each wheel 0.625 m across: a 17" rim in a 215/45 R17 tyre (215 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "kaze_gt".
@@ -121,10 +189,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.51, 1.12); socket_intake (0.246, 0.62, 1.12); socket_turbo (-0.266, 0.56, 1.12); socket_intercooler (0, 0.38, 1.87); socket_header (0.205, 0.41, 1.07); socket_ecu (0.307, 0.8, 0.49); socket_gearbox (0, 0.33, 0.32); socket_clutch (0, 0.38, 0.52); socket_flywheel (0, 0.38, 0.59); socket_differential (0, 0.313, -1.32); socket_suspension (0, 0.413, -0.035); socket_arb_front (0, 0.18, 1.25); socket_arb_rear (0, 0.18, -1.32); socket_brakes (0, 0.313, -0.035); socket_brake_pads (0, 0.313, -0.035); socket_spoiler (0, 0.92, -2); socket_weight_rear_seats (0, 0.25, -0.95); socket_weight_sound_deadening (0, 0.3, -0.35); socket_supercharger (0, 0.68, 1.22); socket_radiator (0, 0.48, 1.82); socket_engine_swap (0, 0.24, 1.12); socket_shifter (0, 0.5, -0.05); socket_cage (0, 0.7, -0.5); socket_harness (0.389, 0.65, -0.6); socket_gauges (0.389, 1.02, 0.35); socket_strut_brace (0, 0.88, 1.25); socket_window_tint (0, 1.04, -0.45); socket_tyre_smoke (0, 0.05, -1.32); socket_underglow (0, 0.13, -0.035); socket_fog_lights (0, 0.25, 2.09); socket_front_lip (0, 0.15, 2.07); socket_canards (0, 0.4, 1.98); socket_widebody (0, 0.7, 0); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -147,6 +215,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 3.95 m long, 1.72 m wide (without mirrors) and 1.23 m tall, 0.12 m ground clearance; the belt line (the bottom of the side windows) about 0.85 m up, the bonnet 0.6 m up at the nose rising to 0.82 m at the windscreen's foot (z = 0.35), the roof 1.23 m up from z = -0.1 to -0.85, the boot lid 0.86 m up from z = -1.2 back to the tail. The wheel centres (exactly): front axle at z = 1.08, rear axle at z = -1.23, x = ±0.745, y = 0.301 — each wheel 0.601 m across: a 16" rim in a 195/50 R16 tyre (195 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "hana_roadster".
@@ -181,10 +260,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.6, 0.92); socket_intake (0.237, 0.71, 0.92); socket_turbo (-0.257, 0.65, 0.92); socket_intercooler (0, 0.37, 1.725); socket_header (0.198, 0.5, 0.87); socket_ecu (0.297, 0.75, 0.29); socket_gearbox (0, 0.32, 0.12); socket_clutch (0, 0.37, 0.32); socket_flywheel (0, 0.37, 0.39); socket_differential (0, 0.301, -1.23); socket_suspension (0, 0.401, -0.075); socket_arb_front (0, 0.17, 1.08); socket_arb_rear (0, 0.17, -1.23); socket_brakes (0, 0.301, -0.075); socket_brake_pads (0, 0.301, -0.075); socket_spoiler (0, 0.86, -1.855); socket_weight_rear_seats (0, 0.24, -1.05); socket_weight_sound_deadening (0, 0.29, -0.45); socket_supercharger (0, 0.845, 1.02); socket_radiator (0, 0.47, 1.675); socket_engine_swap (0, 0.33, 0.92); socket_shifter (0, 0.49, -0.15); socket_cage (0, 0.69, -0.6); socket_harness (0.376, 0.64, -0.7); socket_gauges (0.376, 0.97, 0.25); socket_strut_brace (0, 0.83, 1.08); socket_window_tint (0, 0.98, -0.475); socket_tyre_smoke (0, 0.05, -1.23); socket_underglow (0, 0.12, -0.075); socket_fog_lights (0, 0.24, 1.945); socket_front_lip (0, 0.14, 1.93); socket_widebody (0, 0.65, 0); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -207,6 +286,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.75 m long, 1.9 m wide (without mirrors) and 1.84 m tall, 0.28 m ground clearance; the belt line (the bottom of the side windows) about 1.2 m up, the bonnet 1.05 m up at the nose rising to 1.15 m at the windscreen's foot (z = 0.75), the roof 1.84 m up from z = 0.45 to -1.9, the boot lid 1.3 m up from z = -2.2 back to the tail. The wheel centres (exactly): front axle at z = 1.45, rear axle at z = -1.34, x = ±0.8, y = 0.401 — each wheel 0.803 m across: a 17" rim in a 265/70 R17 tyre (265 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "ridgeback_4x4".
@@ -239,10 +329,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.95, 1.42); socket_intake (0.262, 1.06, 1.42); socket_turbo (-0.284, 1, 1.42); socket_intercooler (0, 0.53, 2.125); socket_header (0.218, 0.85, 1.37); socket_ecu (0.328, 1.1, 0.69); socket_gearbox (0, 0.48, 0.62); socket_clutch (0, 0.53, 0.82); socket_flywheel (0, 0.53, 0.89); socket_differential (0, 0.401, -1.34); socket_suspension (0, 0.501, 0.055); socket_arb_front (0, 0.33, 1.45); socket_arb_rear (0, 0.33, -1.34); socket_brakes (0, 0.401, 0.055); socket_brake_pads (0, 0.401, 0.055); socket_spoiler (0, 1.3, -2.255); socket_weight_rear_seats (0, 0.5, -0.7); socket_weight_sound_deadening (0, 0.55, -0.1); socket_supercharger (0, 1.195, 1.52); socket_radiator (0, 0.63, 2.075); socket_engine_swap (0, 0.68, 1.42); socket_shifter (0, 0.75, 0.2); socket_cage (0, 0.95, -0.25); socket_harness (0.415, 0.9, -0.35); socket_gauges (0.415, 1.32, 0.6); socket_strut_brace (0, 1.18, 1.45); socket_window_tint (0, 1.59, -0.725); socket_tyre_smoke (0, 0.05, -1.34); socket_underglow (0, 0.28, 0.055); socket_fog_lights (0, 0.4, 2.345); socket_diff_front (0, 0.401, 1.4); socket_transfer_case (0, 0.48, 0.255); socket_bull_bar (0, 0.75, 2.42); socket_snorkel (-0.9, 1.35, 0.85); socket_winch (0, 0.55, 2.36); socket_roof_rack (0, 1.86, -0.6); socket_light_bar (0, 1.88, 0.35); socket_skid_plates (0, 0.3, 1.1); socket_rock_sliders (0, 0.33, 0.05); socket_lift_kit (0, 0.55, 0); socket_aero_kit (0, 0.3, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -265,6 +355,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.3 m long, 1.8 m wide (without mirrors) and 1.45 m tall, 0.12 m ground clearance; the belt line (the bottom of the side windows) about 0.95 m up, the bonnet 0.68 m up at the nose rising to 0.92 m at the windscreen's foot (z = 0.75), the roof 1.45 m up from z = 0.3 to -1.55, the boot lid 1 m up from z = -1.75 back to the tail. The wheel centres (exactly): front axle at z = 1.35, rear axle at z = -1.29, x = ±0.775, y = 0.319 — each wheel 0.637 m across: a 18" rim in a 225/40 R18 tyre (225 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "vortex_r".
@@ -297,10 +398,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.65, 1.28); socket_intake (0.248, 0.76, 1.28); socket_turbo (-0.269, 0.7, 1.28); socket_intercooler (0, 0.37, 1.9); socket_header (0.207, 0.55, 1.23); socket_ecu (0.31, 0.85, 0.69); socket_gearbox (0, 0.32, 0.48); socket_clutch (0, 0.37, 0.68); socket_flywheel (0, 0.37, 0.75); socket_differential (0, 0.319, 1.3); socket_suspension (0, 0.419, 0.03); socket_arb_front (0, 0.17, 1.35); socket_arb_rear (0, 0.17, -1.29); socket_brakes (0, 0.319, 0.03); socket_brake_pads (0, 0.319, 0.03); socket_spoiler (0, 1.43, -1.6); socket_weight_rear_seats (0, 0.27, -0.75); socket_weight_sound_deadening (0, 0.32, -0.15); socket_supercharger (0, 0.87, 1.38); socket_radiator (0, 0.47, 1.85); socket_engine_swap (0, 0.38, 1.28); socket_shifter (0, 0.52, 0.15); socket_cage (0, 0.72, -0.3); socket_harness (0.393, 0.67, -0.4); socket_gauges (0.393, 1.07, 0.55); socket_strut_brace (0, 0.93, 1.35); socket_window_tint (0, 1.2, -0.625); socket_tyre_smoke (0, 0.05, -1.29); socket_underglow (0, 0.12, 0.03); socket_fog_lights (0, 0.24, 2.12); socket_front_lip (0, 0.14, 2.1); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -323,6 +424,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.8 m long, 1.92 m wide (without mirrors) and 1.38 m tall, 0.13 m ground clearance; the belt line (the bottom of the side windows) about 0.95 m up, the bonnet 0.7 m up at the nose rising to 0.95 m at the windscreen's foot (z = 0.5), the roof 1.38 m up from z = -0.05 to -1, the boot lid 0.98 m up from z = -1.6 back to the tail. The wheel centres (exactly): front axle at z = 1.42, rear axle at z = -1.3, x = ±0.8, y = 0.343 — each wheel 0.687 m across: a 19" rim in a 255/40 R19 tyre (255 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "brute_500".
@@ -356,10 +468,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.65, 1.15); socket_intake (0.265, 0.76, 1.15); socket_turbo (-0.287, 0.7, 1.15); socket_intercooler (0, 0.38, 2.15); socket_header (0.221, 0.55, 1.1); socket_ecu (0.331, 0.85, 0.44); socket_gearbox (0, 0.33, 0.35); socket_clutch (0, 0.38, 0.55); socket_flywheel (0, 0.38, 0.62); socket_differential (0, 0.343, -1.3); socket_suspension (0, 0.443, 0.06); socket_arb_front (0, 0.18, 1.42); socket_arb_rear (0, 0.18, -1.3); socket_brakes (0, 0.343, 0.06); socket_brake_pads (0, 0.343, 0.06); socket_spoiler (0, 0.98, -2.28); socket_weight_rear_seats (0, 0.25, -1.05); socket_weight_sound_deadening (0, 0.3, -0.45); socket_supercharger (0, 0.92, 1.25); socket_radiator (0, 0.48, 2.1); socket_engine_swap (0, 0.38, 1.15); socket_shifter (0, 0.5, -0.15); socket_cage (0, 0.7, -0.6); socket_harness (0.419, 0.65, -0.7); socket_gauges (0.419, 1.07, 0.25); socket_strut_brace (0, 0.93, 1.42); socket_window_tint (0, 1.13, -0.525); socket_tyre_smoke (0, 0.05, -1.3); socket_underglow (0, 0.13, 0.06); socket_fog_lights (0, 0.25, 2.37); socket_widebody (0, 0.75, -1.3); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -382,6 +494,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.5 m long, 1.77 m wide (without mirrors) and 1.45 m tall, 0.15 m ground clearance; the belt line (the bottom of the side windows) about 0.95 m up, the bonnet 0.68 m up at the nose rising to 0.92 m at the windscreen's foot (z = 0.7), the roof 1.45 m up from z = 0.25 to -1.05, the boot lid 1 m up from z = -1.55 back to the tail. The wheel centres (exactly): front axle at z = 1.37, rear axle at z = -1.26, x = ±0.76, y = 0.322 — each wheel 0.643 m across: a 17" rim in a 235/45 R17 tyre (235 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "strada_evo".
@@ -415,10 +538,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.65, 1.28); socket_intake (0.244, 0.76, 1.28); socket_turbo (-0.264, 0.7, 1.28); socket_intercooler (0, 0.4, 2); socket_header (0.203, 0.55, 1.23); socket_ecu (0.305, 0.85, 0.64); socket_gearbox (0, 0.35, 0.48); socket_clutch (0, 0.4, 0.68); socket_flywheel (0, 0.4, 0.75); socket_differential (0, 0.322, -1.26); socket_suspension (0, 0.422, 0.055); socket_arb_front (0, 0.2, 1.37); socket_arb_rear (0, 0.2, -1.26); socket_brakes (0, 0.322, 0.055); socket_brake_pads (0, 0.322, 0.055); socket_spoiler (0, 1, -2.13); socket_weight_rear_seats (0, 0.29, -0.9); socket_weight_sound_deadening (0, 0.34, -0.3); socket_supercharger (0, 0.87, 1.38); socket_radiator (0, 0.5, 1.95); socket_engine_swap (0, 0.38, 1.28); socket_shifter (0, 0.54, 0); socket_cage (0, 0.74, -0.45); socket_harness (0.387, 0.69, -0.55); socket_gauges (0.387, 1.07, 0.4); socket_strut_brace (0, 0.93, 1.37); socket_window_tint (0, 1.2, -0.4); socket_tyre_smoke (0, 0.05, -1.26); socket_underglow (0, 0.15, 0.055); socket_fog_lights (0, 0.27, 2.22); socket_diff_front (0, 0.322, 1.32); socket_centre_diff (0, 0.3, 0.355); socket_rally_lights (0, 0.78, 1.95); socket_mud_flaps (0, 0.22, -1.72); socket_aero_kit (0, 0.15, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
@@ -441,6 +564,17 @@ The look:
 Size and stance (metres; the ground at y = 0): about 4.55 m long, 1.93 m wide (without mirrors) and 1.2 m tall, 0.1 m ground clearance; the belt line (the bottom of the side windows) about 0.82 m up, the bonnet 0.55 m up at the nose rising to 0.78 m at the windscreen's foot (z = 0.55), the roof 1.2 m up from z = 0.1 to -0.75, the tail deck 0.95 m up from z = -1.95 back to the tail. The wheel centres (exactly): front axle at z = 1.45, rear axle at z = -1.22, x = ±0.815, y = 0.347 — each wheel 0.694 m across: a 20" rim in a 265/35 R20 tyre (265 mm wide). The tyres' bottoms touch y = 0.
 
 Axes and units: metres at real size; +Y up; +Z is the front of the car; +X is the car's LEFT (as you sit in it), so −X is its right.
+
+How to model it so it looks real (this matters most — the car must not look blocky or like a toy):
+- Build every panel as a smooth surface, never from boxes, cylinders or extruded flat shapes: lay out the car's lines first (the side profile, the plan view and cross-sections every 10–15 cm along the car), then skin dense grids of vertices through them (at least 60 along and 30 across a big panel) with gentle curvature everywhere — no flat faces on the body. Subdivide (Catmull–Clark or equivalent) and keep the mesh even.
+- Real car surfaces: the sides curve in towards the roof (tumblehome) and are slightly convex; a crisp shoulder line runs from the headlight to the tail light; the wheel arches have rolled lips and a slight flare; the bonnet and roof are domed, not flat; the corners are rounded with radii of 5–30 cm, never sharp.
+- Every edge bevelled (2–5 mm), with a 4 mm shut line between each panel and the next, its edges turned in so the gap looks deep. Window glass sits in black rubber seals; a black-painted band (the frit) round the windscreen's edge.
+- Light units like real ones: a reflector bowl or projector in chrome behind a clear lens with thickness, the indicator and side lamps as separate shapes, LED strips or bulbs inside, the housing's black inner surround. The tail lights: red lens with depth, inner segments, the reversing light and indicator in their own sections.
+- Grilles and intakes as real mesh or slats with depth, black behind them (never a flat painted shape); a number plate (a fictional plate) recessed; tow hook cover, washer jets, door handles, key lock, fuel filler flap, wiper arms, a third brake light, aerials and badges as small separate shapes.
+- Wheels like a real one: the rim with its spokes shaped (tapered, with depth and draft), the outer lip, wheel nuts, the barrel behind, a ventilated brake disc behind the spokes (it turns with the wheel, so no caliper on it). The tyre only needs its right size and a rounded sidewall: the game draws its own tyres. The wheel arches lined in black, the suspension and underside visible behind the wheels.
+- Underneath: a flat-ish floor with the exhaust pipe running back, the fuel tank, suspension arms — dark, but there.
+- Inside, seen through the glass: a dashboard with real instrument dials, vents and a centre stack; door cards; seats with bolsters, seams and headrests; a gear lever and handbrake; a headlining and a rear-view mirror.
+- Check it as you go against how a real car would look from the front, side, rear and three-quarters, close up: if any part looks simplified, give it more detail.
 
 How the file is built — exactly this, because the game takes the car apart into its parts (in the garage every panel and part can be taken off, swapped and upgraded):
 1. One root node named "apex_v8".
@@ -474,10 +608,10 @@ The parts to model, each under its socket:
 The empty sockets (no mesh under them: for parts fitted in the game):
 socket_pistons (0, 0.57, -1.12); socket_intake (0.266, 0.68, -1.12); socket_turbo (-0.288, 0.62, -1.12); socket_intercooler (0, 0.35, -1.67); socket_header (0.222, 0.47, -1.02); socket_ecu (0.333, 0.72, 0.49); socket_gearbox (0, 0.47, -1.67); socket_clutch (0, 0.52, -1.47); socket_flywheel (0, 0.52, -1.4); socket_differential (0, 0.347, -1.22); socket_suspension (0, 0.447, 0.115); socket_arb_front (0, 0.15, 1.45); socket_arb_rear (0, 0.15, -1.22); socket_brakes (0, 0.347, 0.115); socket_brake_pads (0, 0.347, 0.115); socket_spoiler (0, 0.95, -2.155); socket_weight_rear_seats (0, 0.21, -0.8); socket_weight_sound_deadening (0, 0.26, -0.2); socket_supercharger (0, 0.815, -1.22); socket_radiator (0, 0.4, 1.925); socket_engine_swap (0, 0.3, -1.12); socket_shifter (0, 0.46, 0.1); socket_cage (0, 0.66, -0.35); socket_harness (0.421, 0.61, -0.45); socket_gauges (0.421, 0.94, 0.5); socket_strut_brace (0, 0.8, -1.22); socket_window_tint (0, 0.95, -0.325); socket_tyre_smoke (0, 0.05, -1.22); socket_underglow (0, 0.1, 0.115); socket_fog_lights (0, 0.22, 2.245); socket_aero_kit (0, 0.12, 0).
 
-Materials, named exactly: "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
+Materials, named exactly (glTF PBR: the paint glossy, the chrome mirror-like, the rubber and plastics rough): "paint" (every body-colour surface: body_shell, panels, mirror housings), "glass", "light_head", "light_tail", "rim_finish" (the wheels' faces), "rubber" (the tyres, and rubber seals), "seat_fabric" (seat cloth or leather), and for everything else the finishes "matte_black", "gloss_black", "chrome", "carbon", "raw_metal", "titanium" (trim, grilles, mesh, the engine, the interior plastics, exhausts). No textures are needed; if any, at most 1024×1024.
 
 Rules:
-- Under 36,000 triangles for the whole car, its parts included (about 40% body and glass, 30% the panels, 15% the wheel, 15% the interior and engine). Smooth shading on curved panels, with normals; sharp edges where panels meet.
+- Up to 135,000 triangles for the whole car, its parts included — use them: about 35% the body and glass, 30% the panels, 15% the wheel (with its tyre, disc and caliper), 10% the lights, 10% the interior and engine. Smooth shading on curved panels, with normals; crisp (bevelled) edges where panels meet.
 - Left and right mirror each other exactly (the left parts at +X, the right at −X).
 - Only meshes and empty nodes: no cameras, lights, animations, armatures or extra scenes. All transforms applied inside each part (scale 1); the socket empties keep their positions and the turns given.
 - Export as glTF Binary (.glb), +Y up.
