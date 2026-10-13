@@ -19,3 +19,4 @@ Garages are real drive-through buildings now; or pay for a tow
 Cars look better: glossy paint, real reflections and proper tyres
 Garages sit beside the road now; drive past or pull in
 Tap a garage on the map for a route there
+Garages have their own in and out driveways, and solid ground
