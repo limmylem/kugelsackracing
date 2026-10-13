@@ -996,7 +996,7 @@ Save it as lift_kit_[name].glb.
 ## A whole car
 
 ```text
-Make a low-poly 3D model of [the car] for a stylised racing game, 3–5.6 m long, 1.4–2.2 m wide and 1–2.1 m tall, standing on the ground (y = 0), under 40,000 triangles.
+Make a low-poly 3D model of [the car] for a stylised racing game, 3–5.6 m long, 1.4–2.2 m wide and 1–2.1 m tall, standing on the ground (y = 0), under 150,000 triangles.
 
 Axes: +Y up, the car's front towards +Z, its left (the driver's left as they sit in it) towards +X. Units: metres.
 Every part is its own mesh under an empty named for its socket: socket_wheel_FL, socket_wheel_FR, socket_wheel_RL, socket_wheel_RR, socket_bonnet, socket_boot, socket_bumper_front, socket_bumper_rear, socket_door_left, socket_door_right, socket_fender_FL, socket_fender_FR, socket_skirt_left, socket_skirt_right, socket_mirror_left, socket_mirror_right, socket_seat_driver, socket_seat_passenger, socket_steering_wheel, socket_engine, socket_intake, socket_turbo, socket_exhaust_tip, socket_spoiler. Each empty sits where its part attaches (see the part types for where that is). The wheel sockets are at each wheel's centre; the right-hand ones (socket_wheel_FR, socket_wheel_RR) are turned 180° round Y so their +X points out of the car, like the left ones.
