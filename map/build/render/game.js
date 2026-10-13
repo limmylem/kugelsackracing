@@ -15,6 +15,7 @@
 //   resetToRoad(w), travelTo(w, { lat, lon } | { xz }), toggleWorldMap(w), togglePerf(w)
 import { createWorldStream } from "./streamer.js";
 import { createWorldMaps } from "./maps.js";
+import { createMapDebug } from "./debug.js";
 export async function prepareTrack(track) {
     const manifest = await (await fetch(track.mapV3.manifest, { cache: 'no-cache' })).json();
     track.surfaces = manifest.surfaces;
@@ -97,6 +98,10 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
         .then(m => { w.maps = m; if (!w.shown)
         m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));
     w.shown = true;
+    // the debug views and the bad-spot logger (Shift+F3, Shift+F4, Shift+F2: map/render/debug.ts)
+    w.mapDebug = createMapDebug(w, { travelTo });
+    w.travel = (place) => travelTo(w, place);
+    globalThis.__mapDebug = w.mapDebug;
     return stream;
 }
 // where a place is (world frame): its neighbourhood and its city, from the manifest's places
@@ -249,9 +254,11 @@ export function realWorldFrame(w, shared, seconds) {
     if ((w.labelTimer = (w.labelTimer ?? 0) - seconds) <= 0) {
         w.labelTimer = 0.25;
         const dem = where.dem, [wx, wz] = S.toWorld(p.x, p.z), at = placeOf(w, wx, wz);
-        w.label.textContent = `Map v3 | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}`;
+        const M = S.manifest, v4 = M.map === 'v4';
+        w.label.textContent = `Map ${v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}`;
         w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
     }
+    w.mapDebug?.frame(seconds);
     // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
     // after the scene), as the frame profiler counted them (perf/profiler.js)
     const info = shared.renderer?.info;

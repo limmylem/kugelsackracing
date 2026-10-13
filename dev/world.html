@@ -46,7 +46,8 @@
       window.__trackDrive = null;
       drive();
     }
-  } else await enter(`scenes/${q.get('world') ?? 'test_centre'}.json`);
+  // (a baked region of the real world: ?world=map_v3&region=adelaide)
+  } else await enter(`scenes/${q.get('world') ?? 'test_centre'}.json${q.get('region') ? `?region=${q.get('region')}` : ''}`);
 </script>
 </body>
 </html>

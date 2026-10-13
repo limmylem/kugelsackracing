@@ -1,0 +1,197 @@
+{
+ "_note": "Known bad spots on the map (MAP_README.md, \"Bad spots\"): logged in the game with Shift+F4, replayed with Shift+F2, driven through by the regression test (npm run test:map -- --only badspots). Seeded from Map v4 Step 0 (MAP_V4_DIAGNOSIS.md).",
+ "spots": [
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.9905,
+   "lon": 138.6098,
+   "xz": [
+    438.23,
+    7543.92
+   ],
+   "bearing": 121,
+   "tile": "0_14",
+   "road": "Belair Road",
+   "note": "Belair Rd / Springbank Rd / Kays Rd: dual carriageway junction, ground showing between the fans, narrow carriageways (problems 1, 2, 5)",
+   "source": "owner screenshot",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.9915,
+   "lon": 138.61051,
+   "xz": [
+    503.05,
+    7654.86
+   ],
+   "bearing": 175,
+   "tile": "0_14",
+   "road": "Belair Road",
+   "note": "Belair Rd / Alton Ave: jagged junction edge, ground at the corner (2, 5)",
+   "source": "owner screenshot",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "sf",
+   "map": "v3",
+   "lat": 37.74693,
+   "lon": -122.4449565,
+   "xz": [
+    -657.17,
+    2727.05
+   ],
+   "bearing": 163,
+   "tile": "-2_5",
+   "road": "Portola Drive",
+   "note": "Portola Dr / Clipper St / Burnett Ave: junction cluster with holes and overlapping fans (2, 5)",
+   "source": "owner screenshot",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "sf",
+   "map": "v3",
+   "lat": 37.7938622,
+   "lon": -122.4382262,
+   "xz": [
+    -63.96,
+    -2482.03
+   ],
+   "bearing": 265,
+   "tile": "-1_-5",
+   "road": "Broadway",
+   "note": "Broadway / Pierce St on a hill: fan with grass wedges, ground through the road edges (2, 5)",
+   "source": "owner screenshot",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.916936,
+   "lon": 138.62794,
+   "xz": [
+    2096.26,
+    -617.02
+   ],
+   "bearing": null,
+   "tile": "4_-2",
+   "road": "Muller Street",
+   "note": "hole in the road surface away from a junction (2)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.949859,
+   "lon": 138.621448,
+   "xz": [
+    1502.42,
+    3035.31
+   ],
+   "bearing": null,
+   "tile": "2_5",
+   "road": "Kenilworth Road",
+   "note": "ground 18 cm above the road edge (2)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.9157,
+   "lon": 138.62,
+   "xz": [
+    1370.73,
+    -754.28
+   ],
+   "bearing": 90,
+   "tile": "2_-2",
+   "road": "Magill Road",
+   "note": "ground through the road at mid distance (terrain LOD 1) (2)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.942062,
+   "lon": 138.585692,
+   "xz": [
+    -1763.83,
+    2170.37
+   ],
+   "bearing": null,
+   "tile": "-4_4",
+   "road": "Greenhill Road",
+   "note": "two road surfaces 34 cm apart over one spot (5)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.908179,
+   "lon": 138.57432,
+   "xz": [
+    -2803.85,
+    -1588.33
+   ],
+   "bearing": null,
+   "tile": "-6_-4",
+   "road": null,
+   "note": "building collider over the road surface, Hindmarsh (3)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.905277,
+   "lon": 138.57475,
+   "xz": [
+    -2764.65,
+    -1910.28
+   ],
+   "bearing": null,
+   "tile": "-6_-4",
+   "road": null,
+   "note": "fence collider over the road surface, Hindmarsh (3)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.909439,
+   "lon": 138.612866,
+   "xz": [
+    718.86,
+    -1448.95
+   ],
+   "bearing": 169,
+   "tile": "1_-3",
+   "road": "Hackney Road",
+   "note": "trees through the bridge deck over the Torrens (4)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  },
+  {
+   "region": "adelaide",
+   "map": "v3",
+   "lat": -34.9238,
+   "lon": 138.5999,
+   "xz": [
+    -466,
+    144.23
+   ],
+   "bearing": 0,
+   "tile": "-1_0",
+   "road": "King William Street",
+   "note": "city boulevard one narrow lane wide; no street lights at night (1, 6)",
+   "source": "diagnoseV3",
+   "at": "2026-10-13"
+  }
+ ]
+}

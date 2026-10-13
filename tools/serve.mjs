@@ -6,8 +6,8 @@
 //   node tools/serve.mjs [port]      (npm start; default port 7690, all network interfaces like before)
 //   HOST=127.0.0.1 node tools/serve.mjs    to serve this machine only
 //
-// Writes are limited to data/cars/<car>/car.json, data/parts/<category>/<part>.json and
-// data/presets/<name>.json, must be valid JSON, and the previous version of a file is kept in
+// Writes are limited to data/cars/<car>/car.json, data/parts/<category>/<part>.json,
+// data/presets/<name>.json and data/map/known-bad-spots.json (the map's bad-spot logger, Shift+F4), must be valid JSON, and the previous version of a file is kept in
 // data/.backup/ (the newest 20 of each).
 
 import http from 'node:http';
@@ -23,7 +23,7 @@ const TYPES = {
   '.opus': 'audio/ogg', '.wav': 'audio/wav', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.wasm': 'application/wasm',
   '.pbf': 'application/x-protobuf', '.pmtiles': 'application/vnd.pmtiles', '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.ico': 'image/x-icon',
 };
-const WRITABLE = /^\/data\/(cars\/[a-z0-9_]+\/car|parts\/[a-z0-9_]+\/[a-z0-9_]+|presets\/[A-Za-z0-9][A-Za-z0-9 _.-]{0,60})\.json$/;
+const WRITABLE = /^\/data\/(cars\/[a-z0-9_]+\/car|parts\/[a-z0-9_]+\/[a-z0-9_]+|presets\/[A-Za-z0-9][A-Za-z0-9 _.-]{0,60}|map\/known-bad-spots)\.json$/;
 const local = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 
 const server = http.createServer(async (req, res) => {

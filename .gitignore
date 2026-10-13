@@ -35,3 +35,6 @@ devlog/**/*.mov
 devlog/**/*.mp3
 devlog/**/*.m4a
 devlog/**/*.wav
+
+# map screenshots and diagnosis runs (tools/map-shots.mjs, map/debug/diagnoseV3.ts)
+/output/

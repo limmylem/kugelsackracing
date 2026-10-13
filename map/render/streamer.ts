@@ -146,7 +146,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
   // ---------- physics: built a piece at a time ----------
   // the tile's colliders (world/tilePhysics.js), ground and roads first
   function physicsPieces(entry) {
-    const { pieces, ground } = tileColliders(entry.data, RAPIER, manifest.barriers);
+    const { pieces, ground } = tileColliders(entry.data, RAPIER, manifest.barriers, { treeShare: scenery });
+    entry.treeShare = scenery;
     entry.groundPieces = ground;
     return pieces;
   }
@@ -203,6 +204,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       if (d < reach) wantPhysics(e); else if (d > O.physicsDrop + speed * 2) dropPhysics(e);
       e.obj?.setDetail(distTo(e, wx, wz) / detailScale);
       if (e.obj && e.scenery !== scenery) { e.obj.setScenery?.(scenery); e.scenery = scenery; }
+      // (v4: tree trunks only for the trees drawn — the scenery changed, the tile's colliders made again)
+      if (e.physics && e.data?.header?.map === 'v4' && e.treeShare !== scenery) dropPhysics(e);
     }
     // a few milliseconds of colliders, the car's own tile and those ahead first
     physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));
