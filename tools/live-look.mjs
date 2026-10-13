@@ -11,12 +11,14 @@ for (const f of (opt('--files', '/editor/roads.js,/editor/markers3d.js,/testtrac
   const r = await fetch(`${GAME}${f}`, { redirect: 'manual' });
   console.log(`${f}: ${r.status} ${r.headers.get('content-type')} · ${r.headers.get('location') ?? ''} · cf-cache ${r.headers.get('cf-cache-status') ?? '-'} · ${(await r.text()).slice(0, 80).replace(/\s+/g, ' ')}`);
 }
-// Adelaide's map on the live addresses: the game's list of baked regions, and its manifest and a tile on the tiles' address
+// Adelaide's map on the live addresses: the game's list of baked regions, and the manifest it names (Map v4's) and a
+// tile on the tiles' address
 try {
   const tiles = opt('--tiles', 'https://tiles.ognistrada.com'), baked = await (await fetch(`${GAME}/data/map/baked.json`)).json();
-  const m = await (await fetch(`${tiles}/assets/map/adelaide/manifest.json`)).json(), t = m.tiles[Math.floor(m.tiles.length / 2)];
-  const r = await fetch(`${tiles}/assets/map/adelaide/tiles/${t.i}_${t.j}.m3t`, { headers: { Origin: GAME } });
-  console.log(`adelaide: in the game's regions ${baked.regions.some(x => x.id === 'adelaide') ? 'yes' : 'NO'} · manifest ${m.version}, ${m.tiles.length} tiles · tile ${t.i}_${t.j}: ${r.status}, ${(await r.arrayBuffer()).byteLength} bytes (${t.bytes} baked), CORS ${r.headers.get('access-control-allow-origin')}`);
+  const entry = baked.regions.find(x => x.id === 'adelaide'), dir = (entry?.manifest ?? 'assets/map/adelaide/manifest.json').replace(/\/manifest\.json$/, '');
+  const m = await (await fetch(`${tiles}/${dir}/manifest.json`)).json(), t = m.tiles[Math.floor(m.tiles.length / 2)];
+  const r = await fetch(`${tiles}/${dir}/tiles/${t.i}_${t.j}.m3t`, { headers: { Origin: GAME } });
+  console.log(`adelaide: in the game's regions ${entry ? 'yes' : 'NO'} · ${dir}/manifest.json ${m.version}${m.map ? ` (${m.map}${m.roadModel?.version ? `, roads ${m.roadModel.version}` : ''})` : ''}, ${m.tiles.length} tiles · tile ${t.i}_${t.j}: ${r.status}, ${(await r.arrayBuffer()).byteLength} bytes (${t.bytes} baked), CORS ${r.headers.get('access-control-allow-origin')}`);
 } catch (e) { console.log(`adelaide: couldn't check (${e.message})`); }
 // the quests' tiers as the live server prices them (its economy, as the database gives it back): a 2-star sprint with no
 // class rule is a Rookie quest, free to enter (the editor's own figure — the jsonb key order put class A first once)
