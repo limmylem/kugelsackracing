@@ -16,5 +16,6 @@ The garage fits properly in Safari
 Cars and parts load faster, and stay saved between visits
 Parts knocked off in a crash tumble in their real shape
 Garages are real drive-through buildings now; or pay for a tow
+Cars look better: glossy paint, real reflections and proper tyres
 Garages sit beside the road now; drive past or pull in
 Tap a garage on the map for a route there

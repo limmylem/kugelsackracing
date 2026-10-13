@@ -82,6 +82,10 @@ and splits it into the body and a model per stock part (`npm run build:car`).
 - Socket names are **exact** (case matters): the checker spots near misses (`socket_whel_FL`,
   `Socket_Mirror_Right`) and says what they should be.
 - The body's painted surfaces use `paint`; it must be there.
+- **Made in Claude Design**: [car_prompts.md](car_prompts.md) has a ready prompt for each car (`npm run car-prompts`
+  writes it from the cars' data: every socket, part and size exact). A wheel there is its rim and, round it, a tyre in
+  the `rubber` material (cut off by the split; the game draws its own tyres); a part may be a group of meshes, and
+  several meshes straight under one socket are gathered into one part.
 
 ## Generated parts
 
@@ -212,7 +216,7 @@ The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning
 | Wheelbase / track | 2–3.4 m / 1.1–1.9 m |
 | Wheel sockets | at each wheel's centre, 0.24–0.42 m up (the stock wheel's radius, give or take 1.5 cm) |
 | Left / right sockets | mirror each other to 1 cm |
-| Triangles | 25,000 for the whole car |
+| Triangles | 40,000 for the whole car |
 | Paint | the body's painted surfaces use the material `paint` |
 | Must have | `socket_wheel_FL`, `socket_wheel_FR`, `socket_wheel_RL`, `socket_wheel_RR` |
 | Should have | `socket_bonnet`, `socket_boot`, `socket_bumper_front`, `socket_bumper_rear`, `socket_door_left`, `socket_door_right`, `socket_fender_FL`, `socket_fender_FR`, `socket_skirt_left`, `socket_skirt_right`, `socket_mirror_left`, `socket_mirror_right`, `socket_seat_driver`, `socket_seat_passenger`, `socket_steering_wheel`, `socket_engine`, `socket_intake`, `socket_turbo`, `socket_exhaust_tip`, `socket_spoiler` |
