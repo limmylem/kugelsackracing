@@ -417,6 +417,41 @@ async function streamingTest() {
     report('streaming', 'the ground carved under something built, and put back', Math.abs(after - (before - 1.15)) < 0.01 && back === before && (!onTerrain || (Math.abs(hitAfter - after) < 0.05 && Math.abs(hitBack - before) < 0.05)),
       `the heightfield there ${before.toFixed(2)} → ${after.toFixed(2)} → ${back.toFixed(2)} m${onTerrain ? `; the physics' ground ${hitBefore.toFixed(2)} → ${hitAfter?.toFixed(2)} → ${hitBack?.toFixed(2)} m` : ' (a road over it there: the physics\' ground not checked)'}`);
   }
+  // …and a tree and a car park inside a carving: neither solid there (they're not drawn there either), both back after
+  {
+    const e: any = [...S.tiles.values()].find((e: any) => e.physics && e.basePieces && e.added >= e.pieces.length && e.basePieces.some((p: any) => p.userData?.material === 'wood') && e.data.meshes.paved);
+    if (!e) report('streaming', 'a tree and a car park in a carving', false, 'no tile near the start with both, its collision all in');
+    else {
+      const tc = [(e.i + 0.5) * T, (e.j + 0.5) * T], tree = e.basePieces.find((p: any) => p.userData?.material === 'wood').desc.translation;
+      const square = (x: number, z: number, r: number) => [[[x - r, z - r], [x + r, z - r], [x + r, z + r], [x - r, z + r]]];
+      const top = (x: number, z: number) => { const [px, pz] = S.toSim(x, z); return S.groundBelow(px, pz, 900, 2000); };
+      const ground = (x: number, z: number) => { const [px, pz] = S.toSim(x, z); return S.heightAt(px, pz); };
+      // (a piece of car park with nothing over it, in any tile whose collision is all in)
+      let park: number[] | null = null;
+      for (const q of [...S.tiles.values()] as any[]) {
+        if (park || !q.physics || q.added < (q.pieces?.length ?? Infinity) || !q.data.meshes.paved) continue;
+        const pv = q.data.meshes.paved, I = pv.indices, Pp = pv.positions, qc = [(q.i + 0.5) * T, (q.j + 0.5) * T];
+        for (let n = 0; n + 2 < I.length && !park; n += 3) {
+          const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3, area = Math.abs((Pp[b] - Pp[a]) * (Pp[c + 2] - Pp[a + 2]) - (Pp[c] - Pp[a]) * (Pp[b + 2] - Pp[a + 2])) / 2;
+          if (area < 0.3) continue;
+          const x = qc[0] + (Pp[a] + Pp[b] + Pp[c]) / 3, z = qc[1] + (Pp[a + 2] + Pp[b + 2] + Pp[c + 2]) / 3, y = (Pp[a + 1] + Pp[b + 1] + Pp[c + 1]) / 3, t = top(x, z);
+          if (t != null && Math.abs(t - y) < 0.05) park = [x, z, y];
+        }
+      }
+      const [tx, tz] = [tc[0] + tree.x, tc[1] + tree.z], treeBefore = top(tx, tz), treeGround = ground(tx, tz)!;
+      S.carve('test-tree', { polys: square(tx, tz, 2), below: () => treeGround });
+      if (park) S.carve('test-park', { polys: square(park[0], park[1], 1), below: () => park![2] - 0.5 });
+      await step(sx, sz, 0, 0);
+      const treeIn = top(tx, tz), parkIn = park ? top(park[0], park[1]) : null;
+      S.carve('test-tree', null); S.carve('test-park', null);
+      await step(sx, sz, 0, 0);
+      const treeBack = top(tx, tz), parkBack = park ? top(park[0], park[1]) : null;
+      const okTree = treeBefore != null && treeBefore > treeGround + 1 && treeIn != null && treeIn < treeGround + 0.1 && Math.abs(treeBack! - treeBefore) < 0.01;
+      const okPark = !park || (parkIn! < park[2] - 0.5 && Math.abs(parkBack! - park[2]) < 0.03);
+      report('streaming', 'a tree and a car park in a carving: not solid there, back after', okTree && okPark,
+        `a tree's trunk top ${treeBefore?.toFixed(2)} → ${treeIn?.toFixed(2)} (the ground ${treeGround.toFixed(2)}) → ${treeBack?.toFixed(2)} m${park ? `; a car park ${park[2].toFixed(2)} → ${parkIn?.toFixed(2)} → ${parkBack?.toFixed(2)} m` : ' (no car park found near the start)'}`);
+    }
+  }
   const gc = (globalThis as any).gc ?? (() => {}), mem: any[] = [];
   let notReady = 0, falls = 0, worstAhead = Infinity, maxTiles = 0, maxColliders = 0, frames = 0;
   const seen = new Set<string>();

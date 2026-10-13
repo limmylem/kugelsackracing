@@ -32,7 +32,14 @@ function world({ heading = 0, grade = 0, curve = 0, bank = 0 }) {
   physics.step();
   // (the height of what the car stands on over the road's plane, at a place in the garage's frame: x right, z back)
   const above = (lx, lz) => { const x = rx * lx - fx * lz, z = rz * lx - fz * lz, hit = physics.castRay(new RAPIER.Ray({ x, y: alt + 40, z }, { x: 0, y: -1, z: 0 }), 100, true); return hit ? alt + 40 - hit.timeOfImpact - plane(x, z) : null; };
-  return { G, above, carved, mid };
+  // (anything solid along a line in the garage's frame, from a to b, h m over what's driven on there)
+  const blocked = (a, b, h) => {
+    const at = (lx, lz) => [rx * lx - fx * lz, rz * lx - fz * lz], [x0, z0] = at(a[0], a[1]), [x1, z1] = at(b[0], b[1]);
+    const y0 = alt + (above(a[0], a[1]) ?? 0) + h, y1 = alt + (above(b[0], b[1]) ?? 0) + h, d = { x: x1 - x0, y: y1 - y0, z: z1 - z0 }, len = Math.hypot(d.x, d.y, d.z);
+    const hit = physics.castRay(new RAPIER.Ray({ x: x0, y: y0, z: z0 }, { x: d.x / len, y: d.y / len, z: d.z / len }), len, true);
+    return hit ? { at: [a[0] + (b[0] - a[0]) * hit.timeOfImpact / len, a[1] + (b[1] - a[1]) * hit.timeOfImpact / len] } : null;
+  };
+  return { G, above, carved, mid, blocked };
 }
 
 for (const [heading, grade] of [[0, 0], [90, 0.2], [200, -0.08]]) {
@@ -81,10 +88,27 @@ test('a bank beside the road: set into the ground — its outline carved, a reta
   assert.ok(G.fit.quality.cut > 0.5, `ground cut away: ${G.fit.quality.cut}`);
   assert.equal(carved.size, 1, 'its outline handed to the stream');
   const c = [...carved.values()][0];
-  assert.equal(c.polys.length, 3, 'the forecourt and both driveways');
+  assert.equal(c.polys.length, 5, 'both driveways, the lane, the verge between them and the forecourt');
+  assert.deepEqual(c.surfaces, ['tarmac', 'tarmac', 'tarmac', 'grass', 'concrete'], 'tarmac driveways and lane, a grass verge, a concrete forecourt');
   assert.ok(Math.abs(c.below(SIDE, 0) - (100 + G.fit.floorY + 0.04)) < 0.1, `the surface under the canopy: ${c.below(SIDE, 0)}`);
   assert.ok(G.group.getObjectByProperty('type', 'Mesh') && G.group.children.some(g => g.children?.some(m => m.material?.color?.getHex() === 0xa3a29c)), 'a retaining wall');
   assert.ok(above(SIDE, 0) != null, 'still solid under the canopy');
   G.dispose();
   assert.equal(carved.size, 0, 'taken away again when it goes');
 });
+
+test('a bank beside the road: the driving lines in and out are clear — nothing solid at bumper height from the road, round the inside of each curve, through the lane and out', () => {
+  const { G, blocked } = world({ bank: 0.8 });
+  const lines = [];
+  for (const u of [0.5, 0.99]) {   // (the middle, and hugging the inside of the curve: a car's side at its edge)
+    const IN = G.fit.driveways.find(d => d.zs > 0).rows, OUT = G.fit.driveways.find(d => d.zs < 0).rows;
+    const along = rows => rows.map(r => [r.a[0] + (r.b[0] - r.a[0]) * u, r.a[2] + (r.b[2] - r.a[2]) * u]);
+    const lane = []; for (let z = 8; z >= -8; z -= 1) lane.push([SIDE, z]);
+    lines.push([u, [...along(IN), ...lane, ...along(OUT).reverse()]]);
+  }
+  for (const [u, pts] of lines) for (const h of [0.2, 0.45]) for (let k = 0; k + 1 < pts.length; k++) {
+    const b = blocked(pts[k], pts[k + 1], h);
+    assert.equal(b, null, `the ${u === 0.5 ? 'middle' : 'inside'} line, ${h} m up: something solid at ${b?.at.map(v => v.toFixed(1))}`);
+  }
+});
+

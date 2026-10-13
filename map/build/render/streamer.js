@@ -13,9 +13,12 @@
 //   each frame: W.update(carPosition (sim), velocity, dt) → { shifted: [tx, 0, tz] | null }
 //   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z), W.placeOnGround(x, z, yFrom), W.where(x, z)
 //   W.status (for the overlay), W.toWorld / W.toSim
-//   W.carve(id, { polys: [[[x, z], …], …] (the map's frame), below(x, z) → the built surface's height there } | null):
-//   something built set into the ground (a garage — play/garageBuilding.js): the drawn ground left out inside its
-//   outlines (objects.ts ground holes) and the physics' ground lowered under it, in the tiles in now and as they load
+//   W.carve(id, { polys: [[[x, z], …], …] (the map's frame), below(x, z) → the built surface's height there,
+//   surfaces: [a surface's name for each outline] } | null): something built set into the ground (a garage —
+//   play/garageBuilding.js): inside its outlines the drawn ground, cover and car parks are left out (objects.ts ground
+//   holes); the physics' ground is lowered under it and the car parks', paths' and cover's collision taken out there
+//   (roads kept: what's built joins them), and trees and railings standing in it (neither drawn nor solid), in the tiles
+//   in now and as they load; and the tyres' surface there is its own
 //
 // Headless (the streaming tests, in Node): options { headless: true, manifest, loadTile(key, url) →
 // Promise<the worker's message>, now() } — the same planning and physics, nothing drawn, no workers,
@@ -182,19 +185,133 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         }
         return true;
     }
-    // (its heightfield collider, if made already: made again from the heights now)
-    function refreshGround(e) {
-        const hf = e.data?.heightfield;
-        if (!hf || !e.physics || !(e.added > 0) || !sim.replaceInStatic)
-            return;
-        sim.replaceInStatic(e.physics, 0, { desc: RAPIER.ColliderDesc.heightfield(hf.n, hf.n, hf.heights, { x: hf.size, y: 1, z: hf.size }), userData: { material: 'ground' } });
+    // (a tile's car parks, paths and cover — collision on top of the ground — less their triangles touching a carving's
+    // outline: what's built there is driven on instead (they're not drawn there either). Roads are kept. In
+    // tileColliders' order: the heightfield, then these.)
+    const GROUND_MESHES = ['roads', 'paved', 'paths', 'cover'], CARVED_MESHES = new Set(['paved', 'paths', 'cover']);
+    const groundOrder = d => { const out = []; let k = d.heightfield ? 1 : 0; for (const n of GROUND_MESHES)
+        if (d.meshes[n])
+            out.push([n, k++]); return out; };
+    const insidePoly = (poly, x, z) => { let c = false; for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++]) {
+        const b = poly[k];
+        if ((b[1] > z) !== (a[1] > z) && x < (a[0] - b[0]) * (z - b[1]) / (a[1] - b[1]) + b[0])
+            c = !c;
+    } return c; };
+    const crosses = (ax, az, bx, bz, cx, cz, dx, dz) => { const d1 = (dx - cx) * (az - cz) - (dz - cz) * (ax - cx), d2 = (dx - cx) * (bz - cz) - (dz - cz) * (bx - cx), d3 = (bx - ax) * (cz - az) - (bz - az) * (cx - ax), d4 = (bx - ax) * (dz - az) - (bz - az) * (dx - ax); return d1 * d2 < 0 && d3 * d4 < 0; };
+    const touchesPoly = (xs, zs, poly) => {
+        for (let q = 0; q < 3; q++)
+            if (insidePoly(poly, xs[q], zs[q]))
+                return true;
+        if (insidePoly(poly, (xs[0] + xs[1] + xs[2]) / 3, (zs[0] + zs[1] + zs[2]) / 3))
+            return true;
+        for (const [px, pz] of poly)
+            if (insidePoly([[xs[0], zs[0]], [xs[1], zs[1]], [xs[2], zs[2]]], px, pz))
+                return true;
+        for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++])
+            for (let q = 0; q < 3; q++)
+                if (crosses(a[0], a[1], poly[k][0], poly[k][1], xs[q], zs[q], xs[(q + 1) % 3], zs[(q + 1) % 3]))
+                    return true;
+        return false;
+    };
+    function carvedMesh(e, name) {
+        const m = e.data.meshes[name], on = [...carvings.values()].filter(c => touches(c, e));
+        if (!on.length)
+            return null;
+        const cx = (e.i + 0.5) * T, cz = (e.j + 0.5) * T, Pp = m.positions, I = m.indices, keep = [];
+        let dropped = 0;
+        for (let n = 0; n + 2 < I.length; n += 3) {
+            const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3, xs = [Pp[a] + cx, Pp[b] + cx, Pp[c] + cx], zs = [Pp[a + 2] + cz, Pp[b + 2] + cz, Pp[c + 2] + cz];
+            const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+            if (on.some(cv => x1 >= cv.box[0] && x0 <= cv.box[2] && z1 >= cv.box[1] && z0 <= cv.box[3] && cv.polys.some(p => touchesPoly(xs, zs, p))))
+                dropped++;
+            else
+                keep.push(I[n], I[n + 1], I[n + 2]);
+        }
+        if (!dropped)
+            return null;
+        // (none left: one triangle far under the world — a trimesh can't be empty)
+        return keep.length ? { desc: RAPIER.ColliderDesc.trimesh(Pp, new Uint32Array(keep)), userData: { material: 'ground' } } : { desc: RAPIER.ColliderDesc.trimesh(new Float32Array([0, -9000, 0, 1, -9000, 0, 0, -9000, 1]), new Uint32Array([0, 1, 2])), userData: { material: 'ground' } };
     }
+    // (a tile's ground pieces as the carvings now have them: the heightfield and the carved meshes)
+    function groundPiecesNow(e) {
+        const d = e.data, out = [], hf = d.heightfield;
+        if (hf)
+            out.push([0, { desc: RAPIER.ColliderDesc.heightfield(hf.n, hf.n, hf.heights, { x: hf.size, y: 1, z: hf.size }), userData: { material: 'ground' } }]);
+        for (const [name, k] of groundOrder(d)) {
+            if (!CARVED_MESHES.has(name))
+                continue;
+            const cut = carvedMesh(e, name);
+            if (cut) {
+                e.carvedMeshes = (e.carvedMeshes ?? new Set()).add(name);
+                out.push([k, cut]);
+            }
+            else if (e.carvedMeshes?.has(name)) {
+                e.carvedMeshes.delete(name);
+                const m = d.meshes[name];
+                out.push([k, { desc: RAPIER.ColliderDesc.trimesh(m.positions, m.indices), userData: { material: 'ground' } }]);
+            }
+        }
+        return out;
+    }
+    // (a tile's trees and railings standing inside a carving: their collision swapped for nothing — they're not drawn there
+    // either — and back when it goes. Buildings are kept.)
+    const hiddenPiece = () => ({ desc: RAPIER.ColliderDesc.ball(0.05).setTranslation(0, -9000, 0), userData: {} });
+    const standsIn = (e, piece) => {
+        const t = piece.desc.translation, x = t.x + (e.i + 0.5) * T, z = t.z + (e.j + 0.5) * T;
+        for (const c of carvings.values())
+            if (x >= c.box[0] && x <= c.box[2] && z >= c.box[1] && z <= c.box[3] && c.polys.some(p => insidePoly(p, x, z)))
+                return true;
+        return false;
+    };
+    function standingNow(e) {
+        const out = [], base = e.basePieces;
+        if (!base)
+            return out;
+        e.hiddenPieces ??= new Set();
+        for (let k = e.groundPieces; k < base.length; k++) {
+            if (base[k]?.userData?.sound === 'building' || !base[k]?.desc?.translation)
+                continue;
+            const hide = carvings.size > 0 && standsIn(e, base[k]);
+            if (hide === e.hiddenPieces.has(k))
+                continue;
+            if (hide)
+                e.hiddenPieces.add(k);
+            else
+                e.hiddenPieces.delete(k);
+            out.push([k, hide ? hiddenPiece() : base[k]]);
+        }
+        return out;
+    }
+    // (its colliders, made already or still to come: made again as the carvings now have them)
+    function refreshGround(e) {
+        if (!e.data || !e.physics)
+            return;
+        for (const [k, piece] of [...groundPiecesNow(e), ...standingNow(e)]) {
+            if (k < (e.added ?? 0)) {
+                if (sim.replaceInStatic)
+                    sim.replaceInStatic(e.physics, k, piece);
+            }
+            else if (e.pieces?.[k])
+                e.pieces[k] = piece;
+        }
+    }
+    // (the tyres' surface inside a carving: its own)
+    const carvedSurface = (wx, wz) => {
+        for (const c of carvings.values()) {
+            if (wx < c.box[0] || wx > c.box[2] || wz < c.box[1] || wz > c.box[3])
+                continue;
+            for (let k = 0; k < c.polys.length; k++)
+                if (c.surfaces[k] && insidePoly(c.polys[k], wx, wz))
+                    return surfaces.find(s => s.name === c.surfaces[k]) ?? null;
+        }
+        return null;
+    };
     const pushHoles = () => { if (!O.headless)
         setGroundHoles(me, [...carvings.values()].flatMap(c => c.polys), origin); };
     function carve(id, c) {
         const before = carvings.get(id);
         if (c?.polys?.length)
-            carvings.set(id, { polys: c.polys, below: c.below, box: boxOf(c.polys) });
+            carvings.set(id, { polys: c.polys, below: c.below, surfaces: c.surfaces ?? [], box: boxOf(c.polys) });
         else
             carvings.delete(id);
         const now = carvings.get(id);
@@ -249,6 +366,16 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     function physicsPieces(entry) {
         const { pieces, ground } = tileColliders(entry.data, RAPIER, manifest.barriers);
         entry.groundPieces = ground;
+        // (the ground as the carvings have it: the heightfield's already lowered; car parks, paths and cover cut)
+        entry.carvedMeshes = null;
+        entry.basePieces = pieces.slice();
+        entry.hiddenPieces = new Set();
+        for (const [k, piece] of groundPiecesNow(entry))
+            if (k > 0 || !entry.data.heightfield)
+                pieces[k] = piece;
+        // (and its trees and railings: none standing inside a carving)
+        for (const [k, piece] of standingNow(entry))
+            pieces[k] = piece;
         return pieces;
     }
     function wantPhysics(entry) {
@@ -268,6 +395,9 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         entry.physics = null;
         entry.pieces = null;
         entry.added = 0;
+        entry.basePieces = null;
+        entry.hiddenPieces = null;
+        entry.carvedMeshes = null;
         physicsQueue = physicsQueue.filter(e => e !== entry);
     }
     const groundReady = entry => !!entry?.physics && entry.added >= entry.groundPieces;
@@ -407,7 +537,10 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         },
         // tyre grip there: { name, grip, rollingResistance, … }
         surfaceAt(x, z) {
-            const wx = x + origin[0], wz = z + origin[1], e = entryAt(wx, wz), G = e?.data?.grids.surface;
+            const wx = x + origin[0], wz = z + origin[1], carved = carvings.size ? carvedSurface(wx, wz) : null;
+            if (carved)
+                return carved;
+            const e = entryAt(wx, wz), G = e?.data?.grids.surface;
             if (!G)
                 return surfaces[0];
             const lx = wx - (e.i * T), lz = wz - (e.j * T), c = Math.min(G.n - 1, Math.max(0, Math.floor(lx / G.cell))), r = Math.min(G.n - 1, Math.max(0, Math.floor(lz / G.cell)));

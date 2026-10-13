@@ -14,11 +14,15 @@
 > height (from 0.3 m under the road's level to just over it); each driveway leaves the road's edge running along it, on
 > the road's own surface, rises smoothly (over the road's own slope) to the forecourt's level by the time it reaches the
 > forecourt and runs into the lane at the lane's width — of a few ways of laying them, the gentlest kept — in the roads'
-> own asphalt. **It's set into the ground** (`map/render/streamer.ts` `carve`): inside its outlines the drawn ground,
-> grass cover and car parks aren't drawn (`map/render/objects.ts` ground holes) and the physics' ground (the tiles'
-> heightfields, as they are and as they load) is lowered under it; where a bank stands higher, a concrete retaining wall
-> (solid) runs up to it; where the ground falls away, the forecourt's and driveways' sides go down to it. Everything the
-> car meets is solid. Driving through under the canopy opens your garage; leaving it you come out on the road beside the
+> own asphalt. Between the driveways along the road is a flat grass verge at the garage's level with a low kerb (and the
+> tall sign, out of every driving line). **It's set into the ground** (`map/render/streamer.ts` `carve`): inside its
+> outlines the drawn ground, grass cover and car parks aren't drawn (`map/render/objects.ts` ground holes), nor any tree
+> or railing standing there; the physics' ground (the tiles' heightfields, as they are and as they load) is lowered under
+> it, and the car parks', paths', cover's, trees' and railings' collision taken out there (roads kept; put back when the
+> garage goes); the tyres find tarmac on the driveways and lane, concrete on the forecourt, grass on the verge. Where the
+> ground just outside the garage stands higher, a concrete retaining wall (solid, with a ledge behind it at the ground's
+> height) runs up to it; where the ground falls away, the forecourt's and driveways' sides go down to it. Nothing solid
+> stands in a driving line that isn't drawn (`tests/unit/garage-building.test.mjs` drives them). Driving through under the canopy opens your garage; leaving it you come out on the road beside the
 > OUT driveway. A garage's card on the map has **Route** for the way there; the editor's garage panel says how well it
 > fits where it is (how much ground is cut away or filled, how steep the driveways get). There's no garage button any
 > more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow (`data/economy.json`

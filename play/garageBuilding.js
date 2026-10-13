@@ -32,7 +32,7 @@ const LANE_END = CANOPY.halfLength + 2;
 // (in the building's frame — x from the lane's middle, y from its floor; the road's edge is about SIDE − 5 to its left):
 // the forecourt from a little off the road to behind the workshop, the workshop, the tall sign at its road side
 const COURT = { x0: -LANE.halfWidth - 1.2, x1: 19, z0: -16, z1: 16 };
-const SHOP = { x0: 8.2, x1: 18, z0: -9, z1: 7.5, h: 6.2 }, SIGN = { x: COURT.x0 + 0.7, z: -7.6, h: 8, half: 2.3 };
+const SHOP = { x0: 8.2, x1: 18, z0: -9, z1: 7.5, h: 6.2 }, SIGN = { x: 5.8, h: 8, half: 2.3 };   // (the sign: on the verge between the driveways — x from the road's middle)
 // (the driveways: their far edges leave the road this far past the lane's ends, their near edges this far)
 const DRIVE = { far: 15, near: 6.5, steps: 40 };
 const EXIT_M = 18, OUT_X = 2.5;    // (out of the garage before it's fitted: on the road by the way out, in its lane)
@@ -165,10 +165,11 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
     light: material(0xffffff, { emissive: 0xfff4dc, emissiveIntensity: 1.6, roughness: 0.3 }),
     drive: asphalt({ side: THREE.DoubleSide }), line: material(0xf1f2f4, { roughness: 0.5, side: THREE.DoubleSide }),
     retaining: material(0xa3a29c, { roughness: 0.95, side: THREE.DoubleSide }),
+    verge: (() => { const m = new THREE.MeshLambertMaterial({ color: '#6f8f4e', flatShading: true }); disposables.push(m); return m; })(), kerb: material(0xb9bcc0, { roughness: 0.9, side: THREE.DoubleSide }),
   };
   const BOX = new THREE.BoxGeometry(1, 1, 1); disposables.push(BOX);
   const box = (m, x0, y0, z0, x1, y1, z1, parent = B) => { const o = new THREE.Mesh(BOX, m); o.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); o.scale.set(x1 - x0, y1 - y0, z1 - z0); o.castShadow = true; o.receiveShadow = true; parent.add(o); return o; };
-  const plane = (tex, w, hgt, x, y, z, yaw) => { const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }); disposables.push(m, tex); const o = new THREE.Mesh(new THREE.PlaneGeometry(w, hgt), m); disposables.push(o.geometry); o.position.set(x, y, z); o.rotation.y = yaw; B.add(o); return o; };
+  const plane = (tex, w, hgt, x, y, z, yaw, parent = B) => { const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }); disposables.push(m, tex); const o = new THREE.Mesh(new THREE.PlaneGeometry(w, hgt), m); disposables.push(o.geometry); o.position.set(x, y, z); o.rotation.y = yaw; parent.add(o); return o; };
   // (a painted arrow at x, y, z pointing at angle a — 0 is local −z, the way through)
   const arrow = (parent, x, y, z, a) => {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = -a; parent.add(g);
@@ -204,12 +205,14 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
   }
   box(M.glass, SHOP.x0 - 0.06, 0.9, 2.2, SHOP.x0, 3.4, 6.6);
   plane(signTexture(THREE, 'GARAGE', { w: 768, h: 192, sub: 'REPAIRS · PARTS · TUNING' }), 7, 1.75, SHOP.x0 - 0.12, SHOP.h - 2.1, 0.5, -Math.PI / 2);
-  // the tall sign by the road: both faces
-  box(M.post, SIGN.x - 0.2, 0, SIGN.z - 0.2, SIGN.x + 0.2, SIGN.h - 2.4, SIGN.z + 0.2);
-  box(M.blue, SIGN.x - SIGN.half, SIGN.h - 2.6, SIGN.z - 0.18, SIGN.x + SIGN.half, SIGN.h, SIGN.z + 0.18);
+  // the tall sign by the road, on the verge between the driveways (out of every driving line), facing along the road both
+  // ways (placed on the verge's middle when fitted)
+  const signG = new THREE.Group(); signG.position.x = SIGN.x; group.add(signG);
+  box(M.post, -0.2, 0, -0.2, 0.2, SIGN.h - 2.4, 0.2, signG);
+  box(M.blue, -SIGN.half, SIGN.h - 2.6, -0.18, SIGN.half, SIGN.h, 0.18, signG);
   const pole = () => signTexture(THREE, 'GARAGE', { w: 720, h: 400, sub: 'DRIVE THROUGH' });
-  plane(pole(), SIGN.half * 2 - 0.1, 2.5, SIGN.x, SIGN.h - 1.3, SIGN.z - 0.2, Math.PI);
-  plane(pole(), SIGN.half * 2 - 0.1, 2.5, SIGN.x, SIGN.h - 1.3, SIGN.z + 0.2, 0);
+  plane(pole(), SIGN.half * 2 - 0.1, 2.5, 0, SIGN.h - 1.3, -0.2, Math.PI, signG);
+  plane(pole(), SIGN.half * 2 - 0.1, 2.5, 0, SIGN.h - 1.3, 0.2, 0, signG);
   S.world.add(group);
 
   // the driveways, from the fit: asphalt between their edges (a skirt down each side, for where the ground falls away),
@@ -244,37 +247,76 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
   function carveIn(road, terrain) {
     const cp = Math.cos(fit.pitch), sp = Math.sin(fit.pitch);
     const lean = (xb, yb, zb) => { const y = fit.floorY + yb; return [SIDE + xb, y * cp - zb * sp, y * sp + zb * cp]; };
+    const courtX = SIDE + COURT.x0, courtTop = z => (fit.floorY + 0.04) * cp - (z / cp) * sp;
     const court = [[COURT.x0, COURT.z0], [COURT.x1, COURT.z0], [COURT.x1, COURT.z1], [COURT.x0, COURT.z1]].map(([x, z]) => { const p = lean(x, 0.04, z); return [p[0], p[2]]; });
     const ribbons = fit.driveways.map(({ rows }) => { const k = rows.filter((_, i) => i % 2 === 0 || i === rows.length - 1); return [...k.map(r => [r.a[0], r.a[2]]), ...k.reverse().map(r => [r.b[0], r.b[2]])]; });
-    const polys = [court, ...ribbons];
-    // (the surface's height near a place: the nearest of the forecourt's and driveways' points — garage frame)
+    const lane = [[-LANE.halfWidth, -LANE_END], [LANE.halfWidth, -LANE_END], [LANE.halfWidth, LANE_END], [-LANE.halfWidth, LANE_END]].map(([x, z]) => { const p = lean(x, 0.06, z); return [p[0], p[2]]; });
+    // the verge: between the driveways along the road — from the road's edge to the forecourt, between their near edges —
+    // flat grass at the garage's level with a kerb round it (no bank left there for the driving line to run into)
+    const nearTo = rows => { const out = []; for (let k = 0; k < rows.length; k++) { const p = rows[k].b; if (p[0] >= courtX) { const q = rows[k - 1].b, t = (courtX - q[0]) / (p[0] - q[0]); out.push([courtX, q[2] + (p[2] - q[2]) * t]); break; } out.push([p[0], p[2]]); } return out; };
+    const inNear = nearTo(fit.driveways.find(d => d.zs > 0).rows), outNear = nearTo(fit.driveways.find(d => d.zs < 0).rows), roadSide = [];
+    for (let z = Math.floor(inNear[0][1]); z > outNear[0][1]; z--) roadSide.push([fit.edge(z).x - 0.05, z]);
+    const verge = [...inNear.slice().reverse(), ...roadSide, ...outNear];
+    const vergeY = (x, z) => { const e = fit.edge(z), f = Math.max(0, Math.min(1, (x - e.x) / Math.max(0.5, courtX - e.x))); return e.y + (courtTop(z) - e.y) * f + 0.1; };
+    // (the driveways, the lane, the verge: tarmac, tarmac, grass; the forecourt concrete — what the tyres find there: the
+    // first outline a place is in)
+    const polys = [...ribbons, lane, verge, court], surfaces = [...ribbons.map(() => 'tarmac'), 'tarmac', 'grass', 'concrete'];
+    // (the surface's height near a place: the nearest of the forecourt's, driveways' and verge's points — garage frame)
     const samples = [];
     for (let xb = COURT.x0; xb <= COURT.x1 + 1e-9; xb += 1.5) for (let zb = COURT.z0; zb <= COURT.z1 + 1e-9; zb += 1.5) samples.push(lean(xb, 0.04, zb));
     for (const { rows } of fit.driveways) for (const r of rows) for (const u of [0, 0.5, 1]) samples.push([0, 1, 2].map(i => r.a[i] + (r.b[i] - r.a[i]) * u));
+    for (const [x, z] of verge) samples.push([x, vergeY(x, z), z]);
     const surface = (x, z) => { let best = null, bd = Infinity; for (const p of samples) { const d = (p[0] - x) ** 2 + (p[2] - z) ** 2; if (d < bd) { bd = d; best = p[1]; } } return best; };
     const inside = (poly, x, z) => { let c = false; for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++]) { const b = poly[k]; if ((b[1] > z) !== (a[1] > z) && x < (a[0] - b[0]) * (z - b[1]) / (a[1] - b[1]) + b[0]) c = !c; } return c; };
-    // the retaining walls (the ground as baked: before it's carved)
+    const inGarage = (x, z) => road(x, z) != null || polys.some(p => inside(p, x, z));
+
+    // the verge: grass on top, a concrete kerb down its sides; solid (a kerb a car climbs)
+    const contour = verge.map(([x, z]) => new THREE.Vector2(x, z)), tris = THREE.ShapeUtils.triangulateShape(contour, []);
+    const vpos = [], vidx = [];
+    verge.forEach(([x, z]) => vpos.push(x, vergeY(x, z), z));
+    for (const t of tris) vidx.push(...t);
+    const vg = new THREE.BufferGeometry(); vg.setAttribute('position', new THREE.Float32BufferAttribute(vpos, 3)); vg.setIndex(vidx); vg.computeVertexNormals(); disposables.push(vg);
+    const vm = new THREE.Mesh(vg, M.verge); vm.receiveShadow = true; D.add(vm);
+    const kpos = [], kidx = [];
+    verge.forEach(([x, z], k) => { const [x2, z2] = verge[(k + 1) % verge.length], q = kpos.length / 3; kpos.push(x, vergeY(x, z), z, x, vergeY(x, z) - 0.3, z, x2, vergeY(x2, z2), z2, x2, vergeY(x2, z2) - 0.3, z2); kidx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); });
+    const kg = new THREE.BufferGeometry(); kg.setAttribute('position', new THREE.Float32BufferAttribute(kpos, 3)); kg.setIndex(kidx); kg.computeVertexNormals(); disposables.push(kg);
+    D.add(new THREE.Mesh(kg, M.kerb));
+    vergeTop = { positions: new Float32Array(vpos), indices: new Uint32Array(vidx) };
+    { const e = fit.edge(0); signY = vergeY((e.x + courtX) / 2, 0); }
+
+    // the retaining walls: along the garage's outline wherever the ground just outside it (not the road, nothing of the
+    // garage) stands higher than its surface — the ground as baked, before it's carved — each with a ledge behind it at
+    // the ground's height (the physics' ground is lowered a little past the outline: no hidden trench there)
     const pos = [], idx = [];
-    polys.forEach((poly, pi) => {
-      const pts = [];
+    polys.forEach(poly => {
       for (let k = 0; k < poly.length; k++) {
-        const a = poly[k], b = poly[(k + 1) % poly.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.75));
-        for (let q = 0; q < n; q++) pts.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]);
-      }
-      pts.push(pts[0]);
-      let prev = null;
-      for (const [x, z] of pts) {
-        const skip = road(x, z) != null || polys.some((o, oi) => oi !== pi && inside(o, x, z));
-        const y = surface(x, z), t = terrain(x, z), top = t != null && t + 0.06 > y + 0.03 ? t + 0.06 : null;
-        const cur = skip ? null : { x, z, y, top };
-        if (cur && prev && (cur.top != null || prev.top != null)) {
-          const q = pos.length / 3;
-          pos.push(prev.x, prev.y - 0.1, prev.z, prev.x, prev.top ?? prev.y, prev.z, cur.x, cur.y - 0.1, cur.z, cur.x, cur.top ?? cur.y, cur.z);
-          idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2);
-          // (solid too: the ground behind it is lowered a little past the outline)
-          wallBoxes.push({ x: (prev.x + cur.x) / 2, z: (prev.z + cur.z) / 2, len: Math.hypot(cur.x - prev.x, cur.z - prev.z) + 0.05, y0: Math.min(prev.y, cur.y) - 0.1, y1: Math.max(prev.top ?? prev.y, cur.top ?? cur.y), yaw: Math.atan2(cur.x - prev.x, cur.z - prev.z) });
+        const a = poly[k], b = poly[(k + 1) % poly.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len < 1e-3) continue;
+        const dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len, mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+        let nx = dz, nz = -dx;
+        if (inside(poly, mx + nx * 0.05, mz + nz * 0.05)) { nx = -nx; nz = -nz; }
+        const n = Math.max(1, Math.ceil(len / 0.75));
+        let prev = null;
+        for (let q = 0; q <= n; q++) {
+          const x = a[0] + (b[0] - a[0]) * q / n, z = a[1] + (b[1] - a[1]) * q / n, px = x + nx * 0.5, pz = z + nz * 0.5;
+          let cur = null;
+          if (!inGarage(px, pz)) {
+            const y = surface(x, z), t = terrain(px, pz);
+            if (t != null && t + 0.06 > y + 0.05) cur = { x, z, y, top: t + 0.06 };
+          }
+          if (cur && prev) {
+            const qi = pos.length / 3;
+            pos.push(prev.x, prev.y - 0.1, prev.z, prev.x, prev.top, prev.z, cur.x, cur.y - 0.1, cur.z, cur.x, cur.top, cur.z);
+            idx.push(qi, qi + 1, qi + 2, qi + 1, qi + 3, qi + 2);
+            const sl = Math.hypot(cur.x - prev.x, cur.z - prev.z) + 0.05, yaw = Math.atan2(cur.x - prev.x, cur.z - prev.z), cx = (prev.x + cur.x) / 2, cz = (prev.z + cur.z) / 2;
+            wallBoxes.push({ x: cx, z: cz, len: sl, w: 0.15, y0: Math.min(prev.y, cur.y) - 0.1, y1: Math.max(prev.top, cur.top), yaw });
+            // (the ledge: out from the wall as far as the lowered ground goes, unless something of the garage or the road is there)
+            let ext = 0;
+            for (let e = 0.5; e <= 3.5; e += 0.5) { if (inGarage(cx + nx * e, cz + nz * e)) break; ext = e; }
+            if (ext > 0) { const top = Math.min(prev.top, cur.top) - 0.09; wallBoxes.push({ x: cx + nx * ext / 2, z: cz + nz * ext / 2, len: sl, w: ext / 2, y0: top - 0.6, y1: top, yaw }); }
+          }
+          prev = cur;
         }
-        prev = cur;
       }
     });
     if (idx.length) {
@@ -282,13 +324,13 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
       const wall = new THREE.Mesh(g, M.retaining); wall.receiveShadow = true; wall.castShadow = true; D.add(wall);
     }
     const toW = ([x, z]) => toWorld(x, z);
-    carving = { polys: polys.map(p => p.map(toW)), below: (wx, wz) => { const l = F.local(wx, wz), y = surface(l.x, l.z); return y == null ? null : y0 + y; } };
+    carving = { polys: polys.map(p => p.map(toW)), surfaces, below: (wx, wz) => { const l = F.local(wx, wz), y = surface(l.x, l.z); return y == null ? null : y0 + y; } };
     if (group.visible) S.carve(carveKey, carving);
   }
 
   // fitted, once the map round it is in: leaning, the floor's height, the driveways — and what the car drives on and
   // hits (the forecourt and driveways, the posts, the workshop, the sign's pole; not the lane's air: that's driven through)
-  let handles = [], settled = false, fit = null, y0 = alt, carving = null, wallBoxes = [];
+  let handles = [], settled = false, fit = null, y0 = alt, carving = null, wallBoxes = [], vergeTop = null, signY = null;
   const carveKey = `garage:${item.id}:${++carveCount}`;
   function settle() {
     if (settled) return true;
@@ -306,19 +348,26 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
     group.updateMatrixWorld(true);
     driveways(fit);
     if (canCarve) carveIn(road, terrain);
+    // (the sign on the verge's middle: halfway from the road's edge to the forecourt, on the verge — else the ground)
+    const e0 = fit.edge(0), sx0 = (e0.x + SIDE + COURT.x0) / 2;
+    signG.position.set(sx0, signY ?? terrain(sx0, 0) ?? e0.y, 0);
     if (RAPIER && sim) {
       const [sx, sz] = S.toSim(F.cx, F.cz);   // (the sim's frame now: its origin moves with the car)
       const cuboid = (x0, ya, z0, x1, yb, z1) => RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, (yb - ya) / 2, (z1 - z0) / 2).setTranslation(SIDE + (x0 + x1) / 2, fit.floorY + (ya + yb) / 2, (z0 + z1) / 2);
       const descs = [cuboid(COURT.x0, -0.8, COURT.z0, COURT.x1, 0.04, COURT.z1)];
       for (const x of [-POST.x, POST.x]) for (const z of [-POST.z, POST.z]) descs.push(cuboid(x - 0.35, 0, z - 0.35, x + 0.35, CANOPY.low, z + 0.35));
-      descs.push(cuboid(SHOP.x0, 0, SHOP.z0, SHOP.x1, SHOP.h, SHOP.z1), cuboid(SIGN.x - 0.25, 0, SIGN.z - 0.25, SIGN.x + 0.25, SIGN.h, SIGN.z + 0.25));
+      descs.push(cuboid(SHOP.x0, 0, SHOP.z0, SHOP.x1, SHOP.h, SHOP.z1));
       // (the driveways' tops, as drawn: in the turned frame, not leaning)
       const drives = fit.driveways.map(({ rows }) => {
         const v = new Float32Array(rows.length * 6), ix = [];
         rows.forEach((r, k) => { v.set([...r.a, ...r.b], k * 6); if (k) { const q = k * 2; ix.push(q - 2, q - 1, q, q - 1, q + 1, q); } });
         return RAPIER.ColliderDesc.trimesh(v, new Uint32Array(ix));
       });
-      for (const b of wallBoxes) drives.push(RAPIER.ColliderDesc.cuboid(0.15, (b.y1 - b.y0) / 2, b.len / 2).setTranslation(b.x, (b.y0 + b.y1) / 2, b.z).setRotation({ x: 0, y: Math.sin(b.yaw / 2), z: 0, w: Math.cos(b.yaw / 2) }));
+      for (const b of wallBoxes) drives.push(RAPIER.ColliderDesc.cuboid(b.w, (b.y1 - b.y0) / 2, b.len / 2).setTranslation(b.x, (b.y0 + b.y1) / 2, b.z).setRotation({ x: 0, y: Math.sin(b.yaw / 2), z: 0, w: Math.cos(b.yaw / 2) }));
+      // (the sign's pole)
+      drives.push(RAPIER.ColliderDesc.cuboid(0.25, SIGN.h / 2, 0.25).setTranslation(signG.position.x, signG.position.y + SIGN.h / 2, 0));
+      // (the verge's top: a kerb's height over what's round it)
+      if (vergeTop?.indices.length) drives.push(RAPIER.ColliderDesc.trimesh(vergeTop.positions, vergeTop.indices));
       const yaw = { x: 0, y: Math.sin(-h / 2), z: 0, w: Math.cos(-h / 2) }, q = tilt.getWorldQuaternion(new THREE.Quaternion());
       try {
         handles.push(sim.addStatic({ position: [sx, y0, sz], rotation: { x: q.x, y: q.y, z: q.z, w: q.w } }, descs));
@@ -331,6 +380,8 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
   return {
     item, group, frame: F, settle,
     get fit() { return fit; },
+    // (its static bodies: the building, leaning; the driveways and retaining walls — for looking into what's hit)
+    get handles() { return handles; },
     // where you come out (side −1: the way through, onto the road by the way out; +1: back out of it): on the road as
     // it really is, once fitted
     exit(side = -1) {
