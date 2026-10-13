@@ -46,6 +46,7 @@ import { adminShopRoutes } from './routes/adminShop.ts';
 import { adminContentRoutes } from './routes/adminContent.ts';
 import { createContentManager } from './content/manager.ts';
 import { createContentService } from './content/service.ts';
+import { ensureStartingGarages } from './content/garages.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
@@ -378,6 +379,9 @@ export async function buildApp(deps: AppDeps) {
   });
   const content = createContentService({ db, rules: loadRules() });
   app.decorate('content', content);
+  // (the starting garages — drive-through buildings in each region, data/world/garages.json — published once, if never there;
+  // not on a test server: its tests start from empty content)
+  if (config.env !== 'test') app.addHook('onReady', async () => { await ensureStartingGarages(db, content, (o, m) => app.log.info(o, m)).catch(e => app.log.warn({ err: e }, 'starting garages failed')); });
   const tracks = createTrackService({ db, config, log: (o, m) => app.log.info(o, m) });
   app.decorate('tracks', tracks);
   app.addHook('onClose', async () => { await tracks.close(); });

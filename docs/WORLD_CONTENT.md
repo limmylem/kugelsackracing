@@ -3,6 +3,19 @@
 > **Phase 5 Step 3:** a fifth kind, `venue` ("Race venue", the editor's tool 6), lists track events: quests with
 > a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
 
+> **Garages:** a kind `garage` ("Garage", the editor's tool 8) is a drive-through building like a petrol station
+> (`play/garageBuilding.js`): a canopy on four posts over the road, the workshop with roller doors beside it, a tall
+> GARAGE sign; the posts, workshop and sign are solid. Its heading is the way through (snapped to a road it follows the
+> road). Driving through under the canopy opens your garage; leaving it you come out of the far side. There's no
+> garage button any more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow
+> (`data/economy.json` `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you
+> out of the nearest garage. The starting garages — two or three in every baked region — are `data/world/garages.json`
+> (`node tools/place-garages.mjs` picks them from the road graphs: straight, wide roads at ground level, away from
+> junctions, no other road through the footprint); the server publishes each once (`server/src/content/garages.ts`, not
+> on a test server) and a server-less page seeds them into its browser store once. After that they're the editors' like
+> anything else: moved, renamed or archived, that stands. `dev/garage-building.html` shows the building by itself
+> (`node tools/serve.mjs`).
+
 Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)
 anywhere on Earth and fills in the details, and draws routes on the region's real roads (Step 2:
 [ROUTES.md](ROUTES.md) — the route tool, checkpoints and shortcuts, test drives). The game shows what's published near the player. Everything

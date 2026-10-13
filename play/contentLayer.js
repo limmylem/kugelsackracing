@@ -13,13 +13,18 @@
 //   (a race venue's card: its track events — play/trackUi.js, Phase 5 Step 3)
 //     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
 //   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
+//
+// Garages (kind garage) aren't markers: each near enough is a drive-through building (play/garageBuilding.js) with
+// its walls in the physics (RAPIER, sim); driving through one under its canopy calls onGarage(item, side) (side:
+// which way out — −1 the front, +1 the back). L.nearestGarage(lat, lon) → the nearest published one (a tow's).
 
 import { worldContent } from '../content/client.js';
 import { createMarkers3d } from '../editor/markers3d.js';
 import { KINDS, TYPES, MARKER_KINDS, rewardsOf, entryCheck } from '../content/quests.js';
 import { distanceKm } from '../content/geo.js';
+import { createGarageBuilding, garageFrame, inLane } from './garageBuilding.js';
 
-const RADIUS_KM = 3, REQUERY_M = 250, CARD_M = 22, CARD_LEAVE_M = 60;
+const RADIUS_KM = 3, REQUERY_M = 250, CARD_M = 22, CARD_LEAVE_M = 60, BUILD_M = 900, DROP_M = 1300, GARAGE_KM = 50;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const CSS = `
@@ -33,10 +38,12 @@ const CSS = `
 #contentCard .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .7; }
 #contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }`;
 
-export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false }) {
+export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false, onGarage = null }) {
   const S = w.stream, P = S.projection;
   let C = null, items = [], places = new Float64Array(0), byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
+  // the garages near enough to be built: id → { building, was (in the lane last frame: null until seen) }
+  const garages = new Map();
   worldContent().then(c => { C = c; c.service.on(ev => { if (['publish', 'unpublish', 'archive', 'restore', 'state', 'import'].includes(ev.type)) dirty = true; }); }).catch(e => console.warn(`No world content: ${e.message}`));
 
   if (!document.getElementById('contentCardCss')) { const s = document.createElement('style'); s.id = 'contentCardCss'; s.textContent = CSS; document.head.appendChild(s); }
@@ -55,7 +62,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       // (each one's place in the world, worked out once: the nearest is looked for every frame)
       places = new Float64Array(items.length * 2);
       items.forEach((it, k) => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); places[2 * k] = x; places[2 * k + 1] = z; });
-      markers.setItems(items);
+      markers.setItems(items.filter(it => it.kind !== 'garage'));
       toMaps();
       queriedAt = { lat, lon }; dirty = false;
       if (cardFor && !byId.has(cardFor)) hideCard();
@@ -99,6 +106,25 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     if (id) showCard(byId.get(id), true);
   }
 
+  // the garages: built when near, taken down when far (their walls too); driving through one under its canopy
+  function garagesFrame(wx, wz) {
+    for (const it of items) {
+      if (it.kind !== 'garage') continue;
+      const [x, z] = P.toXZ(it.location.lat, it.location.lon), d = Math.hypot(x - wx, z - wz);
+      if (d < BUILD_M && !garages.has(it.id)) garages.set(it.id, { building: createGarageBuilding({ THREE, RAPIER, sim, stream: S, item: it }), was: null });
+    }
+    for (const [id, g] of garages) {
+      const it = byId.get(id), F = g.building.frame, d = Math.hypot(F.cx - wx, F.cz - wz);
+      if (!it || it.updated !== g.building.item.updated || d > DROP_M) { g.building.dispose(); garages.delete(id); continue; }
+      if (d > 40) { g.was = false; continue; }
+      const p = F.local(wx, wz), now = inLane(p);
+      // (in: from outside it, a moment ago — not put down in it, or still in it coming back out of the garage)
+      if (now && g.was === false && !busy() && onGarage) { g.was = true; onGarage(it, g.side ?? -1); continue; }
+      if (!now) g.side = p.z > 0 ? -1 : 1;      // (coming from behind it: out of the front)
+      g.was = now;
+    }
+  }
+
   return {
     markers,
     get items() { return items; },
@@ -114,7 +140,8 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       markers.update({ x: cam[0], y: camera?.position.y ?? pos[1], z: cam[1] });
       // driving up to one: its card (until driven away from, or closed)
       let near = null, nd = Infinity;
-      for (let k = 0; k < items.length; k++) { const d = Math.hypot(places[2 * k] - wx, places[2 * k + 1] - wz); if (d < nd) { nd = d; near = items[k]; } }
+      garagesFrame(wx, wz);
+      for (let k = 0; k < items.length; k++) { if (items[k].kind === 'garage') continue; const d = Math.hypot(places[2 * k] - wx, places[2 * k + 1] - wz); if (d < nd) { nd = d; near = items[k]; } }
       if (near && nd < CARD_M && !busy() && cardFor !== near.id && cardDismissed !== near.id) showCard(near);
       if (cardFor && card.dataset.pinned !== '1') { const it = byId.get(cardFor), [x, z] = it ? P.toXZ(it.location.lat, it.location.lon) : [Infinity, Infinity]; if (Math.hypot(x - wx, z - wz) > CARD_LEAVE_M) hideCard(); }
       if (cardDismissed && (near?.id !== cardDismissed || nd > CARD_LEAVE_M)) cardDismissed = null;
@@ -129,6 +156,15 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       showCard(it, true);
     },
     show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
-    dispose() { markers.dispose(); card.remove(); },
+    // (a tow: the nearest published garage, and where you come out of it — null: none within 50 km)
+    async nearestGarage(lat, lon) {
+      if (!C) return null;
+      const r = await C.service.query({ lat, lon, km: GARAGE_KM, view: 'published', offered: true, kinds: ['garage'], limit: 500 }).catch(() => null);
+      let best = null, bd = Infinity;
+      for (const { item: it } of r?.ok ? r.items : []) { const d = distanceKm({ lat, lon }, it.location); if (d < bd) { bd = d; best = it; } }
+      return best ? { item: best, km: bd, out: garageFrame(best, P).out(-1) } : null;
+    },
+    get garages() { return [...garages.values()].map(g => g.building); },
+    dispose() { markers.dispose(); card.remove(); for (const g of garages.values()) g.building.dispose(); garages.clear(); },
   };
 }

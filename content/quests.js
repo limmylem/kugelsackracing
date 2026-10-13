@@ -28,9 +28,12 @@ export const KINDS = {
   // (Phase 7 Step 4: a car meet's place in the real world — a car park, a scenic spot: players park in its spots, take
   // photos, look at each other's cars; scheduled meet events are made on the admin page — docs/FREE_ROAM.md)
   meet: { label: 'Meet spot', icon: 'meet', colour: '#36d1b0' },
+  // (a garage in the real world: a drive-through building like a petrol station — driving through it under its canopy
+  // opens the garage; a paid tow brings you out of the nearest one. Its heading is the way through: play/garageBuilding.js)
+  garage: { label: 'Garage', icon: 'garage', colour: '#5b8cff' },
 };
 // the kinds players see as markers (a route is seen through its quests)
-export const MARKER_KINDS = ['quest', 'poi', 'spawn', 'venue', 'meet'];
+export const MARKER_KINDS = ['quest', 'poi', 'spawn', 'venue', 'meet', 'garage'];
 // a meet spot's parking (data/roam.json meets: spots in rows, facing the marker's heading)
 export const MEET = { spots: [2, 200], perRow: [1, 20] };
 

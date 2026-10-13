@@ -153,6 +153,7 @@ export class RemotePlayerService extends PlayerService {
   sellCar(carInstanceId, opts = {}) { return this.#do('car', 'sellCar', { carInstanceId, opts: { keep: opts.keep ?? [] } }, S => S.sellCar(carInstanceId, opts)); }
   buyUsedCar(listingId) { return this.#do('car', 'buyUsedCar', { listingId }, S => S.buyUsedCar(listingId)); }
   buyGarageSlot() { return this.#do('buy', 'buyGarageSlot', {}, S => S.buyGarageSlot()); }
+  towCar() { return this.#do('tow', 'towCar', {}, S => S.towCar()); }
   // today's used cars: the server's (the same for everyone today)
   async getUsedLot() {
     try { const r = await this.api.get('/player/used-lot', { retries: 1 }); return { ok: true, error: null, ...r }; }

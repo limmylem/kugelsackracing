@@ -29,8 +29,22 @@ export function worldContent({ author = null } = {}) {
     try { storage = typeof indexedDB !== 'undefined' ? new IdbContentStorage() : new MemoryContentStorage(); await storage.getIndex(); }
     catch { storage = new MemoryContentStorage(); console.warn('World content: no IndexedDB here, so nothing is kept after this page closes.'); }
     const service = createLocalContentService({ storage, check, rate, author: author ?? localStorageGet('kugelsack.editor.author') ?? 'editor' });
+    // (the starting garages — data/world/garages.json, as the server publishes them — once in this browser: removed
+    // or moved after, that's kept)
+    if (!localStorageGet(GARAGES_SEEDED)) await seedGarages(service).then(() => localStorageSet(GARAGES_SEEDED, '1')).catch(e => console.warn(`The starting garages: ${e.message}`));
     return { service, check, rate, economy, quests, classes: classesFile.classes, cars, persistent: storage instanceof IdbContentStorage };
   })();
+}
+
+const GARAGES_SEEDED = 'kugelsack.content.garages.v1';
+async function seedGarages(service) {
+  const { newItem } = await import('./quests.js'), at = new Date().toISOString();
+  for (const g of (await readJson('data/world/garages.json')).garages ?? []) {
+    const st = (await service.getState(g.id)).state;
+    if (st?.draft || st?.published || st?.archived) continue;
+    const item = { ...newItem('garage', { id: g.id, location: g.location, name: g.name, author: 'Ogni Strada', now: at }), road: g.road ?? null, description: 'A drive-through garage: drive in under the canopy for your cars, parts and repairs.' };
+    await service.setState(g.id, { draft: { ...item, status: 'published', publishedAt: at }, published: { ...item, status: 'published', publishedAt: at }, archived: null });
+  }
 }
 
 export function localStorageGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
