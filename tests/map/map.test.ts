@@ -13,7 +13,7 @@
 //   streaming    a 20 km route at 200 km/h with the game's streamer: the ground always there
 //   memory       the same run, past 100 tiles: memory and colliders level
 //   determinism  a small area baked twice: identical tiles and graph, byte for byte (Map v4: the second a block per tile)
-//   physics      the Phase 1 straight-line tests on a real road, against the car's targets
+//   physics      the Phase 1 straight-line tests on a real road (straight and level), against the car's targets
 //
 //   (--map v4: the same tests on the region's Map v4 bake, assets/map/<region>/v4/ — tests/map/v4.test.ts has v4's own)
 //
@@ -239,7 +239,7 @@ async function datumTest() {
     if (here.length) { atEdge.push(...here); near.push(...rest); worstKink = Math.max(worstKink, ...here); }
   }
   const p99 = quantile(near, 0.99) ?? 0, e99 = quantile(atEdge, 0.99) ?? 0, e50 = quantile(atEdge, 0.5) ?? 0, n50 = quantile(near, 0.5) ?? 0;
-  if (!atEdge.length) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (the slice is all LiDAR or sea)', true);
+  if (!atEdge.length) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (all one source, or sea)', true);
   else report('datum', `LiDAR ↔ Copernicus blend (${atEdge.length} boundary points)`, e99 <= 1.5 * p99 + 0.1 && e50 <= 2 * n50 + 0.05, `change in slope across the boundary: ${e50.toFixed(2)} m median, ${e99.toFixed(2)} m 99th percentile (largest ${worstKink.toFixed(2)} m, on cliffs), against ${n50.toFixed(2)} m and ${p99.toFixed(2)} m on the ground round about: no step`);
   // the datum: both sources in EGM2008 should agree on open ground (Copernicus is a surface model, so a
   // median over open land, not every point)
@@ -510,31 +510,36 @@ async function determinismTest() {
 
 // ---------- the Phase 1 tests on a real road ----------
 async function physicsTest() {
-  // (the road: --road <name>, else the coast spot's, else any main road)
-  const G = M.graph(), spot = (manifest.spots ?? []).find(s => s.id === 'coast'), want = opt('--road') ?? spot?.name ?? null;
-  // the longest straight stretch of one road (or chain of segments of it) in the baked tiles
-  const byName = new Map<string, any[]>();
-  for (const s of G.segs) if (s.name && s.structure === 'ground' && (want ? s.name === want : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
-  let best: number[][] = [], bestName = '';
-  for (const [name, list] of byName) {
-    // chain segments end to end (one carriageway)
-    const chains: number[][][] = [];
-    for (const s of list) { const pts: number[][] = []; for (let k = 0; k < s.points.length; k += 3) pts.push([s.points[k], s.points[k + 1]]); const c = chains.find(c => Math.hypot(c[c.length - 1][0] - pts[0][0], c[c.length - 1][1] - pts[0][1]) < 0.5); if (c) c.push(...pts.slice(1)); else chains.push(pts); }
-    for (let merged = true; merged;) { merged = false; for (const a of chains) for (const b of chains) if (a !== b && a.length && b.length && Math.hypot(a[a.length - 1][0] - b[0][0], a[a.length - 1][1] - b[0][1]) < 0.5) { a.push(...b.slice(1)); b.length = 0; merged = true; } }
-    for (const c of chains) {
-      // its longest part within a metre of a straight line, all baked
-      for (let a = 0, b = 1; b < c.length; b++) {
-        if (!isBaked(c[b][0], c[b][1])) { a = b + 1; continue; }
-        const offFn = (a_: number, b_: number) => { const [ax, az] = c[a_], [bx, bz] = c[b_], l = Math.hypot(bx - ax, bz - az) || 1; let m = 0; for (let q = a_; q <= b_; q++) m = Math.max(m, Math.abs((c[q][0] - ax) * (bz - az) - (c[q][1] - az) * (bx - ax)) / l); return m; };
-        while (a < b && offFn(a, b) > 1) a++;
-        const len = Math.hypot(c[b][0] - c[a][0], c[b][1] - c[a][1]), bl = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
-        if (len > bl) { best = c.slice(a, b + 1); bestName = name; }
+  // (the road: --road <name>, else the coast spot's if it's straight and level for long enough, else any main road;
+  // level — under 0.5% end to end and within a metre of that — as the car's targets are on the flat)
+  const G = M.graph(), spot = (manifest.spots ?? []).find(s => s.id === 'coast');
+  // the longest straight, level stretch of one road (or chain of segments of it) in the baked tiles
+  const longest = (want: string | null) => {
+    const byName = new Map<string, any[]>();
+    for (const s of G.segs) if (s.name && s.structure === 'ground' && (want ? s.name === want : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
+    let best: number[][] = [], bestName = '';
+    for (const [name, list] of byName) {
+      // chain segments end to end (one carriageway)
+      const chains: number[][][] = [];
+      for (const s of list) { const pts: number[][] = []; for (let k = 0; k < s.points.length; k += 3) pts.push([s.points[k], s.points[k + 1], s.points[k + 2]]); const c = chains.find(c => Math.hypot(c[c.length - 1][0] - pts[0][0], c[c.length - 1][1] - pts[0][1]) < 0.5); if (c) c.push(...pts.slice(1)); else chains.push(pts); }
+      for (let merged = true; merged;) { merged = false; for (const a of chains) for (const b of chains) if (a !== b && a.length && b.length && Math.hypot(a[a.length - 1][0] - b[0][0], a[a.length - 1][1] - b[0][1]) < 0.5) { a.push(...b.slice(1)); b.length = 0; merged = true; } }
+      for (const c of chains) {
+        // its longest part within a metre of a straight, level line, all baked
+        for (let a = 0, b = 1; b < c.length; b++) {
+          if (!isBaked(c[b][0], c[b][1])) { a = b + 1; continue; }
+          const offFn = (a_: number, b_: number) => { const [ax, az, ay] = c[a_], [bx, bz, by] = c[b_], l = Math.hypot(bx - ax, bz - az) || 1; if (Math.abs(by - ay) > 0.005 * l) return Infinity; let m = 0; for (let q = a_; q <= b_; q++) { const u = ((c[q][0] - ax) * (bx - ax) + (c[q][1] - az) * (bz - az)) / (l * l); m = Math.max(m, Math.abs((c[q][0] - ax) * (bz - az) - (c[q][1] - az) * (bx - ax)) / l, Math.abs(c[q][2] - (ay + (by - ay) * u))); } return m; };
+          while (a < b && offFn(a, b) > 1) a++;
+          const len = Math.hypot(c[b][0] - c[a][0], c[b][1] - c[a][1]), bl = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
+          if (len > bl) { best = c.slice(a, b + 1); bestName = name; }
+        }
       }
     }
-  }
-  const L = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
+    return { best, bestName, L: best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0 };
+  };
+  let { best, bestName, L } = longest(opt('--road') ?? spot?.name ?? null);
+  if (L < 900 && !opt('--road') && spot?.name) ({ best, bestName, L } = longest(null));
   console.log(`\nThe Phase 1 straight-line tests on a real road: ${bestName} (${L.toFixed(0)} m straight)`);
-  if (L < 900) { report('physics', 'a real road', false, `the longest straight baked road is ${L.toFixed(0)} m (900 m needed: bake the full region)`); return; }
+  if (L < 900) { report('physics', 'a real road', false, `the longest straight, level baked road is ${L.toFixed(0)} m (900 m needed: bake the full region)`); return; }
   const pts: number[][] = [];
   for (let s = 0; s < L; s += 2) pts.push([best[0][0] + (best[best.length - 1][0] - best[0][0]) * s / L, best[0][1] + (best[best.length - 1][1] - best[0][1]) * s / L]);
   const origin = [Math.floor(pts[0][0] / T) * T, Math.floor(pts[0][1] / T) * T], simPts = pts.map(([x, z]) => [x - origin[0], z - origin[1]]);

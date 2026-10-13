@@ -469,7 +469,9 @@ npm run map:typecheck                           # TypeScript
 - **determinism**: a small area baked twice gives byte-identical tiles, far layer and graph. This needs
   the bake's inputs in `.cache/map`.
 - **physics**: the Phase 1 straight-line tests (0–100, quarter mile, 100–0, the same at any frame rate)
-  on the longest straight baked road.
+  on a real road that's straight and level for at least 900 m. It uses the coast spot's road if that's long
+  enough, else the longest such main road (`--road <name>` picks one). It has to be level because the car's
+  targets are for flat ground.
 
 ### Map v4's tests
 
@@ -594,7 +596,7 @@ Adelaide is the first region on Map v4; the game loads `assets/map/adelaide/v4/`
 after pictures of the ten most complex junctions, three bridges and the known bad spots, is
 [MAP_V4_REPORT.md](MAP_V4_REPORT.md).
 
-- **Bake:** `npm run map:bake4 -- --region adelaide`: 22 minutes on 4 cores, 9 GB at most, in 49 blocks of 6 × 6 tiles.
+- **Bake:** `npm run map:bake4 -- --region adelaide`: 21 minutes on 4 cores, 9 GB at most, in 49 blocks of 6 × 6 tiles.
 - **Size:** 1,596 tiles, 366 MB (Map v3's: 172 MB), plus the road graph and the road model file. 400 MB in all.
 - **Contents:**
   - 103,068 roads and 32,600 junction patches, 17.7M road-surface triangles;
@@ -613,6 +615,9 @@ after pictures of the ten most complex junctions, three bridges and the known ba
   - 98.5% of lit roads with a lamp within 30 m;
   - all 10 known bad spots pass;
   - every tile border matched.
+- **Map v3's tests on it:** `npm run test:map -- --region adelaide --map v4`: 19 of 19 pass (the LiDAR blend skipped:
+  Adelaide is all Copernicus). Road positions within 0.7 cm of OSM, seams, railings at 50–300 km/h, streaming,
+  memory, byte-identical re-bakes, and the Phase 1 tests on Grange Road.
 
 ## Notes
 

@@ -238,6 +238,12 @@ The 3 km slice passed everything. The whole region found these, all fixed and in
   height test casts its physics ray straight down through graph points, and Rapier lets a ray through an exact vertex
   slip by: 16.6 cm, on one service road. One centimetre either side it hits the road, and no wheel is ever exactly
   there. The test now casts 5 mm off the point.
+- **The physics test's road.** Map v3's Phase 1 tests (0–100, quarter mile, 100–0) take the coast spot's road, and
+  Adelaide's Esplanade is straight for only 689 m of the 900 needed. The next choice was the longest straight main
+  road, Grange Road, which climbs 70 m inland. On it the car came out 0.01 s quick to 100 km/h on Map v4 and stopped
+  3 m long on Map v3, because the car's targets are for flat ground. The test now takes the longest straight road
+  that's also level (under 0.5%): 1.4 km of Grange Road, 4 of 4 on both bakes. San Francisco's Great Highway is
+  still the one picked there.
 - **Lamp coverage.** Measured along every road the rule lights: 98.5%. The first measure counted every residential
   street in the hills and the parklands, deliberately unlit, and said 60%.
 
@@ -245,7 +251,7 @@ The 3 km slice passed everything. The whole region found these, all fixed and in
 
 | | Map v3 | Map v4 |
 |---|---|---|
-| Whole region | about 6 min, 7 GB | 22 min (1,309 s), 9 GB |
+| Whole region | about 6 min, 7 GB | 21 min (1,267 s), 9 GB |
 | A 3 km slice of the city | — | 54 s (129 s before this round's speed-ups) |
 | Tiles | 172 MB | 366 MB (1,596 tiles) |
 | Road surface | — | 17.7M triangles, 103,068 roads, 32,600 junction patches |
@@ -317,6 +323,41 @@ the ground under it (3 min), Map v3's own tile builder (2.5 min) and the junctio
 - ✅ **badspots** · King William Street: 601 road points within 25 m: 0 holes, 0 under the ground, 0 off the collision surface
 - ✅ **seams** · 2982 shared tile edges: 259,702 road vertices on them: 0 without their neighbour's (within 1 cm)
 
-`npm run test:map -- --region adelaide --map v4` (Map v3's tests on the v4 bake):
+`npm run test:map -- --region adelaide --map v4` (Map v3's tests on the v4 bake): **19 of 19 pass, 1 skipped**. The
+LiDAR blend is skipped because Adelaide has no LiDAR. The groups were run separately; seams alone takes 28 minutes
+over 1,596 tiles.
 
-<!-- v3 test list -->
+- ✅ **roads** · baked centre lines vs OpenStreetMap: 306,986 OSM nodes (re-read from the OSM extract): largest difference 0.7 cm at Kyle Road (OSM node 173468)
+- ✅ **roads** · drawn road surface over every OSM node: 15256 sampled nodes: 0 with no road surface drawn over them
+- ✅ **roads** · roads that meet are joined: 103,068 segments, 14104 dead ends: none of them lies on another road of its layer without joining it
+- ✅ **height** · 200 road points: drawn road ≤ 0.006 m from the profile, physics ≤ 0.005 m · 88 in junctions (a plane joining the roads): ≤ 0.010 m (limit 0.25) · ground under the road 0.15 m below it (median)
+- ✅ **seams** · 3112 shared tile edges: physics: identical (largest step 0 m) · drawn: largest step 0.057 m (each mesh within its 4 cm error of the shared heights), 0 holes, edges skirted
+- ⏭️ **datum** · LiDAR ↔ Copernicus blend: no LiDAR / Copernicus boundary in the baked tiles (Adelaide is all Copernicus: all one source, or sea)
+- ✅ **datum** · one vertical datum (EGM2008): from the manifest: Copernicus GLO-30: EGM2008 already (no shift) (+0.000 m)
+- ✅ **rails** · guard rail (estimated) at Greenhill Road: 8 hits, 50–300 km/h at 15° and 60°: none through, deepest corner 0.00 m into it, every hit reached the damage model
+- ✅ **rails** · parapet (estimated) at Adelaide Bridge: 8 hits, 50–300 km/h at 15° and 60°: none through, deepest corner 0.00 m into it, every hit reached the damage model
+- ✅ **rails** · wall at King William Street: 8 hits, 50–300 km/h at 15° and 60°: none through, deepest corner 0.00 m into it, every hit reached the damage model
+- ✅ **rails** · fence at Bad spot 7: building collider over the road surface: 8 hits, 50–300 km/h at 15° and 60°: none through, deepest corner 0.00 m into it, every hit reached the damage model
+- ✅ **streaming** · the ground carved under something built, and put back: the heightfield there 45.98 → 44.83 → 45.98 m; the physics' ground 45.96 → 44.83 → 45.96 m
+- ✅ **streaming** · a tree and a car park in a carving: not solid there, back after: a tree's trunk top 48.18 → 45.14 (the ground 45.29) → 48.18 m; a car park 47.46 → 46.77 → 47.46 m
+- ✅ **streaming** · 20.0 km at 200 km/h: the ground was always ready · ready ≥ 400 m ahead at worst · first ground after 0.4 s · 284 tiles in, 66 at once
+- ✅ **memory** · 284 tiles in, 224 dropped again: heap 92 MB at 60 tiles → 84 MB at 276 (-8 MB, at most 60) · colliders at most 37700
+- ✅ **determinism** · 22 files baked twice: identical, byte for byte (tiles, far layer, road graph, road surface model; the second bake a block per tile)
+- ✅ **physics** · 0–100 km/h on Grange Road: 9.39 s (target 9–11) timed from the car moving off
+- ✅ **physics** · Quarter mile on Grange Road: 16.97 s (target 16.3–17.5) crossing at 135 km/h
+- ✅ **physics** · 100–0 km/h on Grange Road: 41.8 m (target 38–45) discs warmed up to 164 °C
+- ✅ **physics** · Same at 30 / 60 / 144 fps on Grange Road: 1.00  (target 1–1) identical after 12 s (1440 steps, car 62.5 m from the start) at 30 fps, 60 fps, 144 fps, jittery 4–40 ms
+
+What changed in Map v3's tests for Map v4, and why:
+
+- **roads:**
+  - On Map v4 the test asks for road surface over every OSM node, not a mesh vertex within 0.5 m of it. Map v4's
+    cross-sections are spaced along the road, not built on OSM's nodes.
+  - A dead end is joined if it ends on one of its road's own nodes, because Map v4 splits a way at its joints and at
+    tile borders.
+- **height:** on Map v4 the physics ray is cast 5 mm off the graph point, which is a mesh vertex there ("A ray
+  through a vertex" above).
+- **determinism:** on Map v4 the second bake is a block per tile, so a block's edge can't change the output.
+- **physics:** on both maps the road must be level as well as straight ("The physics test's road" above).
+
+Nothing was loosened: every limit is as it was.
