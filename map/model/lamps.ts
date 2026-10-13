@@ -21,6 +21,17 @@ import { MASK } from './mask.ts';
 
 export const LAMP_STRIDE = 9, LAMP_ESTIMATED = 1, LAMP_TUNNEL = 2, LAMP_JUNCTION = 4;
 
+// is a road lit (the rule the lamps follow): lit=yes and tunnels; never lit=no or the unlit classes; motorways and the
+// always-lit classes everywhere; the other urban classes where the ground at its middle is built up
+export function roadLit(g: any, cfg: any, classAt: (x: number, z: number) => string) {
+  const Lc = cfg.lamps, cls = g.link ? 'link' : g.cls;
+  if (g.lit === 'no' || Lc.unlitClasses.includes(cls)) return false;
+  if (g.lit === 'yes' || g.structure === 'tunnel' || Lc.motorwayClasses.includes(cls) || (Lc.alwaysLitClasses ?? []).includes(cls)) return true;
+  if (!Lc.urbanClasses.includes(cls)) return false;
+  const m = rowAt(g, g.s[g.s.length - 1] / 2);
+  return ['residential', 'commercial', 'industrial', 'parking'].includes(classAt(m.x, m.z));
+}
+
 // box: the area's bounds when it has some (the bake's block): OSM's lamps further than 50 m from it skipped (a mapped
 // lamp stands in for estimated ones mappedRadius m round it, no further); the counts only of the lamps inside it
 export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt, box = null }: { model: any; osm: OsmData; cfg: any; surface: any; mask: any; groundAt: (x: number, z: number) => number; classAt: (x: number, z: number) => string; box?: [number, number, number, number] | null }) {
@@ -41,17 +52,10 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt, 
     put(p.x, groundAt(p.x, p.z), p.z, Lc.height, nearestRoadYaw(model, p.x, p.z), 0); if (inBox(p.x, p.z)) stats.mapped++;
   }
   // ---- 2. estimated, along each lit road
-  const urban = new Set(['residential', 'commercial', 'industrial', 'parking']);
-  const litClass = new Set(Lc.urbanClasses), motorway = new Set(Lc.motorwayClasses), unlit = new Set(Lc.unlitClasses), always = new Set(Lc.alwaysLitClasses ?? []);
-  const litSeg = new Map<number, boolean>();
+  const motorway = new Set(Lc.motorwayClasses), litSeg = new Map<number, boolean>();
   for (const g of model.segs) {
     if (g.internal) continue;
-    const cls = g.link ? 'link' : g.cls, L = g.s[g.s.length - 1];
-    let lit = false;
-    if (g.lit === 'no' || unlit.has(cls)) lit = false;
-    else if (g.lit === 'yes' || g.structure === 'tunnel') lit = true;
-    else if (motorway.has(cls) || always.has(cls)) lit = true;
-    else if (litClass.has(cls)) { const m = rowAt(g, L / 2); lit = urban.has(classAt(m.x, m.z)); }
+    const cls = g.link ? 'link' : g.cls, L = g.s[g.s.length - 1], lit = roadLit(g, cfg, classAt);
     litSeg.set(g.id, lit);
     if (!lit) continue;
     const tunnel = g.structure === 'tunnel', bridge = g.structure === 'bridge';

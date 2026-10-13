@@ -120,6 +120,9 @@ async function roadsTest() {
   for (const s of G.segs) for (const n of [s.from, s.to]) deg.set(n, (deg.get(n) ?? 0) + 1);
   const C = 25, cells = new Map<string, [any, number][]>();
   for (const s of G.segs) for (let k = 0; k + 3 < s.points.length; k += 3) { const kk = `${Math.floor(s.points[k] / C)},${Math.floor(s.points[k + 1] / C)}`; (cells.get(kk) ?? cells.set(kk, []).get(kk)!).push([s, k]); }
+  // (each way's nodes, whatever its segments: Map v4 splits a way at its joints and the tiles' borders too)
+  const wayNodes = new Map<number, Set<number>>();
+  for (const s of G.segs) { const w = wayNodes.get(s.way) ?? wayNodes.set(s.way, new Set()).get(s.way)!; w.add(s.from); w.add(s.to); }
   let loose = 0, unjoined = 0; const where: string[] = [];
   for (const s of G.segs) for (const [end, n] of [[0, s.from], [s.points.length - 3, s.to]]) {
     if (deg.get(n) !== 1) continue;
@@ -129,7 +132,7 @@ async function roadsTest() {
     for (let a = -2; a <= 2 && !hit; a++) for (let b = -2; b <= 2 && !hit; b++) for (const [o, k] of cells.get(`${Math.floor(x / C) + a},${Math.floor(z / C) + b}`) ?? []) {
       if (o.way === s.way || o.structure !== s.structure || o.layer !== s.layer) continue;
       // (a stub a few metres past a junction with that road — its other end one of the road's own nodes: joined there)
-      if ([o.from, o.to].includes(n === s.from ? s.to : s.from)) continue;
+      if ([o.from, o.to].includes(n === s.from ? s.to : s.from) || wayNodes.get(o.way)?.has(n === s.from ? s.to : s.from)) continue;
       const P = o.points, ax = P[k], az = P[k + 1], dx = P[k + 3] - ax, dz = P[k + 4] - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
       if (Math.hypot(x - ax - dx * t, z - az - dz * t) < o.width / 2 - 0.5) { hit = o; break; }
     }
@@ -443,7 +446,7 @@ async function streamingTest() {
           const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3, area = Math.abs((Pp[b] - Pp[a]) * (Pp[c + 2] - Pp[a + 2]) - (Pp[c] - Pp[a]) * (Pp[b + 2] - Pp[a + 2])) / 2;
           if (area < 0.3) continue;
           const x = qc[0] + (Pp[a] + Pp[b] + Pp[c]) / 3, z = qc[1] + (Pp[a + 2] + Pp[b + 2] + Pp[c + 2]) / 3, y = (Pp[a + 1] + Pp[b + 1] + Pp[c + 1]) / 3, t = top(x, z);
-          if (t != null && Math.abs(t - y) < 0.05) park = [x, z, y];
+          if (t != null && Math.abs(t - y) < 0.05) park = [x, z, y, t];
         }
       }
       const [tx, tz] = [tc[0] + tree.x, tc[1] + tree.z], treeBefore = top(tx, tz), treeGround = ground(tx, tz)!;
@@ -455,9 +458,10 @@ async function streamingTest() {
       await step(sx, sz, 0, 0);
       const treeBack = top(tx, tz), parkBack = park ? top(park[0], park[1]) : null;
       const okTree = treeBefore != null && treeBefore > treeGround + 1 && treeIn != null && treeIn < treeGround + 0.1 && Math.abs(treeBack! - treeBefore) < 0.01;
-      const okPark = !park || (parkIn! < park[2] - 0.5 && Math.abs(parkBack! - park[2]) < 0.03);
+      // (back as it was before the carving: the solid top there then, within 5 cm of the car park's own surface)
+      const okPark = !park || (parkIn! < park[2] - 0.5 && Math.abs(parkBack! - park[3]) < 0.01);
       report('streaming', 'a tree and a car park in a carving: not solid there, back after', okTree && okPark,
-        `a tree's trunk top ${treeBefore?.toFixed(2)} → ${treeIn?.toFixed(2)} (the ground ${treeGround.toFixed(2)}) → ${treeBack?.toFixed(2)} m${park ? `; a car park ${park[2].toFixed(2)} → ${parkIn?.toFixed(2)} → ${parkBack?.toFixed(2)} m` : ' (no car park found near the start)'}`);
+        `a tree's trunk top ${treeBefore?.toFixed(2)} → ${treeIn?.toFixed(2)} (the ground ${treeGround.toFixed(2)}) → ${treeBack?.toFixed(2)} m${park ? `; a car park ${park[3].toFixed(2)} → ${parkIn?.toFixed(2)} → ${parkBack?.toFixed(2)} m` : ' (no car park found near the start)'}`);
     }
   }
   const gc = (globalThis as any).gc ?? (() => {}), mem: any[] = [];
@@ -506,10 +510,11 @@ async function determinismTest() {
 
 // ---------- the Phase 1 tests on a real road ----------
 async function physicsTest() {
-  const G = M.graph(), spot = (manifest.spots ?? []).find(s => s.id === 'coast');
+  // (the road: --road <name>, else the coast spot's, else any main road)
+  const G = M.graph(), spot = (manifest.spots ?? []).find(s => s.id === 'coast'), want = opt('--road') ?? spot?.name ?? null;
   // the longest straight stretch of one road (or chain of segments of it) in the baked tiles
   const byName = new Map<string, any[]>();
-  for (const s of G.segs) if (s.name && s.structure === 'ground' && (spot ? s.name === spot.name : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
+  for (const s of G.segs) if (s.name && s.structure === 'ground' && (want ? s.name === want : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
   let best: number[][] = [], bestName = '';
   for (const [name, list] of byName) {
     // chain segments end to end (one carriageway)

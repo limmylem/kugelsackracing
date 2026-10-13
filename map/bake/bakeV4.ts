@@ -35,7 +35,7 @@ import { encodePool } from './encodePool.ts';
 import { buildRoadModel } from '../model/index.ts';
 import { exclusionMask, surfaceIndex } from '../model/mask.ts';
 import { treesV4, barriersV4 } from '../model/props.ts';
-import { placeLamps, LAMP_STRIDE } from '../model/lamps.ts';
+import { placeLamps, roadLit, LAMP_STRIDE } from '../model/lamps.ts';
 import { checkSurface } from '../model/checks.ts';
 import { auditTile } from '../collision/audit.ts';
 
@@ -129,31 +129,37 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   const clusterBox = model.clusters.map((c: any) => { const pts = c.rings.flat(2); return pts.length ? bbox(pts.map((p: number[]) => p[0]), pts.map((p: number[]) => p[1]), 1) : [Infinity, Infinity, -Infinity, -Infinity]; });
   const meets = (b: number[], q: number[]) => b[0] <= q[2] && b[2] >= q[0] && b[1] <= q[3] && b[3] >= q[1];
   const chk = { cracks: 0, overlaps: 0, sampled: 0, folds: 0, triangles: 0 }, st = { trees: 0, treesOff: 0, railMapped: 0, railDropped: 0, railEstimated: 0, lampMapped: 0, lampDropped: 0, lampEstimated: 0, lampTunnel: 0, lamps: 0 };
-  const litBySeg = new Map<number, boolean>(), railStats: any = {}, lampStats: any = {}, hullStats = { trimmed: 0, dropped: 0, paved: 0 }, ms: Record<string, number> = {};
+  // (what's underfoot at a point — the land use — and which roads the lamps' rule lights: every road's, once)
+  const classAt = (x: number, z: number) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; };
+  const litBySeg = new Map<number, boolean>(model.segs.filter((g: any) => !g.internal).map((g: any) => [g.id, roadLit(g, cfg, classAt)]));
+  const railStats: any = {}, lampStats: any = {}, hullStats = { trimmed: 0, dropped: 0, paved: 0 }, ms: Record<string, number> = {};
   // (each block's phases, timed: the bake's log)
   const bms: Record<string, number> = {}, timed = <R>(k: string, f: () => R): R => { const a = performance.now(), r = f(); bms[k] = (bms[k] ?? 0) + performance.now() - a; return r; };
   let blocks = 0;
   for (let bj = grid.j0; bj <= grid.j1; bj += BT) for (let bi = grid.i0; bi <= grid.i1; bi += BT) {
     const ti1 = Math.min(grid.i1, bi + BT - 1), tj1 = Math.min(grid.j1, bj + BT - 1);
-    const box: [number, number, number, number] = [bi * T, bj * T, (ti1 + 1) * T, (tj1 + 1) * T], padded = [box[0] - BP, box[1] - BP, box[2] + BP, box[3] + BP];
+    const box: [number, number, number, number] = [bi * T, bj * T, (ti1 + 1) * T, (tj1 + 1) * T];
     const inBlock = (x: number, z: number) => x >= box[0] && x < box[2] && z >= box[1] && z < box[3] && inArea(x, z);
     // (the block's buildings: those whose middle is in it, as the tiles take them)
     const bB = buildings.filter(b => { const r = b.rings[0]; let x = 0, z = 0; for (const p of r) { x += p[0]; z += p[1]; } x /= r.length; z /= r.length; return x >= box[0] && x < box[2] && z >= box[1] && z < box[3]; });
-    // (the roads and junctions to build: those within blockPad of the block, and any reaching one of its buildings — a
-    // long one's far corners are moved off the roads there)
-    const reach = [...padded];
-    for (const b of bB) for (const p of b.rings[0]) { reach[0] = Math.min(reach[0], p[0] - 1); reach[1] = Math.min(reach[1], p[1] - 1); reach[2] = Math.max(reach[2], p[0] + 1); reach[3] = Math.max(reach[3], p[1] + 1); }
+    // (how far its buildings stand out past it: the ground is shaped, and kept, that far out — their walls stand on it —
+    // and the roads and junctions built are those within blockPad of the block, or within the shaping's reach of that
+    // share: every road the shaping sees, and the roads round a long building's far corners)
+    const rr = cfg.terrain.margin + cfg.terrain.maxBlend + 2;
+    let over = 0;
+    for (const b of bB) for (const p of b.rings[0]) over = Math.max(over, box[0] - p[0], p[0] - box[2], box[1] - p[1], p[1] - box[3]);
+    const share = Math.max(40, Math.ceil(over) + 2), pad = Math.max(BP, share + rr), reach = [box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad];
     const segIds = new Set<number>(model.segs.filter((g: any, k: number) => meets(segBox[k], reach)).map((g: any) => g.id));
     const clusterIds = new Set<number>(model.clusters.filter((c: any, k: number) => meets(clusterBox[k], reach)).map((c: any) => c.id));
     const S = timed('surface', () => model.surfaceFor({ segs: segIds, clusters: clusterIds }));
     const mB = { ...model, segs: model.segs.filter((g: any) => segIds.has(g.id)), clusters: model.clusters.filter((c: any) => clusterIds.has(c.id)), surface: S };
     const c = timed('check', () => checkSurface(S.mesh, { segs: mB.segs, sampleEvery: 3, region: [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6] }));
     chk.cracks += c.crackCount; chk.overlaps += c.overlapCount; chk.sampled += c.sampled; chk.folds += c.folds.length; chk.triangles += c.triangles;
-    timed('terrain', () => shapeRoadsV4(Tn, { grid, dem: E.heights, mesh: S.mesh, model: mB, cfg, box: [box[0], box[1], Math.min(box[2], gx1), Math.min(box[3], gz1)] }));
+    timed('terrain', () => shapeRoadsV4(Tn, { grid, dem: E.heights, mesh: S.mesh, model: mB, cfg, box: [box[0], box[1], Math.min(box[2], gx1), Math.min(box[3], gz1)], share }));
     const surface = timed('index', () => surfaceIndex(mB)), X = timed('mask', () => exclusionMask(mB, osm, [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6], cfg, T));
     const tr = timed('trees', () => treesV4({ osm, groundAt, onPaved: (x, z) => { const k = cellAt(x, z); return k < 0 || !!Tn.road[k] || !!Tn.parkingCell[k]; }, mask: X, cfg, v3cfg, inArea: inBlock, box }));
     const br = timed('railings', () => barriersV4({ osm, model: mB, groundAt, demAt, surface, cfg, v3cfg, inArea: inBlock, box }));
-    const lp = timed('lamps', () => placeLamps({ model: mB, osm, cfg, surface, mask: X, groundAt, classAt: (x, z) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; }, box }));
+    const lp = timed('lamps', () => placeLamps({ model: mB, osm, cfg, surface, mask: X, groundAt, classAt, box }));
     // (the block's own lamps: the roads reaching in from round it place some outside it)
     const lamps: number[] = []; for (let k = 0; k < lp.lamps.length; k += LAMP_STRIDE) if (inBlock(lp.lamps[k], lp.lamps[k + 2])) for (let q = 0; q < LAMP_STRIDE; q++) lamps.push(lp.lamps[k + q]);
     // (names on the block's roads, at the drawn road's height; the rest of the area's roads left nameless)
@@ -161,7 +167,6 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
-    for (const [id, v] of lp.lit) litBySeg.set(id, v);
     const TB = tileBuilderV4({ region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface });
     for (let j = bj; j <= tj1; j++) for (let i = bi; i <= ti1; i++) {
       const t = TB.tile(i, j), cx = (i + 0.5) * T, cz = (j + 0.5) * T, a0 = performance.now();

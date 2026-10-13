@@ -35,10 +35,12 @@ export function terrainBaseV4({ grid: g, dem, osm, v3cfg }: { grid: Grid; dem: F
   return { ...T3, base: Float32Array.from(T3.heights), coverBase: Float32Array.from(T3.cover), parkBase: Uint8Array.from(T3.roadSurface), roadSurface, parkingCell, road: new Uint8Array(N), shaped: 0 };
 }
 
-export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box }: { grid: Grid; dem: Float32Array; mesh: any; model: any; cfg: any; box: [number, number, number, number] }) {
+// share: m past the box whose ground is kept too (the next block works it out the same) — at least as far as what
+// stands on the ground in the box's tiles reaches out
+export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box, share = 40 }: { grid: Grid; dem: Float32Array; mesh: any; model: any; cfg: any; box: [number, number, number, number]; share?: number }) {
   const Tc = cfg.terrain, P = M.positions, I = M.indices;
-  // ---- the window: the block and far enough past it that every road reaching its points is in
-  const reachM = Tc.margin + Tc.maxBlend + 40;
+  // ---- the window: the box and its share, and far enough past them that every road reaching their points is in
+  const reachM = Tc.margin + Tc.maxBlend + share;
   const c0 = Math.max(0, Math.floor((box[0] - reachM - g.x0) / g.cell)), c1 = Math.min(g.W - 1, Math.ceil((box[2] + reachM - g.x0) / g.cell));
   const r0 = Math.max(0, Math.floor((box[1] - reachM - g.z0) / g.cell)), r1 = Math.min(g.H - 1, Math.ceil((box[3] + reachM - g.z0) / g.cell));
   const W = c1 - c0 + 1, Hh = r1 - r0 + 1, N = W * Hh;
@@ -146,7 +148,6 @@ export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box }:
   // ---- 5. into the region's grid, to the centimetre (what the tiles store, exactly): the block's own points and those
   // within `share` m of it — as far as its tiles' buildings, railings and car parks look for the ground — which the next
   // block works out the same (every road within reach of them is in both windows: the window reaches share m further)
-  const share = reachM - (Tc.margin + Tc.maxBlend);
   const inBox = (x: number, z: number) => x >= box[0] - 1e-6 && x <= box[2] + 1e-6 && z >= box[1] - 1e-6 && z <= box[3] + 1e-6;
   const inShare = (x: number, z: number) => x >= box[0] - share && x <= box[2] + share && z >= box[1] - share && z <= box[3] + share;
   for (let k = 0; k < N; k++) {
