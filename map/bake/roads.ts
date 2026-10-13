@@ -129,7 +129,7 @@ function mergeCloseNodes(ways: Way[]) {
   return n;
 }
 
-export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
+export function joinLooseEnds(ways: Way[], cfg: RoadCfg, halfWidth: ((tags: Record<string, string>) => number) | null = null) {
   const onto = cfg.joinOnto ?? 1, pointing = cfg.joinPointing ?? 6, reach = 30;
   const merged = mergeCloseNodes(ways);
   const uses = new Map<number, number>();
@@ -145,7 +145,8 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
       for (const k of keys) (grid.get(k) ?? grid.set(k, []).get(k)!).push([wi, i]);
     }
   });
-  const half = ways.map(w => sizeOf(w.tags, cfg).width / 2), kinds = ways.map(w => kind(w.tags));
+  // (Map v4 gives its own widths: an end within its wider road is on it)
+  const half = ways.map(w => (halfWidth ? halfWidth(w.tags) : sizeOf(w.tags, cfg).width / 2)), kinds = ways.map(w => kind(w.tags));
   const inserts = new Map<number, { i: number; t: number; p: any }[]>(), joins: { wi: number; atStart: boolean; p: any }[] = [];
   let nextId = 9e15;
   ways.forEach((w, wi) => {

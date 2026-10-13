@@ -16,6 +16,7 @@
 import { createWorldStream } from "./streamer.js";
 import { createWorldMaps } from "./maps.js";
 import { createMapDebug } from "./debug.js";
+import { lampLights } from "./lamps.js";
 export async function prepareTrack(track) {
     const manifest = await (await fetch(track.mapV3.manifest, { cache: 'no-cache' })).json();
     track.surfaces = manifest.surfaces;
@@ -99,7 +100,11 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
         m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));
     w.shown = true;
     // the debug views and the bad-spot logger (Shift+F3, Shift+F4, Shift+F2: map/render/debug.ts)
-    w.mapDebug = createMapDebug(w, { travelTo });
+    // (Shift+F6: day, dusk, night — the settings' time of day, which the whole game uses)
+    w.mapDebug = createMapDebug(w, { travelTo, setHours: (h) => { shared.prefs.timeOfDay = h; shared.savePrefs?.(); }, hours: () => shared.prefs?.timeOfDay ?? 13 });
+    // Map v4's street lamps: the nearest few as real lights after dark (map/render/lamps.ts)
+    w.mapLamps?.dispose();
+    w.mapLamps = stream.manifest.map === 'v4' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
     w.travel = (place) => travelTo(w, place);
     globalThis.__mapDebug = w.mapDebug;
     return stream;
@@ -259,6 +264,13 @@ export function realWorldFrame(w, shared, seconds) {
         w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
     }
     w.mapDebug?.frame(seconds);
+    if (w.mapLamps) {
+        const lit = [];
+        for (const e of S.tiles.values())
+            if (e.obj?.lamps)
+                lit.push(e.obj.lamps);
+        w.mapLamps.frame(w.camera, w.light?.night ?? 0, lit);
+    }
     // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
     // after the scene), as the frame profiler counted them (perf/profiler.js)
     const info = shared.renderer?.info;

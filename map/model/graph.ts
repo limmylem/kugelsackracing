@@ -14,8 +14,9 @@
 
 import type { Way } from '../bake/osmData.ts';
 import { DRIVABLE, joinLooseEnds } from '../bake/roads.ts';
+import { baseWidth } from './widths.ts';
 
-export interface MNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; border: boolean }
+export interface MNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; border: boolean; kind?: 'junction' | 'joint' | 'end'; cluster?: number; h?: number; ground?: boolean; arms?: number }
 export interface Seg {
   id: number; way: number; osmWay: number; from: number; to: number;
   xs: number[]; zs: number[]; orig: boolean[]; osmNodes: (number | null)[]; lat: number[]; lon: number[]; s: number[];
@@ -80,7 +81,12 @@ export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any;
     const keep = new Set(kept.values());
     ways = ways.filter((_, i) => keep.has(i));
   }
-  const joins = joinLooseEnds(ways, v3roads);
+  // (an end within a road's own width — Map v4's — joined to it)
+  const halfOf = (t: Record<string, string>) => {
+    const base = LINK[t.highway] ?? t.highway, oneway = t.oneway === 'yes' || t.oneway === '1' || t.junction === 'roundabout' || (base === 'motorway' && t.oneway !== 'no') ? 1 : 0;
+    return baseWidth({ cls: base, link: !!LINK[t.highway], oneway, lanesTag: num(t.lanes), widthTag: num(t.width) } as any, cfg.widths).visual / 2;
+  };
+  const joins = joinLooseEnds(ways, v3roads, halfOf);
   ways = ways.filter(w => w.nodes.length >= 2);
   const uses = new Map<number, number>();
   for (const w of ways) w.nodes.forEach((p, i) => uses.set(p.id, (uses.get(p.id) ?? 0) + (i === 0 || i === w.nodes.length - 1 ? 2 : 1)));

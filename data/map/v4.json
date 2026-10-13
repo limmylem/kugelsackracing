@@ -40,14 +40,20 @@
     "taperLength": 15
   },
   "heights": {
-    "_note": "The road surface's heights, solved on the graph: each way's elevation profile (spikes out: a running median over `median` points either side; then a Gaussian, `smooth` m) → junction heights and planes (the profiles' heights where they reach the junction, a least-squares plane through them no steeper than junctionMaxSlope) → each segment bent to meet its ends, then held to maxGrade and to maxGradeChange (change of grade per metre: no crest that throws a car) by relaxation. armEase: m over which a road eases from its own profile and camber onto a junction's plane. Bridges ease straight between their ends and are lifted overpassClearance over what they cross; tunnels likewise below.",
+    "_note": "The road surface's heights, solved on the graph, from the elevation opened over demOpen m (what's left of buildings and trees in a surface model, bumps narrower than that, cut off) and blurred over demBlur m (the source is 30 m): each way's elevation profile (spikes out: a running median over `median` points either side; then a Gaussian, `smooth` m) → junction heights and planes (the profiles' heights where they reach the junction, a least-squares plane through them no steeper than junctionMaxSlope) → each segment bent to meet its ends, then held to maxGrade and to maxGradeChange (change of grade per metre: no crest that throws a car) by relaxation. Neighbouring junctions' planes are relaxed towards each other (planePasses) until the road between any two is no steeper than planeGrade (planeFollowsGround: or rather rises as the ground does there, within planeGrade). shortRoadCurve: a road between two planes shorter than two eases made one smooth curve meeting both planes' heights and slopes (else eased from each end). armEase: m over which (on a road shorter than twice it, half its length from each end) a road eases from its own profile and camber onto a junction's plane. Bridges ease straight between their ends and are lifted overpassClearance over what they cross; tunnels likewise below.",
+    "demOpen": 12,
+    "demBlur": 10,
     "median": 2,
     "smooth": 14,
     "maxGrade": 0.3,
     "maxGradeChange": 0.012,
     "relaxPasses": 60,
     "junctionMaxSlope": 0.14,
-    "armEase": 10,
+    "planeGrade": 0.12,
+    "planeFollowsGround": false,
+    "shortRoadCurve": false,
+    "planePasses": 40,
+    "armEase": 20,
     "camber": 0.02,
     "camberOneWay": 0.012,
     "overpassClearance": 5.2,
@@ -59,7 +65,7 @@
     "maxTrim": 70,
     "kerbRadius": 4,
     "cornerPoints": 7,
-    "minRibbon": 2,
+    "minRibbon": 4,
     "mergeDistance": 6,
     "minHoleArea": 6,
     "minHoleWidth": 0.8,
@@ -67,7 +73,9 @@
     "snap": 0.002
   },
   "surface": {
-    "_note": "The surface's cross-section: visual edge, kerb's inner edge (drivable edge), half way, crown — mirrored. skirtDepth: a strip down from the visual edge (drawn only, not solid) so the ground's sink never shows as a gap. Dead ends run capLength m past their last node. Markings (cheap: one vertex-coloured mesh) by region style; lines markingWidth m wide, raised markingLift m, dashed dash/gap m.",
+    "_note": "The surface's cross-section: visual edge, kerb's inner edge (drivable edge), half way, crown — mirrored. skirtDepth: a strip down from the visual edge (drawn only, not solid) so the ground's sink never shows as a gap. Dead ends run capLength m past their last node. Markings (cheap: one vertex-coloured mesh) by region style; lines markingWidth m wide, raised markingLift m, dashed dash/gap m. easeRows: m from a trim where a road's rows are, through its ease onto the junction's plane (closer near the trim). quantum: every vertex put on this grid (m: the tiles' position quantum) before T-junctions are closed, so the ones closed stay closed in the tiles.",
+    "quantum": 0.01,
+    "easeRows": [0.5, 1, 2, 3, 4.5, 6.5, 9, 12, 15.5],
     "skirtDepth": 0.25,
     "capLength": 0.5,
     "markingWidth": 0.12,
@@ -83,8 +91,9 @@
     }
   },
   "terrain": {
-    "_note": "The ground under and round the road surface, in the height grid itself (so the drawn ground and the physics' heightfield match): every grid point under the surface or within margin m of it set sink m under the nearest road surface (margin is at least the grid cell's diagonal: no terrain triangle can reach up into the road); then sloping back to the natural ground (1 : slope, minBlend to maxBlend m). The terrain's simplified meshes are drawn lowered by their own error, so they can't come up through a road at a distance. Bridges: the ground kept bridgeClearance under the deck (underBridge away from its ends). Tunnels: the ground over them kept as a roof.",
+    "_note": "The ground under and round the road surface, in the height grid itself (so the drawn ground and the physics' heightfield match): every grid point under the surface or within margin m of it set sink m under the nearest road surface (margin is at least the grid cell's diagonal: no terrain triangle can reach up into the road); then sloping back to the natural ground (1 : slope, minBlend to maxBlend m). The terrain's simplified meshes are cut, under and beside the roads (the exclusion mask's road and buffer), from the heights lowered by their own error and lodRoadDrop m more, so they can't come up through a road at any distance (the physics keeps the grid as it is). Bridges: the ground kept bridgeClearance under the deck (underBridge away from its ends). Tunnels: the ground over them kept as a roof.",
     "sink": 0.08,
+    "lodRoadDrop": 0.02,
     "margin": 3.0,
     "slope": 1.6,
     "minBlend": 2.0,
@@ -115,10 +124,11 @@
     "underDeckClearance": 1.0
   },
   "lamps": {
-    "_note": "Street lamps: OSM's (highway=street_lamp, man_made=street_lamp) first; then estimated ones from the road model on lit roads (lit=yes, or urban classes when lit isn't tagged; never lit=no): spacing m by kind, at the kerb (offset m outside the visual edge) or in a median wider than medianMin m, both sides of roads at least bothSidesWidth m wide; one at every junction corner of a lit road, two at crossings; tunnels continuous at tunnel m, on the wall. Never in a lane, on a road surface, or under a deck (the exclusion mask). A mapped lamp within mappedRadius m stands in for an estimated one. Height, arm, colour, and the rendering's real-light count.",
+    "_note": "Street lamps: OSM's (highway=street_lamp, man_made=street_lamp) first; then estimated ones from the road model on lit roads (lit=yes; the alwaysLitClasses — main roads, lit through parks too; or urban classes when lit isn't tagged, in built-up areas; never lit=no): spacing m by kind, at the kerb (offset m outside the visual edge) or in a median wider than medianMin m, both sides of roads at least bothSidesWidth m wide; one at every junction corner of a lit road, two at crossings; tunnels continuous at tunnel m, on the wall. Never in a lane, on a road surface, or under a deck (the exclusion mask). A mapped lamp within mappedRadius m stands in for an estimated one. Height, arm, colour, and the rendering's real-light count.",
     "spacing": { "urban": 34, "motorway": 45, "tunnel": 24, "junction": 0, "crossing": 0 },
     "urbanClasses": ["trunk", "primary", "secondary", "tertiary", "residential", "unclassified", "living_street", "road", "busway", "link"],
     "motorwayClasses": ["motorway"],
+    "alwaysLitClasses": ["trunk", "primary", "secondary", "tertiary"],
     "unlitClasses": ["service", "track"],
     "offset": 0.6,
     "medianMin": 2.5,
@@ -131,7 +141,7 @@
     "colour": "#ffd9a0",
     "realLights": 6,
     "realLightRange": 32,
-    "realLightIntensity": 30,
+    "realLightIntensity": 160,
     "fadeDistance": 25,
     "poolRadius": 8,
     "glowSize": 1.3
@@ -150,5 +160,26 @@
     "_note": "workers: tiles written in parallel (0: one per core less one); gzip level (9 is 3% smaller and twice as slow as 6)",
     "workers": 0,
     "gzipLevel": 6
+  },
+  "tests": {
+    "_note": "Map v4's tests (tests/map/v4.test.ts): the limits each measurement is held to. widthShare: the drawn road at least this share of the model's width (5th percentile). maxCracksPer100k: T-junction cracks inside the road (a vertex of one piece within 3 mm of another's edge but not on it, road all round it) in the joined tiles' road surface, per 100,000 triangles — notches in the road's outline aren't counted. maxOverlapShare: road surface sampled with two solid layers within 0.5 m of each other. edgeInset/edgeSpacing: road edges sampled this far inside the drawn edge, this often (m); maxHoleShare: of those with no drawn road; maxGroundThroughShare: with the drawn ground over the road (near and middle detail); maxPhysicsGap: the collision surface this close to the drawn one (m). maxStep: a junction's join (m, beyond the road's own grade) — at most maxStepShare of the samples across joins over it, maxJoinHoleShare with no road. bumpSpeeds: km/h for the bump runs, bumpLimits the most vertical acceleration (m/s²) at each — 150 km/h through a city junction that follows the real grade can't be under 2.5 g. lampCoverage: the share of lit-class road with a lamp within lampReach m. badSpotRadius: m round each known bad spot re-checked. surfaceTiles: how many tiles (round the spawn and the bad spots) are joined for the watertight check; auditTiles: how many have every collider audited (all of them in a slice).",
+    "widthShare": 0.97,
+    "maxCracksPer100k": 2,
+    "maxOverlapShare": 0.006,
+    "edgeInset": 0.15,
+    "edgeSpacing": 3,
+    "maxHoleShare": 0.0005,
+    "maxGroundThroughShare": 0.001,
+    "maxPhysicsGap": 0.03,
+    "maxStep": 0.02,
+    "maxStepShare": 0.005,
+    "maxJoinHoleShare": 0.001,
+    "bumpSpeeds": [30, 80, 150],
+    "bumpLimits": { "30": 25, "80": 25, "150": 50 },
+    "lampCoverage": 0.8,
+    "lampReach": 30,
+    "badSpotRadius": 25,
+    "surfaceTiles": 25,
+    "auditTiles": 80
   }
 }

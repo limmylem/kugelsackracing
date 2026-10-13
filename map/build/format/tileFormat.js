@@ -75,8 +75,10 @@ export function encodeTile(tile, E) {
         }
         if (order) {
             const vb2 = new Uint8Array(vb.length);
+            // (a vertex past the last one any triangle uses has no place in the order — it isn't used: left out, not written
+            // over the first)
             for (let v = 0; v < n; v++)
-                if (order[v] !== 0xffffffff)
+                if (v < order.length && order[v] !== 0xffffffff)
                     vb2.set(vb.subarray(v * stride, v * stride + stride), order[v] * stride);
             vb.set(vb2);
         }

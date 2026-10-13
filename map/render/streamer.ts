@@ -124,7 +124,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       if (m.type === 'error') { stats.errors++; stats.lastError = m.error; tiles.delete(key); failedAt.set(key, clock()); return; }
       entry.data = m.tile; entry.state = 'ready';
       if (!O.headless) {
-        entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
+        entry.obj = tileObjects(m.tile, { barriers: manifest.barriers, lamps: manifest.lamps });
         const [cx, cz] = centreOf(t);
         entry.obj.group.position.set(cx, 0, cz);
         entry.obj.group.updateMatrixWorld(true);

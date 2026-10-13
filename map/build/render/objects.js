@@ -8,6 +8,7 @@
 //   t.group (in the tile's own frame: its middle at 0), t.setDetail(distance), t.dispose()
 import * as THREE from 'three';
 import { barrierInstances, barrierShape, quatYawPitch } from "../format/barriers.js";
+import { lampObjects } from "./lamps.js";
 // ---------- shared materials (one each for the whole world) ----------
 let M = null;
 function windowTexture(kind) {
@@ -48,7 +49,13 @@ function windowTexture(kind) {
 // the baked colours are sRGB (as written in data/world/bake.json): into linear for the lighting
 export function srgbVertexColours(m) {
     const before = m.onBeforeCompile;
-    m.onBeforeCompile = (sh, r) => { before?.(sh, r); sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = pow(vColor.rgb, vec3(2.2));\n#endif'); };
+    m.onBeforeCompile = (sh, r) => {
+        before?.(sh, r);
+        sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n  vColor.rgb = pow(vColor.rgb, vec3(2.2));\n#endif');
+        // (a flat-shaded face's normal comes from the pixel's neighbours: on a sliver seen edge-on it can be nothing, and
+        // normalising nothing is NaN — one such pixel and the bloom spreads it over the whole picture. Facing the camera then)
+        sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n  if (any(isnan(normal))) normal = vec3(0.0, 0.0, 1.0);');
+    };
     const key = m.customProgramCacheKey?.bind(m);
     m.customProgramCacheKey = () => `srgb-${key ? key() : ''}`;
     return m;
@@ -60,6 +67,8 @@ export function materials() {
     M = {
         terrain: lambert({}),
         roads: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+        // (Map v4's road surface: its kerb faces, skirts and decks' sides are one-sided pieces seen from either way)
+        roadsV4: lambert({ flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
         paved: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
         markings: lambert({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
         cover: lambert({}),
@@ -178,9 +187,16 @@ function textAtlas(items) {
     texture.anisotropy = 8;
     return { texture, rects };
 }
-function geometryOf(m, { normals = false } = {}) {
+function geometryOf(m, { normals = false, up = false } = {}) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(m.positions, 3));
+    // (flat on the road: markings face straight up)
+    if (up) {
+        const n = new Float32Array(m.positions.length);
+        for (let i = 1; i < n.length; i += 3)
+            n[i] = 1;
+        g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
+    }
     if (m.colours)
         g.setAttribute('color', new THREE.BufferAttribute(m.colours, 4, true));
     if (m.uvs)
@@ -191,7 +207,7 @@ function geometryOf(m, { normals = false } = {}) {
     g.computeBoundingSphere();
     return g;
 }
-export function tileObjects(tile, { barriers: B }) {
+export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
     const mat = materials(), group = new THREE.Group(), owned = [];
     group.name = `tile ${tile.header.key}`;
     const mesh = (name, material, o = {}) => {
@@ -210,7 +226,8 @@ export function tileObjects(tile, { barriers: B }) {
         return obj;
     };
     const terrain = [0, 1, 2].map(k => mesh(`terrain${k}`, mat.terrain, { normals: true }));
-    const near = [mesh('roads', mat.roads), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1 })].filter(Boolean);
+    const v4 = tile.header.map === 'v4';
+    const near = [mesh('roads', v4 ? mat.roadsV4 : mat.roads), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
     mesh('water', mat.water, { normals: true, order: 2 });
     const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true }))].filter(Boolean);
     // trees
@@ -265,6 +282,10 @@ export function tileObjects(tile, { barriers: B }) {
         }
     }
     group.add(rails);
+    // street lamps (Map v4: map/render/lamps.ts)
+    const lamps = tile.lists.lamps?.data.length ? lampObjects(tile, lampCfg) : null;
+    if (lamps)
+        group.add(lamps.group);
     // street names on the roads, signs at junctions (made when near)
     let labels = null;
     const makeLabels = () => {
@@ -327,7 +348,7 @@ export function tileObjects(tile, { barriers: B }) {
         group.add(labels);
     };
     return {
-        group, header: tile.header,
+        group, header: tile.header, lamps,
         counts: () => ({ meshes: group.children.length }),
         // the share of the trees drawn (the graphics settings' scenery: the first of them in their shuffled order)
         setScenery(f) { for (const m of trees.children)
@@ -343,6 +364,7 @@ export function tileObjects(tile, { barriers: B }) {
                 m.visible = d < 3000;
             trees.visible = d < 700;
             rails.visible = d < 900;
+            lamps?.setDetail(d);
             if (d < 360 && !labels)
                 makeLabels();
             if (labels)
@@ -353,6 +375,7 @@ export function tileObjects(tile, { barriers: B }) {
                 g.dispose();
             trees.traverse((o) => o.dispose?.());
             rails.traverse((o) => o.dispose?.());
+            lamps?.dispose();
             labels?.traverse(o => { if (!o.isInstancedMesh)
                 o.geometry?.dispose?.(); if (o.material?.map)
                 o.material.dispose(); });

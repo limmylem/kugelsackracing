@@ -39,14 +39,14 @@ export function armEdge(a: { seg: Seg; atStart: boolean }, sp: number, side: num
   const r = rowAt(a.seg, armS(a, sp)), ss = armSide(a, side), hw = which === 'visual' ? (ss > 0 ? r.hwL : r.hwR) : (ss > 0 ? r.dL : r.dR);
   return at(r, ss * hw);
 }
-// the arm's cross-section at s', from its left edge to its right (looking out): the 7 points the road's own row has
+// the arm's cross-section at s', from its left edge to its right (looking out): the 5 points the road's own row has
 export function armRow(a: { seg: Seg; atStart: boolean }, sp: number) {
   const r = rowAt(a.seg, armS(a, sp)), pts = rowPoints(r);
   return a.atStart ? pts : pts.slice().reverse();
 }
-// a row's 7 points, the segment's left edge first: visual, drivable (the kerb's inner edge), half way, crown, …
+// a row's 5 points, the segment's left edge first: visual, drivable (the kerb's inner edge), crown, …
 export function rowPoints(r: any) {
-  const offs = [r.hwL, r.dL, r.dL / 2, 0, -r.dR / 2, -r.dR, -r.hwR];
+  const offs = [r.hwL, r.dL, 0, -r.dR, -r.hwR];
   return offs.map(o => at(r, o));
 }
 
@@ -240,6 +240,11 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
 }
 
 // the union of rings (Clipper2, on a millimetre grid: robust), as polygons — [outer, ...holes] each
+export const unionStats = { skipped: 0 };
+const areaOf = (P: any) => { let a = 0; for (const q of P) a += Clipper.Clipper.area(q); return a; };
+// (paths with area — over 0.01 m² either way: outers and real holes — kept; slivers of nothing dropped)
+const solidPaths = (P: any) => { const o = new Clipper.Paths64(); for (const q of P) if (Math.abs(Clipper.Clipper.area(q)) > 1e4) o.push(q); return o; };
+const copyPaths = (P: any) => { const o = new Clipper.Paths64(); for (const q of P) { const c = new Clipper.Path64(); for (const pt of q) c.push(new Clipper.Point64(pt.x, pt.y)); o.push(c); } return o; };
 export function unionRings(pieces: number[][][], close = 0) {
   const S = 1000;
   // (one piece at a time into the union: clipper2-js's union of many overlapping paths at once can lose area — 271 m²
@@ -250,9 +255,20 @@ export function unionRings(pieces: number[][][], close = 0) {
     const ring = polygonArea(ring0) < 0 ? ring0.slice().reverse() : ring0, p = new Clipper.Path64(), one = new Clipper.Paths64();
     for (const [x, z] of ring) p.push(new Clipper.Point64(Math.round(x * S), Math.round(z * S)));
     one.push(p);
-    const clean = Clipper.Clipper.Union(one, undefined, Clipper.FillRule.NonZero);
+    const clean = solidPaths(Clipper.Clipper.Union(one, undefined, Clipper.FillRule.NonZero));
     for (const q of clean) if (Clipper.Clipper.area(q) < 0) q.reverse();
-    out = out.length ? Clipper.Clipper.Union(out, clean, Clipper.FillRule.NonZero) : clean;
+    if (!out.length) { out = clean; continue; }
+    // (a union never shrinks: if clipper2-js's does — it can, given the paths of no area a union leaves behind, which
+    // are dropped after every step — the other way round, then the piece's parts one at a time, each kept only if it
+    // grows the union; a part it can't add is left out and counted)
+    const before = areaOf(out), grew = (P: any) => areaOf(P) >= before - 1e4;
+    let next = solidPaths(Clipper.Clipper.Union(copyPaths(out), copyPaths(clean), Clipper.FillRule.NonZero));
+    if (!grew(next)) next = solidPaths(Clipper.Clipper.Union(copyPaths(clean), copyPaths(out), Clipper.FillRule.NonZero));
+    if (!grew(next)) {
+      next = out;
+      for (const q of clean) { const one2 = new Clipper.Paths64(); one2.push(q); const was = areaOf(next), tryIt = solidPaths(Clipper.Clipper.Union(copyPaths(next), copyPaths(one2), Clipper.FillRule.NonZero)); if (areaOf(tryIt) >= was - 1e4) next = tryIt; else unionStats.skipped++; }
+    }
+    out = next;
   }
   // (closed: grown and shrunk again by `close` m — cracks and slivers narrower than twice that filled, everything
   // else as it was: mitred corners come back exactly)

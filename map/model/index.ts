@@ -16,7 +16,7 @@ import type { Way } from '../bake/osmData.ts';
 import type { Projection } from '../format/projection.ts';
 import { buildGraph } from './graph.ts';
 import { assignWidths } from './widths.ts';
-import { buildTopology } from './topology.ts';
+import { buildTopology, unionStats } from './topology.ts';
 import { solveHeights } from './heights.ts';
 import { buildSurface } from './surface.ts';
 
@@ -29,9 +29,9 @@ export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSi
   assignWidths(G, cfg);
   lap(`widths: ${G.segs.filter(g => g.adjusted).length} segments narrowed beside another road`);
   const T = buildTopology(G, cfg);
-  lap(`junctions: ${T.stats.junctions} (${T.stats.clusters} patches, ${T.stats.merged} merged into clusters), ${T.stats.joints} joints, ${T.stats.ends} ends; ${T.stats.clamped} trims clamped, ${T.stats.unresolvedCorners} open corners, ${T.stats.unionFailures} union failures`);
+  lap(`junctions: ${T.stats.junctions} (${T.stats.clusters} patches, ${T.stats.merged} merged into clusters), ${T.stats.joints} joints, ${T.stats.ends} ends; ${T.stats.clamped} trims clamped, ${T.stats.unresolvedCorners} open corners, ${T.stats.unionFailures} union failures, ${unionStats.skipped} pieces a union couldn't take`);
   const Hs = solveHeights(G, T, demAt, cfg);
-  lap(`heights: ${Hs.stats.chains} chains, ${Hs.stats.lifted} bridges lifted, ${Hs.stats.gradeLimited} grade-limited`);
+  lap(`heights: ${Hs.stats.chains} chains, ${Hs.stats.lifted} bridges lifted, ${Hs.stats.gradeLimited} grade-limited, junction planes moved ${Hs.stats.planesMoved} times to meet their neighbours`);
   // (OSM's crossings, stops and give ways, by node id: markings where they're mapped)
   const crossings = new Map<number, string>();
   for (const p of points) { const h = p.tags?.highway; if (h === 'crossing' || h === 'stop' || h === 'give_way') crossings.set(p.id, h); else if (p.tags?.crossing && p.tags.crossing !== 'no') crossings.set(p.id, 'crossing'); }

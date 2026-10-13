@@ -156,6 +156,7 @@ export const realWorldFile = () => lastRealFile;
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 // the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
 let baked = null;
+const mapV3Wanted = () => { try { return new URLSearchParams(location.search).get('map') === 'v3' || localStorage.getItem('map.version') === 'v3'; } catch { return false; } };
 const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
 const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
 const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
@@ -982,6 +983,9 @@ async function buildWorld(file) {
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
+  // (Map v4's regions: ?map=v3 in the address — or localStorage map.version = v3 — loads the region's Map v3 bake, kept
+  // beside it for comparing; off by default)
+  if (track.mapV3?.manifest.endsWith('/v4/manifest.json') && mapV3Wanted()) track.mapV3 = { ...track.mapV3, manifest: track.mapV3.manifest.replace(/\/v4\/manifest\.json$/, '/manifest.json') };
   // (the baked regions' files are on the tiles address when there is one — docs/DEPLOYMENT.md: everything that
   // streams in finds its files from here)
   if (track.mapV3) track.mapV3 = { ...track.mapV3, manifest: assetUrl(track.mapV3.manifest) };
@@ -1131,6 +1135,7 @@ async function buildWorld(file) {
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
   }
   if (track.mapV3) {
+    shared.savePrefs ??= () => saveSettings(shared.prefs);
     await MapV3.attachRealWorld(w, shared, { RAPIER });
     // the world's published content: quest starts and the rest, in the world and on the maps
     // and its quests (play/questUi.js): the card, starting one, the run, the results

@@ -7,7 +7,7 @@
 //   mask        the exclusion mask (v4 tiles): what keeps trees and props off roads, bridges and under decks
 //   lamps       street lamps (v4 tiles): mapped (OSM) white, estimated orange, the nearest-N real lights ringed
 //   seams       tile borders, and any height or road-edge mismatch where two loaded tiles meet (red)
-// Shift+F3 cycles them. Shift+F4 logs a bad spot (position, heading, tile, a note) to known-bad-spots.json —
+// Shift+F3 cycles them. Shift+F6 steps the time of day (day, dusk, night: the lamps). Shift+F4 logs a bad spot (position, heading, tile, a note) to known-bad-spots.json —
 // written into data/map/ through the dev server when there is one, else kept in the browser (Shift+F4 offers the
 // file to save). Shift+F2 takes the car to the next saved bad spot (and data/map/known-bad-spots.json's).
 //
@@ -19,6 +19,8 @@ export const VIEWS = ['off', 'colliders', 'roads', 'mask', 'lamps', 'seams'];
 const KIND_COLOUR: Record<string, number> = { terrain: 0x3fbf3f, road: 0xf0f0f0, building: 0xff9a2e, barrier: 0xff3030, tree: 0x9a5b2a, other: 0xff40ff };
 const CLASS_COLOUR: Record<string, number> = { motorway: 0xe0457b, trunk: 0xf08a3c, primary: 0xf2c94c, secondary: 0x9be15d, tertiary: 0x4fd1c5, residential: 0xf5f5f5, unclassified: 0xc0c0c0, service: 0x8a8a8a, living_street: 0xd0b0ff, track: 0xa07850 };
 const BAD_KEY = 'map.knownBadSpots';
+// (Shift+F6's times of day)
+const DAY_NIGHT: [number, string][] = [[13, 'day'], [19.4, 'dusk'], [22, 'night']];
 
 // a piece's wireframe (tile-local line segments)
 export function pieceLines(shape: any, out: number[], near: ((x: number, z: number) => boolean) | null = null) {
@@ -68,7 +70,8 @@ function lineMesh(groups: Map<number, number[]>, opacity = 1) {
 }
 const disposeGroup = (g: any) => g?.traverse((o: any) => { o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); });
 
-export function createMapDebug(w: any, { travelTo }: { travelTo: (w: any, place: any) => void }) {
+export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) => void; setHours?: (h: number) => void; hours?: () => number }) {
+  const { travelTo } = opts;
   let view = 'off', built = new Map<string, any>(), lastKey = '', timer = 0, spotIndex = -1;
   const S = w.stream, T = S.manifest.grid.tileSize, holder = new THREE.Group();
   holder.name = 'map debug';
@@ -200,6 +203,7 @@ export function createMapDebug(w: any, { travelTo }: { travelTo: (w: any, place:
     if (e.code === 'F3') { e.preventDefault(); e.stopImmediatePropagation(); setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]); }
     else if (e.code === 'F4') { e.preventDefault(); e.stopImmediatePropagation(); const now = performance.now(); if (now - lastLog < 600) download(); else logBadSpot(); lastLog = now; }
     else if (e.code === 'F2') { e.preventDefault(); e.stopImmediatePropagation(); nextBadSpot(); }
+    else if (e.code === 'F6' && opts.setHours) { e.preventDefault(); e.stopImmediatePropagation(); const now = opts.hours?.() ?? 13, next = DAY_NIGHT.find(([h]) => h > now + 0.01) ?? DAY_NIGHT[0]; opts.setHours(next[0]); flash(`Time of day: ${next[1]} (${String(Math.floor(next[0])).padStart(2, '0')}:${String(Math.round((next[0] % 1) * 60)).padStart(2, '0')})`); }
   };
   addEventListener('keydown', onKey, true);
   return {

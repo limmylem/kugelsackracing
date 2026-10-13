@@ -156,7 +156,7 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
   // ---------- venues ----------
   const manifests = new Map<string, any>();
   const regionFrame = (region: string) => {
-    if (!manifests.has(region)) { try { manifests.set(region, json(`assets/map/${region}/manifest.json`)); } catch { manifests.set(region, null); } }
+    if (!manifests.has(region)) { try { manifests.set(region, json(fs.existsSync(path.join(REPO_DIR, `assets/map/${region}/v4/manifest.json`)) ? `assets/map/${region}/v4/manifest.json` : `assets/map/${region}/manifest.json`)); } catch { manifests.set(region, null); } }
     const m = manifests.get(region);
     return m?.projection ? { kind: 'region' as const, region, lat0: m.projection.lat0, lon0: m.projection.lon0 } : null;
   };

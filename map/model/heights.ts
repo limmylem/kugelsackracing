@@ -42,7 +42,7 @@ const lerpAt = (S: number[], H: number[], s: number) => {
 };
 
 export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any) {
-  const Hc = cfg.heights, stats = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0 };
+  const Hc = cfg.heights, stats = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0 };
   // ---- 1. each segment's own smoothed profile
   for (const g of G.segs) { g.raw = g.xs.map((x: number, k: number) => demAt(x, g.zs[k])); g.smooth = smoothProfile(g.s, g.raw, Hc.median, Hc.smooth); }
   // ---- 2. node heights: from the ground roads there; on structures, from the ground they're anchored to
@@ -113,12 +113,50 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   for (const g of G.segs) if (!visited.has(g.id) && !g.internal) { stats.cycles++; walk(g.from, g, true, true); }
   stats.chains = chains.length;
   const clusterOf = (k: number) => (G.nodes[k].kind === 'junction' ? T.clusters[G.nodes[k].cluster] : null);
+  relaxPlanes(chains, clusterOf, G, Hc, stats, demAt);
   for (const ch of chains) solveChain(ch, G, clusterOf, demAt, Hc, stats);
   // ---- 5. bridges over roads: lifted to clear them (eased within the bridge), and the grades held again
   liftBridges(G, chains, Hc, stats);
   // (internal roads of a cluster: on its plane)
   for (const g of G.segs) if (g.internal) { const c = clusterOf(g.from) ?? clusterOf(g.to); g.h = g.xs.map((x: number, k: number) => (c ? planeAt(c, x, g.zs[k]) : g.smooth[k])); }
   return { chains, stats };
+}
+
+// neighbouring junctions' planes held to the roads between them: where the road from one plane to the next (trim to
+// trim) would rise or fall more than the ground does there, give or take planeGrade, both planes are moved towards
+// each other (their heights, not their tilt) — planePasses rounds over every such road. A plane fitted to a noisy
+// patch of ground can't leave a cliff, or a dip, for its road; a real hill stays.
+function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: MNode[]; segs: Seg[] }, Hc: any, stats: any, demAt: (x: number, z: number) => number) {
+  const links: { cA: any; cB: any; pA: number[]; pB: number[]; span: number; rise: number }[] = [];
+  for (const ch of chains) {
+    if (ch.cycle) continue;
+    const cA = clusterOf(ch.start), cB = clusterOf(ch.end);
+    if (!cA || !cB || cA === cB) continue;
+    const P = chainPoints(ch), n = P.length, S = P.map(p => p.S), first = ch.parts[0], last = ch.parts[ch.parts.length - 1];
+    const S0 = Math.max(0, first.fwd ? first.seg.trim0 : first.seg.trim1), S1 = Math.min(S[n - 1], S[n - 1] - Math.max(0, last.fwd ? last.seg.trim1 : last.seg.trim0));
+    const posAt = (sc: number) => { let i = 0; while (i + 2 < n && S[i + 1] < sc) i++; const t = Math.max(0, Math.min(1, (sc - S[i]) / ((S[i + 1] - S[i]) || 1))); return [P[i].x + (P[i + 1].x - P[i].x) * t, P[i].z + (P[i + 1].z - P[i].z) * t]; };
+    // (structures aside: a bridge's or tunnel's ends are held by their own rules)
+    if (ch.parts.some((p: any) => p.seg.structure !== 'ground')) continue;
+    const pA = posAt(S0), pB = posAt(S1);
+    links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]) });
+  }
+  let moved = 0;
+  for (let pass = 0; pass < Hc.planePasses; pass++) {
+    let worst = 0;
+    for (const L of links) {
+      // (the road between them may rise as the ground does, give or take planeGrade — never more than maxGrade)
+      const hA = planeAt(L.cA, L.pA[0], L.pA[1]), hB = planeAt(L.cB, L.pB[0], L.pB[1]), want = Hc.planeFollowsGround ? Math.max(-Hc.maxGrade * L.span, Math.min(Hc.maxGrade * L.span, L.rise)) : 0;
+      const off = (hB - hA) - want, ex = Math.abs(off) - Hc.planeGrade * L.span;
+      if (ex <= 1e-3) continue;
+      worst = Math.max(worst, ex);
+      const m = Math.sign(off) * ex / 2;
+      L.cA.plane.c += m; L.cB.plane.c -= m; moved++;
+    }
+    if (worst <= 1e-3) break;
+  }
+  // (the nodes on their planes again)
+  for (const k of G.nodes.keys()) { const c = clusterOf(k); if (c) G.nodes[k].h = planeAt(c, G.nodes[k].x, G.nodes[k].z); }
+  stats.planesMoved = moved;
 }
 
 function chainPoints(ch: { parts: { seg: Seg; fwd: boolean }[] }) {

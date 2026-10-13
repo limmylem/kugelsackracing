@@ -67,7 +67,9 @@ export function networkOf(region: string) {
   if (networks.has(region)) return networks.get(region);
   let N: any = null;
   try {
-    const dir = path.join(REPO_DIR, 'assets/map', region.replace(/[^a-z0-9_-]/gi, ''));
+    const base = path.join(REPO_DIR, 'assets/map', region.replace(/[^a-z0-9_-]/gi, ''));
+    // (Map v4's bake when the region has one: the game's)
+    const dir = fs.existsSync(path.join(base, 'v4', 'manifest.json')) ? path.join(base, 'v4') : base;
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
     const P = transverseMercator(m.projection.lat0, m.projection.lon0);
     N = createNetwork(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, 'graph.json.gz'))).toString()), { P, region, version: m.version, bbox: m.bbox } as any);

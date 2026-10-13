@@ -15,6 +15,8 @@
 //   determinism  a small area baked twice: identical tiles and graph, byte for byte
 //   physics      the Phase 1 straight-line tests on a real road, against the car's targets
 //
+//   (--map v4: the same tests on the region's Map v4 bake, assets/map/<region>/v4/ — tests/map/v4.test.ts has v4's own)
+//
 //   npm run test:map                          all
 //   npm run test:map -- --only rails,height   some
 //   npm run test:map -- --verbose             every measurement
@@ -32,8 +34,8 @@ import { createRun, evaluate, pathThrough } from '../../physics/testSuite.js';
 import { CarDamage } from '../../garage/carDamage.js';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
-const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'sf';
-const M = await mapHarness(region), { H, manifest, T, P } = M;
+const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'sf', mapV = opt('--map') ?? 'v3';
+const M = await mapHarness(region, mapV === 'v4' ? path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/map', region, 'v4') : undefined), { H, manifest, T, P } = M;
 const perf = JSON.parse(fs.readFileSync(path.join(M.root, 'data/map/performance.json'), 'utf8'));
 const CAR = 'starter_car', garage = H.garage(null, CAR), spec = garage.stats().spec;
 const KMH = 1 / 3.6, IDLE = { device: 'wheel', throttle: 0, brake: 0, steer: 0, handbrake: false };
@@ -78,7 +80,7 @@ async function roadsTest() {
     const d = readPbf(new Uint8Array(fs.readFileSync(pbf)), { wantWay: t => !!t.highway, wantRelation: () => false });
     osmNode = new Map([...d.nodes].filter(([id]) => want.has(id)).map(([id, c]) => [id, [c[1], c[0]]]));
   }
-  let worst = 0, worstAt = null, n = 0, missing = 0, meshWorst = 0, meshN = 0;
+  let worst = 0, worstAt = null, n = 0, missing = 0, meshWorst = 0, meshN = 0, uncovered = 0;
   const rnd = rng(7);
   for (const s of G.segs) for (const [k, id, lat0, lon0] of s.osm) {
     const ll = osmNode?.get(id) ?? [lat0, lon0];
@@ -102,12 +104,16 @@ async function roadsTest() {
         covered ||= meshHeights(R, lx, lz).length > 0;
       }
       if (!any) continue;
+      if (!covered) uncovered++;
+      if (mapV === 'v4') { meshN++; continue; }
       const inJunction = covered && best > 0.5;
       if (!inJunction) { meshWorst = Math.max(meshWorst, best); meshN++; }
     }
   }
   report('roads', 'baked centre lines vs OpenStreetMap', worst < 0.5 && n > 0, `${n.toLocaleString('en-GB')} OSM nodes ${osmNode ? '(re-read from the OSM extract)' : '(the graph\'s own copy: no extract here)'}: largest difference ${(worst * 100).toFixed(1)} cm${worstAt ? ` at ${worstAt}` : ''}`);
-  report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
+  // (Map v4: its cross-sections aren't built on OSM's nodes — the road surface covering each is what's asked)
+  if (mapV === 'v4') report('roads', 'drawn road surface over every OSM node', uncovered === 0 && meshN > 0, `${meshN} sampled nodes: ${uncovered} with no road surface drawn over them`);
+  else report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
   // connected: no road ends on another (same layer and structure) without joining it — that's a step or
   // a gap where they meet
   const deg = new Map<number, number>();
@@ -427,12 +433,13 @@ async function streamingTest() {
 async function determinismTest() {
   console.log('\nDeterminism: the same area baked twice');
   if (!fs.existsSync(path.join(M.root, '.cache/map', region, `${region}.osm.pbf`))) { report('determinism', 'baking twice', true, 'needs the bake\'s inputs in .cache/map (run a bake first)', true); return; }
-  const { bake } = await import('../../map/bake/bake.ts');
+  // (Map v4: its own bake, the road surface model's file with the rest)
+  const bake = mapV === 'v4' ? (await import('../../map/bake/bakeV4.ts')).bakeV4 : (await import('../../map/bake/bake.ts')).bake;
   const [la, lo] = [manifest.spawn.lat, manifest.spawn.lon], dirs = [0, 1].map(k => fs.mkdtempSync(path.join(os.tmpdir(), `map-det-${k}-`)));
   for (const out of dirs) await bake({ regionId: region, area: `${la},${lo},0.6`, out, log: () => {} });
-  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz'];
+  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz', ...(mapV === 'v4' ? ['roadmodel.json.gz'] : [])];
   const a = files(dirs[0]), diff = a.filter(f => !fs.readFileSync(path.join(dirs[0], f)).equals(fs.readFileSync(path.join(dirs[1], f))));
-  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : 'identical, byte for byte (tiles, far layer, road graph)');
+  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${mapV === 'v4' ? ', road surface model' : ''})`);
   for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
 }
 
@@ -490,7 +497,7 @@ async function physicsTest() {
 
 const TESTS: Record<string, () => Promise<void>> = { roads: roadsTest, height: heightTest, seams: seamsTest, datum: datumTest, rails: railTest, streaming: streamingTest, determinism: determinismTest, physics: physicsTest };
 const t0 = performance.now();
-console.log(`Map v3's tests: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
+console.log(`Map v3's tests${mapV === 'v4' ? ' on the Map v4 bake' : ''}: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
 for (const [id, fn] of Object.entries(TESTS)) if (!only || only.includes(id) || (id === 'streaming' && only.includes('memory'))) await fn();
 const failed = rows.filter(r => !r.pass);
 console.log(`\n${rows.length - failed.length} of ${rows.length} passed${rows.some(r => r.skipped) ? ` (${rows.filter(r => r.skipped).length} skipped)` : ''} in ${((performance.now() - t0) / 1000).toFixed(0)} s${failed.length ? ` — failed: ${failed.map(r => `${r.test}: ${r.name}`).join('; ')}` : ''}\n`);

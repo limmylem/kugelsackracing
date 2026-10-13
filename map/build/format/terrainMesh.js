@@ -23,14 +23,47 @@ export function terrainMeshes(tile, errors = tile.header.terrain?.lodErrors ?? [
             rows[r * N1 + c] = H[r + c * N1];
     if (!cutters.has(N1))
         cutters.set(N1, new Martini(N1));
-    const cut = cutters.get(N1).createTile(rows), out = {};
+    // (Map v4: under and beside the roads — the tile's exclusion mask, road or its buffer — each level is cut from heights
+    // lowered by its own error and a little more, so a coarser level's triangles never reach up through a road: the
+    // grid itself (and the physics) unchanged)
+    const X = tile.grids.exclusion, drop = tile.header.terrain?.roadDrop ?? 0.02, nearRoad = X ? new Uint8Array(N1 * N1) : null;
+    if (X && nearRoad) {
+        const xc = X.cell, xn = X.n;
+        for (let r = 1; r < N1 - 1; r++)
+            for (let c = 1; c < N1 - 1; c++) {
+                // (never a point on the tile's edge: its neighbour decides from its own mask, and the two must agree)
+                const x = c * cell, z = r * cell;
+                // (the mask's cells within a cell of this point)
+                let hit = 0;
+                for (let b = Math.max(0, Math.floor((z - cell) / xc)); b <= Math.min(xn - 1, Math.floor((z + cell) / xc)) && !hit; b++)
+                    for (let a = Math.max(0, Math.floor((x - cell) / xc)); a <= Math.min(xn - 1, Math.floor((x + cell) / xc)); a++)
+                        if (X.data[b * xn + a] & 3) {
+                            hit = 1;
+                            break;
+                        }
+                nearRoad[r * N1 + c] = hit;
+            }
+    }
+    const plain = cutters.get(N1).createTile(rows), out = {};
     errors.forEach((err, k) => {
+        let cut = plain, Hk = H;
+        if (nearRoad) {
+            const low = rows.slice(), d = err + drop;
+            for (let q = 0; q < low.length; q++)
+                if (nearRoad[q])
+                    low[q] -= d;
+            cut = cutters.get(N1).createTile(low);
+            Hk = new Float32Array(H.length);
+            for (let c = 0; c < N1; c++)
+                for (let r = 0; r < N1; r++)
+                    Hk[r + c * N1] = low[r * N1 + c];
+        }
         const { vertices, triangles } = cut.getMesh(err), nv = vertices.length / 2;
         const positions = new Float32Array(nv * 3), colours = new Uint8Array(nv * 4);
         for (let v = 0; v < nv; v++) {
             const c = vertices[v * 2], r = vertices[v * 2 + 1], col = pal[G ? G.data[r * N1 + c] : 0] ?? pal[0];
             positions[v * 3] = -half + c * cell;
-            positions[v * 3 + 1] = H[r + c * N1];
+            positions[v * 3 + 1] = Hk[r + c * N1];
             positions[v * 3 + 2] = -half + r * cell;
             colours[v * 4] = col[0];
             colours[v * 4 + 1] = col[1];
