@@ -15,7 +15,7 @@ on it. What follows is kept as the record, and for setting it up again from noth
 | OVHcloud | The game server in Sydney (API, multiplayer, tunnel) | VPS-1 | A$6.29 + GST ≈ A$6.92 (≈ US$4.60) |
 | PlanetScale | The database in Sydney, its own backups | Postgres PS-5 (PostgreSQL 18) | ≈ US$5 |
 | Namecheap | The domain ognistrada.com | Yearly renewal (keep auto-renew on) | ≈ US$1 |
-| Cloudflare | DNS, HTTPS, the game's pages, map files and backups (R2), bot check, tunnel | Free (a card on file for R2) | $0 |
+| Cloudflare | DNS, HTTPS, the game's pages, map files and backups (R2), bot check, tunnel; voice chat (Realtime, from 2026-10-13) | Free (a card on file for R2); Realtime free to 1,000 GB a month, then US$0.05 a GB | $0 |
 | Resend · Sentry · Healthchecks.io · UptimeRobot · GitHub | Email; error alerts; missed-backup alerts; down alerts; code, tests, deploys | Free | $0 |
 | **Total** | | | **≈ US$10.50–11.50** |
 
@@ -32,6 +32,24 @@ on it. What follows is kept as the record, and for setting it up again from noth
 **Never paste a secret (a password, key or token) into a chat.** Every secret goes straight into GitHub's secret
 settings (Part 5). The repository is public: secrets there are hidden, even from the workflow logs.
 
+## Voice chat: Cloudflare Realtime (approved 2026-10-13; free at our size)
+
+Voice chat (party voice, and proximity voice for everyone else: docs/FREE_ROAM.md "Voice chat") sends each voice through
+Cloudflare Realtime's SFU. **Free for the first 1,000 GB a month, then US$0.05 a GB** (*check* the pricing page:
+developers.cloudflare.com/realtime/sfu/pricing). One player hearing four others talk uses about 70 MB an hour, so five
+of you playing 40 hours a month is about 14 GB; ~1,000 regular players would be about US$20 a month. Until these two
+secrets are in GitHub the game simply says voice chat isn't set up yet; nothing else changes.
+
+1. **Cloudflare** → left menu **Realtime** → **Serverless SFU** (the names may differ a little) → **Create** → name it
+   `ognistrada-voice` → copy the **App ID** and the **App Token** (the token is shown once). If it asks for a card, the
+   one already on file for R2 is enough: nothing is charged within the free 1,000 GB.
+2. **A billing alert** (2 minutes): **Notifications** → **Add** → a usage-based billing alert for Realtime (or the
+   account's billing) at US$1, to your email — so anything past the free amount is never a surprise.
+3. **GitHub** → Settings → **Secrets and variables** → **Actions** → **Secrets** tab → **New repository secret**:
+   `CF_REALTIME_APP_ID` (the App ID) and `CF_REALTIME_APP_TOKEN` (the App Token). Never paste them into a chat.
+4. Tell Claude **"voice secrets added"**: the next deploy you approve turns voice chat on (the real-time server reads
+   them; nothing to set on the server by hand).
+
 ## What it costs
 
 | What | Plan | A month |
@@ -40,6 +58,7 @@ settings (Part 5). The repository is public: secrets there are hidden, even from
 | Database | PlanetScale Postgres PS-5, AWS Sydney | ≈ US$5 (check at checkout) |
 | The domain | `ognistrada.com` at Namecheap: its yearly renewal | ≈ US$1 |
 | Cloudflare, Resend, UptimeRobot, Sentry, Healthchecks.io, GitHub | Free plans | $0 |
+| Cloudflare Realtime (voice chat) | Free to 1,000 GB a month, then US$0.05 a GB | $0 at our size |
 | **Total** | | **≈ US$10.50–11.50** |
 
 If anything at a checkout costs noticeably more than this, stop and tell Claude before paying.

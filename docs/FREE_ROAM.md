@@ -171,11 +171,37 @@ race, results checked and paid per player by the quest's rules.
 - **Nearby text chat** (within `chat.nearbyM`, 300 m, to those who have it on) and **party chat** (wherever they are).
 - Every message through the name and profanity filter (`cleanChat`); rate limited (a burst of 4, then 1 a second); **mute**
   (this game only), **block** (kept by the API) and **report** (with the replay) from Nearby.
-- **Voice chat: a design note only** (nothing built, nothing bought). It would need a media server (an SFU such as LiveKit
-  or a hosted one like Agora): proximity voice per zone instance (players within ~100 m in one room, volume by distance),
-  party voice as a separate room, push-to-talk by default, voice off for guests and under-18 accounts, mute and block
-  honoured by the SFU's permissions, no recording. Every option costs money (a hosted SFU charges per participant-minute;
-  a self-hosted one needs its own servers and bandwidth): to be priced and decided with the owner first.
+- **Voice chat** (below).
+
+### Voice chat (2026-10-13)
+
+Through Cloudflare Realtime's SFU (owner-approved; free to 1,000 GB a month, then US$0.05 a GB: COSTS.md, GO_LIVE.md).
+Settings: `data/roam.json` `voice`. The rules are `mp/voice.js`; the server side `server/src/rt/voice.ts`; the game's
+`play/voice.js`, its controls in the free-roam screen's **Settings** (F6).
+
+- **Party voice:** in a party with party voice on, you hear your party, wherever each of you is (another region
+  too), at full volume, and nobody else.
+- **Proximity voice:** otherwise (no party, or party voice off), with proximity voice on, you hear the players near
+  you who are in proximity voice too: full volume within `fullM` (150 m), fading smoothly to nothing at `nearbyM`
+  (600 m) — far enough to talk to a friend stuck down the road. The game sets each voice's volume from where the cars
+  are drawn (the server's distance, for one too far to draw).
+- **Switches:** party voice and proximity voice (free roam's settings, kept by the account); the microphone on or off;
+  open mic (sends only over a level, `gateDb`, with a 60 ms look-ahead so a word's start isn't cut) or push to talk
+  (hold `/`, changeable: click the key, press another); the voices' volume (these kept in the browser).
+  **Mute** (Nearby ⋯) stops hearing someone — their voice isn't even fetched; **block** takes them out of each
+  other's voice chat entirely, both ways.
+- **What it costs:** only voices with their microphone on are fetched, at most `maxPeers` (16), the nearest first;
+  Opus mono at `bitrateBps` (24 kbps), nothing sent in silence (DTX). Listening without a microphone sends nothing.
+- **How it connects:** each player's game has one WebRTC connection to the SFU, made through their home zone (the
+  SFU's key stays on the server: `CF_REALTIME_APP_ID`, `CF_REALTIME_APP_TOKEN`). Each player's entry (their SFU
+  session and track, where they are, their party and switches) is in the real-time server's presence, so a handoff to
+  another zone — or another process — keeps it. Every second the home zone works out who they hear and tells their
+  game, which fetches what's new and closes what's gone; every fetch is checked again on the server.
+- **Not for:** guests (development and the tests excepted: `rt.voiceGuests`); recording (nothing is ever kept).
+- **Tests:** `tests/unit/voice.test.mjs` (the rules); `server/tools/voice-browser.ts` — two windows in Milton Keynes
+  through a stand-in for the SFU on this computer (`server/tools/fake-sfu.ts`, a WebRTC peer of its own: the same
+  calls), with Chromium's fake microphone: B hears A's sound arrive, muting, the switches, out of range and back,
+  push to talk.
 
 ## Coming back where you left (persistence)
 

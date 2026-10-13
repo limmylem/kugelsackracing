@@ -23,3 +23,4 @@ Garages have their own in and out driveways, and solid ground
 Garage driveways meet the road smoothly
 Every garage now fits its spot: driveways flow off the road
 Garage driveways grip like real roads, with nothing invisible in the way
+Voice chat: talk to your party anywhere, or drivers nearby

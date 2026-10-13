@@ -181,8 +181,11 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   missing). Both games still get one agreed result each, but the two zones don't compare notes.
 - **`?player=` development players don't come back where they left.** The zone servers save them, but the
   development page doesn't ask `GET /roam/me` for them; signed-in players do.
-- **Voice chat isn't built** (a design note in FREE_ROAM.md): every version needs a media server (an SFU), which costs
-  money. Decided with the owner first.
+- **Voice chat only in free roam** (FREE_ROAM.md "Voice chat"): not yet in lobbies, races or the menus; a party's
+  voice is heard while its members drive in free roam. Tested on this computer through a stand-in for Cloudflare's SFU;
+  the real one is checked online once its two secrets are added (GO_LIVE.md "Voice chat").
+- **Voice chat across several real-time processes:** each player's entry is in presence (Redis with several processes),
+  so it works there — but tested in one process only.
 - **The browser test needs `--local-libs` here**: the page loads three.js, Rapier and MapLibre from jsDelivr, which this
   computer can't reach; the option serves them from node_modules (14 of 14 then).
 - **Not checked on two networks yet.** Everything ran on this computer (Phase 7 Step 1's deferred check, now with free

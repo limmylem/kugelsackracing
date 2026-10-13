@@ -24,7 +24,8 @@ import { createChecks } from './checks.ts';
 import { createGrid } from './interest.ts';
 import { send } from './outbox.ts';
 
-export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any };
+export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any;
+  voice?: import('./voice.ts').Sfu | null; voiceGuests?: boolean };
 let ENV: RtEnv;
 export const setRtEnv = (e: RtEnv) => { ENV = e; };
 

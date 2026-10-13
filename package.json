@@ -94,7 +94,8 @@
     "pmtiles": "^4.5.0",
     "sharp": "^0.35.5",
     "three": "0.160.0",
-    "typescript": "5.9"
+    "typescript": "5.9",
+    "werift": "0.25.0"
   },
   "workspaces": [
     "packages/*",
