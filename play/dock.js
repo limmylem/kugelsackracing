@@ -1,10 +1,10 @@
-// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — the way to the garage, racing
+// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — a tow to the garage (paid: or drive into a garage building), racing
 // online (the multiplayer menu, F7: its #mpButton is drawn here), free roam (its #roamHud — what you are to the others,
 // who's near, the next meet — and its panel, F6), the free-roam chat (Enter; the messages you haven't seen counted),
 // the account, and the editor for the accounts that have it. The brand mark at the top folds the dock away (kept in
 // this browser). Out of the way in the garage, in a race and in photo mode.
 //
-//   const D = mountDock({ garage(), editor() })     D.editor(on)  the editor's tile shown (editor accounts)
+//   const D = mountDock({ garage() (the Tow tile), editor() })     D.editor(on)  the editor's tile shown (editor accounts)
 // Free roam and the multiplayer menu put their own elements in the dock's slots (#krDockRace, #krDockRoam) when it's
 // there; free roam hears the chat tile through 'kr:roam-open' ({ tab }) and says what's unread with 'kr:roam-unread'.
 
@@ -81,7 +81,7 @@ export function mountDock({ garage, editor } = {}) {
   dock.id = 'krDock'; dock.setAttribute('aria-label', 'Game menu');
   dock.innerHTML = `<button class="dk-brand" data-k="fold" title="Fold the menu away">${MARK}</button>
     <div class="dk-sep"></div>
-    <button class="dk-item" data-k="garage" data-tip="Garage: your cars, parts, shop and dealership"><span class="dk-ic">car_repair</span>Garage</button>
+    <button class="dk-item" data-k="garage" data-tip="Tow to the nearest garage (a small fee, click twice) — or drive into one: they're the blue drive-through buildings"><span class="dk-ic">car_repair</span>Tow</button>
     <div class="dk-slot" id="krDockRace"></div>
     <div class="dk-slot" id="krDockRoam"></div>
     <button class="dk-item dk-chat" data-k="chat" data-tip="Chat with drivers near you (Enter)" hidden><span class="dk-ic">forum</span>Chat<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>

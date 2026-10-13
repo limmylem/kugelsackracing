@@ -30,7 +30,8 @@
         "route",
         "series",
         "venue",
-        "meet"
+        "meet",
+        "garage"
       ]
     },
     "name": {

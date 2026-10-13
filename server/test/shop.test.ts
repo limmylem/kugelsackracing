@@ -59,6 +59,8 @@ test('every purchase and sale through the server, each with its ledger row', asy
   const car = await step('buyCar', { carId: 'kaze_gt' }, 'purchase', () => -24000, /Bought a Kaze GT/);
   const slot = await step('buyGarageSlot', {}, 'purchase', r => -r.cost, /garage space/);
   assert.equal(slot.capacity, 4);
+  const tow = await step('towCar', {}, 'purchase', r => -r.cost, /Towed to the garage/);
+  assert.equal(tow.cost, 150, 'a tow costs data/economy.json tow.fee');
   const lot = (await ann.get('/api/v1/player/used-lot')).body, cheap = [...lot.listings].filter((l: any) => !['S', 'X', 'A'].includes(l.class)).sort((a: any, b: any) => a.price - b.price)[0];
   const used = await step('buyUsedCar', { listingId: cheap.id }, 'purchase', () => -cheap.price, /Bought a used car/);
   // (as it was on the lot: its parts at their conditions)

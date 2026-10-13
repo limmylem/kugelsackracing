@@ -215,7 +215,7 @@ export function createEditor({ game }) {
     const sel = current && current.status !== 'archived';
     ui.top.innerHTML = `
       <button data-view="map" class="${view === 'map' ? 'on' : ''}" title="The whole Earth (M)">Map</button><button data-view="3d" class="${view === '3d' ? 'on' : ''}" ${worldView ? '' : 'disabled'} title="The baked world in 3D (M)">3D</button>
-      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}${t('meet', 'Meet spot', '7')}
+      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}${t('meet', 'Meet spot', '7')}${t('garage', 'Garage', '8')}
       <button data-act="snap" class="${snap ? 'on' : ''}" title="Snap to the nearest road, facing along it (N)">Snap to road<kbd>N</kbd></button>
       <span class="sep"></span>
       <button data-act="undo" ${H?.canUndo ? '' : 'disabled'} title="${esc(H?.undoLabel ? `Undo ${H.undoLabel}` : 'Nothing to undo')} (Ctrl+Z)">↶ Undo</button>
@@ -277,7 +277,7 @@ export function createEditor({ game }) {
     worldView?.setItems(shown); worldView?.select(selected);
   }
   function renderFilters() {
-    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'meet', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
+    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'meet', 'garage', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
     ui.filters.onclick = e => { const b = e.target.closest('button'); if (b) { filter = b.dataset.f; renderFilters(); refresh(); } };
     ui.filters.querySelector('#edArch').onchange = e => { showArchived = e.target.checked; refresh(); };
   }
@@ -353,6 +353,7 @@ export function createEditor({ game }) {
     if (it.kind === 'series') html += seriesFields(it);
     if (it.kind === 'venue') html += venueFields(it);
     if (it.kind === 'meet') html += meetFields(it);
+    if (it.kind === 'garage') html += `<div class="section"><b>Garage</b><div class="hint">A drive-through building like a petrol station: a canopy over the road with the workshop beside it. Players drive through under the canopy to open their garage, and a paid tow brings them out of the nearest one. Its heading is the way through (snapped to a road it follows the road): place it on a straight stretch with room either side.</div></div>`;
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
@@ -856,7 +857,7 @@ export function createEditor({ game }) {
     if (current?.kind === 'route' && routeTool.key(k)) { e.stopPropagation(); return; }
     if (k === 'KeyT' && current?.kind === 'route') { testDrive(current); e.stopPropagation(); return; }
     if (k === 'Escape') { if (picking) { picking = null; ui.pick.style.display = 'none'; } else if (tool !== 'select') setTool('select'); else deselect(); }
-    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue'); else if (k === 'Digit7') setTool('meet');
+    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue'); else if (k === 'Digit7') setTool('meet'); else if (k === 'Digit8') setTool('garage');
     else if (k === 'KeyN') { snap = !snap; localStorageSet('kugelsack.editor.snap', snap ? 'on' : 'off'); renderTop(); flash(snap ? 'Snap to road: on' : 'Snap to road: off'); }
     else if (k === 'KeyM') setView(view === 'map' ? '3d' : 'map');
     else if (k === 'Delete' || k === 'Backspace') remove();

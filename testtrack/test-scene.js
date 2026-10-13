@@ -50,6 +50,7 @@ import '../physics/detmath-install.js';          // (first: the physics' maths t
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
+import { garageFrame } from '../play/garageBuilding.js';
 import { createRouteRun } from '../play/testDrive.js';
 import { createQuestPlay } from '../play/questUi.js';
 import { createQuestFinder, loadVenues } from '../play/questFinder.js';
@@ -176,7 +177,8 @@ export const debug = { get active() { return active; }, get shared() { return sh
   runOwnBenchmarks: say => runOwnBenchmarks(say) };
 // The page can let the tests switch worlds its own way (so its world buttons follow): switchTo(file)
 // toGarage(): tow the car to the garage (the page goes there, open on the damage report)
-export const hooks = { switchTo: null, toGarage: null };
+// openGarage(): the garage, as it opens (a garage building driven through)
+export const hooks = { switchTo: null, toGarage: null, openGarage: null };
 
 // The world editor (editor/editor.js) over the world on screen: play pauses safely — nothing is simulated
 // (the car holds where it is, mid-air or not), the game's controls and sound are off, an automated test
@@ -305,7 +307,8 @@ function questGame(w) {
     repairEstimate: () => { const p = player.profile; return p.cars[p.currentCar] ? carWork(db, p, p.currentCar).full : 0; },
     pause(on) { if (!on) s.last = performance.now(); },
     openSettings: () => s.panel.show?.() ?? s.panel.toggle(),
-    toGarage: () => { w.sim.vehicle.parts.clear(); if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page'); },
+    toGarage: () => { w.sim.vehicle.parts.clear(); if (hooks.toGarage) void tow(w, { confirmed: true }); else s.flash.show('Towed', 'ok', 2, 'no garage on this page'); },
+    towFee: () => cash(towFee()),
     say: (text, kind = 'ok') => s.flash.show(text, kind, 2),
     // polish: the game's mute, first-time hints (data/hints.json), a setting changed from the quest's pause menu
     muted: () => s.muted,
@@ -682,6 +685,9 @@ export async function enter(file) {
   shared.telemetry.label = active.name;
   active.sim.vehicle.drivetrain.mode = shared.gearMode;
   active.rig.reset();
+  // (back from the garage: out of the far side of the building driven through, or the one towed to)
+  const out = shared.garageExit; shared.garageExit = null;
+  if (out && active.stream && inRegion(active, out)) { rwOf(active).travelTo(active, { lat: out.lat, lon: out.lon, heading: 180 - out.bearing }); shared.cameOutAt = Date.now(); }
   shared.renderer.domElement.style.display = 'block';
   shared.last = performance.now();
   if (!shared.looping) { shared.looping = true; requestAnimationFrame(loop); }
@@ -1131,7 +1137,7 @@ async function buildWorld(file) {
     const game = w.questGame = questGame(w);
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
-    w.content = createContentLayer({ THREE, world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
+    w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side) => garageVisit(w, it, side), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
       questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
     // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
@@ -1359,20 +1365,44 @@ function replayFrame(w, now, seconds, inp) {
   s.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
 }
-// Backspace twice: the car towed to the garage — the session over (a race back to a test drive), the
-// garage open on the damage report
-function tow(w) {
+// The garage: driven to (a garage building in the real world — play/garageBuilding.js) or towed to for a fee
+// (data/economy.json tow). Out again, you come out of that building's far side; towed, out of the nearest one.
+const inRegion = (w, at) => { const b = w.stream?.manifest?.bbox; return !b || (at.lon >= b[0] && at.lon <= b[2] && at.lat >= b[1] && at.lat <= b[3]); };
+function garageVisit(w, it, side) {
+  // (not mid-race online, nor with the editor's camera flying through it)
+  if (!hooks.openGarage || active !== w || shared.mpRace?.racing || document.body.classList.contains('kr-in-race') || editorHooks.active) return;
+  const out = garageFrame(it, w.stream.projection).out(side);
+  shared.garageExit = { lat: out.lat, lon: out.lon, bearing: out.bearing };
+  shared.flash.show(it.name || 'Garage', 'ok', 1.5, 'into the garage');
+  hooks.openGarage();
+}
+const towFee = () => Math.max(0, shared?.session.db.economy?.tow?.fee ?? 0);
+const cash = n => `${shared?.session.db.economy?.currency ?? '$'}${Math.round(n).toLocaleString('en-GB')}`;
+// Backspace twice (or the dock's Tow twice, or a wrecked car's results): towed to the garage for the fee — the
+// session over (a race back to a test drive), the garage open on the damage report
+async function tow(w, { confirmed = false } = {}) {
   const s = shared, ok = s.play.allows('tow');
   if (!ok.ok) { s.flash.show('No tow', 'warn', 1.5, ok.why); return; }
-  if (performance.now() - s.towArmed > 2500) { s.towArmed = performance.now(); s.flash.show('Tow to the garage?', 'warn', 2.2, 'Backspace again: ends the session, the car to the garage for repairs'); return; }
-  s.towArmed = 0;
-  if (s.play.race) { s.prefs.session = 'test'; delete s.prefs.collisions; saveSettings(s.prefs); s.play = sessionFrom(s.prefs, s.session.db); }
-  for (const c of [...w.sim.cars]) w.sim.removeCar(c.id);
-  resetCar(w, true);
-  w.rig.reset();
-  s.flash.show('Towed to the garage', 'ok', 1.5, 'the damage report is open');
-  if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page: the car is back at the start');
+  if (s.towing) return;
+  if (!confirmed && performance.now() - s.towArmed > 2500) { s.towArmed = performance.now(); s.flash.show(`Tow to a garage? ${cash(towFee())}`, 'warn', 2.4, 'again to confirm: ends the session, the car to the nearest garage'); return; }
+  s.towArmed = 0; s.towing = true;
+  try {
+    const r = await s.session.player.towCar();
+    if (!r.ok) { s.flash.show('No tow', 'warn', 2.5, r.error ?? 'the tow couldn\'t be paid for'); return; }
+    if (s.play.race) { s.prefs.session = 'test'; delete s.prefs.collisions; saveSettings(s.prefs); s.play = sessionFrom(s.prefs, s.session.db); }
+    for (const c of [...w.sim.cars]) w.sim.removeCar(c.id);
+    // (the nearest garage building: out of it when you leave; none near — back on the road where you were)
+    const at = w.stream ? (() => { const p = w.sim.vehicle.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); return { lat, lon }; })() : null;
+    const g = at && w.content ? await w.content.nearestGarage(at.lat, at.lon) : null;
+    resetCar(w, true);
+    w.rig.reset();
+    if (g && inRegion(w, g.out)) s.garageExit = { lat: g.out.lat, lon: g.out.lon, bearing: g.out.bearing };
+    s.flash.show(`Towed${g ? ` to ${g.item.name}` : ' to the garage'}`, 'ok', 2, `${r.cost ? cash(r.cost) : 'free'} · the damage report is open`);
+    if (hooks.toGarage) hooks.toGarage(); else s.flash.show('Towed', 'ok', 2, 'no garage on this page: the car is back at the start');
+  } finally { s.towing = false; }
 }
+// (the dock's Tow: the same, asked twice)
+export function towToGarage() { if (active) void tow(active); }
 
 // ---------- Effects (effects/director.js, effects/threeRenderer.js) ----------
 
@@ -2110,7 +2140,7 @@ function updateHud(w, s, steps, sim) {
       ${s.lap ? `<div class="timer stage">${w.track.roads.find(r => r.startLine)?.style === 'gravel' ? 'Stage' : 'Lap'} <b>${s.lap.running ? clock(s.lap.t) : '–'}</b>${s.lap.running ? ` <span class="timing">${Math.round(s.lap.progress * 100)}%</span>` : ''} · best <b>${s.lap.best != null ? clock(s.lap.best) : '–'}</b></div>` : ''}
       ${s.aero.slipstream > 0.05 || s.aero.parts.length ? `<div class="engine">${s.aero.parts.length ? 'spoiler on · ' : ''}${s.aero.slipstream > 0.05 ? `<b>slipstream ${Math.round(s.aero.slipstream * 100)}%</b>` : ''}</div>` : ''}
       <div class="engine">${shared.play.name}${shared.play.collisions !== 'full' ? ` · cars: ${shared.play.collisions === 'off' ? 'ghosting' : 'reduced damage'}` : ''}</div>
-      <div class="keys"><kbd>H</kbd> full HUD · <kbd>R</kbd> back on the road · <kbd>⌫</kbd><kbd>⌫</kbd> tow to the garage · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>O</kbd> settings · <kbd>P</kbd> tuning · <kbd>L</kbd> telemetry · <kbd>T</kbd> next world</div>`;
+      <div class="keys"><kbd>H</kbd> full HUD · <kbd>R</kbd> back on the road · <kbd>⌫</kbd><kbd>⌫</kbd> tow to a garage (a fee) · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>O</kbd> settings · <kbd>P</kbd> tuning · <kbd>L</kbd> telemetry · <kbd>T</kbd> next world</div>`;
     return;
   }
   const pf = sim.perf, B = pf.budget, perFrame = pf.stepMs * shared.settings.stepHz / 60, room = B ? Math.floor(B.frameMs / (shared.settings.stepHz / 60) / Math.max(pf.perCarMs, 1e-3)) : null;
@@ -2141,7 +2171,7 @@ function updateHud(w, s, steps, sim) {
     <table><tr><th>wheel</th><th>susp</th><th>load</th><th>slip ratio</th><th>slip angle</th><th colspan="2">grip used</th><th>brake bar</th><th>disc</th><th></th></tr>${rows}</table>
     <div class="keys"><kbd>W</kbd><kbd>S</kbd> throttle / brake-reverse (hold <kbd>Shift</kbd> for half) · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Space</kbd> handbrake ·
     <kbd>Z</kbd> gearbox ${shared.gearMode === 'auto' ? 'auto' : 'manual'} · <kbd>V</kbd> 2H / 4H / 4L · <kbd>[</kbd><kbd>]</kbd><kbd>\\</kbd> diff locks · <kbd>;</kbd> roof · <kbd>Q</kbd><kbd>E</kbd> shift down / up · <kbd>F</kbd> clutch ·
-    <kbd>R</kbd> back on the road (<kbd>Shift</kbd>: to the start) · ${shared.play.restore ? '<kbd>B</kbd> reset car (development: repaired) · ' : ''}<kbd>⌫</kbd><kbd>⌫</kbd> tow to the garage · <kbd>U</kbd> damage view ${shared.damageView ? 'on' : 'off'} · <kbd>I</kbd> damage report · <kbd>G</kbd> debug lines ${shared.debug ? 'on' : 'off'} · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>P</kbd> tuning &amp; tests · <kbd>L</kbd> telemetry · <kbd>M</kbd> sound ${shared.muted ? 'off' : 'on'} · <kbd>X</kbd> all aids ${s.assists ? 'on' : 'off'} · <kbd>O</kbd> settings &amp; controls · <kbd>K</kbd> spoiler · <kbd>N</kbd> sockets · <kbd>J</kbd> AI car ahead · <kbd>Y</kbd> dyno · <kbd>H</kbd> small HUD · <kbd>T</kbd> next world · gamepads and wheels work too</div>
+    <kbd>R</kbd> back on the road (<kbd>Shift</kbd>: to the start) · ${shared.play.restore ? '<kbd>B</kbd> reset car (development: repaired) · ' : ''}<kbd>⌫</kbd><kbd>⌫</kbd> tow to a garage (a fee) · <kbd>U</kbd> damage view ${shared.damageView ? 'on' : 'off'} · <kbd>I</kbd> damage report · <kbd>G</kbd> debug lines ${shared.debug ? 'on' : 'off'} · <kbd>C</kbd> camera: ${CAMERAS[shared.camMode]} · <kbd>P</kbd> tuning &amp; tests · <kbd>L</kbd> telemetry · <kbd>M</kbd> sound ${shared.muted ? 'off' : 'on'} · <kbd>X</kbd> all aids ${s.assists ? 'on' : 'off'} · <kbd>O</kbd> settings &amp; controls · <kbd>K</kbd> spoiler · <kbd>N</kbd> sockets · <kbd>J</kbd> AI car ahead · <kbd>Y</kbd> dyno · <kbd>H</kbd> small HUD · <kbd>T</kbd> next world · gamepads and wheels work too</div>
     ${shared.debug ? '<div class="legend"><span style="color:#f93">drag</span> <span style="color:#f55">lift</span> <span style="color:#59f">downforce</span> <span style="color:#b6f">spoiler</span> · <span style="color:#3f5">ray (grounded)</span> <span style="color:#f43">ray (in air)</span> <span style="color:#f91">spring</span> <span style="color:#ddd">wheel heading</span> tyre force: <span style="color:#4f6">grip</span> <span style="color:#fd3">near limit</span> <span style="color:#f44">sliding</span></div>' : ''}`;
 }
 
@@ -2435,7 +2465,7 @@ function handleAction(w, act, inp) {
   if (act === 'aiCar') toggleAiCar(w);
   if (act === 'damageView') setDamageView(!s.damageView);
   if (act === 'damageReport') { s.report.toggle(); updateDash(v.snapshot()); }
-  if (act === 'tow') tow(w);
+  if (act === 'tow') void tow(w);
   if (act === 'worldMap' && w.stream) rwOf(w).toggleWorldMap(w);
   if (act === 'perfOverlay' && w.stream) rwOf(w).togglePerf(w);
   if (act === 'restore') {
@@ -2670,6 +2700,8 @@ async function startRoamHere(w, o) {
     const R = await startRoam({ account: A, region, cfg: roamCfg, mpCfg, adapter: Ad, look: mpLook(), player: o.player, netsim: o.netsim, serverNetsim: o.serverNetsim, debug: o.debug, S, game: {
       regionId: () => regionIdOf(active),
       regionChosenAt: () => lastRealAt,
+      // (just out of a garage: where you are is where you came out — not put back where you left off)
+      justCameOut: () => Date.now() - (shared.cameOutAt ?? 0) < 60000,
       carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
       place: (pos, h) => Ad.place(pos, h),
       async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },

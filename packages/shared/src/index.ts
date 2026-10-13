@@ -137,7 +137,7 @@ export const AuditEntry = z.object({
 // ---------- world content (docs/WORLD_CONTENT.md: the same requests as content/service.js) ----------
 export const VIEWS = ['draft', 'published', 'archived'] as const;
 export const View = z.enum(VIEWS);
-export const CONTENT_KINDS = ['quest', 'poi', 'spawn', 'route', 'series', 'venue', 'meet'] as const;
+export const CONTENT_KINDS = ['quest', 'poi', 'spawn', 'route', 'series', 'venue', 'meet', 'garage'] as const;
 export const ContentKind = z.enum(CONTENT_KINDS);
 export const Lat = z.coerce.number().min(-90).max(90);
 export const Lon = z.coerce.number().min(-180).max(180);
@@ -303,6 +303,7 @@ export const PLAYER_ACTION_ARGS = {
   sellCar: z.object({ carInstanceId: InstanceId, opts: z.object({ keep: z.array(InstanceId).max(80).optional() }).strict().optional() }).strict(),
   buyUsedCar: z.object({ listingId: z.string().regex(/^used_\d{8}_\d{2}$/, 'not a listing') }).strict(),
   buyGarageSlot: z.object({}).strict(),
+  towCar: z.object({}).strict(),
   saveSetup: z.object({ carInstanceId: InstanceId, opts: z.object({ name: z.string().trim().max(40).optional(), setupId: z.string().max(80).optional() }).strict().optional() }).strict(),
   renameSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80), name: z.string().trim().min(1).max(40) }).strict(),
   deleteSetup: z.object({ carInstanceId: InstanceId, setupId: z.string().max(80) }).strict(),
