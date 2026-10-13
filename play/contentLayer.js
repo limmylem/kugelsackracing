@@ -123,6 +123,8 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
     for (const [id, g] of garages) {
       const it = byId.get(id), F = g.building.frame, d = Math.hypot(F.cx - wx, F.cz - wz);
       if (!it || it.updated !== g.building.item.updated || d > DROP_M) { g.building.dispose(); garages.delete(id); continue; }
+      // (its slope and solid parts: once the road's collision is in round it)
+      if (d < 400) g.building.settle?.();
       if (d > 40) { g.was = false; continue; }
       const p = F.local(wx, wz), now = inLane(p);
       // (in: from outside it, a moment ago — not put down in it, or still in it coming back out of the garage)

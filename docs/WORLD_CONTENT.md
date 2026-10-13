@@ -4,11 +4,13 @@
 > a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
 
 > **Garages:** a kind `garage` ("Garage", the editor's tool 8) is a drive-through building like a petrol station
-> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt off
-> the road, a canopy on four posts over its lane, the workshop with roller doors beyond, a tall GARAGE sign; the posts,
-> workshop and sign are solid. Its location is the road's middle and its heading the road's way (snapped to a road it
+> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt behind
+> a grass verge, an IN driveway off the road into its lane and an OUT driveway back onto the road, a canopy on four posts
+> over the lane, the workshop with roller doors beyond, a tall GARAGE sign. The forecourt and driveways are solid
+> (driven on whatever the ground is like under them) and the whole garage leans with the road's slope (measured on the
+> road's collision once it's in); the posts, workshop and sign are solid too. Its location is the road's middle and its heading the road's way (snapped to a road it
 > follows the road; turn it round for the other side). Driving through under the canopy opens your garage; leaving it
-> you come out at the far end of the forecourt, back on the road. A garage's card on the map has **Route** for the way
+> you come out on the road beside the OUT driveway. A garage's card on the map has **Route** for the way
 > there. There's no
 > garage button any more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow
 > (`data/economy.json` `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you
