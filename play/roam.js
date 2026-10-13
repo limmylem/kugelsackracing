@@ -4,8 +4,8 @@
 // of what's seen); car-to-car contact (Step 3's contact client) with the players you touch — both with contact on, or your
 // party; and the free-roam screen (F6): who's near (inspect, challenge, report, block, mute), friends and the party (join a
 // friend wherever they are, challenge the party, race a quest together), your settings (privacy, names, nearby chat, contact,
-// passive mode), car meets (scheduled ones with a countdown, parking at a meet spot, emotes, photo mode), and chat (nearby,
-// party, the quick chat wheel). Challenges arrive as a prompt with the route on the maps; a challenge shows its rolling
+// passive mode, voice chat), car meets (scheduled ones with a countdown, parking at a meet spot, emotes, photo mode), and chat
+// (nearby, party, the quick chat wheel) and voice chat (play/voice.js: your party's, or the players near you). Challenges arrive as a prompt with the route on the maps; a challenge shows its rolling
 // start, checkpoints and results. Coming back: where you left (the API), or the garage.
 //
 //   const R = await startRoam({ account, region, cfg, mpCfg, adapter, look, player, netsim, serverNetsim, debug, S, game })
@@ -22,11 +22,19 @@ import { lodFor, nameOpacity, meetEventState } from '../mp/roam.js';
 import { createContactClient } from '../mp/contactClient.js';
 import { createColyseusTransport } from '../net/transport.js';
 import { dockSlot } from './dock.js';
+import { createVoice } from './voice.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const km = m => m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
 
 const CSS = `
+#roamVoice { position: fixed; right: 14px; top: 44%; z-index: 46; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; font: 600 12px/1.3 Barlow, system-ui, sans-serif; color: #f2f4f7; }
+#roamVoice > div { background: rgba(14, 18, 26, .82); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 3px 8px; width: max-content; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#roamVoice .me.live { border-color: #3ad17a; box-shadow: 0 0 8px rgba(58, 209, 122, .45); }
+#roamVoice .talk { border-color: #3ad17a; }
+#roamVoice .ic { font-family: 'Material Symbols Rounded', 'Material Symbols Outlined', sans-serif; font-size: 14px; vertical-align: -2px; margin-right: 4px; }
+#roamPanel input[type=range] { accent-color: #E3121E; flex: 1; }
+#roamPanel .badge.talk { background: #1f6b44; }
 #roamHud { position: fixed; left: 14px; bottom: 14px; z-index: 46; font: 600 12px/1.35 Barlow, system-ui, sans-serif; color: #f2f4f7; background: rgba(14, 18, 26, .82); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 6px 10px; display: flex; gap: 8px; align-items: center; }
 #roamHud button { font: inherit; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 7px; padding: 3px 8px; cursor: pointer; }
 #roamHud .tag { font: 700 10px "JetBrains Mono", monospace; letter-spacing: .06em; padding: 2px 6px; border-radius: 6px; background: #2b3444; }
@@ -128,6 +136,20 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const myUid = () => state.you ?? S.myUid;
   const state = { you: null, settings: { ...cfg.privacy.default }, touch: { with: [], passive: false, contact: false, ghostUntil: 0, challenge: null }, map: [], chat: [], muted: new Set(), invite: null, run: null, meet: null, flash: false, zones: [] };
   const offs = [];
+  // voice chat (play/voice.js): set up once the home zone says the server has it; drawn in its own corner and the settings
+  const voiceEl = document.createElement('div'); voiceEl.id = 'roamVoice';
+  let voiceKey = '';
+  const voice = createVoice({ RC, cfg,
+    myPos: () => { const p = game.carPose(); return p ? [p.pos[0], p.pos[2]] : null; },
+    posOf: uid => { const o = N.last.find(x => x.uid === uid && x.pose && !x.leaving); return o ? [o.pose.pos[0], o.pose.pos[2]] : null; },
+    isMuted: uid => state.muted.has(uid),
+    toast: text => toast(text),
+    onChange: v => {
+      renderVoice(v);
+      // (the settings re-drawn when what they show changes — not for who's talking: a slider being dragged stays put)
+      const key = JSON.stringify([v.available, v.joined, v.mic, v.mode, v.pttKey, v.voiceMode, v.why, v.peers.length]);
+      if (key !== voiceKey) { voiceKey = key; if (isOpen() && tab === 'settings') render(); }
+    } });
   // your saved place (the API's: the account signed in — not a development ?player=), before joining: start there
   let back = null;
   if (!player && account?.me) { try { back = await account.api.get('/roam/me'); } catch { back = null; } }
@@ -150,7 +172,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const banner = document.createElement('div'); banner.id = 'roamChallenge';
   const wheel = document.createElement('div'); wheel.id = 'roamWheel';
   const toasts = document.createElement('div'); toasts.id = 'roamToasts';
-  for (const el of [panel, prompt, banner, wheel, toasts]) document.body.appendChild(el);
+  for (const el of [panel, prompt, banner, wheel, toasts, voiceEl]) document.body.appendChild(el);
   // (the status: a tile in the game's dock, play/dock.js, when it's there)
   dockSlot('krDockRoam').appendChild(hud);
   const toast = (text, ms = 5000) => { const d = document.createElement('div'); d.textContent = text; toasts.appendChild(d); setTimeout(() => d.remove(), ms); while (toasts.children.length > 5) toasts.firstChild.remove(); };
@@ -159,8 +181,14 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   panel.innerHTML = `<nav>${[['near', 'Nearby'], ['friends', 'Friends'], ['meets', 'Meets'], ['chat', 'Chat'], ['settings', 'Settings']].map(([k, l]) => `<button data-tab="${k}">${l}</button>`).join('')}</nav><div class="body"></div>`;
   const body = panel.querySelector('.body');
   panel.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.tab) { tab = b.dataset.tab; render(); return; } act(b.dataset, b); });
-  panel.addEventListener('change', e => { const el = e.target; if (el.dataset.set) setSetting(el.dataset.set, el.type === 'checkbox' ? el.checked : el.value); });
-  panel.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && e.target.id === 'roamChatIn') sendChat(); });
+  panel.addEventListener('change', e => { const el = e.target; if (el.dataset.set) setSetting(el.dataset.set, el.type === 'checkbox' ? el.checked : el.value); if (el.dataset.voice === 'mode') voice.setMode(el.value); });
+  panel.addEventListener('input', e => { if (e.target.dataset.voice === 'volume') voice.setVolume(e.target.value / 100); });
+  panel.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && e.target.id === 'roamChatIn') sendChat();
+    // (choosing the push-to-talk key: the next key pressed)
+    if (e.target.dataset?.voice === 'key') { e.preventDefault(); if (e.code !== 'Escape' && e.code !== 'Tab') voice.setPttKey(e.code); render(); }
+  });
   const open = on => {
     panel.classList.toggle('open', on); if (on) render();
     // (the dock: which tile is open; the chat seen)
@@ -181,7 +209,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       const list = nearList().slice(0, 30);
       body.innerHTML = `<div class="muted">Zone ${esc(RC.home)} · instance ${esc(RC.group ?? '–')} · ${RC.zones.length} zone${RC.zones.length === 1 ? '' : 's'} joined · ${list.length} car${list.length === 1 ? '' : 's'} in view</div>
         ${T.challenge ? '<div class="muted">You\'re in a challenge: everyone else is a ghost to you.</div>' : ''}
-        ${list.map(p => `<div class="row"><span class="name">${esc(p.name)} ${p.rel !== 'other' ? `<span class="badge ${p.rel}">${p.rel}</span>` : ''} ${p.touch ? '<span class="badge">contact</span>' : ''}</span><span class="muted">${km(p.d)}</span>
+        ${list.map(p => `<div class="row"><span class="name">${esc(p.name)} ${p.rel !== 'other' ? `<span class="badge ${p.rel}">${p.rel}</span>` : ''} ${p.touch ? '<span class="badge">contact</span>' : ''}${voice.state.peers.some(v => v.uid === p.uid && v.speaking) ? '<span class="badge talk">talking</span>' : ''}</span><span class="muted">${km(p.d)}</span>
           <button class="s" data-a="inspect" data-uid="${esc(p.uid)}">Inspect</button>
           <button class="s go" data-a="challenge" data-uid="${esc(p.uid)}">Challenge</button>
           <button class="s" data-a="more" data-uid="${esc(p.uid)}">⋯</button></div>
@@ -221,8 +249,31 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
         <label class="opt"><input type="checkbox" data-set="contact" ${st.contact ? 'checked' : ''}> Contact (touch others who have it on too)</label>
         <label class="opt"><input type="checkbox" data-set="partyContact" ${st.partyContact !== false ? 'checked' : ''}> Contact with my party</label>
         <label class="opt"><input type="checkbox" data-set="passive" ${st.passive ? 'checked' : ''}> Passive mode (a ghost to everyone, no challenges)</label>
-        <div class="muted">Everyone's a ghost to everyone else unless both have contact on. Passive mode can be switched once a minute.${T.ghostUntil > Date.now() ? ` <b>You're a ghost to everyone for ${countdown((T.ghostUntil - Date.now()) / 1000)}: too many hits on other players.</b>` : ''}</div>`;
+        <div class="muted">Everyone's a ghost to everyone else unless both have contact on. Passive mode can be switched once a minute.${T.ghostUntil > Date.now() ? ` <b>You're a ghost to everyone for ${countdown((T.ghostUntil - Date.now()) / 1000)}: too many hits on other players.</b>` : ''}</div>
+        ${voiceSettings()}`;
     }
+  }
+  // voice chat's settings: party and proximity voice (free roam's settings, the account's), the microphone, open mic or push
+  // to talk, the volume
+  const keyName = code => code.replace(/^Key|^Digit/, '').replace('Slash', '/').replace('Backslash', '\\').replace('Quote', "'").replace('Semicolon', ';');
+  function voiceSettings() {
+    const v = voice.state, st = state.settings, Vc = cfg.voice;
+    const mode = v.voiceMode === 'party' ? 'You\'re in party voice: your party hears you, wherever they are.' : v.voiceMode === 'near' ? `You're in proximity voice: players within ${km(Vc.nearbyM)} who are in it too hear you, louder the nearer they are.` : 'Voice chat is off: turn on party or proximity voice to hear and be heard.';
+    return `<h4>Voice chat</h4>
+      ${!v.available ? `<div class="muted">${esc(v.why || 'Voice chat isn\'t set up on this server yet.')}</div>` : `
+      <label class="opt"><input type="checkbox" data-set="voiceParty" ${st.voiceParty !== false ? 'checked' : ''}> Party voice (your party, wherever they are)</label>
+      <label class="opt"><input type="checkbox" data-set="voiceNearby" ${st.voiceNearby !== false ? 'checked' : ''}> Proximity voice (players near you, when you're not in party voice)</label>
+      <div class="row"><span class="name">Microphone: ${v.mic ? 'on' : 'off'}</span><button class="s ${v.mic ? 'warn' : 'go'}" data-a="mic">${v.mic ? 'Turn my microphone off' : 'Turn my microphone on'}</button></div>
+      <label class="opt"><input type="radio" name="roamVoiceMode" data-voice="mode" value="open" ${v.mode === 'open' ? 'checked' : ''}> Open mic (sends when you talk)</label>
+      <label class="opt"><input type="radio" name="roamVoiceMode" data-voice="mode" value="ptt" ${v.mode === 'ptt' ? 'checked' : ''}> Push to talk: hold <button class="s" data-voice="key" title="Click, then press the key you want">${esc(keyName(v.pttKey))}</button></label>
+      <div class="row"><span class="muted">Voices</span><input type="range" min="0" max="100" step="1" data-voice="volume" value="${Math.round(v.volume * 100)}"></div>
+      <div class="muted">${esc(mode)}${v.joined ? '' : ' · connecting…'}${v.why ? ` · ${esc(v.why)}` : ''} Mute someone from Nearby (⋯) to stop hearing them; nothing is ever recorded.</div>`}`;
+  }
+  function renderVoice(v = voice.state) {
+    const talking = v.peers.filter(p => p.speaking && !p.muted);
+    const me = !v.available || (!v.joined && !v.mic) ? '' : `<div class="me ${v.live ? 'live' : ''}"><span class="ic">${v.mic ? 'mic' : 'mic_off'}</span>${v.voiceMode === 'party' ? 'Party voice' : v.voiceMode === 'near' ? 'Proximity voice' : 'Voice off'}${v.mic && v.mode === 'ptt' ? ` · hold ${esc(keyName(v.pttKey))}` : ''}</div>`;
+    const html = me + talking.slice(0, 5).map(p => `<div class="talk"><span class="ic">volume_up</span>${esc(p.name)}${p.party ? ' (party)' : ''}</div>`).join('');
+    if (voiceEl.innerHTML !== html) voiceEl.innerHTML = html;
   }
   const countdown = sec => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return h ? `${h} h ${m} min` : m ? `${m} min ${s} s` : `${s} s`; };
   function renderHud() {
@@ -252,7 +303,8 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       case 'challenge': state.more = uid; return render();
       case 'ch': return challenge(uid, d.type);
       case 'friend': S.hubSend({ t: 'friend-add', id: uid }); return;
-      case 'mute': if (state.muted.has(uid)) state.muted.delete(uid); else state.muted.add(uid); return render();
+      case 'mute': if (state.muted.has(uid)) state.muted.delete(uid); else state.muted.add(uid); void voice.sync(); return render();
+      case 'mic': await voice.setMic(!voice.state.mic); return render();
       case 'block': if (confirm('Block this player? You won\'t see each other anywhere, and neither can challenge or message the other.')) S.hubSend({ t: 'block', id: uid }); return;
       case 'report': { const why = prompt_('What happened?'); if (why) RC.send({ t: 'report', uid, details: why }); return; }
       case 'join': S.hubSend({ t: 'roam-join', uid }); return;
@@ -332,6 +384,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
 
   // ---------- what the zones say ----------
   offs.push(RC.on('mp', m => {
+    if (typeof m.t === 'string' && m.t.startsWith('voice')) return voice.message(m);
     switch (m.t) {
       case 'hello': state.you ??= m.you ?? null; if (m.zone === RC.home) { state.settings = { ...state.settings, ...m.settings }; render(); } return;
       case 'settings': state.settings = { ...state.settings, ...m.settings }; if (isOpen()) render(); return;
@@ -352,6 +405,8 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       case 'ramming': toast(`${m.name} keeps hitting you — report them from Nearby (the replay goes with it).`); return;
     }
   }));
+  // (voice chat: asked once the zones' messages are listened to — the hello may have come before)
+  voice.hello();
   offs.push(S.on('roam-goto', m => goToFriend(m)));
   offs.push(S.on('chat', m => { if (m.scope === 'party' && !state.muted.has(m.uid)) { state.chat.push(m); toast(`[party] ${m.name}: ${m.text}`); } }));
   offs.push(S.on('party', p => { state.partyUids = new Set((p?.members ?? []).filter(u => u !== myUid())); RC.setParty(p?.id ?? null); if (isOpen()) render(); }));
@@ -458,7 +513,7 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
 
   let hudAt = 0;
   const api = {
-    M, RC, net: N, state,
+    M, RC, net: N, state, voice,
     get flashing() { return state.flash; },
     frame(dt) {
       contactFrame(dt);
@@ -474,7 +529,8 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
     horn() { RC.sendEvent({ kind: 'horn' }); game.horn?.(); },
     leave() {
       clearInterval(meetTimer); C?.dispose(); offs.forEach(f => f()); removeEventListener('keydown', keys); removeEventListener('keyup', keysUp); removeEventListener('kr:roam-open', fromDock);
-      for (const el of [hud, panel, prompt, banner, wheel, toasts]) el.remove();
+      voice.dispose();
+      for (const el of [hud, panel, prompt, banner, wheel, toasts, voiceEl]) el.remove();
       document.body.classList.remove('roamPhoto');
       game.maps?.()?.setPlayers?.([]);
       removeEventListener('pagehide', bye);

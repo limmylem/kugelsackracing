@@ -42,13 +42,15 @@ import { REPO_DIR } from '../config.ts';
 import { createReferee } from './contact.ts';
 import { safetyTier, yawOf } from '../../../mp/contact.js';
 import { createChatGate } from '../../../mp/lobby.js';
+import { voiceMode } from '../../../mp/voice.js';
+import { onVoice, voiceEntries, putVoice, dropVoice, refreshed, voicesOf, VOICE_KEY, type VoiceWho } from './voice.ts';
 import { touches, nameFor, seesOnMap, createAutoGhost, mapPoint, toggleAllowed, zoneSize, zoneOf, meetSpots, nearestFreeSpot } from '../../../mp/roam.js';
 import { createChallengeBook, createFlashDetector, sprintRoute, createChallengeRun } from '../../../mp/challenge.js';
 import { createNetwork } from '../../../route/network.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
 
 const STOCK = { mass: 1300, box: { halfExtents: [0.9, 0.6, 2.2], centre: [0, 0.7, 0] } };
-const SETTING_KEYS = ['location', 'appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact'] as const;
+const SETTING_KEYS = ['location', 'appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact', 'voiceParty', 'voiceNearby'] as const;
 const MAP_KEY = (region: string) => `rt:roam:map:${region}`, GHOST_KEY = (uid: string) => `rt:roam:ghost:${uid}`;
 const TRAIL_SEC = 20;
 
@@ -120,6 +122,7 @@ export class RoamRoom extends TestRoom {
   meets = new Map<string, Map<number, string>>();   // meet id → spot → uid
   referee: ReturnType<typeof createReferee> | null = null;
   slowTicks = 0;
+  voiceTicks = 0;
 
   // ("server full" refuses a player coming in, never one already here: a neighbouring zone, a handoff, a lost connection joined again)
   static async onAuth(token: string, options: any) { const here = !!(options?.extra || options?.handoff || options?.rejoin); return authorize(token, options, { count: !here, continuing: here }); }
@@ -145,6 +148,7 @@ export class RoamRoom extends TestRoom {
     });
     this.clock.setInterval(() => { try { this.roamTick(); } catch (e: any) { rtEnv.log('rt roam tick failed', { err: e?.stack ?? e?.message }); } }, 100);
     this.clock.setInterval(() => void this.slowTick().catch(e => rtEnv.log('rt roam tick failed', { err: e?.message })), ROAM.zones.mapEverySec * 1000);
+    this.clock.setInterval(() => void this.voiceTick().catch(e => rtEnv.log('rt roam voice tick failed', { err: e?.message })), ROAM.voice.everySec * 1000);
     void this.meta();
   }
   onDispose() { super.onDispose(); RoamRoom.live.delete(this); for (const r of this.roam.values()) r.off(); }
@@ -187,7 +191,7 @@ export class RoamRoom extends TestRoom {
     void Promise.resolve(matchMaker.presence.get(GHOST_KEY(t.uid))).then(v => { const until = Number(v); if (until > Date.now()) { r.ghostUntil = until; this.pushTouch(); } }).catch(() => {});
     if (typeof options?.party === 'string') void this.setParty(r, options.party);
     // (anyone blocked either way who's here: gone from each other's view — the hidden() check; their cars stop now)
-    this.sendTo(p, { t: 'hello', you: t.uid, zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes });
+    this.sendTo(p, { t: 'hello', you: t.uid, zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes, voice: !!rtEnv.voice && (!t.guest || !!rtEnv.voiceGuests) });
     this.pushTouch();
     void this.meta();
     if (r.home) void this.status(r);
@@ -407,7 +411,31 @@ export class RoamRoom extends TestRoom {
       case 'meet-park': return this.park(p, r, m.meet);
       case 'meet-leave': if (r.meet) { this.meets.get(r.meet.id)?.delete(r.meet.spot); r.meet = null; } return;
       case 'contact-report': return this.referee?.report(r.uid, m);
+      // (the game's ready to hear whether this server has voice chat: the hello may have come before it was listening)
+      case 'voice-hello': return this.sendTo(p, { t: 'voice-hello', voice: !!rtEnv.voice && (!p.t.guest || !!rtEnv.voiceGuests) });
+      case 'voice-join': case 'voice-mic': case 'voice-pull': case 'voice-answer': case 'voice-drop': case 'voice-leave':
+        return void onVoice(rtEnv.voice ?? null, this.voiceWho(p, r), m, msg => this.sendTo(p, msg), rtEnv.log);
     }
+  }
+  // ---------- voice chat (./voice.ts) ----------
+  voiceWho(p: Player, r: Roam): VoiceWho { return { uid: r.uid, name: r.name, guest: !!p.t.guest && !rtEnv.voiceGuests, region: this.region, pos: p.latestF?.pos ?? null, party: r.partyId, settings: r.settings, blocked: r.blocked }; }
+  // every voice.everySec: each player at home here who's in voice chat — their entry kept fresh, and the voices they hear
+  async voiceTick() {
+    if (!rtEnv.voice) return;
+    const entries = await voiceEntries();
+    for (const r of this.roam.values()) {
+      const e = r.home ? entries.find(x => x.uid === r.uid) : null, p = e && this.playerOf(r.uid);
+      if (!e || !p) continue;
+      const me = refreshed(e, this.voiceWho(p, r));
+      await putVoice(me);
+      const rel = this.relOf(r.uid), peers = (await voicesOf(me, r.blocked)).map(v => {
+        const o = entries.find(x => x.uid === v.uid);
+        return { uid: v.uid, name: nameFor(r.uid, { uid: v.uid, name: v.name, settings: o?.privacy ?? {} }, rel), d: v.d == null ? null : Math.round(v.d / 5) * 5, party: v.party };
+      });
+      this.sendTo(p, { t: 'voice', mode: voiceMode(me), mic: me.mic, peers });
+    }
+    // (now and then: entries long gone, out of presence)
+    if (++this.voiceTicks % 60 === 1) for (const [uid, v] of Object.entries((await matchMaker.presence.hgetall(VOICE_KEY)) ?? {})) { try { if (Date.now() - JSON.parse(String(v)).at > ROAM.voice.staleSec * 4000) await dropVoice(uid); } catch { await dropVoice(uid); } }
   }
   nearby(p: Player, msg: any, within: number, ok: (o: Roam) => boolean = () => true) {
     const at = p.latestF?.pos;

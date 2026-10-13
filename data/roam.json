@@ -30,7 +30,7 @@
   "privacy": {
     "_note": "Who sees where a player is on the map and minimap, and who can join them: everyone, friends, or nobody (location); appearOffline hides them from their friends' lists and stops friends joining them. A blocked player (either way) is never in the same instance and never sees the other anywhere.",
     "locations": ["everyone", "friends", "nobody"],
-    "default": { "location": "friends", "appearOffline": false, "nearbyChat": true, "names": true, "contact": false, "passive": false, "partyContact": true }
+    "default": { "location": "friends", "appearOffline": false, "nearbyChat": true, "names": true, "contact": false, "passive": false, "partyContact": true, "voiceParty": true, "voiceNearby": true }
   },
   "contact": {
     "_note": "Free roam is ghost between players by default. Two cars touch only when both have contact on, or they're in the same party with party contact on (both), and neither is in passive mode, auto-ghosted or in a challenge with someone else. Passive mode: ghost to everyone, can't challenge or be challenged; switching it takes passiveCooldownSec. Automatic protection: a player at fault (faultShare) in autoGhost.hits contacts within autoGhost.windowSec is ghosted for everyone for autoGhost.ghostSec (longer each time: x repeatFactor), and their safety rating drops safetyPerHit for each of those hits (the API). Contacts use Step 3's referee in reduced mode (damage share contact.damage.reduced).",
@@ -72,6 +72,19 @@
     "_note": "A party starting a quest together: everyone races the same quest (with or without NPCs) through Step 2's race flow (a private lobby made for the party on the quest's route), with positions and pay per player by the quest's normal rules.",
     "maxPlayers": 8,
     "npcFillDefault": false
+  },
+  "voice": {
+    "_note": "Voice chat (docs/FREE_ROAM.md \"Voice chat\"; mp/voice.js, server/src/rt/voice.ts, play/voice.js), through Cloudflare Realtime's SFU (owner-approved 2026-10-13: its free 1,000 GB a month, then US$0.05 a GB — docs/COSTS.md). In a party with party voice on (voiceParty): your party, wherever they are, at full volume. Otherwise, with proximity voice on (voiceNearby): the players near you who are in proximity voice too — full volume within fullM, fading out to nothing at nearbyM. Only players with their microphone on are pulled (nothing is sent for the others), at most maxPeers of them, the nearest first. bitrateBps: each voice's Opus (mono). Open mic sends sound above gateDb (held gateHoldMs); push to talk holds pttKey (a KeyboardEvent code, changeable in the game). everySec: how often each player's list of voices is worked out; staleSec: a voice nobody's zone has heard of in that long is gone. Guests get no voice chat.",
+    "nearbyM": 600,
+    "fullM": 150,
+    "maxPeers": 16,
+    "bitrateBps": 24000,
+    "gateDb": -50,
+    "gateHoldMs": 400,
+    "pttKey": "Slash",
+    "everySec": 1,
+    "staleSec": 15,
+    "stun": "stun:stun.cloudflare.com:3478"
   },
   "chat": {
     "_note": "Quick chat wheel (preset messages, by id), party chat and nearby text chat (players within nearbyM; each player can turn nearby chat off). Every message goes through the name/profanity filter; a player can mute (this game only), block (kept by the API) or report anyone. maxLength, burst and perSec: as lobby chat.",

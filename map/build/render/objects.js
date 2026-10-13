@@ -60,26 +60,112 @@ export function srgbVertexColours(m) {
     m.customProgramCacheKey = () => `srgb-${key ? key() : ''}`;
     return m;
 }
+// ---------- holes in the drawn ground: where something built is set into it (a garage's forecourt and driveways —
+// streamer.ts carve) — the terrain, its cover and car parks aren't drawn inside them (what's built there is). Each hole a
+// polygon in the map's frame (x, z); the world's origin (streamer.ts's floating origin) turns the drawn position back
+// into it. One set at a time: the world being drawn's (owner). ----------
+export const GROUND_HOLES = { max: 40, points: 48 }; // (a garage has five: its driveways, lane, verge and forecourt)
+const holeData = new Float32Array(GROUND_HOLES.points * GROUND_HOLES.max * 4);
+let holeTexture = null, holeOwner = null;
+const holeUniforms = {
+    uHoles: { value: null }, uHoleCount: { value: 0 }, uHoleOrigin: { value: new THREE.Vector2() },
+    uHoleBoxes: { value: Array.from({ length: GROUND_HOLES.max }, () => new THREE.Vector4(1, 1, -1, -1)) },
+};
+function holes() {
+    if (!holeTexture) {
+        holeTexture = new THREE.DataTexture(holeData, GROUND_HOLES.points, GROUND_HOLES.max, THREE.RGBAFormat, THREE.FloatType);
+        holeTexture.magFilter = holeTexture.minFilter = THREE.NearestFilter;
+        holeTexture.needsUpdate = true;
+        holeUniforms.uHoles.value = holeTexture;
+    }
+    return holeTexture;
+}
+// the holes now (polygons: [[x, z], …] each, in the map's frame; more points than fit are thinned), the world's origin
+export function setGroundHoles(owner, polys, origin) {
+    holes();
+    holeOwner = owner;
+    const list = polys.filter(p => p.length >= 3).slice(0, GROUND_HOLES.max);
+    holeData.fill(0);
+    list.forEach((poly, h) => {
+        const step = Math.ceil(poly.length / GROUND_HOLES.points), pts = poly.filter((_, k) => k % step === 0), box = holeUniforms.uHoleBoxes.value[h];
+        box.set(Infinity, Infinity, -Infinity, -Infinity);
+        pts.forEach(([x, z], k) => { const o = (h * GROUND_HOLES.points + k) * 4; holeData[o] = x; holeData[o + 1] = z; holeData[o + 2] = pts.length; box.set(Math.min(box.x, x), Math.min(box.y, z), Math.max(box.z, x), Math.max(box.w, z)); });
+    });
+    holeUniforms.uHoleCount.value = list.length;
+    holeUniforms.uHoleOrigin.value.set(origin[0], origin[1]);
+    holeTexture.needsUpdate = true;
+}
+export const groundHolesOwner = () => holeOwner;
+export function setGroundHoleOrigin(origin) { holeUniforms.uHoleOrigin.value.set(origin[0], origin[1]); }
+// (the test: a place in the map's frame inside any hole — for the fragment shader and, for instances, the vertex shader)
+const HOLE_GLSL = `uniform sampler2D uHoles; uniform int uHoleCount; uniform vec2 uHoleOrigin; uniform vec4 uHoleBoxes[${GROUND_HOLES.max}];
+bool inGroundHole(vec2 hp) {
+  for (int h = 0; h < ${GROUND_HOLES.max}; h++) {
+    if (h >= uHoleCount) break;
+    vec4 b = uHoleBoxes[h];
+    if (hp.x < b.x || hp.y < b.y || hp.x > b.z || hp.y > b.w) continue;
+    int n = int(texelFetch(uHoles, ivec2(0, h), 0).z);
+    vec2 a = texelFetch(uHoles, ivec2(n - 1, h), 0).xy;
+    bool inside = false;
+    for (int k = 0; k < ${GROUND_HOLES.points}; k++) {
+      if (k >= n) break;
+      vec2 c = texelFetch(uHoles, ivec2(k, h), 0).xy;
+      if ((c.y > hp.y) != (a.y > hp.y) && hp.x < (a.x - c.x) * (hp.y - c.y) / (a.y - c.y) + c.x) inside = !inside;
+      a = c;
+    }
+    if (inside) return true;
+  }
+  return false;
+}`;
+const withKey = (m, name) => { const key = m.customProgramCacheKey?.bind(m); m.customProgramCacheKey = () => `${name}-${key ? key() : ''}`; return m; };
+// (a material that leaves the holes out: the drawn position, back in the map's frame, inside any of them is discarded)
+function holed(m) {
+    const before = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+        before?.(sh, r);
+        holes();
+        Object.assign(sh.uniforms, holeUniforms);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vHoleXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHoleXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec2 vHoleXZ;\n${HOLE_GLSL}`)
+            .replace('void main() {', 'void main() {\n  if (inGroundHole(vHoleXZ + uHoleOrigin)) discard;');
+    };
+    return withKey(m, 'holed');
+}
+// (instances — trees, railings, their posts — standing in a hole aren't drawn: each whose base is in one is collapsed
+// to a point)
+export function holedInstances(m) {
+    const before = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+        before?.(sh, r);
+        holes();
+        Object.assign(sh.uniforms, holeUniforms);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${HOLE_GLSL}`)
+            .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n  if (inGroundHole((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz + uHoleOrigin)) transformed = vec3(0.0);\n#endif');
+    };
+    return withKey(m, 'holedInstances');
+}
 export function materials() {
     if (M)
         return M;
     const lambert = o => srgbVertexColours(new THREE.MeshLambertMaterial({ vertexColors: true, ...o }));
     M = {
-        terrain: lambert({}),
+        terrain: holed(lambert({})),
         roads: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
         // (Map v4's road surface: its kerb faces, skirts and decks' sides are one-sided pieces seen from either way)
         roadsV4: lambert({ flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
-        paved: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+        paved: holed(lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })),
         markings: lambert({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
-        cover: lambert({}),
+        cover: holed(lambert({})),
         water: new THREE.MeshPhongMaterial({ color: '#3f7fb0', specular: '#9fc4e0', shininess: 60, transparent: true, opacity: 0.88, depthWrite: false }),
         roofs: lambert({ flatShading: true }),
         walls: Object.fromEntries(['house', 'block', 'tower', 'plain'].map(k => [k, lambert({ flatShading: true, map: windowTexture(k) })])),
-        canopy: new THREE.MeshLambertMaterial({ color: '#4d7a37', flatShading: true }),
-        conifer: new THREE.MeshLambertMaterial({ color: '#3d6534', flatShading: true }),
-        trunk: new THREE.MeshLambertMaterial({ color: '#6b4f36' }),
+        canopy: holedInstances(new THREE.MeshLambertMaterial({ color: '#4d7a37', flatShading: true })),
+        conifer: holedInstances(new THREE.MeshLambertMaterial({ color: '#3d6534', flatShading: true })),
+        trunk: holedInstances(new THREE.MeshLambertMaterial({ color: '#6b4f36' })),
         barrier: {},
-        post: new THREE.MeshLambertMaterial({ color: '#8d9296' }),
+        post: holedInstances(new THREE.MeshLambertMaterial({ color: '#8d9296' })),
+        // (a tree's shadow: none from one standing in a hole either)
+        treeShadow: holedInstances(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking })),
         signPost: new THREE.MeshLambertMaterial({ color: '#7d8287' }),
     };
     return M;
@@ -257,6 +343,7 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
                 trunk.setMatrixAt(n, m4);
             });
             top.castShadow = true;
+            top.customDepthMaterial = mat.treeShadow;
             trees.add(top, trunk);
             top.userData.all = trunk.userData.all = list.length;
         });
@@ -270,7 +357,7 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
         const type = name.slice(8), S = barrierShape(type, B), { rails: R, posts } = barrierInstances(type, L.data, B, L.stride);
         if (!R.length)
             continue;
-        mat.barrier[type] ??= new THREE.MeshLambertMaterial({ color: S.colour });
+        mat.barrier[type] ??= holedInstances(new THREE.MeshLambertMaterial({ color: S.colour }));
         const inst = new THREE.InstancedMesh(railShape(type, S), mat.barrier[type], R.length), m4 = new THREE.Matrix4(), s = new THREE.Vector3(), p = new THREE.Vector3();
         R.forEach((r, n) => { const q = quatYawPitch(r.yaw, r.pitch); m4.compose(p.set(r.position[0], r.position[1], r.position[2]), new THREE.Quaternion(q.x, q.y, q.z, q.w), s.set(r.length + 0.02, r.height / S.height, 1)); inst.setMatrixAt(n, m4); });
         inst.castShadow = true;

@@ -16,7 +16,7 @@
 //   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
 //
 // Garages (kind garage) aren't markers: each near enough is a drive-through building (play/garageBuilding.js) with
-// its walls in the physics (RAPIER, sim); driving through one under its canopy calls onGarage(item, side) (side:
+// its walls in the physics (RAPIER, sim); driving through one under its canopy calls onGarage(item, side, building) (side:
 // which way out — −1 the front, +1 the back). L.nearestGarage(lat, lon) → the nearest published one (a tow's).
 
 import { worldContent } from '../content/client.js';
@@ -123,12 +123,12 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
     for (const [id, g] of garages) {
       const it = byId.get(id), F = g.building.frame, d = Math.hypot(F.cx - wx, F.cz - wz);
       if (!it || it.updated !== g.building.item.updated || d > DROP_M) { g.building.dispose(); garages.delete(id); continue; }
-      // (its slope and solid parts: once the road's collision is in round it)
-      if (d < 400) g.building.settle?.();
+      // (fitted to the road and ground — leaning, its driveways, set into the ground — once the map round it is in)
+      g.building.settle?.();
       if (d > 40) { g.was = false; continue; }
       const p = F.local(wx, wz), now = inLane(p);
       // (in: from outside it, a moment ago — not put down in it, or still in it coming back out of the garage)
-      if (now && g.was === false && !busy() && onGarage) { g.was = true; onGarage(it, g.side ?? -1); continue; }
+      if (now && g.was === false && !busy() && onGarage) { g.was = true; onGarage(it, g.side ?? -1, g.building); continue; }
       if (!now) g.side = p.z > 0 ? -1 : 1;      // (coming from behind it: out of the front)
       g.was = now;
     }
@@ -164,14 +164,16 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
       if (!byId.has(it.id)) { items.push(it); byId.set(it.id, it); const [x, z] = P.toXZ(it.location.lat, it.location.lon), a2 = new Float64Array(items.length * 2); a2.set(places); a2[a2.length - 2] = x; a2[a2.length - 1] = z; places = a2; }
       showCard(it, true);
     },
-    show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
+    // (hidden: the garages too — the editor draws its own, drafts and all)
+    show(on) { shown = on; markers.group.visible = on; for (const g of garages.values()) g.building.visible(on); if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
     // (a tow: the nearest published garage, and where you come out of it — null: none within 50 km)
     async nearestGarage(lat, lon) {
       if (!C) return null;
       const r = await C.service.query({ lat, lon, km: GARAGE_KM, view: 'published', offered: true, kinds: ['garage'], limit: 500 }).catch(() => null);
       let best = null, bd = Infinity;
       for (const { item: it } of r?.ok ? r.items : []) { const d = distanceKm({ lat, lon }, it.location); if (d < bd) { bd = d; best = it; } }
-      return best ? { item: best, km: bd, out: garageFrame(best, P).out(-1) } : null;
+      // (where you come out: the building's fit to the road, if it's built, else as the item says the road runs)
+      return best ? { item: best, km: bd, out: garages.get(best.id)?.building.exit(-1) ?? garageFrame(best, P).out(-1) } : null;
     },
     get garages() { return [...garages.values()].map(g => g.building); },
     dispose() { markers.dispose(); card.remove(); for (const g of garages.values()) g.building.dispose(); garages.clear(); },

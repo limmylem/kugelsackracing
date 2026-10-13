@@ -58,7 +58,7 @@ export function createRoamService({ db, economy, antiCheat = { action: 'flag' },
     const out: any = { ...base };
     if (s && typeof s === 'object') {
       if (ROAM.privacy.locations.includes(s.location)) out.location = s.location;
-      for (const k of ['appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact']) if (typeof s[k] === 'boolean') out[k] = s[k];
+      for (const k of ['appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact', 'voiceParty', 'voiceNearby']) if (typeof s[k] === 'boolean') out[k] = s[k];
     }
     return out;
   };

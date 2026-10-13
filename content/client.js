@@ -36,7 +36,7 @@ export function worldContent({ author = null } = {}) {
   })();
 }
 
-const GARAGES_SEEDED = 'kugelsack.content.garages.v2';
+const GARAGES_SEEDED = 'kugelsack.content.garages.v3';
 async function seedGarages(service) {
   const { newItem } = await import('./quests.js'), at = new Date().toISOString();
   const file = await readJson('data/world/garages.json');

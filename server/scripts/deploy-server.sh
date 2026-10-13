@@ -14,7 +14,8 @@
 #
 #   SHA=<full commit> GHCR_USER=… GHCR_TOKEN=… CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… DATABASE_URL=… \
 #   BETTER_AUTH_SECRET=… EDGE_SECRET=… RESEND_SMTP_KEY=… ADMIN_EMAIL=… ALERT_EMAIL=… TURNSTILE_SITE_KEY=… \
-#   TURNSTILE_SECRET_KEY=… [HSTS=on] [SENTRY_DSN=…] [SENTRY_CLIENT_DSN=…] [LOADTEST_TOKEN=…] server/scripts/deploy-server.sh
+#   TURNSTILE_SECRET_KEY=… [HSTS=on] [SENTRY_DSN=…] [SENTRY_CLIENT_DSN=…] [LOADTEST_TOKEN=…] \
+#   [CF_REALTIME_APP_ID=… CF_REALTIME_APP_TOKEN=…  (voice chat: Cloudflare Realtime's SFU — none, no voice chat)] server/scripts/deploy-server.sh
 
 # (the commands sent to the server are put together here, on purpose: only paths and the commit, never a secret)
 # shellcheck disable=SC2029
@@ -86,6 +87,8 @@ settings() {
   [ -z "${SENTRY_DSN:-}" ] || q SENTRY_DSN "$SENTRY_DSN"
   [ -z "${SENTRY_CLIENT_DSN:-}" ] || q SENTRY_CLIENT_DSN "$SENTRY_CLIENT_DSN"
   [ -z "${LOADTEST_TOKEN:-}" ] || q LOADTEST_TOKEN "$LOADTEST_TOKEN"
+  [ -z "${CF_REALTIME_APP_ID:-}" ] || q CF_REALTIME_APP_ID "$CF_REALTIME_APP_ID"
+  [ -z "${CF_REALTIME_APP_TOKEN:-}" ] || q CF_REALTIME_APP_TOKEN "$CF_REALTIME_APP_TOKEN"
   # (Compose's: the image's tag, and the tunnel's token for cloudflared; GIT_COMMIT is the image's own)
   q IMAGE_TAG "$SHA"
   [ -z "$tunnel_token" ] || q TUNNEL_TOKEN "$tunnel_token"

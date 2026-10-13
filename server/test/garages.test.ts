@@ -11,11 +11,11 @@ let T: Awaited<ReturnType<typeof testApp>>;
 before(async () => { T = await testApp('garages'); });
 after(async () => { await T?.close(); });
 
-test('the starting garages: two or three in every baked region, published once, an editor\'s archiving kept', async () => {
+test('the starting garages: one to three in every baked region (as many level spots as it has), published once, an editor\'s archiving kept', async () => {
   const list = startingGarages(), regions = JSON.parse(fs.readFileSync(new URL('../../data/map/baked.json', import.meta.url), 'utf8')).regions;
   for (const r of regions) {
     const here = list.filter(g => g.region === r.id);
-    assert.ok(here.length >= 2 && here.length <= 3, `${r.id}: ${here.length} garages`);
+    assert.ok(here.length >= 1 && here.length <= 3, `${r.id}: ${here.length} garages`);
     for (const g of here) assert.ok(g.location.lon >= r.bbox[0] && g.location.lon <= r.bbox[2] && g.location.lat >= r.bbox[1] && g.location.lat <= r.bbox[3], `${g.id} in ${r.id}`);
   }
   const C = T.app.content as any, db = T.app.deps.db as any;

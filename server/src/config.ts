@@ -43,7 +43,7 @@ const FileConfig = z.object({
   // multiplayer (Phase 7 Step 1; docs/MULTIPLAYER.md): who may join the real-time server, how long a join ticket
   // lasts, how many players (in all its processes) and a room take, whether the network simulator may be used, and
   // (development and tests only) whether a window may play as its own guest with ?player=A (two windows, one browser)
-  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), devPlayers: z.boolean() }),
+  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), voiceGuests: z.boolean().optional(), devPlayers: z.boolean() }),
   // (Phase 7 Step 5) a result that fails its check — a race's run, a free-roam challenge: 'flag' keeps the result (paid
   // as normal) and flags it for an admin to review; 'disqualify' takes it away (DSQ, nothing paid). Nothing bans by itself
   antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),

@@ -24,6 +24,7 @@ import { AppError } from '../errors.ts';
 const Settings = z.object({
   location: z.enum(['everyone', 'friends', 'nobody']).optional(), appearOffline: z.boolean().optional(), nearbyChat: z.boolean().optional(), names: z.boolean().optional(),
   contact: z.boolean().optional(), passive: z.boolean().optional(), partyContact: z.boolean().optional(),
+  voiceParty: z.boolean().optional(), voiceNearby: z.boolean().optional(),
 }).strict();
 
 export async function roamRoutes(api: FastifyInstance, { config, G, roam }: { config: Config; G: Guards; roam: any }) {

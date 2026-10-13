@@ -1142,7 +1142,7 @@ async function buildWorld(file) {
     const game = w.questGame = questGame(w);
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
-    w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side) => garageVisit(w, it, side), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
+    w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side, building) => garageVisit(w, it, side, building), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
       questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active,
       guide: { set: it => w.quests.setGuide(it), clear: () => w.quests.clearGuide(), to: () => w.quests.guideFor } });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
@@ -1374,10 +1374,11 @@ function replayFrame(w, now, seconds, inp) {
 // The garage: driven to (a garage building in the real world — play/garageBuilding.js) or towed to for a fee
 // (data/economy.json tow). Out again, you come out of that building's far side; towed, out of the nearest one.
 const inRegion = (w, at) => { const b = w.stream?.manifest?.bbox; return !b || (at.lon >= b[0] && at.lon <= b[2] && at.lat >= b[1] && at.lat <= b[3]); };
-function garageVisit(w, it, side) {
+function garageVisit(w, it, side, building = null) {
   // (not mid-race online, nor with the editor's camera flying through it)
   if (!hooks.openGarage || active !== w || shared.mpRace?.racing || document.body.classList.contains('kr-in-race') || editorHooks.active) return;
-  const out = garageFrame(it, w.stream.projection).out(side);
+  // (out on the road as it really is beside the way out — the building's fit — else as the item says it runs)
+  const out = building?.exit?.(side) ?? garageFrame(it, w.stream.projection).out(side);
   shared.garageExit = { lat: out.lat, lon: out.lon, bearing: out.bearing };
   shared.flash.show(it.name || 'Garage', 'ok', 1.5, 'into the garage');
   // (arrived: its route off the maps)
@@ -2650,7 +2651,9 @@ function notSignedIn(o, A) {
 
 async function startMultiplayer(w) {
   const o = multiplayerOptions();
-  if (!o || shared.mpStarting) return;
+  if (!o) return;
+  // (one start at a time: another world while one's starting — that one's started after it)
+  if (shared.mpStarting) { shared.mpAgain = true; return; }
   // (in a race: its own room draws the cars — free roam's comes back after)
   if (shared.mpS?.race && shared.mpS.phase && shared.mpS.phase !== 'lobby') return;
   // (Phase 7 Step 4: a baked real-world region — free roam, its zones and instances: play/roam.js; docs/FREE_ROAM.md)
@@ -2684,7 +2687,7 @@ async function startMultiplayer(w) {
   } catch (e) {
     shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
     console.warn('multiplayer:', e);
-  } finally { shared.mpStarting = false; }
+  } finally { shared.mpStarting = false; if (shared.mpAgain) { shared.mpAgain = false; if (active) void startMultiplayer(active); } }
 }
 
 // Free roam (Phase 7 Step 4: play/roam.js, docs/FREE_ROAM.md): in a baked region, the zones and their instances — other
@@ -2719,6 +2722,8 @@ async function startRoamHere(w, o) {
       questsNear: () => shared.roamNear?.quests ?? [], meetsNear: () => shared.roamNear?.meets ?? [],
       sim: G.sim, simTime: G.simTime, carPhysics: G.carPhysics, toSim: G.toSim, toWorld: G.toWorld, contactHit: G.contactHit, contactEffect: G.contactEffect,
     } });
+    // (the world changed while this was starting: not kept — the new world's free roam starts next)
+    if (active !== w) { await R.leave(); return; }
     shared.roam = R; shared.mp = R.M; shared.mpRoom = room; shared.mpParts = mpAttach(); shared.mpLookKey = null;
     globalThis.__krMp = R.M; globalThis.__krRoam = R; globalThis.__krMpWorld = room;   // (the console and the browser tests)
     // (joining a friend in another region: beside them once this one's loaded)
@@ -2735,7 +2740,7 @@ async function startRoamHere(w, o) {
   } catch (e) {
     shared.flash.show('Multiplayer', 'warn', 6, e?.message ?? String(e));
     console.warn('free roam:', e);
-  } finally { shared.mpStarting = false; }
+  } finally { shared.mpStarting = false; if (shared.mpAgain) { shared.mpAgain = false; if (active) void startMultiplayer(active); } }
 }
 // quests and meet spots near the car (for challenges to a quest marker, racing one with the party, parking at a meet):
 // asked of the content service every 10 s while free roam is on

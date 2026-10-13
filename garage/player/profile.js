@@ -296,8 +296,9 @@ export function checkProfile(input, db) {
     notices.push(`You had no car you can drive, so you've been given a ${db.cars[db.economy.startingCar].name}.`);
   }
   if (!profile.cars[profile.currentCar]) profile.currentCar = Object.keys(profile.cars)[0];
-  // ids stay unique
-  const used = [...Object.keys(profile.parts), ...Object.keys(profile.cars), ...Object.values(profile.cars).flatMap(c => Object.keys(c.setups))].map(id => +String(id).split('_').pop()).filter(Number.isFinite);
+  // ids stay unique (the counter after the player's prefix — a prefix of digits alone would otherwise read as part of it)
+  const counter = id => { const s = String(id).split('_').pop(), pre = profile.idPrefix ?? ''; return +(pre && s.startsWith(pre) && s.length > pre.length ? s.slice(pre.length) : s); };
+  const used = [...Object.keys(profile.parts), ...Object.keys(profile.cars), ...Object.values(profile.cars).flatMap(c => Object.keys(c.setups))].map(counter).filter(Number.isFinite);
   profile.nextId = Math.max(Number.isInteger(profile.nextId) ? profile.nextId : 1, 1 + Math.max(0, ...used));
   return { profile, notices, refunded };
 }

@@ -17,11 +17,18 @@ Approved by the owner on 2026-10-08: production only, the owner and up to ~5 fri
 | The database | PlanetScale Postgres PS-5, AWS Sydney | ≈ US$5 (*check* the first invoice) |
 | The domain | `ognistrada.com` at Namecheap, its yearly renewal | ≈ US$1 |
 | Cloudflare (DNS, Pages, R2, Turnstile, the tunnel), Resend, UptimeRobot, Sentry, Healthchecks.io, GitHub | Free plans | $0 |
+| Voice chat: Cloudflare Realtime's SFU (owner-approved 2026-10-13) | Free to 1,000 GB a month, then US$0.05 a GB (*check*) | $0 at our size |
 | **Total** | | **≈ US$10.50–11.50** |
 
 No Redis (one real-time process keeps everything in memory) and no staging. R2 is free to 10 GB stored; we use about
 0.5 GB of files (0.3 GB before Adelaide was added) plus 35 nightly backups. OVHcloud's VPS traffic is unmetered (*check* the order page), so free roam's
 bandwidth costs nothing extra on this server.
+
+**Voice chat** (FREE_ROAM.md "Voice chat"): Cloudflare charges for what it sends to players only, the first 1,000 GB
+a month free. One voice is Opus at 24 kbps (about 32 kbps with its packets' overheads), nothing in silence, and only
+voices with their microphone on are fetched: a player hearing four others talking uses about 70 MB an hour. Five
+friends playing 40 hours a month together: about 14 GB. 1,000 regular players each hearing four others for 20 hours a
+month: about 1,400 GB, so about US$20 a month past the free 1,000 GB. Set a billing alert at US$1 (GO_LIVE.md).
 
 ## What one player uses (measured)
 

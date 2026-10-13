@@ -317,3 +317,12 @@ test('a tow to the garage: its fee; with less money, what you have (nobody stran
   assert.equal(r.cost, 0);
   assert.equal(r.updatedState.money, 500);
 });
+
+test('a player whose id prefix is all digits: the id counter stays small across reopening (it saves as a 32-bit integer on the server)', async () => {
+  const { service, storage, profile } = await fresh(null, { idPrefix: '21013347' });
+  assert.ok(Object.keys(profile.parts).every(id => id.includes('_21013347')), 'the prefix in its ids');
+  await service.buyPart(Object.keys(db.parts).find(id => db.parts[id].price > 0 && db.parts[id].price < profile.money && !db.parts[id].retired));
+  const again = await reopen(storage, { idPrefix: '21013347' });
+  assert.ok(again.profile.nextId < 1000, `next id ${again.profile.nextId}`);
+  assert.ok(again.profile.nextId >= profile.nextId, 'and still past every id used');
+});

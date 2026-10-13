@@ -13,7 +13,8 @@ import zlib from 'node:zlib';
 import { transverseMercator } from '../map/build/format/projection.js';
 import { decodeTile } from '../map/build/format/tileFormat.js';
 import { MeshoptDecoder } from 'meshoptimizer';
-import { FOOTPRINT } from '../play/garageBuilding.js';
+import { FOOTPRINT, SIDE, LANE, groundOf } from '../play/garageBuilding.js';
+import { fitGarage } from '../play/garageFit.js';
 await MeshoptDecoder.ready;
 
 const PER_REGION = 3, APART = 900;
@@ -32,6 +33,10 @@ const TIERS = [
 // (beside the road, on its right: from the road's edge to behind the workshop — play/garageBuilding.js FOOTPRINT; other
 // roads kept a road's half-width further off)
 const FOOT = FOOTPRINT, ROAD_CLEAR = 5;
+// (the garage's shape as play/garageBuilding.js has it, for fitting; and how good a fit has to be, strictest first)
+const FIT = { laneEnd: 8.2, court: { x0: -6, x1: 19, z0: -16, z1: 16 }, far: 15, near: 6.5 };
+const LEVEL = [{ cut: 0.8, fill: 1.2, grade: 0.08, pitch: 0.05 }, { cut: 1.2, fill: 2, grade: 0.1, pitch: 0.08 }, { cut: 2, fill: 3, grade: 0.13, pitch: 0.12 },
+  { cut: 3, fill: 4, grade: 0.15, pitch: 0.16 }];   // (a mountain pass: what level ground it has)
 const check = process.argv.includes('--check');
 const regions = JSON.parse(fs.readFileSync('data/map/baked.json', 'utf8')).regions;
 const out = [];
@@ -52,7 +57,24 @@ for (const r of regions) {
   const near = (x, z) => { const out = []; const i = Math.floor(x / cell), j = Math.floor(z / cell); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) out.push(...(grid.get(`${i + a},${j + b}`) ?? [])); return out; };
 
   // what's built or growing there: the tiles' roofs (rasterised on a 2 m grid) and trees (3 m round), in the region's frame
-  const T_SIZE = manifest.grid.tileSize, CELL = 2, tiles = new Map();
+  const T_SIZE = manifest.grid.tileSize, CELL = 2, tiles = new Map(), datas = new Map();
+  // the map round a place, as the game has it (its tiles' road meshes and heightfields: play/garageBuilding.js groundOf),
+  // for fitting a garage there as the game will (play/garageFit.js)
+  const S = { manifest, tiles: datas, toSim: (x, z) => [x, z], heightAt(x, z) {
+    const e = datas.get(`${Math.floor(x / T_SIZE)}_${Math.floor(z / T_SIZE)}`), hf = e?.data?.heightfield;
+    if (!hf) return null;
+    const N1 = hf.n + 1, cl = T_SIZE / hf.n, fc = Math.min(hf.n - 1e-6, Math.max(0, (x - e.i * T_SIZE) / cl)), fr = Math.min(hf.n - 1e-6, Math.max(0, (z - e.j * T_SIZE) / cl));
+    const c = Math.floor(fc), rr = Math.floor(fr), tx = fc - c, tz = fr - rr, H = hf.heights, h = (cc, q) => H[q + cc * N1];
+    return (h(c, rr) * (1 - tx) + h(c + 1, rr) * tx) * (1 - tz) + (h(c, rr + 1) * (1 - tx) + h(c + 1, rr + 1) * tx) * tz;
+  } };
+  const ground = groundOf(S);
+  async function fitAt(c) {
+    for (const [dx, dz] of [[0, 0], [-90, -90], [90, -90], [-90, 90], [90, 90]]) await tileCells(Math.floor((c.x + dx) / T_SIZE), Math.floor((c.z + dz) / T_SIZE));
+    const h = c.bearing * Math.PI / 180, rx = Math.cos(h), rz = Math.sin(h), fx = Math.sin(h), fz = -Math.cos(h);
+    const y0 = ground.road(c.x, c.z) ?? c.h, rel = f => (x, z) => { const y = f(c.x + rx * x - fx * z, c.z + rz * x - fz * z); return y == null ? null : y - y0; };
+    return fitGarage({ road: rel(ground.road), terrain: rel(ground.terrain), carve: true,
+      dims: { SIDE, LANE_HALF: LANE.halfWidth, LANE_END: FIT.laneEnd, COURT: FIT.court, FAR: FIT.far, NEAR: FIT.near, STEPS: 40 } }).quality;
+  }
   async function tileCells(i, j) {
     const k = `${i}_${j}`;
     if (tiles.has(k)) return tiles.get(k);
@@ -60,6 +82,7 @@ for (const r of regions) {
     tiles.set(k, cells);
     if (!fs.existsSync(file)) return cells;
     const t = await decodeTile(new Uint8Array(zlib.gunzipSync(fs.readFileSync(file))), MeshoptDecoder);
+    datas.set(k, { i, j, data: t });
     const cx = (i + 0.5) * T_SIZE, cz = (j + 0.5) * T_SIZE, mark = (x, z) => cells.add(`${Math.floor(x / CELL)},${Math.floor(z / CELL)}`);
     const roofs = t.meshes.roofs;
     if (roofs) {
@@ -139,16 +162,20 @@ for (const r of regions) {
   // pick: nearest the spawn first (a short drive), each after well apart from those picked — the strictest tier first
   // (apart: 900 m, or a fifth of a small region's size)
   const [w0, s0] = P.toXZ(r.bbox[1], r.bbox[0]), [e0, n0] = P.toXZ(r.bbox[3], r.bbox[2]), apart = Math.min(APART, Math.hypot(e0 - w0, n0 - s0) / 5);
+  // (and fitted as the game will fit it: the road's edge found, little ground cut away or filled, gentle driveways, a
+  // fairly level road — as level as the region has: each level a little less fussy)
   const picked = [];
   let cand = [];
-  for (const T of TIERS) {
+  for (const Q of LEVEL) for (const T of TIERS) {
     if (picked.length >= PER_REGION) break;
     cand = candidates(T).sort((a, b) => a.d - b.d);
     for (const c of cand) {
       if (picked.length >= PER_REGION) break;
       if (picked.some(p => Math.hypot(p.x - c.x, p.z - c.z) < apart)) continue;
       if (!(await clearOfBuildings(c))) continue;
-      picked.push(c);
+      const q = await fitAt(c);
+      if (!q.found || q.cut > Q.cut || q.fill > Q.fill || q.grade > Q.grade || Math.abs(q.pitch) > Q.pitch) continue;
+      picked.push({ ...c, q });
     }
   }
   const names = new Set();
@@ -158,12 +185,12 @@ for (const r of regions) {
     for (let k = 2; names.has(name); k++) name = `${c.road ? `${c.road} Garage` : `${r.name} Garage`} ${k}`;
     names.add(name);
     out.push({
-      id: `garage_side${r.id}${n + 1}`, region: r.id, name,
+      id: `garage_fit${r.id}${n + 1}`, region: r.id, name,
       location: { lat: Math.round(lat * 1e7) / 1e7, lon: Math.round(lon * 1e7) / 1e7, alt: Math.round(c.h * 100) / 100, heading: Math.round(c.bearing * 10) / 10, altFrom: 'road' },
       road: c.road ? { name: c.road, class: c.cls, source: 'graph' } : null,
     });
   });
-  console.log(`${r.id}: ${picked.length} of ${cand.length} candidates — ${picked.map(c => `${c.road ?? '(unnamed)'} ${Math.round(c.d)} m from spawn, ${c.width} m wide`).join(' · ')}`);
+  console.log(`${r.id}: ${picked.length} — ${picked.map(c => `${c.road ?? '(unnamed)'} ${Math.round(c.d)} m from spawn, ${c.width} m wide (cut ${c.q.cut.toFixed(1)}, fill ${c.q.fill.toFixed(1)}, driveways ${Math.round(c.q.grade * 100)}%, road ${(c.q.pitch * 100).toFixed(1)}%)`).join(' · ')}`);
 }
 if (!check) {
   fs.mkdirSync('data/world', { recursive: true });

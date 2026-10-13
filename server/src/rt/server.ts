@@ -24,23 +24,26 @@ import { QueueRoom } from './queue.ts';
 import { HubRoom } from './hub.ts';
 import { RoamRoom, subscribeRoamGhosts, resetRoamGhosts, roamCounters } from './roam.ts';
 import { createRtApi } from './mp.ts';
+import { createSfu } from './voice.ts';
 
 export type RtOptions = {
   port: number; host?: string; publicAddress?: string; redisUrl?: string | null; secret: string;
-  rt: { allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean };
+  rt: { allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; voiceGuests?: boolean };
   // (Phase 7 Step 2: the API's address for the races' internal calls — venues, results, friends; none: free roam only)
   api?: { url: string } | null;
   // (the tests: quick races in a region on this venue, not a random one — { region | '*': venue })
   quickVenue?: Record<string, any>;
   log?: (msg: string, extra?: object) => void;
   version?: string;          // (GIT_COMMIT: /health says it)
+  // (voice chat: Cloudflare Realtime's SFU — its app and key; none: no voice chat. url: the tests' stand-in)
+  voice?: { appId: string; token: string; url?: string } | null;
 };
 
 export async function startRt(o: RtOptions) {
   resetKicks(); resetRoamGhosts();                // (a new server, a new presence: subscribed afresh)
   drain.on = false; drain.since = 0;
   const started = Date.now();
-  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null, quickVenue: o.quickVenue ?? null });
+  setRtEnv({ secret: o.secret, allowGuests: o.rt.allowGuests, maxPlayers: o.rt.maxPlayers, roomMaxClients: o.rt.roomMaxClients, netsim: o.rt.netsim, log: o.log ?? (() => {}), api: o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null, quickVenue: o.quickVenue ?? null, voice: o.voice?.appId && o.voice.token ? createSfu(o.voice) : null, voiceGuests: !!o.rt.voiceGuests });
   const server = new Server({
     // (dead connections: a WebSocket ping every 3 s, closed after 2 unanswered — a dropped player then gets
     // NET.reconnectSec to come back)
@@ -68,7 +71,7 @@ export async function startRt(o: RtOptions) {
   const api = o.api ? createRtApi({ url: o.api.url, secret: o.secret }) : null;
   const statsTimer = api ? setInterval(() => { void api.roamStats(roamStats(matchMaker.processId)).catch(() => {}); }, 5000) : null;
   statsTimer?.unref();
-  o.log?.('rt listening', { port: o.port, process: matchMaker.processId, tickHz: NET.tickHz, redis: !!o.redisUrl, version: o.version ?? 'dev' });
+  o.log?.('rt listening', { port: o.port, process: matchMaker.processId, tickHz: NET.tickHz, redis: !!o.redisUrl, voice: !!(o.voice?.appId && o.voice.token), version: o.version ?? 'dev' });
   // (what an update waits for: a race under way or its runs coming in, a free-roam challenge, results still to reach the API)
   const challenges = () => [...RoamRoom.live].reduce((a, r) => a + r.runs.size, 0);
   const busy = () => [...RaceRoom.races].some(r => r.busy()) || challenges() > 0 || pending() > 0;
