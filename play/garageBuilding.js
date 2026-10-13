@@ -25,9 +25,15 @@ const SHOP = { x0: 8.2, x1: 18, z0: -9, z1: 7.5, h: 6.2 }, SIGN = { x: 5.8 - SID
 const COURT = { x0: 4.6 - SIDE, x1: 19, z0: -16, z1: 16 };
 const EXIT_M = 18, OUT_X = 2.5;    // (out of the garage: on the road beside the exit driveway's mouth, in its lane)
 // (the verge between the road and the forecourt; the driveways from the road's edge to the lane's ends)
-const VERGE = { x0: COURT.x0, x1: -LANE.halfWidth - 1.2 }, DRIVE = { road: 15, lane: 7.4, width: 6 };
-// (what it covers, in the road's frame: the forecourt from the road's edge to behind the workshop)
-export const FOOTPRINT = { x0: COURT.x0 + SIDE, x1: COURT.x1 + SIDE, z0: COURT.z0, z1: COURT.z1 };
+const VERGE = { x0: COURT.x0, x1: -LANE.halfWidth - 1.2 }, DRIVE = { road: 15, lane: 7.4, width: 6, mouth: 5, over: 0.8 };
+// each driveway (IN behind, +z; OUT in front, −z): from a, just over the road's edge, to b, the lane's end — and its
+// mouth, an apron along the road's edge over the verge, so it opens wide onto the road
+const DRIVEWAYS = [[1, 'IN'], [-1, 'OUT']].map(([zs, word]) => {
+  const ax = VERGE.x0 - DRIVE.over, az = zs * DRIVE.road, bx = 0, bz = zs * DRIVE.lane, len = Math.hypot(bx - ax, bz - az);
+  return { zs, word, ax, az, bx, bz, len, ux: (bx - ax) / len, uz: (bz - az) / len, mouth: { x0: ax, x1: VERGE.x1 + 0.5, z0: az - DRIVE.mouth, z1: az + DRIVE.mouth } };
+});
+// (what it covers, in the road's frame: the forecourt from the road's edge to behind the workshop, the driveways' mouths)
+export const FOOTPRINT = { x0: COURT.x0 + SIDE, x1: COURT.x1 + SIDE, z0: -(DRIVE.road + DRIVE.mouth), z1: DRIVE.road + DRIVE.mouth };
 
 // where a place is in a garage's frame, and where you come out of it
 export function garageFrame(item, P) {
@@ -108,22 +114,25 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
   };
   // the forecourt (deep enough to sit on uneven ground) behind a grass verge with a kerb, the lane marked in blue
   box(M.concrete, VERGE.x1, -1.5, COURT.z0, COURT.x1, 0.04, COURT.z1);
-  box(M.grass, VERGE.x0 + 0.3, -1.5, COURT.z0, VERGE.x1, 0.1, COURT.z1);
-  box(M.kerb, VERGE.x0, -1.5, COURT.z0, VERGE.x0 + 0.3, 0.12, COURT.z1);
+  // (the verge just under the driveways' asphalt, so they run over it flush)
+  box(M.grass, VERGE.x0 + 0.3, -1.5, COURT.z0, VERGE.x1, 0.02, COURT.z1);
+  box(M.kerb, VERGE.x0, -1.5, COURT.z0, VERGE.x0 + 0.3, 0.035, COURT.z1);
   box(M.lane, -LANE.halfWidth, 0.04, -CANOPY.halfLength - 2, LANE.halfWidth, 0.06, CANOPY.halfLength + 2);
   // the driveways: in from the road behind (+z) to the lane's back end, out from its front end (−z) to the road —
   // asphalt over the verge and the forecourt, white edges, an arrow and a word each
-  for (const [zs, word] of [[1, 'IN'], [-1, 'OUT']]) {
-    const ax = VERGE.x0 - 0.6, az = zs * DRIVE.road, bx = 0, bz = zs * DRIVE.lane, len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len;
+  for (const { zs, word, ax, az, bx, bz, ux, uz, mouth } of DRIVEWAYS) {
     strip(M.lane, ax, az, bx + ux * 1.5, bz + uz * 1.5, DRIVE.width, 0.04, 0.08);
-    for (const e of [-1, 1]) { const ox = -uz * e * (DRIVE.width / 2 - 0.2), oz = ux * e * (DRIVE.width / 2 - 0.2); strip(M.white, ax + ox, az + oz, bx + ox, bz + oz, 0.18, 0.08, 0.085); }
+    box(M.lane, mouth.x0, 0.04, mouth.z0, mouth.x1, 0.08, mouth.z1);
+    // (its edges from the mouth in)
+    const t0 = (mouth.x1 - ax) / ux;
+    for (const e of [-1, 1]) { const ox = -uz * e * (DRIVE.width / 2 - 0.2), oz = ux * e * (DRIVE.width / 2 - 0.2); strip(M.white, ax + ux * t0 + ox, az + uz * t0 + oz, bx + ox, bz + oz, 0.18, 0.08, 0.085); }
     // (the way along it: in towards the lane, out towards the road)
     const mx = ax + (bx - ax) * 0.55, mz = az + (bz - az) * 0.55, dir = zs > 0 ? Math.atan2(ux, -uz) : Math.atan2(-ux, uz);
     arrow(mx, mz, dir, 0.095);
     const t = groundWord(THREE, word); disposables.push(t);
     const wm = new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false, depthWrite: false }); disposables.push(wm);
     const w = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), wm); disposables.push(w.geometry);
-    const wx = ax + (bx - ax) * 0.25, wz = az + (bz - az) * 0.25;
+    const wx = ax + (bx - ax) * 0.3, wz = az + (bz - az) * 0.3;
     w.position.set(wx, 0.1, wz); w.rotation.set(-Math.PI / 2, -dir, 0, 'YXZ'); B.add(w);
   }
   for (const x of [-LANE.halfWidth, LANE.halfWidth - 0.25]) box(M.blue, x, 0.06, -CANOPY.halfLength - 2, x + 0.25, 0.07, CANOPY.halfLength + 2);
@@ -177,6 +186,12 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
     group.updateMatrixWorld(true);
     const cuboid = (x0, y0, z0, x1, y1, z1) => RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2).setTranslation(SIDE + (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);   // (the lane's frame, SIDE m right of the road)
     const descs = [cuboid(COURT.x0, -0.8, COURT.z0, COURT.x1, 0.04, COURT.z1)];
+    // (the driveways and their mouths, where they reach past the forecourt)
+    for (const { ax, az, bx, bz, len, mouth } of DRIVEWAYS) {
+      const yaw = Math.atan2(bx - ax, bz - az);
+      descs.push(RAPIER.ColliderDesc.cuboid(DRIVE.width / 2, 0.42, len / 2).setTranslation(SIDE + (ax + bx) / 2, -0.38, (az + bz) / 2).setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }));
+      descs.push(cuboid(mouth.x0, -0.8, mouth.z0, mouth.x1, 0.04, mouth.z1));
+    }
     for (const x of [-POST.x, POST.x]) for (const z of [-POST.z, POST.z]) descs.push(cuboid(x - 0.35, 0, z - 0.35, x + 0.35, CANOPY.low, z + 0.35));
     descs.push(cuboid(SHOP.x0, 0, SHOP.z0, SHOP.x1, SHOP.h, SHOP.z1), cuboid(SIGN.x - 0.25, 0, SIGN.z - 0.25, SIGN.x + 0.25, SIGN.h, SIGN.z + 0.25));
     const q = group.quaternion;

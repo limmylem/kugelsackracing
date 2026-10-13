@@ -26,7 +26,7 @@ for (const [heading, grade] of [[0, 0], [90, 0.2], [200, -0.08]]) {
     world.step();
     // (height over the road's plane at a place in the road's frame: x right, z back)
     const above = (lx, lz) => { const x = rx * lx - fx * lz, z = rz * lx - fz * lz, hit = world.castRay(new RAPIER.Ray({ x, y: alt + 30, z }, { x: 0, y: -1, z: 0 }), 100, true); return hit ? alt + 30 - hit.timeOfImpact - roadY(x, z) : null; };
-    for (const [name, lx, lz] of [['the entry driveway', 5.5, 14], ['the exit driveway', 5.5, -14], ['the lane\'s back', SIDE, 7], ['the lane\'s front', SIDE, -7], ['under the canopy', SIDE, 0], ['the back of the forecourt', SIDE + 17, 14]]) {
+    for (const [name, lx, lz] of [['the entry driveway', 5.5, 14], ['the exit driveway', 5.5, -14], ['the entry\'s mouth on the road', 4.1, 19.5], ['the exit\'s mouth on the road', 4.1, -19.5], ['the entry driveway\'s outer edge', 6, 18], ['the lane\'s back', SIDE, 7], ['the lane\'s front', SIDE, -7], ['under the canopy', SIDE, 0], ['the back of the forecourt', SIDE + 17, 14]]) {
       const y = above(lx, lz);
       assert.ok(y != null && Math.abs(y - 0.04) < 0.02, `${name}: ${y} m over the road`);
     }
