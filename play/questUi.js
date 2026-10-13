@@ -104,7 +104,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   const S = w.stream, P = S.projection, cfg = game.config;
   const hudSettings = { ...{ scale: cfg.hud?.scale ?? 1, visible: cfg.hud?.visible !== false }, ...loadHudSettings() };
   let run = null;          // { item, course, controller, adapters, dressing, hud, pilot, message, … }
-  let paused = false, screen = null, guide = null, hit = 0;
+  let paused = false, screen = null, guide = null, guideFor = null, hit = 0;
   // polish: sounds, the camera's glides, the accessibility settings (applied as they change)
   const sounds = createQuestSounds({ muted: () => !!game.muted?.() });
   const blend = createCameraBlend(cfg.camera?.transitions), orbit = cfg.camera?.orbit ?? {};
@@ -208,18 +208,18 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     return true;
   }
 
-  // "Set route": the way to the quest's start on the road graph, on the maps
+  // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps
   async function setGuide(item, done) {
     try {
       const N = await game.network(), car = game.carNow(), [lat, lon] = P.toLatLon(car.x, car.z);
       const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, { lat: item.location.lat, lon: item.location.lon }], options: { oneway: false } });
       if (!r.ok || r.line.length < 2) { game.say('No way there on the roads', 'warn'); return; }
-      guide = r.line; setLines();
+      guide = r.line; guideFor = item.id; setLines();
       game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
     } catch (e) { game.say(`Couldn't set a route: ${e.message}`, 'warn'); }
     done?.();
   }
-  function clearGuide(done) { guide = null; setLines(); done?.(); }
+  function clearGuide(done) { guide = null; guideFor = null; setLines(); done?.(); }
 
   // ---------- starting ----------
   async function start(item, { restart = false, ghost = undefined } = {}) {
@@ -256,7 +256,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
-    guide = null; setLines(); hud(); hideScreen();
+    guide = null; guideFor = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
     if (!r.ok) { if (run === me) { game.say(r.error, 'warn'); stop(); } return r; }
     run.fee = r.fee;
@@ -469,6 +469,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   return {
     card, start, stop, pause, setGuide, clearGuide,
+    // (what the route on the maps goes to: a quest's or a garage's id — play/contentLayer.js)
+    get guideFor() { return guide ? guideFor : null; },
     get active() { return !!run; },
     get run() { return run; },
     // (paused: the pause menu — and the intro, when the camera's away and the car waits)

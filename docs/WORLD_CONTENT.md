@@ -4,16 +4,20 @@
 > a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
 
 > **Garages:** a kind `garage` ("Garage", the editor's tool 8) is a drive-through building like a petrol station
-> (`play/garageBuilding.js`): a canopy on four posts over the road, the workshop with roller doors beside it, a tall
-> GARAGE sign; the posts, workshop and sign are solid. Its heading is the way through (snapped to a road it follows the
-> road). Driving through under the canopy opens your garage; leaving it you come out of the far side. There's no
+> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt off
+> the road, a canopy on four posts over its lane, the workshop with roller doors beyond, a tall GARAGE sign; the posts,
+> workshop and sign are solid. Its location is the road's middle and its heading the road's way (snapped to a road it
+> follows the road; turn it round for the other side). Driving through under the canopy opens your garage; leaving it
+> you come out at the far end of the forecourt, back on the road. A garage's card on the map has **Route** for the way
+> there. There's no
 > garage button any more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow
 > (`data/economy.json` `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you
 > out of the nearest garage. The starting garages — two or three in every baked region — are `data/world/garages.json`
 > (`node tools/place-garages.mjs` picks them from the road graphs: straight, wide roads at ground level, away from
-> junctions, no other road through the footprint); the server publishes each once (`server/src/content/garages.ts`, not
-> on a test server) and a server-less page seeds them into its browser store once. After that they're the editors' like
-> anything else: moved, renamed or archived, that stands. `dev/garage-building.html` shows the building by itself
+> junctions, no other road, building or tree in the footprint); the server publishes each once
+> (`server/src/content/garages.ts`, not on a test server) and a server-less page seeds them into its browser store once.
+> After that they're the editors' like anything else: moved, renamed or archived, that stands. Earlier starting garages
+> since replaced (the file's `retired`) are archived at start where nobody has changed them. `dev/garage-building.html` shows the building by itself
 > (`node tools/serve.mjs`).
 
 Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)

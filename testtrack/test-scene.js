@@ -1138,7 +1138,8 @@ async function buildWorld(file) {
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
     w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side) => garageVisit(w, it, side), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
-      questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active });
+      questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active,
+      guide: { set: it => w.quests.setGuide(it), clear: () => w.quests.clearGuide(), to: () => w.quests.guideFor } });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
     // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
     w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
@@ -1374,6 +1375,8 @@ function garageVisit(w, it, side) {
   const out = garageFrame(it, w.stream.projection).out(side);
   shared.garageExit = { lat: out.lat, lon: out.lon, bearing: out.bearing };
   shared.flash.show(it.name || 'Garage', 'ok', 1.5, 'into the garage');
+  // (arrived: its route off the maps)
+  if (w.quests?.guideFor === it.id) w.quests.clearGuide();
   hooks.openGarage();
 }
 const towFee = () => Math.max(0, shared?.session.db.economy?.tow?.fee ?? 0);
