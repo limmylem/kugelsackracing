@@ -4,22 +4,32 @@
 > a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
 
 > **Garages:** a kind `garage` ("Garage", the editor's tool 8) is a drive-through building like a petrol station
-> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt behind
-> a grass verge, an IN driveway off the road into its lane and an OUT driveway back onto the road, a canopy on four posts
-> over the lane, the workshop with roller doors beyond, a tall GARAGE sign. The forecourt and driveways are solid
-> (driven on whatever the ground is like under them) and the whole garage leans with the road's slope (measured on the
-> road's collision once it's in); the posts, workshop and sign are solid too. Its location is the road's middle and its heading the road's way (snapped to a road it
-> follows the road; turn it round for the other side). Driving through under the canopy opens your garage; leaving it
-> you come out on the road beside the OUT driveway. A garage's card on the map has **Route** for the way
-> there. There's no
-> garage button any more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow
-> (`data/economy.json` `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you
-> out of the nearest garage. The starting garages — two or three in every baked region — are `data/world/garages.json`
-> (`node tools/place-garages.mjs` picks them from the road graphs: straight, wide roads at ground level, away from
-> junctions, no other road, building or tree in the footprint); the server publishes each once
-> (`server/src/content/garages.ts`, not on a test server) and a server-less page seeds them into its browser store once.
-> After that they're the editors' like anything else: moved, renamed or archived, that stands. Earlier starting garages
-> since replaced (the file's `retired`) are archived at start where nobody has changed them. `dev/garage-building.html` shows the building by itself
+> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt, an IN
+> driveway off the road into its lane and an OUT driveway back onto the road, a canopy on four posts over the lane, the
+> workshop with roller doors beyond, a tall GARAGE sign. Its location is the road's middle and its heading the road's way
+> (the editor puts it on the side of the road you click, snapped to the road; **Other side of the road** turns it round).
+> **Each garage fits itself to where it stands** (`play/garageFit.js`), once the map round it is in — the same in the
+> game and in the editor's 3D view: it finds the road's real edge every metre along (the tile's road mesh: straight or
+> curving, however wide) and its surface's height; it leans with the road's slope; its floor sits at the ground's middle
+> height (from 0.3 m under the road's level to just over it); each driveway leaves the road's edge running along it, on
+> the road's own surface, rises smoothly (over the road's own slope) to the forecourt's level by the time it reaches the
+> forecourt and runs into the lane at the lane's width — of a few ways of laying them, the gentlest kept — in the roads'
+> own asphalt. **It's set into the ground** (`map/render/streamer.ts` `carve`): inside its outlines the drawn ground,
+> grass cover and car parks aren't drawn (`map/render/objects.ts` ground holes) and the physics' ground (the tiles'
+> heightfields, as they are and as they load) is lowered under it; where a bank stands higher, a concrete retaining wall
+> (solid) runs up to it; where the ground falls away, the forecourt's and driveways' sides go down to it. Everything the
+> car meets is solid. Driving through under the canopy opens your garage; leaving it you come out on the road beside the
+> OUT driveway. A garage's card on the map has **Route** for the way there; the editor's garage panel says how well it
+> fits where it is (how much ground is cut away or filled, how steep the driveways get). There's no garage button any
+> more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow (`data/economy.json`
+> `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you out of the nearest
+> garage. The starting garages — one to three in every baked region, as many level spots as it has (a mountain pass has
+> one) — are `data/world/garages.json` (`node tools/place-garages.mjs` picks them from the road graphs: straight, wide
+> roads at ground level, away from junctions, no other road, building or tree in the footprint, and fitted as the game
+> will fit them: little ground cut away or filled, gentle driveways, a fairly level road); the server publishes each
+> once (`server/src/content/garages.ts`, not on a test server) and a server-less page seeds them into its browser store
+> once. After that they're the editors' like anything else: moved, renamed or archived, that stands. Earlier starting
+> garages since replaced (the file's `retired`) are archived at start where nobody has changed them. `dev/garage-building.html` shows the building by itself
 > (`node tools/serve.mjs`).
 
 Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)

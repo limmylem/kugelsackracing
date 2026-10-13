@@ -1137,7 +1137,7 @@ async function buildWorld(file) {
     const game = w.questGame = questGame(w);
     w.quests = createQuestPlay({ THREE, w, game, autopilot: new URLSearchParams(location.search).has('questBot') });
     trackGame(game);
-    w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side) => garageVisit(w, it, side), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
+    w.content = createContentLayer({ THREE, RAPIER, sim: w.sim, onGarage: (it, side, building) => garageVisit(w, it, side, building), world: w, carNow: () => { const t = shared.session.stats?.totals; return t ? { className: t.rating?.class ?? null, kw: t.peakPower?.kw ?? 0, kg: t.mass } : null; },
       questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active,
       guide: { set: it => w.quests.setGuide(it), clear: () => w.quests.clearGuide(), to: () => w.quests.guideFor } });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
@@ -1369,10 +1369,11 @@ function replayFrame(w, now, seconds, inp) {
 // The garage: driven to (a garage building in the real world — play/garageBuilding.js) or towed to for a fee
 // (data/economy.json tow). Out again, you come out of that building's far side; towed, out of the nearest one.
 const inRegion = (w, at) => { const b = w.stream?.manifest?.bbox; return !b || (at.lon >= b[0] && at.lon <= b[2] && at.lat >= b[1] && at.lat <= b[3]); };
-function garageVisit(w, it, side) {
+function garageVisit(w, it, side, building = null) {
   // (not mid-race online, nor with the editor's camera flying through it)
   if (!hooks.openGarage || active !== w || shared.mpRace?.racing || document.body.classList.contains('kr-in-race') || editorHooks.active) return;
-  const out = garageFrame(it, w.stream.projection).out(side);
+  // (out on the road as it really is beside the way out — the building's fit — else as the item says it runs)
+  const out = building?.exit?.(side) ?? garageFrame(it, w.stream.projection).out(side);
   shared.garageExit = { lat: out.lat, lon: out.lon, bearing: out.bearing };
   shared.flash.show(it.name || 'Garage', 'ok', 1.5, 'into the garage');
   // (arrived: its route off the maps)

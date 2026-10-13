@@ -10,20 +10,37 @@
 //   const V = createWorldView({ THREE, world, canvas })   world: the game's Map v3 world (w.stream, w.scene)
 //   V.frame(dt)   V.ray(clientX, clientY) → { lat, lon, alt, altFrom, normal } | null   V.pick(clientX, clientY) → id
 //   V.lookAt(lat, lon, alt)   V.where() → { lat, lon, alt, heading }   V.covers(lat, lon)   V.setItems(items)   V.dispose()
-//   V.pose() / V.setPose(pose)   the camera, kept and put back (a test drive and back)
+//   V.pose() / V.setPose(pose)   the camera, kept and put back (a test drive and back)   V.garageFit(id) → its fit's quality
+// (garages drawn as their buildings, fitted where they stand: play/garageBuilding.js)
 
 import { createMarkers3d } from './markers3d.js';
+import { createGarageBuilding, SIDE } from '../play/garageBuilding.js';
 
 const ROAD_MESHES = new Set(['roads', 'paved', 'markings']), GROUND_MESHES = /^terrain/;
 
-export function createWorldView({ THREE, world: w, canvas }) {
+export function createWorldView({ THREE, world: w, canvas, onGarageFit = null }) {
   const S = w.stream, P = S.projection;
   const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 30000);
   // start where the game's camera was, a little higher
   camera.position.copy(w.camera.position).add(new THREE.Vector3(0, 25, 0));
   let yaw = Math.atan2(-(w.camera.getWorldDirection(new THREE.Vector3()).x), -(w.camera.getWorldDirection(new THREE.Vector3()).z)), pitch = -0.35, speed = 40;
   const keys = new Set(), raycaster = new THREE.Raycaster();
-  const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; } });
+  // (a garage's marker on its building — SIDE m right of its place on the road — not on the road)
+  const markers = createMarkers3d({ THREE, parent: S.world, place: it => {
+    const [x, z] = P.toXZ(it.location.lat, it.location.lon);
+    if (it.kind !== 'garage') return [x, it.location.alt ?? 0, z];
+    const h = (it.location.heading ?? 0) * Math.PI / 180;
+    return [x + Math.cos(h) * SIDE, it.location.alt ?? 0, z + Math.sin(h) * SIDE];
+  } });
+  // the garages as the game draws them — the building beside the road, fitted to the road and ground there, drafts too —
+  // made again when one's moved or turned
+  const garages = new Map();      // id → { key, building }
+  const garageKey = it => JSON.stringify(it.location);
+  function setGarages(items) {
+    const want = new Map(items.filter(it => it.kind === 'garage' && it.status !== 'archived' && it.location).map(it => [it.id, it]));
+    for (const [id, g] of garages) if (want.get(id) == null || garageKey(want.get(id)) !== g.key) { g.building.dispose(); garages.delete(id); }
+    for (const [id, it] of want) if (!garages.has(id)) garages.set(id, { key: garageKey(it), building: createGarageBuilding({ THREE, stream: S, item: it }) });
+  }
 
   const onKey = e => {
     if (e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
@@ -83,6 +100,7 @@ export function createWorldView({ THREE, world: w, canvas }) {
       if (shifted) { camera.position.x += shifted[0]; camera.position.z += shifted[2]; }
       const [wx, wz] = toWorld(camera.position.x, camera.position.z);
       markers.update({ x: wx, y: camera.position.y, z: wz });
+      for (const [id, g] of garages) if (!g.fitted && g.building.settle()) { g.fitted = true; onGarageFit?.(id); }
     },
     // what's under a point on the screen
     ray(clientX, clientY) {
@@ -112,12 +130,16 @@ export function createWorldView({ THREE, world: w, canvas }) {
       const [x, z] = P.toXZ(lat, lon), T = S.manifest.grid.tileSize, i = Math.floor(x / T), j = Math.floor(z / T);
       return S.manifest.tiles.some(t => t.i === i && t.j === j);
     },
-    setItems(items) { markers.setItems(items); },
+    setItems(items) { markers.setItems(items); setGarages(items); },
+    // (how well a garage fits where it is, once its building's fitted: play/garageFit.js quality)
+    garageFit(id) { return garages.get(id)?.building.fit?.quality ?? null; },
     select(id) { markers.select(id); },
     dispose() {
       removeEventListener('keydown', onKey); removeEventListener('keyup', onKey); removeEventListener('pointermove', onMove); removeEventListener('pointerup', onUp); removeEventListener('blur', onBlur);
       canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('wheel', onWheel); canvas.removeEventListener('contextmenu', noMenu);
       markers.dispose();
+      for (const g of garages.values()) g.building.dispose();
+      garages.clear();
     },
   };
 }

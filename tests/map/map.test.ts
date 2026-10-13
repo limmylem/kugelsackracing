@@ -395,6 +395,22 @@ async function streamingTest() {
   };
   let waited = 0;
   while (!S.readyAround(...S.toSim(sx, sz) as [number, number], 30) && waited < 60) { await step(sx, sz, 0, 0); waited += dt; }
+  // carving the ground under something built (a garage — play/garageBuilding.js): a square 20 m across beside the start,
+  // its heightfield (the physics' ground, already made) lowered under the surface it's given, and put back after
+  {
+    const [cx, cz] = [sx + 40, sz + 40], [px, pz] = S.toSim(cx, cz), before = S.heightAt(px, pz);
+    const hit = () => { const y = S.groundBelow(px, pz, before + 50, 200); return y; };
+    await step(sx, sz, 0, 0);
+    const hitBefore = hit();
+    S.carve('test', { polys: [[[cx - 10, cz - 10], [cx + 10, cz - 10], [cx + 10, cz + 10], [cx - 10, cz + 10]]], below: () => before - 1 });
+    await step(sx, sz, 0, 0);
+    const after = S.heightAt(px, pz), hitAfter = hit();
+    S.carve('test', null);
+    await step(sx, sz, 0, 0);
+    const back = S.heightAt(px, pz), hitBack = hit(), onTerrain = hitBefore != null && Math.abs(hitBefore - before) < 0.05;
+    report('streaming', 'the ground carved under something built, and put back', Math.abs(after - (before - 1.15)) < 0.01 && back === before && (!onTerrain || (Math.abs(hitAfter - after) < 0.05 && Math.abs(hitBack - before) < 0.05)),
+      `the heightfield there ${before.toFixed(2)} → ${after.toFixed(2)} → ${back.toFixed(2)} m${onTerrain ? `; the physics' ground ${hitBefore.toFixed(2)} → ${hitAfter?.toFixed(2)} → ${hitBack?.toFixed(2)} m` : ' (a road over it there: the physics\' ground not checked)'}`);
+  }
   const gc = (globalThis as any).gc ?? (() => {}), mem: any[] = [];
   let notReady = 0, falls = 0, worstAhead = Infinity, maxTiles = 0, maxColliders = 0, frames = 0;
   const seen = new Set<string>();

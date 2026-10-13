@@ -21,3 +21,4 @@ Garages sit beside the road now; drive past or pull in
 Tap a garage on the map for a route there
 Garages have their own in and out driveways, and solid ground
 Garage driveways meet the road smoothly
+Every garage now fits its spot: driveways flow off the road

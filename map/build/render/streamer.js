@@ -13,12 +13,15 @@
 //   each frame: W.update(carPosition (sim), velocity, dt) → { shifted: [tx, 0, tz] | null }
 //   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z), W.placeOnGround(x, z, yFrom), W.where(x, z)
 //   W.status (for the overlay), W.toWorld / W.toSim
+//   W.carve(id, { polys: [[[x, z], …], …] (the map's frame), below(x, z) → the built surface's height there } | null):
+//   something built set into the ground (a garage — play/garageBuilding.js): the drawn ground left out inside its
+//   outlines (objects.ts ground holes) and the physics' ground lowered under it, in the tiles in now and as they load
 //
 // Headless (the streaming tests, in Node): options { headless: true, manifest, loadTile(key, url) →
 // Promise<the worker's message>, now() } — the same planning and physics, nothing drawn, no workers,
 // the clock the test's.
 import * as THREE from 'three';
-import { materials, srgbVertexColours, tileObjects } from "./objects.js";
+import { materials, srgbVertexColours, tileObjects, setGroundHoles, setGroundHoleOrigin, groundHolesOwner } from "./objects.js";
 import { tileColliders } from "./physics.js";
 import { transverseMercator } from "../format/projection.js";
 export const REBASE = 1536;
@@ -70,7 +73,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vFarPos; uniform sampler2D uMask; uniform vec4 uMaskInfo; uniform float uTile; uniform vec2 uOrigin;')
                 .replace('void main() {', 'void main() {\n  vec2 g = floor((vFarPos.xz + uOrigin) / uTile) - uMaskInfo.xy;\n  if (g.x >= 0.0 && g.y >= 0.0 && g.x < uMaskInfo.z && g.y < uMaskInfo.w && texture2D(uMask, (g + 0.5) / uMaskInfo.zw).r > 0.5) discard;');
         };
-        out.customProgramCacheKey = () => `far-${m.type}`;
+        const innerKey = m.customProgramCacheKey?.bind(m);
+        out.customProgramCacheKey = () => `far-${m.type}-${innerKey ? innerKey() : ''}`;
         return out;
     };
     let waitingFar = 0;
@@ -125,6 +129,80 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     const centreOf = t => [(t.i + 0.5) * T, (t.j + 0.5) * T];
     const distTo = (t, x, z) => { const [cx, cz] = centreOf(t); return Math.hypot(Math.max(0, Math.abs(x - cx) - half), Math.max(0, Math.abs(z - cz) - half)); };
     let physicsQueue = [];
+    // ---------- carving: something built set into the ground ----------
+    // (its outlines and the built surface's height; the heightfields' points within CARVE_MARGIN of an outline — every
+    // cell's corners round it — lowered to under that surface, from the heights as baked: a carving taken away puts them
+    // back. A tile's heightfield collider already made is made again.)
+    const carvings = new Map(), bakedHeights = new WeakMap(), CARVE_MARGIN = 3, me = {};
+    const boxOf = polys => { const b = [Infinity, Infinity, -Infinity, -Infinity]; for (const p of polys)
+        for (const [x, z] of p) {
+            b[0] = Math.min(b[0], x);
+            b[1] = Math.min(b[1], z);
+            b[2] = Math.max(b[2], x);
+            b[3] = Math.max(b[3], z);
+        } return b; };
+    const touches = (c, e) => !!c && c.box[0] - CARVE_MARGIN < (e.i + 1) * T && c.box[2] + CARVE_MARGIN > e.i * T && c.box[1] - CARVE_MARGIN < (e.j + 1) * T && c.box[3] + CARVE_MARGIN > e.j * T;
+    const near = (poly, x, z, r) => {
+        let inside = false;
+        for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++]) {
+            const c = poly[k];
+            if ((c[1] > z) !== (a[1] > z) && x < (a[0] - c[0]) * (z - c[1]) / (a[1] - c[1]) + c[0])
+                inside = !inside;
+            const dx = c[0] - a[0], dz = c[1] - a[1], l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+            if (Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t) < r)
+                return true;
+        }
+        return inside;
+    };
+    // (a tile's heightfield as baked, then every carving touching it: whether it changed)
+    function carveTile(e) {
+        const hf = e.data?.heightfield;
+        if (!hf)
+            return false;
+        const on = [...carvings.values()].filter(c => touches(c, e));
+        let base = bakedHeights.get(e.data);
+        if (!base && !on.length)
+            return false;
+        if (!base)
+            bakedHeights.set(e.data, base = hf.heights.slice());
+        hf.heights.set(base);
+        const N1 = hf.n + 1, cell = T / hf.n, x0 = e.i * T, z0 = e.j * T;
+        for (const c of on) {
+            const c0 = Math.max(0, Math.floor((c.box[0] - CARVE_MARGIN - x0) / cell)), c1 = Math.min(hf.n, Math.ceil((c.box[2] + CARVE_MARGIN - x0) / cell));
+            const r0 = Math.max(0, Math.floor((c.box[1] - CARVE_MARGIN - z0) / cell)), r1 = Math.min(hf.n, Math.ceil((c.box[3] + CARVE_MARGIN - z0) / cell));
+            for (let cc = c0; cc <= c1; cc++)
+                for (let rr = r0; rr <= r1; rr++) {
+                    const x = x0 + cc * cell, z = z0 + rr * cell;
+                    if (!c.polys.some(p => near(p, x, z, CARVE_MARGIN)))
+                        continue;
+                    const y = c.below(x, z);
+                    if (y != null)
+                        hf.heights[rr + cc * N1] = Math.min(hf.heights[rr + cc * N1], y - 0.15);
+                }
+        }
+        return true;
+    }
+    // (its heightfield collider, if made already: made again from the heights now)
+    function refreshGround(e) {
+        const hf = e.data?.heightfield;
+        if (!hf || !e.physics || !(e.added > 0) || !sim.replaceInStatic)
+            return;
+        sim.replaceInStatic(e.physics, 0, { desc: RAPIER.ColliderDesc.heightfield(hf.n, hf.n, hf.heights, { x: hf.size, y: 1, z: hf.size }), userData: { material: 'ground' } });
+    }
+    const pushHoles = () => { if (!O.headless)
+        setGroundHoles(me, [...carvings.values()].flatMap(c => c.polys), origin); };
+    function carve(id, c) {
+        const before = carvings.get(id);
+        if (c?.polys?.length)
+            carvings.set(id, { polys: c.polys, below: c.below, box: boxOf(c.polys) });
+        else
+            carvings.delete(id);
+        const now = carvings.get(id);
+        for (const e of tiles.values())
+            if (e.state === 'ready' && (touches(before, e) || touches(now, e)) && carveTile(e))
+                refreshGround(e);
+        pushHoles();
+    }
     function load(t) {
         const key = `${t.i}_${t.j}`, entry = { ...t, key, state: 'loading', obj: null, data: null, physics: null, colliders: 0 };
         tiles.set(key, entry);
@@ -141,6 +219,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
             }
             entry.data = m.tile;
             entry.state = 'ready';
+            carveTile(entry);
             if (!O.headless) {
                 entry.obj = tileObjects(m.tile, { barriers: manifest.barriers });
                 const [cx, cz] = centreOf(t);
@@ -273,8 +352,13 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
             origin = next;
             world.position.set(-origin[0], 0, -origin[1]);
             maskUniforms.uOrigin.value.set(origin[0], origin[1]);
+            if (!O.headless && groundHolesOwner() === me)
+                setGroundHoleOrigin(origin);
             shifted = t;
         }
+        // (the ground's holes: this world's, while it's the one being driven)
+        if (!O.headless && groundHolesOwner() !== me)
+            pushHoles();
         return { shifted };
     }
     // Where the player may go next (a quest's start on its card, a fast-travel target): the tiles within radiusM of it
@@ -293,7 +377,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         return urls.length;
     }
     return {
-        manifest, projection: P, world, stats, update, setGraphics, prefetch,
+        manifest, projection: P, world, stats, update, setGraphics, prefetch, carve,
         get origin() { return origin; },
         toWorld: (x, z) => [x + origin[0], z + origin[1]],
         toSim: (x, z) => [x - origin[0], z - origin[1]],

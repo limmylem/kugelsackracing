@@ -137,7 +137,7 @@ export function createEditor({ game }) {
       active = true;
       document.body.classList.add('editor-on');
       root.style.display = '';
-      if (w?.stream && !worldView) { worldView = createWorldView({ THREE, world: w, canvas: game.canvas() }); routeTool.attachWorld(worldView, w.stream); }
+      if (w?.stream && !worldView) { worldView = createWorldView({ THREE, world: w, canvas: game.canvas(), onGarageFit: id => { if (current?.id === id) { const el = root?.querySelector('#edGarageFit'); if (el) el.innerHTML = garageFitText(current); } } }); routeTool.attachWorld(worldView, w.stream); }
       if (worldView) game.hooks.camera = worldView.camera;
       game.hooks.frame = (_w, dt) => { if (view === '3d' && worldView) worldView.frame(dt); };
       // (the map view comes in the background when there's a 3D view to start in)
@@ -328,6 +328,19 @@ export function createEditor({ game }) {
   const input = (path, value, type = 'text', extra = '') => `<input data-field="${path}" type="${type}" value="${esc(value ?? '')}" ${extra}>`;
   const num = (path, value, extra = '') => input(path, value, 'number', `step="any" ${extra}`);
   const select = (path, value, options) => `<select data-field="${path}">${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  // how well a garage fits where it is (its building in the 3D view, fitted: play/garageFit.js quality)
+  function garageFitText(it) {
+    const q = worldView?.garageFit?.(it.id);
+    if (!q) return worldView ? 'Fitting it to the road and ground there…' : 'Open the 3D view (M) to see it fitted to the road and ground.';
+    if (!q.found) return '⚠ No road beside it: snap it to a road (N, or Snap to road).';
+    const notes = [];
+    if (q.cut > 1.5) notes.push(`the ground stands up to ${q.cut.toFixed(1)} m above it (set into a bank behind retaining walls)`);
+    if (q.fill > 2) notes.push(`the ground falls away up to ${q.fill.toFixed(1)} m under it`);
+    if (q.grade > 0.12) notes.push(`a driveway gets steep (${Math.round(q.grade * 100)}%)`);
+    if (Math.abs(q.pitch) > 0.08) notes.push(`the road's steep here (${Math.round(Math.abs(q.pitch) * 100)}%)`);
+    const fig = `Ground cut away up to ${q.cut.toFixed(1)} m, filled up to ${q.fill.toFixed(1)} m · driveways up to ${Math.round(q.grade * 100)}%`;
+    return notes.length ? `⚠ ${fig}: ${notes.join('; ')} — a flatter, straighter spot looks better.` : `✓ ${fig}: a good spot.`;
+  }
   function renderProps() {
     if (!ui.right) return;
     if (toolsPanel && !current) return renderToolsPanel();
@@ -353,7 +366,7 @@ export function createEditor({ game }) {
     if (it.kind === 'series') html += seriesFields(it);
     if (it.kind === 'venue') html += venueFields(it);
     if (it.kind === 'meet') html += meetFields(it);
-    if (it.kind === 'garage') html += `<div class="section"><b>Garage</b><div class="hint">A drive-through building like a petrol station beside the road: a forecourt, a canopy and the workshop on the right of its heading, so players can drive past. Players drive through under the canopy to open their garage, and a paid tow brings them out of the nearest one. Place it on the middle of a straight road with room on the right (snapped to a road it follows the road); turn it round for the other side.</div></div>`;
+    if (it.kind === 'garage') html += `<div class="section"><b>Garage</b><div class="hint">A drive-through building like a petrol station beside the road, so players can drive past: click the side of the road you want it on (snapped, it follows the road). It fits itself to the road and the ground there — its driveways leave the road's real edge, it leans with the road, and it's set into the ground (a retaining wall where a bank stands higher). Players drive through under the canopy to open their garage, and a paid tow brings them out of the nearest one.</div><div class="actions"><button data-act="garageFlip">Other side of the road</button></div><div id="edGarageFit" class="hint">${garageFitText(it)}</div></div>`;
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
@@ -602,6 +615,7 @@ export function createEditor({ game }) {
     const act = b.dataset.act;
     if (act === 'publish') publish(); else if (act === 'unpublish') unpublish(); else if (act === 'duplicate') duplicate(); else if (act === 'delete') remove(); else if (act === 'restore') restore();
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
+    else if (act === 'garageFlip') turn(180);
     else if (act === 'goto') focusOn(current.location);
     else if (act === 'openRoute' && questRoute) pickItem(questRoute.id);
     else if (act === 'tdOpen') { td = newDesigner((await loadTracksCfg()).presets); previewTrack(td, tracksCfg); renderProps(); }
@@ -709,6 +723,11 @@ export function createEditor({ game }) {
     if (tool === 'route' && current?.kind === 'route') { await routeTool.click(at); return; }
     if (tool === 'select') { deselect(); return; }
     const kind = tool, { location, road } = await settle(at, cameraHeading());
+    // (a garage stands on the right of its heading: turned round if the click was on the road's other side)
+    if (kind === 'garage' && road) {
+      const h = location.heading * Math.PI / 180, dx = (at.lon - location.lon) * Math.cos(location.lat * Math.PI / 180) * 111320, dz = -(at.lat - location.lat) * 110540;
+      if (dx * Math.cos(h) + dz * Math.sin(h) < -0.5) location.heading = wrap360(location.heading + 180);
+    }
     const here = regionIdAt(location.lat, location.lon);
     if (kind === 'route' && !here) return flash('Routes follow the roads of a region the game has (San Francisco, Adelaide, …): this place isn\'t in one yet.', true);
     if (here && await useRegion(here)) flash(`Working in ${regionName(here)}.`);

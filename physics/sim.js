@@ -278,6 +278,14 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     addToStatic(handle, descs) {
       for (const d of descs) { const c = world.createCollider(d.desc ?? d, handle.body); if (d.userData) c.userData = d.userData; handle.colliders.push(c); }
     },
+    // one of a static body's colliders made again (its collision changed in place: the ground carved under something built)
+    replaceInStatic(handle, i, desc) {
+      const old = handle.colliders[i], userData = desc.userData ?? old?.userData;
+      if (old && world.getCollider(old.handle)) world.removeCollider(old, false);
+      const c = world.createCollider(desc.desc ?? desc, handle.body);
+      if (userData) c.userData = userData;
+      handle.colliders[i] = c;
+    },
     removeStatic(handle) { if (handle?.body && world.getRigidBody(handle.body.handle)) world.removeRigidBody(handle.body); },
     moveStatic(handle, pose) {
       handle.body.setTranslation(toXYZ(pose.position), false);

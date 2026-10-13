@@ -2,116 +2,108 @@
   "_note": "The starting garages: drive-through garage buildings in each baked region (world content of kind garage), each beside its road on the right of its heading. Made by node tools/place-garages.mjs from the road graphs; published by the server at start (server/src/content/garages.ts) and shown without a server too (content/client.js). Edit them in the world editor like any other garage. retired: earlier starting garages, archived where nobody has changed them since.",
   "garages": [
     {
-      "id": "garage_sidesf1",
+      "id": "garage_fitsf1",
       "region": "sf",
-      "name": "Jefferson Street Garage",
+      "name": "The Embarcadero Garage",
       "location": {
-        "lat": 37.8085191,
-        "lon": -122.4134376,
-        "alt": 3.01,
-        "heading": 261.1,
+        "lat": 37.8083951,
+        "lon": -122.4113061,
+        "alt": 3.15,
+        "heading": 280.9,
         "altFrom": "road"
       },
       "road": {
-        "name": "Jefferson Street",
+        "name": "The Embarcadero",
         "class": "tertiary",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidesf2",
+      "id": "garage_fitsf2",
       "region": "sf",
-      "name": "Broadway Garage",
+      "name": "Terry A. Francois Boulevard Garage",
       "location": {
-        "lat": 37.7958719,
-        "lon": -122.4224324,
-        "alt": 46.02,
-        "heading": 260.8,
+        "lat": 37.7702272,
+        "lon": -122.3864228,
+        "alt": 2.7,
+        "heading": 176.9,
         "altFrom": "road"
       },
       "road": {
-        "name": "Broadway",
-        "class": "primary",
-        "source": "graph"
-      }
-    },
-    {
-      "id": "garage_sidesf3",
-      "region": "sf",
-      "name": "California Street Garage",
-      "location": {
-        "lat": 37.7934426,
-        "lon": -122.3981783,
-        "alt": 3.13,
-        "heading": 81,
-        "altFrom": "road"
-      },
-      "road": {
-        "name": "California Street",
+        "name": "Terry A. Francois Boulevard",
         "class": "tertiary",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidemonaco1",
-      "region": "monaco",
-      "name": "Avenue Prince Rainier III Monaco Garage",
+      "id": "garage_fitsf3",
+      "region": "sf",
+      "name": "Erie Street Garage",
       "location": {
-        "lat": 43.7441303,
-        "lon": 7.4215489,
-        "alt": 186.29,
-        "heading": 48.7,
+        "lat": 37.7692466,
+        "lon": -122.4170318,
+        "alt": 6.09,
+        "heading": 86.6,
         "altFrom": "road"
       },
       "road": {
-        "name": "Avenue Prince Rainier III Monaco",
-        "class": "primary",
+        "name": "Erie Street",
+        "class": "unclassified",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidemonaco2",
+      "id": "garage_fitmonaco1",
       "region": "monaco",
-      "name": "Avenue de Fontvieille Garage",
+      "name": "Monaco Garage",
       "location": {
-        "lat": 43.729843,
-        "lon": 7.4142168,
-        "alt": 30.51,
-        "heading": 51.9,
+        "lat": 43.7471271,
+        "lon": 7.4167748,
+        "alt": 272.83,
+        "heading": 64.6,
+        "altFrom": "road"
+      },
+      "road": null
+    },
+    {
+      "id": "garage_fitmonaco2",
+      "region": "monaco",
+      "name": "Route de la Piscine Garage",
+      "location": {
+        "lat": 43.7340935,
+        "lon": 7.4223744,
+        "alt": 0.07,
+        "heading": 7.8,
         "altFrom": "road"
       },
       "road": {
-        "name": "Avenue de Fontvieille",
-        "class": "tertiary",
+        "name": "Route de la Piscine",
+        "class": "residential",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidemonaco3",
+      "id": "garage_fitmonaco3",
       "region": "monaco",
-      "name": "Avenue Prince Rainier III Monaco Garage 2",
+      "name": "Monaco Garage 2",
       "location": {
-        "lat": 43.7383469,
-        "lon": 7.4122625,
-        "alt": 170.96,
-        "heading": 11.1,
+        "lat": 43.7360548,
+        "lon": 7.4313762,
+        "alt": 0.13,
+        "heading": 219.8,
         "altFrom": "road"
       },
-      "road": {
-        "name": "Avenue Prince Rainier III Monaco",
-        "class": "primary",
-        "source": "graph"
-      }
+      "road": null
     },
     {
-      "id": "garage_sidetokyo1",
+      "id": "garage_fittokyo1",
       "region": "tokyo",
       "name": "ファイアー通り Garage",
       "location": {
-        "lat": 35.6656669,
-        "lon": 139.7016241,
-        "alt": 27.9,
-        "heading": 190.8,
+        "lat": 35.665772,
+        "lon": 139.7016506,
+        "alt": 28.52,
+        "heading": 190,
         "altFrom": "road"
       },
       "road": {
@@ -121,57 +113,40 @@
       }
     },
     {
-      "id": "garage_sidetokyo2",
+      "id": "garage_fittokyo2",
       "region": "tokyo",
       "name": "Tokyo (Shibuya) Garage",
       "location": {
-        "lat": 35.6542375,
-        "lon": 139.7052725,
-        "alt": 21.34,
-        "heading": 152.9,
+        "lat": 35.6630169,
+        "lon": 139.7065359,
+        "alt": 30.9,
+        "heading": 126.5,
         "altFrom": "road"
       },
       "road": null
     },
     {
-      "id": "garage_sidetokyo3",
+      "id": "garage_fittokyo3",
       "region": "tokyo",
       "name": "Tokyo (Shibuya) Garage 2",
       "location": {
-        "lat": 35.66319,
-        "lon": 139.6928104,
-        "alt": 34.89,
-        "heading": 279.2,
+        "lat": 35.6540999,
+        "lon": 139.7053561,
+        "alt": 20.99,
+        "heading": 152.1,
         "altFrom": "road"
       },
       "road": null
     },
     {
-      "id": "garage_sidestelvio1",
-      "region": "stelvio",
-      "name": "Stilfserjoch Staatsstraße Garage",
-      "location": {
-        "lat": 46.5305299,
-        "lon": 10.4549571,
-        "alt": 2730.8,
-        "heading": 216.6,
-        "altFrom": "road"
-      },
-      "road": {
-        "name": "Stilfserjoch Staatsstraße",
-        "class": "secondary",
-        "source": "graph"
-      }
-    },
-    {
-      "id": "garage_sidestelvio2",
+      "id": "garage_fitstelvio1",
       "region": "stelvio",
       "name": "Strada Statale 38 dello Stelvio Garage",
       "location": {
-        "lat": 46.5319188,
-        "lon": 10.4448763,
-        "alt": 2633.35,
-        "heading": 178.5,
+        "lat": 46.5316747,
+        "lon": 10.4442974,
+        "alt": 2626.67,
+        "heading": 298.8,
         "altFrom": "road"
       },
       "road": {
@@ -181,31 +156,14 @@
       }
     },
     {
-      "id": "garage_sidestelvio3",
-      "region": "stelvio",
-      "name": "Stilfserjoch Staatsstraße Garage 2",
-      "location": {
-        "lat": 46.5321976,
-        "lon": 10.4645816,
-        "alt": 2410.31,
-        "heading": 60.8,
-        "altFrom": "road"
-      },
-      "road": {
-        "name": "Stilfserjoch Staatsstraße",
-        "class": "secondary",
-        "source": "graph"
-      }
-    },
-    {
-      "id": "garage_sidemunich1",
+      "id": "garage_fitmunich1",
       "region": "munich",
       "name": "Münchener Straße Garage",
       "location": {
-        "lat": 48.2356633,
-        "lon": 11.6417414,
-        "alt": 486.33,
-        "heading": 9.2,
+        "lat": 48.2360415,
+        "lon": 11.6418369,
+        "alt": 486.52,
+        "heading": 189.8,
         "altFrom": "road"
       },
       "road": {
@@ -215,122 +173,101 @@
       }
     },
     {
-      "id": "garage_sidemunich2",
-      "region": "munich",
-      "name": "Münchener Straße Garage 2",
-      "location": {
-        "lat": 48.2294244,
-        "lon": 11.6409798,
-        "alt": 486.3,
-        "heading": 12.7,
-        "altFrom": "road"
-      },
-      "road": {
-        "name": "Münchener Straße",
-        "class": "secondary",
-        "source": "graph"
-      }
-    },
-    {
-      "id": "garage_sidemunich3",
+      "id": "garage_fitmunich2",
       "region": "munich",
       "name": "Munich (A9 / A99) Garage",
       "location": {
-        "lat": 48.2423313,
-        "lon": 11.641512,
-        "alt": 487.55,
-        "heading": 143.8,
+        "lat": 48.2363024,
+        "lon": 11.631281,
+        "alt": 486.04,
+        "heading": 112.7,
         "altFrom": "road"
       },
       "road": null
     },
     {
-      "id": "garage_sidemk1",
-      "region": "mk",
-      "name": "Kellan Drive Garage",
+      "id": "garage_fitmunich3",
+      "region": "munich",
+      "name": "Munich (A9 / A99) Garage 2",
       "location": {
-        "lat": 52.0366834,
-        "lon": -0.743683,
-        "alt": 105.38,
-        "heading": 145.4,
+        "lat": 48.232301,
+        "lon": 11.6242702,
+        "alt": 489.56,
+        "heading": 14.7,
+        "altFrom": "road"
+      },
+      "road": null
+    },
+    {
+      "id": "garage_fitmk1",
+      "region": "mk",
+      "name": "H7 Chaffron Way Garage",
+      "location": {
+        "lat": 52.0327905,
+        "lon": -0.7429576,
+        "alt": 100.2,
+        "heading": 236.7,
         "altFrom": "road"
       },
       "road": {
-        "name": "Kellan Drive",
+        "name": "H7 Chaffron Way",
         "class": "tertiary",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidemk2",
+      "id": "garage_fitmk2",
       "region": "mk",
-      "name": "H4 Dansteed Way Garage",
+      "name": "Boycott Avenue Garage",
       "location": {
-        "lat": 52.0480639,
-        "lon": -0.7736938,
-        "alt": 106.34,
-        "heading": 242.4,
+        "lat": 52.0349033,
+        "lon": -0.7545573,
+        "alt": 90.33,
+        "heading": 324.6,
         "altFrom": "road"
       },
       "road": {
-        "name": "H4 Dansteed Way",
-        "class": "tertiary",
+        "name": "Boycott Avenue",
+        "class": "residential",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sidemk3",
+      "id": "garage_fitmk3",
       "region": "mk",
-      "name": "North Eighth Street Garage",
+      "name": "South Second Street Garage",
       "location": {
-        "lat": 52.0437231,
-        "lon": -0.7603977,
-        "alt": 112.76,
-        "heading": 325.2,
+        "lat": 52.0340888,
+        "lon": -0.765596,
+        "alt": 91.42,
+        "heading": 324,
         "altFrom": "road"
       },
       "road": {
-        "name": "North Eighth Street",
-        "class": "unclassified",
+        "name": "South Second Street",
+        "class": "service",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sideadelaide1",
+      "id": "garage_fitadelaide1",
       "region": "adelaide",
-      "name": "War Memorial Drive Garage",
+      "name": "Frome Road Garage",
       "location": {
-        "lat": -34.9171861,
-        "lon": 138.5970935,
-        "alt": 24.84,
-        "heading": 35,
+        "lat": -34.9145742,
+        "lon": 138.6049029,
+        "alt": 29.94,
+        "heading": 340.3,
         "altFrom": "road"
       },
       "road": {
-        "name": "War Memorial Drive",
-        "class": "tertiary",
-        "source": "graph"
-      }
-    },
-    {
-      "id": "garage_sideadelaide2",
-      "region": "adelaide",
-      "name": "Bartels Road Garage",
-      "location": {
-        "lat": -34.9250967,
-        "lon": 138.6140001,
-        "alt": 44.91,
-        "heading": 270.6,
-        "altFrom": "road"
-      },
-      "road": {
-        "name": "Bartels Road",
+        "name": "Frome Road",
         "class": "secondary",
         "source": "graph"
       }
     },
     {
-      "id": "garage_sideadelaide3",
+      "id": "garage_fitadelaide2",
       "region": "adelaide",
       "name": "Hutt Road Garage",
       "location": {
@@ -343,6 +280,23 @@
       "road": {
         "name": "Hutt Road",
         "class": "secondary",
+        "source": "graph"
+      }
+    },
+    {
+      "id": "garage_fitadelaide3",
+      "region": "adelaide",
+      "name": "North Terrace Garage",
+      "location": {
+        "lat": -34.9185855,
+        "lon": 138.6170013,
+        "alt": 40.42,
+        "heading": 58.1,
+        "altFrom": "road"
+      },
+      "road": {
+        "name": "North Terrace",
+        "class": "primary",
         "source": "graph"
       }
     }
@@ -367,6 +321,27 @@
     "garage_homemk3",
     "garage_homeadelaide1",
     "garage_homeadelaide2",
-    "garage_homeadelaide3"
+    "garage_homeadelaide3",
+    "garage_sidesf1",
+    "garage_sidesf2",
+    "garage_sidesf3",
+    "garage_sidemonaco1",
+    "garage_sidemonaco2",
+    "garage_sidemonaco3",
+    "garage_sidetokyo1",
+    "garage_sidetokyo2",
+    "garage_sidetokyo3",
+    "garage_sidestelvio1",
+    "garage_sidestelvio2",
+    "garage_sidestelvio3",
+    "garage_sidemunich1",
+    "garage_sidemunich2",
+    "garage_sidemunich3",
+    "garage_sidemk1",
+    "garage_sidemk2",
+    "garage_sidemk3",
+    "garage_sideadelaide1",
+    "garage_sideadelaide2",
+    "garage_sideadelaide3"
   ]
 }

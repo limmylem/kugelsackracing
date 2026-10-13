@@ -1,51 +1,96 @@
 // A garage in the real world (world content of kind garage): a drive-through building like a petrol station beside
-// the road — a forecourt off the road behind a grass verge, an entry driveway off the road into its lane and an exit
-// driveway back onto it, a canopy on four posts over the lane, the workshop behind (roller doors facing the lane), a
-// tall sign by the road. The road stays clear: driving by, you pass it; pulling in and through under the canopy opens
-// your garage (play/contentLayer.js), and leaving it you come out on the road beside the exit. A paid tow
-// (garage/player/service.js towCar) brings you out of the nearest one. The forecourt and driveways are solid (driven
-// on, whatever the ground under them) and the whole garage leans with the road's slope (settle(): the road's height
-// ahead and behind, once its collision is in).
+// the road — a forecourt off the road, an IN driveway off the road into its lane and an OUT driveway back onto it, a
+// canopy on four posts over the lane, the workshop behind (roller doors facing the lane), a tall sign by the road. The
+// road stays clear: driving by, you pass it; pulling in and through under the canopy opens your garage
+// (play/contentLayer.js), and leaving it you come out on the road beside the way out. A paid tow (garage/player/service.js
+// towCar) brings you out of the nearest one.
+//
+// Each garage fits itself to where it stands (settle(), play/garageFit.js), once the map round it is in: the road beside
+// it as it really is (its edge, straight or curving, its surface's height — the tile's road mesh) and the ground (the
+// tile's heightfield). It leans with the road's slope; its floor sits just above the highest ground under the forecourt;
+// its driveways leave the road's real edge running along it, on the road's own surface, and rise smoothly into the lane
+// in the roads' own asphalt, over the ground beside them. The forecourt, driveways, posts, workshop and sign are solid.
 //
 // The frame: the item's place is on the road (the editor snaps it there) and its heading is the road's way — local
 // −z; across, +x, is its right, where the garage stands (SIDE m from the road's middle to the lane's; turn the item
-// round to have it on the other side); the ground at y 0 — the item's place (lat, lon, alt) and heading put it in the
-// world.
+// round to have it on the other side) — the item's place (lat, lon, alt) and heading put it in the world.
 //
-//   const G = createGarageBuilding({ THREE, RAPIER, sim, stream, item })   G.group (in stream.world)   G.settle() → settled?
-//   (each frame till it is: the slope and the solid parts come with the road's collision)   G.dispose()
+//   const G = createGarageBuilding({ THREE, RAPIER, sim, stream, item, ground? })   G.group (in stream.world)
+//   G.settle() → settled? (each frame till it is)   G.exit(side) → { wx, wz, lat, lon, bearing } (fitted, once settled)
+//   G.dispose()
+//   (ground: { ready(wx, wz, r), road(wx, wz) → y | null, terrain(wx, wz) → y | null } in the world's frame — by
+//   default the stream's tiles: groundOf(stream))
 //   garageFrame(item, projection) → { local(wx, wz) → { x, z }, out(side) → { wx, wz, bearing } }
 //   inLane({ x, z }) → under the canopy, in the lane      FOOTPRINT: what it covers (tools/place-garages.mjs)
+
+import { fitGarage } from './garageFit.js';
 
 export const SIDE = 13;                                          // m: the road's middle to the lane's
 export const LANE = { halfWidth: 4.8, halfLength: 5.6 };       // (the drive-through zone, under the canopy)
 const CANOPY = { halfWidth: 6.6, halfLength: 6.2, low: 5, high: 5.7 }, POST = { x: 5.7, z: 4.2, size: 0.5 };
-// (in the lane's frame — x from the lane's middle; the road's edge is about SIDE − 5 to its left)
-const SHOP = { x0: 8.2, x1: 18, z0: -9, z1: 7.5, h: 6.2 }, SIGN = { x: 5.8 - SIDE, z: -7.6, h: 8, half: 2.3 };
-const COURT = { x0: 4.6 - SIDE, x1: 19, z0: -16, z1: 16 };
-const EXIT_M = 18, OUT_X = 2.5;    // (out of the garage: on the road beside the exit driveway's mouth, in its lane)
-// (the verge between the road and the forecourt; the driveways from the road's edge to the lane's ends)
-const VERGE = { x0: COURT.x0, x1: -LANE.halfWidth - 1.2 }, LANE_END = CANOPY.halfLength + 2;
-// the driveways (IN behind, +z, into the lane's back end; OUT in front, −z, from its front end): each a slip road
-// between two smooth curves — its far edge (furthest from the lane along the road) leaves the road's edge running along
-// it and sweeps into the lane's far side, its near edge rounds off the road's edge into the lane's near side — so it
-// opens wide and flat onto the road and runs into the lane at the lane's width. Its top rises from the road's height at the road's edge to the lane's. (t: 0 at the road, 1 at
-// the lane; samples of each edge and the height)
-const bezier = (P, t) => { const u = 1 - t; return [u * u * u * P[0][0] + 3 * u * u * t * P[1][0] + 3 * u * t * t * P[2][0] + t * t * t * P[3][0], u * u * u * P[0][1] + 3 * u * u * t * P[1][1] + 3 * u * t * t * P[2][1] + t * t * t * P[3][1]]; };
-const DRIVE = { from: VERGE.x0 - 0.25, far: 15, near: 6.5, steps: 28 };
-const DRIVEWAYS = [[1, 'IN'], [-1, 'OUT']].map(([zs, word]) => {
-  const E = DRIVE.from, L = LANE.halfWidth, Z = v => zs * (LANE_END + v);
-  const far = [[E, Z(DRIVE.far)], [E, Z(DRIVE.far - 6)], [L, Z(4)], [L, Z(0)]];
-  const near = [[E, Z(DRIVE.near)], [E, Z(DRIVE.near - 2.5)], [-L, Z(3)], [-L, Z(0)]];
-  const rows = [];
-  for (let k = 0; k <= DRIVE.steps; k++) {
-    const t = k / DRIVE.steps, rise = Math.min(1, t / 0.3), y = 0.015 + 0.04 * rise * rise * (3 - 2 * rise);
-    rows.push({ t, a: bezier(far, t), b: bezier(near, t), y });
-  }
-  return { zs, word, rows };
-});
-// (what it covers, in the road's frame: the forecourt from the road's edge to behind the workshop, the driveways' mouths)
-export const FOOTPRINT = { x0: COURT.x0 + SIDE, x1: COURT.x1 + SIDE, z0: -(LANE_END + DRIVE.far), z1: LANE_END + DRIVE.far };
+const LANE_END = CANOPY.halfLength + 2;
+// (in the building's frame — x from the lane's middle, y from its floor; the road's edge is about SIDE − 5 to its left):
+// the forecourt from a little off the road to behind the workshop, the workshop, the tall sign at its road side
+const COURT = { x0: -LANE.halfWidth - 1.2, x1: 19, z0: -16, z1: 16 };
+const SHOP = { x0: 8.2, x1: 18, z0: -9, z1: 7.5, h: 6.2 }, SIGN = { x: COURT.x0 + 0.7, z: -7.6, h: 8, half: 2.3 };
+// (the driveways: their far edges leave the road this far past the lane's ends, their near edges this far)
+const DRIVE = { far: 15, near: 6.5, steps: 40 };
+const EXIT_M = 18, OUT_X = 2.5;    // (out of the garage before it's fitted: on the road by the way out, in its lane)
+// (what it covers, in the road's frame: from the road's edge to behind the workshop, as far along as the driveways go)
+export const FOOTPRINT = { x0: 4.6, x1: COURT.x1 + SIDE, z0: -(LANE_END + DRIVE.far), z1: LANE_END + DRIVE.far };
+const DIMS = { SIDE, LANE_HALF: LANE.halfWidth, LANE_END, COURT, FAR: DRIVE.far, NEAR: DRIVE.near, STEPS: DRIVE.steps };
+
+// the map round a place, from the stream's tiles (world frame): loaded yet?, the road surface's height (the tile's road
+// mesh: only its drivable top — not the skirt dipping past its edge), the ground's (its heightfield)
+export function groundOf(S) {
+  if (!S?.tiles || !S.manifest?.grid) return null;
+  const T = S.manifest.grid.tileSize, known = new Set(S.manifest.tiles.map(t => `${t.i}_${t.j}`)), CELL = 4, grids = new WeakMap();
+  const keyAt = (wx, wz) => `${Math.floor(wx / T)}_${Math.floor(wz / T)}`;
+  const gridOf = d => {
+    let g = grids.get(d);
+    if (g) return g;
+    grids.set(d, g = new Map());
+    const m = d.meshes?.roads;
+    if (!m) return g;
+    const p = m.positions, I = m.indices;
+    for (let n = 0; n + 2 < I.length; n += 3) {
+      const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3;
+      const ux = p[b] - p[a], uy = p[b + 1] - p[a + 1], uz = p[b + 2] - p[a + 2], vx = p[c] - p[a], vy = p[c + 1] - p[a + 1], vz = p[c + 2] - p[a + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, len = Math.hypot(nx, ny, nz);
+      if (len < 1e-6 || Math.abs(ny) / len < 0.95) continue;
+      for (let gx = Math.floor(Math.min(p[a], p[b], p[c]) / CELL); gx <= Math.floor(Math.max(p[a], p[b], p[c]) / CELL); gx++)
+        for (let gz = Math.floor(Math.min(p[a + 2], p[b + 2], p[c + 2]) / CELL); gz <= Math.floor(Math.max(p[a + 2], p[b + 2], p[c + 2]) / CELL); gz++) {
+          const k = `${gx},${gz}`; (g.get(k) ?? g.set(k, []).get(k)).push(n);
+        }
+    }
+    return g;
+  };
+  return {
+    ready(wx, wz, r) {
+      for (const [dx, dz] of [[0, 0], [-r, -r], [r, -r], [-r, r], [r, r]]) { const k = keyAt(wx + dx, wz + dz); if (known.has(k) && !S.tiles.get(k)?.data) return false; }
+      return true;
+    },
+    road(wx, wz) {
+      const e = S.tiles.get(keyAt(wx, wz)), d = e?.data;
+      if (!d?.meshes?.roads) return null;
+      const lx = wx - (e.i + 0.5) * T, lz = wz - (e.j + 0.5) * T, list = gridOf(d).get(`${Math.floor(lx / CELL)},${Math.floor(lz / CELL)}`);
+      if (!list) return null;
+      const p = d.meshes.roads.positions, I = d.meshes.roads.indices;
+      let best = null;
+      for (const n of list) {
+        const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3;
+        const area = (p[b] - p[a]) * (p[c + 2] - p[a + 2]) - (p[c] - p[a]) * (p[b + 2] - p[a + 2]);
+        if (Math.abs(area) < 1e-9) continue;
+        const w1 = ((p[b] - lx) * (p[c + 2] - lz) - (p[c] - lx) * (p[b + 2] - lz)) / area, w2 = ((p[c] - lx) * (p[a + 2] - lz) - (p[a] - lx) * (p[c + 2] - lz)) / area, w3 = 1 - w1 - w2;
+        if (w1 < -1e-6 || w2 < -1e-6 || w3 < -1e-6) continue;
+        const y = w1 * p[a + 1] + w2 * p[b + 1] + w3 * p[c + 1];
+        if (best == null || y > best) best = y;
+      }
+      return best;
+    },
+    terrain(wx, wz) { if (!S.heightAt) return null; const [x, z] = S.toSim(wx, wz); return S.heightAt(x, z); },
+  };
+}
 
 // where a place is in a garage's frame, and where you come out of it
 export function garageFrame(item, P) {
@@ -93,15 +138,21 @@ function groundWord(THREE, word) {
   return t;
 }
 
-export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream: S, item }) {
+let carveCount = 0;
+export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream: S, item, ground = groundOf(S) }) {
   const P = S.projection, F = garageFrame(item, P), h = (item.location.heading ?? 0) * Math.PI / 180, alt = item.location.alt ?? 0;
+  const rx = Math.cos(h), rz = Math.sin(h), fx = Math.sin(h), fz = -Math.cos(h);
+  // (the garage's frame — x right, z back — into the world's, and back)
+  const toWorld = (x, z) => [F.cx + rx * x - fx * z, F.cz + rz * x - fz * z];
+  // the garage, turned to its heading (y: the road's height at its place) → leaning with the road → the building (SIDE
+  // m right, its floor at the fitted height); the driveways in the turned frame, not leaning (each follows the road)
   const group = new THREE.Group();
   group.name = `garage:${item.id}`;
   group.position.set(F.cx, alt, F.cz);
-  // (local −z along the bearing: a yaw of −bearing)
   group.rotation.y = -h;
-  // (the building in its lane's frame: SIDE m to the road's right)
-  const B = new THREE.Group(); B.position.x = SIDE; group.add(B);
+  const tilt = new THREE.Group(); group.add(tilt);
+  const B = new THREE.Group(); B.position.x = SIDE; tilt.add(B);
+  const D = new THREE.Group(); group.add(D);
   const disposables = [];
   // (the driveways and lane the same asphalt as the roads they join: data/world/bake.json roads, map/render/objects.ts)
   const asphalt = (extra = {}) => { const m = new THREE.MeshLambertMaterial({ color: '#4a4c4f', flatShading: true, ...extra }); disposables.push(m); return m; };
@@ -112,50 +163,24 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
     wall: material(0xd9d5cc, { roughness: 0.85 }), door: material(0x5c6168, { metalness: 0.3, roughness: 0.55 }), dark: material(0x24272c, { roughness: 0.8 }),
     glass: material(0x9fc3dd, { roughness: 0.1, metalness: 0.2, emissive: 0x223344, emissiveIntensity: 0.4 }),
     light: material(0xffffff, { emissive: 0xfff4dc, emissiveIntensity: 1.6, roughness: 0.3 }),
-    grass: material(0x5f7f45, { roughness: 1 }), kerb: material(0xb9bcc0, { roughness: 0.9 }),
+    drive: asphalt({ side: THREE.DoubleSide }), line: material(0xf1f2f4, { roughness: 0.5, side: THREE.DoubleSide }),
+    retaining: material(0xa3a29c, { roughness: 0.95, side: THREE.DoubleSide }),
   };
   const BOX = new THREE.BoxGeometry(1, 1, 1); disposables.push(BOX);
-  const box = (m, x0, y0, z0, x1, y1, z1) => { const o = new THREE.Mesh(BOX, m); o.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); o.scale.set(x1 - x0, y1 - y0, z1 - z0); o.castShadow = true; o.receiveShadow = true; B.add(o); return o; };
+  const box = (m, x0, y0, z0, x1, y1, z1, parent = B) => { const o = new THREE.Mesh(BOX, m); o.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); o.scale.set(x1 - x0, y1 - y0, z1 - z0); o.castShadow = true; o.receiveShadow = true; parent.add(o); return o; };
   const plane = (tex, w, hgt, x, y, z, yaw) => { const m = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }); disposables.push(m, tex); const o = new THREE.Mesh(new THREE.PlaneGeometry(w, hgt), m); disposables.push(o.geometry); o.position.set(x, y, z); o.rotation.y = yaw; B.add(o); return o; };
-
-  // (a painted arrow at x, z pointing at angle a — 0 is local −z, the way through)
-  const arrow = (x, z, a, y = 0.075) => {
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -a; B.add(g);
-    const bar = (cx, cz, len, yaw) => { const o = new THREE.Mesh(BOX, M.white); o.position.set(cx, y - 0.0075, cz); o.scale.set(0.3, 0.015, len); o.rotation.y = yaw; g.add(o); };
+  // (a painted arrow at x, y, z pointing at angle a — 0 is local −z, the way through)
+  const arrow = (parent, x, y, z, a) => {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = -a; parent.add(g);
+    const bar = (cx, cz, len, yaw) => { const o = new THREE.Mesh(BOX, M.white); o.position.set(cx, 0.0075, cz); o.scale.set(0.3, 0.015, len); o.rotation.y = yaw; g.add(o); };
     bar(0, 0.1, 2, 0); bar(-0.42, -0.75, 1.5, -Math.PI / 4); bar(0.42, -0.75, 1.5, Math.PI / 4);
   };
-  // the forecourt (deep enough to sit on uneven ground) behind a grass verge with a kerb, the lane marked in blue
-  box(M.concrete, VERGE.x1, -1.5, COURT.z0, COURT.x1, 0.04, COURT.z1);
-  // (the verge just under the driveways' asphalt, so they run over it flush; its kerb between them)
-  box(M.grass, VERGE.x0, -1.5, COURT.z0, VERGE.x1, 0.01, COURT.z1);
-  box(M.kerb, VERGE.x0, -1.5, -LANE_END - DRIVE.near + 0.6, VERGE.x0 + 0.3, 0.03, LANE_END + DRIVE.near - 0.6);
-  box(M.lane, -LANE.halfWidth, 0.04, -CANOPY.halfLength - 2, LANE.halfWidth, 0.06, CANOPY.halfLength + 2);
-  // the driveways: asphalt between their curved edges (a skirt down each side, for where the ground falls away), white
-  // lines just inside the edges from the verge on, an arrow and a word each
-  const ribbon = (m, rows, u0, u1, lift = 0, skirt = false) => {
-    const pos = [], idx = [], at = (r, u) => [r.a[0] + (r.b[0] - r.a[0]) * u, r.y + lift, r.a[1] + (r.b[1] - r.a[1]) * u];
-    rows.forEach((r, k) => { pos.push(...at(r, u0), ...at(r, u1)); if (k) { const q = k * 2; idx.push(q - 2, q - 1, q, q - 1, q + 1, q); } });
-    if (skirt) for (const u of [u0, u1]) { const base = pos.length / 3; rows.forEach((r, k) => { const [x, y, z] = at(r, u); pos.push(x, y, z, x, -1.5, z); if (k) { const q = base + k * 2; idx.push(q - 2, q, q - 1, q - 1, q, q + 1); } }); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); disposables.push(g);
-    const o = new THREE.Mesh(g, m); o.receiveShadow = true; B.add(o); return o;
-  };
-  const doubleSided = asphalt({ side: THREE.DoubleSide }), lineM = material(0xf1f2f4, { roughness: 0.5, side: THREE.DoubleSide });
-  for (const { zs, word, rows } of DRIVEWAYS) {
-    ribbon(doubleSided, rows, 0, 1, 0, true);
-    const inner = rows.filter(r => r.t >= 0.28);
-    ribbon(lineM, inner, 0.025, 0.045, 0.004); ribbon(lineM, inner, 0.955, 0.975, 0.004);
-    // (the way along it — in towards the lane, out towards the road — from its middle line)
-    const mid = t => { const k = Math.round(t * DRIVE.steps), r = rows[k]; return [(r.a[0] + r.b[0]) / 2, (r.a[1] + r.b[1]) / 2]; };
-    const along = (t, s = zs > 0 ? 1 : -1) => { const [x0, z0] = mid(t - 0.04), [x1, z1] = mid(t + 0.04); return Math.atan2((x1 - x0) * s, -(z1 - z0) * s); };
-    const [mx, mz] = mid(0.62); arrow(mx, mz, along(0.62), 0.07);
-    const t = groundWord(THREE, word); disposables.push(t);
-    const wm = new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false, depthWrite: false }); disposables.push(wm);
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), wm); disposables.push(w.geometry);
-    const [wx, wz] = mid(0.36); w.position.set(wx, 0.07, wz); w.rotation.set(-Math.PI / 2, -along(0.36), 0, 'YXZ'); B.add(w);
-  }
-  for (const x of [-LANE.halfWidth, LANE.halfWidth - 0.25]) box(M.blue, x, 0.06, -CANOPY.halfLength - 2, x + 0.25, 0.07, CANOPY.halfLength + 2);
-  // (painted arrows the way through, −z)
-  for (const z of [-3, 3]) arrow(0, z, 0);
+
+  // the forecourt (deep enough to stand over falling ground), the lane marked in blue, arrows the way through
+  const forecourt = box(M.concrete, COURT.x0, -3, COURT.z0, COURT.x1, 0.04, COURT.z1);
+  box(M.lane, -LANE.halfWidth, 0.04, -LANE_END, LANE.halfWidth, 0.06, LANE_END);
+  for (const x of [-LANE.halfWidth, LANE.halfWidth - 0.25]) box(M.blue, x, 0.06, -LANE_END, x + 0.25, 0.07, LANE_END);
+  for (const z of [-3, 3]) arrow(B, 0, 0.06, z, 0);
   // the canopy: a white slab under a red and blue fascia, lights underneath, on four posts
   box(M.white, -CANOPY.halfWidth, CANOPY.low, -CANOPY.halfLength, CANOPY.halfWidth, CANOPY.low + 0.15, CANOPY.halfLength);
   box(M.red, -CANOPY.halfWidth - 0.05, CANOPY.low + 0.15, -CANOPY.halfLength - 0.05, CANOPY.halfWidth + 0.05, CANOPY.high - 0.2, CANOPY.halfLength + 0.05);
@@ -187,42 +212,143 @@ export function createGarageBuilding({ THREE, RAPIER = null, sim = null, stream:
   plane(pole(), SIGN.half * 2 - 0.1, 2.5, SIGN.x, SIGN.h - 1.3, SIGN.z + 0.2, 0);
   S.world.add(group);
 
-  // what the car drives on and hits — the forecourt, verge and driveways as one slab, the posts, the workshop, the sign's
-  // pole (not the lane's air: that's driven through) — once the road's collision is in, leaning with the road's slope
-  let handle = null, settled = !(RAPIER && sim), tries = 0;
+  // the driveways, from the fit: asphalt between their edges (a skirt down each side, for where the ground falls away),
+  // white lines just inside the edges once off the road, an arrow and a word each
+  function driveways(fit) {
+    const ribbon = (m, rows, u0, u1, lift = 0, skirt = false) => {
+      const pos = [], idx = [], at = (r, u) => [0, 1, 2].map(i => r.a[i] + (r.b[i] - r.a[i]) * u + (i === 1 ? lift : 0));
+      rows.forEach((r, k) => { pos.push(...at(r, u0), ...at(r, u1)); if (k) { const q = k * 2; idx.push(q - 2, q - 1, q, q - 1, q + 1, q); } });
+      // (its sides down to the ground under them)
+      if (skirt) for (const u of [u0, u1]) { const base = pos.length / 3; rows.forEach((r, k) => { const [x, y, z] = at(r, u), g = u < 0.5 ? r.ga : r.gb; pos.push(x, y, z, x, Math.min(y - 0.3, (g ?? y - 3) - 0.3), z); if (k) { const q = base + k * 2; idx.push(q - 2, q, q - 1, q - 1, q, q + 1); } }); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); disposables.push(g);
+      const o = new THREE.Mesh(g, m); o.receiveShadow = true; D.add(o); return o;
+    };
+    for (const { zs, word, rows } of fit.driveways) {
+      ribbon(M.drive, rows, 0, 1, 0.004, true);
+      const inner = rows.filter(r => r.t >= 0.3);
+      ribbon(M.line, inner, 0.025, 0.045, 0.012); ribbon(M.line, inner, 0.955, 0.975, 0.012);
+      // (the way along it — in towards the lane, out towards the road — on its middle line)
+      const mid = t => { const r = rows[Math.round(t * (rows.length - 1))]; return [0, 1, 2].map(i => (r.a[i] + r.b[i]) / 2); };
+      const along = t => { const p0 = mid(t - 0.04), p1 = mid(t + 0.04), s = zs > 0 ? 1 : -1; return Math.atan2((p1[0] - p0[0]) * s, -(p1[2] - p0[2]) * s); };
+      const am = mid(0.62); arrow(D, am[0], am[1] + 0.008, am[2], along(0.62));
+      const t = groundWord(THREE, word); disposables.push(t);
+      const wm = new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false, depthWrite: false }); disposables.push(wm);
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), wm); disposables.push(w.geometry);
+      const wp = mid(0.4); w.position.set(wp[0], wp[1] + 0.02, wp[2]); w.rotation.set(-Math.PI / 2, -along(0.4), 0, 'YXZ'); D.add(w);
+    }
+  }
+
+  // set into the ground: its outlines (the forecourt, each driveway) and its surface's height handed to the stream, which
+  // leaves the drawn ground out inside them and lowers the physics' ground under them; where the ground beside it stands
+  // higher than its surface (a bank), a concrete retaining wall up to it
+  function carveIn(road, terrain) {
+    const cp = Math.cos(fit.pitch), sp = Math.sin(fit.pitch);
+    const lean = (xb, yb, zb) => { const y = fit.floorY + yb; return [SIDE + xb, y * cp - zb * sp, y * sp + zb * cp]; };
+    const court = [[COURT.x0, COURT.z0], [COURT.x1, COURT.z0], [COURT.x1, COURT.z1], [COURT.x0, COURT.z1]].map(([x, z]) => { const p = lean(x, 0.04, z); return [p[0], p[2]]; });
+    const ribbons = fit.driveways.map(({ rows }) => { const k = rows.filter((_, i) => i % 2 === 0 || i === rows.length - 1); return [...k.map(r => [r.a[0], r.a[2]]), ...k.reverse().map(r => [r.b[0], r.b[2]])]; });
+    const polys = [court, ...ribbons];
+    // (the surface's height near a place: the nearest of the forecourt's and driveways' points — garage frame)
+    const samples = [];
+    for (let xb = COURT.x0; xb <= COURT.x1 + 1e-9; xb += 1.5) for (let zb = COURT.z0; zb <= COURT.z1 + 1e-9; zb += 1.5) samples.push(lean(xb, 0.04, zb));
+    for (const { rows } of fit.driveways) for (const r of rows) for (const u of [0, 0.5, 1]) samples.push([0, 1, 2].map(i => r.a[i] + (r.b[i] - r.a[i]) * u));
+    const surface = (x, z) => { let best = null, bd = Infinity; for (const p of samples) { const d = (p[0] - x) ** 2 + (p[2] - z) ** 2; if (d < bd) { bd = d; best = p[1]; } } return best; };
+    const inside = (poly, x, z) => { let c = false; for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++]) { const b = poly[k]; if ((b[1] > z) !== (a[1] > z) && x < (a[0] - b[0]) * (z - b[1]) / (a[1] - b[1]) + b[0]) c = !c; } return c; };
+    // the retaining walls (the ground as baked: before it's carved)
+    const pos = [], idx = [];
+    polys.forEach((poly, pi) => {
+      const pts = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.75));
+        for (let q = 0; q < n; q++) pts.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]);
+      }
+      pts.push(pts[0]);
+      let prev = null;
+      for (const [x, z] of pts) {
+        const skip = road(x, z) != null || polys.some((o, oi) => oi !== pi && inside(o, x, z));
+        const y = surface(x, z), t = terrain(x, z), top = t != null && t + 0.06 > y + 0.03 ? t + 0.06 : null;
+        const cur = skip ? null : { x, z, y, top };
+        if (cur && prev && (cur.top != null || prev.top != null)) {
+          const q = pos.length / 3;
+          pos.push(prev.x, prev.y - 0.1, prev.z, prev.x, prev.top ?? prev.y, prev.z, cur.x, cur.y - 0.1, cur.z, cur.x, cur.top ?? cur.y, cur.z);
+          idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2);
+          // (solid too: the ground behind it is lowered a little past the outline)
+          wallBoxes.push({ x: (prev.x + cur.x) / 2, z: (prev.z + cur.z) / 2, len: Math.hypot(cur.x - prev.x, cur.z - prev.z) + 0.05, y0: Math.min(prev.y, cur.y) - 0.1, y1: Math.max(prev.top ?? prev.y, cur.top ?? cur.y), yaw: Math.atan2(cur.x - prev.x, cur.z - prev.z) });
+        }
+        prev = cur;
+      }
+    });
+    if (idx.length) {
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); disposables.push(g);
+      const wall = new THREE.Mesh(g, M.retaining); wall.receiveShadow = true; wall.castShadow = true; D.add(wall);
+    }
+    const toW = ([x, z]) => toWorld(x, z);
+    carving = { polys: polys.map(p => p.map(toW)), below: (wx, wz) => { const l = F.local(wx, wz), y = surface(l.x, l.z); return y == null ? null : y0 + y; } };
+    if (group.visible) S.carve(carveKey, carving);
+  }
+
+  // fitted, once the map round it is in: leaning, the floor's height, the driveways — and what the car drives on and
+  // hits (the forecourt and driveways, the posts, the workshop, the sign's pole; not the lane's air: that's driven through)
+  let handles = [], settled = false, fit = null, y0 = alt, carving = null, wallBoxes = [];
+  const carveKey = `garage:${item.id}:${++carveCount}`;
   function settle() {
     if (settled) return true;
-    const [sx, sz] = S.toSim(F.cx, F.cz);   // (the sim's frame now: its origin moves with the car)
-    if (S.readyAround && !S.readyAround(sx, sz, 30)) return false;
-    // (the road's height ahead and behind — on its middle, from just above: under any bridge over it)
-    const ground = d => { const y = S.groundBelow?.(sx + Math.sin(h) * d, sz - Math.cos(h) * d, alt + 4 + Math.abs(d) * 0.3, 8 + Math.abs(d) * 0.6); return Number.isFinite(y) ? y : null; };
-    const a = ground(14), b = ground(-14), c = ground(0);
-    if ((a == null || b == null) && ++tries < 30) return false;
-    const pitch = a != null && b != null ? Math.max(-0.3, Math.min(0.3, Math.atan2(a - b, 28))) : 0;
-    const y = c ?? (a != null && b != null ? (a + b) / 2 : alt);
-    group.rotation.order = 'YXZ'; group.rotation.set(pitch, -h, 0); group.position.y = y;
+    if (ground && !ground.ready(F.cx, F.cz, 60)) return false;
+    // (the road's height at its place: the garage's y; everything fitted relative to it)
+    const [wx0, wz0] = toWorld(0, 0);
+    y0 = ground?.road(wx0, wz0) ?? alt;
+    const rel = f => (x, z) => { const [wx, wz] = toWorld(x, z), y = f(wx, wz); return y == null ? null : y - y0; };
+    // (no map to fit to — a test page: a straight road 9.2 m wide at the garage's height)
+    const canCarve = !!(ground && S.carve), road = ground ? rel(ground.road) : (x => Math.abs(x) <= 4.6 ? 0 : null), terrain = ground ? rel(ground.terrain) : () => null;
+    fit = fitGarage({ road, terrain, dims: DIMS, carve: canCarve });
+    group.position.y = y0; tilt.rotation.x = fit.pitch; B.position.y = fit.floorY;
+    // (its sides down to the lowest ground under it)
+    forecourt.scale.y = fit.courtDepth + 0.04; forecourt.position.y = (0.04 - fit.courtDepth) / 2;
     group.updateMatrixWorld(true);
-    const cuboid = (x0, y0, z0, x1, y1, z1) => RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2).setTranslation(SIDE + (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);   // (the lane's frame, SIDE m right of the road)
-    // (the forecourt; the verge, from the road's edge, as far along as the driveways reach; the driveways' tops)
-    const descs = [cuboid(VERGE.x1, -0.8, COURT.z0, COURT.x1, 0.04, COURT.z1), cuboid(VERGE.x0, -0.8, -(LANE_END + DRIVE.far), VERGE.x1, 0.01, LANE_END + DRIVE.far)];
-    for (const { rows } of DRIVEWAYS) {
-      const v = new Float32Array(rows.length * 6), ix = [];
-      rows.forEach((r, k) => { v.set([SIDE + r.a[0], r.y, r.a[1], SIDE + r.b[0], r.y, r.b[1]], k * 6); if (k) { const q = k * 2; ix.push(q - 2, q - 1, q, q - 1, q + 1, q); } });
-      descs.push(RAPIER.ColliderDesc.trimesh(v, new Uint32Array(ix)));
+    driveways(fit);
+    if (canCarve) carveIn(road, terrain);
+    if (RAPIER && sim) {
+      const [sx, sz] = S.toSim(F.cx, F.cz);   // (the sim's frame now: its origin moves with the car)
+      const cuboid = (x0, ya, z0, x1, yb, z1) => RAPIER.ColliderDesc.cuboid((x1 - x0) / 2, (yb - ya) / 2, (z1 - z0) / 2).setTranslation(SIDE + (x0 + x1) / 2, fit.floorY + (ya + yb) / 2, (z0 + z1) / 2);
+      const descs = [cuboid(COURT.x0, -0.8, COURT.z0, COURT.x1, 0.04, COURT.z1)];
+      for (const x of [-POST.x, POST.x]) for (const z of [-POST.z, POST.z]) descs.push(cuboid(x - 0.35, 0, z - 0.35, x + 0.35, CANOPY.low, z + 0.35));
+      descs.push(cuboid(SHOP.x0, 0, SHOP.z0, SHOP.x1, SHOP.h, SHOP.z1), cuboid(SIGN.x - 0.25, 0, SIGN.z - 0.25, SIGN.x + 0.25, SIGN.h, SIGN.z + 0.25));
+      // (the driveways' tops, as drawn: in the turned frame, not leaning)
+      const drives = fit.driveways.map(({ rows }) => {
+        const v = new Float32Array(rows.length * 6), ix = [];
+        rows.forEach((r, k) => { v.set([...r.a, ...r.b], k * 6); if (k) { const q = k * 2; ix.push(q - 2, q - 1, q, q - 1, q + 1, q); } });
+        return RAPIER.ColliderDesc.trimesh(v, new Uint32Array(ix));
+      });
+      for (const b of wallBoxes) drives.push(RAPIER.ColliderDesc.cuboid(0.15, (b.y1 - b.y0) / 2, b.len / 2).setTranslation(b.x, (b.y0 + b.y1) / 2, b.z).setRotation({ x: 0, y: Math.sin(b.yaw / 2), z: 0, w: Math.cos(b.yaw / 2) }));
+      const yaw = { x: 0, y: Math.sin(-h / 2), z: 0, w: Math.cos(-h / 2) }, q = tilt.getWorldQuaternion(new THREE.Quaternion());
+      try {
+        handles.push(sim.addStatic({ position: [sx, y0, sz], rotation: { x: q.x, y: q.y, z: q.z, w: q.w } }, descs));
+        handles.push(sim.addStatic({ position: [sx, y0, sz], rotation: yaw }, drives));
+      } catch (e) { console.warn(`A garage's walls: ${e.message}`); }
     }
-    for (const x of [-POST.x, POST.x]) for (const z of [-POST.z, POST.z]) descs.push(cuboid(x - 0.35, 0, z - 0.35, x + 0.35, CANOPY.low, z + 0.35));
-    descs.push(cuboid(SHOP.x0, 0, SHOP.z0, SHOP.x1, SHOP.h, SHOP.z1), cuboid(SIGN.x - 0.25, 0, SIGN.z - 0.25, SIGN.x + 0.25, SIGN.h, SIGN.z + 0.25));
-    const q = group.quaternion;
-    try { handle = sim.addStatic({ position: [sx, y, sz], rotation: { x: q.x, y: q.y, z: q.z, w: q.w } }, descs); }
-    catch (e) { console.warn(`A garage's walls: ${e.message}`); }
     return (settled = true);
   }
   settle();
   return {
     item, group, frame: F, settle,
+    get fit() { return fit; },
+    // where you come out (side −1: the way through, onto the road by the way out; +1: back out of it): on the road as
+    // it really is, once fitted
+    exit(side = -1) {
+      const e = fit?.exits[side < 0 ? -1 : 1];
+      if (!e) return F.out(side);
+      const [wx, wz] = toWorld(e.x, e.z), dwx = rx * e.dx - fx * e.dz, dwz = rz * e.dx - fz * e.dz, [lat, lon] = P.toLatLon(wx, wz);
+      return { wx, wz, lat, lon, bearing: ((Math.atan2(dwx, -dwz) * 180 / Math.PI) + 360) % 360 };
+    },
+    // (shown or not — the game's while the editor draws its own: hidden, it's not set into the ground either)
+    visible(on) {
+      if (group.visible === on) return;
+      group.visible = on;
+      if (carving) S.carve(carveKey, on ? carving : null);
+    },
     dispose() {
+      if (carving) S.carve?.(carveKey, null);
       group.removeFromParent();
-      if (handle) sim.removeStatic(handle);
+      for (const hd of handles) sim.removeStatic(hd);
       for (const d of disposables) d.dispose?.();
     },
   };
