@@ -119,7 +119,8 @@ quest's class. The card shows it, and warns when your car is under `warnBelow` o
   the maps (the card's *Set route*, the same); in another region, *Go to <region>* takes you to that region, to
   drive from there. The route's line is taken off behind the car as you drive it (play/questUi.js trimGuideLine:
   while you're within 40 m of it), and goes when you arrive ("You've arrived"); "Finding the way there…" while the
-  road graph loads the first time. The full map shows every quest and venue in the region (the finder's list:
+  road graph loads the first time. Blue arrows on the road show the way too, along its next 300 m (every 12 m, on the
+  drawn road: play/routeDressing.js createGuideArrows), moving along as the line is taken off behind the car. The full map shows every quest and venue in the region (the finder's list:
   play/contentLayer.js setMapExtras), not only those within 3 km of the car as before.
   A quest's card opens from anywhere (its marker, the map), but **Start** opens only within
   `START_M` (60 m) of its start (play/questUi.js: "Drive there to start", how far, live as you drive up); a start

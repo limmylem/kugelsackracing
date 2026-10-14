@@ -45,3 +45,18 @@ test('the way there is taken off behind the car as it drives it, gone when it ar
   assert.equal(trimGuideLine(line, { x: GUIDE_ON_M + 50, z: 500 }), line, 'off the route: kept as it is');
   assert.equal(trimGuideLine(line, { x: 0, z: 985 }), null, 'arrived: gone');
 });
+
+test('arrows on the road along the way there: from just ahead of the car, evenly spaced, pointing along it, the next stretch only', async () => {
+  const { guideArrowSpots, GUIDE_ARROW } = await import('../../play/routeDressing.js');
+  // (an L: 200 m along +z, then 400 m along +x)
+  const line = [{ x: 0, z: 0, h: 10 }, { x: 0, z: 200, h: 12 }, { x: 400, z: 200, h: 12 }];
+  const spots = guideArrowSpots(line);
+  assert.ok(spots.length >= 20 && spots.length <= Math.ceil(GUIDE_ARROW.ahead / GUIDE_ARROW.every) + 1, `${spots.length} arrows`);
+  assert.ok(Math.abs(spots[0].z - GUIDE_ARROW.first) < 1e-9 && spots[0].x === 0, 'the first just ahead of the car');
+  for (let i = 1; i < spots.length; i++) { const d = Math.hypot(spots[i].x - spots[i - 1].x, spots[i].z - spots[i - 1].z); assert.ok(d <= GUIDE_ARROW.every + 1e-9, `evenly spaced (${d.toFixed(1)} m)`); }
+  assert.ok(Math.abs(spots[0].heading) < 1e-9, 'along +z: heading 0');
+  assert.ok(Math.abs(spots.at(-1).heading - 90) < 1e-9, 'round the corner, along +x: heading 90');
+  assert.ok(spots.at(-1).x <= GUIDE_ARROW.ahead - 200 + 1e-9, 'no further than the next stretch');
+  assert.ok(spots[1].h > 10 && spots[1].h < 12, 'on the road\'s height');
+  assert.deepEqual(guideArrowSpots(null), []);
+});

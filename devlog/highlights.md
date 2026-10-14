@@ -31,3 +31,4 @@ The quest arrow now points the right way to the next checkpoint
 Quests are driven to now: set the route, then start it there
 Every quest in the city now shows on the map
 The route line shrinks behind you as you follow it
+Blue arrows on the road now show the way to your quest

@@ -20,7 +20,8 @@
 
 import { createQuestController } from './questController.js';
 import { trackServer } from './trackServer.js';
-import { createRouteDressing } from './routeDressing.js';
+import { createRouteDressing, createGuideArrows } from './routeDressing.js';
+import { groundOf } from './garageBuilding.js';
 import { viewCourse, lineOf } from '../route/model.js';
 import { buildRoute } from '../route/build.js';
 import { createAutopilot } from '../route/autopilot.js';
@@ -168,7 +169,11 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
   // (the line's colour and width: the accessibility settings — map/render/maps.ts reads them)
   const lineFeature = (line, kind) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return [lon, lat]; }) }, properties: { kind, colour: palette()[kind], width: style().lineWidth } });
+  // (the way there on the road too: arrows along its next stretch)
+  let guideArrows = null;
   function setLines() {
+    if (!guideArrows) { const G = groundOf(S); guideArrows = createGuideArrows({ THREE, parent: S.world, palette: palette(), style: style(), heightAt: (x, z) => G?.road(x, z) ?? G?.terrain(x, z) ?? null }); }
+    guideArrows.set(guide && !run ? guide : null, { palette: palette(), style: style() });
     const f = [];
     if (run?.course) f.push(lineFeature(run.course.line, 'route'));
     else if (preview) f.push(lineFeature(preview, 'route'));
@@ -605,6 +610,6 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       if (out.fov && Math.abs(camera.fov - out.fov) > 0.01) { camera.fov = out.fov; camera.updateProjectionMatrix(); }
       return true;
     },
-    dispose() { stop(); sounds.dispose(); removeEventListener('keydown', onKey, true); hudEl?.remove(); },
+    dispose() { stop(); sounds.dispose(); guideArrows?.dispose(); guideArrows = null; removeEventListener('keydown', onKey, true); hudEl?.remove(); },
   };
 }
