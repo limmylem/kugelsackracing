@@ -463,6 +463,10 @@ export async function buildApp(deps: AppDeps) {
         if (role && p !== top.slice(0, -1)) {
           try { await G.requireRole(role)(req); }
           catch (e: any) {
+            // (a script or other file of the tool — the game imports the editor's code cross-site with the session — is
+            // answered with why, not redirected: a module import can't follow a redirect to the sign-in page (the browser
+            // reports CORS), and the game sends the person there itself — site/urls.js importTool)
+            if (!(p.endsWith('/') || p.endsWith('.html'))) { reply.header('cache-control', 'no-store'); return sendError(reply, req, e?.status ?? 403, e?.code ?? 'FORBIDDEN', e?.message ?? 'Not for this account.', e?.details); }
             if (e?.status === 401 || e?.code === 'TERMS_REQUIRED' || e?.code === 'MFA_REQUIRED') return reply.redirect(`${config.gameUrl}/account/?${new URLSearchParams({ next: `${config.publicUrl}${top}`, ...(e?.code === 'TERMS_REQUIRED' ? { mode: 'terms' } : e?.code === 'MFA_REQUIRED' ? { mode: 'mfa' } : {}) })}`, 302);
             return reply.status(403).header('content-type', 'text/html; charset=utf-8').header('cache-control', 'no-store').send(`<!doctype html><meta charset="utf-8"><title>Not for this account</title><p style="font:16px system-ui;margin:3em">This page is for ${role === 'admin' ? 'admins' : 'editors'}. <a href="${config.gameUrl}/">Back to the game</a></p>`);
           }

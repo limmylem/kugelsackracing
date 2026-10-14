@@ -45,7 +45,12 @@ test('the API\'s own address: the game\'s pages to the game\'s address, map file
   const admin = await get('/admin/');
   assert.equal(admin.statusCode, 302);
   assert.equal(admin.headers.location, `http://game.example.test/account/?${new URLSearchParams({ next: 'http://localhost:8787/admin/' })}`);
-  assert.equal((await get('/editor/editor.js')).statusCode, 302);
+  // (the editor's code, signed out: why, not a redirect — the game imports it cross-site, and a module import can't follow
+  // a redirect to the sign-in page; the game sends the person there itself: site/urls.js importTool)
+  const code = await T.app.inject({ method: 'GET', url: '/editor/editor.js', headers: { origin: 'http://game.example.test' } });
+  assert.equal(code.statusCode, 401, code.body); assert.equal(JSON.parse(code.body).error.code, 'UNAUTHENTICATED');
+  assert.equal(code.headers['access-control-allow-origin'], 'http://game.example.test', 'the game may read why');
+  assert.equal(code.headers['access-control-allow-credentials'], 'true');
   // where everything is
   const cfg = await get('/site/config.js');
   // (and the pages may reach them: on this computer they're http:// and ws://, which 'https:' doesn't cover)
@@ -81,4 +86,13 @@ test('the game\'s own files don\'t count against the per-address limit (the API 
     for (let i = 0; i < 25; i++) api.push(await L.app.inject({ method: 'GET', url: '/api/v1/health', headers: { 'x-forwarded-for': '10.77.0.2' } }));
     assert.ok(api.some(r => r.statusCode === 429), 'the API is limited');
   } finally { await L.close(); }
+});
+
+test('an editor whose two-factor is due again: the editor\'s code says MFA_REQUIRED (the game asks for the code), its page goes to the account page for it', async () => {
+  const ed = await signUp(T.app, T.outbox, { email: 'ed@example.com', name: 'Ed Itor', ip: '10.20.0.4' });
+  await T.app.deps.db.execute(sql`update users set role = 'editor' where email = 'ed@example.com'`);
+  const js = await ed.get('/editor/editor.js', { headers: { origin: 'http://game.example.test' } });
+  assert.equal(js.status, 403); assert.equal(js.body.error.code, 'MFA_REQUIRED');
+  const page = await ed.get('/editor/');
+  assert.equal(page.status, 302); assert.match(String(page.headers.location), /\/account\/\?.*mode=mfa/);
 });
