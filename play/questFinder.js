@@ -67,6 +67,9 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
     venues = await loadVenues(service, regions).catch(() => []);
     counts = new Map(regions.map(r => [r.id, 0]));
     for (const q of all) { const r = regionOf(q.location, regions); if (r) counts.set(r.id, counts.get(r.id) + 1); }
+    // (the maps show them all, not only those near the car: every quest and venue in this region)
+    const here = game.regionId?.();
+    w.content?.setMapExtras?.([...all, ...venues].filter(q => regionOf(q.location, regions)?.id === here));
     return all;
   }
 
@@ -91,6 +94,7 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
     if (!maps?.side || offOpen) return;
     panel = document.createElement('div'); panel.id = 'questFinder';
     maps.side.appendChild(panel);
+    void load().catch(() => {});        // (at once: the region's quests on the maps before the full map's first opened)
     offOpen = maps.onOpen(on => { if (on) { render(); game.hint?.('fastTravel'); } });
     panel.addEventListener('change', e => { const k = e.target.dataset?.filter; if (!k) return; filters[k] = e.target.value; try { localStorage.setItem(KEY, JSON.stringify(filters)); } catch { /* not kept */ } render(); });
     panel.addEventListener('click', e => {

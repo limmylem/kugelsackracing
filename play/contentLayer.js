@@ -13,7 +13,7 @@
 //   (guide: { set(item) → Promise, clear(), to() → id | null } — a garage's card has Route: the way there on the maps)
 //   (a race venue's card: its track events — play/trackUi.js, Phase 5 Step 3)
 //     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
-//   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
+//   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()   L.setMapExtras(items) (every quest and venue in the region, on the maps)
 //
 // Garages (kind garage) aren't markers: each near enough is a drive-through building (play/garageBuilding.js) with
 // its walls in the physics (RAPIER, sim); driving through one under its canopy calls onGarage(item, side, building) (side:
@@ -78,10 +78,14 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
 
   // (on the minimap and the full map: again whenever the maps are new — they load after the world)
   let mapsFed = null;
+  // (the maps: what's near, as the world draws it, and every quest and venue further off in the region too —
+  // the quest finder's, setMapExtras — so the full map shows them all, not only what's within RADIUS_KM)
+  let extras = [];
   function toMaps() {
     if (!w.maps) return;
     mapsFed = w.maps;
-    w.maps.setContent(items.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published', ...(it.kind === 'quest' && stateOf ? stateOf(it.id) : {}) } })), id => showCard(byId.get(id), true));
+    const all = [...items, ...extras.filter(e => !byId.has(e.id))];
+    w.maps.setContent(all.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published', ...(it.kind === 'quest' && stateOf ? stateOf(it.id) : {}) } })), id => showCard(byId.get(id) ?? extras.find(e => e.id === id), true));
   }
 
   function showCard(it, pinned = false) {
@@ -156,6 +160,8 @@ export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w,
       if (cardDismissed && (near?.id !== cardDismissed || nd > CARD_LEAVE_M)) cardDismissed = null;
     },
     click,
+    // every quest and venue in the region, for the maps (play/questFinder.js: each time it loads them)
+    setMapExtras(list) { extras = (list ?? []).filter(it => it?.location && !it.track && it.kind !== 'garage'); toMaps(); },
     refresh() { toMaps(); if (cardFor && byId.get(cardFor)) showCard(byId.get(cardFor), card.dataset.pinned === '1'); },
     hideCard,
     // (fast travel: the quest's card, pinned, once it's arrived)

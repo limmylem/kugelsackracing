@@ -33,3 +33,15 @@ test('a quest is played where it is: Start opens only within START_M of its star
   assert.equal(distanceToStart({ ...quest, track: { layout: 'loop' } }, { x: 9e6, z: 9e6 }, toXZ), null, 'a track event: its venue\'s card starts it');
   assert.equal(distanceToStart({ kind: 'poi', location: quest.location }, { x: 0, z: 0 }, toXZ), null);
 });
+
+test('the way there is taken off behind the car as it drives it, gone when it arrives, kept when it leaves it', async () => {
+  const { trimGuideLine, GUIDE_ON_M } = await import('../../play/questUi.js');
+  const line = Array.from({ length: 101 }, (_, i) => ({ x: 0, z: i * 10 }));        // (1 km north… well, along +z)
+  assert.equal(trimGuideLine(line, { x: 0, z: 0 }), line, 'at the start: all of it');
+  const mid = trimGuideLine(line, { x: 3, z: 405 });
+  assert.ok(mid.length < 62 && mid.length > 55, `half way: about half left (${mid.length} points)`);
+  assert.deepEqual([mid[0].x, mid[0].z], [3, 405], 'from where the car is');
+  assert.equal(mid.at(-1).z, 1000, 'to its end');
+  assert.equal(trimGuideLine(line, { x: GUIDE_ON_M + 50, z: 500 }), line, 'off the route: kept as it is');
+  assert.equal(trimGuideLine(line, { x: 0, z: 985 }), null, 'arrived: gone');
+});

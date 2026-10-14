@@ -117,7 +117,11 @@ quest's class. The card shows it, and warns when your car is under `warnBelow` o
   (each with its quest count; Travel).
 - **Quests are driven to** (2026-10-14; no fast travel): *Route* on a quest in this region sets the way there on
   the maps (the card's *Set route*, the same); in another region, *Go to <region>* takes you to that region, to
-  drive from there. A quest's card opens from anywhere (its marker, the map), but **Start** opens only within
+  drive from there. The route's line is taken off behind the car as you drive it (play/questUi.js trimGuideLine:
+  while you're within 40 m of it), and goes when you arrive ("You've arrived"); "Finding the way there…" while the
+  road graph loads the first time. The full map shows every quest and venue in the region (the finder's list:
+  play/contentLayer.js setMapExtras), not only those within 3 km of the car as before.
+  A quest's card opens from anywhere (its marker, the map), but **Start** opens only within
   `START_M` (60 m) of its start (play/questUi.js: "Drive there to start", how far, live as you drive up); a start
   asked for from further is refused. Track events start from their venue's card, as before. The full map's
   shift-click travel is for development only (its numbered spots stay). *Travel* goes to a region.

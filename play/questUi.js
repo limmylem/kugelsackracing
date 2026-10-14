@@ -52,6 +52,19 @@ const ord = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) 
 const HUD_KEY = 'driveWorld.questHud';
 // (a quest is played where it is: driven to — within this of its start)
 export const START_M = 60;
+// The way there (a route's line, [{ x, z, … }]) as a car drives it: the part behind the car taken off — the line from
+// the car's place on it — while the car's within GUIDE_ON_M of it (looked for among the next GUIDE_AHEAD points: a
+// route that doubles back isn't cut short); null once it's within ARRIVED_M of the end; the same line when off it.
+export const GUIDE_ON_M = 40, ARRIVED_M = 40, GUIDE_AHEAD = 400;
+export function trimGuideLine(line, car) {
+  if (!line?.length || !car) return line;
+  const end = line[line.length - 1];
+  if (Math.hypot(end.x - car.x, end.z - car.z) < ARRIVED_M) return null;
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < Math.min(line.length, GUIDE_AHEAD); i++) { const d = Math.hypot(line[i].x - car.x, line[i].z - car.z); if (d < bd) { bd = d; best = i; } }
+  if (bd > GUIDE_ON_M || best < 1) return line;
+  return [{ ...line[best], x: car.x, z: car.z }, ...line.slice(best + 1)];
+}
 // how far a car ({ x, z }, the world frame) is from a world quest's start (m), or null for one played anywhere: a
 // track event (its venue's card starts it), or one with no place. toXZ(lat, lon) → [x, z]
 export function distanceToStart(item, car, toXZ) {
@@ -243,6 +256,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps
   async function setGuide(item, done) {
+    // (the road graph loads the first time: say so at once)
+    game.say('Finding the way there…', 'ok');
     try {
       const N = await game.network(), car = game.carNow(), [lat, lon] = P.toLatLon(car.x, car.z);
       const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, { lat: item.location.lat, lon: item.location.lon }], options: { oneway: false } });
@@ -253,6 +268,17 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     done?.();
   }
   function clearGuide(done) { guide = null; guideFor = null; setLines(); done?.(); }
+  // the route behind the car taken off as it's driven (twice a second): the line on the maps starts where the
+  // car is; at its end, gone ("You've arrived"). Off the route (further than GUIDE_ON_M from it), kept as it is.
+  let trimAt = 0;
+  function trimGuide(dt) {
+    if (!guide || run || (trimAt += dt) < 0.5) return;
+    trimAt = 0;
+    const g = trimGuideLine(guide, game.carNow());
+    if (g === guide) return;
+    if (!g) { clearGuide(); game.say('You\'ve arrived', 'ok'); return; }
+    guide = g; setLines();
+  }
 
   // ---------- starting ----------
   async function start(item, { restart = false, ghost = undefined } = {}) {
@@ -538,6 +564,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     frame(realDt) {
       frameDt = realDt;
       restyle();
+      trimGuide(realDt);
       if (!run) return;
       run.adapters.frame?.();
       const car = game.carNow();
