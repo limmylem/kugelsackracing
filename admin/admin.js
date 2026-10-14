@@ -249,8 +249,29 @@ async function showSettings() {
   const main = $('main'); main.className = 'narrow'; main.style.gridTemplateColumns = 'minmax(320px, 1100px)';
   const msg = h('div'), area = h('textarea', { rows: 28, spellcheck: false, style: 'width:100%;font:12px var(--f-mono)' }), why = h('input', { placeholder: 'Why this change (required: it goes in the history)', maxlength: 500 });
   let cfg;
+  // the quest tiers, on their own: each tier's name and the level that opens it (the same values as economy.quests.tiers
+  // in the full settings below, saved as a new version the same way)
+  const tiersBox = h('div'), tiersWhy = h('input', { placeholder: 'Why (required: it goes in the history)', maxlength: 500 });
+  const drawTiers = () => {
+    const tiers = cfg.current.data.economy?.quests?.tiers ?? [];
+    const inputs = tiers.map(t => h('input', { type: 'number', min: 1, max: 50, step: 1, value: t.level, style: 'width:70px', 'data-tier': t.tier }));
+    tiersBox.replaceChildren(
+      h('table', {}, h('thead', {}, h('tr', {}, ...['Tier', 'Opens at level'].map(x => h('th', {}, x)))),
+        h('tbody', {}, ...tiers.map((t, i) => h('tr', {}, h('td', {}, `${t.tier}. ${t.name}`), h('td', {}, inputs[i]))))),
+      tiersWhy,
+      h('button', { class: 'btn primary', onclick: async () => {
+        const levels = inputs.map(x => Math.round(+x.value));
+        if (levels.some(l => !(l >= 1 && l <= 50))) return say(msg, 'Each level is a whole number from 1 to 50.');
+        if (levels.some((l, i) => i && l < levels[i - 1])) return say(msg, 'A higher tier can\'t open before a lower one.');
+        if (tiersWhy.value.trim().length < 3) return say(msg, 'Say why first: it goes in the history.');
+        const data = JSON.parse(JSON.stringify(cfg.current.data));
+        data.economy.quests.tiers.forEach((t, i) => { t.level = levels[i]; });
+        try { const r = await api.post('/admin/economy/config', { data, reason: tiersWhy.value.trim(), basedOn: cfg.active }); say(msg, `Tier levels saved as version ${r.version}: active now.`, true); tiersWhy.value = ''; load(); } catch (e) { say(msg, errText(e)); }
+      } }, 'Save tier levels'));
+  };
   const load = async () => {
     cfg = await api.get('/admin/economy/config');
+    drawTiers();
     area.value = JSON.stringify(cfg.current.data, null, 2);
     hist.replaceChildren(h('table', {}, h('thead', {}, h('tr', {}, ...['Version', 'When', 'Who', 'Why', ''].map(t => h('th', {}, t)))), h('tbody', {}, ...cfg.history.map(v => h('tr', {},
       h('td', {}, `${v.version}${v.active ? ' (active)' : ''}`), h('td', { class: 'when' }, when(v.createdAt)), h('td', {}, v.actorId ?? 'the game\'s files'), h('td', {}, v.reason),
@@ -259,7 +280,9 @@ async function showSettings() {
   const hist = h('div');
   main.replaceChildren(h('section', {}, h('h2', {}, 'Economy settings'),
     h('p', { class: 'muted' }, 'Prices, repairs, rewards, fees and anti-farming: the server charges and pays by the active version, and the game shows it. Every change is a new version with who made it and why; any version can be rolled back to.'),
-    msg, area, why,
+    msg,
+    h('h3', {}, 'Quest tiers: the level each opens at'), tiersBox,
+    h('h3', {}, 'All the settings'), area, why,
     h('button', { class: 'btn primary', onclick: async () => {
       let data; try { data = JSON.parse(area.value); } catch (e) { return say(msg, `That isn't valid JSON: ${e.message}`); }
       if (why.value.trim().length < 3) return say(msg, 'Say why first: it goes in the history.');

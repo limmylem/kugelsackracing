@@ -31,7 +31,7 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **Steep routes rate harder:** a grade past 15% scores again (full at 30%: `difficulty.points.steep`), so 20–28% hills
   aren't 2★ any more. Stored ratings change when a quest is saved again or checked in bulk.
 - **Club tier opens at level 2** (about 7 first-time Rookie golds, not 15). On the server online the economy settings
-  are the database's: the owner sets `quests.tiers` Club's level to 2 on the admin page (Economy settings) — new keys
+  are the database's: the owner sets Club to 2 on the admin page (Economy settings → "Quest tiers: the level each opens at" → Save tier levels) — new keys
   like the steep rule arrive by themselves, changed values don't.
 - **The tier-3 time trial's pay** is within 0.6–1.6× of its tier's median again (all 17 type × tier rows, in
   `npm run test:track-events -- --only economy` and `npm run economy-sim`).
