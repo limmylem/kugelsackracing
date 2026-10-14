@@ -25,6 +25,8 @@ export function medalTargets(quest, course, config) {
     return { kind: 'score', ...pick(auto, P.medalScores) };
   }
   const own = P.medalTimes;
+  // (in the rain the times worked out allow for the wet road's grip: medals.weather)
+  const wx = M.weather?.[quest.conditions?.weather] ?? 1;
   // (a hot lap for the best lap: one lap's targets)
   const laps = course?.loop && !(quest.type === 'hot_lap' && (P.mode ?? 'best_lap') === 'best_lap') ? Math.max(1, P.laps ?? 1) : 1;
   // the AI reference times (the editor's AI test race, or a generated track's reference laps), for this
@@ -37,12 +39,12 @@ export function medalTargets(quest, course, config) {
     const F = ai.flying, rolling = (P.start ?? 'standing') === 'rolling', best = quest.type === 'hot_lap' && (P.mode ?? 'best_lap') === 'best_lap';
     const t = k => !ai.perLap ? ai[k] : !F ? ai[k] * laps : best ? F[k] : rolling ? F[k] * laps : ai[k] + F[k] * (laps - 1);
     const r1 = x => Math.round(x * 10) / 10;
-    return { kind: 'time', ...pick({ gold: r1(t('high')), silver: r1(t('medium')), bronze: r1(t('low')) }, own), from: 'ai' };
+    return { kind: 'time', ...pick({ gold: r1(t('high') * wx), silver: r1(t('medium') * wx), bronze: r1(t('low') * wx) }, own), from: 'ai' };
   }
   const ref = (P.targetSeconds && quest.type === 'time_trial' ? P.targetSeconds : null) ?? course?.referenceTime ?? course?.stats?.estimatedTime ?? null;
   if (!ref) return { kind: 'time', ...pick({ gold: null, silver: null, bronze: null }, own) };
   const r1 = x => Math.round(x * 10) / 10;
-  return { kind: 'time', ...pick({ gold: r1(ref * laps * M.time.gold), silver: r1(ref * laps * M.time.silver), bronze: r1(ref * laps * M.time.bronze) }, own) };
+  return { kind: 'time', ...pick({ gold: r1(ref * laps * M.time.gold * wx), silver: r1(ref * laps * M.time.silver * wx), bronze: r1(ref * laps * M.time.bronze * wx) }, own) };
 }
 // (a quest's own medal times or scores, each one it sets, over the ones worked out)
 const pick = (auto, own) => own ? Object.fromEntries(TIERS.map(t => [t, own[t] > 0 ? own[t] : auto[t]])) : auto;

@@ -28,6 +28,7 @@ export const gameData = () => baseData ??= loadGarageData(readJson).then(({ db, 
 export function createEconomyConfig(db: Db) {
   let current: { version: number; data: EconomyData; checkedAt: number } | null = null;
   let content: { overlay: () => Promise<any> } | null = null;
+  let gameMemo: { game: any; key: string; data: any; out: any } | null = null;
   const rowOut = (r: any): ConfigVersion => ({ version: r.version, data: r.data, reason: r.reason, actorId: r.actor_id, basedOn: r.based_on, createdAt: new Date(r.created_at).toISOString(), active: r.active });
 
   // (the first version: the repository's files. Later, settings the game has gained since — a new section, a new
@@ -92,9 +93,15 @@ export function createEconomyConfig(db: Db) {
     ensure, active, check,
     // the game's own data with this version's economy, and what the content manager has published (Phase 8 Step 3:
     // parts and cars in the workflow, their published changes) — what the player service prices and checks from
+    // (made once for each settings version and catalogue version, not for every request: the parts table copied with
+    // the published edits was most of a garage action's work under load)
     async gameDb() {
       const [{ db: game }, a, o] = await Promise.all([gameData(), active(), content?.overlay() ?? null]);
-      return { version: a.version, contentVersion: o?.version ?? 0, db: { ...withContent(game, o), economy: a.data.economy }, quests: a.data.quests };
+      const key = `${a.version}|${o ? o.version ?? 0 : 'none'}`;
+      if (gameMemo && gameMemo.game === game && gameMemo.key === key && gameMemo.data === a.data) return gameMemo.out;
+      const out = { version: a.version, contentVersion: o?.version ?? 0, db: { ...withContent(game, o), economy: a.data.economy }, quests: a.data.quests };
+      gameMemo = { game, key, data: a.data, out };
+      return out;
     },
     // (the content manager, once it's made: server/src/content/manager.ts)
     useContent(c: { overlay: () => Promise<any> }) { content = c; },

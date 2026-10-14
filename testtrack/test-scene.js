@@ -62,6 +62,7 @@ import { carWork } from '../garage/repair.js';
 import { createNetwork } from '../route/network.js';
 import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
+import { createReplayWheels } from '../race/replayWheels.js';
 import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 // the game's sound (Phase 8 Step 1; docs/AUDIO.md): one system for everything, your car and every other one through it
@@ -78,7 +79,7 @@ import { SURFACES } from '../audio/dsp.js';
 import { createAudioOverlay } from '../audio/overlay.js';
 import { computeStats } from '../garage/stats.js';
 import { roofOpen } from './soundMix.js';
-import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticketGetter } from '../play/multiplayer.js';
+import { joinMultiplayer, multiplayerOptions, localState, lookOf, devMode, ticketGetter, damageSoundOf } from '../play/multiplayer.js';
 // multiplayer races (Phase 7 Step 2): the session, the race as the game plays it, the screens
 import { createMpSession } from '../mp/client.js';
 import { regionsFor } from '../mp/match.js';
@@ -536,6 +537,7 @@ function raceReplayFrame(w, now, seconds) {
     if (!p) continue;
     vis.group.position.fromArray(p.position);
     vis.group.quaternion.set(p.rotation.x, p.rotation.y, p.rotation.z, p.rotation.w);
+    replayWheels(RR, vis, c.id, p, P.t);
   }
   const cam = P.camera();
   if (cam) {
@@ -553,6 +555,20 @@ function raceReplayFrame(w, now, seconds) {
   w.rain?.update(w.camera, seconds); floodFrame(w);
   shared.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
+}
+
+// A replayed car's wheels: turning and steering as it moved (race/replayWheels.js)
+function replayWheels(RR, vis, id, p, t) {
+  const W = shared.spec.wheels;
+  RR.wheels ??= createReplayWheels({ radius: W.radius ?? 0.3 });
+  const { spin, steer } = RR.wheels.at(id, p, t);
+  for (const [name, v] of Object.entries(vis.wheelVis ?? {})) {
+    if (!v?.pivot || !v.rig) continue;
+    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0);
+    v.pivot.quaternion.fromArray(tr.rotation);
+    v.pivot.position.fromArray(tr.position);
+    vis.setWheelSpin?.(name, v.rig.axle, spin);
+  }
 }
 
 // ---------- generated tracks from the real world (Phase 5 Step 3) ----------
@@ -1194,7 +1210,7 @@ function frame(w, now) {
   if (w.rain) w.rain.update(w.camera, seconds);
   if (w.trackData) floodFrame(w);
   if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
-  if (w.stream) w.sim.vehicle.surfaceAt = w.gripScale && w.gripScale !== 1 ? wetSurfaces(w) : w.stream.surfaceAt;
+  if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car
   Object.assign(v.aids, P.aids);
@@ -1436,7 +1452,7 @@ function effectsCars(w, b, dt) {
 // when the time changes; and your car's headlights at night
 // A generated track's conditions (Phase 5 Step 4): its time of day and weather — an event's (quest
 // conditions), else its theme's — the sky, sun, fog and floodlights (a circuit at night), rain and a wet road,
-// and the grip hook (data/tracks.json conditions.applyGrip: off, until the weather system changes grip)
+// and a wet road's grip for every car in the race (data/tracks.json conditions: physics/sim.js setGrip)
 // ---------- the graphics settings (Phase 8 Step 2: perf/quality.js, perf/graphics.js; docs/PERFORMANCE.md) ----------
 // The settings changed (the panel, the first launch's benchmark, the console): the renderer's (resolution, the cap,
 // anti-aliasing, bloom, motion blur), the effects', the sound's, and each world's. Never the physics.
@@ -1627,19 +1643,12 @@ function applyConditions(w, cond = null) {
   w.trackDress?.setNight(!!w.theme.floodlit);
   if (w.theme.rain) { w.rain?.dispose(); w.rain = createRain(THREE, w.scene, { rate: w.theme.rain }); } else { w.rain?.dispose(); w.rain = null; }
   w.gripScale = w.theme.applyGrip ? w.theme.grip : 1;
+  w.sim?.setGrip?.(w.gripScale);
   // the floodlights' pools of light: the few lamps nearest the camera (moved as it goes)
   for (const l of w.floodPools ?? []) l.removeFromParent();
   w.floodPools = w.theme.floodlit && w.trackDress?.lampsAt?.length ? [0, 1, 2, 3].map(() => { const l = new THREE.SpotLight(0xfff1d6, 0, 140, 0.95, 0.6, 1.4); w.scene.add(l, l.target); return l; }) : [];
 }
 export function trackConditions(cond) { if (active?.trackData) applyConditions(active, cond); }
-// the grip hook: every surface's grip × the weather's (each surface copied once)
-function wetSurfaces(w) {
-  if (w.wetAt?.scale === w.gripScale) return w.wetAt.fn;
-  const copies = new Map(), base = w.stream.surfaceAt, k = w.gripScale;
-  const fn = (x, z) => { const s = base(x, z); if (!s) return s; let c = copies.get(s); if (!c) copies.set(s, c = { ...s, grip: (s.grip ?? 1) * k }); return c; };
-  w.wetAt = { scale: k, fn };
-  return fn;
-}
 // the nearest lamps' pools (every half second)
 function floodFrame(w) {
   if (!w.floodPools?.length) return;
@@ -2787,6 +2796,7 @@ async function startMpRaces() {
     const M = createMpScreens({ S, R, cfg, game: {
       currency: shared.session.db.economy?.currency ?? '$', region: globalThis.KR_SITE?.region ?? regionsFor(cfg.regions, globalThis.KR_SITE?.env)[0]?.id ?? 'local',
       routes: cfg.venues.routes.filter(r => regions.some(x => x.id === r.region)).map(r => ({ id: r.id, name: `${r.name} (${regions.find(x => x.id === r.region)?.name ?? r.region})` })),
+      regionName: id => regions.find(x => x.id === id)?.name ?? id,
       self: () => `You are ${o.player ? `Player ${o.player}` : A?.me?.name ?? 'a guest'}`,
       say: (text, kind) => shared.flash.show(text, kind === 'bad' ? 'warn' : kind === 'info' ? 'ok' : kind, 3),
       // (out of the race: free roam's room again, where you are)
@@ -2912,11 +2922,14 @@ function remoteSpec(look, db) {
 }
 function remoteCarSound(G, look, id, db) {
   const spec = remoteSpec(look, db), h = G.voices.add(`mp:${id}`, spec), idle = spec.engine?.idleRpm ?? 900;
+  let lastEvents = null, misfire = 0;
   return {
     // p: its pose (net/remote.js: pos, vel, rpm, throttle, gear…); wheels: its wheels (slip); simPos: where it's drawn
-    update(p, wheels, simPos) {
+    // events: the crashes it's sent (a damaged engine misfires: play/multiplayer.js damageSoundOf)
+    update(p, wheels, simPos, events = null) {
       const speed = Math.hypot(...(p.vel ?? [0, 0, 0])), ty = tyreSound(wheels, speed, null, G.cfg.tyres);
-      h.update({ engine: remoteEngineInput(p, idle), chassis: { speed, ...ty } }, { pos: simPos, vel: p.vel });
+      if (events !== lastEvents) { lastEvents = events; misfire = damageSoundOf(events, spec.engine).misfire; }
+      h.update({ engine: { ...remoteEngineInput(p, idle), misfire }, chassis: { speed, ...ty } }, { pos: simPos, vel: p.vel });
     },
     dispose() { h.dispose(); },
   };

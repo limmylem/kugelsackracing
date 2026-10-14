@@ -259,6 +259,11 @@ test('medals: thresholds from the reference time × config multipliers, × laps'
   const loopT = medalTargets(quest('sprint', { laps: 3 }), { ...ring(), referenceTime: 50 }, config);
   assert.equal(loopT.gold, 150);
   assert.equal(medalTargets(quest('time_trial', { targetSeconds: 80 }), course, config).gold, 80);
+  // in the rain the times allow for the wet road (medals.weather), never a quest's own
+  const wet = medalTargets({ ...quest('sprint'), conditions: { timeOfDay: 'any', weather: 'rain' } }, course, config);
+  assert.deepEqual([wet.gold, wet.silver, wet.bronze], [104, 116.5, 135.2]);
+  assert.equal(medalTargets({ ...quest('sprint', { medalTimes: { gold: 90 } }), conditions: { weather: 'rain' } }, course, config).gold, 90);
+  assert.equal(medalTargets({ ...quest('sprint'), conditions: { weather: 'fog' } }, course, config).gold, 100);
 });
 
 test('rewards: each tier once (a better one pays the difference), finishing once, then a repeat', () => {

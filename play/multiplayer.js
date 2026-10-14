@@ -88,6 +88,19 @@ export function damageView(look, events, rules) {
   return out;
 }
 
+// How another player's car sounds damaged, from the crashes it's sent since it joined (its engine's condition lost:
+// a worn engine misfires as yours does — physics/engineHealth.js, its overRev.misfireBelow and misfire)
+export function damageSoundOf(events, engine) {
+  let lost = 0;
+  for (const e of events ?? []) {
+    if (e.kind === 'repair') lost = 0;
+    if (e.kind !== 'damage' || !e.crash) continue;
+    for (const [target, n] of e.crash.loss ?? []) if (target === 'engine' || target === 'socket_engine') lost += n / 100;
+  }
+  const O = engine?.overRev, condition = Math.max(0, 100 - lost);
+  return { condition, misfire: O?.misfireBelow && condition < O.misfireBelow ? O.misfire * (O.misfireBelow - condition) / O.misfireBelow : 0 };
+}
+
 // a connection of its own (free roam: this world's room), with a ticket from the API for each join
 async function connectNet({ account, world, look, player, netsim, serverNetsim, settings }) {
   const Colyseus = await import('../net/vendor/colyseus.js');
@@ -218,9 +231,9 @@ export async function joinMultiplayer({ account, world, look, adapter: A, player
         if (tr) { const list = tr[o.id] ??= []; list.push({ at: performance.now(), dt, pos: p.pos, vel: p.vel, rot: p.rot, ang: p.ang, shownAt: p.shownAt, flags: p.flags, rpm: p.rpm, spin: wheels[0]?.spin ?? null, extrapolating: p.extrapolating, correctionCm: p.correctionCm, teleported: p.teleported, sound: !!c.sound, dents: c.dentCount ?? 0 }); if (list.length > 6000) list.splice(0, 1000); }
         // its damage (rebuilt only when something new came in)
         const dk = `${o.events?.length ?? 0}|${o.look?.damage ? 1 : 0}`;
-        if (dk !== c.damageKey) { c.damageKey = dk; const v = damageView(o.look, o.events, A.rules); c.dentCount = v.shell.dents.length + Object.values(v.parts).reduce((a, x) => a + x.length, 0); A.setDamage(c.handle, v); }
+        if (dk !== c.damageKey) { c.damageKey = dk; const v = damageView(o.look, o.events, A.rules); c.dentCount = v.shell.dents.length + Object.values(v.parts).reduce((a, x) => a + x.length, 0); A.setDamage(c.handle, v); c.damageEvents = o.events; }
         // its sound, where it is
-        if (c.sound) c.sound.update(p, wheels, simPos);
+        if (c.sound) c.sound.update(p, wheels, simPos, c.damageEvents);
         // its name over it (and "reconnecting…" while its player is away)
         const at = A.screen([simPos[0], simPos[1] + 1.7, simPos[2]]);
         c.onScreen = !!A.screen(simPos);

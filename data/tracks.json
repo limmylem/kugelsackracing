@@ -1040,7 +1040,7 @@
     }
   },
   "conditions": {
-    "_note": "Time of day and weather (Phase 5 Step 4: track/renderDress.js themeEnvironment, track/weather.js). A track event's conditions (quest conditions.timeOfDay / weather; 'any': its theme's) or the theme's own. times: each time of day's hour (effects/lighting.js lightAt) and warmth (the sky's and sun's tint toward gold); a quest's dawn / day / dusk / night: event (day: the theme's own if it's daytime). weather: sunScale (the sun's strength), grey (the sky toward grey), fogScale (the fog's distances), rain (streaks: drops a second near the camera), wet (the road darker and shinier) and grip (the tyres' grip on a wet road: used only if applyGrip — the hook for when the weather system changes grip; until then it's how it looks). floodlit: a circuit at night (or dusk) lit by floodlights — the light towers lit, masts at the marshal posts where a theme has no towers, and the lighting's own: the ambient light's colour and strength and a key light from above.",
+    "_note": "Time of day and weather (Phase 5 Step 4: track/renderDress.js themeEnvironment, track/weather.js). A track event's conditions (quest conditions.timeOfDay / weather; 'any': its theme's) or the theme's own. times: each time of day's hour (effects/lighting.js lightAt) and warmth (the sky's and sun's tint toward gold); a quest's dawn / day / dusk / night: event (day: the theme's own if it's daytime). weather: sunScale (the sun's strength), grey (the sky toward grey), fogScale (the fog's distances), rain (streaks: drops a second near the camera), wet (the road darker and shinier) and grip (the tyres' grip on a wet road, every car's in the race — physics/sim.js setGrip — when applyGrip is on; the NPCs plan their speeds on it, and a rain event's medal times allow for it: data/quests.json medals.weather). floodlit: a circuit at night (or dusk) lit by floodlights — the light towers lit, masts at the marshal posts where a theme has no towers, and the lighting's own: the ambient light's colour and strength and a key light from above.",
     "times": { "dawn": { "hours": 6.3, "warm": 0.5 }, "morning": { "hours": 9.5, "warm": 0.1 }, "midday": { "hours": 13, "warm": 0 }, "afternoon": { "hours": 15.5, "warm": 0.1 }, "evening": { "hours": 17.2, "warm": 0.35 }, "dusk": { "hours": 17.8, "warm": 0.6 }, "night": { "hours": 22.5, "warm": 0 } },
     "event": { "dawn": "dawn", "day": null, "dusk": "dusk", "night": "night" },
     "weather": {
@@ -1051,7 +1051,7 @@
       "rain": { "sunScale": 0.35, "grey": 0.6, "fogScale": 0.45, "rain": 2600, "wet": true, "grip": 0.82 },
       "fog": { "sunScale": 0.5, "grey": 0.5, "fogScale": 0.16 }
     },
-    "applyGrip": false,
+    "applyGrip": true,
     "floodlit": { "ambient": "#c8d2e6", "ambientIntensity": 1.25, "key": "#fff4dc", "keyIntensity": 1.1, "masts": true }
   },
   "variety": {

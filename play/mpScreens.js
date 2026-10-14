@@ -7,7 +7,8 @@
 // client.js) and the race as the game plays it (play/mpRace.js) are what it shows.
 //
 //   const M = createMpScreens({ S, R, game, cfg (data/multiplayer.json) })
-//     game: { say(text, kind), currency, region, regions, routes (the venues to offer: [{ id, name }]), self (who you
+//     game: { say(text, kind), currency, region, regions, routes (the official venues to offer first: [{ id, name }]; every
+//             other published route follows them in the host's list, from GET /mp/routes), regionName(id), self (who you
 //             are, for the menu's title), pause(on), leaveRace() (back to free roam) }
 //   M.toggle() / M.show(on)    the menu (F7, or the Multiplayer button)    M.frame(dt) every frame    M.dispose()
 //   Every screen has its id (#mpMenu #mpLobby #mpLoading #mpLights #mpHud #mpResults #mpWatch #mpToasts): the browser
@@ -240,6 +241,22 @@ export function createMpScreens({ S, R, game, cfg }) {
     if (!v) return L.venueError ? `<span class="bad">${esc(L.venueError)}</span>` : 'Choosing…';
     return `<b>${esc(v.name)}</b> · ${v.km} km${v.loop ? ` · ${L.laps} lap${L.laps > 1 ? 's' : ''}` : ' · a sprint'}${v.official ? ` · ${v.official === 'weekly' ? 'this week\'s' : 'today\'s'} official track` : v.venue?.kind === 'track' ? ' · generated track' : ' · real-world route'}`;
   }
+  // the host's route list: the official routes, then every published route (GET /mp/routes, asked once a lobby)
+  let published = null, publishedAsked = false;
+  function loadPublished() {
+    if (publishedAsked) return;
+    publishedAsked = true;
+    void apiOf().then(a => a.get('/mp/routes', { retries: 0 })).then(r => { published = r.routes ?? []; lobbyKey = ''; drawLobby(); }).catch(() => { published = []; });
+  }
+  function routeSelect(id) {
+    loadPublished();
+    const official = game.routes ?? [], more = (published ?? []).filter(r => !official.some(o => o.id === r.id));
+    const opt = (rid, name) => `<option value="${esc(rid)}" ${id === rid ? 'selected' : ''}>${esc(name)}</option>`;
+    const known = official.some(r => r.id === id) || more.some(r => r.id === id);
+    return `<select data-set="route">${official.map(r => opt(r.id, r.name)).join('')}
+      ${more.length ? `<optgroup label="Every published route">${more.map(r => opt(r.id, `${r.name} (${game.regionName?.(r.region) ?? r.region}, ${r.km} km${r.loop ? ', a loop' : ''})`)).join('')}</optgroup>` : published ? '' : '<option disabled>Finding the published routes…</option>'}
+      ${id && !known ? opt(id, id) : ''}</select>`;
+  }
   function drawLobby(force = false) {
     const L = S.lobby;
     if (!L || !S.race) { lobby.hidden = true; return; }
@@ -261,7 +278,7 @@ export function createMpScreens({ S, R, game, cfg }) {
       <td data-safety>${p.safety ? `<span class="tier sr${p.safety.value < 40 ? ' low' : ''}" title="Safety rating ${p.safety.value} of 100: clean races raise it, causing contact lowers it">${esc(p.safety.tier?.name ?? '')} ${p.safety.value}</span>` : ''}</td>
       <td>${host && p.uid !== S.myUid && !p.npc ? `<button data-kick="${esc(p.uid)}">Kick</button>` : ''}${p.away ? ' <span class="warn">reconnecting…</span>' : ''}</td></tr>`;
     const venueSel = host ? `<select data-set="venueKind">${Object.entries(VENUE_KINDS).map(([k, n]) => `<option value="${k}" ${set.venue.kind === k ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-      ${set.venue.kind === 'route' ? `<select data-set="route">${(game.routes ?? []).map(r => `<option value="${esc(r.id)}" ${set.venue.id === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}${set.venue.id && !(game.routes ?? []).some(r => r.id === set.venue.id) ? `<option value="${esc(set.venue.id)}" selected>${esc(set.venue.id)}</option>` : ''}</select>` : ''}
+      ${set.venue.kind === 'route' ? routeSelect(set.venue.id) : ''}
       ${set.venue.kind === 'official' ? `<select data-set="official"><option value="daily" ${set.venue.which !== 'weekly' ? 'selected' : ''}>Today's</option><option value="weekly" ${set.venue.which === 'weekly' ? 'selected' : ''}>This week's</option></select>` : ''}
       ${set.venue.kind === 'track' ? `<input data-set="code" value="${esc(set.venue.code ?? '')}" size="26" placeholder="A track's code">` : ''}` : '';
     const settings = host ? `

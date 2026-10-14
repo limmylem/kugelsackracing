@@ -263,7 +263,7 @@
       {
         "tier": 2,
         "name": "Club",
-        "level": 3,
+        "level": 2,
         "feeShare": 0.08,
         "stakeMaxClass": "C"
       },

@@ -120,7 +120,25 @@ function applyEffect(spec, effect) {
 }
 const PHASES = [['add'], ['multiply', 'boost'], ['set']];
 
-export function computeStats(build, db) {
+// Worked out once for each build: the same car, the same part copies in the same sockets, each as it is (its condition,
+// tuning, damage, attachment: garage/fingerprint.js), the same game data — a garage action works out the same build
+// several times (before, its checks, after; the next action's before), and the server one player's after another's.
+// computeStats hands each caller a copy of its own (callers change specs: the tuning panel, the tests); shared: true the
+// cached result itself, for callers that only read it (garage/validate.js).
+const STATS = new WeakMap(), STATS_MAX = 4000;
+const statsKey = (build, db) => JSON.stringify([build.carId, build.sockets ?? {}, build.attach ?? null]) + fingerprint(build, db.owned ?? {});
+export function computeStats(build, db, { shared = false } = {}) {
+  if (!db?.parts || !build) return statsOf(build, db);
+  let by = STATS.get(db.parts);
+  if (!by) STATS.set(db.parts, by = new Map());
+  const key = statsKey(build, db), hit = by.get(key);
+  if (hit && hit.cars === db.cars && hit.classes === db.classes && hit.condition === db.condition && hit.damage === db.damage && hit.finishes === db.finishes) return shared ? hit.result : structuredClone(hit.result);
+  const result = statsOf(build, db);
+  if (by.size >= STATS_MAX) by.clear();
+  by.set(key, { result: shared ? result : structuredClone(result), cars: db.cars, classes: db.classes, condition: db.condition, damage: db.damage, finishes: db.finishes });
+  return shared ? by.get(key).result : result;
+}
+function statsOf(build, db) {
   const car = db.cars[build.carId], errors = [], breakdown = {};
   if (!car) return { spec: null, totals: null, breakdown, errors: [`there's no car "${build.carId}"`] };
   const record = (path, entry) => (breakdown[path] ||= []).push(entry);

@@ -163,6 +163,17 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
   async function publishedRoutes() {
     return rows(sql`select id, data from content_items where view = 'published' and kind = 'route' order by id`);
   }
+  // the published routes a lobby can race (in a region the game has), for the host's list: name, region, length, loop
+  // (kept a minute: every host opening the list asks)
+  let routeListCache: { at: number; list: any[] } | null = null;
+  async function routeList() {
+    if (routeListCache && now() - routeListCache.at < 60_000) return routeListCache.list;
+    const list = (await publishedRoutes()).filter(r => r.data?.course && regionFrame(r.data.course.region))
+      .map(r => ({ id: r.id, name: String(r.data.name ?? 'A route').slice(0, 80), region: r.data.course.region, km: Math.round((r.data.course.length ?? 0) / 100) / 10, loop: r.data.course.kind === 'loop' }))
+      .sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name)).slice(0, 500);
+    routeListCache = { at: now(), list };
+    return list;
+  }
   // a venue resolved: what's raced and its course as stored, the frame the race server tracks it in, and the course as
   // the API checks runs on it
   async function venue(v: Venue): Promise<any> {
@@ -418,5 +429,5 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
     const c = r.contacts && !Array.isArray(r.contacts) ? r.contacts : { contacts: r.contacts ?? [] };
     return { id: r.id, contacts: c.contacts ?? [], rejected: c.rejected ?? [] };
   }
-  return { saveEvidence, evidence, contactsOf, act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); replayer?.close(); } };
+  return { routeList, saveEvidence, evidence, contactsOf, act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); replayer?.close(); } };
 }

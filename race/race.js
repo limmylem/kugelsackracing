@@ -29,7 +29,7 @@
 import { createQuestSession } from '../quest/session.js';
 import { createAiDriver } from '../ai/driver.js';
 import { rng as makeRng, hashSeed } from '../ai/rng.js';
-import { speedPlan, carCaps, lapTime } from '../route/racingLine.js';
+import { speedPlan, carCaps, wetCaps, lapTime } from '../route/racingLine.js';
 import { groundHeight } from '../physics/ai.js';
 import { fittedRacing } from './fit.js';
 import { CarDamage } from '../garage/carDamage.js';
@@ -50,6 +50,8 @@ function assignDeep(target, source) {
 
 export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRules, playerSession, npcs, seed = 1, collisions = 'full', rubberBand = false, isVisible = null, playerName = 'You' }) {
   const L = course.length, loop = course.loop;
+  // (a wet road: the NPCs plan their speeds on the grip the weather leaves — physics/sim.js setGrip)
+  const wet = sim.gripScale ?? 1;
   // (a finished NPC's cool-down lap: its speeds at 60%)
   const COOL_DOWN = { corner: -0.64, braking: 0 }, RUN_OUT = 80;
   // (the racing line fitted to the world's kerbs and walls, now they're loaded)
@@ -72,7 +74,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   const npcQuest = { ...quest, type: 'sprint', params: { ...(quest.params ?? {}), laps, start: 'standing' } };
   for (const [i, n] of npcs.entries()) {
     const id = i + 1, slot = course.grid.slots[n.slot ?? i + 1] ?? course.grid.slots.at(-1);
-    const caps = carCaps(n.build.stats);
+    const caps = wetCaps(carCaps(n.build.stats), wet);
     const r = makeRng(hashSeed(seed, n.profile.id, i));
     const plan = speedPlan(RL, caps, { loop, corner: n.params.cornerMargin, braking: n.params.brakingPoint, start: 0 });
     const racer = { id, player: false, name: n.profile.name, profile: n.profile, params: n.params, build: n.build, spec: n.spec, caps, plan, basePlan: plan, slot, passes: [], status: 'grid', finishTime: null, adjust: { corner: 0, braking: 0 }, lod: 'full', lodSince: 0, damage: null, condition: 100, retired: false, resets: 0, cheap: null };
@@ -201,7 +203,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     if (!ok || r.condition < D.retireBelow) { retire(r, ok ? 'too badly damaged' : 'undrivable'); return; }
     // slower in step with the damage
     const f = r.condition >= D.slowFrom ? 1 : 0.65 + 0.35 * (r.condition - D.retireBelow) / (D.slowFrom - D.retireBelow);
-    r.caps = carCaps(stats);
+    r.caps = wetCaps(carCaps(stats), wet);
     r.plan = speedPlan(RL, { ...r.caps, grip: r.caps.grip * (0.85 + 0.15 * f), power: r.caps.power * f }, { loop, corner: r.params.cornerMargin, braking: r.params.brakingPoint, start: 0 });
     r.driver.setPlan(r.plan);
   }

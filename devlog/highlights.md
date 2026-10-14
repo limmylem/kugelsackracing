@@ -32,3 +32,11 @@ Quests are driven to now: set the route, then start it there
 Every quest in the city now shows on the map
 The route line shrinks behind you as you follow it
 Blue arrows on the road now show the way to your quest
+Hard landings now hit the bump stops, not the car's floor
+Rain makes generated tracks slippery, for you and the AI
+Race replays now show the wheels turning and steering
+Lobby hosts can pick any published route to race
+Club quests open sooner: at level 2
+Steep hills now make a quest harder
+Other players' damaged engines now misfire
+Reporting a player now opens the game's own window

@@ -118,6 +118,7 @@ export class Vehicle {
     this.aero = new Aero(spec, sockets);
     this.altitudeBase = 0;
     this.wind = spec.aero.wind ? [...spec.aero.wind] : [0, 0, 0];
+    this.gripScale = 1;                       // (the weather's share of every surface's grip: 1 dry; sim.setGrip)
     this.slipstream = { drag: 0, downforce: 0, amount: 0 };
     this.brakes = new Brakes(spec, this.wheels, this.peak.x);
     // mechanical damage (spec.damage): each wheel's toe, grip, radius…, the engine's heat, the clutch's
@@ -366,11 +367,12 @@ export class Vehicle {
       const contact = add(origin, scale(down, hit.timeOfImpact)), normal = fromXYZ(hit.normal);
       if (!linked) push(scale(normal, load), contact);
       const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2]) : null;
-      // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't)
+      // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't; times the
+      // weather's — a wet road: sim.setGrip)
       const onIt = surface && Ty.surfaceGrip?.[surface.name];
       Object.assign(w, {
         grounded: true, length: len, compression, compressionSpeed, over, load, spring: load,
-        contact, normal, surface, grip: onIt ? (surface.grip ?? 1) * onIt : surface?.grip ?? 1,
+        contact, normal, surface, grip: (onIt ? (surface.grip ?? 1) * onIt : surface?.grip ?? 1) * this.gripScale,
       });
       // a wheel heavier (or lighter) than the suspension was set up with: that much of the car's weight
       // goes straight onto its tyre instead of through the body

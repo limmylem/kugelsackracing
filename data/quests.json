@@ -28,7 +28,8 @@
     "seconds": 1.5
   },
   "medals": {
-    "_note": "Times: the route's reference time (a test drive's, else its estimate for the starter car) × these; at most that long for the medal. A quest can set its own (params.medalTimes / params.medalScores).",
+    "_note": "Times: the route's reference time (a test drive's, else its estimate for the starter car) × these; at most that long for the medal. A quest can set its own (params.medalTimes / params.medalScores). weather: in that weather (the event's conditions.weather) the times worked out are × this — a wet road's grip (data/tracks.json conditions) makes the AI 0.3–5% slower, the fastest the most.",
+    "weather": { "rain": 1.04 },
     "time": {
       "gold": 1.0,
       "silver": 1.12,
@@ -100,7 +101,7 @@
     "visible": true
   },
   "difficulty": {
-    "_note": "quest/difficulty.js. A quest's difficulty (1–5 stars) from points: each feature of its route (route/stats.js routeFeatures) — and its rivals and how tight its gold medal is — scores its value / full (at most 1) × weight, and the total's stars are how many of the thresholds it reaches, plus one. length: km of driving (laps too); corners: per km; sharpness: the corners' sharpness per km (25 m / radius × angle / 90°, each at most 1); hairpins: how many; elevation: m up and down per km; grade: the steepest, %; narrow: share on roads under 6 m; junctions: per km; exposure: share of it where there's a drop and no rail (measured in a loaded world, else not counted); rivals: NPCs × their skill; rivalSkill: the rivals' best skill; medal: how far under the starter car's estimated time gold is (0 at estimate × medal.from, full at × medal.to); byType: points a type adds. recommended: the car performance rating (garage/rating.js) a quest of each star count asks for, kept inside the quest's class (the highest it lets in) — warnBelow: the card warns if the player's car is under that share of it.",
+    "_note": "quest/difficulty.js. A quest's difficulty (1–5 stars) from points: each feature of its route (route/stats.js routeFeatures) — and its rivals and how tight its gold medal is — scores its value / full (at most 1) × weight, and the total's stars are how many of the thresholds it reaches, plus one. length: km of driving (laps too); corners: per km; sharpness: the corners' sharpness per km (25 m / radius × angle / 90°, each at most 1); hairpins: how many; elevation: m up and down per km; grade: the steepest, %; steep: more for a very steep one (the part of the steepest grade over from %, full at full %: 20–28% hills are where the AI and new players struggle); narrow: share on roads under 6 m; junctions: per km; exposure: share of it where there's a drop and no rail (measured in a loaded world, else not counted); rivals: NPCs × their skill; rivalSkill: the rivals' best skill; medal: how far under the starter car's estimated time gold is (0 at estimate × medal.from, full at × medal.to); byType: points a type adds. recommended: the car performance rating (garage/rating.js) a quest of each star count asks for, kept inside the quest's class (the highest it lets in) — warnBelow: the card warns if the player's car is under that share of it.",
     "points": {
       "length": {
         "full": 15,
@@ -123,6 +124,11 @@
         "weight": 0.6
       },
       "grade": {
+        "full": 30,
+        "weight": 0.5
+      },
+      "steep": {
+        "from": 15,
         "full": 30,
         "weight": 0.5
       },

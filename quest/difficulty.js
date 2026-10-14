@@ -30,6 +30,7 @@ export function difficultyOf(quest, course, { config, classes = null, medals = n
     add('hairpins', F.hairpins * laps, P.hairpins);
     add('elevation', F.elevationPerKm ?? F.climbPerKm, P.elevation);
     add('grade', F.maxGrade, P.grade);
+    if (P.steep && F.maxGrade != null) add('steep grade', Math.max(0, F.maxGrade - P.steep.from), { full: P.steep.full - P.steep.from, weight: P.steep.weight });
     add('narrow', F.narrowShare, P.narrow);
     add('junctions', F.junctionsPerKm, P.junctions);
     add('exposure', course?.stats?.exposure ?? null, P.exposure);

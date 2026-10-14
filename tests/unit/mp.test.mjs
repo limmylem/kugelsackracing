@@ -280,3 +280,14 @@ test('matchmaking (Phase 7 Step 3): safety ratings kept close — clean drivers 
   assert.equal(matchQueue(grid(20), 1000, CFG).matches.length, 0, 'not at first');
   assert.equal(matchQueue(grid(20), 11000, CFG).matches[0]?.players.length, 8, 'the window has grown wide enough');
 });
+
+test('another player\'s damaged engine misfires as yours does: from the crashes it sent (its engine\'s condition lost), until a repair', async () => {
+  const { damageSoundOf } = await import('../../play/multiplayer.js');
+  const engine = { overRev: { misfireBelow: 70, misfire: 0.35 } };
+  const crash = n => ({ kind: 'damage', crash: { s: 30, hits: {}, loss: [['socket_engine', n * 100], ['shell', 500]] } });
+  assert.equal(damageSoundOf([], engine).misfire, 0);
+  assert.equal(damageSoundOf([crash(20)], engine).misfire, 0, '80%: runs clean');
+  const r = damageSoundOf([crash(30), crash(25)], engine);
+  assert.equal(r.condition, 45); assert.ok(Math.abs(r.misfire - 0.35 * 25 / 70) < 1e-9);
+  assert.equal(damageSoundOf([crash(30), crash(25), { kind: 'repair' }], engine).misfire, 0, 'repaired');
+});

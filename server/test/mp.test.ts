@@ -92,6 +92,15 @@ test('a join ticket carries the rating, the cars (class and performance rating, 
   assert.equal(verifyTicket(T.config.rtSecret, (await anon.post('/api/v1/rt/ticket', { player: 'Q' })).body.ticket)!.uid, dt.uid, 'the same player each time');
 });
 
+test('the lobby host\'s list: every published route in a region the game has (GET /mp/routes: public, like the routes)', async () => {
+  const r = await T.app.inject({ method: 'GET', url: '/api/v1/mp/routes' });
+  assert.equal(r.statusCode, 200);
+  const routes = JSON.parse(r.body).routes;
+  const mk = routes.find((r: any) => r.id === 'route_mpmk');
+  assert.ok(mk, JSON.stringify(routes.slice(0, 3)));
+  assert.equal(mk.region, 'mk'); assert.ok(mk.km > 0 && typeof mk.name === 'string' && typeof mk.loop === 'boolean');
+});
+
 test('the race server\'s calls need its key', async () => {
   const r = await T.app.inject({ method: 'POST', url: '/api/v1/internal/mp/venue', headers: { 'content-type': 'application/json', 'x-kr-internal': 'nope' }, payload: '{}' });
   assert.equal(r.statusCode, 403);

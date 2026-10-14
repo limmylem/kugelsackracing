@@ -8,6 +8,7 @@
 //                                        where you stand as friends (Phase 7 Step 5: mp/recent.ts)
 //   GET    /mp/races/:id                 a race's results: provisional, then confirmed (pay, rank changes)
 //   GET    /mp/leaderboard               the best-rated players (tiers, not numbers)
+//   GET    /mp/routes                    every published route a lobby can race (in a region the game has): the host's list
 //   GET    /admin/mp/dashboard           the queue: times and match quality against the targets (admins)
 //   GET    /admin/mp/evidence/:id        a ramming report's replay (Phase 7 Step 3): both cars round the hits (admins)
 //   GET    /admin/mp/races/:id/contacts  a race's agreed contacts, with each player's report and perspective (admins)
@@ -52,6 +53,7 @@ export async function mpRoutes(api: FastifyInstance, { config, G, mp, db }: { co
   app.get('/mp/recent-players', async (req, reply) => { const s = await G.requireTerms(req); reply.header('cache-control', 'no-store'); return { players: s.user.isAnonymous ? [] : await recentPlayers(db, s.user.id) }; });
   app.get('/mp/races/:id', { schema: { params: Id } }, async req => { await G.requireUser(req); return mp.raceView(req.params.id); });
   app.get('/mp/leaderboard', async () => ({ players: await mp.leaderboard(50) }));
+  app.get('/mp/routes', async () => ({ routes: await mp.routeList() }));
   app.get('/admin/mp/dashboard', { config: { role: 'admin' } }, async () => mp.dashboard());
   // (Phase 7 Step 3) a ramming report's replay: both cars round the hits (the contact replay draws it); a race's contacts
   app.get('/admin/mp/evidence/:id', { config: { role: 'admin' } }, async (req: any) => mp.evidence(String(req.params.id).slice(0, 80)));
