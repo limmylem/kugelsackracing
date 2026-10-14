@@ -38248,7 +38248,7 @@
     },
     "pads_race": {
       "fit": {
-        "key": "9806af7aecb20519",
+        "key": "21343a079f7a502f",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38303,7 +38303,7 @@
         }
       },
       "drive": {
-        "key": "745f22dd669cfef4",
+        "key": "1241772544d4e1d0",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38311,62 +38311,62 @@
             "carKey": "0ad00566143ad8d5",
             "ok": true,
             "problems": [],
-            "zeroTo100": 3.567,
-            "braking": 30.033
+            "zeroTo100": 3.533,
+            "braking": 29.981
           },
           "brute_500": {
             "carKey": "2fb9160db7283cc2",
             "ok": true,
             "problems": [],
             "zeroTo100": 5.417,
-            "braking": 35.473
+            "braking": 35.36
           },
           "hana_roadster": {
             "carKey": "ebc2eb226a25d970",
             "ok": true,
             "problems": [],
-            "zeroTo100": 8.633,
-            "braking": 39.626
+            "zeroTo100": 8.642,
+            "braking": 39.497
           },
           "kaze_gt": {
             "carKey": "29ce227702942db4",
             "ok": true,
             "problems": [],
-            "zeroTo100": 7.325,
-            "braking": 38.658
+            "zeroTo100": 7.317,
+            "braking": 38.29
           },
           "ridgeback_4x4": {
             "carKey": "c50e5f076f425095",
             "ok": true,
             "problems": [],
-            "zeroTo100": 8.533,
-            "braking": 37.969
+            "zeroTo100": 8.542,
+            "braking": 38.067
           },
           "starter_car": {
             "carKey": "f73d260e01b1ce55",
             "ok": true,
             "problems": [],
-            "zeroTo100": 9.35,
-            "braking": 41.129
+            "zeroTo100": 9.358,
+            "braking": 40.884
           },
           "strada_evo": {
             "carKey": "8d869ae0d3ae0101",
             "ok": true,
             "problems": [],
-            "zeroTo100": 4.842,
-            "braking": 38.328
+            "zeroTo100": 4.85,
+            "braking": 38.25
           },
           "vortex_r": {
             "carKey": "e1055244bbe1db8a",
             "ok": true,
             "problems": [],
             "zeroTo100": 6.292,
-            "braking": 36.925
+            "braking": 36.687
           }
         }
       },
       "crash": {
-        "key": "f414fae757b9fe87",
+        "key": "a2ef6cd53c86130a",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38437,7 +38437,7 @@
         }
       },
       "sound": {
-        "key": "f17af299fa655b34",
+        "key": "dce878a8b6374b2c",
         "ok": true,
         "problems": [],
         "note": "no sound of its own"
@@ -38449,7 +38449,7 @@
         "note": "no model rules for the brake_pads slot"
       },
       "economy": {
-        "key": "1e5c839bc65b14d5",
+        "key": "2a6c46508ca19a6e",
         "ok": true,
         "problems": [],
         "gain": 0.26,
@@ -38459,7 +38459,7 @@
     },
     "pads_sport": {
       "fit": {
-        "key": "08986ab2f719c7d9",
+        "key": "5a113a0a04405247",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38514,7 +38514,7 @@
         }
       },
       "drive": {
-        "key": "c2d161c5c5f45370",
+        "key": "6012438722b2efdd",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38522,62 +38522,62 @@
             "carKey": "0ad00566143ad8d5",
             "ok": true,
             "problems": [],
-            "zeroTo100": 3.567,
-            "braking": 30.023
+            "zeroTo100": 3.575,
+            "braking": 30.004
           },
           "brute_500": {
             "carKey": "2fb9160db7283cc2",
             "ok": true,
             "problems": [],
-            "zeroTo100": 5.417,
-            "braking": 35.472
+            "zeroTo100": 5.433,
+            "braking": 35.544
           },
           "hana_roadster": {
             "carKey": "ebc2eb226a25d970",
             "ok": true,
             "problems": [],
-            "zeroTo100": 8.633,
-            "braking": 39.619
+            "zeroTo100": 8.642,
+            "braking": 39.543
           },
           "kaze_gt": {
             "carKey": "29ce227702942db4",
             "ok": true,
             "problems": [],
             "zeroTo100": 7.325,
-            "braking": 38.658
+            "braking": 38.46
           },
           "ridgeback_4x4": {
             "carKey": "c50e5f076f425095",
             "ok": true,
             "problems": [],
-            "zeroTo100": 8.533,
-            "braking": 37.969
+            "zeroTo100": 8.542,
+            "braking": 37.881
           },
           "starter_car": {
             "carKey": "f73d260e01b1ce55",
             "ok": true,
             "problems": [],
-            "zeroTo100": 9.35,
-            "braking": 41.13
+            "zeroTo100": 9.358,
+            "braking": 41.013
           },
           "strada_evo": {
             "carKey": "8d869ae0d3ae0101",
             "ok": true,
             "problems": [],
-            "zeroTo100": 4.842,
-            "braking": 38.325
+            "zeroTo100": 4.85,
+            "braking": 38.299
           },
           "vortex_r": {
             "carKey": "e1055244bbe1db8a",
             "ok": true,
             "problems": [],
             "zeroTo100": 6.292,
-            "braking": 36.925
+            "braking": 36.737
           }
         }
       },
       "crash": {
-        "key": "10b0cb271cdebf7a",
+        "key": "a016f0c7d5615249",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38648,7 +38648,7 @@
         }
       },
       "sound": {
-        "key": "ee5582682029563e",
+        "key": "892a1b7b52fcc607",
         "ok": true,
         "problems": [],
         "note": "no sound of its own"
@@ -38660,7 +38660,7 @@
         "note": "no model rules for the brake_pads slot"
       },
       "economy": {
-        "key": "b756c5e746763caf",
+        "key": "b9721f6a762a75a5",
         "ok": true,
         "problems": [],
         "gain": 0.14,
@@ -38670,7 +38670,7 @@
     },
     "pads_street": {
       "fit": {
-        "key": "08986ab2f719c7d9",
+        "key": "a7de416dd8db2c61",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38725,7 +38725,7 @@
         }
       },
       "drive": {
-        "key": "c2d161c5c5f45370",
+        "key": "f61db5b52be1af7f",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38733,62 +38733,62 @@
             "carKey": "0ad00566143ad8d5",
             "ok": true,
             "problems": [],
-            "zeroTo100": 3.567,
-            "braking": 30.023
+            "zeroTo100": 3.6,
+            "braking": 30.027
           },
           "brute_500": {
             "carKey": "2fb9160db7283cc2",
             "ok": true,
             "problems": [],
-            "zeroTo100": 5.417,
-            "braking": 35.472
+            "zeroTo100": 5.442,
+            "braking": 35.417
           },
           "hana_roadster": {
             "carKey": "ebc2eb226a25d970",
             "ok": true,
             "problems": [],
             "zeroTo100": 8.633,
-            "braking": 39.619
+            "braking": 39.575
           },
           "kaze_gt": {
             "carKey": "29ce227702942db4",
             "ok": true,
             "problems": [],
-            "zeroTo100": 7.325,
-            "braking": 38.658
+            "zeroTo100": 7.317,
+            "braking": 38.605
           },
           "ridgeback_4x4": {
             "carKey": "c50e5f076f425095",
             "ok": true,
             "problems": [],
-            "zeroTo100": 8.533,
-            "braking": 37.969
+            "zeroTo100": 8.542,
+            "braking": 37.906
           },
           "starter_car": {
             "carKey": "f73d260e01b1ce55",
             "ok": true,
             "problems": [],
-            "zeroTo100": 9.35,
-            "braking": 41.13
+            "zeroTo100": 9.358,
+            "braking": 41.127
           },
           "strada_evo": {
             "carKey": "8d869ae0d3ae0101",
             "ok": true,
             "problems": [],
             "zeroTo100": 4.842,
-            "braking": 38.325
+            "braking": 38.333
           },
           "vortex_r": {
             "carKey": "e1055244bbe1db8a",
             "ok": true,
             "problems": [],
             "zeroTo100": 6.292,
-            "braking": 36.925
+            "braking": 36.803
           }
         }
       },
       "crash": {
-        "key": "10b0cb271cdebf7a",
+        "key": "6198896c6fb49967",
         "ok": true,
         "problems": [],
         "cars": {
@@ -38859,7 +38859,7 @@
         }
       },
       "sound": {
-        "key": "ee5582682029563e",
+        "key": "03cb902724c2604d",
         "ok": true,
         "problems": [],
         "note": "no sound of its own"
@@ -38871,7 +38871,7 @@
         "note": "no model rules for the brake_pads slot"
       },
       "economy": {
-        "key": "d917f6f927270296",
+        "key": "4ba89542579105df",
         "ok": true,
         "problems": [],
         "gain": 0.06,
@@ -83722,9 +83722,9 @@
         "class": "D"
       },
       "max": {
-        "index": 679,
+        "index": 678,
         "class": "B",
-        "parts": ["crate_kmw_i4_20t", "intake_race", "intercooler_race", "catback_race", "header_4into1", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "pads_race", "rim_multispoke", "tyre_track_slick", "basic_wing", "hana_roadster_roll_hoop"],
+        "parts": ["crate_kmw_i4_20t", "intake_race", "front_mount_intercooler", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_rear_sport", "pads_sport", "rim_multispoke", "tyre_track_slick", "basic_wing", "hana_roadster_roll_hoop"],
         "tuning": [
           {
             "part": "ecu_standalone",
@@ -83740,11 +83740,6 @@
             "part": "sport_suspension",
             "setting": "dampers",
             "value": 160
-          },
-          {
-            "part": "arb_front_sport",
-            "setting": "stiffness",
-            "value": 40000
           },
           {
             "part": "arb_rear_sport",

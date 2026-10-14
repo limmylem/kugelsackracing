@@ -11,9 +11,9 @@
   "slot": "brake_pads",
   "tier": "race",
   "price": 520,
-  "mass": 0,
+  "mass": 2.0,
   "fits": [],
-  "_note": "Pads for the fitted discs: 26% more friction, fading 150 °C later. With none fitted, the discs' own pads.",
+  "_note": "Pads for the fitted discs (2.0 kg a set of eight): 26% more friction — more braking for the same pedal (bite), back to the tyre's limit sooner after each ABS pulse — fading 150 °C later, and even fully hot they keep 30% more of their grip. With none fitted, the discs' own pads.",
   "effects": [
     {
       "target": "brakes.front.padMu",

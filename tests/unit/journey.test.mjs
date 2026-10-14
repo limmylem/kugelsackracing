@@ -195,3 +195,20 @@ test('brake upgrades never lengthen an ABS stop (the tyres set it) and run coole
   assert.ok(temp(discs) < temp(stock) - 50, `race discs run cooler: ${discs.detail}`);
   assert.ok(tyres.value < stock.value - 2, `semi-slicks stop shorter: ${tyres.value} m against ${stock.value}`);
 });
+
+test('brake pads: each set weighs something, and gives more braking for the same pedal (bite) — never past the car\'s own brakes\' full torque with ABS on', async () => {
+  const { Brakes } = await import('../../physics/brakes.js');
+  const wheels = [{ front: true, name: 'FL' }, { front: true, name: 'FR' }, { front: false, name: 'RL' }, { front: false, name: 'RR' }];
+  const build = ids => { const g = new Garage(db, null); for (const id of ids) ok(g.install(id), `fit ${id}`); return g.stats().spec; };
+  // (one wheel's torque at a pedal, rolling with a little slip, the ABS settled)
+  const torque = (spec, pedal) => { const b = new Brakes(spec, wheels, 0.12); let t = 0; for (let k = 0; k < 400; k++) t = b.substep(0, 1 / 240, pedal, 0, true, -0.02, 20); return t; };
+  const stock = build([]), sets = ['pads_street', 'pads_sport', 'pads_race'].map(id => ({ id, spec: build([id]) }));
+  let last = { mass: stock.mass, half: torque(stock, 0.5) };
+  for (const { id, spec } of sets) {
+    const half = torque(spec, 0.5), full = torque(spec, 1);
+    assert.ok(spec.mass > last.mass, `${id} adds weight: ${spec.mass} kg against ${last.mass}`);
+    assert.ok(half > last.half * 1.04, `${id} bites harder at half pedal: ${half.toFixed(0)} N·m against ${last.half.toFixed(0)}`);
+    assert.ok(Math.abs(full - torque(stock, 1)) < 1, `${id} at full pedal: the car's own brakes' full torque (${full.toFixed(0)} against ${torque(stock, 1).toFixed(0)} N·m)`);
+    last = { mass: spec.mass, half };
+  }
+});

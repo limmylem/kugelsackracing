@@ -6,9 +6,11 @@
 // dumps pressure, holds while the wheel spins back up, then reapplies (more slowly) — so it pulses.
 // Stability control asks for extra torque on single wheels; that goes through the same ABS. The
 // ABS's rates are set for the car's own brakes (assists.abs.referenceTorque: the torque they make at
-// full pedal); bigger brakes (or grippier pads) have them scaled down, so it modulates the same torque
-// the same way instead of overshooting the tyre further on every pulse — and it lets through no more
-// than that torque's share of the pressure (their gain is running cooler, so fading less).
+// full pedal). With bigger brakes or grippier pads it lets through no more than that torque — more
+// only overshoots the tyre on every pulse — and dumps the same torque when it releases; below that,
+// they give what they give: more braking for the same pedal (bite), and after each release the
+// pressure it builds back makes more torque, so the tyre is back at its limit sooner. And hot, they
+// fade less.
 // The handbrake is a separate, strong rear-only torque.
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -81,13 +83,13 @@ export class Brakes {
       } else if (s.absMode === 'hold') {
         s.absHold -= h;
         if (s.absHold <= 0) s.absMode = 'apply';
-      } else s.abs += A.applyRate * k * h;
+      } else s.abs += A.applyRate * h;              // (the pressure builds at its own rate: more torque with grippier pads)
       // (no more of the pedal's pressure than gives the car's own brakes' full torque: the tyres, not
-      // the brakes, stop an ABS car, and more only overshoots them — bigger brakes and pads pay off
-      // hot, where they fade less, and with the ABS off. The stability control's torque in full.)
+      // the brakes, stop an ABS car, and more only overshoots them. Below it, the pedal's pressure as
+      // it is — the brakes' bite. The stability control's torque in full.)
       s.abs = clamp(s.abs, A.minPressure * k, k);
       s.absActive = s.abs < k * 0.999;
-      pedalShare = s.abs; extraShare = s.abs / k;
+      pedalShare = s.abs / k * Math.min(1, this.requested(s, 1) * k / Math.max(1e-6, pedalWant)); extraShare = s.abs / k;
     }
     s.pressure = pedalWant * pedalShare + extra * extraShare;
     return this.torqueAt(s, s.pressure);
