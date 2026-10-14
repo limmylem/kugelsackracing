@@ -38,7 +38,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     const P = transverseMercator(manifest.projection.lat0, manifest.projection.lon0);
     const byKey = new Map(manifest.tiles.map(t => [`${t.i}_${t.j}`, t]));
     // the physics' origin, in the world's frame: tile-aligned, at the spawn's tile to begin with
-    const [sx, sz] = manifest.spawn.xz;
+    // (options.start: somewhere else to begin — the player's saved place, map/render/game.ts prepareTrack's startAt)
+    const [sx, sz] = Array.isArray(O.start) && O.start.every(Number.isFinite) ? O.start : manifest.spawn.xz;
     let origin = [Math.floor(sx / T) * T, Math.floor(sz / T) * T];
     const world = new THREE.Group();
     world.name = 'baked world';

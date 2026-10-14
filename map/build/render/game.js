@@ -68,6 +68,9 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
     // software, use it. 1,400 m by default)
     const view = Number(new URLSearchParams(globalThis.location?.search ?? '').get('view')) || null;
     const options = view ? { loadRadius: Math.max(300, view), unloadRadius: Math.max(450, view * 1.5), physicsRadius: Math.min(750, Math.max(300, view)), physicsDrop: Math.min(1100, Math.max(450, view * 1.5)) } : {};
+    // (a saved place to start at: the physics' origin there, as the car's spawn was worked out — prepareTrack)
+    if (w.track._landAt)
+        options.start = [w.track._landAt.wx, w.track._landAt.wz];
     const stream = await createWorldStream({ manifestUrl: w.track.mapV3.manifest, scene: w.scene, sim: w.sim, RAPIER, options });
     w.stream = stream;
     w.RAPIER = RAPIER;
