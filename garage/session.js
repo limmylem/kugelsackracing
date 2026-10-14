@@ -68,11 +68,25 @@ async function create() {
     : !A.online ? 'You\'re offline: free roam only. Quests and events come back when the game\'s server does.'
     : !A.me ? 'Sign in (or play as a guest) to do quests and events: the corner button.'
     : A.me.needsTerms ? 'Accept the terms first (the corner button) to do quests and events.' : null;
-  let player, loaded;
+  let player, loaded, settingsSeen = null, refreshSettings = async () => false;
+  const settingsKey = cfg => `${cfg.version}|${cfg.content?.version ?? 0}`;
   if (A?.server && A.me && !A.me.needsTerms) {
     // (Phase 6 Step 2: the server's economy — garage/player/remote.js. Its settings are the prices shown;
     // the last profile it sent is kept here only to show offline, where nothing changes until it's back)
-    try { const cfg = await A.api.get('/player/config', { retries: 1 }); db.economy = cfg.economy; quests.config = cfg.quests; if (cfg.content) applyContent(db, cfg.content); } catch { /* the files' own, to show */ }
+    try { const cfg = await A.api.get('/player/config', { retries: 1 }); db.economy = cfg.economy; quests.config = cfg.quests; if (cfg.content) applyContent(db, cfg.content); settingsSeen = settingsKey(cfg); } catch { /* the files' own, to show */ }
+    // (an admin's change to the settings — a tier's level, a price — reaches a game already open: asked again every few
+    // minutes, when the window comes back and when something asks — the profile card as it opens; kr-settings when changed)
+    refreshSettings = async () => {
+      try {
+        const cfg = await A.api.get('/player/config', { retries: 0 }), key = settingsKey(cfg);
+        if (key === settingsSeen) return false;
+        settingsSeen = key; db.economy = cfg.economy; quests.config = cfg.quests; if (cfg.content) applyContent(db, cfg.content);
+        globalThis.dispatchEvent?.(new CustomEvent('kr-settings', { detail: { version: cfg.version } }));
+        return true;
+      } catch { return false; }
+    };
+    setInterval(() => { void refreshSettings(); }, 3 * 60_000);
+    globalThis.document?.addEventListener?.('visibilitychange', () => { if (globalThis.document.visibilityState === 'visible') void refreshSettings(); });
     const cache = new IdbStorage({ key: A.profileKey, legacy: false });
     player = new RemotePlayerService({ api: A.api, db, quests, onStatus: st => globalThis.dispatchEvent?.(new CustomEvent('kr-economy', { detail: st })) });
     try { loaded = await player.init(); }
@@ -282,6 +296,8 @@ async function create() {
 
   const api = {
     db, garage, spec, problems, player,
+    // the server's settings asked for again (true: they'd changed — kr-settings sent)
+    refreshSettings: () => refreshSettings(),
     playtest: {
       log: playtest,
       get on() { return playtest.running; },

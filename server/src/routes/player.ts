@@ -65,7 +65,8 @@ export async function playerRoutes(app0: FastifyInstance, { economy, config: eco
   app.get('/player/config', async (req, reply) => {
     // (and what the content manager has published: parts and cars out of drafts, their published changes)
     const [a, o] = await Promise.all([econ.active(), content?.overlay() ?? null]), tag = `"e${a.version}c${o?.version ?? 0}"`;
-    reply.header('etag', tag).header('cache-control', 'public, max-age=60');
+    // (asked again each time, the etag making it cheap: an admin's change shows at once)
+    reply.header('etag', tag).header('cache-control', 'no-cache');
     if (req.headers['if-none-match'] === tag) return reply.status(304).send();
     return { version: a.version, economy: a.data.economy, quests: a.data.quests, content: o };
   });

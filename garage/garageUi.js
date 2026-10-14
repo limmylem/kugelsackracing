@@ -108,6 +108,8 @@ export class GarageScreen {
     this.root.appendChild(this.fileInput);
     this.#listen();
     this.pad = { prev: [], repeat: 0 };
+    // (the server's settings changed — a tier's level, a price: drawn again with them)
+    globalThis.addEventListener?.('kr-settings', () => { if (this.w) this.render(); });
   }
   // (a fresh visit: the overview, nothing open; the marker labels setting stays)
   reset() {
@@ -1223,6 +1225,7 @@ export class GarageScreen {
       case 'profile':
         this.ui.dialog = { kind: 'profile', at: Date.now() }; this.ui.pop = null;
         this.#loadRank();
+        void this.actions.refreshSettings?.();
         return this.render();
       case 'hint-close': this.ui.hint = null; return this.render();
       case 'pop': this.ui.pop = this.ui.pop === arg ? null : arg; this.ui.renaming = null; this.ui.confirm = null; return this.render();

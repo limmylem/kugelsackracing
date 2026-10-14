@@ -48,7 +48,7 @@ async function create() {
   scene.rigFor = car => { if (!rigs.has(car.id)) rigs.set(car.id, fetch(car.model.file).then(r => r.arrayBuffer()).then(glb => modelRig(glb, car.model))); return rigs.get(car.id); };
   const rig = await scene.rigFor(session.garage.car);
   scene.rig = rig;
-  const screen = new GarageScreen({ root, scene, sounds, actions: { leave: () => leave(), testDrive: () => testDrive(), testDriveCar: id => testDriveCar(id), testDriveWith: (state, name) => testDriveWith(state, name), modeChanged: mode => { try { localStorage.setItem(MODE_KEY, mode); } catch { /* not kept */ } } } });
+  const screen = new GarageScreen({ root, scene, sounds, actions: { leave: () => leave(), refreshSettings: () => session.refreshSettings?.(), testDrive: () => testDrive(), testDriveCar: id => testDriveCar(id), testDriveWith: (state, name) => testDriveWith(state, name), modeChanged: mode => { try { localStorage.setItem(MODE_KEY, mode); } catch { /* not kept */ } } } });
   screen.playtest = session.playtest;
   screen.dev = session.dev;
   addEventListener('resize', () => {
