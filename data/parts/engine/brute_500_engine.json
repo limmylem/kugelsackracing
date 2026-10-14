@@ -55,5 +55,14 @@
   "bounds": {
     "min": [-0.38, 0, -0.375],
     "max": [0.38, 0.66, 0.375]
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/engine/brute_500_engine/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.38, 0.04, -0.375],
+        "max": [0.38, 0.7, 0.375]
+      }
+    }
   }
 }

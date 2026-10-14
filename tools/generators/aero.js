@@ -53,9 +53,11 @@ export function wing(id, s) {
   return m;
 }
 
-// A ducktail: a lip across the boot lid's back edge, flicked up. settings: { span, chord, height, material }
+// A ducktail: a lip across the boot lid's back edge, flicked up. settings: { span, chord, height, material, lift (m: up
+// on two feet, clear of a hatch's or a tailgate's curve) }
 export function ducktail(id, s) {
-  const m = new PartModel(id), S = s.span, C = s.chord, H = s.height, lift = 0.004;
+  const m = new PartModel(id), S = s.span, C = s.chord, H = s.height + (s.lift ?? 0), lift = s.lift ?? 0.004;
+  if (lift > 0.01) for (const x of [S * 0.3, -S * 0.3]) m.add(bevelBox([x - 0.03, 0.004, -C * 0.3], [x + 0.03, lift + 0.006, C * 0.3], 0.004), 'black');
   const profile = [[lift, C / 2], [lift, -C / 2 + 0.01], [H, -C / 2], [H - 0.012, -C / 2 + 0.03], [lift + 0.012, C / 2]];
   // (its ends swept in a little, following the boot)
   const body = prism(profile, -S / 2, S / 2, 'x').map(t => t.map(([x, y, z]) => [x, y, z + (Math.abs(x) > S / 2 - 0.01 ? 0.01 : 0)]));
@@ -177,6 +179,12 @@ export async function parts({ project, carsFor }) {
   const jobs = Object.entries(WINGS).map(([id, { design, settings }]) => ({ id, type: 'spoiler', design, settings, cars: carsFor(db.parts[id], db), baseCar: 'starter_car',
     build: fitBuild({ db, rules, type: 'spoiler', slot: 'spoiler', axes: WING_SEARCH[0], weights: WING_SEARCH[1] }, c => wing(id, { ...settings, height: settings.height + c.dh, lift: c.lift }).moved([0, 0, c.dz])) }));
   jobs.push({ id: 'kaze_gt_ducktail', type: 'spoiler', design: 'ducktail', settings: { span: 1.3, chord: 0.15, height: 0.08 }, build: () => ducktail('kaze_gt_ducktail', { span: 1.3, chord: 0.15, height: 0.08 }) });
+  // the ducktail spoiler (its own model made by hand for a coupe's boot lid) on a hatch and a tailgate: a version for
+  // each, up on feet and narrower until it clears their curve
+  const DT = { span: 1.3, chord: 0.18, height: 0.07, material: 'paint' };
+  jobs.push({ id: 'spoiler_ducktail', type: 'spoiler', design: 'ducktail on feet', settings: DT, versionsOnly: true, cars: ['ridgeback_4x4', 'vortex_r'],
+    build: fitBuild({ db, rules, type: 'spoiler', slot: 'spoiler', axes: { lift: [0.004, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15], span: [1.3, 1.15, 1.0], dz: [0, -0.04, 0.04, -0.08, 0.08, -0.12] }, weights: { lift: 1, span: 1.5, dz: 1 } },
+      c => ducktail('spoiler_ducktail', { ...DT, span: c.span, lift: c.lift }).moved([0, 0, c.dz])) });
   const fromCar = (id, type, design, settings, make) => ({ id, type, design, settings, cars: [id.split('_').slice(0, 2).join('_')], build: car => make(id, car, settings) });
   jobs.push(
     fromCar('kaze_gt_front_lip', 'front_lip', 'lip following the bumper', { protrude: 0.04, under: 0.13, thick: 0.016, drop: 0.012 }, frontLip),

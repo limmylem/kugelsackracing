@@ -82,6 +82,27 @@ Rules:
 Save it as bonnet_[name].glb.
 ```
 
+## Cowl bonnet
+
+```text
+Make a low-poly 3D model of a cowl bonnet for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–1.9 m wide (across the car), 0.01–0.6 m tall and 0.6–1.8 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it).
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as cowl_bonnet_[name].glb.
+```
+
 ## Boot lid
 
 ```text

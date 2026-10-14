@@ -160,6 +160,45 @@
         "todo": ["price", "fits"]
       }
     },
+    "cowl_bonnet": {
+      "label": "Cowl bonnet",
+      "category": "body",
+      "slot": "bonnet",
+      "names": ["cowl_bonnet", "bonnet_cowl"],
+      "size": {
+        "x": [1, 1.9],
+        "y": [0.01, 0.6],
+        "z": [0.6, 1.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "min"
+      },
+      "attach": "the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it)",
+      "triangles": 1500,
+      "density": 300,
+      "massRange": [4, 30],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [-110, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 10,
+          "detachThreshold": 85,
+          "looseDrag": 0.12,
+          "open": 0.5,
+          "pop": 1.2
+        },
+        "todo": ["price", "fits"]
+      }
+    },
     "boot": {
       "label": "Boot lid",
       "category": "body",

@@ -16,7 +16,7 @@
 //                                { at: [x, y, z] in the camera's frame, rel, vel, listenerVel (m, m/s), occluded }
 //   v.setView(view) (yours) · v.setLod('full' | 'simple' | 'off') · v.event('start' | 'stop' | 'thump' | 'handbrake', x)
 //   v.setSpec(spec) (another engine or parts: the sound follows) · v.setMode('layers' | 'granular') · v.mute(map)
-//   v.meter() → Promise<{ engine, chassis }> · v.dispose()
+//   v.meter() → Promise<{ engine, chassis }> · v.extra (another car: a node its other sounds go into) · v.dispose()
 
 import { engineVoiceConfig, doppler as dopplerOf, airHz, distanceGain, panOf } from './mix.js';
 
@@ -110,6 +110,9 @@ export function createCarVoice(A, { spec, role = 'player', seed = seeds++, start
     get lod() { return lod; },
     get sound() { return sound; },
     get nodes() { return { engine: engine ?? one, chassis: chassis ?? one }; },
+    // (another car: where more of its sound goes — its damage's steam and flapping panel, audio/remoteDamage.js —
+    // heard from where it is, as its engine is, and only while it's heard in full)
+    get extra() { return player ? null : (fade ?? null); },
     setLod(x) {
       if (!alive) return;
       if (x === lod) { tidy(); return; }

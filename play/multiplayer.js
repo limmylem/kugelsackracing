@@ -89,16 +89,24 @@ export function damageView(look, events, rules) {
 }
 
 // How another player's car sounds damaged, from the crashes it's sent since it joined (its engine's condition lost:
-// a worn engine misfires as yours does — physics/engineHealth.js, its overRev.misfireBelow and misfire)
+// a worn engine misfires as yours does — physics/engineHealth.js, its overRev.misfireBelow and misfire); its radiator's
+// leak (the engine's block: garage/mechanical.js { coolant, leak } — steam from its engine bay while there's coolant
+// to lose) and how many of its panels hang loose (its parts events: one flapping in the wind)
 export function damageSoundOf(events, engine) {
-  let lost = 0;
+  let lost = 0, leak = 0, coolant = 1;
+  const attach = {};
   for (const e of events ?? []) {
-    if (e.kind === 'repair') lost = 0;
+    if (e.kind === 'repair') { lost = 0; leak = 0; coolant = 1; for (const k of Object.keys(attach)) delete attach[k]; }
+    if (e.kind === 'parts' && e.socket) attach[e.socket] = e.to;
     if (e.kind !== 'damage' || !e.crash) continue;
     for (const [target, n] of e.crash.loss ?? []) if (target === 'engine' || target === 'socket_engine') lost += n / 100;
+    for (const b of Object.values(e.crash.mech ?? {})) if (b && Number.isFinite(b.leak)) { leak = Math.max(leak, b.leak); if (Number.isFinite(b.coolant)) coolant = Math.min(coolant, b.coolant); }
   }
   const O = engine?.overRev, condition = Math.max(0, 100 - lost);
-  return { condition, misfire: O?.misfireBelow && condition < O.misfireBelow ? O.misfire * (O.misfireBelow - condition) / O.misfireBelow : 0 };
+  return {
+    condition, misfire: O?.misfireBelow && condition < O.misfireBelow ? O.misfire * (O.misfireBelow - condition) / O.misfireBelow : 0,
+    leak, coolant, loose: Object.values(attach).filter(x => x === 'loose').length,
+  };
 }
 
 // a connection of its own (free roam: this world's room), with a ticket from the API for each join

@@ -17,12 +17,13 @@ import { ROOT } from '../../content/rules.mjs';
 const TOL = 0.003;
 // the parts that bolt onto the engine, and how far round their socket meeting it is how they're fitted
 export const ENGINE_MOUNTED = new Set(['turbo', 'supercharger', 'intake', 'header']), ATTACH = 0.07;
-// what a part goes through by design: an exhaust's tips out of the rear bumper's cut-out
-export const THROUGH = { exhaust: ['bumper_rear'] };
+// what a part goes through by design: an exhaust's tips out of the rear bumper's cut-out; a supercharger's lower half
+// down into its engine (a twin-screw blower sits in a V engine's valley, between the cylinder banks)
+export const THROUGH = { exhaust: ['bumper_rear'], supercharger: ['engine'] };
 const models = new Map(), bodies = new Map();
 
 // A model's triangles in its own frame (cached)
-async function trianglesOf(file) {
+export async function trianglesOf(file) {
   if (models.has(file)) return models.get(file);
   const doc = await readModel(path.join(ROOT, file)), out = [];
   const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];

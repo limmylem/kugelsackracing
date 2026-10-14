@@ -41,17 +41,15 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   version (not for every request), and a build's stats are kept once worked out (garage/stats.js): with 500 players
   fitting at the same moment, p95 13.1 → 10.0 s (fitting) and 17.1 → 9.0 s (taking off).
 - **Other players' damaged engines misfire**, from the crashes their cars send (the engine's condition lost), as an
-  NPC's does. Steam and a flapping panel are still only your own car's.
+  NPC's does; a leaking radiator steams and a loose panel flaps too (audio/remoteDamage.js), as yours do.
 
 ## Phase 8 Step 3: the content pipeline (docs/CONTENT_PIPELINE.md)
 
-- **Four part combinations players already had go through the car** (found by the new fit check; kept, with their
-  limits, in `data/content/check-rules.json` fit.known, until fixed — leaving them off those cars now would make a
-  player's car with one fitted undrivable):
-  - the **ducktail spoiler** on the Ridgeback 4x4 and the Vortex R sinks into the body (it's shaped for a coupe's boot
-    lid): to fix with a version for each, or leave it off them once no player has it fitted there;
-  - the **V8 swapped into the Kaze GT** (and the twin-screw supercharger on it) goes through the Kaze GT's bonnet, and
-    the **turbo four swap** touches its underside: to fix with a raised (cowl) bonnet for the Kaze GT that the swaps need.
+- **The four part combinations that went through the car are fixed** (`data/content/check-rules.json` fit.known is
+  empty again): the ducktail has its own version for the Ridgeback 4x4 and the Vortex R, raised on two feet to sit on
+  their boot lids; the Kaze GT's engine swaps need its new cowl bonnet (bought with them; a car that already had a swap
+  is given one free, its old bonnet put in the inventory), and the V8 sits 4 cm higher in it. The twin-screw
+  supercharger sits in the V8's valley, through the engine's own box (fitcheck.js THROUGH), as a real one does.
 - **Collision hulls are the built-in splitter's** here (CoACD isn't installed in CI or on this machine): a little
   rounder than CoACD's. Installing CoACD (`pip install coacd`) and running `npm run content -- finish` again doesn't
   change hulls already made; delete a part's `collision` to have it made again.
@@ -133,7 +131,8 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   of real time against 12.6% after (budget 15%). Once per game, as the sound starts.
 - **Safari may not decode Opus;** it then fetches the WAV files instead (about 6× bigger, the same sound).
 - **Other players' cars** are heard from their network state (revs, throttle, gear, wheel slip) and the crashes they
-  send: a damaged engine misfires, but no steam or flapping bumper from them (yours has them all).
+  send: a damaged engine misfires, a leaking radiator steams, a hanging bumper flaps. The steam's end is worked out
+  from the leak they sent (the coolant they had, less the leak a second since), not sent.
 - **Echoes** come from rays against the world's fixed colliders every 0.2 s; a gap in the colliders (a bridge without
   a deck collider, say) sounds like open country.
 
@@ -638,10 +637,14 @@ read. Route courses are now kept as text in memory until read (`content/service.
 (2.1 → 1.06 GB) and the collector's pauses — the rest is the work itself, on the main thread. The worst
 free-roam frame is the re-query every 250 m plus the maps' update in the densest spot.
 
-The lasting fixes, before content goes in at this density: run the content service in a **Web Worker**
-(queries and cell loads off the main thread — the API is already async), and keep **routes apart from the
-quests' cells** (a server's routes table in Phase 6, or a body store locally), so a nearby query only ever
-reads light markers. `stress:quests` is reported in CI but not blocking until then.
+The lasting fixes, done (2026-10-14): in a browser the in-browser content service now runs in a **Web Worker**
+(content/worker.js; `npm run test:content-worker`: 10 queries over 3,000 places nearby took 176 ms with the page's worst
+frame 27 ms), so its queries and cell loads are off the main thread — the timings above are the worker's now, not the
+game's frames. And **routes are apart from the quests** where players get their content: the game's server keeps every
+item in its own row (PostGIS, indexed by place), and the game's nearby queries ask for marker kinds only (quests, venues,
+garages…), so they never read a route's course; a route is fetched by its id when a quest is entered.
+The in-browser service (the editor and the game without a server) still keeps routes in the quests' cells.
+`stress:quests` measures that service as before, and stays reported in CI, not blocking.
 
 Also:
 - **Exporting everything** to one file stops past a browser's longest string (tens of thousands of

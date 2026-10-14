@@ -74,6 +74,7 @@ import { createMemoryBudget, createSceneMeter } from '../perf/memory.js';
 import { graphicsOf, withPreset } from '../perf/quality.js';
 import { createGameAudio } from '../audio/game.js';
 import { occluded as occludedRay } from '../audio/environment.js';
+import { createRemoteDamage, remoteSteam } from '../audio/remoteDamage.js';
 import { remoteEngineInput, tyreSound, engineInput, turboInput, surfaceMix, TurboSpool } from '../audio/mix.js';
 import { SURFACES } from '../audio/dsp.js';
 import { createAudioOverlay } from '../audio/overlay.js';
@@ -2922,16 +2923,19 @@ function remoteSpec(look, db) {
 }
 function remoteCarSound(G, look, id, db) {
   const spec = remoteSpec(look, db), h = G.voices.add(`mp:${id}`, spec), idle = spec.engine?.idleRpm ?? 900;
-  let lastEvents = null, misfire = 0;
+  const hurt = createRemoteDamage(G.A, () => h.voice?.extra);
+  let lastEvents = null, dmg = damageSoundOf(null, spec.engine), leakSince = 0;
   return {
     // p: its pose (net/remote.js: pos, vel, rpm, throttle, gear…); wheels: its wheels (slip); simPos: where it's drawn
-    // events: the crashes it's sent (a damaged engine misfires: play/multiplayer.js damageSoundOf)
+    // events: the crashes it's sent (a damaged engine misfires, a leaking radiator steams, a loose panel flaps:
+    // play/multiplayer.js damageSoundOf; audio/remoteDamage.js)
     update(p, wheels, simPos, events = null) {
       const speed = Math.hypot(...(p.vel ?? [0, 0, 0])), ty = tyreSound(wheels, speed, null, G.cfg.tyres);
-      if (events !== lastEvents) { lastEvents = events; misfire = damageSoundOf(events, spec.engine).misfire; }
-      h.update({ engine: { ...remoteEngineInput(p, idle), misfire }, chassis: { speed, ...ty } }, { pos: simPos, vel: p.vel });
+      if (events !== lastEvents) { lastEvents = events; const was = dmg; dmg = damageSoundOf(events, spec.engine); if (dmg.leak !== was.leak || dmg.coolant !== was.coolant) leakSince = performance.now(); }
+      h.update({ engine: { ...remoteEngineInput(p, idle), misfire: dmg.misfire }, chassis: { speed, ...ty } }, { pos: simPos, vel: p.vel });
+      hurt.update({ steam: remoteSteam(dmg, (performance.now() - leakSince) / 1000, speed), flap: dmg.loose, speed });
     },
-    dispose() { h.dispose(); },
+    dispose() { hurt.dispose(); h.dispose(); },
   };
 }
 

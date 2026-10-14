@@ -7,23 +7,7 @@
     "extra": 3,
     "share": 0.02,
     "known": {
-      "_note": "Problems the fit check found in parts players already have, kept (waived) until they're fixed: for each part, on each car, what it may go through and in how many places at most (any more, or anything else, fails again) and why. Leaving them off those cars now would make a player's car that has one fitted undrivable until it came off. The content manager shows them; docs/KNOWN_ISSUES.md lists them. A part that isn't published yet can't be waived: fix it.",
-      "spoiler_ducktail": {
-        "cars": { "ridgeback_4x4": { "the body": 56 }, "vortex_r": { "the body": 30 } },
-        "why": "Shaped for a coupe's boot lid: on the Ridgeback 4x4's tailgate and the Vortex R's hatch it sinks into the body. To fix: a version for each (byCar), or leave it off them (conflicts) once no player has it fitted there."
-      },
-      "brute_500_engine": {
-        "cars": { "kaze_gt": { "the body": 7, "Bonnet (Kaze GT, stock)": 14 } },
-        "why": "The V8 swapped into the Kaze GT (its V8 swap kit) is taller than the Kaze GT's bonnet. To fix: a raised (cowl) bonnet for the Kaze GT that the swap needs."
-      },
-      "strada_evo_engine": {
-        "cars": { "kaze_gt": { "Bonnet (Kaze GT, stock)": 7 } },
-        "why": "The turbo four swapped into the Kaze GT (its turbo four swap kit) touches the underside of the Kaze GT's bonnet. To fix: the raised bonnet above, or the engine sat lower in the swap."
-      },
-      "supercharger_twin_screw": {
-        "cars": { "kaze_gt": { "5.0 L V8 (Brute 500, stock)": 106, "Bonnet (Kaze GT, stock)": 44 } },
-        "why": "It only goes on the Kaze GT with the V8 swapped in (above), and on that V8 it goes through the Kaze GT's bonnet too. To fix: with the raised bonnet."
-      }
+      "_note": "Problems the fit check found in parts players already have, kept (waived) until they're fixed: for each part, on each car, what it may go through and in how many places at most (any more, or anything else, fails again) and why. Leaving them off those cars now would make a player's car that has one fitted undrivable until it came off. The content manager shows them; docs/KNOWN_ISSUES.md lists them. A part that isn't published yet can't be waived: fix it."
     }
   },
   "drive": {

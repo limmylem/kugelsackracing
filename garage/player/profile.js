@@ -269,6 +269,24 @@ export function checkProfile(input, db) {
       delete p.attach;
     } else taken.add(where);
   }
+  // a swap that needs a part it didn't use to (the Kaze GT's engine swaps and its cowl bonnet: a part whose purpose is
+  // 'swap'): that part fitted free, the one in its place to the inventory — rather than the swap (and its engine) coming off
+  for (const car of Object.values(profile.cars)) {
+    const cdef = db.cars[car.carId], given = new Set();
+    for (let round = 0; round < 4; round++) {
+      const g = garageFor(profile, db, car.carInstanceId), r = validateBuild(g.build, g.view);
+      const e = r.errors.find(x => x.code === 'requires' && ![].concat(x.need).some(t => given.has(t)));
+      if (!e) break;
+      const need = [].concat(e.need), give = Object.values(db.parts).find(d => d.purpose === 'swap' && need.some(t => (d.provides ?? []).includes(t)) && cdef.sockets.some(sk => takes(cdef, sk, d)));
+      need.forEach(t => given.add(t));
+      if (!give) continue;
+      const socket = cdef.sockets.find(sk => takes(cdef, sk, give)), off = [];
+      for (const p of Object.values(profile.parts)) if (p.installedOn?.car === car.carInstanceId && p.installedOn.socket === socket.name) { p.installedOn = null; delete p.attach; off.push(db.parts[p.partId]?.name); }
+      const id = addPart(profile, db, give.id, 100, { price: 0 });
+      profile.parts[id].installedOn = { car: car.carInstanceId, socket: socket.name };
+      notices.push(`Your ${cdef.name}'s ${db.parts[e.part]?.name ?? 'swap'} needs a ${give.name} now: one's been fitted, free${off.length ? `; your ${off.join(', ')} is in your inventory` : ''}.`);
+    }
+  }
   // each car's build must hold together (bar empty sockets, fine in the garage): what makes it not,
   // comes off
   for (const car of Object.values(profile.cars)) {

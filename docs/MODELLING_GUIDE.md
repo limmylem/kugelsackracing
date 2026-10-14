@@ -161,6 +161,7 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 | Spoiler or wing | `spoiler_…` `wing_…` `ducktail_…` | aero / spoiler | 0.8–1.9 | 0.03–0.6 | 0.05–0.7 | the middle of the boot lid where it bolts on, at the bottom of its feet | 2,000 |
 | Wheel (rim only) | `rim_…` `wheel_…` | wheels / wheels | 0.1–0.35 | 0.35–0.55 | 0.35–0.55 | the wheel's centre on its axle; the outer face towards +x | 3,000 |
 | Bonnet | `bonnet_…` `hood_…` | body / bonnet | 1–1.9 | 0.01–0.3 | 0.6–1.8 | the middle of its back edge (the hinge line), level with its top surface | 1,500 |
+| Cowl bonnet | `cowl_bonnet_…` `bonnet_cowl_…` | body / bonnet | 1–1.9 | 0.01–0.6 | 0.6–1.8 | the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it) | 1,500 |
 | Boot lid | `boot_…` `trunk_…` `bootlid_…` | body / boot | 1–1.9 | 0.01–0.5 | 0.2–1.3 | the middle of its front edge (the hinge line), level with its top surface | 1,500 |
 | Front bumper | `bumper_front_…` `front_bumper_…` | body / bumper_front | 1.3–2.1 | 0.08–0.7 | 0.08–0.7 | the middle of where it meets the body | 1,500 |
 | Rear bumper | `bumper_rear_…` `rear_bumper_…` | body / bumper_rear | 1.3–2.1 | 0.08–0.7 | 0.08–0.7 | the middle of where it meets the body | 1,500 |
