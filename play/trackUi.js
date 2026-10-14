@@ -17,6 +17,7 @@ import { starsText, difficultyOf } from '../quest/difficulty.js';
 import { routeFeatures } from '../route/stats.js';
 import { generateTrack } from '../track/generate.js';
 import { dressTrack } from '../track/dress.js';
+import { askReport, reportNote } from './reportDialog.js';
 import { cornerNames } from '../track/names.js';
 import { dailyTrack, weeklyTrack, quickTrack, sharedTrack, eventsFor, trackInfo, trackName, recordKey } from '../track/events/model.js';
 import { decode } from '../track/code.js';
@@ -261,14 +262,11 @@ export function createTrackUi({ game, trip, events: E, tracks: TC, content = nul
   async function reportDriver(name, eventId) {
     const S = await server;
     if (!S) return;
-    const kinds = { 1: ['cheating', 'Cheating (an impossible time, a hacked car)'], 2: ['name', 'An offensive name'], 3: ['behaviour', 'Behaviour'], 4: ['other', 'Something else'] };
-    const pick = prompt(`Report ${name}: what for?\n${Object.entries(kinds).map(([k, [, t]]) => `${k}. ${t}`).join('\n')}\n\nType the number:`);
-    const kind = kinds[String(pick ?? '').trim()]?.[0];
-    if (!kind) return;
-    const details = prompt('What happened? (a few words for the admins)');
-    if (!details || details.trim().length < 5) { if (details != null) alert('A few words, please: the admins need to know what to look at.'); return; }
-    try { const r = await S.report({ targetName: name, kind, details: details.trim(), ref: { eventId } }); alert(r.already ? 'You\'ve already reported that: the admins have it.' : 'Thanks: the admins will look at it.'); }
-    catch (err) { alert(err.message); }
+    const kinds = [['cheating', 'Cheating (an impossible time, a hacked car)'], ['name', 'An offensive name'], ['behaviour', 'Behaviour'], ['other', 'Something else']];
+    const pick = await askReport({ name, kinds });
+    if (!pick) return;
+    try { const r = await S.report({ targetName: name, kind: pick.kind, details: pick.details, ref: { eventId } }); reportNote(r.already ? 'You\'ve already reported that: the admins have it.' : 'Thanks: the admins will look at it.'); }
+    catch (err) { reportNote(err.message); }
   }
   // the leaderboards of what's shown (official, daily, weekly events): the server's — every player's best
   async function boards() {

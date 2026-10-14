@@ -4,7 +4,8 @@
 //     line's speed (the reference car's: what the run-off is sized for), braking hard — it stops before
 //     the barrier, or hits it slowly enough, on most corners
 //   - barriers: every type hit at 50, 150 and 300 km/h at 15°, 45° and 90° — never through; every hit
-//     reaches the Phase 3 damage model; a tyre wall does less damage than concrete at the same speed
+//     reaches the Phase 3 damage model; a tyre wall does less damage than concrete at the same speed; a glancing hit
+//     carries a car along a tyre wall no further than along concrete (many glances, their medians)
 //   - gravel: driven into at speed, it slows a car hard; a car rolling in slowly is beached (it can't
 //     drive out)
 //   - kerbs: the Phase 4 AI on a line that uses them (out to the road's edge and onto the kerbs) — round
@@ -150,6 +151,53 @@ if (want('barriers')) {
   if (args.includes('--verbose')) for (const [t, c] of pairs) console.log(`        tyres ${JSON.stringify(t)}\n        concrete ${JSON.stringify(c)}`);
   report(pairs.length > 0 && softer.length === pairs.length, 'barriers: a tyre wall does less damage than concrete there',
     pairs.filter(([t]) => t.ang === 90).map(([t, c]) => `${t.kmh} km/h head-on: repair ${t.here.repair} vs ${c.here.repair}, condition ${t.here.minCondition} vs ${c.here.minCondition}`).join(' · ') + ` · softer in ${softer.length} of ${pairs.length} hits`);
+}
+
+// ---------- glancing hits: a tyre wall sheds a car as concrete does ----------
+// (one glance can carry a car on along a curving wall into the next stretch, or not, by small differences: so many
+// glances along the tyre walls of a few fast circuits, each against the same wall built of concrete — the metres the
+// car slid along it, touching, in 3 s)
+if (want('barriers')) {
+  const spots: any[] = [];
+  for (const seed of [77, 79, 83]) {
+    const T = makeTrack({ seed, params: { ...P('high_speed'), theme: 'countryside' } }), D0 = T.data;
+    const asConcrete = trackWorld({ ...D0, barriers: { ...D0.barriers, runs: D0.barriers.runs.map((r: any) => r.type === 'tyres' ? { ...r, type: 'concrete' } : r) } });
+    for (const run of D0.barriers.runs) {
+      if (run.type !== 'tyres') continue;
+      for (let k = 0, n = 0; k + 26 < run.pieces.length && n < 3; k += 24) {
+        const p = run.pieces, a = [p[k], p[k + 1], p[k + 2]], b = [p[k + 24], p[k + 25], p[k + 26]], m = [p[k + 10], p[k + 12]];
+        const dx = b[0] - a[0], dz = b[2] - a[2], L = Math.hypot(dx, dz), mid = [(a[0] + b[0]) / 2, (a[2] + b[2]) / 2];
+        if (L < 6 || Math.hypot(m[0] - mid[0], m[1] - mid[1]) > 0.05) continue;
+        const t = nearestOnTrack(D0, mid[0], mid[1]), tx = dx / L, tz = dz / L;
+        let nx = tz, nz = -tx;
+        if ((t.x - mid[0]) * nx + (t.z - mid[1]) * nz < 0) { nx = -nx; nz = -nz; }
+        spots.push({ T, asConcrete, x: mid[0], y: (a[1] + b[1]) / 2, z: mid[1], tx, tz, nx, nz }); n++; k += 48;
+      }
+    }
+  }
+  const slid = (B: any, world: any, kmh: number, ang: number, way: number) => {
+    const sim = createSimulation(H.RAPIER, { settings: H.settings, spec, sockets: H.socketsOf(spec), track: world }), v = sim.vehicle;
+    const a = ang * Math.PI / 180, hx = B.tx * way * Math.cos(a) - B.nx * Math.sin(a), hz = B.tz * way * Math.cos(a) - B.nz * Math.sin(a);
+    sim.resetCar({ position: [B.x - hx * 7 + B.nx * 1.3, B.y + 0.7, B.z - hz * 7 + B.nz * 1.3], headingDeg: Math.atan2(hx, hz) * 180 / Math.PI, speed: kmh / 3.6 });
+    let along = 0, touched = false;
+    for (let t = 0; t < 3; t += sim.dt) {
+      sim.step(IDLE);
+      let c = false;
+      v.world.contactPairsWith(v.collider, (o: any) => { const mat = o.userData?.material; if (mat === 'tyres' || mat === 'concrete') c = true; });
+      if (c) { touched = true; const l = v.body.linvel(); along += Math.hypot(l.x, l.z) * sim.dt; }
+    }
+    v.world.free();
+    return touched ? along : null;
+  };
+  const tyres: number[] = [], concrete: number[] = [];
+  for (const B of spots) for (const kmh of [120, 180]) for (const ang of [10, 20]) for (const way of [1, -1]) {
+    const t = slid(B, B.T.track, kmh, ang, way), c = slid(B, B.asConcrete, kmh, ang, way);
+    if (t != null && c != null) { tyres.push(t); concrete.push(c); }
+  }
+  const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[s.length >> 1] : NaN; };
+  const mt = median(tyres), mc = median(concrete);
+  report(tyres.length >= 40 && mt <= mc * 1.15 + 2, 'barriers: a glancing hit slides along tyres as concrete',
+    `${tyres.length} glances (120/180 km/h, 10/20°) at ${spots.length} places: slid along a tyre wall ${mt.toFixed(0)} m, the same wall as concrete ${mc.toFixed(0)} m (medians)`);
 }
 
 // ---------- gravel: slows hard; a car rolling in slowly is beached ----------

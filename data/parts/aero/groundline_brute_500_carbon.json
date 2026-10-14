@@ -1,13 +1,13 @@
 {
-  "id": "groundline_brute_500_0_carbon",
+  "id": "groundline_brute_500_carbon",
   "name": "Groundline aero kit (Brute 500), carbon",
   "category": "aero",
   "slot": "aero_kit",
   "kind": "component",
   "price": 5740,
   "mass": 4.6,
-  "model": "assets/parts/aero/groundline/groundline_brute_500_0.glb",
-  "icon": "assets/icons/parts/groundline_brute_500_0_carbon.png",
+  "model": "assets/parts/aero/groundline/groundline_brute_500.glb",
+  "icon": "assets/icons/parts/groundline_brute_500_carbon.png",
   "fits": ["car:brute_500"],
   "requires": [],
   "conflicts": [],
@@ -33,7 +33,7 @@
   "generated": {
     "family": "groundline",
     "kind": "body_kit",
-    "key": "brute_500_0_carbon",
+    "key": "brute_500_carbon",
     "settings": {
       "car": "brute_500",
       "depth": 0.05,

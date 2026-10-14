@@ -426,7 +426,7 @@ export async function buildApp(deps: AppDeps) {
     await adminRoutes(api, { config, db, auth, G, rtBridge });
     await rtRoutes(api, { config, G, mp });
     await mpRoutes(api, { config, G, mp, db });
-    await roamRoutes(api, { config, G, roam });
+    await roamRoutes(api, { config, G, roam, mp });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, content: contentManager, G });

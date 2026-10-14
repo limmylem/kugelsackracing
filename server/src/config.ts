@@ -49,7 +49,7 @@ const FileConfig = z.object({
   antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
-    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
+    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1), evidenceDays: z.number().int().min(1).optional() }),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);

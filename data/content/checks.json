@@ -207,7 +207,7 @@
         "models": 8
       },
       "economy": {
-        "key": "a9be227c1af20a30",
+        "key": "f3e59566e25833db",
         "ok": true,
         "problems": [],
         "gain": 0.023,
@@ -426,7 +426,7 @@
         "models": 8
       },
       "economy": {
-        "key": "b1c9fdd39b53cab0",
+        "key": "117c2d2576f53c75",
         "ok": true,
         "problems": [],
         "gain": 0.023,
@@ -645,7 +645,7 @@
         "models": 8
       },
       "economy": {
-        "key": "b1c9fdd39b53cab0",
+        "key": "117c2d2576f53c75",
         "ok": true,
         "problems": [],
         "gain": 0.023,
@@ -5768,7 +5768,7 @@
         "models": 1
       },
       "economy": {
-        "key": "eb58e1f745a730d5",
+        "key": "14ca91db8ba1b85e",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -9773,7 +9773,7 @@
         "models": 1
       },
       "economy": {
-        "key": "4bce94283cd9b4b6",
+        "key": "29bd41a9379dcc6c",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -10520,7 +10520,7 @@
         "models": 8
       },
       "economy": {
-        "key": "df9ae8af11a8590d",
+        "key": "2000b052a1c88211",
         "ok": true,
         "problems": [],
         "gain": 0.008,
@@ -10733,7 +10733,7 @@
         "models": 8
       },
       "economy": {
-        "key": "8aa60252fa00f49a",
+        "key": "3df8844e7e11b81c",
         "ok": true,
         "problems": [],
         "gain": 0.003,
@@ -20048,9 +20048,9 @@
       },
       "ok": true
     },
-    "groundline_brute_500_0_carbon": {
+    "groundline_brute_500_carbon": {
       "fit": {
-        "key": "7917278d4b18fffd",
+        "key": "790cc64daa9ab466",
         "ok": true,
         "problems": [],
         "cars": {
@@ -20098,7 +20098,7 @@
         "note": "no sound of its own"
       },
       "budget": {
-        "key": "95b064199b6f1d94",
+        "key": "636639302ce1e7b2",
         "ok": true,
         "problems": [],
         "notes": [],
@@ -20120,81 +20120,9 @@
       },
       "ok": true
     },
-    "groundline_brute_500_1_carbon": {
+    "groundline_kaze_gt_carbon": {
       "fit": {
-        "key": "6025efad02aa9b3d",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "brute_500": {
-            "carKey": "2fb9160db7283cc2",
-            "ok": true,
-            "problems": [],
-            "clashes": {}
-          }
-        }
-      },
-      "drive": {
-        "key": "c39bd63741abef17",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "brute_500": {
-            "carKey": "2fb9160db7283cc2",
-            "ok": true,
-            "problems": [],
-            "zeroTo100": 5.433,
-            "braking": 35.271
-          }
-        }
-      },
-      "crash": {
-        "key": "ac7cb923c6f65b35",
-        "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,   228: more than 2 race wins"],
-        "cars": {
-          "brute_500": {
-            "carKey": "2fb9160db7283cc2",
-            "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   228: more than 2 race wins"],
-            "drivable": true,
-            "repair": 3228,
-            "loose": 1
-          }
-        }
-      },
-      "sound": {
-        "key": "8a2756747cd13ece",
-        "ok": true,
-        "problems": [],
-        "note": "no sound of its own"
-      },
-      "budget": {
-        "key": "f392651a0f0e1b85",
-        "ok": true,
-        "problems": [],
-        "notes": [],
-        "triangles": 460,
-        "models": 1
-      },
-      "economy": {
-        "key": "026c5749df93c071",
-        "ok": true,
-        "problems": [],
-        "gain": 0.019,
-        "on": "brute_500"
-      },
-      "ranges": {
-        "key": "1b61f7bf48ff6b6e",
-        "ok": true,
-        "problems": [],
-        "tried": 8
-      },
-      "ok": false
-    },
-    "groundline_kaze_gt_0_carbon": {
-      "fit": {
-        "key": "c139cbaeb3a60781",
+        "key": "e995ac20680521ab",
         "ok": true,
         "problems": [],
         "cars": {
@@ -20242,7 +20170,7 @@
         "note": "no sound of its own"
       },
       "budget": {
-        "key": "1a114b103f18d0b7",
+        "key": "c80169b685e76ffb",
         "ok": true,
         "problems": [],
         "notes": [],
@@ -20264,81 +20192,9 @@
       },
       "ok": true
     },
-    "groundline_kaze_gt_1_carbon": {
+    "groundline_strada_evo_carbon": {
       "fit": {
-        "key": "fb30c2b2f2970fd5",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": true,
-            "problems": [],
-            "clashes": {}
-          }
-        }
-      },
-      "drive": {
-        "key": "4f5b1d27e805594f",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": true,
-            "problems": [],
-            "zeroTo100": 7.358,
-            "braking": 38.041
-          }
-        }
-      },
-      "crash": {
-        "key": "cc1116a4b190fac7",
-        "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,   137: more than 2 race wins"],
-        "cars": {
-          "kaze_gt": {
-            "carKey": "29ce227702942db4",
-            "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   137: more than 2 race wins"],
-            "drivable": true,
-            "repair": 3137,
-            "loose": 2
-          }
-        }
-      },
-      "sound": {
-        "key": "5893cf5256b9eaa0",
-        "ok": true,
-        "problems": [],
-        "note": "no sound of its own"
-      },
-      "budget": {
-        "key": "ef33565c7f8dc8ea",
-        "ok": true,
-        "problems": [],
-        "notes": [],
-        "triangles": 444,
-        "models": 1
-      },
-      "economy": {
-        "key": "7e25a83f547248c5",
-        "ok": true,
-        "problems": [],
-        "gain": 0.022,
-        "on": "kaze_gt"
-      },
-      "ranges": {
-        "key": "1b61f7bf48ff6b6e",
-        "ok": true,
-        "problems": [],
-        "tried": 8
-      },
-      "ok": false
-    },
-    "groundline_strada_evo_0_carbon": {
-      "fit": {
-        "key": "cd553724c1edebb3",
+        "key": "5c7e9dfa2c99159f",
         "ok": true,
         "problems": [],
         "cars": {
@@ -20386,7 +20242,7 @@
         "note": "no sound of its own"
       },
       "budget": {
-        "key": "4d00a11a7bf1319e",
+        "key": "9011fea1cc94d2ce",
         "ok": true,
         "problems": [],
         "notes": [],
@@ -20407,78 +20263,6 @@
         "tried": 8
       },
       "ok": true
-    },
-    "groundline_strada_evo_1_carbon": {
-      "fit": {
-        "key": "f29eabb591718b9d",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "strada_evo": {
-            "carKey": "8d869ae0d3ae0101",
-            "ok": true,
-            "problems": [],
-            "clashes": {}
-          }
-        }
-      },
-      "drive": {
-        "key": "9773b1eef02e28ef",
-        "ok": true,
-        "problems": [],
-        "cars": {
-          "strada_evo": {
-            "carKey": "8d869ae0d3ae0101",
-            "ok": true,
-            "problems": [],
-            "zeroTo100": 4.858,
-            "braking": 38.219
-          }
-        }
-      },
-      "crash": {
-        "key": "c87b60fb6c919595",
-        "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,   159: more than 2 race wins"],
-        "cars": {
-          "strada_evo": {
-            "carKey": "8d869ae0d3ae0101",
-            "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   159: more than 2 race wins"],
-            "drivable": true,
-            "repair": 3159,
-            "loose": 1
-          }
-        }
-      },
-      "sound": {
-        "key": "4f221af44f1bb350",
-        "ok": true,
-        "problems": [],
-        "note": "no sound of its own"
-      },
-      "budget": {
-        "key": "cfcac88cdfb239d8",
-        "ok": true,
-        "problems": [],
-        "notes": [],
-        "triangles": 436,
-        "models": 1
-      },
-      "economy": {
-        "key": "614b2d87c3c846c3",
-        "ok": true,
-        "problems": [],
-        "gain": 0.02,
-        "on": "strada_evo"
-      },
-      "ranges": {
-        "key": "1b61f7bf48ff6b6e",
-        "ok": true,
-        "problems": [],
-        "tried": 8
-      },
-      "ok": false
     },
     "hana_roadster_airbox": {
       "fit": {
@@ -22230,7 +22014,7 @@
         "models": 1
       },
       "economy": {
-        "key": "a7dcc20c54e7cb11",
+        "key": "ff0b792569f2a859",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -26018,7 +25802,7 @@
         "models": 1
       },
       "economy": {
-        "key": "b8a079abf61931bf",
+        "key": "f9d12c5f12fac11c",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -43736,7 +43520,7 @@
         "models": 1
       },
       "economy": {
-        "key": "4406f6690a617a34",
+        "key": "05b7c12c47a32c56",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -55605,7 +55389,7 @@
         "models": 8
       },
       "economy": {
-        "key": "d97f7a31c3e489f2",
+        "key": "4e250e3bc639db8b",
         "ok": true,
         "problems": [],
         "gain": 0.008,
@@ -55826,7 +55610,7 @@
         "models": 8
       },
       "economy": {
-        "key": "61babf1d2f25d2db",
+        "key": "6156740f0d83efc4",
         "ok": true,
         "problems": [],
         "gain": 0.008,
@@ -56047,7 +55831,7 @@
         "models": 8
       },
       "economy": {
-        "key": "61babf1d2f25d2db",
+        "key": "6156740f0d83efc4",
         "ok": true,
         "problems": [],
         "gain": 0.008,
@@ -56268,7 +56052,7 @@
         "models": 8
       },
       "economy": {
-        "key": "0c568228c0acf74e",
+        "key": "1f8d0f9d43be140a",
         "ok": true,
         "problems": [],
         "gain": 0.004,
@@ -56489,7 +56273,7 @@
         "models": 8
       },
       "economy": {
-        "key": "0c568228c0acf74e",
+        "key": "578cecf5c849664a",
         "ok": true,
         "problems": [],
         "gain": 0.004,
@@ -56710,7 +56494,7 @@
         "models": 8
       },
       "economy": {
-        "key": "0c568228c0acf74e",
+        "key": "578cecf5c849664a",
         "ok": true,
         "problems": [],
         "gain": 0.004,
@@ -56931,9 +56715,9 @@
         "models": 8
       },
       "economy": {
-        "key": "a8d86e24531eea3f",
-        "ok": false,
-        "problems": ["it's too cheap for what it does: 1.9× the value of the best seat part made by hand (at most 1.6×)"],
+        "key": "8527e6105a48671f",
+        "ok": true,
+        "problems": [],
         "gain": 0.006,
         "on": "starter_car"
       },
@@ -56943,7 +56727,7 @@
         "problems": [],
         "tried": 2
       },
-      "ok": false
+      "ok": true
     },
     "shellback_kevlar_matte": {
       "fit": {
@@ -57152,9 +56936,9 @@
         "models": 8
       },
       "economy": {
-        "key": "a8d86e24531eea3f",
-        "ok": false,
-        "problems": ["it's too cheap for what it does: 1.9× the value of the best seat part made by hand (at most 1.6×)"],
+        "key": "f157f64ccf084a85",
+        "ok": true,
+        "problems": [],
         "gain": 0.006,
         "on": "starter_car"
       },
@@ -57164,7 +56948,7 @@
         "problems": [],
         "tried": 2
       },
-      "ok": false
+      "ok": true
     },
     "shellback_kevlar_painted": {
       "fit": {
@@ -57373,9 +57157,9 @@
         "models": 8
       },
       "economy": {
-        "key": "a8d86e24531eea3f",
-        "ok": false,
-        "problems": ["it's too cheap for what it does: 1.9× the value of the best seat part made by hand (at most 1.6×)"],
+        "key": "f157f64ccf084a85",
+        "ok": true,
+        "problems": [],
         "gain": 0.006,
         "on": "starter_car"
       },
@@ -57385,7 +57169,7 @@
         "problems": [],
         "tried": 2
       },
-      "ok": false
+      "ok": true
     },
     "short_shifter": {
       "fit": {
@@ -58153,7 +57937,7 @@
         "models": 3
       },
       "economy": {
-        "key": "5aaa3d2065ed398d",
+        "key": "4440254c52a5c6a8",
         "ok": true,
         "problems": [],
         "gain": 0.495,
@@ -58269,7 +58053,7 @@
         "models": 3
       },
       "economy": {
-        "key": "3226e3de6a75b048",
+        "key": "f07e4cf562f56ca2",
         "ok": true,
         "problems": [],
         "gain": 0.495,
@@ -61117,7 +60901,7 @@
         "models": 1
       },
       "economy": {
-        "key": "5a9dff70821db8c9",
+        "key": "9aba9fbd01dc902b",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -63599,7 +63383,7 @@
         "models": 1
       },
       "economy": {
-        "key": "e7e383b878b7213a",
+        "key": "b5da9fb37373ecfc",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -66909,7 +66693,7 @@
         "models": 1
       },
       "economy": {
-        "key": "e8d6c4395413f64f",
+        "key": "64094ca6c7d83fb1",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -67128,7 +66912,7 @@
         "models": 1
       },
       "economy": {
-        "key": "e8d6c4395413f64f",
+        "key": "df191ad85becf546",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -67347,7 +67131,7 @@
         "models": 1
       },
       "economy": {
-        "key": "e8d6c4395413f64f",
+        "key": "c73c718b51451401",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -67566,7 +67350,7 @@
         "models": 1
       },
       "economy": {
-        "key": "de5516aa0ff896e7",
+        "key": "c1f05907f256a334",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -67785,7 +67569,7 @@
         "models": 1
       },
       "economy": {
-        "key": "de5516aa0ff896e7",
+        "key": "11fee9d8de42905e",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -68004,7 +67788,7 @@
         "models": 1
       },
       "economy": {
-        "key": "de5516aa0ff896e7",
+        "key": "3ad32a360b93e16f",
         "ok": true,
         "problems": [],
         "gain": 0.032,
@@ -81552,7 +81336,7 @@
         "models": 1
       },
       "economy": {
-        "key": "9073d00c48ca3cf3",
+        "key": "c49f9c3c07beb1ba",
         "ok": true,
         "problems": [],
         "note": "a stock part: not sold on its own"
@@ -83692,7 +83476,7 @@
       "max": {
         "index": 728,
         "class": "A",
-        "parts": ["intake_race", "kaze_gt_turbo_kit", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "kaze_gt_gt_wing", "short_shifter", "roll_cage_bolt_in", "groundline_kaze_gt_0_carbon"],
+        "parts": ["intake_race", "kaze_gt_turbo_kit", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "kaze_gt_gt_wing", "short_shifter", "roll_cage_bolt_in", "groundline_kaze_gt_carbon"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -83845,7 +83629,7 @@
       "max": {
         "index": 800,
         "class": "S",
-        "parts": ["crate_kmw_v8_57", "pistons_forged", "intake_race", "turbo_medium", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "basic_wing", "radiator_aluminium", "short_shifter", "roll_cage_bolt_in", "groundline_brute_500_0_carbon"],
+        "parts": ["crate_kmw_v8_57", "pistons_forged", "intake_race", "turbo_medium", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "basic_wing", "radiator_aluminium", "short_shifter", "roll_cage_bolt_in", "groundline_brute_500_carbon"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -83882,7 +83666,7 @@
       "max": {
         "index": 726,
         "class": "A",
-        "parts": ["intake_race", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "basic_wing", "roll_cage_bolt_in", "groundline_strada_evo_0_carbon"],
+        "parts": ["intake_race", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "basic_wing", "roll_cage_bolt_in", "groundline_strada_evo_carbon"],
         "tuning": [
           {
             "part": "ecu_standalone",

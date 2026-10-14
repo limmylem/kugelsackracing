@@ -3,7 +3,7 @@
   "id": "groundline",
   "kind": "body_kit",
   "name": "Groundline",
-  "settings": { "car": ["kaze_gt", "strada_evo", "brute_500"], "depth": 0.05, "diffuser": 0.6, "canards": [0, 1] },
+  "settings": { "car": ["kaze_gt", "strada_evo", "brute_500"], "depth": 0.05, "diffuser": 0.6, "canards": 0 },
   "finishes": ["carbon"],
   "status": "draft"
 }

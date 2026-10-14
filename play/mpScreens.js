@@ -21,6 +21,7 @@ import { fmtTime } from '../quest/timing.js';
 import { tierLabel } from '../mp/rank.js';
 import { account } from '../account/session.js';
 import { dockSlot } from './dock.js';
+import { askReport, reportNote } from './reportDialog.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ord = n => n == null ? '—' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
@@ -342,9 +343,12 @@ export function createMpScreens({ S, R, game, cfg }) {
     if (d.befriend) { S.hubSend({ t: 'friend-add', id: d.befriend }); whoMenu = null; lobbyKey = ''; drawLobby(); }
     if (d.block) { S.hubSend({ t: 'block', id: d.block }); S.send({ t: 'block', uid: d.block }); S.mute(d.block, true); whoMenu = null; lobbyKey = ''; drawLobby(); }
     if (d.report) {
-      const why = prompt('What did they do? (an admin will look at it: say what happened)');
-      if (why && why.trim().length >= 5) S.hubSend({ t: 'report', id: d.report, kind: 'behaviour', details: why.trim(), ref: { roomId: S.lobby?.roomId, raceId: S.raceId ?? undefined } });
-      else if (why) notice('Say what happened (a few words at least).');
+      const uid = d.report, name = S.lobby?.players.find(x => x.uid === uid)?.name ?? 'this player';
+      void askReport({ name }).then(r => {
+        if (!r) return;
+        S.hubSend({ t: 'report', id: uid, kind: r.kind, details: r.details, ref: { roomId: S.lobby?.roomId, raceId: S.raceId ?? undefined } });
+        reportNote('Thanks: the admins will look at it.');
+      });
     }
     if ('whoclose' in d) { whoMenu = null; lobby.querySelector('[data-whomenu]').innerHTML = ''; }
   });

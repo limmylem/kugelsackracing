@@ -69,6 +69,21 @@ test('coming back: where you left, with your car and its damage; the garage when
   assert.equal((await internal('/roam/save', { rows: [{ uid, region: 'mk', pos: [NaN, 0, 0] }, { nope: 1 }] })).body.saved, 0);
 });
 
+test('coming back: a development ?player= guest too (GET /roam/me?player=A), and only in development', async () => {
+  const get = async (url: string, app = T.app) => { const r = await app.inject({ method: 'GET', url }); return { status: r.statusCode, body: r.body ? JSON.parse(r.body) : null }; };
+  assert.equal((await get('/api/v1/roam/me?player=Q')).body.garage, true, 'nothing saved: the garage');
+  const { networkOf } = await import('../src/rt/roam.ts');
+  const at = networkOf('mk').nearest(120, -340, undefined, 300);
+  // (the zone servers save the guest by the id its ticket carries)
+  const uid = 'dev-player-q';      // (made by the first ask, as POST /rt/ticket { player } makes it)
+  await internal('/roam/save', { rows: [{ uid, region: 'mk', pos: [at.x, 31.5, at.z], heading: 10, carId: 'kaze_gt' }] });
+  const back = (await get('/api/v1/roam/me?player=Q')).body;
+  assert.equal(back.garage, false, back.why); assert.equal(back.region, 'mk'); assert.equal(back.heading, 10);
+  assert.equal((await get('/api/v1/roam/me?player=bad%20name')).status, 400);
+  const P = await testApp('roamdevoff', { overrides: { rt: { ...T.config.rt, devPlayers: false } } });
+  try { assert.equal((await get('/api/v1/roam/me?player=Q', P.app)).status, 403); } finally { await P.close(); }
+});
+
 // a challenge's record, as a zone server makes it: two cars along a straight route, b behind
 function recordOf(id: string, racers: string[], { lengthM = 1600, va = 30, vb = 25 } = {}) {
   const line = Array.from({ length: Math.round(lengthM / 4) + 1 }, (_, k) => ({ x: k * 4, z: 0, h: 0, w: 8, s: k * 4 }));

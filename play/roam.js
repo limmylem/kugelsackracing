@@ -23,6 +23,7 @@ import { createContactClient } from '../mp/contactClient.js';
 import { createColyseusTransport } from '../net/transport.js';
 import { dockSlot } from './dock.js';
 import { createVoice } from './voice.js';
+import { askReport } from './reportDialog.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const km = m => m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
@@ -150,9 +151,9 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       const key = JSON.stringify([v.available, v.joined, v.mic, v.mode, v.pttKey, v.voiceMode, v.why, v.peers.length]);
       if (key !== voiceKey) { voiceKey = key; if (isOpen() && tab === 'settings') render(); }
     } });
-  // your saved place (the API's: the account signed in — not a development ?player=), before joining: start there
+  // your saved place (the API's: the account signed in, or a development ?player='s guest), before joining: start there
   let back = null;
-  if (!player && account?.me) { try { back = await account.api.get('/roam/me'); } catch { back = null; } }
+  if (player || account?.me) { try { back = await account.api.get(player ? `/roam/me?player=${encodeURIComponent(player)}` : '/roam/me'); } catch { back = null; } }
   const pose = game.carPose();
   await RC.start(pose?.pos ?? [0, 0, 0]);
   const M = await joinMultiplayer({ account, world: `roam:${region}`, look, adapter: A, player, debug, net: N,
@@ -306,7 +307,11 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       case 'mute': if (state.muted.has(uid)) state.muted.delete(uid); else state.muted.add(uid); void voice.sync(); return render();
       case 'mic': await voice.setMic(!voice.state.mic); return render();
       case 'block': if (confirm('Block this player? You won\'t see each other anywhere, and neither can challenge or message the other.')) S.hubSend({ t: 'block', id: uid }); return;
-      case 'report': { const why = prompt_('What happened?'); if (why) RC.send({ t: 'report', uid, details: why }); return; }
+      case 'report': {
+        const r = await askReport({ name: N.last.find(o => o.uid === uid)?.name ?? 'this driver' });
+        if (r) { RC.send({ t: 'report', uid, details: r.details }); toast('Thanks: the admins will look at it (the replay goes with it).'); }
+        return;
+      }
       case 'join': S.hubSend({ t: 'roam-join', uid }); return;
       case 'pcreate': S.hubSend({ t: 'party-create' }); return;
       case 'pinvite': S.hubSend({ t: 'party-invite', to: uid }); return;
@@ -321,7 +326,6 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
       case 'wheel': RC.send({ t: 'wheel', id: d.id, scope: 'nearby' }); return;
     }
   }
-  const prompt_ = q => globalThis.prompt?.(q) ?? null;
   function sendChat() {
     const inp = body.querySelector('#roamChatIn'), scope = body.querySelector('#roamChatScope')?.value ?? 'nearby';
     const text = inp?.value.trim(); if (!text) return;

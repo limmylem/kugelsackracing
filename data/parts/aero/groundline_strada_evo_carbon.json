@@ -1,13 +1,13 @@
 {
-  "id": "groundline_strada_evo_0_carbon",
+  "id": "groundline_strada_evo_carbon",
   "name": "Groundline aero kit (Strada Evo), carbon",
   "category": "aero",
   "slot": "aero_kit",
   "kind": "component",
   "price": 5810,
   "mass": 4.6,
-  "model": "assets/parts/aero/groundline/groundline_strada_evo_0.glb",
-  "icon": "assets/icons/parts/groundline_strada_evo_0_carbon.png",
+  "model": "assets/parts/aero/groundline/groundline_strada_evo.glb",
+  "icon": "assets/icons/parts/groundline_strada_evo_carbon.png",
   "fits": ["car:strada_evo"],
   "requires": [],
   "conflicts": [],
@@ -33,7 +33,7 @@
   "generated": {
     "family": "groundline",
     "kind": "body_kit",
-    "key": "strada_evo_0_carbon",
+    "key": "strada_evo_carbon",
     "settings": {
       "car": "strada_evo",
       "depth": 0.05,

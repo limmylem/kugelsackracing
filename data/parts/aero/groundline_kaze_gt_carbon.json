@@ -1,13 +1,13 @@
 {
-  "id": "groundline_kaze_gt_0_carbon",
+  "id": "groundline_kaze_gt_carbon",
   "name": "Groundline aero kit (Kaze GT), carbon",
   "category": "aero",
   "slot": "aero_kit",
   "kind": "component",
   "price": 6000,
   "mass": 4.6,
-  "model": "assets/parts/aero/groundline/groundline_kaze_gt_0.glb",
-  "icon": "assets/icons/parts/groundline_kaze_gt_0_carbon.png",
+  "model": "assets/parts/aero/groundline/groundline_kaze_gt.glb",
+  "icon": "assets/icons/parts/groundline_kaze_gt_carbon.png",
   "fits": ["car:kaze_gt"],
   "requires": [],
   "conflicts": [],
@@ -33,7 +33,7 @@
   "generated": {
     "family": "groundline",
     "kind": "body_kit",
-    "key": "kaze_gt_0_carbon",
+    "key": "kaze_gt_carbon",
     "settings": {
       "car": "kaze_gt",
       "depth": 0.05,

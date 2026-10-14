@@ -4,7 +4,7 @@
   "category": "aero",
   "slot": "spoiler",
   "kind": "component",
-  "price": 960,
+  "price": 560,
   "mass": 2.5,
   "model": "assets/parts/aero/aerofoil/aerofoil_1p3_0p22/starter_car.glb",
   "icon": "assets/icons/parts/aerofoil_1p3_0p22_carbon.png",
@@ -73,9 +73,9 @@
     },
     "gain": 0.0234,
     "measuredOn": "starter_car",
-    "priceFactor": 1.6
+    "priceFactor": 1.0182
   },
-  "_generated": "Made by npm run content -- build from data/families/aerofoil.json (and data/content/formulas.json families.spoiler): change those, not this file. On the Starter coupe it improves grip by 2.34%: sport, $960, unlocked at level 2.",
+  "_generated": "Made by npm run content -- build from data/families/aerofoil.json (and data/content/formulas.json families.spoiler): change those, not this file. On the Starter coupe it improves grip by 2.34%: street, $560, unlocked at level 2.",
   "bounds": {
     "min": [-0.658, 0.008, -0.154],
     "max": [0.658, 0.2564, 0.132]
@@ -167,7 +167,7 @@
       }
     }
   },
-  "tier": "sport",
+  "tier": "street",
   "unlock": {
     "level": 2
   },
