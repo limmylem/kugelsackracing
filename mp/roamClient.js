@@ -27,7 +27,7 @@ import { createZoneTracker, zoneOf } from './roam.js';
 import { quat } from '../net/remote.js';
 
 const smooth = u => u * u * (3 - 2 * u);
-const FADE_MS = 500, STALE_MS = 350, FROZEN_MS = 600, MAX_BLEND_M = 3;
+const FADE_MS = 500, STALE_MS = 350, FROZEN_MS = 600, MAX_BLEND_M = 3, ELSEWHERE_MS = 5000;
 // how far apart a view's newest states came (ms): a far car is sent less often (Step 1's interest rings)
 const spacing = buf => buf?.length >= 2 ? Math.max(0, buf[buf.length - 1].time - buf[buf.length - 2].time) : 0;
 // a zone's connection lost (the server closed it, a join failed or never answered): joined again while the car's in that
@@ -92,6 +92,7 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
       if (closed || conns.get(zone) !== c) { void N.leave(); return null; }
       c.net = N; c.joining = false; c.roomId = N.conn?.roomId ?? null;
       retry.delete(zone);
+      roomsKey = null;
       c.offs.push(N.on('status', s => {
         emit('status', { zone, ...s, ...(s.status === 'offline' && GONE.has(s.code) ? { message: messageFor(CODES.CLOSED) } : {}) });
         // (closed by the server for good — not a ban, another tab or an old game: let go, to be joined again)
@@ -104,6 +105,8 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
         // (a challenge lives in the zone it started in: that zone is kept, wherever the car goes, until it's over)
         if (m?.t === 'challenge-start') api.pin(c.roomId);
         if (m?.t === 'challenge-results') api.unpin(c.roomId);
+        // (this zone stops sending that car soon — another of the zones we share sends it: drawn from that one now, while both do)
+        if (m?.t === 'car-elsewhere' && typeof m.uid === 'string') { elsewhere.set(`${m.uid}|${zone}`, now()); return; }
         emit('mp', { ...m, zone, roomId: c.roomId });
       }));
       log('roam join', { zone, group: c.group, home: Z.home === zone });
@@ -138,6 +141,16 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
     emit('zones', api.zones);
   }
   const homeConn = () => conns.get(Z.home) ?? null;
+  // (every zone told which rooms this game is in and which is home: each other car is then sent by one of them, not by
+  // every zone the two share near a border — mp/roam.js senderRoom; told again whenever that changes)
+  let roomsKey = null;
+  const elsewhere = new Map();          // `${uid}|${zone}` → when that zone said it stops sending that car
+  function tellRooms() {
+    const rooms = [...conns.values()].filter(c => c.net && c.roomId).map(c => c.roomId), home = homeConn()?.roomId ?? null, key = `${rooms.join()}|${home}`;
+    if (key === roomsKey) return;
+    roomsKey = key;
+    for (const c of conns.values()) c.net?.conn?.sendJson?.({ t: 'rooms', rooms, home });
+  }
 
   const api = {
     get home() { return Z.home; }, get group() { return group; }, get zones() { return [...conns.keys()]; }, get handoffs() { return handoffs; },
@@ -175,6 +188,7 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
         emit('handoff', { ...u.handoff, group });
       }
       for (const z of u.drop) drop(z);
+      tellRooms();
     },
     // every other car once: from the zone it was being drawn from while that still shows it, else another — lined up in
     // time with the one it was drawn from (the same physics step, whatever each zone's clock says), then blended
@@ -203,7 +217,9 @@ export function createRoamClient({ transport, getTicket, hub, region, cfg, look 
         // (allowing for how far apart its states come: a far car is sent a few times a second, and is predicted between them)
         const fresh = x => !x.o.pose.extrapolating || (x.o.pose.staleMs ?? 0) < STALE_MS + spacing(x.rem?.buf);
         const cur = d && withPose.find(x => x.zone === d.src);
-        const better = cur && !fresh(cur) ? withPose.find(x => x !== cur && fresh(x)) : null;
+        // (a zone that's said it stops sending this car — car-elsewhere — gives way to a fresh one with a few states in)
+        const leaving = x => { const at = elsewhere.get(`${uid}|${x.zone}`); if (at == null) return false; if (t - at > ELSEWHERE_MS) { elsewhere.delete(`${uid}|${x.zone}`); return false; } return true; };
+        const better = cur && (!fresh(cur) || leaving(cur)) ? withPose.find(x => x !== cur && fresh(x) && !leaving(x) && (fresh(cur) ? (x.rem?.buf?.length ?? 0) >= 3 : true)) : null;
         const pick = better ?? cur ?? withPose.find(x => x.zone === Z.home && fresh(x)) ?? withPose.find(fresh) ?? withPose[0] ?? list[0];
         if (!ids.has(uid)) ids.set(uid, ids.size + 1);
         let o = pick.o;

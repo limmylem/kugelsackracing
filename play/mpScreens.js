@@ -13,6 +13,8 @@
 //   M.toggle() / M.show(on)    the menu (F7, or the Multiplayer button)    M.frame(dt) every frame    M.dispose()
 //   Every screen has its id (#mpMenu #mpLobby #mpLoading #mpLights #mpHud #mpResults #mpWatch #mpToasts): the browser
 //   tests find them by it and check what's drawn. The lights record when they went out (window.__krMpLightsOut).
+// (2026-10-14) voice chat in the lobby and its race (#mpVoice: the microphone, who's talking): everyone in the room hears
+// everyone in it; free roam's voice waits until you're back.
 // (Phase 7 Step 5) the menu's recent players (GET /mp/recent-players: who you raced or met in a free-roam challenge) and
 // the results' rows each with "Add friend" (a request through the hub, as the lobby's), then "Request sent"; the session's
 // notices — the race server restarting among them — as toasts above every screen, menu and race alike.
@@ -23,6 +25,7 @@ import { tierLabel } from '../mp/rank.js';
 import { account } from '../account/session.js';
 import { dockSlot } from './dock.js';
 import { askReport, reportNote } from './reportDialog.js';
+import { createVoice } from './voice.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ord = n => n == null ? '—' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
@@ -154,13 +157,46 @@ export function createMpScreens({ S, R, game, cfg }) {
   offs.push(S.on('friends', () => { drawMenu(); if (!results.hidden) drawResults(); }));
   offs.push(S.on('party', () => drawMenu()));
   offs.push(S.on('lobbies', m => { lobbyList = m.list; drawMenu(); }));
-  offs.push(S.on('lobby', () => { show(false); drawLobby(); }));
+  offs.push(S.on('lobby', () => { show(false); drawLobby(); void startVoice(); }));
+  // voice chat in the lobby and its race (play/voice.js; the room's 'room' voice: everyone here hears everyone here —
+  // server/src/rt/race.ts). Free roam's voice waits meanwhile (kr-voice-room: play/roam.js), one microphone connection a player
+  let voice = null, voiceStarting = null, roamCfg = null;
+  const voiceBox = document.createElement('div'); voiceBox.id = 'mpVoice'; voiceBox.hidden = true;
+  voiceBox.style.cssText = 'position:fixed;left:12px;bottom:84px;z-index:79;font:600 12px/1.3 Barlow,system-ui,sans-serif;color:#eef1f5;display:flex;flex-direction:column;gap:4px;pointer-events:auto';
+  document.body.appendChild(voiceBox);
+  async function startVoice() {
+    if (voice || voiceStarting || !S.race) return;
+    voiceStarting = (async () => {
+      roamCfg ??= await fetch('data/roam.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => null);
+      if (!roamCfg?.voice || !S.race || voice) return;
+      dispatchEvent(new CustomEvent('kr-voice-room', { detail: { active: true } }));
+      voice = createVoice({ RC: { send: m => S.send(m), home: null }, cfg: roamCfg, isMuted: uid => S.muted.has(uid), toast: text => notice(text), onChange: () => drawVoice() });
+      globalThis.__krMpVoice = voice;   // (the browser tests)
+      voice.hello();
+    })().finally(() => { voiceStarting = null; });
+    await voiceStarting;
+  }
+  function stopVoice() {
+    if (!voice) return;
+    voice.dispose(); voice = null; globalThis.__krMpVoice = null; voiceBox.hidden = true; voiceBox.innerHTML = '';
+    dispatchEvent(new CustomEvent('kr-voice-room', { detail: { active: false } }));
+  }
+  function drawVoice() {
+    const v = voice?.state;
+    if (!v?.available) { voiceBox.hidden = true; return; }
+    voiceBox.hidden = false;
+    const talking = v.peers.filter(p => p.speaking && !p.muted).slice(0, 5);
+    const html = `<div><button data-voicemic class="${v.mic ? '' : 'primary'}" title="Everyone in this lobby and race hears you${v.mode === 'ptt' ? ` while you hold ${esc(v.pttKey)}` : ''}">${v.mic ? 'Microphone on' : 'Microphone off'}</button> <span class="dim">${v.joined ? `Lobby voice · ${v.peers.length} here` : 'Lobby voice · connecting…'}</span></div>${talking.map(p => `<div>🔊 ${esc(p.name)}</div>`).join('')}`;
+    if (voiceBox.innerHTML !== html) voiceBox.innerHTML = html;
+  }
+  voiceBox.addEventListener('click', e => { if (e.target.closest('[data-voicemic]') && voice) void voice.setMic(!voice.state.mic).then(drawVoice); });
+  for (const k of ['voice-hello', 'voice', 'voice-joined', 'voice-pulled', 'voice-ok', 'voice-dropped', 'voice-error']) offs.push(S.on(k, m => voice?.message(m)));
   offs.push(S.on('chat', () => drawChat())); offs.push(S.on('chat-log', () => drawChat()));
   offs.push(S.on('results', () => { resultsHidden = false; myVote = false; drawResults(); }));
   offs.push(S.on('confirmed', () => drawResults()));
   offs.push(S.on('verdict', () => drawResults()));
   offs.push(S.on('votes', () => drawResults()));
-  offs.push(S.on('left', st => { lobby.hidden = true; results.hidden = true; hud.hidden = true; loading.hidden = true; lights.hidden = true; watchBar.hidden = true; if (st?.message && !leaving) notice(`You left the lobby: ${st.message}`); leaving = false; game.leaveRace?.(); }));
+  offs.push(S.on('left', st => { stopVoice(); lobby.hidden = true; results.hidden = true; hud.hidden = true; loading.hidden = true; lights.hidden = true; watchBar.hidden = true; if (st?.message && !leaving) notice(`You left the lobby: ${st.message}`); leaving = false; game.leaveRace?.(); }));
   let leaving = false;
 
   // ---------- the menu ----------
@@ -352,7 +388,7 @@ export function createMpScreens({ S, R, game, cfg }) {
     if ('race' in d) S.send({ t: 'race' });
     if ('spectate' in d) S.send({ t: 'spectate' });
     if ('start' in d) S.send({ t: 'start' });
-    if ('leave' in d) { leaving = true; void S.leaveRace().then(() => { lobby.hidden = true; game.leaveRace?.(); show(true); }); }
+    if ('leave' in d) { leaving = true; stopVoice(); void S.leaveRace().then(() => { lobby.hidden = true; game.leaveRace?.(); show(true); }); }
     if (d.kick) S.send({ t: 'kick', uid: d.kick });
     if ('send' in d) sendChat();
     if ('invite' in d) S.hubSend({ t: 'invite', to: lobby.querySelector('[data-invitewho]').value, roomId: S.lobby.roomId });
@@ -472,7 +508,7 @@ export function createMpScreens({ S, R, game, cfg }) {
     if (d.befriend) void addFriend(d.befriend);
     if ('rematch' in d) { myVote = !myVote; S.send({ t: 'rematch', v: myVote }); resultsKey = ''; drawResults(); }
     if ('watchothers' in d) { resultsHidden = true; results.hidden = true; R.watch(true); }
-    if ('leaveres' in d) { leaving = true; void S.leaveRace().then(() => { results.hidden = true; game.leaveRace?.(); show(true); }); }
+    if ('leaveres' in d) { leaving = true; stopVoice(); void S.leaveRace().then(() => { results.hidden = true; game.leaveRace?.(); show(true); }); }
   });
 
   // ---------- keys in a race: watching (W), the car (← →) and camera (C); Esc: leave ----------
@@ -490,7 +526,7 @@ export function createMpScreens({ S, R, game, cfg }) {
     else if (e.code === 'Escape') {
       e.preventDefault(); e.stopImmediatePropagation();
       const ranked = S.lobby?.settings?.ranked && ['countdown', 'racing'].includes(ph) && R.racing;
-      if (confirm(ranked ? 'Leave the race? In a ranked race it counts as last place, and leaving often means a wait before the next quick race.' : 'Leave the race?')) { leaving = true; void S.leaveRace().then(() => { game.leaveRace?.(); }); }
+      if (confirm(ranked ? 'Leave the race? In a ranked race it counts as last place, and leaving often means a wait before the next quick race.' : 'Leave the race?')) { leaving = true; stopVoice(); void S.leaveRace().then(() => { game.leaveRace?.(); }); }
     } else if (e.code === 'KeyT' || e.code === 'F2') e.stopImmediatePropagation();          // (not another world, mid-race)
   }
   addEventListener('keydown', onKey, true);
@@ -538,6 +574,6 @@ export function createMpScreens({ S, R, game, cfg }) {
     show, toggle,
     get open() { return menuOpen; },
     frame,
-    dispose() { removeEventListener('keydown', onKey, true); for (const f of offs) f(); for (const e of [menu, lobby, loading, lights, hud, results, watchBar, toasts, button]) e.remove(); clearTimeout(lightTimer); },
+    dispose() { stopVoice(); voiceBox.remove(); removeEventListener('keydown', onKey, true); for (const f of offs) f(); for (const e of [menu, lobby, loading, lights, hud, results, watchBar, toasts, button]) e.remove(); clearTimeout(lightTimer); },
   };
 }

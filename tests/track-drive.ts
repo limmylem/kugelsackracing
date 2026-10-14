@@ -7,7 +7,7 @@
 //     tests/map/raceHarness.ts) — never out of the corridor, never stuck
 //   - races: 8-car NPC races on some of them — everyone finishes, no one stuck
 //
-//   node tests/track-drive.ts [--tracks 100] [--races 10] [--only physics,drive,races]
+//   node tests/track-drive.ts [--tracks 100] [--races 10] [--race k] [--only physics,drive,races]
 
 import fs from 'node:fs';
 import { harness } from './harness.mjs';
@@ -101,9 +101,14 @@ async function aiRun(T: any, { npcs = 0, seed = 1, skill = 0.7 } = {}) {
   const xs = T.course.line.map((p: any) => p.x), zs = T.course.line.map((p: any) => p.z);
   const R = { region: 'track', M: { H }, course: T.course, stored: T.data.course, laps: 1, around: { cx: 0, cz: 0, radius: Math.max(...xs.map(Math.abs), ...zs.map(Math.abs)) } };
   let off = 0, sampled = 0;
-  const onStep = ({ C, sim: s }: any) => { if (Math.round(s.time * 120) % 12) return; const tr = C.session?.tracker?.state; if (tr && C.state === 'racing') { sampled++; if (tr.offRoute) off++; } };
+  // (RACE_DEBUG_ID=n: that NPC's last seconds, as it went: where, how fast, how upright, its wheels on the ground, how far off the middle)
+  const trace: any[] = [], dbg = process.env.RACE_DEBUG_ID;
+  const onStep = ({ C, sim: s, race }: any) => {
+    if (dbg && race && s.time < +(process.env.RACE_DEBUG_UNTIL ?? 1e9) && !(Math.round(s.time * 120) % 6)) { const r = race.npcs.find((x: any) => String(x.id) === dbg), v = r?.car?.vehicle; if (v) { const b = v.body, p = b.translation(), q = b.rotation(), lv = b.linvel(), upY = 1 - 2 * (q.x * q.x + q.z * q.z), n = nearestOnTrack(T.data, p.x, p.z); trace.push(`t ${s.time.toFixed(1)} pos ${p.x.toFixed(1)},${p.y.toFixed(2)},${p.z.toFixed(1)} v ${Math.hypot(lv.x, lv.z).toFixed(1)} vy ${lv.y.toFixed(2)} up ${upY.toFixed(2)} wheels ${v.wheels.map((w: any) => w.grounded ? 1 : 0).join('')} off ${(n.lateral ?? n.d ?? NaN).toFixed?.(1) ?? '?'} h ${(n.h ?? NaN).toFixed?.(2)} status ${r.status} lod ${r.lod}${r.cheap ? ' cheap' : ''} near ${race.racers.filter((o: any) => o !== r).map((o: any) => { const b = o.player ? s.vehicle.body : o.car?.vehicle?.body, q = b?.translation(); return q ? [o.id, Math.hypot(q.x - p.x, q.z - p.z)] : null; }).filter((x: any) => x && x[1] < 12).map((x: any) => `${x[0]}@${x[1].toFixed(1)}`).join(',')}`); if (trace.length > 300) trace.shift(); } }
+    if (Math.round(s.time * 120) % 12) return; const tr = C.session?.tracker?.state; if (tr && C.state === 'racing') { sampled++; if (tr.offRoute) off++; } };
   const out: any = await runRace(R, { npcs, seed, playerSkill: skill, S, onStep, limit: Math.max(300, (T.data.course.stats.estimatedTime ?? 100) * 3) });
   S.free();
+  if (dbg) console.log(trace.join('\n'));
   return { out, offShare: sampled ? off / sampled : 0 };
 }
 
@@ -131,15 +136,18 @@ if (want('races')) {
   const N = +opt('--races', 10);
   let clean = 0;
   const notes: string[] = [];
-  for (let k = 0; k < N; k++) {
+  // (--race k: that race alone — where a car got stuck, to look into)
+  const one = opt('--race', null), ks = one != null ? [+one] : Array.from({ length: N }, (_, k) => k);
+  for (const k of ks) {
     const pr = P[k % P.length], T = makeTrack({ seed: 977 * k + 5, params: pr.params });
     const { out } = await aiRun(T, { npcs: 7, seed: k, skill: 0.75 });
-    const stuck = out.events.filter((e: any) => e.type === 'npc-stuck').length, finished = out.standings.filter((s: any) => s.status === 'finished').length;
+    const stuckList = out.events.filter((e: any) => e.type === 'npc-stuck'), stuck = stuckList.length, finished = out.standings.filter((s: any) => s.status === 'finished').length;
+    if (process.env.RACE_DEBUG) for (const e of out.events.filter((e: any) => stuckList.some((s: any) => s.id === e.id) && e.type !== 'lod')) console.log(JSON.stringify({ ...e, result: e.result ? { strength: e.result.strength, cls: e.result.cls } : undefined, impact: e.impact ? { other: e.impact.other ?? e.impact.material, speed: e.impact.speed, normal: e.impact.normal } : undefined }).slice(0, 300));
     if (finished === 8 && stuck === 0) clean++;
-    notes.push(`${pr.id} ${(T.data.length / 1000).toFixed(1)} km: ${finished}/8 finished, ${stuck} stuck, ${out.events.filter((e: any) => e.type === 'npc-reset').length} resets, winner ${out.standings[0]?.name}`);
+    notes.push(`${pr.id} ${(T.data.length / 1000).toFixed(1)} km: ${finished}/8 finished, ${stuck} stuck, ${out.events.filter((e: any) => e.type === 'npc-reset').length} resets, winner ${out.standings[0]?.name}${stuckList.map((e: any) => ` · ${e.id} stuck ${Math.round(e.u ?? 0)} m in${e.why ? ` (${e.why})` : ''}`).join('')}`);
   }
   for (const n of notes) console.log(`        ${n}`);
-  report(clean === N, `8-car NPC races on ${N} generated tracks`, `${clean} of ${N}: everyone finished, no one stuck`);
+  report(clean === ks.length, `8-car NPC races on ${ks.length} generated tracks`, `${clean} of ${ks.length}: everyone finished, no one stuck`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');

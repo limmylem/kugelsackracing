@@ -1,11 +1,13 @@
 {
   "_note": "Multiplayer free roam in the real world (Phase 7 Step 4; docs/FREE_ROAM.md). Read by the real-time server (zone instances, handoffs, presence, challenges, chat, meets), the API (settings, persistence, challenge pay and caps, meet events), the game and the bots. Times in seconds unless named otherwise; distances in metres.",
   "zones": {
-    "_note": "The world is cut into zones: squares of zoneTiles x zoneTiles Map v3 tiles (512 m each) in a region's map frame. Each zone runs instances (rooms) of at most capacity players. A car within overlapM of a neighbouring zone is in that zone's instance as well (the same instance group where it can be): it sends its car to both and sees the cars of both, so crossing the border changes nothing it can see. It hands over (the neighbour becomes its home zone) once it is handoffM past the border, and leaves the old zone once it is further than overlapM + leaveSlackM from it.",
+    "_note": "The world is cut into zones: squares of zoneTiles x zoneTiles Map v3 tiles (512 m each) in a region's map frame. Each zone runs instances (rooms) of at most capacity players. A car within overlapM of a neighbouring zone is in that zone's instance as well (the same instance group where it can be): it sends its car to both and sees the cars of both, so crossing the border changes nothing it can see. It hands over (the neighbour becomes its home zone) once it is handoffM past the border, and leaves the old zone once it is further than overlapM + leaveSlackM from it. oneSender: each other car sent to a player by one of the zones they share (the car's home zone where the player is in it), not by each — less download near borders in a crowd; when that changes, the zone that stops sends for shareSec more, so the game can line the switch up. Off: in the handoff test a zone sometimes stopped before the one taking over had the car (frozen views, docs/KNOWN_ISSUES.md).",
     "zoneTiles": 4,
     "overlapM": 300,
     "handoffM": 25,
     "leaveSlackM": 60,
+    "oneSender": false,
+    "shareSec": 2,
     "capacity": 50,
     "friendSlots": 8,
     "nearRadiusM": 1500,

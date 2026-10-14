@@ -52,7 +52,7 @@ export function createSfu({ url = 'https://rtc.live.cloudflare.com/v1', appId, t
 }
 
 // ---------- the entries (presence) ----------
-export type VoiceEntry = { uid: string; name: string; region: string; pos: [number, number] | null; party: string | null; voiceParty: boolean; voiceNearby: boolean; mic: boolean; session: string; track: string; at: number;
+export type VoiceEntry = { uid: string; name: string; region: string; pos: [number, number] | null; party: string | null; room?: string | null; voiceRoom?: boolean; voiceParty: boolean; voiceNearby: boolean; mic: boolean; session: string; track: string; at: number;
   privacy?: { location: string; appearOffline: boolean } };
 let cache: { at: number; list: VoiceEntry[]; pending?: Promise<VoiceEntry[]> } = { at: 0, list: [] };
 // every entry still fresh (one read a process, shared by its rooms, at most every ~0.9 s)
@@ -85,11 +85,11 @@ export async function dropVoice(uid: string) {
 export const trackNameOf = (uid: string) => `v${crypto.createHash('sha256').update(`voice:${uid}`).digest('hex').slice(0, 20)}`;
 
 // ---------- what a zone needs to know about a player ----------
-export type VoiceWho = { uid: string; name: string; guest: boolean; region: string; pos: number[] | null; party: string | null; settings: any; blocked: Set<string> };
+export type VoiceWho = { uid: string; name: string; guest: boolean; region: string; pos: number[] | null; party: string | null; settings: any; blocked: Set<string>; room?: string | null };
 const flat = (pos: number[] | null): [number, number] | null => pos ? [Math.round(pos[0]), Math.round(pos[pos.length - 1])] : null;
 // this player's entry as their home zone sees them now (null: not in voice chat)
 export function refreshed(e: VoiceEntry, w: VoiceWho): VoiceEntry {
-  return { ...e, name: w.name, region: w.region, pos: flat(w.pos) ?? e.pos, party: w.party, voiceParty: w.settings?.voiceParty !== false, voiceNearby: w.settings?.voiceNearby !== false,
+  return { ...e, name: w.name, region: w.region, pos: flat(w.pos) ?? e.pos, party: w.party, room: w.room ?? null, voiceRoom: w.settings?.voiceRoom !== false, voiceParty: w.settings?.voiceParty !== false, voiceNearby: w.settings?.voiceNearby !== false,
     privacy: { location: w.settings?.location ?? 'friends', appearOffline: !!w.settings?.appearOffline }, at: Date.now() };
 }
 // the voices this player hears now

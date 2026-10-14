@@ -85,3 +85,24 @@ test('buildings: walls face out and roofs up, whichever way round the footprint 
     check(e.walls, true); check(e.roof, false);
   }
 });
+
+test('a ground piece inside a bridge or a tunnel (OSM tagging gaps) is baked as part of it; a real ground road is not', async () => {
+  const { relabelStructures } = await import('../../map/bake/roads.ts');
+  const seg = (id: number, from: number, to: number, structure: string, len = 50, layer = 0) => ({ id, from, to, s: [0, len], structure, layer });
+  const graph = (segs: any[], n: number) => Array.from({ length: n }, (_, k) => ({ segs: segs.filter(g => g.from === k || g.to === k).map(g => g.id) }));
+  // a viaduct: ground 6-0 (where it comes down), bridge 0-1, ground 1-2 (an untagged gap), bridge 2-3, ground 3-4 and 4-5
+  // (it comes down and a street meets it at 4: real ground roads)
+  const v = [seg(0, 0, 1, 'bridge', 300, 1), seg(1, 1, 2, 'ground'), seg(2, 2, 3, 'bridge', 300, 1), seg(3, 3, 4, 'ground'), seg(4, 4, 5, 'ground'), seg(5, 4, 7, 'ground'), seg(6, 6, 0, 'ground')];
+  assert.equal(relabelStructures(graph(v, 8), v), 1);
+  assert.equal(v[1].structure, 'bridge'); assert.equal(v[1].layer, 1);
+  assert.equal(v[3].structure, 'ground', 'its end on a street: ground');
+  // a tunnel with two ground pieces in a row inside it
+  const t = [seg(0, 0, 1, 'tunnel', 200, -1), seg(1, 1, 2, 'ground', 40), seg(2, 2, 3, 'ground', 40), seg(3, 3, 4, 'tunnel', 200, -1)];
+  assert.equal(relabelStructures(graph(t, 5), t), 2);
+  assert.ok(t.every(g => g.structure === 'tunnel' && g.layer === -1));
+  // a long stretch of ground between two bridges (an island) stays ground; so does a bridge to a tunnel
+  const l = [seg(0, 0, 1, 'bridge', 100), seg(1, 1, 2, 'ground', 900), seg(2, 2, 3, 'bridge', 100)];
+  assert.equal(relabelStructures(graph(l, 4), l), 0);
+  const m = [seg(0, 0, 1, 'bridge', 100), seg(1, 1, 2, 'ground', 60), seg(2, 2, 3, 'tunnel', 100)];
+  assert.equal(relabelStructures(graph(m, 4), m), 0);
+});

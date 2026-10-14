@@ -6,12 +6,13 @@
 //
 //   const G = createGrid(NET.interest)
 //   G.rebuild(players)           players: [{ id, pos: [x, y, z] }] (world frame); without a position: left out
-//   G.near(p) → [{ id, d, every }]  everyone within the rings round p (not p)
+//   G.near(p) → [{ id, d, every }]  everyone within the rings round p (not p); in a crowd only the nearest fullCap at
+//                                 the first ring's rate, the rest at the next ring's (the download in a crowd)
 
 type Ring = { within: number; every: number };
 type P = { id: number; pos: number[] | null };
 
-export function createGrid({ cell, rings }: { cell: number; rings: Ring[] }) {
+export function createGrid({ cell, rings, fullCap = Infinity }: { cell: number; rings: Ring[]; fullCap?: number }) {
   const cells = new Map<string, P[]>(), reach = rings[rings.length - 1].within, span = Math.ceil(reach / cell);
   const key = (i: number, j: number) => `${i},${j}`;
   return {
@@ -37,6 +38,8 @@ export function createGrid({ cell, rings }: { cell: number; rings: Ring[] }) {
           if (r) out.push({ id: o.id, d, every: r.every });
         }
       }
+      const full = out.filter(o => o.every === rings[0].every);
+      if (full.length > fullCap && rings.length > 1) { full.sort((a, b) => a.d - b.d); for (let i = fullCap; i < full.length; i++) full[i].every = rings[1].every; }
       return out;
     },
   };

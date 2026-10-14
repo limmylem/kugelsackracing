@@ -5,6 +5,8 @@
 // really plays: A turns their microphone on from the settings and B hears it — its sound arriving, loud near A; B mutes
 // A and stops hearing them (the track closed), and hears them again unmuted; B turns proximity voice off and on; B drives
 // far away (past voice.nearbyM) and A goes quiet, back near and A's heard again; push to talk: only while the key's held.
+// Then a private lobby: A makes it, B joins with its code — the lobby's own voice (both hear each other, free roam's
+// voice waiting meanwhile), and B leaving it gets free roam's voice back.
 // One real-time process, no Redis.
 //
 //   node server/tools/voice-browser.ts [--local-libs]        (needs PostgreSQL with PostGIS: TEST_DATABASE_URL; Chromium)
@@ -180,6 +182,35 @@ try {
   await A.evaluate(() => (globalThis as any).__krRoam.voice.setMic(false));
   check('A turns the microphone off: B stops pulling A', !!(await until(() => silent(B, ua), 15000)));
   check('the stand-in SFU: two sessions, each sending', sfu.sessions().length >= 2 && sfu.sessions().every((s: any) => s.packets > 0), JSON.stringify(sfu.sessions()));
+
+  // ---------- a lobby: its own voice chat (everyone in it, at full volume); free roam's waits, and comes back after ----------
+  console.log('== A private lobby: A makes it, B joins with the code; the lobby\'s voice');
+  const lobbyVoice = (P: any) => P.evaluate(() => { const V = (globalThis as any).__krMpVoice; return V ? { ...V.state, ...V.debug(), box: document.getElementById('mpVoice')?.textContent ?? '' } : null; });
+  const lobbyArriving = (P: any, uid: string) => P.evaluate(async (uid: string) => {
+    const at = () => (globalThis as any).__krMpVoice?.debug().pulled.find((x: any) => x.uid === uid);
+    const a = at(); await new Promise(r => setTimeout(r, 2500)); const b = at();
+    return a && b && b.mid === a.mid && b.packets > a.packets && b.energy > a.energy ? { packets: b.packets - a.packets, volume: b.volume } : null;
+  }, uid);
+  for (const P of [A, B]) await until(() => P.evaluate(() => !!(globalThis as any).__krMpS?.hubConn), 60000, 1000);
+  await A.bringToFront(); await click(A, '#mpButton'); await click(A, '#mpMenu [data-private]');
+  const code = (await until(async () => { const t = (await A.locator('#mpLobby [data-code]').textContent().catch(() => ''))?.trim(); return /^[A-Z0-9]{6}$/.test(t ?? '') ? t : null; }, 20000)) as string | null;
+  await B.bringToFront(); await click(B, '#mpButton');
+  await B.locator('#mpMenu [data-code]').fill(code ?? ''); await click(B, '#mpMenu [data-joincode]');
+  const inLobby = await until(async () => { const [a, b] = [await lobbyVoice(A), await lobbyVoice(B)]; return a?.joined && b?.joined ? [a, b] : null; }, 30000, 500);
+  check('both in the lobby: its voice chat joined in each window', !!inLobby, `code ${code ?? '—'} · ${JSON.stringify([await lobbyVoice(A), await lobbyVoice(B)].map(v => v && { available: v.available, joined: v.joined, why: v.why }))}`);
+  const roamPaused = await until(async () => { const [a, b] = [await voiceOf(A), await voiceOf(B)]; return !a?.joined && !b?.joined ? true : null; }, 15000, 500);
+  check('… free roam\'s voice waits meanwhile (one microphone connection each)', !!roamPaused);
+  const entryRoom = (await voiceEntries(true)).find(e => e.uid === ua)?.room;
+  check('… A\'s voice entry is the lobby\'s', !!entryRoom && entryRoom !== null, String(entryRoom));
+  await A.evaluate(() => (globalThis as any).__krMpVoice.setMic(true));
+  const lobbyHeard = await until(() => lobbyArriving(B, ua), 30000, 500);
+  check('A\'s microphone on in the lobby: B hears A, at full volume', !!lobbyHeard && lobbyHeard.volume > 0.9, JSON.stringify(lobbyHeard ?? await lobbyVoice(B)));
+  check('… B\'s lobby shows the voice box (the microphone, who\'s here)', /Lobby voice/.test((await lobbyVoice(B))?.box ?? ''), (await lobbyVoice(B))?.box);
+  // (B leaves the lobby: its voice goes, free roam's comes back)
+  await B.bringToFront(); await click(B, '#mpLobby [data-leave]');
+  const backB = await until(async () => { const v = await voiceOf(B); return !(await lobbyVoice(B)) && v?.joined ? v : null; }, 30000, 1000);
+  check('B leaves the lobby: its voice gone, free roam\'s joined again', !!backB, JSON.stringify(await voiceOf(B)));
+  check('… and A, still in the lobby, no longer pulls anything from B', !((await lobbyVoice(A))?.pulled ?? []).some((x: any) => x.uid === ub));
 } catch (e: any) {
   check('the test ran', false, e?.stack ?? String(e));
 } finally {

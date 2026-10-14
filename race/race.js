@@ -38,6 +38,7 @@ import { createSession } from '../physics/race.js';
 import { headingOf } from '../route/grid.js';
 
 const BIN = 10;
+const CLEAR_M = 7;          // (a car put back into the physics from its cheap run: at least this far from any other car)
 // a spec refilled in place, as the game's own car's is (garage/session.js assignDeep)
 function assignDeep(target, source) {
   for (const k of Object.keys(target)) if (!(k in source)) delete target[k];
@@ -154,7 +155,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
         else if (e.type === 'fail') retire(r, e.outcome.text ?? 'failed');
       }
       r.driver.tick(dt);
-      if (r.driver.state.wantsReset && r.status === 'racing') { emit({ type: 'npc-stuck', id: r.id, x: p.x, z: p.z, u: uOf(r) }); resetNpc(r, r.session.tracker.resetPoint(), 'stuck'); }
+      if (r.driver.state.wantsReset && r.status === 'racing') { emit({ type: 'npc-stuck', id: r.id, x: p.x, z: p.z, u: uOf(r), why: r.driver.state.resetWhy ?? null }); resetNpc(r, r.session.tracker.resetPoint(), 'stuck'); }
     }
     // the player's progress and status
     if (player && P.state === 'racing') player.status = 'racing';
@@ -318,6 +319,17 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   }
   function leaveCheap(r, dist = null) {
     const C = r.cheap;
+    // (two cars run cheaply along the same line can be in the same place: put back into the physics on top of one
+    // another, they burst apart — one rolled. Moved back along its line until it's clear of every car that's in it)
+    const clearOf = () => racers.every(o => { if (o === r || o.cheap || o.status === 'retired') return true; const q = posOf(o); return Math.hypot(q.x - C.x, q.z - C.z) >= CLEAR_M; });
+    for (let i = 0; i < 12 && !clearOf(); i++) {
+      C.s -= CLEAR_M / 2;
+      if (C.s < 0) C.s = loop ? C.s + RL.length : 0;
+      while (C.k > 0 && RL.points[C.k].s > C.s) C.k--;
+      if (loop && RL.points[C.k].s > C.s) C.k = RL.points.length - 1;
+      while (C.k < RL.points.length - 1 && RL.points[C.k + 1].s <= C.s) C.k++;
+      placeCheap(r);
+    }
     r.cheap = null;
     r.car.offPhysics = false;
     r.car.vehicle.body.setEnabled(true);

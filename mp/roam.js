@@ -8,6 +8,9 @@
 //   createZoneTracker(cfg, { tileSize }) → T.update(x, z) → { home, zones, add, drop, handoff }
 //     zones: the zones this car is in now (its home, and every neighbour within overlapM); add / drop: what changed;
 //     handoff: { from, to } when its home changed (handoffM past the border: no flapping on the line).
+//   senderRoom(viewer, car) → the one room (zone instance) that sends this car to this viewer — viewer, car: { rooms
+//     (the room ids each is in now), home (its home zone's room) }: the car's home room if the viewer's in it, else the
+//     viewer's home room if the car's in it, else the first they share; null when it can't tell (every room sends)
 // INSTANCES.
 //   placeInstance({ me, candidates, cfg }) → { group, room?, why }    who joins which instance of a zone, in order: a
 //     party member's, a friend's, the one with the most players near, the lowest ping; never one with someone blocked
@@ -82,6 +85,18 @@ export function createZoneTracker(cfg, { tileSize = TILE } = {}) {
     },
     reset() { home = null; zones.clear(); },
   };
+}
+
+// (each car to each player through one room, not through every zone the two share near a border: the download in a
+// crowd — the zone servers send for a moment longer around a change, so the switch can still be lined up: roam.ts)
+export function senderRoom(viewer, car) {
+  const vr = viewer?.rooms, cr = car?.rooms;
+  if (!Array.isArray(vr) || !Array.isArray(cr) || !vr.length || !cr.length) return null;
+  const shared = vr.filter(r => cr.includes(r));
+  if (!shared.length) return null;
+  if (car.home && shared.includes(car.home)) return car.home;
+  if (viewer.home && shared.includes(viewer.home)) return viewer.home;
+  return [...shared].sort()[0];
 }
 
 // ---------- instances ----------

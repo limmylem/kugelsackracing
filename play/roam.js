@@ -411,6 +411,10 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   }));
   // (voice chat: asked once the zones' messages are listened to — the hello may have come before)
   voice.hello();
+  // (in a lobby or a race, its own voice chat — play/mpScreens.js — has the microphone: free roam's waits, then joins again)
+  const voiceRoom = e => { if (e.detail?.active) voice.stop(); else voice.hello(); };
+  addEventListener('kr-voice-room', voiceRoom);
+  offs.push(() => removeEventListener('kr-voice-room', voiceRoom));
   offs.push(S.on('roam-goto', m => goToFriend(m)));
   offs.push(S.on('chat', m => { if (m.scope === 'party' && !state.muted.has(m.uid)) { state.chat.push(m); toast(`[party] ${m.name}: ${m.text}`); } }));
   offs.push(S.on('party', p => { state.partyUids = new Set((p?.members ?? []).filter(u => u !== myUid())); RC.setParty(p?.id ?? null); if (isOpen()) render(); }));

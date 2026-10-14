@@ -43,3 +43,5 @@ Reporting a player now opens the game's own window
 The Kaze GT's engine swaps now come with a raised cowl bonnet
 The ducktail spoiler now fits the Ridgeback and Vortex R
 Other players' damaged cars now steam and flap their loose panels
+Voice chat now works in lobbies and races
+AI racers no longer flip when they rejoin the pack

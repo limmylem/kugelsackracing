@@ -64,3 +64,18 @@ test('the volume: full near, fading smoothly to nothing at nearbyM', () => {
   const mid = voiceGain((V.fullM + V.nearbyM) / 2, cfg);
   assert.ok(mid > 0.4 && mid < 0.6, `halfway: ${mid}`);
 });
+
+test('a lobby and its race: everyone in the room hears everyone in it, at full volume, and nobody outside it', async () => {
+  const e = (uid, o = {}) => ({ uid, name: uid, region: 'sf', pos: [0, 0], party: null, voiceParty: true, voiceNearby: true, mic: true, session: `s${uid}`, track: `t${uid}`, at: Date.now(), ...o });
+  const a = e('a', { room: 'r1' }), b = e('b', { room: 'r1', pos: [50000, 0] }), c = e('c', { room: 'r2' }), d = e('d'), f = e('f', { room: 'r1', voiceRoom: false });
+  assert.equal(voiceMode(a), 'room'); assert.equal(voiceMode(d), 'near'); assert.equal(voiceMode(f), 'off');
+  assert.deepEqual(hears(a, b, { cfg }), { d: null, party: false, room: true }, 'the same room: full volume, however far apart');
+  assert.equal(hears(a, c, { cfg }), null, 'another lobby');
+  assert.equal(hears(a, d, { cfg }), null, 'someone in free roam right beside them');
+  assert.equal(hears(d, a, { cfg }), null, '…nor they the lobby');
+  assert.equal(hears(a, f, { cfg }), null, 'voice off in the lobby');
+  assert.equal(hears(a, b, { cfg, blocked: new Set(['b']) }), null, 'blocked');
+  assert.deepEqual(voicesFor(a, [a, b, c, d, f], { cfg }).map(v => v.uid), ['b']);
+  // (a party in the same lobby: heard as the room, not the party)
+  assert.ok(hears(e('p1', { room: 'r1', party: 'x' }), e('p2', { room: 'r1', party: 'x' }), { cfg })?.room);
+});

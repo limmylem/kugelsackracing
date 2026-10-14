@@ -208,17 +208,25 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   (DEPLOYMENT.md item 12; that costs money: ask first).
 - **Download in a dense crowd is over Step 1's target.** With 150 bots each seeing ~85 cars within 1.5 km, at half a
   game's rate: 35 kB/s a player on average, 74 at the 95th percentile (Step 1's target: 48 with 30 cars nearby). Two
-  reasons: every car within 1.5 km is sent, however many (the far ones 3 times a second); and a car near a border
-  arrives once through each zone the two players share (~1.8 times on average with 1 km zones). Proposed: each car sent
-  to each player by one zone (its home zone where the player has it, another shared one otherwise), with both sending
-  for a moment around a change so the switch can still be lined up; and a cap on the cars sent at full rate in a crowd.
-  Not done — it changes how zones send: to agree first.
+  reasons: every car within 1.5 km is sent, however many; and a car near a border arrives once through each zone the two
+  players share (~1.8 times on average with 1 km zones). Done (2026-10-14): in a crowd only the nearest 24 cars come at
+  the full rate (net/settings.js interest.fullCap; the rest at the next ring's), and a zone that starts sending a car
+  again after a gap is drawn afresh, not glided across the gap (net/remote.js). Built but **off**
+  (data/roam.json zones.oneSender): each car sent to each player by one zone they share, the zone that stops sending for
+  shareSec more and telling the game so it switches first. In the 200-handoff test it made 34 of 55 snaps come at a
+  switch (up to 59 cm; none with it off), because a zone was sometimes told to stop before the one taking over had the
+  car — the game would need to confirm what it receives. Not needed for friends testing (a few players); the crowd's
+  numbers haven't been measured again (the 150-bot swarm needs Redis and more cores).
+- **Frozen views at a handoff on this computer:** the 200-handoff test puts a car right from a zone whose view had
+  frozen 57–95 times (79 on the code from before these changes too); FREE_ROAM.md's run had none. Timing on a busy
+  4-core container; the snap check itself passes.
 - **Contact across a zone border is agreed one-sidedly.** Two players near a border can have different home zones;
   each reports to its own, which checks it against its own view of both cars (as Step 3 does when one report is
   missing). Both games still get one agreed result each, but the two zones don't compare notes.
-- **Voice chat only in free roam** (FREE_ROAM.md "Voice chat"): not yet in lobbies, races or the menus; a party's
-  voice is heard while its members drive in free roam. Tested on this computer through a stand-in for Cloudflare's SFU;
-  the real one is checked online once its two secrets are added (GO_LIVE.md "Voice chat").
+- **Voice chat in lobbies and races** (2026-10-14): everyone in a lobby and its race hears everyone in it, at full
+  volume (mp/voice.js 'room'; the lobby's corner: the microphone and who's talking); free roam's voice waits meanwhile
+  and joins again after. Not yet in the menus. Tested through the stand-in for Cloudflare's SFU
+  (server/tools/voice-browser.ts); the real one is checked online once its two secrets are added (GO_LIVE.md "Voice chat").
 - **Voice chat across several real-time processes:** each player's entry is in presence (Redis with several processes),
   so it works there — but tested in one process only.
 - **The browser test needs `--local-libs` here**: the page loads three.js, Rapier and MapLibre from jsDelivr, which this
