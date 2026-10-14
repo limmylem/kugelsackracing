@@ -269,7 +269,8 @@ function questGame(w) {
     ownedCars: () => Object.keys(player.profile.cars).map(summary),
     // the published series a quest is in, each with its quests (a series lists its quests; it's near them)
     // fast travel (Phase 4 Step 5): to a quest's start, in this region or another baked one — the loading
-    // screen holds until its ground is in and its route loaded, then the car is on its grid and its card opens
+    // screen holds until its ground is in and its route loaded, then the car is on its grid and its card opens.
+    // (Not offered to players: quests are driven to — the finder's Route. The tests' and tools' way there.)
     regionId: () => regionIdOf(w),
     fastTravel: async item => {
       // (a track event: to its venue, whose card lists it)
@@ -288,6 +289,8 @@ function questGame(w) {
       return true;
     },
     travelToRegion: async id => { await enter(regionFile(id)); },
+    // (the quest finder's Route: the way to a quest or venue on the maps — driven to, then played there)
+    routeTo: item => w.quests?.setGuide(item),
     seriesOf: async quest => {
       content ??= await worldContent();
       const near = (await content.service.query({ lat: quest.location.lat, lon: quest.location.lon, km: 25, view: 'published', kinds: ['series'], limit: 50 })).items ?? [];
@@ -1146,7 +1149,7 @@ async function buildWorld(file) {
       questCard: (it, el) => { prefetchAround(w, it.location); return w.quests.card(it, el); }, venueCard: (it, el) => shared.trackUi?.venueCard(it, el) ?? false, stateOf: id => w.quests.stateOf(id), busy: () => w.quests.active,
       guide: { set: it => w.quests.setGuide(it), clear: () => w.quests.clearGuide(), to: () => w.quests.guideFor } });
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
-    // finding quests: the full map's panel (recommended, filters, regions, fast travel) and the notices
+    // finding quests: the full map's panel (recommended, filters, regions, routes to them) and the notices
     w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
   }
   return w;

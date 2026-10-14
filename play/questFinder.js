@@ -1,12 +1,13 @@
 // Finding quests in the game (Phase 4 Step 5): on the full map (Tab) a panel with "Recommended for you",
 // filters (type, difficulty, distance, done or not, medal, suits my car), the quests that pass them in
-// every baked region, and the regions themselves — each quest can be shown on the map or travelled to
-// (fast travel: the game's loading screen holds until its start is in, then its card opens). While free
+// every baked region, and the regions themselves — each quest can be shown on the map, and its route set
+// on the maps to drive there (quests are played where they are: driven to, never travelled to — Start
+// opens at its start, play/questUi.js START_M); in another region, Go to its region first. While free
 // roaming, a small notice now and then when passing near a quest not yet played (it can be switched off
 // in the settings). The rules are quest/finder.js and data/quests.json finding.
 //
 //   const F = createQuestFinder({ w, game, content, regions, notices: () => on? })
-//     game: questUi's game (player, economy, config, carSummary, carInstanceId, fastTravel(item), regionId)
+//     game: questUi's game (player, economy, config, carSummary, carInstanceId, routeTo(item), travelToRegion(id), regionId)
 //   F.frame(dt, carLatLon, busy)   F.dispose()
 //   loadAll(service, regions) → every published quest in the baked regions (no cap: tests/quest-stress.mjs, 50,000)
 
@@ -72,7 +73,7 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
   const row = (x, buttons = true) => {
     const r = regionOf(x.item.location, regions), here = r?.id === game.regionId?.();
     return `<div class="q"><span><b>${esc(x.item.name)}</b> <span class="stars">${starsText(x.terms?.stars ?? x.item.rating?.stars ?? 2)}</span><br><small>${esc(TYPES[x.item.type]?.label ?? x.item.type)} · ${here && x.km != null ? `${x.km < 1 ? `${Math.round(x.km * 1000)} m` : `${x.km.toFixed(1)} km`}` : esc(r?.name ?? 'not baked')}${x.state && x.state !== 'new' ? ` · ${esc(x.state)}` : ' · new'}${x.medal ? ` · ${esc(x.medal)}` : ''}${x.why?.length ? ` · ${esc(x.why.join(', '))}` : ''}</small></span>
-      <span>${buttons ? `${here ? `<button data-show="${esc(x.item.id)}">Show</button>` : ''}<button data-go="${esc(x.item.id)}" ${r ? '' : 'disabled'}>Go</button>` : ''}</span></div>`;
+      <span>${buttons ? (here ? `<button data-show="${esc(x.item.id)}">Show</button><button data-route="${esc(x.item.id)}" title="The way there on the maps: drive to it to play it">Route</button>` : `<button data-region="${esc(r?.id ?? '')}" ${r ? '' : 'disabled'} title="To ${esc(r?.name ?? 'its region')}: then drive to it">Go to ${esc(r?.name ?? 'region')}</button>`) : ''}</span></div>`;
   };
   async function render() {
     if (!panel) return;
@@ -82,7 +83,7 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
     panel.innerHTML = `<h4>Recommended for you</h4>${rec.length ? rec.map(x => row(x)).join('') : '<small>Nothing right now: the filters below show everything.</small>'}
       <h4>Find quests</h4><div class="filters">${sel('type', 'Type')}${sel('stars', 'Difficulty')}${sel('distance', 'Distance')}${sel('status', 'Done')}${sel('medal', 'Medal')}${sel('car', 'Car')}</div>
       <div>${shown.slice(0, 60).map(x => row(x)).join('') || '<small>No quests match.</small>'}${shown.length > 60 ? `<small>…and ${shown.length - 60} more: narrow the filters.</small>` : ''}</div>
-      ${venues.length ? `<h4>Race venues</h4>${venues.map(v => { const r = regionOf(v.location, regions); return `<div class="q"><span><b>${esc(v.name)}</b><br><small>${(v.events ?? []).length} event${(v.events ?? []).length === 1 ? '' : 's'} · ${esc(r?.name ?? 'not baked')}</small></span><span>${r?.id === game.regionId?.() ? `<button data-show="${esc(v.id)}">Show</button>` : ''}<button data-go="${esc(v.id)}" ${r ? '' : 'disabled'}>Go</button></span></div>`; }).join('')}` : ''}
+      ${venues.length ? `<h4>Race venues</h4>${venues.map(v => { const r = regionOf(v.location, regions); return `<div class="q"><span><b>${esc(v.name)}</b><br><small>${(v.events ?? []).length} event${(v.events ?? []).length === 1 ? '' : 's'} · ${esc(r?.name ?? 'not baked')}</small></span><span>${r?.id === game.regionId?.() ? `<button data-show="${esc(v.id)}">Show</button><button data-route="${esc(v.id)}">Route</button>` : `<button data-region="${esc(r?.id ?? '')}" ${r ? '' : 'disabled'}>Go to ${esc(r?.name ?? 'region')}</button>`}</span></div>`; }).join('')}` : ''}
       <h4>Regions</h4>${regions.map(r => `<div class="r"><span class="${r.id === game.regionId?.() ? 'here' : ''}">${esc(r.name)}${r.id === game.regionId?.() ? ' · you\'re here' : ''} <small>${counts.get(r.id) ?? 0} quests</small></span>${r.id === game.regionId?.() ? '' : `<button data-region="${esc(r.id)}">Travel</button>`}</div>`).join('')}`;
   }
   function attach() {
@@ -94,9 +95,9 @@ export function createQuestFinder({ w, game, content, regions = [], notices = ()
     panel.addEventListener('change', e => { const k = e.target.dataset?.filter; if (!k) return; filters[k] = e.target.value; try { localStorage.setItem(KEY, JSON.stringify(filters)); } catch { /* not kept */ } render(); });
     panel.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
-      const item = [...all, ...venues].find(q => q.id === (b.dataset.go ?? b.dataset.show));
+      const item = [...all, ...venues].find(q => q.id === (b.dataset.route ?? b.dataset.show));
       if (b.dataset.show && item) maps.flyTo(item.location.lat, item.location.lon);
-      if (b.dataset.go && item) { maps.close(); game.fastTravel(item); }
+      if (b.dataset.route && item) { maps.close(); game.routeTo?.(item); }
       if (b.dataset.region) { maps.close(); game.travelToRegion?.(b.dataset.region); }
     });
   }

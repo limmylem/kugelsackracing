@@ -12,6 +12,6 @@
     { "id": "firstMedal", "when": "medal", "where": "drive", "title": "Medals", "text": "Beat the gold, silver or bronze target for a medal. Your first medal on a quest pays the most; repeats pay less, and much less if you farm one quest." },
     { "id": "firstRace", "when": "npcRace", "where": "drive", "title": "Racing rivals", "text": "Finish ahead of them: your place sets your medal. The gaps to the cars either side are on the right." },
     { "id": "firstPinkSlip", "when": "pinkSlip", "where": "drive", "title": "Pink slip", "text": "Winner takes the loser's car — yours too. You'll be asked to confirm before it starts." },
-    { "id": "firstFastTravel", "when": "fastTravel", "where": "drive", "title": "Finding quests", "text": "Filter quests here, or try Recommended. Go fast-travels to any quest in a baked region and opens its card when you arrive." }
+    { "id": "firstFastTravel", "when": "fastTravel", "where": "drive", "title": "Finding quests", "text": "Filter quests here, or try Recommended. Route shows the way to a quest on your maps: drive there, and you can start it once you arrive." }
   ]
 }

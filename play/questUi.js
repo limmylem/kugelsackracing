@@ -50,6 +50,15 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
 const ord = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 const HUD_KEY = 'driveWorld.questHud';
+// (a quest is played where it is: driven to — within this of its start)
+export const START_M = 60;
+// how far a car ({ x, z }, the world frame) is from a world quest's start (m), or null for one played anywhere: a
+// track event (its venue's card starts it), or one with no place. toXZ(lat, lon) → [x, z]
+export function distanceToStart(item, car, toXZ) {
+  if (!item || item.kind !== 'quest' || item.track || !item.location || !car) return null;
+  const [x, z] = toXZ(item.location.lat, item.location.lon);
+  return Math.hypot(x - car.x, z - car.z);
+}
 // the palette's colours as CSS variables (the HUD, the screens and the card use them)
 function applyPalette(P) {
   const r = document.documentElement.style;
@@ -163,6 +172,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (R.code === 'level') { const need = R.text.match(/level (\d+)/)?.[1]; return need ? `Opens at level ${need}` : 'Level too low'; }
     if (R.code === 'money') return `Need ${cur}${Math.max(0, fee - (p.money ?? 0)).toLocaleString('en-GB')} more`;
     if (R.code === 'busy') return 'In a quest';
+    if (R.code === 'far') return 'Drive there to start';
     if (R.code === 'damage') return 'Repair first';
     if (CAR_CODES.has(R.code) || R.code === 'car' || R.code === 'stake') return 'Car not eligible';
     return `Start${feeText}`;
@@ -174,12 +184,18 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const p = game.player.profile;
     return entryReasons({ quest: item, car: carInfo(id), player: { money: p.money, xp: p.xp ?? 0, unlimited: game.player.unlimited }, config: cfg, economy: game.economy });
   }
+  // how far the car is from a world quest's start (m; null: one played anywhere — a track event, no place)
+  const farFrom = item => distanceToStart(item, game.carNow(), (lat, lon) => P.toXZ(lat, lon));
+  const farText = d => `Drive to its start to play it: ${d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d)} m`} away. Set route shows the way.`;
+  let cardToken = null;
   function card(item, el) {
     if (item.kind !== 'quest') { preview = null; setLines(); return false; }
+    const token = cardToken = {};
     hint(item.type === 'pink_slip' ? 'pinkSlip' : 'questCard');
     const draw = (c = null) => {
       const p = game.player.profile, prog = p.quests?.[item.id], cur = game.currency;
-      const reasons = run ? [{ code: 'busy', text: 'Finish or quit the quest you\'re in first.' }] : reasonsFor(item);
+      const far = farFrom(item);
+      const reasons = run ? [{ code: 'busy', text: 'Finish or quit the quest you\'re in first.' }] : [...(far != null && far > START_M ? [{ code: 'far', text: farText(far) }] : []), ...reasonsFor(item)];
       const carBad = reasons.some(r => CAR_CODES.has(r.code));
       const others = carBad ? carsThatQualify(item, game.ownedCars().filter(x => x.instanceId !== game.carInstanceId()), cfg) : [];
       const r = rewardsOf(item, game.economy), T = c ? medalTargets(item, c.course, cfg) : null;
@@ -203,6 +219,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">${esc(startLabel(reasons, r.fee, cur, p))}</button>
         <button class="qbtn" data-guide>${guide ? 'Clear route' : 'Set route'}</button><span style="flex:1"></span><button class="qbtn" data-close>Close</button></div>`;
       el.querySelector('[data-start]').onclick = () => start(item);
+      el.dataset.far = far != null && far > START_M ? '1' : '';
       el.querySelector('[data-guide]').onclick = () => guide ? clearGuide(() => draw(c)) : setGuide(item, () => draw(c));
     };
     let seriesLine = '', lastC = null;
@@ -212,6 +229,14 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       seriesLine = list.map(S => { const done = S.item.quests.filter(id => p.quests?.[id]?.completed).length; return `<div class="qrow"><span>Series: <b>${esc(S.item.name)}</b> · ${p.series?.[S.item.id] ? 'complete ✔' : `${done} of ${S.item.quests.length} done · bonus for all`}</span></div>`; }).join('');
       if (seriesLine) draw(lastC);
     }).catch(() => {});
+    // (driving up to it: the card says so, and Start opens, once the car's at its start)
+    const near = setInterval(() => {
+      if (token !== cardToken || !el.isConnected || el.style.display === 'none') { clearInterval(near); return; }
+      const d = farFrom(item); if (d == null) return;
+      const isFar = d > START_M;
+      if (isFar !== (el.dataset.far === '1')) draw(lastC);
+      else if (isFar) { const li = [...el.querySelectorAll('li.no')].find(x => /^Drive to its start/.test(x.textContent)); if (li) li.textContent = farText(d); }
+    }, 500);
     courseOf(item).then(c => { lastC = c; if (c) { preview = c.course.line; setLines(); } draw(c); }).catch(e => { el.querySelector('.qrow span').textContent = `The route couldn't be loaded: ${e.message}`; });
     return true;
   }
@@ -232,6 +257,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   // ---------- starting ----------
   async function start(item, { restart = false, ghost = undefined } = {}) {
     if (run && !restart) return { ok: false, error: 'A quest is under way.' };
+    // (a quest is played where it is: driven to, never jumped to)
+    const far = restart ? null : farFrom(item);
+    if (far != null && far > START_M) { game.say('Drive to the quest\'s start to play it', 'warn'); return { ok: false, error: 'far' }; }
     // (a ghost to race: the best lap's — track/events/ghost.js — kept for a restart)
     if (ghost === undefined) ghost = restart && run?.item.id === item.id ? run.ghost : null;
     const c = await courseOf(item);

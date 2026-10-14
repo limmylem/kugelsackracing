@@ -60,8 +60,8 @@ left in the real world.
   - each event's type, laps, rivals, start, stars, reward, entry fee, and the player's best and medal.
 
   Each event has **Race** and a **Race my best-lap ghost** option. Track events don't get markers of their own:
-  the venue is their marker. Fast travel (the full map's finder) lists race venues, and a track event found
-  there takes you to its venue.
+  the venue is their marker. The full map's finder lists race venues, with *Route* to drive to one (or *Go to
+  <region>* for one in another region).
 
 ## Entering and leaving
 

@@ -191,6 +191,8 @@ export function playerLayers(map, { labels = true, prefix = 'players' } = {}) {
     return { set(features, onPick) { data = { type: 'FeatureCollection', features }; if (onPick)
             pick = onPick; map.getSource(src)?.setData(data); } };
 }
+// (travel anywhere on the full map: in development and the tests — online, quests are driven to)
+const freeTravel = () => { const env = globalThis.KR_SITE?.env; return !env || env === 'development' || env === 'test'; };
 export async function createWorldMaps({ manifest, base, onTravel }) {
     if (!document.getElementById('worldMapCss')) {
         const s = document.createElement('style');
@@ -255,7 +257,8 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
             fn(on);
         if (on && !fullMap) {
             fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
-            fullMap.on('click', e => { if (e.originalEvent.shiftKey) {
+            // (shift-click: anywhere — development only: online, quests are driven to)
+            fullMap.on('click', e => { if (e.originalEvent.shiftKey && freeTravel()) {
                 set(false);
                 onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng });
             } });

@@ -28,3 +28,4 @@ Adelaide's roads rebuilt: wider, smooth junctions, no holes or invisible walls
 Adelaide has street lights now: drive the city at night
 Brake pads now bite harder and stay strong when hot
 The quest arrow now points the right way to the next checkpoint
+Quests are driven to now: set the route, then start it there

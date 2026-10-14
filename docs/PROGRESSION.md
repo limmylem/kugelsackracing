@@ -115,8 +115,12 @@ quest's class. The card shows it, and warns when your car is under `warnBelow` o
   suits it, stars about right for your level, not yet gold, nearer first), **filters** (type, difficulty,
   distance, done or not, medal, suits my car) over every quest in every baked region, and the **regions**
   (each with its quest count; Travel).
-- **Fast travel**: *Go* on any quest in a baked region. The loading screen holds until its start area is
-  in and its route loaded, then the car is on its grid and its card opens. *Travel* goes to a region.
+- **Quests are driven to** (2026-10-14; no fast travel): *Route* on a quest in this region sets the way there on
+  the maps (the card's *Set route*, the same); in another region, *Go to <region>* takes you to that region, to
+  drive from there. A quest's card opens from anywhere (its marker, the map), but **Start** opens only within
+  `START_M` (60 m) of its start (play/questUi.js: "Drive there to start", how far, live as you drive up); a start
+  asked for from further is refused. Track events start from their venue's card, as before. The full map's
+  shift-click travel is for development only (its numbered spots stay). *Travel* goes to a region.
 - **Nearby notice** while free roaming: passing within 250 m of a quest you haven't played, a small notice
   — at most one every 45 s, each quest once a session, never during a quest. Off in the settings
   (Races: *Nearby quest notices*).
