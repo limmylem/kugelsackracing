@@ -81,7 +81,7 @@ test('the stock build is the Phase 1 starter car on the new model', () => {
   const a = leaves(phase1), b = leaves({ ...s.spec, aeroParts: undefined });
   // (Step 4: the inertia is a tensor worked out from the chassis and the parts — the same principal
   // moments as Phase 1's box, as Rapier stores them — and the wheels say their unsprung mass and offsets)
-  const step4 = k => /^(inertiaBox|inertiaTensor)\./.test(k) || /^wheels\.(unsprung|unsprungBaseline|offsets)(\.|$)/.test(k) || /^assists\.abs\.referenceTorque\./.test(k);   // (Step 8: what the ABS is set for)
+  const step4 = k => /^(inertiaBox|inertiaTensor)\./.test(k) || /^wheels\.(unsprung|unsprungBaseline|offsets)(\.|$)/.test(k) || /^assists\.abs\.reference(Torque|Fade)\./.test(k);   // (Step 8: what the ABS is set for; how the car's own brakes fade, for the rating)
   // (Fixes and engine upgrades: the engine's condition, cylinders, over-rev limits and sound, the rev
   // protection aid, and the stock gearbox's quicker shift, 0.2 s rather than 0.25)
   const fixes = k => /^engine\.(cylinders|overRev|condition|blown|wear|sound)(\.|$)/.test(k) || k === 'assists.revProtection.enabled' || k === 'gearbox.shiftTime';

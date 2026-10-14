@@ -157,9 +157,12 @@ export function computeStats(build, db) {
   const stockBrakesPart = db.parts[car.sockets.find(s => s.slot === 'brakes')?.stock?.[0]];
   if (stockBrakesPart?.brakes && spec.assists?.abs) {
     spec.assists.abs.referenceTorque = fullTorques(stockBrakesPart.brakes);
+    spec.assists.abs.referenceFade = { ...stockBrakesPart.brakes.fade };      // (and how they fade: the rating's hot stops)
+    delete spec.assists.abs.referenceFade._note;
     for (const k of ['front', 'rear']) record(`assists.abs.referenceTorque.${k}`, { step: 'base', source: { kind: 'part', id: stockBrakesPart.id, name: stockBrakesPart.name }, to: spec.assists.abs.referenceTorque[k], note: 'the car\'s own brakes at full pedal: what its ABS is set for' });
+    for (const k of Object.keys(spec.assists.abs.referenceFade)) record(`assists.abs.referenceFade.${k}`, { step: 'base', source: { kind: 'part', id: stockBrakesPart.id, name: stockBrakesPart.name }, to: spec.assists.abs.referenceFade[k], note: 'how the car\'s own brakes fade: what the rating\'s Braking compares hot stops with' });
   }
-  const derived = ['mass', 'centreOfMass', 'inertiaTensor', 'wheels.radius', 'wheels.inertia', 'wheels.unsprung', 'wheels.offsets', 'assists.abs.referenceTorque'];
+  const derived = ['mass', 'centreOfMass', 'inertiaTensor', 'wheels.radius', 'wheels.inertia', 'wheels.unsprung', 'wheels.offsets', 'assists.abs.referenceTorque', 'assists.abs.referenceFade'];
   for (const [path, value] of leaves(spec, '')) if (value !== null && !derived.some(d => path === d || path.startsWith(d + '.'))) record(path, { step: 'base', source: carSource, to: value });
 
   // 2. components

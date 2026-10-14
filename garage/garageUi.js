@@ -476,7 +476,7 @@ export class GarageScreen {
   #sameGroup(a, b) { return Object.values(this.w.car.socketGroups || {}).some(g => g.includes(a) && g.includes(b)); }
   #breakdown(r) {
     const bd = r.breakdown ?? [], max = Math.max(1e-9, ...bd.filter(b => b.effect !== 'base').map(b => Math.abs(b.amount)));
-    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking.' : null;
+    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking (a cold stop).' : r.key === 'braking' ? 'Stopping from 100 km/h through a race, the brakes hot as well as cold: better pads and discs fade less, and bite harder. The tyres set the shortest cold stop.' : null;
     const unit = r.unit ? ' ' + r.unit : '';
     return `<div class="g-breakdown well"><div class="label" style="font-size:11px">What affects ${esc(r.label.toLowerCase())}</div>
       ${bd.length ? bd.map(b => {
