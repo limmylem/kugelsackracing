@@ -27,3 +27,4 @@ Voice chat: talk to your party anywhere, or drivers nearby
 Adelaide's roads rebuilt: wider, smooth junctions, no holes or invisible walls
 Adelaide has street lights now: drive the city at night
 Brake pads now bite harder and stay strong when hot
+The quest arrow now points the right way to the next checkpoint

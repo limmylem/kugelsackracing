@@ -36,6 +36,14 @@ import { npcSettings, setupNpcs } from '../race/setup.js';
 import { hashSeed } from '../ai/rng.js';
 import { createQuestSounds } from './questSounds.js';
 import { createCameraBlend, orbitPose } from './cameraBlend.js';
+
+// The HUD's arrow to a place: its angle on screen (degrees, clockwise from straight up) from the car's heading.
+// (The world's x is to the car's left when it faces +z — heading and bearing both turn from +z toward +x, which is
+// to the left — and a CSS rotation turns clockwise: so the turn is negated.)
+export function arrowAngle(car, to) {
+  const left = Math.atan2(to.x - car.x, to.z - car.z) * 180 / Math.PI - car.heading;
+  return ((-left % 360) + 540) % 360 - 180;
+}
 import { paletteOf, guideStyle } from './palette.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -319,7 +327,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const lap = H.laps > 1 ? `<div class="row">Lap ${H.lap} / ${H.laps}${H.bestLap != null ? ` · best ${fmtTime(H.bestLap)}` : ''}</div>` : '';
     const sp = H.split ? `<div class="split ${H.split.delta == null ? '' : H.split.delta <= 0 ? 'good' : 'bad'}">${H.split.number}/${H.split.of} ${fmtTime(H.split.time)}${H.split.delta != null ? ` ${fmtDelta(H.split.delta)}` : ''}</div>` : '';
     // the next checkpoint's arrow: its way from the car's heading
-    const ang = Math.atan2(H.next.x - car.x, H.next.z - car.z) * 180 / Math.PI - car.heading;
+    const ang = arrowAngle(car, H.next);
     let panelHtml = '';
     if (panel?.kind === 'drift') panelHtml = `<div class="k">Drift</div><div class="big">${panel.score.toLocaleString('en-GB')}</div><div>${panel.pot ? `+${panel.pot.toLocaleString('en-GB')} × ${panel.multiplier}` : panel.multiplier > 1 ? `× ${panel.multiplier}` : '&nbsp;'}</div>${panel.next ? `<div style="font-size:12px">${panel.next.tier}: ${panel.next.score.toLocaleString('en-GB')}</div>` : panel.medal ? `<div style="color:${MEDAL[panel.medal]}">● ${panel.medal}</div>` : ''}`;
     else if (panel?.kind === 'delivery') panelHtml = `<div class="k">${esc(panel.name)}${panel.fragile ? ' · fragile' : ''}</div><div class="big ${panel.condition < 50 ? 'bad' : ''}">${panel.condition}%</div><div class="bar"><i style="width:${panel.condition}%;background:${panel.condition < 50 ? '#ff7a6a' : panel.condition < 80 ? '#ffbd4a' : '#7ee08a'}"></i></div>`;
