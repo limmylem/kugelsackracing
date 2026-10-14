@@ -17,14 +17,19 @@ import { createWorldStream } from "./streamer.js";
 import { createWorldMaps } from "./maps.js";
 import { createMapDebug } from "./debug.js";
 import { lampLights } from "./lamps.js";
-export async function prepareTrack(track) {
+// (startAt: where to start instead of the region's spawn — the player's saved place, { region, xz: [x, z] (the map's frame),
+// heading } — used when it's this region's: the world loads there straight away, not at the spawn first)
+export async function prepareTrack(track, { startAt = null } = {}) {
     const manifest = await (await fetch(track.mapV3.manifest, { cache: 'no-cache' })).json();
     track.surfaces = manifest.surfaces;
     track.offRoad = 'grass';
     track.name = track.name ?? manifest.name;
     // the physics' origin starts at the spawn's tile (world/streamer.js)
-    const T = manifest.grid.tileSize, [sx, sz] = manifest.spawn.xz, ox = Math.floor(sx / T) * T, oz = Math.floor(sz / T) * T;
-    track.spawn = { position: [sx - ox, 400, sz - oz], headingDeg: manifest.spawn.bearing != null ? 180 - manifest.spawn.bearing : 0 };
+    const at = startAt && startAt.region === manifest.region && Array.isArray(startAt.xz) && startAt.xz.every(Number.isFinite) ? startAt : null;
+    const T = manifest.grid.tileSize, [sx, sz] = at ? at.xz : manifest.spawn.xz, ox = Math.floor(sx / T) * T, oz = Math.floor(sz / T) * T;
+    track.spawn = { position: [sx - ox, 400, sz - oz], headingDeg: at ? at.heading ?? 0 : manifest.spawn.bearing != null ? 180 - manifest.spawn.bearing : 0 };
+    // (landed right there, facing as it was — not on the nearest road to it)
+    track._landAt = at ? { wx: sx, wz: sz, heading: at.heading ?? 0 } : null;
     track._manifest = manifest;
     return track;
 }
@@ -67,6 +72,7 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
     w.stream = stream;
     w.RAPIER = RAPIER;
     w.spawning = true;
+    w.landAt = w.track._landAt ?? null;
     hold(w);
     w.camera.far = 16000;
     w.camera.updateProjectionMatrix();

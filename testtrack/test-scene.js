@@ -995,9 +995,26 @@ function disposeWorld(w) {
   w.scene.clear();
 }
 
+// The player's saved place in free roam (the API's /roam/me: where they left off, as play/roam.js would put them back),
+// asked for while a real-world region's files load: the world is then built round it straight away, not round the
+// region's spawn and travelled from there. Nothing (null) when there's no multiplayer, no account, nothing saved, the
+// garage, or no answer in a few seconds — the spawn, as before.
+async function savedPlace() {
+  const o = multiplayerOptions();
+  if (!o || Date.now() - (shared.cameOutAt ?? 0) < 60000) return null;
+  const ask = (async () => {
+    const A = await accountNow();
+    if (!o.player && !A?.me) return null;
+    const b = await A.api.get(o.player ? `/roam/me?player=${encodeURIComponent(o.player)}` : '/roam/me');
+    return b && !b.garage && b.region && Array.isArray(b.pos) && b.pos.every(Number.isFinite) ? b : null;
+  })().catch(() => null);
+  return Promise.race([ask, new Promise(r => setTimeout(() => r(null), 4000))]);
+}
+
 async function buildWorld(file) {
   // (a baked region of the real world: scenes/map_v3.json?region=<id> — fast travel to its quests)
   const [path, query] = file.split('?'), region = new URLSearchParams(query ?? '').get('region');
+  const saved = path.startsWith('scenes/map_v3.json') ? savedPlace() : null;
   // (a generated track: made, or from this browser's cache — track/client.js)
   const trackData = path.startsWith('track:') ? await loadTrack({ code: path.slice(6) }, { onProgress: (step, share) => { shared.info.textContent = `Making the track… ${step} ${Math.round(share * 100)}%`; trackProgress?.(step, share); } }) : null;
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
@@ -1012,7 +1029,12 @@ async function buildWorld(file) {
   if (track.streamed) track.streamed = { ...track.streamed, manifest: assetUrl(track.streamed.manifest) };
   // (the real world: its ground streams in from the baked tiles — testtrack/realWorld.js)
   if (track.streamed) await RW2.prepareTrack(track);
-  if (track.mapV3) await MapV3.prepareTrack(track);
+  if (track.mapV3) {
+    const b = await saved;
+    await MapV3.prepareTrack(track, { startAt: b ? { region: b.region, xz: [b.pos[0], b.pos[2]], heading: b.heading ?? 0 } : null });
+    // (started where they left off: free roam then has nothing to move — play/roam.js startedThere)
+    if (track._landAt) shared.startedAtSaved = { region: b.region, pos: b.pos };
+  }
   const { settings, spec, sockets, glb } = shared;
   const sim = createSimulation(RAPIER, { settings, spec, sockets, track });
   const terrain = terrainOf(track);
@@ -2726,6 +2748,8 @@ async function startRoamHere(w, o) {
       regionChosenAt: () => lastRealAt,
       // (just out of a garage: where you are is where you came out — not put back where you left off)
       justCameOut: () => Date.now() - (shared.cameOutAt ?? 0) < 60000,
+      // (the world was built at this saved place already — buildWorld: no second trip there)
+      startedThere: b => { const s0 = shared.startedAtSaved; if (!s0 || s0.region !== b.region) return false; shared.startedAtSaved = null; return Math.hypot(s0.pos[0] - b.pos[0], s0.pos[2] - b.pos[2]) < 50; },
       carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
       place: (pos, h) => Ad.place(pos, h),
       async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },

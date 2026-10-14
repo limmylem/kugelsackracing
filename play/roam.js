@@ -512,6 +512,8 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   if (back && !back.garage) {
     // (just out of a garage: you came out of its building — that's where you are)
     if (back.region === region && game.justCameOut?.()) { /* where the garage put you */ }
+    // (the world was built right there already — the game asked before loading it: nothing to move)
+    else if (back.region === region && game.startedThere?.(back)) toast('Back where you left off');
     else if (back.region === region) { game.place(back.pos, back.heading ?? 0); toast('Back where you left off'); }
     // (only when that place is newer than this browser's own choice of region — left off on another computer since)
     else if (first && game.switchRegion && Date.parse(back.at ?? '') > (game.regionChosenAt?.() ?? 0) + 60000) { goingBack = back; toast(`Going back to ${back.region}, where you left off…`); setTimeout(() => game.switchRegion(back.region).catch(() => toast(`You left off in ${back.region}: open the full map (Tab) to go back there.`, 9000)), 0); }
