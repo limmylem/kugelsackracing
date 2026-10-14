@@ -87,6 +87,7 @@ async function computer(name: string) {
   const P = await ctx.newPage();
   P.on('pageerror', (e: any) => errors.push(`${name}: ${e}`));
   if (process.env.MP_DEBUG) P.on('console', (m: any) => console.log(`[${name}] ${m.type()}: ${m.text().slice(0, 240)}`));
+  if (process.env.MP_DEBUG) P.on('requestfailed', (r: any) => console.log(`[${name}] failed: ${r.url().slice(0, 200)} ${r.failure()?.errorText ?? ''}`));
   return { ctx, P };
 }
 const signIn = (P, email) => P.goto(`${BASE}/account/`).then(() => P.evaluate(async (e) => { const { createApi } = await import('/account/api.js'); await createApi().auth('/sign-in/email', { email: e, password: 'correct horse battery' }); }, email));
