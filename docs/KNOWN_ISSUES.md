@@ -114,8 +114,8 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
     now takes the longest straight main road when that's too short: Grange Road's 1,480 m, where all four pass
     (2026-10-14: 0–100 in 9.25 s, 100–0 in 41.3 m).
 - **NPC racers** (`npm run test:npc -- --regions adelaide`, not blocking in CI): Adelaide's route at low, medium
-  and high skill finishes cleanly; the 8-car race finishes with every car but 1 stuck and 2 resets, as Monaco's and
-  Stelvio's do (docs/NPC_RACERS.md, "Known limits").
+  and high skill finishes cleanly, and (2026-10-14) its 8-car race too. Monaco, Stelvio, Tokyo and Milton Keynes still
+  have a stuck car or more (docs/NPC_RACERS.md, "Known limits").
 - **Its road graph is the biggest** (89,000 segments): about 0.4 GB in memory in each of the API and the
   real-time server once someone drives there (docs/DEPLOYMENT.md), and about 0.2 GB of a browser's memory once Set
   route or a quest there loads it (San Francisco's: about half).

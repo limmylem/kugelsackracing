@@ -256,12 +256,14 @@ colliders) that sweep was 5 ms a step on its own; an 8-car race is now 1.2–3.1
 - **Passing:** every route at low, medium and high skill finishes cleanly; fairness (speed, cornering,
   braking within the car's physics); the skill spread (low about 8% slower than high over the routes,
   medium about 2.5%: on the config's targets, though on Monaco and Tokyo the levels are close); 8-car
-  races on Tokyo, Munich, San Francisco and Milton Keynes with no one stuck or off the road; the finishing order
+  races on Munich, San Francisco and Adelaide with no one stuck or off the road; the finishing order
   changes with the seed; the same seed gives the same race; an 8-car race within the frame budget with
   the detail switches unseen; 100 races without memory growth.
-- **8-car races on Monaco, Stelvio and Adelaide:** every car finishes, but with stuck-and-reset incidents (3,
-  10 and 2 in the test's race; Adelaide's, added 2026-10-11, on its narrow North Adelaide streets), where the test
-  wants none, and some moments off the road. Adelaide's route at low, medium and high skill alone: clean. (Milton Keynes now
+- **8-car races on Monaco, Stelvio, Tokyo and Milton Keynes** (2026-10-14): every car finishes, but with stuck-and-reset
+  incidents (1, 7, 1 and 1 in the test's race; Monaco's were 3 and Stelvio's 10 before an NPC coming back from its cheap
+  run was put down clear of the other cars — two had come back on top of one another), where the test wants none.
+  Adelaide's race is clean now (it had 2). Tokyo's and Milton Keynes' came back with the day's physics changes (the bump
+  stops), not that fix — the same race without it is the same; Tokyo's has 47 moments off the road too. Adelaide's route at low, medium and high skill alone: clean. (Milton Keynes now
   passes: an NPC coming back from the cheap run is put down at its ride height, not dropped from 35 cm —
   a drop at speed bottomed its suspension and the floor caught the road.) On a circuit, an NPC that has
   finished drives on at 60% (a cool-down lap) instead of stopping on the line in front of everyone still
