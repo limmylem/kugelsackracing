@@ -1,0 +1,61 @@
+{
+  "id": "kugel_16_forged_painted",
+  "name": "16\" Kugel wheel, painted (forged)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 1200,
+  "mass": 6.2,
+  "model": "assets/parts/wheels/kugel/kugel_16.glb",
+  "icon": "assets/icons/parts/kugel_16_forged_painted.png",
+  "fits": ["wheel_hub:std", "rim_fits:16"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:16"],
+  "contactMaterial": "metal",
+  "toughness": 1.3,
+  "rim": {
+    "diameter": 16,
+    "width": 6.5,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "painted"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "kugel",
+    "kind": "wheels",
+    "key": "16_forged_painted",
+    "settings": {
+      "diameter": 16,
+      "width": 6.5,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "forged",
+      "finish": "painted"
+    },
+    "stats": {
+      "mass": 6.2,
+      "inertia": 0.154,
+      "toughness": 1.3
+    },
+    "gain": null,
+    "priceFactor": 1
+  },
+  "_generated": "Made by npm run content -- build from data/families/kugel.json (and data/content/formulas.json families.wheels): change those, not this file. race: priced by its settings, $1,200, unlocked at level 6.",
+  "bounds": {
+    "min": [-0.0916, -0.2192, -0.2192],
+    "max": [0.1026, 0.2192, 0.2192]
+  },
+  "massOffset": [0.034, 0, 0],
+  "tier": "race",
+  "unlock": {
+    "level": 6
+  }
+}
