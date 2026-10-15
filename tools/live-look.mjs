@@ -29,7 +29,7 @@ try {
   if (want) {
     const { decodeLine } = await import('../route/geometry.js');
     for (const r of routes.filter(r => r.name.toLowerCase().includes(want))) {
-      const item = await (await fetch(`${api}/api/v1/content/items/${r.id}`)).json(), course = (item.item ?? item).data?.course;
+      const res = await (await fetch(`${api}/api/v1/content/items/${r.id}`)).json(), it = res.item ?? {}, course = it.course ?? res.route?.course ?? it.data?.course;
       const pts = course?.path ? decodeLine(course.path) : [];
       console.log(`route "${r.name}" (${r.id}, ${r.region}): ${pts.length} points: ${pts.map(p => `${p.lat.toFixed(6)},${p.lon.toFixed(6)}`).join(' ')}`);
     }
