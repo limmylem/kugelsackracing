@@ -110,14 +110,45 @@ its generator's settings and running it again — never the `.glb`. A part file 
   turning, made to fit inside the rim.
 - **Wings** have their element as a node of its own, `wing_element`, turning about its middle: the game
   tips it to the wing's angle setting.
+- **Shape settings**: a family's models are made by these generators from its settings and its shape (`formulas.json`
+  `families.<kind>.shapeSettings`: a wheel's spoke style, dish and lip, a wing's profile and end plates, an exhaust's tip
+  shape and cut…; `npm run content -- shapes <kind>`). Each one's default is the look the kind always had. Where a shape
+  is better modelled than made in code, a generator mixes in a **kit piece** (below).
 - **Not generated**: anything that has to follow a car's curves — bumpers, bonnets, fenders, widebody
-  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them).
+  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them). Vents, scoops and
+  dive planes on an aero kit's bumper corners come in as kit pieces.
+
+## Kit pieces
+
+A kit piece is a small model a generator mixes into a family's models: a wing's **end plate**, a wheel's **centre**, an
+**exhaust tip**, a piece on each front **corner of an aero kit's bumper**. Each kind of family has its attach points
+(the *Kit pieces* table below, from `model-rules.json` kits); a piece is one model for one attach point.
+
+- **Name it** `kit_<kind>_<attach>_<name>.glb` (`kit_spoiler_endplate_fin.glb`, `kit_wheels_centre_spinner.glb`). In
+  the Blender add-on, pick **Kit piece: …** as what it is: its checks, Place at origin and Export use the attach point's
+  rules and name the file for you.
+- **Model it at the reference size** in the table, real size in metres, +Y up, the car's front +Z: the generator scales
+  it to where it goes (an end plate with the wing's chord; an exhaust tip with the pipe's radius and the tip's length) —
+  so model it once, at that size, and it fits every wing or pipe.
+- **Its origin is the attach point**, as the table says: an end plate's inner face at x 0 with the wing element's middle
+  at y 0, z 0; a wheel centre's back on the hub's face; an exhaust tip's front where it meets the pipe, pointing back
+  (−z); a bumper corner piece's inner face against the bumper's side. **Model the left-hand one** (+x out): the generator
+  mirrors it for the right.
+- **Materials**: `paint`, a finish (`carbon`, `chrome`, `raw_metal`, `matte_black`…) or `rim_finish` (a wheel's face:
+  it takes the wheel's finish). **No `car_atlas` and no textures**: it's mixed into a model made in code, which has
+  neither. Closed meshes, flat-shaded, low-poly, under the attach point's triangle budget (it adds to the part's).
+- **Import it** like any model: put it in `incoming/` and `npm run import`. It's checked (size, origin, budget,
+  materials), fixed and put in `assets/kits/<kind>/<attach>_<name>.glb`; from then on it's a choice for that kind's kit
+  shape setting (`centrePiece`, `platePiece`, `tipPiece`, `bumperPiece`) in the family builder's Shape step. Every model
+  made with it goes through the same checks as the rest (`npm run test:shapes` tries each piece on every car).
+- `npm run sample-models -- --kits` writes the four starter pieces, to try it all with.
 
 ## The Blender add-on
 
 `npm run blender-addon` makes `tools/blender/dist/ognistrada_tools.zip`; in Blender, **Edit › Preferences › Add-ons ›
 Install from Disk**, pick it and tick **Ognistrada tools**. Its panel is in the 3D View's sidebar (**N**) ›
-**Ognistrada**: **Set up the scene** (metres), what the model is and its name, **Add socket** (an empty named exactly
+**Ognistrada**: **Set up the scene** (metres), what the model is (a part type, a car, or a **Kit piece: …** — see Kit
+pieces) and its name, **Add socket** (an empty named exactly
 as the game wants, at the 3D cursor — for a car), **Place at origin** (the attach point to 0, 0, 0, by the type's
 rule), **Check** (these rules, in plain words with how to fix each) and **Export for the game** (checks, then writes
 `<type>_<name>.glb` with the right settings into the folder chosen — the game's `incoming/`). See
@@ -144,7 +175,7 @@ rule), **Check** (these rules, in plain words with how to fix each) and **Export
 | `npm run balance-report` | Every part's price, mass and stat changes on the starter car, value for money, and anything off its tier's rules (`data/content/tiers.json`: price bands, gains to each slot's key stat, dearer parts doing more), with the fully upgraded car's class, in `reports/balance.csv`. |
 | `npm run playtest` | A whole upgrade journey played through the player service, with the rating and the Step 6 results after every change (`reports/playtest.csv`). In the game: the garage's settings › Playtest, and `dev/playtest.html` to read the log. |
 | `npm run guide` | Rewrites this guide's tables and `docs/part_prompt_templates.md` from `data/content/model-rules.json`. |
-| `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes). |
+| `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes, `-- --kits` the starter kit pieces). |
 | `npm run generate-parts` | Makes the mechanical parts' models in code (`tools/generators/<category>.js`: rims, brakes, engine, aero, interior, bay, exhaust, lights, offroad) and imports them like a modelled part: checked, icon, part file. `-- rims brakes` for some generators, `--only id,id`, `--check` to build and check without importing. Draws `docs/generated_parts.png` (every generated part) and `docs/generated_fit.png` (every car with a set fitted through the garage). |
 | Part preview | `http://localhost:7690/dev/parts.html`: every part alone or on a car, its variants, sockets, wireframe, bounds, triangle counts, paint and finish tests, and a fit check (does it cut into the body or other parts?). |
 

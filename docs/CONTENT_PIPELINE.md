@@ -60,6 +60,10 @@ the finishes, and the build makes a part for **every combination**. For example,
   slot. A finish changes the look and multiplies the price.
 - A part the family stops making is **retired**: it's no longer sold, but players who own one keep it.
 - Change the family file, never the parts it makes. Ids don't change, so players' parts stay theirs.
+- Its **shape** (how its models look: see *Shape settings and kits*), its cars left off (`leaveOff`: car → why) and,
+  written by the builder when a change needs them, `idKeys` / `idOmit` (so a setting that starts or stops varying
+  doesn't change the ids of the parts it still makes) are in the file too. The family builder makes and changes these
+  files for you (*A family from the admin page*).
 - Then **`npm run content -- check`** and publish (all the family at once: `npm run content -- status streetline
   --to published`, or in the Content tab).
 
@@ -99,6 +103,88 @@ The **Content** tab on the admin page (admins only) lists every part and car wit
   drivers' cars). Publishing needs passing checks, and a part that fails stays as it was, with the reason.
 - **CSV out and in**: export, change prices in a spreadsheet, import (try it first as a dry run).
 - Every change is in the history and the admins' log, with who made it and why.
+- **Players keep what was published.** Publishing keeps a copy of what players get (price, tier, unlock level, name,
+  stats). If the part's files change later — its family changed and rebuilt, then deployed — players keep that copy, and
+  the part shows as a new draft version ("changed in the files since it was published") until you publish it again. A
+  changed model is the exception: models aren't kept per version, so a new shape shows once it's deployed.
+
+### 6. A family from the admin page
+
+The family builder: **Content tab › New family** (admins only). It writes the same family file you'd write by hand
+(`data/families/<id>.json`, in the same layout) and runs the same build and checks as `npm run content`, so a family made
+there can be changed by hand or from the command line, and the other way round. It works where the server runs from
+a copy of the game with its tools (`npm run server:dev`; `contentBuilder.enabled` in `server/config/`): on the live
+server it says so. Make families on your computer, **commit them** (the pre-commit hook and CI check them as they check
+anything made with `npm run content`) and deploy: they arrive in the live Content tab as drafts to publish.
+
+1. **What it is**: pick the kind (exhaust, wheel, wing…: the kinds in `formulas.json`), or **start from** a family or a
+   preset to copy its settings.
+2. **Name**: type one, or **Suggest names** for invented ones in the style of the others. A name like a real make,
+   model or part brand is refused, with the reason (`data/content/real-names.json`, fuzzily: Br3mbo and Rekaro too). The
+   id comes from the name.
+3. **Settings**: each with its allowed range shown; numbers as values or **from, to, step**; lists as ticks. A value
+   outside the range can't be picked (nor saved through the API).
+4. **Shape**: the kind's shape settings (see *Shape settings and kits*) with a **live 3D model** of a part as you change
+   them, its triangles against the budget. Each one **fixed** for the family or **varied** (a part for each value).
+5. **Finishes**, 6. **Aim** (the tiers, price range or unlock levels you want: optional), 7. **Fits** (the cars its
+   parts go on, with a count; leave a car out with a reason — the family file's `leaveOff`).
+
+As you go, the right-hand side shows **every part it would make** — settings × shapes × finishes — with its stats,
+tier, price and unlock level, worked out by the build's own code before anything is made, and what to look at: parts
+that can't be made (a stat out of its range, too little or too much for any tier: **Skip** them in one go), parts the
+economy check would fail, parts that do the same as another family's, a shape all but the same as another family's, a
+crowded tier, the aim it misses (and which settings to change to hit it), and over `families.maxVariants` parts.
+
+- **Preview** makes a few parts' models (the smallest, the largest, one in the middle and one of each shape; or pick
+  them) as the build makes them — fitted to the cars — with their icons and studio thumbnails, and shows each on a car
+  in 3D. Nothing is saved as a part.
+- **Make the family** writes the file as a **draft** and builds and checks it as a **job**: its progress and log (the
+  command line's words) show as it goes, and you can cancel it. A job that fails or is cancelled **puts everything back**
+  as it was and says why. When it's done, the Content tab shows the new parts with their checks: fix any that fail, send
+  them to review, publish as usual. Nothing is published by the builder.
+- **Change a family**: pick it in the Content tab's Family filter › **Change … in the builder**. The same form, filled
+  in from its file; before saving it lists the parts that will be **added**, those whose stats, price or model
+  **change**, and those **retired** (with how many players own each: they keep them). Parts it still makes keep their
+  ids, even when a setting starts or stops varying (the builder adds `idKeys` and `idOmit` to the file for that).
+- **Save as preset**: the setup (kind, settings, shape, finishes, aim) under a name, in `data/content/presets/`. **Presets &
+  variations**: from a preset or a family, several new families at once, varying the settings and shape settings you
+  pick (new materials, a budget, middle and top build, new designs), each with an invented name and its summary;
+  preview any, then make the ones you tick.
+- **New engine**: every field of `data/engines/<id>.json` (the maker from the made-up makers in
+  `data/content/builder.json`), with its torque curve, power, mass, bay class and price as you change them, and the cars
+  it'll go in — and why not the others. **New car**: `new-car` as a form (a model is optional), then the placeholder in 3D.
+- **Jobs**: everything running or done since the server started, with its log. At most `jobs.maxRunning` at once
+  (`data/content/builder.json`); one per family; a job that writes files has them to itself while it runs.
+- Every action is in the history and the admins' log, with who and why.
+
+### 7. Shape settings and kits
+
+A family's **shape** (`shape` in its file) is how its models look, beyond the settings that make them: a wheel's spoke
+style, dish and lip; a wing's uprights, profile and end plates; an exhaust's tip shape and cut; a seat's bolsters and
+head wings… Each kind's shape settings and what each may be are in `formulas.json` (`families.<kind>.shapeSettings`):
+a range, a list of values, a table, or a **kit piece**. `npm run content -- shapes <kind>` lists them.
+
+```json
+"shape": { "spoke": "split", "dish": 0.03, "cap": ["flat", "dome"], "centrePiece": "spinner" }
+```
+
+- A value fixes it for the family; a list makes a part for each (in their ids, like a varied setting). Left out: its
+  default — the look the kind had before shape settings, so every family made before keeps its exact models.
+- **Shape settings that change what a part does** are marked `stats: true` and used by the kind's formulas (a wing's
+  profile, end plates, set angle and gurney change its downforce and drag); their stats are kept in their allowed ranges
+  like any other. The rest only change the look.
+- The models are made in code from these settings, the same every time (the same family file, the same bytes), at the
+  right size and origin for the kind, fitted to each car where the kind needs it, and through the same checks as an
+  imported model (model rules, levels of detail, compressed textures, collision hulls for what comes off, thumbnails,
+  the fit check). A model that fails isn't made, and the build says why. `npm run test:shapes` makes every kind at the
+  ends of every shape setting's range and some random mixes, and checks each.
+- **Kit pieces**: where a shape is better modelled than made in code, model a few pieces in Blender and the generator
+  mixes them in: a wing's end plates, a wheel's centre, exhaust tips, a piece on each front corner of an aero kit. In
+  the Blender add-on pick **Kit piece: …** as what it is (its own checks and attach point), export
+  `kit_<kind>_<attach>_<name>.glb` to `incoming/` and `npm run import`: it's checked and put in
+  `assets/kits/<kind>/<attach>_<name>.glb`, and from then on it's a choice for that kind's kit shape setting. How to
+  model one: [MODELLING_GUIDE.md](MODELLING_GUIDE.md) › Kit pieces. `npm run sample-models -- --kits` writes the four
+  starter pieces.
 
 ---
 
@@ -176,6 +262,13 @@ from its template** (the pipeline's part in minutes; with the modelling, under a
 | `npm run content -- thumbnails [ids…] [--all]` | Studio thumbnails |
 | `npm run content -- finish [ids…]` | What the importer does, done to models already in the game (LODs, KTX2, hulls) |
 | `npm run guide` | The modelling guide's tables and the add-on's rules, from `model-rules.json` |
+| `npm run content -- new-family --kind <kind> --name "…" [--set key=a,b] [--set key=from..to/step] [--shape key=v] [--finishes a,b] [--aim-tiers sport] [--dry-run]` | The family builder from the command line: every part it'd make, then the family made as a draft (a job: put back if it fails). `--from <family>` / `--from-preset <name>` to start from one; `--suggest-names` |
+| `npm run content -- preview <family> [part ids…] [--out dir]` | A few parts' models, icons and thumbnails, as the build makes them (nothing saved as a part) |
+| `npm run content -- variations <preset or family> --vary <setting,…> [--count n] [--seed n] [--make]` | New families from one, varying those settings: what each would make; `--make` makes them |
+| `npm run content -- presets [--save <name> --from <family>]` | The builder's presets (`data/content/presets/`) |
+| `npm run content -- shapes <kind>` | A kind's shape settings, what each may be, and its kit pieces |
+| `npm run test:shapes [kinds…]` | Every kind's generator at the ends of every shape setting's range (and random mixes): model rules, budget, fit on every car, drive and crash for those that change stats |
+| `npm run test:content-builder` | The family builder end to end: a family made as a job, its file and parts as the builder said, verify and the pre-commit hook; then changed (ids kept, retired as said); everything put back |
 
 ## Where things are
 
@@ -187,11 +280,18 @@ from its template** (the pipeline's part in minutes; with the modelling, under a
 | `data/content/standards.json`, `templates/` | The shared standards, and the car body templates |
 | `data/content/check-rules.json`, `checks.json` | The automatic checks' rules and results |
 | `data/families/`, `data/engines/` | Families and engines (what the build makes parts from) |
+| `data/content/builder.json` | The family builder's limits: parts per family, jobs, names, previews, warnings, variations, engine makers |
+| `data/content/real-names.json` | Real makes, models and part brands no name may be like |
+| `data/content/presets/` | The builder's presets |
+| `assets/kits/<kind>/` | Kit pieces the model generators mix in (`model-rules.json` kits: their attach points) |
+| `tools/content/builder.mjs`, `jobs.mjs`, `preview.mjs`, `names.mjs` | The family builder (the admin page and the command line), its jobs, previews and names |
 | `tools/content/`, `tools/blender/` | The pipeline's code, and the Blender add-on |
-| `server/src/content/`, `admin/content.js` | The content manager (the admin page's Content tab) |
+| `server/src/content/`, `admin/content.js`, `admin/builder.js` | The content manager and the family builder (the admin page's Content tab) |
 
 ## When something's wrong
 
+- **A builder job failed**: its log (the Content tab › Jobs) says why, in the command line's words; nothing it did is
+  kept. Change the family and make it again.
 - **Import says a model still has problems**: read its *How to fix* lines. The original stays in `incoming/` until
   it passes.
 - **`verify` fails in the pre-commit hook**: run `npm run content -- check` (and `npm run content -- build` if it

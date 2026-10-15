@@ -83,6 +83,10 @@
           "type": "object",
           "description": "its family's settings it was made from (diameter, finish…)"
         },
+        "shape": {
+          "type": "object",
+          "description": "the shape settings it was made with, where its family varies them or they change its stats (data/content/formulas.json families.<kind>.shapeSettings)"
+        },
         "stats": {
           "type": "object",
           "description": "the stats its family's formulas worked out (data/content/formulas.json)"

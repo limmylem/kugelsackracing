@@ -78,7 +78,7 @@ settings, with the current defaults as the defaults so existing families make by
 | exhaust | tip shape (round, oval), cut (rolled, slash, straight), length | the slash's depth, the gap between tips, a tip from a kit |
 | spoiler | uprights (straight, swan, struts, pedestal), end plates (up, down, long), gurney, thickness; second element | wing profile (thickness and camber), the end plates' shape (sweep), a set angle; profile, plates, angle and gurney **change downforce and drag** (formulas); end plates from a kit |
 | intake | filter colour, reach, stack height | — |
-| turbo | inlet (filter, pipe), manifold (cast, flange, equal), downpipe, hot side colour, filter colour | — |
+| turbo | inlet (filter, pipe), manifold (cast, flange), downpipe, hot side colour, filter colour | — |
 | intercooler | tanks (side, top), tank size, fins (tube, bar), pipes, pipe and tank material | — |
 | seat | height, depth, bolster, head wings, harness slots, fabric colour | — |
 | steering_wheel | spoke (flat, slotted, drilled), quick release, flat bottom, rim thickness, marker colour | — |
@@ -95,7 +95,7 @@ kinds use for end plates, centre caps and tips.
 - **One pipeline.** The builder's server code calls `tools/content/builder.mjs` (new), which uses `expandFamily`,
   `priceFamilyParts`, `buildContent`, `runChecks`, `verify`, `makeThumbnails` — the same modules `npm run content`
   calls. The CLI's new commands call the same `builder.mjs`.
-- **Jobs** run in a worker thread (`tools/content/job.mjs`, imported, never a shell command). One job per family; at
+- **Jobs** run in a worker thread (`tools/content/jobs.mjs`, `jobWorker.mjs`; imported, never a shell command). One job per family; at
   most `jobs.maxRunning` running (`data/content/builder.json`). A job that writes takes the pipeline's files for its
   whole run (shared files: `data/parts/index.json`, `checks.json`, `thumbs.json`), so two writers never interleave;
   previews write only to a temporary folder and run alongside. Before writing, a job copies everything it can touch;
@@ -107,3 +107,26 @@ kinds use for end plates, centre caps and tips.
 - **Prediction = the build's own numbers**: the summary runs `expandFamily` and `priceFamilyParts` (what the build
   runs after making models) on the game's data; only a car that a fitted model can't be made to fit can differ (the
   build measures on the next car), and the summary says when that could happen.
+
+## 5. Found while building it
+
+- **Ids across an edit.** A family that starts varying a setting it had fixed (or stops) would give every part a new
+  id, and players own those parts. Two family-file fields keep them: `idKeys` (settings that stay in the id though the
+  family no longer varies them) and `idOmit` (a setting's value left out of the id: the one it had before the family
+  varied it). The builder writes them itself when an edit needs them (`withStableIds`); a hand edit can use them too.
+- **Players keep the published version.** A family changed from the builder rewrites its parts' files, which the
+  server reads at once. So publishing now pins each published part's edited fields in its live set, a part whose
+  files changed since it was published shows as a draft in the Content tab, and a builder edit holds the parts
+  players have until they're published again.
+- **Two shape values that didn't hold up** in the full shape test (`npm run test:shapes`): an exhaust tip gap past
+  14 mm pushed quad tips past the exhaust's 0.4 m width (the gap's range is now 2–14 mm), and an equal-length turbo
+  manifold fitted no car's engine bay (left out; cast and flange stay).
+- **A part's shape** is kept in its file (`generated.shape`) when its family varies a shape setting, or uses one that
+  changes stats: the end-to-end test (`npm run test:content-builder`) found the part schema didn't allow it yet — no
+  family before the builder had needed it.
+- **Kit pieces** made by the importer have quantized positions (meshopt): the generators read them a vertex at a
+  time (`getElement`), not as the raw array. They're loaded before a model is made (`withKits`), so the shape
+  functions stay synchronous, as the fit check needs them.
+- **Real names.** Plain fuzzy matching refused the game's own words (Spool against "Spoon", Vortex R, Apex V8): a
+  name is matched fuzzily only from six letters, by sound as well as spelling, and the game's own names
+  (`real-names.json` `ours`) are left out before checking.

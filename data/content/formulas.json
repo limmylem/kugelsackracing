@@ -123,7 +123,7 @@
         "cut": { "label": "tip end", "values": ["rolled", "slash", "straight"], "default": "rolled" },
         "slash": { "label": "angle-cut depth", "unit": "m", "range": [0.015, 0.06], "step": 0.005, "default": 0.035 },
         "length": { "label": "tip length", "unit": "m", "range": [0.1, 0.3], "step": 0.01, "default": 0.18 },
-        "gap": { "label": "gap between tips", "unit": "m", "range": [0.002, 0.04], "step": 0.002, "default": 0.006 },
+        "gap": { "label": "gap between tips", "unit": "m", "range": [0.002, 0.014], "step": 0.002, "default": 0.006 },
         "tipPiece": { "label": "tip piece (kit)", "kit": "tip", "default": "none" }
       },
       "stats": {
@@ -215,7 +215,7 @@
       "shapeSettings": {
         "inlet": { "label": "compressor inlet", "values": ["filter", "pipe"], "default": "filter" },
         "filter": { "label": "filter colour", "values": ["red", "blue", "black", "green"], "default": "red" },
-        "manifold": { "label": "manifold", "values": ["cast", "flange", "equal"], "default": "cast" },
+        "manifold": { "label": "manifold", "values": ["cast", "flange"], "default": "cast" },
         "downpipe": { "label": "downpipe drop", "unit": "m", "range": [0.12, 0.3], "step": 0.01, "default": 0.2 },
         "hot": { "label": "turbine housing", "values": ["grey", "dark"], "default": "grey" }
       },

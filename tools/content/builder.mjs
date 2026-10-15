@@ -25,7 +25,7 @@ import { said } from '../../garage/formulas.js';
 
 export const FAMILY_NOTE = 'A part family (docs/CONTENT_PIPELINE.md): npm run content -- build makes a part for every combination of the settings listed here and every finish, its stats from data/content/formulas.json (families.<kind>), its tier, price and unlock level from what it does. Change this file, not the parts it makes.';
 // (a family file's fields, in the order the hand-written ones have them)
-export const FAMILY_KEYS = ['_note', 'id', 'kind', 'name', 'settings', 'finishes', 'skip', 'shape', 'leaveOff', 'aim', 'status'];
+export const FAMILY_KEYS = ['_note', 'id', 'kind', 'name', 'settings', 'finishes', 'skip', 'shape', 'leaveOff', 'idKeys', 'idOmit', 'aim', 'status'];
 const named = (o = {}) => Object.keys(o).filter(k => !k.startsWith('_'));
 const listOf = v => v == null ? [] : Array.isArray(v) ? v : [v];
 const money = n => `$${Math.round(n).toLocaleString('en-GB')}`;
@@ -121,10 +121,12 @@ export function normaliseFamily(input, ctx, { editing = null } = {}) {
     ...(input.skip?.length && { skip: input.skip }),
     ...(Object.keys(shape).length && { shape }),
     ...(input.leaveOff && Object.keys(input.leaveOff).length && { leaveOff: input.leaveOff }),
+    ...(input.idKeys?.length && { idKeys: input.idKeys }), ...(input.idOmit && Object.keys(input.idOmit).length && { idOmit: input.idOmit }),
     ...(input.aim && cleanAim(input.aim) && { aim: cleanAim(input.aim) }),
     status: input.status ?? 'draft',
   };
-  return { def, problems };
+  // (an existing family changed: its parts' ids kept for what it still makes)
+  return { def: editing && ctx.families[editing] ? withStableIds(def, ctx.families[editing], ctx) : def, problems };
 }
 const cleanAim = a => {
   const out = {};
@@ -347,6 +349,30 @@ async function suggestions(def, ctx, r, aim) {
 }
 
 // ---------- an existing family changed ----------
+
+// A changed family's ids kept for the parts it still makes (players own them): a setting it varied and now doesn't stays
+// in the ids (idKeys); one it didn't vary and now does leaves its old value out of them (idOmit) — so a part with the same
+// settings, shape and finish as before keeps its id
+export function withStableIds(def, was, ctx) {
+  if (!was || was.kind !== def.kind) return def;
+  const K = ctx.formulas.families[def.kind], kits = ctx.kits[def.kind] ?? {};
+  const varies = (d, k, where) => where === 'settings' ? (listOf(d.settings?.[k]).length > 1 || !!K.settings[k]?.cars) : Array.isArray(d.shape?.[k]) && d.shape[k].length > 1;
+  // (a fixed value as the family had it: its own, else its kind's default)
+  const oldShape = Object.fromEntries(shapeValues(was, K, { kits }).settings.map(x => [x.key, x.values[0]]));
+  const fixedWas = (k, where) => where === 'settings' ? (was.settings?.[k] !== undefined ? listOf(was.settings[k])[0] : K.settings[k]?.values || K.settings[k]?.table ? K.settings[k].default ?? null : null) : oldShape[k] ?? null;
+  const idKeys = new Set(was.idKeys ?? def.idKeys ?? []), idOmit = { ...(was.idOmit ?? {}), ...(def.idOmit ?? {}) };
+  for (const [where, all] of [['settings', K.settings], ['shape', K.shapeSettings ?? {}]]) for (const k of named(all)) {
+    const before = varies(was, k, where) || idKeys.has(k), now = varies(def, k, where);
+    if (before && !now) idKeys.add(k);
+    if (!before && now) { const v = fixedWas(k, where); if (v != null && !(k in idOmit)) idOmit[k] = v; }
+  }
+  const out = { ...def };
+  delete out.idKeys; delete out.idOmit;
+  if (idKeys.size) out.idKeys = [...idKeys];
+  if (Object.keys(idOmit).length) out.idOmit = idOmit;
+  // (in the file's order)
+  return Object.fromEntries(FAMILY_KEYS.filter(k => out[k] !== undefined).map(k => [k, out[k]]).concat(Object.entries(out).filter(([k]) => !FAMILY_KEYS.includes(k))));
+}
 
 // What saving a changed family does to its parts, worked out as the build will: parts added, parts whose stats, price,
 // tier, unlock level, name or model change, and parts retired (no longer made: not sold, but players keep theirs) —

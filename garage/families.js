@@ -13,6 +13,11 @@
 // kit piece (assets/kits/<kind>/: a hand-made piece the generator mixes in). Like a setting, a shape setting can list
 // several values: a part for each. One the file doesn't give is its default (null: the generator's own, worked out
 // from the part). A shape setting is in a part's id only when its family lists more than one value for it.
+//
+// A part's id: its family's, then the value of each setting (and shape setting) the family varies, then its finish.
+// So that a family changed later keeps its parts' ids (players own them): idKeys — settings that stay in the id though
+// the family no longer varies them; idOmit — a setting's value left out of the id (the one it had before the family
+// varied it). The family builder writes both when an edit needs them.
 //   applyStats(kindName, kind, ctx, stats) → the part's fields that come from its stats (what an edit re-works)
 //   perfKey(part) → what a part does, as a string: two parts with the same one perform the same (a finish apart)
 //
@@ -190,8 +195,13 @@ export function expandFamily(def, { formulas: F, carNames = {}, kits = {} }) {
   combos = combos.flatMap(c => finishes.map(f => ({ ...c, finish: f })));
   const said = c => ({ ...c.values, ...c.shape, finish: c.finish });
   combos = combos.filter(c => !(def.skip ?? []).some(sk => Object.entries(sk).every(([k, v]) => String(said(c)[k]) === String(v))));
+  const idKeys = new Set(def.idKeys ?? []), omit = def.idOmit ?? {};
+  for (const k of [...idKeys, ...Object.keys(omit)]) if (!kind.settings[k] && !kind.shapeSettings?.[k]) problems.push(`${def.id}: idKeys and idOmit name settings: "${k}" isn't one of a ${kind.label}'s`);
+  if (problems.length) return { kind, variants: [], problems };
   const varying = s.settings.filter(x => x.values.length > 1 || kind.settings[x.key].cars).map(x => x.key);
   const shapeVarying = sh.settings.filter(x => x.values.length > 1).map(x => x.key);
+  const inId = [...s.settings.filter(x => varying.includes(x.key) || idKeys.has(x.key)).map(x => ['s', x.key]), ...sh.settings.filter(x => shapeVarying.includes(x.key) || idKeys.has(x.key)).map(x => ['sh', x.key])];
+  const token = (k, v) => k in omit && String(omit[k]) === String(v) ? null : word(v);
   const variants = [];
   for (const combo of combos) {
     // (defaults worked out in order: a later one can use an earlier setting)
@@ -205,7 +215,7 @@ export function expandFamily(def, { formulas: F, carNames = {}, kits = {} }) {
       }
       ctx0[k] = S.table ? { id: values[k], ...S.table[values[k]] } : values[k];
     }
-    const key = [...varying.map(k => word(values[k])), ...shapeVarying.map(k => word(shape[k])), finish].join('_');
+    const key = [...inId.map(([w, k]) => token(k, w === 's' ? values[k] : shape[k])).filter(t => t != null), finish].join('_');
     const id = `${def.id}_${key}`, what = id;
     const ctx = contextOf(kind, values, finish, F, shape);
     const { stats, problems: sp } = evalStats(kind.stats, ctx, { what });
