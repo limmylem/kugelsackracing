@@ -497,6 +497,17 @@ export async function buildApp(deps: AppDeps) {
       if (p.includes('..') || p.split('/').some(s => s.startsWith('.'))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (!(roots.has(top) || CLIENT_FILES.includes(file))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (config.env === 'production' && top === '/dev/') return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
+      // (the admin and editor pages, kept by no browser or cache between deploys — no-store, which the static files'
+      // own Cache-Control would otherwise replace with a public one — and their page asking for its script by this
+      // deploy's version, so a copy kept from before can never be the one run)
+      if (TOOL_PAGES[top] && p !== top.slice(0, -1)) {
+        reply.header('cache-control', 'no-store');
+        if (p === top && fs.existsSync(path.join(REPO_DIR, file))) {
+          const html = fs.readFileSync(path.join(REPO_DIR, file), 'utf8').replace(/(<script type="module" src=")([\w-]+\.js)(")/g, `$1$2?v=${encodeURIComponent(config.version)}$3`);
+          return reply.header('content-type', 'text/html; charset=utf-8').send(html);
+        }
+        return reply.sendFile(file, { cacheControl: false });
+      }
       if (!reply.hasHeader('cache-control')) reply.header('cache-control', /\.(html|json)$/.test(p) ? 'no-cache' : 'public, max-age=3600');
       return reply.sendFile(file);
     });

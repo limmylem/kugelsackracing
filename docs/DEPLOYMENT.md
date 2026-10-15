@@ -78,7 +78,10 @@ GitHub Actions ──► deploys (SSH to the VPS, Pages, R2) · nightly backups 
   asking the game's address for `/assets/…` gets a 302 there (`_redirects`). PMTiles reads byte ranges (206), and
   Cloudflare caches the files (a cache rule, an hour, from each file's `Cache-Control`).
 - **The admin page** is at `api.ognistrada.com/admin/` (`ognistrada.com/admin` redirects there). Signed out: sent to
-  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in.
+  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in. Its files
+  (and the editor's) are sent `no-store`, and the page asks for its script by the deploy's version
+  (`admin.js?v=<commit>`), so a browser or Cloudflare never runs a copy kept from before a deploy (until 2026-10-15
+  the static files' own `public` header replaced `no-store`, and a new tab could take a while to show).
 - **The editor's code** (`editor/`) isn't on the game's address: the game loads it from the API's with the session
   (`site/urls.js`'s `importTool()`), served only to editors and admins. The game's import map points the editor's
   imports of shared modules back at the game's address, so they load once. `editor/access.js` (whether the editor's
