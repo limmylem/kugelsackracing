@@ -89,6 +89,8 @@ settings() {
   [ -z "${LOADTEST_TOKEN:-}" ] || q LOADTEST_TOKEN "$LOADTEST_TOKEN"
   [ -z "${CF_REALTIME_APP_ID:-}" ] || q CF_REALTIME_APP_ID "$CF_REALTIME_APP_ID"
   [ -z "${CF_REALTIME_APP_TOKEN:-}" ] || q CF_REALTIME_APP_TOKEN "$CF_REALTIME_APP_TOKEN"
+  # (the live admin page's Builder: it starts the content-builder workflow — docs/DEPLOYMENT.md "The live Builder")
+  [ -z "${CONTENT_BUILDER_TOKEN:-}" ] || q CONTENT_BUILDER_TOKEN "$CONTENT_BUILDER_TOKEN"
   # (Compose's: the image's tag, and the tunnel's token for cloudflared; GIT_COMMIT is the image's own)
   q IMAGE_TAG "$SHA"
   [ -z "$tunnel_token" ] || q TUNNEL_TOKEN "$tunnel_token"

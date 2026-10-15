@@ -88,7 +88,7 @@ async function run() {
   if (job.type === 'preview') {
     const { previewParts } = await import('./preview.mjs');
     step('models', `Making ${P.ids.length} part${P.ids.length === 1 ? '' : 's'}' models (nothing is saved as a part)…`);
-    return previewParts(P.def, P.ids, { root, out: path.join(root, P.out), cars: P.cars ?? null, log, progress });
+    return previewParts(P.def, P.ids, { root, out: path.resolve(root, P.out), cars: P.cars ?? null, log, progress });
   }
   throw new Stop(`There's no job "${job.type}".`);
 }

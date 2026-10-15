@@ -12,6 +12,10 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      # (the live admin page's Builder starts this once it has committed what it made: content-builder.yml — a commit made
+      # by a workflow doesn't start the push run itself)
+      deploy: { description: 'Build the image and deploy main (as a push to main does)', type: boolean, default: false }
 permissions:
   contents: read
 jobs:
@@ -143,7 +147,7 @@ jobs:
   # (the image the server runs — the API and the real-time server — named by its commit; the newest 20 kept, so a
   # rollback can go back that far: rollback.yml)
   image:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -185,7 +189,7 @@ jobs:
   # GitHub before it starts — the deploy job's environment)
   production:
     needs: [checks, image]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) && vars.DEPLOY_ENABLED == 'true'
     permissions:
       contents: read
       packages: read

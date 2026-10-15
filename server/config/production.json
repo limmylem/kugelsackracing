@@ -18,5 +18,5 @@
   "alerts": { "errorRate": 0.05, "minRequests": 20, "slowP95Ms": 1500, "dbSlowMs": 1000, "queueWaiting": 20, "queueOldestSec": 120, "moneyPerHour": 5000000, "moneySpike": 5, "repeatMinutes": 60 },
   "rt": { "allowGuests": true, "ticketSec": 60, "maxPlayers": 500, "roomMaxClients": 64, "netsim": false, "voiceGuests": false, "devPlayers": false },
   "antiCheat": { "action": "flag" },
-  "contentBuilder": { "enabled": false }
+  "contentBuilder": { "enabled": true, "mode": "github", "repo": "limmylem/kugelsackracing" }
 }

@@ -112,10 +112,14 @@ The **Content** tab on the admin page (admins only) lists every part and car wit
 
 The family builder: the admin page's **Builder** tab (admins only): New family, New engine, New car, Presets & variations, Jobs, and the families to change. It writes the same family file you'd write by hand
 (`data/families/<id>.json`, in the same layout) and runs the same build and checks as `npm run content`, so a family made
-there can be changed by hand or from the command line, and the other way round. It works where the server runs from
-a copy of the game with its tools (`npm run server:dev`; `contentBuilder.enabled` in `server/config/`): on the live
-server it says so. Make families on your computer, **commit them** (the pre-commit hook and CI check them as they check
-anything made with `npm run content`) and deploy: they arrive in the live Content tab as drafts to publish.
+there can be changed by hand or from the command line, and the other way round. It works in two places:
+- **On the live admin page** (ognistrada.com): everything is worked out and previewed there; **Make** sends it to
+  GitHub's `content-builder` workflow, which makes it (`npm run content -- run-job`: the same checks again), runs
+  everything the pre-commit hook runs, commits it to `main` and starts the deploy — approve that on GitHub and its parts
+  arrive in the Content tab as drafts to publish. About 15–20 minutes before the deploy; the Jobs list shows how it's
+  going. (docs/DEPLOYMENT.md "The live Builder": its token.)
+- **On your computer** (`npm run server:dev`): the jobs run there and write your copy's files; **commit them** (the
+  pre-commit hook and CI check them as they check anything made with `npm run content`) and deploy.
 
 1. **What it is**: pick the kind (exhaust, wheel, wing…: the kinds in `formulas.json`), or **start from** a family or a
    preset to copy its settings.
@@ -267,6 +271,7 @@ from its template** (the pipeline's part in minutes; with the modelling, under a
 | `npm run content -- variations <preset or family> --vary <setting,…> [--count n] [--seed n] [--make]` | New families from one, varying those settings: what each would make; `--make` makes them |
 | `npm run content -- presets [--save <name> --from <family>]` | The builder's presets (`data/content/presets/`) |
 | `npm run content -- shapes <kind>` | A kind's shape settings, what each may be, and its kit pieces |
+| `npm run content -- run-job <request.json> [--message file]` | A request from the live admin page's Builder, made here (what the `content-builder` workflow runs): checked again with the same code, then made as jobs |
 | `npm run test:shapes [kinds…]` | Every kind's generator at the ends of every shape setting's range (and random mixes): model rules, budget, fit on every car, drive and crash for those that change stats |
 | `npm run test:content-builder` | The family builder end to end: a family made as a job, its file and parts as the builder said, verify and the pre-commit hook; then changed (ids kept, retired as said); everything put back |
 

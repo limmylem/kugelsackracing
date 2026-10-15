@@ -70,9 +70,6 @@
   },
   "devDependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
-    "@gltf-transform/core": "^4.5.0",
-    "@gltf-transform/extensions": "^4.5.0",
-    "@gltf-transform/functions": "^4.5.0",
     "@mapbox/martini": "^0.2.0",
     "@mapbox/vector-tile": "^3.0.0",
     "@stdlib/math-base-special-acos": "^0.2.4",
@@ -93,14 +90,10 @@
     "geotiff": "^3.0.5",
     "hyparquet": "^1.31.2",
     "hyparquet-compressors": "^1.1.2",
-    "ktx2-encoder": "^0.6.0",
     "libtess": "^1.2.2",
     "maplibre-gl": "^6.11.2",
-    "meshoptimizer": "^0.22.0",
     "pbf": "^5.1.2",
     "pmtiles": "^4.5.0",
-    "sharp": "^0.35.5",
-    "three": "0.160.0",
     "typescript": "5.9",
     "werift": "0.25.0"
   },
@@ -109,6 +102,13 @@
     "server"
   ],
   "dependencies": {
-    "@colyseus/sdk": "^0.18.5"
+    "@colyseus/sdk": "^0.18.5",
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "ktx2-encoder": "^0.6.0",
+    "meshoptimizer": "^0.22.0",
+    "sharp": "^0.35.5",
+    "three": "0.160.0"
   }
 }

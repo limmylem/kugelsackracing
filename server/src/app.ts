@@ -46,6 +46,7 @@ import { adminShopRoutes } from './routes/adminShop.ts';
 import { adminContentRoutes } from './routes/adminContent.ts';
 import { createContentManager } from './content/manager.ts';
 import { createContentBuilder } from './content/builder.ts';
+import { createGithubRunner } from './content/github.ts';
 import { adminBuilderRoutes } from './routes/adminBuilder.ts';
 import { createContentService } from './content/service.ts';
 import { ensureStartingGarages } from './content/garages.ts';
@@ -81,7 +82,9 @@ export const scrubUrl = (url: string) => {
 export type AppDeps = { config: Config; rtBridge?: import('./rt/bridge.ts').RtBridge; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null;
   // (the rollback drill only — server/tools/rollback-test.ts: a "broken release", every request matching it answering 500.
   // Never from settings or the environment, and refused in production)
-  fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
+  fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number;
+  // (tests only: GitHub's API, for the live Builder's jobs — content/github.ts)
+  githubFetch?: typeof fetch };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -413,8 +416,11 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('contentManager', contentManager);
   app.addHook('onReady', async () => { void contentManager.resume().catch(e => app.log.warn({ err: e }, 'content checks resume failed')); });
   app.addHook('onClose', async () => contentManager.close());
-  // (the Content tab's family builder: on a development copy only — config contentBuilder)
-  const contentBuilder = createContentBuilder(db, { manager: contentManager, enabled: config.contentBuilder.enabled, log: (o: any, m: string) => app.log.warn(o, m) });
+  // (the admin page's Builder: its jobs run here on a development copy, or are sent to GitHub's content-builder workflow
+  // from the live server — config contentBuilder.mode)
+  const CB = config.contentBuilder;
+  const remote = CB.enabled && CB.mode === 'github' ? createGithubRunner({ repo: CB.repo ?? 'limmylem/kugelsackracing', token: config.contentBuilderToken, ...(deps.githubFetch && { fetchFn: deps.githubFetch }) }) : null;
+  const contentBuilder = createContentBuilder(db, { manager: contentManager, enabled: CB.enabled, remote, log: (o: any, m: string) => app.log.warn(o, m) });
   app.addHook('onClose', async () => contentBuilder.close());
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
   sweeper.unref();

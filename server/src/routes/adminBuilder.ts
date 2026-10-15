@@ -34,7 +34,7 @@ export async function adminBuilderRoutes(app0: FastifyInstance, { builder, G }: 
   const me = async (req: FastifyRequest) => { const s = await G.requireRole('admin')(req); return { id: s.user.id, name: s.user.name }; };
   const P = '/admin/builder';
 
-  app.get(P, admin, async req => { await me(req); const a = await builder.available(); return a.ok ? { available: true, ...(await builder.overview()), jobs: await builder.jobs() } : { available: false, why: a.why, jobs: [] }; });
+  app.get(P, admin, async req => { await me(req); const a = await builder.available(); return a.ok ? { available: true, mode: a.mode, canMake: a.canMake, ...(await builder.overview()), jobs: await builder.jobs() } : { available: false, why: a.why, jobs: [] }; });
   app.get(`${P}/kinds/:kind`, { ...admin, schema: { params: z.object({ kind: Id }) } }, async req => { await me(req); return builder.kind(req.params.kind); });
   app.post(`${P}/names`, { ...admin, schema: { body: z.object({ kind: Id, seed: z.number().int().min(0).max(2 ** 31).default(1) }) } }, async req => { await me(req); return { names: await builder.names(req.body.kind, req.body.seed) }; });
   app.post(`${P}/name`, { ...admin, schema: { body: z.object({ name: z.string().max(60) }) } }, async req => { await me(req); return { problem: await builder.nameProblem(req.body.name) }; });

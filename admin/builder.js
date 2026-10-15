@@ -42,6 +42,8 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     box.replaceChildren(h('section', {}, h('h2', {}, 'Builder'),
       h('p', { class: 'muted' }, 'Families of parts, engines and cars made and changed by picking options: every part a family would make listed with its stats, tier and price before anything is made, previews, then built and checked as a job. What it makes are drafts in the Content tab, published there.'),
       ov.available ? null : h('div', { class: 'msg bad' }, ov.why),
+      ov.available && ov.mode === 'github' ? h('p', { class: 'muted' }, 'On this server, what you make is sent to GitHub: written, built and checked there (about 15–20 minutes), committed, and the deploy started. Approve the deploy on GitHub (Actions › server › Review deployments) and its parts arrive in the Content tab as drafts to publish. Jobs shows how each is going.') : null,
+      ov.available && !ov.canMake ? h('div', { class: 'msg bad' }, 'Making needs the Builder\'s GitHub token (the CONTENT_BUILDER_TOKEN secret: docs/DEPLOYMENT.md "The live Builder"). You can try everything out and preview; Make waits for it.') : null,
       h('div', { class: 'row' }, go('New family', () => newFamily(), 'primary'), go('New engine', () => newEngine()), go('New car', () => newCar()), go('Presets & variations', () => variations(), 'ghost'), go('Jobs', () => showJobs(), 'ghost')),
       kinds ? h('h3', {}, 'Change a family') : null, kinds));
   }
@@ -297,10 +299,10 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
       if (!why) return;
       try {
         const r = editing ? await api.put(`${P}/families/${editing}`, { family: fam, reason: why }) : await api.post(`${P}/families`, { family: fam, reason: why });
-        say(msg, `Writing ${r.file} and building it…`, true);
+        say(msg, r.remote ? `Sent to GitHub: ${r.file} is written, built and checked there, then committed (about 15–20 minutes; you can leave this page — Builder › Jobs shows how it's going).` : `Writing ${r.file} and building it…`, true);
         jobEl.replaceChildren(h('details', { open: true }, h('summary', {}, `The file: ${r.file}`), h('pre', { style: 'white-space:pre-wrap;font:12px var(--f-mono)' }, r.text)));
         const done = await follow(r.job.id, jobEl, { keep: true });
-        if (done?.state === 'done') { say(msg, `Made: ${done.result.words} Showing its parts.`, true); setTimeout(() => showFamily(done.target), 1500); }
+        if (done?.state === 'done') { if (done.remote) say(msg, done.result.words, true); else { say(msg, `Made: ${done.result.words} Showing its parts.`, true); setTimeout(() => showFamily(done.target), 1500); } }
         else if (done) say(msg, `${done.state === 'cancelled' ? 'Cancelled' : 'It failed'}: nothing it did is kept. ${done.error ?? ''}`);
       } catch (e) { say(msg, `${errText(e)}${e.details?.length ? ` — ${e.details.slice(1, 4).map(d => d.problem).join('; ')}` : ''}`); }
     }
@@ -310,7 +312,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
       if (!name) return;
       const why = ask(`Save the preset "${name}"?`);
       if (!why) return;
-      try { const r = await api.post(`${P}/presets`, { name, family: toDef(st, opts), reason: why }); say(msg, `Saved ${r.file}.`, true); } catch (e) { say(msg, errText(e)); }
+      try { const r = await api.post(`${P}/presets`, { name, family: toDef(st, opts), reason: why }); say(msg, r.remote ? `Sent to GitHub: ${r.file} is saved there and committed (a few minutes; Builder › Jobs).` : `Saved ${r.file}.`, true); } catch (e) { say(msg, errText(e)); }
     }
     if (history.length) sumEl.append(h('p', { class: 'muted' }, `Last changed ${when(history[0].at)} by ${history[0].actor ?? '—'}: ${history[0].action} (${history[0].reason})`));
     draw(); refresh();
@@ -342,8 +344,9 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
       j.error ? h('div', { class: 'msg bad' }, j.error, ...(j.problems ?? []).slice(0, 8).map(p => h('div', {}, p))) : '',
       j.result?.words ? h('div', { class: 'msg good' }, j.result.words) : '',
       j.result?.failingDrafts?.length ? h('div', { class: 'muted' }, `Failing a check (fix them before review): ${j.result.failingDrafts.map(d => `${d.id}: ${d.problems[0]}`).slice(0, 6).join(' · ')}`) : '',
-      j.state === 'done' && j.type !== 'preview' && j.type !== 'car' ? h('button', { class: 'btn secondary', onclick: () => showFamily(j.type === 'build' ? j.target.split(',')[0] : j.target) }, 'Show its parts') : '',
-      j.state === 'done' && j.type === 'car' ? h('button', { class: 'btn secondary', onclick: () => carView(j.target) }, 'Show the car') : '',
+      j.url ? h('a', { href: j.url, target: '_blank', rel: 'noopener' }, 'Open it on GitHub (its full log)') : '',
+      j.state === 'done' && !j.remote && j.type !== 'preview' && j.type !== 'car' ? h('button', { class: 'btn secondary', onclick: () => showFamily(j.type === 'build' ? j.target.split(',')[0] : j.target) }, 'Show its parts') : '',
+      j.state === 'done' && !j.remote && j.type === 'car' ? h('button', { class: 'btn secondary', onclick: () => carView(j.target) }, 'Show the car') : '',
     ];
   }
   async function showJobs() {
@@ -426,7 +429,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
       if (!picked.length) return say(msg, 'Tick the ones to make.');
       const why = ask(`Make ${picked.length} new draft famil${picked.length === 1 ? 'y' : 'ies'}: ${picked.map(d => d.name).join(', ')}? Each is written, then built and checked (a job each).`);
       if (!why) return;
-      try { const r = await api.post(`${P}/variations`, { families: picked.map(({ _note, id, status, ...d }) => d), reason: why }); say(msg, `${r.made.length} jobs started.`, true); showJobs(); }
+      try { const r = await api.post(`${P}/variations`, { families: picked.map(({ _note, id, status, ...d }) => d), reason: why }); say(msg, r.remote ? `Sent to GitHub: all ${r.made.length} made there in one go.` : `${r.made.length} jobs started.`, true); showJobs(); }
       catch (e) { say(msg, `${errText(e)}${e.details?.length ? ` — ${e.details.slice(1, 4).map(d => d.problem).join('; ')}` : ''}`); }
     }
     page([h('h2', {}, 'Make variations'), h('p', { class: 'muted' }, 'Several new draft families at once, from a preset or a family: the same but for the settings and shape settings you pick (new materials, a budget, middle and top build, new designs). Each gets an invented name, checked against real brands; preview any before making.'),
@@ -467,7 +470,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
         const r = editing ? await api.put(`${P}/engines/${editing}`, { engine: clean(), reason: why }) : await api.post(`${P}/engines`, { engine: clean(), reason: why });
         const jobs = h('div', { class: 'list' }); sum.prepend(jobs);
         const done = await follow(r.job.id, jobs);
-        if (done?.state === 'done') { say(msg, `Made: ${done.result.words}`, true); setTimeout(() => showFamily(done.target), 1500); }
+        if (done?.state === 'done') { if (done.remote) say(msg, done.result.words, true); else { say(msg, `Made: ${done.result.words}`, true); setTimeout(() => showFamily(done.target), 1500); } }
       } catch (err) { say(msg, `${errText(err)}${err.details?.length ? ` — ${err.details.slice(1, 4).map(d => d.problem).join('; ')}` : ''}`); }
     }
     page([h('h2', {}, editing ? `Change engine: ${editing}` : 'New engine'), h('p', { class: 'muted' }, 'Everything in data/engines/<id>.json. Its torque curve, mass, size (its bay class) and price are worked out (data/content/formulas.json engines); its crate engine goes in every car with the same mount and a big enough bay.'),
@@ -502,7 +505,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     async function make() {
       const why = ask(`Make the car ${c.id} (a ${c.type}${model ? ', from the model' : ', a placeholder in its proportions'})?`);
       if (!why) return;
-      try { const r = await api.post(`${P}/cars`, { ...c, name: c.name || undefined, model, reason: why }); const done = await follow(r.job.id, right); if (done?.state === 'done') carView(done.target, right); }
+      try { const r = await api.post(`${P}/cars`, { ...c, name: c.name || undefined, model, reason: why }); const done = await follow(r.job.id, right); if (done?.state === 'done' && !done.remote) carView(done.target, right); }
       catch (e) { say(msg, `${errText(e)}${e.details?.length ? ` — ${e.details.slice(1, 4).map(d => d.problem).join('; ')}` : ''}`); }
     }
     page([h('h2', {}, 'New car'), h('p', { class: 'muted' }, 'npm run content -- new-car as a form: it starts from its type\'s body template (its proportions, sockets and standards: parts made to them fit it). Without a model it\'s a placeholder in the type\'s proportions — drive it straight away; the real model can come later (npm run import -- incoming/car_<id>.glb).'),
