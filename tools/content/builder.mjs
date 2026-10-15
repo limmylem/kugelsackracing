@@ -177,6 +177,8 @@ export async function summarise(def, ctx, { editing = null, suggest = true } = {
   if (!r.variants.length) { out.problems.push(...r.problems); return out; }
   // (combinations whose stats come out of their ranges: not made — the build would stop; skip them, or change them)
   for (const p of r.problems.filter(x => !settingProblems.includes(x))) out.notMade.push({ id: p.split(':')[0], why: p.slice(p.indexOf(':') + 1).trim() });
+  // (the parts it makes: every combination but those it skips)
+  out.count = r.variants.length + new Set(out.notMade.map(n => n.id)).size;
   if (settingProblems.length) out.problems.push(...settingProblems);
   const priced = priceFamilyParts(r.variants.map(v => ({ part: v.part, ctx: v.ctx })), { db, formulas: F, tiers });
   for (const [id, ps] of priced.problems) out.notMade.push({ id, why: ps.map(p => p.replace(/^[^:]*: /, '')).join('; ') });

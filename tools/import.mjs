@@ -31,7 +31,7 @@ const options = {
   materials: Object.fromEntries(args.flatMap((a, i) => a === '--material' ? [args[i + 1].split('=')] : [])),
   ask: process.stdin.isTTY ? askType : null,
 };
-let ok = 0, failed = 0;
+let ok = 0, failed = 0, kits = 0;
 for (const file of files) {
   const project = await loadProject();          // (again for each: the one before may have added parts)
   console.log(`\n${bold(`── ${rel(file)}`)}`);
@@ -44,6 +44,7 @@ for (const file of files) {
   if (r.after) console.log(formatReport(rel(file), r.after, { colour, quiet: true, title: same ? 'checked' : 'after fixing' }));
   if (!r.ok) { failed++; console.log(`  ✘ ${r.message}`); continue; }
   ok++;
+  if (r.type?.startsWith('kit:')) kits++;
   for (const w of r.written) console.log(`  wrote ${w}`);
   for (const n of r.notes) console.log(`  ${n}`);
 }
@@ -53,7 +54,7 @@ if (ok) {
   for (const p of problems) console.log(`  ERROR ${p.file} · ${p.path}: ${p.message}`);
   if (problems.length) failed++;
 }
-console.log(`\nImported ${ok} of ${files.length}${failed ? `; ${failed} not (see above)` : ''}.${ok ? ' New parts are in the shop with "to do" on them: fill in their price and stats (and delete "todo") to sell them. Look at them in the part preview: http://localhost:7690/dev/parts.html' : ''}`);
+console.log(`\nImported ${ok} of ${files.length}${failed ? `; ${failed} not (see above)` : ''}.${ok > kits ? ' New parts are in the shop with "to do" on them: fill in their price and stats (and delete "todo") to sell them. Look at them in the part preview: http://localhost:7690/dev/parts.html' : ''}${kits ? ` ${kits} kit piece${kits > 1 ? 's' : ''}: a choice in the family builder's Shape step from now on.` : ''}`);
 process.exit(failed ? 1 : 0);
 
 async function askType(file, types) {

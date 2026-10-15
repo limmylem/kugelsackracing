@@ -77,6 +77,35 @@ export async function sampleSplitterBumper({ finishes } = {}) {
   return doc;
 }
 
+// Kit pieces (docs/MODELLING_GUIDE.md › Kit pieces; data/content/model-rules.json kits): a few to start the kit folder
+// with, made as the guide says to model them — at their attach point's reference size, the origin where it says, finish
+// materials only. { file name → Document }
+export async function sampleKits({ finishes } = {}) {
+  const { prism, cylinder, annulus } = await import('../generators/lib/geometry.js');
+  const out = {}, doc = async (m, name) => { out[`${name}.glb`] = await m.document({ root: name, finishes }); };
+  // a wing's end plate: a swept fin, its inner face at x 0, for a 0.3 m chord
+  let m = new ModelBuilder();
+  m.add(prism([[-0.07, 0.2], [-0.07, -0.2], [0.13, -0.25], [0.11, 0.06]], 0, 0.006, 'x'), { material: 'carbon' });
+  await doc(m, 'kit_spoiler_endplate_fin');
+  // a wheel's centre: a three-bladed spinner on a cap, its back on the hub's face
+  m = new ModelBuilder();
+  m.add(cylinder('x', 0.034, 0, 0.01, 16), { material: 'chrome' });
+  for (let i = 0; i < 3; i++) m.add(rotated(box([0.01, -0.006, 0], [0.02, 0.006, 0.042]), 'x', i * Math.PI * 2 / 3), { material: 'chrome' });
+  m.add(cylinder('x', 0.012, 0.01, 0.024, 10), { material: 'matte_black' });
+  await doc(m, 'kit_wheels_centre_spinner');
+  // an exhaust tip: a hexagonal sleeve, its front at z 0, pointing back, for a 45 mm radius and 180 mm long
+  m = new ModelBuilder();
+  m.add(lathe([[0.04, 0], [0.047, 0], [0.047, -0.18], [0.04, -0.18], [0.04, 0]], 6, 'z'), { material: 'chrome' });
+  m.add(cylinder('z', 0.04, -0.15, -0.146, 6), { material: 'matte_black' });
+  await doc(m, 'kit_exhaust_tip_hex');
+  // a bumper's corner: a louvred vent block standing out of the bumper's side
+  m = new ModelBuilder();
+  m.add(box([0, -0.04, -0.12], [0.012, 0.04, 0]), { material: 'carbon' });
+  for (let i = 0; i < 4; i++) m.add(box([0.012, -0.035 + i * 0.022, -0.11], [0.03, -0.029 + i * 0.022, -0.01]), { material: 'carbon' });
+  await doc(m, 'kit_body_kit_bumper_louvre');
+  return out;
+}
+
 // The broken ones: { file name → Document }
 export async function brokenModels({ finishes } = {}) {
   const out = {};

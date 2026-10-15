@@ -62,5 +62,17 @@ test('the add-on, headless: its checks in plain words, and what it exports passe
     const back = await (await modelIO()).readBinary(await (await modelIO()).writeBinary(doc));
     const lods = back.getRoot().listScenes().find(s => s.getName() === 'lods');
     assert.ok(lods && lods.listChildren().every(n => n.getExtras().lodOf === 'wing' && n.getExtras().lod === 1));
+    // a kit piece: the add-on's "Kit piece" types, its checks, its name — and the game's import of kit pieces passes it
+    assert.ok(R.kit_kinds.includes('kit:spoiler:endplate') && R.kit_kinds.includes('kit:wheels:centre'), R.kit_kinds.join(', '));
+    assert.equal(R.kit.verdict, 'pass', JSON.stringify(R.kit));
+    assert.equal(path.basename(R.kit_exported), 'kit_spoiler_endplate_addon_fin.glb');
+    assert.match(R.kit_atlas.fails.join(' '), /can't use car_atlas or textures/);
+    assert.match(R.kit_origin.fails.join(' '), /its right-hand edge is 0\.247 m left of the origin/);
+    assert.equal(R.kit_placed.verdict, 'pass', 'Place at origin, by the kit piece\'s rule');
+    const { kitFromName, kitRules, kitFindings } = await import('../../tools/content/importer.mjs');
+    const kit = kitFromName(path.basename(R.kit_exported, '.glb'), rules), K = kitRules(rules, kit.kind, kit.attach), kinfo = inspect(await readModel(R.kit_exported));
+    assert.deepEqual(kit, { kind: 'spoiler', attach: 'endplate', name: 'addon_fin' });
+    assert.equal(checkModel(kinfo, { rules: K.rules, type: K.type, file: R.kit_exported }).verdict, 'pass');
+    assert.deepEqual(kitFindings(kinfo), []);
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });

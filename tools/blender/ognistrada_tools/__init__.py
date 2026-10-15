@@ -2,7 +2,8 @@
 # docs/CONTENT_PIPELINE.md, docs/MODELLING_GUIDE.md). In the 3D View's sidebar (N) › Ognistrada:
 #
 #  - Set up the scene: metric units, unit scale 1.0 (a model made in centimetres is the commonest mistake)
-#  - What it is: a part type (spoiler, rim, bonnet…) or a car, and its name
+#  - What it is: a part type (spoiler, rim, bonnet…), a kit piece (a hand-made piece a family's model generator mixes in:
+#    a wing's end plate, a wheel's centre, an exhaust tip…: model_rules.json kits) or a car, and its name
 #  - Add socket: an empty named exactly as the game wants it (socket_bumper_front…), at the 3D cursor
 #  - Place at origin: moves the model so the point it attaches by is at the origin, by its type's rule
 #  - Check: the same rules as the game's importer (model_rules.json, a copy of data/content/model-rules.json made
@@ -190,6 +191,19 @@ def allowed_material(name):
     return name in M["names"] or any(re.search(p, name) for p in M["patterns"]) or (M.get("finishes") and name in rules().get("finishNames", []))
 
 
+def kit_of(kind):
+    """A kit piece's rule (kind "kit:<family kind>:<attach point>"), as a part type's: None for anything else"""
+    if not kind.startswith("kit:"):
+        return None
+    parts = kind.split(":")
+    r = rules().get("kits", {}).get(parts[1], {}).get(parts[2]) if len(parts) == 3 else None
+    return dict(r, label=f"kit piece ({r['label'].lower()})") if r else None
+
+
+def type_rule(kind):
+    return kit_of(kind) or rules()["types"].get(kind)
+
+
 def check_scene(context, kind, name="", selected_only=False, new_car=False):
     """The checks, as the game's importer runs them: [{level: pass|warn|fail, check, text, fix}]"""
     R = rules()
@@ -199,7 +213,7 @@ def check_scene(context, kind, name="", selected_only=False, new_car=False):
         out.append({"level": level, "check": check, "text": text, "fix": fix})
 
     is_car = kind == "car"
-    t = None if is_car else R["types"].get(kind)
+    t = None if is_car else type_rule(kind)
     if not is_car and not t:
         add("fail", "type", f'"{kind}" isn\'t a part type the game knows.', "Choose one in the Ognistrada panel.")
         return out
@@ -252,6 +266,9 @@ def check_scene(context, kind, name="", selected_only=False, new_car=False):
             f"Rename to one of: {', '.join(R['materials']['names'])}, light_…, or a finish ({', '.join(R.get('finishNames', [])[:8])}…).")
     elif not g["no_material"]:
         add("pass", "materials", f"Materials: {', '.join(sorted(g['materials']))}.")
+    # a kit piece is mixed into a generated model: no palette texture, no textures at all
+    if kit_of(kind) and ("car_atlas" in g["materials"] or g["images"]):
+        add("fail", "kit", "A kit piece is mixed into a model made in code, which has no palette texture: it can't use car_atlas or textures.", "Give its faces paint, a finish (carbon, chrome, raw_metal, matte_black…) or rim_finish instead.")
     # textures
     for img in {i.name: i for i in g["images"]}.values():
         w, h = img.size
@@ -345,7 +362,7 @@ def verdict(findings):
 
 def place_at_origin(context, kind, selected_only=True):
     """Moves the model so the point it attaches by (its type's origin rule) is at 0, 0, 0 → the move (game frame)"""
-    t = rules()["types"].get(kind)
+    t = type_rule(kind)
     g = gather(context, selected_only)
     if not t or not g["tris"]:
         return None
@@ -382,7 +399,8 @@ def export_model(context, kind, name, folder, selected_only=False, force=False, 
     findings = check_scene(context, kind, name, selected_only, new_car)
     if verdict(findings) == "fail" and not force:
         return None, findings
-    base = f"car_{name}" if kind == "car" else (name if name.startswith(kind + "_") else f"{kind}_{name}")
+    kit = kind.split(":") if kind.startswith("kit:") else None
+    base = f"car_{name}" if kind == "car" else f"kit_{kit[1]}_{kit[2]}_{name}" if kit else (name if name.startswith(kind + "_") else f"{kind}_{name}")
     path = os.path.join(bpy.path.abspath(folder or "//"), base + ".glb")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     want = dict(filepath=path, export_format="GLB", use_selection=selected_only, export_yup=True, export_apply=True, export_cameras=False, export_lights=False,
@@ -398,6 +416,12 @@ def kind_items(self, context):
     items = [("car", "Car", "A whole car: body, sockets and its stock parts under them")]
     for k, t in rules()["types"].items():
         items.append((k, t["label"], f"{t['label']}: {t['attach']}"))
+    for fam, points in rules().get("kits", {}).items():
+        if fam.startswith("_"):
+            continue
+        for a, r in points.items():
+            if not a.startswith("_"):
+                items.append((f"kit:{fam}:{a}", f"Kit piece: {r['label']}", f"A piece {fam} families' models mix in: {r['attach']}"))
     return items
 
 

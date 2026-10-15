@@ -208,6 +208,17 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 
 The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning; over twice it, a failure.
 
+### Kit pieces
+
+Name the file `kit_<kind>_<attach>_<name>.glb` (e.g. `kit_spoiler_endplate_fin.glb`): a piece a family's model generator mixes in (see Kit pieces above). Model it at the sizes shown, with its origin where it says; the generator scales it as shown. Materials: `paint`, a finish or the generators' own (`rim_finish`…): no `car_atlas`, no textures.
+
+| Kind | Attach point | File name | Wide | Tall | Long | Origin | Scaled by | Triangles |
+|---|---|---|---|---|---|---|---|---|
+| spoiler | Wing end plate | `kit_spoiler_endplate_…` | 0.003–0.05 | 0.05–0.4 | 0.1–0.6 | the end of the wing's element: the plate's inner face at x 0 (it stands out to +x), the element's middle — half its thickness up, half its chord along — at y 0, z 0; modelled for a 0.3 m chord, the left-hand one (the game mirrors it for the right) | y: chord (0.3 m), z: chord (0.3 m) | 300 |
+| wheels | Wheel centre piece | `kit_wheels_centre_…` | 0.004–0.06 | 0.03–0.14 | 0.03–0.14 | the hub's front face: its back at x 0, centred on the axle (it stands out to +x, the wheel's outer face) | — | 400 |
+| exhaust | Exhaust tip | `kit_exhaust_tip_…` | 0.04–0.14 | 0.04–0.14 | 0.06–0.32 | the front of the tip, where it meets the pipe, centred on it (it points back, to −z); modelled for a 45 mm radius and 180 mm long | x: radius (0.045 m), y: radius (0.045 m), z: length (0.18 m) | 300 |
+| body_kit | Bumper corner piece (a vent, a scoop, dive planes) | `kit_body_kit_bumper_…` | 0.005–0.12 | 0.02–0.25 | 0.03–0.4 | the front bumper's left-hand corner, 10 cm above its bottom edge, 2 cm back from its front: its inner face at x 0 (it stands out to +x); the game mirrors it for the right-hand corner | — | 400 |
+
 ### Cars
 
 | | |

@@ -33,12 +33,14 @@ export async function trianglesByMaterial(file) {
   for (const node of doc.getRoot().listNodes()) {
     const mesh = node.getMesh();
     if (!mesh) continue;
-    const M = node.getWorldMatrix(), at = (a, i) => { const x = a[i], y = a[i + 1], z = a[i + 2]; return [M[0] * x + M[4] * y + M[8] * z + M[12], M[1] * x + M[5] * y + M[9] * z + M[13], M[2] * x + M[6] * y + M[10] * z + M[14]]; };
+    // (each vertex as the file means it: getElement undoes compression's quantising — then the node's transform, which
+    // also scales a quantised mesh back to metres)
+    const M = node.getWorldMatrix(), el = [0, 0, 0], at = (P, i) => { const [x, y, z] = P.getElement(i, el); return [M[0] * x + M[4] * y + M[8] * z + M[12], M[1] * x + M[5] * y + M[9] * z + M[13], M[2] * x + M[6] * y + M[10] * z + M[14]]; };
     for (const prim of mesh.listPrimitives()) {
-      const pos = prim.getAttribute('POSITION')?.getArray(), idx = prim.getIndices()?.getArray(), mat = prim.getMaterial()?.getName() ?? 'raw_metal';
-      if (!pos) continue;
-      const n = idx ? idx.length : pos.length / 3, tris = groups.get(mat) ?? [];
-      for (let i = 0; i + 2 < n; i += 3) { const [a, b, c] = [0, 1, 2].map(k => idx ? idx[i + k] : i + k); tris.push([at(pos, a * 3), at(pos, b * 3), at(pos, c * 3)]); }
+      const P = prim.getAttribute('POSITION'), idx = prim.getIndices()?.getArray(), mat = prim.getMaterial()?.getName() ?? 'raw_metal';
+      if (!P) continue;
+      const n = idx ? idx.length : P.getCount(), tris = groups.get(mat) ?? [];
+      for (let i = 0; i + 2 < n; i += 3) { const [a, b, c] = [0, 1, 2].map(k => idx ? idx[i + k] : i + k); tris.push([at(P, a), at(P, b), at(P, c)]); }
       groups.set(mat, tris);
     }
   }
