@@ -158,7 +158,8 @@ export const realWorldFile = () => lastRealFile;
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 // the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
 let baked = null;
-const mapV3Wanted = () => { try { return new URLSearchParams(location.search).get('map') === 'v3' || localStorage.getItem('map.version') === 'v3'; } catch { return false; } };
+// (?map=v3 / v4 / v5 in the address — or localStorage map.version — a region's other bake, kept beside it for comparing)
+const mapWanted = () => { try { const v = new URLSearchParams(location.search).get('map') ?? localStorage.getItem('map.version'); return /^v[345]$/.test(v ?? '') ? v : null; } catch { return null; } };
 const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
 const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
 const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
@@ -1020,9 +1021,10 @@ async function buildWorld(file) {
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
-  // (Map v4's regions: ?map=v3 in the address — or localStorage map.version = v3 — loads the region's Map v3 bake, kept
-  // beside it for comparing; off by default)
-  if (track.mapV3?.manifest.endsWith('/v4/manifest.json') && mapV3Wanted()) track.mapV3 = { ...track.mapV3, manifest: track.mapV3.manifest.replace(/\/v4\/manifest\.json$/, '/manifest.json') };
+  // (a region baked as Map v4 or v5: ?map=v3, v4 or v5 in the address — or localStorage map.version — loads that bake
+  // of it instead, kept beside the default for comparing; off by default. Map v3's is the region's own manifest)
+  const wantMap = mapWanted();
+  if (wantMap && /\/v[45]\/manifest\.json$/.test(track.mapV3?.manifest ?? '')) track.mapV3 = { ...track.mapV3, manifest: track.mapV3.manifest.replace(/\/v[45]\/manifest\.json$/, wantMap === 'v3' ? '/manifest.json' : `/${wantMap}/manifest.json`) };
   // (the baked regions' files are on the tiles address when there is one — docs/DEPLOYMENT.md: everything that
   // streams in finds its files from here)
   if (track.mapV3) track.mapV3 = { ...track.mapV3, manifest: assetUrl(track.mapV3.manifest) };

@@ -35,15 +35,23 @@ const SURFACE: Record<string, string> = { paving_stones: 'cobbles', sett: 'cobbl
 // A way's points with curve points added: a cubic (Hermite, centripetal Catmull–Rom tangents) between OSM's
 // nodes where the way bends gently, with enough points that it turns at most maxTurnPerPoint° between two, and
 // at most densify m apart; sharp corners (more than `corner`°) stay corners. OSM's own nodes never move.
-export function densify(nodes: { x: number; z: number }[], cfg: { densify: number; maxTurnPerPoint: number; corner: number; straightSpacing?: number }) {
+// Map v5 (cfg.continuous): ghost neighbours before the first node and after the last — the next point of the road that
+// continues this way there — so its end tangents carry through (Overture's copy of OSM splits roads into a way between
+// every two junctions: each split was a kink); and a turn sharper than `corner` stays a corner only where both its legs
+// are at least cornerMinLeg m (a hairpin's nodes a few metres apart are a curve).
+export function densify(nodes: { x: number; z: number }[], cfg: { densify: number; maxTurnPerPoint: number; corner: number; straightSpacing?: number; cornerMinLeg?: number }, ghost: { prev?: { x: number; z: number } | null; next?: { x: number; z: number } | null } = {}) {
   const n = nodes.length, out: { x: number; z: number; orig: boolean; k: number }[] = [];
+  const nb = (i: number) => (i < 0 ? ghost.prev ?? null : i >= n ? ghost.next ?? null : nodes[i]);
   const dir = (a: any, b: any) => { const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   const T: (number[] | null)[] = new Array(n).fill(null);
-  for (let i = 1; i < n - 1; i++) {
-    const a = dir(nodes[i - 1], nodes[i]), b = dir(nodes[i], nodes[i + 1]), turn = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
-    if (turn >= cfg.corner || turn <= 0.5) continue;
-    const d0 = Math.sqrt(Math.hypot(nodes[i].x - nodes[i - 1].x, nodes[i].z - nodes[i - 1].z)) || 1e-6, d1 = Math.sqrt(Math.hypot(nodes[i + 1].x - nodes[i].x, nodes[i + 1].z - nodes[i].z)) || 1e-6;
-    const tx = (nodes[i].x - nodes[i - 1].x) / d0 / (d0 + d1) * d1 + (nodes[i + 1].x - nodes[i].x) / d1 / (d0 + d1) * d0, tz = (nodes[i].z - nodes[i - 1].z) / d0 / (d0 + d1) * d1 + (nodes[i + 1].z - nodes[i].z) / d1 / (d0 + d1) * d0;
+  for (let i = 0; i < n; i++) {
+    const P0 = nb(i - 1), P2 = nb(i + 1), P1 = nodes[i];
+    if (!P0 || !P2) continue;
+    const a = dir(P0, P1), b = dir(P1, P2), turn = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]))) * 180 / Math.PI;
+    const legs = Math.min(Math.hypot(P1.x - P0.x, P1.z - P0.z), Math.hypot(P2.x - P1.x, P2.z - P1.z));
+    if ((turn >= cfg.corner && !(cfg.cornerMinLeg && legs < cfg.cornerMinLeg && turn < 150)) || turn <= 0.5) continue;
+    const d0 = Math.sqrt(Math.hypot(P1.x - P0.x, P1.z - P0.z)) || 1e-6, d1 = Math.sqrt(Math.hypot(P2.x - P1.x, P2.z - P1.z)) || 1e-6;
+    const tx = (P1.x - P0.x) / d0 / (d0 + d1) * d1 + (P2.x - P1.x) / d1 / (d0 + d1) * d0, tz = (P1.z - P0.z) / d0 / (d0 + d1) * d1 + (P2.z - P1.z) / d1 / (d0 + d1) * d0;
     const l = Math.hypot(tx, tz) || 1;
     T[i] = [tx / l, tz / l];
   }
@@ -70,6 +78,23 @@ export function densify(nodes: { x: number; z: number }[], cfg: { densify: numbe
   return out;
 }
 
+// (Map v5: a way's nodes less those within minNodeGap m of the last one kept — a few decimetres of zigzag in OSM's
+// line, a kink when the curve goes through every one; its ends and every node another road shares are always kept)
+export function thinNodes<T extends { id: number; x: number; z: number }>(nodes: T[], uses: Map<number, number>, gap: number): T[] {
+  const n = nodes.length, must = (i: number) => i === 0 || i === n - 1 || (uses.get(nodes[i].id) ?? 0) > 1;
+  const out: T[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = nodes[i];
+    if (!must(i)) {
+      const a = out[out.length - 1];
+      let j = i + 1; while (j < n - 1 && !must(j)) j++;
+      if (Math.hypot(p.x - a.x, p.z - a.z) < gap || Math.hypot(nodes[j].x - p.x, nodes[j].z - p.z) < gap) continue;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
 export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any; v3roads: any; tileSize: number }) {
   // (copies: the joins add nodes to ways; the caller's OSM data stays as read)
   let ways = roads.filter(w => DRIVABLE.has(w.tags.highway) && w.tags.area !== 'yes').map(w => ({ ...w, nodes: [...w.nodes] }));
@@ -90,6 +115,28 @@ export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any;
   ways = ways.filter(w => w.nodes.length >= 2);
   const uses = new Map<number, number>();
   for (const w of ways) w.nodes.forEach((p, i) => uses.set(p.id, (uses.get(p.id) ?? 0) + (i === 0 || i === w.nodes.length - 1 ? 2 : 1)));
+  // (Map v5: the road continuing each way at its ends — the way ending there whose first leg turns least from this one's
+  // last, within continueMaxTurn°, preferring the same name, then the same class — for densify's ghost neighbours)
+  const endsAt = new Map<number, { w: Way; atStart: boolean }[]>();
+  if (cfg.graph.continuous) for (const w of ways) for (const atStart of [true, false]) { const p = w.nodes[atStart ? 0 : w.nodes.length - 1]; (endsAt.get(p.id) ?? endsAt.set(p.id, []).get(p.id)!).push({ w, atStart }); }
+  const ghostsOf = (w: Way) => {
+    const pick = (atStart: boolean) => {
+      const n = w.nodes.length, end = w.nodes[atStart ? 0 : n - 1], inner = w.nodes[atStart ? 1 : n - 2];
+      if (!inner) return null;
+      const ux = end.x - inner.x, uz = end.z - inner.z, ul = Math.hypot(ux, uz) || 1;
+      let best: { p: any; score: number } | null = null;
+      for (const o of endsAt.get(end.id) ?? []) {
+        if (o.w === w) continue;
+        const q = o.w.nodes[o.atStart ? 1 : o.w.nodes.length - 2]; if (!q) continue;
+        const vx = q.x - end.x, vz = q.z - end.z, vl = Math.hypot(vx, vz) || 1, turn = Math.acos(Math.max(-1, Math.min(1, (ux * vx + uz * vz) / (ul * vl)))) * 180 / Math.PI;
+        if (turn > (cfg.graph.continueMaxTurn ?? 75)) continue;
+        const score = turn - (o.w.tags.name && o.w.tags.name === w.tags.name ? 60 : 0) - (o.w.tags.highway === w.tags.highway ? 20 : 0);
+        if (!best || score < best.score) best = { p: q, score };
+      }
+      return best?.p ?? null;
+    };
+    return { prev: pick(true), next: pick(false) };
+  };
   const nodes: MNode[] = [], nodeIdx = new Map<number | string, number>(), segs: Seg[] = [];
   const nodeOf = (key: number | string, p: { x: number; z: number; lat: number; lon: number }, border = false) => {
     let k = nodeIdx.get(key);
@@ -100,9 +147,10 @@ export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any;
     const t = w.tags, base = LINK[t.highway] ?? t.highway, link = !!LINK[t.highway];
     const oneway = t.oneway === 'yes' || t.oneway === '1' || t.oneway === 'true' || t.junction === 'roundabout' || t.junction === 'circular' || (base === 'motorway' && t.oneway !== 'no') ? 1 : t.oneway === '-1' || t.oneway === 'reverse' ? -1 : 0;
     const structure = t.bridge && t.bridge !== 'no' ? 'bridge' : t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'culvert' ? 'tunnel' : 'ground';
-    const dense = densify(w.nodes, cfg.graph);
+    const wn = cfg.graph.minNodeGap ? thinNodes(w.nodes, uses, cfg.graph.minNodeGap) : w.nodes;
+    const dense = densify(wn, cfg.graph, cfg.graph.continuous ? ghostsOf(w) : {});
     // the points: OSM's (with their ids and lat/lon) and the curve's; then cut where the way crosses a tile border
-    let pts = dense.map(d => ({ x: d.x, z: d.z, orig: d.orig, osm: d.orig ? w.nodes[d.k].id : null, lat: d.orig ? w.nodes[d.k].lat : NaN, lon: d.orig ? w.nodes[d.k].lon : NaN, node: d.orig && ((uses.get(w.nodes[d.k].id) ?? 0) > 1 || d === dense[0] || d === dense[dense.length - 1]) ? w.nodes[d.k] : null as any, border: false }));
+    let pts = dense.map(d => ({ x: d.x, z: d.z, orig: d.orig, osm: d.orig ? wn[d.k].id : null, lat: d.orig ? wn[d.k].lat : NaN, lon: d.orig ? wn[d.k].lon : NaN, node: d.orig && ((uses.get(wn[d.k].id) ?? 0) > 1 || d === dense[0] || d === dense[dense.length - 1]) ? wn[d.k] : null as any, border: false }));
     if (cfg.graph.borderNodes) pts = withBorderPoints(pts, tileSize, w.nodes[0]);
     let start = 0;
     for (let q = 1; q < pts.length; q++) {

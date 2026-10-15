@@ -16,6 +16,7 @@ import { decodeTile } from '../../map/format/tileFormat.ts';
 import { terrainMeshes } from '../../map/format/terrainMesh.ts';
 import { transverseMercator } from '../../map/format/projection.ts';
 import { tileColliders } from '../../map/render/physics.ts';
+import { surfaceOfHit } from '../../map/render/surfaceIndex.ts';
 import { createSimulation } from '../../physics/sim.js';
 
 export async function mapHarness(region = 'sf', dir = path.join(root, 'assets/map', region)) {
@@ -41,7 +42,10 @@ export async function mapHarness(region = 'sf', dir = path.join(root, 'assets/ma
     sim.vehicle.body.enableCcd(true);
     const surfaces = Object.entries<any>(manifest.surfaces).map(([name, s]) => ({ name, ...s }));
     // tyre grip from the tiles' surface grids, as the game's streamer gives it
-    sim.vehicle.surfaceAt = (sx: number, sz: number) => {
+    sim.vehicle.surfaceAt = (sx: number, sz: number, hit?: any, sy?: number) => {
+      // (Map v5: the triangle the wheel's on, if its collider knows)
+      const own = hit && sy != null ? surfaceOfHit(hit.collider, sx, sy, sz) : null;
+      if (own) return surfaces.find(s => s.name === own) ?? surfaces[0];
       const wx = sx + origin[0], wz = sz + origin[1], d = cached(Math.floor(wx / T), Math.floor(wz / T)), Gs = d?.grids.surface;
       if (!Gs) return surfaces[0];
       const c = Math.min(Gs.n - 1, Math.max(0, Math.floor((wx - Math.floor(wx / T) * T) / Gs.cell))), r = Math.min(Gs.n - 1, Math.max(0, Math.floor((wz - Math.floor(wz / T) * T) / Gs.cell)));

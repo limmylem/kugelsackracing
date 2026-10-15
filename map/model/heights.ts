@@ -22,7 +22,10 @@ import type { MNode, Seg } from './graph.ts';
 import type { Cluster } from './topology.ts';
 import { rowAt } from './geom.ts';
 
-export const planeAt = (c: Cluster | any, x: number, z: number) => { const p = c.plane; return p.a * (x - p.cx) + p.b * (z - p.cz) + p.c; };
+// (Map v5: a big cluster's surface is a gently curved quadratic — qa·dx² + qb·dx·dz + qc·dz² on top of the plane)
+export const planeAt = (c: Cluster | any, x: number, z: number) => { const p = c.plane, dx = x - p.cx, dz = z - p.cz; return p.a * dx + p.b * dz + p.c + (p.qa ? p.qa * dx * dx + p.qb * dx * dz + p.qc * dz * dz : 0); };
+// its slope there: [∂h/∂x, ∂h/∂z]
+export const planeGrad = (p: any, x: number, z: number) => { const dx = x - p.cx, dz = z - p.cz; return p.qa ? [p.a + 2 * p.qa * dx + p.qb * dz, p.b + p.qb * dx + 2 * p.qc * dz] : [p.a, p.b]; };
 
 function smoothProfile(S: number[], raw: number[], median: number, sigma: number) {
   const med = raw.map((_, k) => { const w = raw.slice(Math.max(0, k - median), k + median + 1).sort((a, b) => a - b); return w[w.length >> 1]; });
@@ -45,15 +48,17 @@ const lerpAt = (S: number[], H: number[], s: number) => {
   const t = (s - S[lo]) / ((S[hi] - S[lo]) || 1); return H[lo] + (H[hi] - H[lo]) * t;
 };
 
-export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any) {
-  const Hc = cfg.heights, stats = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0 };
+export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any, extra: { rails?: { xs: number[]; zs: number[] }[] } = {}) {
+  const Hc = cfg.heights, stats: any = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0, quadratic: 0, crossings: 0, raisedJunctions: 0, shortOfClearance: 0 };
   // ---- 1. each segment's own smoothed profile
   for (const g of G.segs) { g.raw = g.xs.map((x: number, k: number) => demAt(x, g.zs[k])); g.smooth = smoothProfile(g.s, g.raw, Hc.median, Hc.smooth); }
+  // (Map v5: main roads' profiles along whole carriageways, through their junctions — the junctions follow them)
+  if (Hc.corridor) stats.corridors = corridorProfiles(G, demAt, Hc);
   // ---- 2. node heights: from the ground roads there; on structures, from the ground they're anchored to
   for (const n of G.nodes) {
-    const ground = n.segs.map(i => G.segs[i]).filter(g => g.structure === 'ground');
-    n.ground = ground.length > 0;
-    const hs = ground.map(g => (G.nodes[g.from] === n ? g.smooth[0] : g.smooth[g.smooth.length - 1]));
+    const ground = n.segs.map(i => G.segs[i]).filter(g => g.structure === 'ground'), corr = n.segs.map(i => G.segs[i]).filter(g => g.corr);
+    n.ground = ground.length > 0 || corr.length > 0;
+    const hs = corr.length ? corr.map(g => (G.nodes[g.from] === n ? g.corr[0] : g.corr[g.corr.length - 1])) : ground.map(g => (G.nodes[g.from] === n ? g.smooth[0] : g.smooth[g.smooth.length - 1]));
     n.h = hs.length ? hs.reduce((a, b) => a + b, 0) / hs.length : NaN;
   }
   const seen = new Set<number>();
@@ -74,11 +79,12 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // ---- 3. each cluster's plane
   for (const c of T.clusters) {
     const pts: number[][] = [];
-    for (const k of c.nodes) { const n = G.nodes[k]; pts.push([n.x, n.z, n.h, 2]); }
+    const W0 = Hc.corridor?.weight ?? 1, onCorr = (k: number) => G.nodes[k].segs.some(i => G.segs[i].corr);
+    for (const k of c.nodes) { const n = G.nodes[k]; pts.push([n.x, n.z, n.h, onCorr(k) ? 2 * W0 : 2]); }
     for (const A of c.arms) {
       const g = A.seg, s = A.atStart ? A.trim : g.s[g.s.length - 1] - A.trim, r = rowAt(g, s);
-      const h = g.structure === 'ground' ? lerpAt(g.s, g.smooth, s) : G.nodes[A.node].h;
-      pts.push([r.x, r.z, h, 1]);
+      const h = g.corr ? lerpAt(g.s, g.corr, s) : g.structure === 'ground' ? lerpAt(g.s, g.smooth, s) : G.nodes[A.node].h;
+      pts.push([r.x, r.z, h, g.corr ? W0 : 1]);
     }
     let W = 0, mx = 0, mz = 0, mh = 0;
     for (const p of pts) { W += p[3]; mx += p[0] * p[3]; mz += p[1] * p[3]; mh += p[2] * p[3]; }
@@ -92,6 +98,17 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const slope = Math.hypot(a, b);
     if (slope > Hc.junctionMaxSlope) { a *= Hc.junctionMaxSlope / slope; b *= Hc.junctionMaxSlope / slope; }
     (c as any).plane = { cx: mx, cz: mz, a, b, c: mh };
+    // (Map v5: a cluster wider than quadraticAbove m on one plane folds against roads steeper than its average — the
+    // windy route's 176 m junction at Springbank Road. Its surface gets the quadratic terms that fit what's left, no
+    // more curved than maxCurvature — still one smooth surface, every arm met where it reaches it)
+    if (Hc.quadraticAbove) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+      if (Math.max(x1 - x0, z1 - z0) > Hc.quadraticAbove && pts.length >= 8) {
+        // (kept only if no steeper anywhere on the junction than its plane may be)
+        const q = fitQuadratic(pts, mx, mz, (c as any).plane, Hc.maxCurvature);
+        if (q && pts.every(p => Math.hypot(...planeGrad({ ...q, cx: mx, cz: mz }, p[0], p[1])) <= Hc.junctionMaxSlope * 1.05)) { Object.assign((c as any).plane, q); stats.quadratic++; }
+      }
+    }
     for (const k of c.nodes) G.nodes[k].h = planeAt(c, G.nodes[k].x, G.nodes[k].z);
   }
   // ---- 4. chains of roads between junctions and ends (through joints)
@@ -120,7 +137,7 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   relaxPlanes(chains, clusterOf, G, Hc, stats, demAt);
   for (const ch of chains) solveChain(ch, G, clusterOf, demAt, Hc, stats);
   // ---- 5. bridges over roads: lifted to clear them (eased within the bridge), and the grades held again
-  liftBridges(G, chains, Hc, stats);
+  if (Hc.approachGrade) clearancePass(G, T, chains, clusterOf, demAt, Hc, stats, extra.rails ?? []); else liftBridges(G, chains, Hc, stats);
   // ---- 6. the drawn profile: vertical curves
   drawnProfiles(chains, Hc);
   // (internal roads of a cluster: on its plane)
@@ -146,7 +163,9 @@ function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: M
     if (ch.parts.some((p: any) => p.seg.structure !== 'ground') && S1 - S0 >= 2 * Hc.armEase) continue;
     const pA = posAt(S0), pB = posAt(S1), d = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) || 1, ux = (pB[0] - pA[0]) / d, uz = (pB[1] - pA[1]) / d;
     // (each plane's slope along the road between them)
-    links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]), mA: cA.plane.a * ux + cA.plane.b * uz, mB: cB.plane.a * ux + cB.plane.b * uz });
+    const gA = planeGrad(cA.plane, pA[0], pA[1]), gB = planeGrad(cB.plane, pB[0], pB[1]);
+    const corr = P.every(p => p.seg.corr), cAt = (sc: number) => lerpAt(S, P.map(p => p.seg.corr[p.k]), sc);
+    links.push({ cA, cB, pA, pB, span: Math.max(0.5, S1 - S0), rise: corr ? cAt(S1) - cAt(S0) : demAt(pB[0], pB[1]) - demAt(pA[0], pA[1]), mA: gA[0] * ux + gA[1] * uz, mB: gB[0] * ux + gB[1] * uz });
   }
   let moved = 0;
   for (let pass = 0; pass < Hc.planePasses; pass++) {
@@ -192,7 +211,7 @@ function chainPoints(ch: { parts: { seg: Seg; fwd: boolean }[] }) {
 
 function solveChain(ch: any, G: { nodes: MNode[]; segs: Seg[] }, clusterOf: (k: number) => any, demAt: (x: number, z: number) => number, Hc: any, stats: any) {
   const P = chainPoints(ch), n = P.length, S = P.map(p => p.S), Ltot = S[n - 1];
-  const raw = P.map(p => demAt(p.x, p.z)), smooth = smoothProfile(S, raw, Hc.median, Hc.smooth);
+  const raw = P.map(p => demAt(p.x, p.z)), smooth = P.every(p => p.seg.corr) ? P.map(p => p.seg.corr[p.k]) : smoothProfile(S, raw, Hc.median, Hc.smooth);
   // the ends: a junction's plane where the road's trimmed (its row's middle), else the smoothed ground (or the
   // node's height, on a structure)
   const first = ch.parts[0], last = ch.parts[ch.parts.length - 1];
@@ -204,35 +223,38 @@ function solveChain(ch: any, G: { nodes: MNode[]; segs: Seg[] }, clusterOf: (k: 
   const sm0 = lerpAt(S, smooth, S0), sm1 = lerpAt(S, smooth, S1), span = Math.max(1e-6, S1 - S0);
   const h = S.map((s, i) => { const t = Math.max(0, Math.min(1, (s - S0) / span)); return smooth[i] + (hA - sm0) + ((hB - sm1) - (hA - sm0)) * t; });
   // structures: eased straight between the heights where they leave the ground (or the chain's ends)
-  const isStruct = P.map(p => p.structure !== 'ground');
+  const isStruct = P.map(p => p.structure !== 'ground'), corr = P.every(p => p.seg.corr);
   for (let i = 0; i < n; i++) {
-    if (!isStruct[i]) continue;
+    if (!isStruct[i] || corr) continue;
     let j = i; while (j + 1 < n && isStruct[j + 1]) j++;
     const a = Math.max(0, i - 1), b = Math.min(n - 1, j + 1), ha = h[a], hb = h[b], Sa = S[a], Sb = S[b];
     for (let q = i; q <= j; q++) { const t = (S[q] - Sa) / ((Sb - Sa) || 1), e = t * t * (3 - 2 * t) * 0.5 + t * 0.5; h[q] = ha + (hb - ha) * e; }
     i = j;
   }
   const fixed = S.map(s => s <= S0 + 1e-6 || s >= S1 - 1e-6);
-  relax(S, h, fixed, isStruct, Hc, stats);
+  const lim = Hc.maxGradeByClass ? P.map(p => Hc.maxGradeByClass[p.seg.link ? 'link' : p.seg.cls] ?? Hc.maxGrade) : undefined;
+  relax(S, h, fixed, isStruct, Hc, stats, lim);
   // (inside the junction, between the node and the trim: on the plane)
   const cA = clusterOf(ch.start), cB = clusterOf(ch.end);
   for (let i = 0; i < n; i++) { if (S[i] < S0 && cA) h[i] = planeAt(cA, P[i].x, P[i].z); if (S[i] > S1 && cB) h[i] = planeAt(cB, P[i].x, P[i].z); }
   // back onto the segments (a joint's point to both)
   for (const g of ch.parts.map((p: any) => p.seg)) g.h ??= new Array(g.xs.length).fill(0);
   P.forEach((p: any, i) => { p.seg.h[p.k] = h[i]; if (p.also) p.also.seg.h[p.also.k] = h[i]; });
-  ch.P = P; ch.S = S; ch.S0 = S0; ch.S1 = S1; ch.h = h; ch.isStruct = isStruct; ch.fixed = fixed;
+  ch.P = P; ch.S = S; ch.S0 = S0; ch.S1 = S1; ch.h = h; ch.isStruct = isStruct; ch.fixed = fixed; ch.lim = lim;
 }
 
 // the grade and its change held to their limits, a few dozen passes, the fixed points never moving
-function relax(S: number[], h: number[], fixed: boolean[], isStruct: boolean[], Hc: any, stats: any) {
+function relax(S: number[], h: number[], fixed: boolean[], isStruct: boolean[], Hc: any, stats: any, lim?: number[]) {
   const n = S.length;
   let touched = false;
+  // (the grade allowed from point i to i + 1: the road's class's (Map v5), else Map v4's one maxGrade)
+  const lim0 = (i: number) => lim?.[i] ?? Hc.maxGrade;
   for (let pass = 0; pass < Hc.relaxPasses; pass++) {
     let worst = 0;
     for (let i = 0; i + 1 < n; i++) {
       const ds = S[i + 1] - S[i];
       if (ds < 1e-6) continue;
-      const lim = (isStruct[i] || isStruct[i + 1] ? Hc.bridgeMaxGrade : Hc.maxGrade) * ds, d = h[i + 1] - h[i], ex = Math.abs(d) - lim;
+      const lim = (isStruct[i] || isStruct[i + 1] ? Hc.bridgeMaxGrade : lim0(i)) * ds, d = h[i + 1] - h[i], ex = Math.abs(d) - lim;
       if (ex <= 1e-4) continue;
       worst = Math.max(worst, ex / ds);
       const m = Math.sign(d) * ex;
@@ -326,4 +348,209 @@ function drawnProfiles(chains: any[], Hc: any) {
       base += L;
     }
   }
+}
+// a quadratic's terms over a plane fitted at (mx, mz): least squares on what the plane leaves (weighted as the plane's
+// fit), its curvature (the largest |eigenvalue| of its second derivatives) held to maxCurvature
+function fitQuadratic(pts: number[][], mx: number, mz: number, plane: any, maxCurvature: number) {
+  // (normal equations for [qa, qb, qc, da, db, dc]: the plane's own terms refitted with it)
+  const A = Array.from({ length: 6 }, () => new Array(7).fill(0));
+  for (const p of pts) {
+    const dx = p[0] - mx, dz = p[1] - mz, w = p[3], f = [dx * dx, dx * dz, dz * dz, dx, dz, 1], r = p[2] - (plane.a * dx + plane.b * dz + plane.c);
+    for (let i = 0; i < 6; i++) { for (let j = 0; j < 6; j++) A[i][j] += w * f[i] * f[j]; A[i][6] += w * f[i] * r; }
+  }
+  for (let i = 0; i < 6; i++) A[i][i] += 1e-6 * (A[i][i] || 1);
+  for (let c = 0; c < 6; c++) {
+    let piv = c; for (let r = c + 1; r < 6; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    if (Math.abs(A[piv][c]) < 1e-12) return null;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    for (let r = 0; r < 6; r++) { if (r === c) continue; const f = A[r][c] / A[c][c]; for (let k = c; k < 7; k++) A[r][k] -= f * A[c][k]; }
+  }
+  const x = A.map((row, i) => row[6] / row[i]);
+  let [qa, qb, qc] = x;
+  // (curvature: the Hessian [[2qa, qb], [qb, 2qc]]'s largest |eigenvalue|)
+  const tr = qa + qc, det = 4 * qa * qc - qb * qb, disc = Math.sqrt(Math.max(0, tr * tr - det)), k = Math.max(Math.abs(tr + disc), Math.abs(tr - disc));
+  if (k > maxCurvature) { const f = maxCurvature / k; qa *= f; qb *= f; qc *= f; }
+  // (the plane's terms fitted again under the quadratic as it now is — fitted jointly with a curvature since cut back,
+  // they'd tilt to make up for it)
+  let W = 0, sx = 0, sz = 0, sh = 0;
+  const rest = pts.map(p => { const dx = p[0] - mx, dz = p[1] - mz; return [dx, dz, p[2] - (qa * dx * dx + qb * dx * dz + qc * dz * dz), p[3]]; });
+  for (const [dx, dz, h, w] of rest) { W += w; sx += w * dx; sz += w * dz; sh += w * h; }
+  const ox = sx / W, oz = sz / W, oh = sh / W;
+  let xx = 0, xz = 0, zz = 0, xh = 0, zh = 0;
+  for (const [dx, dz, h, w] of rest) { const u = dx - ox, v = dz - oz, e = h - oh; xx += w * u * u; xz += w * u * v; zz += w * v * v; xh += w * u * e; zh += w * v * e; }
+  const det2 = xx * zz - xz * xz;
+  if (Math.abs(det2) < 1e-9) return null;
+  const a = (xh * zz - zh * xz) / det2, b = (zh * xx - xh * xz) / det2;
+  return { qa, qb, qc, a, b, c: oh - a * ox - b * oz };
+}
+
+// Map v5's bridges (Step 1d): every deck point over another road or a railway needs its surface clearance + deckDepth
+// over it. That need falls away along the chain at approachGrade — onto the deck's approaches, not within the deck only —
+// so the road rises on an embankment to meet it; where a chain ends at a junction lower than the need there, the junction
+// is raised and every road round it solved again. A few rounds; what still falls short is counted (stats).
+function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, chains: any[], clusterOf: (k: number) => any, demAt: (x: number, z: number) => number, Hc: any, stats: any, rails: { xs: number[]; zs: number[] }[]) {
+  void T;
+  const C = 40, grid = new Map<number, [any, number, boolean][]>(), key = (i: number, j: number) => (i + 5000) * 10000 + j + 5000;
+  const add = (g: any, k: number, rail: boolean) => { const xs = g.xs, zs = g.zs; for (let i = Math.floor(Math.min(xs[k], xs[k + 1]) / C); i <= Math.floor(Math.max(xs[k], xs[k + 1]) / C); i++) for (let j = Math.floor(Math.min(zs[k], zs[k + 1]) / C); j <= Math.floor(Math.max(zs[k], zs[k + 1]) / C); j++) (grid.get(key(i, j)) ?? grid.set(key(i, j), []).get(key(i, j))!).push([g, k, rail]); };
+  for (const g of G.segs) if (g.structure !== 'bridge' && !g.internal) for (let k = 0; k + 1 < g.xs.length; k++) add(g, k, false);
+  for (const r of rails) for (let k = 0; k + 1 < r.xs.length; k++) add(r, k, true);
+  const railH = (r: any, k: number, t: number) => demAt(r.xs[k] + (r.xs[k + 1] - r.xs[k]) * t, r.zs[k] + (r.zs[k + 1] - r.zs[k]) * t);
+  const seen = new Map<any, Map<any, boolean>>();
+  const crosses = (ch: any, g: any) => {
+    const m = seen.get(ch) ?? seen.set(ch, new Map()).get(ch)!;
+    if (m.has(g)) return m.get(g)!;
+    const P = ch.P, xs = g.xs, zs = g.zs;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let k = 0; k < xs.length; k++) { x0 = Math.min(x0, xs[k]); x1 = Math.max(x1, xs[k]); z0 = Math.min(z0, zs[k]); z1 = Math.max(z1, zs[k]); }
+    let hit = false;
+    for (let i = 0; i + 1 < P.length && !hit; i++) {
+      if (P[i].structure !== 'bridge' && P[i + 1].structure !== 'bridge') continue;
+      const ax = P[i].x, az = P[i].z, bx = P[i + 1].x, bz = P[i + 1].z;
+      if (Math.max(ax, bx) < x0 || Math.min(ax, bx) > x1 || Math.max(az, bz) < z0 || Math.min(az, bz) > z1) continue;
+      for (let k = 0; k + 1 < xs.length; k++) {
+        const cx = xs[k], cz = zs[k], ex = xs[k + 1] - cx, ez = zs[k + 1] - cz, dx = bx - ax, dz = bz - az, den = dx * ez - dz * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const t = ((cx - ax) * ez - (cz - az) * ex) / den, u = ((cx - ax) * dz - (cz - az) * dx) / den;
+        if (t > 1e-3 && t < 1 - 1e-3 && u >= -1e-6 && u <= 1 + 1e-6) { hit = true; break; }
+      }
+    }
+    m.set(g, hit);
+    return hit;
+  };
+  const needsOf = (ch: any) => {
+    const P = ch.P, own = new Set(ch.parts.map((p: any) => p.seg.id)), out: { i: number; need: number }[] = [];
+    // (the chain's own road counts where it comes back under itself — a loop ramp — far enough along it)
+    const at = new Map<string, number>(); P.forEach((p: any, i: number) => at.set(`${p.seg.id}:${p.k}`, i));
+    for (let i = 0; i < P.length; i++) {
+      if (P[i].structure !== 'bridge') continue;
+      const x = P[i].x, z = P[i].z, sg = P[i].seg, hw = Math.max(sg.hwL[P[i].k], sg.hwR[P[i].k]);
+      let need = -Infinity;
+      for (const [g, k, rail] of grid.get(key(Math.floor(x / C), Math.floor(z / C))) ?? []) {
+        if (!rail && (!g.h || g.from === sg.from || g.to === sg.to || g.from === sg.to || g.to === sg.from)) continue;
+        if (!rail && own.has(g.id) && !(Math.abs(ch.S[at.get(`${g.id}:${k}`) ?? i] - ch.S[i]) > Hc.selfCrossAlong)) continue;
+        const ax = g.xs[k], az = g.zs[k], dx = g.xs[k + 1] - ax, dz = g.zs[k + 1] - az, L2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+        const ohw = rail ? 2.5 : Math.max(g.hwL[k], g.hwR[k]);
+        if (Math.hypot(x - ax - dx * t, z - az - dz * t) > hw + ohw) continue;
+        // (crossing it, not beside it: a parallel carriageway, or the road a deck merges into, isn't under the deck —
+        // what's under it is a road whose centre line crosses the deck's in plan)
+        if (!crosses(ch, g)) continue;
+        const below = rail ? railH(g, k, t) : g.h[k] + (g.h[k + 1] - g.h[k]) * t, want = below + (rail ? Hc.clearanceRail : Hc.clearance) + Hc.deckDepth;
+        // (only what's under it: a road far above or below is another level — another deck, a tunnel)
+        if (want > ch.h[i] - Hc.deckDepth - 12 && want < ch.h[i] + 12) need = Math.max(need, want);
+      }
+      if (need > -Infinity) out.push({ i, need });
+    }
+    return out;
+  };
+  const floorOf = (ch: any, needs: { i: number; need: number }[]) => ch.S.map((s: number) => { let m = -Infinity; for (const q of needs) m = Math.max(m, q.need - Hc.approachGrade * Math.abs(ch.S[q.i] - s)); return m; });
+  const bridgeChains = chains.filter(ch => ch.P && ch.isStruct?.some((v: boolean, i: number) => v && ch.P[i].structure === 'bridge'));
+  for (let round = 0; round < 3; round++) {
+    const work: { ch: any; needs: { i: number; need: number }[] }[] = [];
+    for (const ch of bridgeChains) { const needs = needsOf(ch); if (needs.length) work.push({ ch, needs }); }
+    if (!work.length) break;
+    if (round === 0) for (const w of work) stats.crossings += w.needs.length;
+    // (the junctions at the chains' ends, raised to meet their floors at the trims)
+    const raise = new Map<any, number>();
+    for (const { ch, needs } of work) {
+      if (ch.cycle) continue;
+      const F = floorOf(ch, needs);
+      for (const [k, sc] of [[ch.start, ch.S0], [ch.end, ch.S1]] as [number, number][]) {
+        const c = clusterOf(k); if (!c) continue;
+        let i = 0; while (i + 1 < ch.S.length && ch.S[i] < sc - 1e-6) i++;
+        const here = planeAt(c, ch.P[i].x, ch.P[i].z);
+        if (F[i] > here + 0.05) raise.set(c, Math.max(raise.get(c) ?? 0, F[i] - here));
+      }
+    }
+    if (raise.size) {
+      for (const [c, d] of raise) { c.plane.c += d; for (const k of c.nodes) G.nodes[k].h = planeAt(c, G.nodes[k].x, G.nodes[k].z); stats.raisedJunctions++; }
+      for (const ch of chains) if (!ch.cycle && [clusterOf(ch.start), clusterOf(ch.end)].some(c => c && raise.has(c))) solveChain(ch, G, clusterOf, demAt, Hc, stats);
+    }
+    // (each bridge chain: at least its floor, its grades held again with the floor's points fixed)
+    for (const { ch, needs } of work) {
+      const F = floorOf(ch, needs), h = ch.h;
+      for (let i = 0; i < h.length; i++) if (F[i] > h[i]) h[i] = F[i];
+      const fixed = ch.fixed.map((f: boolean, i: number) => f || F[i] >= h[i] - 1e-6);
+      for (let pass = 0; pass < 3; pass++) { relax(ch.S, h, fixed, ch.isStruct, Hc, stats, ch.lim); for (let i = 0; i < h.length; i++) if (F[i] > h[i]) h[i] = F[i]; }
+      ch.P.forEach((p: any, i: number) => { p.seg.h[p.k] = h[i]; if (p.also) p.also.seg.h[p.also.k] = h[i]; });
+      if (round === 0) stats.lifted++;
+    }
+  }
+  // (what still falls short: a deck under its need anywhere)
+  for (const ch of bridgeChains) for (const q of needsOf(ch)) if (ch.h[q.i] < q.need - 0.1) { stats.shortOfClearance++; break; }
+}
+
+// (Map v5) main roads' height profiles along whole carriageways. Overture's copy of OSM splits a road at every
+// junction and ramp, and each piece was fitted to the ground on its own, between junction planes fitted to the ground
+// too — a freeway in a cutting got the hill's grade (the SE Freeway's 13% at the Heysen Tunnels; it's 6%). Here each
+// carriageway of Hc.corridor.classes — the segments chained through each node to the one continuing it (the same name
+// and class, turning no more than turn°) — is one profile: the elevation along it (none on a bridge or in a tunnel,
+// nor within portalSkip m of a tunnel's mouth — the cutting there — nor bridgeSkip m of a bridge's ends; straight
+// across those), a Gaussian of sigma m, then held to its class's grade (maxGradeByClass) by relaxation with nothing
+// fixed. Sets seg.corr (a height per point). Returns the number of carriageways.
+function corridorProfiles(G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any) {
+  const C = Hc.corridor, classes = new Set<string>(C.classes), segs = G.segs.filter(g => !g.internal && classes.has(g.cls));
+  // (through a junction's own short pieces too: they're the same road)
+  const dirAt = (g: Seg, atEnd: boolean) => { const n = g.xs.length, a = atEnd ? n - 2 : 0, b = atEnd ? n - 1 : 1; const dx = g.xs[b] - g.xs[a], dz = g.zs[b] - g.zs[a], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
+  const used = new Set<number>();
+  const next = (g: Seg, fwd: boolean) => {
+    const k = fwd ? g.to : g.from, d = dirAt(g, fwd), u = fwd ? d : [-d[0], -d[1]];
+    let best: { g: Seg; fwd: boolean; turn: number } | null = null;
+    for (const i of G.nodes[k].segs) {
+      const o = G.segs[i];
+      if (o === g || used.has(o.id) || !classes.has(o.cls) || (o.name ?? '') !== (g.name ?? '') || o.cls !== g.cls) continue;
+      const of = o.from === k; if (!of && o.to !== k) continue;
+      if (o.oneway && g.oneway && of !== fwd) continue;
+      const e = dirAt(o, !of), v = of ? e : [-e[0], -e[1]], turn = Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1]))) * 180 / Math.PI;
+      if (turn > C.turn) continue;
+      if (!best || turn < best.turn) best = { g: o, fwd: of, turn };
+    }
+    return best;
+  };
+  let count = 0;
+  for (const g0 of segs) {
+    if (used.has(g0.id)) continue;
+    used.add(g0.id);
+    // (the run both ways from g0)
+    const fwdPart: { g: Seg; fwd: boolean }[] = [{ g: g0, fwd: true }], back: { g: Seg; fwd: boolean }[] = [];
+    for (let cur = fwdPart[0], guard = 0; guard < 100000; guard++) { const n = next(cur.g, cur.fwd); if (!n) break; used.add(n.g.id); cur = { g: n.g, fwd: n.fwd }; fwdPart.push(cur); }
+    for (let cur = { g: g0, fwd: false }, guard = 0; guard < 100000; guard++) { const n = next(cur.g, cur.fwd); if (!n) break; used.add(n.g.id); cur = { g: n.g, fwd: n.fwd }; back.push({ g: n.g, fwd: !n.fwd }); }
+    const run = [...back.reverse(), ...fwdPart];
+    // (its points, end to end; a shared end once)
+    const pts: { x: number; z: number; S: number; g: Seg; k: number; st: string; also?: { g: Seg; k: number } }[] = [];
+    let base = 0;
+    for (const { g, fwd } of run) {
+      const n = g.xs.length, L = g.s[n - 1];
+      for (let q = 0; q < n; q++) { const k = fwd ? q : n - 1 - q; if (q === 0 && pts.length) { pts[pts.length - 1].also = { g, k }; continue; } pts.push({ x: g.xs[k], z: g.zs[k], S: base + (fwd ? g.s[k] : L - g.s[k]), g, k, st: g.structure }); }
+      base += L;
+    }
+    const n = pts.length, S = pts.map(p => p.S);
+    // (where the ground's elevation is the road's: not on or near a structure)
+    const near = new Array(n).fill(Infinity);
+    for (let i = 0; i < n; i++) if (pts[i].st !== 'ground') {
+      const skip = pts[i].st === 'tunnel' ? C.portalSkip : C.bridgeSkip;
+      for (let j = i; j >= 0 && S[i] - S[j] <= skip; j--) near[j] = 0;
+      for (let j = i; j < n && S[j] - S[i] <= skip; j++) near[j] = 0;
+    }
+    const raw = pts.map((p, i) => (near[i] === 0 ? NaN : demAt(p.x, p.z)));
+    if (raw.every(v => Number.isNaN(v))) { for (const p of pts) delete (p.g as any).corr; continue; }
+    // (straight across the gaps; the ends level with their nearest)
+    for (let i = 0; i < n; i++) if (Number.isNaN(raw[i])) {
+      let a = i - 1; while (a >= 0 && Number.isNaN(raw[a])) a--;
+      let b = i; while (b < n && Number.isNaN(raw[b])) b++;
+      for (let q = i; q < b; q++) raw[q] = a < 0 ? raw[b] : b >= n ? raw[a] : raw[a] + (raw[b] - raw[a]) * (S[q] - S[a]) / ((S[b] - S[a]) || 1);
+      i = b - 1;
+    }
+    const h = smoothProfile(S, raw, Hc.median, C.sigma);
+    // (held to the grade exactly: halfway between the highest profile within the grade that's nowhere above it and
+    // the lowest nowhere below it — each one forward and back pass; where it's within the grade already, both are it)
+    const lim = pts.map(p => Hc.maxGradeByClass?.[p.g.link ? 'link' : p.g.cls] ?? Hc.maxGrade);
+    const up = [...h], lo = [...h];
+    for (let i = 1; i < n; i++) { const d = lim[i - 1] * (S[i] - S[i - 1]); up[i] = Math.min(up[i], up[i - 1] + d); lo[i] = Math.max(lo[i], lo[i - 1] - d); }
+    for (let i = n - 2; i >= 0; i--) { const d = lim[i] * (S[i + 1] - S[i]); up[i] = Math.min(up[i], up[i + 1] + d); lo[i] = Math.max(lo[i], lo[i + 1] - d); }
+    for (let i = 0; i < n; i++) h[i] = (up[i] + lo[i]) / 2;
+    for (const { g } of run) (g as any).corr = new Array(g.xs.length).fill(0);
+    pts.forEach((p, i) => { (p.g as any).corr[p.k] = h[i]; if (p.also) (p.also.g as any).corr[p.also.k] = h[i]; });
+    count++;
+  }
+  return count;
 }

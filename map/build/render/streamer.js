@@ -11,7 +11,7 @@
 //
 //   const W = await createWorldStream({ manifestUrl, scene, sim, RAPIER })
 //   each frame: W.update(carPosition (sim), velocity, dt) → { shifted: [tx, 0, tz] | null }
-//   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z), W.placeOnGround(x, z, yFrom), W.where(x, z)
+//   W.readyAround(x, z, r) (physics there?), W.surfaceAt(x, z, hit?, y?), W.placeOnGround(x, z, yFrom), W.where(x, z)
 //   W.status (for the overlay), W.toWorld / W.toSim
 //   W.carve(id, { polys: [[[x, z], …], …] (the map's frame), below(x, z) → the built surface's height there,
 //   surfaces: [a surface's name for each outline] } | null): something built set into the ground (a garage —
@@ -26,6 +26,7 @@
 import * as THREE from 'three';
 import { materials, srgbVertexColours, tileObjects, setGroundHoles, setGroundHoleOrigin, groundHolesOwner } from "./objects.js";
 import { tileColliders } from "./physics.js";
+import { surfaceOfHit } from "./surfaceIndex.js";
 import { transverseMercator } from "../format/projection.js";
 export const REBASE = 1536;
 const DEFAULTS = { loadRadius: 1400, unloadRadius: 2100, physicsRadius: 750, physicsDrop: 1100, lookAhead: 4, maxLoads: 4, workers: 2, budgetMs: 4 };
@@ -457,7 +458,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
                 e.scenery = scenery;
             }
             // (v4: tree trunks only for the trees drawn — the scenery changed, the tile's colliders made again)
-            if (e.physics && e.data?.header?.map === 'v4' && e.treeShare !== scenery)
+            if (e.physics && (e.data?.header?.map === 'v4' || e.data?.header?.map === 'v5') && e.treeShare !== scenery)
                 dropPhysics(e);
         }
         // a few milliseconds of colliders, the car's own tile and those ahead first
@@ -541,10 +542,14 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
             return (h(c, r) * (1 - tx) + h(c + 1, r) * tx) * (1 - tz) + (h(c, r + 1) * (1 - tx) + h(c + 1, r + 1) * tx) * tz;
         },
         // tyre grip there: { name, grip, rollingResistance, … }
-        surfaceAt(x, z) {
+        surfaceAt(x, z, hit, y) {
             const wx = x + origin[0], wz = z + origin[1], carved = carvings.size ? carvedSurface(wx, wz) : null;
             if (carved)
                 return carved;
+            // (Map v5: the triangle the wheel's on, if its collider knows — a road, footpath, kerb, car park or deck)
+            const own = hit && y != null ? surfaceOfHit(hit.collider, x, y, z) : null;
+            if (own)
+                return surfaces.find(s => s.name === own) ?? surfaces[0];
             const e = entryAt(wx, wz), G = e?.data?.grids.surface;
             if (!G)
                 return surfaces[0];
