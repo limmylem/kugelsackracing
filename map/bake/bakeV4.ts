@@ -42,6 +42,10 @@ import { checkSurface } from '../model/checks.ts';
 import { auditTile } from '../collision/audit.ts';
 import { stylePackFor } from '../style/stylePack.ts';
 import { planCrossSections, buildBands } from '../model/crossSection.ts';
+import { placeFurniture } from '../model/furniture.ts';
+import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
+import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
+import { FURNITURE_STRIDE } from '../format/furniture.ts';
 
 export const BAKE_VERSION = 4;
 const EMPTY = { positions: [], colours: [], indices: [], surfaces: [], segOf: [] }, NAMELESS = { name: null, rank: 0, width: 0, s: [0], xs: [], zs: [], h: [] };
@@ -135,7 +139,31 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     for (const g of model.segs) if ((g as any).driveway) for (const k of [g.from, g.to]) if (model.nodes[k].segs.some((i: number) => !(model.segs[i] as any).driveway)) lowerAt.push([model.nodes[k].x, model.nodes[k].z]);
     lap(`  cross-sections (style ${style.name}): ${xs.sides} road sides — ${xs.mapped} mapped sidewalks (${xs.sidewalkPoints} points snapped), ${xs.tagged} tagged, ${xs.estimated} estimated, ${xs.none} none; ${xs.paved} paved to the shops; ${lowerAt.length} kerbs lowered (crossings, driveways)`);
   }
-  const bandStats: Record<string, number> = {};
+  // (Map v5: the chains — data/map/v5/brands.json, every parody kept away from every real name, or no bake — and what
+  // each building is: map/model/brands.ts, map/model/buildingsV5.ts)
+  let registry: any = null, outlets: any[] = [];
+  const brandSiteStats: Record<string, number> = {};
+  if (v5) {
+    registry = loadRegistry();
+    const nsi = loadNsi(), chk = checkParodies(registry, nsi, cfg.tests.brandSimilarity);
+    if (!chk.ok) throw new Error(`a parody name is too close to a real one: ${JSON.stringify(chk.worst.filter(w => w.similarity >= cfg.tests.brandSimilarity))}`);
+    const [la0, lo0] = P.toLatLon(grid.x0 - 200, gz1 + 200), [la1, lo1] = P.toLatLon(gx1 + 200, grid.z0 - 200);
+    const placeRows = await overtureRows({ release: region.overture.release, theme: 'places', type: 'place', bbox: [lo0, la0, lo1, la1], columns: ['id', 'names', 'basic_category', 'taxonomy', 'brand', 'confidence', 'operating_status'], cacheDir: path.join(ROOT, '.cache/map') });
+    const places = placeRows.map((r: any) => { const c = r.geometry?.coordinates; if (!c) return null; const [x, z] = P.toXZ(c[1], c[0]); return { ...r, x, z }; }).filter(Boolean);
+    const det = detectBrands({ registry, nsi, osm, places, cfg });
+    outlets = det.outlets;
+    // (the nearest road to a point, for each building's frontage)
+    const RC = 40, rgrid = new Map<string, number[][]>();
+    for (const g of model.segs) if (!g.internal) for (let k = 0; k + 1 < g.xs.length; k++) { const key = `${Math.floor(g.xs[k] / RC)},${Math.floor(g.zs[k] / RC)}`; (rgrid.get(key) ?? rgrid.set(key, []).get(key)!).push([g.xs[k], g.zs[k], g.xs[k + 1], g.zs[k + 1]]); }
+    const roadAt = (x: number, z: number) => { let best: any = null; for (let i = Math.floor(x / RC) - 1; i <= Math.floor(x / RC) + 1; i++) for (let j = Math.floor(z / RC) - 1; j <= Math.floor(z / RC) + 1; j++) for (const [ax, az, bx, bz] of rgrid.get(`${i},${j}`) ?? []) { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz); if (!best || d < best.d) best = { x: px, z: pz, d }; } return best; };
+    const cls = classifyBuildings({ buildings, places, osm, classAt: (x, z) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; }, style, cfg, roadAt });
+    const ap = applyBrands({ outlets, buildings, registry, cfg });
+    const byChain: Record<string, number> = {}; for (const o of outlets) byChain[registry.brands[o.brand].parody.name] = (byChain[registry.brands[o.brand].parody.name] ?? 0) + 1;
+    lap(`  brands: ${places.length} places; ${det.stats.outlets} chain outlets (${Object.entries(det.stats).filter(([k]) => !['outlets'].includes(k)).map(([k, v]) => `${k} ${v}`).join(', ')}), ${ap.branded} on their buildings — ${Object.entries(byChain).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')}; parodies checked (closest to a real name: ${chk.worst[0].similarity.toFixed(2)}, limit ${cfg.tests.brandSimilarity})`);
+    lap(`  buildings: ${Object.entries(cls.types).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')}; type from its tag ${cls.stats.tagged}, from a place in it ${cls.stats.byPlace}, estimated ${cls.stats.estimated}; roofs estimated ${cls.stats.roofsEstimated}, colours estimated ${cls.stats.coloursEstimated}; ${cls.stats.named} with businesses' signs`);
+  }
+  const parkingRings = v5 ? osm.areas.filter(a => a.tags.amenity === 'parking').map(a => a.parts[0][0].map(q => [q.x, q.z])) : [];
+  const bandStats: Record<string, number> = {}, furnStats: Record<string, number> = {};
 
   // 5. block by block (blockTiles tiles square, and the roads within blockPad m of it): the road surface, the ground
   // shaped under it, the exclusion mask, trees, railings, lamps, names; the block's tiles, each audited (no collider
@@ -199,13 +227,28 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const lamps: number[] = []; for (let k = 0; k < lp.lamps.length; k += LAMP_STRIDE) if (inBlock(lp.lamps[k], lp.lamps[k + 2])) for (let q = 0; q < LAMP_STRIDE; q++) lamps.push(lp.lamps[k + q]);
     // (names on the block's roads, at the drawn road's height; the rest of the area's roads left nameless)
     const lb = timed('labels', () => labels({ nodes: model.nodes as any, segs: model.segs.map((g: any) => (segIds.has(g.id) ? Object.assign(Object.create(g), { h: g.hd ?? g.h }) : NAMELESS)) as any, cfg: v3cfg }));
+    // (Map v5: street furniture where the map has it — map/model/furniture.ts — and the street name signs at the
+    // junctions' corners, off the road, in place of Map v4's)
+    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]] })) : null;
+    // (and the chains' sites: their pylon signs, canopies, pumps, menu boards and trolley bays)
+    if (fu) {
+      const near = buildings.filter(b => { const p = b.rings[0][0]; return p[0] >= box[0] - 300 && p[0] <= box[2] + 300 && p[1] >= box[1] - 300 && p[1] <= box[3] + 300; });
+      const bs = brandSites({ outlets, buildings: near, registry, model: mB, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]], parking: parkingRings });
+      for (const v of bs.items) fu.items.push(v);
+      for (const [k, v] of Object.entries<number>(bs.stats)) brandSiteStats[k] = (brandSiteStats[k] ?? 0) + v;
+    }
+    if (fu) {
+      const remap = fu.names.map(nm => { let k = lb.names.indexOf(nm); if (k < 0) { k = lb.names.length; lb.names.push(nm); } return k; });
+      lb.signs = []; for (let k = 0; k < fu.signs.length; k += 6) lb.signs.push(fu.signs[k], fu.signs[k + 1], fu.signs[k + 2], fu.signs[k + 3], remap[fu.signs[k + 4]], remap[fu.signs[k + 5]]);
+      for (const [k, v] of Object.entries<number>(fu.stats)) furnStats[k] = (furnStats[k] ?? 0) + v;
+    }
     // (Map v5: the islands' planting — a roundabout's tree and low plants — with the block's trees)
     const Pl = (S as any).plants as number[] | undefined;
     if (Pl) for (let k = 0; k < Pl.length; k += 5) if (inBlock(Pl[k], Pl[k + 2])) tr.trees.push(Pl[k], Pl[k + 1], Pl[k + 2], Pl[k + 3], Pl[k + 4]);
     st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
-    const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface });
+    const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface, furniture: fu });
     for (let j = bj; j <= tj1; j++) for (let i = bi; i <= ti1; i++) {
       const t = TB.tile(i, j), cx = (i + 0.5) * T, cz = (j + 0.5) * T, a0 = performance.now();
       for (const p of auditTile(t, { cx, cz, surface, barriersCfg: v3cfg.barriers })) if (problems.length < 200) problems.push({ tile: `${i}_${j}`, ...p });
@@ -225,6 +268,8 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   if (problems.length) throw new Error(`colliders with nothing drawn there (${problems.length}): ${JSON.stringify(problems.slice(0, 8))}`);
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
   if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
+  if (v5) lap(`  chains' sites: ${brandSiteStats.outlets} outlets — ${brandSiteStats.pylons} pylon signs, petrol canopies ${brandSiteStats.canopiesMapped} mapped and ${brandSiteStats.canopies} placed (${brandSiteStats.pumps} pumps), ${brandSiteStats.menuBoards} drive-thru menu boards, ${brandSiteStats.trolleyBays} trolley bays (all estimated but the mapped canopies); ${brandSiteStats.noRoom} left out for want of room, ${brandSiteStats.noBuilding} with no building`);
+  if (v5) lap(`  furniture: ${furnStats.trafficLights} traffic lights, ${furnStats.stop} stop and ${furnStats.giveWay} give way signs, ${furnStats.speed} speed signs, ${furnStats.nameSigns} street name signs, ${furnStats.busStops} bus stops (${furnStats.shelters} shelters), ${furnStats.powerPoles} power poles (${furnStats.wires} spans of wire), ${furnStats.small} benches, bins and the like; ${furnStats.droppedInLane} that would have stood in a lane left out`);
   lap(`  road surface: ${(chk.triangles / 1e6).toFixed(2)}M triangles in ${blocks} blocks; check: ${chk.cracks} cracks, ${chk.overlaps} overlaps (of ${chk.sampled} sampled), ${chk.folds} folded edges; blocks: ${Object.entries(bms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
   lap(`  terrain shaped: ${Tn.shaped} grid points under or beside roads; trees ${st.trees} (${st.treesOff} kept off roads, decks and railways); railings ${railStats.mapped} mapped (${railStats.mappedDropped} over a road dropped), ${railStats.estimated} estimated; lamps ${st.lamps} (${lampStats.mapped} mapped, ${lampStats.mappedDropped} on a road dropped, ${lampStats.estimated + lampStats.junction + lampStats.crossing} estimated)`);
   lap(`  tiles: ${tiles.length}, ${(tiles.reduce((a, t) => a + t.bytes, 0) / 1e6).toFixed(1)} MB on ${pool.workers} workers; every collider has something drawn (audited); building colliders cut off a road ${hullStats.trimmed}, dropped ${hullStats.dropped}; car park triangles off the road ${hullStats.paved}; main thread: ${Object.entries(ms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
@@ -281,6 +326,9 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       ...E.sources.map((d: any) => ({ name: d.name, url: null, licence: d.licence, text: d.attribution })),
     ],
     ...(style && { style: { id: style.id, name: style.name, drivingSide: style.drivingSide } }),
+    ...(v5 && { furniture: { cycle: cfg.furniture.cycle, style: style.furniture } }),
+    // (the parodies only: no real name is in anything the game draws)
+    ...(v5 && { brands: registry.brands.map((b: any) => ({ id: b.id, name: b.parody.name, colours: b.parody.colours, logo: b.parody.logo, category: b.category })) }),
     surfaces: Object.fromEntries(Object.entries({ ...v3cfg.surfaces, ...(v5 ? cfg.tyreSurfaces : {}) }).filter(([k]) => !k.startsWith('_'))),
     barriers: v3cfg.barriers, lamps: cfg.lamps,
     files: { graph: 'graph.json.gz', map: pmtilesRel, roadModel: 'roadmodel.json.gz' },

@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#b7ea65d7f09f",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#2c107fe17309",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-15",
@@ -154,6 +154,364 @@
   "name": "Australia",
   "drivingSide": "left"
  },
+ "furniture": {
+  "cycle": {
+   "green": 20,
+   "amber": 4,
+   "allRed": 2
+  },
+  "style": {
+   "_note": "Street furniture's designs: traffic lights (a black pole, three lenses, a backing board), street lights (a galvanised pole, an arm out over the road, light brightness: data/map/v5.json lamps), power poles (Stobie poles — steel and concrete — every poleSpacing m along streets that have them mapped; estimated only when estimatePoles), signs (the AU set: red octagon STOP, red-bordered triangle GIVE WAY, white speed-limit circle).",
+   "trafficLight": {
+    "pole": "#1d1f20",
+    "housing": "#26292b",
+    "board": "#111213",
+    "height": 3.2
+   },
+   "streetLight": {
+    "pole": "#9aa0a2",
+    "height": 9,
+    "arm": 2.2
+   },
+   "powerPole": {
+    "style": "stobie",
+    "colour": "#7f8285",
+    "height": 10.5,
+    "spacing": 40
+   },
+   "estimatePoles": false,
+   "signs": {
+    "stop": "#c8102e",
+    "giveWay": "#c8102e",
+    "speed": "#c8102e",
+    "direction": "#00653a",
+    "routeShield": {
+     "A": "#00653a",
+     "B": "#00653a",
+     "M": "#00653a"
+    },
+    "post": "#9aa0a2"
+   },
+   "busStop": {
+    "shelter": "#3b4a52",
+    "sign": "#e8e8e2"
+   },
+   "tunnelPortal": {
+    "colour": "#c8c4b8",
+    "style": "concrete-face"
+   }
+  }
+ },
+ "brands": [
+  {
+   "id": "patty-wagon",
+   "name": "Patty Wagon",
+   "colours": {
+    "primary": "#1f7a7a",
+    "secondary": "#f2efe6",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "bun"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "cluck-shack",
+   "name": "Cluck Shack",
+   "colours": {
+    "primary": "#3d6b2f",
+    "secondary": "#f4e9c8",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "square",
+    "mark": "drumstick"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "flame-and-bun",
+   "name": "Flame & Bun",
+   "colours": {
+    "primary": "#5b2a86",
+    "secondary": "#ffb547",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "flame"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "long-roll",
+   "name": "Long Roll",
+   "colours": {
+    "primary": "#1e3b5c",
+    "secondary": "#ff8c32",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "pill",
+    "mark": "roll"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "slice-stop",
+   "name": "Slice Stop",
+   "colours": {
+    "primary": "#222222",
+    "secondary": "#e5b02f",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "triangle",
+    "mark": "slice"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "spit-and-roast",
+   "name": "Spit & Roast",
+   "colours": {
+    "primary": "#264653",
+    "secondary": "#e9c46a",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "hen"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "peri-coast",
+   "name": "Peri Coast",
+   "colours": {
+    "primary": "#0f5e9c",
+    "secondary": "#f7f7f2",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "chilli"
+   },
+   "category": "fast_food"
+  },
+  {
+   "id": "cove-fuel",
+   "name": "Cove Fuel",
+   "colours": {
+    "primary": "#2a7f62",
+    "secondary": "#ffffff",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "drop",
+    "mark": "wave"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "bright-fuel",
+   "name": "Bright Fuel",
+   "colours": {
+    "primary": "#b3262e",
+    "secondary": "#e6e6e6",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "sun"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "kestrel-fuels",
+   "name": "Kestrel Fuels",
+   "colours": {
+    "primary": "#e3721c",
+    "secondary": "#1c1c1c",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "diamond",
+    "mark": "wing"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "open-late",
+   "name": "Open Late",
+   "colours": {
+    "primary": "#4b2c83",
+    "secondary": "#ffd23f",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "square",
+    "mark": "clock"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "torrens-fuel",
+   "name": "Torrens Fuel",
+   "colours": {
+    "primary": "#1b8a99",
+    "secondary": "#ffffff",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "river"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "gumtree-fuel",
+   "name": "Gumleaf Fuel",
+   "colours": {
+    "primary": "#6b4f2a",
+    "secondary": "#9cc56d",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "leaf",
+    "mark": "leaf"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "cardinal-fuel",
+   "name": "Cardinal Fuel",
+   "colours": {
+    "primary": "#2e7d32",
+    "secondary": "#ff9800",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "bird"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "otr-parody",
+   "name": "Northbound",
+   "colours": {
+    "primary": "#3a3a3a",
+    "secondary": "#5ec2e6",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "chevron",
+    "mark": "arrow"
+   },
+   "category": "fuel"
+  },
+  {
+   "id": "parkside-grocer",
+   "name": "Parkside Grocer",
+   "colours": {
+    "primary": "#174a7e",
+    "secondary": "#f2c14e",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "apple"
+   },
+   "category": "supermarket"
+  },
+  {
+   "id": "larder-lane",
+   "name": "Larder Lane",
+   "colours": {
+    "primary": "#5e3a87",
+    "secondary": "#ffffff",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "square",
+    "mark": "basket"
+   },
+   "category": "supermarket"
+  },
+  {
+   "id": "penny-pantry",
+   "name": "Penny Pantry",
+   "colours": {
+    "primary": "#7a1f2b",
+    "secondary": "#f3e6c8",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "tag"
+   },
+   "category": "supermarket"
+  },
+  {
+   "id": "corner-grocer",
+   "name": "Corner Grocer",
+   "colours": {
+    "primary": "#2f6f3e",
+    "secondary": "#ffffff",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "circle",
+    "mark": "basket"
+   },
+   "category": "supermarket"
+  },
+  {
+   "id": "hills-pantry",
+   "name": "Hills Pantry",
+   "colours": {
+    "primary": "#8a5a2b",
+    "secondary": "#e8f0d8",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "wheat"
+   },
+   "category": "supermarket"
+  },
+  {
+   "id": "shed-and-spanner",
+   "name": "Shed & Spanner",
+   "colours": {
+    "primary": "#1d4e89",
+    "secondary": "#ffffff",
+    "text": "#ffffff"
+   },
+   "logo": {
+    "shape": "square",
+    "mark": "spanner"
+   },
+   "category": "big_box"
+  },
+  {
+   "id": "value-barn",
+   "name": "Value Barn",
+   "colours": {
+    "primary": "#f2b705",
+    "secondary": "#1a1a1a",
+    "text": "#1a1a1a"
+   },
+   "logo": {
+    "shape": "rounded",
+    "mark": "tag"
+   },
+   "category": "big_box"
+  }
+ ],
  "surfaces": {
   "tarmac": {
    "grip": 1,
@@ -324,7 +682,7 @@
   }
  },
  "lamps": {
-  "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across at poolIntensity (the road's colour at night lifted towards poolColour by that much in the middle), drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
+  "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
   "spacing": {
    "urban": 34,
    "motorway": 45,
@@ -373,6 +731,7 @@
   "poolRadius": 15,
   "glowSize": 1.9,
   "poolIntensity": 1.6,
+  "poolOpacity": 0.6,
   "poolColour": "#ffe2b0"
  },
  "files": {
@@ -386,25 +745,25 @@
    {
     "a": -1,
     "b": -1,
-    "bytes": 26215,
+    "bytes": 27304,
     "landmarks": 13
    },
    {
     "a": 0,
     "b": -1,
-    "bytes": 17008,
+    "bytes": 17353,
     "landmarks": 6
    },
    {
     "a": -1,
     "b": 0,
-    "bytes": 32153,
+    "bytes": 33108,
     "landmarks": 16
    },
    {
     "a": 0,
     "b": 0,
-    "bytes": 18347,
+    "bytes": 18677,
     "landmarks": 3
    }
   ]
@@ -28872,7 +29231,7 @@
   },
   "roads": 8040,
   "junctions": 2219,
-  "trees": 9522,
+  "trees": 9521,
   "lamps": 4961,
   "lampStats": {
    "mapped": 2057,
@@ -28884,19 +29243,19 @@
    "rejected": 40
   },
   "railings": {
-   "mapped": 3247,
-   "mappedDropped": 715,
-   "estimated": 505,
-   "estimatedDropped": 111
+   "mapped": 3238,
+   "mappedDropped": 724,
+   "estimated": 507,
+   "estimatedDropped": 109
   },
-  "peakMemoryGB": 2,
+  "peakMemoryGB": 2.4,
   "bakeSeconds": 135
  },
  "tiles": [
   {
    "i": -4,
    "j": -2,
-   "bytes": 127365,
+   "bytes": 129136,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28905,7 +29264,7 @@
   {
    "i": -3,
    "j": -2,
-   "bytes": 172781,
+   "bytes": 172411,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28914,7 +29273,7 @@
   {
    "i": -2,
    "j": -2,
-   "bytes": 261780,
+   "bytes": 262365,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -28923,7 +29282,7 @@
   {
    "i": -1,
    "j": -2,
-   "bytes": 237050,
+   "bytes": 239852,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28932,7 +29291,7 @@
   {
    "i": 0,
    "j": -2,
-   "bytes": 183178,
+   "bytes": 185843,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28941,7 +29300,7 @@
   {
    "i": 1,
    "j": -2,
-   "bytes": 263491,
+   "bytes": 267949,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28950,7 +29309,7 @@
   {
    "i": 2,
    "j": -2,
-   "bytes": 288322,
+   "bytes": 296663,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28959,7 +29318,7 @@
   {
    "i": 3,
    "j": -2,
-   "bytes": 507291,
+   "bytes": 522236,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -28968,7 +29327,7 @@
   {
    "i": -4,
    "j": -1,
-   "bytes": 306688,
+   "bytes": 308071,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -28977,7 +29336,7 @@
   {
    "i": -3,
    "j": -1,
-   "bytes": 304466,
+   "bytes": 304553,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -28986,7 +29345,7 @@
   {
    "i": -2,
    "j": -1,
-   "bytes": 411862,
+   "bytes": 417142,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 2,
@@ -28995,7 +29354,7 @@
   {
    "i": -1,
    "j": -1,
-   "bytes": 390914,
+   "bytes": 401255,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 2,
@@ -29004,7 +29363,7 @@
   {
    "i": 0,
    "j": -1,
-   "bytes": 453277,
+   "bytes": 462935,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -29013,7 +29372,7 @@
   {
    "i": 1,
    "j": -1,
-   "bytes": 372476,
+   "bytes": 377292,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29022,7 +29381,7 @@
   {
    "i": 2,
    "j": -1,
-   "bytes": 446518,
+   "bytes": 458846,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29031,7 +29390,7 @@
   {
    "i": 3,
    "j": -1,
-   "bytes": 537454,
+   "bytes": 556288,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29040,7 +29399,7 @@
   {
    "i": -4,
    "j": 0,
-   "bytes": 291694,
+   "bytes": 294352,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29049,7 +29408,7 @@
   {
    "i": -3,
    "j": 0,
-   "bytes": 580511,
+   "bytes": 596045,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29058,7 +29417,7 @@
   {
    "i": -2,
    "j": 0,
-   "bytes": 514161,
+   "bytes": 530063,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -29067,7 +29426,7 @@
   {
    "i": -1,
    "j": 0,
-   "bytes": 582396,
+   "bytes": 600290,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -29076,7 +29435,7 @@
   {
    "i": 0,
    "j": 0,
-   "bytes": 523830,
+   "bytes": 537736,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29085,7 +29444,7 @@
   {
    "i": 1,
    "j": 0,
-   "bytes": 303315,
+   "bytes": 309374,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29094,7 +29453,7 @@
   {
    "i": 2,
    "j": 0,
-   "bytes": 298546,
+   "bytes": 303641,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29103,7 +29462,7 @@
   {
    "i": 3,
    "j": 0,
-   "bytes": 558261,
+   "bytes": 585239,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29112,7 +29471,7 @@
   {
    "i": -4,
    "j": 1,
-   "bytes": 222370,
+   "bytes": 223567,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29121,7 +29480,7 @@
   {
    "i": -3,
    "j": 1,
-   "bytes": 569721,
+   "bytes": 589432,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29130,7 +29489,7 @@
   {
    "i": -2,
    "j": 1,
-   "bytes": 666277,
+   "bytes": 686256,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 2,
@@ -29139,7 +29498,7 @@
   {
    "i": -1,
    "j": 1,
-   "bytes": 484121,
+   "bytes": 499011,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 3,
@@ -29148,7 +29507,7 @@
   {
    "i": 0,
    "j": 1,
-   "bytes": 555337,
+   "bytes": 572764,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29157,7 +29516,7 @@
   {
    "i": 1,
    "j": 1,
-   "bytes": 620147,
+   "bytes": 646141,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29166,7 +29525,7 @@
   {
    "i": 2,
    "j": 1,
-   "bytes": 206577,
+   "bytes": 207623,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29175,7 +29534,7 @@
   {
    "i": 3,
    "j": 1,
-   "bytes": 482106,
+   "bytes": 494656,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29184,7 +29543,7 @@
   {
    "i": -4,
    "j": 2,
-   "bytes": 241043,
+   "bytes": 241587,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29193,7 +29552,7 @@
   {
    "i": -3,
    "j": 2,
-   "bytes": 637681,
+   "bytes": 669350,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29202,7 +29561,7 @@
   {
    "i": -2,
    "j": 2,
-   "bytes": 709949,
+   "bytes": 745399,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29211,7 +29570,7 @@
   {
    "i": -1,
    "j": 2,
-   "bytes": 573960,
+   "bytes": 592756,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29220,7 +29579,7 @@
   {
    "i": 0,
    "j": 2,
-   "bytes": 577703,
+   "bytes": 603027,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29229,7 +29588,7 @@
   {
    "i": 1,
    "j": 2,
-   "bytes": 502189,
+   "bytes": 526709,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29238,7 +29597,7 @@
   {
    "i": 2,
    "j": 2,
-   "bytes": 134990,
+   "bytes": 137683,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29247,7 +29606,7 @@
   {
    "i": 3,
    "j": 2,
-   "bytes": 320831,
+   "bytes": 335760,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,

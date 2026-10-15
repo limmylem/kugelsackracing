@@ -340,7 +340,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
             entry.state = 'ready';
             carveTile(entry);
             if (!O.headless) {
-                entry.obj = tileObjects(m.tile, { barriers: manifest.barriers, lamps: manifest.lamps });
+                entry.obj = tileObjects(m.tile, { barriers: manifest.barriers, lamps: manifest.lamps, furniture: manifest.furniture && { ...manifest.furniture, brands: manifest.brands } });
                 const [cx, cz] = centreOf(t);
                 entry.obj.group.position.set(cx, 0, cz);
                 entry.obj.group.updateMatrixWorld(true);

@@ -9,6 +9,8 @@
 import * as THREE from 'three';
 import { barrierInstances, barrierShape, quatYawPitch } from "../format/barriers.js";
 import { lampObjects } from "./lamps.js";
+import { furnitureObjects, brandObjects } from "./furniture.js";
+import { facadeMaterial } from "./facades.js";
 // ---------- shared materials (one each for the whole world) ----------
 let M = null;
 function windowTexture(kind) {
@@ -160,6 +162,8 @@ export function materials() {
         water: new THREE.MeshPhongMaterial({ color: '#3f7fb0', specular: '#9fc4e0', shininess: 60, transparent: true, opacity: 0.88, depthWrite: false }),
         roofs: lambert({ flatShading: true }),
         walls: Object.fromEntries(['house', 'block', 'tower', 'plain'].map(k => [k, lambert({ flatShading: true, map: windowTexture(k) })])),
+        // (Map v5: every building's walls from one facade atlas — map/render/facades.ts)
+        wallsV5: facadeMaterial(srgbVertexColours),
         canopy: holedInstances(new THREE.MeshLambertMaterial({ color: '#4d7a37', flatShading: true })),
         conifer: holedInstances(new THREE.MeshLambertMaterial({ color: '#3d6534', flatShading: true })),
         plant: holedInstances(new THREE.MeshLambertMaterial({ color: '#6f8a3e', flatShading: true })),
@@ -299,7 +303,7 @@ function geometryOf(m, { normals = false, up = false, smooth = false } = {}) {
     g.computeBoundingSphere();
     return g;
 }
-export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
+export function tileObjects(tile, { barriers: B, lamps: lampCfg = null, furniture: furnCfg = null }) {
     const mat = materials(), group = new THREE.Group(), owned = [];
     group.name = `tile ${tile.header.key}`;
     const mesh = (name, material, o = {}) => {
@@ -322,7 +326,7 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
     const v5 = tile.header.map === 'v5';
     const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
     mesh('water', mat.water, { normals: true, order: 2 });
-    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true }))].filter(Boolean);
+    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true })].filter(Boolean);
     // trees
     const trees = new THREE.Group(), T = tile.lists.trees;
     if (T) {
@@ -386,6 +390,14 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
     const lamps = tile.lists.lamps?.data.length ? lampObjects(tile, lampCfg) : null;
     if (lamps)
         group.add(lamps.group);
+    // street furniture (Map v5: map/render/furniture.ts)
+    const furn = tile.lists.furniture?.data.length || tile.lists.wires?.data.length ? furnitureObjects(tile, furnCfg) : null;
+    if (furn)
+        group.add(furn.group);
+    // the chains' sites and the buildings' sign bands (Map v5)
+    const brands = tile.lists.furniture?.data.length || tile.lists.shopSigns?.data.length ? brandObjects(tile, furnCfg) : null;
+    if (brands)
+        group.add(brands.group);
     // street names on the roads, signs at junctions (made when near)
     let labels = null;
     const makeLabels = () => {
@@ -465,6 +477,8 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
             trees.visible = d < 700;
             rails.visible = d < 900;
             lamps?.setDetail(d);
+            furn?.setDetail(d);
+            brands?.setDetail(d);
             if (d < 360 && !labels)
                 makeLabels();
             if (labels)
@@ -476,6 +490,8 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
             trees.traverse((o) => o.dispose?.());
             rails.traverse((o) => o.dispose?.());
             lamps?.dispose();
+            furn?.dispose();
+            brands?.dispose();
             labels?.traverse(o => { if (!o.isInstancedMesh)
                 o.geometry?.dispose?.(); if (o.material?.map)
                 o.material.dispose(); });

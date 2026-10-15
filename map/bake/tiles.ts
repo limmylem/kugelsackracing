@@ -97,6 +97,8 @@ export function tileBuilder(D: {
     }
     return [x, z];
   };
+  // (a point on a ground road, its drawn width and a little: where no post of a canopy stands)
+  const onRoadEdge = (x: number, z: number) => (edgeGrid.get(`${Math.floor(x / EC)},${Math.floor(z / EC)}`) ?? []).some(([ax, az, bx, bz, hw]) => { const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)); return Math.hypot(x - ax - dx * t, z - az - dz * t) < hw; });
   // (the roads by id: Map v4 builds a block of the region at a time, its roads some of the area's)
   const segById = new Map(D.segs.map(s => [s.id, s]));
   // ---- everything bucketed by the tile its middle's in
@@ -224,14 +226,28 @@ export function tileBuilder(D: {
     const wallsBy: Record<string, Part> = {}, roofs = new Part(), hulls: number[] = [], landmarks: any[] = [];
     const bCfg = cfg.buildings;
     let buildingCount = 0, estimatedHeights = 0;
+    const shopSigns: any[] = [];
     for (const k of b.buildings) {
       const bd = D.buildings[k];
       // (a footprint the road runs right through is a passage, below: only corners standing on its edge move)
       const corner = (q: number[]) => { const [x, z] = offRoad(q[0], q[1]); return [x - cx, z - cz]; };
       const rings = bd.rings.map(r => r.map(q => corner(q)));
-      const e = extrude({ id: bd.id, rings, props: bd.props }, (x: number, z: number) => ground(x + cx, z + cz), bCfg);
+      const e = extrude({ id: bd.id, rings, props: bd.props }, (x: number, z: number) => ground(x + cx, z + cz), bCfg, { postOk: (x: number, z: number) => !onRoadEdge(x + cx, z + cz) });
       if (!e) continue;
       buildingCount++; if (bd.estimated) estimatedHeights++;
+      // (Map v5: its sign bands — its businesses' names, or its chain's parody — over the ground floor of the wall facing
+      // its street (props.v5.front: map/model/buildingsV5.ts), that wall shared between them)
+      const V5 = bd.props.v5;
+      if (V5?.names?.length && V5.front) {
+        const [ax, az, bx, bz, mcx, mcz] = V5.front, L = Math.hypot(bx - ax, bz - az);
+        let nx = (bz - az) / L, nz = -(bx - ax) / L;
+        if (((ax + bx) / 2 - mcx) * nx + ((az + bz) / 2 - mcz) * nz < 0) { nx = -nx; nz = -nz; }
+        const n = V5.names.length, part = L / n, lift = Math.min(e.top - e.foot - 0.8, V5.type === 'mall' ? 5 : 3.3);
+        V5.names.forEach((name: string, q: number) => {
+          const t = (q + 0.5) / n, x = ax + (bx - ax) * t + nx * 0.14, z = az + (bz - az) * t + nz * 0.14;
+          shopSigns.push({ x: x - cx, y: ground(x, z) + lift, z: z - cz, yaw: Math.atan2(nx, nz), w: Math.min(part * 0.9, 1.6 + name.length * 0.42), h: V5.type === 'mall' ? 1.4 : 0.8, brand: V5.brand ?? -1, name });
+        });
+      }
       (wallsBy[e.windows] ??= new Part(true)).add(e.walls, 0, 0);
       roofs.add(e.roof, 0, 0);
       // (a road through it: solid only from its clearance up)
@@ -250,6 +266,8 @@ export function tileBuilder(D: {
     const trees = b.trees.flatMap(k => [D.trees[k] - cx, D.trees[k + 1], D.trees[k + 2] - cz, D.trees[k + 3], D.trees[k + 4]]).slice(0, cfg.trees.maxPerTile * 5);
     const labels = b.labels.flatMap(k => { const L = D.labels.labels; return [L[k] - cx, L[k + 1], L[k + 2] - cz, L[k + 3], nameOf(D.labels.names[L[k + 4]]), L[k + 5]]; });
     const signs = b.signs.flatMap(k => { const S = D.labels.signs; return [S[k] - cx, S[k + 1], S[k + 2] - cz, S[k + 3], nameOf(D.labels.names[S[k + 4]]), nameOf(D.labels.names[S[k + 5]])]; });
+    // (Map v5: the buildings' sign bands, [x, y, z, yaw, w, h, brand (−1 none), name])
+    const shopSignRows = shopSigns.flatMap(q => [q.x, q.y, q.z, q.yaw, q.w, q.h, q.brand, nameOf(q.name)]);
     // the roads here, for where-am-I: [ax, az, bx, bz, name, rank, segment id] per piece of centreline
     const roadList: number[] = [];
     for (const id of [...b.segs].sort((p, q) => p - q)) { const s = segById.get(id)!; for (let q = 0; q + 1 < s.xs.length; q++) { const mx = (s.xs[q] + s.xs[q + 1]) / 2, mz = (s.zs[q] + s.zs[q + 1]) / 2; if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue; roadList.push(s.xs[q] - cx, s.zs[q] - cz, s.xs[q + 1] - cx, s.zs[q + 1] - cz, nameOf(s.name), s.rank, s.id); } }
@@ -270,6 +288,7 @@ export function tileBuilder(D: {
         trees: { stride: 5, quantum: 0.02, data: Float32Array.from(trees) }, hulls: { stride: 1, quantum: 0.02, data: Float32Array.from(hulls) },
         labels: { stride: 6, data: Float32Array.from(labels) }, signs: { stride: 6, data: Float32Array.from(signs) }, roads: { stride: 7, quantum: 0.02, data: Float32Array.from(roadList) },
         ...barrierLists,
+        ...(shopSignRows.length && { shopSigns: { stride: 8, data: Float32Array.from(shopSignRows) } }),
       },
       grids: { surface: { n: per, cell: g.cell, names: SURF_NAMES, data: surface }, terrain: { n: N1, cell: g.cell, data: terrain }, dem: { n: N1, cell: g.cell, names: ['sea', 'lidar', 'copernicus', 'blend'], data: demGrid } },
       heightfield: { n: per, size: T, heights, quantum: 0.01 },

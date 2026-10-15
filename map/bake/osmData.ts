@@ -5,8 +5,8 @@
 //   const D = readOsm(file, P)
 //   D.roads: [{ id, tags, nodes: [{ id, lat, lon, x, z }] }]   highway=* lines (drivable and paths)
 //   D.areas: [{ id, tags, rings: [[{ lat, lon, x, z }]] (outer first, then holes; several outers allowed via parts) }]
-//   D.lines: [{ id, tags, nodes }]   barriers, tree rows, waterways, railways
-//   D.points: [{ id, tags, lat, lon, x, z }]   trees, places, signals…
+//   D.lines: [{ id, tags, nodes }]   barriers, tree rows, waterways, railways, power lines
+//   D.points: [{ id, tags, lat, lon, x, z }]   trees, places, signals, bus stops, power poles, benches…
 
 import fs from 'node:fs';
 import { readPbf } from './osmPbf.ts';
@@ -18,14 +18,14 @@ export interface Area { id: number; tags: Record<string, string>; parts: Pt[][][
 export interface OsmData { roads: Way[]; areas: Area[]; lines: Way[]; points: (Pt & { tags: Record<string, string> })[] }
 
 const AREA_KEYS = ['building', 'building:part', 'landuse', 'natural', 'leisure', 'amenity', 'water', 'waterway', 'place', 'boundary', 'parking', 'man_made', 'aeroway', 'area:highway'];
-const LINE_KEYS = ['barrier', 'railway', 'waterway', 'natural'];
+const LINE_KEYS = ['barrier', 'railway', 'waterway', 'natural', 'power'];
 const isArea = (t: Record<string, string>, closed: boolean) => closed && (t.area === 'yes' || AREA_KEYS.some(k => t[k] && !(k === 'natural' && ['tree_row', 'cliff', 'coastline'].includes(t[k])) && !(k === 'waterway' && !['riverbank', 'dock', 'boatyard'].includes(t[k])) && !(k === 'barrier')));
 
 export function readOsm(file: string, P: Projection): OsmData {
   const { nodes, points, ways, relations } = (readPbf as any)(new Uint8Array(fs.readFileSync(file)), {
-    wantWay: t => !!(t.highway || t.barrier || t.railway || t.waterway || AREA_KEYS.some(k => t[k]) || t.natural || t.area),
+    wantWay: t => !!(t.highway || t.barrier || t.railway || t.waterway || AREA_KEYS.some(k => t[k]) || t.natural || t.area || t.power === 'line' || t.power === 'minor_line'),
     wantRelation: t => t.type === 'multipolygon' || t.type === 'boundary',
-    wantNode: t => !!(t.natural === 'tree' || t.place || t.highway || t.barrier || t.amenity),
+    wantNode: t => !!(t.natural === 'tree' || t.place || t.highway || t.barrier || t.amenity || t.power === 'pole' || t.power === 'tower' || t.railway || t.public_transport || t.emergency === 'fire_hydrant'),
   });
   const pt = (id: number): Pt | null => { const c = nodes.get(id); if (!c) return null; const [x, z] = P.toXZ(c[1], c[0]); return { id, lat: c[1], lon: c[0], x, z }; };
   const out: OsmData = { roads: [], areas: [], lines: [], points: [] };
