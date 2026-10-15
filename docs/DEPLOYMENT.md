@@ -18,6 +18,15 @@
 > every model fetched at an address with its version and kept in the browser's cache; models with levels of detail
 > (+2 MB on the tiles' address) and **studio thumbnails** (`assets/thumbs/`, a few MB). No change to the services or
 > what they cost.
+> Then the content pipeline's **family builder** (2026-10-15; [CONTENT_PIPELINE.md](CONTENT_PIPELINE.md) "A family
+> from the admin page"): families, engines and cars made and changed from the Content tab. It needs the game's tools,
+> which the server's image hasn't got, so **on the live server it's off** (`contentBuilder.enabled` false in
+> `server/config/production.json`) and says so: families are made on a computer (`npm run server:dev`), committed and
+> deployed like any content, and arrive in the live Content tab as drafts to publish. Publishing now keeps a copy of
+> what players get (price, tier, unlock level, name, stats), so a deploy that changes a published part's files leaves
+> it as it was for players, and shows it as a draft, until it's published again (parts published before this carry on
+> as before until their next publish). The kit pieces (`assets/kits/`, 40 kB) go to the tiles' address with the rest.
+> No migration; no change to the services or what they cost.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
