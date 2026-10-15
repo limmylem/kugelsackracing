@@ -104,8 +104,9 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     if (Hc.quadraticAbove) {
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
       if (Math.max(x1 - x0, z1 - z0) > Hc.quadraticAbove && pts.length >= 8) {
+        // (kept only if no steeper anywhere on the junction than its plane may be)
         const q = fitQuadratic(pts, mx, mz, (c as any).plane, Hc.maxCurvature);
-        if (q) { Object.assign((c as any).plane, q); stats.quadratic++; }
+        if (q && pts.every(p => Math.hypot(...planeGrad({ ...q, cx: mx, cz: mz }, p[0], p[1])) <= Hc.junctionMaxSlope * 1.05)) { Object.assign((c as any).plane, q); stats.quadratic++; }
       }
     }
     for (const k of c.nodes) G.nodes[k].h = planeAt(c, G.nodes[k].x, G.nodes[k].z);
@@ -369,7 +370,18 @@ function fitQuadratic(pts: number[][], mx: number, mz: number, plane: any, maxCu
   // (curvature: the Hessian [[2qa, qb], [qb, 2qc]]'s largest |eigenvalue|)
   const tr = qa + qc, det = 4 * qa * qc - qb * qb, disc = Math.sqrt(Math.max(0, tr * tr - det)), k = Math.max(Math.abs(tr + disc), Math.abs(tr - disc));
   if (k > maxCurvature) { const f = maxCurvature / k; qa *= f; qb *= f; qc *= f; }
-  return { qa, qb, qc, a: plane.a + x[3], b: plane.b + x[4], c: plane.c + x[5] };
+  // (the plane's terms fitted again under the quadratic as it now is — fitted jointly with a curvature since cut back,
+  // they'd tilt to make up for it)
+  let W = 0, sx = 0, sz = 0, sh = 0;
+  const rest = pts.map(p => { const dx = p[0] - mx, dz = p[1] - mz; return [dx, dz, p[2] - (qa * dx * dx + qb * dx * dz + qc * dz * dz), p[3]]; });
+  for (const [dx, dz, h, w] of rest) { W += w; sx += w * dx; sz += w * dz; sh += w * h; }
+  const ox = sx / W, oz = sz / W, oh = sh / W;
+  let xx = 0, xz = 0, zz = 0, xh = 0, zh = 0;
+  for (const [dx, dz, h, w] of rest) { const u = dx - ox, v = dz - oz, e = h - oh; xx += w * u * u; xz += w * u * v; zz += w * v * v; xh += w * u * e; zh += w * v * e; }
+  const det2 = xx * zz - xz * xz;
+  if (Math.abs(det2) < 1e-9) return null;
+  const a = (xh * zz - zh * xz) / det2, b = (zh * xx - xh * xz) / det2;
+  return { qa, qb, qc, a, b, c: oh - a * ox - b * oz };
 }
 
 // Map v5's bridges (Step 1d): every deck point over another road or a railway needs its surface clearance + deckDepth

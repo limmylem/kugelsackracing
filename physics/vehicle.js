@@ -123,7 +123,7 @@ export class Vehicle {
     this.brakes = new Brakes(spec, this.wheels, this.peak.x);
     // mechanical damage (spec.damage): each wheel's toe, grip, radius…, the engine's heat, the clutch's
     this.mechanical = new Mechanical(this);
-    this.surfaceAt = null;                 // (x, z) → { name, grip, rollingResistance } from the world, if it has surfaces
+    this.surfaceAt = null;                 // (x, z, hit?, y?) → { name, grip, rollingResistance } from the world, if it has surfaces
     this.syncAeroParts();
     this.reset(spawn);
   }
@@ -366,7 +366,8 @@ export class Vehicle {
       // aft) push from its own springs
       const contact = add(origin, scale(down, hit.timeOfImpact)), normal = fromXYZ(hit.normal);
       if (!linked) push(scale(normal, load), contact);
-      const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2]) : null;
+      // (the hit too: a world whose colliders know their triangles' surfaces answers from what the wheel is on)
+      const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2], hit, contact[1]) : null;
       // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't; times the
       // weather's — a wet road: sim.setGrip)
       const onIt = surface && Ty.surfaceGrip?.[surface.name];

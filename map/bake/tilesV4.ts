@@ -12,7 +12,8 @@
 //   lists.roadEdges       the debug view's road model: [ax, ay, az, bx, by, bz, class, kind]
 //   lists.roadBorder      the road's vertices on the tile's border: [x, y, z, matched] (the seam view)
 //   grids.exclusion       the exclusion mask (1 m, bits: map/model/mask.ts) — baked, so it can be looked at
-//   header.map 'v4', header.roadModel, header.roadClasses
+//   header.map 'v4', header.roadModel, header.roadClasses (Map v5: 'v5', and header.surfaceNames — the names of the
+//                         surfaces meshes.roadCollision's and meshes.paved's triangles carry)
 //
 //   const T = tileBuilderV4({ ...v3 inputs, model, lamps, mask, surface, cfg (v4) }); T.tile(i, j); T.far(a, b)
 
@@ -20,7 +21,7 @@ import { tileBuilder } from './tiles.ts';
 import { bucketTriangles, clipToBox } from './clip.ts';
 import { trimHulls } from '../collision/buildings.ts';
 import { LAMP_STRIDE } from '../model/lamps.ts';
-import { welder } from '../model/surface.ts';
+import { welder, SURFACES } from '../model/surface.ts';
 
 export function tileBuilderV4(D: any) {
   const empty = { positions: [], colours: [], indices: [], surfaces: [], segOf: [] };
@@ -52,7 +53,8 @@ export function tileBuilderV4(D: any) {
     time('roads');
     const coll = clipToBox(M, col.get(key) ?? [], [box[0] - apron, box[1] - apron, box[2] + apron, box[3] + apron], { cx, cz });
     // (welded by position alone, whatever their colours: one connected surface)
-    if (coll.indices.length) t.meshes.roadCollision = weld(coll);
+    // (Map v5: each triangle's surface kept — the tyres take the road's own, never the ground's raster under it)
+    if (coll.indices.length) t.meshes.roadCollision = weld(coll, D.map === 'v5');
     time('collision');
     // car parks off the road: Map v3's are its grid's cells, which can reach over a road's edge at the car park's own
     // height (drawn and solid: a lip in the lane) — any triangle with a corner or its middle on the road surface goes
@@ -67,8 +69,8 @@ export function tileBuilderV4(D: any) {
     if (t.meshes.roads) { const P = t.meshes.roads.positions, half = T / 2; for (let v = 0; v < P.length; v += 3) if (Math.abs(Math.abs(P[v]) - half) < 1e-6 || Math.abs(Math.abs(P[v + 2]) - half) < 1e-6) border.push(P[v], P[v + 1], P[v + 2], 1); }
     t.lists.roadBorder = { stride: 4, data: Float32Array.from(border) };
     const X = D.mask.tile(i, j);
-    t.grids.exclusion = { n: X.n, cell: X.cell, names: ['road', 'buffer', 'deck', 'rail'], data: X.data.slice() };
-    Object.assign(t.header, { map: D.map ?? 'v4', roadModel: D.model.version, roadClasses: D.model.surface.classes });
+    t.grids.exclusion = { n: X.n, cell: X.cell, names: ['road', 'buffer', 'deck', 'rail', 'side'], data: X.data.slice() };
+    Object.assign(t.header, { map: D.map ?? 'v4', roadModel: D.model.version, roadClasses: D.model.surface.classes }, D.map === 'v5' ? { surfaceNames: SURFACES } : {});
     t.header.terrain = { ...t.header.terrain, roadDrop: cfg.terrain.lodRoadDrop };
     time('lists');
     return t;
@@ -93,7 +95,7 @@ function offRoad(m: any, cx: number, cz: number, surface: any) {
 }
 
 // a mesh's vertices merged by position (1 cm), colours dropped: the collision surface
-function weld(m: { positions: number[]; indices: number[] }) {
+function weld(m: { positions: number[]; indices: number[]; surfaces?: number[] }, withSurfaces = false) {
   const ids = welder(), P: number[] = [], I: number[] = [], map: number[] = [];
   for (let v = 0; v < m.positions.length / 3; v++) {
     const id = ids(Math.round(m.positions[v * 3] * 100), Math.round(m.positions[v * 3 + 1] * 100), Math.round(m.positions[v * 3 + 2] * 100));
@@ -110,9 +112,10 @@ function weld(m: { positions: number[]; indices: number[] }) {
     const longest = Math.max(Math.hypot(ux, uz), Math.hypot(vx, vz), Math.hypot(vx - ux, vz - uz));
     return Math.abs(ny) / longest > 0.002;
   };
-  for (let t = 0; t < m.indices.length; t += 3) { const a = map[m.indices[t]], b = map[m.indices[t + 1]], c = map[m.indices[t + 2]]; if (a !== b && b !== c && a !== c && keep(a, b, c)) I.push(a, b, c); }
+  const S: number[] = [];
+  for (let t = 0; t < m.indices.length; t += 3) { const a = map[m.indices[t]], b = map[m.indices[t + 1]], c = map[m.indices[t + 2]]; if (a !== b && b !== c && a !== c && keep(a, b, c)) { I.push(a, b, c); S.push(m.surfaces?.[t / 3] ?? 0); } }
   // (only the vertices its triangles use)
   const used = new Int32Array(P.length / 3).fill(-1), P2: number[] = [];
   for (let q = 0; q < I.length; q++) { const v = I[q]; if (used[v] < 0) { used[v] = P2.length / 3; P2.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); } I[q] = used[v]; }
-  return { positions: Float32Array.from(P2), colours: null, uvs: null, indices: Uint32Array.from(I), surfaces: null };
+  return { positions: Float32Array.from(P2), colours: null, uvs: null, indices: Uint32Array.from(I), surfaces: withSurfaces ? Uint8Array.from(S) : null };
 }

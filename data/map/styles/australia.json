@@ -1,0 +1,85 @@
+{
+  "_note": "A Map v5 region style pack (MAP_README.md, 'Region style packs'; map/style/stylePack.ts): how a country's streets look where the map data doesn't say — kerbs, footpaths, verges, markings, signs, lights, poles, fences, roofs and walls, gardens and roundabout islands. Picked automatically: the first pack whose bboxes hold the region's middle (data/map/styles/*.json, by name), else generic.json. Every estimated thing it adds is marked estimated. Colours are #rrggbb; sizes in metres.",
+  "id": "australia",
+  "name": "Australia",
+  "bboxes": [[112.0, -44.5, 154.5, -9.0]],
+  "drivingSide": "left",
+  "markings": "AU",
+  "crossSection": {
+    "_note": "Each side of a road, out from its edge: kerb (a bevelled step kerbHeight high over kerbBevel, then kerbTop of flat top), verge (grass; street trees), footpath, then the property's edge. byClass: whether a road of that class has kerbs and footpaths where nothing's mapped (urban only: within urbanReach m of urbanBuildings buildings on that side), and the verge's and footpath's widths. Mapped sidewalks (footway=sidewalk within sidewalkSnap m, running alongside) set the footpath's place instead; sidewalk=no/separate are respected. Where buildings stand within shopfrontWithin m of the kerb in a commercial or industrial area (pavedLanduse) — a shopping street — or within pavedWithin m anywhere, the footpath runs to their walls (paved, no verge). Kerbs are lowered (flush) within lowerAt m of a crossing or a driveway's mouth, over lowerRamp m. A footpath falls crossfall to the kerb.",
+    "kerbHeight": 0.15,
+    "kerbBevel": 0.12,
+    "kerbTop": 0.15,
+    "crossfall": 0.02,
+    "urbanReach": 60,
+    "urbanBuildings": 3,
+    "sidewalkSnap": 16,
+    "shopfrontWithin": 12,
+    "pavedWithin": 8,
+    "pavedLanduse": ["commercial", "industrial"],
+    "lowerAt": 2.5,
+    "lowerRamp": 1.5,
+    "maxBand": 9,
+    "byClass": {
+      "primary": { "kerb": true, "footpath": 1.8, "verge": 2.0 },
+      "secondary": { "kerb": true, "footpath": 1.6, "verge": 2.5 },
+      "tertiary": { "kerb": true, "footpath": 1.5, "verge": 3.0 },
+      "residential": { "kerb": true, "footpath": 1.2, "verge": 3.2 },
+      "living_street": { "kerb": true, "footpath": 1.5, "verge": 0.5 },
+      "unclassified": { "kerb": true, "footpath": 1.2, "verge": 2.5 },
+      "road": { "kerb": true, "footpath": 1.2, "verge": 2.5 },
+      "busway": { "kerb": true, "footpath": 0, "verge": 1.0 },
+      "trunk": { "kerb": true, "footpath": 1.8, "verge": 2.5 },
+      "motorway": { "kerb": false, "footpath": 0, "verge": 0 },
+      "link": { "kerb": false, "footpath": 0, "verge": 0 },
+      "service": { "kerb": false, "footpath": 0, "verge": 0 },
+      "track": { "kerb": false, "footpath": 0, "verge": 0 }
+    },
+    "colours": {
+      "kerb": "#b8b4aa",
+      "footpath": "#c9c4b8",
+      "footpathPaved": "#b9b2a6",
+      "verge": "#8a8f55",
+      "island": "#bdb8ad",
+      "mulch": "#6b4a32",
+      "edge": "#9a958b"
+    },
+    "footpathSurface": "concrete"
+  },
+  "islands": {
+    "_note": "Raised islands: a hole in the road's surface (inside a roundabout, between a junction's lanes) no bigger than maxArea m² is filled. A roundabout's (a hole ringed by one-way roads, round enough: compactness at least roundness) is a garden bed — bark mulch, low plants every plantSpacing m, a tree in the middle if it's at least treeRadius m across — behind a raised kerb; the others concrete (smaller than paveBelow m²) or grass. Mapped data first (OSM's landuse/natural on it); these are the defaults, marked estimated.",
+    "maxArea": 2500,
+    "roundness": 0.55,
+    "paveBelow": 60,
+    "plantSpacing": 2.2,
+    "treeRadius": 4,
+    "mound": 0.25
+  },
+  "vegetation": {
+    "_note": "The mix of trees and plants: species shapes (map/render/objects.ts) by share — dry eucalypts, brown summer grass. Street trees every streetTreeSpacing m along a verge at least streetTreeVerge m wide (estimated where none are mapped, seeded by the road's id).",
+    "streetTreeSpacing": 14,
+    "streetTreeVerge": 1.8,
+    "mix": { "eucalypt": 0.45, "jacaranda": 0.15, "plane": 0.2, "palm": 0.05, "shrub": 0.15 },
+    "grass": "#9a9358",
+    "dryGrass": "#b5a56a",
+    "garden": "#5f7a3c"
+  },
+  "buildings": {
+    "_note": "Roofs and walls where the data doesn't say (seeded by the building's id; marked estimated): a house's roof terracotta tiles or Colorbond steel, its walls brick or render; front fences estimated along a house's frontage when frontFences.",
+    "roofs": { "house": ["#9c4a32", "#7d3b2a", "#5b6266", "#3d4a52", "#8a8f8c", "#b06a4a"], "flat": ["#8c8a86", "#a3a19c", "#6f6d69"], "industrial": ["#a9aeb0", "#c2c6c4", "#8e9496"] },
+    "walls": { "house": ["#b5704f", "#c9a27e", "#e8dcc8", "#a65b3e", "#d9cdb8", "#8f4f39"], "shop": ["#e3d8c6", "#cfc3b0", "#b8ad9c", "#f0ebe1"], "office": ["#9aa4ab", "#b5bcc0", "#7e8a92"], "industrial": ["#c4c7c5", "#a8aeb0"] },
+    "roofDefault": { "house": "hipped", "terrace": "gabled", "shop": "flat", "office": "flat", "warehouse": "gabled-low", "church": "gabled", "school": "hipped" },
+    "frontFences": true,
+    "fence": { "house": ["picket", "brick", "colorbond", "hedge"], "height": 1.1 }
+  },
+  "furniture": {
+    "_note": "Street furniture's designs: traffic lights (a black pole, three lenses, a backing board), street lights (a galvanised pole, an arm out over the road, light brightness: data/map/v5.json lamps), power poles (Stobie poles — steel and concrete — every poleSpacing m along streets that have them mapped; estimated only when estimatePoles), signs (the AU set: red octagon STOP, red-bordered triangle GIVE WAY, white speed-limit circle).",
+    "trafficLight": { "pole": "#1d1f20", "housing": "#26292b", "board": "#111213", "height": 3.2 },
+    "streetLight": { "pole": "#9aa0a2", "height": 9, "arm": 2.2 },
+    "powerPole": { "style": "stobie", "colour": "#7f8285", "height": 10.5, "spacing": 40 },
+    "estimatePoles": false,
+    "signs": { "stop": "#c8102e", "giveWay": "#c8102e", "speed": "#c8102e", "direction": "#00653a", "routeShield": { "A": "#00653a", "B": "#00653a", "M": "#00653a" }, "post": "#9aa0a2" },
+    "busStop": { "shelter": "#3b4a52", "sign": "#e8e8e2" },
+    "tunnelPortal": { "colour": "#c8c4b8", "style": "concrete-face" }
+  }
+}

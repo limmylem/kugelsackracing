@@ -85,6 +85,14 @@
     "realLightRange": 40,
     "realLightIntensity": 320
   },
+  "xsec": {
+    "_note": "map/model/crossSection.ts: the cross-section's bands (kerbs, verges, footpaths, islands) are joined, cut and triangulated in square cells of cell m — each cell's the same whichever block of the bake builds it. Their widths, heights and colours are the region's style pack's (data/map/styles/).",
+    "cell": 64
+  },
+  "tyreSurfaces": {
+    "_note": "Surfaces Map v5 adds to data/map/bake.json's for the tyres (the manifest's surfaces).",
+    "footpath": { "grip": 0.95, "rollingResistance": 0.013, "sound": "tarmac" }
+  },
   "surfaces": {
     "_note": "The tyres' surface (Step 1f): a wheel on a road, footpath, kerb, car-park or deck collider takes that triangle's own surface, never the ground's raster under it. defaultRoad: a road triangle that has none.",
     "defaultRoad": "tarmac",

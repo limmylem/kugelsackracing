@@ -21,7 +21,7 @@ import { at, polygonArea, rowAt } from './geom.ts';
 import { armRow, triangulatePatch } from './topology.ts';
 import { planeAt, planeGrad } from './heights.ts';
 
-export const SURFACES = ['tarmac', 'concrete', 'cobbles', 'kerb', 'gravel', 'dirt', 'grass', 'sand'];
+export const SURFACES = ['tarmac', 'concrete', 'cobbles', 'kerb', 'gravel', 'dirt', 'grass', 'sand', 'footpath'];
 export const LEVELS = { ground: 0, bridge: 1, tunnel: 2 } as const;
 const hex = (c: string) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 const smooth01 = (t: number) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -120,6 +120,9 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   const planeOf = (k: number) => (G.nodes[k].kind === 'junction' ? (T.clusters[G.nodes[k].cluster] as any)?.plane ?? null : null);
   const kerbC = hex(C.kerb), deckC = hex(C.deck);
   const stats: any = { ribbons: 0, rows: 0, folds: 0, patches: 0, patchTris: 0, markings: 0, tJunctions: 0, patchHoles: 0 };
+  // (each piece's outline in plan — a ribbon's two drawn edges, a patch's rings — with its level: what the road covers,
+  // for Map v5's cross-section)
+  const outlines: { level: number; rings: number[][][] }[] = [];
 
   // ---------- ribbons ----------
   const segPlanes = new Map<number, any>();
@@ -154,6 +157,7 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const lines = Array.from({ length: 5 }, (_, c) => rows.map(r => at(r, OFF(r)[c])));
     for (const line of lines) stats.folds += unfold(line, rows);
     const heights = lines.map((line, c) => line.map((p, q) => surfaceHeight(g, rows[q].s, OFF(rows[q])[c], p[0], p[1], H, planes)));
+    outlines.push({ level: LEVELS[g.structure], rings: [[...lines[0].map(p => [p[0], p[1]]), ...lines[4].slice().reverse().map(p => [p[0], p[1]])]] });
     // (the first and last rows on a plane: exactly the plane, as the patch has them)
     const col = colourOf(g), sf = surfIdx(g), lv = LEVELS[g.structure], kerbS = SURFACES.indexOf('kerb');
     const ids = rows.map((_, q) => lines.map((line, c) => vtx(mesh, line[q][0], heights[c][q], line[q][1], c === 0 || c === 4 ? kerbC : col)));
@@ -195,6 +199,7 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const main = c.arms.slice().sort((p, q) => q.seg.rank - p.seg.rank)[0]?.seg, col = main ? colourOf(main) : hex(C.asphalt), sf = main ? surfIdx(main) : 0;
     const lv = c.arms.every(A => A.seg.structure === 'bridge') ? 1 : c.arms.every(A => A.seg.structure === 'tunnel') ? 2 : 0;
     const tris = triangulatePatch(c.rings), key = new Map<string, number>();
+    for (const poly of c.rings) outlines.push({ level: lv, rings: poly });
     const v = (p: number[]) => { const k = `${p[0]},${p[1]}`; let i = key.get(k); if (i === undefined) { i = vtx(mesh, p[0], planeAt(c, p[0], p[1]), p[1], col); key.set(k, i); } return i; };
     for (const t of tris) tri(mesh, v(t[0]), v(t[1]), v(t[2]), sf, 1, lv, -1 - c.id);
     // (its triangles cover its outline: else a hole in the road — counted, with where)
@@ -275,7 +280,7 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // (the tessellator's own stitches — solid triangles of no area along a T-junction — are kept: the tiles keep them too)
   stats.tJunctions = 0;
   for (let pass = 0; pass < 4; pass++) { const n = repairTJunctions(mesh, cfg.junctions.tJunction ?? q * 1.2); stats.tJunctions += n; if (!n) break; }
-  return { mesh, marks, edges, classes: classIdx, stats };
+  return { mesh, marks, edges, outlines, classes: classIdx, stats };
 }
 
 // T-junctions closed: a vertex of the surface's outline lying on another piece's outline edge (within tol m, a
@@ -333,7 +338,8 @@ export function repairTJunctions(mesh: Mesh, tol: number) {
     const surf = mesh.surfaces[t / 3], solid = mesh.solid[t / 3], level = mesh.level[t / 3], seg = mesh.seg[t / 3];
     // (the first piece reuses the triangle's slot, the rest are added)
     I[t] = chain[0]; I[t + 1] = chain[1]; I[t + 2] = c;
-    for (let q = 1; q + 1 < chain.length; q++) { I.push(chain[q], chain[q + 1], c); mesh.surfaces.push(surf); mesh.solid.push(solid); mesh.level.push(level); mesh.seg.push(seg); }
+    const part = (mesh as any).part?.[t / 3];
+    for (let q = 1; q + 1 < chain.length; q++) { I.push(chain[q], chain[q + 1], c); mesh.surfaces.push(surf); mesh.solid.push(solid); mesh.level.push(level); mesh.seg.push(seg); if (part !== undefined) (mesh as any).part.push(part); }
     n += vs.length;
   }
   return n;

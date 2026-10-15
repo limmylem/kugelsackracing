@@ -113,7 +113,7 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
     w.mapDebug = createMapDebug(w, { travelTo, setHours: (h) => { shared.prefs.timeOfDay = h; shared.savePrefs?.(); }, hours: () => shared.prefs?.timeOfDay ?? 13 });
     // Map v4's street lamps: the nearest few as real lights after dark (map/render/lamps.ts)
     w.mapLamps?.dispose();
-    w.mapLamps = stream.manifest.map === 'v4' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
+    w.mapLamps = stream.manifest.map === 'v4' || stream.manifest.map === 'v5' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
     w.travel = (place) => travelTo(w, place);
     globalThis.__mapDebug = w.mapDebug;
     return stream;
@@ -268,8 +268,8 @@ export function realWorldFrame(w, shared, seconds) {
     if ((w.labelTimer = (w.labelTimer ?? 0) - seconds) <= 0) {
         w.labelTimer = 0.25;
         const dem = where.dem, [wx, wz] = S.toWorld(p.x, p.z), at = placeOf(w, wx, wz);
-        const M = S.manifest, v4 = M.map === 'v4';
-        w.label.textContent = `Map ${v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}`;
+        const M = S.manifest, v5 = M.map === 'v5', v4 = M.map === 'v4' || v5;
+        w.label.textContent = `Map ${v5 ? 'v5' : v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution && !String(dem.name).endsWith(`${dem.resolution} m`) ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}${v5 ? ` | style: ${M.style?.name ?? '?'}` : ''}`;
         w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
     }
     w.mapDebug?.frame(seconds);

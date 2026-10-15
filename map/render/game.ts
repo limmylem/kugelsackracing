@@ -215,7 +215,7 @@ export function realWorldFrame(w, shared, seconds) {
     w.labelTimer = 0.25;
     const dem = where.dem, [wx, wz] = S.toWorld(p.x, p.z), at = placeOf(w, wx, wz);
     const M = S.manifest, v5 = M.map === 'v5', v4 = M.map === 'v4' || v5;
-    w.label.textContent = `Map ${v5 ? 'v5' : v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}${v5 ? ` | style: ${M.style?.name ?? '?'}` : ''}`;
+    w.label.textContent = `Map ${v5 ? 'v5' : v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution && !String(dem.name).endsWith(`${dem.resolution} m`) ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}${v5 ? ` | style: ${M.style?.name ?? '?'}` : ''}`;
     w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
   }
   w.mapDebug?.frame(seconds);

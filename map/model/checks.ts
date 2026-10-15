@@ -11,13 +11,16 @@ import { selfIntersects } from './geom.ts';
 import { rowAt } from './geom.ts';
 import { welder } from './surface.ts';
 
-export function checkSurface(mesh: { positions: number[] | Float32Array; indices: number[] | Uint32Array; solid?: number[] | Uint8Array; level?: number[] | Uint8Array }, { segs = null as any[] | null, sampleEvery = 1, maxReports = 50, region = null as null | [number, number, number, number] } = {}) {
+export function checkSurface(mesh: { positions: number[] | Float32Array; indices: number[] | Uint32Array; solid?: number[] | Uint8Array; level?: number[] | Uint8Array }, { segs = null as any[] | null, sampleEvery = 1, maxReports = 50, region = null as null | [number, number, number, number], roadOnly = false } = {}) {
   const P = mesh.positions, I = mesh.indices;
   const inRegion = (x: number, z: number) => !region || (x >= region[0] && x <= region[2] && z >= region[1] && z <= region[3]);
   // (with a region, only the triangles reaching into it, or within a few metres: everything a point in it is judged by)
   const keep = new Uint8Array(I.length / 3);
   for (let t = 0; t < I.length; t += 3) {
     if (mesh.solid && !mesh.solid[t / 3]) continue;
+    // (roadOnly: the road itself — Map v5's kerbs, verges and footpaths (part > 0) meet it vertex to millimetre, not
+    // vertex to vertex, by design: map/bake/bakeV4.ts)
+    if (roadOnly && (mesh as any).part?.[t / 3]) continue;
     if (region) {
       const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3, m = 4;
       if (Math.max(P[a], P[b], P[c]) < region[0] - m || Math.min(P[a], P[b], P[c]) > region[2] + m || Math.max(P[a + 2], P[b + 2], P[c + 2]) < region[1] - m || Math.min(P[a + 2], P[b + 2], P[c + 2]) > region[3] + m) continue;
