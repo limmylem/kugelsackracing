@@ -27,6 +27,11 @@
 > it as it was for players, and shows it as a draft, until it's published again (parts published before this carry on
 > as before until their next publish). The kit pieces (`assets/kits/`, 40 kB) go to the tiles' address with the rest.
 > No migration; no change to the services or what they cost.
+> Then **the seven cars rebuilt from the starter coupe's model** (2026-10-15; tools/content/coupeCar.mjs): every car but
+> the coupe is its model reshaped to the car's proportions, their parts' models made again to fit (about 2 MB more on
+> the tiles' address). The parts fit as before but a few, waived and listed in [KNOWN_ISSUES.md](KNOWN_ISSUES.md); no
+> car drives differently (the engines, gearboxes, axles and wheels stay where they were). No change to the services or
+> what they cost.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day
@@ -78,7 +83,10 @@ GitHub Actions ──► deploys (SSH to the VPS, Pages, R2) · nightly backups 
   asking the game's address for `/assets/…` gets a 302 there (`_redirects`). PMTiles reads byte ranges (206), and
   Cloudflare caches the files (a cache rule, an hour, from each file's `Cache-Control`).
 - **The admin page** is at `api.ognistrada.com/admin/` (`ognistrada.com/admin` redirects there). Signed out: sent to
-  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in.
+  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in. Its files
+  (and the editor's) are sent `no-store`, and the page asks for its script by the deploy's version
+  (`admin.js?v=<commit>`), so a browser or Cloudflare never runs a copy kept from before a deploy (until 2026-10-15
+  the static files' own `public` header replaced `no-store`, and a new tab could take a while to show).
 - **The editor's code** (`editor/`) isn't on the game's address: the game loads it from the API's with the session
   (`site/urls.js`'s `importTool()`), served only to editors and admins. The game's import map points the editor's
   imports of shared modules back at the game's address, so they load once. `editor/access.js` (whether the editor's

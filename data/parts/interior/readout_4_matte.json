@@ -43,15 +43,15 @@
     "apex_v8": {
       "model": "assets/parts/interior/readout/readout_4/apex_v8.glb",
       "bounds": {
-        "min": [-0.038, 0, -0.0225],
-        "max": [0.038, 0.268, 0.07]
+        "min": [-0.038, 0, 0.0175],
+        "max": [0.038, 0.268, 0.11]
       }
     },
     "brute_500": {
       "model": "assets/parts/interior/readout/readout_4/brute_500.glb",
       "bounds": {
-        "min": [-0.134, 0, -0.0225],
-        "max": [0.134, 0.076, 0.07]
+        "min": [-0.134, -0.06, -0.1025],
+        "max": [0.134, 0.016, -0.01]
       }
     },
     "hana_roadster": {
@@ -64,29 +64,29 @@
     "kaze_gt": {
       "model": "assets/parts/interior/readout/readout_4/kaze_gt.glb",
       "bounds": {
-        "min": [-0.134, -0.06, -0.0225],
-        "max": [0.134, 0.016, 0.07]
+        "min": [-0.038, 0, 0.0175],
+        "max": [0.038, 0.268, 0.11]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/interior/readout/readout_4/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.038, 0, -0.0625],
-        "max": [0.038, 0.268, 0.03]
+        "min": [-0.134, -0.06, -0.0625],
+        "max": [0.134, 0.016, 0.03]
       }
     },
     "strada_evo": {
       "model": "assets/parts/interior/readout/readout_4/strada_evo.glb",
       "bounds": {
-        "min": [-0.038, 0, -0.0625],
-        "max": [0.038, 0.268, 0.03]
+        "min": [-0.134, -0.06, -0.0625],
+        "max": [0.134, 0.016, 0.03]
       }
     },
     "vortex_r": {
       "model": "assets/parts/interior/readout/readout_4/vortex_r.glb",
       "bounds": {
-        "min": [-0.134, 0, -0.0225],
-        "max": [0.134, 0.076, 0.07]
+        "min": [-0.134, -0.06, -0.0625],
+        "max": [0.134, 0.016, 0.03]
       }
     }
   },

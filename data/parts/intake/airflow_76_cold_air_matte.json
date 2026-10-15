@@ -12,7 +12,7 @@
     ["intake_flange:rs", "intake_flange:std"]
   ],
   "requires": [],
-  "conflicts": ["car:ridgeback_4x4", "car:strada_evo", "car:vortex_r"],
+  "conflicts": ["car:ridgeback_4x4"],
   "provides": ["intake:cold_air"],
   "effects": [
     {
@@ -76,33 +76,47 @@
     "apex_v8": {
       "model": "assets/parts/intake/airflow/airflow_76_cold_air/apex_v8.glb",
       "bounds": {
-        "min": [-0.003, -0.4, -0.0296],
-        "max": [0.46, 0.0294, 0.51]
+        "min": [0, -0.28, -0.66],
+        "max": [0.2913, 0.05, 0.0296]
       }
     },
     "brute_500": {
       "model": "assets/parts/intake/airflow/airflow_76_cold_air/brute_500.glb",
       "bounds": {
-        "min": [-0.0015, -0.34, -0.0296],
-        "max": [0.46, 0.0295, 0.66]
+        "min": [-0.0029, -0.24, -0.0296],
+        "max": [0.3, 0.09, 0.66]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intake/airflow/airflow_76_cold_air/hana_roadster.glb",
       "bounds": {
-        "min": [-0.0121, -0.46, -0.0296],
-        "max": [0.3, 0.0269, 0.51]
+        "min": [-0.0513, -0.28, -0.012],
+        "max": [0.22, 0.05, 0.51]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/intake/airflow/airflow_76_cold_air/kaze_gt.glb",
       "bounds": {
-        "min": [-0.0093, -0.28, -0.108],
-        "max": [0.46, 0.05, 0.43]
+        "min": [-0.0513, -0.28, -0.012],
+        "max": [0.22, 0.05, 0.51]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/intake/airflow/airflow_76_cold_air/strada_evo.glb",
+      "bounds": {
+        "min": [0, -0.28, -0.0296],
+        "max": [0.3, 0.05, 0.51]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intake/airflow/airflow_76_cold_air/vortex_r.glb",
+      "bounds": {
+        "min": [0, -0.28, -0.0296],
+        "max": [0.3, 0.05, 0.385]
       }
     }
   },
-  "_fit": "It can't be made to fit the Ridgeback 4x4, Strada Evo, Vortex R (its best fit still goes through the car), so it isn't for them.",
+  "_fit": "It can't be made to fit the Ridgeback 4x4 (its best fit still goes through the car), so it isn't for it.",
   "tier": "sport",
   "unlock": {
     "level": 2

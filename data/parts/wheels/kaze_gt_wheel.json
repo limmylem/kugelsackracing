@@ -7,7 +7,7 @@
   "price": 150,
   "mass": 9,
   "contactMaterial": "metal",
-  "model": "assets/parts/stock/kaze_gt/wheel_FL.glb",
+  "model": "assets/parts/stock/kaze_gt/wheel_stock.glb",
   "icon": "assets/icons/parts/kaze_gt_wheel.png",
   "fits": ["car:kaze_gt"],
   "requires": [],
@@ -21,7 +21,7 @@
   },
   "tier": "stock",
   "bounds": {
-    "min": [-0.0903, -0.2159, -0.2159],
-    "max": [0.0903, 0.2159, 0.2159]
+    "min": [-0.0717, -0.2153, -0.2153],
+    "max": [0.0896, 0.2153, 0.2153]
   }
 }

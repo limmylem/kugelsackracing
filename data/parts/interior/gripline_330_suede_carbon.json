@@ -58,15 +58,15 @@
     "hana_roadster": {
       "model": "assets/parts/interior/gripline/gripline_330_suede/hana_roadster.glb",
       "bounds": {
-        "min": [-0.182, -0.182, -0.099],
-        "max": [0.182, 0.184, 0]
+        "min": [-0.1622, -0.1622, -0.099],
+        "max": [0.1622, 0.1642, 0]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/interior/gripline/gripline_330_suede/kaze_gt.glb",
       "bounds": {
-        "min": [-0.182, -0.182, -0.099],
-        "max": [0.182, 0.184, 0]
+        "min": [-0.1721, -0.1721, -0.099],
+        "max": [0.1721, 0.1741, 0]
       }
     },
     "ridgeback_4x4": {

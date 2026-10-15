@@ -17,8 +17,8 @@
   "provides": [],
   "_note": "Steel skid plates under the engine, gearbox and diffs: rocks and bad landings hurt them far less.",
   "bounds": {
-    "min": [-0.5499, -0.038, -1.245],
-    "max": [0.5499, 0.014, 1.28]
+    "min": [-0.5499, -0.038, -1.3035],
+    "max": [0.5499, 0.0421, 1.2215]
   },
   "protects": {
     "systems": ["radiator", "gearbox", "differential", "exhaust", "intake"],

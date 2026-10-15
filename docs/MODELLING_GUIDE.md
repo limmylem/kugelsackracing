@@ -177,6 +177,8 @@ rule), **Check** (these rules, in plain words with how to fix each) and **Export
 | `npm run guide` | Rewrites this guide's tables and `docs/part_prompt_templates.md` from `data/content/model-rules.json`. |
 | `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes, `-- --kits` the starter kit pieces). |
 | `npm run generate-parts` | Makes the mechanical parts' models in code (`tools/generators/<category>.js`: rims, brakes, engine, aero, interior, bay, exhaust, lights, offroad) and imports them like a modelled part: checked, icon, part file. `-- rims brakes` for some generators, `--only id,id`, `--check` to build and check without importing. Draws `docs/generated_parts.png` (every generated part) and `docs/generated_fit.png` (every car with a set fitted through the garage). |
+| `node tools/placeholder-car.mjs <id> --import` | Makes a car's placeholder model from its `data/cars/<id>/design.json`: the starter coupe's model reshaped to the car's proportions (`tools/content/coupeCar.mjs`: every panel, the glass and lights by one smooth map, so they fit as on the coupe; the wheels the car's size), its panels' socket positions written into its car.json, then imported and split. |
+| `node server/tools/car-shots.ts --out dir [cars…] --local-libs` | Every car (or the ones named) drawn as the game draws it, body and stock parts, from six sides into `dir/<id>.png`, to look at them side by side (needs `TEST_DATABASE_URL`, like the server's tests). |
 | Part preview | `http://localhost:7690/dev/parts.html`: every part alone or on a car, its variants, sockets, wireframe, bounds, triangle counts, paint and finish tests, and a fit check (does it cut into the body or other parts?). |
 
 ## The rules
@@ -198,8 +200,8 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 | Rear bumper | `bumper_rear_…` `rear_bumper_…` | body / bumper_rear | 1.3–2.1 | 0.08–0.7 | 0.08–0.7 | the middle of where it meets the body | 1,500 |
 | Left door | `door_left_…` `left_door_…` | body / door_left | 0.02–0.3 | 0.3–1.1 | 0.6–1.7 | its front edge (the hinge line), halfway up | 1,500 |
 | Right door | `door_right_…` `right_door_…` | body / door_right | 0.02–0.3 | 0.3–1.1 | 0.6–1.7 | its front edge (the hinge line), halfway up | 1,500 |
-| Left front wing (fender) | `fender_left_…` `left_fender_…` | body / fender_left | 0.02–0.35 | 0.15–0.9 | 0.5–1.6 | its inner edge where it bolts to the body, at the top | 1,500 |
-| Right front wing (fender) | `fender_right_…` `right_fender_…` | body / fender_right | 0.02–0.35 | 0.15–0.9 | 0.5–1.6 | its inner edge where it bolts to the body, at the top | 1,500 |
+| Left front wing (fender) | `fender_left_…` `left_fender_…` | body / fender_left | 0.02–0.35 | 0.15–0.9 | 0.5–1.7 | its inner edge where it bolts to the body, at the top | 1,500 |
+| Right front wing (fender) | `fender_right_…` `right_fender_…` | body / fender_right | 0.02–0.35 | 0.15–0.9 | 0.5–1.7 | its inner edge where it bolts to the body, at the top | 1,500 |
 | Left side skirt | `skirt_left_…` `left_skirt_…` | body / skirt_left | 0.005–0.25 | 0.02–0.35 | 0.9–2.6 | its middle | 1,000 |
 | Right side skirt | `skirt_right_…` `right_skirt_…` | body / skirt_right | 0.005–0.25 | 0.02–0.35 | 0.9–2.6 | its middle | 1,000 |
 | Left mirror | `mirror_left_…` `left_mirror_…` | body / mirror_left | 0.06–0.4 | 0.04–0.3 | 0.02–0.3 | where its arm meets the door (its innermost point) | 800 |

@@ -43,6 +43,28 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **Other players' damaged engines misfire**, from the crashes their cars send (the engine's condition lost), as an
   NPC's does; a leaking radiator steams and a loose panel flaps too (audio/remoteDamage.js), as yours do.
 
+## The seven cars rebuilt from the starter coupe's model (2026-10-15; tools/content/coupeCar.mjs)
+
+The Kaze GT, Hana Roadster, Ridgeback 4x4, Vortex R, Brute 500, Strada Evo and Apex V8 are now the starter coupe's model
+reshaped to each one's proportions, in place of the box placeholders. Their cabins, engine bays and wheel wells are the
+coupe's, smaller and more detailed than the boxes' were: the add-on parts made by code were made again for them, and
+most fit as before, but a few published ones meet the new cabins or bonnets. They're waived (`data/content/check-rules.json`
+fit.known: each with where, how many places and how to fix it) so a player who has one fitted keeps a drivable car:
+
+- **Roll cages** (bolt-in and welded) in the Brute 500, Hana Roadster and Ridgeback 4x4: the cage finder finds no clear
+  plane behind the seats, so the cage meets the side trim. The Hana Roadster's **roll hoop** too.
+- **The race harness** in the Apex V8, Ridgeback 4x4, Strada Evo and Vortex R: its belts meet the seat back or the shelf.
+- **The strut braces** under the Ridgeback 4x4's bonnet, **the short shifter** in its console, and **the Brute 500's V8**
+  swapped into the Kaze GT and the Ridgeback 4x4 (taller than their bonnets).
+- Small touches, a few places each: **the 19" rims** on the Kaze GT and Vortex R (their barrels meet the rear bulkhead,
+  which runs up to the tyre as on the starter coupe, whose own 17" rims meet it the same way), **the cat-back exhausts**
+  on the Vortex R and Brute 500 (the rear underfloor), **the bucket seats** (the cabin floor), and a few more in
+  fit.known.
+- Some draft family parts (the Shellback seats, the Gripline steering wheels, the Readout gauge pods, a few crate
+  engines and intakes) now leave out cars they don't fit (their `conflicts` say which); no player has them yet.
+- The bigger cars' bodies are over the dent budget's 150,000 triangles for their first dent (the Ridgeback 4x4's about
+  220,000 for the whole car): a short stutter the first time one is dented, spread over frames.
+
 ## Phase 8 Step 3: the content pipeline (docs/CONTENT_PIPELINE.md)
 
 - **The four part combinations that went through the car are fixed** (`data/content/check-rules.json` fit.known is

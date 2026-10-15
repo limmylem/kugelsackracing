@@ -18,8 +18,8 @@
   "provides": [],
   "_note": "A steel bull bar: heavy, but it takes a hit for the bumper, lights and radiator behind it.",
   "bounds": {
-    "min": [-0.9082, -0.5, -0.295],
-    "max": [0.9077, 0.26, 0.075]
+    "min": [-0.9684, -0.4719, -0.2991],
+    "max": [0.9677, 0.2665, 0.0708]
   },
   "protects": {
     "slots": ["bumper_front", "radiator", "fog_lights"],

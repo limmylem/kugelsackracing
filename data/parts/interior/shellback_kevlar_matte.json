@@ -10,7 +10,7 @@
   "icon": "assets/icons/parts/shellback_kevlar_matte.png",
   "fits": ["seat_mount:std"],
   "requires": [],
-  "conflicts": [],
+  "conflicts": ["car:apex_v8", "car:brute_500", "car:hana_roadster", "car:kaze_gt", "car:ridgeback_4x4", "car:vortex_r"],
   "provides": ["seat:bucket"],
   "look": {
     "finish": "matte_black"
@@ -41,56 +41,15 @@
   },
   "massOffset": [0, 0.37, -0.252],
   "byCar": {
-    "apex_v8": {
-      "model": "assets/parts/interior/shellback/shellback/apex_v8.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.569],
-        "max": [0.26, 0.9, 0.291]
-      }
-    },
-    "brute_500": {
-      "model": "assets/parts/interior/shellback/shellback/brute_500.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.7232],
-        "max": [0.26, 0.9, 0.231]
-      }
-    },
-    "hana_roadster": {
-      "model": "assets/parts/interior/shellback/shellback/hana_roadster.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.629],
-        "max": [0.26, 0.9, 0.231]
-      }
-    },
-    "kaze_gt": {
-      "model": "assets/parts/interior/shellback/shellback/kaze_gt.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.7232],
-        "max": [0.26, 0.9, 0.231]
-      }
-    },
-    "ridgeback_4x4": {
-      "model": "assets/parts/interior/shellback/shellback/ridgeback_4x4.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.7232],
-        "max": [0.26, 0.9, 0.231]
-      }
-    },
     "strada_evo": {
       "model": "assets/parts/interior/shellback/shellback/strada_evo.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.7232],
-        "max": [0.26, 0.9, 0.231]
-      }
-    },
-    "vortex_r": {
-      "model": "assets/parts/interior/shellback/shellback/vortex_r.glb",
-      "bounds": {
-        "min": [-0.26, 0, -0.7232],
-        "max": [0.26, 0.9, 0.231]
+        "min": [-0.2444, 0, -0.6685],
+        "max": [0.2444, 0.9, 0.231]
       }
     }
   },
+  "_fit": "It can't be made to fit the Apex V8, Brute 500, Hana Roadster, Kaze GT, Ridgeback 4x4, Vortex R (its best fit still goes through the car), so it isn't for them.",
   "tier": "sport",
   "unlock": {
     "level": 2

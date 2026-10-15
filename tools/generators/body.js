@@ -62,7 +62,7 @@ export async function cowlBonnet(id, stockModel, s) {
   return new PartModel(id).add(raised, 'paint', { mass: s.mass });
 }
 
-export const COWL = { halfWidth: 0.41, from: 0.25, to: 1.0, full: 0.75, rearShare: 0.4, height: 0.27, fall: 0.1, nose: 0.16, splits: 4, mass: 17 };
+export const COWL = { halfWidth: 0.41, from: 0.25, to: 1.0, full: 0.75, rearShare: 0.4, height: 0.27, fall: 0.1, nose: 0.16, splits: 2, mass: 17 };
 
 export async function parts({ project }) {
   const stock = project.db.parts.kaze_gt_bonnet.model;

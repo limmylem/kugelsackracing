@@ -7,7 +7,7 @@
   "price": 150,
   "mass": 9.5,
   "contactMaterial": "metal",
-  "model": "assets/parts/stock/strada_evo/wheel_FL.glb",
+  "model": "assets/parts/stock/strada_evo/wheel_stock.glb",
   "icon": "assets/icons/parts/strada_evo_wheel.png",
   "fits": ["car:strada_evo"],
   "requires": [],
@@ -21,7 +21,7 @@
   },
   "tier": "stock",
   "bounds": {
-    "min": [-0.0987, -0.2159, -0.2159],
-    "max": [0.0987, 0.2159, 0.2159]
+    "min": [-0.0783, -0.2153, -0.2153],
+    "max": [0.0979, 0.2153, 0.2153]
   }
 }

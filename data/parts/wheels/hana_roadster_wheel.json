@@ -7,7 +7,7 @@
   "price": 140,
   "mass": 7.5,
   "contactMaterial": "metal",
-  "model": "assets/parts/stock/hana_roadster/wheel_FL.glb",
+  "model": "assets/parts/stock/hana_roadster/wheel_stock.glb",
   "icon": "assets/icons/parts/hana_roadster_wheel.png",
   "fits": ["car:hana_roadster"],
   "requires": [],
@@ -21,7 +21,7 @@
   },
   "tier": "stock",
   "bounds": {
-    "min": [-0.0819, -0.2032, -0.2032],
-    "max": [0.0819, 0.2032, 0.2032]
+    "min": [-0.065, -0.2027, -0.2027],
+    "max": [0.0813, 0.2027, 0.2027]
   }
 }

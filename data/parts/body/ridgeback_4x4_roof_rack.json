@@ -17,8 +17,8 @@
   "provides": [],
   "_note": "A steel roof rack: somewhere for the spare tyres — and drag.",
   "bounds": {
-    "min": [-0.68, -0.02, -0.9113],
-    "max": [0.68, 0.13, 0.9113]
+    "min": [-0.63, -0.0251, -0.9113],
+    "max": [0.63, 0.1249, 0.9113]
   },
   "aeroEffect": {
     "drag": 0.03

@@ -65,15 +65,15 @@
     "kaze_gt": {
       "model": "assets/parts/turbo/turbo_kit/kaze_gt.glb",
       "bounds": {
-        "min": [-0.3952, -0.3477, -0.0687],
-        "max": [0.0147, 0.0596, 0.39]
+        "min": [-0.232, -0.0972, -0.2287],
+        "max": [0, 0.2436, 0.23]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/turbo/turbo_kit/hana_roadster.glb",
       "bounds": {
-        "min": [-0.232, -0.3372, -0.2287],
-        "max": [0.015, 0.0188, 0.23]
+        "min": [-0.232, -0.2172, -0.2287],
+        "max": [0.0089, 0.1236, 0.23]
       }
     },
     "ridgeback_4x4": {
@@ -86,8 +86,8 @@
     "brute_500": {
       "model": "assets/parts/turbo/turbo_kit/brute_500.glb",
       "bounds": {
-        "min": [-0.412, -0.3372, -0.3087],
-        "max": [0.0093, 0.0806, 0.15]
+        "min": [-0.3184, -0.2382, -0.3887],
+        "max": [0.0167, 0.1586, 0.07]
       }
     }
   }

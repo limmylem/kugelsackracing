@@ -83,7 +83,8 @@ bonnet) are left out automatically, with the reason written in the part.
 - It starts from the **body template** for that type (`data/content/templates/`): its proportions, its standard
   sockets and **standards** (engine mount, bay size, bolt pattern, rim sizes, seat/steering/bumper/spoiler/exhaust
   mounts). Parts made to those standards fit it straight away.
-- Without a model, it makes a **placeholder** in the type's proportions, so you can drive it at once. With
+- Without a model, it makes a **placeholder**: the starter coupe's model reshaped to the type's proportions, so you
+  can drive it at once. With
   `--model file.glb` (or later `npm run import -- incoming/car_<id>.glb`), it uses the real one. A new car's model
   must have **every socket** of the car it starts from, for example *Front bumper missing socket
   "socket_bumper_front"*. The add-on's **Add socket** makes them with the right names.

@@ -6,7 +6,7 @@
   "kind": "component",
   "price": 150,
   "mass": 15,
-  "model": "assets/parts/stock/kaze_gt/seat_driver.glb",
+  "model": "assets/parts/stock/kaze_gt/kaze_gt_seat.glb",
   "icon": "assets/icons/parts/kaze_gt_seat.png",
   "fits": ["car:kaze_gt"],
   "requires": [],
@@ -14,7 +14,7 @@
   "provides": [],
   "tier": "stock",
   "bounds": {
-    "min": [-0.24, 0, -0.3],
-    "max": [0.24, 0.62, 0.28]
+    "min": [-0.24, 0, -0.48],
+    "max": [0.24, 0.882, 0.26]
   }
 }

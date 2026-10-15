@@ -7,7 +7,7 @@
   "price": 150,
   "mass": 12,
   "contactMaterial": "metal",
-  "model": "assets/parts/stock/ridgeback_4x4/wheel_FL.glb",
+  "model": "assets/parts/stock/ridgeback_4x4/wheel_stock.glb",
   "icon": "assets/icons/parts/ridgeback_4x4_wheel.png",
   "fits": ["car:ridgeback_4x4"],
   "requires": [],
@@ -21,7 +21,7 @@
   },
   "tier": "stock",
   "bounds": {
-    "min": [-0.1113, -0.2159, -0.2159],
-    "max": [0.1113, 0.2159, 0.2159]
+    "min": [-0.0883, -0.2153, -0.2153],
+    "max": [0.1104, 0.2153, 0.2153]
   }
 }

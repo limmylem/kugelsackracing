@@ -1,6 +1,6 @@
 # Models to make
 
-Made by `npm run models-todo` from the car and part data (each one's `modelTodo`): 7 cars and 8 parts are drawn as placeholders until their model is made. Sizes are the placeholder boxes' (the part's bounds, in its socket's frame: +z forward, +x left, +y up). Positions are in the car's frame, metres, the ground at y = 0. A part's model has its origin at its socket. Make one, then `npm run import -- incoming/<type>_<name>.glb` (a car: `incoming/car_<id>.glb`, its parts under their socket nodes — each car's prompt for Claude Design is in [car_prompts.md](car_prompts.md)).
+Made by `npm run models-todo` from the car and part data (each one's `modelTodo`): 7 cars and 8 parts are drawn as placeholders until their model is made. Sizes are the placeholders' (the part's bounds, in its socket's frame: +z forward, +x left, +y up). Positions are in the car's frame, metres, the ground at y = 0. A part's model has its origin at its socket. Make one, then `npm run import -- incoming/<type>_<name>.glb` (a car: `incoming/car_<id>.glb`, its parts under their socket nodes — each car's prompt for Claude Design is in [car_prompts.md](car_prompts.md)).
 
 Variants (sizes and finishes of a rim, a tyre in more sizes) use their base part's model: only the base is listed.
 
@@ -16,9 +16,9 @@ Variants (sizes and finishes of a rim, a tyre in more sizes) use their base part
 **Its own parts**
 
 - **Side skirt, left (Kaze GT)** (`kaze_gt_side_skirt_left`) — Kaze GT left side skirt: a 260 cm moulded sill extension, 14 cm tall, a small splitter edge at the bottom.
-  - size: 8 × 14 × 260 cm (w × h × l) · mass 3 kg · goes on `socket_skirt_left` at [0.86, 0.19, -0.04]
+  - size: 8 × 14 × 260 cm (w × h × l) · mass 3 kg · goes on `socket_skirt_left` at [0.86, 0.26, -0.04]
 - **Side skirt, right (Kaze GT)** (`kaze_gt_side_skirt_right`) — Kaze GT right side skirt: a 260 cm moulded sill extension, 14 cm tall, a small splitter edge at the bottom.
-  - size: 6 × 14 × 260 cm (w × h × l) · mass 3 kg · goes on `socket_skirt_right` at [-0.86, 0.19, -0.04]
+  - size: 6 × 14 × 260 cm (w × h × l) · mass 3 kg · goes on `socket_skirt_right` at [-0.86, 0.26, -0.04]
 - **Widebody kit (Kaze GT)** (`kaze_gt_widebody`) — Kaze GT widebody kit: four bolt-on fender flares, 6 cm wider each side, riveted over the arches, with matching skirt extensions.
   - size: 205 × 35 × 300 cm (w × h × l) · mass 14 kg · goes on `socket_widebody` at [0, 0.7, 0]
 
@@ -68,7 +68,7 @@ Variants (sizes and finishes of a rim, a tyre in more sizes) use their base part
 **Its own parts**
 
 - **Scoop bonnet (Brute 500)** (`brute_500_bonnet_scoop`) — Brute 500 scoop bonnet: the stock bonnet shape (150 × 115 cm) with a raised open scoop 60 cm wide and 12 cm tall in the middle.
-  - size: 150 × 20 × 115 cm (w × h × l) · mass 16 kg · goes on `socket_bonnet` at [0, 0.95, 0.5]
+  - size: 150 × 20 × 115 cm (w × h × l) · mass 16 kg · goes on `socket_bonnet` at [0, 0.9, 0.75]
 - **Wide rear arches (Brute 500)** (`brute_500_widebody`) — Brute 500 wide rear arches: two bolt-on rear fender flares, 5 cm wider each side, over the rear wheels.
   - size: 204 × 35 × 120 cm (w × h × l) · mass 9 kg · goes on `socket_widebody` at [0, 0.75, -1.3]
 
@@ -93,4 +93,4 @@ Variants (sizes and finishes of a rim, a tyre in more sizes) use their base part
 **Its own parts**
 
 - **Carbon engine cover (Apex V8)** (`apex_v8_carbon_engine_cover`) — Apex V8 carbon engine cover: a louvred carbon lid (150 × 110 cm) with a glass panel showing the engine, hinged at the front.
-  - size: 150 × 5 × 110 cm (w × h × l) · mass 5 kg · goes on `socket_engine_cover` at [0, 0.95, -0.8]
+  - size: 150 × 5 × 110 cm (w × h × l) · mass 5 kg · goes on `socket_engine_cover` at [0, 0.84, -1.46]
