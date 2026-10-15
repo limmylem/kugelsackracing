@@ -13,19 +13,26 @@ import { fitBuild } from './lib/fitcheck.js';
 // settings: { span, chord, height (the element's underside above the feet), thick (of the chord),
 //   mounts: 'swan' | 'straight' | 'struts' | 'roof' | 'pedestal', mountX (± m), plates: { up, down, long } | null,
 //   gurney (m), material ('carbon' | 'paint' | 'black'), second (a second, smaller element above: { chord, gap }),
-//   lift (m: its feet's soles above the socket) }
+//   lift (m: its feet's soles above the socket), camber (of the chord), plates.sweep (m: the plates' tops raked back),
+//   platePiece (a kit piece's triangles for each end plate, in its own frame: tools/generators/lib/kit.js) }
 export function wing(id, s) {
   const m = new PartModel(id), S = s.span, C = s.chord, H = s.height, mat = s.material ?? 'carbon', lift = s.lift ?? 0.004;
   const thick = (s.thick ?? 0.12) * C, pivot = [0, H + thick / 2, 0];
   const el = { node: 'wing_element', pivot };
   // the element: an aerofoil across the span, its chord centred on the socket
-  m.add(prism(aerofoil(C, s.thick ?? 0.12, { lead: C / 2, y0: H + thick * 0.55, camber: 0.05 }), -S / 2, S / 2, 'x'), mat, el);
+  m.add(prism(aerofoil(C, s.thick ?? 0.12, { lead: C / 2, y0: H + thick * 0.55, camber: s.camber ?? 0.05 }), -S / 2, S / 2, 'x'), mat, el);
   if (s.second) m.add(prism(aerofoil(s.second.chord, 0.1, { lead: -C / 2 + s.second.chord * 0.75, y0: H + thick + s.second.gap, camber: 0.06 }), -S / 2 + 0.01, S / 2 - 0.01, 'x'), mat, el);
   if (s.gurney) m.add(box([-S / 2 + 0.005, H + thick * 0.6, -C / 2 - 0.004], [S / 2 - 0.005, H + thick * 0.6 + s.gurney, -C / 2 + 0.006]), 'black', el);
   // end plates, turning with it
-  if (s.plates) {
+  if (s.platePiece) {
+    // (a kit piece at each tip: its origin on the element's end, its +x outwards — mirrored for the right-hand one)
+    const at = [S / 2, H + thick / 2, 0];
+    for (const [tris, pm] of s.platePiece(C, thick)) { m.add(tris.map(t => t.map(p => [p[0] + at[0], p[1] + at[1], p[2] + at[2]])), pm ?? mat, el); m.add(tris.map(([a, b, c]) => [c, b, a].map(p => [-p[0] - at[0], p[1] + at[1], p[2] + at[2]])), pm ?? mat, el); }
+  } else if (s.plates) {
     const P = s.plates, top = H + thick + P.up, bottom = H - P.down, L = P.long ?? C * 1.3;
-    const outline = roundedRect(top - bottom, L, Math.min(0.03, (top - bottom) / 3), 1, [(top + bottom) / 2, -C * 0.05]);
+    let outline = roundedRect(top - bottom, L, Math.min(0.03, (top - bottom) / 3), 1, [(top + bottom) / 2, -C * 0.05]);
+    // (swept: the top raked back, the bottom forward)
+    if (P.sweep) outline = outline.map(([y, z]) => [y, z - P.sweep * ((y - (top + bottom) / 2) / (top - bottom))]);
     for (const x of [S / 2, -S / 2 - 0.008]) m.add(prism(outline, x, x + 0.008, 'x'), mat, el);
   }
   // the mounts
@@ -124,14 +131,16 @@ export function mudFlaps(id, car, s) {
 
 // The Apex's carbon aero kit: a splitter under the front bumper, dive planes, side blades along the
 // sills, and a diffuser with strakes under the back
-// (settings: protrude — how far the splitter reaches past the bumper, m; canards — 0 for none; diffuser — 0..1, its length)
+// (settings: protrude — how far the splitter reaches past the bumper, m; canards — 0 for none; diffuser — 0..1, its length;
+// splitterBack — how far under the bumper the splitter runs, m; blades — false: no side blades; strakes — the diffuser's;
+// bumperPiece — a kit piece's triangles on each front corner of the bumper: tools/generators/lib/kit.js)
 export async function aeroKit(id, car, s) {
   const m = new PartModel(id), at = car.socket('socket_aero_kit'), B = await car.bumperOutline();
   const p = (x, y, z) => [x - at[0], y - at[1], z - at[2]];
   // the splitter
   const half = B.halfWidth, low = B.low, t = 0.014;
   const pts = B.outline.map(([x, z]) => { const f = Math.max(0, (Math.abs(x) / half - 0.75) / 0.25); return [x, z - 0.1 * f * f]; });
-  const outline = [...pts.map(([x, z]) => [x, z + (s.protrude ?? 0.09)]), ...pts.map(([x, z]) => [x, z - 0.22]).reverse()].map(([x, z]) => [x - at[0], z - at[2]]);
+  const outline = [...pts.map(([x, z]) => [x, z + (s.protrude ?? 0.09)]), ...pts.map(([x, z]) => [x, z - (s.splitterBack ?? 0.22)]).reverse()].map(([x, z]) => [x - at[0], z - at[2]]);
   m.add(prism(outline, low - t - at[1], low - at[1], 'y'), 'carbon');
   // dive planes, two a side
   // (dive planes on the bumper's corners, ahead of the front wings)
@@ -143,7 +152,7 @@ export async function aeroKit(id, car, s) {
   // side blades along the sills
   // (under the skirts, sticking out past them)
   const sy = car.sills.y - 0.008, front = car.frontAxle - car.wheelRadius - 0.08, rear = car.rearAxle + car.wheelRadius + 0.08;
-  for (const sx of [1, -1]) {
+  for (const sx of s.blades === false ? [] : [1, -1]) {
     const x = sx * (car.collider.halfExtents[0] - 0.06);
     m.add(box(p(Math.min(x, x + sx * 0.14), sy - 0.006, rear), p(Math.max(x, x + sx * 0.14), sy, front)), 'carbon');
     m.add(box(p(x + sx * 0.135 - 0.003, sy - 0.04, rear + 0.05), p(x + sx * 0.135 + 0.003, sy - 0.006, front - 0.05)), 'carbon');
@@ -153,9 +162,15 @@ export async function aeroKit(id, car, s) {
   const rb = (await car.stockTris('socket_bumper_rear'))?.flat(), rz = rb ? Math.min(...rb.map(q => q[2])) : -car.collider.halfExtents[2], rLow = rb ? Math.min(...rb.map(q => q[1])) : car.sills.y;
   const dl = 0.3 + 0.3 * (s.diffuser ?? 0.5), dw = half * 0.8, y0 = Math.min(car.sills.y, rLow) - 0.012;
   m.add(prism([[y0 - 0.008, rz + dl], [y0 - 0.008, rz + 0.02], [y0, rz + 0.02], [y0, rz + dl]].map(([y, z]) => [y - at[1], z - at[2]]), -dw, dw, 'x').map(t => t.map(([x, y, z]) => [x - at[0], y, z])), 'carbon');
-  for (let i = 0; i < 5; i++) {
-    const x = -dw * 0.8 + i * dw * 0.4;
+  const strakes = s.strakes ?? 5;
+  for (let i = 0; i < strakes; i++) {
+    const x = -dw * 0.8 + i * dw * (1.6 / (strakes - 1));
     m.add(prism([[y0 - 0.07, rz + dl * 0.7], [y0 - 0.07, rz + 0.04], [y0 - 0.008, rz + 0.04], [y0 - 0.008, rz + dl * 0.7]].map(([y, z]) => [y - at[1], z - at[2]]), x - 0.004 - at[0], x + 0.004 - at[0], 'x'), 'carbon');
+  }
+  // a kit piece on each front corner of the bumper (a vent, a scoop, a canard): its origin on the corner, +x outwards
+  if (s.bumperPiece) {
+    const corner = [half - at[0], low + 0.1 - at[1], pts[0][1] - 0.02 - at[2]];
+    for (const [tris, pm] of s.bumperPiece()) for (const sx of [1, -1]) m.add(tris.map(t => (sx > 0 ? t : [t[2], t[1], t[0]]).map(p => [sx * (p[0] + corner[0]) + (sx > 0 ? 0 : -2 * at[0]), p[1] + corner[1], p[2] + corner[2]])), pm ?? 'carbon');
   }
   return m;
 }

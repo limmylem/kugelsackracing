@@ -67,7 +67,7 @@
     "unlock": { "street": [1, 2], "sport": [2, 4], "race": [5, 8] }
   },
   "families": {
-    "_note": "Part families by kind (data/families/<id>.json: kind, settings, finishes): each kind's slot, its model rules type and shape (tools/shapes), its settings (a range, a list of values, or a table whose fields formulas use as setting.field), its stats from formulas, how it's priced, and whether its model is fitted to each car (fit: tools/generators/lib/fitcheck.js — tried bigger to smaller, moved, until it clears the body; a car it can't be made to clear — its best fit still through the body or another part, or through the engine in more than fit.engineTouch places — is one it doesn't go on: conflicts car:<id>). Every family's parts are checked on every car they fit (npm run content -- check).",
+    "_note": "Part families by kind (data/families/<id>.json: kind, settings, finishes, shape): each kind's slot, its model rules type and shape (tools/shapes), its shape settings (shapeSettings: what its model generator varies — a range, values, a table whose fields formulas use as shape.<setting>.<field>, or a kit piece from assets/kits/<kind>/; default null leaves it to the generator; stats: true where the stats' formulas use it), its settings (a range, a list of values, or a table whose fields formulas use as setting.field), its stats from formulas, how it's priced, and whether its model is fitted to each car (fit: tools/generators/lib/fitcheck.js — tried bigger to smaller, moved, until it clears the body; a car it can't be made to clear — its best fit still through the body or another part, or through the engine in more than fit.engineTouch places — is one it doesn't go on: conflicts car:<id>). Every family's parts are checked on every car they fit (npm run content -- check).",
     "wheels": {
       "label": "wheel", "slot": "wheels", "category": "wheels", "type": "rim", "shape": "wheel", "maker": "Spoke & Co", "purpose": "looks", "finishMaterial": "rim_finish",
       "shapeKeys": ["diameter", "width", "spokes"],
@@ -81,6 +81,23 @@
           "cast": { "label": "cast", "mass": 1, "toughness": 1, "tier": "street" },
           "flow": { "label": "flow-formed", "mass": 0.88, "toughness": 1.1, "tier": "sport" },
           "forged": { "label": "forged", "mass": 0.75, "toughness": 1.3, "tier": "race" } } }
+      },
+      "shapeSettings": {
+        "spoke": { "label": "spoke style", "values": ["straight", "split", "mesh", "twisted", "paired", "slot", "holes"], "default": "straight" },
+        "spokeWidth": { "label": "spoke width at the hub", "unit": "m", "range": [0.012, 0.075], "step": 0.002, "default": 0.04 },
+        "taper": { "label": "spoke taper (at the rim, × at the hub)", "range": [0.4, 1.2], "step": 0.05, "default": 0.7 },
+        "twist": { "label": "spoke twist", "unit": "rad", "range": [-0.7, 0.7], "step": 0.05, "default": 0 },
+        "lean": { "label": "mesh lean", "unit": "rad", "range": [0.15, 0.7], "step": 0.01, "default": null },
+        "concave": { "label": "concave (the hub out from the face)", "unit": "m", "range": [0, 0.04], "step": 0.001, "default": 0.015 },
+        "dish": { "label": "dish depth", "unit": "m", "range": [0, 0.08], "step": 0.002, "default": 0.012 },
+        "lip": { "label": "lip width", "unit": "m", "range": [0, 0.08], "step": 0.005, "default": 0 },
+        "lipMaterial": { "label": "lip", "values": ["rim_finish", "chrome"], "default": "rim_finish" },
+        "thickness": { "label": "face thickness", "unit": "m", "range": [0.012, 0.034], "step": 0.002, "default": 0.024 },
+        "cap": { "label": "centre style", "values": ["flat", "dome", "none"], "default": "flat" },
+        "capMaterial": { "label": "centre cap", "values": ["black", "chrome", "dark", "rim_finish", "raw_metal"], "default": "black" },
+        "rivets": { "label": "lip rivets", "range": [0, 40], "integer": true, "step": 2, "default": 0 },
+        "beadlock": { "label": "beadlock ring", "values": [false, true], "default": false },
+        "centrePiece": { "label": "centre piece (kit)", "kit": "centre", "default": "none" }
       },
       "stats": {
         "mass": { "label": "mass (each)", "unit": "kg", "formula": "construction.mass * finish.mass * (1.1 + 0.0265 * diameter^2 * (width / 6)^0.7)", "range": [4, 20], "digits": 1 },
@@ -100,6 +117,14 @@
           "steel": { "label": "mild steel", "mass": 1, "tone": 1 },
           "stainless": { "label": "stainless", "mass": 0.85, "tone": 0.97 },
           "titanium": { "label": "titanium", "mass": 0.55, "tone": 0.92 } } }
+      },
+      "shapeSettings": {
+        "tipShape": { "label": "tip shape", "values": ["round", "oval"], "default": "round" },
+        "cut": { "label": "tip end", "values": ["rolled", "slash", "straight"], "default": "rolled" },
+        "slash": { "label": "angle-cut depth", "unit": "m", "range": [0.015, 0.06], "step": 0.005, "default": 0.035 },
+        "length": { "label": "tip length", "unit": "m", "range": [0.1, 0.3], "step": 0.01, "default": 0.18 },
+        "gap": { "label": "gap between tips", "unit": "m", "range": [0.002, 0.04], "step": 0.002, "default": 0.006 },
+        "tipPiece": { "label": "tip piece (kit)", "kit": "tip", "default": "none" }
       },
       "stats": {
         "topEnd": { "label": "torque from 3,000 rpm", "unit": "%", "formula": "(diameter - 50) * 0.0016", "range": [0, 0.12], "digits": 4 },
@@ -123,13 +148,30 @@
         "riser": { "label": "riser height", "unit": "m", "range": [0.04, 0.4], "default": "0.18" },
         "mount": { "label": "mounting", "values": ["boot", "deck", "roof"], "default": "boot" },
         "style": { "label": "style", "table": {
-          "wing": { "label": "wing", "lift": 0.8, "drag": 0.075 },
-          "ducktail": { "label": "ducktail", "lift": 0.55, "drag": 0.06 } }, "default": "wing" }
+          "wing": { "label": "wing", "lift": 0.8, "drag": 0.075, "wing": 1 },
+          "ducktail": { "label": "ducktail", "lift": 0.55, "drag": 0.06, "wing": 0 } }, "default": "wing" }
+      },
+      "shapeSettings": {
+        "_note": "A wing's look, and what some of it does (the downforce and drag formulas use profile, plates, angle and gurney: a ducktail, style.wing 0, isn't changed by them)",
+        "mounts": { "label": "uprights", "values": ["straight", "swan", "struts", "pedestal"], "default": "straight" },
+        "profile": { "label": "wing profile", "stats": true, "table": {
+          "flat": { "label": "flat", "thick": 0.09, "camber": 0.02, "lift": 0.85, "drag": 0.85 },
+          "standard": { "label": "cambered", "thick": 0.12, "camber": 0.05, "lift": 1, "drag": 1 },
+          "high": { "label": "high-lift", "thick": 0.14, "camber": 0.08, "lift": 1.15, "drag": 1.3 } }, "default": "standard" },
+        "plates": { "label": "end plates", "stats": true, "table": {
+          "none": { "label": "none", "none": 1, "lift": 0.9, "drag": 0 },
+          "small": { "label": "small", "up": 0.03, "down": 0.04, "lift": 0.96, "drag": 0 },
+          "standard": { "label": "standard", "up": 0.05, "down": 0.06, "lift": 1, "drag": 0 },
+          "tall": { "label": "tall", "up": 0.08, "down": 0.1, "lift": 1.05, "drag": 0.0008 },
+          "swept": { "label": "swept", "up": 0.06, "down": 0.08, "sweep": 0.06, "lift": 1.03, "drag": 0.0004 } }, "default": "standard" },
+        "angle": { "label": "set angle", "unit": "°", "range": [4, 12], "integer": true, "step": 1, "default": 8, "stats": true },
+        "gurney": { "label": "gurney flap", "unit": "m", "range": [0, 0.02], "step": 0.002, "default": 0, "stats": true },
+        "platePiece": { "label": "end plate piece (kit)", "kit": "endplate", "default": "none" }
       },
       "stats": {
         "area": { "label": "wing area", "unit": "m²", "formula": "span * chord * elements^0.8", "range": [0.1, 0.9], "digits": 3 },
-        "downforce": { "label": "downforce (lift coefficient)", "formula": "area * style.lift * (0.7 + riser)", "range": [0.04, 0.6], "digits": 3 },
-        "drag": { "label": "drag coefficient", "formula": "downforce * style.drag + 0.004", "range": [0.004, 0.06], "digits": 4 },
+        "downforce": { "label": "downforce (lift coefficient)", "formula": "area * style.lift * (0.7 + riser) * lerp(1, shape.profile.lift * shape.plates.lift * (1 + shape.gurney * 10) * iff(shape.angle <= 8, 0.45 + 0.55 * shape.angle / 8, 1 + 0.5 * (shape.angle - 8) / 8), style.wing)", "range": [0.04, 0.6], "digits": 3 },
+        "drag": { "label": "drag coefficient", "formula": "downforce * style.drag * lerp(1, shape.profile.drag, style.wing) + 0.004 + style.wing * (shape.plates.drag + shape.gurney * 0.2)", "range": [0.004, 0.06], "digits": 4 },
         "mass": { "label": "mass", "unit": "kg", "formula": "finish.mass * (area * 9 + 0.8 + riser * 4)", "range": [1, 20], "digits": 1 }
       },
       "economy": "measured",
@@ -145,6 +187,13 @@
           "cone": { "label": "cone filter", "gain": 0.025, "low": 0, "roar": 1.3, "mass": 1.2 },
           "cold_air": { "label": "cold air", "gain": 0.045, "low": -0.02, "roar": 1.6, "mass": 2 },
           "stacks": { "label": "velocity stacks", "gain": 0.075, "low": -0.03, "roar": 2, "mass": 3 } } }
+      },
+      "shapeSettings": {
+        "filter": { "label": "filter colour", "values": ["red", "blue", "black", "green", "yellow", "silver"], "default": "red" },
+        "coneLength": { "label": "filter length", "unit": "m", "range": [0.1, 0.22], "step": 0.01, "default": 0.16 },
+        "reach": { "label": "pipe run (cold air)", "unit": "m", "range": [0.35, 0.75], "step": 0.05, "default": null },
+        "stackScale": { "label": "stack height (velocity stacks)", "range": [0.7, 1.3], "step": 0.05, "default": null },
+        "pipeMaterial": { "label": "pipe (cold air)", "values": ["silver", "black", "blue", "red"], "default": "silver" }
       },
       "stats": {
         "topEnd": { "label": "torque from 4,000 rpm", "unit": "%", "formula": "style.gain * diameter / 90", "range": [0, 0.12], "digits": 4 },
@@ -162,6 +211,13 @@
       "settings": {
         "size": { "label": "compressor inducer", "unit": "mm", "range": [40, 76] },
         "ar": { "label": "turbine A/R", "range": [0.5, 1.1], "default": "0.6 + (size - 40) * 0.008" }
+      },
+      "shapeSettings": {
+        "inlet": { "label": "compressor inlet", "values": ["filter", "pipe"], "default": "filter" },
+        "filter": { "label": "filter colour", "values": ["red", "blue", "black", "green"], "default": "red" },
+        "manifold": { "label": "manifold", "values": ["cast", "flange", "equal"], "default": "cast" },
+        "downpipe": { "label": "downpipe drop", "unit": "m", "range": [0.12, 0.3], "step": 0.01, "default": 0.2 },
+        "hot": { "label": "turbine housing", "values": ["grey", "dark"], "default": "grey" }
       },
       "stats": {
         "boost": { "label": "peak boost", "unit": "bar", "formula": "0.35 + (size - 40) * 0.024", "range": [0.3, 1.3], "digits": 2 },
@@ -192,6 +248,14 @@
         "height": { "label": "core height", "unit": "m", "range": [0.16, 0.34], "default": "0.24" },
         "thickness": { "label": "core thickness", "unit": "mm", "range": [45, 110] }
       },
+      "shapeSettings": {
+        "tanks": { "label": "end tanks", "values": ["side", "top"], "default": "side" },
+        "tank": { "label": "tank size", "unit": "m", "range": [0.035, 0.08], "step": 0.005, "default": 0.055 },
+        "fins": { "label": "core", "values": ["tube", "bar"], "default": "tube" },
+        "pipes": { "label": "pipes", "values": [true, false], "default": true },
+        "pipeMaterial": { "label": "pipe colour", "values": ["raw_metal", "black", "blue", "red", "silver"], "default": "raw_metal" },
+        "tankMaterial": { "label": "tank colour", "values": ["raw_metal", "silver", "black"], "default": "raw_metal" }
+      },
       "stats": {
         "core": { "label": "core volume", "unit": "L", "formula": "width * height * thickness", "range": [3, 30], "digits": 1 },
         "mass": { "label": "mass", "unit": "kg", "formula": "2 + core * 0.8", "range": [3, 25], "digits": 1 }
@@ -213,6 +277,19 @@
           "kevlar": { "label": "kevlar", "mass": 7 },
           "carbon": { "label": "carbon", "mass": 5.2 } } }
       },
+      "shapeSettings": {
+        "wings": { "label": "head wings (fixed back)", "values": [false, true], "default": false },
+        "slots": { "label": "harness slots", "values": [true, false], "default": true },
+        "bolster": { "label": "side bolsters", "unit": "m", "range": [0.06, 0.18], "step": 0.01, "default": null },
+        "height": { "label": "back height", "unit": "m", "range": [0.8, 1], "step": 0.02, "default": 0.9 },
+        "depth": { "label": "depth", "unit": "m", "range": [0.6, 0.8], "step": 0.02, "default": 0.7 },
+        "fabric": { "label": "fabric", "table": {
+          "charcoal": { "label": "charcoal", "colour": "#2d3138" },
+          "red": { "label": "red", "colour": "#7a1f24" },
+          "blue": { "label": "blue", "colour": "#1f3a73" },
+          "grey": { "label": "grey", "colour": "#55595f" },
+          "tan": { "label": "tan", "colour": "#8a6a45" } }, "default": "charcoal" }
+      },
       "stats": {
         "mass": { "label": "mass", "unit": "kg", "formula": "shell.mass * (0.9 + (width - 0.5) * 2)", "range": [3, 25], "digits": 1 }
       },
@@ -232,6 +309,13 @@
           "suede": { "label": "suede", "tier": "sport", "mass": 0.95 },
           "carbon": { "label": "carbon and suede", "tier": "race", "mass": 0.8 } } }
       },
+      "shapeSettings": {
+        "spoke": { "label": "spokes", "values": ["drilled", "slotted", "flat"], "default": "drilled" },
+        "quickRelease": { "label": "quick release", "values": [true, false], "default": true },
+        "flatBottom": { "label": "flat bottom", "values": [false, true], "default": false },
+        "rimThickness": { "label": "rim thickness", "unit": "m", "range": [0.013, 0.022], "step": 0.001, "default": 0.017 },
+        "marker": { "label": "top marker", "values": ["red", "yellow", "white", "none"], "default": "red" }
+      },
       "stats": {
         "mass": { "label": "mass", "unit": "kg", "formula": "grip.mass * (0.5 + diameter / 1000 * 1.6)", "range": [0.8, 4], "digits": 2 }
       },
@@ -246,6 +330,11 @@
         "count": { "label": "gauges", "range": [1, 4], "integer": true },
         "size": { "label": "gauge size", "unit": "mm", "range": [52, 60], "default": "52" },
         "layout": { "label": "where", "values": ["pillar", "dash"], "default": "pillar" }
+      },
+      "shapeSettings": {
+        "bezel": { "label": "bezels", "values": ["chrome", "black", "raw_metal"], "default": "chrome" },
+        "faces": { "label": "faces", "values": ["mixed", "dark", "white"], "default": "mixed" },
+        "needle": { "label": "needles", "values": ["orange", "red", "white", "yellow"], "default": "orange" }
       },
       "stats": {
         "mass": { "label": "mass", "unit": "kg", "formula": "0.15 + count * size / 52 * 0.18", "range": [0.2, 3], "digits": 2 }
@@ -262,6 +351,12 @@
         "depth": { "label": "splitter and skirt depth", "unit": "m", "range": [0.02, 0.1] },
         "diffuser": { "label": "diffuser", "range": [0, 1], "default": "0.5" },
         "canards": { "label": "dive planes", "range": [0, 1], "default": "0", "integer": true }
+      },
+      "shapeSettings": {
+        "splitterBack": { "label": "splitter depth under the bumper", "unit": "m", "range": [0.12, 0.3], "step": 0.01, "default": 0.22 },
+        "blades": { "label": "side blades", "values": [true, false], "default": true },
+        "strakes": { "label": "diffuser strakes", "range": [3, 7], "integer": true, "step": 1, "default": 5 },
+        "bumperPiece": { "label": "bumper piece (kit)", "kit": "bumper", "default": "none" }
       },
       "stats": {
         "liftFront": { "label": "front downforce", "formula": "-(0.03 + depth * 1.1 + canards * 0.03)", "range": [-0.2, 0], "digits": 3 },

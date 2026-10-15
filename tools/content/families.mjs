@@ -14,10 +14,13 @@
 import { evaluate, said } from '../../garage/formulas.js';
 import { expandFamily as expand, perfKey } from '../../garage/families.js';
 import { REFERENCE_CAR, TIER_ORDER, forCar, partGain } from './balance.mjs';
+import { listKits } from '../generators/lib/kit.js';
+import { ROOT } from './rules.mjs';
 
-export function expandFamily(def, { formulas, db }) {
+// (the kit pieces there are: assets/kits — what a family's kit shape settings may name)
+export function expandFamily(def, { formulas, db, root = ROOT, kits = listKits(root) }) {
   const carNames = Object.fromEntries(Object.values(db.cars).map(c => [c.id, c.name]));
-  return expand(def, { formulas, carNames });
+  return expand(def, { formulas, carNames, kits });
 }
 
 // A slot's tiers along its gain scale: [{ tier, lo, hi }] (bands split at the middle of where they overlap)

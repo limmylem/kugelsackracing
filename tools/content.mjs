@@ -34,19 +34,10 @@ function failures(failed) {
 switch (cmd) {
   case 'build': {
     const { buildContent } = await import('./content/build.mjs');
+    const { buildWords } = await import('./content/build.mjs');
     const r = await buildContent({ only: ids.length ? ids : null, check: flag('--check'), log: flag('--verbose') ? console.log : () => {} });
-    const by = {};
-    for (const p of r.parts) { const k = p.generated?.family ?? `engine ${p.generated?.engine}`; (by[k] ??= []).push(p); }
-    for (const [k, list] of Object.entries(by)) {
-      const tiers = {}; for (const p of list) tiers[p.tier] = (tiers[p.tier] ?? 0) + 1;
-      const prices = list.map(p => p.price);
-      console.log(`  ${green('✔')} ${bold(k)}: ${list.length} part${list.length > 1 ? 's' : ''} (${Object.entries(tiers).map(([t, n]) => `${n} ${t}`).join(', ')}), $${Math.min(...prices).toLocaleString('en-GB')}–$${Math.max(...prices).toLocaleString('en-GB')}`);
-    }
-    const left = r.clashes.filter(c => c.left), cars = [...new Set(left.map(c => `${c.id.split('_')[0]} on the ${c.car}`))];
-    if (cars.length) console.log(`  note: left off the cars they can't be made to fit: ${cars.join(', ')}`);
-    failures(r.failed);
-    if (flag('--check')) console.log(`\nChecked ${r.parts.length} parts and ${r.models} models in ${took()}: nothing written.`);
-    else console.log(`\n${r.made.length} new, ${r.updated.length} changed, ${r.unchanged.length} the same, ${r.retired.length} retired; ${r.models} models — ${took()}.${r.made.length || r.updated.length ? ' Next: npm run content -- check' : ''}`);
+    const lines = buildWords(r, { check: flag('--check'), seconds: (performance.now() - t0) / 1000 });
+    for (const [i, l] of lines.entries()) console.log(l.ok ? `  ${green('✔')} ${bold(l.text.split(':')[0])}:${l.text.slice(l.text.indexOf(':') + 1)}` : l.bad ? red(i && !l.text.startsWith('  ') ? bold(`\n${l.text}`) : l.text) : i === lines.length - 1 ? `\n${l.text}` : `  ${l.text}`);
     process.exit(r.failed.length ? 1 : 0);
   }
   case 'check': {

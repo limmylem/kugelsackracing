@@ -78,7 +78,8 @@ export function steeringWheel(id, s) {
 }
 
 // ---------- gauge pods ----------
-// settings: { gauges (how many), size (a gauge's diameter, m), layout: 'pillar' (stacked up an A-pillar) | 'dash' (side by side) }
+// settings: { gauges (how many), size (a gauge's diameter, m), layout: 'pillar' (stacked up an A-pillar) | 'dash' (side by side),
+//   bezel (a finish or colour), faces ('mixed': dark and white in turn | 'dark' | 'white'), needle (a colour) }
 export function gaugePod(id, s) {
   const m = new PartModel(id), n = s.gauges, D = s.size ?? 0.052, gap = D + 0.012, r = D / 2;
   const at = i => s.layout === 'dash' ? [(i - (n - 1) / 2) * gap, r + 0.012, 0] : [0, r + 0.012 + i * gap, 0];
@@ -88,9 +89,9 @@ export function gaugePod(id, s) {
   else m.add(bevelBox([-r - 0.012, 0, -0.005], [r + 0.012, span, 0.07], 0.012), 'black');
   for (let i = 0; i < n; i++) {
     const p = at(i);
-    m.add(cylinder('z', r + 0.004, -0.02, -0.004, 14, { at: p }), 'chrome');
-    m.add(cylinder('z', r, -0.021, -0.016, 14, { at: p }), i % 2 ? 'white' : 'dark');
-    m.add(box([p[0] - 0.0015, p[1], -0.0225], [p[0] + 0.0015, p[1] + r * 0.75, -0.0205]).map(t => t.map(q => rotAbout(q, p, 0.6 - i * 0.5))), 'orange');
+    m.add(cylinder('z', r + 0.004, -0.02, -0.004, 14, { at: p }), s.bezel ?? 'chrome');
+    m.add(cylinder('z', r, -0.021, -0.016, 14, { at: p }), s.faces === 'dark' ? 'dark' : s.faces === 'white' ? 'white' : i % 2 ? 'white' : 'dark');
+    m.add(box([p[0] - 0.0015, p[1], -0.0225], [p[0] + 0.0015, p[1] + r * 0.75, -0.0205]).map(t => t.map(q => rotAbout(q, p, 0.6 - i * 0.5))), s.needle ?? 'orange');
   }
   return m;
 }
