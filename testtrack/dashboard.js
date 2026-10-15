@@ -27,6 +27,8 @@ export function createDash() {
   const fix = lamp('wrench', 'damaged systems'), fixN = document.createElement('b'); fix.append(fixN);
   const set = (x, level, title) => { x.className = `dl${x.classList.contains('text') ? ' text' : ''}${level ? ` ${level}` : ''}`; if (title) x.title = title; };
   let blink = 0;
+  // (flashing reduced — Settings → Accessibility: the overheat lamp lit steadily instead of blinking)
+  const steady = () => !!globalThis.document?.documentElement.classList.contains('a11y-no-flash');
   return {
     el,
     // s: the vehicle's snapshot; rows: the damage report (garage/mechanical.js damageReport); C: the cooling rules
@@ -53,7 +55,7 @@ export function createDash() {
       const tyres = Object.entries(m.wheels).filter(([, w]) => !w.off && (w.pressure < 0.9 || w.leak > 0));
       const flat = tyres.some(([, w]) => w.flat);
       set(tpms, flat ? 'red' : tyres.length ? 'amber' : '', tyres.length ? `tyre pressure: ${tyres.map(([k, w]) => `${k} ${w.flat ? 'FLAT' : `${Math.round(w.pressure * 100)}%`}`).join(', ')}` : 'tyre pressure');
-      set(hot, m.cooking ? (blink < 0.5 ? 'red' : '') : m.warn ? 'red' : '', m.warn ? `overheating: ${Math.round(m.temp)}°C` : 'engine overheating');
+      set(hot, m.cooking ? (blink < 0.5 || steady() ? 'red' : '') : m.warn ? 'red' : '', m.warn ? `overheating: ${Math.round(m.temp)}°C` : 'engine overheating');
       set(limp, m.limp ? 'red' : '');
       set(fix, worst, bad.length ? `damaged: ${bad.map(r => `${r.corner ? `${r.corner} ` : ''}${r.system} (${r.state})`).join(', ')}` : 'damaged systems');
       fixN.textContent = bad.length ? String(bad.length) : '';

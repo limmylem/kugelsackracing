@@ -18,6 +18,18 @@
 > every model fetched at an address with its version and kept in the browser's cache; models with levels of detail
 > (+2 MB on the tiles' address) and **studio thumbnails** (`assets/thumbs/`, a few MB). No change to the services or
 > what they cost.
+> Then Phase 8 Step 4, the launch polish (2026-10-15; [ONBOARDING.md](ONBOARDING.md), [ACCESSIBILITY.md](ACCESSIBILITY.md),
+> [TRANSLATIONS.md](TRANSLATIONS.md), [ANALYTICS.md](ANALYTICS.md), [LIVE_UPDATES.md](LIVE_UPDATES.md),
+> [PHOTO_MODE.md](PHOTO_MODE.md), [RELEASE.md](RELEASE.md), [LAUNCH_PLAN.md](LAUNCH_PLAN.md)): **migration 0016** —
+> ten new tables (`player_settings`, `player_profiles`, `school_results`, `player_photos`, `crews`, `crew_members`,
+> `analytics_events`, `news_items`, `calendar_events`, `calendar_rsvps`; only added, as every migration) — and their
+> endpoints in `server/src/routes/launch.ts` (settings, profiles, photos, crews, the driving school and first steps,
+> statistics, news and the calendar). New folders on the game's address: `locales/` (the game's words), `about/` (the
+> landing page) and `press/` (the press kit and its screenshots, about 2 MB). The play statistics are our own, in
+> the same Postgres (kept 400 days by the daily retention job), and the music is made in the browser: **no new
+> services, nothing more to pay.** Photos are kept in the database (at most 8 a player, 220 kB each: under 2 MB a
+> player, about 2 GB for 1,000 players who all fill theirs) — worth watching with the database's storage
+> ([COSTS.md](COSTS.md)).
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day

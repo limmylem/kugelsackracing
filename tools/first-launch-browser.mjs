@@ -1,0 +1,118 @@
+// The new player's first minutes in a real browser (Phase 8 Step 4; docs/ONBOARDING.md, docs/ACCESSIBILITY.md,
+// docs/PHOTO_MODE.md, docs/TRANSLATIONS.md): the game opened fresh, as a first-time player sees it, with no server
+// (tools/serve.mjs: the files alone) —
+//   1. the photosensitivity warning comes first, and holds the keyboard until it's read
+//   2. the starter car choice: picking the other car makes it the one you drive
+//   3. the tutorial's offer, then its coach with the first step
+//   4. the settings (O): every tab opens; Accessibility's text size, high contrast and reduced motion change the page
+//   5. photo mode (/): the HUD hidden but the map's credit kept; Esc closes it from the picture
+//   6. the pseudo-language (en-XA, every message longer): the settings' text stays inside its panel
+// Anything wrong is printed, and the exit code is 1.
+//
+//   node tools/first-launch-browser.mjs [--port 8941] [--wait 45000]     (server.yml runs it beside each deploy)
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
+const port = Number(opt('--port', 8941)), wait = Number(opt('--wait', 45000));
+let pw;
+try { pw = await import('playwright'); } catch { pw = await import('/opt/node-tools/node_modules/playwright-core/index.mjs'); }
+const server = spawn(process.execPath, ['tools/serve.mjs', String(port)], { cwd: root, env: { ...process.env, HOST: '127.0.0.1' }, stdio: 'ignore' });
+await new Promise(r => setTimeout(r, 1500));
+const exe = process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {};
+const browser = await pw.chromium.launch({ ...exe, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const nm = path.join(root, 'node_modules');
+let failed = 0;
+const check = (name, ok, detail = '') => { console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`); if (!ok) failed++; };
+
+async function open(url, init = null) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'en-AU' });
+  if (init) await ctx.addInitScript(init);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: path.join(nm, 'three', new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' }));
+  await page.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: path.join(nm, '@dimforge/rapier3d-compat/dist/rapier.mjs'), contentType: 'text/javascript' }));
+  await page.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/cesium/, r => r.abort());
+  await page.goto(`http://127.0.0.1:${port}${url}`);
+  await page.waitForTimeout(wait);
+  return { page, errors };
+}
+const visible = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); if (!e || e.hidden) return false; const c = getComputedStyle(e); return c.display !== 'none' && c.visibility !== 'hidden'; }, sel);
+
+try {
+  console.log('== the first launch (San Francisco, a fresh browser)');
+  const { page, errors } = await open('/dev/world.html?world=map_v3&onboarding');
+  // 1. the warning
+  check('the photosensitivity warning first', await visible(page, '.a11yDialog'), await page.evaluate(() => document.querySelector('.a11yDialog')?.textContent.slice(0, 70) ?? 'none'));
+  check('… holding the keyboard (the focus inside it)', await page.evaluate(() => !!document.querySelector('.a11yDialog')?.contains(document.activeElement)));
+  await page.click('.a11yDialog button'); await page.waitForTimeout(2500);
+  check('… gone once read, and remembered', !(await visible(page, '.a11yDialog')) && await page.evaluate(() => !!localStorage.getItem('ognistrada.photosensitivity.v1')));
+  // 2. the starter car
+  const cars = await page.$$eval('.onboardCard [data-a=car]', b => b.map(x => x.dataset.id));
+  check('the starter car choice: two cars', cars.length >= 2, cars.join(', '));
+  const other = cars.find(c => c !== 'starter_car');
+  if (other) {
+    await page.click(`.onboardCard [data-a=car][data-id=${other}]`); await page.waitForTimeout(4000);
+    const now = await page.evaluate(() => window.testWorld?.shared?.session?.garage?.car?.id ?? null);
+    check('… the one picked is the one you drive', now === other, `${now}`);
+  }
+  // 3. the tutorial
+  check('the tutorial offered', await visible(page, '.onboardCard [data-a=go]'));
+  await page.click('.onboardCard [data-a=go]').catch(() => {}); await page.waitForTimeout(3000);
+  const coach = await page.evaluate(() => document.querySelector('.tutorialCoach')?.textContent.slice(0, 80) ?? null);
+  check('… its coach shows the first step', !!coach, coach ?? 'no coach');
+  // 4. the settings
+  await page.keyboard.press('KeyO'); await page.waitForTimeout(1500);
+  check('the settings open (O)', await visible(page, '#settings'));
+  const tabs = await page.$$eval('#settings [role=tab]', t => t.map(x => x.dataset.tab));
+  const opened = [];
+  for (const tab of tabs) { await page.click(`#settings [data-tab=${tab}]`); await page.waitForTimeout(250); if (await page.evaluate(t => document.querySelector(`#settings [data-tab=${t}]`)?.getAttribute('aria-selected') === 'true' && (document.querySelector('#settings [role=tabpanel]')?.textContent.trim().length ?? 0) > 20, tab)) opened.push(tab); }
+  check('… every tab opens with its settings', opened.length === tabs.length && tabs.length >= 8, `${opened.length} of ${tabs.length}: ${tabs.join(', ')}`);
+  await page.click('#settings [data-tab=accessibility]'); await page.waitForTimeout(300);
+  const before = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+  const set = async (sel, value) => page.evaluate(([s, v]) => { const e = document.querySelector(s); if (!e) return false; e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); return true; }, [sel, value]);
+  const found = { text: await set('#settings [data-num="a11y.textSize"], #settings [data-range="a11y.textSize"]', '1.4'), contrast: await set('#settings [data-str="a11y.contrast"]', 'high'), motion: await set('#settings [data-str="a11y.motion"]', 'reduced') };
+  await page.waitForTimeout(800);
+  const after = await page.evaluate(() => ({ size: parseFloat(getComputedStyle(document.documentElement).fontSize), cls: document.documentElement.className }));
+  check('… bigger text makes the page\'s text bigger', found.text && after.size > before * 1.2, `${before}px → ${after.size}px`);
+  check('… high contrast and reduced motion switch on', found.contrast && found.motion && /a11y-contrast/.test(after.cls) && /a11y-reduced-motion/.test(after.cls), after.cls);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+  check('… Esc closes them', !(await visible(page, '#settings')));
+  // 5. photo mode
+  await page.click('.tutorialCoach [data-a=skip]').catch(() => {}); await page.waitForTimeout(500);
+  await page.mouse.click(640, 400); await page.keyboard.press('Slash'); await page.waitForTimeout(2000);
+  check('photo mode opens (/)', await visible(page, '#photoMode'));
+  check('… the HUD hidden', !(await visible(page, '#playerHud')));
+  check('… the map\'s credit kept', await visible(page, '#map3Attribution, #worldAttribution'));
+  await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(560, 430, { steps: 6 }); await page.mouse.up();
+  await page.keyboard.press('Escape'); await page.waitForTimeout(1000);
+  check('… Esc closes it from the picture', !(await visible(page, '#photoMode')) && await visible(page, '#playerHud'));
+  check('no errors on the page', !errors.length, errors.slice(0, 3).join(' | '));
+  await page.context().close();
+
+  // 6. the pseudo-language: longer text, still inside the panels
+  console.log('\n== the pseudo-language (en-XA: every message longer and accented)');
+  const X = await open('/dev/world.html?world=test_centre', () => {
+    localStorage.setItem('ognistrada.photosensitivity.v1', '2026-01-01');
+    localStorage.setItem('ognistrada.onboarding.v1', JSON.stringify({ welcome: 'offline', starter: 'starter_car', tutorial: 'skipped' }));
+    localStorage.setItem('driveWorld.settings.v1', JSON.stringify({ language: 'en-XA', privacy: { analytics: false } }));
+  });
+  await X.page.keyboard.press('KeyO'); await X.page.waitForTimeout(1500);
+  const xa = await X.page.evaluate(() => document.querySelector('#settings h2, #settings [id=settingsTitle]')?.textContent ?? '');
+  check('the settings in the pseudo-language', /[À-ɏ]/.test(xa), xa.slice(0, 40));
+  const over = [];
+  for (const tab of await X.page.$$eval('#settings [role=tab]', t => t.map(x => x.dataset.tab))) {
+    await X.page.click(`#settings [data-tab=${tab}]`); await X.page.waitForTimeout(200);
+    over.push(...await X.page.evaluate(t => { const P = document.querySelector('#settings').getBoundingClientRect(); return [...document.querySelectorAll('#settings label, #settings button, #settings h2, #settings h3, #settings p')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > P.right + 1 || r.left < P.left - 1); }).slice(0, 3).map(e => `${t}: ${e.textContent.trim().slice(0, 30)}`); }, tab));
+  }
+  check('… nothing spills out of the panel', !over.length, over.slice(0, 5).join(' | '));
+  check('no errors on the page', !X.errors.length, X.errors.slice(0, 3).join(' | '));
+} finally {
+  await browser.close(); server.kill();
+}
+console.log(failed ? `\n${failed} failed` : '\nall passed');
+process.exit(failed ? 1 : 0);

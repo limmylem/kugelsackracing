@@ -55,7 +55,8 @@ body.garage-mode #playerHud, body.roamPhoto #playerHud, #playerHud [hidden] { di
 #playerHud .ph-mode { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font: 700 8px "JetBrains Mono", monospace; letter-spacing: .16em; color: #8B929B; }
 #playerHud .ph-mode.seq { color: #FF6A52; }
 #playerHud.shift .ph-tach .face { fill: url(#ph-face-hot); }
-#playerHud.shift .ph-gear { animation: ph-shift .2s steps(2) infinite; }
+#playerHud.shift .ph-gear { animation: ph-shift .36s steps(2) infinite; }   /* (under three flashes a second: WCAG 2.3.1) */
+.a11y-no-flash #playerHud.shift .ph-gear { animation: none; background: #fff; color: #C80F1B; }   /* (flashing reduced: lit, steady) */
 @keyframes ph-shift { 50% { background: #fff; color: #C80F1B; } }
 #playerHud .ph-lamps { display: flex; gap: 3px; flex-wrap: wrap; }
 #playerHud .ph-lamps span { padding: 4px 5px; border-radius: 5px; font: 700 9px "JetBrains Mono", monospace; letter-spacing: .04em; background: rgba(255, 255, 255, .03); color: #555A61; }

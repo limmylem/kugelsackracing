@@ -43,7 +43,7 @@ test('settings follow the player: saved, read on another device, the newer copy 
   assert.equal((await ann.put('/api/v1/player/settings', { data: { big: 'x'.repeat(60_000) }, changedAt: 4000 })).status, 413);
 });
 
-test('the driving school: a medal by the lesson\'s measure, its reward paid once, a better medal pays its own; impossible results refused', async () => {
+test('the driving school: a medal by the lesson\'s measure, its reward paid once, a better medal pays the difference up to its own; impossible results refused', async () => {
   const L = { better: 'lower', medals: { bronze: 6, silver: 3, gold: 1.2 }, bounds: [0, 200] };
   assert.equal(medalFor(L, 7), null); assert.equal(medalFor(L, 5), 'bronze'); assert.equal(medalFor(L, 1), 'gold'); assert.equal(medalFor(L, -1), 'invalid'); assert.equal(medalFor(L, NaN), 'invalid');
   const money = async () => Number((await q(sql`select balance from player_economy where user_id = ${annId}`))[0].balance);
@@ -56,7 +56,7 @@ test('the driving school: a medal by the lesson\'s measure, its reward paid once
   assert.equal(r.best, 4, 'the best stays the best');
   r = (await ann.post('/api/v1/player/school/braking-zone', { value: 1.0 })).body;
   assert.equal(r.medal, 'gold'); assert.deepEqual(r.paid, ['silver', 'gold']);
-  assert.equal(await money(), m0 + 150 + 300 + 600);
+  assert.equal(await money(), m0 + 600, 'a gold has paid the gold\'s reward in all (150, then 450 more)');
   assert.equal((await ann.post('/api/v1/player/school/braking-zone', { value: 999 })).status, 400, 'not a real run');
   assert.equal((await ann.post('/api/v1/player/school/no-such', { value: 1 })).status, 404);
   const s = (await ann.get('/api/v1/player/school')).body;
@@ -79,6 +79,11 @@ test('photos: small real JPEG or WebP only, a few each; shown on a public profil
   assert.equal((await ann.post('/api/v1/player/photos', { image: 'data:image/jpeg;base64,PHNjcmlwdD4=' })).status, 400, 'says JPEG, isn\'t');
   const p = await ann.post('/api/v1/player/photos', { image: JPEG, caption: 'Sunset at Glenelg', place: 'Adelaide' });
   assert.equal(p.status, 200);
+  // (private until the player says: privacy by default — account/privacy.html)
+  assert.equal((await ann.get('/api/v1/player/profile')).body.public, false, 'a profile starts private');
+  assert.equal((await ben.get(`/api/v1/profiles/${annId}`)).status, 403);
+  assert.equal((await ben.get(p.body.url)).status, 404, 'and its photos');
+  await ann.put('/api/v1/player/profile', { public: true });
   const img = await ben.get(p.body.url);
   assert.equal(img.status, 200); assert.equal(img.headers['content-type'], 'image/jpeg');
   const prof = (await ben.get(`/api/v1/profiles/${annId}`)).body;
@@ -116,12 +121,13 @@ test('analytics: only with consent, no account in it; the admins\' dashboard sho
   const anon = new Player(T.app, '10.9.1.9');
   const body = { consent: true, anon: 'browser-abc-123', session: 'sess-1', version: 'v-test', device: { tier: 'mid', browser: 'Chrome' }, events: [
     { kind: 'session_start' }, { kind: 'tutorial', name: 'throttle' }, { kind: 'tutorial', name: 'braking' }, { kind: 'quest_start', name: 'q1' },
-    { kind: 'perf', props: { fps: 58, low1: 41 } }, { kind: 'error', name: 'TypeError: x is undefined', props: { fatal: false } }, { kind: 'quit', name: 'tutorial:braking' }] };
+    { kind: 'perf', props: { fps: 58, low1: 41 } }, { kind: 'error', name: 'TypeError: x is undefined', props: { fatal: false } }, { kind: 'quit', name: 'tutorial:braking' },
+    { kind: 'error', name: 'WebGL context lost', props: { fatal: true } }, { kind: 'setting', name: 'accessibility', props: { text: 1.3, contrast: 'high', colours: 'standard', motion: 'reduced', cues: true } }] };
   assert.equal((await anon.post('/api/v1/analytics', { ...body, consent: false })).status, 400, 'no consent: refused');
   assert.equal((await anon.post('/api/v1/analytics', { ...body, events: [{ kind: 'nope' }] })).status, 400);
   assert.equal((await anon.post('/api/v1/analytics', body)).status, 204);
   const rows = await q(sql`select * from analytics_events`);
-  assert.equal(rows.length, 7);
+  assert.equal(rows.length, 9);
   assert.ok(rows.every(r => r.anon !== 'browser-abc-123' && r.anon.length === 22), 'the browser\'s id hashed again');
   assert.ok(!JSON.stringify(rows).includes('10.9.1.9'), 'no address');
   assert.equal((await ann.get('/api/v1/admin/analytics')).status, 403);
@@ -130,6 +136,8 @@ test('analytics: only with consent, no account in it; the admins\' dashboard sho
   assert.deepEqual(d.tutorial.map((x: any) => x.name).sort(), ['braking', 'throttle']);
   assert.equal(d.perf[0].fps, 58);
   assert.equal(d.errors[0].with_errors, 1);
+  assert.equal(d.errors[0].crashed, 1, 'the graphics lost counts as a crash');
+  assert.deepEqual([d.access.players, d.access.bigger_text, d.access.high_contrast, d.access.reduced_motion, d.access.colour_blind, d.access.sound_cues], [1, 1, 1, 1, 0, 1]);
   assert.equal(d.quits[0].name, 'tutorial:braking');
 });
 

@@ -15,3 +15,17 @@ A real car's dashboard: rev counter, speedometer and warning lights
 The garage fits properly in Safari
 Cars and parts load faster, and stay saved between visits
 Parts knocked off in a crash tumble in their real shape
+Pick your first car, then a short guided drive on a real road
+A driving school: seven lessons, with bronze, silver and gold medals
+Remap every control, and choose hold or toggle
+Play on a phone or tablet with touch controls
+Bigger text, high contrast and colours for colour blindness
+Reduced motion and flashing, and important sounds shown on screen
+The game's own music, building as the race gets close
+Photo mode: fly the camera, set the light, save the shot
+Share a link to your best time for friends to beat
+Your profile: medals, best times, favourite cars and photos
+Start a crew and invite your friends
+Your settings follow you to any device
+News, patch notes and an event calendar in the game
+Speeds in miles per hour where you use them

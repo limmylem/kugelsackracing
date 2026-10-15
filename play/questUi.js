@@ -477,6 +477,15 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     get state() { return run?.controller.state ?? null; },
     get controller() { return run?.controller ?? null; },
     get hudSettings() { return hudSettings; },
+    // how the race is going, for the music (audio/music.js raceIntensity): the lap, how far through, the gaps to the
+    // cars either side (seconds; an NPC race's standings)
+    raceInfo() {
+      const Q = run?.controller.session;
+      if (!Q) return {};
+      const H = Q.hud(), me = run.race?.standings().find(x => x.player);
+      const progress = H.checkpoints ? Math.min(1, (H.checkpoint ?? 0) / H.checkpoints) : null;
+      return { lap: H.lap ?? 1, laps: H.laps ?? 1, progress, gapAhead: me?.gapAhead ?? null, gapBehind: me?.gapBehind ?? null };
+    },
     stateOf: id => questState(game.player.profile, id),
     // (fast travel: its route loaded before the car arrives, so it starts at once)
     preload: item => courseOf(item).catch(() => null),

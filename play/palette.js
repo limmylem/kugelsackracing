@@ -37,11 +37,12 @@ export const PALETTES = {
     checkpoint: ['#1b1b1b', '#ffffff', '#e8433a'], bonus: ['#1b1b1b', '#00d2c8', '#006e6a'],
     route: '#ff3fa4', guide: '#00d2c8',
   },
-  // high contrast: the brightest colours there are on the dark HUD, told apart by brightness too
+  // high contrast: the brightest colours there are on the dark HUD, told apart by brightness too — and still apart for
+  // every kind of colour vision (sky blue against orange, not green against red: tests/unit/polish.test.mjs)
   highContrast: {
     name: 'High contrast',
-    good: '#00ff66', bad: '#ff2a2a', warn: '#ffff00', neutral: '#ffffff',
-    arrow: '#ffff00', arrowMissed: '#ff2a2a',
+    good: '#33ccff', bad: '#ff6a00', warn: '#ffff00', neutral: '#ffffff',
+    arrow: '#ffffff', arrowMissed: '#ff6a00',
     checkpoint: ['#000000', '#ffff00', '#ffffff'], bonus: ['#000000', '#00ffff', '#ffffff'],
     route: '#ff00ff', guide: '#00ffff',
   },

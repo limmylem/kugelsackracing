@@ -7,7 +7,7 @@
 //   motion       'auto' (the system's "reduce motion") | 'full' | 'reduced': reduced: no camera shake, no motion blur,
 //                no speed effects (the field of view widening, speed lines), no animated menus
 //   flashing     'reduced' (the default) | 'full': reduced: nothing flashes more than three times a second (WCAG 2.3.1)
-//                — the shift light and warning lamps glow steadily, lightning and camera flashes are softened
+//                — the shift light and the dashboard's warning lamps glow steadily instead of blinking
 //   visualSounds the important sounds shown too (ui/soundCues.js)
 //   screen reader: menus are buttons, tabs and labelled controls; announce() speaks a change (the live region)
 //
@@ -26,8 +26,6 @@ export function motionOf(settings) {
   const A = a11yOf(settings), reduced = A.motion === 'reduced' || (A.motion === 'auto' && systemReduced());
   return { reduced, cameraShake: reduced ? 0 : A.cameraShake, motionBlur: !reduced, speedEffects: !reduced, flashing: A.flashing };
 }
-// at most three flashes a second: a blinking lamp's period, held to that (and steady when flashing is reduced)
-export const safeBlink = (settings, wanted = 0.25) => a11yOf(settings).flashing === 'reduced' ? null : Math.max(wanted, 1 / 3);
 
 // (the new screens' styles: ui/a11y.css — added to a page that doesn't link it already)
 export function ensureStyles(doc = globalThis.document) {
@@ -54,7 +52,7 @@ export function paletteName(settings) {
   const c = a11yOf(settings).colours;
   if (c === 'tritanopia') return 'tritanopia';
   if (c === 'deuteranopia' || c === 'protanopia') return 'colourblind';
-  if (c === 'high') return 'highContrast';
+  if (a11yOf(settings).contrast === 'high') return 'highContrast';
   return settings?.palette ?? 'standard';
 }
 

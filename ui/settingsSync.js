@@ -2,12 +2,12 @@
 // too), the settings are kept on the server as well as in this browser. On start, the newer copy wins (each change is
 // stamped with when it was made); after a change, the account's copy is updated a moment later (changes in a burst are
 // sent once). Offline, they're kept here and sent when the connection's back. The graphics stay on each device (their
-// own benchmark chose them): testtrack/settings.js DEVICE_ONLY.
+// own benchmark chose them), and so do a gamepad's and a wheel's bindings and calibration (that hardware's): testtrack/settings.js DEVICE_ONLY.
 //
 //   const sync = startSettingsSync({ A, settings, apply })   // apply(settings): after the account's newer copy came in
 //   sync.status()  → 'local' | 'saving' | 'synced' | 'offline'
 
-import { onSave, portable, saveSettings, mergeSettings } from '../testtrack/settings.js';
+import { onSave, portable, saveSettings, mergeSettings, deviceless } from '../testtrack/settings.js';
 
 export function startSettingsSync({ A, settings, apply = () => {}, delayMs = 1500 }) {
   let state = 'local', timer = null, pending = false, who = null;
@@ -18,7 +18,7 @@ export function startSettingsSync({ A, settings, apply = () => {}, delayMs = 150
       const r = await A.api.get('/player/settings');
       if (r.data && r.changedAt > (settings.updatedAt ?? 0)) {
         // the account's are newer: they're the settings now (this device's graphics kept)
-        mergeSettings(settings, { ...r.data, graphics: undefined, updatedAt: r.changedAt });
+        mergeSettings(settings, { ...deviceless(r.data), updatedAt: r.changedAt });
         saveSettings(settings, { touched: false });
         apply(settings);
       } else if (!r.data || r.changedAt < (settings.updatedAt ?? 0)) await push();
@@ -30,7 +30,7 @@ export function startSettingsSync({ A, settings, apply = () => {}, delayMs = 150
     state = 'saving'; pending = false;
     try {
       const r = await A.api.put('/player/settings', { data: portable(settings), changedAt: settings.updatedAt || Date.now() });
-      if (!r.saved && r.newer) { mergeSettings(settings, { ...r.newer.data, graphics: undefined, updatedAt: r.newer.changedAt }); saveSettings(settings, { touched: false }); apply(settings); }
+      if (!r.saved && r.newer) { mergeSettings(settings, { ...deviceless(r.newer.data), updatedAt: r.newer.changedAt }); saveSettings(settings, { touched: false }); apply(settings); }
       state = 'synced';
     } catch { state = 'offline'; pending = true; }
   }

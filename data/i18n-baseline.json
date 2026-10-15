@@ -1,13 +1,11 @@
 {
  "_note": "Hard-coded English a player reads, per file, still to move into locales/ (tools/i18n.mjs). It may only go down: npm run i18n -- baseline after moving some out.",
- "total": 775,
+ "total": 725,
  "files": {
   "account/account.js": 3,
   "account/credits.html": 7,
-  "account/index.html": 11,
-  "account/privacy.html": 24,
-  "account/status.js": 14,
-  "account/terms.html": 21,
+  "account/index.html": 7,
+  "account/status.js": 13,
   "garage/garageUi.js": 208,
   "garage/playtest.js": 1,
   "garage/profileCard.js": 20,

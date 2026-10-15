@@ -51,13 +51,17 @@ export function startAnalytics({ settings, version = globalThis.KR_SITE?.version
       if (queue.length >= 40) flush(); else timer ??= setTimeout(flush, flushMs);
     },
     consent(on) { if (!on) queue = []; else S.track('session_start'); },
+    screen: null,             // (the screen the player is on, set by the game: sent as where they were if they leave)
     flush,
     get allowed() { return allowed(); },
   };
   // (errors: their message and where, never a page's content; the frame rate a minute, as the profiler has it)
   addEventListener('error', e => S.track('error', `${e.message ?? 'error'}`.slice(0, 80), { where: String(e.filename ?? '').split('/').slice(-1)[0], line: e.lineno, fatal: false }));
   addEventListener('unhandledrejection', e => S.track('error', String(e.reason?.message ?? e.reason ?? 'rejection').slice(0, 80), { fatal: false }));
-  addEventListener('pagehide', () => { S.track('session_end'); flush({ beacon: true }); });
+  // (a crash, for a game in a browser: the picture lost — the graphics context gone — or something saying it's fatal)
+  addEventListener('webglcontextlost', () => S.track('error', 'WebGL context lost', { fatal: true }), true);
+  addEventListener('kr:fatal', e => S.track('error', String(e.detail?.message ?? 'fatal').slice(0, 80), { fatal: true }));
+  addEventListener('pagehide', () => { S.track('quit', S.screen); S.track('session_end'); flush({ beacon: true }); });
   S.track('session_start');
   return S;
 }

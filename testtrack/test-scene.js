@@ -841,7 +841,7 @@ async function createShared() {
   s.launch = createLaunch(s, {
     THREE, renderer, MapV3, active: () => active, regionId: regionIdOf,
     switchTo: file => hooks.switchTo ? hooks.switchTo(file) : enter(file),
-    toGarage: () => hooks.toGarage?.(),
+    toGarage: tab => hooks.toGarage?.(tab),
     travelToRegion: id => enter(regionFile(id)),
     routeItem: id => active?.questGame?.routeItem?.(id), fastTravel: item => active?.questGame?.fastTravel?.(item),
   });
@@ -1184,7 +1184,7 @@ function frame(w, now) {
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
   // (photo mode: the world holds still and its free camera draws — online, the world carries on underneath: below)
-  if (shared.launch?.photo.on && !shared.mp && !shared.mpRace) { for (const act of inp.pressed) if (act === 'photo' || act === 'settings') handleAction(w, act, inp); shared.launch.drawFrame(w, seconds); PF.lap('render'); PF.frameEnd(); return; }
+  if (shared.launch?.photo.on && !shared.mp && !shared.mpRace) { for (const act of inp.pressed) if (act === 'photo' || act === 'settings') handleAction(w, act, inp); daylight(w, P.timeOfDay ?? 13); shared.launch.drawFrame(w, seconds); PF.lap('render'); PF.frameEnd(); return; }
   // the race replay (after a race): it's what's drawn, and the world waits
   if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) { PF.lap('render'); PF.frameEnd(); return; } }
   // a crash replay playing (or due): it's what's drawn, and the world waits
@@ -2082,7 +2082,7 @@ function engineEvents(w, v) {
   const s = shared, events = v.drivetrain.events;
   if (!events.length) return;
   for (const e of events.splice(0)) {
-    if (e.type === 'grind') { s.audio?.grind(e.strength); s.input.pulse(0.5 + 0.5 * e.strength, 0.3); continue; }
+    if (e.type === 'grind') { s.audio?.grind(e.strength); s.input.pulse(0.5 + 0.5 * e.strength, 0.3); s.launch?.cue('grind'); continue; }
     s.flash.news(e);
     // (a money shift: its toll on the gearbox, with full damage)
     if (e.type === 'overRevShift') s.session.mechanical.gearboxWear(e.over * s.session.db.damage.mechanical.effects.gearbox.overRevShift, { mode: s.prefs.damage ?? 'full' });

@@ -18,7 +18,9 @@ const clone = x => JSON.parse(JSON.stringify(x));
 export const TABS = ['gameplay', 'controls', 'graphics', 'sound', 'accessibility', 'language', 'privacy', 'notifications'];
 // (what doesn't follow the player between devices: the graphics are this device's, the rebinding of a pad or wheel
 // this device's hardware's)
-export const DEVICE_ONLY = ['graphics'];
+export const DEVICE_ONLY = ['graphics', 'pad', 'wheel'];
+// (a copy from the account, with this device's own left as they are)
+export const deviceless = data => Object.fromEntries(Object.entries(data ?? {}).filter(([k]) => !DEVICE_ONLY.includes(k)));
 
 export function defaultSettings(spec) {
   const A = spec.assists;
@@ -50,7 +52,7 @@ export function defaultSettings(spec) {
     // language and units (ui/i18n.js, ui/units.js): 'auto' is the browser's; place names local (OSM's) or English
     language: 'auto', units: 'auto', placeNames: 'local',
     // privacy: anonymous play statistics (null: not asked yet — the game asks once; docs/ANALYTICS.md)
-    privacy: { analytics: null, showOnline: true },
+    privacy: { analytics: null },
     // what the game tells you about (ui/news.js)
     notifications: { news: true, patchNotes: true, events: true, eventReminders: true },
     input: clone(DEFAULT_INPUT), keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL),
@@ -208,7 +210,6 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
     privacy() {
       const s = S();
       return `${select('data-str="privacy.analytics"', t('privacy.analytics'), [['', t('privacy.notAsked')], ['true', t('privacy.yes')], ['false', t('privacy.no')]].map(([v, n]) => opt(v, s.privacy?.analytics == null ? '' : String(s.privacy.analytics), n, v === '' ? 'disabled' : '')).join(''), t('privacy.analyticsHelp'))}
-        ${check('data-bool="privacy.showOnline"', s.privacy?.showOnline !== false, t('privacy.showOnline'), t('privacy.showOnlineHelp'))}
         <p class="pads"><a href="/account/privacy.html" target="_blank" rel="noopener">${t('privacy.policy')}</a> · <a href="/account/" target="_blank" rel="noopener">${t('privacy.yourData')}</a></p>`;
     },
     notifications() {

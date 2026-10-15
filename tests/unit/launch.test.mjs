@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { createTutorial, STEPS } from '../../play/tutorialLogic.js';
 import { createLesson, medalOf, COURSES } from '../../play/schoolLogic.js';
 import { sampleOf } from '../../play/onboarding.js';
-import { raceIntensity, RACE_LAYERS, PIECES } from '../../audio/music.js';
+import { raceIntensity, RACE_LAYERS, PIECES, createMusic } from '../../audio/music.js';
 import { applyFilter, FILTERS } from '../../play/photoMode.js';
 import { shareLink, readDeepLink } from '../../ui/share.js';
 import { patchNotesToShow, renderBody } from '../../ui/news.js';
@@ -105,6 +105,8 @@ test('choosing a starter car: once, only at the very start, only one of the choi
   assert.equal(r.ok, true, r.error);
   assert.equal(S.profile.cars[S.profile.currentCar].carId, 'hana_roadster');
   assert.equal(Object.keys(S.profile.cars).length, 1);
+  const car = S.profile.currentCar;
+  assert.deepEqual(Object.values(S.profile.parts).filter(x => x.installedOn?.car !== car).map(x => x.partId), [], 'the starting car\'s stock parts went with it (nothing left to sell)');
   assert.equal((await S.chooseStarter('starter_car')).ok, false, 'once');
 });
 
@@ -149,6 +151,28 @@ test('the race music: builds with the last lap and a close race; its layers come
   assert.ok(raceIntensity({ lap: 3, laps: 3, gapBehind: 0.2 }) >= 0.95);
   assert.deepEqual(Object.entries(RACE_LAYERS).filter(([, v]) => v === 0).map(([k]) => k), ['kick', 'bass', 'pad']);
   for (const p of Object.values(PIECES)) assert.ok(p.bpm > 60 && p.chords.length >= 3);
+});
+
+test('the music: asked for every frame, a piece starts once (no timers piling up while one fades out)', async () => {
+  // (an audio context that takes any call: every node, param and method is the same do-nothing thing)
+  const any = new Proxy(function () {}, { get: (_, k) => k === 'currentTime' ? 0 : k === 'sampleRate' ? 800 : k === 'getChannelData' ? () => new Float32Array(800) : k === 'value' ? 0 : any, apply: () => any, set: () => true });
+  const real = { setInterval, clearInterval, setTimeout }, live = new Set();
+  globalThis.setInterval = (f, ms) => { const id = real.setInterval(() => {}, 1e9); live.add(id); return id; };
+  globalThis.clearInterval = id => { live.delete(id); real.clearInterval(id); };
+  try {
+    const M = createMusic({ ctx: any, bus: { music: any } }, { settings: {} });
+    for (let i = 0; i < 30; i++) M.play('menu');
+    assert.equal(live.size, 1, 'one timer for the menu');
+    for (let i = 0; i < 30; i++) M.play('race');          // (the menu fading out: the race waits for it)
+    await new Promise(r => real.setTimeout(r, 950));
+    assert.equal(live.size, 1, 'still one, for the race');
+    assert.equal(M.playing, 'race');
+    M.play('menu'); M.play('race');                        // (changed back before the fade ended: nothing new starts)
+    await new Promise(r => real.setTimeout(r, 950));
+    assert.ok(live.size <= 1);
+    M.stop();
+    assert.equal(live.size, 0);
+  } finally { Object.assign(globalThis, real); for (const id of live) real.clearInterval(id); }
 });
 
 test('photo filters: the same colour change on the saved photo as on the screen', () => {

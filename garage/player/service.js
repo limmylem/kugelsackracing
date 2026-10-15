@@ -638,6 +638,8 @@ export class LocalPlayerService extends PlayerService {
       if (ids.length !== 1 || p.cars[ids[0]].carId !== E.startingCar || Object.keys(p.quests ?? {}).length) return { error: 'The starter car is chosen at the start, before anything else.' };
       p.starterChosen = carId;
       if (carId === E.startingCar) return { result: { carInstanceId: ids[0] } };
+      // (the starting car goes with its stock parts: nothing of it is left to sell)
+      for (const [pid, part] of Object.entries(p.parts)) if (part.installedOn?.car === ids[0]) delete p.parts[pid];
       delete p.cars[ids[0]];
       const id = addCar(p, this.db, carId, 0);
       p.currentCar = id;

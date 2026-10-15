@@ -1,4 +1,4 @@
-// A player's profile (Phase 8 Step 4; docs/PROGRESSION.md "Profile"): their level, stats, favourite cars, medals (quests
+// A player's profile (Phase 8 Step 4; docs/PHOTO_MODE.md "The player profile page"): their level, stats, favourite cars, medals (quests
 // and the driving school), best times, crew and photos — their own (?id missing), or another player's (?id=…) if they
 // keep it public. Your own: choose favourite cars, keep it public or private, make, join or leave a crew, remove a
 // photo, share it. Everything in the player's language (ui/i18n.js); every value shown as text.

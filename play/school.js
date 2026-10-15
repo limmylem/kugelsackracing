@@ -45,7 +45,7 @@ export function createSchool({ THREE, game, lessons, rewards = {}, t = tr }) {
     list.innerHTML = `<div class="head"><h2 id="schoolTitle">${t('school.title')}</h2><button type="button" class="close" data-a="close" aria-label="${t('common.close')}">×</button></div>
       <p>${t('school.intro')}</p><ol>${lessons.map(l => {
         const r = results[l.id], m = r?.medal && r.medal !== 'none' ? r.medal : null;
-        return `<li><button type="button" data-a="begin" data-id="${esc(l.id)}"><b>${t(`school.lesson.${l.id}.title`)}</b> <small>${t(`school.topic.${l.topic}`)}</small>
+        return `<li><button type="button" data-a="begin" data-id="${esc(l.id)}"><b>${t(`school.lesson.${l.id}.title`)}</b>${t(`school.topic.${l.topic}`) !== t(`school.lesson.${l.id}.title`) ? ` <small>${t(`school.topic.${l.topic}`)}</small>` : ''}
           <span class="medal">${m ? `${MEDAL_ICON[m]} ${t(`school.medal.${m}`)}` : t('school.noMedal')}${r?.best != null ? ` · ${t('school.best', { value: fmt(l, r.best) })}` : ''}</span></button></li>`;
       }).join('')}</ol>`;
     document.body.append(list);

@@ -95,7 +95,7 @@ export function createQuestController({ quest, course, config, player, car = {},
     }
     results = { outcome, result, pay, pb: !!pay?.pb, recording, field: outcome.field ?? null, transfer };
     // (the game hears of it too: the guided first steps, the statistics — play/onboarding.js, ui/analytics.js)
-    globalThis.dispatchEvent?.(new CustomEvent('kr:quest', { detail: { quest: { id: quest.id, type: quest.type, rivals: !!R }, status: outcome.status, place: outcome.place ?? null, medal: outcome.medal ?? pay?.medal ?? null } }));
+    globalThis.dispatchEvent?.(new CustomEvent('kr:quest', { detail: { quest: { id: quest.id, type: quest.type, rivals: !!R, track: quest.track ? (quest.track.name ?? quest.track.code ?? null) : null }, status: outcome.status, place: outcome.place ?? null, medal: outcome.medal ?? pay?.medal ?? null } }));
     onEnd(results);
     return results;
   }
@@ -110,7 +110,7 @@ export function createQuestController({ quest, course, config, player, car = {},
       results = null; ending = null; placed = false; rec = null;
       const st = await player.startQuest(quest, { carInstanceId: car.instanceId, car, restart });
       if (!st.ok) return { ok: false, error: st.error, reasons: st.reasons ?? [] };
-      globalThis.dispatchEvent?.(new CustomEvent('kr:questStart', { detail: { quest: { id: quest.id, type: quest.type, rivals: !!race } } }));
+      globalThis.dispatchEvent?.(new CustomEvent('kr:questStart', { detail: { quest: { id: quest.id, type: quest.type, rivals: !!race, track: quest.track ? (quest.track.name ?? quest.track.code ?? null) : null } } }));
       attemptId = st.attemptId;
       try {
         Q = createQuestSession({ quest, course, config, car, startMode, best });

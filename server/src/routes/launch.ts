@@ -78,7 +78,7 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
 
   // ---------- the profile ----------
   async function profileOf(userId: string, viewer: string | null) {
-    const [u] = await rows(sql`select u.id, u.name, u.created_at, u.is_anonymous, p.favourite_cars, coalesce(p.public, true) as public, e.level, e.xp, e.balance
+    const [u] = await rows(sql`select u.id, u.name, u.created_at, u.is_anonymous, p.favourite_cars, coalesce(p.public, false) as public, e.level, e.xp, e.balance
       from users u left join player_profiles p on p.user_id = u.id left join player_economy e on e.user_id = u.id where u.id = ${userId} and not u.banned`);
     if (!u) throw notFound('That player');
     const own = viewer === userId;
@@ -108,7 +108,7 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
   app.get('/profiles/:id', { schema: { params: Id } }, async req => { const u = await who(req); return profileOf(req.params.id, u.id); });
   app.put('/player/profile', { schema: { body: z.object({ favouriteCars: z.array(z.string().max(60)).max(6).optional(), public: z.boolean().optional() }) } }, async req => {
     const u = await who(req), b = req.body;
-    await db.execute(sql`insert into player_profiles (user_id, favourite_cars, public) values (${u.id}, ${JSON.stringify(b.favouriteCars ?? [])}::jsonb, ${b.public ?? true})
+    await db.execute(sql`insert into player_profiles (user_id, favourite_cars, public) values (${u.id}, ${JSON.stringify(b.favouriteCars ?? [])}::jsonb, ${b.public ?? false})
       on conflict (user_id) do update set ${b.favouriteCars ? sql`favourite_cars = excluded.favourite_cars,` : sql``} ${b.public !== undefined ? sql`public = excluded.public,` : sql``} updated_at = now()`);
     return profileOf(u.id, u.id);
   });
@@ -130,7 +130,7 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
     return { id, url: `/api/v1/photos/${id}` };
   });
   app.get('/photos/:id', { schema: { params: Id } }, async (req, reply) => {
-    const [p] = await rows(sql`select p.mime, p.data, coalesce(pr.public, true) as public, p.user_id from player_photos p left join player_profiles pr on pr.user_id = p.user_id where p.id = ${req.params.id}`);
+    const [p] = await rows(sql`select p.mime, p.data, coalesce(pr.public, false) as public, p.user_id from player_photos p left join player_profiles pr on pr.user_id = p.user_id where p.id = ${req.params.id}`);
     if (!p) throw notFound('That photo');
     if (!p.public) { const u = await who(req); if (u.id !== p.user_id) throw notFound('That photo'); }
     reply.header('content-type', p.mime).header('cache-control', 'private, max-age=86400').header('x-content-type-options', 'nosniff');
@@ -198,10 +198,12 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
     const best = better(lesson, prev?.best ?? null, req.body.value) ? req.body.value : prev.best;
     await db.execute(sql`insert into school_results (user_id, lesson_id, medal, best) values (${u.id}, ${lesson.id}, ${medal ?? 'none'}, ${best})
       on conflict (user_id, lesson_id) do update set medal = excluded.medal, best = excluded.best, attempts = school_results.attempts + 1, at = now()`);
-    // each medal's reward once: a better medal pays its own (and any skipped below it)
+    // each medal paid once, up to its own reward: bronze its reward, silver what it adds over bronze, gold over silver —
+    // so a lesson's best medal has paid exactly its reward in all, however it was reached (data/school.json)
     const paid: string[] = [];
-    if (got) for (const m of MEDALS.slice(0, rank(got) + 1)) {
-      const R = S.rewards[m], r = await economy.payReward(u.id, { money: R.money, xp: R.xp, reason: `Driving school: ${lesson.id} (${m})`, key: `school:${lesson.id}:${m}` });
+    if (got) for (const [i, m] of MEDALS.slice(0, rank(got) + 1).entries()) {
+      const R = S.rewards[m], below = i ? S.rewards[MEDALS[i - 1]] : { money: 0, xp: 0 };
+      const r = await economy.payReward(u.id, { money: Math.max(0, R.money - below.money), xp: Math.max(0, R.xp - below.xp), reason: `Driving school: ${lesson.id} (${m})`, key: `school:${lesson.id}:${m}` });
       if (r.paid) paid.push(m);
     }
     if (paid.length) await db.execute(sql`update school_results set paid = ${paid.at(-1)} where user_id = ${u.id} and lesson_id = ${lesson.id}`);
@@ -260,7 +262,15 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
         count(distinct session) filter (where kind = 'error' and props->>'fatal' = 'true')::int as crashed
       from analytics_events where at > ${since} group by 1 order by max(at) desc limit 10`);
     const topErrors = await rows(sql`select left(name, 80) as message, coalesce(version, '?') as version, count(*)::int as n from analytics_events where kind = 'error' and at > ${since} group by 1, 2 order by n desc limit 10`);
-    return { days: req.query.days, totals: players[0], tutorial, firsts, quits, quests, tracks, school: school2, retention, perf, errors, topErrors };
+    // which accessibility and language choices players use (each player's latest)
+    const access = (await rows(sql`with latest as (select distinct on (anon) props from analytics_events where kind = 'setting' and name = 'accessibility' and at > ${since} order by anon, at desc)
+      select count(*)::int as players,
+        count(*) filter (where (props->>'text')::float > 1.05)::int as bigger_text, count(*) filter (where props->>'contrast' = 'high')::int as high_contrast,
+        count(*) filter (where coalesce(props->>'colours', 'standard') <> 'standard')::int as colour_blind, count(*) filter (where props->>'motion' = 'reduced')::int as reduced_motion,
+        count(*) filter (where props->>'flashing' = 'full')::int as full_flashing, count(*) filter (where (props->>'cues')::boolean)::int as sound_cues,
+        count(*) filter (where (props->>'toggles')::boolean)::int as toggles, count(*) filter (where props->>'units' = 'imperial')::int as imperial
+      from latest`))[0];
+    return { days: req.query.days, totals: players[0], access, tutorial, firsts, quits, quests, tracks, school: school2, retention, perf, errors, topErrors };
   });
 
   // ---------- news, patch notes and maintenance notices ----------

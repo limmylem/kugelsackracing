@@ -51,7 +51,12 @@ const own = [
   { name: 'Car models, parts and paints', note: 'Made for the game.' },
   { name: 'Engine, crash and interface sounds', note: 'Made by the game\'s own sound tools (tools/sounds.mjs): synthesised, no recordings.' },
   { name: 'Generated tracks and their scenery', note: 'Made by the game.' },
+  { name: 'Music (menu, garage, races)', note: 'Composed in code for the game (audio/music.js), played live in the browser: no samples or recordings, nobody else\'s music. Safe to stream and record.' },
+  { name: 'Translations', note: 'English (Australian, British, American). The game\'s own text, written for it.' },
 ];
+// (the people: whoever made the game, as its owner wants them named — data/credits-people.json, edited by hand)
+let people = [];
+try { people = read('data/credits-people.json').people; } catch { /* none listed */ }
 
 // ---------- the server's packages ----------
 const lock = read('package-lock.json').packages;
@@ -63,7 +68,7 @@ const byLicence = server.reduce((m, p) => (m[p.licence] = (m[p.licence] ?? 0) + 
 
 const doc = {
   _note: 'Written by tools/credits.mjs (npm run credits): don\'t edit by hand.',
-  data: [...data.values(), geoid], tools, browser, fonts, own,
+  people, data: [...data.values(), geoid], tools, browser, fonts, own,
   server: { count: server.length, byLicence, packages: server },
 };
 const text = JSON.stringify(doc, null, 1) + '\n';

@@ -1,10 +1,11 @@
 // Photo mode (Phase 8 Step 4; docs/PHOTO_MODE.md): in free roam, races, replays and meets — the game holds still
-// (the world pauses where it can; in an online race your car coasts with nothing pressed) and a free camera flies
+// (alone, the world pauses; online it carries on underneath and your car is held where it is) and a free camera flies
 // round your car: WASD or the left stick to move, the mouse (drag) or the right stick to look, Q and E (or the
 // triggers) down and up, the wheel or the bumpers to zoom. The panel: focus and depth of field (the distance in focus,
 // how blurred the rest is), exposure, a filter, the time of day, the field of view and tilt, and hide the HUD (H).
 // Photos: saved to the device, shared (the system's share sheet where there is one), or kept on the profile (a small
-// copy). A short clip: the next few seconds of what's drawn (a replay playing, or the free camera), as a video file.
+// copy). A short clip: the next few seconds of what's drawn — the free camera moving round the held-still world (online,
+// the world going on) — as a video file.
 //
 //   const P = createPhotoMode({ THREE, renderer, game, t })
 //   game: { scene(), camera() (the game's camera now), target() (the car's position [x,y,z]), hours(), setHours(h),
@@ -125,6 +126,9 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
   });
   addEventListener('keydown', e => {
     if (!on || e.target.closest?.('#photoMode input, #photoMode select')) return;
+    // (Esc closes it wherever the focus is — on the picture after dragging the camera too; the panel's own trap has it
+    // when the focus is in the panel)
+    if (e.code === 'Escape' && !el.contains(e.target) && !document.querySelector('#settings[role="dialog"]:not([hidden])')) { close(); return; }
     keys.add(e.code);
     if (e.code === 'KeyH') { S.hideHud = !S.hideHud; applyHud(); draw(); }
   });
@@ -182,6 +186,11 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
       composer.render();
     } else game.render(game.scene(), cam);
   }
+  // (the real world's maps show their credit line; the test worlds and tracks have none)
+  const mapCredit = () => {
+    const a = document.getElementById('map3Attribution') ?? document.getElementById('worldAttribution');
+    return a?.isConnected && getComputedStyle(a).display !== 'none' ? 'Map © OpenStreetMap contributors' : null;
+  };
   // the picture now, with its filter: a JPEG (at most maxWidth wide, and under maxBytes when asked)
   async function capture({ maxWidth = 2560, maxBytes = null } = {}) {
     render();
@@ -191,6 +200,14 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
     const g = c.getContext('2d');
     g.drawImage(src, 0, 0, c.width, c.height);
     if (FILTERS[S.filter]) g.putImageData(applyFilter(g.getImageData(0, 0, c.width, c.height), S.filter), 0, 0);
+    // (a picture of a real place carries the map's credit, small, in a corner: OpenStreetMap's licence asks for it)
+    const credit = game.credit?.() ?? mapCredit();
+    if (credit) {
+      const px = Math.max(11, Math.round(c.height / 90));
+      g.font = `${px}px system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'bottom';
+      g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillText(credit, c.width - px * 0.6 + 1, c.height - px * 0.4 + 1);
+      g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillText(credit, c.width - px * 0.6, c.height - px * 0.4);
+    }
     let q = 0.92, blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
     while (maxBytes && blob.size > maxBytes && q > 0.35) { q -= 0.12; blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q)); }
     game.track?.('photo', 'capture', { filter: S.filter, dof: S.aperture > 0 });

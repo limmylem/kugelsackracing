@@ -13,7 +13,7 @@
 // ctx: { THREE, renderer, active() (the world now), switchTo(file), MapV3, regionId(w), worldContent(), player, A? }
 
 import { setLanguage, loadLanguages, t, i18n } from '../ui/i18n.js';
-import { applyAccessibility, a11yOf, motionOf, photosensitivityWarning } from '../ui/accessibility.js';
+import { applyAccessibility, a11yOf, motionOf } from '../ui/accessibility.js';
 import { createTouchControls } from '../ui/touchControls.js';
 import { createSoundCues } from '../ui/soundCues.js';
 import { startSettingsSync } from '../ui/settingsSync.js';
@@ -54,18 +54,21 @@ export function createLaunch(s, ctx) {
     asked = true;
     askConsent({ t, onAnswer: v => { prefs.privacy = { ...(prefs.privacy ?? {}), analytics: v }; saveSettings(prefs); stats.consent(v); } });
   }
-  addEventListener('kr:questStart', e => stats.track('quest_start', e.detail.quest.id, { type: e.detail.quest.type, rivals: e.detail.quest.rivals }));
+  // (a generated track's run goes through the same quest machinery: it's counted as a track — the admin's "Tracks played")
+  addEventListener('kr:questStart', e => { const q = e.detail.quest; if (q.track) stats.track('track_start', q.track, { type: q.type, rivals: q.rivals }); else stats.track('quest_start', q.id, { type: q.type, rivals: q.rivals }); });
   addEventListener('kr:quest', e => {
     const d = e.detail;
-    stats.track('quest_end', d.quest.id, { result: d.status, medal: d.medal ?? 'none', type: d.quest.type });
+    stats.track(d.quest.track ? 'track_end' : 'quest_end', d.quest.track ?? d.quest.id, { result: d.status, medal: d.medal ?? 'none', type: d.quest.type });
+    if (d.quest.rivals) stats.track('race_end', d.quest.track ?? d.quest.id, { result: d.status, place: d.place ?? null });
     if (d.status === 'finished') { onboarding.event('quest'); if (d.quest.rivals) onboarding.event('npcRace'); }
   });
   // ---------- the settings, following the player (with an account) ----------
   let sync = null;
-  import('../account/session.js').then(({ account }) => account()).then(A => {
+  const accountReady = import('../account/session.js').then(({ account }) => account()).then(A => {
     out.A = A;
     sync = startSettingsSync({ A, settings: prefs, apply: () => { s.panel?.render?.(); out.settingsChanged(); } });
-  }).catch(() => { /* no server: settings stay on this device */ });
+    return A;
+  }).catch(() => null);   // (no server: settings stay on this device)
   // ---------- the first launch, the tutorial, the first steps ----------
   let data = { starters: {}, places: {} }, lessons = [], rewards = {};
   const ready = Promise.all([getJson('data/onboarding.json').then(d => { data = d; }), getJson('data/school.json').then(d => { lessons = d.lessons; rewards = d.rewards; })]).catch(() => {});
@@ -146,6 +149,12 @@ export function createLaunch(s, ctx) {
       if (link.kind === 'region') await ctx.travelToRegion?.(link.id);
       else if (link.kind === 'place') ctx.MapV3.travelTo(w, { lat: link.lat, lon: link.lon, heading: 0 });
       else if (link.kind === 'quest') { const item = await ctx.routeItem?.(link.id); if (item) await ctx.fastTravel?.(item); }
+      // (a car meet, from the calendar: its spot, as the free-roam panel's Go — GET /roam/meets)
+      else if (link.kind === 'meet') {
+        const meets = (await (await accountReady)?.api?.get('/roam/meets'))?.events ?? [];
+        const m = meets.find(e => e.meetId === link.id || e.id === link.id);
+        if (m?.place?.lat != null) ctx.MapV3.travelTo(w, { lat: m.place.lat, lon: m.place.lon, heading: 0 });
+      }
       stats.track('share', `open:${link.kind}`);
     } catch (e) { console.warn(`The link: ${e.message}`); }
   }
@@ -159,6 +168,11 @@ export function createLaunch(s, ctx) {
   }
 
   addEventListener('kr:school', () => openSchool());
+  // (the guided first steps' moments: the garage opened (index.html), the world map opened, a while spent driving)
+  addEventListener('kr:garage', () => { onboarding.event('garage'); screen('garage'); });
+  // (the screen the player is on: counted when it changes, and sent as where they were if they leave — ui/analytics.js)
+  const screen = name => { if (name && stats.screen !== name) { stats.screen = name; stats.track('screen', name); } };
+  let drivenFor = 0, nextFirstAt = 40, settingAt = null, lastSetting = null;
   let started = false, lastMotion = null;
   Object.assign(out, {
     stats, photo, onboarding, cues, touch,
@@ -169,17 +183,24 @@ export function createLaunch(s, ctx) {
     // a world entered: the first launch's flow once (in the real world), a link, the touch controls
     async entered(w) {
       touch.show(true);
+      screen(w?.file?.split('/').pop()?.replace(/\.json.*$/, '') ?? 'world');
       if (!started && w?.stream) {
         started = true;
         await ready;
+        // (the first launch's screens, the warning first; a browser driven by a test skips them unless it asks with
+        // ?onboarding — tools/first-launch-browser.mjs — so the other tests' cars aren't held up behind a card)
         if (!navigator.webdriver || new URLSearchParams(location.search).has('onboarding')) onboarding.start().then(() => setTimeout(maybeAskConsent, 120_000));
-        else await photosensitivityWarning({ t }).catch(() => {});
       }
       openLink(w);
     },
     exited() { touch.show(false); school?.end(); },
     settingsChanged() {
       applyAccessibility(prefs);
+      // (the statistics: which accessibility and language choices are in use — sent when they change, a few seconds on)
+      clearTimeout(settingAt); settingAt = setTimeout(() => {
+        const A = a11yOf(prefs), now = JSON.stringify({ text: A.textSize, contrast: A.contrast, colours: A.colours, motion: A.motion, flashing: A.flashing, cues: !!A.visualSounds, units: prefs.units ?? 'auto', language: prefs.language ?? 'auto', toggles: Object.values(prefs.toggles ?? {}).some(Boolean) });
+        if (now !== lastSetting) { lastSetting = now; stats.track('setting', 'accessibility', JSON.parse(now)); }
+      }, 5000);
       if ((prefs.language ?? 'auto') !== lastLanguage) { lastLanguage = prefs.language ?? 'auto'; setLanguage(lastLanguage).then(() => s.panel?.render?.()); }
       touch.apply();
       cues.el.hidden = !a11yOf(prefs).visualSounds;
@@ -189,6 +210,7 @@ export function createLaunch(s, ctx) {
     get motion() { return lastMotion ??= motionOf(prefs); },
     audioStarted(A) { music ??= createMusic(A, { settings: prefs }); out.music = music; globalThis.__krMusic = music; },
     action(act) {
+      if (act === 'worldMap') { onboarding.event('map'); return false; }
       if (act === 'photo') { if (photo.on) photo.close(); else photo.open(); return true; }
       if (act === 'school') { openSchool(); return true; }
       return false;
@@ -212,6 +234,12 @@ export function createLaunch(s, ctx) {
         const menu = s.panel?.open || !!document.querySelector('.onboardCard:not(.first), .schoolList, #newsPanel:not([hidden])');
         music.play(racing ? 'race' : menu ? 'menu' : null);
         if (racing) { const R = w.quests?.raceInfo?.() ?? s.mpRace?.raceInfo?.() ?? {}; music.setIntensity(raceIntensity(R)); }
+      }
+      // (driving about on your own for a while — not a quest, race or lesson: the moment for the next first step's card;
+      // asked again after a few minutes more if it was put off)
+      if (b && Math.abs(b.speed ?? 0) * 3.6 > 15 && !w.quests?.active && !s.mpRace?.racing && !school?.running && !onboarding.tutorialRunning) {
+        drivenFor += seconds;
+        if (drivenFor >= nextFirstAt) { nextFirstAt = drivenFor + 180; onboarding.event('drive'); }
       }
       if (stats.allowed && performance.now() - perfAt > 60_000) { perfAt = performance.now(); const pf = s.prof?.summary?.() ?? {}; stats.track('perf', w.file?.split('/').pop() ?? null, { fps: Math.round(s.fps), low1: pf.low1PctFps ?? null, preset: s.G?.preset ?? null }); }
     },

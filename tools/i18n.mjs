@@ -7,7 +7,7 @@
 //   baseline  data/i18n-baseline.json written again from what's there now (after moving strings out)
 //   report    what's left to move, file by file
 //   export    locales/en.json as the translation service takes it (it's already that: flat JSON, ICU) — prints where
-// The pre-commit hook and CI run check.
+// CI runs check (tests/unit/i18n.test.mjs, in npm run test:unit).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,9 @@ const write = (f, o) => fs.writeFileSync(path.join(ROOT, f), JSON.stringify(o, n
 const UI_DIRS = ['ui', 'testtrack', 'play', 'garage', 'account', 'site', 'race', 'quest', 'mp', 'realworld', 'world', 'track', 'route'];
 const UI_FILES = ['index.html'];
 const SKIP = /(^|\/)(node_modules|\.cache|\.scratch|tests?|dev|editor|admin)\//;
+// (the legal pages: translated as whole documents, each language's checked by a lawyer — not message by message;
+// docs/TRANSLATIONS.md "Legal pages")
+const WHOLE_DOCUMENTS = new Set(['account/terms.html', 'account/privacy.html']);
 const BASELINE = 'data/i18n-baseline.json';
 
 function files() {
@@ -28,7 +31,7 @@ function files() {
   for (const d of UI_DIRS) {
     const dir = path.join(ROOT, d);
     if (!fs.existsSync(dir)) continue;
-    for (const f of fs.readdirSync(dir, { recursive: true }).map(String)) if (/\.(js|html)$/.test(f) && !SKIP.test(`${d}/${f}`)) out.push(`${d}/${f.split(path.sep).join('/')}`);
+    for (const f of fs.readdirSync(dir, { recursive: true }).map(String)) if (/\.(js|html)$/.test(f) && !SKIP.test(`${d}/${f}`) && !WHOLE_DOCUMENTS.has(`${d}/${f.split(path.sep).join('/')}`)) out.push(`${d}/${f.split(path.sep).join('/')}`);
   }
   return out.sort();
 }

@@ -49,7 +49,7 @@ export function createLiveTools({ api, h, say, when, errText, main }) {
       const f = {
         kind: h('select', {}, ...Object.entries(KINDS).map(([k, v]) => h('option', { value: k, selected: it?.kind === k }, v))),
         title: h('input', { maxlength: 120, value: it?.title ?? '', required: true }),
-        version: h('input', { maxlength: 40, value: it?.version ?? '', placeholder: 'e.g. 0.8.4 (patch notes)' }),
+        version: h('input', { maxlength: 40, value: it?.version ?? '', placeholder: 'patch notes: the deploy\'s commit, e.g. 2de0f3f' }),
         body: h('textarea', { rows: 8, maxlength: 4000, placeholder: 'Plain text. A line starting with "- " is a list item.' }, it?.body ?? ''),
         link: h('input', { maxlength: 300, value: it?.link ?? '', placeholder: 'optional: /?quest=…, /?track=…, https://…' }),
         starts: h('input', { type: 'datetime-local', value: toLocal(it?.startsAt) }),
@@ -122,6 +122,8 @@ export function createLiveTools({ api, h, say, when, errText, main }) {
         h('td', {}, String(r.crashed)), h('td', { style: r.crashed / Math.max(1, r.sessions) > 0.02 ? 'color:var(--c-bad)' : '' }, pct(r.crashed, r.sessions)), h('td', {}, String(r.errors))))),
       h('h3', {}, 'The commonest errors'),
       table(['Message', 'Version', 'Times'], d.topErrors.map(r => h('tr', {}, h('td', {}, r.message), h('td', {}, r.version), h('td', {}, String(r.n))))),
+      h('h3', {}, 'Accessibility and language choices (players who changed a setting; each one\'s latest)'),
+      d.access?.players ? table(['Choice', 'Players', 'Share'], [['Bigger text', 'bigger_text'], ['High contrast', 'high_contrast'], ['Colour-blind colours', 'colour_blind'], ['Reduced motion', 'reduced_motion'], ['Full flashing (not reduced)', 'full_flashing'], ['Sounds shown on screen', 'sound_cues'], ['Toggle instead of hold', 'toggles'], ['Imperial units', 'imperial']].map(([label, k]) => h('tr', {}, h('td', {}, label), h('td', {}, String(d.access[k])), h('td', {}, pct(d.access[k], d.access.players))))) : h('p', { class: 'muted' }, 'Nothing yet.'),
       h('h3', {}, 'The tutorial (players reaching each step)'),
       table(['Step', 'Players'], d.tutorial.map(r => h('tr', {}, h('td', {}, r.name ?? '—'), h('td', {}, String(r.players))))),
       h('h3', {}, 'First steps (done or skipped)'),

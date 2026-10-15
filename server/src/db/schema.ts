@@ -548,7 +548,7 @@ export const playerSettings = pgTable('player_settings', {
 });
 export const playerProfiles = pgTable('player_profiles', {
   userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  favouriteCars: jsonb('favourite_cars').notNull().default([]), public: boolean('public').notNull().default(true), updatedAt: updated(),
+  favouriteCars: jsonb('favourite_cars').notNull().default([]), public: boolean('public').notNull().default(false), updatedAt: updated(),
 });
 // the driving school's medals (and the onboarding's one-time steps, as lessons 'first:<step>')
 export const schoolResults = pgTable('school_results', {

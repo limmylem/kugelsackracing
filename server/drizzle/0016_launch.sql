@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "player_settings" (
 CREATE TABLE IF NOT EXISTS "player_profiles" (
 	"user_id" text PRIMARY KEY NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
 	"favourite_cars" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"public" boolean DEFAULT true NOT NULL,
+	"public" boolean DEFAULT false NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

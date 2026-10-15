@@ -1950,7 +1950,7 @@ async function switchWorld(id, nested = false) {
       if (file.startsWith('scenes/map_v3.json') && worldList.some(x => x.id === 'real' && x.file === 'scenes/map_v3.json')) { if (currentWorld === 'real') return false; wantReal = file; return switchWorld('real', true); }
       const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true);
     };
-    test.hooks.toGarage = () => { garageTab = 'damage'; return switchWorld('garage'); };
+    test.hooks.toGarage = (tab = 'damage') => { garageTab = tab; return switchWorld('garage'); };
     const target = worldList.find(w => w.id === id);
     if (currentWorld === 'garage') {
       globalThis.__krMusic?.play(null);
@@ -1966,6 +1966,7 @@ async function switchWorld(id, nested = false) {
       if (viewer) viewer.useDefaultRenderLoop = false; // the real world waits
       document.body.classList.add('test-mode', 'garage-mode');
       globalThis.__krMusic?.play('garage');                 // (the garage's own music: audio/music.js)
+      dispatchEvent(new CustomEvent('kr:garage'));           // (the guided first steps: testtrack/launch.js)
       currentWorld = id;
       drawWorldButtons();
       const tab = garageTab;

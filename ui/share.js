@@ -1,6 +1,6 @@
 // Links that open the game straight to something (Phase 8 Step 4; docs/PHOTO_MODE.md "Sharing"): a route or quest, a
 // generated track by its code, a time to beat on a track, a meet, a region — shared with the system's share sheet where
-// there is one, else copied. The game reads them when it opens (index.html, testtrack/test-scene.js openDeepLink).
+// there is one, else copied. The game reads them when it opens (testtrack/launch.js openLink: once the real world is in).
 //
 //   shareLink({ kind: 'track', code })                    → https://ognistrada.com/?track=CODE
 //   shareLink({ kind: 'quest', id })                      → …/?quest=ID

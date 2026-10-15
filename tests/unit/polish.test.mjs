@@ -107,6 +107,14 @@ test('accessibility: the colour-blind palette keeps good and bad, the arrow and 
     assert.ok(colourDistance(C.checkpoint[2], C.bonus[2], v) >= 25, `checkpoint / bonus gates, ${v}`);
     assert.ok(colourDistance(C.route, C.guide, v) >= 25, `route / guide lines, ${v}`);
   }
+  // (Phase 8 Step 4: the blue-yellow palette for tritanopia, and high contrast's, keep the same pairs apart)
+  for (const [name, visions] of [['tritanopia', ['tritanopia', 'normal']], ['highContrast', VISION]]) {
+    const P = PALETTES[name];
+    for (const v of visions) {
+      assert.ok(colourDistance(P.good, P.bad, v) >= MIN, `${name}: good / bad, ${v}: ${colourDistance(P.good, P.bad, v).toFixed(1)}`);
+      assert.ok(colourDistance(P.arrow, P.arrowMissed, v) >= MIN, `${name}: arrow / missed, ${v}`);
+    }
+  }
   // (why it's there: the standard red / green nearly merge for deuteranopia)
   assert.ok(colourDistance(PALETTES.standard.good, PALETTES.standard.bad, 'deuteranopia') < 20);
   // every palette has every colour; an unknown name falls back to the standard one

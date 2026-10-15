@@ -41,7 +41,8 @@ export function mountNews({ A, settings, t = tr, poll = 5 * 60_000, version = gl
   document.body.append(button, panel, banner);
   let items = [], events = [], tab = 'news', release = null;
   const N = () => settings?.notifications ?? {};
-  const unread = () => { const seen = new Set(read(SEEN, [])); return items.filter(i => (i.kind === 'news' ? N().news !== false : i.kind === 'patch' ? N().patchNotes !== false : false) && !seen.has(i.id)).length; };
+  // (what lights the button: new news and patch notes, and new events on the calendar — each as the Notifications say)
+  const unread = () => { const seen = new Set(read(SEEN, [])); return items.filter(i => (i.kind === 'news' ? N().news !== false : i.kind === 'patch' ? N().patchNotes !== false : false) && !seen.has(i.id)).length + (N().events !== false ? events.filter(e => !e.cancelled && !seen.has(`event:${e.id}`)).length : 0); };
   function drawButton() {
     const n = unread();
     button.innerHTML = `<span aria-hidden="true">📰</span> ${esc(t('news.button'))}${n ? ` <b class="badge">${n}</b>` : ''}`;
@@ -95,7 +96,7 @@ export function mountNews({ A, settings, t = tr, poll = 5 * 60_000, version = gl
   function open() {
     panel.hidden = false; draw();
     release?.(); release = trapFocus(panel, { onEscape: close });
-    write(SEEN, [...new Set([...read(SEEN, []), ...items.map(i => i.id)])].slice(-200));
+    write(SEEN, [...new Set([...read(SEEN, []), ...items.map(i => i.id), ...events.map(e => `event:${e.id}`)])].slice(-300));
     drawButton();
   }
   function close() { panel.hidden = true; release?.(); release = null; button.focus(); }

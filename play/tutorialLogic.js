@@ -1,6 +1,6 @@
 // The driving tutorial's steps, as rules (Phase 8 Step 4; docs/ONBOARDING.md) — what each one asks, how the game knows
 // it's done from the car as it drives, and what the driving says about which assists suit the player. Kept apart from
-// its card on the screen (play/onboarding.js) so it's tested with made-up drives (tests/unit/onboarding.test.mjs).
+// its card on the screen (play/onboarding.js) so it's tested with made-up drives (tests/unit/launch.test.mjs).
 //
 //   const T = createTutorial({ aids })        // aids: the settings' driver aids now
 //   T.update({ dt, kmh, throttle, brake, steer, yawRate (rad/s), gripUsed (0..1+, the most of the four),

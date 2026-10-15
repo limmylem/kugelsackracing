@@ -32,7 +32,7 @@ export function createMusic(A, { settings = null, lookahead = 0.25 } = {}) {
   const tone = ctx.createBiquadFilter();
   tone.type = 'lowpass'; tone.frequency.value = 6000; tone.Q.value = 0.4;
   tone.connect(out);
-  let piece = null, name = null, nextBeat = 0, beat = 0, timer = null, intensity = 0, target = 0, rnd = seeded(7);
+  let piece = null, name = null, nextBeat = 0, beat = 0, timer = null, intensity = 0, target = 0, rnd = seeded(7), wanted = null, pending = null;
   let noise = null;
   const noiseBuffer = () => {
     if (noise) return noise;
@@ -97,8 +97,12 @@ export function createMusic(A, { settings = null, lookahead = 0.25 } = {}) {
   const M = {
     get playing() { return name; },
     get intensity() { return intensity; },
-    play(which) {
-      if (which === name) return;
+    // (called every frame with what should play: only a change does anything — `wanted` is the piece asked for, even
+    // while the last one fades out, and a start still waiting for that fade is called off by the next change)
+    play(which = null) {
+      if (which === wanted) return;
+      wanted = which;
+      clearTimeout(pending); pending = null;
       const at = ctx.currentTime;
       out.gain.cancelScheduledValues(at); out.gain.setValueAtTime(out.gain.value, at); out.gain.linearRampToValueAtTime(0, at + 0.8);
       clearInterval(timer); timer = null;
@@ -111,12 +115,12 @@ export function createMusic(A, { settings = null, lookahead = 0.25 } = {}) {
         timer = setInterval(tick, 60);
         tick();
       };
-      if (name) setTimeout(start, 850); else start();
+      if (name) pending = setTimeout(start, 850); else start();
       if (!which) name = null;
     },
     setIntensity(x) { target = Math.max(0, Math.min(1, x)); if (settings?.music?.build === false) target = Math.min(target, 0.3); },
     apply(s) { settings = s; out.gain.setTargetAtTime(level(), ctx.currentTime, 0.3); },
-    stop() { M.play(null); clearInterval(timer); timer = null; },
+    stop() { M.play(null); clearTimeout(pending); pending = null; clearInterval(timer); timer = null; },
     // (tests) the beats to come, without sound
     _beat: () => beat, _layersAt: x => Object.entries(RACE_LAYERS).filter(([, v]) => x >= v).map(([k]) => k),
   };
