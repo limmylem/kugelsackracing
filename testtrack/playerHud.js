@@ -104,6 +104,8 @@ const DEFS = `<svg width="0" height="0" style="position:absolute" aria-hidden="t
 const clock = t => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(1).padStart(4, '0')}`; };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const SPEED_MAX = 280, SPEED_MAX_FAST = 360;
+// (the speedometer in the player's unit, ui/units.js: in mph, its top 180 or 220 — the same dial, its numbers in mph)
+const MPH = 1 / 1.609344, MPH_MAX = 180, MPH_MAX_FAST = 220;
 
 export function createPlayerHud() {
   if (!document.getElementById('playerHudCss')) { const st = document.createElement('style'); st.id = 'playerHudCss'; st.textContent = CSS; document.head.appendChild(st); }
@@ -116,7 +118,7 @@ export function createPlayerHud() {
     <div class="ph-keys"><kbd>R</kbd> back on the road · <kbd>C</kbd> camera · <kbd>O</kbd> settings</div>`;
   const $ = s => el.querySelector(s);
   const tach = $('.ph-tach'), speedo = $('.ph-speedo'), lamps = $('.ph-lamps'), timer = $('.ph-timer'), stuckEl = $('.ph-stuck'), place = $('.ph-place');
-  let last = {}, mode = null, tachNeedle = null, speedNeedle = null, digits = null, gear = null, tachMax = 0, speedMax = 0;
+  let last = {}, mode = null, tachNeedle = null, speedNeedle = null, digits = null, gear = null, tachMax = 0, speedMax = 0, mph = false;
   const set = (k, v, fn) => { if (last[k] !== v) { last[k] = v; fn(v); } };
   // (drawn again when the car's rev limit changes, or a car goes faster than the speedometer's top)
   const drawTach = redline => {
@@ -126,21 +128,25 @@ export function createPlayerHud() {
   };
   const drawSpeedo = max => {
     speedMax = max;
-    speedo.innerHTML = dial({ cls: 'speedo', max, major: 20, minor: 10, labelEvery: 40, label: v => v, unit: 'KM/H' }) + '<div class="ph-digits"><b>0</b><small>KM/H</small></div>';
+    const unit = mph ? 'MPH' : 'KM/H';
+    speedo.innerHTML = dial({ cls: 'speedo', max, major: mph ? 10 : 20, minor: mph ? 5 : 10, labelEvery: mph ? 20 : 40, label: v => v, unit }) + `<div class="ph-digits"><b>0</b><small>${unit}</small></div>`;
     speedNeedle = speedo.querySelector('.needle'); digits = speedo.querySelector('.ph-digits b'); last.kmh = undefined;
   };
   const angle = t => `rotate(${(A0 + SWEEP * Math.max(0, Math.min(1.02, t))).toFixed(2)}deg)`;
   return {
     el,
     warnings: el.querySelector('.ph-dash'),
+    // 'mph' or 'km/h' (the settings' units)
+    setSpeedUnit(unit) { const m = unit === 'mph'; if (m !== mph) { mph = m; speedMax = 0; } },
     update(d) {
       const redline = d.redline || 7000;
       if (redline !== last.redline) { last.redline = redline; drawTach(redline); }
-      const want = (d.kmh ?? 0) > SPEED_MAX - 10 ? SPEED_MAX_FAST : SPEED_MAX;
+      const shown = mph ? Math.round((d.kmh ?? 0) * MPH) : d.kmh ?? 0;
+      const want = mph ? (shown > MPH_MAX - 6 ? MPH_MAX_FAST : MPH_MAX) : shown > SPEED_MAX - 10 ? SPEED_MAX_FAST : SPEED_MAX;
       if (want > speedMax) drawSpeedo(want);
       tachNeedle.style.transform = angle((d.rpm || 0) / tachMax);
-      speedNeedle.style.transform = angle((d.kmh || 0) / speedMax);
-      set('kmh', d.kmh ?? 0, v => { digits.textContent = String(v); });
+      speedNeedle.style.transform = angle((shown || 0) / speedMax);
+      set('kmh', shown, v => { digits.textContent = String(v); });
       set('gear', d.gear, v => { const g = v == null || v === 0 ? 'N' : v === -1 ? 'R' : String(v); gear.textContent = g; gear.classList.toggle('n', g === 'N' || g === 'R'); });
       // (the gearbox: automatic, or sequential — you change gear)
       set('mode', d.mode === 'auto' ? 'auto' : 'seq', v => { mode.textContent = v === 'auto' ? 'AUTO' : 'SEQ'; mode.classList.toggle('seq', v === 'seq'); mode.title = v === 'auto' ? 'Automatic gearbox' : 'Sequential gearbox'; });

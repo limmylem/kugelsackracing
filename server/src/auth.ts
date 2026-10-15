@@ -63,7 +63,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
   const freeName = async (name: string) => { let n = name; for (let k = 0; k < 6 && await nameTaken(n); k++) n = withTag(name); return n; };
 
   return betterAuth({
-    appName: 'Kugelsack Racing',
+    appName: 'Ogni Strada',
     baseURL: config.publicUrl,
     basePath: '/api/auth',
     secret: config.authSecret,
@@ -93,7 +93,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: 60 * 60,
       sendResetPassword: async ({ user, url }) => {
-        await mailer.send(linkMail('reset-password', user.email, 'Reset your Kugelsack Racing password', 'Someone (we hope you) asked to reset the password for this account. To choose a new one, open this link within an hour:', url, 'If it wasn\'t you, ignore this email: your password stays as it is.'));
+        await mailer.send(linkMail('reset-password', user.email, 'Reset your Ogni Strada password', 'Someone (we hope you) asked to reset the password for this account. To choose a new one, open this link within an hour:', url, 'If it wasn\'t you, ignore this email: your password stays as it is.'));
       },
     },
     emailVerification: {
@@ -101,7 +101,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60 * 24,
       sendVerificationEmail: async ({ user, url }) => {
-        await mailer.send(linkMail('verify-email', user.email, 'Confirm your email for Kugelsack Racing', `Welcome, ${user.name}! Confirm this is your email address by opening this link (it works for a day):`, url, 'If you didn\'t sign up, ignore this email.'));
+        await mailer.send(linkMail('verify-email', user.email, 'Confirm your email for Ogni Strada', `Welcome, ${user.name}! Confirm this is your email address by opening this link (it works for a day):`, url, 'If you didn\'t sign up, ignore this email.'));
       },
     },
     socialProviders: {
@@ -187,7 +187,7 @@ export function createAuth({ config, db, mailer, onGuestLinked, onUserDeleted, o
       }),
       // two-factor sign-in with an authenticator app (and backup codes): anyone can turn it on; editors and
       // admins must (session.ts requireRole). A password sign-in then asks for a code before there's a session.
-      twoFactor({ issuer: 'Kugelsack Racing', skipVerificationOnEnable: false }),
+      twoFactor({ issuer: 'Ogni Strada', skipVerificationOnEnable: false }),
       admin({ defaultRole: 'player', adminRoles: ['admin'], ac, roles, bannedUserMessage: 'This account is suspended or banned. If you think that\'s a mistake, contact support.' }),
       ...(mockOAuth ? [genericOAuth({ config: [{ providerId: 'mock', discoveryUrl: mockOAuth.discoveryUrl, clientId: mockOAuth.clientId, clientSecret: mockOAuth.clientSecret, scopes: ['openid', 'email', 'profile'], pkce: true }] })] : []),
     ],

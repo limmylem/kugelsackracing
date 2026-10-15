@@ -37,6 +37,7 @@ import { hashSeed } from '../ai/rng.js';
 import { createQuestSounds } from './questSounds.js';
 import { createCameraBlend, orbitPose } from './cameraBlend.js';
 import { paletteOf, guideStyle } from './palette.js';
+import { playerUnits } from '../ui/units.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
@@ -335,7 +336,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       <div class="side">${raceSide(H)}</div>
       ${panelHtml ? `<div class="panel">${panelHtml}</div>` : ''}
       ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudScale()})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? palette().arrowMissed : palette().arrow}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
-      <div class="speed">${Math.round(car.kmh)}<small> km/h</small> · ${esc(car.gear ?? '')}</div>
+      <div class="speed">${(sp2 => `${sp2.value}<small> ${sp2.unit}</small>`)(playerUnits().speedKmh(car.kmh))} · ${esc(car.gear ?? '')}</div>
       ${st === 'countdown' && H.count ? `<div class="count">${H.count}</div>` : ''}
       ${msg && st !== 'countdown' ? `<div class="msg ${msg.cls}">${esc(msg.text)}</div>` : ''}`;
   }

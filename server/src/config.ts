@@ -49,7 +49,7 @@ const FileConfig = z.object({
   antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
-    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1) }),
+    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1), analyticsDays: z.number().int().min(1).optional() }),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);
@@ -70,7 +70,7 @@ const Env = z.object({
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters (openssl rand -base64 32)'),
   TRUSTED_ORIGINS: optional,
   SMTP_URL: optional,
-  MAIL_FROM: z.string().default('Kugelsack Racing <no-reply@localhost>'),
+  MAIL_FROM: z.string().default('Ogni Strada <no-reply@localhost>'),
   GOOGLE_CLIENT_ID: optional, GOOGLE_CLIENT_SECRET: optional,
   DISCORD_CLIENT_ID: optional, DISCORD_CLIENT_SECRET: optional,
   SENTRY_DSN: optional,

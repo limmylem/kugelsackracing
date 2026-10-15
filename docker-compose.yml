@@ -47,7 +47,7 @@ services:
       DATABASE_URL: postgres://kr:kr@db:5432/kr_dev
       BETTER_AUTH_SECRET: local-development-only-secret-change-me-0123
       SMTP_URL: smtp://mailpit:1025
-      MAIL_FROM: Kugelsack Racing <no-reply@localhost>
+      MAIL_FROM: Ogni Strada <no-reply@localhost>
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     ports: ["8787:8787"]
     depends_on:

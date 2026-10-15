@@ -82,6 +82,14 @@ export async function exportUserData(db: Db, userId: string) {
     reportsMade: await one(sql`select kind, target_name, details, status, created_at from reports where reporter_id = ${userId} order by created_at`),
     reportsAboutYou: await one(sql`select kind, status, resolution, created_at from reports where target_id = ${userId} order by created_at`),
     supportMessages: await one(sql`select kind, category, message, contact_email, client, status, created_at from support_tickets where user_id = ${userId} order by created_at`),
+    // (Phase 8 Step 4) settings, profile, driving school, photos (their details: the pictures at /api/v1/photos/<id>), crew, events
+    settings: (await one(sql`select data, changed_at, updated_at from player_settings where user_id = ${userId}`))[0] ?? null,
+    profile: (await one(sql`select favourite_cars, public, updated_at from player_profiles where user_id = ${userId}`))[0] ?? null,
+    drivingSchool: await one(sql`select lesson_id, medal, best, attempts, at from school_results where user_id = ${userId} order by lesson_id`),
+    photos: await one(sql`select id, caption, place, mime, bytes, created_at from player_photos where user_id = ${userId} order by created_at`),
+    crew: (await one(sql`select c.name, c.tag, m.role, m.joined_at from crew_members m join crews c on c.id = m.crew_id where m.user_id = ${userId}`))[0] ?? null,
+    eventsJoined: await one(sql`select e.title, e.starts_at, r.at from calendar_rsvps r join calendar_events e on e.id = r.event_id where r.user_id = ${userId} order by e.starts_at`),
+    analyticsNote: 'Play statistics (only if you said yes) are anonymous: they carry no account id, so they can\'t be found by your account or included here.',
     note: 'Also kept in your browser (not on the server): your settings, the game\'s random browser id, map files and ghost recordings.',
   };
 }

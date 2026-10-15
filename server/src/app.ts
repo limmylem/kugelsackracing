@@ -44,6 +44,7 @@ import { playerRoutes } from './routes/player.ts';
 import { adminEconomyRoutes } from './routes/adminEconomy.ts';
 import { adminShopRoutes } from './routes/adminShop.ts';
 import { adminContentRoutes } from './routes/adminContent.ts';
+import { launchRoutes } from './routes/launch.ts';
 import { createContentManager } from './content/manager.ts';
 import { createContentService } from './content/service.ts';
 import { trackRoutes } from './routes/tracks.ts';
@@ -429,6 +430,7 @@ export async function buildApp(deps: AppDeps) {
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
     await adminContentRoutes(api, { db, manager: contentManager, G });
+    await launchRoutes(api, { db, economy, G, authSecret: config.authSecret });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });

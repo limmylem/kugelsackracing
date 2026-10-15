@@ -47,6 +47,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
 <link rel="stylesheet" href="ui/theme.css">
 <link rel="stylesheet" href="garage/garage.css">
+<link rel="stylesheet" href="ui/a11y.css">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc9f0; font-family: system-ui, -apple-system, sans-serif; }
   #cesium { position: fixed; inset: 0; }
@@ -1878,7 +1879,11 @@ import('./play/dock.js').then(({ mountDock }) => {
 }).catch(e => console.warn(`The dock: ${e.message}`));
 Promise.all([import('./account/session.js'), import('./account/status.js'), import('./editor/access.js')]).then(async ([{ account }, { mountAccountChip }, { editorAccess }]) => {
   const A = await account();
-  mountAccountChip(A);
+  // (the first launch's own welcome is play/onboarding.js's: the chip's comes back for later visits)
+  let onboarded = false; try { onboarded = !!JSON.parse(localStorage.getItem('ognistrada.onboarding.v1') ?? '{}')?.welcome; } catch { /* first time */ }
+  mountAccountChip(A, { welcome: onboarded });
+  // (Phase 8 Step 4: news, what's new after an update, events, maintenance notices — ui/news.js)
+  import('./ui/news.js').then(({ mountNews }) => { let prefs = {}; try { prefs = JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}') ?? {}; } catch { /* defaults */ } mountNews({ A, settings: prefs }); }).catch(e => console.warn(`News: ${e.message}`));
   const check = () => {
     showWorlds(A.me?.role === 'admin');
     const ok = editorAccess(A).allowed; dock?.editor(ok); if (ok !== editorAllowed) { editorAllowed = ok; drawWorldButtons(); }
@@ -1948,6 +1953,7 @@ async function switchWorld(id, nested = false) {
     test.hooks.toGarage = () => { garageTab = 'damage'; return switchWorld('garage'); };
     const target = worldList.find(w => w.id === id);
     if (currentWorld === 'garage') {
+      globalThis.__krMusic?.play(null);
       (await import('./garage/garage.js')).exit();
       document.body.classList.remove('garage-mode');
     }
@@ -1959,6 +1965,7 @@ async function switchWorld(id, nested = false) {
       for (const k in keys) keys[k] = false;
       if (viewer) viewer.useDefaultRenderLoop = false; // the real world waits
       document.body.classList.add('test-mode', 'garage-mode');
+      globalThis.__krMusic?.play('garage');                 // (the garage's own music: audio/music.js)
       currentWorld = id;
       drawWorldButtons();
       const tab = garageTab;

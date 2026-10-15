@@ -51,6 +51,13 @@ Singapore; nothing was ever stored there.
 | Admin log | Every admin action: who, whom, why, what changed | Accountability (legitimate interest; legal obligation) | `audit_log` | Admins; the player sees actions on their account in the export | **2 years** |
 | Idempotency keys | The last day's write requests and their answers | Applying each action once | `idempotency_keys` | Nobody | 24 hours |
 | Alerts | What went wrong on the server (no personal data) | Running the service | `alerts` | Admins | 90 days after clearing |
+| Settings (Phase 8 Step 4) | The player's game settings — controls, sound and music, accessibility, language and units, privacy answers — not graphics (those stay on each device) | Running the account (contract) | `player_settings` | The player | Until the account is deleted |
+| Profile | Favourite cars, public or private (private until the player says) | Running the account (contract) | `player_profiles` | The player; other signed-in players only if public | Until deleted |
+| Driving school | Each lesson's best result and medal | Running the account (contract) | `school_results` | The player; their public profile | Until deleted |
+| Photos | Pictures uploaded from photo mode (a JPEG of the game, at most 220 kB and 8 a player), a caption and place name they chose | Running the account (contract) | `player_photos` | The player; their public profile | Until removed or the account deleted |
+| Crews | Crews made and joined, the role, the invite code (its owner only) | Running the account (contract) | `crews`, `crew_members` | Members see each other's name and level | Until they leave, or the account is deleted |
+| Event RSVPs | The calendar events a player said they're going to | Running the account (contract) | `calendar_rsvps` | The player; admins see counts | Until deleted, or the event is |
+| Play statistics | **Only with consent** (asked once; Settings → Privacy). A random id made for the statistics alone, hashed again on the server with its secret (no account, no IP address, no device id); a session id; the game's version; the kind of device (quality tier, browser, system, phone or not, screen size, language); events (tutorial, first steps, school, quests and tracks, purchases and repairs without balances, the last screen, frame rates, error messages) | Consent (GDPR art. 6(1)(a); ePrivacy art. 5(3) for what the browser keeps) | `analytics_events` | Admins, as totals on the Statistics tab | 400 days (the daily retention job) |
 
 **Guest accounts** (playing without signing up) hold the same kinds of data. A guest nobody has played for
 **30 days** is deleted with everything it had. Making a full account moves the guest's progress across.
@@ -80,13 +87,16 @@ sets a cookie that isn't one of these:
 | `kr_csrf` | Protects your requests from other sites. httpOnly, SameSite=Strict. | The browser session |
 
 All of them are strictly necessary, so no consent banner is needed (ePrivacy Directive art. 5(3); UK PECR
-reg. 6). If anything non-essential is ever added (analytics, say), it must ask first, and this table and the
-test must change with it.
+reg. 6). If anything non-essential is ever added, it must ask first, and this table and the test must change with it. The
+play statistics (Phase 8 Step 4) use no cookie: their id is in local storage, made only after the player says yes,
+and removed when they say no.
 
 **Local storage and IndexedDB** (not sent anywhere, except the browser id):
 - the game's settings (`driveWorld.settings.v1`, `driveWorld.questHud`, `driveWorld.questFilters`, the editor's bookmarks);
 - the welcome screen seen (`kr.welcomed`);
 - the random browser id (`kr.device`, sent as `x-kr-device` and kept only scrambled);
+- only if the player agreed to the play statistics: their random statistics id (`ognistrada.stats.id`, sent with them);
+- the news items and patch notes seen, the first steps done, the music's and photo mode's own settings (all in `driveWorld.settings.v1` or `kr.*`);
 - downloaded map files;
 - ghost recordings;
 - the offline garage of the local-only game (`drive-world`).
@@ -132,5 +142,9 @@ test must change with it.
    - the governing law and courts;
    - the consumer-law wording for each country (the EU's unfair terms rules, the Australian Consumer Law's guarantees);
    - whether "no real-world value" for in-game money is enough if paid items are ever added.
-8. **Breach notification:** 72 hours to the authority (GDPR art. 33). Australia's notifiable data breaches scheme. The US states' laws.
+8. **Play statistics (Phase 8 Step 4):** asked once, opt-in, kept 400 days, hashed ids with no account or address.
+   - Is consent the right basis everywhere (rather than legitimate interests), and is the question's wording enough?
+   - Are the statistics anonymous, or pseudonymous personal data (the random id is kept in the browser)?
+   - Are they in "Download my data"? (No: they can't be tied to the account. The export says so.)
+9. **Breach notification:** 72 hours to the authority (GDPR art. 33). Australia's notifiable data breaches scheme. The US states' laws.
    - [OPERATIONS.md](OPERATIONS.md)'s incident steps include a notification step: who decides?

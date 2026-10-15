@@ -68,6 +68,8 @@ const MARK = `<svg viewBox="-30 -20 300 280" aria-hidden="true"><defs><linearGra
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-chrome)" stroke-width="32"/>
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-red)" stroke-width="22"/></g></svg>`;
 
+import { t, esc } from '../ui/i18n.js';
+
 const FOLD = 'kr.dock.folded';
 const read = () => { try { return localStorage.getItem(FOLD) === '1'; } catch { return false; } };
 const keep = on => { try { localStorage.setItem(FOLD, on ? '1' : '0'); } catch { /* not kept */ } };
@@ -78,16 +80,17 @@ export function mountDock({ garage, editor } = {}) {
   if (!document.getElementById('krDockCss')) { const s = document.createElement('style'); s.id = 'krDockCss'; s.textContent = CSS; document.head.appendChild(s); }
   const next = encodeURIComponent(location.pathname + location.search);
   dock = document.createElement('nav');
-  dock.id = 'krDock'; dock.setAttribute('aria-label', 'Game menu');
-  dock.innerHTML = `<button class="dk-brand" data-k="fold" title="Fold the menu away">${MARK}</button>
+  dock.id = 'krDock'; dock.setAttribute('aria-label', t('dock.menu'));
+  dock.innerHTML = `<button class="dk-brand" data-k="fold" title="${esc(t('dock.fold'))}" aria-label="${esc(t('dock.fold'))}">${MARK}</button>
     <div class="dk-sep"></div>
-    <button class="dk-item" data-k="garage" data-tip="Garage: your cars, parts, shop and dealership"><span class="dk-ic">car_repair</span>Garage</button>
+    <button class="dk-item" data-k="garage" data-tip="${esc(t('dock.garageTip'))}"><span class="dk-ic" aria-hidden="true">car_repair</span>${esc(t('dock.garage'))}</button>
     <div class="dk-slot" id="krDockRace"></div>
     <div class="dk-slot" id="krDockRoam"></div>
-    <button class="dk-item dk-chat" data-k="chat" data-tip="Chat with drivers near you (Enter)" hidden><span class="dk-ic">forum</span>Chat<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
+    <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" hidden><span class="dk-ic" aria-hidden="true">forum</span>${esc(t('dock.chat'))}<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
+    <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}"><span class="dk-ic" aria-hidden="true">school</span>${esc(t('dock.school'))}</button>
     <div class="dk-sep"></div>
-    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="Your account"><span class="dk-ic">account_circle</span>Account</a>
-    <button class="dk-item" data-k="editor" data-tip="World editor (F2)" hidden><span class="dk-ic">edit_road</span>Editor<kbd>F2</kbd></button>`;
+    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}"><span class="dk-ic" aria-hidden="true">account_circle</span>${esc(t('dock.account'))}</a>
+    <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" hidden><span class="dk-ic" aria-hidden="true">edit_road</span>${esc(t('dock.editor'))}<kbd>F2</kbd></button>`;
   document.body.appendChild(dock);
   dock.classList.toggle('folded', read());
   const badge = dock.querySelector('.dk-badge'), chat = dock.querySelector('.dk-chat'), roamSlot = dock.querySelector('#krDockRoam');
@@ -100,6 +103,7 @@ export function mountDock({ garage, editor } = {}) {
     else if (k === 'garage') { b.blur(); garage?.(); }
     else if (k === 'chat') { b.blur(); dispatchEvent(new CustomEvent('kr:roam-open', { detail: { tab: 'chat', toggle: true } })); }
     else if (k === 'editor') { b.blur(); editor?.(); }
+    else if (k === 'school') { b.blur(); dispatchEvent(new CustomEvent('kr:school')); }
   });
   // free roam: the chat tile while it's on (its status sits in the slot), what's unread, which tile is open
   const roamOn = () => { chat.hidden = !roamSlot.firstElementChild; if (chat.hidden) setUnread(0); };

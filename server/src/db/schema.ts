@@ -539,3 +539,53 @@ export const catalogueHistory = pgTable('catalogue_history', {
   at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('catalogue_history_item').on(t.kind, t.id, t.seq)]);
 
+
+// ---------- final polish and launch (Phase 8 Step 4; migration 0016) ----------
+// a player's settings, following them between devices (ui/settingsSync.js); changedAt: the device's own clock (ms)
+export const playerSettings = pgTable('player_settings', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  data: jsonb('data').notNull().default({}), changedAt: bigint('changed_at', { mode: 'number' }).notNull().default(0), updatedAt: updated(),
+});
+export const playerProfiles = pgTable('player_profiles', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  favouriteCars: jsonb('favourite_cars').notNull().default([]), public: boolean('public').notNull().default(true), updatedAt: updated(),
+});
+// the driving school's medals (and the onboarding's one-time steps, as lessons 'first:<step>')
+export const schoolResults = pgTable('school_results', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), lessonId: text('lesson_id').notNull(),
+  medal: text('medal').notNull(), best: real('best'), paid: text('paid'), attempts: integer('attempts').notNull().default(1),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ name: 'school_results_pk', columns: [t.userId, t.lessonId] })]);
+export const playerPhotos = pgTable('player_photos', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  caption: text('caption'), place: text('place'), mime: text('mime').notNull(), bytes: integer('bytes').notNull(), data: bytea('data').notNull(), createdAt: created(),
+}, t => [index('player_photos_user').on(t.userId, t.createdAt)]);
+export const crews = pgTable('crews', {
+  id: text('id').primaryKey(), name: text('name').notNull(), tag: text('tag').notNull(),
+  ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }), inviteCode: text('invite_code').notNull(), createdAt: created(),
+});
+export const crewMembers = pgTable('crew_members', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  crewId: text('crew_id').notNull().references(() => crews.id, { onDelete: 'cascade' }), role: text('role').notNull().default('member'),
+  joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('crew_members_crew').on(t.crewId)]);
+// anonymous play statistics, with consent (docs/ANALYTICS.md): no user id or IP address
+export const analyticsEvents = pgTable('analytics_events', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(), at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  anon: text('anon').notNull(), session: text('session').notNull(), kind: text('kind').notNull(), name: text('name'), version: text('version'),
+  device: jsonb('device').notNull().default({}), props: jsonb('props').notNull().default({}),
+}, t => [index('analytics_events_at').on(t.at), index('analytics_events_kind').on(t.kind, t.at)]);
+export const newsItems = pgTable('news_items', {
+  id: text('id').primaryKey(), kind: text('kind').notNull(), title: text('title').notNull(), body: text('body').notNull(), version: text('version'), link: text('link'),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(), endsAt: timestamp('ends_at', { withTimezone: true }),
+  published: boolean('published').notNull().default(false), createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }), createdAt: created(),
+}, t => [index('news_items_start').on(t.published, t.startsAt)]);
+export const calendarEvents = pgTable('calendar_events', {
+  id: text('id').primaryKey(), kind: text('kind').notNull(), title: text('title').notNull(), body: text('body').notNull().default(''), link: text('link'), region: text('region'),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(), endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  cancelled: boolean('cancelled').notNull().default(false), createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }), createdAt: created(),
+}, t => [index('calendar_events_start').on(t.startsAt)]);
+export const calendarRsvps = pgTable('calendar_rsvps', {
+  eventId: text('event_id').notNull().references(() => calendarEvents.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ name: 'calendar_rsvps_pk', columns: [t.eventId, t.userId] })]);

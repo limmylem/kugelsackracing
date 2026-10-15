@@ -30,7 +30,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
 export function linkMail(kind: string, to: string, subject: string, intro: string, url: string, outro: string): Mail {
   return {
     kind, to, subject,
-    text: `${intro}\n\n${url}\n\n${outro}\n\nKugelsack Racing`,
-    html: `<p>${esc(intro)}</p><p><a href="${esc(url)}">${esc(url)}</a></p><p>${esc(outro)}</p><p>Kugelsack Racing</p>`,
+    text: `${intro}\n\n${url}\n\n${outro}\n\nOgni Strada`,
+    html: `<p>${esc(intro)}</p><p><a href="${esc(url)}">${esc(url)}</a></p><p>${esc(outro)}</p><p>Ogni Strada</p>`,
   };
 }

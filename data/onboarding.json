@@ -1,0 +1,12 @@
+{
+  "_note": "The first launch (Phase 8 Step 4; docs/ONBOARDING.md; play/onboarding.js): the starter cars to pick from (economy.json starterChoices) with their pictures (studio thumbnails: the car with its stock bonnet) and a line each, the guided drive's start in each region (a recognisable place — each region's own spawn unless given here), and the guided first steps (one-time, skippable; data/school.json pays a small thanks for each).",
+  "starters": {
+    "starter_car": { "picture": "assets/thumbs/stock_bonnet.webp" },
+    "hana_roadster": { "picture": "assets/thumbs/hana_roadster_bonnet.webp" }
+  },
+  "places": {
+    "adelaide": { "lat": -34.9275, "lon": 138.6, "heading": 0 },
+    "sf": { "lat": 37.7942, "lon": -122.3954, "heading": 315 }
+  },
+  "firsts": ["quest", "repair", "part", "npcRace"]
+}

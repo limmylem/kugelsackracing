@@ -44,7 +44,7 @@ const DAMAGE = { partsPerReport: 64, hitsPerPart: 32, reportsPerSession: 20000, 
 // the actions a player may ask for (their arguments are checked by the routes' schemas first)
 export const PLAYER_ACTIONS = ['buyPart', 'sellPart', 'sellParts', 'refundPart', 'buyBundle', 'sellCar', 'buyUsedCar', 'buyGarageSlot', 'repairPart', 'repairParts', 'repairBody', 'repairCar', 'replaceWithSpare', 'basicRepair', 'installPart', 'removePart', 'buyAndInstall',
   'setBuild', 'setTuning', 'setPaint', 'setPartFinish', 'selectCar', 'buyCar', 'saveSetup', 'renameSetup', 'deleteSetup', 'switchSetup', 'markHint', 'favouriteTrack',
-  'startQuest', 'refundQuest', 'finishQuest', 'failQuest', 'awardCar', 'forfeitCar', 'damageCar', 'wearPart', 'sessionReset'] as const;
+  'startQuest', 'refundQuest', 'finishQuest', 'failQuest', 'awardCar', 'forfeitCar', 'damageCar', 'wearPart', 'sessionReset', 'chooseStarter'] as const;
 export type PlayerAction = typeof PLAYER_ACTIONS[number];
 
 const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purchase', buyCar: 'purchase', buyBundle: 'purchase', buyUsedCar: 'purchase', buyGarageSlot: 'purchase', sellPart: 'sale', sellParts: 'sale', sellCar: 'sale', refundPart: 'refund', repairPart: 'repair', repairParts: 'repair', repairBody: 'repair', repairCar: 'repair', replaceWithSpare: 'repair', basicRepair: 'repair', startQuest: 'entry_fee', refundQuest: 'refund', finishQuest: 'reward', failQuest: 'reward' };
@@ -259,6 +259,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
         case 'setPaint': answer = await S.setPaint(args.carInstanceId, args.paint ?? null); break;
         case 'setPartFinish': answer = await S.setPartFinish(args.instanceIds, args.look ?? null); break;
         case 'selectCar': answer = await S.selectCar(args.carInstanceId); break;
+        case 'chooseStarter': answer = await S.chooseStarter(args.carId); break;
         case 'saveSetup': answer = await S.saveSetup(args.carInstanceId, args.opts ?? {}); break;
         case 'renameSetup': answer = await S.renameSetup(args.carInstanceId, args.setupId, args.name); break;
         case 'deleteSetup': answer = await S.deleteSetup(args.carInstanceId, args.setupId); break;
@@ -445,6 +446,18 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
     }).then(r => { if (r.paid) events.emit('change', userId, r.rev); return r; });
   }
 
+  // a one-time reward (Phase 8 Step 4: a driving school medal, a guided first step): money and xp, once per key
+  async function payReward(userId: string, { money, xp, reason, key }: { money: number; xp: number; reason: string; key: string }) {
+    return withPlayer(userId, async (tx, G) => {
+      const before = await loadProfile(tx, userId);
+      if (!before) return { paid: false as const, why: 'No garage yet.' };
+      const done = (await tx.execute(sql`select 1 from ledger where user_id = ${userId} and kind = 'reward' and ref->>'reward' = ${key}`)).rows.length;
+      if (done) return { paid: false as const, why: 'Paid already.' };
+      const r = await saveProfile(tx, userId, before, { ...before, money: before.money + money, xp: (before.xp ?? 0) + xp }, { kind: 'reward', reason, action: 'reward', questsConfig: G.quests, ref: { reward: key, xp } });
+      return { paid: true as const, rev: r.rev };
+    }).then(r => { if (r.paid) events.emit('change', userId, r.rev); return r; });
+  }
+
   // ---------- admins: money and items put right, by hand (always with a reason; the caller logs it) ----------
   async function adminMoney(admin: User, userId: string, amount: number, reason: string) {
     return withPlayer(userId, async (tx, G) => {
@@ -505,7 +518,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminLevel, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace,
+    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminLevel, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace, payReward,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

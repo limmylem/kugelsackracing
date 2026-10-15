@@ -3,6 +3,7 @@
   "currency": "$",
   "startingMoney": 6000,
   "startingCar": "starter_car",
+  "starterChoices": ["starter_car", "hana_roadster"],
   "sell": {
     "_note": "What a part or car sells for (garage/shop.js sellValue): what it's worth — the least of what was paid for it, its list price and its price now — × ratio, less repairShare of what it would cost to put right (its condition, dents and mechanical damage; garage/repair.js), never below floor of the ratio's share. Repairing something only to sell it never pays. A car's body (its list price less its factory parts') the same, with its body shell's repairs; each part on it as a part. conditionCurve: the old rule (condition only), for economy files without repairShare.",
     "ratio": 0.6,

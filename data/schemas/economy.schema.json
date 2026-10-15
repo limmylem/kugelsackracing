@@ -30,6 +30,13 @@
       "pattern": "^[a-z0-9_]+$",
       "description": "The car a new player has, with its stock parts"
     },
+    "starterChoices": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "The cars a new player may pick one of on their first launch instead of the starting car (Phase 8 Step 4: play/onboarding.js, chooseStarter)"
+    },
     "sell": {
       "type": "object",
       "required": [

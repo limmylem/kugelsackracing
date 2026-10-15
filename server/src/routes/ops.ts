@@ -189,9 +189,9 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     const to = t.is_anonymous ? t.contact_email : t.email;
     if (!to) throw new AppError(400, 'BAD_REQUEST', 'This player left no email address to answer (a guest who didn\'t give one).');
     const esc = (x: string) => x.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-    await mailer.send({ kind: 'support-reply', to, subject: `Re: your message to Kugelsack Racing (#${t.id})`,
-      text: `Hi ${t.name ?? ''},\n\n${req.body.message}\n\n— The Kugelsack Racing team\n\n(You wrote: ${t.message.slice(0, 500)})`,
-      html: `<p>Hi ${esc(t.name ?? '')},</p><p>${esc(req.body.message).replace(/\n/g, '<br>')}</p><p>— The Kugelsack Racing team</p><blockquote>${esc(t.message.slice(0, 500))}</blockquote>` });
+    await mailer.send({ kind: 'support-reply', to, subject: `Re: your message to Ogni Strada (#${t.id})`,
+      text: `Hi ${t.name ?? ''},\n\n${req.body.message}\n\n— The Ogni Strada team\n\n(You wrote: ${t.message.slice(0, 500)})`,
+      html: `<p>Hi ${esc(t.name ?? '')},</p><p>${esc(req.body.message).replace(/\n/g, '<br>')}</p><p>— The Ogni Strada team</p><blockquote>${esc(t.message.slice(0, 500))}</blockquote>` });
     await db.execute(sql`update support_tickets set status = ${req.body.close ? 'closed' : 'open'}, note = concat_ws(E'\n', note, ${`Replied ${new Date().toISOString().slice(0, 16)}: ${req.body.message.slice(0, 500)}`}::text), handled_by = ${s.user.id}, handled_at = now() where id = ${req.params.id}`);
     await log(s, 'support-reply', t.user_id, null, { ticket: req.params.id });
     return { ok: true as const };

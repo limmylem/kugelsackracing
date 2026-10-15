@@ -192,7 +192,7 @@ const backupLink = done => h('a', { href: '#', onclick: e => { e.preventDefault(
 // signing in: the password was right, now the code
 function viewTwoFactorStep() {
   const code = codeField();
-  show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', { class: 'muted' }, 'Open your authenticator app and enter the 6-digit code for Kugelsack Racing.'),
+  show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', { class: 'muted' }, 'Open your authenticator app and enter the 6-digit code for Ogni Strada.'),
     form([code.el], 'Sign in', async () => { await api.auth('/two-factor/verify-totp', { code: code.input.value.trim() }); api.forgetCsrf(); location.replace(next); }),
     h('div', { class: 'links' }, backupLink(() => location.replace(next)), h('a', { href: here(null) }, 'Start again'))));
   code.input.focus();
