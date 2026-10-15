@@ -1,0 +1,174 @@
+{
+ "_note": "Map v5 Step 0's teleport spots (MAP_V5_DIAGNOSIS.md): ten well-known places in Adelaide and a spot for each known Map v4 bug in Step 1. bearing: the direction the street-level shot looks (degrees from north). The region file lists them as quick-travel spots too; tools/map-shots.mjs (--spots data/map/v5/spots.json) and map/debug/capture.ts shoot them.",
+ "spots": [
+  {
+   "id": "shopping-rundle-st",
+   "name": "Main shopping street: Rundle Street, East End",
+   "lat": -34.92255,
+   "lon": 138.60745,
+   "bearing": 90,
+   "road": "Rundle Street"
+  },
+  {
+   "id": "suburb-parkside",
+   "name": "Suburban street: Alfred Street, Parkside",
+   "lat": -34.943297,
+   "lon": 138.616405,
+   "bearing": 86,
+   "road": "Alfred Street"
+  },
+  {
+   "id": "interchange-superway",
+   "name": "Motorway interchange: South Road Superway / Port Wakefield Road",
+   "lat": -34.8616,
+   "lon": 138.568,
+   "bearing": 160,
+   "road": "South Road Superway"
+  },
+  {
+   "id": "petrol-otr-unley",
+   "name": "Petrol station: OTR, King William Road / Greenhill Road, Unley",
+   "lat": -34.94299,
+   "lon": 138.60021,
+   "bearing": 0
+  },
+  {
+   "id": "drivethru-west-tce",
+   "name": "Fast-food drive-thru: West Terrace, Adelaide",
+   "lat": -34.92346,
+   "lon": 138.58799,
+   "bearing": 0
+  },
+  {
+   "id": "carpark-burnside-village",
+   "name": "Shopping centre car park: Burnside Village",
+   "lat": -34.94113,
+   "lon": 138.64141,
+   "bearing": 0
+  },
+  {
+   "id": "school-adelaide-high",
+   "name": "School: Adelaide High School, West Terrace",
+   "lat": -34.92561,
+   "lon": 138.58709,
+   "bearing": 0
+  },
+  {
+   "id": "park-rymill",
+   "name": "Park: Rymill Park, East Terrace",
+   "lat": -34.92389,
+   "lon": 138.61416,
+   "bearing": 0,
+   "street": {
+    "lat": -34.925098,
+    "lon": 138.612812,
+    "bearing": 60
+   }
+  },
+  {
+   "id": "station-adelaide",
+   "name": "Train station: Adelaide Railway Station, North Terrace",
+   "lat": -34.921,
+   "lon": 138.59677,
+   "bearing": 90
+  },
+  {
+   "id": "landmark-adelaide-oval",
+   "name": "Landmark: Adelaide Oval",
+   "lat": -34.91557,
+   "lon": 138.59669,
+   "bearing": 0,
+   "street": {
+    "lat": -34.916336,
+    "lon": 138.597874,
+    "bearing": 330
+   }
+  },
+  {
+   "id": "bug-sef-m1",
+   "name": "South Eastern Freeway (M1) above Glen Osmond",
+   "lat": -34.968243,
+   "lon": 138.664265,
+   "bearing": 62,
+   "road": "South Eastern Freeway",
+   "bug": "1a"
+  },
+  {
+   "id": "bug-heysen-tunnels",
+   "name": "Heysen Tunnels, South Eastern Freeway",
+   "lat": -34.97308,
+   "lon": 138.6767,
+   "bearing": 135,
+   "road": "South Eastern Freeway",
+   "bug": "1e"
+  },
+  {
+   "id": "bug-windy-run-start",
+   "name": "The windy route's start: Belair Road / Springbank Road (the owner's screenshot)",
+   "lat": -34.989908,
+   "lon": 138.610405,
+   "bearing": 287,
+   "road": "Belair Road",
+   "bug": "1a, 1b, 1c"
+  },
+  {
+   "id": "bug-windy-run-hairpins",
+   "name": "The windy route's hairpins, Belair Road, Clapham",
+   "lat": -35.00005,
+   "lon": 138.6112,
+   "bearing": 250,
+   "road": "Belair Road",
+   "bug": "1a, 1b"
+  },
+  {
+   "id": "bug-overpass-waverley",
+   "name": "Waverley Ridge Road over the South Eastern Freeway, Crafers (the owner's screenshot)",
+   "lat": -34.998015,
+   "lon": 138.702491,
+   "bearing": 314,
+   "road": "South Eastern Freeway",
+   "bug": "1d"
+  },
+  {
+   "id": "bug-steep-bridge-nsm",
+   "name": "Steepest bridge: North South Motorway deck, Wingfield",
+   "lat": -34.83254,
+   "lon": 138.56255,
+   "bearing": 0,
+   "road": "North South Motorway",
+   "bug": "1d"
+  },
+  {
+   "id": "bug-roundabout-britannia",
+   "name": "Roundabout: Britannia Roundabout, Kent Town / Norwood",
+   "lat": -34.92772,
+   "lon": 138.62335,
+   "bearing": 90,
+   "bug": "1j"
+  },
+  {
+   "id": "bug-grass-on-road",
+   "name": "Road reading as grass: Port Road / Hindmarsh",
+   "lat": -34.904091,
+   "lon": 138.584719,
+   "bearing": 0,
+   "bug": "1f"
+  },
+  {
+   "id": "bug-sign-in-road",
+   "name": "Street sign standing in the road, Hindmarsh",
+   "lat": -34.904103,
+   "lon": 138.584641,
+   "bearing": 0,
+   "bug": "1g"
+  },
+  {
+   "id": "bug-floating-paths",
+   "name": "Floating street-side parking slabs, Bowden",
+   "lat": -34.909074,
+   "lon": 138.587266,
+   "bearing": 0,
+   "bug": "1h"
+  }
+ ]
+}

@@ -68,7 +68,7 @@ export function tileBuilderV4(D: any) {
     t.lists.roadBorder = { stride: 4, data: Float32Array.from(border) };
     const X = D.mask.tile(i, j);
     t.grids.exclusion = { n: X.n, cell: X.cell, names: ['road', 'buffer', 'deck', 'rail'], data: X.data.slice() };
-    Object.assign(t.header, { map: 'v4', roadModel: D.model.version, roadClasses: D.model.surface.classes });
+    Object.assign(t.header, { map: D.map ?? 'v4', roadModel: D.model.version, roadClasses: D.model.surface.classes });
     t.header.terrain = { ...t.header.terrain, roadDrop: cfg.terrain.lodRoadDrop };
     time('lists');
     return t;
