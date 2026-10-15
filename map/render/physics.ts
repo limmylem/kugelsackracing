@@ -16,7 +16,7 @@
 import { barrierBoxes } from '../format/barriers.ts';
 
 export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {}) {
-  const out: any[] = [], v4 = d.header?.map === 'v4';
+  const out: any[] = [], v4 = d.header?.map === 'v4' || d.header?.map === 'v5';
   const flags = v4 && RAPIER.TriMeshFlags ? RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES : undefined;
   const trimesh = (m: any) => (flags !== undefined ? RAPIER.ColliderDesc.trimesh(m.positions, m.indices, flags) : RAPIER.ColliderDesc.trimesh(m.positions, m.indices));
   if (d.heightfield) out.push({ desc: RAPIER.ColliderDesc.heightfield(d.heightfield.n, d.heightfield.n, d.heightfield.heights, { x: d.heightfield.size, y: 1, z: d.heightfield.size }), userData: { material: 'ground', kind: 'terrain' }, shape: { type: 'heightfield', hf: d.heightfield } });

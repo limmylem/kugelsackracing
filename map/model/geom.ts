@@ -9,11 +9,24 @@
 
 import type { Seg } from './graph.ts';
 
-export function prepareNormals(g: Seg, maxMitre = 1.6) {
+// (smooth > 0, Map v5: each point's direction is the chord from smooth m back to smooth m on along the road — OSM nodes
+// a few decimetres apart that zigzag, as Overture's splits leave them, no longer turn a cross-section; the centre line
+// keeps every node where it is)
+export function prepareNormals(g: Seg, maxMitre = 1.6, smooth = 0) {
   const n = g.xs.length;
   g.nx ??= new Array(n); g.nz ??= new Array(n); g.mitre ??= new Array(n);
+  const posAt = (s: number) => { const S = g.s, L = S[n - 1], t0 = Math.max(0, Math.min(L, s)); let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] <= t0) lo = m; else hi = m; } const u = (t0 - S[lo]) / ((S[hi] - S[lo]) || 1); return [g.xs[lo] + (g.xs[hi] - g.xs[lo]) * u, g.zs[lo] + (g.zs[hi] - g.zs[lo]) * u]; };
   for (let k = 0; k < n; k++) {
     if (g.fixedNormal?.[k]) continue;
+    if (smooth > 0 && n > 2 && g.s[n - 1] > 2 * smooth) {
+      const [ax, az] = posAt(g.s[k] - smooth), [bx, bz] = posAt(g.s[k] + smooth), dl = Math.hypot(bx - ax, bz - az);
+      if (dl > 1e-6) {
+        const tx = (bx - ax) / dl, tz = (bz - az) / dl, b = Math.min(n - 1, k + 1), a = Math.max(0, k - 1);
+        const px = g.xs[b] - g.xs[a], pz = g.zs[b] - g.zs[a], pl = Math.hypot(px, pz) || 1;
+        g.nx[k] = -tz; g.nz[k] = tx; g.mitre[k] = Math.min(maxMitre, 1 / Math.max(1e-6, Math.abs(tx * px / pl + tz * pz / pl)));
+        continue;
+      }
+    }
     const a = Math.max(0, k - 1), b = Math.min(n - 1, k + 1);
     let x0 = g.xs[k] - g.xs[a], z0 = g.zs[k] - g.zs[a], x1 = g.xs[b] - g.xs[k], z1 = g.zs[b] - g.zs[k];
     const l0 = Math.hypot(x0, z0), l1 = Math.hypot(x1, z1);

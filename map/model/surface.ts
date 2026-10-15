@@ -19,7 +19,7 @@ import type { MNode, Seg } from './graph.ts';
 import type { Cluster } from './topology.ts';
 import { at, polygonArea, rowAt } from './geom.ts';
 import { armRow, triangulatePatch } from './topology.ts';
-import { planeAt } from './heights.ts';
+import { planeAt, planeGrad } from './heights.ts';
 
 export const SURFACES = ['tarmac', 'concrete', 'cobbles', 'kerb', 'gravel', 'dirt', 'grass', 'sand'];
 export const LEVELS = { ground: 0, bridge: 1, tunnel: 2 } as const;
@@ -80,7 +80,7 @@ export function planesOf(g: Seg, G: { nodes: MNode[] }, T: { clusters: Cluster[]
   const planes: any = { a: pa, b: pb, dA: rA ? planeAt({ plane: pa }, rA.x, rA.z) - profileAt(g, s0) : 0, dB: rB ? planeAt({ plane: pb }, rB.x, rB.z) - profileAt(g, s1) : 0 };
   // (short, between two planes: the curve's ends — each plane's height at the road's middle and its slope along it)
   if (H.shortRoadCurve && pa && pb && s1 - s0 < 2 * H.armEase && g.structure === 'ground') {
-    const slope = (p: any, r: any) => p.a * r.nz + p.b * (-r.nx);
+    const slope = (p: any, r: any) => { const [gx, gz] = planeGrad(p, r.x, r.z); return gx * r.nz + gz * (-r.nx); };
     planes.hermite = [planeAt({ plane: pa }, rA!.x, rA!.z), slope(pa, rA), planeAt({ plane: pb }, rB!.x, rB!.z), slope(pb, rB), s0, s1 - s0];
   }
   return { s0, s1, planes };

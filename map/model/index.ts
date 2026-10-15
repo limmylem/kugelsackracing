@@ -22,7 +22,7 @@ import { buildSurface, drawnHeights } from './surface.ts';
 
 // withSurface false: everything but the surface mesh — model.surfaceFor({ segs, clusters }) builds the surface of some of
 // it (the bake's blocks: the whole region's surface at once is more than a machine's memory)
-export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSize, P, style = 'AU', log = (_: string) => {}, withSurface = true }: { roads: Way[]; points?: any[]; demAt: (x: number, z: number) => number; cfg: any; v3roads: any; tileSize: number; P: Projection; style?: string; log?: (s: string) => void; withSurface?: boolean }) {
+export function buildRoadModel({ roads, points = [], lines = [], demAt, cfg, v3roads, tileSize, P, style = 'AU', log = (_: string) => {}, withSurface = true }: { roads: Way[]; points?: any[]; lines?: Way[]; demAt: (x: number, z: number) => number; cfg: any; v3roads: any; tileSize: number; P: Projection; style?: string; log?: (s: string) => void; withSurface?: boolean }) {
   const t0 = performance.now(), lap = (s: string) => log(`    ${s} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
   const G = buildGraph(roads, { cfg, v3roads, tileSize });
   // (border nodes: their lat/lon from the projection)
@@ -32,9 +32,11 @@ export function buildRoadModel({ roads, points = [], demAt, cfg, v3roads, tileSi
   lap(`widths: ${G.segs.filter(g => g.adjusted).length} segments narrowed beside another road`);
   const T = buildTopology(G, cfg);
   lap(`junctions: ${T.stats.junctions} (${T.stats.clusters} patches, ${T.stats.merged} merged into clusters), ${T.stats.joints} joints, ${T.stats.ends} ends; ${T.stats.clamped} trims clamped, ${T.stats.unresolvedCorners} open corners, ${T.stats.unionFailures} union failures, ${unionStats.skipped} pieces a union couldn't take`);
-  const Hs = solveHeights(G, T, demAt, cfg);
+  // (the railways at ground level, for Map v5's bridge clearance: a deck over one keeps clearanceRail over it)
+  const rails = lines.filter(l => ['rail', 'light_rail', 'tram', 'narrow_gauge'].includes(l.tags.railway) && !(l.tags.bridge && l.tags.bridge !== 'no') && !(l.tags.tunnel && l.tags.tunnel !== 'no')).map(l => ({ xs: l.nodes.map(p => p.x), zs: l.nodes.map(p => p.z) }));
+  const Hs = solveHeights(G, T, demAt, cfg, { rails });
   drawnHeights(G, T, cfg);
-  lap(`heights: ${Hs.stats.chains} chains, ${Hs.stats.lifted} bridges lifted, ${Hs.stats.gradeLimited} grade-limited, junction planes moved ${Hs.stats.planesMoved} times to meet their neighbours`);
+  lap(`heights: ${Hs.stats.chains} chains, ${Hs.stats.lifted} bridges lifted, ${Hs.stats.gradeLimited} grade-limited, junction planes moved ${Hs.stats.planesMoved} times to meet their neighbours${cfg.heights.approachGrade ? `; ${Hs.stats.quadratic} big junctions curved, ${Hs.stats.crossings} deck points over a road or railway, ${Hs.stats.raisedJunctions} junctions raised for a deck's approach, ${Hs.stats.shortOfClearance} decks still short of clearance` : ''}`);
   // (OSM's crossings, stops and give ways, by node id: markings where they're mapped)
   const crossings = new Map<number, string>();
   for (const p of points) { const h = p.tags?.highway; if (h === 'crossing' || h === 'stop' || h === 'give_way') crossings.set(p.id, h); else if (p.tags?.crossing && p.tags.crossing !== 'no') crossings.set(p.id, 'crossing'); }

@@ -345,7 +345,7 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
       e.obj?.setDetail(distTo(e, wx, wz) / detailScale);
       if (e.obj && e.scenery !== scenery) { e.obj.setScenery?.(scenery); e.scenery = scenery; }
       // (v4: tree trunks only for the trees drawn — the scenery changed, the tile's colliders made again)
-      if (e.physics && e.data?.header?.map === 'v4' && e.treeShare !== scenery) dropPhysics(e);
+      if (e.physics && (e.data?.header?.map === 'v4' || e.data?.header?.map === 'v5') && e.treeShare !== scenery) dropPhysics(e);
     }
     // a few milliseconds of colliders, the car's own tile and those ahead first
     physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));

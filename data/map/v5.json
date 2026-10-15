@@ -18,14 +18,25 @@
     "minUncovered": 200
   },
   "graph": {
-    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve).",
+    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks.",
     "continuous": true,
+    "minNodeGap": 1.5,
     "cornerMinLeg": 14,
-    "continueMaxTurn": 75
+    "continueMaxTurn": 75,
+    "normalSmooth": 3
   },
   "heights": {
-    "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.",
+    "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck), what it crosses being a road or railway whose centre line crosses the deck's in plan (a carriageway beside it isn't under it), the deck's own road too where it comes back under it more than selfCrossAlong m along (a loop ramp); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.",
     "lidarAlongRoad": true,
+    "corridor": {
+      "_note": "map/model/heights.ts corridorProfiles: each carriageway of these classes one height profile end to end through its junctions (the same name and class, turning no more than turn° at a node): the elevation along it — none on a structure, within portalSkip m of a tunnel's mouth (its cutting) or bridgeSkip m of a bridge's ends — a Gaussian of sigma m, held to its class's grade exactly (halfway between the highest profile within it nowhere above and the lowest nowhere below). Junctions on it fit their surface to it weight times as hard as to the side roads.",
+      "classes": ["motorway", "trunk", "primary"],
+      "turn": 35,
+      "sigma": 30,
+      "portalSkip": 120,
+      "bridgeSkip": 15,
+      "weight": 6
+    },
     "maxGradeByClass": {
       "motorway": 0.075,
       "trunk": 0.1,
@@ -47,6 +58,7 @@
     "deckDepth": 1.2,
     "clearance": 5.0,
     "clearanceRail": 5.5,
+    "selfCrossAlong": 60,
     "quadraticAbove": 60,
     "maxCurvature": 0.0012
   },

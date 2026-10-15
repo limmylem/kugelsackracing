@@ -108,7 +108,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // 3. the road model for the whole area — graph, widths, junctions, heights — (the roads reaching into it, and a
   // little beyond: junctions at its edge whole); its surface is built a block at a time, below
   const pad = 600, near = (p: any) => p.x >= grid.x0 - pad && p.x <= gx1 + pad && p.z >= grid.z0 - pad && p.z <= gz1 + pad;
-  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), demAt: roadDemAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
+  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), lines: v5 ? osm.lines.filter(l => l.tags.railway && l.nodes.some(near)) : [], demAt: roadDemAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
   for (const g of model.segs) g.width = g.visual;
   demSmooth = null;
   lap(`  road model ${model.version}: ${model.segs.length} segments, ${model.clusters.length} junction patches`);
@@ -298,7 +298,7 @@ function roadModelFile(model: any, region: string, litBySeg: Map<number, boolean
     segs: model.segs.map((g: any) => ({ id: g.id, from: g.from, to: g.to, way: g.osmWay, name: g.name, class: g.cls, link: g.link, rank: g.rank, oneway: g.oneway, lanes: g.lanes, lanesEstimated: g.lanesEstimated, drivable: r2(g.drivable), visual: r2(g.visual), widthEstimated: g.widthEstimated, adjusted: g.adjusted, structure: g.structure, layer: g.layer, surface: g.surface, lit: g.lit, lamps: litBySeg.get(g.id) ? 1 : 0, internal: g.internal, trim: [r2(g.trim0), r2(g.trim1)],
       points: g.xs.flatMap((x: number, k: number) => [r2(x), r2(g.zs[k]), r2((g.hd ?? g.h)[k])]), half: g.hwL.flatMap((v: number, k: number) => [r2(v), r2(g.hwR[k])]), osm: g.orig.map((o: boolean, k: number) => (o ? [k, g.osmNodes[k], g.lat[k], g.lon[k]] : null)).filter(Boolean) })),
     nodes: model.nodes.map((n: any) => [r2(n.x), r2(n.z), r2(n.h ?? 0), n.kind === 'junction' ? 2 : n.kind === 'joint' ? 1 : 0, n.cluster ?? -1]),
-    junctions: model.clusters.map((c: any) => ({ id: c.id, nodes: c.nodes, plane: c.plane && { cx: r2(c.plane.cx), cz: r2(c.plane.cz), a: +c.plane.a.toFixed(5), b: +c.plane.b.toFixed(5), c: r2(c.plane.c) }, arms: c.arms.map((A: any) => [A.seg.id, A.atStart ? 1 : 0, r2(A.trim)]), rings: c.rings.map((poly: number[][][]) => poly.map(r => r.flatMap(p => [r2(p[0]), r2(p[1])]))) })),
+    junctions: model.clusters.map((c: any) => ({ id: c.id, nodes: c.nodes, plane: c.plane && { cx: r2(c.plane.cx), cz: r2(c.plane.cz), a: +c.plane.a.toFixed(5), b: +c.plane.b.toFixed(5), c: r2(c.plane.c), ...(c.plane.qa && { qa: +c.plane.qa.toExponential(4), qb: +c.plane.qb.toExponential(4), qc: +c.plane.qc.toExponential(4) }) }, arms: c.arms.map((A: any) => [A.seg.id, A.atStart ? 1 : 0, r2(A.trim)]), rings: c.rings.map((poly: number[][][]) => poly.map(r => r.flatMap(p => [r2(p[0]), r2(p[1])]))) })),
   };
 }
 

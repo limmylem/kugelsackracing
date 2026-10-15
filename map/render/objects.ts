@@ -230,7 +230,7 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null }: a
     return obj;
   };
   const terrain = [0, 1, 2].map(k => mesh(`terrain${k}`, mat.terrain, { normals: true }));
-  const v4 = tile.header.map === 'v4';
+  const v4 = tile.header.map === 'v4' || tile.header.map === 'v5';
   const near = [mesh('roads', v4 ? mat.roadsV4 : mat.roads), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
   mesh('water', mat.water, { normals: true, order: 2 });
   const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true }))].filter(Boolean);
