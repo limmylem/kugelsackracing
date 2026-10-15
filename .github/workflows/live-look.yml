@@ -4,6 +4,11 @@ name: live-look
 
 on:
   workflow_dispatch:
+    inputs:
+      route:
+        description: Also print the course of each published route whose name has this in it (e.g. windy)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -19,6 +24,8 @@ jobs:
           npm i --no-save --no-audit --no-fund playwright@1.56.1
           npx playwright install --with-deps chromium
       - run: node tools/live-look.mjs
+        env:
+          LIVE_LOOK_ROUTE: ${{ inputs.route }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: screenshots, path: 'live-*.png', retention-days: 3 }

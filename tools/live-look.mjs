@@ -20,6 +20,21 @@ try {
   const r = await fetch(`${tiles}/${dir}/tiles/${t.i}_${t.j}.m3t`, { headers: { Origin: GAME } });
   console.log(`adelaide: in the game's regions ${entry ? 'yes' : 'NO'} · ${dir}/manifest.json ${m.version}${m.map ? ` (${m.map}${m.roadModel?.version ? `, roads ${m.roadModel.version}` : ''})` : ''}, ${m.tiles.length} tiles · tile ${t.i}_${t.j}: ${r.status}, ${(await r.arrayBuffer()).byteLength} bytes (${t.bytes} baked), CORS ${r.headers.get('access-control-allow-origin')}`);
 } catch (e) { console.log(`adelaide: couldn't check (${e.message})`); }
+// the published routes a lobby can race (public), and the course of any whose name has --route's text in it (or the
+// workflow's "route" input), as lat,lon points: for finding a route players talk about by name on the map
+try {
+  const api = opt('--api', 'https://api.ognistrada.com'), want = (opt('--route', process.env.LIVE_LOOK_ROUTE) || '').toLowerCase();
+  const { routes } = await (await fetch(`${api}/api/v1/mp/routes`)).json();
+  console.log(`published routes: ${routes.length} — ${routes.map(r => `${r.name} (${r.region}, ${r.km} km${r.loop ? ', loop' : ''})`).join(' · ')}`);
+  if (want) {
+    const { decodeLine } = await import('../route/geometry.js');
+    for (const r of routes.filter(r => r.name.toLowerCase().includes(want))) {
+      const item = await (await fetch(`${api}/api/v1/content/items/${r.id}`)).json(), course = (item.item ?? item).data?.course;
+      const pts = course?.path ? decodeLine(course.path) : [];
+      console.log(`route "${r.name}" (${r.id}, ${r.region}): ${pts.length} points: ${pts.map(p => `${p.lat.toFixed(6)},${p.lon.toFixed(6)}`).join(' ')}`);
+    }
+  }
+} catch (e) { console.log(`published routes: couldn't check (${e.message})`); }
 // the quests' tiers as the live server prices them (its economy, as the database gives it back): a 2-star sprint with no
 // class rule is a Rookie quest, free to enter (the editor's own figure — the jsonb key order put class A first once)
 try {
