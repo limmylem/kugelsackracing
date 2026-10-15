@@ -618,7 +618,7 @@ export class GarageScreen {
       <div class="panel-head" style="flex-direction:column;gap:14px;align-items:stretch">
         <div style="display:flex;flex-direction:column;gap:4px"><div class="label">Setup · adjustable parts only</div><div class="panel-title">Tuning</div></div>
         <div class="g-effects" data-effects>${this.#effects()}</div></div>
-      <div class="panel-body" style="gap:16px;padding-top:18px" data-scroll="tuning">${sections || '<div class="empty-list">No adjustable parts fitted. Fit sport coilovers, the standalone ECU, a sport LSD, the close-ratio gearbox or the rear wing to tune them.</div>'}${locked}</div>
+      <div class="panel-body" style="gap:16px;padding-top:18px" data-scroll="tuning">${sections || '<div class="empty-list">No adjustable parts fitted. Fit sport coilovers, a camber kit, the standalone ECU, a sport LSD, the close-ratio gearbox or the rear wing to tune them.</div>'}${locked}</div>
       <div class="panel-foot"><button class="btn ghost" data-act="tune-reset:all" data-key="reset-all" ${settings.length ? '' : 'disabled'}>${icon('restart_alt')}Reset</button>
         <div class="secondary-text" style="flex:1;font-size:13px;line-height:1.35">Kept as you go. The settings stay with the part, in whichever setup it's in.</div></div></section>`;
   }

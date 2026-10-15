@@ -63,7 +63,7 @@ import { createNetwork } from '../route/network.js';
 import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
 import { createReplayWheels } from '../race/replayWheels.js';
-import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
+import { axisAngle, camberOf, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 // the game's sound (Phase 8 Step 1; docs/AUDIO.md): one system for everything, your car and every other one through it
 import { startAudio as startSound, audioSettings, audioSystem } from '../audio/system.js';
@@ -565,7 +565,7 @@ function replayWheels(RR, vis, id, p, t) {
   const { spin, steer } = RR.wheels.at(id, p, t);
   for (const [name, v] of Object.entries(vis.wheelVis ?? {})) {
     if (!v?.pivot || !v.rig) continue;
-    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0);
+    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0, camberOf(shared.spec, name));
     v.pivot.quaternion.fromArray(tr.rotation);
     v.pivot.position.fromArray(tr.position);
     vis.setWheelSpin?.(name, v.rig.axle, spin);
@@ -2586,7 +2586,7 @@ function placeCar(vis, a, b, alpha) {
     const wa = a.wheels[i], v = vis.wheelVis[wb.name];
     if (!v?.pivot || wb.off) return;
     const drop = (W.mountHeight?.[W.front.includes(wb.name) ? 'front' : 'rear'] ?? 0) - lerp(wa.length, wb.length) + (W.radius - (wb.radius ?? W.radius)), spin = lerp(wa.spin, wb.spin);
-    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0);
+    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0, camberOf(shared.spec, wb.name));
     let q = t.rotation;
     if (wb.bend) { const r = v.rig, f = [r.axle[1] * r.up[2] - r.axle[2] * r.up[1], r.axle[2] * r.up[0] - r.axle[0] * r.up[2], r.axle[0] * r.up[1] - r.axle[1] * r.up[0]]; q = quatMul(axisAngle(f, 1.5 * wb.bend / 1000 / (W.rimRadius ?? W.radius) * Math.sin(spin)), q); }
     v.pivot.quaternion.fromArray(q);

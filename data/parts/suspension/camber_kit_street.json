@@ -1,0 +1,50 @@
+{
+  "id": "camber_kit_street",
+  "name": "Adjustable camber bolts",
+  "category": "suspension",
+  "slot": "camber",
+  "kind": "modifier",
+  "price": 320,
+  "mass": 1,
+  "model": "",
+  "icon": "assets/icons/parts/camber_kit_street.png",
+  "fits": [
+    ["chassis:starter", "suspension_mount:std"]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Eccentric bolts in the struts' mounts: the wheels' camber set at the front and the rear (Tuning). A little negative camber (the tops in) keeps the loaded outside tyre flatter on the road as the body rolls, for more grip in corners, and costs a little braking and traction; too much and the tyres grip less every way (physics/vehicle.js #camber). The wheels lean as set, in the garage and on the road.",
+  "effects": [],
+  "tuning": {
+    "front": {
+      "label": "front camber",
+      "unit": "°",
+      "min": -2.5,
+      "max": 0.5,
+      "step": 0.1,
+      "default": -1,
+      "apply": [
+        {
+          "target": "suspension.camber.front",
+          "op": "add"
+        }
+      ]
+    },
+    "rear": {
+      "label": "rear camber",
+      "unit": "°",
+      "min": -2,
+      "max": 0.5,
+      "step": 0.1,
+      "default": -0.5,
+      "apply": [
+        {
+          "target": "suspension.camber.rear",
+          "op": "add"
+        }
+      ]
+    }
+  },
+  "tier": "street"
+}
