@@ -48,3 +48,4 @@ AI racers no longer flip when they rejoin the pack
 The game now opens right where you left off
 Every car rebuilt to look as good as the starter coupe
 Camber kits in the shop: tilt your wheels in the tuning tab
+Taking off a supercharger or turbo works again

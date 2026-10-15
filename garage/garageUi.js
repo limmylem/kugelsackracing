@@ -413,7 +413,8 @@ export class GarageScreen {
     // what else happens: parts in the way (back on after, or not if they don't fit the new part), and
     // whether the car can still be driven (one line for a whole group of empty sockets)
     const ops = p.ops ?? [], others = ops.filter(o => o.op === 'remove' && o.socket !== this.ui.socket && !this.#sameGroup(o.socket, this.ui.socket)).map(o => o.socket);
-    const goBack = others.filter(x => ops.some(o => o.op === 'install' && o.socket === x)), stayOff = others.filter(x => !goBack.includes(x));
+    // (back on: the same copy put back — a spare of the car's own part put in its place is that part staying off)
+    const goBack = others.filter(x => ops.some(o => o.op === 'install' && o.socket === x && o.instanceId === ops.find(r => r.op === 'remove' && r.socket === x)?.instanceId)), stayOff = others.filter(x => !goBack.includes(x));
     const empties = (p.warnings ?? []).filter(x => x.code === 'required_empty').map(x => x.socket);
     const rest = [...new Set((p.warnings ?? []).filter(x => x.code !== 'required_empty').map(x => this.#words(x.message)))];
     const notes = [
