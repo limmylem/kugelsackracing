@@ -12,6 +12,10 @@ on:
         description: 'Your script (optional). Hook | caption | caption | … (| between them; END: … for the end card''s line). Empty: drafted from this week''s commits'
         type: string
         default: ''
+      focus:
+        description: 'What this video is about (optional): the things players will notice, | between them (HOOK: … sets the title). Used in place of devlog/highlights.md''s new lines; the draft fills up from the commits'
+        type: string
+        default: ''
       target:
         description: 'What to film: local = the game in this repository, with a private game server on GitHub''s computer (production untouched); live = ognistrada.com'
         type: choice
@@ -79,11 +83,14 @@ jobs:
         working-directory: devlog
         env:
           SCRIPT_TEXT: ${{ inputs.script }}
+          FOCUS: ${{ inputs.focus }}
           DATE: ${{ steps.date.outputs.date }}
         run: |
           mkdir -p out
           if [ -n "$SCRIPT_TEXT" ]; then
             node -e 'const fs=require("fs");fs.writeFileSync("out/script.txt", `# Devlog script for ${process.env.DATE} (from the workflow'"'"'s input)\n${process.env.SCRIPT_TEXT}\n`)'
+          elif [ -n "$FOCUS" ]; then
+            node script/draft.mjs --out out/script.txt --today "$DATE" --focus "$FOCUS"
           else
             node script/draft.mjs --out out/script.txt --today "$DATE"
           fi

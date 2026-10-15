@@ -83,3 +83,12 @@ test('v2: the highlights come first, as written, and a HOOK: line sets the title
   assert.ok(d.captions.some(c => /garage/i.test(c)), 'commits fill the rest');
   assert.equal(d.captions.filter(c => /Adelaide/.test(c)).length, 1, 'no commit repeats a highlight');
 });
+
+import { focusLines } from '../script/draft.mjs';
+test('what the video is about, as typed on the admin page (| or a line each): used as the highlights, HOOK sets the title', () => {
+  const lines = focusLines('HOOK: Build your own car parts | A family builder on the admin page\nVoice chat in races\n# a note\n');
+  assert.deepEqual(lines, ['HOOK: Build your own car parts', 'A family builder on the admin page', 'Voice chat in races']);
+  const d = draft({ commits: [], highlights: lines, date: '2026-10-15' });
+  assert.equal(d.hook, 'Build your own car parts');
+  assert.deepEqual(d.captions.slice(0, 2), ['A family builder on the admin page', 'Voice chat in races']);
+});

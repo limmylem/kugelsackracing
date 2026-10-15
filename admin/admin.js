@@ -89,9 +89,12 @@ const content = async () => contentTools ??= (await import('./content.js')).crea
 const showContent = async () => (await content()).showContent();
 // (the family builder: its own tab — admin/builder.js)
 const showBuilder = async () => (await (await content()).builderTools()).showHome();
+// (the devlog video: its own tab — admin/devlog.js)
+let devlogTools = null;
+const showDevlog = async () => (devlogTools ??= (await import('./devlog.js')).createDevlogTools({ api, h, say, when, errText, main: () => { tabs(); const m = $('main'); m.className = ''; m.style.gridTemplateColumns = ''; m.replaceChildren(); return m; } })).showDevlog();
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
-  nav.replaceChildren(...[['Players', showAdmin], ['Content', showContent], ['Builder', showBuilder], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
+  nav.replaceChildren(...[['Players', showAdmin], ['Content', showContent], ['Builder', showBuilder], ['Devlog', showDevlog], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()],
     ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {

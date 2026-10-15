@@ -284,6 +284,9 @@ though the server's files aren't the repository (`contentBuilder.mode` `github` 
      **New repository secret**: name `CONTENT_BUILDER_TOKEN`, paste it, **Add secret**. Never paste it anywhere else.
   5. The next deploy gives it to the server (or run **rollback** at the current commit to deploy now).
 - **Cost:** nothing. GitHub's workflows are free for a public repository; the server's plan is the same.
+- **The Devlog tab** (DEVLOG.md "From the admin page") uses the same token: it starts the `devlog` workflow, follows
+  its runs, and fetches the finished video from the run's artifact to play it on the page (unpacked into the
+  container's temporary folder).
 
 ## Redis: not used
 

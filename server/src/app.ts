@@ -47,6 +47,9 @@ import { adminContentRoutes } from './routes/adminContent.ts';
 import { createContentManager } from './content/manager.ts';
 import { createContentBuilder } from './content/builder.ts';
 import { createGithubRunner } from './content/github.ts';
+import { githubApi } from './github.ts';
+import { createDevlog } from './devlog.ts';
+import { adminDevlogRoutes } from './routes/adminDevlog.ts';
 import { adminBuilderRoutes } from './routes/adminBuilder.ts';
 import { createContentService } from './content/service.ts';
 import { ensureStartingGarages } from './content/garages.ts';
@@ -422,6 +425,8 @@ export async function buildApp(deps: AppDeps) {
   const remote = CB.enabled && CB.mode === 'github' ? createGithubRunner({ repo: CB.repo ?? 'limmylem/kugelsackracing', token: config.contentBuilderToken, ...(deps.githubFetch && { fetchFn: deps.githubFetch }) }) : null;
   const contentBuilder = createContentBuilder(db, { manager: contentManager, enabled: CB.enabled, remote, log: (o: any, m: string) => app.log.warn(o, m) });
   app.addHook('onClose', async () => contentBuilder.close());
+  // (the admin page's Devlog tab: the devlog workflow run and its videos shown, through GitHub with the same token)
+  const devlog = createDevlog(db, { github: config.contentBuilderToken || deps.githubFetch ? githubApi({ repo: CB.repo ?? 'limmylem/kugelsackracing', token: config.contentBuilderToken, ...(deps.githubFetch && { fetchFn: deps.githubFetch }) }) : null });
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
   sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
@@ -445,6 +450,7 @@ export async function buildApp(deps: AppDeps) {
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
     await adminContentRoutes(api, { db, manager: contentManager, G });
     await adminBuilderRoutes(api, { builder: contentBuilder, G });
+    await adminDevlogRoutes(api, { devlog, G });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });

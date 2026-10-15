@@ -107,6 +107,8 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/content-browser.ts --local-libs
       - name: The family builder in a browser (docs/CONTENT_PIPELINE.md "A family from the admin page" — a new family picked step by step, real brands refused, every part listed before anything is made, a preview, made as a job and cancelled with everything put back, a family changed, an engine's live torque curve)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/builder-browser.ts --local-libs
+      - name: The Devlog tab in a browser (DEVLOG.md "From the admin page" — what the video is about filled in, the boxes sent to the devlog workflow, a finished video played with its caption, new words over the same filming)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/devlog-browser.ts
       - name: Models in a browser (a far car drawn from its levels of detail, a KTX2 texture decoded, the content bundle's models downloaded once and cached)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/model-browser.mjs
       - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
