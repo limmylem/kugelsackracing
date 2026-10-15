@@ -47,6 +47,9 @@ const FileConfig = z.object({
   // (Phase 7 Step 5) a result that fails its check — a race's run, a free-roam challenge: 'flag' keeps the result (paid
   // as normal) and flags it for an admin to review; 'disqualify' takes it away (DSQ, nothing paid). Nothing bans by itself
   antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),
+  // the Content tab's family builder (docs/CONTENT_PIPELINE.md): it writes the repository's files and runs the content
+  // pipeline, so it's on only where the server runs from a development copy (npm run server:dev) — never the image
+  contentBuilder: z.object({ enabled: z.boolean() }).default({ enabled: false }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
     reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1), evidenceDays: z.number().int().min(1).optional() }),

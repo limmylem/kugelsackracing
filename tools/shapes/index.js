@@ -37,7 +37,8 @@ const SHAPES = {
   exhaust: (id, c, st, d) => {
     const R = Math.min(0.05, c.diameter / 1000 / 2 * 1.1), gap = R + (d.gap ?? 0.006);
     const tips = c.tips === 'single' ? [[0, 0]] : c.tips === 'quad' ? [[gap, gap * 0.75], [-gap, gap * 0.75], [gap, -gap * 0.75], [-gap, -gap * 0.75]] : [[gap, 0], [-gap, 0]];
-    return exhaustTip(id, { length: d.length ?? 0.18, cut: d.cut ?? 'rolled', ...(d.slash != null && { slash: d.slash }), ...(d.tipShape === 'oval' && { shape: 'oval' }), tips, radius: c.tips === 'quad' ? R * 0.8 : R, material: 'chrome', ...(d.tipPiece && { piece: d.tipPiece }) });
+    // (four tips: fewer sides round each, within the exhaust's triangle budget)
+    return exhaustTip(id, { length: d.length ?? 0.18, cut: d.cut ?? 'rolled', ...(d.slash != null && { slash: d.slash }), ...(d.tipShape === 'oval' && { shape: 'oval' }), tips, radius: c.tips === 'quad' ? R * 0.8 : R, material: 'chrome', ...(c.tips === 'quad' && { segments: 12 }), ...(d.tipPiece && { piece: d.tipPiece }) });
   },
   wing: (id, c, st, d, car, f = {}) => {
     if (c.style.id === 'ducktail') return ducktail(id, { span: c.span, chord: c.chord, height: c.riser + (f.dh ?? 0), material: 'carbon' }).moved([0, 0, f.dz ?? 0]);

@@ -393,3 +393,150 @@ export function presetFrom(name, def) {
   return { _note: PRESET_NOTE, name, kind: def.kind, settings: def.settings ?? {}, ...(def.shape && { shape: def.shape }), finishes: def.finishes ?? [], ...(def.skip && { skip: def.skip }), ...(def.leaveOff && { leaveOff: def.leaveOff }), ...(def.aim && { aim: def.aim }) };
 }
 export const presetProblem = name => /^[A-Za-z0-9][A-Za-z0-9 _-]{1,40}$/.test(String(name ?? '')) ? null : 'A preset\'s name is 2 to 41 letters, digits, spaces, _ or -.';
+
+export const nameProblemOf = (name, ctx) => nameProblem(name, ctx.names);
+
+// ---------- the live shape preview ----------
+
+// One part's model, made there and then (for the shape step's 3D preview as the settings change): the middle part, or
+// the one asked for — on its own, not fitted to a car (an aero kit: on its car). → { id, glb (base64), triangles, budget, findings }
+export async function shapeModel(def, partId, ctx) {
+  const { formulas: F, db, root } = ctx, kind = F.families[def.kind];
+  const r = expandFamily(def, { formulas: F, db, root, kits: ctx.kits });
+  if (!r.variants.length) throw Object.assign(new Error(r.problems[0] ?? 'It makes no parts.'), { status: 400 });
+  const v = r.variants.find(x => x.id === partId) ?? r.variants[Math.floor((r.variants.length - 1) / 2)];
+  const { shapeFor, withKits } = await import('../shapes/index.js'), { checkModel } = await import('./check.mjs'), { inspect } = await import('./inspect.mjs'), { modelIO, quiet } = await import('./io.mjs');
+  const design = await withKits(def.kind, kind, v.design), shape = shapeFor(kind.shape);
+  const car = kind.perCar ? await (await import('../generators/lib/car.js')).loadCar(v.settings.car) : undefined;
+  const model = await shape(v.modelKey, v.ctx, v.stats, design, car);
+  const doc = quiet(await model.document()), info = inspect(doc), t = ctx.project.rules.types[kind.type];
+  const findings = checkModel(info, { rules: ctx.project.rules, type: kind.type, file: `${v.modelKey}.glb` }).findings.filter(f => f.level !== 'pass').map(f => ({ level: f.level, text: f.text }));
+  const io = await modelIO();
+  return { id: v.id, name: v.part.name, glb: Buffer.from(await io.writeBinary(doc)).toString('base64'), triangles: info.triangles.length, budget: t.triangles, findings, fitted: !!kind.fit };
+}
+
+// ---------- variations ----------
+
+// Several new families from one (a preset or a family): each the same but for the settings and shape settings chosen —
+// each of their values in turn (three materials, a budget, middle and top build), or, for several, different mixes of
+// them — each with an invented name (checked like any other) and what it'd make. Nothing is made.
+//   from: { preset } | { family } | { def }   vary: [key] (a setting's or a shape setting's)   → [{ def, varied, summary }]
+export async function variationPlan(from, vary, ctx, { count = ctx.config.variations.max, seed = 1 } = {}) {
+  let base;
+  if (from?.preset) { base = listPresets(ctx.root).find(p => p.name === from.preset || p.file === presetFile(from.preset)); if (!base) throw Object.assign(new Error(`There's no preset "${from.preset}".`), { status: 404 }); }
+  else if (from?.family) { base = ctx.families[from.family]; if (!base) throw Object.assign(new Error(`There's no family "${from.family}".`), { status: 404 }); }
+  else base = from?.def;
+  if (!base?.kind || !ctx.formulas.families[base.kind]) throw Object.assign(new Error('Start from a preset or a family.'), { status: 400 });
+  const kind = ctx.formulas.families[base.kind], keys = [...new Set(vary ?? [])], max = Math.min(count, ctx.config.variations.max);
+  if (!keys.length) throw Object.assign(new Error('Pick the settings to vary.'), { status: 400 });
+  // each key's values to try: a table's entries, a list's values, a range's spread across it — not the one it has
+  const choices = {};
+  for (const k of keys) {
+    const S = kind.settings[k] ?? kind.shapeSettings?.[k], where = kind.settings[k] ? 'settings' : 'shape';
+    if (!S || k.startsWith('_') || S.cars) throw Object.assign(new Error(`"${k}" isn't a setting or shape setting of a ${kind.label} that can be varied.`), { status: 400 });
+    const now = listOf(base[where]?.[k]).map(x => JSON.stringify(x));
+    let vals = S.table ? named(S.table) : S.values ? S.values : S.kit ? ['none', ...(ctx.kits[base.kind]?.[S.kit] ?? [])] : S.range ? Array.from({ length: Math.max(2, max) }, (_, i) => { const v = S.range[0] + (S.range[1] - S.range[0]) * (i + 0.5) / Math.max(2, max); return S.integer ? Math.round(v) : +v.toPrecision(3); }) : [];
+    vals = [...new Set(vals.map(v => JSON.stringify(v)))].filter(v => !now.includes(v) || vals.length <= 1).map(v => JSON.parse(v));
+    choices[k] = { where, vals };
+  }
+  // the mixes: each value of one key in turn; for several keys, their values stepped together and shuffled by the seed
+  let combos = [];
+  if (keys.length === 1) combos = choices[keys[0]].vals.map(v => ({ [keys[0]]: v }));
+  else {
+    const n = Math.max(...keys.map(k => choices[k].vals.length));
+    let x = (seed >>> 0) || 1; const rnd = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+    const seen = new Set();
+    for (let i = 0; combos.length < max && i < n * 8; i++) {
+      const c = Object.fromEntries(keys.map((k, j) => [k, choices[k].vals[(i + (j ? Math.floor(rnd() * choices[k].vals.length) : 0)) % choices[k].vals.length]]));
+      const s = JSON.stringify(c); if (!seen.has(s)) { seen.add(s); combos.push(c); }
+    }
+  }
+  combos = combos.slice(0, max);
+  const names = suggestFamilyNames(base.kind, ctx, { seed, count: combos.length + 6 }), out = [];
+  for (const [i, c] of combos.entries()) {
+    const name = names[i] ?? `${base.name ?? 'Family'} ${i + 2}`;
+    const d = { kind: base.kind, name, settings: { ...(base.settings ?? {}) }, shape: { ...(base.shape ?? {}) }, finishes: base.finishes, ...(base.skip && { skip: base.skip }), ...(base.leaveOff && { leaveOff: base.leaveOff }), ...(base.aim && { aim: base.aim }) };
+    for (const [k, v] of Object.entries(c)) d[choices[k].where][k] = v;
+    // (a table or list setting that's varied is one value in each — a skip naming another of its values is dropped)
+    if (d.skip) d.skip = d.skip.filter(sk => Object.entries(c).every(([k, v]) => sk[k] === undefined || String(sk[k]) === String(v)));
+    if (!Object.keys(d.shape).length) delete d.shape;
+    const { def, problems } = normaliseFamily(d, ctx);
+    const s = def ? await summarise(def, ctx, { suggest: false }) : { problems, warnings: [], parts: [], count: 0, byTier: {} };
+    const made = s.parts.filter(p => p.made), prices = made.map(p => p.price);
+    out.push({ def, varied: c, text: def ? familyText(def) : null, summary: { count: s.count, byTier: s.byTier, problems: [...problems, ...s.problems], warnings: s.warnings.slice(0, 6), price: prices.length ? [Math.min(...prices), Math.max(...prices)] : null, unlock: made.length ? [Math.min(...made.map(p => p.unlock)), Math.max(...made.map(p => p.unlock))] : null, previewPicks: [] } });
+  }
+  return out;
+}
+
+// ---------- engines ----------
+
+export const ENGINE_NOTE = 'An engine (docs/CONTENT_PIPELINE.md): its settings here, its torque curve, mass and size from data/content/formulas.json engines (overrides: torqueCurve, mass, size to set them yourself). npm run content -- build makes its crate engine part, data/parts/engine/crate_<id>.json, and its model.';
+const ENGINE_KEYS = ['_note', 'id', 'maker', 'name', 'layout', 'cylinders', 'displacement', 'aspiration', 'boost', 'idle', 'redline', 'character', 'mount', 'sound', 'colour', 'overrides', 'status'];
+export function engineText(def) {
+  const keys = [...ENGINE_KEYS.filter(k => def[k] !== undefined), ...Object.keys(def).filter(k => !ENGINE_KEYS.includes(k) && def[k] !== undefined)];
+  const val = (k, v) => k === 'displacement' && Number.isInteger(v) ? v.toFixed(1) : k === 'boost' && Number.isInteger(v) ? v.toFixed(1) : inline(v);
+  return `{\n${keys.map(k => `  ${JSON.stringify(k)}: ${val(k, def[k])}`).join(',\n')}\n}\n`;
+}
+export function engineOptions(ctx) {
+  const E = ctx.formulas.engines, S = ctx.standards, root = ctx.root, dir = path.join(root, 'data/sounds/engines');
+  const sounds = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort().map(f => { const c = readJson(`data/sounds/engines/${f}`, root); return { id: f.replace(/\.json$/, ''), cylinders: c.cylinders ?? null, label: c.label ?? c.name ?? f.replace(/\.json$/, '') }; }) : [];
+  const makers = [...new Set([...(ctx.config.engines?.makers ?? []), ...Object.values(ctx.engines).map(e => e.maker).filter(Boolean)])];
+  return {
+    makers: makers.filter(m => !nameProblem(m, { ...ctx.names, pattern: '.*', maxLength: 60 })), layouts: named(E.layouts).map(k => ({ id: k, label: E.layouts[k].label })), aspirations: named(E.aspirations).map(k => ({ id: k, label: E.aspirations[k].label })),
+    ranges: Object.fromEntries(Object.entries(E.ranges).filter(([k]) => !k.startsWith('_'))), mounts: named(S.engineMounts).map(k => ({ id: k, label: S.engineMounts[k].label })), sounds, colours: ctx.config.engines?.colours ?? ['grey'],
+    engines: Object.values(ctx.engines).map(e => ({ id: e.id, maker: e.maker, name: e.name ?? null })),
+  };
+}
+// An engine from the form: its file, what it comes to (torque curve, power, mass, bay, price, tier, unlock level), the
+// cars it goes in and why the others won't, and what stops it being made
+export async function engineSummary(input, ctx, { editing = null } = {}) {
+  const { cratePart, engineWords } = await import('../../garage/engines.js');
+  const { soundProblems } = await import('./build.mjs');
+  const problems = [], E = ctx.formulas.engines;
+  if (!input || typeof input !== 'object') return { problems: ['There\'s no engine to make.'] };
+  for (const k of Object.keys(input)) if (!ENGINE_KEYS.includes(k) && k !== 'editing') problems.push(`"${k}" isn't something an engine file has (${ENGINE_KEYS.filter(x => x !== '_note').join(', ')}).`);
+  const num = k => input[k] === '' || input[k] == null ? undefined : Number(input[k]);
+  const def = {
+    _note: input._note ?? ctx.engines[editing]?._note ?? ENGINE_NOTE, id: editing ?? String(input.id ?? '').trim(), maker: String(input.maker ?? '').trim(), ...(input.name ? { name: String(input.name).trim() } : {}),
+    layout: input.layout, cylinders: num('cylinders'), displacement: num('displacement'), aspiration: input.aspiration ?? 'natural', ...((input.aspiration ?? 'natural') !== 'natural' ? { boost: num('boost') } : {}),
+    idle: num('idle'), redline: num('redline'), character: num('character'), mount: input.mount, sound: input.sound, colour: input.colour ?? 'grey', ...(input.overrides && { overrides: input.overrides }), status: input.status ?? ctx.engines[editing]?.status ?? 'draft',
+  };
+  if (!/^[a-z][a-z0-9_]{2,30}$/.test(def.id)) problems.push(`An engine's id is 3 to 31 lower-case letters, digits and _, starting with a letter (like "kmw_v6_35"): "${def.id}" isn't one.`);
+  else if (!editing && (ctx.engines[def.id] || ctx.families[def.id] || ctx.db.cars[def.id] || ctx.db.parts[`crate_${def.id}`])) problems.push(`There's already an engine, family or car "${def.id}" (or a part crate_${def.id}): pick another id.`);
+  const makers = engineOptions(ctx).makers;
+  if (!makers.includes(def.maker)) problems.push(`Pick its maker from the made-up makers (${makers.join(', ')}: data/content/builder.json engines.makers).`);
+  if (def.name) { const np = nameProblem(def.name, { ...ctx.names, pattern: '^[A-Z0-9].*$', maxLength: 60 }); if (np) problems.push(np); }
+  if (!(ctx.config.engines?.colours ?? []).includes(def.colour)) problems.push(`Its colour is one of ${(ctx.config.engines?.colours ?? []).join(', ')}.`);
+  if (!def.sound || !fs.existsSync(path.join(ctx.root, `data/sounds/engines/${def.sound}.json`))) problems.push(`Pick its sound (data/sounds/engines: ${engineOptions(ctx).sounds.map(s => s.id).join(', ')}).`);
+  const r = cratePart(def, { formulas: ctx.formulas, standards: ctx.standards, tiers: ctx.tiers });
+  problems.push(...r.problems);
+  if (!problems.length) problems.push(...soundProblems(ctx.root, def));
+  const out = { def, text: engineText(def), problems, name: r.part?.name ?? def.name ?? def.id, words: r.part ? engineWords(def) : null };
+  if (!r.part) return out;
+  const p = r.part, all = { ...ctx.db, parts: { ...ctx.db.parts, [p.id]: { ...p, conflicts: [] } } };
+  out.part = { id: p.id, name: p.name, tier: p.tier, price: p.price, unlock: p.unlock?.level ?? 1, mass: p.mass, requires: p.requires, fits: p.fits };
+  out.curve = r.design.curve; out.power = r.design.power; out.torque = r.design.stats.peakTorque; out.size = r.design.size; out.bay = r.design.bay; out.mass = r.design.stats.mass;
+  // the cars it goes in, and why not the others (their engine mount, their bay)
+  out.cars = Object.keys(ctx.db.cars).sort().map(c => {
+    const car = ctx.db.cars[c], ok = forCar(all, c, all.parts[p.id]), why = [];
+    if (!ok) for (const tag of p.fits) { const probe = { ...p, id: '__engine_probe', fits: [tag], conflicts: [] }; if (!forCar({ ...all, parts: { ...all.parts, [probe.id]: probe } }, c, probe)) why.push(tag.startsWith('mount:') ? `its engine sits ${car.standards?.engineMount ?? 'another way'}, this one is made to sit ${tag.slice(6)}` : tag.startsWith('bay:') ? `its bay is ${car.standards?.bay ?? 'smaller'}, this engine needs a ${tag.slice(4)} bay or bigger` : `it hasn't ${tag}`); }
+    return { id: c, name: car.name, fits: ok, why: ok ? null : why.join('; ') || 'it doesn\'t take it' };
+  });
+  out.note = 'A car whose bonnet or body it would go through is left out when it\'s built (the fit check needs the models).';
+  return out;
+}
+
+// ---------- cars ----------
+
+export function carOptions(ctx) {
+  const dir = path.join(ctx.root, 'data/content/templates');
+  return fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort().map(f => { const t = readJson(`data/content/templates/${f}`, ctx.root); return { type: t.type, label: t.label, donor: t.donor, sizes: t.sizes ?? null, standards: t.standards }; }) : [];
+}
+export function carProblems(input, ctx) {
+  const out = [], types = carOptions(ctx).map(t => t.type);
+  if (!/^[a-z][a-z0-9_]{2,30}$/.test(input.id ?? '')) out.push(`A car's id is 3 to 31 lower-case letters, digits and _, starting with a letter (like "comet_gt"): "${input.id ?? ''}" isn't one.`);
+  else if (ctx.db.cars[input.id] || fs.existsSync(path.join(ctx.root, `data/cars/${input.id}`)) || ctx.families[input.id] || ctx.engines[input.id]) out.push(`There's already a car, family or engine "${input.id}": pick another id.`);
+  if (!types.includes(input.type)) out.push(`Its type is one of ${types.join(', ')}.`);
+  if (input.name) { const np = nameProblem(input.name, { ...ctx.names, pattern: '^[A-Z0-9].*$', maxLength: 40 }); if (np) out.push(np); }
+  return out;
+}

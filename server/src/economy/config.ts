@@ -24,6 +24,8 @@ export const gameData = () => baseData ??= loadGarageData(readJson).then(({ db, 
   if (problems.length) console.warn(`The car and part data has ${problems.length} problem(s): ${problems.slice(0, 3).map((p: any) => `${p.file} ${p.path}: ${p.message}`).join('; ')}`);
   return { db, validator };
 });
+// (the files changed under it — a content builder job on a development copy wrote new parts: read again)
+export const reloadGameData = () => { baseData = null; };
 
 export function createEconomyConfig(db: Db) {
   let current: { version: number; data: EconomyData; checkedAt: number } | null = null;

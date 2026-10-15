@@ -24,6 +24,12 @@ export function createContentTools({ api, h, say, when, errText, main }) {
     box.replaceChildren(
       h('section', {}, h('h2', {}, 'Content'),
         h('p', { class: 'muted' }, 'Parts and cars, made by the content pipeline (npm run content). A draft or one in review isn\'t in the game; publishing needs its checks passed. An edit is a new version, a draft, checked again — players keep the published version until the new one is published.'),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn primary', onclick: async () => (await builderTools()).newFamily() }, 'New family'),
+          h('button', { class: 'btn secondary', onclick: async () => (await builderTools()).newEngine() }, 'New engine'),
+          h('button', { class: 'btn secondary', onclick: async () => (await builderTools()).newCar() }, 'New car'),
+          h('button', { class: 'btn ghost', onclick: async () => (await builderTools()).variations() }, 'Presets & variations'),
+          h('button', { class: 'btn ghost', onclick: async () => (await builderTools()).showJobs() }, 'Jobs')),
         filters, bulk, msg, list),
       detail);
     const drawFilters = () => {
@@ -38,7 +44,9 @@ export function createContentTools({ api, h, say, when, errText, main }) {
         sel('tier', q.kind === 'part' ? 'Tier' : 'Class', opts(facets?.tier)),
         sel('problems', 'Checks', [['none', 'passing'], ['any', 'failing'], ...Object.keys(facets?.problems ?? {}).filter(k => k !== 'none').map(k => [k, `failing: ${k}`])]),
         h('button', { class: 'btn ghost', onclick: () => { location.href = `${api.base ?? ''}/api/v1/admin/content/export.csv?${new URLSearchParams(Object.entries(q).filter(([k, v]) => v !== '' && !['offset'].includes(k)))}`; } }, 'Export CSV'),
-        h('button', { class: 'btn ghost', onclick: () => file.click() }, 'Import CSV'), file);
+        h('button', { class: 'btn ghost', onclick: () => file.click() }, 'Import CSV'), file,
+        // (a family or an engine picked: change it in the builder)
+        q.kind === 'part' && q.family && h('button', { class: 'btn secondary', onclick: async () => (await builderTools()).editSource(q.family) }, `Change ${q.family} in the builder`));
     };
     const drawBulk = () => {
       const n = picked.size, items = [...picked].map(k => { const [kind, id] = k.split(':'); return { kind, id }; }), parts = items.filter(x => x.kind === 'part').map(x => x.id);
@@ -202,5 +210,9 @@ export function createContentTools({ api, h, say, when, errText, main }) {
     };
   }
 
-  return { showContent };
+  // (the family builder: admin/builder.js — opened from here, it comes back here filtered to what it made)
+  let builder = null;
+  const builderTools = async () => builder ??= (await import('./builder.js')).createBuilder({ api, h, say, when, errText, main, ask, makePreview, showFamily: id => { Object.assign(q, { kind: 'part', q: '', slot: '', family: id, tier: '', status: '', problems: '', offset: 0 }); showContent(); } });
+
+  return { showContent, makePreview, builderTools };
 }

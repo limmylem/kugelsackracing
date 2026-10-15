@@ -8,6 +8,10 @@
 // Publishing needs the part's checks passed: the content checks run when it was made (data/content/checks.json, in
 // the image) and, after an edit here, the live checks of the edited version (garage/liveChecks.js — the class limits
 // with it in each car's most powerful build, its tier — run in a worker thread so the API stays quick).
+//
+// Publishing keeps what was published (live_set, pinned: the fields the overlay carries, as they were): if the files
+// change later — a family changed in the builder, rebuilt and deployed — players keep the published version, and the
+// part shows as a new draft version ("changed in the files since it was published") until it's published again.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +21,7 @@ import type { Db } from '../db/index.ts';
 import { REPO_DIR } from '../config.ts';
 import { AppError, badRequest, notFound } from '../errors.ts';
 import { gameData } from '../economy/config.ts';
-import { editFields, editNeeds, editProblems, STATUSES, statusOf, withContent } from '../../../garage/content.js';
+import { EDITABLE_FIELDS, editFields, editNeeds, editProblems, STATUSES, statusOf, withContent } from '../../../garage/content.js';
 import { editableStats } from '../../../garage/families.js';
 import { fitWithNeeds, forCar } from '../../../garage/balance.js';
 import { Garage } from '../../../garage/data.js';
@@ -28,12 +32,23 @@ export type Kind = 'part' | 'car';
 export type ItemRef = { kind: Kind; id: string };
 const KIND_WORDS: Record<string, string> = { fit: 'fit', drive: 'drive', crash: 'crash', sound: 'sound', budget: 'budget', economy: 'economy', classes: 'class limits', live: 'live checks' };
 const clone = (x: any) => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
+// (what players get of a part when it's published: the fields the overlay carries, as they are then — pinned)
+const PINNED = [...EDITABLE_FIELDS];
+export function pinOf(part: any) {
+  const o: any = { _pinned: true };
+  for (const k of PINNED) o[k] = part[k] === undefined ? (k === 'unlock' ? null : undefined) : clone(part[k]);
+  for (const k of Object.keys(o)) if (o[k] === undefined) delete o[k];
+  return o;
+}
+const same = (a: any, b: any) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// (a pinned published version against the part as its files and edits have it now: the fields that differ)
+const pinnedDiff = (pin: any, now: any) => PINNED.filter(k => !same(pin[k], k === 'unlock' ? now.unlock ?? null : now[k]));
 
 export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {}) {
   const formulas = readJson('data/content/formulas.json'), tiers = readJson('data/content/tiers.json'), balance = readJson('data/content/balance.json');
-  const checks = readMaybe('data/content/checks.json', { parts: {}, classes: {} });
+  let checks = readMaybe('data/content/checks.json', { parts: {}, classes: {} });
   // (each part's studio thumbnail: tools/content/thumbnail.mjs)
-  const thumbs = readMaybe('data/content/thumbs.json', { thumbs: {} }).thumbs ?? {};
+  let thumbs = readMaybe('data/content/thumbs.json', { thumbs: {} }).thumbs ?? {};
   let cached: { at: number; overlay: any } | null = null;
 
   // ---------- the published picture, for the game ----------
@@ -41,9 +56,11 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
   async function overlay() {
     if (cached && Date.now() - cached.at < 5000) return cached.overlay;
     const all = await rows(), v = Number(((await db.execute(sql`select coalesce(max(seq), 0) as v from catalogue_history`)).rows[0] as any).v);
-    const o: any = { version: v, parts: {}, cars: {} };
+    const o: any = { version: v, parts: {}, cars: {} }, game = all.some(r => r.live_set?._pinned) ? (await gameData()).db : null;
     for (const r of all) {
-      const entry = r.live ? { status: 'published', ...(Object.keys(r.live_set ?? {}).length && { set: r.live_set }) } : { status: r.status === 'published' ? 'draft' : r.status };
+      // (a pinned published version: only what differs from the files goes — nothing, until they change)
+      const liveSet = r.live_set?._pinned ? Object.fromEntries(pinnedDiff(r.live_set, game?.parts?.[r.id] ?? {}).map(k => [k, r.live_set[k] ?? null])) : r.live_set ?? {};
+      const entry = r.live ? { status: 'published', ...(Object.keys(liveSet).length && { set: liveSet }) } : { status: r.status === 'published' ? 'draft' : r.status };
       if (r.kind === 'part') o.parts[r.id] = entry; else o.cars[r.id] = { status: entry.status };
     }
     cached = { at: Date.now(), overlay: o };
@@ -62,7 +79,9 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
     if (!file) return null;
     const latest = { ...file, ...(row?.set ?? {}) };
     if (latest.unlock === null) delete latest.unlock;
-    const status = row ? row.status : statusOf(file);
+    // (published, then its files changed: players keep what was published, and this is a new version — a draft)
+    const filesChanged = kind === 'part' && !!row?.live && !!row.live_set?._pinned && pinnedDiff(row.live_set, latest).length > 0;
+    const status = row ? (filesChanged && row.status === 'published' ? 'draft' : row.status) : statusOf(file);
     const live = row ? row.live : statusOf(file) === 'published';
     const c = kind === 'part' ? checks.parts?.[id] : checks.classes?.[id];
     const failing: string[] = [], problems: string[] = [];
@@ -76,7 +95,7 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
       else if (!row.checks.ok) { failing.push('live'); problems.push(...row.checks.problems.slice(0, 4).map((p: string) => `live checks: ${p}`)); }
     }
     return { kind, id, name: latest.name, slot: latest.slot ?? null, category: latest.category ?? null, family: latest.generated?.family ?? latest.generated?.engine ?? latest.generated?.table ?? null,
-      tier: latest.tier ?? latest.class ?? null, price: latest.price ?? null, unlockLevel: latest.unlock?.level ?? null, status, live, version: row?.version ?? 0, edited,
+      tier: latest.tier ?? latest.class ?? null, price: latest.price ?? null, unlockLevel: latest.unlock?.level ?? null, status, live, version: row?.version ?? 0, edited, filesChanged, changedFields: filesChanged ? pinnedDiff(row.live_set, latest) : [],
       checksOk: !failing.length, failing, problems, icon: latest.icon ?? null, thumb: kind === 'part' && thumbs[id] ? `assets/thumbs/${id}.webp?v=${thumbs[id]}` : null, model: kind === 'car' ? latest.model?.file ?? null : latest.model ?? null, retired: !!latest.retired, latest, file, row };
   }
 
@@ -165,9 +184,9 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
       const r = row(ref.kind, ref.id), v = view(game, ref.kind, ref.id, r);
       if (!v) { refused.push({ ...ref, why: `there's no ${ref.kind} "${ref.id}"` }); continue; }
       if (status === 'published' && !v.checksOk) { refused.push({ ...ref, why: v.problems[0] ?? 'its checks don\'t pass' }); continue; }
-      if (status === 'published' && v.live && v.status === 'published' && !v.edited) { done.push(ref); continue; }
+      if (status === 'published' && v.live && v.status === 'published' && !v.edited && !v.filesChanged) { done.push(ref); continue; }
       const base = r ?? fresh(v.file), next = { ...base, version: base.version + 1, status };
-      if (status === 'published') Object.assign(next, { live: true, live_version: next.version, live_set: clone(base.set ?? {}) });
+      if (status === 'published') Object.assign(next, { live: true, live_version: next.version, live_set: ref.kind === 'part' ? pinOf(v.latest) : clone(base.set ?? {}) });
       // (back to a draft or into review: no longer what players have — unless it's an edit of a published version,
       // whose published version stays until this one's published)
       else if (!v.edited) Object.assign(next, { live: false });
@@ -301,7 +320,39 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
   // (the server closing: nothing more checked, the worker stopped — whatever it was checking is checked again on start)
   async function close() { closed = true; queue.length = 0; const w = worker; worker = null; await w?.terminate(); }
 
-  return { overlay, items, item, edit, setStatus, history, preview, exportCsv, importCsv, resume, close, idle: () => !busy && !queue.length };
+  // A family changed in the builder (or an engine): its parts players have now keep what's published until they're
+  // published again — what that is, taken before the files change (prepareHold), then each a new version, a draft, once
+  // the job has made the change (applyHold)
+  async function prepareHold(ids: string[]) {
+    const { game, row } = await state(), out: Record<string, any> = {};
+    for (const id of ids) {
+      const r = row('part', id), file = game.parts[id];
+      if (!file) continue;
+      if (r?.live) out[id] = r.live_set?._pinned ? clone(r.live_set) : pinOf({ ...file, ...(r.live_set ?? {}) });
+      else if (!r && statusOf(file) === 'published') out[id] = pinOf(file);
+    }
+    return out;
+  }
+  async function applyHold(held: Record<string, any>, actorId: string, reason: string) {
+    const ids = Object.keys(held);
+    if (!ids.length) return [];
+    const { game, row } = await state();
+    await db.transaction(async tx => {
+      for (const id of ids) {
+        if (!game.parts[id]) continue;
+        const r = row('part', id) ?? fresh(game.parts[id]);
+        const next = { ...r, version: r.version + 1, status: 'draft', live: true, live_version: r.live_version ?? r.version, live_set: held[id] };
+        await record(tx, { kind: 'part', id }, next, 'files changed', actorId, reason);
+      }
+    });
+    forget();
+    return ids;
+  }
+
+  // (the files changed — a content builder job on a development copy made or changed parts: read them again)
+  function reload() { checks = readMaybe('data/content/checks.json', { parts: {}, classes: {} }); thumbs = readMaybe('data/content/thumbs.json', { thumbs: {} }).thumbs ?? {}; forget(); }
+
+  return { overlay, items, item, edit, setStatus, history, preview, exportCsv, importCsv, resume, close, reload, prepareHold, applyHold, idle: () => !busy && !queue.length };
 }
 export type ContentManager = ReturnType<typeof createContentManager>;
 

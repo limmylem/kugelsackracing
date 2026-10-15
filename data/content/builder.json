@@ -53,6 +53,11 @@
     "nearStats": 0.01,
     "nearShape": 0.05
   },
+  "engines": {
+    "_note": "New engine (the Content tab › New engine; data/engines/<id>.json): the makers it can be from — made up, like everything in the game — and the colours its model can be.",
+    "makers": ["Kugel Motorworks", "Ognistrada Engines", "Halden Power", "Vireo Motor Co", "Brightwater Works"],
+    "colours": ["grey", "silver", "black", "blue", "red", "orange", "green", "bronze"]
+  },
   "variations": {
     "_note": "Make variations: at most this many new families at once, each a draft, each previewed before anything is made.",
     "max": 8

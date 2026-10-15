@@ -45,6 +45,8 @@ import { adminEconomyRoutes } from './routes/adminEconomy.ts';
 import { adminShopRoutes } from './routes/adminShop.ts';
 import { adminContentRoutes } from './routes/adminContent.ts';
 import { createContentManager } from './content/manager.ts';
+import { createContentBuilder } from './content/builder.ts';
+import { adminBuilderRoutes } from './routes/adminBuilder.ts';
 import { createContentService } from './content/service.ts';
 import { ensureStartingGarages } from './content/garages.ts';
 import { trackRoutes } from './routes/tracks.ts';
@@ -411,6 +413,9 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('contentManager', contentManager);
   app.addHook('onReady', async () => { void contentManager.resume().catch(e => app.log.warn({ err: e }, 'content checks resume failed')); });
   app.addHook('onClose', async () => contentManager.close());
+  // (the Content tab's family builder: on a development copy only — config contentBuilder)
+  const contentBuilder = createContentBuilder(db, { manager: contentManager, enabled: config.contentBuilder.enabled, log: (o: any, m: string) => app.log.warn(o, m) });
+  app.addHook('onClose', async () => contentBuilder.close());
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
   sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
@@ -433,6 +438,7 @@ export async function buildApp(deps: AppDeps) {
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
     await adminContentRoutes(api, { db, manager: contentManager, G });
+    await adminBuilderRoutes(api, { builder: contentBuilder, G });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
   }, { prefix: API_PREFIX });

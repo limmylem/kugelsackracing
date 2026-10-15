@@ -61,7 +61,7 @@ export async function previewParts(def, ids, { root = ROOT, out, cars = null, lo
   const results = [];
   let done = 0;
   for (const v of picked) {
-    const design = await withKits(def.kind, r.kind, v.design), p = v.part, entry = { id: p.id, name: p.name, modelKey: v.modelKey, byCar: {}, findings: [], fit: {} };
+    const design = await withKits(def.kind, r.kind, v.design), p = v.part, entry = { id: p.id, name: p.name, modelKey: v.modelKey, byCar: {}, findings: [], fit: {}, part: p, cars: Object.keys(all.cars).filter(c => forCar(all, c, p)).sort() };
     try {
       if (r.kind.perCar) {
         const m = await write(v.modelKey, await shape(v.modelKey, v.ctx, v.stats, design, await loadCar(v.settings.car)));
