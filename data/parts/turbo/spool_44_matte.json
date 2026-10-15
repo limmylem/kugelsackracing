@@ -10,7 +10,7 @@
   "icon": "assets/icons/parts/spool_44_matte.png",
   "fits": [],
   "requires": ["slot:intercooler"],
-  "conflicts": ["induction:turbo", "forced_induction:supercharger", "car:brute_500", "car:kaze_gt"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger", "car:brute_500"],
   "provides": ["forced_induction:turbo"],
   "effects": [
     {
@@ -79,8 +79,15 @@
     "hana_roadster": {
       "model": "assets/parts/turbo/spool/spool_44/hana_roadster.glb",
       "bounds": {
-        "min": [-0.2269, -0.3404, -0.2287],
-        "max": [0.015, 0.0188, 0.23]
+        "min": [-0.2269, -0.2204, -0.2287],
+        "max": [0.0089, 0.1171, 0.23]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/turbo/spool/spool_44/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.2269, -0.1004, -0.2287],
+        "max": [0, 0.2371, 0.23]
       }
     },
     "ridgeback_4x4": {
@@ -91,7 +98,7 @@
       }
     }
   },
-  "_fit": "It can't be made to fit the Brute 500, Kaze GT (its best fit still goes through the car), so it isn't for them.",
+  "_fit": "It can't be made to fit the Brute 500 (its best fit still goes through the car), so it isn't for it.",
   "tier": "sport",
   "unlock": {
     "level": 3

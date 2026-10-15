@@ -18,14 +18,14 @@
   "_note": "Rally mud flaps behind each wheel: the stones stay off the car.",
   "bounds": {
     "min": [-0.77, -0.17, 0.1035],
-    "max": [0.77, 0.16, 2.738]
+    "max": [0.77, 0.05, 2.738]
   },
   "madeBy": {
     "generator": "tools/generators/aero.js",
     "design": "rally flaps behind every wheel",
     "settings": {
-      "width": 0.26,
-      "height": 0.33,
+      "width": 0.18,
+      "height": 0.22,
       "bottom": 0.05,
       "material": "red",
       "stripe": "white"

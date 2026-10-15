@@ -36,51 +36,51 @@
   },
   "_generated": "Made by npm run content -- build from data/families/coldcore.json (and data/content/formulas.json families.intercooler): change those, not this file. race: priced by its settings, $1,550, unlocked at level 6.",
   "bounds": {
-    "min": [-0.3, -0.16, -0.2156],
-    "max": [0.3, 0.08, 0.054]
+    "min": [-0.3, -0.12, -0.2156],
+    "max": [0.3, 0.12, 0.054]
   },
-  "massOffset": [0, -0.04, -0.006],
+  "massOffset": [0, 0, -0.006],
   "byCar": {
     "brute_500": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/brute_500.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2756],
-        "max": [0.3, 0.16, -0.006]
+        "min": [-0.3, -0.12, -0.2156],
+        "max": [0.3, 0.12, 0.054]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/hana_roadster.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2756],
-        "max": [0.3, 0.0856, -0.006]
+        "min": [-0.27, -0.102, -0.2456],
+        "max": [0.27, 0.102, 0.024]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/kaze_gt.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2756],
-        "max": [0.3, 0.0856, -0.006]
+        "min": [-0.3, -0.12, -0.2456],
+        "max": [0.3, 0.12, 0.024]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2756],
-        "max": [0.3, 0.16, -0.006]
+        "min": [-0.3, -0.12, -0.2456],
+        "max": [0.3, 0.12, 0.024]
       }
     },
     "strada_evo": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/strada_evo.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2756],
-        "max": [0.3, 0.0856, -0.006]
+        "min": [-0.27, -0.12, -0.2456],
+        "max": [0.27, 0.12, 0.024]
       }
     },
     "vortex_r": {
       "model": "assets/parts/intercooler/coldcore/coldcore_100/vortex_r.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2756],
-        "max": [0.3, 0.16, -0.006]
+        "min": [-0.3, -0.12, -0.2456],
+        "max": [0.3, 0.12, 0.024]
       }
     }
   },

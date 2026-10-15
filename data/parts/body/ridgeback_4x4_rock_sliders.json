@@ -17,8 +17,8 @@
   "provides": [],
   "_note": "Steel tube sliders along the sills: the doors and sills ride over rocks instead of on them.",
   "bounds": {
-    "min": [-0.9996, -0.1101, -0.909],
-    "max": [0.9996, -0.052, 0.919]
+    "min": [-1.0196, -0.1101, -0.909],
+    "max": [1.0196, -0.052, 0.919]
   },
   "protects": {
     "slots": ["skirt_left", "skirt_right", "door_left", "door_right"],

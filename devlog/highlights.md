@@ -46,3 +46,4 @@ Other players' damaged cars now steam and flap their loose panels
 Voice chat now works in lobbies and races
 AI racers no longer flip when they rejoin the pack
 The game now opens right where you left off
+Every car rebuilt to look as good as the starter coupe

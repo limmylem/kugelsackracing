@@ -6,7 +6,7 @@
   "kind": "component",
   "price": 150,
   "mass": 15,
-  "model": "assets/parts/stock/strada_evo/seat_driver.glb",
+  "model": "assets/parts/stock/strada_evo/strada_evo_seat.glb",
   "icon": "assets/icons/parts/strada_evo_seat.png",
   "fits": ["car:strada_evo"],
   "requires": [],
@@ -14,7 +14,7 @@
   "provides": [],
   "tier": "stock",
   "bounds": {
-    "min": [-0.24, 0, -0.3],
-    "max": [0.24, 0.62, 0.28]
+    "min": [-0.24, 0, -0.48],
+    "max": [0.24, 0.882, 0.26]
   }
 }

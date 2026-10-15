@@ -17,7 +17,7 @@
   "provides": [],
   "_note": "A roof-mounted LED light bar.",
   "bounds": {
-    "min": [-0.6, -0.04, -0.05],
+    "min": [-0.6, -0.0451, -0.05],
     "max": [0.6, 0.08, 0.054]
   },
   "aeroEffect": {

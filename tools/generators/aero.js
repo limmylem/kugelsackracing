@@ -206,7 +206,7 @@ export async function parts({ project, carsFor }) {
     fromCar('hana_roadster_front_lip', 'front_lip', 'lip following the bumper', { protrude: 0.03, under: 0.12, thick: 0.016, material: 'black' }, frontLip),
     fromCar('vortex_r_front_splitter', 'front_lip', 'splitter with struts and fences', { protrude: 0.12, under: 0.12, thick: 0.012, fences: true, struts: true }, frontLip),
     fromCar('kaze_gt_canards', 'canards', 'two pairs of dive planes', { length: 0.25, width: 0.08, rake: 14, heights: [0.33, 0.43] }, canards),
-    fromCar('strada_evo_mud_flaps', 'mud_flaps', 'rally flaps behind every wheel', { width: 0.26, height: 0.33, bottom: 0.05, material: 'red', stripe: 'white' }, mudFlaps),
+    fromCar('strada_evo_mud_flaps', 'mud_flaps', 'rally flaps behind every wheel', { width: 0.18, height: 0.22, bottom: 0.05, material: 'red', stripe: 'white' }, mudFlaps),
     fromCar('apex_v8_aero_kit', 'aero_kit', 'splitter, dive planes, side blades, diffuser', {}, aeroKit),
   );
   return jobs;

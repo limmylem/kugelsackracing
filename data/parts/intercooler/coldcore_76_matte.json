@@ -44,43 +44,43 @@
     "brute_500": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/brute_500.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2636],
-        "max": [0.3, 0.16, -0.018]
+        "min": [-0.3, -0.12, -0.2036],
+        "max": [0.3, 0.12, 0.042]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/hana_roadster.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2636],
-        "max": [0.3, 0.0856, -0.018]
+        "min": [-0.3, -0.102, -0.2036],
+        "max": [0.3, 0.102, 0.042]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/kaze_gt.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2636],
-        "max": [0.3, 0.0856, -0.018]
+        "min": [-0.3, -0.12, -0.2036],
+        "max": [0.3, 0.12, 0.042]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2636],
-        "max": [0.3, 0.16, -0.018]
+        "min": [-0.3, -0.12, -0.2336],
+        "max": [0.3, 0.12, 0.012]
       }
     },
     "strada_evo": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/strada_evo.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2636],
-        "max": [0.3, 0.0856, -0.018]
+        "min": [-0.27, -0.12, -0.2036],
+        "max": [0.27, 0.12, 0.042]
       }
     },
     "vortex_r": {
       "model": "assets/parts/intercooler/coldcore/coldcore_76/vortex_r.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2636],
-        "max": [0.3, 0.16, -0.018]
+        "min": [-0.3, -0.12, -0.2336],
+        "max": [0.3, 0.12, 0.012]
       }
     }
   },

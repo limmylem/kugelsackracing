@@ -36,50 +36,50 @@
     "kaze_gt": {
       "model": "assets/parts/interior/bucket_seat_street/kaze_gt.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.6355],
-        "max": [0.28, 1.03, 0.231]
+        "min": [-0.2444, 0, -0.6541],
+        "max": [0.2644, 0.976, 0.261]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/bucket_seat_street/hana_roadster.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.5784],
-        "max": [0.28, 0.922, 0.231]
+        "min": [-0.2444, 0, -0.4874],
+        "max": [0.2644, 0.922, 0.291]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/interior/bucket_seat_street/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.6963],
-        "max": [0.28, 1.03, 0.231]
+        "min": [-0.2444, 0, -0.5279],
+        "max": [0.2644, 1.03, 0.291]
       }
     },
     "vortex_r": {
       "model": "assets/parts/interior/bucket_seat_street/vortex_r.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.6963],
-        "max": [0.28, 1.03, 0.231]
+        "min": [-0.2444, 0, -0.6063],
+        "max": [0.2644, 1.03, 0.321]
       }
     },
     "brute_500": {
       "model": "assets/parts/interior/bucket_seat_street/brute_500.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.6963],
-        "max": [0.28, 1.03, 0.231]
+        "min": [-0.2444, 0, -0.4914],
+        "max": [0.2644, 1.03, 0.291]
       }
     },
     "strada_evo": {
       "model": "assets/parts/interior/bucket_seat_street/strada_evo.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.6963],
-        "max": [0.28, 1.03, 0.231]
+        "min": [-0.2444, 0, -0.6963],
+        "max": [0.2644, 1.03, 0.231]
       }
     },
     "apex_v8": {
       "model": "assets/parts/interior/bucket_seat_street/apex_v8.glb",
       "bounds": {
-        "min": [-0.26, 0, -0.5532],
-        "max": [0.28, 0.976, 0.261]
+        "min": [-0.26, 0, -0.5998],
+        "max": [0.28, 0.868, 0.291]
       }
     }
   }

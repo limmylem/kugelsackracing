@@ -18,6 +18,7 @@ const io = await modelIO();
 for (const id of ids) {
   const design = JSON.parse(fs.readFileSync(path.join(ROOT, `data/cars/${id}/design.json`), 'utf8'));
   const doc = await placeholderCar({ id, ...design }), file = path.join(ROOT, `incoming/car_${id}.glb`);
+  syncSockets(id, doc);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const bytes = await io.writeBinary(doc);
   fs.writeFileSync(file, bytes);
@@ -27,4 +28,22 @@ for (const id of ids) {
     process.stdout.write(r.stdout); process.stderr.write(r.stderr);
     if (r.status) process.exitCode = r.status;
   }
+}
+
+// car.json's socket positions where the model has them (the data checks want them the same), its layout kept
+function syncSockets(id, doc) {
+  const file = path.join(ROOT, `data/cars/${id}/car.json`);
+  if (!fs.existsSync(file)) return;
+  let text = fs.readFileSync(file, 'utf8'), moved = 0;
+  const seatWas = JSON.parse(text).sockets.find(s => s.name === 'socket_seat_driver')?.position;
+  for (const n of doc.getRoot().listNodes()) {
+    if (!n.getName().startsWith('socket_')) continue;
+    const at = n.getTranslation().map(v => +v.toFixed(4)), re = new RegExp(`("name": "${n.getName()}",[^{}]*?"position": )\\[[^\\]]*\\]`);
+    text = text.replace(re, (all, head) => { const was = JSON.parse(all.slice(head.length)); if (was.some((v, k) => Math.abs(v - at[k]) > 1e-4)) moved++; return `${head}${JSON.stringify(at).replace(/,/g, ', ')}`; });
+  }
+  // (the cockpit camera — the driver's eyes — goes with the driver's seat)
+  const seat = doc.getRoot().listNodes().find(n => n.getName() === 'socket_seat_driver')?.getTranslation(), eye = JSON.parse(text).camera?.cockpit?.position;
+  if (seatWas && seat && eye) text = text.replace(/("cockpit": \{\s*"position": )\[[^\]]*\]/, (all, head) => `${head}${JSON.stringify(eye.map((v, k) => +(v + seat[k] - seatWas[k]).toFixed(3))).replace(/,/g, ', ')}`);
+  fs.writeFileSync(file, text);
+  if (moved) console.log(`${id}: ${moved} socket positions in data/cars/${id}/car.json moved to the model's`);
 }

@@ -55,15 +55,15 @@
     "ridgeback_4x4": {
       "model": "assets/parts/suspension/strut_brace/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.65, -0.004, -0.045],
-        "max": [0.65, 0.095, 0.06]
+        "min": [-0.65, -0.034, -0.045],
+        "max": [0.65, 0.045, 0.06]
       }
     },
     "vortex_r": {
       "model": "assets/parts/suspension/strut_brace/vortex_r.glb",
       "bounds": {
-        "min": [-0.625, -0.004, -0.045],
-        "max": [0.625, 0.095, 0.06]
+        "min": [-0.579, -0.084, -0.045],
+        "max": [0.579, -0.02, 0.06]
       }
     },
     "brute_500": {
@@ -76,8 +76,8 @@
     "strada_evo": {
       "model": "assets/parts/suspension/strut_brace/strada_evo.glb",
       "bounds": {
-        "min": [-0.61, -0.004, -0.045],
-        "max": [0.61, 0.095, 0.06]
+        "min": [-0.5652, -0.084, -0.045],
+        "max": [0.5652, -0.02, 0.06]
       }
     },
     "apex_v8": {

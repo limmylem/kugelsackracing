@@ -215,7 +215,7 @@ Save it as door_right_[name].glb.
 ```text
 Make a low-poly 3D model of a left front wing (fender) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
 
-Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.6 m long (front to back).
+Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.7 m long (front to back).
 Origin (the point it attaches by, at 0, 0, 0): its inner edge where it bolts to the body, at the top.
 Triangles: under 1,500.
 
@@ -237,7 +237,7 @@ Save it as fender_left_[name].glb.
 ```text
 Make a low-poly 3D model of a right front wing (fender) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
 
-Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.6 m long (front to back).
+Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.7 m long (front to back).
 Origin (the point it attaches by, at 0, 0, 0): its inner edge where it bolts to the body, at the top.
 Triangles: under 1,500.
 

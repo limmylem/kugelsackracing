@@ -52,8 +52,8 @@ export async function snorkel(id, car, s) {
   const wing = (await car.stockTris('socket_fender_FR')).flat(), x = Math.min(...wing.map(q => q[0])) - r - 0.015;
   const wingTop = Math.max(...wing.map(q => q[1])), headY = car.roof.y + 0.08;
   // up the pillar: from the wing (just ahead of the screen's foot), along the pillar's slope to the roof
-  const foot = [x, wingTop - 0.18, C.screenFoot + 0.25], kink = [x, C.belt + 0.02, C.screenFoot + 0.06], up = [x, headY - 0.04, C.screenTop + 0.04];
-  m.add(tube([foot, [x, wingTop - 0.02, C.screenFoot + 0.22], kink, up].map(q => p(...q)), r, { sides: 10, bend: 0.12 }), s.material ?? 'black');
+  const foot = [x, wingTop - 0.18, C.screenFoot + 0.2], kink = [x, C.belt + 0.02, C.screenFoot + 0.06], up = [x, headY - 0.04, C.screenTop + 0.04];
+  m.add(tube([foot, [x, wingTop - 0.02, C.screenFoot + 0.17], kink, up].map(q => p(...q)), r, { sides: 10, bend: 0.12 }), s.material ?? 'black');
   // where it goes into the wing (a flange), and the ram head facing forward
   m.add(bevelBox(p(x - r, foot[1] - 0.04, foot[2] - 0.08), p(x + r + 0.012, foot[1] + 0.06, foot[2] + 0.08), 0.008), s.material ?? 'black');
   m.add(bevelBox(p(x - r * 1.2, headY - 0.08, up[2] - 0.05), p(x + r * 1.2, headY + 0.07, up[2] + 0.16), 0.03), s.material ?? 'black');
@@ -114,14 +114,14 @@ export function rockSliders(id, car, s) {
 export function liftKit(id, car, s) {
   const m = new PartModel(id), p = inSocket(car, 'socket_lift_kit'), lift = s.inches * 0.0254, rc = 0.065, wire = 0.009;
   for (const k of ['FL', 'FR', 'RL', 'RR']) {
-    const w = car.wheels[k], x = w[0] - Math.sign(w[0]) * 0.22, z = w[2], y0 = w[1] + 0.06, y1 = y0 + 0.3 + lift;
+    const w = car.wheels[k], x = w[0] - Math.sign(w[0]) * 0.35, z = w[2] + (k[0] === 'R' ? 0.14 : 0), y0 = w[1] + 0.06, y1 = y0 + 0.12 + lift;
     // the coil: a helix up from the lower seat
     const turns = 4.5, n = 30, coil = Array.from({ length: n + 1 }, (_, i) => { const a = i / n * turns * Math.PI * 2; return [x + rc * Math.cos(a), y0 + 0.02 + (y1 - y0 - 0.04) * i / n, z + rc * Math.sin(a)]; });
     m.add(tube(coil.map(q => p(...q)), wire, { sides: 4 }), s.colour ?? 'red');
     // the seats, the spacer on top, the shock through the middle
     m.add(cylinder('y', rc + 0.02, y0, y0 + 0.012, 10, { at: p(x, 0, z).map((v, i) => i === 1 ? -car.socket('socket_lift_kit')[1] : v) }), 'dark');
     m.add(cylinder('y', rc + 0.015, y1 - at0(car)[1], y1 + lift + 0.015 - at0(car)[1], 10, { at: [x - at0(car)[0], 0, z - at0(car)[2]] }), s.spacer ?? 'raw_metal');
-    m.add(cylinder('y', 0.024, y0 - 0.05 - at0(car)[1], y1 - 0.08 - at0(car)[1], 8, { at: [x - at0(car)[0], 0, z - at0(car)[2]] }), s.shock ?? 'yellow');
+    m.add(cylinder('y', 0.024, y0 + 0.005 - at0(car)[1], y1 - 0.08 - at0(car)[1], 8, { at: [x - at0(car)[0], 0, z - at0(car)[2]] }), s.shock ?? 'yellow');
     m.add(cylinder('y', 0.009, y1 - 0.09 - at0(car)[1], y1 + lift + 0.01 - at0(car)[1], 6, { at: [x - at0(car)[0], 0, z - at0(car)[2]] }), 'chrome');
   }
   return m;

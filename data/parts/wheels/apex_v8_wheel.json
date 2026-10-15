@@ -7,7 +7,7 @@
   "price": 160,
   "mass": 10,
   "contactMaterial": "metal",
-  "model": "assets/parts/stock/apex_v8/wheel_FL.glb",
+  "model": "assets/parts/stock/apex_v8/wheel_stock.glb",
   "icon": "assets/icons/parts/apex_v8_wheel.png",
   "fits": ["car:apex_v8"],
   "requires": [],
@@ -21,7 +21,7 @@
   },
   "tier": "stock",
   "bounds": {
-    "min": [-0.1113, -0.254, -0.254],
-    "max": [0.1113, 0.254, 0.254]
+    "min": [-0.0883, -0.2533, -0.2533],
+    "max": [0.1104, 0.2533, 0.2533]
   }
 }

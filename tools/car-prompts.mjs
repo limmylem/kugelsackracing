@@ -255,7 +255,7 @@ const out = [
   '3. Run `npm run import -- incoming/car_<id>.glb` (or ask Claude Code to). It checks the model against the rules (sizes, the sockets, the wheels on the ground, left and right mirroring, the paint material, the triangle budget), fixes what it can, says what to change if anything fails, then splits the car into its parts.',
   '4. Look at it in the garage (`dev/garage.html`) and on the road (`dev/world.html`), and its parts in the part preview (`dev/parts.html`).',
   '',
-  'Socket positions and the wheels\' size are exact: they\'re what the car\'s physics and every part are fitted to. The parts\' sizes are the current ones (the placeholder boxes): a little bigger or smaller is fine; the import measures each part again. The **Starter coupe** is the physics reference car: its tests measure its parts\' sizes, so after its new model is imported its reference figures are checked and updated with it.',
+  'Socket positions and the wheels\' size are exact: they\'re what the car\'s physics and every part are fitted to. The parts\' sizes are the current ones (the placeholder's, the starter coupe's reshaped): a little bigger or smaller is fine; the import measures each part again. The **Starter coupe** is the physics reference car: its tests measure its parts\' sizes, so after its new model is imported its reference figures are checked and updated with it.',
   '',
   '## Making it look more real: follow-up prompts',
   '',

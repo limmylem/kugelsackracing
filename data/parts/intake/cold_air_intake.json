@@ -63,50 +63,50 @@
     "kaze_gt": {
       "model": "assets/parts/intake/cold_air_intake/kaze_gt.glb",
       "bounds": {
-        "min": [-0.0149, -0.24, -0.0296],
-        "max": [0.38, 0.0861, 0.66]
+        "min": [-0.0473, -0.28, -0.012],
+        "max": [0.22, 0.0461, 0.51]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intake/cold_air_intake/hana_roadster.glb",
       "bounds": {
-        "min": [-0.0195, -0.34, -0.0296],
-        "max": [0.38, 0.0223, 0.66]
+        "min": [-0.0473, -0.28, -0.012],
+        "max": [0.22, 0.0461, 0.51]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/intake/cold_air_intake/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.0044, -0.34, -0.22],
-        "max": [0.465, 0.0292, 0.0473]
+        "min": [-0.011, -0.46, -0.59],
+        "max": [0.2872, 0.0293, 0.0286]
       }
     },
     "vortex_r": {
       "model": "assets/parts/intake/cold_air_intake/vortex_r.glb",
       "bounds": {
-        "min": [-0.0202, -0.4, -0.66],
-        "max": [0.3472, 0.0216, 0.0296]
+        "min": [0, -0.28, -0.0296],
+        "max": [0.3, 0.0461, 0.385]
       }
     },
     "brute_500": {
       "model": "assets/parts/intake/cold_air_intake/brute_500.glb",
       "bounds": {
-        "min": [-0.0015, -0.34, -0.0296],
-        "max": [0.46, 0.0295, 0.66]
+        "min": [-0.0029, -0.24, -0.0296],
+        "max": [0.3, 0.0861, 0.66]
       }
     },
     "strada_evo": {
       "model": "assets/parts/intake/cold_air_intake/strada_evo.glb",
       "bounds": {
-        "min": [-0.0149, -0.34, -0.0296],
-        "max": [0.46, 0.0255, 0.51]
+        "min": [-0.0473, -0.28, -0.012],
+        "max": [0.22, 0.0461, 0.51]
       }
     },
     "apex_v8": {
       "model": "assets/parts/intake/cold_air_intake/apex_v8.glb",
       "bounds": {
-        "min": [-0.003, -0.4, -0.0296],
-        "max": [0.46, 0.0294, 0.51]
+        "min": [0, -0.28, -0.66],
+        "max": [0.2872, 0.0461, 0.0296]
       }
     }
   }

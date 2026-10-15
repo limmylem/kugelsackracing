@@ -27,6 +27,11 @@
 > it as it was for players, and shows it as a draft, until it's published again (parts published before this carry on
 > as before until their next publish). The kit pieces (`assets/kits/`, 40 kB) go to the tiles' address with the rest.
 > No migration; no change to the services or what they cost.
+> Then **the seven cars rebuilt from the starter coupe's model** (2026-10-15; tools/content/coupeCar.mjs): every car but
+> the coupe is its model reshaped to the car's proportions, their parts' models made again to fit (about 2 MB more on
+> the tiles' address). The parts fit as before but a few, waived and listed in [KNOWN_ISSUES.md](KNOWN_ISSUES.md); no
+> car drives differently (the engines, gearboxes, axles and wheels stay where they were). No change to the services or
+> what they cost.
 
 Every service, address and setting the online game uses; how it's set up, deployed, rolled back, checked, backed up
 and watched; and what to renew. For the server's code see [SERVER.md](SERVER.md), for running it day to day

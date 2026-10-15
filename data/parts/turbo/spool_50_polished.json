@@ -10,7 +10,7 @@
   "icon": "assets/icons/parts/spool_50_polished.png",
   "fits": [],
   "requires": ["slot:intercooler", "clutch_rating:sport"],
-  "conflicts": ["induction:turbo", "forced_induction:supercharger", "car:brute_500", "car:kaze_gt"],
+  "conflicts": ["induction:turbo", "forced_induction:supercharger", "car:brute_500"],
   "provides": ["forced_induction:turbo"],
   "effects": [
     {
@@ -80,18 +80,25 @@
       "model": "assets/parts/turbo/spool/spool_50/hana_roadster.glb",
       "bounds": {
         "min": [-0.2432, -0.3302, -0.2287],
-        "max": [0.015, 0.0188, 0.23]
+        "max": [0.015, 0.0946, 0.23]
+      }
+    },
+    "kaze_gt": {
+      "model": "assets/parts/turbo/spool/spool_50/kaze_gt.glb",
+      "bounds": {
+        "min": [-0.3032, -0.1502, -0.2287],
+        "max": [0.0024, 0.1976, 0.23]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/turbo/spool/spool_50/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.2847, -0.2817, -0.2287],
-        "max": [0.0069, 0.0544, 0.23]
+        "min": [-0.3032, -0.3302, -0.2287],
+        "max": [0.0089, 0.0223, 0.23]
       }
     }
   },
-  "_fit": "It can't be made to fit the Brute 500, Kaze GT (its best fit still goes through the car), so it isn't for them.",
+  "_fit": "It can't be made to fit the Brute 500 (its best fit still goes through the car), so it isn't for it.",
   "tier": "sport",
   "unlock": {
     "level": 4

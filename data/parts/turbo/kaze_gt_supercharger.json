@@ -15,8 +15,8 @@
   "provides": ["forced_induction:supercharger"],
   "_note": "A centrifugal supercharger made for the Kaze GT's flat-four: the power it lacked up top, and no lag.",
   "bounds": {
-    "min": [-0.48, -0.24, -0.03],
-    "max": [0.0486, -0.025, 0.4083]
+    "min": [-0.09, -0.12, -0.24],
+    "max": [0.3479, 0.1205, 0.1083]
   },
   "effects": [
     {

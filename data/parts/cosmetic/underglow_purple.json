@@ -37,50 +37,50 @@
     "kaze_gt": {
       "model": "assets/parts/cosmetic/underglow_purple/kaze_gt.glb",
       "bounds": {
-        "min": [-0.744, -0.0201, -1.919],
-        "max": [0.744, -0.0019, 1.989]
+        "min": [-0.744, -0.01, -1.9449],
+        "max": [0.744, 0.008, 1.9542]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/cosmetic/underglow_purple/hana_roadster.glb",
       "bounds": {
-        "min": [-0.714, -0.0201, -1.734],
-        "max": [0.714, -0.0019, 1.884]
+        "min": [-0.714, -0.011, -1.6643],
+        "max": [0.714, 0.007, 1.9448]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/cosmetic/underglow_purple/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.8039, -0.0199, -2.264],
-        "max": [0.8039, -0.0021, 2.154]
+        "min": [-0.8041, 0.0021, -2.5247],
+        "max": [0.8041, 0.0199, 1.8838]
       }
     },
     "vortex_r": {
       "model": "assets/parts/cosmetic/underglow_purple/vortex_r.glb",
       "bounds": {
-        "min": [-0.754, -0.02, -2.014],
-        "max": [0.754, -0.002, 1.954]
+        "min": [-0.7541, -0.0109, -2.1774],
+        "max": [0.7541, 0.0069, 1.782]
       }
     },
     "brute_500": {
       "model": "assets/parts/cosmetic/underglow_purple/brute_500.glb",
       "bounds": {
-        "min": [-0.8141, -0.02, -2.294],
-        "max": [0.8141, -0.002, 2.174]
+        "min": [-0.8141, -0.01, -2.1252],
+        "max": [0.8141, 0.008, 2.3305]
       }
     },
     "strada_evo": {
       "model": "assets/parts/cosmetic/underglow_purple/strada_evo.glb",
       "bounds": {
-        "min": [-0.7391, -0.0199, -2.139],
-        "max": [0.7391, -0.0021, 2.029]
+        "min": [-0.739, -0.0079, -2.2571],
+        "max": [0.739, 0.0099, 1.9002]
       }
     },
     "apex_v8": {
       "model": "assets/parts/cosmetic/underglow_purple/apex_v8.glb",
       "bounds": {
-        "min": [-0.819, -0.02, -2.224],
-        "max": [0.819, -0.002, 1.994]
+        "min": [-0.8191, -0.012, -2.1557],
+        "max": [0.8191, 0.006, 2.0521]
       }
     }
   }
