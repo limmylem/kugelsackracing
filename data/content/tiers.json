@@ -250,6 +250,11 @@
       "street": 250,
       "stat": null
     },
+    "camber": {
+      "_note": "the wheels' lean: a little negative for cornering grip, at some cost braking and accelerating",
+      "street": 320,
+      "stat": null
+    },
     "lift_kit": {
       "_note": "off road: clearance and room for bigger tyres",
       "street": 700,

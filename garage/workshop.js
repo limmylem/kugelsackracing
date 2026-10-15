@@ -37,7 +37,7 @@ export const areaOf = focus => AREAS.find(a => a.focus.includes(focus))?.id ?? '
 export const SYSTEMS = [
   { name: 'Engine & induction', icon: 'settings', slots: ['intake', 'turbo', 'intercooler', 'header', 'pistons'] },
   { name: 'Drivetrain', icon: 'settings_input_component', slots: ['gearbox', 'clutch', 'flywheel', 'differential', 'differential_front', 'centre_diff', 'transfer_case'] },
-  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'lift_kit', 'spacer'] },
+  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'camber', 'lift_kit', 'spacer'] },
   { name: 'Electronics', icon: 'memory', slots: ['ecu'] },
   { name: 'Weight', icon: 'fitness_center', slots: ['weight_rear_seats', 'weight_sound_deadening'] },
 ];
@@ -50,7 +50,7 @@ const ICONS = { engine: 'settings', intake: 'air', turbo: 'mode_fan', intercoole
   fender_left: 'directions_car', fender_right: 'directions_car', skirt_left: 'horizontal_rule', skirt_right: 'horizontal_rule', mirror_left: 'flip', mirror_right: 'flip',
   seat: 'airline_seat_recline_normal', steering_wheel: 'trip_origin', spoiler: 'flight', brake_pads: 'layers', flywheel: 'radio_button_checked', header: 'call_split',
   pistons: 'unfold_more', weight_rear_seats: 'event_seat', weight_sound_deadening: 'volume_off',
-  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
+  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', camber: 'architecture', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
 export const iconFor = slot => ICONS[slot] ?? 'build';
 export const conditionClass = c => c >= 70 ? 'good' : c >= 40 ? 'warn' : 'bad';
 export const conditionWord = (c, part) => c >= 100 ? 'New' : c >= 70 ? 'Good' : c >= 40 ? 'Worn' : c > 0 ? 'Damaged' : part?.engine ? 'Blown' : 'Broken';
@@ -63,7 +63,7 @@ export function socketLabel(def) {
   const side = def.name.match(/^socket_(\w+?)_(left|right)$/);
   if (side) return `${cap(side[1].replace(/_/g, ' '))}, ${side[2]}`;
   const special = { socket_seat_driver: "Driver's seat", socket_seat_passenger: 'Passenger seat', socket_bumper_front: 'Front bumper', socket_bumper_rear: 'Rear bumper', socket_ecu: 'ECU', socket_steering_wheel: 'Steering wheel', socket_spoiler: 'Rear wing', socket_brake_pads: 'Brake pads', socket_header: 'Exhaust header', socket_weight_rear_seats: 'Rear seats', socket_weight_sound_deadening: 'Sound deadening',
-    socket_arb_front: 'Front anti-roll bar', socket_arb_rear: 'Rear anti-roll bar', socket_diff_front: 'Front differential', socket_centre_diff: 'Centre differential', socket_transfer_case: 'Transfer case', socket_lift_kit: 'Lift kit', socket_engine_cover: 'Engine cover' };
+    socket_arb_front: 'Front anti-roll bar', socket_arb_rear: 'Rear anti-roll bar', socket_camber: 'Camber', socket_diff_front: 'Front differential', socket_centre_diff: 'Centre differential', socket_transfer_case: 'Transfer case', socket_lift_kit: 'Lift kit', socket_engine_cover: 'Engine cover' };
   return special[def.name] ?? cap(def.name.replace(/^socket_/, '').replace(/_/g, ' '));
 }
 const cap = s => s[0].toUpperCase() + s.slice(1);

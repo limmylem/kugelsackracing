@@ -88,7 +88,8 @@ test('the stock build is the Phase 1 starter car on the new model', () => {
   // (Phase 3 Step 3: the mechanical damage the physics works — none on a new car — and the rim's radius)
   // (Phase 4: anti-roll bars — none — and lift, for the parts that add to them)
   // (Phase 8 Step 1: what it sounds like — spec.audio, from its parts' sound blocks)
-  const damage = k => k.startsWith('damage.') || k === 'wheels.rimRadius' || k.startsWith('suspension.antiRoll.') || k === 'wheels.lift' || /^(cooling|soundMod|cosmetic|audio)\./.test(k);
+  // (the wheels' static camber — none — for a camber kit to set)
+  const damage = k => k.startsWith('damage.') || k === 'wheels.rimRadius' || k.startsWith('suspension.antiRoll.') || k.startsWith('suspension.camber.') || k === 'wheels.lift' || /^(cooling|soundMod|cosmetic|audio)\./.test(k);
   const same = k => !k.startsWith('model.') && !(k in MODEL_V2) && !step4(k) && !fixes(k) && !damage(k);
   assert.deepEqual(Object.keys(b).filter(same).sort(), Object.keys(a).filter(same).sort());
   for (const k of Object.keys(a).filter(same)) assert.equal(b[k], a[k], k);
@@ -295,4 +296,24 @@ test('the wheel size: the tyre on its rim, for the physics to use (Step 4)', () 
   assert.equal(g.stats().spec.wheels.radius, 0.29);
   g.install('tyre_215_40r15');
   assert.equal(g.stats().spec.wheels.radius, 0.277);                    // 190.5 + 86 → 277 mm
+});
+
+test('taking a supercharger off takes what only works with it off too, step by step or not: the intercooler and the boost map to the parts store, the car\'s own ECU back from the spares', () => {
+  for (const auto of [true, false]) {
+    const g = new Garage(db, null, 'starter_car');
+    for (const id of ['supercharger_centrifugal', 'intercooler_race', 'ecu_stage2']) assert.equal(g.install(id).ok, true, id);
+    if (!auto) assert.equal(g.remove('socket_bonnet', { auto }).ok, true, 'the bonnet off first, step by step');
+    const r = g.remove('socket_supercharger', { auto });
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    assert.equal(g.build.sockets.socket_supercharger, null);
+    assert.equal(g.build.sockets.socket_intercooler, null);
+    assert.equal(g.state.parts[g.build.sockets.socket_ecu].partId, 'stock_ecu');
+    assert.ok(r.steps.some(s => /Race intercooler.*too/.test(s)), r.steps.join('; '));
+    assert.ok(Object.values(g.state.parts).some(p => p.partId === 'intercooler_race') && Object.values(g.state.parts).some(p => p.partId === 'ecu_stage2'), 'still the player\'s');
+    if (auto) assert.ok(g.stats().spec, 'still drivable');
+  }
+  // (what's in the way still has to come off first, step by step)
+  const g = new Garage(db, null, 'starter_car');
+  g.install('supercharger_centrifugal');
+  assert.equal(g.remove('socket_supercharger', { auto: false }).errors[0].code, 'blocked');
 });

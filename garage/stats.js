@@ -232,6 +232,11 @@ function statsOf(build, db) {
     spec.suspension.antiRoll = { front: 0, rear: 0 };
     for (const end of ['front', 'rear']) record(`suspension.antiRoll.${end}`, { step: 'component', source: { kind: 'part', id: seen.suspension.part.id, name: seen.suspension.part.name, socket: seen.suspension.socket.name }, to: 0, note: 'no anti-roll bar' });
   }
+  // (the wheels' static camber, ° — negative: their tops in —, for a camber kit to set: none as they come)
+  if (spec.suspension && !spec.suspension.camber) {
+    spec.suspension.camber = { front: 0, rear: 0 };
+    for (const end of ['front', 'rear']) record(`suspension.camber.${end}`, { step: 'component', source: { kind: 'part', id: seen.suspension.part.id, name: seen.suspension.part.name, socket: seen.suspension.socket.name }, to: 0, note: 'the factory camber' });
+  }
   for (const block of [...SYSTEM_BLOCKS, ...(LAYOUT_BLOCKS[spec.drivetrain.layout] ?? [])]) if (!spec[block]) errors.push(`nothing fitted provides the ${BLOCK_WORDS[block] ?? block}${LAYOUT_BLOCKS[spec.drivetrain.layout]?.includes(block) ? ` (${spec.drivetrain.layout} needs one)` : ''}`);
   // the drag and lift add up to a sensible precision (so the stock car's are exactly the car's own)
   for (const path of ['aero.dragCoefficient', 'aero.front.liftCoefficient', 'aero.rear.liftCoefficient']) setPath(spec, path, round9(getPath(spec, path)));

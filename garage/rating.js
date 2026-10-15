@@ -22,6 +22,7 @@ import { engineTorque } from '../physics/engine.js';
 import { angleScale } from '../physics/parts.js';
 import { SEA_LEVEL_DENSITY } from '../physics/aero.js';
 import { fullTorques } from '../physics/brakes.js';
+import { camberGrip } from '../physics/camber.js';
 
 const G = 9.81, rpm = w => w * 30 / Math.PI, HOT = [300, 350, 400, 450, 500], HOT_SHARE = 0.25;
 
@@ -51,7 +52,12 @@ export function estimate(spec, geometry, topSpeed) {
   // (the driven wheels: the rear, the front, or all four — a part-time 4WD launches in the mode it starts in)
   const GB = spec.gearbox, E = spec.engine, eff = spec.drivetrain.efficiency, layout = spec.drivetrain.layout;
   const driven = layout === 'FWD' ? 'front' : layout === 'AWD' || (layout === '4WD' && spec.transferCase?.mode && spec.transferCase.mode !== '2H') ? 'all' : 'rear';
-  const muX = T.longitudinal.D, rolling = T.rollingResistance * m * G;
+  // (static camber — a camber kit's —: the tyres a little less flat on the road braking and accelerating; in a hard
+  // corner the body rolls about 3°, the outside tyres, with two thirds of the load, leaning it back towards flat and
+  // the inside ones further in: physics/camber.js)
+  const Cb = spec.suspension?.camber ?? {}, cornering = g => 0.65 * camberGrip(g, 3).lat + 0.35 * camberGrip(g, -3).lat;
+  const camberLat = (cornering(Cb.front ?? 0) + cornering(Cb.rear ?? 0)) / 2, camberLong = (camberGrip(Cb.front ?? 0).long + camberGrip(Cb.rear ?? 0).long) / 2;
+  const muX = T.longitudinal.D * camberLong, rolling = T.rollingResistance * m * G;
   const wheelInertia = 4 * W.inertia, engineInertia = E.inertia;
   let v = 0.5, t = 0, gear = 1;
   const dt = 0.01, shift = GB.shiftTime ?? 0.2, upAt = Math.min(E.redlineRpm, GB.auto?.upFull ?? E.redlineRpm) - 100;
@@ -79,7 +85,7 @@ export function estimate(spec, geometry, topSpeed) {
   const bounce = 0.12 * Math.max(0, (0.45 - zeta) / 0.45);
   // (anti-roll bars: less body roll, less of the tyres' camber lost to it — a little more grip)
   const bars = (S.antiRoll?.front ?? 0) + (S.antiRoll?.rear ?? 0), roll = bars ? 1 + 0.03 * bars / (bars + 2 * S.stiffness) : 1;
-  const grip = T.lateral.D * (1 + down / (m * G)) * (1 - transferLoss) * (1 - bounce) * roll;
+  const grip = T.lateral.D * (1 + down / (m * G)) * (1 - transferLoss) * (1 - bounce) * roll * camberLat;
 
   // --- braking: 100–0 km/h, tyres or brakes, whichever gives out first ---
   const B = spec.brakes, P = B.maxPressureBar * 1e5;

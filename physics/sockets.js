@@ -3,7 +3,7 @@
 // (modelRig). Plain parsing, no rendering library, so the same numbers can be produced in the page, a
 // Web Worker or on a server.
 
-import { add, dot, normalize, rotate, scale, sub } from './math.js';
+import { add, cross, dot, normalize, rotate, scale, sub } from './math.js';
 
 export function glbJson(arrayBuffer) {
   const dv = new DataView(arrayBuffer);
@@ -123,11 +123,17 @@ export const quatMul = (a, b) => [
   a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
 ];
 
-// One wheel pivot's local transform (see modelRig); base: a rotation to start from [x, y, z, w]
-export function wheelTransform(rig, base, steer, spin, drop, offset = 0) {
+// A wheel's static camber from the spec (suspension.camber.front / rear, °), in radians for wheelTransform
+export const camberOf = (spec, wheel) => ((spec?.wheels?.front?.includes(wheel) ? spec?.suspension?.camber?.front : spec?.suspension?.camber?.rear) ?? 0) * Math.PI / 180;
+
+// One wheel pivot's local transform (see modelRig); base: a rotation to start from [x, y, z, w]; camber: its lean (rad)
+export function wheelTransform(rig, base, steer, spin, drop, offset = 0, camber = 0) {
   const position = add(rig.socket, scale(rig.up, drop));
+  // (static camber, rad — negative: its top in —: a lean about the wheel's own fore-and-aft line, before it steers)
+  const lean = camber && rig.outboard ? axisAngle(normalize(cross(rig.outboard, rig.up)), -camber) : null;
+  const turned = lean ? quatMul(axisAngle(rig.up, steer), lean) : axisAngle(rig.up, steer);
   return {
-    rotation: quatMul(quatMul(axisAngle(rig.up, steer), axisAngle(rig.axle, spin)), base),
+    rotation: quatMul(quatMul(turned, axisAngle(rig.axle, spin)), base),
     position: offset && rig.outboard ? add(position, scale(rig.outboard, offset)) : position,
   };
 }

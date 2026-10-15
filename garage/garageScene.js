@@ -17,7 +17,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCarVisual, placeholderBox, placeholderWing, resolveLook, tyreKey, tyreModel } from './visual.js';
 import { tyreFit } from './tyres.js';
 import { partShape } from './partShape.js';
-import { wheelTransform } from '../physics/sockets.js';
+import { camberOf, wheelTransform } from '../physics/sockets.js';
 
 export const LIFT_HEIGHT = 1.35;
 // Camera views, in the car frame (+z forward, +x left): what to look at, from which way (az: degrees
@@ -282,7 +282,7 @@ export class GarageScene {
       const W = this.spec.wheels, S = this.spec.suspension;
       for (const [k, pivot] of Object.entries(this.vis.wheels)) {
         const mount = W.mountHeight?.[W.front.includes(k) ? 'front' : 'rear'] ?? 0;
-        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, 0, (mount - S.restLength) * Math.min(1, lk * 4), W.offsets?.[k] ?? 0);
+        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, 0, (mount - S.restLength) * Math.min(1, lk * 4), W.offsets?.[k] ?? 0, camberOf(this.spec, k));
         pivot.quaternion.fromArray(t.rotation); pivot.position.fromArray(t.position);
       }
     }
