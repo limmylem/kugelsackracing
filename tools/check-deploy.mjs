@@ -7,7 +7,7 @@
 //   the tiles: a byte range (206), and the second time from Cloudflare's cache
 //   the real-time server (through the tunnel): /health ok, the same commit as the API and the game, the round trip's
 //   time; the API's /status says "rt":"up" (it hears from it)
-//   the admin and editor pages: not for someone signed out
+//   the admin page and the editor's code: not for someone signed out (the page sends them to sign in; the code says why)
 //
 //   node tools/check-deploy.mjs [--www] [--hsts]
 //   (the addresses are production's unless given: --game https://ognistrada.com --api https://api.ognistrada.com
@@ -52,10 +52,12 @@ await tryIt('the API', async () => {
   check(pre.status < 400 && ['x-kr-client', 'x-kr-device', 'x-bot-check'].every(h => allowed.includes(h)), 'CORS: the game\'s own headers allowed (the browser\'s preflight)', `${pre.status} ${allowed || 'none'}`);
   const no = await fetch(`${API}/api/v1/health`, { headers: { origin: EVIL } });
   check(!no.headers.get('access-control-allow-origin'), 'CORS: another site may not read the API');
-  for (const p of ['/admin/', '/editor/editor.js']) {
-    const r = await get(`${API}${p}`);
-    check(r.status === 302 && (r.headers.get('location') ?? '').startsWith(`${G}/account/`), `${p} on the API's address: signed out → sent to sign in`, `${r.status} → ${r.headers.get('location')}`);
-  }
+  const admin = await get(`${API}/admin/`);
+  check(admin.status === 302 && (admin.headers.get('location') ?? '').startsWith(`${G}/account/`), '/admin/ on the API\'s address: signed out → sent to sign in', `${admin.status} → ${admin.headers.get('location')}`);
+  // (the editor's code: not served, and why, for the game to read — it imports the code cross-site and sends the person
+  // to sign in itself, site/urls.js importTool: a module import can't follow a redirect)
+  const code = await get(`${API}/editor/editor.js`, { headers: { origin: G } }), why = await code.json().catch(() => null);
+  check(code.status === 401 && why?.error?.code === 'UNAUTHENTICATED' && code.headers.get('access-control-allow-origin') === G, '/editor/editor.js on the API\'s address: signed out → not served, and why (the game may read it)', `${code.status} ${why?.error?.code ?? ''} · CORS ${code.headers.get('access-control-allow-origin') ?? 'none'}`);
 });
 
 // ---------- the game ----------

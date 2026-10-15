@@ -208,7 +208,8 @@ Cloudflare as players reach it:
 - every address (the game, the API, the tiles, `rt.`) over HTTPS with a valid certificate; `http://` → `https://`;
   `www` → the game with the path and query kept; HSTS, once it's on;
 - the API: healthy, `production`, its database answering; CORS for the game (with cookies), not for another site; the
-  admin page and the editor's code, signed out, send you to sign in;
+  admin page, signed out, sends you to sign in; the editor's code, signed out, isn't served (401, with why, for the game
+  to read: it sends the person to sign in itself);
 - the game: its page loads its settings first; `site/config.js` names every address and has `multiplayer: true`; it's
   the commit the API runs (asked again for up to a minute: just after a deploy Pages can answer with the one before
   for some seconds); `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
