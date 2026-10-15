@@ -1,4 +1,4 @@
-// The family builder (the admin page's Content tab; docs/CONTENT_PIPELINE.md "A family from the admin page";
+// The family builder (the admin page's Builder tab; docs/CONTENT_PIPELINE.md "A family from the admin page";
 // server/src/content/builder.ts): families, engines and cars made and changed by picking options.
 //  - New family, step by step: what it is (or start from a family or a preset), its name (suggested, checked against
 //    real brands), its settings (only what's allowed: each shown with its range), its shape (with a live 3D preview),
@@ -28,7 +28,22 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
   function unavailable(why) {
     const box = main();
     box.className = 'narrow';
-    box.replaceChildren(h('section', {}, h('h2', {}, 'Family builder'), h('div', { class: 'msg bad' }, why), h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Back to Content')));
+    box.replaceChildren(h('section', {}, h('h2', {}, 'Family builder'), h('div', { class: 'msg bad' }, why), h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Back to Builder')));
+  }
+  // (the Builder tab: what it does, whether it works on this server, and a way into each part of it)
+  async function showHome() {
+    const ov = await load().catch(e => ({ available: false, why: errText(e) }));
+    const box = main();
+    box.className = 'narrow';
+    box.style.gridTemplateColumns = 'minmax(320px, 900px)';
+    const go = (label, fn, cls = 'secondary') => h('button', { class: `btn ${cls}`, disabled: !ov.available, onclick: fn }, label);
+    const kinds = ov.available ? h('div', { class: 'list' }, ...ov.kinds.map(k => h('div', { class: 'action' }, h('strong', {}, k.label), ' · ',
+      ...(k.families.length ? k.families.flatMap((f, i) => [i ? ', ' : '', h('a', { href: '#', onclick: e => { e.preventDefault(); editFamily(f.id); } }, f.name ?? f.id)]) : [h('span', { class: 'muted' }, 'no family yet')])))) : null;
+    box.replaceChildren(h('section', {}, h('h2', {}, 'Builder'),
+      h('p', { class: 'muted' }, 'Families of parts, engines and cars made and changed by picking options: every part a family would make listed with its stats, tier and price before anything is made, previews, then built and checked as a job. What it makes are drafts in the Content tab, published there.'),
+      ov.available ? null : h('div', { class: 'msg bad' }, ov.why),
+      h('div', { class: 'row' }, go('New family', () => newFamily(), 'primary'), go('New engine', () => newEngine()), go('New car', () => newCar()), go('Presets & variations', () => variations(), 'ghost'), go('Jobs', () => showJobs(), 'ghost')),
+      kinds ? h('h3', {}, 'Change a family') : null, kinds));
   }
   async function ready() { const ov = await load().catch(e => ({ available: false, why: errText(e) })); if (!ov.available) { unavailable(ov.why); return null; } return ov; }
 
@@ -335,7 +350,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     const ov = await ready();
     if (!ov) return;
     const list = h('div', { class: 'list' });
-    page([h('h2', {}, 'Jobs'), h('p', { class: 'muted' }, 'Build and check, run in the background on this server (tools/content/jobs.mjs): one per family at a time; a failed or cancelled job puts everything back as it was.'), list, h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Back to Content')], [h('h2', {}, 'Presets'), presetList(ov.presets)], 'minmax(0, 1.4fr) minmax(0, 1fr)');
+    page([h('h2', {}, 'Jobs'), h('p', { class: 'muted' }, 'Build and check, run in the background on this server (tools/content/jobs.mjs): one per family at a time; a failed or cancelled job puts everything back as it was.'), list, h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Back to Builder')], [h('h2', {}, 'Presets'), presetList(ov.presets)], 'minmax(0, 1.4fr) minmax(0, 1fr)');
     for (;;) {
       if (!list.isConnected) return;
       let jobs;
@@ -417,7 +432,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     page([h('h2', {}, 'Make variations'), h('p', { class: 'muted' }, 'Several new draft families at once, from a preset or a family: the same but for the settings and shape settings you pick (new materials, a budget, middle and top build, new designs). Each gets an invented name, checked against real brands; preview any before making.'),
       h('label', {}, 'Start from', src), h('h3', {}, 'Vary'), keysEl,
       h('div', { class: 'row' }, h('label', {}, 'How many', h('input', { type: 'number', value: st.count, min: 1, max: ov.config.variations.max, onchange: e => { st.count = Math.max(1, Math.min(ov.config.variations.max, +e.target.value || 1)); } })), h('label', {}, 'Mix (seed)', h('input', { type: 'number', value: st.seed, min: 0, onchange: e => { st.seed = +e.target.value || 0; } })), h('button', { class: 'btn secondary', onclick: plan }, 'Plan them')),
-      msg, h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Back to Content')],
+      msg, h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Back to Builder')],
     [h('h2', {}, 'The variations'), out, h('h3', {}, 'Presets'), presetList(ov.presets)]);
     drawKeys();
   }
@@ -461,7 +476,7 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
       h('div', { class: 'row' }, field('aspiration', 'Aspiration', sel('aspiration', o.aspirations.map(a => [a.id, a.label]))), field('boost', `Boost, bar (${R.boost.join('–')}, forced only)`, num('boost', R.boost, 0.05))),
       h('div', { class: 'row' }, field('idle', `Idle, rpm (${R.idle.join('–')})`, num('idle', R.idle, 10)), field('redline', `Redline, rpm (${R.redline.join('–')})`, num('redline', R.redline, 50)), field('character', 'Character (0 torquey … 1 peaky)', num('character', R.character, 0.05))),
       h('div', { class: 'row' }, field('mount', 'Mount', sel('mount', o.mounts.map(m => [m.id, m.label]))), field('sound', 'Sound', sel('sound', o.sounds.map(s => [s.id, `${s.id}${s.cylinders ? ` (${s.cylinders} cyl.)` : ''}`]))), field('colour', 'Colour', sel('colour', o.colours.map(c => [c, c])))),
-      msg, h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: make }, editing ? 'Save the changes' : 'Make the engine'), h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Close'))],
+      msg, h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: make }, editing ? 'Save the changes' : 'Make the engine'), h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Close'))],
     [h('h2', {}, 'What it comes to'), sum]);
     refresh();
   }
@@ -493,11 +508,11 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     page([h('h2', {}, 'New car'), h('p', { class: 'muted' }, 'npm run content -- new-car as a form: it starts from its type\'s body template (its proportions, sockets and standards: parts made to them fit it). Without a model it\'s a placeholder in the type\'s proportions — drive it straight away; the real model can come later (npm run import -- incoming/car_<id>.glb).'),
       h('div', { class: 'row' }, h('label', {}, 'Id', h('input', { placeholder: 'like comet_gt', onchange: e => { c.id = e.target.value.trim(); } })), h('label', {}, 'Type', h('select', { onchange: e => { c.type = e.target.value; } }, ...ov.carTypes.map(t => h('option', { value: t.type }, `${t.label} (from the ${t.donor})`)))), h('label', {}, 'Name (optional)', h('input', { onchange: e => { c.name = e.target.value.trim(); } }))),
       h('label', {}, 'Model (optional): car_<id>.glb, every socket of its template\'s car', fileIn), msg,
-      h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: make }, 'Make the car'), h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Close'))],
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: make }, 'Make the car'), h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Close'))],
     [h('h2', {}, 'The car'), right]);
   }
   async function carView(id, el = null) {
-    const box = el ?? page([h('h2', {}, `The ${id}`), h('button', { class: 'btn ghost', onclick: () => showFamily(null) }, 'Back to Content')], []).children[1];
+    const box = el ?? page([h('h2', {}, `The ${id}`), h('button', { class: 'btn ghost', onclick: () => showHome() }, 'Back to Builder')], []).children[1];
     const view = h('div', { style: 'position:relative;height:360px;border-radius:var(--r-card);overflow:hidden;background:#15191d' });
     box.append(view, h('p', { class: 'muted' }, `A draft: drive it at the test track (/?car=${id}), fill in its to-dos (price, physics), check, then publish it in the Content tab.`));
     try { const r = await api.get(`${P}/cars/${id}/preview`); const v = await makePreview(); view.replaceChildren(v.el); await v.show(r, null); } catch (e) { box.append(h('div', { class: 'msg bad' }, errText(e))); }
@@ -536,5 +551,5 @@ export function createBuilder({ api, h, say, when, errText, main, ask, makePrevi
     };
   }
 
-  return { newFamily, editFamily, editSource, newEngine, newCar, variations, showJobs };
+  return { showHome, newFamily, editFamily, editSource, newEngine, newCar, variations, showJobs };
 }

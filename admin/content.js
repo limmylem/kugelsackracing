@@ -24,12 +24,6 @@ export function createContentTools({ api, h, say, when, errText, main }) {
     box.replaceChildren(
       h('section', {}, h('h2', {}, 'Content'),
         h('p', { class: 'muted' }, 'Parts and cars, made by the content pipeline (npm run content). A draft or one in review isn\'t in the game; publishing needs its checks passed. An edit is a new version, a draft, checked again — players keep the published version until the new one is published.'),
-        h('div', { class: 'row' },
-          h('button', { class: 'btn primary', onclick: async () => (await builderTools()).newFamily() }, 'New family'),
-          h('button', { class: 'btn secondary', onclick: async () => (await builderTools()).newEngine() }, 'New engine'),
-          h('button', { class: 'btn secondary', onclick: async () => (await builderTools()).newCar() }, 'New car'),
-          h('button', { class: 'btn ghost', onclick: async () => (await builderTools()).variations() }, 'Presets & variations'),
-          h('button', { class: 'btn ghost', onclick: async () => (await builderTools()).showJobs() }, 'Jobs')),
         filters, bulk, msg, list),
       detail);
     const drawFilters = () => {

@@ -1,5 +1,5 @@
 // @ts-nocheck — (the page's own modules are imported inside the browser: not this program's)
-// The family builder in a real browser (the admin page's Content tab › New family; docs/CONTENT_PIPELINE.md): a server
+// The family builder in a real browser (the admin page's Builder tab › New family; docs/CONTENT_PIPELINE.md): a server
 // of its own (a fresh database), an admin signed in — a new exhaust family picked step by step: its kind, a suggested
 // name (checked against real brands), settings within their ranges (one outside refused), a shape setting with the live
 // 3D shape, finishes, an aim, the cars it fits — every part it'd make listed with its tier and price before anything is
@@ -53,8 +53,10 @@ try {
   await page.evaluate(async (code: string) => { const { createApi } = await import('/account/api.js'), api = createApi(); await api.auth('/sign-in/email', { email: 'boss@example.com', password: 'correct horse battery' }); await api.auth('/two-factor/verify-totp', { code }); }, totp((boss as any).totpSecret));
   await page.goto(`${BASE}/admin/`);
   await page.waitForSelector('#tabs button');
-  await page.click('#tabs button:has-text("Content")');
+  await page.click('#tabs button:has-text("Builder")');
   await page.waitForSelector('button:has-text("New family")', { timeout: 30000 });
+  const home = await page.textContent('main');
+  check('the Builder tab: its own page in the admin menu, with New family, New engine, New car, presets and jobs, and the families to change', ['New family', 'New engine', 'New car', 'Presets & variations', 'Jobs', 'Change a family', 'Streetline'].every(t => home.includes(t)), home.slice(0, 160));
   await page.click('button:has-text("New family")');
   await page.waitForSelector('h2:text("New family")', { timeout: 30000 });
 
@@ -131,7 +133,7 @@ try {
   await shot('builder-cancelled');
 
   // the jobs list
-  await page.click('#tabs button:has-text("Content")');
+  await page.click('#tabs button:has-text("Builder")');
   await page.click('button:has-text("Jobs")');
   await page.waitForSelector('h2:text("Jobs")');
   await page.waitForSelector('main .action .badge', { timeout: 10000 });
@@ -151,7 +153,7 @@ try {
   await shot('builder-change');
 
   // a new engine: a live torque curve, the cars it fits and why not
-  await page.click('#tabs button:has-text("Content")');
+  await page.click('#tabs button:has-text("Builder")');
   await page.click('button:has-text("New engine")');
   await page.waitForSelector('h2:text("New engine")', { timeout: 20000 });
   await page.fill(`${left} label:has-text("Id") input`, 'vmc_i4_18');
@@ -162,7 +164,7 @@ try {
   await shot('builder-engine');
 
   // variations planned from a family
-  await page.click('#tabs button:has-text("Content")');
+  await page.click('#tabs button:has-text("Builder")');
   await page.click('button:has-text("Presets & variations")');
   await page.waitForSelector('h2:text("Make variations")');
   await page.selectOption(`${left} label:has-text("Start from") select`, 'family:aerofoil');

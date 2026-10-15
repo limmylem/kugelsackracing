@@ -19,7 +19,7 @@
 > (+2 MB on the tiles' address) and **studio thumbnails** (`assets/thumbs/`, a few MB). No change to the services or
 > what they cost.
 > Then the content pipeline's **family builder** (2026-10-15; [CONTENT_PIPELINE.md](CONTENT_PIPELINE.md) "A family
-> from the admin page"): families, engines and cars made and changed from the Content tab. It needs the game's tools,
+> from the admin page"): families, engines and cars made and changed from the admin page's Builder tab. It needs the game's tools,
 > which the server's image hasn't got, so **on the live server it's off** (`contentBuilder.enabled` false in
 > `server/config/production.json`) and says so: families are made on a computer (`npm run server:dev`), committed and
 > deployed like any content, and arrive in the live Content tab as drafts to publish. Publishing now keeps a copy of

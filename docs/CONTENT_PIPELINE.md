@@ -110,7 +110,7 @@ The **Content** tab on the admin page (admins only) lists every part and car wit
 
 ### 6. A family from the admin page
 
-The family builder: **Content tab › New family** (admins only). It writes the same family file you'd write by hand
+The family builder: the admin page's **Builder** tab (admins only): New family, New engine, New car, Presets & variations, Jobs, and the families to change. It writes the same family file you'd write by hand
 (`data/families/<id>.json`, in the same layout) and runs the same build and checks as `npm run content`, so a family made
 there can be changed by hand or from the command line, and the other way round. It works where the server runs from
 a copy of the game with its tools (`npm run server:dev`; `contentBuilder.enabled` in `server/config/`): on the live
@@ -142,7 +142,7 @@ crowded tier, the aim it misses (and which settings to change to hit it), and ov
   command line's words) show as it goes, and you can cancel it. A job that fails or is cancelled **puts everything back**
   as it was and says why. When it's done, the Content tab shows the new parts with their checks: fix any that fail, send
   them to review, publish as usual. Nothing is published by the builder.
-- **Change a family**: pick it in the Content tab's Family filter › **Change … in the builder**. The same form, filled
+- **Change a family**: pick it on the Builder tab (or in the Content tab's Family filter › **Change … in the builder**). The same form, filled
   in from its file; before saving it lists the parts that will be **added**, those whose stats, price or model
   **change**, and those **retired** (with how many players own each: they keep them). Parts it still makes keep their
   ids, even when a setting starts or stops varying (the builder adds `idKeys` and `idOmit` to the file for that).
@@ -290,7 +290,7 @@ from its template** (the pipeline's part in minutes; with the modelling, under a
 
 ## When something's wrong
 
-- **A builder job failed**: its log (the Content tab › Jobs) says why, in the command line's words; nothing it did is
+- **A builder job failed**: its log (the Builder tab › Jobs) says why, in the command line's words; nothing it did is
   kept. Change the family and make it again.
 - **Import says a model still has problems**: read its *How to fix* lines. The original stays in `incoming/` until
   it passes.
