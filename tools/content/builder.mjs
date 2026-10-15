@@ -568,3 +568,69 @@ export function carProblems(input, ctx) {
   if (input.name) { const np = nameProblem(input.name, { ...ctx.names, pattern: '^[A-Z0-9].*$', maxLength: 40 }); if (np) out.push(np); }
   return out;
 }
+
+// ---------- a request from the live admin page ----------
+// What an admin asked for on the live server (which hasn't the repository's files to write: contentBuilder.mode
+// "github"), made where the repository is — the content-builder workflow (.github/workflows/content-builder.yml: npm run
+// content -- run-job). Checked again here with the same code as the admin page's, → { specs (tools/content/jobs.mjs jobs,
+// run in turn), writes [{ file, text }] and removes [file] (presets: files of their own, no job) }; an Error with
+// .problems if it isn't one to make.
+//   { type: 'family', input, editing? }   a new family, or an existing one changed
+//   { type: 'engine', input, editing? }   a new engine, or one changed
+//   { type: 'car', input: { id, type, name } }
+//   { type: 'build', ids }                built and checked again
+//   { type: 'variations', families: [input…] }
+//   { type: 'preset-save', name, input } / { type: 'preset-delete', name }
+export async function requestJobs(req, ctx) {
+  const refuse = (problems, fallback) => { const e = new Error(problems[0] ?? fallback); e.problems = problems.length ? problems : [fallback]; throw e; };
+  const family = async (input, editing = null) => {
+    if (editing && !ctx.families[editing]) refuse([`There's no family "${editing}".`]);
+    const { def, problems } = normaliseFamily(editing ? { ...input, id: editing } : input, ctx, { editing });
+    if (!def || problems.length) refuse(problems, 'That isn\'t a family.');
+    const s = await summarise(def, ctx, { editing, suggest: false });
+    if (s.problems.length) refuse(s.problems.map(p => `${def.name}: ${p}`));
+    const was = editing ? ctx.families[editing] : null, full = was ? { ...def, _note: was._note ?? def._note, status: was.status ?? 'draft' } : { ...def, status: 'draft' };
+    return { type: 'family', target: full.id, title: `${was ? 'Change' : 'New'} family: ${def.name}`, payload: { def: full, text: familyText(full) } };
+  };
+  switch (req?.type) {
+    case 'family': return { specs: [await family(req.input ?? {}, req.editing ?? null)], writes: [], removes: [] };
+    case 'variations': {
+      const list = req.families ?? [];
+      if (!list.length || list.length > ctx.config.variations.max) refuse([`One to ${ctx.config.variations.max} families at once (data/content/builder.json variations.max).`]);
+      const specs = [];
+      for (const f of list) specs.push(await family(f));
+      if (new Set(specs.map(s => s.target)).size !== specs.length) refuse(['Two of them have the same id: give them different names.']);
+      return { specs, writes: [], removes: [] };
+    }
+    case 'engine': {
+      const editing = req.editing ?? null;
+      if (editing && !ctx.engines[editing]) refuse([`There's no engine "${editing}".`]);
+      const s = await engineSummary(req.input ?? {}, ctx, { editing });
+      if (s.problems.length) refuse(s.problems);
+      return { specs: [{ type: 'engine', target: s.def.id, title: `${editing ? 'Change' : 'New'} engine: ${s.name}`, payload: { def: s.def, text: s.text } }], writes: [], removes: [] };
+    }
+    case 'car': {
+      const input = { id: req.input?.id, type: req.input?.type, name: req.input?.name ?? null }, p = carProblems(input, ctx);
+      if (p.length) refuse(p);
+      return { specs: [{ type: 'car', target: input.id, title: `New car: ${input.name || input.id}`, payload: { type: input.type, name: input.name, model: null } }], writes: [], removes: [] };
+    }
+    case 'build': {
+      const ids = req.ids ?? [];
+      if (!ids.length || ids.some(id => !ctx.families[id] && !ctx.engines[id])) refuse([`Build and check: ${ids.find(id => !ctx.families[id] && !ctx.engines[id]) ?? 'nothing'} isn't a family or engine.`]);
+      return { specs: [{ type: 'build', target: ids.join(','), title: `Build and check: ${ids.join(', ')}`, payload: { ids } }], writes: [], removes: [] };
+    }
+    case 'preset-save': {
+      const p = presetProblem(req.name);
+      if (p) refuse([p]);
+      const { def, problems } = normaliseFamily({ ...(req.input ?? {}), name: req.input?.name || 'Preset' }, ctx);
+      if (!def) refuse(problems, 'That isn\'t a family setup.');
+      return { specs: [], writes: [{ file: presetFile(req.name), text: presetText(presetFrom(req.name, def)) }], removes: [] };
+    }
+    case 'preset-delete': {
+      const file = presetFile(req.name);
+      if (presetProblem(req.name) || !fs.existsSync(path.join(ctx.root, file))) refuse([`There's no preset "${req.name}".`]);
+      return { specs: [], writes: [], removes: [file] };
+    }
+    default: refuse([`There's no request "${req?.type}".`]);
+  }
+}

@@ -29,6 +29,8 @@
 //                                               names, checked): what each would make; --make makes them
 //   npm run content -- presets [--save <name> --from <family>]   the builder's presets (data/content/presets)
 //   npm run content -- shapes <kind>           a kind's shape settings, what each may be, and its kit pieces
+//   npm run content -- run-job <request.json> [--message file]   a request from the live admin page's Builder (its
+//                                               content-builder workflow): checked again, then made as jobs
 
 import { performance } from 'node:perf_hooks';
 
@@ -217,7 +219,28 @@ switch (cmd) {
     for (const s of o.shape) console.log(`  ${s.key.padEnd(14)} ${s.label}${s.stats ? ' (changes its stats)' : ''}: ${s.type === 'range' ? `${s.range[0]}–${s.range[1]}${s.unit ? ` ${s.unit}` : ''}${s.integer ? ', whole' : ''}, step ${s.step}` : s.type === 'table' ? s.entries.map(e => e.id).join(' | ') : s.type === 'kit' ? `kit pieces: ${s.values.join(' | ')} (assets/kits/${o.kind}/${s.attach}_<name>.glb)` : s.values.map(v => JSON.stringify(v)).join(' | ')} — default ${s.default ?? 'auto'}`);
     process.exit(0);
   }
+  case 'run-job': {
+    // (a request from the live admin page, made here: the content-builder workflow; tools/content/builder.mjs requestJobs)
+    const fs = await import('node:fs'), path = await import('node:path'), B = await import('./content/builder.mjs');
+    if (!ids[0] || !fs.existsSync(ids[0])) { console.log(red('✘ npm run content -- run-job <request.json> [--message file]')); process.exit(2); }
+    const job = JSON.parse(fs.readFileSync(ids[0], 'utf8')), ctx = await B.builderContext();
+    let plan;
+    try { plan = await B.requestJobs(job.request, ctx); }
+    catch (err) { for (const p of err.problems ?? [err.message]) console.log(red(`✘ ${p}`)); console.log(red('Nothing made: the request was refused (the same checks as the admin page).')); process.exit(1); }
+    const titles = [];
+    for (const w of plan.writes) { fs.mkdirSync(path.join(ctx.root, path.dirname(w.file)), { recursive: true }); fs.writeFileSync(path.join(ctx.root, w.file), w.text); console.log(green(`✔ Wrote ${w.file}.`)); titles.push(`Preset saved: ${path.basename(w.file, '.json')}`); }
+    for (const f of plan.removes) { fs.rmSync(path.join(ctx.root, f)); console.log(green(`✔ Removed ${f}.`)); titles.push(`Preset deleted: ${path.basename(f, '.json')}`); }
+    for (const spec of plan.specs) {
+      console.log(bold(`\n${spec.title}`));
+      const j = await runJob(spec);
+      if (j.state !== 'done') { console.log(red(`\n✘ ${spec.title}: ${j.error ?? j.state} — nothing it did is kept.`)); for (const p of (j.problems ?? []).slice(0, 12)) console.log(red(`  ${p}`)); process.exit(1); }
+      console.log(green(`✔ ${j.result.words ?? j.result.message ?? 'done'}`));
+      titles.push(spec.title);
+    }
+    if (opt('--message')) fs.writeFileSync(opt('--message'), `Builder: ${titles.join('; ').slice(0, 120)}\n\n${titles.join('\n')}\n\nFrom the admin page's Builder tab, by ${job.by?.name ?? 'an admin'}: ${job.reason ?? ''}\n(job ${job.id ?? '?'}; .github/workflows/content-builder.yml)\n`);
+    process.exit(0);
+  }
   default:
-    console.log('npm run content -- build | check | verify | new-car | status | report | targets | thumbnails | finish | new-family | preview | variations | presets | shapes   (docs/CONTENT_PIPELINE.md)');
+    console.log('npm run content -- build | check | verify | new-car | status | report | targets | thumbnails | finish | new-family | preview | variations | presets | shapes | run-job   (docs/CONTENT_PIPELINE.md)');
     process.exit(cmd ? 2 : 0);
 }
