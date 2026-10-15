@@ -1,0 +1,12 @@
+{
+  "_note": "A part family (docs/CONTENT_PIPELINE.md): npm run content -- build makes a part for every combination of the settings listed here and every finish, its stats from data/content/formulas.json (families.<kind>), its tier, price and unlock level from what it does. Change this file, not the parts it makes.",
+  "id": "kugel",
+  "kind": "wheels",
+  "name": "Kugel",
+  "settings": { "diameter": [16, 17, 18, 19, 20], "spokes": 10, "construction": ["cast", "flow", "forged"] },
+  "finishes": ["painted", "chrome", "matte", "carbon", "polished"],
+  "skip": [{ "diameter": 16, "construction": "forged", "finish": "carbon" }],
+  "shape": { "spoke": "twisted", "spokeWidth": 0.074, "taper": 1.2, "twist": 0.7, "lean": 0.6, "concave": 0.02, "dish": 0.014, "lip": 0.03, "cap": "flat", "capMaterial": "chrome" },
+  "aim": { "tiers": ["race"] },
+  "status": "draft"
+}
