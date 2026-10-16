@@ -22,12 +22,15 @@ export const ENGINE_MOUNTED = new Set(['turbo', 'supercharger', 'intake', 'heade
 export const THROUGH = { exhaust: ['bumper_rear'], supercharger: ['engine'] };
 const models = new Map(), bodies = new Map();
 
-// A model's triangles in its own frame (cached)
-export async function trianglesOf(file) {
-  if (models.has(file)) return models.get(file);
+// A model's triangles in its own frame (cached); skip: names of nodes left out (with what's under them, and their
+// far-distance copies, name__lod…) — what a fitted part hides (its `hides`), as the game draws it
+export async function trianglesOf(file, skip = []) {
+  const key = skip.length ? `${file}|${[...skip].sort().join(',')}` : file;
+  if (models.has(key)) return models.get(key);
   const doc = await readModel(path.join(ROOT, file)), out = [];
   const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
   const walk = n => {
+    if (skip.some(h => n.getName() === h || n.getName().startsWith(`${h}__`))) return;
     const m = n.getWorldMatrix();
     for (const prim of n.getMesh()?.listPrimitives() ?? []) {
       const P = prim.getAttribute('POSITION'), I = prim.getIndices(), count = I ? I.getCount() : P.getCount(), el = [];
@@ -36,7 +39,7 @@ export async function trianglesOf(file) {
     n.listChildren().forEach(walk);
   };
   scene.listChildren().forEach(walk);
-  models.set(file, out);
+  models.set(key, out);
   return out;
 }
 // The car's body: its triangles, and where each of its socket nodes is (a matrix)
@@ -80,7 +83,9 @@ async function placed(db, car, garage) {
     const m = scaleBy(nodeMatrix(s.node ?? s.name, s), sc);
     out.push({ socket: s.name, home: s.node ?? s.name, part, model, matrix: m, look, tris: place(m) });
   }
-  return { body, parts: out };
+  // (the body without what the fitted parts hide: a short shifter's stock gear lever)
+  const hidden = [...new Set(out.flatMap(p => p.part.hides ?? []))];
+  return { body: hidden.length ? { ...body, tris: await trianglesOf(car.model.file, hidden) } : body, parts: out };
 }
 export { placed };
 

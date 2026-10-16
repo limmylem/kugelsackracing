@@ -122,7 +122,7 @@ export function harness(id, s) {
 
 // ---------- the short shifter ----------
 export function shifter(id, s) {
-  const m = new PartModel(id), H = s.height ?? 0.2;
+  const m = new PartModel(id), H = s.height ?? 0.13;
   m.add(bevelBox([-0.06, 0, -0.07], [0.06, 0.012, 0.07], 0.004), 'raw_metal');                        // the plate
   m.add(lathe([[0, 0.012], [0.05, 0.012], [0.032, 0.05], [0.014, 0.075], [0, 0.075]], 10, 'y'), 'black');      // the gaiter
   m.add(cylinder('y', 0.007, 0.07, H, 8), 'chrome');
@@ -274,7 +274,7 @@ export async function parts({ carsFor, project }) {
   const seatOn = fitted('seat', 'seat', c => seat('bucket_seat_street', { ...SEATS.bucket_seat_street.settings, lean: c.lean, height: SEATS.bucket_seat_street.settings.height * c.kh, width: SEATS.bucket_seat_street.settings.width * c.kw }).moved([0, 0, c.dz]));
   jobs.push({ id: 'race_harness', type: 'harness', design: 'six-point, over the bucket seat', settings: H, cars: carsFor(db.parts.race_harness, db), baseCar: 'starter_car',
     build: async car => { const f = (await seatOn(car)).fit?.settings ?? { lean: 0.18, kh: 1, kw: 1, dz: 0 }; return harness('race_harness', { ...H, seat: { ...H.seat, lean: f.lean, height: H.seat.height * f.kh, width: H.seat.width * f.kw }, shift: f.dz }); } });
-  jobs.push({ id: 'short_shifter', type: 'shifter', design: 'short shifter', settings: { height: 0.2 }, build: () => shifter('short_shifter', { height: 0.2 }) });
+  jobs.push({ id: 'short_shifter', type: 'shifter', design: 'short shifter', settings: { height: 0.13 }, build: () => shifter('short_shifter', { height: 0.13 }) });
   for (const [id, { design, settings }] of Object.entries(CAGES)) {
     jobs.push({ id, type: 'roll_cage', design, settings, cars: carsFor(db.parts[id], db), baseCar: 'starter_car', build: async car => rollCage(id, car, settings, { ...(await surroundings(db, car.id, 'socket_cage')), walls: [...car.body, ...(await car.stockTris('socket_door_left') ?? []), ...(await car.stockTris('socket_door_right') ?? [])] }) });
   }

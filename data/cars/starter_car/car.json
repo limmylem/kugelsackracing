@@ -856,7 +856,7 @@
       "name": "socket_shifter",
       "slot": "shifter",
       "required": false,
-      "position": [0, 0.55, 0.13],
+      "position": [0, 0.372, 0.16],
       "pull": [0, 1, 0],
       "blockedBy": [],
       "focus": "interior",
