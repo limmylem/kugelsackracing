@@ -77,3 +77,4 @@ Crash replays show your car whole, and its sparks, until the moment it hits
 Your car stops safely at the end of a quest
 Eight new engine sounds: build a V12, V10, flat six and more
 Aero kits now sit snug against the body on every car
+Your car takes no damage after crossing a quest's finish line

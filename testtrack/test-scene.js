@@ -1975,12 +1975,14 @@ function crashEvents(w, v, now) {
   }
   for (const id of looks) w.others.get(id)?.setDamage(w.aiDamage.get(id).view3d, rules);
   if (!impacts.length) return;
+  // (a quest's finish line crossed — or the quest out — until its results are closed: your car takes no damage at all,
+  // whatever it hits: no dents, nothing broken or torn off, no crash replay; the owner's call, 2026-10-16)
+  if (w.quests?.over) return;
   const C = rules.classes;
   for (const impact of impacts) {
     w.quests?.noteHit(impact.strength);                     // (a quest: a drift's wall hit, the cargo's damage)
     const brokenBefore = new Set(s.session.damage.shell?.broken ?? []), before = s.session.damage;
-    // (a quest over: the car braking to a stop takes no damage — play/questUi.js stopping)
-    const { result, saved } = s.session.crash(impact, { mode: w.quests?.stopping ? 'off' : mode, boxes: s.damageBoxes, scale: impact.agreedScale ?? s.play.scale(impact) });
+    const { result, saved } = s.session.crash(impact, { mode, boxes: s.damageBoxes, scale: impact.agreedScale ?? s.play.scale(impact) });
     (s.mp ?? s.mpRace?.drawn)?.crash(result, s.session.garage.build);   // (the others see your dents — in a race too: play/multiplayer.js)
     if (impact.strength > 5) s.audio?.env.cheer('crash', Math.min(1, impact.strength / 20));
     // a big crash: replayed (after a moment, to see what happened next) — from your car's place then
