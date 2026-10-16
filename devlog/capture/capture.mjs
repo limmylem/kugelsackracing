@@ -75,7 +75,7 @@ const launch = () => chromium.launch({
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
     ...(process.env.DEVLOG_NO_PROXY ? ['--no-proxy-server'] : [])],
 });
-const browser = await launch();
+let browser = await launch();
 // (the second car: a browser of its own — in the same one its small frames would wait behind the camera car's big
 // ones in their shared graphics process)
 let rivalBrowser = null;
@@ -383,7 +383,12 @@ async function run(shots, { track, region = null, waypoints = null, multiplayer 
       if (ratio) await rec.page.evaluate(was => window.__devlogShared().renderer.setPixelRatio(was), ratio);
     }
     await camera(rec.page, s.camera ?? 'chase');
-    if (multiplayer) log(`  ${s.name}: ${await othersSeen(rec.page)}`);
+    if (multiplayer) {
+      const seen = await othersSeen(rec.page);
+      log(`  ${s.name}: ${seen}`);
+      // (a multiplayer shot with nobody else connected would be one car pretending: left out, and the run says why)
+      if (!/^online/.test(seen)) throw new Error(`the camera car isn't online (${seen})`);
+    }
     if (names()) await keepLabels(rec.page);
     const file = path.join(OUT, `${s.name}.mp4`);
     const [bin, ffArgs, ffOpts] = ffmpegCommand(['-y', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(FPS), '-i', '-',
@@ -430,7 +435,10 @@ let clips = [], failed = false;
 try {
   // (a shots file of runs — the trailer's: each a track or a region, filmed in turn; else the devlog's one track)
   const runs = SHOTS.runs ?? [{ track: SHOTS.track, shots: SHOTS.shots }];
-  for (const R of runs) {
+  for (const [k, R] of runs.entries()) {
+    // (each run in fresh browsers: after most of an hour of big frames one gets slow — a frame every few seconds —
+    // and its connection to the game server was lost before the trailer's multiplayer shot, 2026-10-16)
+    if (k) { await browser.close().catch(() => {}); browser = await launch(); await rivalBrowser?.close().catch(() => {}); rivalBrowser = null; }
     const solo = R.shots.filter(s => !s.multiplayer && !R.multiplayer), duo = R.shots.filter(s => s.multiplayer || R.multiplayer);
     try {
       if (solo.length) clips.push(...await run(solo, { track: R.track, region: R.region ?? null, waypoints: R.waypoints ?? null, multiplayer: false }));
