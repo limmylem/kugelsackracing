@@ -1,6 +1,6 @@
 # Known issues, and what to revisit
 
-As of Phase 8 Step 3 (the content pipeline, first), Step 2 (performance and graphics settings), Step 1 (the game's sound), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
+As of Phase 8 Step 4 (final polish and launch, first), Step 3 (the content pipeline), Step 2 (performance and graphics settings), Step 1 (the game's sound), Phase 7 Step 5 (online for friends testing), Step 4 (free roam), Step 3 (car-to-car contact), Step 2 (multiplayer races), Step 1 (multiplayer's networking), then Phase 6's deployment step (going online, then Step 2's server-owned economy, then Step 1's server and
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
@@ -42,6 +42,46 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   fitting at the same moment, p95 13.1 → 10.0 s (fitting) and 17.1 → 9.0 s (taking off).
 - **Other players' damaged engines misfire**, from the crashes their cars send (the engine's condition lost), as an
   NPC's does; a leaking radiator steams and a loose panel flaps too (audio/remoteDamage.js), as yours do.
+
+## Phase 8 Step 4: final polish and launch (LAUNCH_CHECKLIST.md, docs/RELEASE.md)
+
+### Fixed on the way (2026-10-16)
+
+- **The dock and the News button showed message names online** ("dock.tow", "dock.chat", "news.button": the owner's
+  screenshot). index.html drew them before the game's words had loaded. Now the language loads first, and both redraw
+  whenever it loads or changes. `tools/first-launch-browser.mjs` fails on any message name in either (it reproduced
+  the bug on the old code), and `tools/live-look.mjs` checks the live site for it.
+- **The Stelvio Pass never let you drive.** The car is put down by a ray cast from 900 m, and the pass's road is at
+  2,760 m, so a player who went there saw "Loading the world" for good. The ray now starts above the ground's own height
+  there (map/render/game.ts `land`). Found filming the trailer; `live-look` drives it online (drivable in 12 s at 2,759 m).
+  Only Stelvio is that high; the old v2 world (`?map=v2`, San Francisco only) still starts at 900 m.
+- **Two players joining free roam at the same moment could end up in different instances**, each alone. A new
+  instance's group was a random name, so two players placed before either's room existed each got their own. Now it's
+  the first free name (g1, g2, …), the same for both (mp/roam.js `placeInstance`; tests/unit/roam.test.mjs). This is
+  what failed the two-windows browser test (`server/tools/mp-two-windows.ts`: both "online #1", in different rooms,
+  seeing nobody) and, earlier, its F9 check. Deployed 2026-10-16 (run 360), and the two-windows test passes
+  again (slow-tail run 3, all its checks). It's in `slow-tail` now (Actions → slow-tail → Run workflow), as an earlier
+  step's flake (below) can stop the full run's slow tests before it.
+- **The trailer's multiplayer shot was filmed with one car.** After most of an hour of filming, the browser drew a
+  frame every few seconds and lost its connection to the game server. The filming (devlog/capture/capture.mjs) now
+  opens fresh browsers for each run, and leaves out a multiplayer shot whose camera car isn't online rather than
+  filming it alone.
+
+### Things to know
+
+- **The two-browsers multiplayer test now and then sees one snap on a clean network** (`server/tools/mp-browser.ts`:
+  one jump of 15.5 cm in about 1,500 frames watched at 60 fps; runs 345 and 359 on 2026-10-16, while the same run's
+  150 ms / 5% loss check passed). It isn't every run, and it isn't from Step 4's changes. A failure there stops the
+  slow tests after it, so the two-windows test and the rest don't run: `slow-tail` runs them on their own.
+- **737 strings of hard-coded English are left** outside `locales/` (data/i18n-baseline.json; the check lets the number
+  only go down). English is the only launch language, so players don't see this; a translation would miss them.
+- **The trailer was filmed without a graphics card** (software rendering, as in CI): flat light, no shadows on the
+  cars. On a computer with one, `cd devlog && node trailer/make.mjs` films it again in about an hour (RELEASE.md
+  "Trailer").
+- **The two-windows test doesn't load the world in this development container** (`look` never sees a car; the page's
+  renderer isn't made), though it does in CI. Run it in CI or `slow-tail`.
+- **Legal texts are drafts**: the privacy policy and terms wait for a lawyer, and whether a free web game needs a formal
+  rating in Australia is an open question (LAUNCH_CHECKLIST.md section 1).
 
 ## The seven cars rebuilt from the starter coupe's model (2026-10-15; tools/content/coupeCar.mjs)
 
