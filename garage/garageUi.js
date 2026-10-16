@@ -29,7 +29,7 @@
 //  Money and parts only change through the player service (the Workshop asks it).
 //  Mouse, touch and gamepad (the D-pad moves between controls, A presses, B goes back).
 
-import { AREAS, SYSTEMS, conditionClass, conditionWord, iconFor, socketLabel, STAT_KEYS } from './workshop.js';
+import { AREAS, SYSTEMS, conditionClass, conditionWord, iconFor, socketLabel, STAT_KEYS, byPerformance } from './workshop.js';
 import { needsRepair } from './player/profile.js';
 import { dealerCar, dealerList } from './dealer.js';
 import { listingState } from './shop.js';
@@ -381,7 +381,7 @@ export class GarageScreen {
   #candidates() {
     const { candidates } = this.w.partsFor(this.ui.socket);
     const f = this.ui.filter, list = candidates.filter(c => f === 'all' || (f === 'owned' && c.owned) || (f === 'shop' && !c.owned) || (f === 'upgrades' && c.ratingChange > 0));
-    const by = { performance: (a, b) => (b.ratingChange - a.ratingChange) || (b.owned - a.owned) || a.part.name.localeCompare(b.part.name), name: (a, b) => a.part.name.localeCompare(b.part.name), category: (a, b) => a.part.category.localeCompare(b.part.category) || a.part.name.localeCompare(b.part.name), price: (a, b) => (a.owned ? 0 : a.price) - (b.owned ? 0 : b.price), condition: (a, b) => b.condition - a.condition }[this.ui.sort];
+    const by = { performance: byPerformance, name: (a, b) => a.part.name.localeCompare(b.part.name), category: (a, b) => a.part.category.localeCompare(b.part.category) || a.part.name.localeCompare(b.part.name), price: (a, b) => (a.owned ? 0 : a.price) - (b.owned ? 0 : b.price), condition: (a, b) => b.condition - a.condition }[this.ui.sort];
     return [...list].sort((a, b) => (!!a.locked - !!b.locked) || by(a, b));
   }
   #partRow(c) {
@@ -830,8 +830,8 @@ export class GarageScreen {
     const list = all.filter(c => (u.cat === 'all' || c.part.category === u.cat) && (!u.fits || c.fits) && (u.brand === 'all' || c.brand === u.brand) && (u.tier === 'all' || (c.part.tier ?? 'stock') === u.tier)
       && c.price >= band[1] && c.price < band[2] && (!q || c.part.name.toLowerCase().includes(q) || c.part.category.includes(q) || c.part.id.includes(q) || (c.brand ?? '').toLowerCase().includes(q)));
     // (what each would do to the rating: worked out only when sorting by it — a trial fit each)
-    if (u.sort === 'gain') for (const c of list) c.gain = c.fits && !c.lock ? w.ratingGain(c.part.id) : null;
-    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, gain: (a, b) => (b.gain ?? -1e9) - (a.gain ?? -1e9), price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort] ?? ((a, b) => a.price - b.price);
+    if (u.sort === 'gain') for (const c of list) { c.gain = c.fits && !c.lock ? w.ratingGain(c.part.id) : null; c.gainExact = c.gain == null ? null : w.ratingGainExact(c.part.id); }
+    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, gain: (a, b) => (b.gainExact ?? -1e9) - (a.gainExact ?? -1e9), price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort] ?? ((a, b) => a.price - b.price);
     list.sort((a, b) => by(a, b) || a.part.name.localeCompare(b.part.name));
     const bandName = ([id, lo, hi]) => id === 'all' ? 'Any price' : hi === Infinity ? `Over ${this.money(lo)}` : lo === 0 ? `Under ${this.money(hi)}` : `${this.money(lo)}–${this.money(hi)}`;
     const select = (field, value, opts, label) => `<select class="g-input g-select" data-field="shop.${field}" data-key="shop-${field}" aria-label="${label}">${opts.map(([v, n]) => `<option value="${esc(v)}" ${value === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
@@ -1594,7 +1594,7 @@ export class GarageScreen {
     if (found) return found;
     const copy = w.profile.parts[key], part = copy && w.db.parts[copy.partId];
     if (!part || copy.installedOn) return null;
-    return { key, instanceId: key, partId: part.id, count: 1, part, condition: copy.condition ?? 100, owned: true, set: 1, price: 0, affordable: true, locked: null, blockers: [], gain: [], ratingChange: 0 };
+    return { key, instanceId: key, partId: part.id, count: 1, part, condition: copy.condition ?? 100, owned: true, set: 1, price: 0, affordable: true, locked: null, blockers: [], gain: [], ratingChange: 0, ratingExact: 0, massChange: 0 };
   }
   back() {
     if (this.ui.dialog) { this.ui.dialog = null; return this.render(); }

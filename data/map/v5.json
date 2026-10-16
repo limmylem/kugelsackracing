@@ -109,8 +109,9 @@
     "tunnelPad": 3
   },
   "collision": {
-    "_note": "Map v5 over Map v4's: a building collider under 0.25 m² is a sliver and dropped unless its area over its longest side is at least sliverWidth m — a canopy's post stays solid.",
-    "sliverWidth": 0.1
+    "_note": "Map v5 over Map v4's: a building collider under 0.25 m² is a sliver and dropped unless its area over its longest side is at least sliverWidth m — a canopy's post stays solid. A road collision triangle narrower than minWidth m in plan (its area over its longest side) is left out: a band's sliver along a kerb line, a few millimetres wide, can't hold a wheel, and the tiles' 1 cm grid moves it off itself.",
+    "sliverWidth": 0.1,
+    "minWidth": 0.005
   },
   "buildings": {
     "_note": "map/model/buildingsV5.ts: a place inside a building (confidence at least placeConfidence) says what it is; offices taller than towerAbove m are towers; a shop-type place in a building smaller than mallArea m² is a shop, not a mall; with nothing else to go on, a residential building under houseArea m² is a house. signs: businesses' names on their buildings (at most signsPer each), on the wall facing a road within frontReach m; a named building of the namePlates types its own name on a plate.",
@@ -229,7 +230,7 @@
     "trolleyApart": 14
   },
   "furniture": {
-    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
+    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A roundabout's entry signs (give way over the roundabout sign) at junctions within roundaboutReach m of its island's edge; OSM's give way points within entrySignNear m of one are that sign. One-way streets: ONE WAY and NO ENTRY signs oneWayIn m into the street from the junction (not a service road, nor a divided road's carriageway: a one-way road with a same-named twin within carriagewayGap m going the other way, within carriagewayAngle° of opposite). A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
     "clearance": 0.45,
     "pushMax": 3,
     "signalReach": 30,
@@ -237,12 +238,31 @@
     "trafficLightHeight": 3.2,
     "speedIn": 12,
     "signReach": 18,
+    "roundaboutReach": 25,
+    "entrySignNear": 10,
+    "oneWayIn": 3,
+    "carriagewayAngle": 35,
+    "carriagewayGap": 40,
     "shelterNear": 12,
     "shelterBack": 2.2,
     "poleHeight": 10.5,
     "towerHeight": 28,
     "maxSpan": 120,
     "cycle": { "green": 20, "amber": 4, "allRed": 2 }
+  },
+  "frontFences": {
+    "_note": "map/model/fences.ts: estimated front fences. A house (houseTypes) within frontMax m of a street of roadClasses, its nearest wall at least minSetback m behind the property line (the street side's kerb, verge and footpath, back m further; the style pack's frontFences.reserve m where the side has none), gets one along the line, margin m past its walls each way, in pieces of at most piece m clear (clear m) of every road surface and building: a gate gate m wide opposite its middle, a driveway's gap driveway m wide at the end its own garage or carport (within garageNear m) is at, else the roomier end, and a gap where a mapped driveway crosses.",
+    "houseTypes": ["house", "terrace"],
+    "roadClasses": ["residential", "unclassified", "tertiary", "living_street", "secondary", "road"],
+    "frontMax": 30,
+    "minSetback": 1.0,
+    "back": 0.3,
+    "margin": 0.6,
+    "piece": 6,
+    "clear": 0.3,
+    "gate": 1.2,
+    "driveway": 3.2,
+    "garageNear": 25
   },
   "markingsV5": {
     "_note": "map/model/markingsV5.ts: Map v5's markings on top of Map v4's, lift m above them (surface.markingLift). Turn arrows arrowBack m before a junction with traffic lights, arrowLength m long, on approaches with arrowMinLanes lanes or more coming in, at junctions of three streets or more (arms of minorArms' classes not counted); an arm within aheadWithin degrees of straight on is ahead, one up to turnWithin degrees a turn. Bicycle lanes bikeLane m wide (their line lineWidth m), a bicycle every bikeSymbolEvery m; bus lanes busLane m wide (their line busLineWidth m); both drawn in pieces of step m, laneEndSkip m clear of a road's ends, painted for paintAtEnds m at each. A mark is drawn only where the road's surface is, within maxStep m of the road model's height; margin m past the block so one across its edge is whole.",
