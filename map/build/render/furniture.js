@@ -50,6 +50,18 @@ function shared(cfg) {
         shelterMat: new THREE.MeshLambertMaterial({ color: st.busStop?.shelter ?? '#3b4a52' }), wood: new THREE.MeshLambertMaterial({ color: '#7a5a3a' }), green: new THREE.MeshLambertMaterial({ color: '#33503a' }),
         red: new THREE.MeshLambertMaterial({ color: '#c8102e' }), yellow: new THREE.MeshLambertMaterial({ color: '#d8b62a' }),
         stopFace: face(stopTex), giveFace: face(giveTex), busFace: face(busTex), speedFace,
+        // (a level crossing's: its crossbuck, a boom arm raised, its lights)
+        crossbuck: plate(new THREE.PlaneGeometry(0.9, 0.9), 2.7), crossFace: face(canvasTex(128, 128, g => { g.clearRect(0, 0, 128, 128); g.lineCap = 'round'; for (const [c, w] of [['#c8102e', 26], ['#ffffff', 16]]) {
+            g.strokeStyle = c;
+            g.lineWidth = w;
+            g.beginPath();
+            g.moveTo(14, 14);
+            g.lineTo(114, 114);
+            g.moveTo(114, 14);
+            g.lineTo(14, 114);
+            g.stroke();
+        } })),
+        boomArm: box(0.12, 4.2, 0.12), white: new THREE.MeshLambertMaterial({ color: '#f2f2ee' }),
         // (the lenses: [phase group][red, amber, green], lit or dark by the cycle)
         lenses: [0, 1].map(() => [lit('#3a0b0b'), lit('#3a2a08'), lit('#08300f')]),
         wire: new THREE.LineBasicMaterial({ color: '#2a2a2a' }),
@@ -137,6 +149,18 @@ export function furnitureObjects(tile, cfg) {
                 break;
             case FURN.bollard:
                 add('bollard', Sh.bollard, Sh.metal, x, y, z, yaw);
+                break;
+            case FURN.boomGate:
+                add('bgPost', Sh.pole, Sh.metal, x, y, z, yaw, 1, 3.0, 1);
+                add('bgCross', Sh.crossbuck, Sh.crossFace, x, y, z, yaw);
+                add('bgLights', Sh.housing, Sh.dark, x, y + 1.9, z, yaw, 2.2, 0.35, 0.6, 0, 0, 0.1);
+                for (const sd of [-1, 1])
+                    add('bgLens', Sh.lens, Sh.lenses[0][0], x, y + 2.07, z, yaw, 1, 1, 1, sd * 0.25, 0, 0.27);
+                add('bgArm', Sh.boomArm, Sh.white, x, y + 1.0, z, yaw, 1, 1, 1, 0.22, 0, 0);
+                break;
+            case FURN.catenaryMast:
+                add('mast', Sh.pole, Sh.metal, x, y, z, yaw, 1.2, b || 6.2, 1.2);
+                add('mastArm', Sh.housing, Sh.metal, x, y + (b || 6.2) - 0.3, z, yaw, 0.25, 0.12, 9.5, 0, 0, 1.25);
                 break;
         }
     }

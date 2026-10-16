@@ -14,6 +14,7 @@ import { furnitureObjects, brandObjects, placeSignObjects } from './furniture.ts
 import { facadeMaterial } from './facades.ts';
 import { treeKinds } from './physics.ts';
 import { modelObjects } from './models.ts';
+import { railObjects } from './rails.ts';
 
 // ---------- shared materials (one each for the whole world) ----------
 let M = null;
@@ -250,7 +251,7 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
   const v5 = tile.header.map === 'v5';
   const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true }), mesh('fields', mat.markings, { order: 1, up: true })].filter(Boolean);
   mesh('water', mat.water, { normals: true, order: 2 });
-  const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true }), mesh('tunnel', mat.tunnel, { shadow: true })].filter(Boolean);
+  const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true }), mesh('tunnel', mat.tunnel, { shadow: true }), mesh('platforms', mat.tunnel, { shadow: true })].filter(Boolean);
   // trees
   const trees = new THREE.Group(), T = tile.lists.trees;
   if (T) {
@@ -308,6 +309,9 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
   // the chains' sites and the buildings' sign bands (Map v5)
   const brands = tile.lists.furniture?.data.length || tile.lists.shopSigns?.data.length ? brandObjects(tile, furnCfg) : null;
   if (brands) group.add(brands.group);
+  // railway track (Map v5: map/render/rails.ts)
+  const railsO = tile.lists.rails?.data.length ? railObjects(tile, furnCfg?.railways) : null;
+  if (railsO) group.add(railsO.group);
   // suburbs' and parks' signs (Map v5)
   const places = tile.lists.placeSigns?.data.length ? placeSignObjects(tile, placeNames && { names: placeNames, style: furnCfg?.style }) : null;
   if (places) group.add(places.group);
@@ -382,7 +386,7 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
     dispose() {
       for (const g of owned) g.dispose();
       trees.traverse((o: any) => o.dispose?.()); rails.traverse((o: any) => o.dispose?.());
-      lamps?.dispose(); furn?.dispose(); brands?.dispose(); models?.dispose(); places?.dispose();
+      lamps?.dispose(); furn?.dispose(); brands?.dispose(); models?.dispose(); places?.dispose(); railsO?.dispose();
       labels?.traverse(o => { if (!o.isInstancedMesh) o.geometry?.dispose?.(); if (o.material?.map) o.material.dispose(); });
       labels?.userData.atlas?.dispose();
       group.removeFromParent();

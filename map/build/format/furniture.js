@@ -11,6 +11,9 @@ export const FURN = {
     hydrant: 11, bollard: 12, oneWay: 13, roundabout: 14, pylon: 15,
     // (a chain's site — map/model/buildingsV5.ts — a = its brand: the manifest's brands[a])
     pylonSign: 16, canopy: 17, pump: 18, menuBoard: 19, trolleyBay: 20,
+    // (a railway's: map/model/railways.ts — a level crossing's boom gate, b its road's width; an overhead wire's mast,
+    // b its wire's height)
+    boomGate: 21, catenaryMast: 22,
 };
 export const FURN_NAMES = Object.fromEntries(Object.entries(FURN).map(([k, v]) => [v, k]));
 // a placed canopy's size in its flags, and back ([along, across] m, whole metres; 18 × 11 if none)

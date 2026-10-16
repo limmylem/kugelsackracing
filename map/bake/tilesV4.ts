@@ -11,6 +11,7 @@
 //                         border for a wheel to catch on
 //   lists.hulls           buildings' colliders, cut off any road (map/collision/buildings.ts)
 //   lists.furniture, lists.wires   Map v5's street furniture and power lines (map/format/furniture.ts)
+//   lists.rails, meshes.platforms   Map v5's railway track [ax, ay, az, bx, by, bz, gauge, flags] and platforms (solid)
 //   lists.placeSigns      Map v5's suburbs' and parks' signs: [x, y, z, yaw, kind, name (the manifest's placeNames)]
 //   lists.models          Map v5's hand-made landmarks (map/render/models.ts): [x, y, z, yaw, scale, file, box w, h, d]
 //   lists.trees, lists.barrier_*  the model's (map/model/props.ts); lists.lamps (map/model/lamps.ts)
@@ -45,6 +46,10 @@ export function tileBuilderV4(D: any) {
   const furnBy = new Map<string, number[]>(), Fu = D.furniture?.items ?? [], wiresBy = new Map<string, number[]>(), Wi = D.furniture?.wires ?? [];
   for (let k = 0; k < Fu.length; k += FURNITURE_STRIDE) { const key = tileOf(Fu[k], Fu[k + 2]); (furnBy.get(key) ?? furnBy.set(key, []).get(key)!).push(k); }
   for (let k = 0; k < Wi.length; k += 6) { const key = tileOf((Wi[k] + Wi[k + 3]) / 2, (Wi[k + 2] + Wi[k + 5]) / 2); (wiresBy.get(key) ?? wiresBy.set(key, []).get(key)!).push(k); }
+  // (Map v5's railway track, each piece in the tile its middle's in, and its platforms, cut at the border)
+  const railBy = new Map<string, number[]>(), RP = D.rails ?? [];
+  for (let k = 0; k < RP.length; k += 8) { const key = tileOf((RP[k] + RP[k + 3]) / 2, (RP[k + 2] + RP[k + 5]) / 2); (railBy.get(key) ?? railBy.set(key, []).get(key)!).push(k); }
+  const PF = D.platforms, pf = PF?.indices.length ? bucketTriangles(PF, T, 0) : null;
   // (Map v5's place signs: each in the tile its foot's in — map/model/placeSigns.ts)
   const placeBy = new Map<string, number[]>(), PS = D.placeSigns ?? [];
   for (let k = 0; k < PS.length; k += 6) { const key = tileOf(PS[k], PS[k + 2]); (placeBy.get(key) ?? placeBy.set(key, []).get(key)!).push(k); }
@@ -90,6 +95,8 @@ export function tileBuilderV4(D: any) {
       t.lists.furniture = { stride: FURNITURE_STRIDE, data: Float32Array.from((furnBy.get(key) ?? []).flatMap(k => [Fu[k] - cx, Fu[k + 1], Fu[k + 2] - cz, ...Array.from(Fu.slice(k + 3, k + FURNITURE_STRIDE))])) };
       t.lists.wires = { stride: 6, data: Float32Array.from((wiresBy.get(key) ?? []).flatMap(k => [Wi[k] - cx, Wi[k + 1], Wi[k + 2] - cz, Wi[k + 3] - cx, Wi[k + 4], Wi[k + 5] - cz])) };
     }
+    if (railBy.has(key)) t.lists.rails = { stride: 8, data: Float32Array.from(railBy.get(key)!.flatMap(k => [RP[k] - cx, RP[k + 1], RP[k + 2] - cz, RP[k + 3] - cx, RP[k + 4], RP[k + 5] - cz, RP[k + 6], RP[k + 7]])) };
+    if (pf) { const m = clipToBox(PF, pf.get(key) ?? [], box, { cx, cz }); if (m.indices.length) t.meshes.platforms = arr(m, false); }
     if (placeBy.has(key)) t.lists.placeSigns = { stride: 6, data: Float32Array.from(placeBy.get(key)!.flatMap(k => [PS[k] - cx, PS[k + 1], PS[k + 2] - cz, PS[k + 3], PS[k + 4], PS[k + 5]])) };
     if (modelsBy.has(key)) t.lists.models = { stride: 9, data: Float32Array.from(modelsBy.get(key)!.flatMap((m: any) => [m.x - cx, m.y, m.z - cz, m.yaw, m.scale, m.q, ...(m.box ?? [0, 0, 0])])) };
     t.lists.roadEdges = { stride: 8, quantum: 0.05, data: Float32Array.from((edgesBy.get(key) ?? []).flatMap(k => [E[k] - cx, E[k + 1], E[k + 2] - cz, E[k + 3] - cx, E[k + 4], E[k + 5] - cz, E[k + 6], E[k + 7]])) };

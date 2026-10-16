@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#a0c325ef6d4c",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#c74a92bd682d",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-16",
@@ -200,6 +200,19 @@
     "colour": "#c8c4b8",
     "style": "concrete-face"
    }
+  },
+  "railways": {
+   "_note": "map/model/railways.ts, map/render/rails.ts: a line's gauge (mm) where it doesn't say, by kind; trams electrified where nothing says; the colours.",
+   "gauge": 1600,
+   "tramGauge": 1435,
+   "narrowGauge": 1067,
+   "tramsElectrified": true,
+   "ballast": "#8b8379",
+   "sleeper": "#5d5248",
+   "rail": "#7e8286",
+   "deck": "#a7a39b",
+   "platform": "#bdb8ae",
+   "platformEdge": "#d9c64a"
   }
  },
  "placeNames": [
@@ -29388,13 +29401,13 @@
    "estimatedDropped": 109
   },
   "peakMemoryGB": 2.5,
-  "bakeSeconds": 141
+  "bakeSeconds": 146
  },
  "tiles": [
   {
    "i": -4,
    "j": -2,
-   "bytes": 129041,
+   "bytes": 135064,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29466,7 +29479,7 @@
   {
    "i": -4,
    "j": -1,
-   "bytes": 312503,
+   "bytes": 323158,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 3,
@@ -29475,7 +29488,7 @@
   {
    "i": -3,
    "j": -1,
-   "bytes": 309567,
+   "bytes": 324142,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 5,
@@ -29484,7 +29497,7 @@
   {
    "i": -2,
    "j": -1,
-   "bytes": 419810,
+   "bytes": 424955,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 11,
@@ -29493,7 +29506,7 @@
   {
    "i": -1,
    "j": -1,
-   "bytes": 403393,
+   "bytes": 406921,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 6,
@@ -29502,7 +29515,7 @@
   {
    "i": 0,
    "j": -1,
-   "bytes": 464377,
+   "bytes": 467325,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 7,
@@ -29565,7 +29578,7 @@
   {
    "i": -1,
    "j": 0,
-   "bytes": 601478,
+   "bytes": 603525,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 11,
@@ -29628,7 +29641,7 @@
   {
    "i": -2,
    "j": 1,
-   "bytes": 687430,
+   "bytes": 688709,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 6,
@@ -29637,7 +29650,7 @@
   {
    "i": -1,
    "j": 1,
-   "bytes": 500506,
+   "bytes": 502027,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 9,
@@ -29709,7 +29722,7 @@
   {
    "i": -1,
    "j": 2,
-   "bytes": 597853,
+   "bytes": 599795,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 2,

@@ -33,6 +33,7 @@ export function auditTile(tile: any, { cx, cz, surface, barriersCfg }: { cx: num
     const s = p.shape, kind = p.userData.kind;
     if (kind === 'terrain' && s.type === 'heightfield') { if (!tile.heightfield) bad.push({ kind, at: [cx, cz], why: 'heightfield without terrain' }); continue; }
     if (kind === 'model') { const [x, , z] = s.centre, M = tile.lists.models?.data ?? []; let ok = false; for (let k = 0; k < M.length; k += 9) if (Math.hypot(M[k] - x, M[k + 2] - z) < 0.5) ok = true; if (!ok) bad.push({ kind, at: W(x, z), why: 'landmark collider with no model drawn there' }); continue; }
+    if (kind === 'platform') { if (!tile.meshes.platforms) bad.push({ kind, at: [cx, cz], why: 'platform collider without its mesh' }); continue; }
     if (kind === 'tunnel') { if (!tile.meshes.tunnel) bad.push({ kind, at: [cx, cz], why: 'tunnel collider without its mesh' }); continue; }
     if (kind === 'terrain' || p.userData.mesh === 'paved') { if (!tile.meshes[p.userData.mesh ?? 'cover']) bad.push({ kind, at: [cx, cz], why: `${p.userData.mesh} collider without its mesh` }); continue; }
     if (kind === 'road') {

@@ -134,6 +134,21 @@
       "fasciaColour": "#e4e2dc"
     }
   },
+  "railways": {
+    "_note": "map/model/railways.ts: lines of kinds drawn (not in tunnels) in pieces of at most piece m, on a ballast bed ballast m up, flush in a road whose surface is within roadNear m of the ground; level crossings where a line crosses a road (not of noCrossing classes) at grade — a boom gate boomBack m before the line, boomOut m past the road's edge; platforms platformHeight m up (lines: platformWidth m wide); overhead wiring's masts every mastSpacing m, mastOffset m beside the line, the wire wireHeight m over the rails.",
+    "kinds": ["rail", "light_rail", "tram", "narrow_gauge"],
+    "piece": 8,
+    "ballast": 0.3,
+    "roadNear": 0.6,
+    "noCrossing": ["motorway", "trunk"],
+    "boomBack": 6,
+    "boomOut": 1,
+    "platformHeight": 0.95,
+    "platformWidth": 4,
+    "mastSpacing": 45,
+    "mastOffset": 2.6,
+    "wireHeight": 5.5
+  },
   "placeSigns": {
     "_note": "map/model/placeSigns.ts: a suburb's name where a road of roadClasses enters it (Overture's division areas of subtypes), past m in, on the driving side at the first of offsets m past the road's edge that's clearance m clear of every lane and building; one a suburb within dedupe m; a point's suburb the smallest area holding it (none over maxArea km²). A park's (a place of parkCategories, parkConfidence or more, inside an OSM park; a name once within dedupe m) at its edge nearest a road within parkRoadNear m, parkIn m inside it.",
     "subtypes": ["locality", "neighborhood", "macrohood"],

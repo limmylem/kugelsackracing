@@ -35,6 +35,8 @@ export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {
     const desc = RAPIER.ColliderDesc.convexHull(pts);
     if (desc) out.push({ desc, userData: { material: 'concrete', sound: 'building', kind: 'building' }, shape: { type: 'prism', points: pts } });
   }
+  // (Map v5: a railway platform — solid)
+  if (d.meshes.platforms) out.push({ desc: trimesh(d.meshes.platforms), userData: { material: 'concrete', sound: 'building', kind: 'platform', mesh: 'platforms' }, shape: { type: 'trimesh', positions: d.meshes.platforms.positions, indices: d.meshes.platforms.indices } });
   // (Map v5: a tunnel's tube — walls, ceiling, portals — solid all round)
   if (d.meshes.tunnel) out.push({ desc: trimesh(d.meshes.tunnel), userData: { material: 'concrete', sound: 'building', kind: 'tunnel', mesh: 'tunnel' }, shape: { type: 'trimesh', positions: d.meshes.tunnel.positions, indices: d.meshes.tunnel.indices } });
   // (Map v5: a hand-made landmark with a box — lists.models — solid as that box round its anchor)
