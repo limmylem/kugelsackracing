@@ -34,6 +34,58 @@ function shared(cfg) {
     } g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 5; g.stroke(); g.fillStyle = '#fff'; g.font = 'bold 40px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('STOP', 64, 66); });
     const giveTex = canvasTex(128, 128, g => { g.fillStyle = red; g.beginPath(); g.moveTo(6, 10); g.lineTo(122, 10); g.lineTo(64, 120); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(28, 22); g.lineTo(100, 22); g.lineTo(64, 92); g.fill(); g.fillStyle = '#111'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.fillText('GIVE', 64, 44); g.fillText('WAY', 64, 62); });
     const busTex = canvasTex(64, 128, g => { g.fillStyle = '#e8e8e2'; g.fillRect(2, 2, 60, 124); g.fillStyle = '#0a5c36'; g.fillRect(6, 6, 52, 40); g.fillStyle = '#fff'; g.font = 'bold 20px sans-serif'; g.textAlign = 'center'; g.fillText('BUS', 32, 34); g.fillStyle = '#222'; g.font = '12px sans-serif'; g.fillText('STOP', 32, 70); });
+    // (a roundabout's: three arrows round, clockwise where traffic keeps left; ONE WAY, a white arrow on black, its arrow
+    // to the right on the front and to the left on the back; NO ENTRY, a white bar on red)
+    const cw = (cfg?.drivingSide ?? 'left') !== 'right';
+    const roundTex = canvasTex(128, 128, g => {
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, 128, 128);
+        g.strokeStyle = '#111';
+        g.lineWidth = 6;
+        g.strokeRect(5, 5, 118, 118);
+        g.fillStyle = '#111';
+        g.strokeStyle = '#111';
+        g.lineWidth = 10;
+        for (let k = 0; k < 3; k++) {
+            const a0 = k * 2 * Math.PI / 3 + 0.35, a1 = a0 + 1.45, end = cw ? a1 : a0, dir = cw ? 1 : -1;
+            g.beginPath();
+            g.arc(64, 64, 34, a0, a1);
+            g.stroke();
+            const hx = 64 + Math.cos(end) * 34, hz = 64 + Math.sin(end) * 34, tx = -Math.sin(end) * dir, tz = Math.cos(end) * dir;
+            g.beginPath();
+            g.moveTo(hx + tx * 16, hz + tz * 16);
+            g.lineTo(hx - tz * 12 - tx * 2, hz + tx * 12 - tz * 2);
+            g.lineTo(hx + tz * 12 - tx * 2, hz - tx * 12 - tz * 2);
+            g.fill();
+        }
+    });
+    const oneWayTex = (right) => canvasTex(256, 80, g => {
+        g.fillStyle = '#111';
+        g.fillRect(0, 0, 256, 80);
+        g.fillStyle = '#fff';
+        g.save();
+        if (!right) {
+            g.translate(256, 0);
+            g.scale(-1, 1);
+        }
+        g.beginPath();
+        g.moveTo(14, 26);
+        g.lineTo(190, 26);
+        g.lineTo(190, 10);
+        g.lineTo(244, 40);
+        g.lineTo(190, 70);
+        g.lineTo(190, 54);
+        g.lineTo(14, 54);
+        g.fill();
+        g.restore();
+        g.fillStyle = '#111';
+        g.font = 'bold 24px sans-serif';
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText('ONE WAY', right ? 108 : 148, 41);
+    });
+    const noEntryTex = canvasTex(128, 128, g => { g.fillStyle = red; g.beginPath(); g.arc(64, 64, 62, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.fillRect(20, 52, 88, 24); });
+    const front = (tex) => new THREE.MeshLambertMaterial({ map: tex, side: THREE.FrontSide });
     const speedTex = new Map(), speedMat = new Map();
     const speedFace = (v) => { if (!speedMat.has(v)) {
         const t = canvasTex(128, 128, g => { g.fillStyle = '#fff'; g.beginPath(); g.arc(64, 64, 62, 0, Math.PI * 2); g.fill(); g.strokeStyle = signC.speed ?? red; g.lineWidth = 12; g.beginPath(); g.arc(64, 64, 55, 0, Math.PI * 2); g.stroke(); g.fillStyle = '#111'; g.font = `bold ${v >= 100 ? 44 : 54}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(v), 64, 67); });
@@ -50,6 +102,8 @@ function shared(cfg) {
         shelterMat: new THREE.MeshLambertMaterial({ color: st.busStop?.shelter ?? '#3b4a52' }), wood: new THREE.MeshLambertMaterial({ color: '#7a5a3a' }), green: new THREE.MeshLambertMaterial({ color: '#33503a' }),
         red: new THREE.MeshLambertMaterial({ color: '#c8102e' }), yellow: new THREE.MeshLambertMaterial({ color: '#d8b62a' }),
         stopFace: face(stopTex), giveFace: face(giveTex), busFace: face(busTex), speedFace,
+        roundFace: face(roundTex), oneWayFront: front(oneWayTex(true)), oneWayBack: front(oneWayTex(false)), noEntryFace: face(noEntryTex),
+        roundPlate: plate(new THREE.PlaneGeometry(0.6, 0.6), 1.65), oneWayPlate: plate(new THREE.PlaneGeometry(1.0, 0.31), 2.4),
         // (a level crossing's: its crossbuck, a boom arm raised, its lights)
         crossbuck: plate(new THREE.PlaneGeometry(0.9, 0.9), 2.7), crossFace: face(canvasTex(128, 128, g => { g.clearRect(0, 0, 128, 128); g.lineCap = 'round'; for (const [c, w] of [['#c8102e', 26], ['#ffffff', 16]]) {
             g.strokeStyle = c;
@@ -118,6 +172,20 @@ export function furnitureObjects(tile, cfg) {
             case FURN.speed:
                 add('post', Sh.post, Sh.metal, x, y, z, yaw);
                 add(`speed${a | 0}`, Sh.signDisc, Sh.speedFace(a | 0), x, y, z, yaw);
+                break;
+            case FURN.roundabout:
+                add('post', Sh.post, Sh.metal, x, y, z, yaw);
+                add('give', Sh.signTri, Sh.giveFace, x, y, z, yaw);
+                add('round', Sh.roundPlate, Sh.roundFace, x, y, z, yaw);
+                break;
+            case FURN.oneWay:
+                add('post', Sh.post, Sh.metal, x, y, z, yaw, 1, 1.12, 1);
+                add('oneWayF', Sh.oneWayPlate, Sh.oneWayFront, x, y, z, yaw);
+                add('oneWayB', Sh.oneWayPlate, Sh.oneWayBack, x, y, z, yaw + Math.PI);
+                break;
+            case FURN.noEntry:
+                add('post', Sh.post, Sh.metal, x, y, z, yaw);
+                add('noEntry', Sh.signDisc, Sh.noEntryFace, x, y, z, yaw);
                 break;
             case FURN.busStop:
                 add('post', Sh.post, Sh.metal, x, y, z, yaw, 1, 1.15, 1);

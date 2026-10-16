@@ -99,9 +99,11 @@
     "footpathSurface": "concrete"
   },
   "islands": {
-    "_note": "Raised islands: a hole in the road's surface (inside a roundabout, between a junction's lanes) no bigger than maxArea m² is filled. A roundabout's (a hole ringed by one-way roads, round enough: compactness at least roundness) is a garden bed — bark mulch, low plants every plantSpacing m, a tree in the middle if it's at least treeRadius m across — behind a raised kerb; the others concrete (smaller than paveBelow m²) or grass. Mapped data first (OSM's landuse/natural on it); these are the defaults, marked estimated.",
+    "_note": "Raised islands: a hole in the road's surface (inside a roundabout, between a junction's lanes) no bigger than maxArea m² is filled. A roundabout's (a hole round enough — compactness at least roundness — ringed by roads, at least circulating of them going round it the same way (a two-way road the way it's drawn) — clockwise where traffic keeps left — and curving round, no gap of more than maxTurnGap° between their directions) is a garden bed — bark mulch, low plants every plantSpacing m, a tree in the middle if it's at least treeRadius m across — behind a raised kerb; the others concrete (smaller than paveBelow m²) or grass. Mapped data first (OSM's landuse/natural on it); these are the defaults, marked estimated.",
     "maxArea": 2500,
     "roundness": 0.6,
+    "circulating": 0.9,
+    "maxTurnGap": 75,
     "paveBelow": 60,
     "plantSpacing": 2.2,
     "treeRadius": 4,

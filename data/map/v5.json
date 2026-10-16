@@ -229,7 +229,7 @@
     "trolleyApart": 14
   },
   "furniture": {
-    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
+    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A roundabout's entry signs (give way over the roundabout sign) at junctions within roundaboutReach m of its island's edge; OSM's give way points within entrySignNear m of one are that sign. One-way streets: ONE WAY and NO ENTRY signs oneWayIn m into the street from the junction (not a service road, nor a divided road's carriageway: a one-way road with a same-named twin within carriagewayGap m going the other way, within carriagewayAngle° of opposite). A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
     "clearance": 0.45,
     "pushMax": 3,
     "signalReach": 30,
@@ -237,6 +237,11 @@
     "trafficLightHeight": 3.2,
     "speedIn": 12,
     "signReach": 18,
+    "roundaboutReach": 25,
+    "entrySignNear": 10,
+    "oneWayIn": 3,
+    "carriagewayAngle": 35,
+    "carriagewayGap": 40,
     "shelterNear": 12,
     "shelterBack": 2.2,
     "poleHeight": 10.5,
