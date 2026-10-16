@@ -1412,6 +1412,8 @@ function replayFrame(w, now, seconds, inp) {
     // (the sparks and bits in the air now are the crash's: gone, to come again as the replay reaches them)
     w.fx.clearAir();
     s.replay.fxT = s.replay.player.t;
+    // (and the marks on the road: their clock set back to the moment shown, so those made since aren't there yet)
+    s.replay.marks = { time: w.fx.marks.time, simTime: w.sim.time };
     hint('replay');
   }
   const R = s.replay;
@@ -1419,6 +1421,7 @@ function replayFrame(w, now, seconds, inp) {
   const { a, b, alpha, done } = R.player.step(seconds);
   if (!R.crashed && R.player.afterCrash) { R.crashed = true; w.carVis.setDamage(s.session.damage, s.session.db.damage); }
   if (done) {
+    w.fx.marks.time = R.marks.time;
     s.replay = null;
     w.carVis.setDamage(s.session.damage, s.session.db.damage);
     w.rig.reset();
@@ -1445,7 +1448,7 @@ function replayFrame(w, now, seconds, inp) {
   s.dents.flush();
   s.hintCard.update(seconds);
   s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
-  updateEffects(w, daylight(w, s.prefs.timeOfDay ?? 13), Math.max(0, R.player.t - (R.fxDrawn ?? R.player.t)));
+  updateEffects(w, daylight(w, s.prefs.timeOfDay ?? 13), Math.max(0, R.player.t - (R.fxDrawn ?? R.player.t)), R.marks.time - (R.marks.simTime - R.player.t));
   R.fxDrawn = R.player.t;
   s.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
@@ -1790,10 +1793,12 @@ function carShadowsFrame(w) {
   w.contact.update(list, shared.G.shadows === 'off' ? 0.8 : 0.6);
 }
 // Move the effects on and get them ready to draw (seen from the camera, in the world's wind)
-function updateEffects(w, light, dt) {
+// (marksTime: the marks' clock, set — a crash replay's moment)
+function updateEffects(w, light, dt, marksTime = null) {
   w.fx.setViewer(w.camera.position.toArray());
   w.fx.setWind(w.track.wind ?? null);
   w.fx.update(dt);
+  if (marksTime != null) w.fx.marks.time = marksTime;
   w.fxDraw.update(light, dt);
 }
 // The lit road ahead of your car at night: two headlights (lamps: the model's front lights, if it says
