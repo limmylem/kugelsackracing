@@ -1,0 +1,23 @@
+{
+  "_note": "Map v5's recognisability check (MAP_README.md, 'Debug views'; tools/map-recognise.mjs): places someone who knows Adelaide should know from the street alone — no HUD, no map, no names painted on the road. Each is shot from the car's chase camera, heading `bearing`, at `hours`; the quiz page shows Map v5's picture (and Map v4's beside it) and keeps the answer back until asked.",
+  "places": [
+    { "id": "kws-victoria-square", "name": "King William Street at Victoria Square, looking north", "lat": -34.92905, "lon": 138.59985, "bearing": 0 },
+    { "id": "north-terrace-kws", "name": "North Terrace, coming up to King William Street", "lat": -34.92152, "lon": 138.5990, "bearing": 90 },
+    { "id": "rundle-street", "name": "Rundle Street, East End", "lat": -34.92255, "lon": 138.60745, "bearing": 90 },
+    { "id": "hindley-street", "name": "Hindley Street", "lat": -34.92330, "lon": 138.5960, "bearing": 270 },
+    { "id": "gouger-street", "name": "Gouger Street, Chinatown and the Central Market", "lat": -34.92845, "lon": 138.5980, "bearing": 270 },
+    { "id": "kw-road-oval", "name": "King William Road towards Adelaide Oval", "lat": -34.91800, "lon": 138.59860, "bearing": 0 },
+    { "id": "montefiore-hill", "name": "Montefiore Road over the rail yards", "lat": -34.92200, "lon": 138.59335, "bearing": 0 },
+    { "id": "britannia-roundabout", "name": "Britannia Roundabout from Wakefield Road", "lat": -34.92785, "lon": 138.6212, "bearing": 90 },
+    { "id": "oconnell-street", "name": "O'Connell Street, North Adelaide", "lat": -34.90850, "lon": 138.5950, "bearing": 0 },
+    { "id": "the-parade", "name": "The Parade, Norwood", "lat": -34.92070, "lon": 138.6330, "bearing": 90 },
+    { "id": "unley-road", "name": "Unley Road", "lat": -34.95050, "lon": 138.6060, "bearing": 180 },
+    { "id": "alfred-street-parkside", "name": "A street of houses: Alfred Street, Parkside", "lat": -34.943297, "lon": 138.616405, "bearing": 86 },
+    { "id": "jetty-road-glenelg", "name": "Jetty Road, Glenelg, towards the bay", "lat": -34.98010, "lon": 138.5170, "bearing": 270 },
+    { "id": "henley-square", "name": "Henley Square, Henley Beach", "lat": -34.92030, "lon": 138.4945, "bearing": 270 },
+    { "id": "port-adelaide", "name": "Commercial Road, Port Adelaide", "lat": -34.84650, "lon": 138.5040, "bearing": 0 },
+    { "id": "south-road-superway", "name": "The South Road Superway", "lat": -34.8616, "lon": 138.568, "bearing": 160 },
+    { "id": "heysen-tunnels", "name": "The South Eastern Freeway at the Heysen Tunnels", "lat": -34.972885, "lon": 138.676585, "bearing": 154, "exact": true },
+    { "id": "anzac-highway", "name": "Anzac Highway", "lat": -34.95600, "lon": 138.5600, "bearing": 225 }
+  ]
+}

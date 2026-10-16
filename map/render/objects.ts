@@ -357,7 +357,7 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
         plates.push({ key, at: [Sg[k] + Math.sin(yaw) * 0.01, Sg[k + 1] + 2.75 - level * 0.42, Sg[k + 2] + Math.cos(yaw) * 0.01], yaw, w: 0.38 * atlas.rects.get(key).aspect, h: 0.38 });
       }
     });
-    if (roadNames.length) { const m = new THREE.Mesh(quads(roadNames, true), new THREE.MeshBasicMaterial({ map: atlas.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 })); m.renderOrder = 3; labels.add(m); }
+    if (roadNames.length) { const m = new THREE.Mesh(quads(roadNames, true), new THREE.MeshBasicMaterial({ map: atlas.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 })); m.renderOrder = 3; m.name = 'roadNames'; labels.add(m); }
     if (plates.length) labels.add(new THREE.Mesh(quads(plates, false), new THREE.MeshBasicMaterial({ map: atlas.texture, alphaTest: 0.5, transparent: false })));
     if (Sg.length) {
       const posts = new THREE.InstancedMesh(shapes().post, mat.signPost, Sg.length / 6), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(0.8, 3, 0.8), p = new THREE.Vector3();

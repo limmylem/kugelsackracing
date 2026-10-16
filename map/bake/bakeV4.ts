@@ -284,8 +284,10 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       const ok = (x: number, z: number, sc: number) => !onPaved(x, z) && !openGround!.has(x, z) && !inBuilding(x, z) && X.crownFree(x, z, cfg.exclusion.crownRadius * 4 * sc);
       // (a street tree's by design in the road's verge: its trunk on the verge, clear of every lane, its crown over no
       // deck or railway — over the road's edge it may hang)
+      // (and stands on the verge itself — the road's level — not the ground under it, which can fall away beneath it)
+      const vergeAt = (x: number, z: number) => { let y: number | null = null; for (const h of surface.heightsAt(x, z) as any[]) if (h.part === PARTS.verge && (y === null || h.y > y)) y = h.y; return y ?? groundAt(x, z); };
       const okStreet = (x: number, z: number, sc: number) => { const hs = surface.heightsAt(x, z) as any[]; return hs.some(h => h.part === PARTS.verge) && !hs.some(h => !h.part) && !surface.near(x, z, cfg.vegetation.trunkClear) && !inBuilding(x, z) && X.crownFree(x, z, cfg.exclusion.crownRadius * 4 * sc, MASK.deck | MASK.rail); };
-      for (const [name, f] of [['street', () => streetTrees({ segs: mB.segs, style, cfg, ok: okStreet, near, lowerAt, groundAt, inArea: inBlock })], ['garden', () => gardenTrees({ buildings: bB, style, cfg, ok, near, groundAt, inArea: inBlock })]] as [string, () => any][]) {
+      for (const [name, f] of [['street', () => streetTrees({ segs: mB.segs, style, cfg, ok: okStreet, near, lowerAt, groundAt: vergeAt, inArea: inBlock })], ['garden', () => gardenTrees({ buildings: bB, style, cfg, ok, near, groundAt, inArea: inBlock })]] as [string, () => any][]) {
         const r = f();
         for (let k = 0; k < r.trees.length; k += 5) { tr.trees.push(r.trees[k], r.trees[k + 1], r.trees[k + 2], r.trees[k + 3], r.trees[k + 4]); index(r.trees[k], r.trees[k + 2]); }
         vegStats[name] = (vegStats[name] ?? 0) + r.stats.placed;
@@ -333,7 +335,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
-    const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface, furniture: fu, tunnel: TU?.mesh ?? null, fields: FL?.mesh ?? null, models: handMade.models, placeSigns: PSg?.signs ?? null, rails: RW?.pieces ?? null, platforms: RW?.platforms ?? null, coverEdges: v5 });
+    const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface, furniture: fu, tunnel: TU?.mesh ?? null, fields: FL?.mesh ?? null, models: handMade.models, placeSigns: PSg?.signs ?? null, rails: RW?.pieces ?? null, platforms: RW?.platforms ?? null, coverEdges: v5, parkingOnGround: v5 });
     for (let j = bj; j <= tj1; j++) for (let i = bi; i <= ti1; i++) {
       const t = TB.tile(i, j), cx = (i + 0.5) * T, cz = (j + 0.5) * T, a0 = performance.now();
       for (const p of auditTile(t, { cx, cz, surface, barriersCfg: v3cfg.barriers })) if (problems.length < 200) problems.push({ tile: `${i}_${j}`, ...p });

@@ -32,6 +32,7 @@ import { auditTile } from '../../map/collision/audit.ts';
 import { checkSurface } from '../../map/model/checks.ts';
 import { lampLights } from '../../map/render/lamps.ts';
 import { createSimulation } from '../../physics/sim.js';
+import { SURFACES } from '../../map/model/surface.ts';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'adelaide';
@@ -50,6 +51,16 @@ const inner = (x: number, z: number) => { const [i, j] = tileOf(x, z); return [-
 const pct = (a: number, b: number) => (b ? (a / b * 100).toFixed(a / b < 0.001 ? 3 : 2) : '0') + '%';
 const quantile = (a: number[], q: number) => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : NaN; };
 const KERB = 3;   // (map/model/surface.ts SURFACES: the kerb's index)
+// (Map v5 bakes, run through these tests: its road mesh holds the kerbs, verges, footpaths, islands and gardens too —
+// MAP_V5_REPORT.md — so a lane is the road's own surface, none of those; its triangles alone are checked for cracks)
+const V5 = manifest.map === 'v5';
+const BANDS = new Set((V5 ? ['kerb', 'grass', 'footpath', 'dirt', 'concrete'] : ['kerb']).map(n => SURFACES.indexOf(n)));
+const isLane = (surf: number) => !BANDS.has(surf);
+// (Map v5 turns a cross-section on the road's chord normalSmooth m either side: through a tight bend its edge isn't
+// square to one piece of the centre line, so the edges test leaves bends out there — turning more than bendTurn° within
+// 2 × normalSmooth m either side)
+const SMOOTH = V5 ? JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/v5.json'), 'utf8')).graph?.normalSmooth ?? 0 : 0;
+const inBend = (g: any, s: number) => { if (!SMOOTH) return false; const a = rowAt(g, Math.max(0, s - 2 * SMOOTH)), b = rowAt(g, Math.min(g.L, s + 2 * SMOOTH)); return Math.acos(Math.max(-1, Math.min(1, a.tx * b.tx + a.tz * b.tz))) * 180 / Math.PI > X.bendTurn; };
 
 // ---------- tiles, decoded as the worker does, a bounded number kept ----------
 const lru = new Map<string, Promise<any>>();
@@ -160,6 +171,8 @@ async function surfaceTest() {
     const base = pos.length / 3, cx = (t.i + 0.5) * T, cz = (t.j + 0.5) * T;
     for (let v = 0; v < R.positions.length; v += 3) pos.push(R.positions[v] + cx, R.positions[v + 1], R.positions[v + 2] + cz);
     for (let k = 0; k < R.indices.length; k += 3) {
+      // (Map v5: the road's own surface — its bands are laid against its edge, a kerb's face standing on it)
+      if (V5 && !isLane(R.surfaces?.[k / 3] ?? 0)) continue;
       const a = R.indices[k] * 3, b = R.indices[k + 1] * 3, c = R.indices[k + 2] * 3, P_ = R.positions;
       // (solid: the surface you drive on — not a skirt, a kerb's face or a deck's side, standing up: two corners one
       // over the other. A stitch of no area, closing a T-junction, is the surface)
@@ -189,14 +202,14 @@ async function edgesTest() {
     const [a, b] = span(g, 1);
     for (let s = a; s <= b; s += X.edgeSpacing) {
       const r = rowAt(g, s);
-      if (!inner(r.x, r.z)) continue;
+      if (!inner(r.x, r.z) || inBend(g, s)) continue;
       for (const sd of [1, -1]) {
         const off = (sd > 0 ? r.hwL : r.hwR) - X.edgeInset;
         if (off < 0.5) continue;
         const x = r.x + r.nx * off * sd, z = r.z + r.nz * off * sd;
         n++;
         const hit = nearest((await roadAt(x, z))?.filter(h => Math.abs(h.y - r.h) < 1) ?? null, r.h);
-        if (!hit) { holes++; if (holeAt.length < 4) holeAt.push(`${g.name ?? g.class} ${x.toFixed(1)}, ${z.toFixed(1)}`); continue; }
+        if (!hit) { holes++; if (holeAt.length < 4) holeAt.push(`${g.name ?? g.class} ${x.toFixed(1)}, ${z.toFixed(1)}`); note(`edge hole: ${g.class} ${g.name ?? ''} seg ${g.id} at ${x.toFixed(1)}, ${z.toFixed(1)} (s ${s.toFixed(1)} of ${g.L.toFixed(1)}, side ${sd}): drawn ${(await roadAt(x, z))?.map(h => h.y.toFixed(2)).join(' ')} vs ${r.h.toFixed(2)}`); continue; }
         if (g.structure === 'ground') {
           const g0 = await groundAt(x, z, 0), g1 = await groundAt(x, z, 1);
           if (g0 != null && g0 > hit.y + 0.005) { through0++; if (throughAt.length < 4) throughAt.push(`${g.name ?? g.class} ${x.toFixed(1)}, ${z.toFixed(1)} (+${((g0 - hit.y) * 100).toFixed(0)} cm)`); }
@@ -245,7 +258,7 @@ async function collidersTest() {
       if (kind === 'building') { const q = s.points, m = q.length / 6; let mx = 0, mz = 0; for (let k = 0; k < m; k++) { mx += q[k * 6]; mz += q[k * 6 + 2]; } mx /= m; mz /= m; pts.push([mx, mz]); for (let k = 0; k < m; k++) { const x = q[k * 6], z = q[k * 6 + 2], l = Math.hypot(x - mx, z - mz) || 1; pts.push([x - (x - mx) / l * 0.1, z - (z - mz) / l * 0.1]); } y0 = Math.min(q[1], q[4]); y1 = Math.max(q[1], q[4]); }
       else if (kind === 'barrier') { pts.push([s.centre[0], s.centre[2]]); y0 = s.centre[1] - s.halfExtents[1]; y1 = s.centre[1] + s.halfExtents[1]; }
       else { pts.push([s.centre[0], s.centre[2]]); y0 = s.centre[1] - s.half; y1 = s.centre[1] + s.half; }
-      const bad = pts.some(([x, z]) => (syncRoad(x + cx, z + cz) ?? []).some((h: any) => h.surf !== KERB && h.y > y0 - 0.3 && h.y < y1));
+      const bad = pts.some(([x, z]) => (syncRoad(x + cx, z + cz) ?? []).some((h: any) => isLane(h.surf) && h.y > y0 - 0.3 && h.y < y1));
       if (bad) { overLaneN++; if (overLane.length < 4) overLane.push(`${kind} at ${(pts[0][0] + cx).toFixed(1)}, ${(pts[0][1] + cz).toFixed(1)}`); }
     }
     for (const k of [...loaded.keys()]) if (!lru.has(k)) loaded.delete(k);
@@ -271,26 +284,28 @@ const FAKE = { TriMeshFlags: { FIX_INTERNAL_EDGES: 1 }, ColliderDesc: { heightfi
 // ---------- 4. trees ----------
 async function treesTest() {
   console.log('\n4. Trees: off every road, under no bridge');
-  let n = 0, trunks = 0, crowns = 0; const at: string[] = [];
+  let n = 0, trunks = 0, crowns = 0; const at: string[] = [], crownAt: string[] = [];
   for (const t of manifest.tiles) {
     const d = await tile(t.i, t.j), L = d?.lists.trees;
     if (!L) continue;
     const cx = (t.i + 0.5) * T, cz = (t.j + 0.5) * T;
     for (let k = 0; k < L.data.length; k += L.stride) {
       const x = L.data[k] + cx, y = L.data[k + 1], z = L.data[k + 2] + cz, sc = L.data[k + 3] * 4, conifer = !!L.data[k + 4];
+      // (Map v5's low plants — kind 2, no collider: a roundabout's or a garden's bed, to its kerb by design)
+      if (V5 && (L.data[k + 4] & 7) === 2) continue;
       const r = sc * (conifer ? 0.55 : 0.75), top = y + sc * (conifer ? 2.95 : 1.95);
       n++;
       // the trunk: no road surface within half a metre, at its foot's height or above it
       let hit = false;
-      for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) if ((await roadAt(x + dx, z + dz))?.some(h => h.y > y - 1 && h.y < top)) hit = true;
+      for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) if ((await roadAt(x + dx, z + dz))?.some(h => isLane(h.surf) && h.y > y - 1 && h.y < top)) hit = true;
       if (hit) { trunks++; if (at.length < 4) at.push(`trunk at ${x.toFixed(1)}, ${z.toFixed(1)}`); continue; }
       // the crown: no deck (a road over its foot) within its radius, below its top
       let deck = false;
       for (let a = 0; a < 8 && !deck; a++) for (const f of [0.5, 1]) { const px = x + Math.cos(a * Math.PI / 4) * r * f, pz = z + Math.sin(a * Math.PI / 4) * r * f; if ((await roadAt(px, pz))?.some(h => h.y > y + 1.5 && h.y < top)) deck = true; }
-      if (deck) { crowns++; if (at.length < 4) at.push(`crown through a deck at ${x.toFixed(1)}, ${z.toFixed(1)}`); }
+      if (deck) { crowns++; if (crownAt.length < 4) crownAt.push(`crown through a deck at ${x.toFixed(1)}, ${z.toFixed(1)}`); }
     }
   }
-  report('trees', `${n.toLocaleString('en-GB')} trees`, trunks === 0 && crowns === 0 && n > 0, `${trunks} trunks on a road, ${crowns} crowns through a bridge deck${at.length ? `: ${at.join('; ')}` : ''} (Map v3: 9 trunks in lanes, 5 crowns through the Hackney Road bridge)`, { trunks, crowns, n });
+  report('trees', `${n.toLocaleString('en-GB')} trees`, trunks === 0 && crowns === 0 && n > 0, `${trunks} trunks on a road, ${crowns} crowns through a bridge deck${at.length || crownAt.length ? `: ${[...at, ...crownAt].join('; ')}` : ''} (Map v3: 9 trunks in lanes, 5 crowns through the Hackney Road bridge)`, { trunks, crowns, n });
 }
 
 // ---------- 5. junctions ----------
@@ -407,7 +422,7 @@ async function lampsTest() {
     for (let k = 0; k < L.data.length; k += L.stride) {
       const x = L.data[k] + cx, y = L.data[k + 1], z = L.data[k + 2] + cz;
       lamps.push([x, z]); if (L.data[k + 5] & 1) est++;
-      if ((await roadAt(x, z))?.some(h => h.surf !== KERB && Math.abs(h.y - y) < 1.5)) { onRoad++; if (at.length < 3) at.push(`${x.toFixed(1)}, ${z.toFixed(1)}`); }
+      if ((await roadAt(x, z))?.some(h => isLane(h.surf) && Math.abs(h.y - y) < 1.5)) { onRoad++; if (at.length < 3) at.push(`${x.toFixed(1)}, ${z.toFixed(1)}`); }
     }
   }
   report('lamps', `${lamps.length.toLocaleString('en-GB')} lamps (${est.toLocaleString('en-GB')} estimated)`, onRoad === 0 && lamps.length > 0, `${onRoad} standing on a road's lanes${at.length ? ` (${at.join('; ')})` : ''} (Map v3: no lamps at all)`, { lamps: lamps.length, estimated: est });
