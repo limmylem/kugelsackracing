@@ -167,6 +167,8 @@ export function seasonView(all, id = all.current) {
 }
 
 // What's wrong with a bundle (the admin page checks every change with this before it goes live): plain sentences
+// (a latitude and longitude: numbers, on the globe — null isn't 0,0)
+const onGlobe = p => Number.isFinite(p?.lat) && Number.isFinite(p?.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180;
 export function bundleProblems(all) {
   const out = [], ids = new Set();
   if (!all || typeof all !== 'object') return ['It isn\'t an object.'];
@@ -175,7 +177,7 @@ export function bundleProblems(all) {
   for (const p of all.places ?? []) {
     if (!p.id || places.has(p.id)) out.push(`A place needs an id of its own (${p.id ?? 'none'}).`);
     places.add(p.id);
-    if (!(Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180)) out.push(`Place ${p.id}: its latitude and longitude aren't right.`);
+    if (!onGlobe(p)) out.push(`Place ${p.id}: its latitude and longitude aren't right.`);
   }
   for (const [sid, s] of Object.entries(all.seasons ?? {})) {
     const S = s.season;
@@ -213,7 +215,7 @@ export function bundleProblems(all) {
         sids.add(st.id);
         const pts = st.type === 'collect' ? st.items : st.type === 'checkpoints' ? st.checkpoints : [st.location];
         if (!['reach', 'clue', 'collect', 'checkpoints'].includes(st.type)) out.push(`${x.name}, ${st.name}: there's no stage type "${st.type}".`);
-        else if (!pts?.length || pts.some(p => !(Math.abs(p?.lat) <= 90 && Math.abs(p?.lon) <= 180))) out.push(`${x.name}, ${st.name}: its places need a latitude and longitude.`);
+        else if (!pts?.length || pts.some(p => !onGlobe(p))) out.push(`${x.name}, ${st.name}: its places need a latitude and longitude.`);
         if (st.type === 'checkpoints' && !(st.timeLimitSec > 0)) out.push(`${x.name}, ${st.name}: a checkpoint run needs timeLimitSec.`);
       }
     }

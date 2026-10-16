@@ -1,13 +1,14 @@
 // The ROADBOOK in a real browser (docs/ROADBOOK.md), on this computer: a player's journal — its chapters with a challenge
 // done, the Expedition under way, the Season Shop (an item bought with the tokens shown; then theirs), the Personal
-// History — and the driving HUD with the development command that takes them to the next Expedition stage.
+// History — and the driving HUD with the development command that takes them to the next Expedition stage; and the admin
+// page's ROADBOOK tab: the season's clock, a shop price changed in its form and saved as a new version, live at once.
 //
 //   TEST_DATABASE_URL=postgres://… node server/tools/roadbook-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 //   SHOTS=<dir>  also saves a screenshot of each page there
 // @ts-nocheck — (the page's own modules are imported inside the browser: not this program's)
 
 import { sql } from 'drizzle-orm';
-import { freshDatabase, testConfig, signUp } from '../test/helpers.ts';
+import { freshDatabase, testConfig, signUp, makeStaff, totp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
 let pw: any;
 try { pw = await import('playwright-core'); } catch { pw = await import(process.env.PLAYWRIGHT_CORE ?? '/opt/node-tools/node_modules/playwright-core/index.mjs'); }
@@ -23,6 +24,7 @@ await app.listen({ port: PORT, host: '127.0.0.1' });
 const outbox = app.deps.mailer.outbox as any[];
 const pia = await signUp(app, outbox, { email: 'pia@example.com', name: 'Pia Pitlane', ip: '10.9.3.1' });
 await pia.get('/api/v1/player');
+const boss = await makeStaff(app, await signUp(app, outbox, { email: 'boss@example.com', name: 'Bea Boss', ip: '10.9.3.2' }), 'boss@example.com', 'admin');
 const piaId = ((await app.deps.db.execute(sql`select id from users where email = 'pia@example.com'`)).rows[0] as any).id;
 // the season on, a race finished (as the server's quest check reports it), tokens to spend
 const st = await app.roadbook.status();
@@ -94,6 +96,39 @@ try {
   check('what was earned, shown as it\'s earned', /\+150 tokens/.test(toast), toast);
   await shot('hud');
   check('no errors on the page', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+
+  // ---------- the admin page's ROADBOOK tab ----------
+  const actx = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  await actx.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net/, (r: any) => r.abort());
+  const adm = await actx.newPage();
+  const aErrors: string[] = [];
+  adm.on('pageerror', (e: any) => aErrors.push(String(e)));
+  adm.on('dialog', (d: any) => d.accept());
+  await adm.goto(`${BASE}/account/`);
+  await adm.evaluate(async ({ code }: any) => { const { createApi } = await import('/account/api.js'), api = createApi(); await api.auth('/sign-in/email', { email: 'boss@example.com', password: 'correct horse battery' }); await api.auth('/two-factor/verify-totp', { code }); }, { code: totp((boss as any).totpSecret) });
+  await adm.goto(`${BASE}/admin/`);
+  await adm.waitForSelector('text=Recent admin actions', { timeout: 10000 });
+  await adm.click('#tabs button:text-is("ROADBOOK")');
+  await adm.waitForSelector('main button:text-is("Places")', { timeout: 15000 });
+  let atext = await adm.textContent('main');
+  check('the admin tab: the season\'s clock — live, its players and tokens', /live/i.test(atext) && /After Hours/.test(atext), atext.slice(0, 300));
+  if (SHOTS) await adm.screenshot({ path: `${SHOTS}/roadbook_admin_season.png`, fullPage: false });
+  await adm.click('main button:text-is("Shop")');
+  const price = adm.locator('main label:has-text("Price (Season Tokens)") input').first();
+  await price.waitFor({ timeout: 10000 });
+  await price.fill('120');
+  await price.dispatchEvent('input'); await price.dispatchEvent('change');
+  if (SHOTS) await adm.screenshot({ path: `${SHOTS}/roadbook_admin_shop.png`, fullPage: false });
+  await adm.fill('input[placeholder^="Why this change"]', 'Browser test: the badge a little dearer');
+  await adm.click('button:text-is("Save as a new version")');
+  await adm.waitForFunction(async () => { const r = await fetch('/api/v1/admin/roadbook', { credentials: 'include' }); const b = await r.json(); return b.version === 2; }, null, { timeout: 15000 }).catch(() => {});
+  const after = await (await adm.request.get(`${BASE}/api/v1/admin/roadbook`)).json();
+  check('a price changed in the form, saved with a reason: a new version, live at once', after.version === 2 && after.data.seasons.after_hours.shop.items[0].price === 120 && after.versions[0].reason === 'Browser test: the badge a little dearer' && after.versions[0].actor === 'Bea Boss', JSON.stringify(after.versions?.[0]));
+  const piaView = await pia.get('/api/v1/roadbook');
+  check('…and the players\' shop shows it', piaView.body.shop[0].price === 120);
+  check('no errors on the admin page', aErrors.length === 0, aErrors.join(' | '));
+  await actx.close();
 } catch (e) {
   console.error(e);
   results.push(false);

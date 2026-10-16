@@ -95,6 +95,26 @@ change goes live.
   `data/seasons/index.json` `seasons`, and `current` set to it when it should take over. The admin page's **Add a new
   season** does the same on the live copy.
 
+## The admin page's ROADBOOK tab
+
+The admin page's **ROADBOOK** tab (`admin/roadbook.js`) edits everything above without touching a file. It has:
+
+- **The season's clock:** status, dates, days left, players, tokens earned and spent, items sold.
+  - **Start the season now** shows while testing.
+  - **End the season now** shows while live. Its confirm shows the conversion rate, and it can't be undone.
+- **Plain forms for:**
+  - **Season:** name, tagline, colour, start, length, warning, conversion rate.
+  - **Chapters.**
+  - **Challenges:** the goal's event, the kind of goal, and the conditions as rows.
+  - **Expeditions and their stages:** a latitude box takes a pasted "lat, lon" or a Google Maps link.
+  - **Shop items and their grants.**
+  - **Places.**
+  - **Raw JSON** for anything else.
+  - **Add a new season**, and which season is current.
+- **Checks as you edit:** the same ones as the server. The save bar lists what changed, needs a reason, and saves a new version, live at once.
+- **Versions:** who, why and when; view any one; roll back to it.
+- **Season Tokens:** give or take a player's tokens, with a reason.
+
 ## The balancing numbers
 
 All in the data:

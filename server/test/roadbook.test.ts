@@ -241,4 +241,22 @@ test('the admin page: the settings as versions — a broken change refused, a go
   assert.equal((await admin.post('/api/v1/admin/roadbook/rollback', { version: 1, reason: 'back as it was' })).status, 200);
   assert.equal((await admin.get('/api/v1/admin/roadbook')).body.data.seasons.after_hours.shop.items[0].price, 100);
   assert.equal((await ann.get('/api/v1/admin/roadbook')).status, 403);
+  const v = (await admin.get('/api/v1/admin/roadbook')).body;
+  assert.equal(v.versions[0].actor, 'Ada Boss', 'who made each version, by name');
+});
+
+test('a new season with a start date: live from that date (no testing first); everyone sees it', async () => {
+  const a = (await admin.get('/api/v1/admin/roadbook')).body, data = structuredClone(a.data);
+  data.seasons.test_two = { season: { id: 'test_two', name: 'Second Gear', start: new Date(now - 86_400_000).toISOString(), lengthDays: 28, warningDays: 7, conversion: { cashPerToken: 1 },
+    chapters: [{ id: 'one', name: 'One', unlockAt: 0, milestoneTokens: 0 }], challenges: [], expeditions: [] }, shop: { items: [] }, expeditions: {} };
+  data.current = 'test_two';
+  const r = await admin.post('/api/v1/admin/roadbook/config', { data, reason: 'the next season', basedOn: a.version });
+  assert.equal(r.status, 200, r.text);
+  const b = await book(ann);
+  assert.equal(b.season.id, 'test_two');
+  assert.equal(b.season.status, 'live');
+  assert.equal(Date.parse(b.season.endsAt) - Date.parse(b.season.startedAt), 28 * 86_400_000);
+  // (a place without numbers for its latitude isn't at 0,0: refused)
+  const bad = structuredClone(data); bad.places[0].lat = null;
+  assert.equal((await admin.post('/api/v1/admin/roadbook/config', { data: bad, reason: 'a broken place', basedOn: a.version + 1 })).status, 400);
 });

@@ -18,6 +18,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import crypto from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import { z } from '@kr/shared';
 import type { Db } from '../db/index.ts';
 import type { Guards } from '../session.ts';
@@ -75,7 +76,10 @@ export async function roadbookRoutes(app0: FastifyInstance, { db, roadbook, conf
   app.get('/admin/roadbook', admin, async req => {
     await me(req);
     const active = await rbConfig.active();
-    return { status: await roadbook.status(), version: active.version, data: active.data, versions: (await rbConfig.history(30)).map(v => ({ version: v.version, reason: v.reason, actorId: v.actorId, basedOn: v.basedOn, createdAt: v.createdAt, active: v.active })) };
+    const versions = await rbConfig.history(30), ids = [...new Set(versions.map(v => v.actorId).filter(Boolean))] as string[];
+    // (who made each version: their name — staff, not looked up as a player, so nothing to log)
+    const names = ids.length ? Object.fromEntries(((await db.execute(sql`select id, name from users where id = any(${`{${ids.map(i => `"${i.replace(/"/g, '')}"`).join(',')}}`}::text[])`)).rows as any[]).map(r => [r.id, r.name])) : {};
+    return { status: await roadbook.status(), version: active.version, data: active.data, versions: versions.map(v => ({ version: v.version, reason: v.reason, actorId: v.actorId, actor: v.actorId ? names[v.actorId] ?? null : null, basedOn: v.basedOn, createdAt: v.createdAt, active: v.active })) };
   });
   app.get('/admin/roadbook/versions/:version', { ...admin, schema: { params: z.object({ version: z.coerce.number().int().positive() }) } }, async req => { await me(req); return rbConfig.get(req.params.version); });
   app.post('/admin/roadbook/config', { ...admin, bodyLimit: 2_000_000, schema: { body: z.object({ data: z.record(z.string(), z.any()), reason: Reason, basedOn: z.number().int().nullable() }).strict() } }, async req => {

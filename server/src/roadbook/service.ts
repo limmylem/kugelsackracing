@@ -40,10 +40,13 @@ export function createRoadbook({ db, config, economy, log = () => {}, clock = ()
     if (!v) return null;
     let [r] = await rows(sql`select * from roadbook_seasons where season_id = ${seasonId}`);
     if (!r) {
-      // (a season with a date of its own starts on it; "beta_open" waits)
-      const date = v.season.start !== 'beta_open' ? Date.parse(v.season.start) : NaN;
       await db.execute(sql`insert into roadbook_seasons (season_id, status) values (${seasonId}, 'testing') on conflict do nothing`);
-      if (Number.isFinite(date) && date <= clock()) await start(seasonId, { at: date });
+      [r] = await rows(sql`select * from roadbook_seasons where season_id = ${seasonId}`);
+    }
+    // (a season with a date of its own starts on it — whenever it's first looked at after that; "beta_open" waits)
+    const date = v.season.start !== 'beta_open' ? Date.parse(v.season.start) : NaN;
+    if (r.status === 'testing' && Number.isFinite(date) && date <= clock()) {
+      await start(seasonId, { at: date });
       [r] = await rows(sql`select * from roadbook_seasons where season_id = ${seasonId}`);
     }
     const t = (x: any) => x ? new Date(x).getTime() : null;
