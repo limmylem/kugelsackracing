@@ -1,0 +1,77 @@
+{
+  "id": "crate_v8_k2",
+  "name": "Ognistrada Engines 5.0 L supercharged V8 (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 13780,
+  "mass": 209,
+  "model": "assets/parts/engine/crate_v8_k2.glb",
+  "icon": "assets/icons/parts/crate_v8_k2.png",
+  "fits": ["mount:mid", "bay:large"],
+  "requires": ["clutch_rating:race", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": ["car:apex_v8"],
+  "provides": ["engine_family:crate_v8_k2", "engine_layout:v8", "induction:natural", "forced_induction:supercharger", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[1000, 441], [1750, 592], [2450, 819], [2900, 881], [3200, 881], [3900, 881], [4650, 881], [4950, 881], [5350, 842], [6100, 729], [6800, 599], [7200, 520]],
+    "idleRpm": 1000,
+    "redlineRpm": 6800,
+    "inertia": 0.231,
+    "induction": "natural",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8.json",
+    "friction": {
+      "base": 23,
+      "perKrpm": 11.5,
+      "perKrpm2": 1.334
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "race",
+  "unlock": {
+    "level": 8
+  },
+  "bounds": {
+    "min": [-0.3875, 0, -0.3473],
+    "max": [0.3875, 0.5877, 0.341]
+  },
+  "massOffset": [0, 0.22, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 8,
+    "displacement": 5,
+    "aspiration": "supercharged",
+    "boost": 1.2,
+    "mounts": ["mid"],
+    "bay": "large",
+    "size": [0.7, 0.775, 0.58],
+    "peakTorque": 881,
+    "peakPower": 633,
+    "words": "5.0 L supercharged V8"
+  },
+  "generated": {
+    "engine": "v8_k2"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/v8_k2.json (and data/content/formulas.json engines): change those, not this file. 5.0 L supercharged V8: 881 N·m, 633 hp, 209 kg, 0.7 × 0.775 × 0.58 m (a large bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated).",
+  "_fit": "It doesn't fit the Apex V8 (through the body in 38 places): so it isn't for it."
+}

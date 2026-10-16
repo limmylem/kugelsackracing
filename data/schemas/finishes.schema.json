@@ -30,7 +30,8 @@
         "sheenRoughness": { "$ref": "#/$defs/share" },
         "reflective": { "type": "boolean", "description": "Needs reflections of the surroundings to look right (the game gives it an environment map)" },
         "envIntensity": { "type": "number", "minimum": 0, "maximum": 4 },
-        "keepTexture": { "type": "boolean", "description": "Keep the model's texture under the finish (tinted by the colour) instead of a plain colour" }
+        "keepTexture": { "type": "boolean", "description": "Keep the model's texture under the finish (tinted by the colour) instead of a plain colour" },
+        "locked": { "type": "boolean", "description": "Only players who own a ROADBOOK shop item that grants it can use it (docs/ROADBOOK.md: data/seasons/<id>/shop.json grants.finishes); the server refuses it otherwise" }
       }
     }
   }

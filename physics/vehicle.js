@@ -22,6 +22,9 @@ export const FIXED_ONLY = 6;
 const WHEELS = ['FL', 'FR', 'RL', 'RR'];
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const DEG = Math.PI / 180;
+// (traction control: up to this many times its driven tyres' grip an engine can pull, it works as it always has — past it,
+// its window narrows in proportion: Vehicle.step)
+const TC_OVERPOWER = 2;
 // The bump stops: past a spring's travel the strut meets a rubber stop that pushes back harder the further it's squashed
 // (rate × the spring's stiffness, rising by its own share every soft m), with damping (× the damper's), instead of the
 // body coming down onto the road — braking hard at speed with the aero load on top used to put the floor on the tarmac.
@@ -110,6 +113,7 @@ export class Vehicle {
     this.drivetrain = new Drivetrain(spec, this.wheels);   // also marks which wheels are driven
     this.layoutWheels();
     this.peak = { x: peakSlip(spec.tyre.longitudinal), y: peakSlip(spec.tyre.lateral) };
+    this.enginePeak = Math.max(...spec.engine.torqueCurve.map(p => p[1]));   // (traction control: how hard it can pull)
     // Driver aids, each switchable by the game (defaults from the spec)
     const A = spec.assists;
     this.aids = { abs: A.abs.enabled, tc: A.tractionControl.enabled, tcStrength: A.tractionControl.strength, esc: A.stability.enabled, countersteer: A.countersteer.enabled, steering: A.steering.enabled, drift: A.drift.enabled, revProtection: A.revProtection?.enabled ?? false };
@@ -162,6 +166,7 @@ export class Vehicle {
     this.collider.setFriction(bc.friction);
     this.collider.setRestitution(bc.restitution);
     this.peak = { x: peakSlip(spec.tyre.longitudinal), y: peakSlip(spec.tyre.lateral) };
+    this.enginePeak = Math.max(...spec.engine.torqueCurve.map(p => p[1]));   // (traction control: how hard it can pull)
     this.controls.retune(this.peak.y);
     this.brakes.retune(this.peak.x);
     if (this.drivetrain.layout !== spec.drivetrain.layout) {
@@ -513,7 +518,14 @@ export class Vehicle {
         // when you're pointing straight (for traction); strength 0..1 scales how tight it is
         const loose = Math.max(Math.abs(input.steer || 0), drifting), k = Math.pow(2, 1 - 2 * aids.tcStrength);   // (Math.pow: the deterministic one when installed — physics/detmath.js)
         const target = k * (tc.straightSlipTarget + (tc.slipTarget - tc.straightSlipTarget) * loose);
-        const window = k * (tc.straightSlipWindow + (tc.slipWindow - tc.straightSlipWindow) * loose);
+        let window = k * (tc.straightSlipWindow + (tc.slipWindow - tc.straightSlipWindow) * loose);
+        // (an engine that out-pulls its driven tyres many times over — a monster crate engine: the throttle closes in
+        // proportion, so the wheels spin no more than a car pulling twice its tyres' grip does, and keep their
+        // sideways grip. Up to twice — every car as it comes — exactly as before)
+        let hold = 0;
+        for (const w of dtr.driven) if (w.grounded) hold += w.load * (w.grip ?? 1) * (w.gripK ?? 1) * Ty.longitudinal.D * w.radius;
+        const pull = accel * this.enginePeak * Math.abs(dtr.ratio(dtr.gear)), q = hold > 0 ? pull / hold : 0;
+        if (q > TC_OVERPOWER) window *= (1 - 1 / TC_OVERPOWER) / (1 - 1 / q);
         for (const w of dtr.driven) if (w.grounded) tcf = Math.min(tcf, clamp(1 - (slipOf(w, w.omega) * driveSign - target) / window, 0, 1));
       }
       if (tcf < 1 && accel > 0) tcCut = true;

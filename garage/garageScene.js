@@ -292,8 +292,6 @@ export class GarageScene {
       if (d) h.open += d * Math.min(Math.abs(h.target - h.open), dt / 0.7);
       this.#applyHinge(k, ease(h.open));
     }
-    // (the dealership's turntable: the camera slowly round the car)
-    if (this.turntable && !this.tween && !this.pointers?.size) this.orbit.az += dt * 14;
     // the camera: a glide to a view, or where the player left it
     if (this.tween) {
       const T = this.tween;

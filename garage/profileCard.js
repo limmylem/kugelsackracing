@@ -6,11 +6,15 @@
 //
 //   profileStats(profile, db, levels) → { level, xp, from, to, share, rank, next, ranks, money, worth, cars,
 //     spare, entered, finished, completed, dnfs, medals: { gold, silver, bronze }, series, since }
-//   profileCard({ s, me, price, fresh, mp }) → HTML (me: account/session.js's me, or null; price: n → '$1,234';
-//     mp: { state: 'loading' | 'off' | 'ok', tier: { id, name, division, placement? }, races, wins, safety, place })
+//   profileCard({ s, me, price, fresh, mp, badges }) → HTML (me: account/session.js's me, or null; price: n → '$1,234';
+//     mp: { state: 'loading' | 'off' | 'ok', tier: { id, name, division, placement? }, races, wins, safety, place };
+//     badges: [{ id, name, season }] from the ROADBOOK's season shops — garage/seasonUnlocks.js badgesOf, or the server's
+//     profile — each a small chip, its name the tooltip)
+//   badgeChips(badges) → the chips' HTML ('' for none)
 
 import { levelProgress } from '../quest/rules.js';
 import { carSellValue, sellValue } from './shop.js';
+import { t } from '../ui/i18n.js';
 
 const LEVELS = { levels: { base: 400, growth: 0.25, max: 50 } };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -90,9 +94,21 @@ function ranked(mp) {
     <div class="pc-r-nums"><div><b>${int(mp.races)}</b><span>Races</span></div><div><b>${int(mp.wins)}</b><span>Wins</span></div><div><b>${rate}%</b><span>Win rate</span></div>${mp.place ? `<div class="place"><b>#${mp.place}</b><span>Place</span></div>` : ''}</div></div>`;
 }
 
+// the badges: the season's name on a chip in its colour (After Hours violet; a collector's gold), the badge's name its
+// tooltip and what a screen reader says
+const SEASON_COLOURS = { after_hours: '#8a5cff' };
+const words = id => String(id ?? '').split(/[_-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+export function badgeChips(badges) {
+  if (!badges?.length) return '';
+  return `<div class="pc-badges" role="list" aria-label="${esc(t('profile.badges'))}">${badges.map(b => {
+    const gold = /collector/.test(b.id), colour = SEASON_COLOURS[b.season];
+    return `<span class="pc-badge ${gold ? 'gold' : ''}" role="listitem" title="${esc(b.name)}" aria-label="${esc(b.name)}" data-badge="${esc(b.id)}" ${!gold && colour ? `style="--badge:${colour}"` : ''}>${icon(gold ? 'diamond' : 'workspace_premium', 'aria-hidden="true"')}<span aria-hidden="true">${esc(words(b.season ?? b.id))}</span></span>`;
+  }).join('')}</div>`;
+}
+
 const tile = (label, value, ic, cls = '') => `<div class="pc-tile ${cls}">${icon(ic)}<div><span class="v">${value}</span><span class="l">${esc(label)}</span></div></div>`;
 
-export function profileCard({ s, me, price, fresh = false, mp = null }) {
+export function profileCard({ s, me, price, fresh = false, mp = null, badges = [] }) {
   const name = me?.displayName ?? 'Driver', guest = !me || me.isGuest;
   const initials = name.split(/[\s_-]+/).filter(Boolean).slice(0, 2).map(x => x[0].toUpperCase()).join('') || 'D';
   const since = s.since ? new Date(s.since).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null;
@@ -102,7 +118,7 @@ export function profileCard({ s, me, price, fresh = false, mp = null }) {
     <button class="icon-btn flat pc-close" data-act="dialog-cancel" data-key="pc-close" title="Close (Esc)">${icon('close')}</button>
     <header class="pc-head">
       <div class="pc-avatar"><span>${esc(initials)}</span></div>
-      <div class="pc-who"><span class="pc-kicker">${guest ? 'Guest driver' : 'Driver'}${since ? ` · since ${esc(since)}` : ''}</span><h2>${esc(name)}</h2></div>
+      <div class="pc-who"><span class="pc-kicker">${guest ? 'Guest driver' : 'Driver'}${since ? ` · since ${esc(since)}` : ''}</span><h2>${esc(name)}</h2>${badgeChips(badges)}</div>
       <a class="btn secondary bar pc-settings" href="/account/?next=${encodeURIComponent(next)}">${icon('manage_accounts')}<span>${guest ? 'Make an account' : 'Account settings'}</span></a>
     </header>
     <div class="pc-body">

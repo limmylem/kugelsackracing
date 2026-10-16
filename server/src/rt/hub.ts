@@ -166,6 +166,18 @@ export class HubRoom extends Room {
         return;
       }
       case 'party-leave': if (m.party) await this.leaveParty(m); return c.send('mp', { t: 'party', party: null });
+      // (a co-op police pursuit: the leader starts it — a room for the party, everyone in it: docs/PURSUIT.md)
+      case 'party-pursuit': {
+        const party = m.party ? await getParty(m.party) : null;
+        if (!party || party.leader !== m.uid) return say('Only the party\'s leader starts a co-op pursuit.');
+        const questId = String(msg.questId ?? '').slice(0, 120);
+        if (!questId) return;
+        try {
+          const room = await matchMaker.createRoom('pursuit', { questId, expect: party.members, leader: party.leader });
+          for (const u of party.members) await toUser(u, { t: 'goto', roomId: room.roomId, spectate: false });
+        } catch (e: any) { rtEnv.log('rt pursuit room failed', { err: e?.message }); return say('Couldn\'t start the pursuit: try again.'); }
+        return;
+      }
       case 'party-queue': {
         const party = m.party ? await getParty(m.party) : null;
         if (!party || party.leader !== m.uid) return say('Only the party\'s leader starts the queue.');

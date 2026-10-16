@@ -80,6 +80,19 @@
     "_note": "The cargo takes the damage the car takes: cargo condition = 100 − car damage taken (the drop in its overall condition, %) × (fragile ? fragileFactor : 1). The payout loses the quest's damagePenalty × the share of the cargo lost. At 0% the cargo is destroyed: failed.",
     "fragileFactor": 2
   },
+  "pursuit": {
+    "_note": "Police pursuits (quest/types/pursuit.js; the police themselves: data/pursuit.json). The score (its medals: the mission's scoreTarget × medals.score): perSecond × the heat level for every second they're after you (in pursuit or searching), escapeBonus × the level when you escape, destinationBonus for reaching the drop, perDisabled for each police car put out of action — the server checks it's no more than that allows (maxDisabled at most). The drop is reached within destinationM of the route's finish. The start: rolling at startKmh, startM along the route. A run shorter than minSeconds can't be believed. fine: what a bust (or a quit, or the car wrecked) costs — the mission's bustPenalty, else fineShare × its entry fee, at least fineMin, at most fineMax; the server takes it (never more than you have).",
+    "perSecond": 10,
+    "escapeBonus": 400,
+    "destinationBonus": 600,
+    "perDisabled": 250,
+    "maxDisabled": 24,
+    "destinationM": 18,
+    "startM": 70,
+    "startKmh": 70,
+    "minSeconds": 8,
+    "fine": { "share": 1, "min": 150, "max": 20000, "reasons": ["busted", "quit", "wrecked"] }
+  },
   "validation": {
     "_note": "A result faster than the route allows is impossible: each stretch at least its length at the car's top speed × topSpeedSlack (a little in hand for tows and downhills).",
     "topSpeedSlack": 1.15,
@@ -168,7 +181,9 @@
       "circuit_race": 0.2,
       "hot_lap": 0.2,
       "hillclimb": 0.1,
-      "endurance": 0.5
+      "endurance": 0.5,
+      "pursuit": 0.5,
+      "pursuit_coop": 0.4
     },
     "stars": [1.0, 2.2, 3.3, 4.3],
     "recommended": {

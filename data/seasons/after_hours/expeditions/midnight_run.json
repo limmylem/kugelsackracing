@@ -1,0 +1,56 @@
+{
+  "_note": "An Expedition (docs/ROADBOOK.md): stages done in order by driving to real places (lat/lon on the map). Stage types: reach (get to a place; marker shown), clue (get to a place from a clue: no marker until within revealWithin metres; hint after hintAfterMin minutes), collect (pick up every item: drive within radius of each, any order), checkpoints (a timed run through them in order: starts at the first, timeLimitSec to the last; failing starts it again). finale: true on the last. Each stage pays its points and tokens once. party: how many drive it together (1: solo; co-op later).",
+  "id": "midnight_run",
+  "season": "after_hours",
+  "name": "The Midnight Run",
+  "region": "adelaide",
+  "blurb": "A text from a number you don't know: \"Airport car park. Midnight. Come alone.\" Somebody's running the hills tonight, and they want to see what you've got.",
+  "party": { "min": 1, "max": 1 },
+  "stages": [
+    {
+      "id": "meet", "type": "reach", "name": "The meeting spot",
+      "text": "Get to the Adelaide Airport long-term car park. Look for the headlights.",
+      "location": { "lat": -34.94144, "lon": 138.53171, "radius": 60 },
+      "points": 50, "tokens": 150
+    },
+    {
+      "id": "clue", "type": "clue", "name": "Follow the clue",
+      "text": "Nobody's there. Just a note under your wiper.",
+      "clue": "\"Where the city crosses the river on stone, the crew left their mark. Drive over it.\"",
+      "hint": "Head into the city and cross the River Torrens on King William Road.",
+      "hintAfterMin": 10, "revealWithin": 150,
+      "location": { "lat": -34.91476, "lon": 138.5988, "radius": 45 },
+      "points": 50, "tokens": 150
+    },
+    {
+      "id": "flyers", "type": "collect", "name": "The flyers",
+      "text": "Somebody's been taping flyers to the poles along The Parade. Grab all three before they're gone.",
+      "radius": 25,
+      "items": [
+        { "id": "flyer_west", "name": "Flyer by the Britannia end", "lat": -34.92157, "lon": 138.62663 },
+        { "id": "flyer_mid", "name": "Flyer on The Parade", "lat": -34.92107, "lon": 138.6366 },
+        { "id": "flyer_east", "name": "Flyer at the top of The Parade", "lat": -34.92064, "lon": 138.6487 }
+      ],
+      "points": 50, "tokens": 150
+    },
+    {
+      "id": "hill_run", "type": "checkpoints", "name": "The hill run",
+      "text": "The flyers say it all: Greenhill Road, bottom to the bend above the quarry. Make it in time and they'll tell you where the real crowd is.",
+      "radius": 30, "timeLimitSec": 330,
+      "checkpoints": [
+        { "lat": -34.93823, "lon": 138.66134 },
+        { "lat": -34.93807, "lon": 138.66987 },
+        { "lat": -34.94633, "lon": 138.67125 },
+        { "lat": -34.951, "lon": 138.68829 },
+        { "lat": -34.95547, "lon": 138.70244 }
+      ],
+      "points": 50, "tokens": 150
+    },
+    {
+      "id": "lookout", "type": "reach", "name": "The lookout", "finale": true,
+      "text": "Mount Lofty Summit. The whole city's lights below you, and a crowd of cars that just watched you arrive.",
+      "location": { "lat": -34.97784, "lon": 138.70941, "radius": 60 },
+      "points": 50, "tokens": 400
+    }
+  ]
+}

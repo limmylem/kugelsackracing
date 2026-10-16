@@ -13,7 +13,7 @@
 //   profile.questPending         { attemptId, questId, fee, started, car?, pinkSlip? } the run under way (its fee paid; car: the one racing)
 //   profile.questLog             [{ at, attemptId, questId, status, money, xp, medal, valid, problems? }] the last LOG_SIZE
 
-import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf, rankedTime } from '../../quest/rules.js';
+import { earnings, medalOf, medalOfPlace, medalTargets, tierRank, levelOf, rankedTime, SCORE_TYPES } from '../../quest/rules.js';
 import { rewardsOf } from '../../content/quests.js';
 import { validateResult } from '../../quest/validate.js';
 // (track events, Phase 5 Step 3: records per track code, leaderboards, farming per code, the quick races' cap)
@@ -33,10 +33,11 @@ export function questState(profile, questId) {
   return { state: q.completed ? 'completed' : 'attempted', medal: q.medal };
 }
 
-export function startAttempt(p, { quest, fee, attemptId, now, car = null }) {
+export function startAttempt(p, { quest, fee, attemptId, now, car = null, fine = 0 }) {
   const q = progress(p, quest.id);
   q.attempts++; q.lastPlayed = now;
-  p.questPending = { attemptId, questId: quest.id, fee, started: now, ...(car ? { car } : {}), ...(quest.type === 'pink_slip' ? { pinkSlip: true } : {}) };
+  // (fine: a police pursuit's — what a bust costs, worked out here from the quest as it started, not the game's say-so)
+  p.questPending = { attemptId, questId: quest.id, fee, started: now, ...(car ? { car } : {}), ...(quest.type === 'pink_slip' ? { pinkSlip: true } : {}), ...(fine > 0 ? { fine } : {}) };
   if (quest.track?.code) noteRecent(p, { ...quest.track, eventId: quest.id }, now);
 }
 // the game couldn't start it: the fee back, the attempt not counted
@@ -50,12 +51,18 @@ export function refundAttempt(p, attemptId) {
   return { refunded: P.fee };
 }
 
-// A run that didn't finish (quit, wrecked, out of time…): counted, nothing paid
-export function failAttempt(p, { attemptId, questId, status, reason, now }) {
-  if (p.questPending?.attemptId === attemptId) delete p.questPending;
+// A run that didn't finish (quit, wrecked, out of time…): counted, nothing paid — a police pursuit busted (or quit, or
+// wrecked: fineReasons) pays its fine, as much of it as there is money for. → { fine }
+export function failAttempt(p, { attemptId, questId, status, reason, now, fineReasons = ['busted', 'quit', 'wrecked'] }) {
+  let fine = 0;
+  if (p.questPending?.attemptId === attemptId) {
+    if (p.questPending.fine > 0 && fineReasons.includes(reason)) { fine = Math.min(p.questPending.fine, Math.max(0, p.money)); p.money -= fine; }
+    delete p.questPending;
+  }
   const q = progress(p, questId);
   q.dnfs++; q.lastPlayed = now;
-  log(p, { at: now, attemptId, questId, status, reason: reason ?? null, money: 0, xp: 0, medal: null, valid: true });
+  log(p, { at: now, attemptId, questId, status, reason: reason ?? null, money: -fine, xp: 0, medal: null, valid: true, ...(fine ? { fine } : {}) });
+  return { fine };
 }
 
 // A finished run: checked, then paid what it earns. Returns { valid, problems, money, xp, medal, pb, lines, tiers, repeat }
@@ -97,7 +104,7 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
     q.bestTime = null; q.bestScore = null; q.bestSplits = null; q.bestLaps = null; q.recording = null; q.oldRecord = false;
   }
   // a personal best: the time (or the score), its splits and laps, its recording
-  const scored = result.score != null && quest.type === 'drift';
+  const scored = result.score != null && SCORE_TYPES.has(quest.type);
   const pb = scored ? (q.bestScore == null || result.score > q.bestScore) : (q.bestTime == null || rank < q.bestTime);
   const was = older ? { time: older.time, score: older.score, older: true } : { time: q.bestTime, score: q.bestScore };
   if (pb) {

@@ -589,3 +589,32 @@ export const calendarRsvps = pgTable('calendar_rsvps', {
   eventId: text('event_id').notNull().references(() => calendarEvents.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ name: 'calendar_rsvps_pk', columns: [t.eventId, t.userId] })]);
+
+// ---------- the ROADBOOK, Expeditions and Season Tokens (docs/ROADBOOK.md; migration 0017) ----------
+const at = (name: string) => timestamp(name, { withTimezone: true });
+export const roadbookConfig = pgTable('roadbook_config', {
+  version: integer('version').primaryKey(), data: jsonb('data').notNull(), basedOn: integer('based_on'), actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  reason: text('reason').notNull(), active: boolean('active').notNull().default(false), createdAt: created(),
+}, t => [uniqueIndex('roadbook_config_one_active').on(t.active).where(sql`active`)]);
+export const roadbookSeasons = pgTable('roadbook_seasons', {
+  seasonId: text('season_id').primaryKey(), status: text('status').notNull().default('testing'), startedAt: at('started_at'), endsAt: at('ends_at'), endedAt: at('ended_at'), updatedAt: at('updated_at').notNull().defaultNow(),
+});
+export const roadbookProgress = pgTable('roadbook_progress', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), seasonId: text('season_id').notNull(), data: jsonb('data').notNull(),
+  points: integer('points').notNull().default(0), updatedAt: at('updated_at').notNull().defaultNow(),
+}, t => [primaryKey({ name: 'roadbook_progress_pk', columns: [t.userId, t.seasonId] })]);
+export const roadbookSeen = pgTable('roadbook_seen', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), key: text('key').notNull(), at: at('at').notNull().defaultNow(),
+}, t => [primaryKey({ name: 'roadbook_seen_pk', columns: [t.userId, t.key] })]);
+export const tokenLedger = pgTable('token_ledger', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(), userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), seasonId: text('season_id').notNull(),
+  amount: integer('amount').notNull(), balanceAfter: integer('balance_after').notNull(), kind: text('kind').notNull(), reason: text('reason').notNull(), key: text('key').notNull(),
+  ref: jsonb('ref').notNull().default({}), actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }), at: at('at').notNull().defaultNow(),
+}, t => [uniqueIndex('token_ledger_key').on(t.userId, t.seasonId, t.key), index('token_ledger_user').on(t.userId, t.seasonId, t.id)]);
+export const playerItems = pgTable('player_items', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), itemId: text('item_id').notNull(), seasonId: text('season_id').notNull(),
+  price: integer('price').notNull(), boughtAt: at('bought_at').notNull().defaultNow(),
+}, t => [primaryKey({ name: 'player_items_pk', columns: [t.userId, t.itemId] })]);
+export const playerHistory = pgTable('player_history', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }), data: jsonb('data').notNull().default({}), updatedAt: at('updated_at').notNull().defaultNow(),
+});

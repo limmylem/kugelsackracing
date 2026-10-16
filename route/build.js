@@ -36,7 +36,7 @@ function stopsOf(N, spec, o) {
 }
 
 // a piece of a segment as points (s0 → s1, either way)
-function piecePoints(N, { seg, s0, s1 }) {
+export function piecePoints(N, { seg, s0, s1 }) {
   const out = [N.pointOn(seg, s0)], c = seg.cum, p = seg.points;
   if (s1 >= s0) { for (let k = 0; k < c.length; k++) if (c[k] > s0 && c[k] < s1) out.push({ x: p[k * 3], z: p[k * 3 + 1], h: p[k * 3 + 2] }); }
   else { for (let k = c.length - 1; k >= 0; k--) if (c[k] < s0 && c[k] > s1) out.push({ x: p[k * 3], z: p[k * 3 + 1], h: p[k * 3 + 2] }); }

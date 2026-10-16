@@ -1,0 +1,184 @@
+{
+  "_note": "Police pursuits (docs/PURSUIT.md; pursuit/director.js decides, pursuit/police.js drives, play/pursuitPlay.js puts it in the world). Every tuning number is here; a mission (a quest of type pursuit or pursuit_coop) sets its own start and limits in its params. Distances m, speeds km/h, times s. The score, the drop, the start and the bust fine are the quest rules (data/quests.json pursuit: the server checks results by them).",
+  "heat": {
+    "_note": "Heat runs from the mission's startHeat to its maxHeat (1–5; the level is the whole number). It rises only while the police can see someone: perSecond every second, perHit for each hit on a police car (× the hit's strength in m/s, at most hitMax a hit), recklessPerSecond while over recklessKmh. It never falls during a mission.",
+    "perSecond": 0.012,
+    "perHit": 0.05,
+    "hitMax": 0.35,
+    "recklessKmh": 140,
+    "recklessPerSecond": 0.01
+  },
+  "levels": [
+    {
+      "_note": "heat 1",
+      "units": 1,
+      "rating": 0.92,
+      "intercept": false,
+      "ram": false,
+      "pit": false,
+      "boxIn": false,
+      "roadblockEvery": 0,
+      "spikesEvery": 0,
+      "cooldown": 12,
+      "searchRadius": 180
+    },
+    {
+      "_note": "heat 2",
+      "units": 2,
+      "rating": 0.98,
+      "intercept": true,
+      "ram": true,
+      "pit": false,
+      "boxIn": false,
+      "roadblockEvery": 0,
+      "spikesEvery": 0,
+      "cooldown": 15,
+      "searchRadius": 220
+    },
+    {
+      "_note": "heat 3",
+      "units": 3,
+      "rating": 1.03,
+      "intercept": true,
+      "ram": true,
+      "pit": true,
+      "boxIn": true,
+      "roadblockEvery": 0,
+      "spikesEvery": 0,
+      "cooldown": 19,
+      "searchRadius": 260
+    },
+    {
+      "_note": "heat 4",
+      "units": 4,
+      "rating": 1.08,
+      "intercept": true,
+      "ram": true,
+      "pit": true,
+      "boxIn": true,
+      "roadblockEvery": 45,
+      "spikesEvery": 0,
+      "cooldown": 23,
+      "searchRadius": 310
+    },
+    {
+      "_note": "heat 5",
+      "units": 5,
+      "rating": 1.14,
+      "intercept": true,
+      "ram": true,
+      "pit": true,
+      "boxIn": true,
+      "roadblockEvery": 35,
+      "spikesEvery": 40,
+      "cooldown": 28,
+      "searchRadius": 360
+    }
+  ],
+  "police": {
+    "_note": "The police cars: built from the parts system (ai/npcCars.js) for the player's car's rating × the level's rating; models: the ones they're built on (the first that exists). sight: how far a unit can see (a ray against the ground and buildings from eye height); lostGrace: how long no unit has seen anyone before the cooldown starts. Spawning: a new unit comes on a road spawnMin–spawnMax from the target, out of its sight where it can be (spawnEvery between them); one further than despawnM from everyone and unseen goes. maxTotal: the most units a mission ever sends (the mission can set fewer). stuckRemove: a unit getting nowhere this long (s) is taken away while you can't see it (another comes).",
+    "models": [
+      "strada_evo",
+      "vortex_r",
+      "kaze_gt",
+      "apex_v8",
+      "starter_car"
+    ],
+    "livery": {
+      "body": "#f2f4f7",
+      "finish": "metallic"
+    },
+    "sight": 220,
+    "eyeHeight": 1.3,
+    "lostGrace": 1.5,
+    "spawnMin": 160,
+    "spawnMax": 320,
+    "spawnEvery": 6,
+    "despawnM": 700,
+    "maxTotal": 24,
+    "startGap": 45,
+    "reassignEvery": 0.5,
+    "expectStart": 1,
+    "stuckRemove": 12
+  },
+  "driving": {
+    "_note": "How a unit drives (pursuit/police.js). On the roads (a path on the road network, replanned every replanEvery s or when its goal moves more than replanMoveM) it keeps corneringMargin of the grip it has; within directRange of its target with a clear line it leaves the road and goes straight for it (cutting corners). lead: s of the target's motion it aims ahead of; ram: closing speed it asks for; pit: where it lines up (m behind and to the side of the target's rear corner) and how hard it turns in; box: the slots round the target (m ahead / to the side). stuck: below 1 m/s this long while it wants to go: it backs off (reverse) for backOff s. rubberBand: the most a unit's speed target goes up (far behind) or down (right on top of you), as a share — never its car or the physics.",
+    "replanEvery": 1.2,
+    "replanMoveM": 35,
+    "corneringMargin": 0.85,
+    "directRange": 90,
+    "lead": 0.6,
+    "ramClosingKmh": 25,
+    "pit": {
+      "behind": 2.2,
+      "side": 1.4,
+      "turnIn": 0.65,
+      "minKmh": 40,
+      "range": 14
+    },
+    "box": {
+      "ahead": 7,
+      "side": 3.2,
+      "range": 30,
+      "maxKmh": 70
+    },
+    "ramRange": 25,
+    "stuckSeconds": 2.5,
+    "backOff": 1.6,
+    "rubberBand": {
+      "max": 0.06,
+      "far": 250,
+      "near": 25
+    }
+  },
+  "bust": {
+    "_note": "Busted: going slower than kmh with a unit within range (that can see you, or is touching: within touchM) for seconds — the meter falls back at decay × the rate when you get going; or the car disabled (undrivable) for disabledSeconds. The fine for a bust: data/quests.json pursuit.fine.",
+    "kmh": 12,
+    "range": 14,
+    "touchM": 6,
+    "seconds": 3.5,
+    "decay": 1.5,
+    "disabledSeconds": 1
+  },
+  "escape": {
+    "_note": "No unit has seen you for lostGrace s: the cooldown starts (the level's cooldown s) and the search area (the level's searchRadius, round where you were last seen) shows on the minimap. Leave it before the time runs out and you've escaped; spotted again, the timer starts over. timerEnds: what happens when the time runs out with you still inside — 'reacquire' (they've closed the net: they know where you are, the pursuit's on again) or 'escape' (you lay low long enough).",
+    "timerEnds": "reacquire"
+  },
+  "roadblock": {
+    "_note": "A roadblock: units cars parked across the road at a junction aheadMin–aheadMax along your way, gap m apart; they join the chase once you're within joinM or after joinAfter s.",
+    "units": 2,
+    "aheadMin": 220,
+    "aheadMax": 420,
+    "gap": 4.2,
+    "joinM": 25,
+    "joinAfter": 25
+  },
+  "spikes": {
+    "_note": "A spike strip: across the road ahead (aheadMin–aheadMax along your way), width m wide; a tyre over it is punctured — its pressure down to `pressure` (physics/mechanical.js: less grip, a sagging tyre; the garage mends it), with full damage on. Gone after lifetime s.",
+    "aheadMin": 120,
+    "aheadMax": 220,
+    "width": 9,
+    "lifetime": 60,
+    "pressure": 0.2
+  },
+  "targeting": {
+    "_note": "Co-op: each unit chases the player with the best score — closest (1 − distance ÷ sight), visible, most damaged (1 − condition), carrying the objective — less spread × the share of the units already on that player (they split up), plus sticky for the one it's on now (no flapping). A mission's params.targeting can set its own weights.",
+    "closest": 1,
+    "visible": 0.8,
+    "damaged": 0.3,
+    "objective": 1.2,
+    "spread": 0.6,
+    "sticky": 0.35
+  },
+  "coop": {
+    "_note": "Co-op pursuits (party only; server/src/rt/pursuit.ts runs the director): the units at each level × (1 + perPlayer × (players − 1)); a busted player respawns after respawn s (a mission can say spectate); the reward split: shared (everyone the whole) or split (each the share of the whole by their score).",
+    "perPlayer": 0.5,
+    "respawn": 15,
+    "pickupM": 6,
+    "maxPlayers": 4
+  },
+  "debug": {
+    "_note": "The pursuit debug overlay (F4 in a pursuit, or ?pursuitDebug in the address): what each unit is doing and why, the heat, the sight lines (green: sees you, red: blocked), each unit's path, the search area and the cooldown.",
+    "key": "F4"
+  }
+}

@@ -10,7 +10,8 @@
 //   maps.setContent(features, onPick)  world content near the player (play/contentLayer.js): marked on both,
 //   clustered on the full map when zoomed out; onPick(id) when one's clicked; a quest's state (properties
 //   state: new | attempted | completed, medal) in its colour and mark
-//   maps.setLines(features)  a quest's route and the guide line to its start, on both; a Point with kind 'pin': the place
+//   maps.setLines(features)  a quest's route and the guide line to its start, on both (a pursuit's: a Polygon kind 'search', Points kind
+//                            'police'); a Point with kind 'pin': the place
 //   a route was asked to (a pin on both)
 //   maps.onPlace(fn(lat, lon))  a click (a tap) on an empty spot of the full map — not on a quest or a player — and
 //   maps.ask(lat, lon, element) shows a small card there (play/questUi.js: "Route here?"), maps.closeAsk()
@@ -167,6 +168,9 @@ export function lineLayers(map, prefix = 'lines') {
         const before = map.getLayer(`${prefix.replace(/-lines$/, '')}-points`) ? `${prefix.replace(/-lines$/, '')}-points` : undefined;
         map.addLayer({ id: `${prefix}-route`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#e05cff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-opacity': 0.85 } }, before);
         map.addLayer({ id: `${prefix}-guide`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'guide'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#1fb6ff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-dasharray': [1.2, 1] } }, before);
+        // (a police pursuit: the search area while they're looking for you — docs/PURSUIT.md — and the police cars)
+        map.addLayer({ id: `${prefix}-search`, type: 'fill', source: src, filter: ['==', ['get', 'kind'], 'search'], paint: { 'fill-color': ['coalesce', ['get', 'colour'], '#ff9f1a'], 'fill-opacity': 0.18, 'fill-outline-color': ['coalesce', ['get', 'colour'], '#ff9f1a'] } }, before);
+        map.addLayer({ id: `${prefix}-police`, type: 'circle', source: src, filter: ['==', ['get', 'kind'], 'police'], paint: { 'circle-color': ['coalesce', ['get', 'colour'], '#ff3b4a'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 16, 7], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
         // (the place a route goes to: a pin — a dot ringed white, in the guide's colour)
         map.addLayer({ id: `${prefix}-pin`, type: 'circle', source: src, filter: ['==', ['get', 'kind'], 'pin'], paint: { 'circle-color': ['coalesce', ['get', 'colour'], '#1fb6ff'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 16, 9], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
     };

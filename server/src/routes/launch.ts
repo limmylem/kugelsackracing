@@ -50,7 +50,7 @@ const AnalyticsBody = z.object({
   events: z.array(z.object({ kind: z.enum(EVENT_KINDS), name: z.string().max(80).optional(), at: z.number().optional(), props: z.record(z.string(), z.unknown()).optional() })).min(1).max(LIMITS.analyticsBatch),
 });
 
-export async function launchRoutes(app0: FastifyInstance, { db, economy, G, authSecret }: { db: Db; economy: Economy; G: Guards; authSecret: string }) {
+export async function launchRoutes(app0: FastifyInstance, { db, economy, G, authSecret, badges }: { db: Db; economy: Economy; G: Guards; authSecret: string; badges?: (userId: string) => Promise<{ id: string; name: string; season: string }[]> }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const who = async (req: FastifyRequest) => (await G.requireTerms(req)).user;
   const adminWho = async (req: FastifyRequest) => (await G.requireRole('admin')(req)).user;
@@ -84,9 +84,11 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
     const own = viewer === userId;
     if (!u.public && !own) throw new AppError(403, 'FORBIDDEN', 'This player keeps their profile to themselves.');
     const [stats] = await rows(sql`select count(*) filter (where kind = 'quest') as quests, count(*) filter (where kind = 'quest' and end_reason = 'finished') as finished from economy_sessions where user_id = ${userId}`);
-    const quests = await rows(sql`select quest_id, best_medal from quest_progress where user_id = ${userId}`).catch(() => []);
+    // (the quest's best medal is quest_progress.medal: this asked for a best_medal column there isn't, and its error was
+    // swallowed — quest medals never counted)
+    const quests = await rows(sql`select quest_id, medal from quest_progress where user_id = ${userId}`);
     const medals = { gold: 0, silver: 0, bronze: 0 } as Record<string, number>;
-    for (const q of quests) if (q.best_medal && q.best_medal in medals) medals[q.best_medal]++;
+    for (const q of quests) if (q.medal && q.medal in medals) medals[q.medal]++;
     const lessons = await rows(sql`select lesson_id, medal, best from school_results where user_id = ${userId} and lesson_id not like 'first:%'`);
     for (const l of lessons) if (l.medal in medals) medals[l.medal]++;
     const best = await rows(sql`select code, car_class, best_time, best_lap, best_score, at from track_records where user_id = ${userId} order by at desc limit 12`);
@@ -102,6 +104,8 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
       bestTimes: best.map(b => ({ code: b.code, carClass: b.car_class, time: b.best_time, lap: b.best_lap, score: b.best_score, at: iso(b.at) })),
       crew: crew ? { id: crew.id, name: crew.name, tag: crew.tag, role: crew.role } : null,
       photos: photos.map(p => ({ id: p.id, caption: p.caption, place: p.place, at: iso(p.created_at), url: `/api/v1/photos/${p.id}` })),
+      // (badges from the ROADBOOK's season shops: docs/ROADBOOK.md)
+      badges: badges ? await badges(userId).catch(() => []) : [],
     };
   }
   app.get('/player/profile', async req => { const u = await who(req); return profileOf(u.id, u.id); });
@@ -127,6 +131,7 @@ export async function launchRoutes(app0: FastifyInstance, { db, economy, G, auth
     if (n >= LIMITS.photos) throw new AppError(409, 'CONFLICT', `Your profile keeps ${LIMITS.photos} photos: remove one first.`);
     const id = newId();
     await db.execute(sql`insert into player_photos (id, user_id, caption, place, mime, bytes, data) values (${id}, ${u.id}, ${req.body.caption ?? null}, ${req.body.place ?? null}, ${m[1]}, ${bytes.length}, ${bytes})`);
+    economy.events.emit('photoSaved', { userId: u.id, photoId: id });      // (the ROADBOOK: roadbook/service.ts)
     return { id, url: `/api/v1/photos/${id}` };
   });
   app.get('/photos/:id', { schema: { params: Id } }, async (req, reply) => {

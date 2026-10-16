@@ -15,6 +15,12 @@
 //   Q.drain() → the events since      Q.hud() → what the HUD shows      Q.outcome  when it's over
 //   externalGo (Phase 7 Step 2, a multiplayer race): the countdown doesn't set GO itself — Q.setGo(t) does (t on the
 //   ticks' clock: when the race server's lights go out), and may move it as the clocks settle, until it's passed
+//   A cinematic start (startMode 'cinematic': a pursuit's intro, play/cinematic.js): the car's put down and held, the
+//   game's cinematic lets it go (the AI driving it, the police pulling out) and Q.setGo(t) — when the cinematic hands over
+//   — is GO: no 3-2-1, no jump start, the clock from GO, the car already moving (not set going by the session).
+//   A free type (S.free: a police pursuit, quest/types/pursuit.js) is driven anywhere: no checkpoints, no corridor, the
+//   clock from GO; the type's own tick says when it's over. Its start (type.startAt: metres along the route, its speed)
+//   and its HUD arrow (type.next: a place, or null for none) are its own; type.intro: false — no fly-along.
 //
 // Times: a gate (a line across the road) is crossed between two ticks; where along that tick gives the
 // time (quest/timing.js), so times don't depend on the frame rate.
@@ -32,7 +38,7 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
   if (!type) throw new Error(`no quest type "${quest.type}"`);
   const P = quest.params ?? {}, loop = course.loop;
   laps = loop ? Math.max(1, laps ?? P.laps ?? 1) : 1;
-  startMode = startMode ?? P.start ?? 'standing';
+  startMode = startMode ?? P.start ?? type.start ?? 'standing';
   const L = course.length, startS = course.grid.startS, lapLength = loop ? L : course.grid.finishS - startS;
   const rel = s => loop ? (((s - startS) % L) + L) % L : s - startS;
   const gates = course.gates.map(g => ({ ...g, r: rel(g.s) })).sort((a, b) => a.r - b.r);
@@ -99,6 +105,8 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
       S.prev = cur;
       if (S.t0 == null) return;
     }
+    // (a free type: no gates — the type's tick decides)
+    if (S.free) { S.prev = cur; return; }
     const base = S.lap * lapLength;
     // the checkpoints, in order
     for (const g of gates) {
@@ -148,7 +156,7 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
     get outcome() { return S.outcome; },
     begin({ intro = true } = {}) {
       if (type.enabled === false) throw new Error(type.disabledReason ?? `${quest.type} quests can't be played yet`);
-      if (intro && S.introLength > 0) { S.state = 'intro'; emit({ type: 'intro', seconds: S.introLength }); }
+      if (intro && type.intro !== false && S.introLength > 0) { S.state = 'intro'; emit({ type: 'intro', seconds: S.introLength }); }
       else api.toGrid();
       return api;
     },
@@ -159,30 +167,32 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
     },
     skipIntro() { if (S.state === 'intro') api.toGrid(); },
     // (a multiplayer race: GO when the race server says — on the ticks' clock)
-    setGo(t) { if (externalGo && (S.state === 'countdown' || S.state === 'ready' || S.state === 'intro')) S.goAt = t; },
+    setGo(t) { if ((externalGo || startMode === 'cinematic') && (S.state === 'countdown' || S.state === 'ready' || S.state === 'intro')) S.goAt = t; },
     toGrid() {
       S.state = 'countdown';
-      const rolling = startMode === 'rolling', R = config.start;
-      emit({ type: 'place', slot: course.grid.slots[slot] ?? course.grid.slots[0], rolling, rollingDistance: R.rollingDistance, rollingSpeed: R.rollingKmh / 3.6 });
+      const rolling = startMode === 'rolling', R = config.start, own = type.startAt?.(S) ?? null;
+      emit({ type: 'place', slot: course.grid.slots[slot] ?? course.grid.slots[0], rolling, rollingDistance: R.rollingDistance, rollingSpeed: (own?.kmh ?? R.rollingKmh) / 3.6, ...(own ? { at: own.s } : {}), ...(startMode === 'cinematic' ? { cinematic: true, rolling: false } : {}) });
     },
     tick(I) {
       S.t = I.t;
       if (S.state === 'countdown') {
         const R = config.start;
-        if (S.tCount == null) { S.tCount = I.t; S.tGo = externalGo ? (S.goAt ?? Infinity) : I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
-        if (externalGo && S.goAt != null) S.tGo = S.goAt;
+        const outside = externalGo || startMode === 'cinematic';
+        if (S.tCount == null) { S.tCount = I.t; S.tGo = outside ? (S.goAt ?? Infinity) : I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
+        if (outside && S.goAt != null) S.tGo = S.goAt;
         const left = S.tGo - I.t;
         const n = Math.ceil(left - 1e-9);
-        if (n > 0 && n <= R.countdown && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
-        if (startMode !== 'rolling' && !S.jump && (I.throttle ?? 0) > R.jumpThrottle && left <= R.jumpWindow + 1e-9) {
+        if (startMode !== 'cinematic' && n > 0 && n <= R.countdown && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
+        if (startMode === 'standing' && !S.jump && (I.throttle ?? 0) > R.jumpThrottle && left <= R.jumpWindow + 1e-9) {
           S.jump = true; S.penalties.push({ what: 'Jump start', seconds: R.jumpPenalty });
           emit({ type: 'jump', penalty: R.jumpPenalty });
         }
         if (left <= 1e-9) {
           S.state = 'racing'; S.count = 0;
-          if (startMode !== 'rolling') { S.t0 = S.tGo; S.clock = clockAt(I.t); }
+          if (startMode !== 'rolling' || S.free) { S.t0 = S.tGo; S.clock = clockAt(I.t); }
           S.prev = { x: I.x, z: I.z, t: I.t };
-          emit({ type: 'go', rolling: startMode === 'rolling', speed: config.start.rollingKmh / 3.6 });
+          // (a cinematic's car is already going: GO hands it over as it is)
+          emit({ type: 'go', rolling: startMode === 'rolling', speed: startMode === 'cinematic' ? 0 : (type.startAt?.(S)?.kmh ?? config.start.rollingKmh) / 3.6, ...(startMode === 'cinematic' ? { cinematic: true } : {}) });
         }
         return;
       }
@@ -220,14 +230,14 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
     drain() { return events.splice(0); },
     // what the HUD shows
     hud() {
-      const nextGate = S.next < required.length ? required[S.next] : course.finish;
+      const nextGate = type.next ? type.next(S) : S.next < required.length ? required[S.next] : course.finish;
       const last = S.splits.at(-1) ?? null;
       return {
         state: S.state, count: S.count, clock: S.t0 != null ? S.clock : 0, running: S.t0 != null && S.state === 'racing', penalty: penalty(),
-        lap: Math.min(laps, S.lap + 1), laps, checkpoint: S.next, checkpoints: required.length,
+        lap: Math.min(laps, S.lap + 1), laps, checkpoint: S.next, checkpoints: S.free ? 0 : required.length,
         split: last, bestLap: S.lapTimes.length ? Math.min(...S.lapTimes) : null, lapTimes: S.lapTimes,
         timeLeft: S.limit != null ? Math.max(0, S.limit + S.extension - (S.t0 != null ? S.clock : 0)) : null,
-        next: { x: nextGate.x, z: nextGate.z, h: nextGate.h, id: nextGate.id ?? 'finish' }, message: S.message,
+        next: nextGate ? { x: nextGate.x, z: nextGate.z, h: nextGate.h, id: nextGate.id ?? 'finish' } : null, message: S.message,
         progress: tracker.state.progress, position: { place: 1, of: 1, live: false },
         panel: type.hud?.(S) ?? null,
       };

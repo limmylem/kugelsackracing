@@ -1,0 +1,12 @@
+{
+  "_note": "The season's shop (docs/ROADBOOK.md): every item's price in Season Tokens, shown up front. Each is bought once and kept for good (in every later season too). grants: what owning it unlocks — finishes (paint, part or rim finishes in data/finishes.json marked locked: only owners can use them), photoFilters (photo mode's filters), badges (shown on the profile card). Looks only: nothing here changes how a car drives.",
+  "season": "after_hours",
+  "items": [
+    { "id": "ah_badge", "name": "After Hours badge", "description": "The season's badge on your profile card, for everyone to see.", "price": 100, "icon": "workspace_premium", "grants": { "badges": ["after_hours"] } },
+    { "id": "ah_paint_midnight", "name": "Midnight metallic paint", "description": "A deep violet-black metallic with a blue flake. Only owners can paint with it.", "price": 250, "icon": "format_paint", "grants": { "finishes": ["midnight_metallic"] } },
+    { "id": "ah_rim_violet", "name": "Violet chrome rims", "description": "A violet-tinted chrome finish for your wheels.", "price": 400, "icon": "tire_repair", "grants": { "finishes": ["violet_chrome"] } },
+    { "id": "ah_photo_filter", "name": "After Hours photo filter", "description": "A cool, high-contrast night grade for photo mode.", "price": 500, "icon": "photo_camera", "grants": { "photoFilters": ["after_hours"] } },
+    { "id": "ah_neon_chrome", "name": "Neon chrome parts", "description": "A pink-to-cyan chrome finish for any part you can refinish: wings, mirrors, intakes and more.", "price": 1000, "icon": "auto_awesome", "grants": { "finishes": ["neon_chrome"] } },
+    { "id": "ah_collection", "name": "After Hours collection", "description": "Afterglow pearl paint, a matching afterglow finish for your parts and the gold After Hours collector badge.", "price": 1500, "icon": "diamond", "grants": { "finishes": ["afterglow_pearl", "afterglow_anodised"], "badges": ["after_hours_collector"] } }
+  ]
+}

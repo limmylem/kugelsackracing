@@ -1,0 +1,122 @@
+{
+  "_note": "In-engine cinematics (play/cinematic.js; docs/PURSUIT.md). Each one: seconds long; who's in it and how they move (driven by the AI along the real road — the player's car on the quest's route, the police after it); and its shots, one after another. A shot: from–to (s), ease (linear, in, out, inOut), subject (whose car the camera is placed round: player, police — the first police car — or player:N, the Nth car of a party), path: the camera's control points [right, up, forward] in m from the subject (a smooth curve through them, from the first at the shot's start to the last at its end; \"chase\": the game's own chase camera at that moment — a shot ending on it hands over without a cut), look: where it looks [right, up, forward] from the subject (or \"chase\"), fov: [start, end] in degrees (\"chase\": the game's). player: the car's speed when it's let go (startKmh) and its throttle over time ([s, 0–1] pairs, eased between); police: when they pull out (pullOutAt), and how far behind they keep — gap at the start and at the handover (m). skip: where everyone is put when it's skipped (metres on from the start along the route, the speed: km/h; the police gapAtHandover behind).",
+  "pursuit_intro": {
+    "seconds": 7.5,
+    "player": {
+      "startKmh": 0,
+      "throttle": [[0, 0.55], [0.6, 0.85], [7.5, 0.8]]
+    },
+    "police": {
+      "pullOutAt": 0.4,
+      "side": 1.5,
+      "gapAtStart": 16,
+      "gapAtHandover": 45
+    },
+    "skip": {
+      "metres": 120,
+      "kmh": 95
+    },
+    "shots": [
+      {
+        "from": 0,
+        "to": 2.8,
+        "ease": "inOut",
+        "subject": "police",
+        "path": [[-3.8, 0.8, 6.5], [-3.4, 1.2, 5.6], [-3.0, 1.7, 4.8]],
+        "look": [0, 1.1, 0.5],
+        "fov": [38, 34]
+      },
+      {
+        "from": 2.8,
+        "to": 5.6,
+        "ease": "inOut",
+        "subject": "player",
+        "path": [[4.5, 1.1, 7.5], [4.2, 1.4, 0.5], [2.2, 1.9, -5.5]],
+        "look": [0, 0.8, 1.2],
+        "fov": [36, 50]
+      },
+      {
+        "from": 5.6,
+        "to": 7.5,
+        "ease": "inOut",
+        "subject": "player",
+        "path": [
+          [2.2, 1.9, -5.5],
+          [0.8, 2.2, -6.5],
+          "chase"
+        ],
+        "look": "chase",
+        "fov": [50, "chase"]
+      }
+    ]
+  },
+  "pursuit_intro_coop": {
+    "_note": "A party's: it plays through the race room's countdown — from GO − seconds to GO on the server's clock, the same moment on every game (data/multiplayer.json race.countdownSec: no longer than that) — all the party's cars in it, each driven by its own game's AI, the police car the host's.",
+    "seconds": 6,
+    "player": {
+      "startKmh": 0,
+      "throttle": [[0, 0.55], [0.6, 0.85], [6, 0.8]]
+    },
+    "police": {
+      "pullOutAt": 0.4,
+      "side": 1.5,
+      "gapAtStart": 16,
+      "gapAtHandover": 50
+    },
+    "skip": {
+      "metres": 110,
+      "kmh": 85
+    },
+    "shots": [
+      {
+        "from": 0,
+        "to": 1.6,
+        "ease": "inOut",
+        "subject": "police",
+        "path": [[-3.8, 0.8, 6.5], [-3.4, 1.2, 5.6], [-3.0, 1.7, 4.8]],
+        "look": [0, 1.1, 0.5],
+        "fov": [38, 34]
+      },
+      {
+        "from": 1.6,
+        "to": 2.6,
+        "ease": "inOut",
+        "subject": "player:1",
+        "path": [[-4.5, 1.2, 6], [-3.5, 1.5, -1]],
+        "look": [0, 0.8, 1],
+        "fov": [38, 44]
+      },
+      {
+        "from": 2.6,
+        "to": 3.6,
+        "ease": "inOut",
+        "subject": "player:2",
+        "path": [[4.5, 1.2, 6], [3.5, 1.5, -1]],
+        "look": [0, 0.8, 1],
+        "fov": [38, 44]
+      },
+      {
+        "from": 3.6,
+        "to": 4.5,
+        "ease": "inOut",
+        "subject": "player",
+        "path": [[4.2, 1.4, 0.5], [2.2, 1.9, -5.5]],
+        "look": [0, 0.8, 1.2],
+        "fov": [40, 50]
+      },
+      {
+        "from": 4.5,
+        "to": 6,
+        "ease": "inOut",
+        "subject": "player",
+        "path": [
+          [2.2, 1.9, -5.5],
+          [0.8, 2.2, -6.5],
+          "chase"
+        ],
+        "look": "chase",
+        "fov": [50, "chase"]
+      }
+    ]
+  }
+}

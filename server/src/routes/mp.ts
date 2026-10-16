@@ -74,5 +74,8 @@ export async function mpRoutes(api: FastifyInstance, { config, G, mp, db }: { co
   app.get('/internal/mp/races/:id', { config: { csrf: false } } as any, async (req: any) => { internal(req); return mp.raceView(req.params.id); });
   app.post('/internal/mp/act', { config: { csrf: false, idempotent: false } } as any, async (req: any) => { internal(req); return mp.act(String(req.body?.uid ?? '').slice(0, 80), req.body ?? {}); });
   app.post('/internal/mp/queue-stats', { ...big }, async (req: any) => { internal(req); mp.queueStats(req.body ?? {}); return { ok: true }; });
+  // (co-op police pursuits: the room's quest and route; its end, checked and paid — docs/PURSUIT.md)
+  app.post('/internal/mp/pursuit-mission', { config: { csrf: false, idempotent: false } } as any, async (req: any) => { internal(req); return mp.pursuitMission(String(req.body?.questId ?? '')); });
+  app.post('/internal/mp/pursuits', { ...big }, async (req: any) => { internal(req); return mp.recordPursuit(req.body ?? {}); });
   app.post('/internal/mp/evidence', { ...big }, async (req: any) => { internal(req); return mp.saveEvidence(req.body ?? {}); });
 }

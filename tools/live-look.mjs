@@ -48,6 +48,12 @@ try {
   const src = await (await fetch(`${GAME}/garage/workshop.js`)).text(), fixed = /\.\.\.\(items && \{ items \}\)/.test(src);
   console.log(`whole-car repair: the live game ${fixed ? 'leaves an empty list of pieces out — ok' : 'still sends null — NOT the fixed version'}`);
 } catch (e) { console.log(`whole-car repair: couldn't check (${e.message})`); }
+// a quest over: the car stopped and takes no damage from the finish line (play/questUi.js over; 2026-10-16) — the live
+// game's code has it
+try {
+  const src = await (await fetch(`${GAME}/play/questUi.js`)).text();
+  console.log(`a quest's finish: the live game ${/get over\(\)/.test(src) && /get stopping\(\)/.test(src) ? 'stops the car and takes no damage after the line — ok' : 'is NOT the version that stops the car after the line'}`);
+} catch (e) { console.log(`a quest's finish: couldn't check (${e.message})`); }
 const browser = await chromium.launch();
 for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000], ['the game', `${GAME}/`, 45000]]) {
   console.log(`\n== ${name}: ${url}`);

@@ -155,8 +155,18 @@
 .g-finishes button.on .fn { color: var(--c-accent); }
 .g-finishes .fn { font-size: 14px; font-weight: 600; }
 .g-finishes .fp { font-family: var(--f-mono); font-size: 12px; color: var(--c-text-2); }
+/* the ROADBOOK's season-shop finishes (garage/seasonUnlocks.js): two columns wide; locked ones dimmed, with a lock and
+   where they're from */
+.g-finishes button.season { grid-column: span 2; }
+.g-finishes button.season:not(.on) { border-color: rgba(138, 92, 255, 0.45) !important; }
+.g-finishes button.season .fp { white-space: normal; text-align: center; line-height: 1.3; }
+.g-finishes button.season.locked .fn { display: flex; align-items: center; gap: 4px; color: var(--c-text-2); }
+.g-finishes button.season.locked .fn .icon { font-size: 15px; color: #b89cff; }
+.g-finishes button.season.locked .fp { color: var(--c-text-3); }
 .g-part-fins { overflow: hidden; }
 .g-part-fins .pf { height: 48px; padding: 0 8px 0 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #161B20; }
+.g-part-fins .pf.more { height: auto; min-height: 48px; padding-block: 6px; }
+.g-part-fins .pf.more .segmented { flex-wrap: wrap; justify-content: flex-end; }
 .g-part-fins .pf:last-child { border-bottom: 0; }
 .g-part-fins .pf .pn { flex: 1; font-size: 15px; font-weight: 500; }
 
@@ -478,6 +488,12 @@
 .pc-kicker { font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #9AA0A8; }
 .pc-who h2 { margin: 0; font: italic 800 34px/1.05 'Saira', var(--f-title); font-stretch: 125%; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-settings { text-decoration: none; margin-right: 34px; color: #fff !important; }
+/* badges from the ROADBOOK's season shops: a small chip each, in the season's colour (a collector's in gold) */
+.pc-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pc-badge { --badge: #8a5cff; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px 0 6px; border-radius: 12px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  color: #fff; background: color-mix(in srgb, var(--badge) 22%, transparent); border: 1px solid var(--badge); cursor: default; }
+.pc-badge .icon { font-size: 16px; color: var(--badge); }
+.pc-badge.gold { --badge: #e8b84a; }
 .pc-body { display: grid; grid-template-columns: 400px 1fr; }
 .pc-level { padding: 26px 34px 32px; border-right: 1px solid #222227; display: flex; flex-direction: column; align-items: center; gap: 18px;
   background: radial-gradient(80% 60% at 50% 35%, rgba(227, 18, 30, .14), transparent 70%); }

@@ -43,7 +43,7 @@ It stays within 80 m of the car (`MAX_RANGE`: "a photographer, not a spy") and n
 | Field of view | 15–100° | Also the mouse wheel and bumpers |
 | Tilt | −30° to 30° | Rolls the camera |
 | Time of day | 0–24 h, by quarter hours | The settings' `timeOfDay`; put back on leaving |
-| Filter | None, Warm, Cool, Black and white, Sepia, Vivid, Film, Night | `FILTERS`: a 4×5 colour matrix each, shown on screen as an SVG `feColorMatrix` filter on the canvas and applied to the saved photo's pixels (`applyFilter`), so what you see is what's saved |
+| Filter | None, Warm, Cool, Black and white, Sepia, Vivid, Film, Night; After Hours for its owners | `FILTERS`: a 4×5 colour matrix each, shown on screen as an SVG `feColorMatrix` filter on the canvas and applied to the saved photo's pixels (`applyFilter`), so what you see is what's saved. **After Hours** (a cool, high-contrast night grade: a violet-blue tint, greens held back, the contrast up a fifth with crushed blacks and blue shadows) is bought in the ROADBOOK's After Hours season shop ([ROADBOOK.md](ROADBOOK.md); `SHOP_FILTERS`): only players who own it see it (`filtersFor(owns)`, asking `roadbook/client.js` — loaded the first time photo mode opens, and asked again each time); with no ROADBOOK (no server, or nobody signed in) it isn't offered |
 | Hide the HUD | on by default | Hides everything over the picture but photo mode's panel (faded until hovered) and, on the real-world maps, the map's credit line |
 
 **Taking a picture** (`capture`):
@@ -84,6 +84,7 @@ the pictures at their addresses), deleted with the account.
 | Section | From |
 |---|---|
 | Name, crew tag, playing since, guest or not | The account |
+| Badges | From the ROADBOOK's season shops ([ROADBOOK.md](ROADBOOK.md)): a small chip each in the season's colour (After Hours violet; the collector's badge gold), its name the tooltip — the profile's `badges` (`[{ id, name, season }]`). The garage's player card (`garage/profileCard.js`) shows them the same way, from `roadbook/client.js` |
 | Level, XP, money (your own only), quests finished, cars | The save and its sessions |
 | Medals | Gold, silver and bronze: quests' best medals and the driving school's ([ONBOARDING.md](ONBOARDING.md)) |
 | Favourite cars | Up to 6, chosen from the cars you own (your own page) |

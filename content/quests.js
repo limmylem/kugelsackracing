@@ -96,6 +96,43 @@ export const TYPES = {
       ...(p.finish || ctx.route ? [] : [err('params.finish', 'Pink slip needs a route (or a finish line).')]),
     ],
   },
+  // ---------- police pursuits (docs/PURSUIT.md: quest/types/pursuit.js; the police: data/pursuit.json) ----------
+  pursuit: {
+    label: 'Police pursuit', icon: 'siren', blurb: 'The police are on you: get away, or get to the drop with them behind you.',
+    params: { objective: 'escape', intro: true, startHeat: 1, maxHeat: 3, maxUnits: null, totalUnits: null, timeLimitSeconds: null, bustPenalty: null, escapeFirst: false, scoreTarget: 2500, timerEnds: null, roadblocks: true, spikes: true },
+    fields: [{ key: 'objective', label: 'Objective', kind: 'choice', options: ['escape', 'destination'] },
+      { key: 'startHeat', label: 'Starting heat (1–5)', kind: 'int', min: 1, max: 5 }, { key: 'maxHeat', label: 'Most heat (1–5)', kind: 'int', min: 1, max: 5 },
+      { key: 'maxUnits', label: 'Police cars at once (blank: the heat\'s)', kind: 'int', min: 1, max: 12 }, { key: 'totalUnits', label: 'Police cars in all (blank: no limit)', kind: 'int', min: 1, max: 24 },
+      { key: 'roadblocks', label: 'Roadblocks (heat 4+)', kind: 'bool' }, { key: 'spikes', label: 'Spike strips (heat 5)', kind: 'bool' },
+      { key: 'timerEnds', label: 'Cooldown ends inside the search area', kind: 'choice', options: ['', 'reacquire', 'escape'] },
+      { key: 'escapeFirst', label: 'Lose them before the drop', kind: 'bool' }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 10 },
+      { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 },
+      { key: 'intro', label: 'Intro cinematic (data/cinematics.json; off: a rolling start)', kind: 'bool' }],
+    check: (p, ctx) => pursuitChecks(p, ctx, 'Police pursuit'),
+  },
+  // (co-op: a party only — the race server runs the police's decisions, server/src/rt/pursuit.ts)
+  pursuit_coop: {
+    label: 'Co-op pursuit', icon: 'siren', blurb: 'Your party against the police: get away together, carry the goods, or split up.', party: true,
+    params: { kind: 'convoy', objective: 'escape', intro: true, startHeat: 2, maxHeat: 4, drops: [], busted: 'respawn', respawnSeconds: 15, rewards: 'shared', maxUnits: null, totalUnits: null, timeLimitSeconds: null, escapeFirst: false, scoreTarget: 4000, timerEnds: null, roadblocks: true, spikes: true },
+    fields: [{ key: 'kind', label: 'Mission', kind: 'choice', options: ['convoy', 'getaway', 'split'] },
+      { key: 'objective', label: 'Convoy / getaway: get away, or to the drop (the route\'s finish)', kind: 'choice', options: ['escape', 'destination'] },
+      { key: 'drops', label: 'Split up: a drop for each (in party order)', kind: 'places' },
+      { key: 'busted', label: 'A busted player', kind: 'choice', options: ['respawn', 'spectate'] }, { key: 'respawnSeconds', label: 'Respawn after (s)', kind: 'int', min: 3, max: 120 },
+      { key: 'rewards', label: 'Rewards', kind: 'choice', options: ['shared', 'split'] },
+      { key: 'startHeat', label: 'Starting heat (1–5)', kind: 'int', min: 1, max: 5 }, { key: 'maxHeat', label: 'Most heat (1–5)', kind: 'int', min: 1, max: 5 },
+      { key: 'maxUnits', label: 'Police cars at once (blank: the heat\'s)', kind: 'int', min: 1, max: 16 }, { key: 'totalUnits', label: 'Police cars in all (blank: no limit)', kind: 'int', min: 1, max: 24 },
+      { key: 'roadblocks', label: 'Roadblocks (heat 4+)', kind: 'bool' }, { key: 'spikes', label: 'Spike strips (heat 5)', kind: 'bool' },
+      { key: 'timerEnds', label: 'Cooldown ends inside the search area', kind: 'choice', options: ['', 'reacquire', 'escape'] },
+      { key: 'escapeFirst', label: 'Lose them before the drop', kind: 'bool' }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 10 },
+      { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }, { key: 'intro', label: 'Intro cinematic (off: the lights)', kind: 'bool' }],
+    check: (p, ctx) => [
+      ...pursuitChecks(p, ctx, 'Co-op pursuit'),
+      ...(['convoy', 'getaway', 'split'].includes(p.kind ?? 'convoy') ? [] : [err('params.kind', 'The mission: convoy, getaway or split.')]),
+      ...((p.kind ?? 'convoy') !== 'split' || (p.drops?.length ?? 0) >= 2 ? [] : [err('params.drops', 'Split up needs a drop for each player: at least two.')]),
+      ...(['respawn', 'spectate'].includes(p.busted ?? 'respawn') ? [] : [err('params.busted', 'A busted player respawns or spectates.')]),
+      ...(['shared', 'split'].includes(p.rewards ?? 'shared') ? [] : [err('params.rewards', 'Rewards: shared or split.')]),
+    ],
+  },
   // ---------- track events (Phase 5 Step 3: on a generated track, track/events/) ----------
   circuit_race: {
     label: 'Circuit race', icon: 'flag', blurb: 'Laps of a circuit against the field: first past the flag wins.', track: true,
@@ -126,6 +163,19 @@ export const TYPE_IDS = Object.keys(TYPES);
 export const TIMES = ['any', 'dawn', 'day', 'dusk', 'night'], WEATHER = ['any', 'clear', 'cloudy', 'rain', 'fog'];
 
 function err(field, message) { return { field, level: 'error', message }; }
+// (a pursuit's own: a route — its start road, and the drop at its finish — and heat that makes sense)
+function pursuitChecks(p, ctx, what) {
+  const h = x => Number.isInteger(x) && x >= 1 && x <= 5;
+  return [
+    ...(ctx.route ? [] : [err('route', `${what} needs a route: where it starts (and, to reach somewhere, its finish is the drop).`)]),
+    ...(['escape', 'destination'].includes(p.objective ?? 'escape') ? [] : [err('params.objective', 'The objective: escape, or destination.')]),
+    ...(h(p.startHeat ?? 1) ? [] : [err('params.startHeat', 'Starting heat: a whole number from 1 to 5.')]),
+    ...(h(p.maxHeat ?? 5) ? [] : [err('params.maxHeat', 'Most heat: a whole number from 1 to 5.')]),
+    ...((p.maxHeat ?? 5) >= (p.startHeat ?? 1) ? [] : [err('params.maxHeat', 'The most heat can\'t be less than the starting heat.')]),
+    ...(p.bustPenalty == null || (Number.isFinite(p.bustPenalty) && p.bustPenalty >= 0) ? [] : [err('params.bustPenalty', 'A bust fine is a sum of money, 0 or more (blank: the entry fee).')]),
+    ...(p.timerEnds == null || p.timerEnds === '' || ['reacquire', 'escape'].includes(p.timerEnds) ? [] : [err('params.timerEnds', 'When the cooldown runs out: reacquire or escape.')]),
+  ];
+}
 // (a track event's own settings: who it collides with, an entry fee of its own)
 function trackFields() { return [{ key: 'collisions', label: 'Collisions', kind: 'choice', options: ['full', 'reduced', 'off'] }, { key: 'entryFee', label: 'Entry fee (blank: the economy\'s)', kind: 'number', min: 0 }]; }
 function trackParams(p) {
@@ -136,7 +186,7 @@ function needsTrackOrRoute(p, ctx, what) { return ctx.track || ctx.route ? [] : 
 function laps(p) { return p.laps === undefined || (Number.isInteger(p.laps) && p.laps >= 1) ? [] : [err('params.laps', 'Laps must be a whole number, at least 1.')]; }
 // what each type of quest needs of its route: a point-to-point one (a delivery goes somewhere), or either
 export const ROUTE_KINDS = { sprint: ['p2p', 'loop'], time_trial: ['p2p', 'loop'], checkpoint: ['p2p', 'loop'], drift: ['p2p', 'loop'], delivery: ['p2p'], pink_slip: ['p2p', 'loop'],
-  circuit_race: ['loop'], hot_lap: ['loop'], hillclimb: ['p2p'], endurance: ['loop'] };
+  circuit_race: ['loop'], hot_lap: ['loop'], hillclimb: ['p2p'], endurance: ['loop'], pursuit: ['p2p', 'loop'], pursuit_coop: ['p2p', 'loop'] };
 // the quest types rivals race in
 export const RIVAL_TYPES = ['sprint', 'pink_slip', 'circuit_race', 'hillclimb', 'endurance'];
 // the quest types made for a generated track (they can't run on a route)
@@ -223,6 +273,14 @@ export function rewardsOf(item, economy) {
 }
 // a quest's entry fee (its tier's share of its reward)
 export const feeOf = (item, economy) => rewardsOf(item, economy).fee ?? 0;
+// a police pursuit's bust fine (data/quests.json pursuit.fine): its own bustPenalty, else a share of its entry fee —
+// at least the least, at most the most. 0 for anything else
+export function bustFineOf(item, economy, questsConfig) {
+  if (item.type !== 'pursuit' && item.type !== 'pursuit_coop') return 0;
+  const F = questsConfig?.pursuit?.fine ?? { share: 1, min: 150, max: 20000 }, own = item.params?.bustPenalty;
+  const fine = Number.isFinite(own) && own >= 0 ? own : Math.max(F.min, feeOf(item, economy) * F.share);
+  return Math.round(Math.min(F.max, fine));
+}
 
 
 const money = (n, economy) => `${economy?.currency ?? '$'}${Math.round(n).toLocaleString('en-GB')}`;
