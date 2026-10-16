@@ -1490,6 +1490,6 @@
       "elevation": 18
     }
   },
-  "finishNames": ["carbon", "chrome", "gloss", "gloss_black", "matte", "matte_black", "metallic", "painted", "pearl", "polished", "raw_metal", "rubber", "titanium"],
+  "finishNames": ["afterglow_anodised", "afterglow_pearl", "carbon", "chrome", "gloss", "gloss_black", "matte", "matte_black", "metallic", "midnight_metallic", "neon_chrome", "painted", "pearl", "polished", "raw_metal", "rubber", "titanium", "violet_chrome"],
   "_copy": "A copy of data/content/model-rules.json (and the finishes' names) for the Blender add-on: written by npm run guide / npm run blender-addon — edit that file, not this one."
 }

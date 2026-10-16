@@ -81,11 +81,12 @@ export class RemotePlayerService extends PlayerService {
   // ---------- an action: shown at once, confirmed (or put back) by the server ----------
   async #do(what, action, args, predict = null) {
     // (worked out here first: the same rules — what they refuse, the server would too)
-    let shown = null;
+    let shown = null, before = null;
     if (predict) {
       await this.shadowReady;
       const local = await predict(this.shadow);
       if (!local.ok) return local;
+      before = { profile: this.profile, rev: this.rev };
       shown = local.updatedState;
       this.profile = shown;
       this.emit({ what, profile: this.profile, pending: true });
@@ -109,9 +110,15 @@ export class RemotePlayerService extends PlayerService {
         this.emit({ what, profile: this.profile });
         return { ...r, ok: true };
       } catch (e) {
-        // said no (or failed): the server's profile back, and its reason
+        // said no (or failed): the server's profile back, and its reason. A refusal that doesn't send it (a check made
+        // before the action — a season-shop finish that isn't the player's, say): asked for (refresh() waits while
+        // anything's on its way, and this still is), or, failing that, the profile as it was before this was shown
         const theirs = e.details?.updatedState;
-        if (theirs) this.#adopt(theirs, e.details.rev); else await this.refresh().catch(() => {});
+        if (theirs) this.#adopt(theirs, e.details.rev);
+        else if (shown) {
+          const now = await this.api.get('/player').catch(() => null);
+          if (now?.profile) this.#adopt(now.profile, now.rev); else this.#adopt(before.profile, before.rev);
+        } else await this.refresh().catch(() => {});
         if (shown) this.emit({ what: 'rollback', profile: this.profile });
         this.status({ error: e.message });
         return { ok: false, error: e.message, updatedState: clone(this.profile), ...(e.details?.reasons ? { reasons: e.details.reasons } : {}) };

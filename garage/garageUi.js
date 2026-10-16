@@ -39,6 +39,9 @@ import { ZONE_VIEW } from './damageReport.js';
 import { Hints } from './hints.js';
 import { profileCard, profileStats } from './profileCard.js';
 import { account } from '../account/session.js';
+import { roadbook } from '../roadbook/client.js';
+import { badgesOf, finishLock, seasonFinishes } from './seasonUnlocks.js';
+import { t, i18n } from '../ui/i18n.js';
 
 const PRESETS = [['Arctic White', '#EDEFF0'], ['Cement Grey', '#8C9092'], ['Graphite', '#3A3F45'], ['Midnight Black', '#111316'], ['Signal Red', '#C8202B'], ['Sunburst Orange', '#E3701E'], ['Canary Yellow', '#E8C21C'], ['Lime', '#8DC63F'],
   ['Racing Green', '#1F4D3A'], ['Teal', '#1E7F80'], ['Sky Blue', '#5EA8DB'], ['Deep Blue', '#1D3E8A'], ['Plum', '#5B2A55'], ['Rose', '#C9677E'], ['Bronze', '#8A6A3E'], ['Sand', '#C8B48E'], ['Factory Sage', '#6D9A91']];
@@ -110,6 +113,11 @@ export class GarageScreen {
     this.pad = { prev: [], repeat: 0 };
     // (the server's settings changed — a tier's level, a price: drawn again with them)
     globalThis.addEventListener?.('kr-settings', () => { if (this.w) this.render(); });
+    // (the ROADBOOK: the season shop's finishes the player owns, the locked ones and its badges — drawn again when it
+    // changes, and once its shop's items are known)
+    this.R = roadbook();
+    this.R.on(() => { if (this.w && this.visible) this.render(); });
+    this.R.grantsCatalogue().then(() => { if (this.w && this.visible) this.render(); }).catch(() => {});
   }
   // (a fresh visit: the overview, nothing open; the marker labels setting stays)
   reset() {
@@ -122,6 +130,8 @@ export class GarageScreen {
     this.w = w;
     // (who's signed in, for the account button's name: asked once — the page's account is already known by now)
     if (this.me === undefined) { this.me = null; account().then(A => { this.me = A.me; this.render(); }).catch(() => {}); }
+    // (what the player owns from the season shops, asked again each visit: bought since, or on another device)
+    void this.R.refresh();
     this.unlisten?.();
     this.unlisten = w.on(e => {
       if (this.quiet || e.kind === 'failed') return;     // (a failed change: the action that asked says why)
@@ -643,16 +653,32 @@ export class GarageScreen {
   }
 
   // ---------- paint ----------
+  // (a season-shop finish the player doesn't own: where it's from, short — "After Hours shop · 250 tokens" — and in full)
+  #seasonWhere(f) { return f.item ? t('garage.season.shop', { season: f.season, price: i18n.number(f.item.price) }) : t('garage.season.shopUnknown'); }
+  #seasonLocked(f) { return f.item ? t('garage.season.locked', { name: f.name, season: f.season, item: f.item.name, price: i18n.number(f.item.price) }) : t('garage.season.lockedUnknown', { name: f.name }); }
+  // (a finish this player can't use — locked and not theirs — explained, not applied: true if so. With no ROADBOOK to
+  // ask, the server decides)
+  #seasonRefused(id) {
+    const L = finishLock(this.w.db.finishes, id, this.R);
+    if (!L || L.hidden || L.owned) return false;
+    this.toast(this.#seasonLocked({ name: this.w.db.finishes[id]?.name ?? id, ...L }), 'lock');
+    return true;
+  }
   #paint() {
     const applied = this.w.paint, e = this.ui.paintEdit ?? { ...hexHsv(applied.colour), finish: applied.finish };
     this.ui.paintEdit = e;
     const hex = hsvHex(e.h, e.s, e.v), match = PRESETS.find(p => p[1].toLowerCase() === hex.toLowerCase());
     const pending = hex.toLowerCase() !== applied.colour.toLowerCase() || e.finish !== applied.finish;
+    // (the ROADBOOK's season-shop finishes: the ones owned as any other; the rest shown locked, with where they're from —
+    // none at all with no ROADBOOK)
+    const fins = this.w.db.finishes, seasonPaint = seasonFinishes(fins, this.R, { paint: true }), seasonPart = seasonFinishes(fins, this.R, { paint: false });
+    const ownedPart = seasonPart.filter(f => f.owned).map(f => [f.name.split(' ')[0], f.id, f.name]), lockedPart = seasonPart.filter(f => !f.owned);
+    const lockedBtn = f => { const where = this.#seasonWhere(f); return `<button class="season locked" data-act="season-lock:${f.id}" data-key="finish:${f.id}" title="${esc(this.#seasonLocked(f))}"><span class="fn">${icon('lock')}${esc(f.name)}</span><span class="fp">${esc(where)}</span></button>`; };
     const rows = PART_FINISHES.map(r => {
       const fitted = r.which.flatMap(x => this.w.garage.fittedIn(x));
       if (!fitted.length) return '';
       const cur = fitted[0].instance.paint?.finish ?? null;
-      return `<div class="pf"><span class="pn">${r.label}</span><div class="segmented">${r.opts.map(([n, f]) => `<button class="${cur === f ? 'on' : ''}" data-act="pf:${r.label}:${f ?? ''}" data-key="pf:${r.label}:${n}">${n}</button>`).join('')}</div></div>`;
+      return `<div class="pf ${ownedPart.length ? 'more' : ''}"><span class="pn">${r.label}</span><div class="segmented">${[...r.opts, ...ownedPart].map(([n, f, full]) => `<button class="${cur === f ? 'on' : ''}" data-act="pf:${r.label}:${f ?? ''}" data-key="pf:${r.label}:${n}" ${full ? `title="${esc(full)}"` : ''}>${esc(n)}</button>`).join('')}</div></div>`;
     }).join('');
     return `<section class="g-side panel">
       <div class="panel-head" style="flex-direction:column;gap:4px;align-items:stretch"><div class="label">Body colour · finish · part finishes</div><div class="panel-title">Paint</div></div>
@@ -663,8 +689,11 @@ export class GarageScreen {
         <div class="label" style="margin-top:4px">Presets</div>
         <div class="g-presets">${PRESETS.slice(0, 16).map(([n, h]) => `<button class="${h.toLowerCase() === hex.toLowerCase() ? 'on' : ''}" style="background:${h}" data-act="preset:${h}" data-key="preset:${h}" title="${esc(n)}"></button>`).join('')}</div>
         <div class="label" style="margin-top:4px">Finish</div>
-        <div class="g-finishes">${PAINT_FINISHES.map(([id, n, d]) => `<button class="${e.finish === id ? 'on' : ''}" data-act="finish:${id}" data-key="finish:${id}"><span class="fn">${n}</span><span class="fp">${d}</span></button>`).join('')}</div>
+        <div class="g-finishes">${PAINT_FINISHES.map(([id, n, d]) => `<button class="${e.finish === id ? 'on' : ''}" data-act="finish:${id}" data-key="finish:${id}"><span class="fn">${n}</span><span class="fp">${d}</span></button>`).join('')}${seasonPaint.map(f => f.owned
+          ? `<button class="season ${e.finish === f.id ? 'on' : ''}" data-act="finish:${f.id}" data-key="finish:${f.id}"><span class="fn">${esc(f.name)}</span><span class="fp">${esc(f.season ?? '')}</span></button>`
+          : lockedBtn(f)).join('')}</div>
         ${rows ? `<div class="label" style="margin-top:4px">Part finishes</div><div class="g-part-fins well">${rows}</div>` : ''}
+        ${rows && lockedPart.length ? `<div class="label" style="margin-top:4px">${esc(t('garage.season.partFinishes'))}</div><div class="g-finishes">${lockedPart.map(lockedBtn).join('')}</div>` : ''}
       </div>
       <div class="panel-foot"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:var(--c-text-3)">Body paint</span><span class="mono" style="font-size:16px;font-weight:600">${applied.colour.toUpperCase()} · ${esc(this.w.db.finishes[applied.finish]?.name ?? applied.finish)}</span></div>
         <button class="btn primary" style="padding:0 28px" data-act="apply-paint" data-key="apply-paint" ${pending ? '' : 'disabled'}>Apply paint</button></div></section>`;
@@ -1047,7 +1076,7 @@ export class GarageScreen {
     if (d.kind === 'profile') {
       // (its gauge sweeps up when it opens, not every time the screen is drawn again)
       const fresh = Date.now() - d.at < 400;
-      try { return profileCard({ s: profileStats(w.profile, w.db, w.levels), me: this.me, price: n => this.money(n), fresh, mp: this.mpRank }); }
+      try { return profileCard({ s: profileStats(w.profile, w.db, w.levels), me: this.me, price: n => this.money(n), fresh, mp: this.mpRank, badges: badgesOf(this.R) }); }
       catch (err) { console.warn('The account card:', err); this.ui.dialog = null; return ''; }
     }
     const box = (ic, colour, title, text, list, buttons) => `<div class="scrim"><div class="dialog" role="dialog" aria-modal="true">
@@ -1448,13 +1477,15 @@ export class GarageScreen {
       // ---- tuning, paint, dyno ----
       case 'tune-reset': if (failed(await w.resetTuning(arg === 'all' ? null : arg))) return; this.scene.setSpec(this.stats.spec); return this.render();
       case 'preset': { const hsv = hexHsv(arg); this.ui.paintEdit = { ...this.ui.paintEdit, ...hsv }; this.scene.previewPaint({ colour: arg.toLowerCase(), finish: this.ui.paintEdit.finish }); return this.render(); }
-      case 'finish': this.ui.paintEdit = { ...this.ui.paintEdit, finish: arg }; this.scene.previewPaint({ colour: hsvHex(this.ui.paintEdit.h, this.ui.paintEdit.s, this.ui.paintEdit.v), finish: arg }); return this.render();
+      case 'finish': if (this.#seasonRefused(arg)) return; this.ui.paintEdit = { ...this.ui.paintEdit, finish: arg }; this.scene.previewPaint({ colour: hsvHex(this.ui.paintEdit.h, this.ui.paintEdit.s, this.ui.paintEdit.v), finish: arg }); return this.render();
+      case 'season-lock': return this.#seasonRefused(arg);
       case 'apply-paint': {
         const e = this.ui.paintEdit, colour = hsvHex(e.h, e.s, e.v);
+        if (this.#seasonRefused(e.finish)) return;
         if (failed(await w.setPaint({ colour, finish: e.finish }))) return;
         this.sounds.clunk(); return this.toast(`Painted ${colour.toUpperCase()} · ${w.db.finishes[e.finish]?.name}`, 'palette', 'good');
       }
-      case 'pf': { const [label, fin] = [rest[0], rest[1]], row = PART_FINISHES.find(r => r.label === label); for (const which of row.which) if (w.garage.fittedIn(which).length && failed(await w.paintPart(which, fin ? { finish: fin } : null))) return; return; }
+      case 'pf': { const [label, fin] = [rest[0], rest[1]], row = PART_FINISHES.find(r => r.label === label); if (fin && this.#seasonRefused(fin)) return; for (const which of row.which) if (w.garage.fittedIn(which).length && failed(await w.paintPart(which, fin ? { finish: fin } : null))) return; return; }
       case 'dyno-run': return this.runDyno();
       case 'dyno-listen': { const run = this.w.runs.find(r => r.id === +arg); return run && this.ui.dyno.t == null ? this.runDyno(run) : undefined; }
 

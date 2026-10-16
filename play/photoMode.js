@@ -27,7 +27,15 @@ export const FILTERS = {
   vivid: [[1.3, -0.15, -0.15, 0, 0], [-0.15, 1.3, -0.15, 0, 0], [-0.15, -0.15, 1.3, 0, 0], [0, 0, 0, 1, 0]],
   film: [[0.95, 0.08, 0, 0, 0.03], [0.02, 0.92, 0.04, 0, 0.03], [0, 0.06, 0.82, 0, 0.06], [0, 0, 0, 1, 0]],
   night: [[0.6, 0.2, 0.1, 0, 0], [0.1, 0.8, 0.2, 0, 0], [0.1, 0.3, 1.0, 0, 0.03], [0, 0, 0, 1, 0]],
+  // (the ROADBOOK's After Hours season shop: a cool, high-contrast night grade — a violet-blue tint (some blue into the
+  // reds, blues lifted, greens held back), then the contrast up a fifth round the middle grey: blacks crushed, the
+  // shadows left blue)
+  after_hours: [[1.14, 0, 0.1, 0, -0.1], [0, 1.08, 0.06, 0, -0.1], [0.06, 0.06, 1.32, 0, -0.06], [0, 0, 0, 1, 0]],
 };
+// filters only their owners see: bought in a ROADBOOK season shop (data/seasons/<id>/shop.json grants.photoFilters)
+export const SHOP_FILTERS = new Set(['after_hours']);
+// the filters a player is offered (owns(id): they own that shop filter)
+export const filtersFor = (owns = () => false) => Object.keys(FILTERS).filter(f => !SHOP_FILTERS.has(f) || !!owns(f));
 // a filter on an image's pixels (ImageData, in place)
 export function applyFilter(data, name) {
   const M = FILTERS[name];
@@ -42,7 +50,7 @@ export function applyFilter(data, name) {
 export const DEFAULT_PHOTO = { focus: 8, aperture: 0, exposure: 1, filter: 'none', fov: 50, roll: 0, hours: null, hideHud: true };
 export const MAX_RANGE = 80;          // (the free camera stays this close to the car: it's a photographer, not a spy)
 
-export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8 }) {
+export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8, unlocks = null }) {
   const el = document.createElement('div');
   el.id = 'photoMode'; el.hidden = true;
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-labelledby', 'photoTitle');
@@ -54,6 +62,23 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
   let on = false, S = { ...DEFAULT_PHOTO }, cam = null, yaw = 0, pitch = 0, release = null, composer = null, bokeh = null, savedExposure = 1, savedHours = null, recording = null;
   const keys = new Set();
   const view = () => game.camera();
+  // the shop filters this player owns (the ROADBOOK: roadbook/client.js, loaded the first time photo mode opens — or
+  // unlocks, anything shaped like it): asked again on opening; the panel drawn again only when what's offered changes
+  let R = unlocks, offered = null, watching = false;
+  const offer = () => filtersFor(id => R?.owns?.('photoFilters', id));
+  function ownedChanged() {
+    if (!on || offer().join() === offered) return;
+    const focused = el.contains(document.activeElement) ? document.activeElement.id : null;
+    draw();
+    if (focused) document.getElementById(focused)?.focus();
+  }
+  function watchUnlocks() {
+    if (watching) { void R?.refresh?.(); return; }
+    watching = true;
+    const start = r => { R = r; R.on?.(ownedChanged); ownedChanged(); void R.refresh?.(); };
+    if (R) start(R);
+    else import('../roadbook/client.js').then(m => start(m.roadbook())).catch(() => {});
+  }
 
   function open() {
     if (on) return;
@@ -71,6 +96,7 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
     el.hidden = false; draw();
     release = trapFocus(el, { onEscape: close });
     announce(t('photo.opened'));
+    watchUnlocks();
   }
   function close() {
     if (!on) return;
@@ -90,12 +116,16 @@ export function createPhotoMode({ THREE, renderer, game, t = tr, clipSeconds = 8
   }
   const row = (k, min, max, step, shown) => `<div class="slider"><label for="ph-${k}">${t(`photo.${k}`)}</label><input type="range" id="ph-${k}" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}" aria-valuetext="${esc(shown)}"><output for="ph-${k}">${esc(shown)}</output></div>`;
   function draw() {
+    // (a shop filter no longer offered — signed out, say — isn't kept on the picture either)
+    const filters = offer();
+    offered = filters.join();
+    if (!filters.includes(S.filter)) { S.filter = 'none'; applyFilterCss(); }
     el.innerHTML = `<div class="head"><h2 id="photoTitle">${t('photo.title')}</h2><button type="button" class="close" data-a="close" aria-label="${t('photo.close')}">×</button></div>
       <p class="help">${t('photo.help')}</p>
       ${row('focus', 1, 60, 0.5, `${S.focus} m`)}${row('aperture', 0, 1, 0.05, S.aperture ? `${Math.round(S.aperture * 100)}%` : t('photo.sharp'))}
       ${row('exposure', 0.3, 2.5, 0.05, `${S.exposure.toFixed(2)}×`)}${row('fov', 15, 100, 1, `${Math.round(S.fov)}°`)}${row('roll', -30, 30, 1, `${S.roll}°`)}
       ${S.hours != null && game.setHours ? row('hours', 0, 24, 0.25, `${String(Math.floor(S.hours)).padStart(2, '0')}:${String(Math.round((S.hours % 1) * 60)).padStart(2, '0')}`) : ''}
-      <div class="slider"><label for="ph-filter">${t('photo.filter')}</label><select id="ph-filter" data-k="filter">${Object.keys(FILTERS).map(f => `<option value="${f}" ${S.filter === f ? 'selected' : ''}>${t(`photo.filters.${f}`)}</option>`).join('')}</select></div>
+      <div class="slider"><label for="ph-filter">${t('photo.filter')}</label><select id="ph-filter" data-k="filter">${filters.map(f => `<option value="${f}" ${S.filter === f ? 'selected' : ''}>${t(`photo.filters.${f}`)}</option>`).join('')}</select></div>
       <div class="row"><input type="checkbox" id="ph-hud" data-k="hideHud" ${S.hideHud ? 'checked' : ''}><label for="ph-hud">${t('photo.hideHud')}</label></div>
       <div class="buttons"><button type="button" data-a="save">${t('photo.save')}</button><button type="button" data-a="share">${t('photo.share')}</button>
         ${game.api ? `<button type="button" data-a="profile">${t('photo.profile')}</button>` : ''}

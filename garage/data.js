@@ -60,6 +60,8 @@ export async function loadGarageData(readJson) {
       if (names.has(g) || car.sockets.some(s => s.slot === g)) problems.push({ file, path: `socketGroups.${g}`, message: 'is also a socket or slot name' });
     }
     if (car.paint && !finishes[car.paint.finish]?.paint) problems.push({ file, path: 'paint.finish', message: `"${car.paint.finish}" isn't a paint finish in data/finishes.json` });
+    // (a season-shop finish is only for the players who bought it: no car comes in one — docs/ROADBOOK.md)
+    if (finishes[car.paint?.finish]?.locked) problems.push({ file, path: 'paint.finish', message: `"${car.paint.finish}" is a season-shop finish (locked): only its owners can paint with it, so no car comes in it` });
     // (its shared standards: the tags they give, with its own — data/content/standards.json, garage/standards.js)
     for (const message of standardProblems(car.standards, standards)) problems.push({ file, path: 'standards', message });
     if (car.standards) car.tags = [...new Set([...car.tags, ...standardTags(car.standards, standards)])];
@@ -69,6 +71,7 @@ export async function loadGarageData(readJson) {
     if (p.variantOf && !parts[p.variantOf]) problems.push({ file, path: 'variantOf', message: `there's no part "${p.variantOf}"` });
     for (const [path, f] of [['look.finish', p.look?.finish], ...Object.entries(p.look?.materials || {}).map(([m, o]) => [`look.materials.${m}.finish`, o.finish])])
       if (f && !finishes[f]) problems.push({ file, path, message: `there's no finish "${f}" in data/finishes.json` });
+      else if (f && finishes[f].locked) problems.push({ file, path, message: `"${f}" is a season-shop finish (locked): only its owners can use it, so no part comes in it` });
     for (const [name, t] of Object.entries(p.tuning || {}))
       if (!(t.min <= t.default && t.default <= t.max)) problems.push({ file, path: `tuning.${name}`, message: `its default ${t.default} isn't within ${t.min}–${t.max}` });
   }

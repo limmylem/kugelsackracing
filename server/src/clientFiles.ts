@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 // What of the repository is the game (served to browsers, and what the site build copies — tools/build-site.mjs):
 // nothing else — not the server, tests, tools or docs.
-export const CLIENT_DIRS = ['ai', 'assets', 'audio', 'perf', 'site', 'content', 'data', 'dev', 'editor', 'effects', 'garage', 'map', 'physics', 'play', 'quest', 'race', 'pursuit', 'realworld', 'route', 'scenes', 'testtrack', 'track', 'ui', 'world', 'admin', 'account', 'net', 'mp', 'locales', 'press', 'about'];
+export const CLIENT_DIRS = ['ai', 'assets', 'audio', 'perf', 'site', 'content', 'data', 'dev', 'editor', 'effects', 'garage', 'map', 'physics', 'play', 'quest', 'race', 'pursuit', 'realworld', 'route', 'scenes', 'testtrack', 'track', 'ui', 'world', 'admin', 'account', 'net', 'mp', 'locales', 'press', 'about', 'roadbook'];
 export const CLIENT_FILES = ['index.html', 'lowpoly.html', 'roadster.glb', 'favicon.ico'];
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');

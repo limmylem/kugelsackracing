@@ -53,6 +53,8 @@ const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purc
 export function createEconomy({ db, config, tracks, log = () => {}, clock = () => Date.now() }: { db: Db; config: EconomyConfig; tracks: TrackService; log?: (o: object, m: string) => void; clock?: () => number }) {
   const events = new EventEmitter();
   events.setMaxListeners(0);
+  // (checks other systems make before an action — the ROADBOOK's: a finish only its owners may use. Each throws to refuse)
+  const gates: ((user: User, action: PlayerAction, args: any) => Promise<void>)[] = [];
   const now = () => new Date(clock()).toISOString();
 
   // ---------- one player at a time ----------
@@ -206,6 +208,9 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   async function act(user: User, action: PlayerAction, args: any, ctx: Ctx = {}) {
     // (a quest and its course: read first — see withPlayer. A session's quest is kept as it started, so the
     // one read here is the one checked under the lock)
+    for (const g of gates) await g(user, action, args);
+    // (what the action did, for the systems listening once it's done — economy.events 'action': the ROADBOOK's challenges)
+    let facts: any = null;
     const pre: { quest?: any; kind?: string; course?: any; series?: any[]; sessionQuest?: string } = {};
     if (action === 'startQuest') Object.assign(pre, await questById(args.questId, args.trackCode ?? null));
     if (action === 'finishQuest' || action === 'awardCar') {
@@ -235,7 +240,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
         case 'sellParts': { const ids: string[] = args.instanceIds; answer = await S.sellParts(ids); meta.reason = `Sold ${ids.length} part${ids.length === 1 ? '' : 's'}`; meta.ref = { instanceIds: ids, partIds: ids.map(i => profile.parts[i]?.partId ?? null) }; break; }
         case 'refundPart': { const x = profile.parts[args.instanceId]; answer = await S.refundPart(args.instanceId); meta.reason = `Refunded ${x ? name('part', x.partId) : args.instanceId}`; meta.ref = { instanceId: args.instanceId, partId: x?.partId ?? null }; break; }
         case 'buyBundle': answer = await S.buyBundle(args.bundleId, args.opts ?? {}); meta.reason = `Bought a kit: ${(E.game.economy.shop?.bundles ?? []).find((b: any) => b.id === args.bundleId)?.name ?? args.bundleId}`; meta.ref = { bundleId: args.bundleId, instanceIds: answer.instanceIds ?? [], partIds: (answer.instanceIds ?? []).map((i: string) => answer.updatedState?.parts?.[i]?.partId ?? null) }; break;
-        case 'buyUsedCar': answer = await S.buyUsedCar(args.listingId); meta.reason = `Bought a used car (${args.listingId})`; meta.ref = { listingId: args.listingId, carInstanceId: answer.carInstanceId ?? null, carId: answer.carInstanceId ? answer.updatedState?.cars?.[answer.carInstanceId]?.carId ?? null : null }; break;
+        case 'buyUsedCar': answer = await S.buyUsedCar(args.listingId); facts = { carId: answer.carInstanceId ? answer.updatedState?.cars?.[answer.carInstanceId]?.carId ?? null : null }; meta.reason = `Bought a used car (${args.listingId})`; meta.ref = { listingId: args.listingId, carInstanceId: answer.carInstanceId ?? null, carId: answer.carInstanceId ? answer.updatedState?.cars?.[answer.carInstanceId]?.carId ?? null : null }; break;
         case 'buyGarageSlot': answer = await S.buyGarageSlot(); meta.reason = 'Bought garage space'; meta.ref = { capacity: answer.capacity ?? null }; break;
         case 'towCar': answer = await S.towCar(); meta.reason = 'Towed to the garage'; meta.ref = { fee: answer.fee ?? null }; break;
         case 'sellCar': {
@@ -244,6 +249,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
           if (racing) throw new AppError(409, 'CONFLICT', 'That car is in a race: finish or quit it first.');
           const c = profile.cars[args.carInstanceId];
           answer = await S.sellCar(args.carInstanceId, args.opts ?? {});
+          facts = { carId: c?.carId ?? null };
           meta.reason = `Sold the ${c ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId, carId: c?.carId ?? null, kept: args.opts?.keep ?? [] };
           break;
         }
@@ -253,7 +259,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
         case 'repairCar': answer = await S.repairCar(args.carInstanceId, args.opts ?? {}); meta.reason = `${args.opts?.kind === 'quick' ? 'Quick' : 'Full'} repair on the ${profile.cars[args.carInstanceId] ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId, items: args.opts?.items ?? 'all' }; break;
         case 'replaceWithSpare': answer = await S.replaceWithSpare(args.carInstanceId, args.socket, args.instanceId); meta.reason = `Fitted a spare ${name('part', profile.parts[args.instanceId]?.partId ?? '')}`; meta.ref = { car: args.carInstanceId, socket: args.socket, instanceId: args.instanceId }; break;
         case 'basicRepair': answer = await S.basicRepair(args.carInstanceId); meta.reason = 'The free basic repair'; meta.ref = { car: args.carInstanceId }; break;
-        case 'installPart': answer = await S.installPart(args.carInstanceId, args.instanceId, args.opts ?? {}); break;
+        case 'installPart': answer = await S.installPart(args.carInstanceId, args.instanceId, args.opts ?? {}); facts = { partId: profile.parts[args.instanceId]?.partId ?? null }; break;
         case 'removePart': answer = await S.removePart(args.carInstanceId, args.which, args.opts ?? {}); break;
         case 'setBuild': answer = await S.setBuild(args.carInstanceId, args.build ?? {}); break;
         case 'setTuning': answer = await S.setTuning(args.instanceId, args.settings ?? {}); break;
@@ -300,6 +306,8 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
           const course = pre.course;
           if (args.result?.attemptId !== s.attempt_id) throw new AppError(400, 'BAD_REQUEST', 'That result is for another run.');
           answer = await S.finishQuest(args.result, { quest: q, course, recording: args.recording ?? null, series: pre.series ?? [] });
+          // (a race's place is the game's word, as a pink slip's is: the rivals are its own — the rest checked above)
+          facts = { sessionId: s.id, valid: !!answer.valid && args.result?.status === 'finished', questType: q.type ?? null, medal: answer.medal ?? null, place: Number.isInteger(args.result?.place) ? args.result.place : null };
           if (answer.ok) await endSession(tx, s.id, 'finished', answer.valid ? 'finished' : 'not believed', { result: { result: args.result, valid: answer.valid, problems: answer.problems ?? [] }, paid: true });
           meta = { ...meta, reason: `${answer.valid ? 'Reward' : 'Run not counted'}: ${q.name}${answer.medal ? ` (${answer.medal})` : ''}`, ref: { questId: q.id, medal: answer.medal ?? null, xp: answer.xp ?? 0 }, sessionId: s.id };
           break;
@@ -362,7 +370,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
       E.remember(rev);
       return { ...answer, rev, ledgerId, configVersion: E.version };
     });
-    if (result.ok) events.emit('change', user.id, result.rev);
+    if (result.ok) { events.emit('change', user.id, result.rev); events.emit('action', { userId: user.id, action, args, rev: result.rev, facts }); }
     return result;
   }
 
@@ -519,7 +527,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
   }
 
   return {
-    events, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminLevel, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace, payReward,
+    events, addGate: (g: (user: User, action: PlayerAction, args: any) => Promise<void>) => { gates.push(g); }, state, act, startDrive, heartbeat, endDrive, sweep, adminMoney, adminLevel, adminReverse, adminItem, withPlayer, clock, racingCars, carSpec, payRace, payReward,
     // (for the checks: every balance equals its ledger's sum)
     async ledgerCheck() {
       return (await db.execute(sql`select e.user_id, e.balance, coalesce(sum(l.amount), 0) as total, (select balance_after from ledger x where x.user_id = e.user_id order by id desc limit 1) as last

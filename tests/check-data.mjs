@@ -92,6 +92,9 @@ for (const part of Object.values(db.parts)) if (part.engine?.sound && !fs.exists
 // what the outside of the car is made of (the effects: metal sparks, plastic doesn't), and the effects' own settings
 for (const part of Object.values(db.parts)) if (db.damage.exterior.includes(part.category) && !part.contactMaterial) problems.push({ file: `data/parts/${part.category}/${part.id}.json`, path: 'contactMaterial', message: 'a part on the outside of the car says what it\'s made of (metal, plastic, carbon, rubber, fabric)' });
 { const file = 'data/effects.json', cfg = await readJson(file); for (const e of loaded.validator.validate('effects.schema.json', cfg)) problems.push({ file, path: e.path, message: e.message }); }
+// the ROADBOOK's seasons, shops, Expeditions and places (roadbook/engine.js bundleProblems: docs/ROADBOOK.md)
+{ const { loadRoadbook } = await import('../roadbook/data.js'), { bundleProblems } = await import('../roadbook/engine.js');
+  for (const m of bundleProblems(await loadRoadbook(readJson))) problems.push({ file: 'data/seasons', path: '', message: m }); }
 
 for (const car of Object.values(db.cars)) {
   const file = `data/cars/${car.id}/car.json`, names = car.sockets.map(s => s.name);

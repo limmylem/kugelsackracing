@@ -13,6 +13,11 @@
     "rubber": { "name": "Rubber", "colour": "#1b1b1c", "roughness": 0.62, "metalness": 0.1 },
     "titanium": { "name": "Titanium", "colour": "#8f8fb4", "roughness": 0.3, "metalness": 1, "reflective": true, "envIntensity": 1 },
     "polished": { "name": "Polished alloy", "colour": "#dde1e6", "roughness": 0.12, "metalness": 1, "reflective": true, "envIntensity": 1.1 },
-    "painted": { "name": "Painted", "colour": "#e8e9eb", "roughness": 0.35, "metalness": 0.15, "clearcoat": 0.6, "clearcoatRoughness": 0.1 }
+    "painted": { "name": "Painted", "colour": "#e8e9eb", "roughness": 0.35, "metalness": 0.15, "clearcoat": 0.6, "clearcoatRoughness": 0.1 },
+    "midnight_metallic": { "_note": "After Hours season shop (data/seasons/after_hours/shop.json)", "name": "Midnight metallic", "paint": true, "locked": true, "colour": "#1a1230", "roughness": 0.26, "metalness": 0.75, "clearcoat": 1, "clearcoatRoughness": 0.03, "flake": 0.9, "sheen": 0.4, "sheenColour": "#4f6bff", "sheenRoughness": 0.35, "reflective": true, "envIntensity": 0.8 },
+    "afterglow_pearl": { "_note": "After Hours season shop: the collection", "name": "Afterglow pearl", "paint": true, "locked": true, "roughness": 0.28, "metalness": 0.25, "clearcoat": 1, "clearcoatRoughness": 0.03, "iridescence": 1, "iridescenceIOR": 1.5, "sheen": 0.8, "sheenColour": "#ff7ad9", "sheenRoughness": 0.3, "flake": 0.45, "reflective": true, "envIntensity": 0.8 },
+    "violet_chrome": { "_note": "After Hours season shop: rims (any part can wear it)", "name": "Violet chrome", "locked": true, "colour": "#a58bff", "roughness": 0.06, "metalness": 1, "reflective": true, "envIntensity": 1.2 },
+    "neon_chrome": { "_note": "After Hours season shop", "name": "Neon chrome", "locked": true, "colour": "#f2e9ff", "roughness": 0.05, "metalness": 1, "iridescence": 1, "iridescenceIOR": 1.8, "reflective": true, "envIntensity": 1.2 },
+    "afterglow_anodised": { "_note": "After Hours season shop: the collection", "name": "Afterglow anodised", "locked": true, "colour": "#ff6a3d", "roughness": 0.24, "metalness": 0.9, "iridescence": 0.5, "iridescenceIOR": 1.4, "reflective": true, "envIntensity": 1 }
   }
 }

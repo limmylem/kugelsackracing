@@ -1,0 +1,35 @@
+{
+  "_note": "A ROADBOOK season (docs/ROADBOOK.md). chapters open as the season's points reach unlockAt (points come from challenges and Expedition stages: they're never spent); a chapter's milestone pays its tokens once all its challenges' points are earned. A challenge's goal: event (what the game reports), where (what the event must say: a value or a list of values), then count (that many events), sum (that field added up to target), unique (that many different values of that field) or streak (that many in a row: an event that doesn't match where starts it again). Challenges count all season, even in a chapter still closed: they complete when it opens. start: \"beta_open\" (the day sign-ups open to everyone: the admin page's Launch tab) or a date; until then only admins and editors see it, to test it.",
+  "id": "after_hours",
+  "name": "After Hours",
+  "tagline": "The city sleeps. You don't.",
+  "colour": "#8a5cff",
+  "start": "beta_open",
+  "lengthDays": 56,
+  "warningDays": 7,
+  "conversion": { "cashPerToken": 2 },
+  "chapters": [
+    { "id": "first_night_out", "name": "First Night Out", "blurb": "Streetlights, an empty road and a car that's yours. Get to know the city after dark.", "unlockAt": 0, "milestoneTokens": 100 },
+    { "id": "the_underground", "name": "The Underground", "blurb": "Word gets around. Win a few, build something quick, find the places the crews talk about.", "unlockAt": 120, "milestoneTokens": 200 },
+    { "id": "the_mountain_run", "name": "The Mountain Run", "blurb": "Everyone ends up in the hills eventually. Prove you belong there.", "unlockAt": 320, "milestoneTokens": 300 }
+  ],
+  "challenges": [
+    { "id": "ah_finish_race", "chapter": "first_night_out", "style": "racing", "name": "Lights out", "description": "Finish any race or quest.", "goal": { "event": "race_finished", "count": 1 }, "points": 40, "tokens": 20 },
+    { "id": "ah_fit_part", "chapter": "first_night_out", "style": "building", "name": "First mod", "description": "Fit a part to any of your cars.", "goal": { "event": "part_installed", "count": 1 }, "points": 40, "tokens": 20 },
+    { "id": "ah_drive_25", "chapter": "first_night_out", "style": "exploring", "name": "Night cruise", "description": "Drive 25 km this season.", "goal": { "event": "distance_driven", "sum": "metres", "target": 25000 }, "points": 40, "tokens": 20 },
+    { "id": "ah_photo", "chapter": "first_night_out", "style": "exploring", "name": "Say cheese", "description": "Save a photo to your profile from photo mode.", "goal": { "event": "photo_saved", "count": 1 }, "points": 30, "tokens": 15 },
+
+    { "id": "ah_win_streak_3", "chapter": "the_underground", "style": "racing", "name": "Hat-trick", "description": "Win 3 races in a row.", "goal": { "event": "race_finished", "where": { "win": true }, "streak": 3 }, "points": 80, "tokens": 50 },
+    { "id": "ah_gold_trial", "chapter": "the_underground", "style": "racing", "name": "Against the clock", "description": "Earn a gold medal in a time trial or a checkpoint run.", "goal": { "event": "race_finished", "where": { "medal": "gold", "questType": ["time_trial", "checkpoint", "hot_lap", "hillclimb"] }, "count": 1 }, "points": 60, "tokens": 40 },
+    { "id": "ah_fit_5", "chapter": "the_underground", "style": "building", "name": "Garage hours", "description": "Fit 5 parts (to any of your cars).", "goal": { "event": "part_installed", "count": 5 }, "points": 60, "tokens": 40 },
+    { "id": "ah_discover_4", "chapter": "the_underground", "style": "exploring", "name": "Know the city", "description": "Discover 4 places this season.", "goal": { "event": "place_discovered", "unique": "place", "count": 4 }, "points": 60, "tokens": 40 },
+    { "id": "ah_buy_car", "chapter": "the_underground", "style": "building", "name": "New ride", "description": "Buy a car (new or used).", "goal": { "event": "car_purchased", "count": 1 }, "points": 50, "tokens": 30 },
+
+    { "id": "ah_drive_500", "chapter": "the_mountain_run", "style": "exploring", "name": "Long way home", "description": "Drive 500 km this season.", "goal": { "event": "distance_driven", "sum": "metres", "target": 500000 }, "points": 120, "tokens": 100 },
+    { "id": "ah_win_10", "chapter": "the_mountain_run", "style": "racing", "name": "Regular", "description": "Win 10 races (quests or online).", "goal": { "event": "race_finished", "where": { "win": true }, "count": 10 }, "points": 120, "tokens": 100 },
+    { "id": "ah_discover_10", "chapter": "the_mountain_run", "style": "exploring", "name": "Every corner", "description": "Discover 10 places this season.", "goal": { "event": "place_discovered", "unique": "place", "count": 10 }, "points": 100, "tokens": 80 },
+    { "id": "ah_midnight_run", "chapter": "the_mountain_run", "style": "exploring", "name": "The Midnight Run", "description": "Finish the Midnight Run Expedition.", "goal": { "event": "expedition_completed", "where": { "expedition": "midnight_run" }, "count": 1 }, "points": 150, "tokens": 0 }
+  ],
+  "discoveries": { "hiddenTokens": 100 },
+  "expeditions": ["midnight_run"]
+}

@@ -168,6 +168,8 @@ export function createLaunch(s, ctx) {
   }
 
   addEventListener('kr:school', () => openSchool());
+  // the ROADBOOK's journal (ui/roadbook.js; docs/ROADBOOK.md): the dock's tile, kr.roadbook.show()
+  addEventListener('kr:roadbook', () => { import('../ui/roadbook.js').then(m => m.roadbookOpen() ? m.closeRoadbook() : m.openRoadbook()).catch(e => console.error(e)); screen('roadbook'); });
   // (the guided first steps' moments: the garage opened (index.html), the world map opened, a while spent driving)
   addEventListener('kr:garage', () => { onboarding.event('garage'); screen('garage'); });
   // (the screen the player is on: counted when it changes, and sent as where they were if they leave — ui/analytics.js)

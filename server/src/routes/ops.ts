@@ -57,7 +57,7 @@ export const ClientError = z.object({
 const FeedbackBody = z.object({ message: z.string().trim().min(3).max(4000), mood: z.enum(['love', 'like', 'meh', 'dislike']).optional(), client: ClientInfo, errors: z.array(ClientError).max(20).optional() }).strict();
 const TICKETS_PER_DAY = 5;
 
-export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, mailer, settings, metrics, health }: { config: Config; db: Db; auth: Auth; G: Guards; mailer: Mailer; settings: SiteSettingsStore; metrics: Metrics; health: () => Promise<Health> }) {
+export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, mailer, settings, metrics, health, onSetting }: { config: Config; db: Db; auth: Auth; G: Guards; mailer: Mailer; settings: SiteSettingsStore; metrics: Metrics; health: () => Promise<Health>; onSetting?: (key: string, from: any, to: any, by: string) => Promise<unknown> }) {
   const app = app0.withTypeProvider<ZodTypeProvider>();
   const admin = G.requireRole('admin');
   const log = (s: NonNullable<RequestSession>, action: string, targetId: string | null, reason: string | null, details: object = {}) => db.insert(auditLog).values({ actorId: s.user.id, action, targetId, reason, details });
@@ -88,6 +88,8 @@ export async function opsRoutes(app0: FastifyInstance, { config, db, auth, G, ma
     const value = b.key === 'features' ? { ...now.features, ...b.value } : b.value;
     const after = await settings.set(b.key, value as any, s.user.id);
     await log(s, `setting-${b.key}`, null, b.reason, { from: now[b.key], to: after[b.key] });
+    // (what follows a switch: the beta opened starts the ROADBOOK's season — roadbook/service.ts)
+    if (onSetting) await onSetting(b.key, now[b.key], after[b.key], s.user.id);
     return { ok: true as const, settings: after };
   });
 

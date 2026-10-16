@@ -18,6 +18,14 @@ const fmtTime = ms => ms == null ? '—' : `${Math.floor(ms / 60000)}:${String(M
 let cars = {};
 try { const idx = await (await fetch('/data/cars/index.json')).json(); for (const f of idx.cars) { const c = await (await fetch(`/data/cars/${f}`)).json(); cars[c.id] = c; } } catch { /* ids then */ }
 const carName = c => esc(cars[c]?.name ?? c);
+// the badges from the ROADBOOK's season shops (docs/ROADBOOK.md): a chip each in the season's colour (a collector's
+// gold), the season's name on it and the badge's name its tooltip
+const SEASON_COLOURS = { after_hours: '#8a5cff' }, GOLD = '#e8b84a';
+const words = s => String(s ?? '').split(/[_-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+const badges = list => list?.length ? `<p class="badges" role="list" aria-label="${esc(t('profile.badges'))}">${list.map(b => {
+  const c = /collector/.test(b.id) ? GOLD : SEASON_COLOURS[b.season] ?? SEASON_COLOURS.after_hours;
+  return `<span class="badge" role="listitem" style="--badge:${c}" title="${esc(b.name)}" aria-label="${esc(b.name)}"><span aria-hidden="true">${esc(words(b.season ?? b.id))}</span></span>`;
+}).join('')}</p>` : '';
 
 async function draw() {
   if (!A.me) { $('profile').innerHTML = `<h1>${t('profile.title')}</h1><p>${t('profile.signIn')}</p><p><a href="/account/?next=${encodeURIComponent(location.pathname + location.search)}">${t('profile.signInLink')}</a></p>`; return; }
@@ -29,6 +37,7 @@ async function draw() {
   $('profile').innerHTML = `
     <h1>${esc(P.name)} ${P.crew ? `<small class="muted">[${esc(P.crew.tag)}]</small>` : ''}</h1>
     <p class="muted">${t('profile.since', { date: i18n.date(P.since, 'long') })}${P.guest ? ` · ${t('profile.guest')}` : ''}</p>
+    ${badges(P.badges)}
     <div class="stats">
       <div class="stat"><b>${i18n.number(P.level)}</b><span>${t('profile.level')}</span></div>
       <div class="stat"><b>${i18n.number(P.xp)}</b><span>${t('profile.xp')}</span></div>

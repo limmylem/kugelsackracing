@@ -1,0 +1,5 @@
+{
+  "_note": "The ROADBOOK's seasons (docs/ROADBOOK.md): which one is current, and every season's folder under data/seasons/. A new season is a new folder (season.json, shop.json, expeditions/) and its id here. The admin page's ROADBOOK tab edits a copy of all this kept on the server; these files are where it starts.",
+  "current": "after_hours",
+  "seasons": ["after_hours"]
+}
