@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#60744ac0d2be",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#8bfb333502fb",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-16",
@@ -13,11 +13,11 @@
   "stats": {
    "segments": 744,
    "junctionPatches": 195,
-   "triangles": 114839,
+   "triangles": 114832,
    "blocks": 1,
    "check": {
     "cracks": 2,
-    "overlaps": 220,
+    "overlaps": 215,
     "sampled": 37850,
     "folds": 2
    }
@@ -775,7 +775,7 @@
    {
     "a": 1,
     "b": 1,
-    "bytes": 31184,
+    "bytes": 31182,
     "landmarks": 1
    },
    {
@@ -29128,15 +29128,15 @@
   "roads": 744,
   "junctions": 195,
   "trees": 38752,
-  "lamps": 403,
+  "lamps": 401,
   "lampStats": {
    "mapped": 26,
    "mappedDropped": 33,
-   "estimated": 280,
+   "estimated": 350,
    "junction": 25,
-   "tunnel": 72,
+   "tunnel": 0,
    "crossing": 0,
-   "rejected": 13
+   "rejected": 15
   },
   "railings": {
    "mapped": 817,
@@ -29144,14 +29144,14 @@
    "estimated": 3852,
    "estimatedDropped": 525
   },
-  "peakMemoryGB": 1.7,
-  "bakeSeconds": 34
+  "peakMemoryGB": 1.6,
+  "bakeSeconds": 41
  },
  "tiles": [
   {
    "i": 11,
    "j": 9,
-   "bytes": 306825,
+   "bytes": 306482,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29160,7 +29160,7 @@
   {
    "i": 12,
    "j": 9,
-   "bytes": 116023,
+   "bytes": 116226,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29169,7 +29169,7 @@
   {
    "i": 13,
    "j": 9,
-   "bytes": 131366,
+   "bytes": 131726,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29196,7 +29196,7 @@
   {
    "i": 11,
    "j": 10,
-   "bytes": 237086,
+   "bytes": 237550,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29205,7 +29205,7 @@
   {
    "i": 12,
    "j": 10,
-   "bytes": 275429,
+   "bytes": 275749,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29214,7 +29214,7 @@
   {
    "i": 13,
    "j": 10,
-   "bytes": 129908,
+   "bytes": 130089,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 1,
@@ -29241,7 +29241,7 @@
   {
    "i": 11,
    "j": 11,
-   "bytes": 292700,
+   "bytes": 293198,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29250,7 +29250,7 @@
   {
    "i": 12,
    "j": 11,
-   "bytes": 319907,
+   "bytes": 320609,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29259,16 +29259,16 @@
   {
    "i": 13,
    "j": 11,
-   "bytes": 277935,
+   "bytes": 278592,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
-   "lamps": 76
+   "lamps": 74
   },
   {
    "i": 14,
    "j": 11,
-   "bytes": 198897,
+   "bytes": 199053,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29286,7 +29286,7 @@
   {
    "i": 11,
    "j": 12,
-   "bytes": 94465,
+   "bytes": 94623,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29295,7 +29295,7 @@
   {
    "i": 12,
    "j": 12,
-   "bytes": 158644,
+   "bytes": 158841,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,

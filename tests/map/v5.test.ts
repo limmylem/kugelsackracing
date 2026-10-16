@@ -3,6 +3,12 @@
 // is data/map/v5.json's `tests`. Map v4's tests run on the same bake (npm run test:map4 -- --dir assets/map/adelaide/v5),
 // those Map v5 replaces as said in MAP_V5_REPORT.md.
 //
+//   side        1g. traffic lights and regulatory signs on the driving side of the traffic they face
+//   lanes       2. nothing standing in a lane: furniture, lamps, trees, place and street name signs off the road itself
+//   floating    1h. car parks and paths on the ground (or a building, or a road, under them)
+//   clearance   1d. bridges' decks clear of the roads under them, at their edges (minEdgeClearance m)
+//   roundabouts 1j. a known roundabout's island a garden; a known crossing of divided roads none
+//   buildings   3. every building a type (estimated ones marked)
 //   tunnels     1e. every tunnel under thick ground driven through end to end by the autopilot: no fall through, no
 //               climb onto the hill, out the far portal; from inside, a ceiling over the road and a wall either side
 //               (all solid); the ground over it intact (the hill's own height, drawn and solid)
@@ -26,6 +32,9 @@ const model = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(DIR, manifest
 const rows: any[] = [];
 const report = (test: string, name: string, pass: boolean, detail: string, value: any = null) => { rows.push({ test, name, pass, detail, value }); console.log(`${pass ? '  ok  ' : ' FAIL '} ${name.padEnd(50)} ${detail}`); };
 const note = (s: string) => { if (verbose) console.log(`         ${s}`); };
+// (a test with nothing to test in this bake — a slice without tunnels — is skipped, not passed or failed)
+const skip = (test: string, name: string, detail: string) => { skipped.push({ test, name, detail }); console.log(` skip  ${name.padEnd(50)} ${detail}`); };
+const skipped: any[] = [];
 const want = (k: string) => !only || only.includes(k);
 
 // the road model's segments: points [x, z, y …], half-widths [left, right …]
@@ -48,7 +57,7 @@ async function tunnelsTest() {
     for (let n = (byFrom.get(g.to) ?? []).find((q: any) => q.structure === 'tunnel' && q.name === g.name); n && !used.has(n.id); n = (byFrom.get(n.to) ?? []).find((q: any) => q.structure === 'tunnel' && q.name === g.name)) { run.push(n); used.add(n.id); }
     if (run.reduce((a, s) => a + lenOf(s), 0) >= X.tunnelMinLength) runs.push(run);
   }
-  if (!runs.length) { report('tunnels', 'tunnels in this bake', false, `no one-way tunnel of ${X.tunnelMinLength} m or more here (the Heysen Tunnels: --dir assets/map/adelaide/v5-heysen)`); return; }
+  if (!runs.length) { skip('tunnels', 'tunnels in this bake', `no one-way tunnel of ${X.tunnelMinLength} m or more here (the Heysen Tunnels: --dir assets/map/adelaide/v5-heysen)`); return; }
   const extend = (seg: any, back: boolean, reach: number) => { const out: any[] = []; let at = seg, L = 0; while (L < reach) { const n = (back ? byTo.get(at.from) : byFrom.get(at.to))?.find((q: any) => q.name === seg.name && q.structure !== 'tunnel' && !out.includes(q)); if (!n) break; out.push(n); L += lenOf(n); at = n; } return back ? out.reverse() : out; };
   for (const run of runs) {
     const before = extend(run[0], true, X.tunnelApproach), after = extend(run[run.length - 1], false, X.tunnelApproach);
@@ -116,8 +125,170 @@ async function tunnelsTest() {
   }
 }
 
+// ---------- every tile: what it holds, tile-local ----------
+const tiles: { i: number; j: number; cx: number; cz: number; t: any }[] = [];
+for (const e of manifest.tiles) { const t = await M.tile(e.i, e.j); if (t) tiles.push({ i: e.i, j: e.j, cx: (e.i + 0.5) * M.T, cz: (e.j + 0.5) * M.T, t }); }
+const FURN: Record<string, number> = await import('../../map/format/furniture.ts').then(m => m.FURN as any);
+const FURN_NAME = Object.fromEntries(Object.entries(FURN).map(([k, v]) => [v, k]));
+// (a tile's triangles of a mesh by cell, for "which of them is over (x, z)": with each one's height there)
+function triIndex(m: any, keep: (t: number) => boolean = () => true, C = 8) {
+  const grid = new Map<number, number[]>(), P = m?.positions, I = m?.indices, key = (a: number, b: number) => a * 100003 + b;
+  if (!P) return () => [] as number[];
+  for (let t = 0; t < I.length; t += 3) {
+    if (!keep(t / 3)) continue;
+    const xs = [P[I[t] * 3], P[I[t + 1] * 3], P[I[t + 2] * 3]], zs = [P[I[t] * 3 + 2], P[I[t + 1] * 3 + 2], P[I[t + 2] * 3 + 2]];
+    for (let a = Math.floor(Math.min(...xs) / C); a <= Math.floor(Math.max(...xs) / C); a++) for (let b = Math.floor(Math.min(...zs) / C); b <= Math.floor(Math.max(...zs) / C); b++) (grid.get(key(a, b)) ?? grid.set(key(a, b), []).get(key(a, b))!).push(t);
+  }
+  return (x: number, z: number) => {
+    const out: number[] = [];
+    for (const t of grid.get(key(Math.floor(x / C), Math.floor(z / C))) ?? []) {
+      const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3, d = (P[b + 2] - P[c + 2]) * (P[a] - P[c]) + (P[c] - P[b]) * (P[a + 2] - P[c + 2]);
+      if (Math.abs(d) < 1e-12) continue;
+      const l1 = ((P[b + 2] - P[c + 2]) * (x - P[c]) + (P[c] - P[b]) * (z - P[c + 2])) / d, l2 = ((P[c + 2] - P[a + 2]) * (x - P[c]) + (P[a] - P[c]) * (z - P[c + 2])) / d, l3 = 1 - l1 - l2;
+      if (l1 >= -1e-6 && l2 >= -1e-6 && l3 >= -1e-6) out.push(l1 * P[a + 1] + l2 * P[b + 1] + l3 * P[c + 1]);
+    }
+    return out;
+  };
+}
+const groundOf = (t: any) => { const hf = t.heightfield, T = M.T, half = T / 2; return (x: number, z: number) => { const n = hf.n, N1 = n + 1, cell = T / n, fx = Math.max(0, Math.min(n - 1e-3, (x + half) / cell)), fz = Math.max(0, Math.min(n - 1e-3, (z + half) / cell)), c = Math.floor(fx), r = Math.floor(fz), u = fx - c, v = fz - r, h = (cc: number, rr: number) => hf.heights[rr + cc * N1]; return h(c, r) * (1 - u) * (1 - v) + h(c + 1, r) * u * (1 - v) + h(c, r + 1) * (1 - u) * v + h(c + 1, r + 1) * u * v; }; };
+// (the road model's centre lines by cell: the nearest piece to a world point, with its direction)
+const RC = 30, rgrid = new Map<string, number[][]>();
+for (const g of model.segs) { if (g.internal) continue; const p = ptsOf(g); for (let k = 0; k + 1 < p.length; k++) { const key = `${Math.floor(p[k].x / RC)},${Math.floor(p[k].z / RC)}`; (rgrid.get(key) ?? rgrid.set(key, []).get(key)!).push([p[k].x, p[k].z, p[k + 1].x, p[k + 1].z]); } }
+// (along dir, when given: a road running that way, within 45° — a sign at a corner faces its own road, not the cross street)
+const nearestRoad = (x: number, z: number, r = 25, dir: number[] | null = null) => { let best: any = null; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const [ax, az, bx, bz] of rgrid.get(`${Math.floor(x / RC) + a},${Math.floor(z / RC) + b}`) ?? []) { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1e-9; if (dir && Math.abs((dx * dir[0] + dz * dir[1]) / Math.sqrt(l2)) < Math.SQRT1_2) continue; const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)), d = Math.hypot(x - ax - dx * t, z - az - dz * t); if (d < r && (!best || d < best.d)) best = { d, px: ax + dx * t, pz: az + dz * t }; } return best; };
+
+// ---------- 1g / Step 5. the driving side ----------
+function sideTest() {
+  console.log('\n1g. Signs and lights on the driving side, facing their traffic');
+  // (a piece faces its traffic — map/format/furniture.ts: yaw = atan2(−tx, −tz) for traffic going (tx, tz) — and stands
+  // on that traffic's kerb side: its left where traffic keeps left (x east, z south: left of (tx, tz) is (tz, −tx)))
+  const left = style.drivingSide !== 'right', kinds = [FURN.trafficLight, FURN.stop, FURN.giveWay, FURN.speed, FURN.roundabout, FURN.noEntry];
+  const by: Record<string, [number, number]> = {}, wrong: Record<string, string[]> = {};
+  for (const { cx, cz, t } of tiles) {
+    const F = t.lists.furniture; if (!F) continue;
+    for (let k = 0; k < F.data.length; k += F.stride) {
+      const kind = F.data[k + 4]; if (!kinds.includes(kind)) continue;
+      const x = F.data[k] + cx, z = F.data[k + 2] + cz, yaw = F.data[k + 3], tx = -Math.sin(yaw), tz = -Math.cos(yaw), r = nearestRoad(x, z, 25, [tx, tz]);
+      if (!r) continue;
+      const side = (x - r.px) * tz + (z - r.pz) * -tx, ok = left ? side > 0 : side < 0, c = (by[FURN_NAME[kind]] ??= [0, 0]);
+      c[0]++; if (ok) c[1]++; else if ((wrong[FURN_NAME[kind]] ??= []).length < 3) { const [la, lo] = M.P.toLatLon(x, z); wrong[FURN_NAME[kind]].push(`${la.toFixed(6)},${lo.toFixed(6)}`); }
+    }
+  }
+  for (const [name, [n, ok]] of Object.entries(by)) report('side', `${name}: on the driving side`, n === 0 || ok / n >= X.drivingSideShare || n - ok <= 1, `${ok} of ${n} (${n ? (ok / n * 100).toFixed(1) : 100}%; at least ${(X.drivingSideShare * 100).toFixed(0)}%, or all but one) on the ${left ? 'left' : 'right'} of the traffic they face${wrong[name] ? ` — not: ${wrong[name].join('; ')}` : ''}`, { n, ok });
+  if (!Object.keys(by).length) skip('side', 'signs and lights in this bake', 'none here');
+}
+
+// ---------- Step 2 / 5 / 7. nothing in a lane ----------
+function lanesTest() {
+  console.log('\n2. Nothing standing in a lane (furniture, signs, lamps, trees)');
+  const counts: Record<string, [number, number]> = {}, bad: string[] = [];
+  for (const { i, j, cx, cz, t } of tiles) {
+    const names: string[] = t.header.surfaceNames ?? [], tarmac = names.indexOf('tarmac'), R = t.meshes.roads;
+    if (!R) continue;
+    const onLane = triIndex(R, q => R.surfaces?.[q] === tarmac);
+    const check = (what: string, x: number, y: number, z: number) => {
+      const c = (counts[what] ??= [0, 0]); c[0]++;
+      // (on the road's own surface, at its foot's height — a deck over it, a tunnel under it, don't count)
+      if (onLane(x, z).some(h => Math.abs(h - y) < 1.0)) { c[1]++; if (bad.length < 6) bad.push(`${what} at (${(x + cx).toFixed(1)}, ${(z + cz).toFixed(1)}) in tile ${i}_${j}`); }
+    };
+    const F = t.lists.furniture;
+    if (F) for (let k = 0; k < F.data.length; k += F.stride) { const kind = F.data[k + 4]; if (kind === FURN.canopy) continue; check(FURN_NAME[kind] ?? 'furniture', F.data[k], F.data[k + 1], F.data[k + 2]); }
+    // (a tunnel's lamps hang on its walls — map/model/lamps.ts flags 2 — by design)
+    const L = t.lists.lamps; if (L) for (let k = 0; k < L.data.length; k += L.stride) if (!(L.data[k + 5] & 2)) check('lamp', L.data[k], L.data[k + 1], L.data[k + 2]);
+    const Tr = t.lists.trees; if (Tr) for (let k = 0; k < Tr.data.length; k += Tr.stride) check('tree', Tr.data[k], Tr.data[k + 1], Tr.data[k + 2]);
+    const Ps = t.lists.placeSigns; if (Ps) for (let k = 0; k < Ps.data.length; k += Ps.stride) check('place sign', Ps.data[k], Ps.data[k + 1], Ps.data[k + 2]);
+    const Sg = t.lists.signs; if (Sg) for (let k = 0; k < Sg.data.length; k += Sg.stride) check('street name sign', Sg.data[k], Sg.data[k + 1], Sg.data[k + 2]);
+  }
+  const total = Object.values(counts).reduce((a, c) => a + c[1], 0), all = Object.values(counts).reduce((a, c) => a + c[0], 0);
+  report('lanes', 'nothing in a lane', total <= X.inLaneAllowed, `${total} of ${all} pieces stand on a lane (${Object.entries(counts).filter(([, c]) => c[1]).map(([k, c]) => `${k} ${c[1]}`).join(', ') || 'none'})${bad.length ? ` — ${bad.join('; ')}` : ''}`, { counts });
+}
+
+// ---------- 1h. nothing floats ----------
+function floatingTest() {
+  console.log('\n1h. Nothing floating over the ground');
+  let n = 0, high = 0, worst = 0;
+  const bad: string[] = [];
+  for (const { i, j, cx, cz, t } of tiles) {
+    if (!t.heightfield) continue;
+    const ground = groundOf(t);
+    // (inside a building — its collider's footprint — a car park or a path is the building's own floor)
+    const hulls: number[][][] = [], Hl = t.lists.hulls?.data ?? [];
+    for (let k = 0; k < Hl.length; ) { const nP = Hl[k]; const pts: number[][] = []; for (let q = 0; q < nP; q++) pts.push([Hl[k + 3 + q * 2], Hl[k + 4 + q * 2]]); hulls.push(pts); k += 3 + nP * 2; }
+    const inHull = (x: number, z: number) => hulls.some(r => { let c = false; for (let a = 0, b = r.length - 1; a < r.length; b = a++) if ((r[a][1] > z) !== (r[b][1] > z) && x < (r[b][0] - r[a][0]) * (z - r[a][1]) / (r[b][1] - r[a][1]) + r[a][0]) c = !c; return c; });
+    // (over a road — a car park deck, a path on a bridge — is held up by it)
+    const R = t.meshes.roads, overRoad = triIndex(R);
+    for (const name of ['paved', 'paths']) {
+      const m = t.meshes[name]; if (!m) continue;
+      const P = m.positions, I = m.indices;
+      for (let q = 0; q < I.length; q += 3) {
+        let x = 0, y = 0, z = 0; for (let e = 0; e < 3; e++) { x += P[I[q + e] * 3] / 3; y += P[I[q + e] * 3 + 1] / 3; z += P[I[q + e] * 3 + 2] / 3; }
+        n++;
+        const d = y - ground(x, z);
+        if (d <= X.floatingOver || inHull(x, z) || overRoad(x, z).some(h => h < y - 0.3)) continue;
+        high++; worst = Math.max(worst, d);
+        if (bad.length < 6) bad.push(`${name} ${d.toFixed(2)} m up at (${(x + cx).toFixed(1)}, ${(z + cz).toFixed(1)}) in tile ${i}_${j}`);
+      }
+    }
+  }
+  report('floating', 'car parks and paths on the ground', high <= n * X.floatingShare, `${high} of ${n} triangles more than ${X.floatingOver} m over the ground with nothing under them (highest ${worst.toFixed(2)} m; at most ${(X.floatingShare * 100).toFixed(3)}%: ${Math.floor(n * X.floatingShare)})${bad.length ? ` — ${bad.join('; ')}` : ''}`, { n, high, worst });
+}
+
+// ---------- 1d. clearance under bridges ----------
+function clearanceTest() {
+  console.log('\n1d. Clearance under bridges over roads');
+  let decks = 0, over = 0, low = 0, worst = Infinity;
+  const lows: [number, string][] = [];
+  for (const { i, j, cx, cz, t } of tiles) {
+    const E = t.lists.roadEdges?.data, R = t.meshes.roads; if (!E || !R) continue;
+    const names: string[] = t.header.surfaceNames ?? [], tarmac = names.indexOf('tarmac'), under = triIndex(R, q => R.surfaces?.[q] === tarmac);
+    for (let k = 0; k < E.length; k += 8) {
+      if (Math.round(E[k + 7]) !== 3) continue;
+      decks++;
+      // (a road under the deck's edge, more than a deck's depth below it: the gap from it to the deck's underside)
+      const x = (E[k] + E[k + 3]) / 2, y = (E[k + 1] + E[k + 4]) / 2, z = (E[k + 2] + E[k + 5]) / 2, below = under(x, z).filter(h => h < y - X.deckDepth - 0.5);
+      if (!below.length) continue;
+      over++;
+      const gap = y - X.deckDepth - Math.max(...below); worst = Math.min(worst, gap);
+      if (gap < X.minEdgeClearance) { low++; const [la, lo] = M.P.toLatLon(x + cx, z + cz); lows.push([gap, `${gap.toFixed(2)} m at ${la.toFixed(6)},${lo.toFixed(6)}`]); }
+    }
+  }
+  report('clearance', 'bridges clear of the roads under them', over === 0 || low / over <= X.lowClearanceShare, `${over} of ${decks} deck edge pieces over a road: ${low} under ${X.minEdgeClearance} m at the deck's edge (${over ? (low / over * 100).toFixed(1) : 0}%; at most ${(X.lowClearanceShare * 100).toFixed(0)}%), the lowest ${Number.isFinite(worst) ? worst.toFixed(2) : '—'} m${lows.length ? ` — ${lows.sort((a, b) => a[0] - b[0]).slice(0, 6).map(l => l[1]).join('; ')}` : ''}`, { decks, over, low, worst });
+}
+
+// ---------- 1j. roundabouts' islands ----------
+function roundaboutsTest() {
+  console.log('\n1j. Roundabouts: a garden in the middle, none where there is no roundabout');
+  const check = (name: string, lat: number, lon: number, r: number, want: boolean) => {
+    const [x, z] = M.P.toXZ(lat, lon), i = Math.floor(x / M.T), j = Math.floor(z / M.T), e = tiles.find(q => q.i === i && q.j === j);
+    if (!e?.t.meshes.roads) { note(`${name}: not in this bake`); return; }
+    const R = e.t.meshes.roads, names: string[] = e.t.header.surfaceNames ?? [], dirt = names.indexOf('dirt'), garden = triIndex(R, q => R.surfaces?.[q] === dirt);
+    let hits = 0, n = 0; for (let a = 0; a < 16; a++) for (const d of [r * 0.3, r * 0.6]) { n++; if (garden(x - e.cx + Math.cos(a / 16 * 2 * Math.PI) * d, z - e.cz + Math.sin(a / 16 * 2 * Math.PI) * d).length) hits++; }
+    report('roundabouts', name, want ? hits >= n / 2 : hits === 0, `${hits} of ${n} points within ${r} m of its middle in a garden bed (${want ? 'a roundabout: most' : 'not a roundabout: none'})`, { hits, n });
+  };
+  for (const c of X.roundabouts ?? []) check(c.name, c.lat, c.lon, c.r, c.garden);
+  if (!rows.some(r => r.test === 'roundabouts')) skip('roundabouts', 'roundabouts in this bake', 'none of the known ones here');
+}
+
+// ---------- Step 3. every building a type ----------
+function buildingsTest() {
+  console.log('\n3. Buildings: every one a type');
+  let n = 0, untyped = 0, estimated = 0, landmarks = 0;
+  const byType: Record<string, number> = {};
+  for (const { t } of tiles) {
+    const L = t.lists.buildingInfo, types: string[] = t.header.buildingTypes ?? []; if (!L) continue;
+    for (let k = 0; k < L.data.length; k += L.stride) { n++; const ty = types[L.data[k + 3]]; if (!ty) untyped++; else byType[ty] = (byType[ty] ?? 0) + 1; const f = L.data[k + 4]; if (f & 1) estimated++; if (f & 2) landmarks++; }
+  }
+  report('buildings', 'every building a type', n > 0 && untyped === 0, `${n} buildings: ${untyped} with no type; ${estimated} (${n ? (estimated / n * 100).toFixed(0) : 0}%) estimated (marked so); ${landmarks} landmarks; ${Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `${k} ${v}`).join(', ')}`, { n, untyped, estimated, byType });
+}
+
+if (want('side')) sideTest();
+if (want('lanes')) lanesTest();
+if (want('floating')) floatingTest();
+if (want('clearance')) clearanceTest();
+if (want('roundabouts')) roundaboutsTest();
+if (want('buildings')) buildingsTest();
 if (want('tunnels')) await tunnelsTest();
 const failed = rows.filter(r => !r.pass);
-console.log(`\n${rows.length - failed.length} of ${rows.length} passed`);
+console.log(`\n${rows.length - failed.length} of ${rows.length} passed${skipped.length ? `, ${skipped.length} skipped (nothing of theirs in this bake)` : ''}`);
 if (opt('--json')) fs.writeFileSync(opt('--json')!, JSON.stringify(rows, null, 1));
 process.exit(failed.length ? 1 : 0);

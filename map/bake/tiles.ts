@@ -51,7 +51,7 @@ const bucketKey = (i: number, j: number) => `${i}_${j}`;
 
 export function tileBuilder(D: {
   region: any; grid: Grid; cfg: any; heights: Float32Array; classes: Uint8Array; classNames: string[]; roadSurface: Uint8Array; surfaceNames: string[]; cover: Float32Array; coverEdges?: boolean; demSource: Uint8Array; demSources: any[];
-  water: any[]; parking: any[]; parkingCell: Uint8Array; mesh: Mesh; marks: Mesh; segs: Seg[]; buildings: Building[]; barriers: Record<string, number[]>; trees: number[]; labels: { labels: number[]; signs: number[]; names: string[] }; bays: { x: number; z: number }[][];
+  water: any[]; parking: any[]; parkingCell: Uint8Array; parkingOnGround?: boolean; mesh: Mesh; marks: Mesh; segs: Seg[]; buildings: Building[]; barriers: Record<string, number[]>; trees: number[]; labels: { labels: number[]; signs: number[]; names: string[] }; bays: { x: number; z: number }[][];
 }) {
   const { grid: g, cfg } = D, T = g.tileSize, per = T / g.cell, N1 = per + 1;
   const pal = Object.fromEntries(Object.entries(cfg.colours).filter(([k]) => !k.startsWith('_')).map(([k, v]) => [k, rgb(v as string)]));
@@ -165,7 +165,9 @@ export function tileBuilder(D: {
     const paved = new Part(false, true), cover = new Part(false, true), water = new Part();
     const pk = pal.parking ?? [110, 110, 110], kerbC = [190, 188, 182], bayC = [230, 230, 224];
     for (const p of D.parking) {
-      const [a, bb, pc] = p.plane, y = (x: number, z: number) => a * x + bb * z + pc + 0.02;
+      // (Map v5, parkingOnGround: on the ground as the roads left it — the plane was fitted to it before Map v4 shaped
+      // it, which lowers it beside each road, and a car park on its plane was left in the air there)
+      const [a, bb, pc] = p.plane, y = D.parkingOnGround ? (x: number, z: number) => ground(x, z) + 0.02 : (x: number, z: number) => a * x + bb * z + pc + 0.02;
       p.bayY = y;
       // its surface: the grid's cells inside it (on its plane, 2 cm over the ground flattened to it), but not
       // where a road runs through it (the road's surface is the one there)
