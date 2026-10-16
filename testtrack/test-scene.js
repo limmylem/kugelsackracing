@@ -2077,7 +2077,7 @@ function syncLoose(w, v) {
     const here = car.sockets.filter(x => (x.node ?? x.name) === socket).map(x => sn.db.parts[sn.garage.state.parts[sn.garage.build.sockets[x.name]]?.partId]).filter(Boolean);
     const id = v.parts.detach(socket, wheelDef(here, { centre, radius: wh.radius ?? s.spec.wheels.radius, spin: wh.omega }), w.sim.time, socket), off = w.carVis.detachWheel(k);
     if (off) { w.scene.add(off.object); off.object.matrix.copy(w.carVis.group.matrixWorld).multiply(off.inCar); }
-    pieces.set(socket, { id, object: off?.object ?? null, offset: off ? new THREE.Matrix4().makeTranslation(-centre[0], -centre[1], -centre[2]).multiply(off.inCar) : null });
+    pieces.set(socket, { id, object: off?.object ?? null, inCar: off?.inCar ?? null, offset: off ? new THREE.Matrix4().makeTranslation(-centre[0], -centre[1], -centre[2]).multiply(off.inCar) : null });
     s.audio?.crash.tear();
     w.fx.play({ type: 'partOff', car: 0, socket, point: centre });
     s.flash.news({ type: 'wheelOff', wheel: k });
@@ -2085,19 +2085,35 @@ function syncLoose(w, v) {
 }
 // where the loose parts hang and the torn-off pieces lie now
 const poseMatrix = (p, q) => new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion(q.x, q.y, q.z, q.w), new THREE.Vector3(1, 1, 1));
+// (a crash replay's frames from before a part came loose or off have it as it was then: on the car)
 function drawParts(w, b) {
+  const loose = new Set((b.looseParts ?? []).map(p => p.socket));
   if (b.looseParts?.length) {
     const inv = poseMatrix(b.position, b.rotation).invert();
     for (const p of b.looseParts) w.carVis.setPartPose(p.socket, inv.clone().multiply(poseMatrix(p.position, p.rotation)));
+  }
+  // (loose now, not in this snapshot: where it sits on the car)
+  for (const [socket, x] of w.carVis.offCar) {
+    if (x.state !== 'loose' || loose.has(socket)) continue;
+    const at = shared.session.garage.car.sockets.find(s => s.name === socket)?.position;
+    if (at) w.carVis.setPartPose(socket, new THREE.Matrix4().makeTranslation(...at));
   }
   if (!w.pieces?.size) return;
   const byId = new Map((b.debris ?? []).map(d => [d.id, d])), alive = new Set(w.sim.debris.pieces.map(p => p.id));
   for (const [socket, piece] of w.pieces) {
     if (!alive.has(piece.id)) { piece.object?.removeFromParent(); continue; }     // (cleared away: too old, too far, too many)
+    if (!piece.object) continue;
     const d = byId.get(piece.id);
-    if (!d) continue;                                                              // (torn off since this snapshot)
-    if (piece.object && piece.offset) { piece.object.matrix.multiplyMatrices(poseMatrix(d.position, d.rotation), piece.offset); piece.object.matrixWorldNeedsUpdate = true; }   // (a wheel)
-    else if (piece.object) { w.carVis.pieceMatrix(socket, poseMatrix(d.position, d.rotation), piece.object.matrix); piece.object.matrixWorldNeedsUpdate = true; }
+    if (!d) {
+      // (torn off since this snapshot: on the car, where it was — a wheel on its corner, a part on its socket)
+      const rest = piece.offset ? piece.inCar : w.carVis.offCar.get(socket)?.restCar;
+      if (rest) { if (piece.object.parent !== w.carVis.group) w.carVis.group.add(piece.object); piece.object.matrix.copy(rest); piece.object.matrixWorldNeedsUpdate = true; }
+      continue;
+    }
+    if (piece.object.parent !== w.scene) w.scene.add(piece.object);
+    if (piece.offset) piece.object.matrix.multiplyMatrices(poseMatrix(d.position, d.rotation), piece.offset);   // (a wheel)
+    else w.carVis.pieceMatrix(socket, poseMatrix(d.position, d.rotation), piece.object.matrix);
+    piece.object.matrixWorldNeedsUpdate = true;
   }
 }
 // how far up a loose bonnet is (0 shut … 1 up: it blocks the bonnet and cockpit cameras)

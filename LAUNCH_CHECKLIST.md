@@ -10,10 +10,9 @@ Work down it in order.
 
 ## 1. Decisions only the owner can make (blocking)
 
-- [ ] **Players' minimum age.**
-  - The owner's view: "they can be any age". The game still asks for a birth date and refuses under-13s, until a lawyer agrees.
-  - Under 13 brings COPPA (US) and parental consent (GDPR article 8: 13–16 depending on the EU country; the UK's Children's Code).
-  - Changing it is one setting (`minAge`), but needs the legal review first. See [docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md), open questions.
+- [x] **Players' minimum age: 13** (the owner, 2026-10-16, with the 13+ rating below). It's what the game already does
+  (`minAge`: 13; under-13s are refused at sign-up). Going lower would bring COPPA (US) and parental consent (GDPR
+  article 8, the UK's Children's Code), so it would need the lawyer first ([docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md)).
 - [ ] **The privacy policy and terms** (`account/privacy.html`, `account/terms.html`) reviewed by a lawyer, for the EU, UK, US and Australia. They are drafts, marked as drafts. Before that review, fill in:
   - [ ] the operator's legal name and contact address;
   - [ ] the governing law;
@@ -129,7 +128,7 @@ Work down it in order.
   ([docs/LIVE_UPDATES.md](docs/LIVE_UPDATES.md)).
 - [x] Credits and licences up to date, the game's own music listed; the landing page (`/about/`) and the press kit
   (`/press/`, screenshots from the game) ([docs/RELEASE.md](docs/RELEASE.md)).
-- [ ] A trailer (the plan is in RELEASE.md).
+- [x] The trailer, made from the game itself (`devlog/trailer/make.mjs`; RELEASE.md).
 - [x] Tests: `tests/unit/launch.test.mjs`, `i18n.test.mjs`, `client-files.test.mjs` (every folder the game loads is
   deployed), `server/test/launch.test.ts`, and `tools/first-launch-browser.mjs` (the first minutes in a real browser,
   beside each deploy).

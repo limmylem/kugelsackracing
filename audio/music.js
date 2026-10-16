@@ -11,7 +11,7 @@
 //
 //   const M = createMusic(A, { settings })      // A: audio/system.js
 //   M.play('menu' | 'garage' | 'race' | null)   // fades between pieces (null: silence)
-//   M.setIntensity(x) · M.apply(settings) · M.stop()
+//   M.setIntensity(x) · M.apply(settings) · M.stop() · M.scheduleTo(seconds, intensityAt) (offline rendering)
 
 export const PIECES = {
   menu: { bpm: 88, key: 57, scale: 'minor', chords: [[0, 3, 7, 10], [-4, 0, 3, 7], [-7, -3, 0, 3], [-2, 2, 5, 9]], layers: ['pad', 'arp'], arp: [0, 2, 1, 3], swing: 0 },
@@ -117,6 +117,18 @@ export function createMusic(A, { settings = null, lookahead = 0.25 } = {}) {
       };
       if (name) pending = setTimeout(start, 850); else start();
       if (!which) name = null;
+    },
+    // offline (an OfflineAudioContext — a trailer's music bed: devlog/trailer/music.mjs): the piece scheduled all at
+    // once up to `until` seconds, its intensity following intensityAt(t) beat by beat instead of easing in real time
+    scheduleTo(until, intensityAt = null) {
+      clearInterval(timer); timer = null;
+      if (!piece) return;
+      const spb = 60 / piece.bpm;
+      while (nextBeat < until) {
+        if (intensityAt) intensity = target = Math.max(0, Math.min(1, intensityAt(nextBeat)));
+        tone.frequency.setTargetAtTime(name === 'race' ? 1800 + 9000 * intensity : 5000, nextBeat, 0.3);
+        playBeat(nextBeat); nextBeat += spb; beat++;
+      }
     },
     setIntensity(x) { target = Math.max(0, Math.min(1, x)); if (settings?.music?.build === false) target = Math.min(target, 0.3); },
     apply(s) { settings = s; out.gain.setTargetAtTime(level(), ctx.currentTime, 0.3); },

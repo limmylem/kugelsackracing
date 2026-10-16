@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { harness } from '../harness.mjs';
-import { Workshop, compareStats } from '../../garage/workshop.js';
+import { Workshop, compareStats, byPerformance } from '../../garage/workshop.js';
 import { LocalPlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
 import { Garage } from '../../garage/data.js';
@@ -39,6 +39,26 @@ test('what fits a socket: the shop\'s parts and the player\'s spares; wrong slot
   await w.buy('cold_air_intake');
   const owned = cand(w, 'socket_intake', 'cold_air_intake');
   assert.ok(owned.owned && owned.instanceId && owned.count === 1);
+});
+
+test('the parts list by performance: the rating change before rounding, so parts that round to the same number still rank by what they do; small grip changes in three decimals', async () => {
+  const w = await fresh();
+  for (const slot of ['seat', 'spoiler', 'exhaust', 'tyres']) {
+    const socket = w.sockets().find(s => s.def.slot === slot)?.name;
+    if (!socket) continue;
+    const list = w.partsFor(socket).candidates.filter(c => !c.locked).sort(byPerformance);
+    for (let i = 1; i < list.length; i++) assert.ok(list[i - 1].ratingExact >= list[i].ratingExact - 1e-6, `${slot}: ${list[i - 1].part.name} (${list[i - 1].ratingExact}) before ${list[i].part.name} (${list[i].ratingExact})`);
+  }
+  // (the bug, 2026-10-16: seats that all round to +0 were in alphabetical order, the one you have first — a 5 kg bucket
+  // above a lighter seat — and of two the same before rounding, the heavier could come first)
+  const row = (name, ratingChange, ratingExact, massChange, owned = false) => ({ part: { name }, ratingChange, ratingExact, massChange, owned });
+  const order = list => [...list].sort(byPerformance).map(c => c.part.name);
+  assert.deepEqual(order([row('Carbon race bucket', 0, 0.365, -10), row('Shellback fixed seat', 0, 0.371, -10.1), row('Seat (stock)', 0, 0, 0, true)]), ['Shellback fixed seat', 'Carbon race bucket', 'Seat (stock)']);
+  assert.deepEqual(order([row('A heavy one', 1, 0.8, 2), row('Z light one', 1, 0.8, 1), row('Owned', 1, 0.8, 2, true)]), ['Z light one', 'Owned', 'A heavy one']);
+  // grip: a change under 0.1 g in three decimals
+  const wings = w.partsFor(w.sockets().find(s => s.def.slot === 'spoiler').name).candidates;
+  const grip = wings.flatMap(c => c.gain).filter(g => g.key === 'grip');
+  assert.ok(grip.length && grip.every(g => /\d\.\d{3} g$/.test(g.text) || /\d\.\d{2} g$/.test(g.text) && Math.abs(parseFloat(g.text.replace('−', '-'))) >= 0.1), grip.map(g => g.text).join(', '));
 });
 
 test('a preview is worked out on a copy: nothing changes, nothing is bought', async () => {
@@ -139,6 +159,19 @@ test('the comparison says which way is better for each stat', async () => {
   assert.equal(by('braking').better, true);
   assert.equal(by('weight').better, false);            // 0.5 kg heavier a tyre
   assert.equal(by('rating').better, true);
+  assert.equal(by('turning'), undefined, 'no turning-circle row: tyres don\'t change it');
+});
+
+test('the steering and brake parts show what they change: the turning circle, the pedal\'s pressure, the fade, the cooling', async () => {
+  const w = await fresh(), before = w.stats();
+  const rowsWith = id => { const g = new Garage(H.db, JSON.parse(JSON.stringify(w.state)), w.carDef.id); assert.equal(g.install(id).ok, true); return compareStats(before, g.stats(), H.db, w.state, g.state); };
+  const row = (id, key) => rowsWith(id).find(r => r.key === key);
+  for (const [id, key] of [['steering_angle_kit', 'turning'], ['brake_lines_braided', 'bite'], ['brake_fluid_race', 'fade'], ['brake_cooling_ducts', 'cooling']]) {
+    const r = row(id, key);
+    assert.equal(r?.better, true, `${id}: its ${key} row, better`);
+    assert.ok(r.breakdown.length, `${id}: what changed it`);
+  }
+  assert.ok(row('steering_angle_kit', 'turning').next < row('steering_rack_quick', 'turning').next, 'the kit turns tighter than the rack');
 });
 
 test('a dyno run: the wheels\' torque and power, and what changed since the last run', async () => {

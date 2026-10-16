@@ -29,7 +29,7 @@
 //  Money and parts only change through the player service (the Workshop asks it).
 //  Mouse, touch and gamepad (the D-pad moves between controls, A presses, B goes back).
 
-import { AREAS, SYSTEMS, conditionClass, conditionWord, iconFor, socketLabel, STAT_KEYS } from './workshop.js';
+import { AREAS, SYSTEMS, conditionClass, conditionWord, iconFor, socketLabel, STAT_KEYS, byPerformance } from './workshop.js';
 import { needsRepair } from './player/profile.js';
 import { dealerCar, dealerList } from './dealer.js';
 import { listingState } from './shop.js';
@@ -381,7 +381,7 @@ export class GarageScreen {
   #candidates() {
     const { candidates } = this.w.partsFor(this.ui.socket);
     const f = this.ui.filter, list = candidates.filter(c => f === 'all' || (f === 'owned' && c.owned) || (f === 'shop' && !c.owned) || (f === 'upgrades' && c.ratingChange > 0));
-    const by = { performance: (a, b) => (b.ratingChange - a.ratingChange) || (b.owned - a.owned) || a.part.name.localeCompare(b.part.name), name: (a, b) => a.part.name.localeCompare(b.part.name), category: (a, b) => a.part.category.localeCompare(b.part.category) || a.part.name.localeCompare(b.part.name), price: (a, b) => (a.owned ? 0 : a.price) - (b.owned ? 0 : b.price), condition: (a, b) => b.condition - a.condition }[this.ui.sort];
+    const by = { performance: byPerformance, name: (a, b) => a.part.name.localeCompare(b.part.name), category: (a, b) => a.part.category.localeCompare(b.part.category) || a.part.name.localeCompare(b.part.name), price: (a, b) => (a.owned ? 0 : a.price) - (b.owned ? 0 : b.price), condition: (a, b) => b.condition - a.condition }[this.ui.sort];
     return [...list].sort((a, b) => (!!a.locked - !!b.locked) || by(a, b));
   }
   #partRow(c) {
@@ -479,7 +479,7 @@ export class GarageScreen {
   #sameGroup(a, b) { return Object.values(this.w.car.socketGroups || {}).some(g => g.includes(a) && g.includes(b)); }
   #breakdown(r) {
     const bd = r.breakdown ?? [], max = Math.max(1e-9, ...bd.filter(b => b.effect !== 'base').map(b => Math.abs(b.amount)));
-    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking (a cold stop).' : r.key === 'braking' ? 'Stopping from 100 km/h through a race, the brakes hot as well as cold: better pads and discs fade less, and bite harder. The tyres set the shortest cold stop.' : null;
+    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking (a cold stop).' : r.key === 'braking' ? 'Stopping from 100 km/h through a race, the brakes hot as well as cold: better pads and discs fade less, and bite harder. The tyres set the shortest cold stop.' : r.key === 'turning' ? 'Kerb to kerb, on full lock: more lock turns the car round in less room — U-turns, hairpins, a tight drift.' : r.key === 'bite' ? 'How hard the brakes clamp for the same press of the pedal. With ABS the tyres still set the shortest stop; you feel it as a sharper pedal, and on a part-press.' : r.key === 'fade' || r.key === 'cooling' ? 'Brakes fade when they get hot, lap after lap or down a long hill: they grip less and the car takes longer to stop. Fading later or cooling faster keeps them biting.' : null;
     const unit = r.unit ? ' ' + r.unit : '';
     return `<div class="g-breakdown well"><div class="label" style="font-size:11px">What affects ${esc(r.label.toLowerCase())}</div>
       ${bd.length ? bd.map(b => {
@@ -830,8 +830,8 @@ export class GarageScreen {
     const list = all.filter(c => (u.cat === 'all' || c.part.category === u.cat) && (!u.fits || c.fits) && (u.brand === 'all' || c.brand === u.brand) && (u.tier === 'all' || (c.part.tier ?? 'stock') === u.tier)
       && c.price >= band[1] && c.price < band[2] && (!q || c.part.name.toLowerCase().includes(q) || c.part.category.includes(q) || c.part.id.includes(q) || (c.brand ?? '').toLowerCase().includes(q)));
     // (what each would do to the rating: worked out only when sorting by it — a trial fit each)
-    if (u.sort === 'gain') for (const c of list) c.gain = c.fits && !c.lock ? w.ratingGain(c.part.id) : null;
-    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, gain: (a, b) => (b.gain ?? -1e9) - (a.gain ?? -1e9), price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort] ?? ((a, b) => a.price - b.price);
+    if (u.sort === 'gain') for (const c of list) { c.gain = c.fits && !c.lock ? w.ratingGain(c.part.id) : null; c.gainExact = c.gain == null ? null : w.ratingGainExact(c.part.id); }
+    const by = { category: (a, b) => a.part.category.localeCompare(b.part.category) || a.price - b.price, gain: (a, b) => (b.gainExact ?? -1e9) - (a.gainExact ?? -1e9), price: (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, name: (a, b) => a.part.name.localeCompare(b.part.name) }[u.sort] ?? ((a, b) => a.price - b.price);
     list.sort((a, b) => by(a, b) || a.part.name.localeCompare(b.part.name));
     const bandName = ([id, lo, hi]) => id === 'all' ? 'Any price' : hi === Infinity ? `Over ${this.money(lo)}` : lo === 0 ? `Under ${this.money(hi)}` : `${this.money(lo)}–${this.money(hi)}`;
     const select = (field, value, opts, label) => `<select class="g-input g-select" data-field="shop.${field}" data-key="shop-${field}" aria-label="${label}">${opts.map(([v, n]) => `<option value="${esc(v)}" ${value === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
@@ -1594,7 +1594,7 @@ export class GarageScreen {
     if (found) return found;
     const copy = w.profile.parts[key], part = copy && w.db.parts[copy.partId];
     if (!part || copy.installedOn) return null;
-    return { key, instanceId: key, partId: part.id, count: 1, part, condition: copy.condition ?? 100, owned: true, set: 1, price: 0, affordable: true, locked: null, blockers: [], gain: [], ratingChange: 0 };
+    return { key, instanceId: key, partId: part.id, count: 1, part, condition: copy.condition ?? 100, owned: true, set: 1, price: 0, affordable: true, locked: null, blockers: [], gain: [], ratingChange: 0, ratingExact: 0, massChange: 0 };
   }
   back() {
     if (this.ui.dialog) { this.ui.dialog = null; return this.render(); }

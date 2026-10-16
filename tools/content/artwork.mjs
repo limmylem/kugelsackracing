@@ -148,6 +148,29 @@ DRAW.camber = (m, c) => {
   m.add(box([-0.2, 0.25, -0.12], [0.2, 0.28, 0.12]), { colour: c });
   for (const x of [-0.12, 0, 0.12]) m.add(box([x - 0.02, 0.28, -0.06], [x + 0.02, 0.29, 0.06]), { colour: 'dark' });
 };
+// (a braided line coiled between its two banjo fittings)
+DRAW.brake_lines = (m, c) => {
+  m.add(sweep(helix(0.12, 0.24, 2), 0.016, 8), { colour: 'silver' });
+  for (const y of [-0.13, 0.13]) m.add(disc(0.035, 0.04, 'y').map(t => t.map(q => [q[0] + 0.12, q[1] + y, q[2]])), { colour: c });
+};
+// (a bottle of fluid with its tier's label)
+DRAW.brake_fluid = (m, c) => {
+  m.add(lathe([[0, -0.16], [0.09, -0.16], [0.09, 0.08], [0.04, 0.13], [0, 0.13]], 20, 'y'), { colour: 'silver' });
+  m.add(ring(0.091, 0.093, 0.12, 'y', 20).map(t => t.map(q => [q[0], q[1] - 0.04, q[2]])), { colour: c });
+  m.add(disc(0.03, 0.05, 'y').map(t => t.map(q => [q[0], q[1] + 0.16, q[2]])), { colour: 'dark' });
+};
+// (a duct's flared mouth and its hose back to the disc)
+DRAW.brake_cooling = (m, c) => {
+  m.add(box([-0.16, -0.07, 0.1], [0.16, 0.07, 0.16]), { colour: c });
+  m.add(sweep([[0, 0, 0.1], [0, 0, -0.05], [0.12, 0, -0.15], [0.12, 0, -0.25]], 0.05, 10), { colour: 'dark' });
+  m.add(ring(0.06, 0.13, 0.02, 'x').map(t => t.map(q => [q[0] + 0.14, q[1], q[2] - 0.25])), { colour: 'silver' });
+};
+// (the rack's tube, its track rods out to each side, and the pinion in its tier's colour)
+DRAW.steering_rack = (m, c) => {
+  m.add(lathe([[0, -0.2], [0.035, -0.2], [0.035, 0.2], [0, 0.2]], 14, 'x'), { colour: 'silver' });
+  for (const s of [-1, 1]) m.add(sweep([[0.2 * s, 0, 0], [0.32 * s, 0, 0.04]], 0.012, 6), { colour: 'dark' });
+  m.add(disc(0.05, 0.08, 'y').map(t => t.map(q => [q[0] - 0.08, q[1] + 0.06, q[2]])), { colour: c });
+};
 DRAW.lift_kit = (m, c) => {
   m.add(sweep(helix(0.06, 0.3, 6), 0.01, 6), { colour: c });
   m.add(disc(0.08, 0.04, 'y').map(t => t.map(q => [q[0], q[1] - 0.19, q[2]])), { colour: 'dark' });

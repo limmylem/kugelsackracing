@@ -37,7 +37,7 @@ export const areaOf = focus => AREAS.find(a => a.focus.includes(focus))?.id ?? '
 export const SYSTEMS = [
   { name: 'Engine & induction', icon: 'settings', slots: ['intake', 'turbo', 'intercooler', 'header', 'pistons'] },
   { name: 'Drivetrain', icon: 'settings_input_component', slots: ['gearbox', 'clutch', 'flywheel', 'differential', 'differential_front', 'centre_diff', 'transfer_case'] },
-  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'camber', 'lift_kit', 'spacer'] },
+  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'brake_lines', 'brake_fluid', 'brake_cooling', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'camber', 'steering_rack', 'lift_kit', 'spacer'] },
   { name: 'Electronics', icon: 'memory', slots: ['ecu'] },
   { name: 'Weight', icon: 'fitness_center', slots: ['weight_rear_seats', 'weight_sound_deadening'] },
 ];
@@ -50,7 +50,7 @@ const ICONS = { engine: 'settings', intake: 'air', turbo: 'mode_fan', intercoole
   fender_left: 'directions_car', fender_right: 'directions_car', skirt_left: 'horizontal_rule', skirt_right: 'horizontal_rule', mirror_left: 'flip', mirror_right: 'flip',
   seat: 'airline_seat_recline_normal', steering_wheel: 'trip_origin', spoiler: 'flight', brake_pads: 'layers', flywheel: 'radio_button_checked', header: 'call_split',
   pistons: 'unfold_more', weight_rear_seats: 'event_seat', weight_sound_deadening: 'volume_off',
-  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', camber: 'architecture', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
+  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', camber: 'architecture', brake_lines: 'cable', brake_fluid: 'water_drop', brake_cooling: 'air', steering_rack: 'u_turn_left', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
 export const iconFor = slot => ICONS[slot] ?? 'build';
 export const conditionClass = c => c >= 70 ? 'good' : c >= 40 ? 'warn' : 'bad';
 export const conditionWord = (c, part) => c >= 100 ? 'New' : c >= 70 ? 'Good' : c >= 40 ? 'Worn' : c > 0 ? 'Damaged' : part?.engine ? 'Blown' : 'Broken';
@@ -157,11 +157,13 @@ export class Workshop {
     if (this.gainCache?.key !== key) this.gainCache = { key, map: new Map() };
     if (!this.gainCache.map.has(partId)) {
       const socket = this.socketFor(partId), t = socket && this.#try(socket, { instanceId: null, partId }, 'quick');
-      const before = this.stats().totals?.rating?.index, after = t?.ok ? t.garage.stats().totals?.rating?.index : null;
-      this.gainCache.map.set(partId, before != null && after != null ? after - before : null);
+      const before = this.stats().totals?.rating, after = t?.ok ? t.garage.stats().totals?.rating : null;
+      this.gainCache.map.set(partId, before && after ? { shown: after.index - before.index, exact: after.exact - before.exact } : null);
     }
-    return this.gainCache.map.get(partId);
+    return this.gainCache.map.get(partId)?.shown ?? null;
   }
+  // (the same, before rounding: for sorting — parts that round to the same gain still rank by what they really do)
+  ratingGainExact(partId) { this.ratingGain(partId); return this.gainCache.map.get(partId)?.exact ?? null; }
 
   // ---- the shop's rules (garage/shop.js) ----
   get levels() { return this.service.quests?.config ?? null; }
@@ -264,7 +266,8 @@ export class Workshop {
   // shop's parts that fit — hidden if they're for another slot or don't fit (their fits tags); shown
   // locked (with the reason) if they need something that isn't fitted or clash with something that is.
   // Each with what it would do: [{ key, instanceId (a spare copy) | null (from the shop), partId,
-  // count, part, condition, owned, price, set, locked, blockers, gain, ratingChange }]
+  // count, part, condition, owned, price, set, locked, blockers, gain, ratingChange (rounded, as shown), ratingExact (before
+  // rounding: what the list sorts by), massChange (kg) }]
   partsFor(socketName) {
     const key = `${socketName}|${this.mode}|${this.build.fingerprint}|${this.profile.saved}|${this.profile.money}|${this.service.unlimited}`;
     if (this.partsCache?.key === key) return this.partsCache.value;
@@ -285,7 +288,8 @@ export class Workshop {
       candidates.push({ key: owned ? instance.instanceId : `shop:${part.id}`, instanceId: cand.instanceId, partId: part.id, count: owned ? count : 0, part, condition: owned ? instance.condition ?? 100 : 100, owned,
         set: n, price: o.price * n, sale: owned ? null : o.sale, affordable: owned || this.money >= o.price * n,
         locked, blockers: trial.ok ? trial.result.ops.filter(o => o.op === 'remove' && o.socket !== socketName && !this.#sameGroup(o.socket, socketName)).map(o => o.socket) : [],
-        gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0 });
+        gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0,
+        ratingExact: after?.totals?.rating && before.totals?.rating ? after.totals.rating.exact - before.totals.rating.exact : 0, massChange: after ? after.spec.mass - before.spec.mass : 0 });
     };
     for (const [partId, list] of spares) { list.sort((a, b) => b.condition - a.condition); consider(this.db.parts[partId], list[0], list.length); }
     // (the shop's: parts the player has no spare of — or not enough for a set)
@@ -555,18 +559,32 @@ export const STAT_KEYS = [
   { key: 'top', label: 'Top speed', unit: 'km/h', dec: 0, up: true, of: s => s.totals?.topSpeed.kmh },
   { key: 'accel', label: '0–100', unit: 's', dec: 1, up: false, of: s => s.totals?.rating?.estimates.zeroTo100 },
   { key: 'rating', label: 'Performance rating', unit: '', dec: 0, up: true, of: s => s.totals?.rating?.index },
+  // (shown only when a part changes them: the steering's and brakes' parts — garage/stats.js steeringOf, brakeFeel)
+  { key: 'turning', label: 'Turning circle', unit: 'm', dec: 1, up: false, extra: true, of: s => s.totals?.steering?.turningCircle },
+  { key: 'bite', label: 'Brake pressure', unit: 'bar', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.pressureBar },
+  { key: 'fade', label: 'Brakes fade from', unit: '°C', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.fadeFrom },
+  { key: 'cooling', label: 'Brake cooling', unit: '°C/s', dec: 1, up: true, extra: true, of: s => s.totals?.brakes?.cooling },
 ];
 
 // The main things a part changes, in a few words ("+62 hp", "−7 kg")
+// The parts list's "Performance" order (garageUi.js): the rating change before rounding — parts that round to the same
+// number still rank by what they really do (a 4.9 kg seat above a 5 kg one) — then the lighter, then the one you have,
+// then by name
+export function byPerformance(a, b) {
+  const d = b.ratingExact - a.ratingExact;
+  return (Math.abs(d) > 1e-6 ? d : 0) || (a.massChange - b.massChange) || (b.owned - a.owned) || a.part.name.localeCompare(b.part.name);
+}
+
 function gains(before, after) {
   const out = [];
   for (const k of STAT_KEYS) {
     if (k.key === 'rating') continue;
     const a = k.of(before), b = k.of(after);
     if (a == null || b == null) continue;
-    const d = b - a, shown = +d.toFixed(k.dec);
+    // (a small change one more decimal: two wings' −0.016 and −0.024 g both read "−0.02 g", and the list's order looked wrong)
+    const d = b - a, dec = k.dec >= 2 && Math.abs(d) < 0.1 ? k.dec + 1 : k.dec, shown = +d.toFixed(dec);
     if (!shown) continue;
-    out.push({ key: k.key, text: `${shown > 0 ? '+' : '−'}${Math.abs(shown).toFixed(k.dec)} ${k.unit}`.trim(), better: k.up ? d > 0 : d < 0, weight: Math.abs(d / a) });
+    out.push({ key: k.key, text: `${shown > 0 ? '+' : '−'}${Math.abs(shown).toFixed(dec)} ${k.unit}`.trim(), better: k.up ? d > 0 : d < 0, weight: Math.abs(d / a) });
   }
   return out.sort((x, y) => y.weight - x.weight).slice(0, 2);
 }
@@ -577,8 +595,9 @@ export function compareStats(before, after, db, stateBefore, stateAfter) {
   return STAT_KEYS.map(k => {
     const cur = k.of(before), next = k.of(after), delta = cur != null && next != null ? next - cur : null;
     const rounded = delta == null ? 0 : +delta.toFixed(k.dec);
+    if (k.extra && !rounded) return null;
     return { ...k, cur, next, delta, better: rounded === 0 ? null : k.up ? delta > 0 : delta < 0, breakdown: breakdownOf(k.key, before, after, db, stateBefore, stateAfter) };
-  });
+  }).filter(Boolean);
 }
 
 // What makes up a stat on the new build (and what changed it from the current one)
@@ -622,7 +641,7 @@ function breakdownOf(key, before, after, db, stateBefore, stateAfter) {
       if (!s.spec) return null;
       let cd = s.spec.aero.dragCoefficient, down = -(s.spec.aero.front.liftCoefficient + s.spec.aero.rear.liftCoefficient);
       for (const a of s.spec.aeroParts || []) { const k = angleScale(a.part.aero, a.angle); cd += a.part.aero.dragCoefficient * k; down += -a.part.aero.liftCoefficient * k; }
-      return { power: s.totals.peakPower.hp, mass: s.spec.mass, grip: s.totals.rating.estimates.grip, cd, down, gear: s.spec.gearbox.finalDrive * s.spec.gearbox.ratios[0] / s.spec.wheels.radius, fade: s.spec.brakes.fade.startTemp, radius: s.spec.wheels.radius * 1000 };
+      return { power: s.totals.peakPower.hp, mass: s.spec.mass, grip: s.totals.rating.estimates.grip, cd, down, gear: s.spec.gearbox.finalDrive * s.spec.gearbox.ratios[0] / s.spec.wheels.radius, fade: s.spec.brakes.fade.startTemp, radius: s.spec.wheels.radius * 1000, lock: s.totals.steering?.lock ?? 0, pressure: s.spec.brakes.maxPressureBar, cool: s.totals.brakes?.cooling ?? 0 };
     };
     const A = f(before), B = f(after);
     const factors = {
@@ -630,7 +649,11 @@ function breakdownOf(key, before, after, db, stateBefore, stateAfter) {
       accel: [['Power', 'peak', 'power', 'hp', 0, true], ['Weight', '', 'mass', 'kg', 0, false], ['Grip', 'the tyres', 'grip', 'g', 2, true], ['Gearing', '1st gear, at the wheels', 'gear', '', 1, true]],
       braking: [['Grip', 'the tyres', 'grip', 'g', 2, true], ['Weight', '', 'mass', 'kg', 0, false], ['Brake fade', 'starts at', 'fade', '°C', 0, true], ['Downforce', 'lift coefficient', 'down', '', 3, true]],
       rating: [['Power', 'peak', 'power', 'hp', 0, true], ['Weight', '', 'mass', 'kg', 0, false], ['Grip', 'the tyres', 'grip', 'g', 2, true], ['Drag', 'drag coefficient', 'cd', '', 3, false]],
-    }[key];
+      turning: [['Steering lock', 'the front wheels at full lock', 'lock', '°', 1, true]],
+      bite: [['Line pressure', 'at full pedal: more bite for the same press', 'pressure', 'bar', 0, true]],
+      fade: [['Brake fade', 'starts at', 'fade', '°C', 0, true]],
+      cooling: [['Airflow', 'a hot disc cooling at 100 km/h', 'cool', '°C/s', 1, true]],
+    }[key] ?? [];
     for (const [name, sub, k, unit, dec, up] of factors) {
       if (!A || !B) continue;
       const d = +(B[k] - A[k]).toFixed(dec + 1);

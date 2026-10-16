@@ -508,6 +508,46 @@
       "blockedBy": []
     },
     {
+      "name": "socket_brake_lines",
+      "slot": "brake_lines",
+      "required": false,
+      "position": [0.3, 0.301, -0.075],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_brake_fluid",
+      "slot": "brake_fluid",
+      "required": false,
+      "position": [-0.3, 0.301, -0.075],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_brake_cooling",
+      "slot": "brake_cooling",
+      "required": false,
+      "position": [0, 0.301, 0.225],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_steering_rack",
+      "slot": "steering_rack",
+      "required": false,
+      "position": [0, 0.17, 0.83],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
       "name": "socket_brakes",
       "slot": "brakes",
       "required": true,

@@ -213,7 +213,10 @@ function onRoad(w, x, z) {
 // lay the car down on the ground at a place (sim frame); false if there's no ground there yet
 // (fromY: the first ground under that height — under a tunnel's roof — if there's any within 40 m, else from the sky)
 function land(w, x, z, headingDeg, fromY = null) {
-    const y = (fromY != null ? w.stream.groundBelow(x, z, fromY + 3, 40) : null) ?? w.stream.groundBelow(x, z, 900, 1400);
+    // (the sky: above the ground's own height there — a mountain pass is far above 900 m: the Stelvio's 2,760 m — and down
+    // to 500 m below sea level, as before)
+    const sky = Math.max(900, (w.stream.heightAt(x, z) ?? 0) + 150);
+    const y = (fromY != null ? w.stream.groundBelow(x, z, fromY + 3, 40) : null) ?? w.stream.groundBelow(x, z, sky, sky + 500);
     if (y === null)
         return false;
     release(w, false);

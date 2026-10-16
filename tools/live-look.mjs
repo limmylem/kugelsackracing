@@ -62,6 +62,10 @@ for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000]
   await page.waitForTimeout(wait);
   console.log(`  shows: ${(await page.textContent('body').catch(() => ''))?.replace(/\s+/g, ' ').trim().slice(0, 400)}`);
   if (name === 'the game') {
+    // the dock and the News button in words, not message names ("dock.tow", "news.button": 2026-10-16)
+    const shown = await page.evaluate(() => [...document.querySelectorAll('#krDock, .newsButton')].map(e => e.innerText.replace(/\s+/g, ' ').trim()).join(' | ')).catch(() => '');
+    const names = shown.match(/\b(dock|news)\.[a-zA-Z]+/g) ?? [];
+    console.log(`  the dock and News: ${shown.slice(0, 300) || 'not shown'} — ${!shown ? 'not found' : names.length ? `MESSAGE NAMES SHOWN: ${names.join(', ')}` : 'in words — ok'}`);
     // the sound (docs/AUDIO.md): a key pressed (a browser starts sound only after one), driven a few seconds, then what
     // the game's sound system says — running on its worklet, what it loaded, how loud, what the audio thread costs
     const inWorld = () => page.evaluate(async () => (await import('/testtrack/test-scene.js')).debug.active?.file ?? null).catch(() => null);
@@ -102,6 +106,15 @@ for (const [name, url, wait] of [['the account page', `${GAME}/account/`, 15000]
     }
     console.log(`  Adelaide: ${there ? `drivable after ${((Date.now() - t0) / 1000).toFixed(1)} s · ${there.where} · height ${there.y} m · ${there.label}` : 'not reached in 90 s'} · ${tilesSeen.ok} of its files fetched, ${tilesSeen.failed} failed`);
     await page.screenshot({ path: 'live-adelaide.png', timeout: 20000 }).catch(e => console.log(`  screenshot: ${e.message.split('\n')[0]}`));
+    // the Stelvio Pass (2,760 m up: the car was never put down there, "Loading the world" for good, until 2026-10-16)
+    const t1 = Date.now();
+    void page.evaluate(async () => (await import('/testtrack/test-scene.js')).enter('scenes/map_v3.json?region=stelvio')).catch(e => console.log(`  enter: ${e.message.split('\n')[0]}`));
+    let up = null;
+    while (!up && Date.now() - t1 < 90000) {
+      await page.waitForTimeout(1000);
+      up = await Promise.race([new Promise(r => setTimeout(() => r(null), 10000)), page.evaluate(async () => { const w = (await import('/testtrack/test-scene.js')).debug.active; return w?.file?.includes('stelvio') && w.stream && !w.spawning ? { y: +w.sim.vehicle.body.translation().y.toFixed(1) } : null; }).catch(() => null)]);
+    }
+    console.log(`  Stelvio: ${up ? `drivable after ${((Date.now() - t1) / 1000).toFixed(1)} s · height ${up.y} m` : 'NOT drivable in 90 s (the car not put down)'}`);
   }
   await page.screenshot({ path: `live-${name.replace(/\W+/g, '-')}.png` });
 }

@@ -1,0 +1,36 @@
+{
+  "id": "steering_angle_kit",
+  "name": "Steering angle kit",
+  "category": "steering",
+  "slot": "steering_rack",
+  "kind": "modifier",
+  "tier": "race",
+  "price": 1450,
+  "mass": 2.2,
+  "model": "",
+  "icon": "assets/icons/parts/steering_angle_kit.png",
+  "fits": [
+    "suspension_mount:std"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Extended knuckles and a modified rack: the front wheels turn up to 39% further — about 45° of lock instead of 32° — for the tightest turning circle and big drift angles, with less Ackermann so both wheels hold the slide. At speed it steers as before.",
+  "effects": [
+    {
+      "target": "steering.ratio",
+      "op": "multiply",
+      "value": 0.72
+    },
+    {
+      "target": "steering.falloffSpeed",
+      "op": "multiply",
+      "value": 0.611
+    },
+    {
+      "target": "steering.ackermann",
+      "op": "multiply",
+      "value": 0.5
+    }
+  ]
+}
