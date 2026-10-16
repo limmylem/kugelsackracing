@@ -6,7 +6,9 @@
 // plays a touch faster or slower, never skips). When states are late anyway, the car is predicted ahead from its last
 // one (velocity, acceleration, spin) for up to half a second, then eases to a stop. When the real ones arrive, the car
 // is steered from the path it was shown on to the real one (projective velocity blending): its position AND its
-// speed change smoothly, over longer the bigger the difference. Nothing ever jumps, except on purpose (a reset).
+// speed change smoothly, over longer the bigger the difference. Nothing ever jumps, except on purpose (a reset). A car
+// whose states stop for a while (its sender's game stalled) and then carry on is eased from where it's drawn onto its
+// new path the same way — unless it's come back far off (more than TELEPORT_M): then it's put there, flagged teleported.
 //
 //   const R = createRemote({ interp: NET.interp, sendHz })
 //   R.push(state, arrivedAt)   a state (codec.dequantise; world frame) and the room time it arrived (ms)
@@ -63,7 +65,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   // (sorted in an array of their own, made once: a copy sorted with a comparator made garbage for every comparison —
   // the delays aren't whole numbers — the most of anything in free roam with 29 others; Phase 8 Step 2)
   const lagsSorted = new Float64Array(LAGS);
-  let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1, teleported = false;
+  let delay = null, target = I.startBufferMs, lastT = null, jump = false, rate = 1, teleported = false, resume = false;
   let shown = null;                     // what was drawn last frame: { pos, rot, vel, ang } (vel/ang: as drawn)
   let blend = null;                     // a correction under way: from the path shown { t0, T, p0, v0, q0, w0 } to the real one
   const stats = { lagP50: 0, lagP95: 0, bufferMs: I.startBufferMs, delayMs: 0, corrections: 0, maxCorrectionCm: 0, extrapolatedMs: 0, states: 0 };
@@ -72,7 +74,13 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   function raw(t) {
     const n = buf.length;
     if (!n) return null;
-    if (t <= buf[0].time) return { ...buf[0], extrapolating: false, staleMs: 0 };
+    // (before the first state — just after the car appeared, or came back after a gap: the shown time can sit a frame or
+    // two before it — the car where its own motion had it then, moving, rather than parked on that state and setting off
+    // with a step; at most maxExtrapolateMs back)
+    if (t <= buf[0].time) {
+      const f = buf[0], d = Math.max(-I.maxExtrapolateMs, t - f.time) / 1000;
+      return { ...f, pos: v3.add(f.pos, v3.scale(f.vel, d)), rot: quat.spin(f.rot, v3.scale(f.ang, -1), -d), extrapolating: false, staleMs: 0 };   // (spin takes a time ≥ 0: back by d, the spin reversed)
+    }
     let i = n - 1;
     if (t < buf[i].time) {
       while (i > 0 && buf[i - 1].time > t) i--;
@@ -124,9 +132,10 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     push(state, arrivedAt) {
       if (buf.some(s => s.time === state.time)) return;
       if (buf.length && state.time < buf[0].time) return;               // (too late to be any use)
-      // (sent again after a long gap — free roam: another zone sent it meanwhile, or it was out of range — a fresh
-      // start, not a glide across the gap from where it was then)
-      if (buf.length && state.time - buf[buf.length - 1].time > RESUME_MS) { buf.length = 0; lastT = null; shown = null; blend = null; }
+      // (sent again after a long gap — its sender's game stalled; free roam: another zone sent it meanwhile, or it was
+      // out of range — the states start afresh, not a glide across the gap from where it was then. Where it's drawn
+      // stays: the next frame eases it from there onto the new path, or puts it there if that's far off)
+      if (buf.length && state.time - buf[buf.length - 1].time > RESUME_MS) { buf.length = 0; lastT = null; blend = null; resume = !!shown; }
       const lag = arrivedAt - state.time;
       lags.push(lag); if (lags.length > LAGS) lags.shift();
       lagsSorted.set(lags);
@@ -177,6 +186,19 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       }
       delay = roomNow - t;
       const r = raw(t);
+      // (the first frame after a long gap: from where the car is drawn to its new path, as a correction — over longer the
+      // further it is; or there at once, if it's come back far off)
+      let resumed = false;
+      if (resume && shown) {
+        const d = v3.len(v3.sub(shown.pos, r.pos)), turn = quat.angle(quat.mul(shown.rot, quat.conj(r.rot)));
+        if (d > TELEPORT_M) { teleported = true; shown = null; }
+        else {
+          const dv = v3.len(v3.sub(shown.vel, r.vel));
+          blend = { t0: t, T: Math.min(1500, Math.max(I.blendMs, 300 * Math.sqrt(d) + 15 * dv, 2000 * turn)), p0: shown.pos, v0: shown.vel, q0: shown.rot, w0: shown.ang };
+          stats.corrections++; resumed = true;
+        }
+      }
+      resume = false;
       let pos = r.pos, rot = r.rot, corr = 0;
       if (blend) {
         const u = (t - blend.t0) / blend.T;
@@ -190,8 +212,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       }
       // (the car's motion as drawn: what the next correction starts from, and what the eye follows)
       const fdt = lastT != null ? (t - lastT) / 1000 : 0;
-      const vel = shown && fdt > 1e-4 ? v3.scale(v3.sub(pos, shown.pos), 1 / fdt) : r.vel;
-      const ang = shown && fdt > 1e-4 ? quat.between(shown.rot, rot, fdt) : r.ang;
+      const vel = shown && fdt > 1e-4 ? v3.scale(v3.sub(pos, shown.pos), 1 / fdt) : resumed ? shown.vel : r.vel;
+      const ang = shown && fdt > 1e-4 ? quat.between(shown.rot, rot, fdt) : resumed ? shown.ang : r.ang;
       shown = { pos, rot, vel, ang };
       lastT = t;
       stats.maxCorrectionCm = Math.max(stats.maxCorrectionCm, corr); stats.lastCorrectionCm = corr;

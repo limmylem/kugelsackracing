@@ -10,6 +10,8 @@ import { createFrame } from '../../net/frame.js';
 import { createClock } from '../../net/clock.js';
 import { createLink, rng } from '../../net/netsim.js';
 import { simulateRemote } from '../../net/simulate.js';
+import { createRemote } from '../../net/remote.js';
+import { createSmoothness } from '../../net/measure.js';
 import { createRouteDriver, testLoop } from '../../net/bot.js';
 
 const car = (over = {}) => ({
@@ -118,6 +120,27 @@ test('much worse networks: handled gracefully (keeps moving, few visible correct
   const r = simulateRemote({ seconds: 60, up: { latencyMs: 400, jitterMs: 120, loss: 0.2 }, down: { latencyMs: 400, jitterMs: 120, loss: 0.2 }, seed: 4 });
   assert.ok(r.frames > 3300 && r.snaps / r.frames < 0.05, JSON.stringify(r));
   assert.ok(r.errorP50Cm < 50, `most of the time it's where it really was (${r.errorP50Cm} cm)`);
+});
+
+// a car going round a circle, sent at 30 a second, arriving 150–180 ms later, except for a stretch when its sender's game
+// stalled; drawn at 60 fps from the start (the car appearing) to after the gap
+function stalledSender({ gapMs, speed }) {
+  const R = createRemote({ interp: NET.interp, sendHz: 30 }), M = createSmoothness({ snapCm: NET.interp.snapCm }), r = 20;
+  const state = t => { const a = t / 1000 * speed / r; return { time: t, pos: [r * Math.sin(a), 0, r * Math.cos(a)], vel: [speed * Math.cos(a), 0, -speed * Math.sin(a)], rot: [0, Math.sin(-a / 2), 0, Math.cos(-a / 2)], ang: [0, -speed / r, 0], steer: 0, throttle: 1, brake: 0, gear: 2, rpm: 3000, wheels: [], flags: 0 }; };
+  const pending = []; let sendT = 0, k = 0;
+  for (let now = 0; now < 10000; now += 1000 / 60) {
+    for (; sendT <= now; sendT += 1000 / 30) if (!(sendT > 4000 && sendT < 4000 + gapMs)) pending.push([sendT + 150 + (k++ * 7919 % 31), state(sendT)]);
+    for (let i = 0; i < pending.length;) if (pending[i][0] <= now) R.push(...pending.splice(i, 1)[0].reverse()); else i++;
+    const p = R.sample(now, 1 / 60); if (p) M.frame(p, 1 / 60);
+  }
+  return M.result();
+}
+
+test('a car whose sender stalls, then carries on: eased back onto its path, never jumping; and no step as it appears', () => {
+  for (const gapMs of [600, 1600, 3000]) for (const speed of [3, 12, 30]) {
+    const r = stalledSender({ gapMs, speed });
+    assert.equal(r.snaps, 0, `a ${gapMs} ms stall at ${speed} m/s: ${JSON.stringify(r.notes[0])}`);
+  }
 });
 
 test('a bot drives its line smoothly, side by side with an offset', () => {

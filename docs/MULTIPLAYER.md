@@ -201,8 +201,13 @@ uses the observed speed.
 
 **No snapping.** When a real state arrives after a prediction, the car is blended from where it was shown to
 where it should be (projective velocity blending). The blend time grows with the error: from 200 ms up to
-1500 ms (`T = max(200, 300·√d + 15·dv, 2000·turn)`). A car is first drawn once it has two states. A reset or
+1500 ms (`T = max(200, 300·√d + 15·dv, 2000·turn)`). A car is first drawn once it has two states, already moving
+(shown a moment before its first one, along its own motion: not parked on it, then setting off). A reset or
 teleport is flagged, so it moves at once instead of gliding across the map.
+
+**A sender that stalls.** When a car's states stop for more than 1.5 s (its player's game froze for a moment) and then
+carry on, its old states are dropped. The car is blended from where it's drawn onto its new path, the same way as
+above. If it has come back more than 20 m away, it's put there at once and flagged as a teleport.
 
 **Matching the car.** `testtrack/test-scene.js` (`mpAdapter`) draws each other player's car from its look (its
 own model, parts and paint):
