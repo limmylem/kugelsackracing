@@ -3,7 +3,8 @@
 // Expedition under way on screen (its stage, the clue, the flyers left, a run's clock, where to go — a beam of light on
 // each target in the world); what was earned, as it's earned; and the development commands (kr.roadbook in the console).
 //
-//   const RB = createRoadbookPlay({ THREE, w, carInstanceId: () => id, travel: (lat, lon, heading) => … })
+//   const RB = createRoadbookPlay({ THREE, w, carInstanceId: () => id, travel: (lat, lon, heading) => …,
+//                                   quests: () => w.quests (the route guide: play/questUi.js), setHours: h => … (null: the player's own) })
 //   RB.frame(seconds, { lat, lon })    every frame in the real world
 //   RB.dispose()
 
@@ -44,7 +45,27 @@ const km = m => m >= 1000 ? t('roadbook.hud.km', { n: (m / 1000).toFixed(m >= 10
 const T = (key, vars) => esc(t(key, vars));
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, travel = null }) {
+// The Expedition under way (started, not done) and the target to show the way to: the one already being guided to while
+// it's still there (the flyers: one at a time, not swapping as you pass between them), else the nearest. null: none (no
+// Expedition under way, or a clue whose place hasn't been found)
+export function guideTargetOf(view, at, currentKey = null) {
+  const x = (view?.expeditions ?? []).find(e => e.started && !e.done && e.stage?.targets?.length);
+  if (!x) return null;
+  const list = x.stage.targets.map(t => ({ key: `rb:${x.id}:${x.stage.id}:${t.id}`, target: t }));
+  const kept = currentKey && list.find(g => g.key === currentKey);
+  if (kept) return kept;
+  return at ? list.sort((a, b) => metresBetween(at, a.target) - metresBetween(at, b.target))[0] : list[0];
+}
+// The time of day an Expedition under way sets the world to (its stage's, else its own; null: the player's own). Not in a
+// race: a quest keeps the player's time
+export function expeditionHours(view, inRace = false) {
+  if (inRace) return null;
+  const x = (view?.expeditions ?? []).find(e => e.started && !e.done);
+  const h = x ? x.stage?.timeOfDay ?? x.timeOfDay ?? null : null;
+  return Number.isFinite(h) ? h : null;
+}
+
+export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, travel = null, quests = () => null, setHours = null }) {
   const R = roadbook();
   if (!document.getElementById('rbCss')) { const s = document.createElement('style'); s.id = 'rbCss'; s.textContent = CSS; document.head.append(s); }
   const hud = document.createElement('div');
@@ -161,6 +182,10 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
     const carY = w.sim?.vehicle?.body?.translation().y ?? 0;
     const xT = (R.view?.expeditions ?? []).filter(x => x.started && !x.done).flatMap(x => x.stage?.targets ?? []);
     beamsFor(xT, carY);
+    // the way there on the road and on the maps, and the Expedition's time of day
+    guideFrame(now, at);
+    const hours = expeditionHours(R.view, !!quests()?.active);
+    if (hours !== hoursSet) { hoursSet = hours; setHours?.(hours); }
     if (now - lastHud > 250 && !hud.hidden) {
       lastHud = now;
       const go = hud.querySelector('[data-k="go"]');
@@ -173,6 +198,28 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
       const clock = hud.querySelector('[data-k="clock"]');
       if (clock && runClock) { const left = Math.max(0, runClock.limit - (Date.now() - runClock.startedAt)) / 1000; clock.textContent = `${Math.floor(left / 60)}:${(left % 60).toFixed(1).padStart(4, '0')}`; clock.classList.toggle('low', left < 30); }
     }
+  }
+
+  // ---------- the way there: the quests' route guide (play/questUi.js) to the target ----------
+  // Arrows on the road and the line on both maps, with a pin where it ends; a new one for each target; worked out again
+  // from where the car is when it's been off the route a few seconds (at most every 15 s). The player clearing it (the
+  // map's Clear route) leaves it cleared until the next target.
+  let guidedKey = null, offSince = 0, rerouteAt = 0, offCheckAt = 0, hoursSet = null;
+  function guideFrame(now, at) {
+    const Q = quests();
+    if (!Q || Q.active) return;
+    const g = guideTargetOf(R.view, at, guidedKey);
+    if (!g) { if (guidedKey && Q.guideFor === guidedKey) Q.clearGuide(); guidedKey = null; return; }
+    const to = { id: g.key, location: { lat: g.target.lat, lon: g.target.lon }, pin: true };
+    if (g.key !== guidedKey) { guidedKey = g.key; offSince = 0; void Q.setGuide(to); return; }
+    if (Q.guideFor !== guidedKey || !Q.guideLine?.length || now - offCheckAt < 1000 || !w.stream?.projection) return;
+    offCheckAt = now;
+    const [x, z] = w.stream.projection.toXZ(at.lat, at.lon);
+    let best = Infinity;
+    for (const p of Q.guideLine) best = Math.min(best, (p.x - x) ** 2 + (p.z - z) ** 2);
+    if (Math.sqrt(best) <= 80) { offSince = 0; return; }
+    offSince ||= now;
+    if (now - offSince > 4000 && now - rerouteAt > 15000) { rerouteAt = now; offSince = 0; void Q.setGuide({ ...to, quiet: true }); }
   }
 
   // ---------- the development commands: kr.roadbook in the console ----------
@@ -201,6 +248,10 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
 
   return {
     frame, toast, tell, dev,
-    dispose() { hud.remove(); for (const b of beams.values()) { w.scene.remove(b); b.traverse(o => o.geometry?.dispose()); } beams.clear(); },
+    dispose() {
+      hud.remove(); for (const b of beams.values()) { w.scene.remove(b); b.traverse(o => o.geometry?.dispose()); } beams.clear();
+      if (hoursSet != null) setHours?.(null);
+      const Q = quests(); if (guidedKey && Q?.guideFor === guidedKey) Q.clearGuide();
+    },
   };
 }

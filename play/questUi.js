@@ -195,7 +195,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     else if (preview) f.push(lineFeature(preview, 'route'));
     if (guide && !run) f.push(lineFeature(guide, 'guide'));
     // (a place picked on the map: its pin, where the route ends)
-    if (guide && !run && guideFor === PLACE && place) f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [place.lon, place.lat] }, properties: { kind: 'pin', colour: palette().guide } });
+    const pin = guideFor === PLACE ? place : pinAt;
+    if (guide && !run && pin) f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [pin.lon, pin.lat] }, properties: { kind: 'pin', colour: palette().guide } });
     w.maps?.setLines?.(f);
   }
 
@@ -298,28 +299,32 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     return true;
   }
 
-  // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps
+  // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps. item.pin: a pin on the maps
+  // where it ends, and the end taken to the nearest road (an Expedition's target — play/roadbook.js); item.quiet: no
+  // "Finding the way…" (a route worked out again, the player off it)
+  let pinAt = null;
   async function setGuide(item, done) {
     // (the road graph loads the first time: say so at once)
-    game.say('Finding the way there…', 'ok');
+    if (!item.quiet) game.say('Finding the way there…', 'ok');
     try {
       const N = await game.network(), car = game.carNow(), [lat, lon] = P.toLatLon(car.x, car.z);
       let to = { lat: item.location.lat, lon: item.location.lon };
       // (a place picked on the map — a park, the water's edge — taken to the nearest road to it, and its pin with it)
-      if (item.id === PLACE) {
+      if (item.id === PLACE || item.pin) {
         const [x, z] = N.P.toXZ(to.lat, to.lon), near = N.nearest(x, z, routeOptions({ oneway: false }), 3000);
         if (!near) { game.say('No road near there', 'warn'); return; }
         const [nlat, nlon] = N.P.toLatLon(near.x, near.z);
-        to = { lat: nlat, lon: nlon }; place = to;
+        to = { lat: nlat, lon: nlon };
+        if (item.id === PLACE) place = to;
       }
       const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, to], options: { oneway: false } });
       if (!r.ok || r.line.length < 2) { game.say('No way there on the roads', 'warn'); return; }
-      guide = r.line; guideFor = item.id; setLines();
-      game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
+      guide = r.line; guideFor = item.id; pinAt = item.pin ? { lat: item.location.lat, lon: item.location.lon } : null; setLines();
+      if (!item.quiet) game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
     } catch (e) { game.say(`Couldn't set a route: ${e.message}`, 'warn'); }
     done?.();
   }
-  function clearGuide(done) { guide = null; guideFor = null; place = null; setLines(); done?.(); }
+  function clearGuide(done) { guide = null; guideFor = null; place = null; pinAt = null; setLines(); done?.(); }
   // the route behind the car taken off as it's driven (twice a second): the line on the maps starts where the
   // car is; at its end, gone ("You've arrived"). Off the route (further than GUIDE_ON_M from it), kept as it is.
   let trimAt = 0;
@@ -671,8 +676,10 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   return {
     card, start, stop, pause, setGuide, clearGuide,
-    // (what the route on the maps goes to: a quest's or a garage's id — play/contentLayer.js)
+    // (what the route on the maps goes to: a quest's or a garage's id — play/contentLayer.js; an Expedition's target)
     get guideFor() { return guide ? guideFor : null; },
+    // (the route itself, world x/z points: an Expedition's guide notices the player has left it — play/roadbook.js)
+    get guideLine() { return guide; },
     get active() { return !!run; },
     get run() { return run; },
     // (paused: the pause menu — and the intro, when the camera's away and the car waits)

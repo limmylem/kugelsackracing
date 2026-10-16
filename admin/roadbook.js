@@ -134,6 +134,14 @@ export function parseLatLon(text) {
 export const numOrText = v => { const s = String(v ?? '').trim().replace(/^[\u2212\u2013]/, '-'); const n = Number(s); return s !== '' && Number.isFinite(n) ? n : s; };
 
 // an Expedition stage's kinds and the fields each has
+// a time of day for an Expedition (or a stage): the hour, half-hourly; null for the player's own
+export const TIME_CHOICES = Array.from({ length: 48 }, (_, k) => k / 2);
+export function hourText(h) {
+  if (!Number.isFinite(h)) return '';
+  const hh = Math.floor(h) % 24, mm = Math.round((h % 1) * 60);
+  const clock = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  return h === 0 || h === 24 ? `${clock} (midnight)` : h === 12 ? `${clock} (noon)` : h < 6 || h >= 20 ? `${clock} (night)` : h < 8 ? `${clock} (dawn)` : h >= 18 ? `${clock} (dusk)` : clock;
+}
 export const STAGE_TYPES = { reach: 'Drive to a place (its marker shown)', clue: 'Find a place from a clue (no marker until close)', collect: 'Pick things up (in any order)', checkpoints: 'A timed run through checkpoints' };
 export const STAGE_FIELDS = { reach: ['location'], clue: ['clue', 'hint', 'hintAfterMin', 'revealWithin', 'location'], collect: ['radius', 'items'], checkpoints: ['radius', 'timeLimitSec', 'checkpoints'] };
 const STAGE_DEFAULTS = { location: () => ({ radius: 50 }), clue: () => '', hint: () => '', hintAfterMin: () => 10, revealWithin: () => 150, items: () => [], checkpoints: () => [], timeLimitSec: () => 300, radius: type => type === 'collect' ? 25 : 30 };
@@ -343,6 +351,10 @@ export function createRoadbookTools({ api, h, say, when, errText, main }) {
   const select = (options, value, onchange) => h('select', { onchange: e => onchange(e.target.value) },
     ...Object.entries(options).map(([v, t]) => h('option', { value: v, selected: v === value }, t)),
     value != null && !(value in options) ? h('option', { value, selected: true }, `(unknown: ${value})`) : null);
+  // a time of day bound to o[k]: the hour, or left out (the label for that: the player's own, or the Expedition's)
+  const timeSelect = (o, k, noneLabel) => h('select', { onchange: e => { const v = e.target.value; if (v === '') delete o[k]; else o[k] = Number(v); changed(); } },
+    h('option', { value: '', selected: !Number.isFinite(o[k]) }, noneLabel),
+    ...[...TIME_CHOICES, ...(Number.isFinite(o[k]) && !TIME_CHOICES.includes(o[k]) ? [o[k]] : [])].map(v => h('option', { value: String(v), selected: o[k] === v }, hourText(v))));
   // boxes bound to o[k]: text; a longer text; a number (blank leaves it out, or null where it has to be there); a tick
   const text = (o, k, attrs = {}) => h('input', { value: o[k] ?? '', ...attrs, oninput: e => { o[k] = e.target.value; changed(); } });
   const area = (o, k, rows = 2, attrs = {}) => h('textarea', { rows, style: 'width:100%;font:inherit;resize:vertical', ...attrs, oninput: e => { o[k] = e.target.value; changed(); } }, o[k] ?? '');
@@ -746,6 +758,7 @@ export function createRoadbookTools({ api, h, say, when, errText, main }) {
         } }, 'Remove this Expedition')),
       h('div', { class: 'row' }, field('Name', text(x, 'name', { maxlength: 80 })), field('Id', h('input', { value: x.id ?? '', readonly: true, style: MONO }), 'Fixed once made', SMALL), field('Region', text(x, 'region', { list: regions, maxlength: 40 }), '', SMALL)),
       field('The story (shown before it starts)', area(x, 'blurb', 3)),
+      field('Time of day while players are on it', timeSelect(x, 'timeOfDay', 'The player\'s own time'), 'Their world is set to this from the moment they start it until it\'s done (not during races). A stage can have a time of its own below.'),
       totals, stagesBox);
   }
   function stageCard(x, st, i, redrawList) {
@@ -761,6 +774,7 @@ export function createRoadbookTools({ api, h, say, when, errText, main }) {
           field('Id', idEl, '', SMALL), field('Kind', typeSel)),
         field('What the player is told', area(st, 'text', 2)),
         ...stageFields(st),
+        field('Time of day for this stage', timeSelect(st, 'timeOfDay', 'The Expedition\'s time'), 'Leave it as the Expedition\'s, or give this stage its own (dawn for the finale, say)'),
         h('div', { class: 'row' }, field('Points', num(st, 'points', { min: 0, step: 10 }), '', SMALL), field('Season Tokens', num(st, 'tokens', { min: 0, step: 10 }), '', SMALL)));
     };
     draw();

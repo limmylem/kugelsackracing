@@ -128,6 +128,8 @@ test('the Midnight Run: driven stage by stage, kept between sessions; a teleport
   let v = (await book(ann)).expeditions[0];
   assert.equal(v.stage.id, 'clue');
   assert.deepEqual(v.stage.targets, [], 'the clue\'s place isn\'t given away');
+  assert.equal(v.timeOfDay, 0, 'the Midnight Run: at midnight');
+  assert.equal(v.stage.timeOfDay, 0, '…every stage of it');
   assert.ok(v.stage.clue && v.stage.hint === null);
   // (another session: the next day)
   now += 86_400_000;

@@ -81,6 +81,15 @@ change goes live.
     - `checkpoints`: a timed run, in order, `timeLimitSec` from the first checkpoint; late, and it starts again
   - **Places** are latitude/longitude, and must be on roads in the map. Check them in the editor's map, or with the
     Adelaide road graph in `assets/map/adelaide/v4/graph.json.gz`.
+  - **Time of day:** `timeOfDay` is the hour (0 is midnight) the player's world is set to from the moment they start
+    the Expedition until it's done. It isn't applied during a race, and photo mode's time slider still works. A stage
+    can have its own `timeOfDay`, which wins for that stage; leave both out for the player's own time. The Midnight Run
+    is at midnight. The admin tab sets both, from a list of half hours.
+  - **The way there:** while an Expedition is under way, the game sets the quests' route guide to its current target.
+    That means arrows on the road, the line on the minimap and the full map, and a pin where it ends. The route is
+    re-planned from where the car is after a few seconds off it, and moves on to each next target: the nearest flyer,
+    or the next checkpoint. A clue's place gets no route until the player has found it near enough
+    (`revealWithin`). Clearing the route on the map leaves it cleared until the next target.
   - **Co-op:** `party` is `{ min: 1, max: 1 }` (solo) for now. Co-op Expeditions would add a party to the progress
     rows; the data already says how many may drive one.
 - **A shop item**: add it to `items` in `data/seasons/<season>/shop.json`:

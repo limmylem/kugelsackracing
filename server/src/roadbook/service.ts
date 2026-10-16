@@ -262,12 +262,13 @@ export function createRoadbook({ db, config, economy, log = () => {}, clock = ()
       const exp = v.bundle.expeditions[id], st = P.expeditions[id] ?? null, stage = st ? currentStage(exp, st) : null;
       const hintDue = stage?.type === 'clue' && st && clock() - st.stageStartedAt >= (stage.hintAfterMin ?? 10) * 60_000;
       return {
-        id, name: exp.name, blurb: exp.blurb, region: exp.region, started: !!st, done: !!st?.done, doneAt: st?.doneAt ? new Date(st.doneAt).toISOString() : null, times: st?.times ?? {},
+        // (timeOfDay: the hour the player's world is set to while it's under way — the stage's own, or the Expedition's)
+        id, name: exp.name, blurb: exp.blurb, region: exp.region, timeOfDay: exp.timeOfDay ?? null, started: !!st, done: !!st?.done, doneAt: st?.doneAt ? new Date(st.doneAt).toISOString() : null, times: st?.times ?? {},
         stages: exp.stages.map((s: any, i: number) => ({ id: s.id, name: s.name, type: s.type, finale: !!s.finale, points: s.points ?? 0, tokens: s.tokens ?? 0, done: !!st && (st.done || i < st.stage), current: !!stage && stage.id === s.id })),
         // (the stage under way: its text, a clue's words — its place only once found near it — the hint when due, the
         // items left, a run's next checkpoint, its time limit)
         stage: stage ? {
-          id: stage.id, type: stage.type, name: stage.name, text: stage.text, clue: stage.clue ?? null, hint: hintDue ? stage.hint ?? null : null,
+          id: stage.id, type: stage.type, name: stage.name, text: stage.text, clue: stage.clue ?? null, timeOfDay: stage.timeOfDay ?? exp.timeOfDay ?? null, hint: hintDue ? stage.hint ?? null : null,
           hintIn: stage.type === 'clue' && !hintDue && st ? Math.max(0, Math.round(((stage.hintAfterMin ?? 10) * 60_000 - (clock() - st.stageStartedAt)) / 1000)) : null,
           timeLimitSec: stage.timeLimitSec ?? null, run: st.run ? { startedAt: new Date(st.run.startedAt).toISOString(), next: st.run.next, of: stage.checkpoints.length } : null,
           collected: st.collected ?? [], items: stage.type === 'collect' ? stage.items.length : null,

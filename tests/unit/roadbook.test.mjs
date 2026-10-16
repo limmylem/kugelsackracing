@@ -149,3 +149,35 @@ test('what owning items unlocks: their grants together', () => {
   assert.deepEqual([...u.finishes].sort(), ['afterglow_anodised', 'afterglow_pearl', 'midnight_metallic']);
   assert.deepEqual([...u.badges], ['after_hours_collector']);
 });
+
+test('an Expedition\'s time of day: the Midnight Run is at midnight while under way (its stage\'s own time wins; not in a race; not once done); a bad hour refused', async () => {
+  const { expeditionHours } = await import('../../play/roadbook.js');
+  const x = { id: 'midnight_run', started: true, done: false, timeOfDay: bundle.expeditions.midnight_run.timeOfDay, stage: { id: 'meet', timeOfDay: bundle.expeditions.midnight_run.timeOfDay } };
+  assert.equal(x.timeOfDay, 0, 'the Midnight Run: midnight');
+  assert.equal(expeditionHours({ expeditions: [x] }), 0);
+  assert.equal(expeditionHours({ expeditions: [x] }, true), null, 'a race keeps the player\'s own time');
+  assert.equal(expeditionHours({ expeditions: [{ ...x, stage: { id: 'lookout', timeOfDay: 5.5 } }] }), 5.5, 'a stage\'s own');
+  assert.equal(expeditionHours({ expeditions: [{ ...x, done: true }] }), null);
+  assert.equal(expeditionHours({ expeditions: [{ ...x, started: false }] }), null);
+  assert.equal(expeditionHours({ expeditions: [{ ...x, timeOfDay: null, stage: { id: 'meet', timeOfDay: null } }] }), null, 'none set: the player\'s own');
+  const broken = structuredClone(all);
+  broken.seasons.after_hours.expeditions.midnight_run.timeOfDay = 25;
+  broken.seasons.after_hours.expeditions.midnight_run.stages[1].timeOfDay = -1;
+  const p = bundleProblems(broken);
+  assert.equal(p.filter(m => /time of day/.test(m)).length, 2, p.join('\n'));
+});
+
+test('the way there: the target to guide to — the one being guided to while it\'s there (the flyers one at a time), else the nearest; none for a clue not yet found', async () => {
+  const { guideTargetOf } = await import('../../play/roadbook.js');
+  const items = bundle.expeditions.midnight_run.stages[2].items.map(i => ({ id: i.id, name: i.name, lat: i.lat, lon: i.lon, radius: 25 }));
+  const view = { expeditions: [{ id: 'midnight_run', started: true, done: false, stage: { id: 'flyers', targets: items } }] };
+  const nearEast = { lat: items[2].lat, lon: items[2].lon + 0.001 };
+  const g = guideTargetOf(view, nearEast);
+  assert.equal(g.target.id, 'flyer_east', 'the nearest');
+  assert.equal(g.key, 'rb:midnight_run:flyers:flyer_east');
+  assert.equal(guideTargetOf(view, { lat: items[0].lat, lon: items[0].lon }, g.key).target.id, 'flyer_east', 'kept while it\'s still to pick up');
+  const picked = { expeditions: [{ ...view.expeditions[0], stage: { id: 'flyers', targets: items.slice(0, 2) } }] };
+  assert.equal(guideTargetOf(picked, nearEast, g.key).target.id, 'flyer_mid', 'picked up: the next nearest');
+  assert.equal(guideTargetOf({ expeditions: [{ id: 'midnight_run', started: true, done: false, stage: { id: 'clue', targets: [] } }] }, nearEast), null, 'a clue: no way shown until its place is found');
+  assert.equal(guideTargetOf({ expeditions: [{ ...view.expeditions[0], done: true }] }, nearEast), null);
+});

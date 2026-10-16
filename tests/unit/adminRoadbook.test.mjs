@@ -141,3 +141,15 @@ ok('season points and days left', () => {
   assert.equal(T.daysLeft(new Date(Date.UTC(2026, 0, 1)).toISOString(), Date.UTC(2026, 0, 5)), 0);
 });
 
+
+ok('an Expedition\'s time of day: every half hour to choose from, in words; the Midnight Run\'s midnight passes the checks', () => {
+  assert.equal(T.TIME_CHOICES.length, 48);
+  assert.equal(T.hourText(0), '00:00 (midnight)');
+  assert.equal(T.hourText(12), '12:00 (noon)');
+  assert.equal(T.hourText(6.5), '06:30 (dawn)');
+  assert.equal(all.seasons.after_hours.expeditions.midnight_run.timeOfDay, 0);
+  const work = T.clone(all);
+  work.seasons.after_hours.expeditions.midnight_run.stages[4].timeOfDay = 5.5;
+  assert.deepEqual(bundleProblems(work), []);
+  assert.equal(json(T.cleanBundle(work)).includes('"timeOfDay":5.5'), true, 'kept when saved');
+});

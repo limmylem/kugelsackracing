@@ -83,15 +83,30 @@ try {
   await page.evaluate(async () => {
     const THREE = { MeshBasicMaterial: class {}, AdditiveBlending: 2, DoubleSide: 2 };
     const { createRoadbookPlay } = await import('/play/roadbook.js');
-    (window as any).RB = createRoadbookPlay({ THREE, w: { scene: { add() {}, remove() {} }, stream: null }, carInstanceId: () => null });
+    // (the quests' route guide and the world's clock, as the game hands them over: what they're asked to do, kept)
+    const calls: any = { guide: [], cleared: 0, hours: [] };
+    const Q: any = { active: false, guideFor: null, guideLine: null, setGuide(to: any) { calls.guide.push(to); Q.guideFor = to.id; }, clearGuide() { calls.cleared++; Q.guideFor = null; } };
+    (window as any).RBcalls = calls;
+    (window as any).RB = createRoadbookPlay({ THREE, w: { scene: { add() {}, remove() {} }, stream: null }, carInstanceId: () => null, quests: () => Q, setHours: (h: any) => calls.hours.push(h) });
   });
   await page.waitForFunction(() => !document.getElementById('rbHud')?.hidden, null, { timeout: 10000 });
   text = await page.textContent('#rbHud');
   check('the HUD: the Expedition under way, its stage', /The Midnight Run/.test(text) && /The meeting spot/.test(text) && /Stage 1 of 5/.test(text), text);
+  // a frame across town from the meeting spot: the way there on the road and the maps, a pin at its end; midnight
+  await page.evaluate(() => (window as any).RB.frame(0, { lat: -34.9238, lon: 138.5999 }));
+  let calls = await page.evaluate(() => (window as any).RBcalls);
+  check('the way there: the route guide set to the meeting spot, with a pin on the maps', calls.guide.length === 1 && calls.guide[0].pin === true && Math.abs(calls.guide[0].location.lat - -34.94144) < 1e-6 && calls.guide[0].id === 'rb:midnight_run:meet:meet', JSON.stringify(calls.guide));
+  check('the Midnight Run at midnight: the world\'s clock set to 0:00', calls.hours.length === 1 && calls.hours[0] === 0, JSON.stringify(calls.hours));
+  await page.evaluate(() => (window as any).RB.frame(0, { lat: -34.9238, lon: 138.5999 }));
+  calls = await page.evaluate(() => (window as any).RBcalls);
+  check('…set once, not every frame', calls.guide.length === 1 && calls.hours.length === 1);
   await page.evaluate(() => (window as any).kr.roadbook.nextStage());
   await page.waitForFunction(() => /Follow the clue/.test(document.getElementById('rbHud')?.textContent ?? ''), null, { timeout: 10000 });
   text = await page.textContent('#rbHud');
   check('kr.roadbook.nextStage(): there, and the stage done — the next one\'s clue shown, its place not', /Stage 2 of 5/.test(text) && /crosses the river/.test(text), text);
+  await page.evaluate(() => (window as any).RB.frame(0, { lat: -34.9414, lon: 138.5318 }));
+  calls = await page.evaluate(() => (window as any).RBcalls);
+  check('the clue\'s stage: no way shown (the route taken off) until its place is found', calls.cleared === 1 && calls.guide.length === 1, JSON.stringify(calls));
   const toast = await page.textContent('#rbToasts');
   check('what was earned, shown as it\'s earned', /\+150 tokens/.test(toast), toast);
   await shot('hud');

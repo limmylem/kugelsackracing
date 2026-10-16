@@ -129,7 +129,8 @@ export function createLaunch(s, ctx) {
     game: {
       scene: () => ctx.active().scene, camera: () => ctx.active().camera,
       target: () => { const p = ctx.active()?.car?.position; return p ? [p.x, p.y, p.z] : null; },
-      hours: () => prefs.timeOfDay ?? 13, setHours: h => { prefs.timeOfDay = h; },
+      // (an Expedition's time while one's under way — s.timeOverride, play/roadbook.js: the slider moves that, not the setting)
+      hours: () => s.timeOverride ?? prefs.timeOfDay ?? 13, setHours: h => { if (s.timeOverride != null) s.timeOverride = h; else prefs.timeOfDay = h; },
       pause: on => { s.photoPaused = !!on; },
       render: (scene, camera) => s.gfx.render(ctx.active().fxDraw, scene, camera, { speed: 0 }),
       get api() { return out.A?.me && out.A.online ? out.A.api : null; },

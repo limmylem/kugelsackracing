@@ -648,7 +648,7 @@ function raceReplayFrame(w, now, seconds) {
   RR.ui.querySelector('[data-k="cam"]').textContent = { tv: `TV${cam?.kind === 'tv' ? ` · ${cam.name}` : ''}`, chase: 'Chase', incar: 'In-car' }[P.mode];
   RR.ui.querySelector('[data-k="car"]').textContent = `${focus?.player ? 'You' : focus?.name ?? '?'} ▸`;
   RR.ui.querySelector('[data-tag]').textContent = P.paused ? 'PAUSED' : 'REPLAY';
-  daylight(w, shared.prefs.timeOfDay ?? 13);
+  daylight(w, hoursNow());
   w.rain?.update(w.camera, seconds); floodFrame(w);
   shared.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
@@ -1317,7 +1317,8 @@ async function buildWorld(file) {
     // the ROADBOOK while driving: where the car's been (to the server), the Expedition on screen (play/roadbook.js;
     // docs/ROADBOOK.md) — and kr.roadbook in the console for testing it
     w.roadbook = (await import('../play/roadbook.js')).createRoadbookPlay({ THREE, w, carInstanceId: () => shared.session?.testDriving ? null : shared.session?.player?.profile?.currentCar ?? null,
-      travel: async (lat, lon, heading) => MapV3.travelTo(w, { lat, lon, heading }) });
+      travel: async (lat, lon, heading) => MapV3.travelTo(w, { lat, lon, heading }),
+      quests: () => w.quests, setHours: h => { shared.timeOverride = h; } });
   }
   return w;
 }
@@ -1347,7 +1348,7 @@ function frame(w, now) {
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
   // (photo mode: the world holds still and its free camera draws — online, the world carries on underneath: below)
-  if (shared.launch?.photo.on && !shared.mp && !shared.mpRace) { for (const act of inp.pressed) if (act === 'photo' || act === 'settings') handleAction(w, act, inp); daylight(w, P.timeOfDay ?? 13); shared.launch.drawFrame(w, seconds); PF.lap('render'); PF.frameEnd(); return; }
+  if (shared.launch?.photo.on && !shared.mp && !shared.mpRace) { for (const act of inp.pressed) if (act === 'photo' || act === 'settings') handleAction(w, act, inp); daylight(w, hoursNow()); shared.launch.drawFrame(w, seconds); PF.lap('render'); PF.frameEnd(); return; }
   // the race replay (after a race): it's what's drawn, and the world waits
   if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) { PF.lap('render'); PF.frameEnd(); return; } }
   // a crash replay playing (or due): it's what's drawn, and the world waits
@@ -1449,7 +1450,7 @@ function frame(w, now) {
   shared.mpRace?.camera(w.camera, seconds);                 // (watching a multiplayer race: any car, any camera)
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
   if (D.glass) D.glass.opacity = inside ? 0.1 : D.glass.userData.opacity ?? D.glassOpacity;
-  const light = daylight(w, P.timeOfDay ?? 13);
+  const light = daylight(w, hoursNow());
   PF.lap('game');
   updateEffects(w, light, T ? 0 : stepsThisFrame * w.sim.dt);
   PF.lap('effects');
@@ -1558,7 +1559,7 @@ function replayFrame(w, now, seconds, inp) {
   s.dents.flush();
   s.hintCard.update(seconds);
   s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
-  updateEffects(w, daylight(w, s.prefs.timeOfDay ?? 13), Math.max(0, R.player.t - (R.fxDrawn ?? R.player.t)), R.marks.time - (R.marks.simTime - R.player.t));
+  updateEffects(w, daylight(w, hoursNow()), Math.max(0, R.player.t - (R.fxDrawn ?? R.player.t)), R.marks.time - (R.marks.simTime - R.player.t));
   R.fxDrawn = R.player.t;
   s.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
@@ -1842,6 +1843,10 @@ function floodFrame(w) {
   const c = w.camera.position, lamps = w.trackDress.lampsAt.map(p => [p, (p[0] - c.x) ** 2 + (p[2] - c.z) ** 2]).sort((a, b) => a[1] - b[1]);
   w.floodPools.forEach((l, k) => { const L = lamps[k]?.[0]; if (!L) { l.intensity = 0; return; } l.position.set(L[0], L[1], L[2]); l.target.position.set(L[0], L[1] - 20, L[2]); l.intensity = 2600 * (w.light?.night ?? 1); });
 }
+
+// the hour the world's lit for: an Expedition's while one's under way (shared.timeOverride — play/roadbook.js), else the
+// player's own (the settings)
+const hoursNow = () => shared?.timeOverride ?? shared?.prefs?.timeOfDay ?? 13;
 
 function daylight(w, hours) {
   // (a dressed track: its theme's time of day and weather — track/renderDress.js themeEnvironment)

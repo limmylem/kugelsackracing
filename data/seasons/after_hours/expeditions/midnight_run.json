@@ -1,9 +1,10 @@
 {
-  "_note": "An Expedition (docs/ROADBOOK.md): stages done in order by driving to real places (lat/lon on the map). Stage types: reach (get to a place; marker shown), clue (get to a place from a clue: no marker until within revealWithin metres; hint after hintAfterMin minutes), collect (pick up every item: drive within radius of each, any order), checkpoints (a timed run through them in order: starts at the first, timeLimitSec to the last; failing starts it again). finale: true on the last. Each stage pays its points and tokens once. party: how many drive it together (1: solo; co-op later).",
+  "_note": "An Expedition (docs/ROADBOOK.md): stages done in order by driving to real places (lat/lon on the map). Stage types: reach (get to a place; marker shown), clue (get to a place from a clue: no marker until within revealWithin metres; hint after hintAfterMin minutes), collect (pick up every item: drive within radius of each, any order), checkpoints (a timed run through them in order: starts at the first, timeLimitSec to the last; failing starts it again). finale: true on the last. Each stage pays its points and tokens once. party: how many drive it together (1: solo; co-op later). timeOfDay: the hour (0–24, 0 midnight) the player's world is set to while the Expedition is under way (not during races); a stage's own timeOfDay wins for that stage; leave it out for the player's own time.",
   "id": "midnight_run",
   "season": "after_hours",
   "name": "The Midnight Run",
   "region": "adelaide",
+  "timeOfDay": 0,
   "blurb": "A text from a number you don't know: \"Airport car park. Midnight. Come alone.\" Somebody's running the hills tonight, and they want to see what you've got.",
   "party": { "min": 1, "max": 1 },
   "stages": [

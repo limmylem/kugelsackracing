@@ -209,6 +209,9 @@ export function bundleProblems(all) {
     for (const [xid, x] of Object.entries(s.expeditions ?? {})) {
       if (x.id !== xid) out.push(`Expedition ${xid}: its id must be "${xid}".`);
       if (!(x.stages?.length)) out.push(`${x.name ?? xid}: it needs stages.`);
+      // (the time of day the player's world is set to while it's under way: an hour, 0 to 24 — or none, their own)
+      const badHour = h => h != null && !(Number.isFinite(h) && h >= 0 && h <= 24);
+      if (badHour(x.timeOfDay)) out.push(`${x.name ?? xid}: its time of day is an hour from 0 (midnight) to 24.`);
       const sids = new Set();
       for (const st of x.stages ?? []) {
         if (!st.id || sids.has(st.id)) out.push(`${x.name}: stage ids must be different (${st.id ?? 'none'}).`);
@@ -217,6 +220,7 @@ export function bundleProblems(all) {
         if (!['reach', 'clue', 'collect', 'checkpoints'].includes(st.type)) out.push(`${x.name}, ${st.name}: there's no stage type "${st.type}".`);
         else if (!pts?.length || pts.some(p => !onGlobe(p))) out.push(`${x.name}, ${st.name}: its places need a latitude and longitude.`);
         if (st.type === 'checkpoints' && !(st.timeLimitSec > 0)) out.push(`${x.name}, ${st.name}: a checkpoint run needs timeLimitSec.`);
+        if (badHour(st.timeOfDay)) out.push(`${x.name}, ${st.name}: its time of day is an hour from 0 (midnight) to 24.`);
       }
     }
     const items = new Set();
