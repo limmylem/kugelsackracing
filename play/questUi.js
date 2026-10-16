@@ -591,9 +591,11 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     // (fast travel: its route loaded before the car arrives, so it starts at once)
     preload: item => courseOf(item).catch(() => null),
     // over the line (or out): the car brought to a stop and held there while the results show — it kept going, at race
-    // speed, into whatever was ahead, and was wrecked (2026-10-16). The player's steering stays theirs; no throttle,
-    // the brakes on, then the handbrake once it's stopped (the brake at a standstill would select reverse)
-    get stopping() { return !!run?.results; },
+    // speed, into whatever was ahead, and was wrecked (2026-10-16). From the moment it finishes (not when the results
+    // come back from the server, seconds later). The player's steering stays theirs; no throttle, the brakes on, then
+    // the handbrake once it's stopped (the brake at a standstill would select reverse); no damage meanwhile
+    // (test-scene.js)
+    get stopping() { const st = run?.controller.state; return !!run && (!!run.results || !!run.controller.ending || st === 'finished' || st === 'failed' || st === 'results'); },
     stopInput(i) {
       const v = Math.abs(game.carNow()?.forward ?? 0);
       return { ...i, throttle: 0, brake: v > 1 ? 1 : 0, handbrake: v <= 1, steer: i?.steer ?? 0 };
