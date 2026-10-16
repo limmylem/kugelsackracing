@@ -35,6 +35,8 @@ export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {
     const desc = RAPIER.ColliderDesc.convexHull(pts);
     if (desc) out.push({ desc, userData: { material: 'concrete', sound: 'building', kind: 'building' }, shape: { type: 'prism', points: pts } });
   }
+  // (Map v5: a tunnel's tube — walls, ceiling, portals — solid all round)
+  if (d.meshes.tunnel) out.push({ desc: trimesh(d.meshes.tunnel), userData: { material: 'concrete', sound: 'building', kind: 'tunnel', mesh: 'tunnel' }, shape: { type: 'trimesh', positions: d.meshes.tunnel.positions, indices: d.meshes.tunnel.indices } });
   // railings and walls (and v4's intentional ones: flagged in the data, drawn or not)
   for (const [name, L] of Object.entries<any>(d.lists)) {
     if (!name.startsWith('barrier_')) continue;

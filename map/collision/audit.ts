@@ -4,7 +4,7 @@
 //   terrain     the heightfield — the terrain meshes are cut from it (always drawn)
 //   road        each collision triangle lies on the drawn road surface (the model's, this tile's or the next one's
 //               across the border: the collision mesh reaches a little over it), within 2 cm in height, 3 cm in plan
-//   paved/cover drawn as they are (car parks, tunnel roofs)
+//   paved/cover drawn as they are (car parks, tunnel roofs; Map v5's tunnel tubes, meshes.tunnel)
 //   building    each convex piece's middle under a drawn roof (the tile's own roofs mesh: the footprint as drawn —
 //               map v3's tiles move corners standing on a road's edge)
 //   barrier     each box on a railing piece the tile draws (or flagged intentional: flags & 2)
@@ -32,6 +32,7 @@ export function auditTile(tile: any, { cx, cz, surface, barriersCfg }: { cx: num
   for (const p of pieces) {
     const s = p.shape, kind = p.userData.kind;
     if (kind === 'terrain' && s.type === 'heightfield') { if (!tile.heightfield) bad.push({ kind, at: [cx, cz], why: 'heightfield without terrain' }); continue; }
+    if (kind === 'tunnel') { if (!tile.meshes.tunnel) bad.push({ kind, at: [cx, cz], why: 'tunnel collider without its mesh' }); continue; }
     if (kind === 'terrain' || p.userData.mesh === 'paved') { if (!tile.meshes[p.userData.mesh ?? 'cover']) bad.push({ kind, at: [cx, cz], why: `${p.userData.mesh} collider without its mesh` }); continue; }
     if (kind === 'road') {
       if (p.userData.mesh !== 'roadCollision') { if (!tile.meshes[p.userData.mesh]) bad.push({ kind, at: [cx, cz], why: 'road collider without a mesh' }); continue; }

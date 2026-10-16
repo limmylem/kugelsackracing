@@ -223,5 +223,10 @@
       "colour": "#c8c4b8",
       "style": "concrete-face"
     }
+  },
+  "tunnel": {
+    "_note": "map/model/tunnels.ts: a tunnel's tube — its walls height m up from the road's edges (a band m high at their foot), its ceiling height m over the road; a portal's headwall above m over the hillside, its wings wing m out either side.",
+    "height": 5.6, "band": 1.1, "above": 1.0, "wing": 4,
+    "colours": { "wall": "#d4d4d0", "band": "#707070", "ceiling": "#505050", "portal": "#b4b0a8" }
   }
 }

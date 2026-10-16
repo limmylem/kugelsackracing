@@ -81,5 +81,10 @@
     "signs": { "stop": "#c8102e", "giveWay": "#c8102e", "speed": "#c8102e", "direction": "#00653a", "routeShield": { "A": "#00653a", "B": "#00653a", "M": "#00653a" }, "post": "#9aa0a2" },
     "busStop": { "shelter": "#3b4a52", "sign": "#e8e8e2" },
     "tunnelPortal": { "colour": "#c8c4b8", "style": "concrete-face" }
+  },
+  "tunnel": {
+    "_note": "map/model/tunnels.ts: a tunnel's tube — its walls height m up from the road's edges (a band m high at their foot), its ceiling height m over the road; a portal's headwall above m over the hillside, its wings wing m out either side.",
+    "height": 5.6, "band": 1.1, "above": 1.0, "wing": 4,
+    "colours": { "wall": "#d9d5c8", "band": "#6f716f", "ceiling": "#4a4c4e", "portal": "#c8c4b8" }
   }
 }

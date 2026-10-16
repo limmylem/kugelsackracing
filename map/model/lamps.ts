@@ -72,8 +72,12 @@ export function placeLamps({ model, osm, cfg, surface, mask, groundAt, classAt, 
         const r = rowAt(g, s);
         // (where the kerb's taken — another road beside it, a ramp — a little further out, then the other side)
         let x = NaN, z = NaN, at_ = side;
-        const tries: [number, number][] = tunnel ? [[side, 0.15]] : [[side, Lc.offset], [side, Lc.offset + 1], [side, Lc.offset + 2], [-side, Lc.offset], [-side, Lc.offset + 1]];
-        for (const [sd, off] of tries) { const hw2 = sd > 0 ? r.hwL : r.hwR, p = at(r, sd * (hw2 + off)); if (clear(p[0], p[1], bridge)) { x = p[0]; z = p[1]; at_ = sd; break; } }
+        // (Map v5, tunnelOnWall: a tunnel's lamps are fixtures on its tube's walls — map/model/tunnels.ts — a hair inside
+        // the road's edge, high up: nothing standing on the road; Map v4's had nowhere to go, 0.15 m out failing the
+        // pole's clearance)
+        const onWall = tunnel && Lc.tunnelOnWall;
+        const tries: [number, number][] = tunnel ? [[side, onWall ? -0.1 : 0.15]] : [[side, Lc.offset], [side, Lc.offset + 1], [side, Lc.offset + 2], [-side, Lc.offset], [-side, Lc.offset + 1]];
+        for (const [sd, off] of tries) { const hw2 = sd > 0 ? r.hwL : r.hwR, p = at(r, sd * (hw2 + off)); if (onWall || clear(p[0], p[1], bridge)) { x = p[0]; z = p[1]; at_ = sd; break; } }
         if (Number.isNaN(x)) { stats.rejected++; continue; }
         if (near(x, z, Lc.mappedRadius, true)) continue;
         const y = bridge || tunnel ? sampleSurface(g, s, at_ * (at_ > 0 ? r.hwL : r.hwR)) : groundAt(x, z);

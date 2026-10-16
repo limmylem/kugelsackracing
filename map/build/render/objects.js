@@ -161,6 +161,8 @@ export function materials() {
         cover: holed(lambert({})),
         water: new THREE.MeshPhongMaterial({ color: '#3f7fb0', specular: '#9fc4e0', shininess: 60, transparent: true, opacity: 0.88, depthWrite: false }),
         roofs: lambert({ flatShading: true }),
+        // (Map v5's tunnel tubes: walls, ceiling and portals, seen from either side)
+        tunnel: lambert({ flatShading: true, side: THREE.DoubleSide }),
         walls: Object.fromEntries(['house', 'block', 'tower', 'plain'].map(k => [k, lambert({ flatShading: true, map: windowTexture(k) })])),
         // (Map v5: every building's walls from one facade atlas — map/render/facades.ts)
         wallsV5: facadeMaterial(srgbVertexColours),
@@ -326,7 +328,7 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null, furnitur
     const v5 = tile.header.map === 'v5';
     const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
     mesh('water', mat.water, { normals: true, order: 2 });
-    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true })].filter(Boolean);
+    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true }), mesh('tunnel', mat.tunnel, { shadow: true })].filter(Boolean);
     // trees
     const trees = new THREE.Group(), T = tile.lists.trees;
     if (T) {

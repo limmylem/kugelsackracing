@@ -76,7 +76,8 @@
     "portalColour": "#c8c4b8"
   },
   "lamps": {
-    "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
+    "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m. tunnelOnWall: a tunnel's lamps fixtures on its tube's walls.",
+    "tunnelOnWall": true,
     "poolRadius": 15,
     "poolIntensity": 1.6,
     "poolOpacity": 0.6,
@@ -100,6 +101,11 @@
     "footpath": "concrete",
     "kerb": "kerb",
     "carpark": "tarmac"
+  },
+  "terrain": {
+    "_note": "Map v5 over Map v4's: a tunnel road under more than tunnelCover m of ground is in a tube (map/model/tunnels.ts) — more than its ceiling's 5.6 m, so the hill is always over it — the trench under it widened tunnelPad m past its edges, clear of the tube's walls; under less, a cutting.",
+    "tunnelCover": 7,
+    "tunnelPad": 3
   },
   "collision": {
     "_note": "Map v5 over Map v4's: a building collider under 0.25 m² is a sliver and dropped unless its area over its longest side is at least sliverWidth m — a canopy's post stays solid.",
@@ -173,7 +179,7 @@
     "cycle": { "green": 20, "amber": 4, "allRed": 2 }
   },
   "tests": {
-    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night.",
+    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night. Tunnels (one-way runs of tunnelMinLength m or more): driven at up to tunnelSpeed km/h from tunnelApproach m before to after within tunnelTimeLimit s, the body within tunnelBodyOverRoad m of the road all through the tube; probed every tunnelProbeEvery m for its ceiling, walls and the ground over it.",
     "mainClasses": [
       "motorway",
       "trunk",
@@ -194,6 +200,12 @@
     "floatingOver": 0.6,
     "signClearance": 0.4,
     "nightMinLuminance": 0.12,
-    "brandSimilarity": 0.72
+    "brandSimilarity": 0.72,
+    "tunnelMinLength": 150,
+    "tunnelApproach": 250,
+    "tunnelTimeLimit": 150,
+    "tunnelBodyOverRoad": 1.5,
+    "tunnelProbeEvery": 25,
+    "tunnelSpeed": 90
   }
 }

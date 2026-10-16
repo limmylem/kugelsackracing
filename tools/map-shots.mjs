@@ -5,7 +5,8 @@
 //
 //   node tools/map-shots.mjs --spots spots.json [--out output/map-shots/<name>] [--map v3|v4] [--port 7690]
 //   spots.json: [{ "name": "belair-springbank", "region": "adelaide", "lat": -34.9899, "lon": 138.6104,
-//                  "bearing": 120, "mode": "top" | "chase", "size": 80, "view": "colliders", "hours": 13 }]
+//                  "bearing": 120, "mode": "top" | "chase", "size": 80, "view": "colliders", "hours": 13,
+//                  "y": 385 (with "exact": on the first ground under that height — a road in a tunnel) }]
 //   (or --spots data/map/known-bad-spots.json: every saved bad spot, chase camera)
 // Needs the dev server (npm start) on --port, and Playwright's Chromium (preinstalled in the cloud sessions).
 
@@ -41,7 +42,7 @@ for (const [region, list] of byRegion) {
     // (the time of day: the game's own setting — night has the street lights and headlights)
     await page.evaluate(async h => { const TS = await import('/testtrack/test-scene.js'); TS.debug.shared.prefs.timeOfDay = h; }, s.hours ?? 13);
     // there, on the ground
-    await page.evaluate(s => { const w = globalThis.__map3; w.mapDebug.setView('off'); const heading = s.exact && s.bearing != null ? 180 - s.bearing : undefined; w.travel(s.xz ? { xz: s.xz, heading } : { lat: s.lat, lon: s.lon, heading }); }, s);
+    await page.evaluate(s => { const w = globalThis.__map3; w.mapDebug.setView('off'); const heading = s.exact && s.bearing != null ? 180 - s.bearing : undefined; w.travel(s.xz ? { xz: s.xz, heading, y: s.y } : { lat: s.lat, lon: s.lon, heading, y: s.y }); }, s);
     await page.waitForTimeout(500);
     if (!await until(() => !globalThis.__map3.spawning, 120000)) { console.log(`  ${s.name}: no ground there`); continue; }
     await page.waitForTimeout(2500);

@@ -4,6 +4,7 @@
 //   meshes.roads          the model's surface cut exactly at the tile's border (map/bake/clip.ts): ribbons, junction
 //                         patches, kerbs, skirts and decks; a triangle's surface (tarmac, kerb…) for the tyres
 //   meshes.markings       the model's markings, cut the same way (and car parks' bay lines)
+//   meshes.tunnel         Map v5's tunnel tubes (map/model/tunnels.ts): walls, ceilings and portals, drawn and solid
 //   meshes.roadCollision  the solid road surface over the tile and `apron` m past its border (the same triangles its
 //                         neighbours draw there): one connected mesh for Rapier's internal-edge fix, no edge at the
 //                         border for a wheel to catch on
@@ -30,6 +31,8 @@ export function tileBuilderV4(D: any) {
   const V3 = tileBuilder({ ...D, mesh: empty, marks: empty });
   const T = D.grid.tileSize, cfg = D.v4, M = D.model.surface.mesh, K = D.model.surface.marks, apron = cfg.collision.apron;
   const vis = bucketTriangles(M, T, 0), col = bucketTriangles(M, T, apron, t => !!M.solid[t]), mk = bucketTriangles(K, T, 0);
+  // (Map v5's tunnel tubes: map/model/tunnels.ts — drawn and solid, cut at the tile's border like the road)
+  const TU = D.tunnel, tu = TU?.indices.length ? bucketTriangles(TU, T, 0) : null;
   const tileOf = (x: number, z: number) => `${Math.floor(x / T)}_${Math.floor(z / T)}`;
   const edgesBy = new Map<string, number[]>(), E = D.model.surface.edges;
   for (let k = 0; k < E.length; k += 8) { const key = tileOf((E[k] + E[k + 3]) / 2, (E[k + 2] + E[k + 5]) / 2); (edgesBy.get(key) ?? edgesBy.set(key, []).get(key)!).push(k); }
@@ -56,6 +59,7 @@ export function tileBuilderV4(D: any) {
     const bays = t.meshes.markings;
     if (bays) { const base = marks.positions.length / 3; marks.positions.push(...bays.positions); marks.colours.push(...bays.colours); for (const q of bays.indices) marks.indices.push(base + q); }
     if (marks.indices.length) t.meshes.markings = arr(marks, false); else delete t.meshes.markings;
+    if (tu) { const m = clipToBox(TU, tu.get(key) ?? [], box, { cx, cz }); if (m.indices.length) t.meshes.tunnel = arr(m, false); }
     time('roads');
     const coll = clipToBox(M, col.get(key) ?? [], [box[0] - apron, box[1] - apron, box[2] + apron, box[3] + apron], { cx, cz });
     // (welded by position alone, whatever their colours: one connected surface)

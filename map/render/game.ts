@@ -127,10 +127,10 @@ function placeOf(w, x, z) {
 // travel: the car held high over a place (lat/lon or the world frame's xz) until its ground is in, then
 // put down on its nearest road, as at the start
 // (place.heading given: put down exactly there, facing that way — a start grid's slot — not on the
-// nearest road)
+// nearest road; place.y given too: on the first ground under that height — a road in a tunnel, not the hill over it)
 export function travelTo(w, place) {
   const S = w.stream, [wx, wz] = place.xz ?? S.projection.toXZ(place.lat, place.lon), [x, z] = S.toSim(wx, wz);
-  w.landAt = place.heading != null ? { wx, wz, heading: place.heading } : null;
+  w.landAt = place.heading != null ? { wx, wz, heading: place.heading, y: place.y ?? null } : null;
   hold(w);
   w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 };
   w.sim.vehicle.body.setTranslation({ x, y: 600, z }, true);
@@ -164,8 +164,9 @@ function onRoad(w, x, z) {
   return best;
 }
 // lay the car down on the ground at a place (sim frame); false if there's no ground there yet
-function land(w, x, z, headingDeg) {
-  const y = w.stream.groundBelow(x, z, 900, 1400);
+// (fromY: the first ground under that height — under a tunnel's roof — if there's any within 40 m, else from the sky)
+function land(w, x, z, headingDeg, fromY = null) {
+  const y = (fromY != null ? w.stream.groundBelow(x, z, fromY + 3, 40) : null) ?? w.stream.groundBelow(x, z, 900, 1400);
   if (y === null) return false;
   release(w, false);
   w.sim.resetCar({ position: [x, y + (w.sim.vehicle.spec.spawnHeight ?? 0.6), z], headingDeg });
@@ -176,9 +177,10 @@ function land(w, x, z, headingDeg) {
 // (pinned: held until let go, whatever the streaming would do)
 export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; }
 export function releaseCar(w) { w.pinned = false; release(w, false); }
+// (back on the road at the car's own level: in a tunnel, its road — not the hill over it)
 export function resetToRoad(w) {
   const p = w.sim.vehicle.body.translation(), r = onRoad(w, p.x, p.z);
-  if (r) land(w, r.x, r.z, r.heading);
+  if (r) land(w, r.x, r.z, r.heading, p.y + 1);
 }
 
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
@@ -200,8 +202,8 @@ export function realWorldFrame(w, shared, seconds) {
     waiting = true;
     // on the nearest road to the spawn, once its ground is in
     if (S.readyAround(p.x, p.z, 60)) {
-      const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading }; })() : onRoad(w, p.x, p.z);
-      if (r && land(w, r.x, r.z, r.heading)) { w.spawning = false; w.landAt = null; waiting = false; S.stats.lastDrivable = performance.now() - w.startedAt; S.stats.firstDrivable ??= S.stats.lastDrivable; }
+      const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading, y: w.landAt.y }; })() : onRoad(w, p.x, p.z);
+      if (r && land(w, r.x, r.z, r.heading, r.y ?? null)) { w.spawning = false; w.landAt = null; waiting = false; S.stats.lastDrivable = performance.now() - w.startedAt; S.stats.firstDrivable ??= S.stats.lastDrivable; }
     }
   } else if (!S.readyAround(p.x, p.z, 20 + speed * 0.5)) waiting = true;
   // (held where it is while the world catches up; carrying on as it was once it has)
