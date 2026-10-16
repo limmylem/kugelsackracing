@@ -1,7 +1,7 @@
 {
   "//": "What the trailer films (docs/RELEASE.md \"Trailer\"; devlog/trailer/make.mjs): node capture/capture.mjs --shots trailer/shots.json --size 960x540 --multiplayer. Each run is a real region driven along real roads by the game's autopilot (its waypoints: tests/map/realRoutes.ts, the routes the tests drive) or a generated race track; each shot: name, at (game seconds after the drive starts), seconds long, camera (chase, bonnet, cockpit, side, high). The trailer uses the shots in this order.",
   "names": true,
-  "rivalHeadStart": 1.2,
+  "rivalHeadStart": 0.3,
   "runs": [
     { "region": "adelaide", "waypoints": [[-34.9070, 138.5970], [-34.9140, 138.5988], [-34.9190, 138.5990]],
       "shots": [
@@ -22,7 +22,7 @@
         { "name": "track-launch", "at": 7, "seconds": 4, "camera": "chase" },
         { "name": "track-side", "at": 14, "seconds": 3, "camera": "side" },
         { "name": "track-cockpit", "at": 24, "seconds": 3, "camera": "cockpit" },
-        { "name": "track-rival", "at": 2, "seconds": 5, "camera": "chase", "multiplayer": true },
+        { "name": "track-rival", "at": 4.5, "seconds": 5, "camera": "chase", "multiplayer": true },
         { "name": "track-bonnet", "at": 44, "seconds": 3, "camera": "bonnet" }
       ] }
   ]
