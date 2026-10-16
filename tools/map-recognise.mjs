@@ -40,7 +40,7 @@ for (const map of maps) {
   // (nothing on screen but the world: every overlay hidden, the canvas kept)
   await page.addStyleTag({ content: 'body *:not(canvas) { visibility: hidden !important } canvas { visibility: visible !important }' });
   await page.evaluate(async h => { const TS = await import('/testtrack/test-scene.js'); TS.debug.shared.prefs.timeOfDay = h; }, hours);
-  for (const p of places) {
+  for (const p of places) try {
     // (outside what this map baked — a slice's tiles — left out at once)
     const inside = await page.evaluate(p => { const S = globalThis.__map3.stream, M = S.manifest, T = M.grid.tileSize, [x, z] = S.projection.toXZ(p.lat, p.lon), i = Math.floor(x / T), j = Math.floor(z / T); return (M.tiles ?? []).some(t => t.i === i && t.j === j); }, p);
     if (!inside) { console.log(`  ${map} ${p.id}: not in this map's bake`); continue; }
@@ -55,10 +55,11 @@ for (const map of maps) {
     await page.evaluate(() => globalThis.__map3.stream.world.traverse(o => { if (o.name === 'roadNames') o.visible = false; }));
     await page.waitForTimeout(300);
     const f = path.join(out, map, `${p.id}.png`);
-    await page.screenshot({ path: f });
+    // (software rendering on a busy machine can take a while over a frame)
+    await page.screenshot({ path: f, timeout: 120000 });
     (shot[p.id] ??= {})[map] = `${map}/${p.id}.png`;
     console.log(`  ${map} ${p.id} → ${path.relative(ROOT, f)}`);
-  }
+  } catch (e) { console.log(`  ${map} ${p.id}: left out (${String(e?.message ?? e).split('\n')[0].slice(0, 120)})`); }
   if (errors.length) console.log('page errors:', errors.slice(0, 5));
   await ctx.close();
 }
