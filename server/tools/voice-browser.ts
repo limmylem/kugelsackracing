@@ -66,6 +66,8 @@ const voiceOf = (P: any) => P.evaluate(() => { const V = (globalThis as any).__k
 const uidOf = (P: any, n: string) => P.evaluate((n: string) => (globalThis as any).__krRoam?.state.you ?? `dev-player-${n.toLowerCase()}`, n);
 const panel = (P: any) => P.evaluate(() => ({ open: document.getElementById('roamPanel')?.classList.contains('open'), text: document.getElementById('roamPanel')?.textContent ?? '' }));
 const click = async (P: any, sel: string) => { await P.click(sel, { timeout: 20000, force: true }); };
+// (the multiplayer menu's button in the dock can be under free roam's panel, left open by the settings checks: clicked as itself)
+const openMpMenu = (P: any) => P.locator('#mpButton').dispatchEvent('click');
 const openSettings = async (P: any) => {
   await P.bringToFront();
   await P.evaluate(() => { const el = document.querySelector('#roamPanel nav button[data-tab="settings"]') as HTMLElement; if (document.getElementById('roamPanel')?.classList.contains('open') && el) el.click(); });
@@ -192,9 +194,9 @@ try {
     return a && b && b.mid === a.mid && b.packets > a.packets && b.energy > a.energy ? { packets: b.packets - a.packets, volume: b.volume } : null;
   }, uid);
   for (const P of [A, B]) await until(() => P.evaluate(() => !!(globalThis as any).__krMpS?.hubConn), 60000, 1000);
-  await A.bringToFront(); await click(A, '#mpButton'); await click(A, '#mpMenu [data-private]');
+  await A.bringToFront(); await openMpMenu(A); await click(A, '#mpMenu [data-private]');
   const code = (await until(async () => { const t = (await A.locator('#mpLobby [data-code]').textContent().catch(() => ''))?.trim(); return /^[A-Z0-9]{6}$/.test(t ?? '') ? t : null; }, 20000)) as string | null;
-  await B.bringToFront(); await click(B, '#mpButton');
+  await B.bringToFront(); await openMpMenu(B);
   await B.locator('#mpMenu [data-code]').fill(code ?? ''); await click(B, '#mpMenu [data-joincode]');
   const inLobby = await until(async () => { const [a, b] = [await lobbyVoice(A), await lobbyVoice(B)]; return a?.joined && b?.joined ? [a, b] : null; }, 30000, 500);
   check('both in the lobby: its voice chat joined in each window', !!inLobby, `code ${code ?? '—'} · ${JSON.stringify([await lobbyVoice(A), await lobbyVoice(B)].map(v => v && { available: v.available, joined: v.joined, why: v.why }))}`);
