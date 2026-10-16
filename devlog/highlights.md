@@ -73,3 +73,4 @@ The shop shows what brake and steering parts really change
 The parts list puts the better part first, even when two look alike
 Crash replays show your car whole until the moment it hits
 Mark any spot on the map and get a route there
+Crash replays show your car whole, and its sparks, until the moment it hits

@@ -172,6 +172,8 @@ export class EffectsDirector {
     for (const c of this.cars.values()) for (const k of Object.keys(c.skid)) c.skid[k] = null;
   }
   clear() { this.particles.clear(); this.marks.clear(); this.scrapes.clear(); this.timed.length = 0; }
+  // (a replay about to play the moments before again: what's in the air goes, the marks on the road stay)
+  clearAir() { this.particles.clear(); this.scrapes.clear(); this.timed.length = 0; }
   // A car put right (repaired, reset): its lingering effects stop (a blown engine's trail, its sparks)
   resetCar(id) {
     this.timed = this.timed.filter(t => t.car !== id);

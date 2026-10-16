@@ -14,6 +14,8 @@ export const FURN = {
     // (a railway's: map/model/railways.ts — a level crossing's boom gate, b its road's width; an overhead wire's mast,
     // b its wire's height)
     boomGate: 21, catenaryMast: 22,
+    // (a one-way street's other end: no entry, facing the traffic that would turn in)
+    noEntry: 23,
 };
 export const FURN_NAMES = Object.fromEntries(Object.entries(FURN).map(([k, v]) => [v, k]));
 // a placed canopy's size in its flags, and back ([along, across] m, whole metres; 18 × 11 if none)

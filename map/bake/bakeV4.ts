@@ -49,6 +49,7 @@ import { rankLandmarks, overrides } from '../model/landmarks.ts';
 import { placeSigns } from '../model/placeSigns.ts';
 import { railways } from '../model/railways.ts';
 import { markingsV5 } from '../model/markingsV5.ts';
+import { frontFences } from '../model/fences.ts';
 import { placeFurniture } from '../model/furniture.ts';
 import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
 import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
@@ -140,7 +141,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (Map v5: the region's style pack, and each road side's cross-section — kerb, verge, footpath: map/model/crossSection.ts)
   const style = v5 ? stylePackFor(region) : null;
   let landmarkList: any[] = [], handMade: any = { models: [], hidden: 0, missing: [] }, parkAreas: any[] = [], namedPlaces: any[] = [];
-  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {};
+  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {}, fenceStats: Record<string, number> = {};
   // (Map v5: each road's OSM tags by way, for the markings' lanes)
   const roadTags = v5 ? new Map<number, Record<string, string>>(osm.roads.map((r: any) => [r.id, r.tags])) : null;
   // (Map v5: the ground's colours the style pack's where it says — Adelaide's dry summer grass; parks and pitches,
@@ -249,6 +250,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       // to the millimetre: no crack to see or catch)
       appendMesh(S.mesh, B.mesh);
       (S as any).plants = B.plants;
+      (S as any).roundabouts = B.roundabouts;
       for (const [k, v] of Object.entries<number>(B.stats)) bandStats[k] = (bandStats[k] ?? 0) + v;
     });
     // (Map v5: the tunnels' tubes — walls, ceilings, portals — from the road surface: map/model/tunnels.ts)
@@ -291,6 +293,14 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     });
     if (v5) vegStats.offOpenGround = (vegStats.offOpenGround ?? 0) + tr.stats.open;
     const br = timed('railings', () => barriersV4({ osm, model: mB, groundAt, demAt, surface, cfg, v3cfg, inArea: inBlock, box }));
+    // (Map v5: the houses' front fences, estimated — map/model/fences.ts — with the railings; the houses round the block
+    // too, for the pieces whose middle is in it)
+    if (v5) timed('railings', () => {
+      const near = buildings.filter(b => { const c = b.rings[0][0]; return c[0] >= box[0] - 40 && c[0] < box[2] + 40 && c[1] >= box[1] - 40 && c[1] < box[3] + 40; });
+      const FF = frontFences({ buildings: near, segs: mB.segs, style, cfg, surface, inBuilding, groundAt, inArea: inBlock });
+      for (const [t, l] of Object.entries(FF.barriers)) { const L = (br.barriers[t] ??= []); for (const v of l) L.push(v); }
+      for (const [k, v] of Object.entries<number>(FF.stats)) fenceStats[k] = (fenceStats[k] ?? 0) + v;
+    });
     const lp = timed('lamps', () => placeLamps({ model: mB, osm, cfg, surface, mask: X, groundAt, classAt, box }));
     // (the block's own lamps: the roads reaching in from round it place some outside it)
     const lamps: number[] = []; for (let k = 0; k < lp.lamps.length; k += LAMP_STRIDE) if (inBlock(lp.lamps[k], lp.lamps[k + 2])) for (let q = 0; q < LAMP_STRIDE; q++) lamps.push(lp.lamps[k + q]);
@@ -298,7 +308,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const lb = timed('labels', () => labels({ nodes: model.nodes as any, segs: model.segs.map((g: any) => (segIds.has(g.id) ? Object.assign(Object.create(g), { h: g.hd ?? g.h }) : NAMELESS)) as any, cfg: v3cfg }));
     // (Map v5: street furniture where the map has it — map/model/furniture.ts — and the street name signs at the
     // junctions' corners, off the road, in place of Map v4's)
-    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]] })) : null;
+    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]], roundabouts: (S as any).roundabouts ?? [] })) : null;
     // (and the chains' sites: their pylon signs, canopies, pumps, menu boards and trolley bays)
     if (fu) {
       const near = buildings.filter(b => { const p = b.rings[0][0]; return p[0] >= box[0] - 300 && p[0] <= box[2] + 300 && p[1] >= box[1] - 300 && p[1] <= box[3] + 300; });
@@ -344,13 +354,14 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
   if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
   if (v5) lap(`  railways: ${(railStatsV5.km ?? 0).toFixed(1)} km of track (${railStatsV5.inRoad ?? 0} pieces in a road), ${railStatsV5.bridges ?? 0} rail bridges with decks, ${railStatsV5.crossings ?? 0} level crossings with booms (estimated: found where a line crosses a road at grade), ${railStatsV5.platforms ?? 0} platform slabs, ${railStatsV5.masts ?? 0} overhead wire masts (estimated)`);
+  if (v5) lap(`  front fences (estimated): ${fenceStats.fenced ?? 0} of ${fenceStats.houses ?? 0} houses (counted by every block near them), ${((fenceStats.metres ?? 0) / 1e3).toFixed(1)} km in ${fenceStats.pieces ?? 0} pieces; ${fenceStats.noRoom ?? 0} too close to the street for one, ${fenceStats.noStreet ?? 0} with no street near, ${fenceStats.unfenced ?? 0} left open (the mix's none); ${fenceStats.blocked ?? 0} pieces left out on a road surface, footpath or building, ${fenceStats.driveways ?? 0} across a mapped driveway`);
   if (v5) lap(`  markings: ${markStats.arrows ?? 0} turn arrows at traffic lights (${markStats.arrowsTagged ?? 0} from OSM's turn:lanes, ${markStats.arrowsEstimated ?? 0} estimated from the junction's arms), ${markStats.bikeLanes ?? 0} bicycle lane sides with ${markStats.bikeSymbols ?? 0} bicycles, ${markStats.busLanes ?? 0} bus lane sides (each counted by every block that draws it); ${markStats.offSurface ?? 0} pieces left out off the road's surface`);
   if (v5) lap(`  place signs: ${placeStats.suburbs ?? 0} suburbs' (from ${localities.length} of Overture's localities), ${placeStats.parks ?? 0} parks'; ${placeStats.noRoom ?? 0} left out for want of room`);
   if (v5) lap(`  vegetation: ${vegStats.street ?? 0} street trees in the verges, ${vegStats.garden ?? 0} garden trees behind houses (estimated); ${vegStats.offOpenGround ?? 0} estimated park trees kept off pitches, pools, playgrounds and greens; kinds from the tags or the ${style.name} mix`);
   if (v5) lap(`  grounds: ${fieldStats.ovals ?? 0} ovals (${fieldStats.cricketPitches ?? 0} cricket pitches), ${fieldStats.rectangles ?? 0} fields, ${fieldStats.courts ?? 0} courts, ${fieldStats.pools ?? 0} pools marked out (estimated: each sport's own layout on its mapped shape; counted in each block that reaches them); ${fieldStats.plain ?? 0} pitches left plain`);
   if (v5) lap(`  tunnels: ${tunnelStats.tubes ?? 0} tunnel roads under thick ground in tubes, ${((tunnelStats.wallM ?? 0) / 1000).toFixed(2)} km of wall, ${tunnelStats.portals ?? 0} portal edges (counted in each block that builds them)`);
   if (v5) lap(`  chains' sites: ${brandSiteStats.outlets} outlets — ${brandSiteStats.pylons} pylon signs, petrol canopies ${brandSiteStats.canopiesMapped} mapped and ${brandSiteStats.canopies} placed (${brandSiteStats.pumps} pumps), ${brandSiteStats.menuBoards} drive-thru menu boards, ${brandSiteStats.trolleyBays} trolley bays (all estimated but the mapped canopies); ${brandSiteStats.noRoom} left out for want of room, ${brandSiteStats.noBuilding} with no building`);
-  if (v5) lap(`  furniture: ${furnStats.trafficLights} traffic lights, ${furnStats.stop} stop and ${furnStats.giveWay} give way signs, ${furnStats.speed} speed signs, ${furnStats.nameSigns} street name signs, ${furnStats.busStops} bus stops (${furnStats.shelters} shelters), ${furnStats.powerPoles} power poles (${furnStats.wires} spans of wire), ${furnStats.small} benches, bins and the like; ${furnStats.droppedInLane} that would have stood in a lane left out`);
+  if (v5) lap(`  furniture: ${furnStats.trafficLights} traffic lights, ${furnStats.stop} stop and ${furnStats.giveWay} give way signs, ${furnStats.speed} speed signs, ${furnStats.roundabout ?? 0} roundabout entry signs, ${furnStats.oneWay ?? 0} ONE WAY and ${furnStats.noEntry ?? 0} NO ENTRY signs (estimated), ${furnStats.nameSigns} street name signs, ${furnStats.busStops} bus stops (${furnStats.shelters} shelters), ${furnStats.powerPoles} power poles (${furnStats.wires} spans of wire), ${furnStats.small} benches, bins and the like; ${furnStats.droppedInLane} that would have stood in a lane left out`);
   lap(`  road surface: ${(chk.triangles / 1e6).toFixed(2)}M triangles in ${blocks} blocks; check: ${chk.cracks} cracks, ${chk.overlaps} overlaps (of ${chk.sampled} sampled), ${chk.folds} folded edges; blocks: ${Object.entries(bms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
   lap(`  terrain shaped: ${Tn.shaped} grid points under or beside roads; trees ${st.trees} (${st.treesOff} kept off roads, decks and railways); railings ${railStats.mapped} mapped (${railStats.mappedDropped} over a road dropped), ${railStats.estimated} estimated; lamps ${st.lamps} (${lampStats.mapped} mapped, ${lampStats.mappedDropped} on a road dropped, ${lampStats.estimated + lampStats.junction + lampStats.crossing} estimated)`);
   lap(`  tiles: ${tiles.length}, ${(tiles.reduce((a, t) => a + t.bytes, 0) / 1e6).toFixed(1)} MB on ${pool.workers} workers; every collider has something drawn (audited); building colliders cut off a road ${hullStats.trimmed}, dropped ${hullStats.dropped}; car park triangles off the road ${hullStats.paved}; main thread: ${Object.entries(ms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
@@ -417,7 +428,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       ...E.sources.map((d: any) => ({ name: d.name, url: null, licence: d.licence, text: d.attribution })),
     ],
     ...(style && { style: { id: style.id, name: style.name, drivingSide: style.drivingSide } }),
-    ...(v5 && { furniture: { cycle: cfg.furniture.cycle, style: style.furniture, railways: style.railways } }),
+    ...(v5 && { furniture: { cycle: cfg.furniture.cycle, style: style.furniture, railways: style.railways, drivingSide: style.drivingSide } }),
     // (the parodies only: no real name is in anything the game draws)
     ...(v5 && { placeNames }),
     ...(v5 && { landmarks: landmarkList.slice(0, 20), models: handMade.models.map((m: any) => ({ file: m.file, name: m.name })) }),

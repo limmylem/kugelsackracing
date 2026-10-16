@@ -121,6 +121,9 @@ echo "written: compose.yml, .env ($(grep -c = .env) settings)"
 REMOTE
 
 echo "== the image ghcr.io/limmylem/kugelsackracing:$SHA"
+# (room for it first: every image no container uses goes — the running one stays, and a rollback pulls its image
+# again. Kept a week, with a deploy or more an hour they filled the disk: a pull failed with "no space left")
+ssh server "docker image prune -af > /dev/null; df -h --output=avail,pcent / | tail -1 | awk '{print \"disk on the server: \" \$1 \" free (\" \$2 \" used)\"}'" || true
 printf '%s\n' "$GHCR_TOKEN" | ssh server "docker login ghcr.io -u '$GHCR_USER' --password-stdin > /dev/null"
 ssh server "cd $DIR && docker compose pull --quiet; s=\$?; docker logout ghcr.io > /dev/null; exit \$s" || fail "couldn't pull the image for $SHA (is it built? the server workflow's image job)"
 
@@ -165,5 +168,6 @@ while :; do
   sleep 15
 done
 echo "the server runs $short: $(jq -c '{ok, version, env, db}' <<<"$api") · $(jq -c '{ok, version, rooms, players, races}' <<<"$rt")"
-# (images not used by a container for a week: removed, so the disk doesn't fill; a rollback pulls its image again)
-ssh server "docker image prune -af --filter until=168h > /dev/null" || true
+# (the image it ran before, and any other no container uses: removed, so the disk doesn't fill; a rollback pulls its
+# image again)
+ssh server "docker image prune -af > /dev/null" || true

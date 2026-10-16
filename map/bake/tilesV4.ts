@@ -81,7 +81,7 @@ export function tileBuilderV4(D: any) {
     const coll = clipToBox(M, col.get(key) ?? [], [box[0] - apron, box[1] - apron, box[2] + apron, box[3] + apron], { cx, cz });
     // (welded by position alone, whatever their colours: one connected surface)
     // (Map v5: each triangle's surface kept — the tyres take the road's own, never the ground's raster under it)
-    if (coll.indices.length) t.meshes.roadCollision = weld(coll, D.map === 'v5');
+    if (coll.indices.length) t.meshes.roadCollision = weld(coll, D.map === 'v5', cfg.collision.minWidth ?? 0.002);
     time('collision');
     // car parks off the road: Map v3's are its grid's cells, which can reach over a road's edge at the car park's own
     // height (drawn and solid: a lip in the lane) — any triangle with a corner or its middle on the road surface goes
@@ -130,14 +130,14 @@ function offRoad(m: any, cx: number, cz: number, surface: any) {
 }
 
 // a mesh's vertices merged by position (1 cm), colours dropped: the collision surface
-function weld(m: { positions: number[]; indices: number[]; surfaces?: number[] }, withSurfaces = false) {
+function weld(m: { positions: number[]; indices: number[]; surfaces?: number[] }, withSurfaces = false, minWidth = 0.002) {
   const ids = welder(), P: number[] = [], I: number[] = [], map: number[] = [];
   for (let v = 0; v < m.positions.length / 3; v++) {
     const id = ids(Math.round(m.positions[v * 3] * 100), Math.round(m.positions[v * 3 + 1] * 100), Math.round(m.positions[v * 3 + 2] * 100));
     if (id === P.length / 3) P.push(m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]);
     map.push(id);
   }
-  // (only the ground you drive on: no triangle a millimetre thin in plan — the drawn mesh's stitches, which close its
+  // (only the ground you drive on: no triangle a few millimetres thin in plan (minWidth m: collision.minWidth) — the drawn mesh's stitches, which close its
   // T-junctions and mean nothing to a collider, some of them the length of a big junction — and none steeper than
   // about 72°, which on a road surface could only be a sliver standing on its edge: a wall in a lane)
   const keep = (a: number, b: number, c: number) => {
@@ -145,7 +145,7 @@ function weld(m: { positions: number[]; indices: number[]; surfaces?: number[] }
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, n = Math.hypot(nx, ny, nz);
     if (n < 1e-9 || Math.abs(ny) / n < 0.3) return false;
     const longest = Math.max(Math.hypot(ux, uz), Math.hypot(vx, vz), Math.hypot(vx - ux, vz - uz));
-    return Math.abs(ny) / longest > 0.002;
+    return Math.abs(ny) / longest > minWidth;
   };
   const S: number[] = [];
   for (let t = 0; t < m.indices.length; t += 3) { const a = map[m.indices[t]], b = map[m.indices[t + 1]], c = map[m.indices[t + 2]]; if (a !== b && b !== c && a !== c && keep(a, b, c)) { I.push(a, b, c); S.push(m.surfaces?.[t / 3] ?? 0); } }

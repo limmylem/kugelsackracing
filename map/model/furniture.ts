@@ -5,6 +5,8 @@
 //                    back from the junction, facing the approach; a phase group by the approach's direction (the
 //                    game cycles the groups: data/map/v5.json furniture.cycle); mid-block signals both ways
 //   stop, give way   OSM's stop and give_way points, at the kerb of the road they're on, facing the junction's approach
+//   roundabouts      a give way and roundabout sign at each entry of a roundabout (its island found by its shape)
+//   one way          ONE WAY where a one-way street leaves a junction, NO ENTRY where it comes into one
 //   speed signs      where a road's maxspeed changes, speedIn m into the new limit, each way
 //   street names     at a junction's corner between its two most important named roads — on the footpath or verge,
 //                    never the road (Map v4 stood 46% of them in it) — the blades along their streets
@@ -20,12 +22,12 @@ import type { OsmData } from '../bake/osmData.ts';
 import { rowAt } from './geom.ts';
 import { FURN, FURNITURE_STRIDE } from '../format/furniture.ts';
 
-export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box = null }: { model: any; osm: OsmData; surface: any; groundAt: (x: number, z: number) => number; style: any; cfg: any; box?: [number, number, number, number] | null }) {
+export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box = null, roundabouts = [] }: { model: any; osm: OsmData; surface: any; groundAt: (x: number, z: number) => number; style: any; cfg: any; box?: [number, number, number, number] | null; roundabouts?: { x: number; z: number; r: number; ring: number[] }[] }) {
   const F = cfg.furniture, X = style.crossSection, left = (style.drivingSide ?? 'left') === 'left';
   const kerbW = X.kerbBevel + X.kerbTop;
   const items: number[] = [], wires: number[] = [], signs: number[] = [], names: string[] = [];
   const nameOf = (s: string) => { let k = names.indexOf(s); if (k < 0) { k = names.length; names.push(s); } return k; };
-  const stats: Record<string, number> = { trafficLights: 0, stop: 0, giveWay: 0, speed: 0, nameSigns: 0, busStops: 0, shelters: 0, powerPoles: 0, wires: 0, small: 0, droppedInLane: 0 };
+  const stats: Record<string, number> = { trafficLights: 0, stop: 0, giveWay: 0, speed: 0, roundabout: 0, oneWay: 0, noEntry: 0, nameSigns: 0, busStops: 0, shelters: 0, powerPoles: 0, wires: 0, small: 0, droppedInLane: 0 };
   const inBox = (x: number, z: number) => !box || (x >= box[0] && x < box[2] && z >= box[1] && z < box[3]);
   // (the block's segments — a share of the region's: nodes name theirs by id)
   const segs: any[] = model.segs, nodes: any[] = model.nodes, segById = new Map<number, any>(segs.map(g => [g.id, g]));
@@ -105,6 +107,61 @@ export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box 
       if (put(k.x, k.z, k.yaw, FURN.trafficLight, phase, F.trafficLightHeight, 0, k.out)) stats.trafficLights++;
     }
   }
+  // ---- roundabouts (found by their islands — map/model/crossSection.ts): a give way sign over a roundabout sign at
+  // every entry, a stop line's length back, facing the traffic coming in (estimated: the map has no signs). OSM's own
+  // give way points at an entry are then that sign
+  const entrySigns: number[][] = [], ringSegs = new Set<number>(roundabouts.flatMap(R => R.ring));
+  for (const R of roundabouts) {
+    for (const c of model.clusters) {
+      if (Math.hypot(c.centre[0] - R.x, c.centre[1] - R.z) > R.r + F.roundaboutReach) continue;
+      for (const A of c.arms) {
+        const g = A.seg;
+        if (ringSegs.has(g.id) || !drivable(g)) continue;
+        const ap = approach(g, A.atStart, F.stopBack);
+        if (!ap.arrives) continue;
+        const k = kerbPoint(g, ap.s, ap.dir);
+        if (entrySigns.some(e => Math.hypot(e[0] - k.x, e[1] - k.z) < 4)) continue;
+        if (put(k.x, k.z, k.yaw, FURN.roundabout, 0, 0, 1, k.out)) { stats.roundabout++; entrySigns.push([k.x, k.z]); }
+      }
+    }
+  }
+  // ---- one-way streets, at each junction (not a roundabout's ring): a ONE WAY sign where it leaves the junction,
+  // along the street (its arrow the street's way, read from the cross street), and NO ENTRY where it comes in,
+  // facing the traffic that would turn into it (estimated)
+  // (a divided road's carriageways are one-way too, and get neither: a one-way road with a twin — the same name,
+  // one-way the other way, within carriagewayAngle° of opposite and carriagewayGap m of it — or an arm beside it in
+  // the junction, the same name or none, taking traffic the other way)
+  const outOf = (A: any) => { const g = A.seg, r = rowAt(g, A.atStart ? Math.max(0, g.trim0) : L(g) - Math.max(0, g.trim1)), d = A.atStart ? 1 : -1; return [r.nz * d, -r.nx * d]; };
+  const leavesBy = (A: any) => (A.atStart ? 1 : -1) === A.seg.oneway;
+  const twinned = new Set<number>();
+  {
+    const CG = F.carriagewayGap, pieces = new Map<string, { g: any; x: number; z: number; dx: number; dz: number }[]>(), cosA = Math.cos(F.carriagewayAngle * Math.PI / 180);
+    const piece = (g: any, k: number) => { const dx = (g.xs[k + 1] - g.xs[k]) * g.oneway, dz = (g.zs[k + 1] - g.zs[k]) * g.oneway, l = Math.hypot(dx, dz) || 1; return { g, x: (g.xs[k] + g.xs[k + 1]) / 2, z: (g.zs[k] + g.zs[k + 1]) / 2, dx: dx / l, dz: dz / l }; };
+    for (const g of segs) if (g.oneway && g.name && !g.internal) for (let k = 0; k + 1 < g.xs.length; k++) { const p = piece(g, k), key = `${Math.floor(p.x / CG)},${Math.floor(p.z / CG)}`; (pieces.get(key) ?? pieces.set(key, []).get(key)!).push(p); }
+    for (const g of segs) {
+      if (!g.oneway || !g.name || g.internal) continue;
+      const p = piece(g, Math.floor((g.xs.length - 1) / 2));
+      search: for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const q of pieces.get(`${Math.floor(p.x / CG) + a},${Math.floor(p.z / CG) + b}`) ?? []) if (q.g !== g && q.g.name === g.name && p.dx * q.dx + p.dz * q.dz < -cosA && Math.hypot(q.x - p.x, q.z - p.z) < CG) { twinned.add(g.id); twinned.add(q.g.id); break search; }
+    }
+  }
+  for (const c of model.clusters) {
+    if (!inBox(c.centre[0], c.centre[1]) || c.arms.filter((A: any) => drivable(A.seg)).length < 3) continue;
+    for (const A of c.arms) {
+      const g = A.seg;
+      if (!g.oneway || ringSegs.has(g.id) || twinned.has(g.id) || !drivable(g) || g.link || g.cls === 'service' || L(g) < 2 * F.oneWayIn + 4) continue;
+      const o = outOf(A);
+      if (c.arms.some((B: any) => B !== A && B.seg.oneway && leavesBy(B) !== leavesBy(A) && (!A.seg.name || !B.seg.name || A.seg.name === B.seg.name) && (() => { const q = outOf(B); return o[0] * q[0] + o[1] * q[1] > Math.cos(F.carriagewayAngle * Math.PI / 180); })())) continue;
+      const leaves = leavesBy(A), s = A.atStart ? Math.max(0, g.trim0) + F.oneWayIn : L(g) - Math.max(0, g.trim1) - F.oneWayIn;
+      if (leaves) {
+        const k = kerbPoint(g, s, g.oneway);
+        // (its face across the street, the arrow — the face's right — along it: map/render/furniture.ts)
+        if (put(k.x, k.z, Math.atan2(-k.tz, k.tx), FURN.oneWay, 0, 0, 1, k.out)) stats.oneWay++;
+      } else {
+        const k = kerbPoint(g, s, -g.oneway);
+        if (put(k.x, k.z, k.yaw, FURN.noEntry, 0, 0, 1, k.out)) stats.noEntry++;
+      }
+    }
+  }
   // ---- stop and give way signs: at their point on the road, for the traffic heading to the nearer end
   for (const p of osm.points) {
     const t = p.tags.highway;
@@ -114,6 +171,7 @@ export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box 
     const toEnd = L(h.g) - h.s < h.s, dir = toEnd ? 1 : -1;
     if (h.g.oneway && h.g.oneway !== dir) continue;
     const k = kerbPoint(h.g, h.s, dir);
+    if (t === 'give_way' && entrySigns.some(e => Math.hypot(e[0] - k.x, e[1] - k.z) < F.entrySignNear)) continue;
     if (put(k.x, k.z, k.yaw, t === 'stop' ? FURN.stop : FURN.giveWay, 0, 0, 0, k.out)) stats[t === 'stop' ? 'stop' : 'giveWay']++;
   }
   // ---- speed signs: where the limit changes from one road to the next through a node, speedIn m into the new one
