@@ -73,7 +73,7 @@ settings() {
   q GAME_URL "$GAME"
   q TILES_URL "$TILES"
   q RT_URL "$RT"
-  q MAIL_FROM 'Kugelsack Racing <noreply@ognistrada.com>'
+  q MAIL_FROM 'Ogni Strada <noreply@ognistrada.com>'
   q HSTS "$([ "${HSTS:-}" = on ] && echo on || echo off)"
   q DATABASE_URL "$db_url"
   q BETTER_AUTH_SECRET "$BETTER_AUTH_SECRET"

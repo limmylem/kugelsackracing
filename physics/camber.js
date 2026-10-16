@@ -1,4 +1,4 @@
-// Static camber's grip (physics/vehicle.js each step; garage/rating.js for the rating): a tyre grips best sideways
+// Static camber's grip (physics/vehicle.js each step; not the rating: a setup, garage/rating.js): a tyre grips best sideways
 // leaning in a little against the road (best, ° — negative: its top in), less the further it is from that (curve a
 // degree², at least floor). As the body rolls in a corner each wheel leans with it (rollFollow of the roll: the
 // outside one out, the inside one in), so the loaded outside tyre leans the wrong way and a little negative camber

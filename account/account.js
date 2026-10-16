@@ -15,6 +15,11 @@ import { createApi, ApiError } from './api.js';
 import { createBotCheck } from './botCheck.js';
 import { clientInfo, describe } from './clientInfo.js';
 import { SITE } from '../site/urls.js';
+import { setLanguage, translatePage } from '../ui/i18n.js';
+
+// (the page's fixed words in the player's language — ui/i18n.js; the rest of this page moves over in time:
+// docs/TRANSLATIONS.md)
+try { setLanguage(JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}')?.language ?? 'auto').then(() => translatePage(document)).catch(() => {}); } catch { /* English as written */ }
 
 const api = createApi();
 const $ = id => document.getElementById(id);
@@ -192,7 +197,7 @@ const backupLink = done => h('a', { href: '#', onclick: e => { e.preventDefault(
 // signing in: the password was right, now the code
 function viewTwoFactorStep() {
   const code = codeField();
-  show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', { class: 'muted' }, 'Open your authenticator app and enter the 6-digit code for Kugelsack Racing.'),
+  show(h('section', {}, h('h2', {}, 'Two-factor sign-in'), h('p', { class: 'muted' }, 'Open your authenticator app and enter the 6-digit code for Ogni Strada.'),
     form([code.el], 'Sign in', async () => { await api.auth('/two-factor/verify-totp', { code: code.input.value.trim() }); api.forgetCsrf(); location.replace(next); }),
     h('div', { class: 'links' }, backupLink(() => location.replace(next)), h('a', { href: here(null) }, 'Start again'))));
   code.input.focus();

@@ -1,0 +1,126 @@
+/* The new screens of Phase 8 Step 4 and the accessibility settings (ui/accessibility.js; docs/ACCESSIBILITY.md):
+   text size, high contrast, reduced motion and flashing, colour-blind colours (--c-good, --c-bad, --c-warn), focus you can
+   see, the screen reader's own text; the touch controls, the sound cues, the settings' tabs, the first launch's cards, the
+   tutorial's coach, the driving school, news, the consent card, photo mode. Right to left: logical properties
+   (inset-inline-start, margin-inline) so a right-to-left language mirrors the layout by itself. */
+
+:root { --c-good: #7ee08a; --c-bad: #ff7a6a; --c-warn: #ffbd4a; --text-scale: 1; --panel: rgba(15, 20, 30, 0.95); --panel-text: #fff; --accent: #1d6fe0; --focus: #ffd400; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip-link { position: absolute; inset-inline-start: 8px; top: -40px; z-index: 100; background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 6px; }
+.skip-link:focus { top: 8px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- high contrast ---------- */
+.a11y-contrast { --panel: #000; --panel-text: #fff; --accent: #0050c8; }
+.a11y-contrast #settings, .a11y-contrast .onboardCard, .a11y-contrast .tutorialCoach, .a11y-contrast .schoolHud, .a11y-contrast .schoolList,
+.a11y-contrast #newsPanel, .a11y-contrast .consentCard, .a11y-contrast #photoMode, .a11y-contrast #testHud, .a11y-contrast .hint-card { background: #000 !important; color: #fff !important; border: 2px solid #fff !important; }
+.a11y-contrast small, .a11y-contrast .muted, .a11y-contrast .pads { color: #fff !important; opacity: 1 !important; }
+.a11y-contrast button { border: 2px solid #fff !important; }
+.a11y-contrast :focus-visible { outline-width: 4px; }
+
+/* ---------- reduced motion and flashing ---------- */
+.a11y-reduced-motion *, .a11y-reduced-motion *::before, .a11y-reduced-motion *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+.a11y-no-flash .blink, .a11y-no-flash [class*="flash"] { animation: none !important; }
+.a11y-no-flash .dl.on, .a11y-no-flash .dl.warn, .a11y-no-flash .dl.bad { animation: none !important; opacity: 1 !important; }
+
+/* ---------- dialogs and cards (shared) ---------- */
+.onboardCard, .consentCard, .a11yDialog .box, .schoolList, #newsPanel { position: fixed; z-index: 60; inset-inline-start: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; background: var(--panel); color: var(--panel-text); border-radius: 14px; padding: 18px 22px; font: 500 calc(15px * var(--text-scale)) / 1.5 Barlow, system-ui, sans-serif; box-shadow: 0 12px 40px #0009; }
+[dir="rtl"] .onboardCard, [dir="rtl"] .consentCard, [dir="rtl"] .a11yDialog .box, [dir="rtl"] .schoolList, [dir="rtl"] #newsPanel { transform: translate(50%, -50%); }
+.a11yDialog { position: fixed; inset: 0; z-index: 90; background: #000c; }
+.onboardCard h2, .onboardCard h3, .consentCard h2, .schoolList h2, #newsPanel h2, .a11yDialog h2 { margin: 0 0 8px; font-family: 'Barlow Condensed', Barlow, sans-serif; letter-spacing: 0.02em; }
+.onboardCard .buttons, .consentCard .buttons, .tutorialCoach .buttons, .schoolHud .buttons, #photoMode .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.onboardCard button, .consentCard button, .a11yDialog button, .tutorialCoach button, .schoolHud button, .schoolList button, #newsPanel button, #photoMode button { font: inherit; border: 0; border-radius: 8px; padding: 8px 16px; background: var(--accent); color: #fff; cursor: pointer; min-height: 40px; }
+.onboardCard button.quiet, .consentCard button[data-a="no"], .tutorialCoach button.quiet, .schoolHud button.quiet, #photoMode button.quiet { background: #2a323b; }
+.onboardCard .small, .consentCard .small { font-size: 0.85em; opacity: 0.8; }
+.onboardCard.first { top: auto; bottom: 90px; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); }
+.starters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.starters .starter { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: #1c2229 !important; text-align: start; padding: 10px !important; }
+.starters .starter img { width: 100%; height: auto; border-radius: 8px; }
+.starters .starter:hover, .starters .starter:focus-visible { background: #24303c !important; }
+.onboardToast, .eventReminder { position: fixed; z-index: 61; inset-inline-start: 50%; top: 70px; transform: translateX(-50%); background: var(--panel); color: var(--panel-text); padding: 8px 16px; border-radius: 10px; font: 500 calc(14px * var(--text-scale)) Barlow, system-ui, sans-serif; }
+.eventReminder button { margin-inline-start: 8px; }
+
+/* ---------- the tutorial's coach and the driving school ---------- */
+.tutorialCoach, .schoolHud { position: fixed; z-index: 40; inset-inline-start: 16px; top: 80px; width: min(360px, calc(100vw - 32px)); background: var(--panel); color: var(--panel-text); border-radius: 12px; padding: 12px 16px; font: 500 calc(14px * var(--text-scale)) / 1.45 Barlow, system-ui, sans-serif; }
+.tutorialCoach h3, .schoolHud h3 { margin: 0 0 4px; font-size: 1.15em; }
+.tutorialCoach .step { margin: 0; opacity: 0.7; font-size: 0.85em; }
+.schoolHud .tip { color: var(--c-warn); }
+.schoolHud .result { font-size: 1.3em; }
+.schoolList .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.schoolList .head h2 { margin: 0; }
+.schoolList .close { background: none !important; color: inherit !important; font-size: 24px; line-height: 1; padding: 2px 8px !important; min-height: 0 !important; }
+.schoolList ol { padding-inline-start: 18px; }
+.schoolList li button { width: 100%; text-align: start; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; background: #1c2229; margin: 4px 0; }
+.schoolList .medal { margin-inline-start: auto; opacity: 0.85; }
+
+/* ---------- the settings' tabs ---------- */
+#settings h2 { margin: 0; font-size: 1.1em; }
+#settings .head .close { background: none; border: 0; color: inherit; font-size: 22px; cursor: pointer; margin-inline-start: 12px; }
+#settings .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 10px; border-bottom: 1px solid #ffffff22; }
+#settings .tabs [role="tab"] { background: none; border: 0; color: inherit; opacity: 0.7; padding: 6px 10px; cursor: pointer; font: inherit; border-bottom: 2px solid transparent; }
+#settings .tabs [role="tab"][aria-selected="true"] { opacity: 1; border-bottom-color: var(--focus); }
+#settings section { font-size: calc(13px * var(--text-scale)); }
+#settings .row label { cursor: pointer; }
+#settings .row label small { display: block; opacity: 0.65; font-size: 0.85em; }
+
+/* ---------- touch controls ---------- */
+#touchControls { position: fixed; inset: 0; z-index: 25; pointer-events: none; --tc-size: 1; --tc-opacity: 0.6; }
+#touchControls .tc { pointer-events: auto; position: relative; border: 2px solid #fff8; background: #0008; color: #fff; border-radius: 14px; opacity: var(--tc-opacity); font: 600 calc(14px * var(--tc-size)) Barlow, system-ui, sans-serif; width: calc(76px * var(--tc-size)); height: calc(76px * var(--tc-size)); touch-action: none; user-select: none; -webkit-user-select: none; }
+#touchControls .tc.on { background: #fff4; opacity: 1; }
+#touchControls .tcSide { position: absolute; bottom: 20px; display: flex; gap: 10px; align-items: flex-end; }
+#touchControls .tcSide.steer { inset-inline-start: 20px; }
+#touchControls .tcSide.pedals { inset-inline-end: 20px; }
+#touchControls.swap .tcSide.steer { inset-inline-start: auto; inset-inline-end: 20px; }
+#touchControls.swap .tcSide.pedals { inset-inline-end: auto; inset-inline-start: 20px; }
+#touchControls .tc.gas { height: calc(120px * var(--tc-size)); }
+#touchControls .tc.small { width: calc(52px * var(--tc-size)); height: calc(52px * var(--tc-size)); }
+#touchControls .tcTop { position: absolute; top: 12px; inset-inline-end: 12px; display: flex; gap: 8px; }
+#touchControls .steerSlider { width: calc(260px * var(--tc-size)); height: calc(70px * var(--tc-size)); }
+#touchControls .steerSlider span { position: absolute; top: 8px; bottom: 8px; width: 16px; border-radius: 8px; background: #fff; left: var(--x, 50%); transform: translateX(-50%); }
+#touchControls .tiltNote { width: auto; padding: 8px 12px; height: auto; }
+
+/* ---------- the sound cues ---------- */
+#soundCues { position: fixed; z-index: 24; inset-inline-end: 16px; bottom: 210px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font: 600 calc(14px * var(--text-scale)) Barlow, system-ui, sans-serif; color: #fff; pointer-events: none; }
+#soundCues[hidden] { display: none; }
+#soundCues .grip { background: #0009; border-radius: 10px; padding: 4px 8px; color: #fff; }
+#soundCues .grip rect.slide { stroke: #fff; stroke-width: 1.5; }
+#soundCues .engine { background: #000b; border-radius: 8px; padding: 4px 10px; }
+#soundCues .events .cue { background: #000b; border-radius: 8px; padding: 2px 10px; margin-top: 4px; }
+#soundCues .arrows { position: fixed; inset: 0; pointer-events: none; }
+#soundCues .arrows .near { position: absolute; left: 50%; top: 50%; font-size: calc(18px + 26px * var(--k)); transform: rotate(var(--a)) translateY(-38vh); transform-origin: 0 0; text-shadow: 0 0 6px #000; }
+
+/* ---------- news, events, the live banner, the consent card ---------- */
+.newsButton { position: fixed; z-index: 26; inset-inline-end: 16px; top: 12px; background: var(--panel); color: var(--panel-text); border: 0; border-radius: 18px; padding: 6px 12px; font: 600 calc(13px * var(--text-scale)) Barlow, system-ui, sans-serif; cursor: pointer; }
+.newsButton .badge { background: var(--c-bad); color: #000; border-radius: 9px; padding: 0 6px; margin-inline-start: 4px; }
+#newsPanel { width: min(640px, calc(100vw - 32px)); }
+#newsPanel .head { display: flex; justify-content: space-between; align-items: center; }
+#newsPanel .close { background: none !important; font-size: 22px; }
+#newsPanel .tabs { display: flex; gap: 4px; margin: 6px 0; }
+#newsPanel .tabs [role="tab"] { background: #1c2229; }
+#newsPanel .tabs [aria-selected="true"] { background: var(--accent); }
+#newsPanel .item { border-top: 1px solid #ffffff22; padding: 8px 0; }
+#newsPanel .item h3 { margin: 0; }
+#newsPanel .when { opacity: 0.7; font-size: 0.85em; margin: 0; }
+#newsPanel .cancelled h3 { text-decoration: line-through; }
+#liveBanner { position: fixed; z-index: 70; inset-inline: 0; top: 0; background: #6b4a00; color: #fff; padding: 6px 14px; font: 500 calc(14px * var(--text-scale)) Barlow, system-ui, sans-serif; text-align: center; }
+#liveBanner a { color: #ffe08a; margin-inline-start: 8px; }
+.consentCard { top: auto; bottom: 20px; transform: translateX(-50%); width: min(480px, calc(100vw - 32px)); }
+
+/* ---------- photo mode ---------- */
+#photoMode { position: fixed; z-index: 50; inset-inline-end: 16px; top: 16px; width: min(320px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: var(--panel); color: var(--panel-text); border-radius: 12px; padding: 12px 14px; font: 500 calc(13px * var(--text-scale)) Barlow, system-ui, sans-serif; }
+#photoMode .head { display: flex; justify-content: space-between; align-items: center; }
+#photoMode h2 { margin: 0; font-size: 1.15em; }
+#photoMode .close { background: none !important; font-size: 22px; padding: 0 6px !important; }
+#photoMode .slider { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; align-items: center; margin: 4px 0; }
+#photoMode .help { opacity: 0.75; font-size: 0.9em; margin: 4px 0 8px; }
+/* (everything over the picture hidden — the HUDs, labels, dock, chips — but the canvas, photo mode's own panel, its filter
+   and the map's credit line, which OpenStreetMap's licence asks to stay with pictures of the map) */
+body.photoHideHud > *:not(canvas):not(#photoMode):not(#settings):not(svg):not(style):not(script):not(#map3Attribution):not(#worldAttribution) { visibility: hidden !important; }
+body.photoHideHud #photoMode { opacity: 0.25; }
+body.photoHideHud #photoMode:hover, body.photoHideHud #photoMode:focus-within { opacity: 1; }
+
+/* (the settings over everything the game shows while driving: the coach, the school, the cues) */
+#settings[role="dialog"] { z-index: 55; }
+#settings[role="dialog"] .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+#settings[role="dialog"] .head > span { font-size: 0.85em; opacity: 0.7; flex: 1; }
+#settings[role="dialog"] .slider label { min-width: 9em; }

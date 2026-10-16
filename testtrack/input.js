@@ -38,6 +38,7 @@ export const ACTIONS = [
   { id: 'tow', label: 'Tow to the garage (twice)', press: true },
   { id: 'worldMap', label: 'Map and quick travel (real world)', press: true },
   { id: 'perfOverlay', label: 'Performance overlay (real world)', press: true },
+  { id: 'photo', label: 'Photo mode', press: true }, { id: 'school', label: 'Driving school', press: true },
 ];
 
 export const DEFAULT_KEYS = {
@@ -46,7 +47,7 @@ export const DEFAULT_KEYS = {
   reset: ['KeyR'], camera: ['KeyC'], aids: ['KeyX'], gearbox: ['KeyZ'], hud: ['KeyH'], debug: ['KeyG'], dyno: ['KeyY'], mute: ['KeyM'], settings: ['KeyO'],
   spoiler: ['KeyK'], aiCar: ['KeyJ'], tuning: ['KeyP'], telemetry: ['KeyL'], sockets: ['KeyN'], restore: ['KeyB'], damageView: ['KeyU'], damageReport: ['KeyI'],
   transfer: ['KeyV'], lockFront: ['BracketLeft'], lockRear: ['BracketRight'], lockCentre: ['Backslash'], roof: ['Semicolon'], effects: ['Period'], tow: ['Backspace'],
-  worldMap: ['Tab'], perfOverlay: ['F3'],
+  worldMap: ['Tab'], perfOverlay: ['F3'], photo: ['Slash'], school: [],
 };
 const btn = index => ({ type: 'button', index }), axis = (index, rest, full) => ({ type: 'axis', index, rest, full });
 // Standard gamepad layout (Xbox names): left stick steers, triggers are the pedals
@@ -54,7 +55,7 @@ export const DEFAULT_PAD = {
   steer: axis(0), throttle: btn(7), brake: btn(6), handbrake: btn(2), clutch: btn(1), shiftUp: btn(5), shiftDown: btn(4),
   reset: btn(8), camera: btn(3), aids: btn(13), gearbox: btn(12), hud: btn(15), debug: btn(14), dyno: null, mute: null, settings: btn(9), spoiler: null, aiCar: null,
   tuning: null, telemetry: null, sockets: null, restore: null, damageView: null, damageReport: null,
-  transfer: null, lockFront: null, lockRear: null, lockCentre: null, roof: null, effects: null, tow: null, worldMap: null, perfOverlay: null,
+  transfer: null, lockFront: null, lockRear: null, lockCentre: null, roof: null, effects: null, tow: null, worldMap: null, perfOverlay: null, photo: null, school: null,
 };
 // Wheels differ a lot; this is a common layout (pedals as axes resting at +1) — rebind in settings
 export const DEFAULT_WHEEL = {
@@ -62,6 +63,10 @@ export const DEFAULT_WHEEL = {
   reset: btn(3), camera: btn(2), aids: null, gearbox: null, hud: null, debug: null, dyno: null, mute: null, settings: btn(9),
 };
 export const DEFAULT_INPUT = { device: 'auto', wheelRange: 900, stickDeadzone: 0.1, stickCurve: 1.5, triggerDeadzone: 0.05, triggerCurve: 1.2, rumble: 0.8 };
+// Hold or toggle (accessibility, Phase 8 Step 4): these actions can be pressed once to turn on and again to turn off,
+// rather than held — for players who can't hold a key or button down
+export const TOGGLEABLE = ['throttle', 'brake', 'handbrake', 'clutch', 'halfPedal'];
+export const DEFAULT_TOGGLES = Object.fromEntries(TOGGLEABLE.map(id => [id, false]));
 
 const WHEEL_NAMES = /wheel|G2[79]|G9[02]\d?|G923|T150|T248|T300|TMX|TX Racing|T-GT|Fanatec|CSL|Driving Force|DFGT|Momo|Moza|Simucube|SimXperience/i;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -83,6 +88,8 @@ export class InputManager {
     this.activePad = null;
     this.ffb = new ForceFeedback();
     this.capture = null;          // a rebinding in progress: (event) => true when done
+    this.toggled = {};            // toggle actions on (settings.toggles)
+    this.touch = null;            // the on-screen controls (ui/touchControls.js): { active, steer, throttle, brake, handbrake }
     this.enabled = false;         // only while a test world is showing
     this.timeline = new InputTimeline();
     this.lastPoll = performance.now();
@@ -96,6 +103,7 @@ export class InputManager {
     if (down && this.capture) { e.preventDefault(); if (this.capture({ kind: 'key', code: e.code })) this.capture = null; return; }
     if (!this.enabled) return;
     if (down && !e.repeat) this.pressedKeys.add(e.code);
+    if (down && !e.repeat) for (const id of TOGGLEABLE) if (this.settings.toggles?.[id] && (this.settings.keys[id] || []).includes(e.code)) this.toggled[id] = !this.toggled[id];
     this.keys[e.code] = down;
     if (down) this.active = 'keyboard';
     // when it happened, for the physics steps (a gear shift is an event at that moment)
@@ -106,7 +114,7 @@ export class InputManager {
 
   // The car's input from the keyboard alone
   keyboardState() {
-    const S = this.settings, keyHeld = id => (S.keys[id] || []).some(c => this.keys[c]), half = keyHeld('halfPedal') ? 0.5 : 1;
+    const S = this.settings, keyHeld = id => S.toggles?.[id] ? !!this.toggled[id] : (S.keys[id] || []).some(c => this.keys[c]), half = keyHeld('halfPedal') ? 0.5 : 1;
     return {
       steer: (keyHeld('steerLeft') ? 1 : 0) - (keyHeld('steerRight') ? 1 : 0), throttle: keyHeld('throttle') ? half : 0, brake: keyHeld('brake') ? half : 0,
       handbrake: keyHeld('handbrake'), clutch: keyHeld('clutch') ? 1 : null,
@@ -127,6 +135,8 @@ export class InputManager {
   pads() {
     return this.getGamepads().filter(Boolean).map(p => ({ pad: p, kind: WHEEL_NAMES.test(p.id) ? 'wheel' : 'gamepad' }));
   }
+  // a toggle action pressed on the touch controls (or anywhere else that isn't a key or button)
+  flip(id) { this.toggled[id] = !this.toggled[id]; }
   bindingsFor(kind) { return kind === 'wheel' ? this.settings.wheel : this.settings.pad; }
 
   // Reads a binding on a pad: buttons 0..1 (triggers are analog buttons), axes per their calibration
@@ -140,7 +150,7 @@ export class InputManager {
 
   poll() {
     const S = this.settings, I = S.input, k = this.keys, pressed = new Set(), now = performance.now(), since = this.lastPoll;
-    const keyHeld = id => (S.keys[id] || []).some(c => k[c]);
+    const keyHeld = id => S.toggles?.[id] ? !!this.toggled[id] : (S.keys[id] || []).some(c => k[c]);
     for (const a of ACTIONS) if (a.press && (S.keys[a.id] || []).some(c => this.pressedKeys.has(c))) pressed.add(a.id);
     this.pressedKeys.clear();
     this.lastPoll = now;
@@ -156,6 +166,7 @@ export class InputManager {
         buttons.forEach((on, i) => { if (on && !last[i] && this.capture?.({ kind: 'button', pad: p, padKind: kind, index: i })) this.capture = null; });
         p.axes.forEach((v, i) => { if (this.capture?.({ kind: 'axis', pad: p, padKind: kind, index: i, value: v })) this.capture = null; });
       } else if (this.enabled) {
+        for (const id of TOGGLEABLE) if (S.toggles?.[id] && B[id]?.type === 'button' && buttons[B[id].index] && !last[B[id].index]) this.toggled[id] = !this.toggled[id];
         for (const a of ACTIONS) if (a.press && B[a.id]?.type === 'button' && buttons[B[a.id].index] && !last[B[a.id].index]) {
           pressed.add(a.id);
           // (buttons are only seen when polled: a shift goes to the first step after the last poll)
@@ -167,8 +178,15 @@ export class InputManager {
       this.lastPadButtons.set(p.index, buttons);
     }
 
+    // the on-screen controls (a phone or tablet): while they're being used, they drive
+    const T = this.touch;
+    if (T?.active && this.enabled && (I.device === 'auto' || I.device === 'touch')) {
+      if (T.pressed) { for (const id of T.pressed) pressed.add(id); T.pressed.clear(); }
+      const held = id => S.toggles?.[id] ? !!this.toggled[id] : !!T[id];
+      return { device: 'touch', steer: T.steer ?? 0, throttle: held('throttle') ? 1 : 0, brake: held('brake') ? 1 : 0, clutch: null, handbrake: held('handbrake'), wheelRange: I.wheelRange, pressed, padName: null };
+    }
     // which device drives: the settings' choice, or (auto) whichever was used last
-    let device = I.device === 'auto' ? this.active : I.device;
+    let device = I.device === 'auto' ? this.active : I.device === 'touch' ? 'keyboard' : I.device;
     const pad = pads.find(x => x.pad.index === this.activePad && (device === 'auto' || x.kind === device)) || pads.find(x => x.kind === device);
     if (device !== 'keyboard' && !pad) device = 'keyboard';
     const out = { device, steer: 0, throttle: 0, brake: 0, clutch: null, handbrake: false, wheelRange: I.wheelRange, pressed, padName: pad?.pad.id ?? null };
@@ -187,7 +205,9 @@ export class InputManager {
       const c = read('clutch');
       out.clutch = c > 0.05 ? c : (keyHeld('clutch') ? 1 : null);
     }
-    out.handbrake = read('handbrake') > 0.5 || keyHeld('handbrake');
+    out.handbrake = S.toggles?.handbrake ? !!this.toggled.handbrake : read('handbrake') > 0.5 || keyHeld('handbrake');
+    if (S.toggles?.throttle && B.throttle?.type === 'button') out.throttle = this.toggled.throttle ? 1 : 0;
+    if (S.toggles?.brake && B.brake?.type === 'button') out.brake = this.toggled.brake ? 1 : 0;
     this.ffb.pad = p;
     this.ffb.kind = pad.kind;
     return out;

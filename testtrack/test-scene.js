@@ -97,6 +97,7 @@ import { createDyno, createTacho } from './gauges.js';
 import { InputManager } from './input.js';
 import { reverseLine, roadFollower, straightLine } from '../physics/ai.js';
 import { createSettingsPanel, loadSettings, saveSettings } from './settings.js';
+import { prepareLanguage, createLaunch } from './launch.js';
 import { CAMERAS, createCameraRig } from './camera.js';
 import { Telemetry } from '../physics/telemetry.js';
 import { createTelemetryPanel } from './telemetryPanel.js';
@@ -107,6 +108,7 @@ import { CORNERS } from '../garage/mechanical.js';
 import { testCar } from '../physics/testCars.js';
 import { createDamageReport, createDash } from './dashboard.js';
 import { createPlayerHud } from './playerHud.js';
+import { units } from '../ui/units.js';
 import { placeForCrash } from '../physics/crashTest.js';
 import { TESTS, createRun, evaluate } from '../physics/testSuite.js';
 import { garageSession } from '../garage/session.js';
@@ -717,6 +719,7 @@ export async function enter(file) {
   if (multiplayerOptions()) { void startMultiplayer(active); void startMpRaces(); }
   // (the shaders it will need, compiled now)
   void warmShaders(active);
+  void shared.launch?.entered(active);
   // (the first launch: a short benchmark picks the graphics preset — not under automation, which says what it wants)
   if (shared.prefs.graphics == null && (!navigator.webdriver || new URLSearchParams(location.search).has('autodetect'))) void detectGraphics(false);
 }
@@ -736,6 +739,7 @@ export function exit() {
   shared.audio?.mute(true);
   shared.input.enabled = false;
   shared.flash.hide();
+  shared.launch?.exited();
 }
 
 // Starting up, on screen: which step it's on, a note if one takes long, and what went wrong if it
@@ -818,6 +822,11 @@ async function createShared() {
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
+  // (Phase 8 Step 4: the player's language and accessibility first — every screen after this is in them)
+  const languages = await prepareLanguage(prefs);
+  // (the speedometer in km/h or mph: the settings' units, else the language's region's)
+  const speedUnit = () => playerHud.setSpeedUnit(units({ system: prefs.units ?? 'auto' }).speedUnit);
+  speedUnit();
   // the graphics settings (perf/quality.js, perf/graphics.js; data/performance.json quality): the preset, or custom
   const gfx = createGraphics({ renderer, cfg: perfCfg.quality });
   // (?graphics=<preset>: that preset for this visit, not saved — the benchmarks and tests)
@@ -825,8 +834,9 @@ async function createShared() {
   if (perfCfg.quality.presets[askedPreset]) prefs.graphics = { preset: askedPreset };
   gfx.set(graphicsOf(prefs.graphics, perfCfg.quality));
   prof.target = gfx.targetMs;
-  const panel = createSettingsPanel(prefs, spec, input, () => { if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); applyGraphics(); } audioSettings(soundPrefs(prefs)); },
-    { onRehint: () => { session.player.resetHints?.(); if (shared) shared.hints.shown.clear(); }, graphics: { cfg: perfCfg.quality, stats: () => gfx.stats, detect: () => detectGraphics(true), bench: () => runOwnBenchmarks(t => shared.flash.show('Benchmarks', 'ok', 6, t)), benchResult: () => shared?.ownBench ?? null, tiers: perfCfg.tiers } });
+  const panel = createSettingsPanel(prefs, spec, input, () => { speedUnit(); if (shared) { shared.play = sessionFrom(prefs, session.db); applyHudScale(); applyGraphics(); shared.launch?.settingsChanged(); } audioSettings(soundPrefs(prefs)); },
+    { languages, sync: { status: () => shared?.launch?.syncStatus() }, onTutorial: () => shared?.launch?.tutorial(), onPrivacy: v => shared?.launch?.consent(v),
+      onRehint: () => { session.player.resetHints?.(); if (shared) { shared.hints.shown.clear(); shared.launch?.onboarding.reset(); } }, graphics: { cfg: perfCfg.quality, stats: () => gfx.stats, detect: () => detectGraphics(true), bench: () => runOwnBenchmarks(t => shared.flash.show('Benchmarks', 'ok', 6, t)), benchResult: () => shared?.ownBench ?? null, tiers: perfCfg.tiers } });
   document.body.appendChild(panel.el);
   // Telemetry: your driving, and the last automated test
   const telemetry = new Telemetry({ seconds: 600, stepHz: settings.stepHz }), testTelemetry = new Telemetry({ seconds: 300, stepHz: settings.stepHz });
@@ -855,6 +865,14 @@ async function createShared() {
     carId: session.garage.car.id, switching: null,
   };
   s.play = sessionFrom(prefs, session.db);
+  // (Phase 8 Step 4: touch controls, the sound cues, the first launch, the driving school, photo mode, music, statistics)
+  s.launch = createLaunch(s, {
+    THREE, renderer, MapV3, active: () => active, regionId: regionIdOf,
+    switchTo: file => hooks.switchTo ? hooks.switchTo(file) : enter(file),
+    toGarage: tab => hooks.toGarage?.(tab),
+    travelToRegion: id => enter(regionFile(id)),
+    routeItem: id => active?.questGame?.routeItem?.(id), fastTravel: item => active?.questGame?.fastTravel?.(item),
+  });
   // parts fitted or taken off (garage console, K): every car re-derives, and that's the new saved setup
   session.onChange(() => {
     // (another car: picked in the garage, or a test drive — every world swaps to it)
@@ -906,6 +924,7 @@ async function createShared() {
       s.audio = createGameAudio(A, { spec, occluded: (from, to) => active ? occludedRay(active.sim.vehicle.world, RAPIER, from, to) : false });
       s.audio.mute(s.muted || !active || editorHooks.active);
       s.audio.start();
+      s.launch?.audioStarted(A);
       s.audioOverlay ??= createAudioOverlay(A, () => s.audio);
     });
   };
@@ -1221,6 +1240,8 @@ function frame(w, now) {
 
   // Input (keyboard / gamepad / wheel), and the game's own actions
   const inp = shared.input.poll(), P = shared.prefs, v = w.sim.vehicle;
+  // (photo mode: the world holds still and its free camera draws — online, the world carries on underneath: below)
+  if (shared.launch?.photo.on && !shared.mp && !shared.mpRace) { for (const act of inp.pressed) if (act === 'photo' || act === 'settings') handleAction(w, act, inp); daylight(w, P.timeOfDay ?? 13); shared.launch.drawFrame(w, seconds); PF.lap('render'); PF.frameEnd(); return; }
   // the race replay (after a race): it's what's drawn, and the world waits
   if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) { PF.lap('render'); PF.frameEnd(); return; } }
   // a crash replay playing (or due): it's what's drawn, and the world waits
@@ -1237,7 +1258,7 @@ function frame(w, now) {
   if (w.trackData) floodFrame(w);
   if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
-  const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused;   // the settings panel (or a quest's pause menu) pauses the car
+  const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused || !!shared.photoPaused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car
   Object.assign(v.aids, P.aids);
   v.mechanical.enabled = (P.damage ?? 'full') === 'full';        // (visual only, off: it drives as new)
@@ -1309,7 +1330,7 @@ function frame(w, now) {
   if (!paused && !T) shared.input.feedback(b, seconds);
 
   b.bonnetUp = T ? 0 : bonnetUp(b);
-  w.rig.update(w.camera, w.car, b, seconds, CAMERAS[shared.camMode], shared.spec.camera);
+  w.rig.update(w.camera, w.car, b, seconds, CAMERAS[shared.camMode], shared.spec.camera, shared.launch?.motion);
   w.quests?.camera(w.camera);                               // (a quest's intro flies its own camera)
   shared.mpRace?.camera(w.camera, seconds);                 // (watching a multiplayer race: any car, any camera)
   const inside = CAMERAS[shared.camMode] === 'cockpit' || CAMERAS[shared.camMode] === 'bonnet', D = w.carVis.details;
@@ -1339,8 +1360,9 @@ function frame(w, now) {
   shared.sceneMeter.step(400);
   // (live reflections: a face of the cube round your car, your car itself left out of it)
   if (shared.liveRefl) { const p = w.car.position; shared.liveRefl.update(w.scene, [p.x, p.y + 0.8, p.z], hide => { w.car.visible = !hide; }); }
+  shared.launch?.frame(w, b, seconds);
   PF.lap('game');
-  shared.gfx.render(w.fxDraw, w.scene, w.camera, { speed: Math.abs(v.forwardSpeed()) });
+  if (!(shared.launch?.photo.on && shared.launch.drawFrame(w, seconds))) shared.gfx.render(w.fxDraw, w.scene, w.camera, { speed: shared.launch?.motion.speedEffects === false ? 0 : Math.abs(v.forwardSpeed()) });
   PF.lap('render');
   shared.fxPanel.update(w, seconds);
   PF.lap('game');
@@ -1947,7 +1969,8 @@ function crashEvents(w, v, now) {
     // the effects: sparks off metal, bits of what was hit, dust on loose ground, glass shards
     if (!impact.quiet) w.fx.play(w.fx.impactEvent(0, impact, result, groundUnder(v)));
     for (const e of w.fx.breakEvents(0, result.broken, brokenBefore, s.damageBoxes)) w.fx.play(e);
-    w.rig.shake(result.class === 'tap' ? 0.05 : Math.min(1, result.strength / 14));
+    w.rig.shake((result.class === 'tap' ? 0.05 : Math.min(1, result.strength / 14)) * (shared.launch?.motion.cameraShake ?? 1));
+    shared.launch?.crash(result.strength);
     s.lastCrash = { ...result, at: performance.now() };
     impactMarker(w, result);
     saved.then(r => { if (r && !r.ok) console.warn(`The crash damage wasn't saved: ${r.error}`); });
@@ -2105,7 +2128,7 @@ function mechanicalEvents(w, v, dt) {
       const r = sn.mechanical.strike(e.wheel, e.strength, { mode, kind: e.kind });
       s.lastStrike = { ...e, effects: r.effects, at: performance.now() };
       s.input.pulse(Math.min(1, 0.3 + e.strength / 12), 0.2);
-      if (e.strength > 2) { w.rig.shake(Math.min(0.5, e.strength / 25)); s.audio?.crash.impact(e.strength > 8 ? 'crunch' : 'tap', 'metal', Math.min(1, e.strength / 10)); }
+      if (e.strength > 2) { w.rig.shake(Math.min(0.5, e.strength / 25) * (shared.launch?.motion.cameraShake ?? 1)); s.audio?.crash.impact(e.strength > 8 ? 'crunch' : 'tap', 'metal', Math.min(1, e.strength / 10)); }
       r.saved.then(x => { if (x && !x.ok) console.warn(`The ${e.kind} damage wasn't saved: ${x.error}`); });
       continue;
     }
@@ -2136,7 +2159,7 @@ function engineEvents(w, v) {
   const s = shared, events = v.drivetrain.events;
   if (!events.length) return;
   for (const e of events.splice(0)) {
-    if (e.type === 'grind') { s.audio?.grind(e.strength); s.input.pulse(0.5 + 0.5 * e.strength, 0.3); continue; }
+    if (e.type === 'grind') { s.audio?.grind(e.strength); s.input.pulse(0.5 + 0.5 * e.strength, 0.3); s.launch?.cue('grind'); continue; }
     s.flash.news(e);
     // (a money shift: its toll on the gearbox, with full damage)
     if (e.type === 'overRevShift') s.session.mechanical.gearboxWear(e.over * s.session.db.damage.mechanical.effects.gearbox.overRevShift, { mode: s.prefs.damage ?? 'full' });
@@ -2469,6 +2492,7 @@ function handleAction(w, act, inp) {
   const s = shared, v = w.sim.vehicle;
   if (act === 'settings') { s.panel.toggle(); return; }
   if (s.panel.open) return;
+  if (s.launch?.action(act)) return;                  // (photo mode, the driving school)
   // (Shift+P: the performance overlay — perf/overlay.js: frame times, where they go, draw calls, stutters; P: tuning)
   if (act === 'tuning' && (s.input.keys.ShiftLeft || s.input.keys.ShiftRight)) s.perfOverlay.toggle();
   else if (act === 'tuning') s.tuning.toggle();

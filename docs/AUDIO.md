@@ -178,6 +178,59 @@ Licensed engine-sound libraries exist too; none has been bought. Ask the owner b
 
 ## Not done yet
 
-- **Music**: the group and its slider are there; there's no music yet.
+- **Music**: see [Music](#music) below — composed in code by the game (audio/music.js).
 - **Safari** may not decode Opus everywhere; it then gets the WAV files (bigger downloads, the same sound).
 - The low-end figure is the desktop's measured time × 4, not a measurement on a slow device.
+
+## Music
+
+The menus, the garage and races have music (Phase 8 Step 4), and like every other sound it's made by the game as it
+plays: `audio/music.js` composes it live in the audio engine from a few chords, oscillators and noise. No recordings,
+no library, nobody else's tune, so it's the project's own work and safe to stream or put in videos (the owner chose
+"make our own in code"). Settings → Sound → Music has a "Streamer-safe" switch: it's always safe now, and the switch
+stays for the day licensed music is ever added.
+
+**The pieces** (`PIECES`), each a loop of four chords, the same notes every time (seeded):
+
+| Piece | Feel | Tempo | Instruments |
+|---|---|---|---|
+| `menu` | calm | 88 bpm | a soft detuned pad, a slow arpeggio |
+| `garage` | relaxed | 84 bpm, swung | electric-piano chords, a round bass, brushed drums |
+| `race` | driving | 128 bpm | kick, bass and pad from the start; hats, snare, arpeggio and lead as it builds |
+
+**The race builds.** `setIntensity(0..1)` sets a target; the intensity eases toward it (a bar or two to build, longer
+to calm). Each race layer comes in at its level (`RACE_LAYERS`: kick, bass and pad at 0, hats 0.3, snare 0.45, arpeggio
+0.6, lead 0.85), a filter over the whole piece opens with it, and above 0.7 the kick doubles at the end of the bar.
+`raceIntensity({ lap, laps, gapAhead, gapBehind, progress })` works the level out: 0.25 at the start, up to 0.35 more
+through the race, 0.3 more on the final lap, and up to 0.35 more with a rival within two seconds. With "Builds on the
+last lap and in a close race" off, it stays at 0.3 or below.
+
+**Scheduling.** Notes are put on the audio clock a quarter of a second ahead (checked every 60 ms), so they're never
+late whatever the frame rate. Changing piece fades out over 0.8 s and the new one in over 1.5 s.
+
+**The music bus.** Everything goes through the `music` group (`audio/system.js`): its slider in Settings → Sound, its
+trim in `data/audio.json` `groups.music` (0.6), then the compressor and limiter like every sound. The settings' `music`
+group turns each place off (`menu`, `garage`, `race`) and the build on or off (`music.apply(settings)` after a change).
+
+**Where it plays** (`play(name)`, `null` for silence):
+
+- `testtrack/launch.js` makes it once the game's audio has started (`audioStarted`: the first key press or click) and,
+  each frame, plays `race` during a quest or a multiplayer race (with its intensity from `raceIntensity`), `menu` while
+  the settings, a first-launch card, the driving school's list or the news panel is open, and nothing otherwise.
+- `index.html` plays `garage` on entering the garage and stops it on leaving (through `globalThis.__krMusic`).
+
+**Changing or adding a piece.** A piece is data in `PIECES`: `bpm`, `key` (a MIDI note), `chords` (semitones from the
+key, one chord a bar), `layers` (any of `pad`, `keys`, `bass`, `arp`, `kick`, `snare`, `hats`, `brush`, `lead`), `arp`
+(which chord notes the arpeggio walks), `swing`. A new instrument is a line in `playBeat` (`voice()` for an
+oscillator note, `drum()` for the kick and the noise drums). A new place to play it: a key in `PIECES`, a seed in
+`play()`, a call to `play('<name>')` where it should start, and a switch in the settings' `music` group (with its
+words in `locales/en.json`, `music.<name>`). Listen at the music slider's usual level against the engine: music sits
+under the cars, never over them. Tests: `tests/unit/launch.test.mjs` (the race music builds with the last lap and a
+close race; its layers come in with the intensity).
+
+**How a race builds:** each frame `testtrack/launch.js` asks the race for `raceInfo()` — a quest's or a generated
+track's (`play/questUi.js`: the lap, how far through it, the gaps to the cars either side) or an online race's
+(`play/mpRace.js`: the lap and how far through it) — and sets the intensity from `raceIntensity()`. `play()` is asked
+every frame for what should play; only a change does anything (a start waiting for the last piece's fade is called
+off by the next change: tested in `tests/unit/launch.test.mjs`). The garage's music starts once the game's audio has
+(a key press or a click first: browsers start sound only after one).

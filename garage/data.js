@@ -73,6 +73,7 @@ export async function loadGarageData(readJson) {
       if (!(t.min <= t.default && t.default <= t.max)) problems.push({ file, path: `tuning.${name}`, message: `its default ${t.default} isn't within ${t.min}–${t.max}` });
   }
   if (!cars[economy.startingCar]) problems.push({ file: 'data/economy.json', path: 'startingCar', message: `there's no car "${economy.startingCar}"` });
+  for (const id of economy.starterChoices ?? []) if (!cars[id]) problems.push({ file: 'data/economy.json', path: 'starterChoices', message: `there's no car "${id}"` });
   return { db: { cars, parts, finishes, condition, classes, economy, damage, sessions, hints, standards }, problems, validator };
 }
 

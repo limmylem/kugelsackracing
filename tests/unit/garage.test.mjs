@@ -317,3 +317,9 @@ test('taking a supercharger off takes what only works with it off too, step by s
   g.install('supercharger_centrifugal');
   assert.equal(g.remove('socket_supercharger', { auto: false }).errors[0].code, 'blocked');
 });
+
+test('a shifter fitted hides the car\'s own gear lever (each car\'s body has it as a node of its own), so the two aren\'t drawn one on the other', () => {
+  const nodeNames = file => { const b = fs.readFileSync(path.join(root, file)), len = b.readUInt32LE(12); return JSON.parse(b.subarray(20, 20 + len).toString('utf8')).nodes.map(n => n.name); };
+  for (const p of Object.values(db.parts).filter(p => p.slot === 'shifter')) assert.ok(p.hides?.includes('gear_lever'), `${p.id} hides the stock lever`);
+  for (const car of Object.values(db.cars)) if (car.sockets.some(s => s.slot === 'shifter')) assert.ok(nodeNames(car.model.file).includes('gear_lever'), `${car.id}'s body has its gear lever as a node`);
+});

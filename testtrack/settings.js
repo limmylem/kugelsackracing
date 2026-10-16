@@ -1,13 +1,26 @@
-// Settings for the test worlds: driver aids, brake bias, input device and feel, and control bindings.
-// Defaults come from the car spec and the input layer; changes are kept in this browser
-// (localStorage) so they survive a reload. The panel opens with O (or the gamepad's Menu button).
+// The settings (Phase 8 Step 4: one complete menu; docs/ACCESSIBILITY.md, docs/TRANSLATIONS.md): Gameplay (driver
+// aids, damage, races, brakes), Controls (the device and its feel, every action rebindable on keyboard, gamepad and
+// wheel, hold or toggle, the touch controls), Graphics, Sound (and music), Accessibility, Language (and units, place
+// names), Privacy and Notifications. Kept in this browser (localStorage) and, for a player with an account or a guest,
+// in their account (ui/settingsSync.js), so they follow the player to another device — all but the graphics, which are
+// this device's own (its benchmark picked them). The panel opens with O (or the gamepad's Menu button); it's a dialog
+// of tabs a keyboard and a screen reader can use (arrow keys between the tabs, every control labelled).
 
-import { ACTIONS, DEFAULT_INPUT, DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_WHEEL } from './input.js';
+import { ACTIONS, DEFAULT_INPUT, DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_WHEEL, DEFAULT_TOGGLES, TOGGLEABLE } from './input.js';
 import { PALETTES } from '../play/palette.js';
 import { graphicsOf, withPreset, withSetting, PRESETS } from '../perf/quality.js';
+import { t, i18n, esc } from '../ui/i18n.js';
+import { DEFAULT_A11Y } from '../ui/accessibility.js';
+import { DEFAULT_TOUCH } from '../ui/touchControls.js';
 
 const STORE = 'driveWorld.settings.v1';
 const clone = x => JSON.parse(JSON.stringify(x));
+export const TABS = ['gameplay', 'controls', 'graphics', 'sound', 'accessibility', 'language', 'privacy', 'notifications'];
+// (what doesn't follow the player between devices: the graphics are this device's, the rebinding of a pad or wheel
+// this device's hardware's)
+export const DEVICE_ONLY = ['graphics', 'pad', 'wheel'];
+// (a copy from the account, with this device's own left as they are)
+export const deviceless = data => Object.fromEntries(Object.entries(data ?? {}).filter(([k]) => !DEVICE_ONLY.includes(k)));
 
 export function defaultSettings(spec) {
   const A = spec.assists;
@@ -25,210 +38,303 @@ export function defaultSettings(spec) {
     // first launch's benchmark picks a preset (perf/autodetect.js); the effects' quality and tracks' detail are in it
     graphics: null,
     timeOfDay: 13,              // the test worlds' time of day (hours)
-    // accessibility (play/palette.js): the quests' colours, how visible the route guides are, the HUDs' size,
-    // and the first-time hints
-    palette: 'standard',        // standard / colourblind
+    // the quests' colours and route guides (play/palette.js), the HUDs' size, the first-time hints
+    palette: 'standard',        // standard / colourblind / tritanopia / highContrast
     guides: 'normal',           // normal / bold
     hudScale: 1,                // 0.6–1.6
     hints: true,
-    // the sound (audio/system.js): the whole and each group's volume (0..1), and its quality (low: fewer full voices
-    // for other cars, the engines' loops instead of their grains, no echo or muffling behind buildings — slow devices)
+    // the sound (audio/system.js): the whole and each group's volume (0..1), and its quality
     sound: { master: 1, engine: 1, tyres: 1, impacts: 1, environment: 1, others: 1, ui: 1, music: 1, quality: 'high' },
+    // the music (audio/music.js): where it plays, and only what may be streamed (it's all the game's own: always safe)
+    music: { menu: true, garage: true, race: true, build: true, streamerSafe: true },
+    // accessibility (ui/accessibility.js, ui/soundCues.js)
+    a11y: clone(DEFAULT_A11Y),
+    // language and units (ui/i18n.js, ui/units.js): 'auto' is the browser's; place names local (OSM's) or English
+    language: 'auto', units: 'auto', placeNames: 'local',
+    // privacy: anonymous play statistics (null: not asked yet — the game asks once; docs/ANALYTICS.md)
+    privacy: { analytics: null },
+    // what the game tells you about (ui/news.js)
+    notifications: { news: true, patchNotes: true, events: true, eventReminders: true },
     input: clone(DEFAULT_INPUT), keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL),
+    toggles: clone(DEFAULT_TOGGLES), touch: clone(DEFAULT_TOUCH),
+    updatedAt: 0,               // when last changed here (ms): the newer copy wins between devices
   };
 }
 
-export function loadSettings(spec) {
-  const s = defaultSettings(spec);
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-    // (groups of settings merge into their defaults; a single value — null is one, not a group — is taken
-    // as saved)
-    const group = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-    if (saved) for (const k of Object.keys(s)) if (saved[k] !== undefined) s[k] = group(s[k]) ? (group(saved[k]) ? { ...s[k], ...saved[k] } : s[k]) : saved[k];
-    // (an earlier version saved a value as an object here: the session's own then)
-    if (s.collisions !== null && typeof s.collisions !== 'string') s.collisions = null;
-  } catch { /* storage unavailable: defaults */ }
+const group = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+// saved settings over the defaults: groups merge into theirs, single values (null is one) as saved
+export function mergeSettings(s, saved) {
+  if (saved) for (const k of Object.keys(s)) if (saved[k] !== undefined) s[k] = group(s[k]) ? (group(saved[k]) ? { ...s[k], ...saved[k] } : s[k]) : saved[k];
+  // (an earlier version saved a value as an object here: the session's own then)
+  if (s.collisions !== null && typeof s.collisions !== 'string') s.collisions = null;
+  // (the older colour-blind palette is the new colours setting's red–green choice)
+  if (saved?.palette === 'colourblind' && !saved?.a11y?.colours) s.a11y.colours = 'deuteranopia';
   return s;
 }
-
-export function saveSettings(s) {
-  try { localStorage.setItem(STORE, JSON.stringify(s)); } catch { /* not saved */ }
+export function loadSettings(spec) {
+  const s = defaultSettings(spec);
+  try { mergeSettings(s, JSON.parse(localStorage.getItem(STORE) || 'null')); } catch { /* storage unavailable: defaults */ }
+  return s;
 }
+const savers = new Set();
+// (another part of the game hears of every save: the account's copy — ui/settingsSync.js)
+export const onSave = f => { savers.add(f); return () => savers.delete(f); };
+export function saveSettings(s, { touched = true } = {}) {
+  if (touched) s.updatedAt = Date.now();
+  try { localStorage.setItem(STORE, JSON.stringify(s)); } catch { /* not saved */ }
+  for (const f of savers) try { f(s); } catch { /* its own problem */ }
+}
+// what follows the player between devices
+export const portable = s => Object.fromEntries(Object.entries(s).filter(([k]) => !DEVICE_ONLY.includes(k)));
 
-const AID_ROWS = [
-  ['abs', 'ABS', 'Stops the wheels locking under hard braking, so you can still steer'],
-  ['tc', 'Traction control', 'Eases the throttle when the driven wheels spin'],
-  ['esc', 'Stability control', 'Brakes single wheels to stop a spin or tighten understeer'],
-  ['countersteer', 'Countersteer assist', 'Keyboard / gamepad: steering helps catch slides'],
-  ['steering', 'Steering assist', 'Keyboard / gamepad: full lock only turns as far as the tyres can use'],
-  ['drift', 'Drift assist', 'Keyboard / gamepad: holds a drift once it starts (stability control allows more slide)'],
-  ['revProtection', 'Rev protection', 'Refuses a downshift that would over-rev the engine (a money shift bends valves or blows it)'],
-];
-
-const SOUND_ROWS = [['master', 'Everything'], ['engine', 'Engine'], ['tyres', 'Tyres and road'], ['impacts', 'Crashes'], ['environment', 'Wind and surroundings'], ['others', 'Other cars'], ['ui', 'Menus and cues'], ['music', 'Music']];
-const clockText = h => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
-const bindingText = b => !b ? '—' : b.type === 'button' ? `button ${b.index}` : b.rest == null ? `axis ${b.index}${b.invert ? ' (flipped)' : ''}` : `axis ${b.index}`;
+const AIDS = ['abs', 'tc', 'esc', 'countersteer', 'steering', 'drift', 'revProtection'];
+const SOUNDS = ['master', 'engine', 'tyres', 'impacts', 'environment', 'others', 'ui', 'music'];
+const clockText = h => i18n.time(new Date(2026, 0, 1, Math.floor(h) % 24, Math.round((h % 1) * 60)));
+const bindingText = b => !b ? '—' : b.type === 'button' ? t('controls.button', { n: b.index }) : b.rest == null ? t(b.invert ? 'controls.axisFlipped' : 'controls.axis', { n: b.index }) : t('controls.axis', { n: b.index });
+const pct = v => i18n.number(v, { style: 'percent', maximumFractionDigits: 0 });
+const opt = (v, cur, label, extra = '') => `<option value="${esc(v)}" ${String(cur) === String(v) ? 'selected' : ''} ${extra}>${esc(label)}</option>`;
+let uid = 0;
+// a labelled control: a tick box, a slider, a list
+const check = (attr, on, name, help = '') => { const id = `set${++uid}`; return `<div class="row"><input type="checkbox" id="${id}" ${attr} ${on ? 'checked' : ''}${help ? ` aria-describedby="${id}h"` : ''}> <label for="${id}"><b>${esc(name)}</b>${help ? `<small id="${id}h">${esc(help)}</small>` : ''}</label></div>`; };
+const range = (attr, name, min, max, step, value, shown) => { const id = `set${++uid}`; return `<div class="slider"><label for="${id}">${esc(name)}</label> <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" ${attr} value="${value}" aria-valuetext="${esc(shown)}"> <output for="${id}">${esc(shown)}</output></div>`; };
+const select = (attr, name, options, help = '') => { const id = `set${++uid}`; return `<div class="slider"><label for="${id}">${esc(name)}</label> <select id="${id}" ${attr}${help ? ` aria-describedby="${id}h"` : ''}>${options}</select></div>${help ? `<small class="pads" id="${id}h">${esc(help)}</small>` : ''}`; };
 
 // input: the InputManager (for capturing rebinds); onChange(settings) after any change; onRehint(): every
-// first-time hint unseen again
-// graphics: { cfg (data/performance.json quality), stats() (perf/graphics.js), detect() (the first launch's benchmark, run
-// again) } — the Graphics section
-export function createSettingsPanel(settings, spec, input, onChange, { onRehint = null, graphics = null } = {}) {
+// first-time hint unseen again; graphics: { cfg, stats(), detect(), bench(), benchResult() }; sync: the account's copy
+// (ui/settingsSync.js: its status()); languages: data/languages.json
+export function createSettingsPanel(settings, spec, input, onChange, { onRehint = null, graphics = null, sync = null, languages = null, onTutorial = null, onPrivacy = null } = {}) {
   const el = document.createElement('div');
   el.id = 'settings';
   el.hidden = true;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'settingsTitle');
+  let tab = 'gameplay';
   const changed = () => { saveSettings(settings); onChange(settings); render(); };
 
   function render() {
-    const S = settings, I = S.input;
-    const pads = input.pads();
+    uid = 0;
+    const focused = document.activeElement && el.contains(document.activeElement) ? (document.activeElement.id || document.activeElement.dataset?.tab) : null;
     el.innerHTML = `
-      <div class="head"><b>Settings</b><span><kbd>O</kbd> close</span></div>
-      <div class="cols">
-      <section><h3>Driver aids</h3>
-        ${AID_ROWS.map(([k, name, help]) => `<label class="row"><input type="checkbox" data-aid="${k}" ${S.aids[k] ? 'checked' : ''}> <span><b>${name}</b><small>${help}</small></span></label>
-          ${k === 'tc' ? `<label class="slider">strength <input type="range" min="0" max="1" step="0.05" data-num="aids.tcStrength" value="${S.aids.tcStrength}"> <output>${Math.round(S.aids.tcStrength * 100)}%</output></label>` : ''}`).join('')}
-        <h3>Damage</h3>
-        <label class="slider">crashes <select data-str="damage">${[['full', 'Full'], ['visual', 'Visual only'], ['off', 'Off']].map(([v, n]) => `<option value="${v}" ${(S.damage ?? 'full') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">Full: dents, broken glass and lights, parts lose condition, and the mechanicals take damage (bent steering and suspension, punctures, a leaking radiator that overheats the engine, a grinding gearbox…; a huge hit can tear a wheel off). Visual only: the dents and breakages, none of the mechanical effects. Off: none (the crash sounds stay).</small>
-        <label class="row"><input type="checkbox" data-bool="crashReplay" ${S.crashReplay !== false ? 'checked' : ''}> <span><b>Crash replay</b><small>A short slow-motion replay after a big crash (any key skips it). Never in a race.</small></span></label>
-        <h3>Races</h3>
-        <label class="row"><input type="checkbox" data-bool="rubberBand" ${S.rubberBand !== false ? 'checked' : ''}> <span><b>Rubber-banding</b><small>Rivals ease off a little when well ahead of you, and push a little when behind (their driving only, never their car). Never in pink slips.</small></span></label>
-        <label class="row"><input type="checkbox" data-bool="npcNames" ${S.npcNames !== false ? 'checked' : ''}> <span><b>Rivals' names over their cars</b></span></label>
-        <label class="row"><input type="checkbox" data-bool="questNotices" ${S.questNotices !== false ? 'checked' : ''}> <span><b>Nearby quest notices</b><small>While free roaming, a small notice now and then when you pass a quest you haven't played.</small></span></label>
-        <h3>Session</h3>
-        <label class="slider">kind <select data-str="session">${[['test', 'Test drive'], ['race', 'Race']].map(([v, n]) => `<option value="${v}" ${(S.session ?? 'test') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <label class="slider">cars <select data-str="collisions">${[['', 'The session\'s own'], ['full', 'Full damage'], ['reduced', 'Reduced damage from other cars'], ['off', 'No collisions (ghosting)']].map(([v, n]) => `<option value="${v}" ${(S.collisions ?? '') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">A test drive: cars hit with full damage, R puts loose parts back on, B repairs everything (development). A race: reduced damage from other cars (public races will be the same), R keeps all the damage (only a wheel torn off goes back on), no free repairs — Backspace twice tows the car to the garage, ending the race.</small>
-        <h3>Brakes</h3>
-        <label class="slider">front bias <input type="range" min="0.5" max="0.85" step="0.01" data-num="brakeBias" value="${S.brakeBias}"> <output>${Math.round(S.brakeBias * 100)}%</output></label>
-        <label class="row"><input type="checkbox" data-bool="handbrakeClutch" ${S.handbrakeClutch ? 'checked' : ''}> <span><b>Clutch in with handbrake</b><small>Keeps the engine revving through handbrake turns</small></span></label>
-        <h3>Aero and air <small>K fits / removes the spoiler (its angle is its setting: garage.tune("basic_wing", "angle", 12)) · J puts an AI car ahead to slipstream</small></h3>
-        <label class="slider">test altitude <input type="range" min="0" max="4000" step="100" data-num="altitude" value="${S.altitude}"> <output>${S.altitude} m</output></label>
-        ${graphicsRows()}
-        <label class="slider">time of day <input type="range" min="0" max="24" step="0.25" data-num="timeOfDay" value="${S.timeOfDay ?? 13}"> <output>${clockText(S.timeOfDay ?? 13)}</output></label>
-        <h3>Sound <small>M on / off · Shift+M what it costs</small></h3>
-        ${SOUND_ROWS.map(([k, n]) => `<label class="slider">${n} <input type="range" min="0" max="1" step="0.05" data-num="sound.${k}" value="${S.sound?.[k] ?? 1}"> <output>${Math.round((S.sound?.[k] ?? 1) * 100)}%</output></label>`).join('')}
-        <label class="slider">quality <select data-str="sound.quality">${[['high', 'High'], ['low', 'Low (slower devices)']].map(([v, n]) => `<option value="${v}" ${(S.sound?.quality ?? 'high') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">Low: fewer other cars heard in full, the engines' simpler sound, no echoes, and no muffling behind buildings.</small>
-        <h3>Accessibility</h3>
-        <label class="slider">colours <select data-str="palette">${Object.entries(PALETTES).map(([v, p]) => `<option value="${v}" ${(S.palette ?? 'standard') === v ? 'selected' : ''}>${p.name}</option>`).join('')}</select></label>
-        <small class="pads">Checkpoint gates, splits (ahead / behind), warnings and the route on the maps. Colour-blind friendly: blue for ahead, orange for behind, and gates and guides told apart by brightness as well as colour.</small>
-        <label class="slider">route guides <select data-str="guides">${[['normal', 'Normal'], ['bold', 'More visible']].map(([v, n]) => `<option value="${v}" ${(S.guides ?? 'normal') === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <small class="pads">More visible: bigger, brighter arrows on the road, taller gates that glow at night, a thicker route line on the maps and a bigger checkpoint arrow.</small>
-        <label class="slider">HUD size <input type="range" min="0.6" max="1.6" step="0.05" data-num="hudScale" value="${S.hudScale ?? 1}"> <output>${Math.round((S.hudScale ?? 1) * 100)}%</output></label>
-        <label class="row"><input type="checkbox" data-bool="hints" ${S.hints !== false ? 'checked' : ''}> <span><b>First-time hints</b><small>A short tip the first time you meet something new (quests, medals, rivals, pink slips, fast travel, damage). Click one to dismiss it.</small></span></label>
-        <button data-rehint>Show the hints again</button>
-      </section>
-      <section><h3>Input</h3>
-        <label class="slider">device <select data-str="input.device">${['auto', 'keyboard', 'gamepad', 'wheel'].map(d => `<option ${I.device === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
-        <small class="pads">${pads.length ? pads.map(p => `${p.kind}: ${p.pad.id}`).join('<br>') : 'No gamepad or wheel seen yet — press a button on it.'}</small>
-        <label class="slider">wheel rotation <input type="range" min="180" max="1080" step="10" data-num="input.wheelRange" value="${I.wheelRange}"> <output>${I.wheelRange}°</output></label>
-        <label class="slider">stick deadzone <input type="range" min="0" max="0.4" step="0.01" data-num="input.stickDeadzone" value="${I.stickDeadzone}"> <output>${I.stickDeadzone}</output></label>
-        <label class="slider">stick curve <input type="range" min="1" max="3" step="0.1" data-num="input.stickCurve" value="${I.stickCurve}"> <output>${I.stickCurve}</output></label>
-        <label class="slider">trigger deadzone <input type="range" min="0" max="0.3" step="0.01" data-num="input.triggerDeadzone" value="${I.triggerDeadzone}"> <output>${I.triggerDeadzone}</output></label>
-        <label class="slider">trigger curve <input type="range" min="1" max="3" step="0.1" data-num="input.triggerCurve" value="${I.triggerCurve}"> <output>${I.triggerCurve}</output></label>
-        <label class="slider">rumble <input type="range" min="0" max="1" step="0.05" data-num="input.rumble" value="${I.rumble}"> <output>${Math.round(I.rumble * 100)}%</output></label>
-        <h3>Controls <small>click to rebind, then press the key / button or move the axis (Esc cancels)</small></h3>
-        <table class="binds"><tr><th></th><th>keyboard</th><th>gamepad</th><th>wheel</th></tr>
-          ${ACTIONS.map(a => `<tr><td>${a.label}</td>
-            <td>${a.padOnly ? '' : `<button data-bind="keys.${a.id}">${(S.keys[a.id] || []).join(' / ') || '—'}</button>`}</td>
-            <td>${a.keyOnly ? '' : `<button data-bind="pad.${a.id}">${bindingText(S.pad[a.id])}</button>`}</td>
-            <td>${a.keyOnly ? '' : `<button data-bind="wheel.${a.id}">${bindingText(S.wheel[a.id])}</button>`}</td></tr>`).join('')}
-        </table>
-        <button data-reset>Reset everything to defaults</button>
-      </section></div>`;
+      <div class="head"><h2 id="settingsTitle">${t('settings.title')}</h2><span>${syncText()} · ${t('settings.closeKey', { key: (settings.keys.settings ?? ['KeyO'])[0].replace(/^Key/, '') })}</span>
+        <button type="button" class="close" data-close aria-label="${t('settings.close')}">×</button></div>
+      <div role="tablist" class="tabs" aria-label="${t('settings.title')}">${TABS.map(x => `<button type="button" role="tab" id="tab-${x}" data-tab="${x}" aria-selected="${x === tab}" aria-controls="panel-${x}" tabindex="${x === tab ? 0 : -1}">${t(`settings.tab.${x}`)}</button>`).join('')}</div>
+      <section role="tabpanel" id="panel-${tab}" aria-labelledby="tab-${tab}" tabindex="0">${SECTIONS[tab]()}</section>`;
+    if (focused) (el.querySelector(`#${CSS.escape(focused)}`) ?? el.querySelector(`[data-tab="${focused}"]`))?.focus();
   }
+  const syncText = () => { const st = sync?.status?.(); return st === 'synced' ? t('settings.sync.synced') : st === 'saving' ? t('settings.sync.saving') : st === 'offline' ? t('settings.sync.offline') : t('settings.sync.local'); };
+
+  const S = () => settings;
+  const SECTIONS = {
+    gameplay() {
+      const s = S();
+      return `<h3>${t('settings.aids')}</h3>
+        ${AIDS.map(k => check(`data-aid="${k}"`, s.aids[k], t(`aids.${k}.name`), t(`aids.${k}.help`)) + (k === 'tc' ? range('data-num="aids.tcStrength"', t('aids.tcStrength'), 0, 1, 0.05, s.aids.tcStrength, pct(s.aids.tcStrength)) : '')).join('')}
+        ${onTutorial ? `<button type="button" data-tutorial>${t('settings.aidsAdvice')}</button>` : ''}
+        <h3>${t('settings.damage')}</h3>
+        ${select('data-str="damage"', t('settings.crashes'), [['full', t('damage.full')], ['visual', t('damage.visual')], ['off', t('damage.off')]].map(([v, n]) => opt(v, s.damage ?? 'full', n)).join(''), t('damage.help'))}
+        ${check('data-bool="crashReplay"', s.crashReplay !== false, t('settings.crashReplay'), t('settings.crashReplayHelp'))}
+        <h3>${t('settings.races')}</h3>
+        ${check('data-bool="rubberBand"', s.rubberBand !== false, t('settings.rubberBand'), t('settings.rubberBandHelp'))}
+        ${check('data-bool="npcNames"', s.npcNames !== false, t('settings.npcNames'))}
+        ${check('data-bool="questNotices"', s.questNotices !== false, t('settings.questNotices'), t('settings.questNoticesHelp'))}
+        ${check('data-bool="hints"', s.hints !== false, t('settings.hints'), t('settings.hintsHelp'))}
+        <button type="button" data-rehint>${t('settings.rehint')}</button>
+        <h3>${t('settings.session')}</h3>
+        ${select('data-str="session"', t('settings.sessionKind'), [['test', t('session.test')], ['race', t('session.race')]].map(([v, n]) => opt(v, s.session ?? 'test', n)).join(''))}
+        ${select('data-str="collisions"', t('settings.cars'), [['', t('collisions.session')], ['full', t('collisions.full')], ['reduced', t('collisions.reduced')], ['off', t('collisions.off')]].map(([v, n]) => opt(v, s.collisions ?? '', n)).join(''), t('settings.sessionHelp'))}
+        <h3>${t('settings.brakes')}</h3>
+        ${range('data-num="brakeBias"', t('settings.brakeBias'), 0.5, 0.85, 0.01, s.brakeBias, pct(s.brakeBias))}
+        ${check('data-bool="handbrakeClutch"', s.handbrakeClutch, t('settings.handbrakeClutch'), t('settings.handbrakeClutchHelp'))}
+        <h3>${t('settings.aero')}</h3>
+        ${range('data-num="altitude"', t('settings.altitude'), 0, 4000, 100, s.altitude, `${i18n.number(s.altitude)} m`)}
+        ${range('data-num="timeOfDay"', t('settings.timeOfDay'), 0, 24, 0.25, s.timeOfDay ?? 13, clockText(s.timeOfDay ?? 13))}`;
+    },
+    controls() {
+      const s = S(), I = s.input, pads = input.pads();
+      return `${select('data-str="input.device"', t('controls.device'), ['auto', 'keyboard', 'gamepad', 'wheel', 'touch'].map(d => opt(d, I.device, t(`controls.devices.${d}`))).join(''))}
+        <small class="pads">${pads.length ? pads.map(p => esc(`${t(`controls.devices.${p.kind}`)}: ${p.pad.id}`)).join('<br>') : t('controls.noPads')}</small>
+        ${range('data-num="input.wheelRange"', t('controls.wheelRange'), 180, 1080, 10, I.wheelRange, `${I.wheelRange}°`)}
+        ${range('data-num="input.stickDeadzone"', t('controls.stickDeadzone'), 0, 0.4, 0.01, I.stickDeadzone, i18n.number(I.stickDeadzone))}
+        ${range('data-num="input.stickCurve"', t('controls.stickCurve'), 1, 3, 0.1, I.stickCurve, i18n.number(I.stickCurve))}
+        ${range('data-num="input.triggerDeadzone"', t('controls.triggerDeadzone'), 0, 0.3, 0.01, I.triggerDeadzone, i18n.number(I.triggerDeadzone))}
+        ${range('data-num="input.triggerCurve"', t('controls.triggerCurve'), 1, 3, 0.1, I.triggerCurve, i18n.number(I.triggerCurve))}
+        ${range('data-num="input.rumble"', t('controls.rumble'), 0, 1, 0.05, I.rumble, pct(I.rumble))}
+        <h3>${t('controls.holdToggle')}</h3><small class="pads">${t('controls.holdToggleHelp')}</small>
+        ${TOGGLEABLE.map(id => select(`data-toggle="${id}"`, t(`actions.${id}`), [['hold', t('controls.hold')], ['toggle', t('controls.toggle')]].map(([v, n]) => opt(v, s.toggles?.[id] ? 'toggle' : 'hold', n)).join(''))).join('')}
+        <h3>${t('controls.touch')}</h3>
+        ${select('data-str="touch.enabled"', t('controls.touchShow'), [['auto', t('controls.touchAuto')], ['on', t('common.on')], ['off', t('common.off')]].map(([v, n]) => opt(v, s.touch.enabled, n)).join(''))}
+        ${select('data-str="touch.steer"', t('controls.touchSteer'), ['buttons', 'slider', 'tilt'].map(v => opt(v, s.touch.steer, t(`controls.touchSteerKinds.${v}`))).join(''))}
+        ${check('data-bool="touch.swap"', s.touch.swap, t('controls.touchSwap'))}
+        ${range('data-num="touch.size"', t('controls.touchSize'), 0.7, 1.5, 0.05, s.touch.size, pct(s.touch.size))}
+        ${range('data-num="touch.opacity"', t('controls.touchOpacity'), 0.2, 1, 0.05, s.touch.opacity, pct(s.touch.opacity))}
+        <h3>${t('controls.bindings')}</h3><small class="pads">${t('controls.bindingsHelp')}</small>
+        <table class="binds"><caption class="sr-only">${t('controls.bindings')}</caption><tr><th scope="col">${t('controls.action')}</th><th scope="col">${t('controls.devices.keyboard')}</th><th scope="col">${t('controls.devices.gamepad')}</th><th scope="col">${t('controls.devices.wheel')}</th></tr>
+          ${ACTIONS.map(a => `<tr><th scope="row">${esc(t(`actions.${a.id}`))}</th>
+            <td>${a.padOnly ? '' : `<button type="button" data-bind="keys.${a.id}" aria-label="${esc(t('controls.rebind', { action: t(`actions.${a.id}`), device: t('controls.devices.keyboard') }))}">${esc((s.keys[a.id] || []).join(' / ') || '—')}</button>`}</td>
+            <td>${a.keyOnly ? '' : `<button type="button" data-bind="pad.${a.id}" aria-label="${esc(t('controls.rebind', { action: t(`actions.${a.id}`), device: t('controls.devices.gamepad') }))}">${esc(bindingText(s.pad[a.id]))}</button>`}</td>
+            <td>${a.keyOnly ? '' : `<button type="button" data-bind="wheel.${a.id}" aria-label="${esc(t('controls.rebind', { action: t(`actions.${a.id}`), device: t('controls.devices.wheel') }))}">${esc(bindingText(s.wheel[a.id]))}</button>`}</td></tr>`).join('')}
+        </table>
+        <button type="button" data-reset-controls>${t('controls.reset')}</button>`;
+    },
+    graphics() { return graphicsRows() || `<p>${t('graphics.none')}</p>`; },
+    sound() {
+      const s = S();
+      return `${SOUNDS.map(k => range(`data-num="sound.${k}"`, t(`sound.${k}`), 0, 1, 0.05, s.sound?.[k] ?? 1, pct(s.sound?.[k] ?? 1))).join('')}
+        ${select('data-str="sound.quality"', t('sound.quality'), [['high', t('sound.high')], ['low', t('sound.low')]].map(([v, n]) => opt(v, s.sound?.quality ?? 'high', n)).join(''), t('sound.lowHelp'))}
+        <h3>${t('music.title')}</h3>
+        ${['menu', 'garage', 'race'].map(k => check(`data-bool="music.${k}"`, s.music?.[k] !== false, t(`music.${k}`))).join('')}
+        ${check('data-bool="music.build"', s.music?.build !== false, t('music.build'), t('music.buildHelp'))}
+        ${check('data-bool="music.streamerSafe"', s.music?.streamerSafe !== false, t('music.streamerSafe'), t('music.streamerSafeHelp'))}`;
+    },
+    accessibility() {
+      const s = S(), A = { ...DEFAULT_A11Y, ...(s.a11y ?? {}) };
+      return `${range('data-num="a11y.textSize"', t('a11y.textSize'), 0.85, 1.6, 0.05, A.textSize, pct(A.textSize))}
+        ${range('data-num="hudScale"', t('a11y.hudSize'), 0.6, 1.6, 0.05, s.hudScale ?? 1, pct(s.hudScale ?? 1))}
+        ${select('data-str="a11y.contrast"', t('a11y.contrast'), [['normal', t('a11y.contrastNormal')], ['high', t('a11y.contrastHigh')]].map(([v, n]) => opt(v, A.contrast, n)).join(''))}
+        ${select('data-str="a11y.colours"', t('a11y.colours'), ['standard', 'deuteranopia', 'protanopia', 'tritanopia'].map(v => opt(v, A.colours, t(`a11y.coloursKinds.${v}`))).join(''), t('a11y.coloursHelp'))}
+        ${select('data-str="guides"', t('a11y.guides'), [['normal', t('a11y.guidesNormal')], ['bold', t('a11y.guidesBold')]].map(([v, n]) => opt(v, s.guides ?? 'normal', n)).join(''), t('a11y.guidesHelp'))}
+        ${select('data-str="a11y.motion"', t('a11y.motion'), ['auto', 'full', 'reduced'].map(v => opt(v, A.motion, t(`a11y.motionKinds.${v}`))).join(''), t('a11y.motionHelp'))}
+        ${range('data-num="a11y.cameraShake"', t('a11y.cameraShake'), 0, 1, 0.05, A.cameraShake, pct(A.cameraShake))}
+        ${select('data-str="a11y.flashing"', t('a11y.flashing'), [['reduced', t('a11y.flashingReduced')], ['full', t('a11y.flashingFull')]].map(([v, n]) => opt(v, A.flashing, n)).join(''), t('a11y.flashingHelp'))}
+        ${check('data-bool="a11y.visualSounds"', A.visualSounds, t('a11y.visualSounds'), t('a11y.visualSoundsHelp'))}
+        <button type="button" data-photo-warning>${t('a11y.photo.again')}</button>`;
+    },
+    language() {
+      const s = S(), L = languages?.languages ?? [{ code: 'en', name: 'English' }], testing = languages?.testing ?? [];
+      return `${select('data-str="language"', t('language.language'), [opt('auto', s.language, t('language.auto')), ...L.map(l => opt(l.code, s.language, l.name)), ...testing.map(l => opt(l.code, s.language, l.name))].join(''), t('language.help'))}
+        ${select('data-str="units"', t('language.units'), ['auto', 'metric', 'imperial'].map(v => opt(v, s.units, t(`language.unitKinds.${v}`))).join(''), t('language.unitsHelp'))}
+        ${select('data-str="placeNames"', t('language.placeNames'), ['local', 'english'].map(v => opt(v, s.placeNames, t(`language.placeKinds.${v}`))).join(''), t('language.placeNamesHelp'))}
+        <p class="pads">${t('language.example', { speed: '', date: i18n.date(new Date(), 'long'), money: i18n.money(12500) })}</p>`;
+    },
+    privacy() {
+      const s = S();
+      return `${select('data-str="privacy.analytics"', t('privacy.analytics'), [['', t('privacy.notAsked')], ['true', t('privacy.yes')], ['false', t('privacy.no')]].map(([v, n]) => opt(v, s.privacy?.analytics == null ? '' : String(s.privacy.analytics), n, v === '' ? 'disabled' : '')).join(''), t('privacy.analyticsHelp'))}
+        <p class="pads"><a href="/account/privacy.html" target="_blank" rel="noopener">${t('privacy.policy')}</a> · <a href="/account/" target="_blank" rel="noopener">${t('privacy.yourData')}</a></p>`;
+    },
+    notifications() {
+      const s = S();
+      return ['news', 'patchNotes', 'events', 'eventReminders'].map(k => check(`data-bool="notifications.${k}"`, s.notifications?.[k] !== false, t(`notify.${k}`), t(`notify.${k}Help`))).join('');
+    },
+  };
 
   // ---------- graphics (perf/quality.js): a preset, or any setting changed (custom) ----------
   function graphicsRows() {
     if (!graphics) return '';
-    const Q = graphics.cfg, G = graphicsOf(settings.graphics, Q), sel = (key, opts) => `<select data-gfx="${key}">${opts.map(([v, n]) => `<option value="${v}" ${String(G[key]) === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
-    const lmh = [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], st = graphics.stats?.() ?? {};
-    const row = (name, html, help = '') => `<label class="slider">${name} ${html}</label>${help ? `<small class="pads">${help}</small>` : ''}`;
-    return `<h3>Graphics <small>Shift+P what each frame costs${st.scale ? ` · now ${Math.round(st.scale * 100)}% resolution${st.fpsLimit ? `, at most ${st.fpsLimit} fps` : ''}${st.saving ? ' (power saver)' : ''}` : ''}</small></h3>
-      ${row('preset', `<select data-gfx-preset>${[...PRESETS.map(p => [p, p[0].toUpperCase() + p.slice(1)]), ['custom', 'Custom']].map(([v, n]) => `<option value="${v}" ${G.preset === v ? 'selected' : ''} ${v === 'custom' && G.preset !== 'custom' ? 'disabled' : ''}>${n}</option>`).join('')}</select>`, 'Low: older laptops and Chromebooks (30 fps). Medium: a typical laptop (60 fps). High: a gaming PC. Ultra: the most there is. Change anything below and it\'s Custom. None of it changes how the car drives.')}
-      <button data-gfx-detect>${graphics.detecting ? 'Testing this computer…' : 'Test this computer and pick for me'}</button>
-      <button data-gfx-bench>${graphics.benchResult?.()?.running ? 'Running the benchmarks…' : 'Run the benchmarks (about a minute)'}</button>
-      ${(() => { const B = graphics.benchResult?.(); if (!B || B.running) return ''; return `<small class="pads">At ${B.preset} (the ${B.tier} tier's targets: ${B.targets.fps} fps, worst 1% ${B.targets.low1PctFps}): ${B.scenes.map(x => `${x.ok ? '✔' : '✖'} ${x.name}: ${x.fps.toFixed(0)} fps, worst 1% ${x.low1PctFps.toFixed(0)}, stutters ${(x.stutterShare * 100).toFixed(1)}%`).join(' · ') || B.error || 'nothing measured'}</small>`; })()}
-      ${row('render distance', `<input type="range" min="500" max="2500" step="100" data-gfx-num="renderDistance" value="${G.renderDistance}"> <output>${G.renderDistance} m</output>`)}
-      ${row('resolution', `<input type="range" min="0.5" max="1" step="0.05" data-gfx-num="resolution" value="${G.resolution}"> <output>${Math.round(G.resolution * 100)}%</output>`)}
-      ${row('sharpest', sel('maxPixelRatio', [[1, '1× (fastest)'], [1.5, '1.5×'], [2, '2× (high-DPI screens)']]))}
-      <label class="row"><input type="checkbox" data-gfx-bool="dynamicResolution" ${G.dynamicResolution ? 'checked' : ''}> <span><b>Dynamic resolution</b><small>Lowers the resolution by itself to keep the frame rate, never below the minimum.</small></span></label>
-      ${row('minimum', `<input type="range" min="0.4" max="1" step="0.05" data-gfx-num="minResolution" value="${G.minResolution}"> <output>${Math.round(G.minResolution * 100)}%</output>`)}
-      ${row('frame rate cap', sel('fpsCap', [[30, '30'], [60, '60'], [120, '120'], [0, 'Unlimited (the screen\'s)']]))}
-      ${row('power saver', sel('powerSaver', [['off', 'Off'], ['battery', 'On battery'], ['always', 'Always']]), 'At most 30 fps and a lower resolution — for laptops (on battery: where the browser can tell).')}
-      ${row('shadows', sel('shadows', [['off', 'Off'], ...lmh]))}
-      ${row('reflections', sel('reflections', [['off', 'Off'], ['sky', 'Sky'], ['live', 'Live (surroundings)']]))}
-      ${row('effects', sel('effects', lmh), 'Particles, sparks and smoke: how many, how long they last, soft edges (medium, high), little lights where sparks fly (high).')}
-      ${row('anti-aliasing', sel('antialias', [['off', 'Off'], ['fxaa', 'FXAA (fast)'], ['msaa', 'MSAA 4×']]))}
-      <label class="row"><input type="checkbox" data-gfx-bool="bloom" ${G.bloom ? 'checked' : ''}> <span><b>Bloom</b><small>A glow round bright lights.</small></span></label>
-      <label class="row"><input type="checkbox" data-gfx-bool="motionBlur" ${G.motionBlur ? 'checked' : ''}> <span><b>Motion blur</b><small>The edges of the picture streak at speed.</small></span></label>
-      ${row('car detail', sel('carDetail', [...lmh, ['ultra', 'Ultra']]), 'How far away cars are drawn whole (further: their body as one piece).')}
-      ${row('detailed cars', `<input type="range" min="2" max="16" step="1" data-gfx-num="detailedCars" value="${G.detailedCars}"> <output>${G.detailedCars}</output>`, 'At most this many of the nearest cars drawn whole.')}
-      ${row('damage detail', sel('damageDetail', lmh), 'How finely a crash dents the body.')}
-      ${row('scenery', `<input type="range" min="0.2" max="1" step="0.05" data-gfx-num="scenery" value="${G.scenery}"> <output>${Math.round(G.scenery * 100)}%</output>`, 'Trees, rocks and the like.')}
-      ${row('spectators', sel('spectators', [['off', 'Off'], ...lmh]))}
-      ${row('full engine sounds', `<input type="range" min="1" max="12" step="1" data-gfx-num="fullEngineSounds" value="${G.fullEngineSounds}"> <output>${G.fullEngineSounds}</output>`, 'Other cars heard in full (the rest, simply).')}`;
+    const Q = graphics.cfg, G = graphicsOf(settings.graphics, Q), sel = (key, name, opts, help) => select(`data-gfx="${key}"`, name, opts.map(([v, n]) => opt(v, G[key], n)).join(''), help);
+    const lmh = [['low', t('graphics.low')], ['medium', t('graphics.medium')], ['high', t('graphics.high')]], st = graphics.stats?.() ?? {};
+    const B = graphics.benchResult?.();
+    return `<small class="pads">${t('graphics.costKey')}${st.scale ? ` · ${t('graphics.now', { scale: Math.round(st.scale * 100), limit: st.fpsLimit ?? 0, saving: st.saving ? 'yes' : 'no' })}` : ''} · ${t('graphics.deviceOnly')}</small>
+      ${select('data-gfx-preset', t('graphics.preset'), [...PRESETS.map(p => opt(p, G.preset, t(`graphics.${p}`))), opt('custom', G.preset, t('graphics.custom'), G.preset !== 'custom' ? 'disabled' : '')].join(''), t('graphics.presetHelp'))}
+      <button type="button" data-gfx-detect>${graphics.detecting ? t('graphics.detecting') : t('graphics.detect')}</button>
+      <button type="button" data-gfx-bench>${B?.running ? t('graphics.benching') : t('graphics.bench')}</button>
+      ${B && !B.running ? `<small class="pads">${t('graphics.benchResult', { preset: B.preset, tier: B.tier, fps: B.targets.fps, low: B.targets.low1PctFps })} ${B.scenes.map(x => `${x.ok ? '✔' : '✖'} ${esc(x.name)}: ${t('graphics.benchScene', { fps: Math.round(x.fps), low: Math.round(x.low1PctFps), stutter: (x.stutterShare * 100).toFixed(1) })}`).join(' · ') || esc(B.error || t('graphics.nothing'))}</small>` : ''}
+      ${range('data-gfx-num="renderDistance"', t('graphics.renderDistance'), 500, 2500, 100, G.renderDistance, `${i18n.number(G.renderDistance)} m`)}
+      ${range('data-gfx-num="resolution"', t('graphics.resolution'), 0.5, 1, 0.05, G.resolution, pct(G.resolution))}
+      ${sel('maxPixelRatio', t('graphics.sharpest'), [[1, t('graphics.px1')], [1.5, '1.5×'], [2, t('graphics.px2')]])}
+      ${check('data-gfx-bool="dynamicResolution"', G.dynamicResolution, t('graphics.dynamicResolution'), t('graphics.dynamicResolutionHelp'))}
+      ${range('data-gfx-num="minResolution"', t('graphics.minimum'), 0.4, 1, 0.05, G.minResolution, pct(G.minResolution))}
+      ${sel('fpsCap', t('graphics.fpsCap'), [[30, '30'], [60, '60'], [120, '120'], [0, t('graphics.unlimited')]])}
+      ${sel('powerSaver', t('graphics.powerSaver'), [['off', t('common.off')], ['battery', t('graphics.onBattery')], ['always', t('graphics.always')]], t('graphics.powerSaverHelp'))}
+      ${sel('shadows', t('graphics.shadows'), [['off', t('common.off')], ...lmh])}
+      ${sel('reflections', t('graphics.reflections'), [['off', t('common.off')], ['sky', t('graphics.sky')], ['live', t('graphics.live')]])}
+      ${sel('effects', t('graphics.effects'), lmh, t('graphics.effectsHelp'))}
+      ${sel('antialias', t('graphics.antialias'), [['off', t('common.off')], ['fxaa', t('graphics.fxaa')], ['msaa', 'MSAA 4×']])}
+      ${check('data-gfx-bool="bloom"', G.bloom, t('graphics.bloom'), t('graphics.bloomHelp'))}
+      ${check('data-gfx-bool="motionBlur"', G.motionBlur, t('graphics.motionBlur'), t('graphics.motionBlurHelp'))}
+      ${sel('carDetail', t('graphics.carDetail'), [...lmh, ['ultra', t('graphics.ultra')]], t('graphics.carDetailHelp'))}
+      ${range('data-gfx-num="detailedCars"', t('graphics.detailedCars'), 2, 16, 1, G.detailedCars, i18n.number(G.detailedCars))}
+      ${sel('damageDetail', t('graphics.damageDetail'), lmh, t('graphics.damageDetailHelp'))}
+      ${range('data-gfx-num="scenery"', t('graphics.scenery'), 0.2, 1, 0.05, G.scenery, pct(G.scenery))}
+      ${sel('spectators', t('graphics.spectators'), [['off', t('common.off')], ...lmh])}
+      ${range('data-gfx-num="fullEngineSounds"', t('graphics.fullEngineSounds'), 1, 12, 1, G.fullEngineSounds, i18n.number(G.fullEngineSounds))}`;
   }
   const setGraphics = (key, value) => { settings.graphics = key === null ? withPreset(settings.graphics ?? {}, graphics.cfg, value) : withSetting(settings.graphics ?? {}, graphics.cfg, key, value); changed(); };
 
-  const set = (path, value) => { const [a, b] = path.split('.'); if (b) settings[a][b] = value; else settings[a] = value; };
+  const get = path => path.split('.').reduce((o, k) => o?.[k], settings);
+  const set = (path, value) => { const ks = path.split('.'); let o = settings; for (const k of ks.slice(0, -1)) o = o[k] ??= {}; o[ks.at(-1)] = value; };
+  const shown = (path, v) => /Bias|Strength|rumble|hudScale|^sound\.|textSize|cameraShake|touch\.(size|opacity)/.test(path) ? pct(v) : /wheelRange/.test(path) ? `${v}°` : path === 'altitude' ? `${i18n.number(v)} m` : path === 'timeOfDay' ? clockText(v) : i18n.number(v);
   el.addEventListener('input', e => {
-    const t = e.target;
-    if (t.dataset.gfxNum) { const k = t.dataset.gfxNum, v = +t.value; t.nextElementSibling.textContent = k === 'renderDistance' ? `${v} m` : /resolution|scenery/i.test(k) ? `${Math.round(v * 100)}%` : String(v); return; }
-    if (t.dataset.num) { set(t.dataset.num, +t.value); saveSettings(settings); onChange(settings); t.nextElementSibling.textContent = t.dataset.num.includes('Bias') || t.dataset.num.includes('Strength') || t.dataset.num.includes('rumble') || t.dataset.num === 'hudScale' || t.dataset.num.startsWith('sound.') ? Math.round(t.value * 100) + '%' : t.dataset.num.includes('wheelRange') || t.dataset.num === 'spoilerAngle' ? t.value + '°' : t.dataset.num === 'altitude' ? t.value + ' m' : t.dataset.num === 'timeOfDay' ? clockText(+t.value) : t.value; }
+    const x = e.target;
+    if (x.dataset.gfxNum) { const k = x.dataset.gfxNum, v = +x.value; x.nextElementSibling.textContent = k === 'renderDistance' ? `${i18n.number(v)} m` : /resolution|scenery/i.test(k) ? pct(v) : i18n.number(v); return; }
+    if (x.dataset.num) { set(x.dataset.num, +x.value); saveSettings(settings); onChange(settings); const txt = shown(x.dataset.num, +x.value); x.nextElementSibling.textContent = txt; x.setAttribute('aria-valuetext', txt); }
   });
   el.addEventListener('change', e => {
-    const t = e.target;
-    if (t.dataset.gfxPreset !== undefined) { setGraphics(null, t.value); return; }
-    if (t.dataset.gfx) { const k = t.dataset.gfx, num = ['fpsCap', 'maxPixelRatio'].includes(k); setGraphics(k, num ? +t.value : t.value); return; }
-    if (t.dataset.gfxNum) { setGraphics(t.dataset.gfxNum, +t.value); return; }
-    if (t.dataset.gfxBool) { setGraphics(t.dataset.gfxBool, t.checked); return; }
-    if (t.dataset.aid) { settings.aids[t.dataset.aid] = t.checked; changed(); }
-    if (t.dataset.bool) { settings[t.dataset.bool] = t.checked; changed(); }
-    if (t.dataset.str === 'collisions') { settings.collisions = t.value || null; changed(); }
-    else if (t.dataset.str === 'session') { settings.session = t.value; settings.collisions = null; changed(); }
-    else if (t.dataset.str) { set(t.dataset.str, t.value); changed(); }
+    const x = e.target;
+    if (x.dataset.gfxPreset !== undefined) { setGraphics(null, x.value); return; }
+    if (x.dataset.gfx) { const k = x.dataset.gfx, num = ['fpsCap', 'maxPixelRatio'].includes(k); setGraphics(k, num ? +x.value : x.value); return; }
+    if (x.dataset.gfxNum) { setGraphics(x.dataset.gfxNum, +x.value); return; }
+    if (x.dataset.gfxBool) { setGraphics(x.dataset.gfxBool, x.checked); return; }
+    if (x.dataset.aid) { settings.aids[x.dataset.aid] = x.checked; changed(); return; }
+    if (x.dataset.bool) { set(x.dataset.bool, x.checked); changed(); return; }
+    if (x.dataset.toggle) { settings.toggles ??= {}; settings.toggles[x.dataset.toggle] = x.value === 'toggle'; input.toggled = {}; changed(); return; }
+    const k = x.dataset.str;
+    if (!k) return;
+    if (k === 'collisions') settings.collisions = x.value || null;
+    else if (k === 'session') { settings.session = x.value; settings.collisions = null; }
+    else if (k === 'privacy.analytics') { settings.privacy.analytics = x.value === 'true'; onPrivacy?.(settings.privacy.analytics); }
+    else if (k === 'a11y.colours') { set(k, x.value); settings.palette = x.value === 'tritanopia' ? 'tritanopia' : x.value === 'standard' ? 'standard' : 'colourblind'; }
+    else set(k, x.value);
+    changed();
+  });
+  el.addEventListener('keydown', e => {
+    // (the tabs: arrow keys move between them, Home and End to the first and last)
+    const tb = e.target.closest('[role=tab]');
+    if (!tb) return;
+    const i = TABS.indexOf(tb.dataset.tab), n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (n === undefined) return;
+    e.preventDefault();
+    tab = TABS[(n + TABS.length) % TABS.length]; render();
+    el.querySelector(`[data-tab="${tab}"]`)?.focus();
   });
   el.addEventListener('click', e => {
-    const t = e.target.closest('button');
-    if (!t) return;
-    if (t.dataset.reset !== undefined) { Object.assign(settings, defaultSettings(spec)); changed(); return; }
-    if (t.dataset.rehint !== undefined) { onRehint?.(); t.textContent = 'They\'ll show again'; return; }
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.tab) { tab = b.dataset.tab; render(); el.querySelector(`[data-tab="${tab}"]`)?.focus(); return; }
+    if (b.dataset.close !== undefined) { api.hide(); return; }
+    if (b.dataset.tutorial !== undefined) { api.hide(); onTutorial?.(); return; }
+    if (b.dataset.photoWarning !== undefined) { import('../ui/accessibility.js').then(m => m.photosensitivityWarning({ force: true })); return; }
+    if (b.dataset.resetControls !== undefined) { Object.assign(settings, { keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL), input: clone(DEFAULT_INPUT), toggles: clone(DEFAULT_TOGGLES), touch: clone(DEFAULT_TOUCH) }); changed(); return; }
+    if (b.dataset.rehint !== undefined) { onRehint?.(); b.textContent = t('settings.rehinted'); return; }
     // (the panel closed while they run: open, it pauses the game — the results are here when it's opened again)
-    if (t.dataset.gfxBench !== undefined && graphics?.bench && !graphics.benchResult?.()?.running) { el.hidden = true; input.capture = null; const p = graphics.bench(); p.finally?.(() => render()); return; }
-    if (t.dataset.gfxDetect !== undefined && graphics?.detect && !graphics.detecting) { graphics.detecting = true; render(); graphics.detect().finally(() => { graphics.detecting = false; render(); }); return; }
-    const [group, id] = (t.dataset.bind || '').split('.');
-    if (!group) return;
-    t.textContent = id === 'steer' ? 'turn left…' : 'press…';
-    t.classList.add('listening');
+    if (b.dataset.gfxBench !== undefined && graphics?.bench && !graphics.benchResult?.()?.running) { el.hidden = true; input.capture = null; const p = graphics.bench(); p.finally?.(() => render()); return; }
+    if (b.dataset.gfxDetect !== undefined && graphics?.detect && !graphics.detecting) { graphics.detecting = true; render(); graphics.detect().finally(() => { graphics.detecting = false; render(); }); return; }
+    const [grp, id] = (b.dataset.bind || '').split('.');
+    if (!grp) return;
+    b.textContent = id === 'steer' ? t('controls.turnLeft') : t('controls.press');
+    b.classList.add('listening');
     const rest = {};                                    // axis positions when rebinding started
     input.capture = ev => {
       if (ev.kind === 'key') {
         if (ev.code === 'Escape') { render(); return true; }
-        if (group !== 'keys') return false;
+        if (grp !== 'keys') return false;
         settings.keys[id] = [ev.code];
       } else {
-        if (group === 'keys') return false;
-        if (ev.kind === 'button') settings[group][id] = { type: 'button', index: ev.index };
+        if (grp === 'keys') return false;
+        if (ev.kind === 'button') settings[grp][id] = { type: 'button', index: ev.index };
         else {
           const key = ev.pad.index + ':' + ev.index;
           if (!(key in rest)) { rest[key] = ev.value; return false; }
           if (Math.abs(ev.value - rest[key]) < 0.5) return false;
           // steering: turning left should read negative (the axis convention); pedals: 0 at rest, 1 pressed
-          settings[group][id] = id === 'steer' ? { type: 'axis', index: ev.index, invert: ev.value > rest[key] } : { type: 'axis', index: ev.index, rest: rest[key], full: Math.sign(ev.value - rest[key]) };
+          settings[grp][id] = id === 'steer' ? { type: 'axis', index: ev.index, invert: ev.value > rest[key] } : { type: 'axis', index: ev.index, rest: rest[key], full: Math.sign(ev.value - rest[key]) };
         }
       }
       changed();
       return true;
     };
   });
-  return {
+  let release = null;
+  const api = {
     el,
     get open() { return !el.hidden; },
-    toggle() { el.hidden = !el.hidden; if (!el.hidden) render(); input.capture = null; },
-    hide() { el.hidden = true; input.capture = null; },
+    get tab() { return tab; },
+    show(which) { if (which && TABS.includes(which)) tab = which; el.hidden = false; render(); input.capture = null; import('../ui/accessibility.js').then(m => { release?.(); release = m.trapFocus(el, { onEscape: () => api.hide() }); }); },
+    toggle() { if (el.hidden) api.show(); else api.hide(); },
+    hide() { el.hidden = true; input.capture = null; release?.(); release = null; },
+    render,
   };
+  return api;
 }
+// (kept for older callers: the palettes the colour settings choose between)
+export { PALETTES };

@@ -29,6 +29,23 @@ export const PALETTES = {
     checkpoint: ['#1b1b1b', '#f0e442', '#0072b2'], bonus: ['#1b1b1b', '#ffffff', '#d55e00'],
     route: '#d55e00', guide: '#56b4e9',
   },
+  // tritanopia (blue and yellow confused): red against teal, the route magenta
+  tritanopia: {
+    name: 'Colour-blind friendly (blue–yellow)',
+    good: '#00a5a0', bad: '#e8433a', warn: '#ff8fb1', neutral: '#ffffff',
+    arrow: '#ffffff', arrowMissed: '#e8433a',
+    checkpoint: ['#1b1b1b', '#ffffff', '#e8433a'], bonus: ['#1b1b1b', '#00d2c8', '#006e6a'],
+    route: '#ff3fa4', guide: '#00d2c8',
+  },
+  // high contrast: the brightest colours there are on the dark HUD, told apart by brightness too — and still apart for
+  // every kind of colour vision (sky blue against orange, not green against red: tests/unit/polish.test.mjs)
+  highContrast: {
+    name: 'High contrast',
+    good: '#33ccff', bad: '#ff6a00', warn: '#ffff00', neutral: '#ffffff',
+    arrow: '#ffffff', arrowMissed: '#ff6a00',
+    checkpoint: ['#000000', '#ffff00', '#ffffff'], bonus: ['#000000', '#00ffff', '#ffffff'],
+    route: '#ff00ff', guide: '#00ffff',
+  },
 };
 
 export const paletteOf = name => PALETTES[name] ?? PALETTES.standard;

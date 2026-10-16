@@ -46,6 +46,7 @@ export function arrowAngle(car, to) {
   return ((-left % 360) + 540) % 360 - 180;
 }
 import { paletteOf, guideStyle } from './palette.js';
+import { playerUnits } from '../ui/units.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
@@ -402,7 +403,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       <div class="side">${raceSide(H)}</div>
       ${panelHtml ? `<div class="panel">${panelHtml}</div>` : ''}
       ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudScale()})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? palette().arrowMissed : palette().arrow}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
-      <div class="speed">${Math.round(car.kmh)}<small> km/h</small> · ${esc(car.gear ?? '')}</div>
+      <div class="speed">${(sp2 => `${sp2.value}<small> ${sp2.unit}</small>`)(playerUnits().speedKmh(car.kmh))} · ${esc(car.gear ?? '')}</div>
       ${st === 'countdown' && H.count ? `<div class="count">${H.count}</div>` : ''}
       ${msg && st !== 'countdown' ? `<div class="msg ${msg.cls}">${esc(msg.text)}</div>` : ''}`;
   }
@@ -545,6 +546,15 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     get state() { return run?.controller.state ?? null; },
     get controller() { return run?.controller ?? null; },
     get hudSettings() { return hudSettings; },
+    // how the race is going, for the music (audio/music.js raceIntensity): the lap, how far through, the gaps to the
+    // cars either side (seconds; an NPC race's standings)
+    raceInfo() {
+      const Q = run?.controller.session;
+      if (!Q) return {};
+      const H = Q.hud(), me = run.race?.standings().find(x => x.player);
+      const progress = H.checkpoints ? Math.min(1, (H.checkpoint ?? 0) / H.checkpoints) : null;
+      return { lap: H.lap ?? 1, laps: H.laps ?? 1, progress, gapAhead: me?.gapAhead ?? null, gapBehind: me?.gapBehind ?? null };
+    },
     stateOf: id => questState(game.player.profile, id),
     // (fast travel: its route loaded before the car arrives, so it starts at once)
     preload: item => courseOf(item).catch(() => null),

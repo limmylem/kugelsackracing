@@ -1,4 +1,4 @@
-// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — a tow to the garage (paid: or drive into a garage building), racing
+// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — a tow to the garage (paid; or drive into a garage building), racing
 // online (the multiplayer menu, F7: its #mpButton is drawn here), free roam (its #roamHud — what you are to the others,
 // who's near, the next meet — and its panel, F6), the free-roam chat (Enter; the messages you haven't seen counted),
 // the account, and the editor for the accounts that have it. The brand mark at the top folds the dock away (kept in
@@ -68,6 +68,8 @@ const MARK = `<svg viewBox="-30 -20 300 280" aria-hidden="true"><defs><linearGra
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-chrome)" stroke-width="32"/>
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-red)" stroke-width="22"/></g></svg>`;
 
+import { t, esc } from '../ui/i18n.js';
+
 const FOLD = 'kr.dock.folded';
 const read = () => { try { return localStorage.getItem(FOLD) === '1'; } catch { return false; } };
 const keep = on => { try { localStorage.setItem(FOLD, on ? '1' : '0'); } catch { /* not kept */ } };
@@ -78,16 +80,17 @@ export function mountDock({ garage, editor } = {}) {
   if (!document.getElementById('krDockCss')) { const s = document.createElement('style'); s.id = 'krDockCss'; s.textContent = CSS; document.head.appendChild(s); }
   const next = encodeURIComponent(location.pathname + location.search);
   dock = document.createElement('nav');
-  dock.id = 'krDock'; dock.setAttribute('aria-label', 'Game menu');
-  dock.innerHTML = `<button class="dk-brand" data-k="fold" title="Fold the menu away">${MARK}</button>
+  dock.id = 'krDock'; dock.setAttribute('aria-label', t('dock.menu'));
+  dock.innerHTML = `<button class="dk-brand" data-k="fold" title="${esc(t('dock.fold'))}" aria-label="${esc(t('dock.fold'))}">${MARK}</button>
     <div class="dk-sep"></div>
-    <button class="dk-item" data-k="garage" data-tip="Tow to the nearest garage (a small fee, click twice) — or drive into one: they're the blue drive-through buildings"><span class="dk-ic">car_repair</span>Tow</button>
+    <button class="dk-item" data-k="garage" data-tip="${esc(t('dock.towTip'))}"><span class="dk-ic" aria-hidden="true">car_repair</span>${esc(t('dock.tow'))}</button>
     <div class="dk-slot" id="krDockRace"></div>
     <div class="dk-slot" id="krDockRoam"></div>
-    <button class="dk-item dk-chat" data-k="chat" data-tip="Chat with drivers near you (Enter)" hidden><span class="dk-ic">forum</span>Chat<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
+    <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" hidden><span class="dk-ic" aria-hidden="true">forum</span>${esc(t('dock.chat'))}<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
+    <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}"><span class="dk-ic" aria-hidden="true">school</span>${esc(t('dock.school'))}</button>
     <div class="dk-sep"></div>
-    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="Your account"><span class="dk-ic">account_circle</span>Account</a>
-    <button class="dk-item" data-k="editor" data-tip="World editor (F2)" hidden><span class="dk-ic">edit_road</span>Editor<kbd>F2</kbd></button>`;
+    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}"><span class="dk-ic" aria-hidden="true">account_circle</span>${esc(t('dock.account'))}</a>
+    <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" hidden><span class="dk-ic" aria-hidden="true">edit_road</span>${esc(t('dock.editor'))}<kbd>F2</kbd></button>`;
   document.body.appendChild(dock);
   dock.classList.toggle('folded', read());
   const badge = dock.querySelector('.dk-badge'), chat = dock.querySelector('.dk-chat'), roamSlot = dock.querySelector('#krDockRoam');
@@ -100,6 +103,7 @@ export function mountDock({ garage, editor } = {}) {
     else if (k === 'garage') { b.blur(); garage?.(); }
     else if (k === 'chat') { b.blur(); dispatchEvent(new CustomEvent('kr:roam-open', { detail: { tab: 'chat', toggle: true } })); }
     else if (k === 'editor') { b.blur(); editor?.(); }
+    else if (k === 'school') { b.blur(); dispatchEvent(new CustomEvent('kr:school')); }
   });
   // free roam: the chat tile while it's on (its status sits in the slot), what's unread, which tile is open
   const roamOn = () => { chat.hidden = !roamSlot.firstElementChild; if (chat.hidden) setUnread(0); };

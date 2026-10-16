@@ -1,0 +1,17 @@
+{
+ "_note": "The people on the credits screen (tools/credits.mjs; npm run credits after changing this). Names as each person wants to be credited; nobody listed without saying yes. No emails.",
+ "people": [
+  {
+   "role": "Made by",
+   "names": [
+    "The Ogni Strada team"
+   ]
+  },
+  {
+   "role": "Tested by",
+   "names": [
+    "Our friends in the closed beta"
+   ]
+  }
+ ]
+}

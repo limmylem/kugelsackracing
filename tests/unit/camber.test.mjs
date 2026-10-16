@@ -1,5 +1,5 @@
 // Camber kits: the wheels' static camber, set in the tuning tab — the grip it gives and costs (physics/camber.js), the
-// spec and the rating it reaches through the stats calculator, and the wheels leaning as set (physics/sockets.js)
+// spec it reaches through the stats calculator (not the rating: a setup), and the wheels leaning as set (physics/sockets.js)
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,17 +26,16 @@ test('a little negative camber: more grip for the loaded outside tyre in a corne
   assert.ok(camberGrip(-6, -3).lat < 0.9 && camberGrip(-6).lat < 1);
 });
 
-test('the race camber plates, fitted and tuned: the spec, the rating and the wheels follow', () => {
+test('the race camber plates, fitted and tuned: the spec and the wheels follow, the rating stays', () => {
   const g = new Garage(db, null, 'starter_car'), stock = g.stats();
   assert.deepEqual(stock.spec.suspension.camber, { front: 0, rear: 0 }, 'none as it comes');
   assert.equal(g.install('camber_plates_race').ok, true);
   const fitted = g.stats();
   assert.deepEqual(fitted.spec.suspension.camber, { front: -2, rear: -1.5 }, 'its defaults');
-  assert.ok(fitted.totals.rating.estimates.grip > stock.totals.rating.estimates.grip, 'more cornering grip');
-  assert.ok(fitted.totals.rating.estimates.braking > stock.totals.rating.estimates.braking, 'a longer stop');
+  // (a setup, not more car: the rating — and so the class — stays as it was; the physics drives it)
+  assert.equal(fitted.totals.rating.index, stock.totals.rating.index);
   assert.equal(g.tune('camber_plates_race', 'front', 1).ok, true);
   assert.equal(g.tune('camber_plates_race', 'rear', 1).ok, true);
-  assert.ok(g.stats().totals.rating.estimates.grip < stock.totals.rating.estimates.grip, 'positive camber: less grip');
   // (out of range: clamped)
   g.tune('camber_plates_race', 'front', -20);
   assert.equal(g.stats().spec.suspension.camber.front, -6);

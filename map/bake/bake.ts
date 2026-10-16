@@ -126,8 +126,11 @@ export async function bake({ regionId, area = null as string | null, out = null 
     }
     return sp;
   }).filter(Boolean).map(sp => ({ ...sp, xz: P.toXZ(sp.lat, sp.lon).map(v => +v.toFixed(1)) })).filter(sp => sp.xz[0] >= grid.x0 && sp.xz[0] <= grid.x0 + (grid.W - 1) * grid.cell && sp.xz[1] >= grid.z0 && sp.xz[1] <= grid.z0 + (grid.H - 1) * grid.cell);
-  const places = osm.points.filter(p => ['city', 'town', 'borough', 'suburb', 'neighbourhood', 'quarter', 'village'].includes(p.tags.place) && p.tags.name).map(p => ({ name: p.tags.name, kind: p.tags.place, xz: [Math.round(p.x), Math.round(p.z)] }));
-  const cities = osm.areas.filter(a => a.tags.boundary === 'administrative' && ['6', '8'].includes(a.tags.admin_level) && a.tags.name).map(a => ({ name: a.tags.name, level: +a.tags.admin_level, rings: a.parts.map(p => p[0].filter((_, k, arr) => k % Math.max(1, Math.floor(arr.length / 120)) === 0).map(q => [Math.round(q.x), Math.round(q.z)])) }));
+  // (a place's English name, where OSM has one that differs: shown when the player picks English place names — the
+  // settings' Language tab; docs/TRANSLATIONS.md "Place names")
+  const enName = (tags: Record<string, string>) => tags['name:en'] && tags['name:en'] !== tags.name ? { en: tags['name:en'] } : {};
+  const places = osm.points.filter(p => ['city', 'town', 'borough', 'suburb', 'neighbourhood', 'quarter', 'village'].includes(p.tags.place) && p.tags.name).map(p => ({ name: p.tags.name, ...enName(p.tags), kind: p.tags.place, xz: [Math.round(p.x), Math.round(p.z)] }));
+  const cities = osm.areas.filter(a => a.tags.boundary === 'administrative' && ['6', '8'].includes(a.tags.admin_level) && a.tags.name).map(a => ({ name: a.tags.name, ...enName(a.tags), level: +a.tags.admin_level, rings: a.parts.map(p => p[0].filter((_, k, arr) => k % Math.max(1, Math.floor(arr.length / 120)) === 0).map(q => [Math.round(q.x), Math.round(q.z)])) }));
   const [sx, sz] = P.toXZ(region.spawn.lat, region.spawn.lon);
   // (and what came out: the browsers' tile caches are kept under this, so a bake that changes any tile —
   // new code, same inputs — replaces their copies)

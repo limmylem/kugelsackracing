@@ -71,9 +71,12 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
   w.startedAt = performance.now();
   w.perf = { frameMs: 16.7, worstMs: 0, worstAt: 0, targets: null };
   fetch('data/world/performance.json', { cache: 'no-cache' }).then(r => r.json()).then(p => { w.perf.targets = p.targets; }).catch(() => {});
-  // the neighbourhoods and the city, for where you are (smallest first)
-  w.places = (stream.manifest.places ?? []).filter(p => p.rings).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
-  w.placePoints = (stream.manifest.places ?? []).filter(p => p.point && p.kind !== 'locality');
+  // the neighbourhoods and the city, for where you are (smallest first) — in English where the player chose English
+  // place names and the map has one (Phase 8 Step 4; docs/TRANSLATIONS.md "Place names")
+  const english = (() => { try { return JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}')?.placeNames === 'english'; } catch { return false; } })();
+  const named = p => english && p.en ? { ...p, local: p.name, name: p.en } : p;
+  w.places = (stream.manifest.places ?? []).map(named).filter(p => p.rings).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
+  w.placePoints = (stream.manifest.places ?? []).map(named).filter(p => p.point && p.kind !== 'locality');
   // the maps (MapLibre from its CDN: without it, no minimap — the world doesn't need it)
   createWorldMaps({ manifest: stream.manifest, base: document.baseURI, onTravel: spot => travelTo(w, spot) })
     .then(m => { w.maps = m; if (!w.shown) m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));

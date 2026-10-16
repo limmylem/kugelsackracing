@@ -1,0 +1,46 @@
+/* The landing page (about/) and the press kit (press/): the Ogni Strada look — the account page's (account/index.html):
+   near-black, racing red, chrome; Saira for the wordmark, Barlow for the words. Plain HTML and CSS, no scripts. */
+:root {
+  --red: #E3121E; --red-hi: #FF4A36; --ink: #050506; --card: #0D0D0F; --line: #2A2A2F;
+  --text: #EDEFF2; --text-2: #B8BCC3; --text-3: #7D838B; --focus: #FFD24A;
+  --f-ui: 'Barlow', system-ui, sans-serif; --f-display: 'Saira', 'Barlow Condensed', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--text); font: 500 17px/1.55 var(--f-ui); }
+body { background: radial-gradient(60% 50% at 25% 10%, rgba(120, 8, 16, .35), transparent 70%), var(--ink); position: relative; }
+/* (the contour lines, faint, behind everything — as on the account page) */
+body::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 1400px; background: url(/account/topo.svg) center top / 1600px auto no-repeat; opacity: .085; pointer-events: none; z-index: 0; }
+body > * { position: relative; z-index: 1; }
+a { color: var(--red-hi); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 16px; background: var(--card); padding: 8px 12px; z-index: 9; }
+.wrap { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; }
+header.top { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; gap: 12px; flex-wrap: wrap; }
+header.top .name { font: italic 900 22px var(--f-display); letter-spacing: .04em; color: var(--text); text-decoration: none; }
+header.top nav a { color: var(--text-2); text-decoration: none; margin-left: 18px; font-weight: 600; }
+header.top nav a:hover { color: var(--text); }
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; padding: 32px 0 48px; }
+.hero svg.logo { width: 100%; height: auto; max-width: 560px; }
+.hero h1 { font: 700 40px/1.15 var(--f-ui); margin: 0 0 14px; }
+.hero p.lead { color: var(--text-2); font-size: 19px; margin: 0 0 22px; }
+.buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 700; text-decoration: none; border: 2px solid var(--red); }
+.btn.primary { background: var(--red); color: #fff; } .btn.primary:hover { background: var(--red-hi); border-color: var(--red-hi); }
+.btn.quiet { color: var(--text); border-color: var(--line); } .btn.quiet:hover { border-color: var(--text-3); }
+.note { color: var(--text-3); font-size: 14px; margin-top: 12px; }
+section { padding: 36px 0; border-top: 1px solid var(--line); }
+h2 { font: 700 28px var(--f-ui); margin: 0 0 18px; }
+h3 { font: 700 19px var(--f-ui); margin: 0 0 6px; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.card p { margin: 0; color: var(--text-2); }
+.shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+figure { margin: 0; } figure img { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--line); }
+figcaption { color: var(--text-3); font-size: 14px; margin-top: 6px; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 22px; margin: 0; }
+dl.facts dt { color: var(--text-3); } dl.facts dd { margin: 0; }
+ul.plain { padding-left: 20px; color: var(--text-2); } ul.plain li { margin: 4px 0; }
+footer { padding: 28px 0 40px; color: var(--text-3); font-size: 14px; border-top: 1px solid var(--line); }
+footer a { color: var(--text-2); margin-right: 16px; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } .shots { grid-template-columns: 1fr; } .hero h1 { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

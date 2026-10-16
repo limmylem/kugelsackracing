@@ -1,0 +1,26 @@
+{
+ "_note": "Written by tools/press-shots.mjs.",
+ "taken": "2026-10-15",
+ "shots": [
+  {
+   "file": "shots/drive-sf.jpg",
+   "what": "Driving in San Francisco, a real city from open map data"
+  },
+  {
+   "file": "shots/photo-mode.jpg",
+   "what": "Photo mode: a free camera, depth of field and filters"
+  },
+  {
+   "file": "shots/accessibility.jpg",
+   "what": "Accessibility: text size, high contrast, colour-blind palettes, reduced motion"
+  },
+  {
+   "file": "shots/driving-school.jpg",
+   "what": "The driving school: seven lessons, with medals"
+  },
+  {
+   "file": "shots/drive-adelaide.jpg",
+   "what": "Driving in Adelaide, a real city from open map data"
+  }
+ ]
+}

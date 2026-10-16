@@ -1,5 +1,19 @@
 {
  "_note": "Written by tools/credits.mjs (npm run credits): don't edit by hand.",
+ "people": [
+  {
+   "role": "Made by",
+   "names": [
+    "The Ogni Strada team"
+   ]
+  },
+  {
+   "role": "Tested by",
+   "names": [
+    "Our friends in the closed beta"
+   ]
+  }
+ ],
  "data": [
   {
    "name": "OpenStreetMap contributors",
@@ -185,6 +199,14 @@
   {
    "name": "Generated tracks and their scenery",
    "note": "Made by the game."
+  },
+  {
+   "name": "Music (menu, garage, races)",
+   "note": "Composed in code for the game (audio/music.js), played live in the browser: no samples or recordings, nobody else's music. Safe to stream and record."
+  },
+  {
+   "name": "Translations",
+   "note": "English (Australian, British, American). The game's own text, written for it."
   }
  ],
  "server": {

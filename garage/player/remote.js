@@ -147,6 +147,7 @@ export class RemotePlayerService extends PlayerService {
   setPartFinish(instanceIds, look) { return this.#do('paint', 'setPartFinish', { instanceIds, look: look ?? null }, S => S.setPartFinish(instanceIds, look)); }
   selectCar(carInstanceId) { return this.#do('car', 'selectCar', { carInstanceId }, S => S.selectCar(carInstanceId)).then(r => { if (r.ok) this.endDrive(); return r; }); }
   buyCar(carId) { return this.#do('car', 'buyCar', { carId }, S => S.buyCar(carId)); }
+  chooseStarter(carId) { return this.#do('car', 'chooseStarter', { carId }, S => S.chooseStarter(carId)); }
   sellParts(instanceIds) { const ids = [...new Set(instanceIds)]; return this.#do('sell', 'sellParts', { instanceIds: ids }, S => S.sellParts(ids)); }
   refundPart(instanceId) { return this.#do('refund', 'refundPart', { instanceId }, S => S.refundPart(instanceId)); }
   buyBundle(bundleId, opts = {}) { return this.#do('buy', 'buyBundle', { bundleId, opts: { ...(opts.carInstanceId ? { carInstanceId: opts.carInstanceId } : {}), ...(opts.install ? { install: true } : {}) } }, S => S.buyBundle(bundleId, opts)); }
