@@ -18,8 +18,9 @@ for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort()) {
   if (only && name !== only) continue;
   const cfg = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
   if (!cfg.synth) { console.log(`${name}: recordings (no synth settings), left as they are`); continue; }
-  const pf = partFile(cfg.engine), E = pf && JSON.parse(fs.readFileSync(pf, 'utf8')).engine;
-  if (!E) { console.error(`${name}: its engine part "${cfg.engine}" isn't there`); process.exitCode = 1; continue; }
+  // (a sound for one engine: its revs; one for any engine with as many cylinders: its own range)
+  const pf = cfg.engine && partFile(cfg.engine), E = pf ? JSON.parse(fs.readFileSync(pf, 'utf8')).engine : cfg.range;
+  if (!E) { console.error(`${name}: its engine part "${cfg.engine}" isn't there (or give it a range: { idleRpm, redlineRpm })`); process.exitCode = 1; continue; }
   // (every engine with this sound: the sweep reaches below the lowest idle and past the highest redline)
   const users = enginesUsing(`data/sounds/engines/${f}`), range = { idleRpm: Math.min(E.idleRpm, ...users.map(u => u.idleRpm)), redlineRpm: Math.max(E.redlineRpm, ...users.map(u => u.redlineRpm)) };
   const t0 = performance.now(), list = engineSounds(cfg, E, range);

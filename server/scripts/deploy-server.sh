@@ -5,10 +5,9 @@
 #   - /opt/ognistrada/.env (mode 600), the server's settings and secrets: sent over SSH's input, never on a command
 #     line; RT_SECRET added on the server from its rt.secret (it never leaves the server); TUNNEL_TOKEN, the tunnel's
 #     token, read from Cloudflare (the tunnel "ognistrada")
-#   - room made for it (images no container runs from removed), the image ghcr.io/limmylem/kugelsackracing:<commit>
-#     pulled (logged in to ghcr.io with the job's own token, and out again), then `docker compose up -d
-#     --remove-orphans` — on the server by itself, so a dropped connection can't leave it half done; "<UTC time>
-#     <commit>" added to /opt/ognistrada/deployed.log once it has started
+#   - the image ghcr.io/limmylem/kugelsackracing:<commit> pulled (logged in to ghcr.io with the job's own token, and
+#     out again), then `docker compose up -d --remove-orphans` — on the server by itself, so a dropped connection
+#     can't leave it half done; "<UTC time> <commit>" added to /opt/ognistrada/deployed.log once it has started
 #   - then a wait (up to 13 minutes: the real-time server finishes the races running first, up to 10) until the API
 #     and the real-time server, as players reach them, both say they're this commit and healthy
 # Nothing the containers log is shown here (the repository's logs are public): `docker compose logs` on the server.
@@ -122,15 +121,11 @@ echo "written: compose.yml, .env ($(grep -c = .env) settings)"
 REMOTE
 
 echo "== the image ghcr.io/limmylem/kugelsackracing:$SHA"
-# (room for it first: every image no container is running from removed — the running ones stay, and a rollback pulls
-# its own again. Only removing a week-old image after a deploy let a day of deploys fill the disk: the pull then
-# failed with "no space left on device")
-ssh server "docker image prune -af > /dev/null; docker builder prune -af > /dev/null 2>&1; echo \"the server's disk: \$(df -h --output=avail,pcent / | tail -n 1 | xargs) free/used\"" || true
+# (room for it first: every image no container uses goes — the running one stays, and a rollback pulls its image
+# again. Kept a week, with a deploy or more an hour they filled the disk: a pull failed with "no space left")
+ssh server "docker image prune -af > /dev/null; df -h --output=avail,pcent / | tail -1 | awk '{print \"disk on the server: \" \$1 \" free (\" \$2 \" used)\"}'" || true
 printf '%s\n' "$GHCR_TOKEN" | ssh server "docker login ghcr.io -u '$GHCR_USER' --password-stdin > /dev/null"
-if ! ssh server "cd $DIR && docker compose pull --quiet; s=\$?; docker logout ghcr.io > /dev/null; exit \$s"; then
-  echo "-- the server's disk"; ssh server "df -h / | tail -n 1; docker system df" || true
-  fail "couldn't pull the image for $SHA (is it built? the server workflow's image job — or the disk full, above)"
-fi
+ssh server "cd $DIR && docker compose pull --quiet; s=\$?; docker logout ghcr.io > /dev/null; exit \$s" || fail "couldn't pull the image for $SHA (is it built? the server workflow's image job)"
 
 echo "== started on the server (docker compose up -d)"
 ssh server bash -s -- "$SHA" <<'REMOTE'
@@ -173,5 +168,6 @@ while :; do
   sleep 15
 done
 echo "the server runs $short: $(jq -c '{ok, version, env, db}' <<<"$api") · $(jq -c '{ok, version, rooms, players, races}' <<<"$rt")"
-# (images not used by a container for a week: removed, so the disk doesn't fill; a rollback pulls its image again)
-ssh server "docker image prune -af --filter until=168h > /dev/null" || true
+# (the image it ran before, and any other no container uses: removed, so the disk doesn't fill; a rollback pulls its
+# image again)
+ssh server "docker image prune -af > /dev/null" || true

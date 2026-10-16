@@ -8,6 +8,8 @@
 //   5. photo mode (/): the HUD hidden but the map's credit kept; Esc closes it from the picture
 //   6. the pseudo-language (en-XA, every message longer): the settings' text stays inside its panel
 //   7. the player's page (index.html): the dock and the news button in words, never a message's name
+//   8. a route to anywhere: a click on an empty spot of the full map (Tab) asks "Route here?"; Set route draws the way
+//      on the roads to it, and its pin, on both maps; Clear route takes them off
 // Anything wrong is printed, and the exit code is 1.
 //
 //   node tools/first-launch-browser.mjs [--port 8941] [--wait 45000]     (server.yml runs it beside each deploy)
@@ -47,6 +49,8 @@ async function open(url, init = null, { cesium = false } = {}) {
   // (the player's page's map-tile libraries from the CDN as ES modules: this computer's copies, bundled, when it has
   // them — the CDN where it can be reached, as in CI, works too)
   if (fs.existsSync(path.join(nm, 'pbf')) && fs.existsSync(path.join(nm, '@mapbox/vector-tile'))) await page.route(/cdn\.jsdelivr\.net\/npm\/(pbf|@mapbox\/vector-tile)@/, async r => r.fulfill({ body: await bundle(/pbf@/.test(r.request().url()) ? 'pbf' : '@mapbox/vector-tile'), contentType: 'text/javascript' }));
+  // (MapLibre too: the maps)
+  if (fs.existsSync(path.join(nm, 'maplibre-gl/dist'))) await page.route('https://cdn.jsdelivr.net/npm/maplibre-gl@*/dist/**', r => { const f = new URL(r.request().url()).pathname.split('/dist/')[1]; return r.fulfill({ path: path.join(nm, 'maplibre-gl/dist', f), contentType: f.endsWith('.css') ? 'text/css' : 'text/javascript' }); });
   await page.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: path.join(nm, 'three', new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' }));
   await page.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: path.join(nm, '@dimforge/rapier3d-compat/dist/rapier.mjs'), contentType: 'text/javascript' }));
   await page.route(cesium ? /fonts\.(googleapis|gstatic)\.com/ : /fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/cesium/, r => r.abort());   // (the player's page needs Cesium to start: it's there)
@@ -116,6 +120,36 @@ try {
   const named = [...new Set(shown.flatMap(x => x.split(/\s+/)).filter(w => keys.has(w)))];
   check('the dock and the news button in words', shown.length > 10 && !named.length, named.length ? named.join(', ') : `${shown.filter(Boolean).length} labels`);
   await P.page.context().close();
+
+  // 8. a route to anywhere on the map (San Francisco: a street by the car, then the bay — the nearest road to it)
+  console.log('\n== a route to anywhere: a spot picked on the full map');
+  const R = await open('/dev/world.html?world=map_v3&graphics=low', () => {
+    localStorage.setItem('ognistrada.photosensitivity.v1', '2026-01-01');
+    localStorage.setItem('ognistrada.onboarding.v1', JSON.stringify({ welcome: 'offline', starter: 'starter_car', tutorial: 'skipped', quest: 'skipped', repair: 'skipped', part: 'skipped', npcRace: 'skipped' }));
+    localStorage.setItem('driveWorld.settings.v1', JSON.stringify({ privacy: { analytics: false, asked: true } }));
+  });
+  const W = fn => R.page.evaluate(async f => { const w = (await import('/testtrack/test-scene.js')).debug.active; return new Function('w', `return (${f})(w)`)(w); }, fn.toString());
+  for (let k = 0; k < 60 && !(await W(w => !!(w?.maps && w?.quests && !w.spawning))); k++) await R.page.waitForTimeout(1000);
+  await R.page.keyboard.press('Tab'); await R.page.waitForTimeout(3000);
+  const box = await R.page.locator('#worldFull').boundingBox();
+  const lines = () => W(w => (w.maps.miniMap.getSource('mini-lines-src')?.serialize().data.features ?? []).map(f => f.properties.kind));
+  for (const [where, fx, fy] of [['a street near the car', 0.45, 0.45], ['the bay (the nearest road to it)', 0.72, 0.35]]) {
+    await R.page.mouse.click(box.x + box.width * fx, box.y + box.height * fy); await R.page.waitForTimeout(1200);
+    const card = (await R.page.locator('.worldAsk').innerText().catch(() => '')).replace(/\s+/g, ' ');
+    check(`a click on ${where} asks: Route here?`, /Route here\?/.test(card) && /away/.test(card), card || 'no card');
+    await R.page.locator('.worldAsk button.go').click().catch(() => {});
+    let set = null;
+    for (let k = 0; k < 40 && !(set = await W(w => w.quests.guideFor)); k++) await R.page.waitForTimeout(500);
+    await R.page.waitForTimeout(600);
+    const kinds = await lines();
+    check('… Set route: the way there on the roads and its pin, on the minimap too', set === 'place' && kinds.includes('guide') && kinds.includes('pin'), `${set} · ${kinds.join(', ')}`);
+  }
+  await R.page.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.75); await R.page.waitForTimeout(1200);
+  await R.page.locator('.worldAsk button:not(.go)', { hasText: 'Clear route' }).click().catch(() => {});
+  await R.page.waitForTimeout(600);
+  check('… Clear route takes it off', !(await W(w => w.quests.guideFor)) && !(await lines()).length);
+  check('no errors on the page', !R.errors.length, R.errors.slice(0, 3).join(' | '));
+  await R.page.context().close();
 
   // 6. the pseudo-language: longer text, still inside the panels
   console.log('\n== the pseudo-language (en-XA: every message longer and accented)');

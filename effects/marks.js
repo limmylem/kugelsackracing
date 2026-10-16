@@ -47,10 +47,11 @@ export class MarkLayer {
     this.changed.add(i);
     return i;
   }
-  // How strongly mark i shows now (× its alpha): whole, then fading out over the last third of its fade
+  // How strongly mark i shows now (× its alpha): whole, then fading out over the last third of its fade (none
+  // before it was made: a crash replay sets the time back)
   strength(i, time = this.time) {
     const age = time - this.born[i], f = this.fade[i];
-    if (age >= f) return 0;
+    if (age >= f || age < 0) return 0;
     const t = Math.min(1, Math.max(0, (age - f * 2 / 3) / (f / 3)));
     return 1 - t * t * (3 - 2 * t);
   }

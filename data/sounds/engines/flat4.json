@@ -1,5 +1,6 @@
 {
   "_note": "The Kaze GT's 2.0 L flat-four's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A boxer's rumble: its unequal-length headers bring the pulses in unevenly (firing gaps), pairs of cylinders louder than the others; a strong low boom.",
+  "label": "Flat four (the boxer rumble)",
   "engine": "kaze_gt_engine",
   "cylinders": 4,
   "layers": [

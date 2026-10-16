@@ -1,5 +1,6 @@
 {
   "_note": "The Brute 500's 5.0 L V8's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A cross-plane V8: each bank fires unevenly, so the pulses come in lopsided pairs (firing gaps, and every other one weaker) — the deep burble; a big low boom and a loud mix.",
+  "label": "V8, cross-plane (the deep, lopsided burble)",
   "engine": "brute_500_engine",
   "cylinders": 8,
   "layers": [
