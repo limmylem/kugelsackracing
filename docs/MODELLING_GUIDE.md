@@ -268,7 +268,7 @@ Name the file `kit_<kind>_<attach>_<name>.glb` (e.g. `kit_spoiler_endplate_fin.g
 
 ### Materials and textures
 
-Material names: `paint`, `car_atlas`, `glass`, `rim_finish`, `caliper`, `seat_fabric`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`, `titanium`, `polished`, `painted`. Textures at most 1024×1024, sides a power of two.
+Material names: `paint`, `car_atlas`, `glass`, `rim_finish`, `caliper`, `seat_fabric`, `light_*`, or a finish: `gloss`, `matte`, `metallic`, `pearl`, `carbon`, `chrome`, `matte_black`, `gloss_black`, `raw_metal`, `rubber`, `titanium`, `polished`, `painted`, `midnight_metallic`, `afterglow_pearl`, `violet_chrome`, `neon_chrome`, `afterglow_anodised`. Textures at most 1024×1024, sides a power of two.
 
 <!-- rules:end -->
 

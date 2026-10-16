@@ -1,4 +1,4 @@
-// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — a tow to the garage (paid; or drive into a garage building), racing
+// The game's dock: a column of tiles down the left of the screen (the Ogni Strada look) — a tow to the garage (paid; or drive into a garage building), the ROADBOOK (docs/ROADBOOK.md: 'kr:roadbook'), racing
 // online (the multiplayer menu, F7: its #mpButton is drawn here), free roam (its #roamHud — what you are to the others,
 // who's near, the next meet — and its panel, F6), the free-roam chat (Enter; the messages you haven't seen counted),
 // the account, and the editor for the accounts that have it. The brand mark at the top folds the dock away (kept in
@@ -88,6 +88,7 @@ export function mountDock({ garage, editor } = {}) {
     <div class="dk-slot" id="krDockRoam"></div>
     <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" data-lt="dock.chatTip" hidden><span class="dk-ic" aria-hidden="true">forum</span><span data-l="dock.chat">${esc(t('dock.chat'))}</span><kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
     <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}" data-lt="dock.schoolTip"><span class="dk-ic" aria-hidden="true">school</span><span data-l="dock.school">${esc(t('dock.school'))}</span></button>
+    <button class="dk-item" data-k="roadbook" data-tip="${esc(t('dock.roadbookTip'))}" data-lt="dock.roadbookTip"><span class="dk-ic" aria-hidden="true">menu_book</span><span data-l="dock.roadbook">${esc(t('dock.roadbook'))}</span></button>
     <div class="dk-sep"></div>
     <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}" data-lt="dock.account"><span class="dk-ic" aria-hidden="true">account_circle</span><span data-l="dock.account">${esc(t('dock.account'))}</span></a>
     <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" data-lt="dock.editorTip" hidden><span class="dk-ic" aria-hidden="true">edit_road</span><span data-l="dock.editor">${esc(t('dock.editor'))}</span><kbd>F2</kbd></button>`;
@@ -112,6 +113,7 @@ export function mountDock({ garage, editor } = {}) {
     else if (k === 'chat') { b.blur(); dispatchEvent(new CustomEvent('kr:roam-open', { detail: { tab: 'chat', toggle: true } })); }
     else if (k === 'editor') { b.blur(); editor?.(); }
     else if (k === 'school') { b.blur(); dispatchEvent(new CustomEvent('kr:school')); }
+    else if (k === 'roadbook') { b.blur(); dispatchEvent(new CustomEvent('kr:roadbook')); }
   });
   // free roam: the chat tile while it's on (its status sits in the slot), what's unread, which tile is open
   const roamOn = () => { chat.hidden = !roamSlot.firstElementChild; if (chat.hidden) setUnread(0); };

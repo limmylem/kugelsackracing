@@ -32,6 +32,9 @@ export async function moveGuestData(db: Db, from: string, to: string) {
       await tx.execute(sql`update ledger set user_id = ${to} where user_id = ${from}`);
       for (const t of ['owned_cars', 'owned_parts', 'car_build_slots', 'quest_progress', 'item_history', 'economy_sessions', 'player_recordings']) await tx.execute(sql`update ${sql.raw(t)} set user_id = ${to} where user_id = ${from}`);
     }
+    // the ROADBOOK (docs/ROADBOOK.md): the guest's seasons, tokens, items and history — if the account has none of its own
+    const hasBook = (await tx.execute(sql`select 1 from roadbook_progress where user_id = ${to} union all select 1 from player_history where user_id = ${to} limit 1`)).rows.length;
+    if (!hasBook) for (const t of ['roadbook_progress', 'roadbook_seen', 'token_ledger', 'player_items', 'player_history']) await tx.execute(sql`update ${sql.raw(t)} set user_id = ${to} where user_id = ${from}`);
   });
 }
 
@@ -75,6 +78,11 @@ export async function exportUserData(db: Db, userId: string) {
     parts: await one(sql`select * from owned_parts where user_id = ${userId}`),
     questProgress: await one(sql`select * from quest_progress where user_id = ${userId}`),
     itemHistory: await one(sql`select item_type, instance_id, event, details, at from item_history where user_id = ${userId} order by id`),
+    // the ROADBOOK (docs/ROADBOOK.md): each season's progress, every Season Token and why, the items bought, the history
+    roadbook: await one(sql`select season_id, points, data, updated_at from roadbook_progress where user_id = ${userId}`),
+    seasonTokens: await one(sql`select season_id, amount, balance_after, kind, reason, at from token_ledger where user_id = ${userId} order by id`),
+    seasonItems: await one(sql`select item_id, season_id, price, bought_at from player_items where user_id = ${userId}`),
+    history: (await one(sql`select data from player_history where user_id = ${userId}`))[0] ?? null,
     runs: await one(sql`select id, kind, quest_id, car_instance_id, state, end_reason, started_at, ended_at from economy_sessions where user_id = ${userId} order by started_at`),
     twoFactor: { enabled: !!((await one(sql`select two_factor_enabled from users where id = ${userId}`))[0] as any)?.two_factor_enabled, note: 'The authenticator\'s secret and backup codes are kept encrypted and aren\'t shown here.' },
     // what links accounts for abuse review: the addresses you played from, and your browser's id as kept (scrambled)

@@ -1,0 +1,20 @@
+{
+  "_note": "Places a player can discover by driving to them (the ROADBOOK, docs/ROADBOOK.md): each one found once, for good, in their Personal History. hidden: not shown on the map or in the list until found (a rare discovery, worth tokens in a season that says so). radius: metres from the point that count as being there.",
+  "places": [
+    { "id": "adl_king_william", "name": "King William Street", "region": "adelaide", "lat": -34.9238, "lon": 138.5999, "radius": 60 },
+    { "id": "adl_parade_norwood", "name": "The Parade, Norwood", "region": "adelaide", "lat": -34.9215, "lon": 138.63, "radius": 60 },
+    { "id": "adl_greenhill_road", "name": "Greenhill Road", "region": "adelaide", "lat": -34.9432, "lon": 138.6722, "radius": 60 },
+    { "id": "adl_esplanade", "name": "The Esplanade", "region": "adelaide", "lat": -34.989, "lon": 138.5095, "radius": 60 },
+    { "id": "adl_superway", "name": "South Road Superway", "region": "adelaide", "lat": -34.8616, "lon": 138.568, "radius": 80 },
+    { "id": "adl_adelaide_bridge", "name": "Adelaide Bridge", "region": "adelaide", "lat": -34.9147, "lon": 138.5988, "radius": 50 },
+    { "id": "adl_heysen_tunnels", "name": "Heysen Tunnels", "region": "adelaide", "lat": -34.9707, "lon": 138.6753, "radius": 80 },
+    { "id": "adl_airport", "name": "Adelaide Airport", "region": "adelaide", "lat": -34.9414, "lon": 138.5318, "radius": 80 },
+    { "id": "adl_britannia", "name": "Britannia Roundabout", "region": "adelaide", "lat": -34.9278, "lon": 138.623, "radius": 60 },
+    { "id": "adl_mount_lofty", "name": "Mount Lofty Summit", "region": "adelaide", "lat": -34.97784, "lon": 138.70941, "radius": 60 },
+    { "id": "adl_jetty_road", "name": "Jetty Road, Glenelg", "region": "adelaide", "lat": -34.98038, "lon": 138.51292, "radius": 50, "hidden": true },
+    { "id": "adl_east_end", "name": "The East End", "region": "adelaide", "lat": -34.91571, "lon": 138.62266, "radius": 50, "hidden": true },
+    { "id": "adl_port_adelaide", "name": "Port Adelaide", "region": "adelaide", "lat": -34.84312, "lon": 138.50456, "radius": 60, "hidden": true },
+    { "id": "adl_belair_crest", "name": "The Belair Road crest", "region": "adelaide", "lat": -34.99796, "lon": 138.62183, "radius": 50, "hidden": true },
+    { "id": "adl_mount_osmond", "name": "Mount Osmond", "region": "adelaide", "lat": -34.96137, "lon": 138.66225, "radius": 50, "hidden": true }
+  ]
+}

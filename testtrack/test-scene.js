@@ -999,6 +999,7 @@ function disposeWorld(w) {
   if (shared.raceReplay?.w === w) shared.raceReplay.close();
   try { w.quests?.dispose(); } catch { /* gone */ }
   try { w.questGame?.dispose(); } catch { /* gone */ }
+  try { w.roadbook?.dispose(); } catch { /* gone */ }
   try { w.sim.vehicle.world.free(); } catch { /* gone */ }
   // (the cars: their own way — their models are shared through the model cache; the ghost's materials are its own)
   const skip = new Set();
@@ -1219,6 +1220,10 @@ async function buildWorld(file) {
     shared.session.player.on(({ what }) => { if (what === 'quest') w.content?.refresh(); });
     // finding quests: the full map's panel (recommended, filters, regions, routes to them) and the notices
     w.finder = createQuestFinder({ w, game, content: w.content, regions: await bakedRegions(), notices: () => shared.prefs?.questNotices !== false });
+    // the ROADBOOK while driving: where the car's been (to the server), the Expedition on screen (play/roadbook.js;
+    // docs/ROADBOOK.md) — and kr.roadbook in the console for testing it
+    w.roadbook = (await import('../play/roadbook.js')).createRoadbookPlay({ THREE, w, carInstanceId: () => shared.session?.testDriving ? null : shared.session?.player?.profile?.currentCar ?? null,
+      travel: async (lat, lon, heading) => MapV3.travelTo(w, { lat, lon, heading }) });
   }
   return w;
 }
@@ -1263,7 +1268,7 @@ function frame(w, now) {
   // (a generated track's weather and floodlights)
   if (w.rain) w.rain.update(w.camera, seconds);
   if (w.trackData) floodFrame(w);
-  if (w.finder && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder.frame(seconds, { lat, lon }, !!w.quests?.active); }
+  if ((w.finder || w.roadbook) && w.stream) { const p = v.body.translation(), [wx, wz] = w.stream.toWorld(p.x, p.z), [lat, lon] = w.stream.projection.toLatLon(wx, wz); w.finder?.frame(seconds, { lat, lon }, !!w.quests?.active); w.roadbook?.frame(seconds, { lat, lon }); }
   if (w.stream) w.sim.vehicle.surfaceAt = w.stream.surfaceAt;
   const paused = shared.panel.open || !!rw?.hold || !!w.quests?.paused || !!shared.photoPaused;   // the settings panel (or a quest's pause menu) pauses the car
   // player settings → the car

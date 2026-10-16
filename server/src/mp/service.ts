@@ -324,6 +324,8 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
         let paid: any = { paid: false };
         if (p.money > 0 || p.xp > 0) { try { paid = await economy.payRace(r.uid, { money: p.money, xp: p.xp, raceId, reason: `Multiplayer race: ${p.why}` }); } catch (e) { log({ err: e, race: raceId, uid: r.uid }, 'paying a race failed'); } }
         entry.pay = { ...p, paid: !!paid.paid };
+        // (the ROADBOOK hears every confirmed result: roadbook/service.ts)
+        economy.events.emit('mpRaceResult', { userId: r.uid, raceId, place: r.place, status: r.status });
         entry.rank = { before: tierOf(before[r.uid], MP.rank), after: tierOf(after[r.uid], MP.rank), change: tierChange(before[r.uid], after[r.uid], MP.rank), ranked: race.ranked };
         // the safety rating (Phase 7 Step 3): contacts at fault cost points, a clean race with contact on earns a little —
         // a race with cars passing through each other (ghost) moves it neither way

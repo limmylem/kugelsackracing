@@ -11,7 +11,7 @@ Put this at the end of any prompt (the per-part prompts below already include it
 ```text
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -31,7 +31,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -53,7 +53,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -74,7 +74,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -95,7 +95,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -116,7 +116,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -137,7 +137,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -158,7 +158,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -180,7 +180,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -202,7 +202,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -224,7 +224,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -246,7 +246,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -268,7 +268,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -290,7 +290,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -312,7 +312,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -334,7 +334,7 @@ Surfaces in the car's body colour use the material "paint"; trim, grilles and an
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -355,7 +355,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -376,7 +376,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -397,7 +397,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -418,7 +418,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -439,7 +439,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -460,7 +460,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -481,7 +481,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -502,7 +502,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -523,7 +523,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -544,7 +544,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -565,7 +565,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -586,7 +586,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -607,7 +607,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -628,7 +628,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -649,7 +649,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -670,7 +670,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -691,7 +691,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -712,7 +712,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -733,7 +733,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -754,7 +754,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -775,7 +775,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -796,7 +796,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -817,7 +817,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -838,7 +838,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -859,7 +859,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -880,7 +880,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -901,7 +901,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -922,7 +922,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -943,7 +943,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -964,7 +964,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -985,7 +985,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.
@@ -1006,7 +1006,7 @@ Use the material "car_atlas" (a small palette texture: UV each face onto its col
 
 Rules:
 - Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
-- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted", "midnight_metallic", "afterglow_pearl", "violet_chrome", "neon_chrome", "afterglow_anodised".
 - Textures at most 1024×1024, square, a power of two.
 - Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
 - Only meshes: no cameras, lights, animations, armatures or extra scenes.

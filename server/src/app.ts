@@ -56,6 +56,9 @@ import { createContentService } from './content/service.ts';
 import { ensureStartingGarages } from './content/garages.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
+import { createRoadbookConfig } from './roadbook/config.ts';
+import { createRoadbook } from './roadbook/service.ts';
+import { roadbookRoutes } from './routes/roadbook.ts';
 import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
 import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts';
 import { createSignals, scanForAbuse } from './abuse/detect.ts';
@@ -413,6 +416,21 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('onClose', async () => mp.close());
   app.decorate('economyConfig', economyConfig);
   app.addHook('onReady', async () => { await economyConfig.ensure(); });
+  // (the ROADBOOK, Expeditions and Season Tokens — docs/ROADBOOK.md: its settings as versions, the seasons' clock swept
+  // every minute; it hears the economy's actions, and a finish only its owners may use is refused here)
+  const roadbookConfig = createRoadbookConfig(db);
+  const roadbook = createRoadbook({ db, config: roadbookConfig, economy, log: (o, m) => app.log.info(o, m), ...(deps.clock ? { clock: deps.clock } : {}) });
+  app.decorate('roadbook', roadbook);
+  app.addHook('onReady', async () => { await roadbookConfig.ensure(); });
+  economy.addGate(async (user, action, args) => {
+    const finish = action === 'setPaint' ? args?.paint?.finish : action === 'setPartFinish' ? args?.look?.finish : null;
+    if (!finish) return;
+    const locked = new Set(Object.entries<any>((await economyConfig.gameDb()).db.finishes ?? {}).filter(([, f]) => f.locked).map(([id]) => id));
+    if (!(await roadbook.mayUseFinish(user.id, finish, locked))) throw new AppError(409, 'REFUSED', 'That finish is from a ROADBOOK season shop: buy it there first.');
+  });
+  const rbSweeper = setInterval(() => { void roadbook.sweep().catch(e => app.log.warn({ err: e }, 'ROADBOOK sweep failed')); }, 60_000);
+  rbSweeper.unref();
+  app.addHook('onClose', async () => clearInterval(rbSweeper));
   // (the content manager — Phase 8 Step 3: parts' and cars' workflow, edits and their live checks; the game's prices and
   // shop from what it has published)
   const contentManager = createContentManager(db, { log: (o: any, m: string) => app.log.warn(o, m) });
@@ -452,9 +470,12 @@ export async function buildApp(deps: AppDeps) {
     await adminContentRoutes(api, { db, manager: contentManager, G });
     await adminBuilderRoutes(api, { builder: contentBuilder, G });
     await adminDevlogRoutes(api, { devlog, G });
-    await launchRoutes(api, { db, economy, G, authSecret: config.authSecret });
+    await launchRoutes(api, { db, economy, G, authSecret: config.authSecret, badges: id => roadbook.badges(id) });
+    await roadbookRoutes(api, { db, roadbook, config: roadbookConfig, G, env: config.env });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
-    await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
+    await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks),
+      // (sign-ups opened to everyone: the ROADBOOK's season starts, if it was waiting for the beta)
+      onSetting: async (key, from, to, by) => { if (key === 'closedBeta' && from?.on && !to?.on) await roadbook.betaOpened(by).catch(e => app.log.warn({ err: e }, 'starting the ROADBOOK season failed')); } });
   }, { prefix: API_PREFIX });
 
   // ---------- the game itself (development and tests: the same address as the API; staging and production:
@@ -548,7 +569,7 @@ function authCode(status: number, code?: string) {
 declare module 'fastify' {
   interface FastifyInstance { deps: { db: Db; auth: Auth; config: Config; mailer: Mailer } }
   interface FastifyContextConfig { csrf?: boolean; rawAuth?: boolean; role?: 'editor' | 'admin' }
-  interface FastifyInstance { metrics: import('./ops/metrics.ts').Metrics; alerter: ReturnType<typeof import('./ops/alerts.ts').createAlerter>; siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig; contentManager: import('./content/manager.ts').ContentManager }
+  interface FastifyInstance { metrics: import('./ops/metrics.ts').Metrics; alerter: ReturnType<typeof import('./ops/alerts.ts').createAlerter>; siteSettings: import('./ops/settings.ts').SiteSettingsStore; routeList: { method: string; url: string; role?: string }[]; tracks: import('./tracks/service.ts').TrackService; economy: import('./economy/service.ts').Economy; economyConfig: import('./economy/config.ts').EconomyConfig; contentManager: import('./content/manager.ts').ContentManager; roadbook: import('./roadbook/service.ts').Roadbook }
 }
 export type App = Awaited<ReturnType<typeof buildApp>>;
 export { AppError };
