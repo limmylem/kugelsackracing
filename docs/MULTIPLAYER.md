@@ -339,7 +339,11 @@ are written to `reports/multiplayer-test.md` (not committed, like the other repo
 
 **A snap** is a drawn frame where a car moves more than 10 cm (or 10% of its movement that frame) beyond where
 its own motion would have taken it, or turns more than 1.5° beyond it (`net/measure.js`). It's measured on what
-was drawn, frame by frame, at 60 fps.
+was drawn, frame by frame, at 60 fps. "Its own motion" means its position, speed and acceleration as drawn, over
+the time the frame showed. While the buffer settles, the shown time runs 90–110% of real time; that plays the car
+slightly faster or slower, which isn't a jump. A correction eases the car onto its path with an acceleration of its
+own. On a busy machine drawing 20–40 frames a second, a long frame stretches that into a few centimetres without
+anything jumping, so the meter doesn't count it as a snap.
 
 **The trade-off.** At the target bad network over WebSockets, other cars are shown about 750 ms in the past. A
 lost packet stalls the TCP stream behind it, and the buffer has to cover that. Over datagrams it's about 380 ms. The
