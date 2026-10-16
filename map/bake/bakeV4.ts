@@ -49,6 +49,7 @@ import { rankLandmarks, overrides } from '../model/landmarks.ts';
 import { placeSigns } from '../model/placeSigns.ts';
 import { railways } from '../model/railways.ts';
 import { markingsV5 } from '../model/markingsV5.ts';
+import { frontFences } from '../model/fences.ts';
 import { placeFurniture } from '../model/furniture.ts';
 import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
 import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
@@ -140,7 +141,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (Map v5: the region's style pack, and each road side's cross-section — kerb, verge, footpath: map/model/crossSection.ts)
   const style = v5 ? stylePackFor(region) : null;
   let landmarkList: any[] = [], handMade: any = { models: [], hidden: 0, missing: [] }, parkAreas: any[] = [], namedPlaces: any[] = [];
-  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {};
+  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {}, fenceStats: Record<string, number> = {};
   // (Map v5: each road's OSM tags by way, for the markings' lanes)
   const roadTags = v5 ? new Map<number, Record<string, string>>(osm.roads.map((r: any) => [r.id, r.tags])) : null;
   // (Map v5: the ground's colours the style pack's where it says — Adelaide's dry summer grass; parks and pitches,
@@ -292,6 +293,14 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     });
     if (v5) vegStats.offOpenGround = (vegStats.offOpenGround ?? 0) + tr.stats.open;
     const br = timed('railings', () => barriersV4({ osm, model: mB, groundAt, demAt, surface, cfg, v3cfg, inArea: inBlock, box }));
+    // (Map v5: the houses' front fences, estimated — map/model/fences.ts — with the railings; the houses round the block
+    // too, for the pieces whose middle is in it)
+    if (v5) timed('railings', () => {
+      const near = buildings.filter(b => { const c = b.rings[0][0]; return c[0] >= box[0] - 40 && c[0] < box[2] + 40 && c[1] >= box[1] - 40 && c[1] < box[3] + 40; });
+      const FF = frontFences({ buildings: near, segs: mB.segs, style, cfg, surface, inBuilding, groundAt, inArea: inBlock });
+      for (const [t, l] of Object.entries(FF.barriers)) { const L = (br.barriers[t] ??= []); for (const v of l) L.push(v); }
+      for (const [k, v] of Object.entries<number>(FF.stats)) fenceStats[k] = (fenceStats[k] ?? 0) + v;
+    });
     const lp = timed('lamps', () => placeLamps({ model: mB, osm, cfg, surface, mask: X, groundAt, classAt, box }));
     // (the block's own lamps: the roads reaching in from round it place some outside it)
     const lamps: number[] = []; for (let k = 0; k < lp.lamps.length; k += LAMP_STRIDE) if (inBlock(lp.lamps[k], lp.lamps[k + 2])) for (let q = 0; q < LAMP_STRIDE; q++) lamps.push(lp.lamps[k + q]);
@@ -345,6 +354,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
   if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
   if (v5) lap(`  railways: ${(railStatsV5.km ?? 0).toFixed(1)} km of track (${railStatsV5.inRoad ?? 0} pieces in a road), ${railStatsV5.bridges ?? 0} rail bridges with decks, ${railStatsV5.crossings ?? 0} level crossings with booms (estimated: found where a line crosses a road at grade), ${railStatsV5.platforms ?? 0} platform slabs, ${railStatsV5.masts ?? 0} overhead wire masts (estimated)`);
+  if (v5) lap(`  front fences (estimated): ${fenceStats.fenced ?? 0} of ${fenceStats.houses ?? 0} houses (counted by every block near them), ${((fenceStats.metres ?? 0) / 1e3).toFixed(1)} km in ${fenceStats.pieces ?? 0} pieces; ${fenceStats.noRoom ?? 0} too close to the street for one, ${fenceStats.noStreet ?? 0} with no street near, ${fenceStats.unfenced ?? 0} left open (the mix's none); ${fenceStats.blocked ?? 0} pieces left out on a road surface, footpath or building, ${fenceStats.driveways ?? 0} across a mapped driveway`);
   if (v5) lap(`  markings: ${markStats.arrows ?? 0} turn arrows at traffic lights (${markStats.arrowsTagged ?? 0} from OSM's turn:lanes, ${markStats.arrowsEstimated ?? 0} estimated from the junction's arms), ${markStats.bikeLanes ?? 0} bicycle lane sides with ${markStats.bikeSymbols ?? 0} bicycles, ${markStats.busLanes ?? 0} bus lane sides (each counted by every block that draws it); ${markStats.offSurface ?? 0} pieces left out off the road's surface`);
   if (v5) lap(`  place signs: ${placeStats.suburbs ?? 0} suburbs' (from ${localities.length} of Overture's localities), ${placeStats.parks ?? 0} parks'; ${placeStats.noRoom ?? 0} left out for want of room`);
   if (v5) lap(`  vegetation: ${vegStats.street ?? 0} street trees in the verges, ${vegStats.garden ?? 0} garden trees behind houses (estimated); ${vegStats.offOpenGround ?? 0} estimated park trees kept off pitches, pools, playgrounds and greens; kinds from the tags or the ${style.name} mix`);

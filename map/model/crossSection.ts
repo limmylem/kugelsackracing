@@ -129,25 +129,33 @@ export function planCrossSections({ segs, osm, buildings, style, classAt = () =>
       const sign = sd === 'L' ? 1 : -1, hw = Math.max(...(sd === 'L' ? g.hwL : g.hwR));
       const none: Side = { kerb: false, verge: 0, footpath: 0, paved: false, source: 'none' };
       if (g.structure !== 'ground' || driveway || NO_BANDS.has(g.cls) || cls === 'link') { out[sd] = none; stats.none++; continue; }
-      // (the side's buildings: how many, and how close their walls come to the road's edge)
-      let count = 0, wall = Infinity;
+      // (the side's buildings: how many, and how close their walls come to the road's edge — the closest, and the
+      // middle of the closest at each place along it)
+      let count = 0, wall = Infinity, houses = 0, typed = 0;
+      const walls: number[] = [];
       for (let k = 0; k < g.xs.length; k += Math.max(1, Math.floor(g.xs.length / 8))) {
         const nx = g.nx[k], nz = g.nz[k];
+        let here = Infinity;
         for (const q of buildingsNear(g.xs[k], g.zs[k], X.urbanReach)) {
           if (buildings[q].props?.b === 'roof' || buildings[q].props?.mh > 0.5) continue;
           const [mx, mz] = mids[q], off = (mx - g.xs[k]) * nx + (mz - g.zs[k]) * nz;
           if (off * sign <= 0 || Math.hypot(mx - g.xs[k], mz - g.zs[k]) > X.urbanReach) continue;
           count++;
+          const bt = buildings[q].props?.b;
+          if (bt && bt !== 'yes') { typed++; if (X.houseBuildings.includes(bt)) houses++; }
           // (the wall straight out from the road there: the ray along the side's normal, against the building's edges)
           const r = buildings[q].rings[0], ox = g.xs[k], oz = g.zs[k], dx = nx * sign, dz = nz * sign;
           for (let e = 0; e < r.length; e++) {
             const a = r[e], b = r[(e + 1) % r.length], ex = b[0] - a[0], ez = b[1] - a[1], den = dx * ez - dz * ex;
             if (Math.abs(den) < 1e-9) continue;
             const t = ((a[0] - ox) * ez - (a[1] - oz) * ex) / den, u = ((a[0] - ox) * dz - (a[1] - oz) * dx) / den;
-            if (t > 0 && u >= 0 && u <= 1) wall = Math.min(wall, t - hw);
+            if (t > 0 && u >= 0 && u <= 1) here = Math.min(here, t - hw);
           }
         }
+        if (Number.isFinite(here)) { walls.push(here); wall = Math.min(wall, here); }
       }
+      walls.sort((p, q) => p - q);
+      const typical = walls.length ? walls[walls.length >> 1] : Infinity;
       const urban = count >= X.urbanBuildings;
       // (OSM's left and right are the way's, along it: the model's 'L', along the normal, is its right — map/model/geom.ts)
       const osmSide = sd === 'L' ? 'right' : 'left', sw = tags.sidewalk ?? '', swSide = tags[`sidewalk:${osmSide}`] ?? '';
@@ -167,10 +175,17 @@ export function planCrossSections({ segs, osm, buildings, style, classAt = () =>
         if (taggedYes) stats.tagged++; else stats.estimated++;
       } else { side = none; stats.none++; }
       // (walls close to the kerb in a shopping or business street — the land use there commercial or industrial, or the
-      // walls closer than pavedWithin anywhere: paved to them, no verge)
+      // walls closer than pavedWithin anywhere: paved to them, no verge. Close along the side, typically — the middle of
+      // its walls — not one house's veranda or a corner shop: a street of houses with front gardens isn't paved; the
+      // footpath then runs to the closest wall, never under one)
       // (the land use behind the walls — the road reserve in front of them has none)
-      const mid = g.xs.length >> 1, back = hw + (Number.isFinite(wall) ? wall + 2 : 10), lu = classAt(g.xs[mid] + g.nx[mid] * sign * back, g.zs[mid] + g.nz[mid] * sign * back);
-      const shops = wall < X.shopfrontWithin && (X.pavedLanduse.includes(lu) || wall < X.pavedWithin);
+      const mid = g.xs.length >> 1, back = hw + (Number.isFinite(typical) ? typical + 2 : 10), lu = classAt(g.xs[mid] + g.nx[mid] * sign * back, g.zs[mid] + g.nz[mid] * sign * back);
+      // (a street of houses — the land use residential, or most of its typed buildings houses — paved only if its walls
+      // are typically within pavedWithinHouses m: a terrace's, right behind the footpath)
+      const houseSide = lu === 'residential' || (typed > 0 && houses >= typed / 2);
+      // (and a side of shops, offices or flats — typed buildings, most not houses — counts as a shopping street wherever
+      // the land use isn't mapped)
+      const shops = typical < X.shopfrontWithin && (X.pavedLanduse.includes(lu) || (typed > 0 && !houseSide) || typical < (houseSide ? X.pavedWithinHouses : X.pavedWithin));
       if (side.kerb && shops && wall > kerbW + 0.8) { side.paved = true; side.verge = 0; side.footpath = Math.max(side.footpath, wall - kerbW); stats.paved++; }
       out[sd] = side;
     }

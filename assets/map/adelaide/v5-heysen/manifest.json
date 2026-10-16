@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#632dc7ba2e30",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#60744ac0d2be",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-16",
@@ -29145,13 +29145,13 @@
    "estimatedDropped": 525
   },
   "peakMemoryGB": 1.7,
-  "bakeSeconds": 36
+  "bakeSeconds": 34
  },
  "tiles": [
   {
    "i": 11,
    "j": 9,
-   "bytes": 306945,
+   "bytes": 306825,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29160,7 +29160,7 @@
   {
    "i": 12,
    "j": 9,
-   "bytes": 115121,
+   "bytes": 116023,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29169,7 +29169,7 @@
   {
    "i": 13,
    "j": 9,
-   "bytes": 130950,
+   "bytes": 131366,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29196,7 +29196,7 @@
   {
    "i": 11,
    "j": 10,
-   "bytes": 237083,
+   "bytes": 237086,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29205,7 +29205,7 @@
   {
    "i": 12,
    "j": 10,
-   "bytes": 275458,
+   "bytes": 275429,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29214,7 +29214,7 @@
   {
    "i": 13,
    "j": 10,
-   "bytes": 129890,
+   "bytes": 129908,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 1,
@@ -29241,7 +29241,7 @@
   {
    "i": 11,
    "j": 11,
-   "bytes": 291556,
+   "bytes": 292700,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29250,7 +29250,7 @@
   {
    "i": 12,
    "j": 11,
-   "bytes": 319870,
+   "bytes": 319907,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29259,7 +29259,7 @@
   {
    "i": 13,
    "j": 11,
-   "bytes": 277936,
+   "bytes": 277935,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29268,7 +29268,7 @@
   {
    "i": 14,
    "j": 11,
-   "bytes": 198928,
+   "bytes": 198897,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29313,7 +29313,7 @@
   {
    "i": 14,
    "j": 12,
-   "bytes": 263182,
+   "bytes": 263154,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29322,7 +29322,7 @@
   {
    "i": 15,
    "j": 12,
-   "bytes": 134140,
+   "bytes": 134141,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,

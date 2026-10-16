@@ -6,7 +6,7 @@
   "drivingSide": "right",
   "markings": "US",
   "crossSection": {
-    "_note": "Each side of a road, out from its edge: kerb (a bevelled step kerbHeight high over kerbBevel, then kerbTop of flat top), verge (grass; street trees), footpath, then the property's edge. byClass: whether a road of that class has kerbs and footpaths where nothing's mapped (urban only: within urbanReach m of urbanBuildings buildings on that side), and the verge's and footpath's widths. Mapped sidewalks (footway=sidewalk within sidewalkSnap m, running alongside) set the footpath's place instead; sidewalk=no/separate are respected. Where buildings stand within shopfrontWithin m of the kerb in a commercial or industrial area (pavedLanduse) — a shopping street — or within pavedWithin m anywhere, the footpath runs to their walls (paved, no verge). Kerbs are lowered (flush) within lowerAt m of a crossing or a driveway's mouth, over lowerRamp m. A footpath falls crossfall to the kerb.",
+    "_note": "Each side of a road, out from its edge: kerb (a bevelled step kerbHeight high over kerbBevel, then kerbTop of flat top), verge (grass; street trees), footpath, then the property's edge. byClass: whether a road of that class has kerbs and footpaths where nothing's mapped (urban only: within urbanReach m of urbanBuildings buildings on that side), and the verge's and footpath's widths. Mapped sidewalks (footway=sidewalk within sidewalkSnap m, running alongside) set the footpath's place instead; sidewalk=no/separate are respected. Where a side's buildings typically (the middle of its walls) stand within shopfrontWithin m of the kerb in a commercial or industrial area (pavedLanduse) or are mostly shops, offices or flats (typed, not houseBuildings) — a shopping street — or within pavedWithin m anywhere (pavedWithinHouses m on a street of houses: residential land use, or most of its typed buildings houseBuildings), the footpath runs to their walls (paved, no verge). Kerbs are lowered (flush) within lowerAt m of a crossing or a driveway's mouth, over lowerRamp m. A footpath falls crossfall to the kerb.",
     "kerbHeight": 0.15,
     "kerbBevel": 0.12,
     "kerbTop": 0.15,
@@ -16,6 +16,8 @@
     "sidewalkSnap": 16,
     "shopfrontWithin": 12,
     "pavedWithin": 8,
+    "pavedWithinHouses": 3,
+    "houseBuildings": ["house", "detached", "semidetached_house", "bungalow", "terrace", "residential"],
     "pavedLanduse": ["commercial", "industrial"],
     "lowerAt": 2.5,
     "lowerRamp": 1.5,
@@ -252,5 +254,10 @@
   "markingColours": {
     "_note": "map/model/markingsV5.ts: Map v5's markings' paint: the white lines and arrows, the green at a bicycle lane's ends, a bus lane's colour at its ends.",
     "white": "#e8e8e2", "bikeLane": "#3f8a4a", "busLane": "#a8473a"
+  },
+  "frontFences": {
+    "_note": "map/model/fences.ts: a house's estimated front fence — the kind by a hash of the house from mix (weights w: a low brick wall, a fence, a hedge, none; h m tall) — and the road reserve's depth behind the kerb where a street side has no footpath or verge planned.",
+    "mix": [{ "type": "fence", "h": 1.0, "w": 0.3 }, { "type": "hedge", "h": 1.0, "w": 0.2 }, { "type": null, "h": 0, "w": 0.5 }],
+    "reserve": 3.5
   }
 }
