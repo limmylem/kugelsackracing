@@ -1,4 +1,4 @@
-// The game's trailer (docs/RELEASE.md "Trailer"; devlog/trailer/make.mjs): 1920×1080, about 50 seconds. The logo and
+// The game's trailer (docs/RELEASE.md "Trailer"; devlog/trailer/make.mjs): 1920×1080, about 40 seconds. The logo and
 // "Race the real world" over the first city; real cities driven by the game's autopilot, each named, with the map's
 // credit while a real place is on screen; the race tracks and another player online; a caption now and then; an end
 // card with the address. The game's own sound from the clips, and its own music (rendered by the game's music code,

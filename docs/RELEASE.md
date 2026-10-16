@@ -80,7 +80,7 @@ address is published). The developer is credited as Zane Darley (the owner's cho
   This computer has no graphics card, so they're drawn by a software renderer; on a computer with one,
   `node tools/press-shots.mjs --gpu` makes nicer ones. Run it again after a visible change.
 - **The logo PNG** is drawn from the SVG in a browser with its fonts (`tools/press-shots.mjs --logo`).
-- **The trailer** (`assets/press/ognistrada-trailer.mp4`, 1920×1080, about 50 seconds; on the press kit and the
+- **The trailer** (`assets/press/ognistrada-trailer.mp4`, 1920×1080, about 40 seconds; on the press kit and the
   landing page, served from the tiles' address like the map files): made from the game itself by
   `cd devlog && node trailer/make.mjs` —
   - **filmed** by the devlog's capture (`devlog/capture/capture.mjs`, frame by frame, so it's smooth on a computer

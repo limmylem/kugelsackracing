@@ -1,7 +1,7 @@
 // The game's trailer (docs/RELEASE.md "Trailer"), made from the game itself: filmed frame by frame by the devlog's
 // capture (capture/capture.mjs: real cities driven along real roads by the game's autopilot, the race tracks, a second
 // car online), the game's own music rendered to the trailer's plan (audio/music.js in a browser's OfflineAudioContext:
-// no samples, nobody else's music), and cut together by remotion/Trailer.jsx. 1920×1080, about 50 seconds.
+// no samples, nobody else's music), and cut together by remotion/Trailer.jsx. 1920×1080, about 40 seconds.
 //
 //   cd devlog && node trailer/make.mjs [--reuse-clips] [--quick] [--out ../assets/press/ognistrada-trailer.mp4]
 //

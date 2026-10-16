@@ -66,3 +66,4 @@ News, patch notes and an event calendar in the game
 Speeds in miles per hour where you use them
 The dock and News button show their words again, not code names
 The Stelvio Pass loads now: no more endless loading screen
+A trailer: real cities, real roads, in your browser
