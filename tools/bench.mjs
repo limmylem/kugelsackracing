@@ -74,7 +74,9 @@ try {
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
     const page = await ctx.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    const q = new URLSearchParams({ world: B.world, ...(B.world === 'track' && { code: trackCode }), ...(B.questBot && { questBot: '' }), ...(preset !== 'none' && { graphics: preset }), ...(B.query ?? {}) });
+    // (regions=all: the real world opens in San Francisco, as its baseline was measured there and the roam host is —
+    // not in the game's own first region, data/map/baked.json inGame)
+    const q = new URLSearchParams({ world: B.world, regions: 'all', ...(B.world === 'track' && { code: trackCode }), ...(B.questBot && { questBot: '' }), ...(preset !== 'none' && { graphics: preset }), ...(B.query ?? {}) });
     // (--network: loading over a normal home connection — data/performance.json network — for time-to-drivable; a new
     // browser profile each scene, so nothing's cached)
     if (args.includes('--network')) { const N = cfg.network, c = await ctx.newCDPSession(page); await c.send('Network.enable'); await c.send('Network.emulateNetworkConditions', { offline: false, latency: N.latencyMs, downloadThroughput: N.megabitsPerSecond * 1e6 / 8, uploadThroughput: 10e6 / 8 }); }
