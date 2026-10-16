@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { harness } from '../harness.mjs';
 import { LocalPlayerService, METHODS, PlayerService } from '../../garage/player/service.js';
 import { MemoryStorage } from '../../garage/player/storage.js';
+import { released } from '../../garage/content.js';
 import { CURRENT_VERSION, MIGRATIONS, migrate } from '../../garage/player/migrations.js';
 import { buildOf, clone, repairCost, setupChanges } from '../../garage/player/profile.js';
 import { sellValue } from '../../garage/shop.js';
@@ -280,7 +281,7 @@ test('undo: a whole build back as it was, if its parts are still the player\'s',
 test('unlimited money (development): everything free while it\'s on, money untouched; back to normal after', async () => {
   const { service } = await reopen(new MemoryStorage());
   await service.addMoney(-service.profile.money + 100);        // ($100 left)
-  const money = service.profile.money, pricey = Object.values(db.parts).filter(p => !p.retired && !p.todo?.length).sort((a, b) => b.price - a.price)[0];
+  const money = service.profile.money, pricey = Object.values(db.parts).filter(p => !p.retired && !p.todo?.length && released(p)).sort((a, b) => b.price - a.price)[0];
   assert.equal((await service.buyPart(pricey.id)).ok, false);
   await service.setUnlimitedMoney(true);
   const r = await service.buyPart(pricey.id);

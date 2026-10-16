@@ -14,7 +14,7 @@
       "supercharged": { "label": "supercharged", "induction": "natural", "torquePerLitre": 100, "boostGain": 0.6, "mass": 15 }
     },
     "stats": {
-      "peakTorque": { "label": "peak torque", "unit": "N·m", "formula": "displacement * aspiration.torquePerLitre * (1.04 - 0.08 * character) * (1 + boost * aspiration.boostGain)", "range": [60, 900], "digits": 0 },
+      "peakTorque": { "label": "peak torque", "unit": "N·m", "formula": "displacement * aspiration.torquePerLitre * (1.04 - 0.08 * character) * (1 + boost * aspiration.boostGain)", "range": [60, 2500], "digits": 0 },
       "peakRpm": { "label": "peak torque rpm", "unit": "rpm", "formula": "round(idle + (redline - idle) * iff(boost > 0, 0.3 + 0.15 * character, 0.45 + 0.4 * character), 50)", "range": [1500, 9000] },
       "idleShare": { "label": "torque at idle", "unit": "%", "formula": "iff(boost > 0, 0.5, 0.78 - 0.12 * character)", "range": [0.3, 0.9] },
       "redlineShare": { "label": "torque at the redline", "unit": "%", "formula": "iff(boost > 0, 0.68, 0.8 + 0.14 * character)", "range": [0.5, 1] },
@@ -22,28 +22,28 @@
       "holdRpm": { "label": "where full boost ends", "unit": "rpm", "formula": "round(idle + (redline - idle) * iff(boost > 0, 0.68, 0), 50)", "range": [0, 9000] },
       "mass": { "label": "mass", "unit": "kg", "formula": "layout.base + 13 * cylinders + 9 * displacement + aspiration.mass", "range": [50, 320], "digits": 1 },
       "inertia": { "label": "rotating inertia", "unit": "kg·m²", "formula": "0.06 + 0.012 * cylinders + 0.015 * displacement", "range": [0.06, 0.4], "digits": 3 },
-      "friction": { "label": "internal friction at rest", "unit": "N·m", "formula": "4.6 * displacement", "range": [3, 40], "digits": 2 }
+      "friction": { "label": "internal friction at rest", "unit": "N·m", "formula": "4.6 * displacement", "range": [3, 50], "digits": 2 }
     },
     "ranges": {
       "_note": "What an engine's settings may be",
       "cylinders": [2, 12],
-      "displacement": [0.6, 8],
-      "boost": [0, 2],
+      "displacement": [0.6, 10],
+      "boost": [0, 3],
       "idle": [550, 1200],
       "redline": [4500, 9500],
       "character": [0, 1],
-      "peakPower": [40, 900],
+      "peakPower": [40, 2000],
       "_peakPower": "peak power (hp) is measured from the torque curve made"
     },
     "requires": {
       "_note": "What an engine needs fitted with it: for each, the first step whose amount it's over (by: peakTorque N·m or peakPower hp) names the tag it needs — the clutch to hold it, a stronger gearbox, more cooling",
-      "clutch": { "by": "peakTorque", "steps": [[480, "clutch_rating:race"], [300, "clutch_rating:sport"]], "why": "a clutch that holds its torque" },
+      "clutch": { "by": "peakTorque", "steps": [[1400, "clutch_rating:triple"], [480, "clutch_rating:race"], [300, "clutch_rating:sport"]], "why": "a clutch that holds its torque" },
       "gearbox": { "by": "peakTorque", "steps": [[420, "gearbox:uprated"]], "why": "a gearbox for its torque" },
       "cooling": { "by": "peakPower", "steps": [[280, "cooling:uprated"]], "why": "a radiator for its heat" }
     },
     "economy": {
-      "_note": "A crate engine's tier by its peak power (hp: the first tier it's under), its price within its tier's band (data/content/tiers.json, slot engine) by where its power sits in the tier, and its unlock level the same way",
-      "tierByPower": [["street", 180], ["sport", 330], ["race", 900]],
+      "_note": "A crate engine's tier by its peak power (hp: the first tier it's under), its price within its tier's band (data/content/tiers.json, slot engine) by where its power sits in the tier, and its unlock level the same way — past 900 hp still race, at the top of its band (the band's own prices for every engine up to 900 hp as they were)",
+      "tierByPower": [["street", 180], ["sport", 330], ["race", 900], ["race", 2001]],
       "unlock": { "street": [1, 2], "sport": [3, 5], "race": [6, 9] }
     },
     "running": {

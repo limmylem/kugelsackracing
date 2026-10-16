@@ -119,7 +119,8 @@ export function pricing({ value, tierBy, unlock, slot, tiers, factor = 1 }) {
   let lo = 0, tier = null;
   for (const [t, upTo] of tierBy) { if (value < upTo) { tier = t; break; } lo = upTo; }
   if (!tier) return { problem: `${value} is over the top of the last tier (${tierBy.at(-1)[0]}: under ${tierBy.at(-1)[1]})` };
-  const hi = tierBy.find(([t]) => t === tier)[1], t = Math.min(1, Math.max(0, (value - lo) / (hi - lo)));
+  // (a tier named again further on — race past 900 hp: the top of the first's)
+  const hi = tierBy.find(([t]) => t === tier)[1], t = value >= hi ? 1 : Math.min(1, Math.max(0, (value - lo) / (hi - lo)));
   const band = tiers.tiers[tier].price, street = tiers.slots[slot]?.street;
   if (!street) return { problem: `data/content/tiers.json has no street price for the ${slot} slot` };
   const raw = street * (band[0] + (band[1] - band[0]) * t) * factor, price = Math.round(Math.min(street * band[1], Math.max(street * band[0], raw)) / 10) * 10;
@@ -151,7 +152,8 @@ export function cratePart(def, { formulas: F, standards: S, tiers }) {
     id, name: def.name ?? `${def.maker ? `${def.maker} ` : ''}${words} (crate engine)`, category: 'engine', slot: 'engine', kind: 'component',
     price: money.price, mass: st.mass, model: `assets/parts/engine/${id}.glb`, icon: `assets/icons/parts/${id}.png`,
     fits: [`mount:${mounts[0]}`, `bay:${d.bay}`],
-    requires: needs.map(n => n.tag), conflicts: [],
+    // (leaveOff: { car: why } — the cars it would take past their class limits: tools/content/jobWorker.mjs)
+    requires: needs.map(n => n.tag), conflicts: Object.keys(def.leaveOff ?? {}).map(c => `car:${c}`),
     provides: [`engine_family:${id}`, `engine_layout:${def.layout}${def.cylinders}`, `induction:${def.aspiration === 'turbo' ? 'turbo' : 'natural'}`, ...(def.aspiration === 'supercharged' ? ['forced_induction:supercharger'] : []), 'intake_flange:std', 'exhaust_flange:std'],
     engine, tier: money.tier, ...(money.level > 1 && { unlock: { level: money.level } }),
     bounds: { min: [-(across ? L : W) / 2, 0, -(across ? W : L) / 2].map(v => +v.toFixed(3)), max: [(across ? L : W) / 2, H, (across ? W : L) / 2].map(v => +v.toFixed(3)) }, massOffset: [0, +(H * 0.38).toFixed(3), 0],
