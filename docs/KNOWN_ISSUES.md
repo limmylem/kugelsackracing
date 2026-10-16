@@ -4,17 +4,74 @@ As of Phase 8 Step 3 (the content pipeline, first), Step 2 (performance and grap
 accounts, below first); Phase 5's and Phase 4's entries as they were at their ends. Each with what was seen and where; the tests named reproduce them.
 How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 
+## Fixed on 2026-10-14 (a pass through this list)
+
+- **Cars have bump stops** (physics/vehicle.js `BUMP_STOP`): past a spring's travel a progressive, damped rubber stop
+  (up to 6 cm) pushes back instead of the body coming down onto the road. Dropped a metre onto the test centre's
+  straight, no car's floor touches the road (the Apex V8's did from half a metre); a kerb strike counts what the stop
+  takes. tests/unit/bumpstops.test.mjs. The rally stage: the Strada Evo still fastest; the Apex V8 (14 cm of travel) is
+  now about 13 s slower there than before, its stops working over the stage's bumps.
+- **Rain changes grip** (`conditions.applyGrip` on): every car in a rain event, the player's and the NPCs', has 0.82 of
+  its grip on every surface (physics/sim.js `setGrip`); the NPCs plan their speeds on it (route/racingLine.js
+  `wetCaps`), and a rain event's medal times allow 4% more (data/quests.json `medals.weather`: the AI is 0.3–5% slower
+  in the wet). Multiplayer lobbies' weather is still only a setting shown in the lobby (drawn and driven dry).
+- **The six draft parts pass their checks:** the kevlar Shellback seats are priced in the tier whose band holds their
+  price for what they do (seats have a sport tier now; tools/content/families.mjs prefers it), and the Groundline kits
+  are made without dive planes (sold as their own part): a 60 km/h crash costs less than two race wins to fix.
+- **Tyre walls and glancing hits** — measured, not a problem: over 256 glancing hits along the tyre walls of three fast
+  circuits, a car slides along a tyre wall as far as along the same wall built of concrete (median 44 m both). The one
+  case seen before was the wall's curve further on, not its material. `npm run test:dress-drive` checks it now.
+- **`?player=` development players come back where they left** (`GET /roam/me?player=A`, development only).
+- **Ramming evidence expires** after 30 days unless an open report points at it (retention `evidenceDays`;
+  PRIVACY_DATA.md).
+- **The lobby's host picks any published route from a list** (the official ones first, then every published route in
+  a region the game has: `GET /mp/routes`).
+- **Reporting a player** (the lobby, free roam's Nearby, the leaderboards) uses the game's own dialog, not the
+  browser's prompt box.
+- **Steep routes rate harder:** a grade past 15% scores again (full at 30%: `difficulty.points.steep`), so 20–28% hills
+  aren't 2★ any more. Stored ratings change when a quest is saved again or checked in bulk.
+- **Club tier opens at level 2** (about 7 first-time Rookie golds, not 15). On the server online the economy settings
+  are the database's: the owner sets Club to 2 on the admin page (Economy settings → "Quest tiers: the level each opens at" → Save tier levels) — new keys
+  like the steep rule arrive by themselves, changed values don't.
+- **The tier-3 time trial's pay** is within 0.6–1.6× of its tier's median again (all 17 type × tier rows, in
+  `npm run test:track-events -- --only economy` and `npm run economy-sim`).
+- **Race replays' wheels turn and steer**, worked out from each car's recorded motion (the distance rolled; the yaw
+  rate, a bicycle model). The cars still carry the damage they have now.
+- **Fitting parts under load:** the game's data with the published content is made once per settings and catalogue
+  version (not for every request), and a build's stats are kept once worked out (garage/stats.js): with 500 players
+  fitting at the same moment, p95 13.1 → 10.0 s (fitting) and 17.1 → 9.0 s (taking off).
+- **Other players' damaged engines misfire**, from the crashes their cars send (the engine's condition lost), as an
+  NPC's does; a leaking radiator steams and a loose panel flaps too (audio/remoteDamage.js), as yours do.
+
+## The seven cars rebuilt from the starter coupe's model (2026-10-15; tools/content/coupeCar.mjs)
+
+The Kaze GT, Hana Roadster, Ridgeback 4x4, Vortex R, Brute 500, Strada Evo and Apex V8 are now the starter coupe's model
+reshaped to each one's proportions, in place of the box placeholders. Their cabins, engine bays and wheel wells are the
+coupe's, smaller and more detailed than the boxes' were: the add-on parts made by code were made again for them, and
+most fit as before, but a few published ones meet the new cabins or bonnets. They're waived (`data/content/check-rules.json`
+fit.known: each with where, how many places and how to fix it) so a player who has one fitted keeps a drivable car:
+
+- **Roll cages** (bolt-in and welded) in the Brute 500, Hana Roadster and Ridgeback 4x4: the cage finder finds no clear
+  plane behind the seats, so the cage meets the side trim. The Hana Roadster's **roll hoop** too.
+- **The race harness** in the Apex V8, Ridgeback 4x4, Strada Evo and Vortex R: its belts meet the seat back or the shelf.
+- **The strut braces** under the Ridgeback 4x4's bonnet, **the short shifter** in its console, and **the Brute 500's V8**
+  swapped into the Kaze GT and the Ridgeback 4x4 (taller than their bonnets).
+- Small touches, a few places each: **the 19" rims** on the Kaze GT and Vortex R (their barrels meet the rear bulkhead,
+  which runs up to the tyre as on the starter coupe, whose own 17" rims meet it the same way), **the cat-back exhausts**
+  on the Vortex R and Brute 500 (the rear underfloor), **the bucket seats** (the cabin floor), and a few more in
+  fit.known.
+- Some draft family parts (the Shellback seats, the Gripline steering wheels, the Readout gauge pods, a few crate
+  engines and intakes) now leave out cars they don't fit (their `conflicts` say which); no player has them yet.
+- The bigger cars' bodies are over the dent budget's 150,000 triangles for their first dent (the Ridgeback 4x4's about
+  220,000 for the whole car): a short stutter the first time one is dented, spread over frames.
+
 ## Phase 8 Step 3: the content pipeline (docs/CONTENT_PIPELINE.md)
 
-- **Four part combinations players already had go through the car** (found by the new fit check; kept, with their
-  limits, in `data/content/check-rules.json` fit.known, until fixed — leaving them off those cars now would make a
-  player's car with one fitted undrivable):
-  - the **ducktail spoiler** on the Ridgeback 4x4 and the Vortex R sinks into the body (it's shaped for a coupe's boot
-    lid): to fix with a version for each, or leave it off them once no player has it fitted there;
-  - the **V8 swapped into the Kaze GT** (and the twin-screw supercharger on it) goes through the Kaze GT's bonnet, and
-    the **turbo four swap** touches its underside: to fix with a raised (cowl) bonnet for the Kaze GT that the swaps need.
-- **Six draft parts fail their checks** and stay drafts until they're changed: three carbon Groundline body kits (a
-  60 km/h crash costs more than two race wins to fix) and three Kevlar Shellback seats (too cheap for what they do).
+- **The four part combinations that went through the car are fixed** (`data/content/check-rules.json` fit.known is
+  empty again): the ducktail has its own version for the Ridgeback 4x4 and the Vortex R, raised on two feet to sit on
+  their boot lids; the Kaze GT's engine swaps need its new cowl bonnet (bought with them; a car that already had a swap
+  is given one free, its old bonnet put in the inventory), and the V8 sits 4 cm higher in it. The twin-screw
+  supercharger sits in the V8's valley, through the engine's own box (fitcheck.js THROUGH), as a real one does.
 - **Collision hulls are the built-in splitter's** here (CoACD isn't installed in CI or on this machine): a little
   rounder than CoACD's. Installing CoACD (`pip install coacd`) and running `npm run content -- finish` again doesn't
   change hulls already made; delete a part's `collision` to have it made again.
@@ -64,7 +121,7 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   116 km/h, so its Adelaide route ends before it). Overall Adelaide has the fewest sharp grade changes of any region
   (more than 10 % within 4 m: 2.6 per 10 km of road, San Francisco 9.4, Tokyo 22, Monaco 64). The fix: the LiDAR
   as the region's first elevation source, then a bake.
-- **`npm run test:map -- --region adelaide`: four checks fail**, all bake behaviour or the test's set-up, not
+- **`npm run test:map -- --region adelaide`: three checks fail** (four until the physics test's road below was fixed), all bake behaviour, not
   Adelaide's data:
   - one dead end of 14,154 lies on another road without joining it: Middleton Drive, which OpenStreetMap (via
     Overture) ends 10.8 m short of McMurray Avenue's straight 176 m piece — beyond the join's 6 m — while the curve
@@ -75,11 +132,12 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
     is 1 m above a road beside it: hit from that road at 15°, the car slips under the deck's end (2 of 16 hits).
     The bake keeps the ground clear under a bridge's ends and nothing closes their sides, in every region; from
     the deck the parapet holds at 50–300 km/h.
-  - the Phase 1 physics test runs on the coast spot's road, and the Esplanade's longest straight is 653 m (it
-    wants 900). On Anzac Highway's 1,320 m straight the same tests pass (0–100 in 9.28 s, 100–0 in 41.2 m).
+  - (fixed) the Phase 1 physics test ran on the coast spot's road, whose longest straight is 653 m (it wants 900); it
+    now takes the longest straight main road when that's too short: Grange Road's 1,480 m, where all four pass
+    (2026-10-14: 0–100 in 9.25 s, 100–0 in 41.3 m).
 - **NPC racers** (`npm run test:npc -- --regions adelaide`, not blocking in CI): Adelaide's route at low, medium
-  and high skill finishes cleanly; the 8-car race finishes with every car but 1 stuck and 2 resets, as Monaco's and
-  Stelvio's do (docs/NPC_RACERS.md, "Known limits").
+  and high skill finishes cleanly, and (2026-10-14) its 8-car race too. Monaco, Stelvio, Tokyo and Milton Keynes still
+  have a stuck car or more (docs/NPC_RACERS.md, "Known limits").
 - **Its road graph is the biggest** (89,000 segments): about 0.4 GB in memory in each of the API and the
   real-time server once someone drives there (docs/DEPLOYMENT.md), and about 0.2 GB of a browser's memory once Set
   route or a quest there loads it (San Francisco's: about half).
@@ -94,8 +152,9 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **The first seconds cost more:** the audio thread's code is compiled as it runs — the race's first 8 s took 18.5%
   of real time against 12.6% after (budget 15%). Once per game, as the sound starts.
 - **Safari may not decode Opus;** it then fetches the WAV files instead (about 6× bigger, the same sound).
-- **Other players' cars** are heard from their network state (revs, throttle, gear, wheel slip): no damage sounds
-  from them (misfires, steam, a flapping bumper). Yours has them all; an NPC's engine misfires when it's damaged.
+- **Other players' cars** are heard from their network state (revs, throttle, gear, wheel slip) and the crashes they
+  send: a damaged engine misfires, a leaking radiator steams, a hanging bumper flaps. The steam's end is worked out
+  from the leak they sent (the coolant they had, less the leak a second since), not sent.
 - **Echoes** come from rays against the world's fixed colliders every 0.2 s; a gap in the colliders (a bridge without
   a deck collider, say) sounds like open country.
 
@@ -171,18 +230,27 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   (DEPLOYMENT.md item 12; that costs money: ask first).
 - **Download in a dense crowd is over Step 1's target.** With 150 bots each seeing ~85 cars within 1.5 km, at half a
   game's rate: 35 kB/s a player on average, 74 at the 95th percentile (Step 1's target: 48 with 30 cars nearby). Two
-  reasons: every car within 1.5 km is sent, however many (the far ones 3 times a second); and a car near a border
-  arrives once through each zone the two players share (~1.8 times on average with 1 km zones). Proposed: each car sent
-  to each player by one zone (its home zone where the player has it, another shared one otherwise), with both sending
-  for a moment around a change so the switch can still be lined up; and a cap on the cars sent at full rate in a crowd.
-  Not done — it changes how zones send: to agree first.
+  reasons: every car within 1.5 km is sent, however many; and a car near a border arrives once through each zone the two
+  players share (~1.8 times on average with 1 km zones). Done (2026-10-14): in a crowd only the nearest 24 cars come at
+  the full rate (net/settings.js interest.fullCap; the rest at the next ring's), and a zone that starts sending a car
+  again after a gap is drawn afresh, not glided across the gap (net/remote.js). Built but **off**
+  (data/roam.json zones.oneSender): each car sent to each player by one zone they share, the zone that stops sending for
+  shareSec more and telling the game so it switches first. In the 200-handoff test it made 34 of 55 snaps come at a
+  switch (up to 59 cm; none with it off), because a zone was sometimes told to stop before the one taking over had the
+  car — the game would need to confirm what it receives. Not needed for friends testing (a few players); the crowd's
+  numbers haven't been measured again (the 150-bot swarm needs Redis and more cores).
+- **Frozen views at a handoff on this computer:** the 200-handoff test puts a car right from a zone whose view had
+  frozen 57–95 times (79 on the code from before these changes too); FREE_ROAM.md's run had none. Timing on a busy
+  4-core container; the snap check itself passes.
 - **Contact across a zone border is agreed one-sidedly.** Two players near a border can have different home zones;
   each reports to its own, which checks it against its own view of both cars (as Step 3 does when one report is
   missing). Both games still get one agreed result each, but the two zones don't compare notes.
-- **`?player=` development players don't come back where they left.** The zone servers save them, but the
-  development page doesn't ask `GET /roam/me` for them; signed-in players do.
-- **Voice chat isn't built** (a design note in FREE_ROAM.md): every version needs a media server (an SFU), which costs
-  money. Decided with the owner first.
+- **Voice chat in lobbies and races** (2026-10-14): everyone in a lobby and its race hears everyone in it, at full
+  volume (mp/voice.js 'room'; the lobby's corner: the microphone and who's talking); free roam's voice waits meanwhile
+  and joins again after. Not yet in the menus. Tested through the stand-in for Cloudflare's SFU
+  (server/tools/voice-browser.ts); the real one is checked online once its two secrets are added (GO_LIVE.md "Voice chat").
+- **Voice chat across several real-time processes:** each player's entry is in presence (Redis with several processes),
+  so it works there — but tested in one process only.
 - **The browser test needs `--local-libs` here**: the page loads three.js, Rapier and MapLibre from jsDelivr, which this
   computer can't reach; the option serves them from node_modules (14 of 14 then).
 - **Not checked on two networks yet.** Everything ran on this computer (Phase 7 Step 1's deferred check, now with free
@@ -246,7 +314,8 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **The replay takes about 1/16 of the race's length** (a 3-minute run in ~11 s), in a worker thread beside the API,
   one run at a time. A busy server would want more workers.
 - **NPCs in a race are ghosts** to players (they're driven by the server; contact with them isn't modelled).
-- **Ramming evidence is kept in full** (both cars' last `replaySec`, a few tens of kB gzipped) with no expiry yet.
+- **Ramming evidence is kept in full** (both cars' last `replaySec`, a few tens of kB gzipped) for 30 days, or while
+  an open report points at it.
 
 ## Phase 7 Step 2: lobbies, matchmaking and races (docs/MULTIPLAYER.md)
 
@@ -302,10 +371,8 @@ them, so it worked, but pg 9 will refuse it (the deprecation warning in the bot 
   - the account chip covered the results' Rematch button.
 - **TV cameras on real-world routes** are simple: beside the route every 170 m, up 7 m, on the outside of the bend.
   A building can come between one and the car. Generated tracks use their own placed TV cameras (Phase 5).
-- **The lobby offers the official routes** (`data/multiplayer.json` venues.routes, one a baked region) and random,
-  the official tracks or a track code. Other published routes can be set through the lobby's settings message, not
-  picked from a list yet.
-- **Reporting from the lobby** asks for the reason in the browser's own prompt box.
+- **The lobby offers the official routes** (`data/multiplayer.json` venues.routes, one a baked region) first, then
+  every published route (`GET /mp/routes`), random, the official tracks or a track code.
 - **The 2,000-bot load test is the matchmaker's**: 2,000 players queue at once, are matched and take their seats
   (262 race rooms), then leave. It doesn't race 2,000 players at once: the bot races cover races (8 at a time) and
   Step 1's tests cover a room's ticks (256 players).
@@ -409,7 +476,9 @@ there. In the game, the editor opens normally for editors.
 
 `npm run load-test:economy -w @kr/server -- --burst` has all 500 players send every step at the same moment.
 Everything goes through correctly, and the books balance afterwards. But the slowest actions wait:
-- **Fitting a part or taking it off** waits up to about 9 s (p95 about 9.4 s).
+- **Fitting a part or taking it off** waits up to about 10 s (p95, measured again 2026-10-14: fitting 13.1 → 10.0 s,
+  taking off 17.1 → 9.0 s, the whole rush 61 → 53 s, once the game's data with the published content is made once
+  per settings and catalogue version, and a build's stats once for each build: garage/stats.js).
 - **Everything else** waits about 1–6 s.
 - **Why:** each fit or removal runs the game's own build checks: the car's stats several times, about
   20 ms of CPU. About 165 requests a second fit through one process.
@@ -420,8 +489,8 @@ about 100 ms. The game shows each change at once, so only the confirmation waits
 The server online (an OVHcloud VPS-1: 2 vCores, shared by the API and the real-time server) holds fewer. Before there are that many
 players:
 - a paid instance with more cores;
-- faster build checks: a cache of the car's stats for a build already worked out
-  (`garage/stats.js`, shared with the game and its physics tests, so it wasn't changed here).
+- faster build checks still: the cache of a build's stats (2026-10-14) helps within a player's actions; each fit
+  still works out the new build once (about 3 ms) and checks it.
 
 ### One server process: changes from another device reach the others through it
 
@@ -487,7 +556,7 @@ The load test reports sign-in as "over (known)", not failed.
 Run on this computer. Everything passes except three suites that fail **the same way on the code from before Step 5** (commit
 `92589b2`, checked side by side). They aren't caused by Step 5, and they stay as they were:
 - **`npm run stress:quests`:** 5 of its 13 timing limits are over (nearby queries p95 about 10–13 ms against 8; the full map opening in 663 ms against 400). They are timings on 50,000 quests, and vary with the machine: the older code missed 6 here.
-- **`npm run test:track-events`:** "every quest type pays 0.6–1.6× the median". The tier-3 time trial pays 0.55×, the same number before Step 5. It's a balance target for the owner to tune ([PROGRESSION.md](PROGRESSION.md)); nothing in Step 5 changed the economy's rules.
+- **`npm run test:track-events`:** "every quest type pays 0.6–1.6× the median". The tier-3 time trial paid 0.55×, the same number before Step 5 (within range again by 2026-10-14: all 17 rows).
 - **`npm run test:npc`:** the known stuck-and-reset races in Monaco and Stelvio (above: reported in CI, not blocking).
 
 ### Nearby content: a 10 km circle in the densest city is over 5 ms through the API
@@ -572,19 +641,6 @@ none** (3–5★: Club and Pro). A new player who fast-travels there finds next 
 start players in San Francisco or Munich (as now) and place Rookie quests deliberately, or revisit how
 stars map to tiers before content goes in at scale.
 
-### Club tier takes about 15 first-time Rookie golds
-
-A 2–3 km 2★ Rookie quest pays 50–65 xp for its first gold, a repeat 16–22 xp (less again with
-anti-farming); level 3 is 900 xp. `npm run test:newplayer`: 15 Rookie quests golded, a series bonus and
-some repeats to reach it. The economy simulation agrees (its pool assumes ~50 Rookie quests within reach).
-A starting area needs at least 15–20 Rookie quests, or the level curve's early steps should come down.
-
-### Some steep routes rate easier than they drive
-
-Routes with 20–28% grades in San Francisco rate 2★ (the steepest grade is one feature among many: full
-at 30%, weight 0.5), yet those are where the AI and new players struggle. Worth a heavier weight for very steep
-grades — then rerun `npm run economy-sim`, as rewards follow the stars.
-
 ### At 50,000 quests
 
 `npm run stress:quests` puts 50,000 quests, each with its own route, into the six baked regions — so they
@@ -611,10 +667,14 @@ read. Route courses are now kept as text in memory until read (`content/service.
 (2.1 → 1.06 GB) and the collector's pauses — the rest is the work itself, on the main thread. The worst
 free-roam frame is the re-query every 250 m plus the maps' update in the densest spot.
 
-The lasting fixes, before content goes in at this density: run the content service in a **Web Worker**
-(queries and cell loads off the main thread — the API is already async), and keep **routes apart from the
-quests' cells** (a server's routes table in Phase 6, or a body store locally), so a nearby query only ever
-reads light markers. `stress:quests` is reported in CI but not blocking until then.
+The lasting fixes, done (2026-10-14): in a browser the in-browser content service now runs in a **Web Worker**
+(content/worker.js; `npm run test:content-worker`: 10 queries over 3,000 places nearby took 176 ms with the page's worst
+frame 27 ms), so its queries and cell loads are off the main thread — the timings above are the worker's now, not the
+game's frames. And **routes are apart from the quests** where players get their content: the game's server keeps every
+item in its own row (PostGIS, indexed by place), and the game's nearby queries ask for marker kinds only (quests, venues,
+garages…), so they never read a route's course; a route is fetched by its id when a quest is entered.
+The in-browser service (the editor and the game without a server) still keeps routes in the quests' cells.
+`stress:quests` measures that service as before, and stays reported in CI, not blocking.
 
 Also:
 - **Exporting everything** to one file stops past a browser's longest string (tens of thousands of
@@ -640,23 +700,12 @@ Also:
 - **8-car NPC races on generated tracks**: in `npm run test:track-drive`'s ten races every car finishes,
   but one NPC (in one race, on a fast flowing circuit) is stuck-and-reset after contact in the pack — the
   Phase 4 AI's racing in traffic (docs/NPC_RACERS.md's known limits), where the test wants none.
-- **Cars have no bump stops** (Phase 1's suspension stops at its travel and pushes no harder): braking
-  hard from 170 km/h or more, with the aero load on top, the front bottoms out and the floor touches the
-  road. On a generated track the road's collider has its internal edges smoothed, so it scrapes and
-  slides; on the baked real-world roads a floor can still catch on a triangle edge (one cause of NPCs
-  spinning at speed). A progressive bump stop in the car model is the lasting fix.
 - **Run-off isn't enough everywhere**: straight on at the racing line's speed (a quick race car's) a car
   stops or hits slowly at 92% of corners in `npm run test:dress-drive`; the rest are mostly street
   circuits (walls close on purpose) and corners where another part of the track leaves no room.
 - **A tyre wall's softness is in the damage, not the physics**: it doesn't bounce and its hits reach the
   damage model at 55% (physics/settings.json impacts.materials), but the car still stops as fast as at a
   concrete wall — Rapier has no per-collider compliance.
-- **A glancing hit on a tyre wall carries the car along it**: with no bounce (restitution 0) a car that
-  glances a tyre wall at speed stays against it and slides on; where the wall curves on round a fast
-  corner's run-off it meets more of it further along (seen at 150 km/h, 15°, on a version-3 track:
-  2.3 m/s at the glance, a 26 m/s hit 100 m on). `npm run test:dress-drive` compares tyre walls and
-  concrete on the hit itself (within 15 m of where it was aimed). A little restitution, or less friction
-  along a tyre wall, would let it shed the car as concrete does.
 - **A car stopped in a gravel trap is beached**: it can't drive out (by design); the AI's and the
   tracker's resets (5 s off the route, or stuck) put it back — there are no marshals or recovery vehicles.
 - **The AI's racing line stays off the kerbs**: Phase 4's line keeps a margin from the road's edge (built
@@ -682,11 +731,9 @@ Also:
   finish line (its progress stops there) — they queued behind it, and on a sprint never finished; and in
   the editor's AI test race the world's own idle car sat on the pole slot, unseen by the NPCs, which piled
   into it at the start. AI test results and closeness scores from before this step were pessimistic.
-- **Rain is visual only**: rain, a dark wet road, greyer light; the grip hook (`conditions.applyGrip`, rain
-  0.82) is off. Turned on, the AI's speed plans don't yet know the grip is lower.
-- **Replays show the cars' bodies only**: the recording is the Phase 4 ghost format (position, rotation,
-  velocity at 20 Hz), so in a replay the wheels don't turn or steer and the cars carry the damage they
-  have now. A replay is kept until the next run (not saved, not shareable).
+- **Replays record the cars' bodies only**: the recording is the Phase 4 ghost format (position, rotation,
+  velocity at 20 Hz); the wheels' turning and steering are worked out from that as it plays (since 2026-10-14), and
+  the cars carry the damage they have now. A replay is kept until the next run (not saved, not shareable).
 - **Frame times weren't measured on a GPU**: this container renders in software, so the browser's frame
   times (`tools/track-perf-browser.mjs`) mean nothing here. The CPU's share of a frame (3.0–3.7 ms at the
   three levels, `npm run test:track-perf`) and the draw calls (30–33) are well inside budget; run the

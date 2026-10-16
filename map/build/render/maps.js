@@ -103,7 +103,7 @@ export async function regionStyle(manifest, base) {
 }
 // World content on a map: a GeoJSON source (clustered when zoomed out) and its layers — colour by kind,
 // the cluster's count — kept up to date by setContent; clicks on one call onPick(id)
-const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', 'venue', '#ff5a5f', 'meet', '#36d1b0', '#ccc'];
+const KIND_COLOUR = ['match', ['get', 'kind'], 'quest', '#ffb02e', 'poi', '#4fc3f7', 'spawn', '#7ee08a', 'route', '#e05cff', 'venue', '#ff5a5f', 'meet', '#36d1b0', 'garage', '#5b8cff', '#ccc'];
 // a quest's colour by how far the player's got with it: new (bright), tried, done (its medal's colour)
 const MEDAL_COLOUR = ['match', ['get', 'medal'], 'gold', '#f2c230', 'silver', '#c9d1d9', 'bronze', '#cd7f32', '#8fd18a'];
 const POINT_COLOUR = ['case', ['==', ['get', 'state'], 'completed'], MEDAL_COLOUR, ['==', ['get', 'state'], 'attempted'], '#c7832a', KIND_COLOUR];
@@ -191,6 +191,8 @@ export function playerLayers(map, { labels = true, prefix = 'players' } = {}) {
     return { set(features, onPick) { data = { type: 'FeatureCollection', features }; if (onPick)
             pick = onPick; map.getSource(src)?.setData(data); } };
 }
+// (travel anywhere on the full map: in development and the tests — online, quests are driven to)
+const freeTravel = () => { const env = globalThis.KR_SITE?.env; return !env || env === 'development' || env === 'test'; };
 export async function createWorldMaps({ manifest, base, onTravel }) {
     if (!document.getElementById('worldMapCss')) {
         const s = document.createElement('style');
@@ -255,7 +257,8 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
             fn(on);
         if (on && !fullMap) {
             fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
-            fullMap.on('click', e => { if (e.originalEvent.shiftKey) {
+            // (shift-click: anywhere — development only: online, quests are driven to)
+            fullMap.on('click', e => { if (e.originalEvent.shiftKey && freeTravel()) {
                 set(false);
                 onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng });
             } });

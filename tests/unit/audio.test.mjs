@@ -177,7 +177,7 @@ test('every part with sound settings changes the sound as it says', () => {
 
 test('engine swaps change the engine\'s sound completely: its own sound config', () => {
   const kaze = S.spec('kaze_gt'), g = S.H.garage(null, 'kaze_gt');
-  for (const p of ['clutch_race', 'gearbox_uprated', 'radiator_aluminium', 'kaze_gt_swap_brute_v8']) assert.ok(g.install(p, { auto: true }).ok, p);
+  for (const p of ['clutch_race', 'gearbox_uprated', 'radiator_aluminium', 'kaze_gt_bonnet_cowl', 'kaze_gt_swap_brute_v8']) assert.ok(g.install(p, { auto: true }).ok, p);
   assert.ok(g.remove('socket_engine', { auto: true }).ok && g.install('brute_500_engine', { socket: 'socket_engine' }).ok, 'the V8 in');
   const swapped = g.stats().spec;
   assert.notEqual(kaze.engine.sound, swapped.engine.sound);

@@ -37,4 +37,5 @@
   networks (home Wi-Fi and a phone hotspot) sign up with invite codes, get the verification emails, meet in free roam
   and race each other.
 - Stop and ask before anything that costs money (a bigger server, a second server or region, Redis, paid plans of the
-  free services, voice chat), with a monthly cost estimate.
+  free services), with a monthly cost estimate. (Voice chat through Cloudflare Realtime was approved on 2026-10-13: free
+  to 1,000 GB a month; anything that would take it past that, ask first.)

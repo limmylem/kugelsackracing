@@ -33,6 +33,7 @@ export interface RoadCfg {
   densify: number; corner: number; smooth: number; median: number; camber: number; skirt: number; skirtDrop: number; markingWidth: number;
   dash: number; gap: number; minJunctionCut: number;
   widthScale?: number; minWidth?: number; joinOnto?: number; joinPointing?: number; overpassClearance?: number; sideBySideEase?: number; maxGrade?: number;
+  structureGapM?: number;   // (a ground piece at most this long inside a bridge or tunnel: made part of it)
 }
 export interface RNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; h: number; junction: boolean; ground: boolean }
 export interface Seg {
@@ -129,7 +130,7 @@ function mergeCloseNodes(ways: Way[]) {
   return n;
 }
 
-export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
+export function joinLooseEnds(ways: Way[], cfg: RoadCfg, halfWidth: ((tags: Record<string, string>) => number) | null = null) {
   const onto = cfg.joinOnto ?? 1, pointing = cfg.joinPointing ?? 6, reach = 30;
   const merged = mergeCloseNodes(ways);
   const uses = new Map<number, number>();
@@ -145,7 +146,8 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
       for (const k of keys) (grid.get(k) ?? grid.set(k, []).get(k)!).push([wi, i]);
     }
   });
-  const half = ways.map(w => sizeOf(w.tags, cfg).width / 2), kinds = ways.map(w => kind(w.tags));
+  // (Map v4 gives its own widths: an end within its wider road is on it)
+  const half = ways.map(w => (halfWidth ? halfWidth(w.tags) : sizeOf(w.tags, cfg).width / 2)), kinds = ways.map(w => kind(w.tags));
   const inserts = new Map<number, { i: number; t: number; p: any }[]>(), joins: { wi: number; atStart: boolean; p: any }[] = [];
   let nextId = 9e15;
   ways.forEach((w, wi) => {
@@ -194,6 +196,40 @@ export function joinLooseEnds(ways: Way[], cfg: RoadCfg) {
     else same ? (w.nodes[w.nodes.length - 1] = p) : w.nodes.push(p);
   }
   return { merged, joined: joins.length, inserted: [...inserts.values()].reduce((a, l) => a + l.length, 0) };
+}
+
+// Ground pieces inside a structure, made the structure (see buildRoads): each run of ground segments — joined end to
+// end through nodes where only the two of them meet — at most maxM long, whose two ends each join only bridge segments
+// (or only tunnel segments) and no other road. → how many segments were relabelled
+export function relabelStructures(nodes: { segs: number[] }[], segs: { id: number; from: number; to: number; s: number[]; structure: string; layer: number }[], maxM = 250) {
+  let n = 0;
+  const seen = new Set<number>(), len = (g: { s: number[] }) => g.s[g.s.length - 1];
+  const otherEnd = (g: { from: number; to: number }, k: number) => g.from === k ? g.to : g.from;
+  // (a node inside a run: exactly two segments meet there, both ground)
+  const inner = (k: number) => nodes[k].segs.length === 2 && nodes[k].segs.every(i => segs[i].structure === 'ground');
+  for (const g0 of segs) {
+    if (g0.structure !== 'ground' || seen.has(g0.id) || g0.from === g0.to) continue;
+    // the run through g0, out to its two ends
+    const run = [g0], ends: number[] = [];
+    seen.add(g0.id);
+    for (const start of [g0.from, g0.to]) {
+      let k = start, prev = g0, guard = 0;
+      while (inner(k) && guard++ < 1000) {
+        const next = segs[nodes[k].segs.find(i => i !== prev.id)!];
+        if (!next || seen.has(next.id)) break;
+        seen.add(next.id); run.push(next); prev = next; k = otherEnd(next, k);
+      }
+      ends.push(k);
+    }
+    if (ends[0] === ends[1] || run.reduce((a, g) => a + len(g), 0) > maxM) continue;
+    const ids = new Set(run.map(g => g.id)), outside = ends.map(k => nodes[k].segs.filter(i => !ids.has(i)).map(i => segs[i]));
+    if (outside.some(o => !o.length)) continue;
+    const kinds = new Set(outside.flat().map(o => o.structure));
+    if (kinds.size !== 1 || kinds.has('ground')) continue;
+    const structure = outside[0][0].structure, layer = outside.flat().reduce((a, o) => Math.abs(o.layer) > Math.abs(a) ? o.layer : a, 0);
+    for (const g of run) { g.structure = structure; g.layer = layer; n++; }
+  }
+  return n;
 }
 
 export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => number, cfg: RoadCfg) {
@@ -268,6 +304,11 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
       for (const g of kept) { g.id = segs.length; segs.push(g); nodes[g.from].segs.push(g.id); nodes[g.to].segs.push(g.id); }
     }
   }
+  // (a short piece of an elevated road or a tunnel that OSM has as plain ground — between two pieces of the I-80
+  // viaduct, say, or in the middle of the Stockton Tunnel — would be baked at the street's height under it: a wall
+  // across the street below, and a cliff at each end of the structure. A ground piece whose two ends each meet only
+  // pieces of one structure — bridge, or tunnel — and no other road is that structure too, on their layer)
+  const relabelled = relabelStructures(nodes, segs, cfg.structureGapM ?? 250);
   // ---------- 3: heights ----------
   for (const g of segs) {
     g.raw = g.xs.map((x, k) => heightAt(x, g.zs[k]));
@@ -339,7 +380,7 @@ export function buildRoads(roads: Way[], heightAt: (x: number, z: number) => num
     const fork = two && (two[0] === two[1] || (() => { const a = away(k, two[0]), b = away(k, two[1]); return a[0] * b[0] + a[1] * b[1] > 0; })());
     n.junction = n.segs.length >= 3 || (!!two && (Math.abs(two[0].width - two[1].width) > 0.3 || fork));
   });
-  return { nodes, segs, joins: joinStats, ...buildSurface(nodes, segs, cfg) };
+  return { nodes, segs, joins: joinStats, relabelled, ...buildSurface(nodes, segs, cfg) };
 }
 
 // roads side by side whose surfaces overlap (a slip road running into a motorway, two carriageways close

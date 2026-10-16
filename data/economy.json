@@ -65,6 +65,10 @@
     "S": 160000,
     "X": 300000
   },
+  "tow": {
+    "_note": "Towed to the garage instead of driving to one (the dock's Tow, Backspace twice, a wrecked car's results): garage/player/service.js towCar. You come out of the nearest garage building (world content of kind garage). With less money than the fee it takes what you have: nobody is stranded.",
+    "fee": 150
+  },
   "shop": {
     "_note": "The shop, the dealership and the used car lot (Phase 6 Step 4: garage/shop.js). Prices: a part's own (its file) or a car's (carPrices by class × its priceFactor), unless catalogue sets one. catalogue.parts / .cars: { id: { price, hidden, maker, unlock: { level, series, seriesName }, from, until (a limited-time item: only sold between them) } }. unlock: the level a part's tier or a car's class needs, unless the item has its own rule. sales: { id, name, starts, ends, discount (0–1), parts, cars, categories, tiers, classes, all } — the best one on an item counts, they don't add up. bundles: kits, each part as a set for the car (wheels: four), discount off their prices together. refund.minutes: something bought new can go back for what was paid within this, if it was never fitted and is as it came. garage: slots for cars, and extra ones for money (slotPrice × growth for each bought, at most maxExtra). confirmAbove: selling something worth this or more (or a car) asks twice. usedLot: the day's used cars (the same for everyone, from the day and seed): count, which classes by weight, mileage, wear by km, accidents, aftermarket parts by tier, and the price — the body and each part by its condition (conditionCurve) × factor.",
     "confirmAbove": 5000,
@@ -260,7 +264,7 @@
       {
         "tier": 2,
         "name": "Club",
-        "level": 3,
+        "level": 2,
         "feeShare": 0.08,
         "stakeMaxClass": "C"
       },

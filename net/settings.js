@@ -11,8 +11,9 @@ export const NET = {
   // ---- the server ----
   tickHz: 30,                  // the room's tick: states gathered, checked, sent on to whoever's near
   // interest management (docs/MULTIPLAYER.md): who gets whose car, and how often, by distance (m). Beyond the last
-  // ring: not sent at all. `every`: one tick in so many
-  interest: { cell: 250, rings: [{ within: 250, every: 1 }, { within: 700, every: 3 }, { within: 1500, every: 10 }] },
+  // ring: not sent at all. `every`: one tick in so many. fullCap: in a crowd, only the nearest so many at the first
+  // ring's rate (the rest at the second's)
+  interest: { cell: 250, rings: [{ within: 250, every: 1 }, { within: 700, every: 3 }, { within: 1500, every: 10 }], fullCap: 24 },
   // ---- showing other cars ----
   interp: {
     // the buffer: how far behind the usual delay the cars are shown, so that 95% of states are in before they're needed

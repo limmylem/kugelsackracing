@@ -184,6 +184,27 @@
         }
       }
     },
+    "tow": {
+      "type": "object",
+      "required": [
+        "fee"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "A tow to the garage (garage/player/service.js towCar): you come out of the nearest garage building",
+      "properties": {
+        "fee": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "What a tow costs; with less money than this it takes what you have (nobody is stranded)"
+        }
+      }
+    },
     "safetyNet": {
       "type": "object",
       "required": [

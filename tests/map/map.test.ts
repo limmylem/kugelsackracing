@@ -12,8 +12,10 @@
 //   rails        railings hit at 50, 100, 200 and 300 km/h, 15° and 60°: never through
 //   streaming    a 20 km route at 200 km/h with the game's streamer: the ground always there
 //   memory       the same run, past 100 tiles: memory and colliders level
-//   determinism  a small area baked twice: identical tiles and graph, byte for byte
-//   physics      the Phase 1 straight-line tests on a real road, against the car's targets
+//   determinism  a small area baked twice: identical tiles and graph, byte for byte (Map v4: the second a block per tile)
+//   physics      the Phase 1 straight-line tests on a real road (straight and level), against the car's targets
+//
+//   (--map v4: the same tests on the region's Map v4 bake, assets/map/<region>/v4/ — tests/map/v4.test.ts has v4's own)
 //
 //   npm run test:map                          all
 //   npm run test:map -- --only rails,height   some
@@ -32,8 +34,8 @@ import { createRun, evaluate, pathThrough } from '../../physics/testSuite.js';
 import { CarDamage } from '../../garage/carDamage.js';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
-const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'sf';
-const M = await mapHarness(region), { H, manifest, T, P } = M;
+const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'sf', mapV = opt('--map') ?? 'v3';
+const M = await mapHarness(region, mapV === 'v4' ? path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/map', region, 'v4') : undefined), { H, manifest, T, P } = M;
 const perf = JSON.parse(fs.readFileSync(path.join(M.root, 'data/map/performance.json'), 'utf8'));
 const CAR = 'starter_car', garage = H.garage(null, CAR), spec = garage.stats().spec;
 const KMH = 1 / 3.6, IDLE = { device: 'wheel', throttle: 0, brake: 0, steer: 0, handbrake: false };
@@ -78,7 +80,7 @@ async function roadsTest() {
     const d = readPbf(new Uint8Array(fs.readFileSync(pbf)), { wantWay: t => !!t.highway, wantRelation: () => false });
     osmNode = new Map([...d.nodes].filter(([id]) => want.has(id)).map(([id, c]) => [id, [c[1], c[0]]]));
   }
-  let worst = 0, worstAt = null, n = 0, missing = 0, meshWorst = 0, meshN = 0;
+  let worst = 0, worstAt = null, n = 0, missing = 0, meshWorst = 0, meshN = 0, uncovered = 0;
   const rnd = rng(7);
   for (const s of G.segs) for (const [k, id, lat0, lon0] of s.osm) {
     const ll = osmNode?.get(id) ?? [lat0, lon0];
@@ -102,18 +104,25 @@ async function roadsTest() {
         covered ||= meshHeights(R, lx, lz).length > 0;
       }
       if (!any) continue;
+      if (!covered) { uncovered++; note(`no road surface over OSM node ${id} at ${x.toFixed(2)}, ${z.toFixed(2)} (${s.name ?? s.class}, ${s.structure}, segment ${s.id}, point ${k} of ${s.points.length / 3})`); }
+      if (mapV === 'v4') { meshN++; continue; }
       const inJunction = covered && best > 0.5;
       if (!inJunction) { meshWorst = Math.max(meshWorst, best); meshN++; }
     }
   }
   report('roads', 'baked centre lines vs OpenStreetMap', worst < 0.5 && n > 0, `${n.toLocaleString('en-GB')} OSM nodes ${osmNode ? '(re-read from the OSM extract)' : '(the graph\'s own copy: no extract here)'}: largest difference ${(worst * 100).toFixed(1)} cm${worstAt ? ` at ${worstAt}` : ''}`);
-  report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
+  // (Map v4: its cross-sections aren't built on OSM's nodes — the road surface covering each is what's asked)
+  if (mapV === 'v4') report('roads', 'drawn road surface over every OSM node', uncovered === 0 && meshN > 0, `${meshN} sampled nodes: ${uncovered} with no road surface drawn over them`);
+  else report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
   // connected: no road ends on another (same layer and structure) without joining it — that's a step or
   // a gap where they meet
   const deg = new Map<number, number>();
   for (const s of G.segs) for (const n of [s.from, s.to]) deg.set(n, (deg.get(n) ?? 0) + 1);
   const C = 25, cells = new Map<string, [any, number][]>();
   for (const s of G.segs) for (let k = 0; k + 3 < s.points.length; k += 3) { const kk = `${Math.floor(s.points[k] / C)},${Math.floor(s.points[k + 1] / C)}`; (cells.get(kk) ?? cells.set(kk, []).get(kk)!).push([s, k]); }
+  // (each way's nodes, whatever its segments: Map v4 splits a way at its joints and the tiles' borders too)
+  const wayNodes = new Map<number, Set<number>>();
+  for (const s of G.segs) { const w = wayNodes.get(s.way) ?? wayNodes.set(s.way, new Set()).get(s.way)!; w.add(s.from); w.add(s.to); }
   let loose = 0, unjoined = 0; const where: string[] = [];
   for (const s of G.segs) for (const [end, n] of [[0, s.from], [s.points.length - 3, s.to]]) {
     if (deg.get(n) !== 1) continue;
@@ -123,7 +132,7 @@ async function roadsTest() {
     for (let a = -2; a <= 2 && !hit; a++) for (let b = -2; b <= 2 && !hit; b++) for (const [o, k] of cells.get(`${Math.floor(x / C) + a},${Math.floor(z / C) + b}`) ?? []) {
       if (o.way === s.way || o.structure !== s.structure || o.layer !== s.layer) continue;
       // (a stub a few metres past a junction with that road — its other end one of the road's own nodes: joined there)
-      if ([o.from, o.to].includes(n === s.from ? s.to : s.from)) continue;
+      if ([o.from, o.to].includes(n === s.from ? s.to : s.from) || wayNodes.get(o.way)?.has(n === s.from ? s.to : s.from)) continue;
       const P = o.points, ax = P[k], az = P[k + 1], dx = P[k + 3] - ax, dz = P[k + 4] - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
       if (Math.hypot(x - ax - dx * t, z - az - dz * t) < o.width / 2 - 0.5) { hit = o; break; }
     }
@@ -162,7 +171,9 @@ async function heightTest() {
     if (vis === undefined && [-1, 0, 1].some(di => [-1, 0, 1].some(dj => !baked.has(`${t[0] + di}_${t[1] + dj}`)))) { edgeSkips++; continue; }
     if (!sims.has(key)) sims.set(key, await M.simAround(p.x, p.z, { radius: 10 }));
     // (what a wheel on this road stands on: the first solid ground below a point just over its surface)
-    const S = sims.get(key), phys = S.ground(p.x, p.z, p.h + 0.5, true, 3.4);
+    // (Map v4 puts a mesh vertex on every graph point — its cross-sections' crowns — and a ray straight down through a
+    // vertex can slip past it, Rapier's edge case, where no wheel ever is: 5 mm off it)
+    const off = mapV === 'v4' ? 0.005 : 0, S = sims.get(key), phys = S.ground(p.x + off, p.z + off, p.h + 0.5, true, 3.4);
     if (phys === null && edgeOfBake(t)) { edgeSkips++; continue; }
     const dv = vis === undefined ? Infinity : Math.abs(vis - p.h), dp = phys === null ? Infinity : Math.abs(phys - p.h);
     if (inFan(p) && vis !== undefined && phys !== null) { fans++; worstFan = Math.max(worstFan, dv, dp); continue; }
@@ -228,7 +239,7 @@ async function datumTest() {
     if (here.length) { atEdge.push(...here); near.push(...rest); worstKink = Math.max(worstKink, ...here); }
   }
   const p99 = quantile(near, 0.99) ?? 0, e99 = quantile(atEdge, 0.99) ?? 0, e50 = quantile(atEdge, 0.5) ?? 0, n50 = quantile(near, 0.5) ?? 0;
-  if (!atEdge.length) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (the slice is all LiDAR or sea)', true);
+  if (!atEdge.length) report('datum', 'LiDAR ↔ Copernicus blend', true, 'no LiDAR / Copernicus boundary in the baked tiles (all one source, or sea)', true);
   else report('datum', `LiDAR ↔ Copernicus blend (${atEdge.length} boundary points)`, e99 <= 1.5 * p99 + 0.1 && e50 <= 2 * n50 + 0.05, `change in slope across the boundary: ${e50.toFixed(2)} m median, ${e99.toFixed(2)} m 99th percentile (largest ${worstKink.toFixed(2)} m, on cliffs), against ${n50.toFixed(2)} m and ${p99.toFixed(2)} m on the ground round about: no step`);
   // the datum: both sources in EGM2008 should agree on open ground (Copernicus is a surface model, so a
   // median over open land, not every point)
@@ -395,6 +406,64 @@ async function streamingTest() {
   };
   let waited = 0;
   while (!S.readyAround(...S.toSim(sx, sz) as [number, number], 30) && waited < 60) { await step(sx, sz, 0, 0); waited += dt; }
+  // carving the ground under something built (a garage — play/garageBuilding.js): a square 20 m across on open ground
+  // near the start (nothing over it: no building, no road), its heightfield (the physics' ground, already made) lowered
+  // under the surface it's given, and put back after
+  {
+    for (let k = 0; k < 600 && S.status.building > 0; k++) await step(sx, sz, 0, 0);
+    let spot: number[] | null = null;
+    for (let r = 30; r <= 240 && !spot; r += 30) for (let a = 0; a < 8 && !spot; a++) {
+      const x = sx + r * Math.cos(a * Math.PI / 4), z = sz + r * Math.sin(a * Math.PI / 4), [qx, qz] = S.toSim(x, z), t = S.heightAt(qx, qz), g = t == null ? null : S.groundBelow(qx, qz, t + 60, 200);
+      if (t != null && g != null && Math.abs(g - t) < 0.02) spot = [x, z];
+    }
+    const [cx, cz] = spot ?? [sx + 40, sz + 40], [px, pz] = S.toSim(cx, cz), before = S.heightAt(px, pz);
+    const hit = () => S.groundBelow(px, pz, before + 50, 200);
+    const hitBefore = hit();
+    S.carve('test', { polys: [[[cx - 10, cz - 10], [cx + 10, cz - 10], [cx + 10, cz + 10], [cx - 10, cz + 10]]], below: () => before - 1 });
+    await step(sx, sz, 0, 0);
+    const after = S.heightAt(px, pz), hitAfter = hit();
+    S.carve('test', null);
+    await step(sx, sz, 0, 0);
+    const back = S.heightAt(px, pz), hitBack = hit(), onTerrain = hitBefore != null && Math.abs(hitBefore - before) < 0.05;
+    report('streaming', 'the ground carved under something built, and put back', Math.abs(after - (before - 1.15)) < 0.01 && back === before && (!onTerrain || (Math.abs(hitAfter - after) < 0.05 && Math.abs(hitBack - before) < 0.05)),
+      `the heightfield there ${before.toFixed(2)} → ${after.toFixed(2)} → ${back.toFixed(2)} m${onTerrain ? `; the physics' ground ${hitBefore.toFixed(2)} → ${hitAfter?.toFixed(2)} → ${hitBack?.toFixed(2)} m` : ' (a road over it there: the physics\' ground not checked)'}`);
+  }
+  // …and a tree and a car park inside a carving: neither solid there (they're not drawn there either), both back after
+  {
+    const e: any = [...S.tiles.values()].find((e: any) => e.physics && e.basePieces && e.added >= e.pieces.length && e.basePieces.some((p: any) => p.userData?.material === 'wood') && e.data.meshes.paved);
+    if (!e) report('streaming', 'a tree and a car park in a carving', false, 'no tile near the start with both, its collision all in');
+    else {
+      const tc = [(e.i + 0.5) * T, (e.j + 0.5) * T], tree = e.basePieces.find((p: any) => p.userData?.material === 'wood').desc.translation;
+      const square = (x: number, z: number, r: number) => [[[x - r, z - r], [x + r, z - r], [x + r, z + r], [x - r, z + r]]];
+      const top = (x: number, z: number) => { const [px, pz] = S.toSim(x, z); return S.groundBelow(px, pz, 900, 2000); };
+      const ground = (x: number, z: number) => { const [px, pz] = S.toSim(x, z); return S.heightAt(px, pz); };
+      // (a piece of car park with nothing over it, in any tile whose collision is all in)
+      let park: number[] | null = null;
+      for (const q of [...S.tiles.values()] as any[]) {
+        if (park || !q.physics || q.added < (q.pieces?.length ?? Infinity) || !q.data.meshes.paved) continue;
+        const pv = q.data.meshes.paved, I = pv.indices, Pp = pv.positions, qc = [(q.i + 0.5) * T, (q.j + 0.5) * T];
+        for (let n = 0; n + 2 < I.length && !park; n += 3) {
+          const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3, area = Math.abs((Pp[b] - Pp[a]) * (Pp[c + 2] - Pp[a + 2]) - (Pp[c] - Pp[a]) * (Pp[b + 2] - Pp[a + 2])) / 2;
+          if (area < 0.3) continue;
+          const x = qc[0] + (Pp[a] + Pp[b] + Pp[c]) / 3, z = qc[1] + (Pp[a + 2] + Pp[b + 2] + Pp[c + 2]) / 3, y = (Pp[a + 1] + Pp[b + 1] + Pp[c + 1]) / 3, t = top(x, z);
+          if (t != null && Math.abs(t - y) < 0.05) park = [x, z, y, t];
+        }
+      }
+      const [tx, tz] = [tc[0] + tree.x, tc[1] + tree.z], treeBefore = top(tx, tz), treeGround = ground(tx, tz)!;
+      S.carve('test-tree', { polys: square(tx, tz, 2), below: () => treeGround });
+      if (park) S.carve('test-park', { polys: square(park[0], park[1], 1), below: () => park![2] - 0.5 });
+      await step(sx, sz, 0, 0);
+      const treeIn = top(tx, tz), parkIn = park ? top(park[0], park[1]) : null;
+      S.carve('test-tree', null); S.carve('test-park', null);
+      await step(sx, sz, 0, 0);
+      const treeBack = top(tx, tz), parkBack = park ? top(park[0], park[1]) : null;
+      const okTree = treeBefore != null && treeBefore > treeGround + 1 && treeIn != null && treeIn < treeGround + 0.1 && Math.abs(treeBack! - treeBefore) < 0.01;
+      // (back as it was before the carving: the solid top there then, within 5 cm of the car park's own surface)
+      const okPark = !park || (parkIn! < park[2] - 0.5 && Math.abs(parkBack! - park[3]) < 0.01);
+      report('streaming', 'a tree and a car park in a carving: not solid there, back after', okTree && okPark,
+        `a tree's trunk top ${treeBefore?.toFixed(2)} → ${treeIn?.toFixed(2)} (the ground ${treeGround.toFixed(2)}) → ${treeBack?.toFixed(2)} m${park ? `; a car park ${park[3].toFixed(2)} → ${parkIn?.toFixed(2)} → ${parkBack?.toFixed(2)} m` : ' (no car park found near the start)'}`);
+    }
+  }
   const gc = (globalThis as any).gc ?? (() => {}), mem: any[] = [];
   let notReady = 0, falls = 0, worstAhead = Infinity, maxTiles = 0, maxColliders = 0, frames = 0;
   const seen = new Set<string>();
@@ -427,41 +496,50 @@ async function streamingTest() {
 async function determinismTest() {
   console.log('\nDeterminism: the same area baked twice');
   if (!fs.existsSync(path.join(M.root, '.cache/map', region, `${region}.osm.pbf`))) { report('determinism', 'baking twice', true, 'needs the bake\'s inputs in .cache/map (run a bake first)', true); return; }
-  const { bake } = await import('../../map/bake/bake.ts');
+  // (Map v4: its own bake, the road surface model's file with the rest)
+  const bake = mapV === 'v4' ? (await import('../../map/bake/bakeV4.ts')).bakeV4 : (await import('../../map/bake/bake.ts')).bake;
+  // (Map v4 bakes a block of tiles at a time: the second bake a block for every tile, with a wider pad — the same files,
+  // or a block's edge shows)
   const [la, lo] = [manifest.spawn.lat, manifest.spawn.lon], dirs = [0, 1].map(k => fs.mkdtempSync(path.join(os.tmpdir(), `map-det-${k}-`)));
-  for (const out of dirs) await bake({ regionId: region, area: `${la},${lo},0.6`, out, log: () => {} });
-  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz'];
+  for (const [k, out] of dirs.entries()) await bake({ regionId: region, area: `${la},${lo},${mapV === 'v4' ? 1.2 : 0.6}`, out, blocks: mapV === 'v4' && k === 1 ? { tiles: 1, pad: 400 } : null, log: () => {} } as any);
+  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz', ...(mapV === 'v4' ? ['roadmodel.json.gz'] : [])];
   const a = files(dirs[0]), diff = a.filter(f => !fs.readFileSync(path.join(dirs[0], f)).equals(fs.readFileSync(path.join(dirs[1], f))));
-  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : 'identical, byte for byte (tiles, far layer, road graph)');
+  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${mapV === 'v4' ? ', road surface model; the second bake a block per tile' : ''})`);
   for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
 }
 
 // ---------- the Phase 1 tests on a real road ----------
 async function physicsTest() {
+  // (the road: --road <name>, else the coast spot's if it's straight and level for long enough, else any main road;
+  // level — under 0.5% end to end and within a metre of that — as the car's targets are on the flat)
   const G = M.graph(), spot = (manifest.spots ?? []).find(s => s.id === 'coast');
-  // the longest straight stretch of one road (or chain of segments of it) in the baked tiles
-  const byName = new Map<string, any[]>();
-  for (const s of G.segs) if (s.name && s.structure === 'ground' && (spot ? s.name === spot.name : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
-  let best: number[][] = [], bestName = '';
-  for (const [name, list] of byName) {
-    // chain segments end to end (one carriageway)
-    const chains: number[][][] = [];
-    for (const s of list) { const pts: number[][] = []; for (let k = 0; k < s.points.length; k += 3) pts.push([s.points[k], s.points[k + 1]]); const c = chains.find(c => Math.hypot(c[c.length - 1][0] - pts[0][0], c[c.length - 1][1] - pts[0][1]) < 0.5); if (c) c.push(...pts.slice(1)); else chains.push(pts); }
-    for (let merged = true; merged;) { merged = false; for (const a of chains) for (const b of chains) if (a !== b && a.length && b.length && Math.hypot(a[a.length - 1][0] - b[0][0], a[a.length - 1][1] - b[0][1]) < 0.5) { a.push(...b.slice(1)); b.length = 0; merged = true; } }
-    for (const c of chains) {
-      // its longest part within a metre of a straight line, all baked
-      for (let a = 0, b = 1; b < c.length; b++) {
-        if (!isBaked(c[b][0], c[b][1])) { a = b + 1; continue; }
-        const offFn = (a_: number, b_: number) => { const [ax, az] = c[a_], [bx, bz] = c[b_], l = Math.hypot(bx - ax, bz - az) || 1; let m = 0; for (let q = a_; q <= b_; q++) m = Math.max(m, Math.abs((c[q][0] - ax) * (bz - az) - (c[q][1] - az) * (bx - ax)) / l); return m; };
-        while (a < b && offFn(a, b) > 1) a++;
-        const len = Math.hypot(c[b][0] - c[a][0], c[b][1] - c[a][1]), bl = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
-        if (len > bl) { best = c.slice(a, b + 1); bestName = name; }
+  // the longest straight, level stretch of one road (or chain of segments of it) in the baked tiles
+  const longest = (want: string | null) => {
+    const byName = new Map<string, any[]>();
+    for (const s of G.segs) if (s.name && s.structure === 'ground' && (want ? s.name === want : s.rank >= 5)) (byName.get(s.name) ?? byName.set(s.name, []).get(s.name)!).push(s);
+    let best: number[][] = [], bestName = '';
+    for (const [name, list] of byName) {
+      // chain segments end to end (one carriageway)
+      const chains: number[][][] = [];
+      for (const s of list) { const pts: number[][] = []; for (let k = 0; k < s.points.length; k += 3) pts.push([s.points[k], s.points[k + 1], s.points[k + 2]]); const c = chains.find(c => Math.hypot(c[c.length - 1][0] - pts[0][0], c[c.length - 1][1] - pts[0][1]) < 0.5); if (c) c.push(...pts.slice(1)); else chains.push(pts); }
+      for (let merged = true; merged;) { merged = false; for (const a of chains) for (const b of chains) if (a !== b && a.length && b.length && Math.hypot(a[a.length - 1][0] - b[0][0], a[a.length - 1][1] - b[0][1]) < 0.5) { a.push(...b.slice(1)); b.length = 0; merged = true; } }
+      for (const c of chains) {
+        // its longest part within a metre of a straight, level line, all baked
+        for (let a = 0, b = 1; b < c.length; b++) {
+          if (!isBaked(c[b][0], c[b][1])) { a = b + 1; continue; }
+          const offFn = (a_: number, b_: number) => { const [ax, az, ay] = c[a_], [bx, bz, by] = c[b_], l = Math.hypot(bx - ax, bz - az) || 1; if (Math.abs(by - ay) > 0.005 * l) return Infinity; let m = 0; for (let q = a_; q <= b_; q++) { const u = ((c[q][0] - ax) * (bx - ax) + (c[q][1] - az) * (bz - az)) / (l * l); m = Math.max(m, Math.abs((c[q][0] - ax) * (bz - az) - (c[q][1] - az) * (bx - ax)) / l, Math.abs(c[q][2] - (ay + (by - ay) * u))); } return m; };
+          while (a < b && offFn(a, b) > 1) a++;
+          const len = Math.hypot(c[b][0] - c[a][0], c[b][1] - c[a][1]), bl = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
+          if (len > bl) { best = c.slice(a, b + 1); bestName = name; }
+        }
       }
     }
-  }
-  const L = best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0;
+    return { best, bestName, L: best.length ? Math.hypot(best[best.length - 1][0] - best[0][0], best[best.length - 1][1] - best[0][1]) : 0 };
+  };
+  let { best, bestName, L } = longest(opt('--road') ?? spot?.name ?? null);
+  if (L < 900 && !opt('--road') && spot?.name) ({ best, bestName, L } = longest(null));
   console.log(`\nThe Phase 1 straight-line tests on a real road: ${bestName} (${L.toFixed(0)} m straight)`);
-  if (L < 900) { report('physics', 'a real road', false, `the longest straight baked road is ${L.toFixed(0)} m (900 m needed: bake the full region)`); return; }
+  if (L < 900) { report('physics', 'a real road', false, `the longest straight, level baked road is ${L.toFixed(0)} m (900 m needed: bake the full region)`); return; }
   const pts: number[][] = [];
   for (let s = 0; s < L; s += 2) pts.push([best[0][0] + (best[best.length - 1][0] - best[0][0]) * s / L, best[0][1] + (best[best.length - 1][1] - best[0][1]) * s / L]);
   const origin = [Math.floor(pts[0][0] / T) * T, Math.floor(pts[0][1] / T) * T], simPts = pts.map(([x, z]) => [x - origin[0], z - origin[1]]);
@@ -490,7 +568,7 @@ async function physicsTest() {
 
 const TESTS: Record<string, () => Promise<void>> = { roads: roadsTest, height: heightTest, seams: seamsTest, datum: datumTest, rails: railTest, streaming: streamingTest, determinism: determinismTest, physics: physicsTest };
 const t0 = performance.now();
-console.log(`Map v3's tests: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
+console.log(`Map v3's tests${mapV === 'v4' ? ' on the Map v4 bake' : ''}: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
 for (const [id, fn] of Object.entries(TESTS)) if (!only || only.includes(id) || (id === 'streaming' && only.includes('memory'))) await fn();
 const failed = rows.filter(r => !r.pass);
 console.log(`\n${rows.length - failed.length} of ${rows.length} passed${rows.some(r => r.skipped) ? ` (${rows.filter(r => r.skipped).length} skipped)` : ''} in ${((performance.now() - t0) / 1000).toFixed(0)} s${failed.length ? ` — failed: ${failed.map(r => `${r.test}: ${r.name}`).join('; ')}` : ''}\n`);

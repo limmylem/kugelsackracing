@@ -29,7 +29,7 @@
 import { createQuestSession } from '../quest/session.js';
 import { createAiDriver } from '../ai/driver.js';
 import { rng as makeRng, hashSeed } from '../ai/rng.js';
-import { speedPlan, carCaps, lapTime } from '../route/racingLine.js';
+import { speedPlan, carCaps, wetCaps, lapTime } from '../route/racingLine.js';
 import { groundHeight } from '../physics/ai.js';
 import { fittedRacing } from './fit.js';
 import { CarDamage } from '../garage/carDamage.js';
@@ -38,6 +38,7 @@ import { createSession } from '../physics/race.js';
 import { headingOf } from '../route/grid.js';
 
 const BIN = 10;
+const CLEAR_M = 7;          // (a car put back into the physics from its cheap run: at least this far from any other car)
 // a spec refilled in place, as the game's own car's is (garage/session.js assignDeep)
 function assignDeep(target, source) {
   for (const k of Object.keys(target)) if (!(k in source)) delete target[k];
@@ -50,6 +51,8 @@ function assignDeep(target, source) {
 
 export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRules, playerSession, npcs, seed = 1, collisions = 'full', rubberBand = false, isVisible = null, playerName = 'You' }) {
   const L = course.length, loop = course.loop;
+  // (a wet road: the NPCs plan their speeds on the grip the weather leaves — physics/sim.js setGrip)
+  const wet = sim.gripScale ?? 1;
   // (a finished NPC's cool-down lap: its speeds at 60%)
   const COOL_DOWN = { corner: -0.64, braking: 0 }, RUN_OUT = 80;
   // (the racing line fitted to the world's kerbs and walls, now they're loaded)
@@ -72,7 +75,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   const npcQuest = { ...quest, type: 'sprint', params: { ...(quest.params ?? {}), laps, start: 'standing' } };
   for (const [i, n] of npcs.entries()) {
     const id = i + 1, slot = course.grid.slots[n.slot ?? i + 1] ?? course.grid.slots.at(-1);
-    const caps = carCaps(n.build.stats);
+    const caps = wetCaps(carCaps(n.build.stats), wet);
     const r = makeRng(hashSeed(seed, n.profile.id, i));
     const plan = speedPlan(RL, caps, { loop, corner: n.params.cornerMargin, braking: n.params.brakingPoint, start: 0 });
     const racer = { id, player: false, name: n.profile.name, profile: n.profile, params: n.params, build: n.build, spec: n.spec, caps, plan, basePlan: plan, slot, passes: [], status: 'grid', finishTime: null, adjust: { corner: 0, braking: 0 }, lod: 'full', lodSince: 0, damage: null, condition: 100, retired: false, resets: 0, cheap: null };
@@ -152,7 +155,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
         else if (e.type === 'fail') retire(r, e.outcome.text ?? 'failed');
       }
       r.driver.tick(dt);
-      if (r.driver.state.wantsReset && r.status === 'racing') { emit({ type: 'npc-stuck', id: r.id, x: p.x, z: p.z, u: uOf(r) }); resetNpc(r, r.session.tracker.resetPoint(), 'stuck'); }
+      if (r.driver.state.wantsReset && r.status === 'racing') { emit({ type: 'npc-stuck', id: r.id, x: p.x, z: p.z, u: uOf(r), why: r.driver.state.resetWhy ?? null }); resetNpc(r, r.session.tracker.resetPoint(), 'stuck'); }
     }
     // the player's progress and status
     if (player && P.state === 'racing') player.status = 'racing';
@@ -201,7 +204,7 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
     if (!ok || r.condition < D.retireBelow) { retire(r, ok ? 'too badly damaged' : 'undrivable'); return; }
     // slower in step with the damage
     const f = r.condition >= D.slowFrom ? 1 : 0.65 + 0.35 * (r.condition - D.retireBelow) / (D.slowFrom - D.retireBelow);
-    r.caps = carCaps(stats);
+    r.caps = wetCaps(carCaps(stats), wet);
     r.plan = speedPlan(RL, { ...r.caps, grip: r.caps.grip * (0.85 + 0.15 * f), power: r.caps.power * f }, { loop, corner: r.params.cornerMargin, braking: r.params.brakingPoint, start: 0 });
     r.driver.setPlan(r.plan);
   }
@@ -316,6 +319,17 @@ export function createRace({ sim, frame, course, quest, qcfg, cfg, db, sessionRu
   }
   function leaveCheap(r, dist = null) {
     const C = r.cheap;
+    // (two cars run cheaply along the same line can be in the same place: put back into the physics on top of one
+    // another, they burst apart — one rolled. Moved back along its line until it's clear of every car that's in it)
+    const clearOf = () => racers.every(o => { if (o === r || o.cheap || o.status === 'retired') return true; const q = posOf(o); return Math.hypot(q.x - C.x, q.z - C.z) >= CLEAR_M; });
+    for (let i = 0; i < 12 && !clearOf(); i++) {
+      C.s -= CLEAR_M / 2;
+      if (C.s < 0) C.s = loop ? C.s + RL.length : 0;
+      while (C.k > 0 && RL.points[C.k].s > C.s) C.k--;
+      if (loop && RL.points[C.k].s > C.s) C.k = RL.points.length - 1;
+      while (C.k < RL.points.length - 1 && RL.points[C.k + 1].s <= C.s) C.k++;
+      placeCheap(r);
+    }
     r.cheap = null;
     r.car.offPhysics = false;
     r.car.vehicle.body.setEnabled(true);

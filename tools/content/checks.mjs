@@ -7,7 +7,8 @@
 // are there, up to date and passing. Parts that perform the same and share their models (a family's finishes) are
 // checked once.
 //
-//   runChecks({ only, all, log }) → { checked, reused, failed: [{ id, problems }], drafts: [{ id, problems }], known: [{ id, car, text }], classes }
+//   runChecks({ only, all, log, progress }) → { checked, reused, failed: [{ id, problems }], drafts: [{ id, problems }], known: [{ id, car, text }], classes }
+//     (progress({ done, total }) after each part checked)
 //   verify() → { problems: [plain words], parts, families, engines }
 
 import crypto from 'node:crypto';
@@ -93,7 +94,7 @@ function pool(n) {
   };
 }
 
-export async function runChecks({ root = ROOT, only = null, all = false, log = () => {} } = {}) {
+export async function runChecks({ root = ROOT, only = null, all = false, log = () => {}, progress = () => {} } = {}) {
   const { db } = await loadProject(root), have = readResults(root), rulesKey = sha(fs.readFileSync(path.join(root, 'data/content/check-rules.json')));
   if (have.rules !== rulesKey) all = true;          // (the rules changed: everything again)
   const carKeys = Object.fromEntries(Object.values(db.cars).map(c => [c.id, carKeyOf(root, c)]));
@@ -128,6 +129,7 @@ export async function runChecks({ root = ROOT, only = null, all = false, log = (
     const m = await P.run(job);
     results.set(job.partId, m.error ? { error: m.error } : m.results);
     if (++done % 25 === 0 || done === jobs.length) log(`  ${done}/${jobs.length} parts (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+    progress({ done, total: jobs.length });
   }));
   const classResults = await Promise.all(classJobs);
   await P.close();

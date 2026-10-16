@@ -220,6 +220,9 @@ export function carCaps(stats) {
   };
 }
 
+// A car's numbers on a wet road (the weather's grip, k: physics/sim.js setGrip): its cornering, braking and traction × k
+export const wetCaps = (caps, k = 1) => k === 1 ? caps : { ...caps, grip: caps.grip * k, brake: caps.brake * k, traction: caps.traction * k };
+
 const wheelbaseOf = s => { const m = s.suspension?.mounts ?? s.wheels?.mounts; if (m?.FL && m?.RL) return Math.abs(m.FL[2] - m.RL[2]); return s.wheelbase ?? 2.6; };
 
 // The speed a car can carry at each point of the racing line. corner: the share of its grip it corners at

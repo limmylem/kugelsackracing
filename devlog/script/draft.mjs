@@ -52,7 +52,10 @@ export function highlightsSince(since) {
 // Does a commit change the game players get? Not if every file it touches is behind the scenes. (A commit with no
 // file list — the tests' made-up ones — is judged by its words alone.)
 const BACKSTAGE_PATHS = /^(devlog\/|docs\/|tests\/|tools\/|perf\/|\.github\/|deploy\/|docker|admin\/|editor\/|incoming\/|server\/(tools|test|scripts)\/|[^/]+\.(md|ya?ml|json|txt)$|\.[^/]+$|Dockerfile)/i;
-export const playerFacing = c => !c.files?.length || c.files.some(f => !BACKSTAGE_PATHS.test(f));
+// What this video is about, as typed (the admin page's Devlog tab, the workflow's "focus" box): lines split on | or
+// line breaks, as highlights.md's lines are read (not comments, not blank)
+export const focusLines = text => String(text ?? '').split(/\||\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+export const playerFacing =c => !c.files?.length || c.files.some(f => !BACKSTAGE_PATHS.test(f));
 
 // ---------- from a commit subject to a caption ----------
 // (behind-the-scenes work players never see: left out of the captions, still listed in the notes)
@@ -206,7 +209,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
   const date = opt('--today', today());
   const since = opt('--since', null) ?? lastDevlog(date);
-  const d = draft({ commits: commitsSince(since), since, date, highlights: highlightsSince(since) });
+  // (--focus "line | line | HOOK: …": what this video is about, written on the admin page's Devlog tab or in the
+  // workflow's box — used in place of devlog/highlights.md's new lines)
+  const focus = opt('--focus', null), highlights = focus != null ? focusLines(focus) : highlightsSince(since);
+  const d = draft({ commits: commitsSince(since), since, date, highlights });
   const out = path.resolve(opt('--out', path.join(DEVLOG, 'out/script.txt')));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, scriptText(d, date));

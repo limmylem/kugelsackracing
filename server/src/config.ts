@@ -43,13 +43,18 @@ const FileConfig = z.object({
   // multiplayer (Phase 7 Step 1; docs/MULTIPLAYER.md): who may join the real-time server, how long a join ticket
   // lasts, how many players (in all its processes) and a room take, whether the network simulator may be used, and
   // (development and tests only) whether a window may play as its own guest with ?player=A (two windows, one browser)
-  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), devPlayers: z.boolean() }),
+  rt: z.object({ allowGuests: z.boolean(), ticketSec: z.number().int().min(10).max(600), maxPlayers: z.number().int().min(1), roomMaxClients: z.number().int().min(2).max(1000), netsim: z.boolean(), voiceGuests: z.boolean().optional(), devPlayers: z.boolean() }),
   // (Phase 7 Step 5) a result that fails its check — a race's run, a free-roam challenge: 'flag' keeps the result (paid
   // as normal) and flags it for an admin to review; 'disqualify' takes it away (DSQ, nothing paid). Nothing bans by itself
   antiCheat: z.object({ action: z.enum(['flag', 'disqualify']) }).default({ action: 'flag' }),
+  // the admin page's Builder (docs/CONTENT_PIPELINE.md): 'local' writes the repository's files and runs the content
+  // pipeline here (a development copy: npm run server:dev); 'github' (the live server, whose files aren't the
+  // repository) works out what a family makes and its previews here, and sends what's made to the content-builder
+  // workflow in `repo`, which makes it, commits it to main and starts the deploy (CONTENT_BUILDER_TOKEN)
+  contentBuilder: z.object({ enabled: z.boolean(), mode: z.enum(['local', 'github']).default('local'), repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/).optional() }).default({ enabled: false, mode: 'local' }),
   // how long personal data is kept (ops/retention.ts, docs/PRIVACY_DATA.md): days
   retention: z.object({ guestInactiveDays: z.number().int().min(1), sessionsExpiredDays: z.number().int().min(0), signalsDays: z.number().int().min(1), supportDays: z.number().int().min(1),
-    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1), analyticsDays: z.number().int().min(1).optional() }),
+    reportsDays: z.number().int().min(1), flagsDays: z.number().int().min(1), inviteUsesDays: z.number().int().min(1), auditDays: z.number().int().min(1), alertsDays: z.number().int().min(1), evidenceDays: z.number().int().min(1).optional(), analyticsDays: z.number().int().min(1).optional() }),
 });
 
 const optional = z.string().optional().transform(v => v?.trim() ? v.trim() : null);
@@ -88,6 +93,10 @@ const Env = z.object({
   // (Phase 7 Step 5) the load test's bots (server/tools/online-bots.ts) send this in x-kr-loadtest for join tickets of their
   // own: guests made up for the test, no account (empty: off)
   LOADTEST_TOKEN: optional,
+  // the live Builder's GitHub token (contentBuilder.mode 'github'): a fine-grained token for this repository with only
+  // Actions read and write — it starts the content-builder workflow, reads its runs and cancels them (empty: the
+  // Builder works out and previews, but can't make anything)
+  CONTENT_BUILDER_TOKEN: optional,
   // (Phase 7) the real-time server: the secret its join tickets are signed with (shared by the API and it; in
   // development and tests made from BETTER_AUTH_SECRET), and Redis (its presence; bans reach it through Redis)
   RT_SECRET: optional,
@@ -141,6 +150,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     rtSecret: rtSecretOf(E.RT_SECRET, E.BETTER_AUTH_SECRET), redisUrl: E.REDIS_URL,
     alertEmail: E.ALERT_EMAIL, alertWebhook: E.ALERT_WEBHOOK_URL, metricsToken: E.METRICS_TOKEN,
     loadtestToken: E.LOADTEST_TOKEN ?? null,
+    contentBuilderToken: E.CONTENT_BUILDER_TOKEN ?? null,
     ...f.data,
   };
 }

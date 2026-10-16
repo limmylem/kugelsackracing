@@ -67,7 +67,9 @@ export function encodeTile(tile: Tile, E: any): Uint8Array {
     }
     if (order) {
       const vb2 = new Uint8Array(vb.length);
-      for (let v = 0; v < n; v++) if (order[v] !== 0xffffffff) vb2.set(vb.subarray(v * stride, v * stride + stride), order[v] * stride);
+      // (a vertex past the last one any triangle uses has no place in the order — it isn't used: left out, not written
+      // over the first)
+      for (let v = 0; v < n; v++) if (v < order.length && order[v] !== 0xffffffff) vb2.set(vb.subarray(v * stride, v * stride + stride), order[v] * stride);
       vb.set(vb2);
     }
     const idx32 = n > 65535, ib = idx32 ? Uint32Array.from(indices) : Uint16Array.from(indices);

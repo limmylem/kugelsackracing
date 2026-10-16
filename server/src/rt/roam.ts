@@ -20,11 +20,12 @@
 //   - (Phase 7 Step 5) a challenge's record reaches the API however long that takes (outbox.ts); while the server drains
 //     for an update, players are told, no challenge starts, and crossing into the next zone still works
 //
-// The game's messages ('mp', JSON): settings { settings } · party { id } · home { home } · challenge { to, type, dest? } ·
+// The game's messages ('mp', JSON): settings { settings } · party { id } · home { home } · rooms { rooms, home } · challenge { to, type, dest? } ·
 //   challenge-answer { id, yes } · challenge-cancel { id } · chat { scope: 'nearby' | 'party', text } · wheel { id, scope } ·
 //   emote { id } · inspect { uid } · report { uid, details } · meet-park { meet } · meet-leave · contact-report (Step 3)
 // What it sends: hello · touch { with, passive, ghostUntil, … } · map { players } · challenge-invite / -sent / -start /
-//   -event { id, event: { t: 'go' | 'hold' | 'checkpoint' | 'finish' | 'penalty' | 'dnf' | 'done' | … } } / -results / -declined · chat · emote · inspect · meet-spot · notice · contact / contact-rejected / ghosts / ramming
+//   -event { id, event: { t: 'go' | 'hold' | 'checkpoint' | 'finish' | 'penalty' | 'dnf' | 'done' | … } } / -results / -declined · chat · emote · inspect · meet-spot · notice · contact / contact-rejected / ghosts / ramming · car-elsewhere { uid } (this zone stops
+//   sending that car in shareSec: another sends it)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,13 +43,15 @@ import { REPO_DIR } from '../config.ts';
 import { createReferee } from './contact.ts';
 import { safetyTier, yawOf } from '../../../mp/contact.js';
 import { createChatGate } from '../../../mp/lobby.js';
-import { touches, nameFor, seesOnMap, createAutoGhost, mapPoint, toggleAllowed, zoneSize, zoneOf, meetSpots, nearestFreeSpot } from '../../../mp/roam.js';
+import { voiceMode } from '../../../mp/voice.js';
+import { onVoice, voiceEntries, putVoice, dropVoice, refreshed, voicesOf, VOICE_KEY, type VoiceWho } from './voice.ts';
+import { senderRoom, touches, nameFor, seesOnMap, createAutoGhost, mapPoint, toggleAllowed, zoneSize, zoneOf, meetSpots, nearestFreeSpot } from '../../../mp/roam.js';
 import { createChallengeBook, createFlashDetector, sprintRoute, createChallengeRun } from '../../../mp/challenge.js';
 import { createNetwork } from '../../../route/network.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
 
 const STOCK = { mass: 1300, box: { halfExtents: [0.9, 0.6, 2.2], centre: [0, 0.7, 0] } };
-const SETTING_KEYS = ['location', 'appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact'] as const;
+const SETTING_KEYS = ['location', 'appearOffline', 'nearbyChat', 'names', 'contact', 'passive', 'partyContact', 'voiceParty', 'voiceNearby'] as const;
 const MAP_KEY = (region: string) => `rt:roam:map:${region}`, GHOST_KEY = (uid: string) => `rt:roam:ghost:${uid}`;
 const TRAIL_SEC = 20;
 
@@ -67,7 +70,9 @@ export function networkOf(region: string) {
   if (networks.has(region)) return networks.get(region);
   let N: any = null;
   try {
-    const dir = path.join(REPO_DIR, 'assets/map', region.replace(/[^a-z0-9_-]/gi, ''));
+    const base = path.join(REPO_DIR, 'assets/map', region.replace(/[^a-z0-9_-]/gi, ''));
+    // (Map v4's bake when the region has one: the game's)
+    const dir = fs.existsSync(path.join(base, 'v4', 'manifest.json')) ? path.join(base, 'v4') : base;
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
     const P = transverseMercator(m.projection.lat0, m.projection.lon0);
     N = createNetwork(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, 'graph.json.gz'))).toString()), { P, region, version: m.version, bbox: m.bbox } as any);
@@ -103,6 +108,7 @@ type Roam = {
   home: boolean; ghostUntil: number; challenge: string | null; toggles: Record<string, number>; chat: (now: number) => boolean;
   car: { instanceId?: string; carId?: string; name?: string; cls?: string; pr?: number; mass: number; box: any };
   lights: boolean; trail: number[][]; touchKey: string; meet: { id: string; spot: number } | null; reports: number[]; off: () => void; savedAt: number;
+  rooms: string[] | null; homeRoom: string | null; sending: Map<string, { until: number; told: boolean }>;   // (the rooms the game says it's in; whose cars this room sends it, until when; told it's stopping)
 };
 
 export class RoamRoom extends TestRoom {
@@ -118,6 +124,7 @@ export class RoamRoom extends TestRoom {
   meets = new Map<string, Map<number, string>>();   // meet id → spot → uid
   referee: ReturnType<typeof createReferee> | null = null;
   slowTicks = 0;
+  voiceTicks = 0;
 
   // ("server full" refuses a player coming in, never one already here: a neighbouring zone, a handoff, a lost connection joined again)
   static async onAuth(token: string, options: any) { const here = !!(options?.extra || options?.handoff || options?.rejoin); return authorize(token, options, { count: !here, continuing: here }); }
@@ -143,10 +150,26 @@ export class RoamRoom extends TestRoom {
     });
     this.clock.setInterval(() => { try { this.roamTick(); } catch (e: any) { rtEnv.log('rt roam tick failed', { err: e?.stack ?? e?.message }); } }, 100);
     this.clock.setInterval(() => void this.slowTick().catch(e => rtEnv.log('rt roam tick failed', { err: e?.message })), ROAM.zones.mapEverySec * 1000);
+    this.clock.setInterval(() => void this.voiceTick().catch(e => rtEnv.log('rt roam voice tick failed', { err: e?.message })), ROAM.voice.everySec * 1000);
     void this.meta();
   }
   onDispose() { super.onDispose(); RoamRoom.live.delete(this); for (const r of this.roam.values()) r.off(); }
 
+  // each car to each player by one room (mp/roam.js senderRoom), not by every zone the two share near a border; the one
+  // that stops sends for shareSec more (the game lines the switch up with both: mp/roamClient.js)
+  protected sends(viewer: Player, target: Player, now: number) {
+    if (!ROAM.zones.oneSender) return true;
+    const v = this.roam.get(viewer.t.uid), t = this.roam.get(target.t.uid);
+    if (!v || !t) return true;
+    const pick = senderRoom({ rooms: v.rooms, home: v.homeRoom }, { rooms: t.rooms, home: t.homeRoom });
+    if (pick == null || pick === this.roomId) { v.sending.set(t.uid, { until: now + (ROAM.zones.shareSec ?? 2) * 1000, told: false }); return true; }
+    const s = v.sending.get(t.uid);
+    if (!s) return false;
+    if (now >= s.until) { v.sending.delete(t.uid); return false; }
+    // (the game told once: it draws the car from the room that carries on, while both still send — car-elsewhere)
+    if (!s.told) { s.told = true; this.sendTo(viewer, { t: 'car-elsewhere', uid: t.uid }); }
+    return true;
+  }
   protected pageOf(options: any) { return typeof options?.page === 'string' ? options.page.slice(0, 40) : null; }
   protected hidden(viewer: Player, target: Player) {
     const v = this.roam.get(viewer.t.uid), t = this.roam.get(target.t.uid);
@@ -172,6 +195,7 @@ export class RoamRoom extends TestRoom {
       uid: t.uid, name: t.name, settings: cleanSettings(options?.settings, cleanSettings(mp.roam?.settings)), friends: new Set(mp.friends ?? []), blocked: new Set(mp.blocked ?? []),
       partyId: null, party: new Set(), home: options?.home !== false, ghostUntil: Math.max(0, Number(mp.roam?.ghostUntil) || 0), challenge: null, toggles: {}, chat: createChatGate(ROAM.chat),
       car: { ...(cur ?? {}), mass: cur?.mass ?? STOCK.mass, box: cur?.box ?? STOCK.box }, lights: false, trail: [], touchKey: '', meet: null, reports: [], off: () => {}, savedAt: 0,
+      rooms: null, homeRoom: null, sending: new Map(),
     };
     this.roam.get(t.uid)?.off();
     this.roam.set(t.uid, r);
@@ -185,7 +209,7 @@ export class RoamRoom extends TestRoom {
     void Promise.resolve(matchMaker.presence.get(GHOST_KEY(t.uid))).then(v => { const until = Number(v); if (until > Date.now()) { r.ghostUntil = until; this.pushTouch(); } }).catch(() => {});
     if (typeof options?.party === 'string') void this.setParty(r, options.party);
     // (anyone blocked either way who's here: gone from each other's view — the hidden() check; their cars stop now)
-    this.sendTo(p, { t: 'hello', you: t.uid, zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes });
+    this.sendTo(p, { t: 'hello', you: t.uid, zone: this.zone, group: this.group, region: this.region, roomId: this.roomId, settings: r.settings, wheel: ROAM.chat.wheel, emotes: ROAM.meets.emotes, voice: !!rtEnv.voice && (!t.guest || !!rtEnv.voiceGuests) });
     this.pushTouch();
     void this.meta();
     if (r.home) void this.status(r);
@@ -360,6 +384,8 @@ export class RoamRoom extends TestRoom {
       }
       case 'party': return this.setParty(r, typeof m.id === 'string' ? m.id.slice(0, 40) : null);
       case 'home': r.home = !!m.home; if (r.home) void this.status(r); return;
+      // (the rooms this player's game is in now, and its home zone's: each car sent it by one of them — sends())
+      case 'rooms': r.rooms = Array.isArray(m.rooms) ? m.rooms.filter((x: any) => typeof x === 'string').slice(0, 9).map((x: string) => x.slice(0, 40)) : null; r.homeRoom = typeof m.home === 'string' ? m.home.slice(0, 40) : null; return;
       case 'challenge': return this.challenge(p, { to: m.to, type: m.type, dest: m.dest, how: 'menu' });
       case 'challenge-answer': {
         const res = this.book.answer(String(m.id ?? ''), r.uid, !!m.yes, now);
@@ -405,7 +431,32 @@ export class RoamRoom extends TestRoom {
       case 'meet-park': return this.park(p, r, m.meet);
       case 'meet-leave': if (r.meet) { this.meets.get(r.meet.id)?.delete(r.meet.spot); r.meet = null; } return;
       case 'contact-report': return this.referee?.report(r.uid, m);
+      // (the game's ready to hear whether this server has voice chat: the hello may have come before it was listening)
+      case 'voice-hello': return this.sendTo(p, { t: 'voice-hello', voice: !!rtEnv.voice && (!p.t.guest || !!rtEnv.voiceGuests) });
+      case 'voice-join': case 'voice-mic': case 'voice-pull': case 'voice-answer': case 'voice-drop': case 'voice-leave':
+        return void onVoice(rtEnv.voice ?? null, this.voiceWho(p, r), m, msg => this.sendTo(p, msg), rtEnv.log);
     }
+  }
+  // ---------- voice chat (./voice.ts) ----------
+  voiceWho(p: Player, r: Roam): VoiceWho { return { uid: r.uid, name: r.name, guest: !!p.t.guest && !rtEnv.voiceGuests, region: this.region, pos: p.latestF?.pos ?? null, party: r.partyId, settings: r.settings, blocked: r.blocked }; }
+  // every voice.everySec: each player at home here who's in voice chat — their entry kept fresh, and the voices they hear
+  async voiceTick() {
+    if (!rtEnv.voice) return;
+    const entries = await voiceEntries();
+    for (const r of this.roam.values()) {
+      const e = r.home ? entries.find(x => x.uid === r.uid) : null, p = e && this.playerOf(r.uid);
+      // (in a lobby or a race: that room's voice chat has them — server/src/rt/race.ts — not free roam's)
+      if (!e || !p || e.room) continue;
+      const me = refreshed(e, this.voiceWho(p, r));
+      await putVoice(me);
+      const rel = this.relOf(r.uid), peers = (await voicesOf(me, r.blocked)).map(v => {
+        const o = entries.find(x => x.uid === v.uid);
+        return { uid: v.uid, name: nameFor(r.uid, { uid: v.uid, name: v.name, settings: o?.privacy ?? {} }, rel), d: v.d == null ? null : Math.round(v.d / 5) * 5, party: v.party };
+      });
+      this.sendTo(p, { t: 'voice', mode: voiceMode(me), mic: me.mic, peers });
+    }
+    // (now and then: entries long gone, out of presence)
+    if (++this.voiceTicks % 60 === 1) for (const [uid, v] of Object.entries((await matchMaker.presence.hgetall(VOICE_KEY)) ?? {})) { try { if (Date.now() - JSON.parse(String(v)).at > ROAM.voice.staleSec * 4000) await dropVoice(uid); } catch { await dropVoice(uid); } }
   }
   nearby(p: Player, msg: any, within: number, ok: (o: Roam) => boolean = () => true) {
     const at = p.latestF?.pos;

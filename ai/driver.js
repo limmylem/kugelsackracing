@@ -209,7 +209,7 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
     S.upside = up[1] < 0.3 ? S.upside + dt : 0;
     const tx = (P[wrap(S.k + 1)].x - here.x), tz = (P[wrap(S.k + 1)].z - here.z), tl = Math.hypot(tx, tz) || 1;
     const facing = (fx * tx + fz * tz) / tl;
-    if (S.upside > 1.5 || S.dist > R.farFromRoute) { S.wantsReset = true; return idle; }
+    if (S.upside > 1.5 || S.dist > R.farFromRoute) { S.wantsReset = true; S.resetWhy = S.upside > 1.5 ? 'on its roof' : `${Math.round(S.dist)} m from the route`; return idle; }
     if (S.mode === 'reverse') {
       S.reverseFor -= dt;
       // (a run-up: backed far enough down the hill to have another go with some speed)
@@ -229,7 +229,7 @@ export function createAiDriver({ id, rl, line, loop, plan, caps, params: K, rng,
     if (facing < -0.2 && Math.abs(speed) < 6) S.stuck += dt;           // (spun round: straighten up)
     if (S.stuck > R.stuckSeconds) {
       S.stuck = 0; S.tries++; S.stuckAt = S.u;
-      if (S.tries > R.tries) { S.wantsReset = true; return idle; }
+      if (S.tries > R.tries) { S.wantsReset = true; S.resetWhy = `stuck ${S.tries - 1} times`; return idle; }
       S.mode = 'reverse'; S.reverseFor = R.reverseSeconds; S.runUp = null;
       // (stalled on a steep climb — too steep to pull away on: straight back down it for a run-up)
       { const a = P[S.k], b = P[wrap(S.k + Math.round(10 / step))], grade = (b.h - a.h) / Math.max(1, Math.abs(b.s - a.s));

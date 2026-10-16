@@ -47,7 +47,7 @@ export const quat = {
 };
 
 const pct = (sorted, p) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : 0;
-const LAGS = 150, KEEP_MS = 4000, TELEPORT_M = 20, A_MAX = 15, A_KNOCK = 40, STOP_TAU = 0.5;
+const LAGS = 150, KEEP_MS = 4000, RESUME_MS = 1500, TELEPORT_M = 20, A_MAX = 15, A_KNOCK = 40, STOP_TAU = 0.5;
 const smooth = u => u * u * (3 - 2 * u);
 // a world-frame spin (rad/s) taking rotation a to b in dt seconds
 quat.between = (a, b, dt) => {
@@ -124,6 +124,9 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     push(state, arrivedAt) {
       if (buf.some(s => s.time === state.time)) return;
       if (buf.length && state.time < buf[0].time) return;               // (too late to be any use)
+      // (sent again after a long gap — free roam: another zone sent it meanwhile, or it was out of range — a fresh
+      // start, not a glide across the gap from where it was then)
+      if (buf.length && state.time - buf[buf.length - 1].time > RESUME_MS) { buf.length = 0; lastT = null; shown = null; blend = null; }
       const lag = arrivedAt - state.time;
       lags.push(lag); if (lags.length > LAGS) lags.shift();
       lagsSorted.set(lags);

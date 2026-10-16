@@ -17,8 +17,8 @@
   "_note": "A padded roll hoop behind the seats: a stiffer, tougher shell (chassisToughness), and a bar over your head with the roof down.",
   "chassisToughness": 0.2,
   "bounds": {
-    "min": [-0.7325, -0.5, -0.37],
-    "max": [0.7325, 0.4483, -0.27]
+    "min": [-0.7325, -0.496, -0.388],
+    "max": [0.7325, 0.3886, -0.288]
   },
   "madeBy": {
     "generator": "tools/generators/interior.js",

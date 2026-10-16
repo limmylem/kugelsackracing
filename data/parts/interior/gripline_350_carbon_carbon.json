@@ -44,29 +44,29 @@
     "apex_v8": {
       "model": "assets/parts/interior/gripline/gripline_350_carbon/apex_v8.glb",
       "bounds": {
-        "min": [-0.192, -0.192, -0.119],
+        "min": [-0.192, -0.192, -0.139],
         "max": [0.192, 0.194, 0]
       }
     },
     "brute_500": {
       "model": "assets/parts/interior/gripline/gripline_350_carbon/brute_500.glb",
       "bounds": {
-        "min": [-0.192, -0.192, -0.099],
-        "max": [0.192, 0.194, 0]
+        "min": [-0.1815, -0.1815, -0.099],
+        "max": [0.1815, 0.1835, 0]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/gripline/gripline_350_carbon/hana_roadster.glb",
       "bounds": {
-        "min": [-0.192, -0.192, -0.099],
-        "max": [0.192, 0.194, 0]
+        "min": [-0.171, -0.171, -0.139],
+        "max": [0.171, 0.173, 0]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/interior/gripline/gripline_350_carbon/kaze_gt.glb",
       "bounds": {
-        "min": [-0.192, -0.192, -0.099],
-        "max": [0.192, 0.194, 0]
+        "min": [-0.171, -0.171, -0.099],
+        "max": [0.171, 0.173, 0]
       }
     },
     "ridgeback_4x4": {

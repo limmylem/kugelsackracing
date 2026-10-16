@@ -94,7 +94,7 @@ export function validateBuild(build, db) {
   if (errors.length) return { ok: false, errors, warnings };
 
   // what the numbers say
-  const stats = computeStats(build, db);
+  const stats = computeStats(build, db, { shared: true });
   for (const e of stats.errors) errors.push({ code: 'stats', message: e[0].toUpperCase() + e.slice(1) + '.' });
   if (stats.spec) {
     const peak = stats.totals.peakTorque.nm, clutch = stats.spec.clutch.maxTorque;

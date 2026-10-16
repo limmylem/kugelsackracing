@@ -20,7 +20,8 @@
 
 import { createQuestController } from './questController.js';
 import { trackServer } from './trackServer.js';
-import { createRouteDressing } from './routeDressing.js';
+import { createRouteDressing, createGuideArrows } from './routeDressing.js';
+import { groundOf } from './garageBuilding.js';
 import { viewCourse, lineOf } from '../route/model.js';
 import { buildRoute } from '../route/build.js';
 import { createAutopilot } from '../route/autopilot.js';
@@ -36,6 +37,14 @@ import { npcSettings, setupNpcs } from '../race/setup.js';
 import { hashSeed } from '../ai/rng.js';
 import { createQuestSounds } from './questSounds.js';
 import { createCameraBlend, orbitPose } from './cameraBlend.js';
+
+// The HUD's arrow to a place: its angle on screen (degrees, clockwise from straight up) from the car's heading.
+// (The world's x is to the car's left when it faces +z — heading and bearing both turn from +z toward +x, which is
+// to the left — and a CSS rotation turns clockwise: so the turn is negated.)
+export function arrowAngle(car, to) {
+  const left = Math.atan2(to.x - car.x, to.z - car.z) * 180 / Math.PI - car.heading;
+  return ((-left % 360) + 540) % 360 - 180;
+}
 import { paletteOf, guideStyle } from './palette.js';
 import { playerUnits } from '../ui/units.js';
 
@@ -43,6 +52,28 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
 const ord = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 const HUD_KEY = 'driveWorld.questHud';
+// (a quest is played where it is: driven to — within this of its start)
+export const START_M = 60;
+// The way there (a route's line, [{ x, z, … }]) as a car drives it: the part behind the car taken off — the line from
+// the car's place on it — while the car's within GUIDE_ON_M of it (looked for among the next GUIDE_AHEAD points: a
+// route that doubles back isn't cut short); null once it's within ARRIVED_M of the end; the same line when off it.
+export const GUIDE_ON_M = 40, ARRIVED_M = 40, GUIDE_AHEAD = 400;
+export function trimGuideLine(line, car) {
+  if (!line?.length || !car) return line;
+  const end = line[line.length - 1];
+  if (Math.hypot(end.x - car.x, end.z - car.z) < ARRIVED_M) return null;
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < Math.min(line.length, GUIDE_AHEAD); i++) { const d = Math.hypot(line[i].x - car.x, line[i].z - car.z); if (d < bd) { bd = d; best = i; } }
+  if (bd > GUIDE_ON_M || best < 1) return line;
+  return [{ ...line[best], x: car.x, z: car.z }, ...line.slice(best + 1)];
+}
+// how far a car ({ x, z }, the world frame) is from a world quest's start (m), or null for one played anywhere: a
+// track event (its venue's card starts it), or one with no place. toXZ(lat, lon) → [x, z]
+export function distanceToStart(item, car, toXZ) {
+  if (!item || item.kind !== 'quest' || item.track || !item.location || !car) return null;
+  const [x, z] = toXZ(item.location.lat, item.location.lon);
+  return Math.hypot(x - car.x, z - car.z);
+}
 // the palette's colours as CSS variables (the HUD, the screens and the card use them)
 function applyPalette(P) {
   const r = document.documentElement.style;
@@ -105,7 +136,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   const S = w.stream, P = S.projection, cfg = game.config;
   const hudSettings = { ...{ scale: cfg.hud?.scale ?? 1, visible: cfg.hud?.visible !== false }, ...loadHudSettings() };
   let run = null;          // { item, course, controller, adapters, dressing, hud, pilot, message, … }
-  let paused = false, screen = null, guide = null, hit = 0;
+  let paused = false, screen = null, guide = null, guideFor = null, hit = 0;
   // polish: sounds, the camera's glides, the accessibility settings (applied as they change)
   const sounds = createQuestSounds({ muted: () => !!game.muted?.() });
   const blend = createCameraBlend(cfg.camera?.transitions), orbit = cfg.camera?.orbit ?? {};
@@ -139,7 +170,11 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   }
   // (the line's colour and width: the accessibility settings — map/render/maps.ts reads them)
   const lineFeature = (line, kind) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: line.map(p => { const [lat, lon] = P.toLatLon(p.x, p.z); return [lon, lat]; }) }, properties: { kind, colour: palette()[kind], width: style().lineWidth } });
+  // (the way there on the road too: arrows along its next stretch)
+  let guideArrows = null;
   function setLines() {
+    if (!guideArrows) { const G = groundOf(S); guideArrows = createGuideArrows({ THREE, parent: S.world, palette: palette(), style: style(), heightAt: (x, z) => G?.road(x, z) ?? G?.terrain(x, z) ?? null }); }
+    guideArrows.set(guide && !run ? guide : null, { palette: palette(), style: style() });
     const f = [];
     if (run?.course) f.push(lineFeature(run.course.line, 'route'));
     else if (preview) f.push(lineFeature(preview, 'route'));
@@ -156,6 +191,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (R.code === 'level') { const need = R.text.match(/level (\d+)/)?.[1]; return need ? `Opens at level ${need}` : 'Level too low'; }
     if (R.code === 'money') return `Need ${cur}${Math.max(0, fee - (p.money ?? 0)).toLocaleString('en-GB')} more`;
     if (R.code === 'busy') return 'In a quest';
+    if (R.code === 'far') return 'Drive there to start';
     if (R.code === 'damage') return 'Repair first';
     if (CAR_CODES.has(R.code) || R.code === 'car' || R.code === 'stake') return 'Car not eligible';
     return `Start${feeText}`;
@@ -167,12 +203,18 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const p = game.player.profile;
     return entryReasons({ quest: item, car: carInfo(id), player: { money: p.money, xp: p.xp ?? 0, unlimited: game.player.unlimited }, config: cfg, economy: game.economy });
   }
+  // how far the car is from a world quest's start (m; null: one played anywhere — a track event, no place)
+  const farFrom = item => distanceToStart(item, game.carNow(), (lat, lon) => P.toXZ(lat, lon));
+  const farText = d => `Drive to its start to play it: ${d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d)} m`} away. Set route shows the way.`;
+  let cardToken = null;
   function card(item, el) {
     if (item.kind !== 'quest') { preview = null; setLines(); return false; }
+    const token = cardToken = {};
     hint(item.type === 'pink_slip' ? 'pinkSlip' : 'questCard');
     const draw = (c = null) => {
       const p = game.player.profile, prog = p.quests?.[item.id], cur = game.currency;
-      const reasons = run ? [{ code: 'busy', text: 'Finish or quit the quest you\'re in first.' }] : reasonsFor(item);
+      const far = farFrom(item);
+      const reasons = run ? [{ code: 'busy', text: 'Finish or quit the quest you\'re in first.' }] : [...(far != null && far > START_M ? [{ code: 'far', text: farText(far) }] : []), ...reasonsFor(item)];
       const carBad = reasons.some(r => CAR_CODES.has(r.code));
       const others = carBad ? carsThatQualify(item, game.ownedCars().filter(x => x.instanceId !== game.carInstanceId()), cfg) : [];
       const r = rewardsOf(item, game.economy), T = c ? medalTargets(item, c.course, cfg) : null;
@@ -196,6 +238,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         <div class="qbtns"><button class="qbtn primary" data-start ${reasons.length || !c || disabled ? 'disabled' : ''} title="${esc(reasons[0]?.text ?? '')}">${esc(startLabel(reasons, r.fee, cur, p))}</button>
         <button class="qbtn" data-guide>${guide ? 'Clear route' : 'Set route'}</button><span style="flex:1"></span><button class="qbtn" data-close>Close</button></div>`;
       el.querySelector('[data-start]').onclick = () => start(item);
+      el.dataset.far = far != null && far > START_M ? '1' : '';
       el.querySelector('[data-guide]').onclick = () => guide ? clearGuide(() => draw(c)) : setGuide(item, () => draw(c));
     };
     let seriesLine = '', lastC = null;
@@ -205,26 +248,50 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       seriesLine = list.map(S => { const done = S.item.quests.filter(id => p.quests?.[id]?.completed).length; return `<div class="qrow"><span>Series: <b>${esc(S.item.name)}</b> · ${p.series?.[S.item.id] ? 'complete ✔' : `${done} of ${S.item.quests.length} done · bonus for all`}</span></div>`; }).join('');
       if (seriesLine) draw(lastC);
     }).catch(() => {});
+    // (driving up to it: the card says so, and Start opens, once the car's at its start)
+    const near = setInterval(() => {
+      if (token !== cardToken || !el.isConnected || el.style.display === 'none') { clearInterval(near); return; }
+      const d = farFrom(item); if (d == null) return;
+      const isFar = d > START_M;
+      if (isFar !== (el.dataset.far === '1')) draw(lastC);
+      else if (isFar) { const li = [...el.querySelectorAll('li.no')].find(x => /^Drive to its start/.test(x.textContent)); if (li) li.textContent = farText(d); }
+    }, 500);
     courseOf(item).then(c => { lastC = c; if (c) { preview = c.course.line; setLines(); } draw(c); }).catch(e => { el.querySelector('.qrow span').textContent = `The route couldn't be loaded: ${e.message}`; });
     return true;
   }
 
-  // "Set route": the way to the quest's start on the road graph, on the maps
+  // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps
   async function setGuide(item, done) {
+    // (the road graph loads the first time: say so at once)
+    game.say('Finding the way there…', 'ok');
     try {
       const N = await game.network(), car = game.carNow(), [lat, lon] = P.toLatLon(car.x, car.z);
       const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, { lat: item.location.lat, lon: item.location.lon }], options: { oneway: false } });
       if (!r.ok || r.line.length < 2) { game.say('No way there on the roads', 'warn'); return; }
-      guide = r.line; setLines();
+      guide = r.line; guideFor = item.id; setLines();
       game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
     } catch (e) { game.say(`Couldn't set a route: ${e.message}`, 'warn'); }
     done?.();
   }
-  function clearGuide(done) { guide = null; setLines(); done?.(); }
+  function clearGuide(done) { guide = null; guideFor = null; setLines(); done?.(); }
+  // the route behind the car taken off as it's driven (twice a second): the line on the maps starts where the
+  // car is; at its end, gone ("You've arrived"). Off the route (further than GUIDE_ON_M from it), kept as it is.
+  let trimAt = 0;
+  function trimGuide(dt) {
+    if (!guide || run || (trimAt += dt) < 0.5) return;
+    trimAt = 0;
+    const g = trimGuideLine(guide, game.carNow());
+    if (g === guide) return;
+    if (!g) { clearGuide(); game.say('You\'ve arrived', 'ok'); return; }
+    guide = g; setLines();
+  }
 
   // ---------- starting ----------
   async function start(item, { restart = false, ghost = undefined } = {}) {
     if (run && !restart) return { ok: false, error: 'A quest is under way.' };
+    // (a quest is played where it is: driven to, never jumped to)
+    const far = restart ? null : farFrom(item);
+    if (far != null && far > START_M) { game.say('Drive to the quest\'s start to play it', 'warn'); return { ok: false, error: 'far' }; }
     // (a ghost to race: the best lap's — track/events/ghost.js — kept for a restart)
     if (ghost === undefined) ghost = restart && run?.item.id === item.id ? run.ghost : null;
     const c = await courseOf(item);
@@ -257,7 +324,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
     if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
-    guide = null; setLines(); hud(); hideScreen();
+    guide = null; guideFor = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
     if (!r.ok) { if (run === me) { game.say(r.error, 'warn'); stop(); } return r; }
     run.fee = r.fee;
@@ -320,7 +387,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const lap = H.laps > 1 ? `<div class="row">Lap ${H.lap} / ${H.laps}${H.bestLap != null ? ` · best ${fmtTime(H.bestLap)}` : ''}</div>` : '';
     const sp = H.split ? `<div class="split ${H.split.delta == null ? '' : H.split.delta <= 0 ? 'good' : 'bad'}">${H.split.number}/${H.split.of} ${fmtTime(H.split.time)}${H.split.delta != null ? ` ${fmtDelta(H.split.delta)}` : ''}</div>` : '';
     // the next checkpoint's arrow: its way from the car's heading
-    const ang = Math.atan2(H.next.x - car.x, H.next.z - car.z) * 180 / Math.PI - car.heading;
+    const ang = arrowAngle(car, H.next);
     let panelHtml = '';
     if (panel?.kind === 'drift') panelHtml = `<div class="k">Drift</div><div class="big">${panel.score.toLocaleString('en-GB')}</div><div>${panel.pot ? `+${panel.pot.toLocaleString('en-GB')} × ${panel.multiplier}` : panel.multiplier > 1 ? `× ${panel.multiplier}` : '&nbsp;'}</div>${panel.next ? `<div style="font-size:12px">${panel.next.tier}: ${panel.next.score.toLocaleString('en-GB')}</div>` : panel.medal ? `<div style="color:${MEDAL[panel.medal]}">● ${panel.medal}</div>` : ''}`;
     else if (panel?.kind === 'delivery') panelHtml = `<div class="k">${esc(panel.name)}${panel.fragile ? ' · fragile' : ''}</div><div class="big ${panel.condition < 50 ? 'bad' : ''}">${panel.condition}%</div><div class="bar"><i style="width:${panel.condition}%;background:${panel.condition < 50 ? '#ff7a6a' : panel.condition < 80 ? '#ffbd4a' : '#7ee08a'}"></i></div>`;
@@ -404,7 +471,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
     showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
       ${trackLine(pay)}
-      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button>${game.canReplay?.() ? '<button data-replay>Watch replay</button>' : ''}<button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>${o.reason === 'wrecked' ? 'Tow to the garage' : 'Garage (repairs)'}</button></div>`, {
+      <div class="buttons"><button class="primary" data-retry>Retry${fee}</button>${game.canReplay?.() ? '<button data-replay>Watch replay</button>' : ''}<button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>Tow to a garage${game.towFee?.() ? ` (${esc(game.towFee())})` : ''}</button></div>`, {
       retry: () => start(item, { restart: true }), roam: () => stop(),
       replay: () => { const me = run; hideScreen(); if (!game.watchReplay({ onEnd: () => { if (run === me) results(res, { again: true }); } })) results(res, { again: true }); }, leave: () => { stop(); game.leaveTrack(); }, garage: () => { stop(); game.leaveTrack ? game.leaveTrack().then(() => game.toGarage()) : game.toGarage(); } });
   }
@@ -470,6 +537,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
 
   return {
     card, start, stop, pause, setGuide, clearGuide,
+    // (what the route on the maps goes to: a quest's or a garage's id — play/contentLayer.js)
+    get guideFor() { return guide ? guideFor : null; },
     get active() { return !!run; },
     get run() { return run; },
     // (paused: the pause menu — and the intro, when the camera's away and the car waits)
@@ -510,6 +579,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     frame(realDt) {
       frameDt = realDt;
       restyle();
+      trimGuide(realDt);
       if (!run) return;
       run.adapters.frame?.();
       const car = game.carNow();
@@ -550,6 +620,6 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       if (out.fov && Math.abs(camera.fov - out.fov) > 0.01) { camera.fov = out.fov; camera.updateProjectionMatrix(); }
       return true;
     },
-    dispose() { stop(); sounds.dispose(); removeEventListener('keydown', onKey, true); hudEl?.remove(); },
+    dispose() { stop(); sounds.dispose(); guideArrows?.dispose(); guideArrows = null; removeEventListener('keydown', onKey, true); hudEl?.remove(); },
   };
 }

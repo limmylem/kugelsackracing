@@ -55,7 +55,11 @@ test('retention: old guests, expired sessions, old account links, support, repor
   await db.execute(sql`insert into account_signals (user_id, kind, value, first_seen, last_seen) values (${benId}, 'ip', '10.9.9.9', now() - interval '200 days', now() - interval '100 days'), (${benId}, 'ip', '10.9.9.8', now(), now())`);
   await db.execute(sql`insert into support_tickets (user_id, kind, message, client, created_at) values (${benId}, 'support', 'Old message here', '{}', now() - interval '400 days'), (${benId}, 'feedback', 'New message here', '{}', now())`);
   await db.execute(sql`insert into audit_log (actor_id, action, target_id, at) values (${benId}, 'old-thing', ${benId}, now() - interval '800 days'), (${benId}, 'new-thing', ${benId}, now())`);
+  // ramming evidence: an old one goes, an old one an open report points at stays (with the report), a new one stays
+  await db.execute(sql`insert into mp_evidence (id, kind, data, created_at) values ('ev_old', 'ramming', '\\x00', now() - interval '40 days'), ('ev_reported', 'ramming', '\\x00', now() - interval '40 days'), ('ev_new', 'ramming', '\\x00', now())`);
+  await db.execute(sql`insert into reports (reporter_id, target_id, target_name, kind, details, ref) values (${benId}, ${benId}, 'Ben Brake', 'behaviour', 'Rammed me', ${JSON.stringify({ evidenceId: 'ev_reported' })}::jsonb)`);
   const dry = await runRetention(db, T.config.retention, { dryRun: true });
+  assert.equal(dry.deleted.evidence, 1);
   assert.equal(dry.deleted.guests, 1); assert.ok(dry.deleted.sessions >= 1); assert.equal(dry.deleted.accountSignals, 1); assert.equal(dry.deleted.support, 1); assert.equal(dry.deleted.audit, 1);
   assert.ok(await db.execute(sql`select 1 from users where id = ${oldId}`).then(r => r.rows.length), 'a dry run deletes nothing');
   const r = await runRetention(db, T.config.retention);
@@ -68,6 +72,7 @@ test('retention: old guests, expired sessions, old account links, support, repor
   assert.deepEqual((await db.execute(sql`select message from support_tickets where user_id = ${benId}`)).rows.map((x: any) => x.message), ['New message here']);
   assert.deepEqual((await db.execute(sql`select action from audit_log where target_id = ${benId} and action in ('old-thing', 'new-thing')`)).rows.map((x: any) => x.action), ['new-thing']);
   assert.equal((await db.execute(sql`select 1 from sessions where user_id = ${benId}`)).rows.length, 0, 'expired sessions gone');
+  assert.deepEqual((await db.execute(sql`select id from mp_evidence where id like 'ev_%' order by id`)).rows.map((x: any) => x.id), ['ev_new', 'ev_reported']);
   // run again: nothing more
   assert.equal((await runRetention(db, T.config.retention)).deleted.guests, 0);
   void ben;

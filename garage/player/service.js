@@ -42,6 +42,7 @@ export const METHODS = {
   buyUsedCar: '(listingId) a car from today\'s used lot (garage/shop.js usedLot), as it is',
   buyGarageSlot: '() room for one more car',
   chooseStarter: '(carId) the first launch\'s starter car: one of economy.starterChoices instead of the starting car, once, before anything else (play/onboarding.js)',
+  towCar: '() a tow to the garage (data/economy.json tow.fee; with less money it takes what you have) → { cost }',
   getUsedLot: '→ { day, endsAt, listings } today\'s used cars',
   repairPart: '(instanceId) back to 100%, its dents out, its mechanical damage put right and bolted back on, for its repair cost',
   repairParts: '([instanceId]) several at once (repair all)',
@@ -728,6 +729,17 @@ export class LocalPlayerService extends PlayerService {
       p.garageSlots = (p.garageSlots ?? 0) + 1;
       logShop(p, { at: this.now(), what: 'slot', name: 'Garage space', amount: -(this.unlimited ? 0 : price) });
       return { result: { cost: this.unlimited ? 0 : price, capacity: capacity(this.db, p) } };
+    });
+  }
+
+  // A tow to the garage (the dock's Tow, Backspace twice, a wrecked car): its fee, or what you have if that's less —
+  // nobody is stranded (data/economy.json tow)
+  towCar() {
+    return this.#change('tow', p => {
+      const fee = Math.max(0, Math.round(this.db.economy?.tow?.fee ?? 0)), cost = this.unlimited ? 0 : Math.min(fee, Math.max(0, p.money));
+      p.money -= cost;
+      if (cost) logShop(p, { at: this.now(), what: 'tow', name: 'Tow to the garage', amount: -cost });
+      return { result: { cost, fee } };
     });
   }
 

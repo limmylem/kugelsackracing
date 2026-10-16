@@ -13,7 +13,8 @@
 # HSTS ("on" once everything works over HTTPS), SENTRY_CLIENT_DSN (optional) and SERVER_SSH_HOST_KEY (optional: pins
 # the server's SSH key); the secrets CLOUDFLARE_API_TOKEN, DEPLOY_SSH_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
 # the server's own (DATABASE_URL, BETTER_AUTH_SECRET, EDGE_SECRET, TURNSTILE_SECRET_KEY, RESEND_SMTP_KEY, ADMIN_EMAIL,
-# ALERT_EMAIL; SENTRY_DSN and LOADTEST_TOKEN optional).
+# ALERT_EMAIL; SENTRY_DSN, LOADTEST_TOKEN, voice chat's CF_REALTIME_APP_ID and CF_REALTIME_APP_TOKEN, and the live
+# Builder's CONTENT_BUILDER_TOKEN optional).
 name: deploy
 
 on:
@@ -103,6 +104,9 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_CLIENT_DSN: ${{ vars.SENTRY_CLIENT_DSN }}
           LOADTEST_TOKEN: ${{ secrets.LOADTEST_TOKEN }}
+          CF_REALTIME_APP_ID: ${{ secrets.CF_REALTIME_APP_ID }}
+          CF_REALTIME_APP_TOKEN: ${{ secrets.CF_REALTIME_APP_TOKEN }}
+          CONTENT_BUILDER_TOKEN: ${{ secrets.CONTENT_BUILDER_TOKEN }}
         run: bash server/scripts/deploy-server.sh
 
       - name: 3. The game (Cloudflare Pages, ognistrada)

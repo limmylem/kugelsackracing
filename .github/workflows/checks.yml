@@ -1,7 +1,8 @@
 # The same checks as the pre-commit hook (.githooks/pre-commit), on every push and pull request: the
 # data against its schemas, every model against the model rules, every part's content checks up to date and passing,
 # the unit tests, the headless physics
-# test suite and the crash test suite (the damage balance) — and here also the stress tests (a ten-car
+# test suite and the crash test suite (the damage balance) — and here also every model generator across its shape
+# settings and the family builder end to end (docs/CONTENT_PIPELINE.md), the stress tests (a ten-car
 # pile-up within its frame budget, a hundred crashes and repairs without growing memory or slowing
 # down), quests at scale and a new player's first hours end to end (docs/PROGRESSION.md), the baked real
 # world's tests (WORLD_README.md) and Map v3's
@@ -30,6 +31,10 @@ jobs:
         run: npm run content -- verify
       - name: Unit tests
         run: npm run test:unit
+      - name: 'Content: every model generator across its shape settings (each at both ends of its range, every kit piece, random mixes) — the model rules, the budget, the fit on every car; the ones that change stats driven and crashed (docs/CONTENT_PIPELINE.md "Shape settings and kits")'
+        run: npm run test:shapes
+      - name: 'Content: a family made with the admin page''s builder, end to end — its file as one written by hand, its parts as the summary said, verify and the pre-commit hook passing; then changed: ids kept, retired as said; everything put back'
+        run: npm run test:content-builder
       - name: Physics tests (headless)
         run: npm test
       - name: Crash test suite (damage balance)

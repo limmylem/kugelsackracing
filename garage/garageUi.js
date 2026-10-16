@@ -64,7 +64,7 @@ const SHOP_SORTS = [['category', 'Category'], ['gain', 'Best upgrade first'], ['
 const PRICE_BANDS = [['all', 0, Infinity], ['u500', 0, 500], ['u1500', 500, 1500], ['u5000', 1500, 5000], ['o5000', 5000, Infinity]];
 const TIER_NAMES = [['all', 'Any tier'], ['stock', 'Stock'], ['street', 'Street'], ['sport', 'Sport'], ['race', 'Race']];
 const DEALER_VIEWS = [['overview', 'Outside', 'directions_car'], ['interior', 'Interior', 'airline_seat_recline_normal'], ['engine_bay', 'Engine bay', 'car_repair'], ['rear', 'Boot', 'luggage']];
-const WHAT_WORDS = { buy: 'Bought', sell: 'Sold', refund: 'Refunded', 'buy-car': 'Bought a car', 'sell-car': 'Sold a car', 'buy-used': 'Bought used', slot: 'Garage space' };
+const WHAT_WORDS = { buy: 'Bought', sell: 'Sold', refund: 'Refunded', 'buy-car': 'Bought a car', 'sell-car': 'Sold a car', 'buy-used': 'Bought used', slot: 'Garage space', tow: 'Towed' };
 const when = iso => iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 const WIDE = new Set(['inventory', 'shop']);
 
@@ -108,6 +108,8 @@ export class GarageScreen {
     this.root.appendChild(this.fileInput);
     this.#listen();
     this.pad = { prev: [], repeat: 0 };
+    // (the server's settings changed — a tier's level, a price: drawn again with them)
+    globalThis.addEventListener?.('kr-settings', () => { if (this.w) this.render(); });
   }
   // (a fresh visit: the overview, nothing open; the marker labels setting stays)
   reset() {
@@ -476,7 +478,7 @@ export class GarageScreen {
   #sameGroup(a, b) { return Object.values(this.w.car.socketGroups || {}).some(g => g.includes(a) && g.includes(b)); }
   #breakdown(r) {
     const bd = r.breakdown ?? [], max = Math.max(1e-9, ...bd.filter(b => b.effect !== 'base').map(b => Math.abs(b.amount)));
-    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking.' : null;
+    const tip = (r.key === 'power' || r.key === 'torque') && bd.some(b => b.effect === 'worse' && /condition/.test(b.sub)) ? 'A worn engine loses power: repairs come with the shop.' : r.key === 'rating' ? 'The rating comes from quick estimates of acceleration, top speed, grip and braking (a cold stop).' : r.key === 'braking' ? 'Stopping from 100 km/h through a race, the brakes hot as well as cold: better pads and discs fade less, and bite harder. The tyres set the shortest cold stop.' : null;
     const unit = r.unit ? ' ' + r.unit : '';
     return `<div class="g-breakdown well"><div class="label" style="font-size:11px">What affects ${esc(r.label.toLowerCase())}</div>
       ${bd.length ? bd.map(b => {
@@ -1223,6 +1225,7 @@ export class GarageScreen {
       case 'profile':
         this.ui.dialog = { kind: 'profile', at: Date.now() }; this.ui.pop = null;
         this.#loadRank();
+        void this.actions.refreshSettings?.();
         return this.render();
       case 'hint-close': this.ui.hint = null; return this.render();
       case 'pop': this.ui.pop = this.ui.pop === arg ? null : arg; this.ui.renaming = null; this.ui.confirm = null; return this.render();

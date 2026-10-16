@@ -7,7 +7,9 @@
 // API_INTERNAL_URL (Phase 7 Step 2: the API, for lobbies and races — default http://localhost:8787), RT_MAX_PLAYERS (the
 // config's rt.maxPlayers: connections across every process before "server full" — a free-roam player holds 1–4).
 // (Phase 7 Step 5) GIT_COMMIT (GET /health says it), SENTRY_DSN (crashes and nothing personal: ../sentry.ts), RT_DRAIN_SEC
-// (default 600). SIGTERM — a deploy — drains: nobody new joins, races under way finish (up to RT_DRAIN_SEC) and their
+// (default 600). CF_REALTIME_APP_ID and CF_REALTIME_APP_TOKEN: Cloudflare Realtime's SFU for voice chat (secrets; none: no
+// voice chat — the game says so), CF_REALTIME_URL (its address: the tests' stand-in).
+// SIGTERM — a deploy — drains: nobody new joins, races under way finish (up to RT_DRAIN_SEC) and their
 // results reach the API, then it stops; with nothing under way that's at once (Ctrl-C). A second SIGTERM or SIGINT stops it
 // there and then. A crash: one JSON line, to Sentry, and out with 1 — Docker starts it again.
 
@@ -48,7 +50,8 @@ if (n > 1 && !process.env.RT_CHILD) {
   exitOnCrash('the real-time server', startSentry({ dsn: process.env.SENTRY_DSN, env, release: process.env.GIT_COMMIT ?? null }));
   if ((env === 'staging' || env === 'production') && !process.env.RT_SECRET) throw new Error('RT_SECRET is needed in staging and production');
   const secret = rtSecretOf(process.env.RT_SECRET, process.env.BETTER_AUTH_SECRET ?? 'local-development-only-secret-change-me-0123');
-  const rt = await startRt({ port, host, publicAddress: process.env.RT_PUBLIC_ADDRESS ?? `localhost:${port}`, redisUrl: process.env.REDIS_URL || null, secret, rt: { ...file.rt, ...(process.env.RT_MAX_PLAYERS ? { maxPlayers: Number(process.env.RT_MAX_PLAYERS) } : {}) }, api: { url: process.env.API_INTERNAL_URL ?? 'http://localhost:8787' }, log, version: process.env.GIT_COMMIT ?? 'dev' });
+  const rt = await startRt({ port, host, publicAddress: process.env.RT_PUBLIC_ADDRESS ?? `localhost:${port}`, redisUrl: process.env.REDIS_URL || null, secret, rt: { ...file.rt, ...(process.env.RT_MAX_PLAYERS ? { maxPlayers: Number(process.env.RT_MAX_PLAYERS) } : {}) }, api: { url: process.env.API_INTERNAL_URL ?? 'http://localhost:8787' }, log, version: process.env.GIT_COMMIT ?? 'dev',
+    voice: process.env.CF_REALTIME_APP_ID && process.env.CF_REALTIME_APP_TOKEN ? { appId: process.env.CF_REALTIME_APP_ID, token: process.env.CF_REALTIME_APP_TOKEN, url: process.env.CF_REALTIME_URL || undefined } : null });
   setInterval(() => { for (const r of rt.rooms()) { const m = r.metrics(); log('rt room', { room: r.roomId, world: r.world, players: m.players, tickMsP95: +m.tickMsP95.toFixed(2) }); } }, 60000).unref();
   let signals = 0;
   const stop = async (sig: string) => {

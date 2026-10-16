@@ -15,14 +15,21 @@
 //   resetToRoad(w), travelTo(w, { lat, lon } | { xz }), toggleWorldMap(w), togglePerf(w)
 import { createWorldStream } from "./streamer.js";
 import { createWorldMaps } from "./maps.js";
-export async function prepareTrack(track) {
+import { createMapDebug } from "./debug.js";
+import { lampLights } from "./lamps.js";
+// (startAt: where to start instead of the region's spawn — the player's saved place, { region, xz: [x, z] (the map's frame),
+// heading } — used when it's this region's: the world loads there straight away, not at the spawn first)
+export async function prepareTrack(track, { startAt = null } = {}) {
     const manifest = await (await fetch(track.mapV3.manifest, { cache: 'no-cache' })).json();
     track.surfaces = manifest.surfaces;
     track.offRoad = 'grass';
     track.name = track.name ?? manifest.name;
     // the physics' origin starts at the spawn's tile (world/streamer.js)
-    const T = manifest.grid.tileSize, [sx, sz] = manifest.spawn.xz, ox = Math.floor(sx / T) * T, oz = Math.floor(sz / T) * T;
-    track.spawn = { position: [sx - ox, 400, sz - oz], headingDeg: manifest.spawn.bearing != null ? 180 - manifest.spawn.bearing : 0 };
+    const at = startAt && startAt.region === manifest.region && Array.isArray(startAt.xz) && startAt.xz.every(Number.isFinite) ? startAt : null;
+    const T = manifest.grid.tileSize, [sx, sz] = at ? at.xz : manifest.spawn.xz, ox = Math.floor(sx / T) * T, oz = Math.floor(sz / T) * T;
+    track.spawn = { position: [sx - ox, 400, sz - oz], headingDeg: at ? at.heading ?? 0 : manifest.spawn.bearing != null ? 180 - manifest.spawn.bearing : 0 };
+    // (landed right there, facing as it was — not on the nearest road to it)
+    track._landAt = at ? { wx: sx, wz: sz, heading: at.heading ?? 0 } : null;
     track._manifest = manifest;
     return track;
 }
@@ -61,10 +68,14 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
     // software, use it. 1,400 m by default)
     const view = Number(new URLSearchParams(globalThis.location?.search ?? '').get('view')) || null;
     const options = view ? { loadRadius: Math.max(300, view), unloadRadius: Math.max(450, view * 1.5), physicsRadius: Math.min(750, Math.max(300, view)), physicsDrop: Math.min(1100, Math.max(450, view * 1.5)) } : {};
+    // (a saved place to start at: the physics' origin there, as the car's spawn was worked out — prepareTrack)
+    if (w.track._landAt)
+        options.start = [w.track._landAt.wx, w.track._landAt.wz];
     const stream = await createWorldStream({ manifestUrl: w.track.mapV3.manifest, scene: w.scene, sim: w.sim, RAPIER, options });
     w.stream = stream;
     w.RAPIER = RAPIER;
     w.spawning = true;
+    w.landAt = w.track._landAt ?? null;
     hold(w);
     w.camera.far = 16000;
     w.camera.updateProjectionMatrix();
@@ -105,6 +116,14 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
         .then(m => { w.maps = m; if (!w.shown)
         m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));
     w.shown = true;
+    // the debug views and the bad-spot logger (Shift+F3, Shift+F4, Shift+F2: map/render/debug.ts)
+    // (Shift+F6: day, dusk, night — the settings' time of day, which the whole game uses)
+    w.mapDebug = createMapDebug(w, { travelTo, setHours: (h) => { shared.prefs.timeOfDay = h; shared.savePrefs?.(); }, hours: () => shared.prefs?.timeOfDay ?? 13 });
+    // Map v4's street lamps: the nearest few as real lights after dark (map/render/lamps.ts)
+    w.mapLamps?.dispose();
+    w.mapLamps = stream.manifest.map === 'v4' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
+    w.travel = (place) => travelTo(w, place);
+    globalThis.__mapDebug = w.mapDebug;
     return stream;
 }
 // where a place is (world frame): its neighbourhood and its city, from the manifest's places
@@ -257,8 +276,17 @@ export function realWorldFrame(w, shared, seconds) {
     if ((w.labelTimer = (w.labelTimer ?? 0) - seconds) <= 0) {
         w.labelTimer = 0.25;
         const dem = where.dem, [wx, wz] = S.toWorld(p.x, p.z), at = placeOf(w, wx, wz);
-        w.label.textContent = `Map v3 | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}`;
+        const M = S.manifest, v4 = M.map === 'v4';
+        w.label.textContent = `Map ${v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}`;
         w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
+    }
+    w.mapDebug?.frame(seconds);
+    if (w.mapLamps) {
+        const lit = [];
+        for (const e of S.tiles.values())
+            if (e.obj?.lamps)
+                lit.push(e.obj.lamps);
+        w.mapLamps.frame(w.camera, w.light?.night ?? 0, lit);
     }
     // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
     // after the scene), as the frame profiler counted them (perf/profiler.js)

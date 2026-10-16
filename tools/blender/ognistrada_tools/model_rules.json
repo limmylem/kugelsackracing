@@ -160,6 +160,45 @@
         "todo": ["price", "fits"]
       }
     },
+    "cowl_bonnet": {
+      "label": "Cowl bonnet",
+      "category": "body",
+      "slot": "bonnet",
+      "names": ["cowl_bonnet", "bonnet_cowl"],
+      "size": {
+        "x": [1, 1.9],
+        "y": [0.01, 0.6],
+        "z": [0.6, 1.8]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "min"
+      },
+      "attach": "the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it)",
+      "triangles": 1500,
+      "density": 300,
+      "massRange": [4, 30],
+      "template": {
+        "fits": ["car:starter_car"],
+        "contactMaterial": "metal",
+        "detach": {
+          "detachable": true,
+          "looseType": "hinge",
+          "hinge": {
+            "axis": [1, 0, 0],
+            "limits": [-110, 0]
+          },
+          "attachStrength": 2500,
+          "looseThreshold": 10,
+          "detachThreshold": 85,
+          "looseDrag": 0.12,
+          "open": 0.5,
+          "pop": 1.2
+        },
+        "todo": ["price", "fits"]
+      }
+    },
     "boot": {
       "label": "Boot lid",
       "category": "body",
@@ -351,7 +390,7 @@
       "size": {
         "x": [0.02, 0.35],
         "y": [0.15, 0.9],
-        "z": [0.5, 1.6]
+        "z": [0.5, 1.7]
       },
       "origin": {
         "x": "min",
@@ -385,7 +424,7 @@
       "size": {
         "x": [0.02, 0.35],
         "y": [0.15, 0.9],
-        "z": [0.5, 1.6]
+        "z": [0.5, 1.7]
       },
       "origin": {
         "x": "max",
@@ -1338,8 +1377,98 @@
       }
     }
   },
+  "kits": {
+    "_note": "Kit pieces (docs/MODELLING_GUIDE.md › Kit pieces; tools/generators/lib/kit.js): small hand-made models a family's model generator mixes into what it makes in code — a wing's end plates, a wheel's centre, an exhaust's tips, a piece on each front corner of an aero kit. One per attach point, for each kind of family: kit_<kind>_<attach>_<name>.glb in incoming/, npm run import checks it by these rules and puts it in assets/kits/<kind>/<attach>_<name>.glb, and it's a choice for the kind's kit shape setting (formulas.json shapeSettings: kit). Modelled at the reference sizes (reference), its origin where attach says; the generator scales it (scale: which of the sizes it's given each axis follows) and places it. Materials: paint, a finish or the generators' own (rim_finish…) — no car_atlas, no textures: it's mixed into a model that has neither.",
+    "spoiler": {
+      "endplate": {
+        "label": "Wing end plate",
+        "size": {
+          "x": [0.003, 0.05],
+          "y": [0.05, 0.4],
+          "z": [0.1, 0.6]
+        },
+        "origin": {
+          "x": "min",
+          "y": "within",
+          "z": "within"
+        },
+        "attach": "the end of the wing's element: the plate's inner face at x 0 (it stands out to +x), the element's middle — half its thickness up, half its chord along — at y 0, z 0; modelled for a 0.3 m chord, the left-hand one (the game mirrors it for the right)",
+        "triangles": 300,
+        "sizes": ["chord", "thick"],
+        "reference": {
+          "chord": 0.3,
+          "thick": 0.036
+        },
+        "scale": {
+          "y": "chord",
+          "z": "chord"
+        }
+      }
+    },
+    "wheels": {
+      "centre": {
+        "label": "Wheel centre piece",
+        "size": {
+          "x": [0.004, 0.06],
+          "y": [0.03, 0.14],
+          "z": [0.03, 0.14]
+        },
+        "origin": {
+          "x": "min",
+          "y": "centre",
+          "z": "centre"
+        },
+        "attach": "the hub's front face: its back at x 0, centred on the axle (it stands out to +x, the wheel's outer face)",
+        "triangles": 400
+      }
+    },
+    "exhaust": {
+      "tip": {
+        "label": "Exhaust tip",
+        "size": {
+          "x": [0.04, 0.14],
+          "y": [0.04, 0.14],
+          "z": [0.06, 0.32]
+        },
+        "origin": {
+          "x": "centre",
+          "y": "centre",
+          "z": "max"
+        },
+        "attach": "the front of the tip, where it meets the pipe, centred on it (it points back, to −z); modelled for a 45 mm radius and 180 mm long",
+        "triangles": 300,
+        "sizes": ["radius", "length"],
+        "reference": {
+          "radius": 0.045,
+          "length": 0.18
+        },
+        "scale": {
+          "x": "radius",
+          "y": "radius",
+          "z": "length"
+        }
+      }
+    },
+    "body_kit": {
+      "bumper": {
+        "label": "Bumper corner piece (a vent, a scoop, dive planes)",
+        "size": {
+          "x": [0.005, 0.12],
+          "y": [0.02, 0.25],
+          "z": [0.03, 0.4]
+        },
+        "origin": {
+          "x": "min",
+          "y": "within",
+          "z": "within"
+        },
+        "attach": "the front bumper's left-hand corner, 10 cm above its bottom edge, 2 cm back from its front: its inner face at x 0 (it stands out to +x); the game mirrors it for the right-hand corner",
+        "triangles": 400
+      }
+    }
+  },
   "car": {
-    "_note": "A car's body (npm run import: car_<id>.glb; its parts sit under their socket nodes, to be split off by npm run build:car). requiredSockets must be there; expectedSockets should be (parts go there); mirrorTolerance: how far a left socket may be from mirroring its right one",
+    "_note": "A car's body (npm run import: car_<id>.glb; its parts sit under their socket nodes, to be split off by npm run build:car). requiredSockets must be there; expectedSockets should be (parts go there); mirrorTolerance: how far a left socket may be from mirroring its right one; triangles: the whole car as modelled, its parts too (150,000 since 2026-10-13: cars made in Claude Design with racing-game detail — docs/car_prompts.md; a far car is drawn from its level of detail, 35% of it)",
     "names": ["car"],
     "size": {
       "length": [3, 5.6],
@@ -1352,7 +1481,7 @@
     "wheelHeightTolerance": 0.015,
     "wheelRadius": [0.24, 0.42],
     "mirrorTolerance": 0.01,
-    "triangles": 25000,
+    "triangles": 150000,
     "paintMaterial": "paint",
     "requiredSockets": ["socket_wheel_FL", "socket_wheel_FR", "socket_wheel_RL", "socket_wheel_RR"],
     "expectedSockets": ["socket_bonnet", "socket_boot", "socket_bumper_front", "socket_bumper_rear", "socket_door_left", "socket_door_right", "socket_fender_FL", "socket_fender_FR", "socket_skirt_left", "socket_skirt_right", "socket_mirror_left", "socket_mirror_right", "socket_seat_driver", "socket_seat_passenger", "socket_steering_wheel", "socket_engine", "socket_intake", "socket_turbo", "socket_exhaust_tip", "socket_spoiler"],

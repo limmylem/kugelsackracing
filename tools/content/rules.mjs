@@ -28,9 +28,15 @@ export function typeFromName(file, rules) {
   return best?.type ?? null;
 }
 
-// The part type for a part definition (by its slot; a wheel is a rim)
+// The part type for a part definition (by its slot; a wheel is a rim) — where two types share a slot (a bonnet and a
+// cowl bonnet), the one whose name its id carries (the longest that does), else the first
 export function typeForPart(part, rules) {
-  return Object.entries(rules.types).find(([, t]) => t.slot === part.slot)?.[0] ?? null;
+  const all = Object.entries(rules.types).filter(([, t]) => t.slot === part.slot);
+  if (all.length < 2) return all[0]?.[0] ?? null;
+  const id = String(part.id ?? '').toLowerCase();
+  let best = null;
+  for (const [type, t] of all) for (const name of [type, ...(t.names ?? [])]) if (id.includes(name) && (!best || name.length > best.name.length)) best = { type, name };
+  return best?.type ?? all[0][0];
 }
 
 // Whether a material name is one a model may use

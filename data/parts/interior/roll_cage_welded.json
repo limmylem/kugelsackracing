@@ -33,50 +33,50 @@
     "kaze_gt": {
       "model": "assets/parts/interior/roll_cage_welded/kaze_gt.glb",
       "bounds": {
-        "min": [-0.7975, -0.509, -0.31],
-        "max": [0.7975, 0.5349, 0.6975]
+        "min": [-0.6997, -0.5268, -0.42],
+        "max": [0.6997, 0.436, 0.6434]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/roll_cage_welded/hana_roadster.glb",
       "bounds": {
-        "min": [-0.7325, -0.5, -0.37],
-        "max": [0.7325, 0.4499, 0.5975]
+        "min": [-0.7325, -0.496, -0.388],
+        "max": [0.7325, 0.3897, -0.2079]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/interior/roll_cage_welded/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.8575, -0.609, -0.55],
-        "max": [0.8575, 0.8347, 0.6475]
+        "min": [-0.8225, -0.686, -0.212],
+        "max": [0.8225, 0.6602, 0.0006]
       }
     },
     "vortex_r": {
       "model": "assets/parts/interior/roll_cage_welded/vortex_r.glb",
       "bounds": {
-        "min": [-0.8075, -0.539, -0.55],
-        "max": [0.8075, 0.6748, 0.6975]
+        "min": [-0.7125, -0.5667, -0.327],
+        "max": [0.7125, 0.5285, 0.9094]
       }
     },
     "brute_500": {
       "model": "assets/parts/interior/roll_cage_welded/brute_500.glb",
       "bounds": {
-        "min": [-0.8325, -0.5, -0.37],
-        "max": [0.8325, 0.6199, 0.7475]
+        "min": [-0.8325, -0.552, -0.366],
+        "max": [0.8325, 0.4635, -0.1538]
       }
     },
     "strada_evo": {
       "model": "assets/parts/interior/roll_cage_welded/strada_evo.glb",
       "bounds": {
-        "min": [-0.7925, -0.529, -0.31],
-        "max": [0.7925, 0.6548, 0.7975]
+        "min": [-0.6953, -0.558, -0.387],
+        "max": [0.6953, 0.5275, 0.7014]
       }
     },
     "apex_v8": {
       "model": "assets/parts/interior/roll_cage_welded/apex_v8.glb",
       "bounds": {
-        "min": [-0.8725, -0.499, -0.31],
-        "max": [0.8725, 0.485, 0.5475]
+        "min": [-0.7436, -0.4497, -0.476],
+        "max": [0.7436, 0.4073, 0.5582]
       }
     }
   }

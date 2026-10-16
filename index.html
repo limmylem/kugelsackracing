@@ -1874,7 +1874,8 @@ const DEV_SITE = (globalThis.KR_SITE?.env ?? 'local') !== 'production';
 const showWorlds = admin => document.body.classList.toggle('kr-worlds', DEV_SITE || !!admin);
 showWorlds(false);
 import('./play/dock.js').then(({ mountDock }) => {
-  dock = mountDock({ garage: () => switchWorld('garage'), editor: async () => { try { (await editorNow()).enter(); } catch (err) { console.error(err); } } });
+  // (the garage isn't a button any more: drive into a garage building, or the dock's Tow — paid — takes you to the nearest)
+  dock = mountDock({ garage: () => { import('./testtrack/test-scene.js').then(t => t.towToGarage()); }, editor: async () => { try { (await editorNow()).enter(); } catch (err) { console.error(err); } } });
   dock.editor(editorAllowed);
 }).catch(e => console.warn(`The dock: ${e.message}`));
 Promise.all([import('./account/session.js'), import('./account/status.js'), import('./editor/access.js')]).then(async ([{ account }, { mountAccountChip }, { editorAccess }]) => {
@@ -1951,6 +1952,8 @@ async function switchWorld(id, nested = false) {
       const w = worldList.find(x => x.file === file); return w && switchWorld(w.id, true);
     };
     test.hooks.toGarage = (tab = 'damage') => { garageTab = tab; return switchWorld('garage'); };
+    // (a garage building driven through: the garage as it opens)
+    test.hooks.openGarage = () => switchWorld('garage');
     const target = worldList.find(w => w.id === id);
     if (currentWorld === 'garage') {
       globalThis.__krMusic?.play(null);

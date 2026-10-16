@@ -266,3 +266,26 @@ test('meets, the map, coming back, regions', () => {
   assert.equal(pickRegion({ au: NaN }, CFG), 'local');
   assert.deepEqual(mapPoint([123, 0, 456], CFG), [120, 460]);
 });
+
+test('each car to each player through one room near a border (the download in a crowd): the car\'s home room, else the viewer\'s, else the first shared', async () => {
+  const { senderRoom } = await import('../../mp/roam.js');
+  assert.equal(senderRoom({ rooms: ['a', 'b'], home: 'a' }, { rooms: ['a', 'b'], home: 'b' }), 'b', 'its home room');
+  assert.equal(senderRoom({ rooms: ['a', 'b'], home: 'a' }, { rooms: ['b', 'c'], home: 'c' }), 'b', 'the only one shared');
+  assert.equal(senderRoom({ rooms: ['a', 'b'], home: 'b' }, { rooms: ['a', 'b', 'c'], home: 'c' }), 'b', 'the viewer\'s home');
+  assert.equal(senderRoom({ rooms: ['b', 'a'], home: 'x' }, { rooms: ['a', 'b'], home: 'y' }), 'a', 'the first shared, the same in every room');
+  assert.equal(senderRoom({ rooms: null, home: 'a' }, { rooms: ['a'], home: 'a' }), null, 'unknown: every room sends');
+  assert.equal(senderRoom({ rooms: ['a'], home: 'a' }, { rooms: ['b'], home: 'b' }), null, 'nothing shared (lists out of date): every room sends');
+  // (the two sides agree: whichever room asks, the same one is picked)
+  const v = { rooms: ['r2', 'r1', 'r3'], home: 'r2' }, c = { rooms: ['r3', 'r1'], home: 'r9' };
+  assert.equal(senderRoom(v, c), 'r1');
+});
+
+test('a crowd: only the nearest fullCap cars at the full rate, the rest at the next ring\'s', async () => {
+  const { createGrid } = await import('../../server/src/rt/interest.ts');
+  const G = createGrid({ cell: 250, rings: [{ within: 250, every: 1 }, { within: 700, every: 3 }], fullCap: 5 });
+  G.rebuild([{ id: 0, pos: [0, 0, 0] }, ...Array.from({ length: 12 }, (_, i) => ({ id: i + 1, pos: [10 + i * 15, 0, 0] })), { id: 99, pos: [500, 0, 0] }]);
+  const near = G.near({ id: 0, pos: [0, 0, 0] }), full = near.filter(n => n.every === 1).map(n => n.id).sort((a, b) => a - b);
+  assert.deepEqual(full, [1, 2, 3, 4, 5], 'the five nearest');
+  assert.equal(near.length, 13, 'everyone still sent');
+  assert.ok(near.filter(n => n.id !== 99 && n.every === 3).length === 7);
+});

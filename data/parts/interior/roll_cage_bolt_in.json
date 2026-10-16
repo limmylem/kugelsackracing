@@ -33,50 +33,50 @@
     "kaze_gt": {
       "model": "assets/parts/interior/roll_cage_bolt_in/kaze_gt.glb",
       "bounds": {
-        "min": [-0.8, -0.509, -0.31],
-        "max": [0.8, 0.5349, 0.7]
+        "min": [-0.7022, -0.5268, -0.4201],
+        "max": [0.7022, 0.436, 0.646]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/roll_cage_bolt_in/hana_roadster.glb",
       "bounds": {
-        "min": [-0.735, -0.5, -0.37],
-        "max": [0.735, 0.4499, 0.6]
+        "min": [-0.735, -0.496, -0.388],
+        "max": [0.735, 0.3897, -0.2078]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/interior/roll_cage_bolt_in/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.86, -0.609, -0.55],
-        "max": [0.86, 0.8347, 0.65]
+        "min": [-0.825, -0.686, -0.2119],
+        "max": [0.825, 0.6605, 0.0008]
       }
     },
     "vortex_r": {
       "model": "assets/parts/interior/roll_cage_bolt_in/vortex_r.glb",
       "bounds": {
-        "min": [-0.81, -0.539, -0.55],
-        "max": [0.81, 0.6748, 0.7]
+        "min": [-0.715, -0.5668, -0.327],
+        "max": [0.715, 0.5286, 0.912]
       }
     },
     "brute_500": {
       "model": "assets/parts/interior/roll_cage_bolt_in/brute_500.glb",
       "bounds": {
-        "min": [-0.835, -0.5, -0.37],
-        "max": [0.835, 0.6199, 0.75]
+        "min": [-0.835, -0.552, -0.366],
+        "max": [0.835, 0.4637, -0.1536]
       }
     },
     "strada_evo": {
       "model": "assets/parts/interior/roll_cage_bolt_in/strada_evo.glb",
       "bounds": {
-        "min": [-0.795, -0.529, -0.31],
-        "max": [0.795, 0.6549, 0.8]
+        "min": [-0.6978, -0.558, -0.387],
+        "max": [0.6978, 0.5275, 0.7039]
       }
     },
     "apex_v8": {
       "model": "assets/parts/interior/roll_cage_bolt_in/apex_v8.glb",
       "bounds": {
-        "min": [-0.875, -0.4991, -0.31],
-        "max": [0.875, 0.485, 0.55]
+        "min": [-0.7461, -0.4497, -0.476],
+        "max": [0.7461, 0.4073, 0.5606]
       }
     }
   }

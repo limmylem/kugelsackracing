@@ -17,8 +17,8 @@
   "provides": ["snorkel"],
   "_note": "A raised air intake up the right pillar: deep water can't reach the engine, and you hear it breathe.",
   "bounds": {
-    "min": [-0.144, -0.37, -0.29],
-    "max": [-0.033, 0.64, 0.25]
+    "min": [-0.164, -0.4432, -0.41],
+    "max": [-0.053, 0.6349, 0.1838]
   },
   "effects": [],
   "sound": {

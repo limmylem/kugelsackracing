@@ -41,7 +41,7 @@ export function createGameAudio(A, { spec, occluded = null, startOff = false } =
   shots();
 
   return {
-    car, crash, env, voices, cfg,
+    A, car, crash, env, voices, cfg,
     get spec() { return specNow; },
     get last() { return last; },
     setSpec(s) { specNow = s; car.setSpec(s); shots(); },

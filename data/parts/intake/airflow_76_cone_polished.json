@@ -12,7 +12,7 @@
     ["intake_flange:rs", "intake_flange:std"]
   ],
   "requires": [],
-  "conflicts": ["car:ridgeback_4x4", "car:vortex_r"],
+  "conflicts": [],
   "provides": ["intake:cone"],
   "effects": [
     {
@@ -67,39 +67,52 @@
     "apex_v8": {
       "model": "assets/parts/intake/airflow/airflow_76_cone/apex_v8.glb",
       "bounds": {
-        "min": [-0.0029, -0.17, -0.0296],
-        "max": [0.366, 0.0294, 0.292]
+        "min": [-0.012, -0.05, -0.126],
+        "max": [0.292, 0.1129, 0.0513]
       }
     },
     "brute_500": {
       "model": "assets/parts/intake/airflow/airflow_76_cone/brute_500.glb",
       "bounds": {
-        "min": [-0.0015, -0.11, -0.126],
-        "max": [0.532, 0.0529, 0.0513]
+        "min": [-0.012, -0.05, -0.126],
+        "max": [0.2315, 0.1129, 0.0513]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intake/airflow/airflow_76_cone/hana_roadster.glb",
       "bounds": {
-        "min": [-0.0121, -0.23, -0.0296],
-        "max": [0.206, 0.027, 0.292]
+        "min": [-0.0044, -0.11, -0.0296],
+        "max": [0.206, 0.0529, 0.292]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/intake/airflow/airflow_76_cone/kaze_gt.glb",
       "bounds": {
-        "min": [-0.126, -0.01, -0.292],
-        "max": [0.0513, 0.1529, 0.0296]
+        "min": [-0.0513, -0.05, -0.012],
+        "max": [0.126, 0.1129, 0.292]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/intake/airflow/airflow_76_cone/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-0.0085, -0.17, -0.126],
+        "max": [0.3115, 0.0283, 0.0513]
       }
     },
     "strada_evo": {
       "model": "assets/parts/intake/airflow/airflow_76_cone/strada_evo.glb",
       "bounds": {
-        "min": [-0.0104, -0.35, -0.0296],
-        "max": [0.286, 0.0277, 0.292]
+        "min": [-0.0022, -0.11, -0.0296],
+        "max": [0.286, 0.0529, 0.292]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/intake/airflow/airflow_76_cone/vortex_r.glb",
+      "bounds": {
+        "min": [-0.0022, -0.11, -0.0296],
+        "max": [0.286, 0.0529, 0.292]
       }
     }
   },
-  "_fit": "It can't be made to fit the Ridgeback 4x4, Vortex R (its best fit still goes through the car), so it isn't for them.",
   "tier": "street"
 }

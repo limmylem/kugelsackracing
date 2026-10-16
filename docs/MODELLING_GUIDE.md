@@ -82,6 +82,10 @@ and splits it into the body and a model per stock part (`npm run build:car`).
 - Socket names are **exact** (case matters): the checker spots near misses (`socket_whel_FL`,
   `Socket_Mirror_Right`) and says what they should be.
 - The body's painted surfaces use `paint`; it must be there.
+- **Made in Claude Design**: [car_prompts.md](car_prompts.md) has a ready prompt for each car (`npm run car-prompts`
+  writes it from the cars' data: every socket, part and size exact). A wheel there is its rim and, round it, a tyre in
+  the `rubber` material (cut off by the split; the game draws its own tyres); a part may be a group of meshes, and
+  several meshes straight under one socket are gathered into one part.
 
 ## Generated parts
 
@@ -106,14 +110,45 @@ its generator's settings and running it again — never the `.glb`. A part file 
   turning, made to fit inside the rim.
 - **Wings** have their element as a node of its own, `wing_element`, turning about its middle: the game
   tips it to the wing's angle setting.
+- **Shape settings**: a family's models are made by these generators from its settings and its shape (`formulas.json`
+  `families.<kind>.shapeSettings`: a wheel's spoke style, dish and lip, a wing's profile and end plates, an exhaust's tip
+  shape and cut…; `npm run content -- shapes <kind>`). Each one's default is the look the kind always had. Where a shape
+  is better modelled than made in code, a generator mixes in a **kit piece** (below).
 - **Not generated**: anything that has to follow a car's curves — bumpers, bonnets, fenders, widebody
-  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them).
+  flares, hardtops, engine covers, side skirts. Those are modelled (`docs/models_todo.md` lists them). Vents, scoops and
+  dive planes on an aero kit's bumper corners come in as kit pieces.
+
+## Kit pieces
+
+A kit piece is a small model a generator mixes into a family's models: a wing's **end plate**, a wheel's **centre**, an
+**exhaust tip**, a piece on each front **corner of an aero kit's bumper**. Each kind of family has its attach points
+(the *Kit pieces* table below, from `model-rules.json` kits); a piece is one model for one attach point.
+
+- **Name it** `kit_<kind>_<attach>_<name>.glb` (`kit_spoiler_endplate_fin.glb`, `kit_wheels_centre_spinner.glb`). In
+  the Blender add-on, pick **Kit piece: …** as what it is: its checks, Place at origin and Export use the attach point's
+  rules and name the file for you.
+- **Model it at the reference size** in the table, real size in metres, +Y up, the car's front +Z: the generator scales
+  it to where it goes (an end plate with the wing's chord; an exhaust tip with the pipe's radius and the tip's length) —
+  so model it once, at that size, and it fits every wing or pipe.
+- **Its origin is the attach point**, as the table says: an end plate's inner face at x 0 with the wing element's middle
+  at y 0, z 0; a wheel centre's back on the hub's face; an exhaust tip's front where it meets the pipe, pointing back
+  (−z); a bumper corner piece's inner face against the bumper's side. **Model the left-hand one** (+x out): the generator
+  mirrors it for the right.
+- **Materials**: `paint`, a finish (`carbon`, `chrome`, `raw_metal`, `matte_black`…) or `rim_finish` (a wheel's face:
+  it takes the wheel's finish). **No `car_atlas` and no textures**: it's mixed into a model made in code, which has
+  neither. Closed meshes, flat-shaded, low-poly, under the attach point's triangle budget (it adds to the part's).
+- **Import it** like any model: put it in `incoming/` and `npm run import`. It's checked (size, origin, budget,
+  materials), fixed and put in `assets/kits/<kind>/<attach>_<name>.glb`; from then on it's a choice for that kind's kit
+  shape setting (`centrePiece`, `platePiece`, `tipPiece`, `bumperPiece`) in the family builder's Shape step. Every model
+  made with it goes through the same checks as the rest (`npm run test:shapes` tries each piece on every car).
+- `npm run sample-models -- --kits` writes the four starter pieces, to try it all with.
 
 ## The Blender add-on
 
 `npm run blender-addon` makes `tools/blender/dist/ognistrada_tools.zip`; in Blender, **Edit › Preferences › Add-ons ›
 Install from Disk**, pick it and tick **Ognistrada tools**. Its panel is in the 3D View's sidebar (**N**) ›
-**Ognistrada**: **Set up the scene** (metres), what the model is and its name, **Add socket** (an empty named exactly
+**Ognistrada**: **Set up the scene** (metres), what the model is (a part type, a car, or a **Kit piece: …** — see Kit
+pieces) and its name, **Add socket** (an empty named exactly
 as the game wants, at the 3D cursor — for a car), **Place at origin** (the attach point to 0, 0, 0, by the type's
 rule), **Check** (these rules, in plain words with how to fix each) and **Export for the game** (checks, then writes
 `<type>_<name>.glb` with the right settings into the folder chosen — the game's `incoming/`). See
@@ -140,8 +175,10 @@ rule), **Check** (these rules, in plain words with how to fix each) and **Export
 | `npm run balance-report` | Every part's price, mass and stat changes on the starter car, value for money, and anything off its tier's rules (`data/content/tiers.json`: price bands, gains to each slot's key stat, dearer parts doing more), with the fully upgraded car's class, in `reports/balance.csv`. |
 | `npm run playtest` | A whole upgrade journey played through the player service, with the rating and the Step 6 results after every change (`reports/playtest.csv`). In the game: the garage's settings › Playtest, and `dev/playtest.html` to read the log. |
 | `npm run guide` | Rewrites this guide's tables and `docs/part_prompt_templates.md` from `data/content/model-rules.json`. |
-| `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes). |
+| `npm run sample-models` | Writes sample models to `incoming/` to try it all with (`-- --broken` adds models with mistakes, `-- --kits` the starter kit pieces). |
 | `npm run generate-parts` | Makes the mechanical parts' models in code (`tools/generators/<category>.js`: rims, brakes, engine, aero, interior, bay, exhaust, lights, offroad) and imports them like a modelled part: checked, icon, part file. `-- rims brakes` for some generators, `--only id,id`, `--check` to build and check without importing. Draws `docs/generated_parts.png` (every generated part) and `docs/generated_fit.png` (every car with a set fitted through the garage). |
+| `node tools/placeholder-car.mjs <id> --import` | Makes a car's placeholder model from its `data/cars/<id>/design.json`: the starter coupe's model reshaped to the car's proportions (`tools/content/coupeCar.mjs`: every panel, the glass and lights by one smooth map, so they fit as on the coupe; the wheels the car's size), its panels' socket positions written into its car.json, then imported and split. |
+| `node server/tools/car-shots.ts --out dir [cars…] --local-libs` | Every car (or the ones named) drawn as the game draws it, body and stock parts, from six sides into `dir/<id>.png`, to look at them side by side (needs `TEST_DATABASE_URL`, like the server's tests). |
 | Part preview | `http://localhost:7690/dev/parts.html`: every part alone or on a car, its variants, sockets, wireframe, bounds, triangle counts, paint and finish tests, and a fit check (does it cut into the body or other parts?). |
 
 ## The rules
@@ -157,13 +194,14 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 | Spoiler or wing | `spoiler_…` `wing_…` `ducktail_…` | aero / spoiler | 0.8–1.9 | 0.03–0.6 | 0.05–0.7 | the middle of the boot lid where it bolts on, at the bottom of its feet | 2,000 |
 | Wheel (rim only) | `rim_…` `wheel_…` | wheels / wheels | 0.1–0.35 | 0.35–0.55 | 0.35–0.55 | the wheel's centre on its axle; the outer face towards +x | 3,000 |
 | Bonnet | `bonnet_…` `hood_…` | body / bonnet | 1–1.9 | 0.01–0.3 | 0.6–1.8 | the middle of its back edge (the hinge line), level with its top surface | 1,500 |
+| Cowl bonnet | `cowl_bonnet_…` `bonnet_cowl_…` | body / bonnet | 1–1.9 | 0.01–0.6 | 0.6–1.8 | the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it) | 1,500 |
 | Boot lid | `boot_…` `trunk_…` `bootlid_…` | body / boot | 1–1.9 | 0.01–0.5 | 0.2–1.3 | the middle of its front edge (the hinge line), level with its top surface | 1,500 |
 | Front bumper | `bumper_front_…` `front_bumper_…` | body / bumper_front | 1.3–2.1 | 0.08–0.7 | 0.08–0.7 | the middle of where it meets the body | 1,500 |
 | Rear bumper | `bumper_rear_…` `rear_bumper_…` | body / bumper_rear | 1.3–2.1 | 0.08–0.7 | 0.08–0.7 | the middle of where it meets the body | 1,500 |
 | Left door | `door_left_…` `left_door_…` | body / door_left | 0.02–0.3 | 0.3–1.1 | 0.6–1.7 | its front edge (the hinge line), halfway up | 1,500 |
 | Right door | `door_right_…` `right_door_…` | body / door_right | 0.02–0.3 | 0.3–1.1 | 0.6–1.7 | its front edge (the hinge line), halfway up | 1,500 |
-| Left front wing (fender) | `fender_left_…` `left_fender_…` | body / fender_left | 0.02–0.35 | 0.15–0.9 | 0.5–1.6 | its inner edge where it bolts to the body, at the top | 1,500 |
-| Right front wing (fender) | `fender_right_…` `right_fender_…` | body / fender_right | 0.02–0.35 | 0.15–0.9 | 0.5–1.6 | its inner edge where it bolts to the body, at the top | 1,500 |
+| Left front wing (fender) | `fender_left_…` `left_fender_…` | body / fender_left | 0.02–0.35 | 0.15–0.9 | 0.5–1.7 | its inner edge where it bolts to the body, at the top | 1,500 |
+| Right front wing (fender) | `fender_right_…` `right_fender_…` | body / fender_right | 0.02–0.35 | 0.15–0.9 | 0.5–1.7 | its inner edge where it bolts to the body, at the top | 1,500 |
 | Left side skirt | `skirt_left_…` `left_skirt_…` | body / skirt_left | 0.005–0.25 | 0.02–0.35 | 0.9–2.6 | its middle | 1,000 |
 | Right side skirt | `skirt_right_…` `right_skirt_…` | body / skirt_right | 0.005–0.25 | 0.02–0.35 | 0.9–2.6 | its middle | 1,000 |
 | Left mirror | `mirror_left_…` `left_mirror_…` | body / mirror_left | 0.06–0.4 | 0.04–0.3 | 0.02–0.3 | where its arm meets the door (its innermost point) | 800 |
@@ -203,6 +241,17 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 
 The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning; over twice it, a failure.
 
+### Kit pieces
+
+Name the file `kit_<kind>_<attach>_<name>.glb` (e.g. `kit_spoiler_endplate_fin.glb`): a piece a family's model generator mixes in (see Kit pieces above). Model it at the sizes shown, with its origin where it says; the generator scales it as shown. Materials: `paint`, a finish or the generators' own (`rim_finish`…): no `car_atlas`, no textures.
+
+| Kind | Attach point | File name | Wide | Tall | Long | Origin | Scaled by | Triangles |
+|---|---|---|---|---|---|---|---|---|
+| spoiler | Wing end plate | `kit_spoiler_endplate_…` | 0.003–0.05 | 0.05–0.4 | 0.1–0.6 | the end of the wing's element: the plate's inner face at x 0 (it stands out to +x), the element's middle — half its thickness up, half its chord along — at y 0, z 0; modelled for a 0.3 m chord, the left-hand one (the game mirrors it for the right) | y: chord (0.3 m), z: chord (0.3 m) | 300 |
+| wheels | Wheel centre piece | `kit_wheels_centre_…` | 0.004–0.06 | 0.03–0.14 | 0.03–0.14 | the hub's front face: its back at x 0, centred on the axle (it stands out to +x, the wheel's outer face) | — | 400 |
+| exhaust | Exhaust tip | `kit_exhaust_tip_…` | 0.04–0.14 | 0.04–0.14 | 0.06–0.32 | the front of the tip, where it meets the pipe, centred on it (it points back, to −z); modelled for a 45 mm radius and 180 mm long | x: radius (0.045 m), y: radius (0.045 m), z: length (0.18 m) | 300 |
+| body_kit | Bumper corner piece (a vent, a scoop, dive planes) | `kit_body_kit_bumper_…` | 0.005–0.12 | 0.02–0.25 | 0.03–0.4 | the front bumper's left-hand corner, 10 cm above its bottom edge, 2 cm back from its front: its inner face at x 0 (it stands out to +x); the game mirrors it for the right-hand corner | — | 400 |
+
 ### Cars
 
 | | |
@@ -212,7 +261,7 @@ The origin may be 3 cm off (engine: 6 cm). Over the triangle budget is a warning
 | Wheelbase / track | 2–3.4 m / 1.1–1.9 m |
 | Wheel sockets | at each wheel's centre, 0.24–0.42 m up (the stock wheel's radius, give or take 1.5 cm) |
 | Left / right sockets | mirror each other to 1 cm |
-| Triangles | 25,000 for the whole car |
+| Triangles | 150,000 for the whole car |
 | Paint | the body's painted surfaces use the material `paint` |
 | Must have | `socket_wheel_FL`, `socket_wheel_FR`, `socket_wheel_RL`, `socket_wheel_RR` |
 | Should have | `socket_bonnet`, `socket_boot`, `socket_bumper_front`, `socket_bumper_rear`, `socket_door_left`, `socket_door_right`, `socket_fender_FL`, `socket_fender_FR`, `socket_skirt_left`, `socket_skirt_right`, `socket_mirror_left`, `socket_mirror_right`, `socket_seat_driver`, `socket_seat_passenger`, `socket_steering_wheel`, `socket_engine`, `socket_intake`, `socket_turbo`, `socket_exhaust_tip`, `socket_spoiler` |

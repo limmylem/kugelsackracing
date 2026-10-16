@@ -1,0 +1,59 @@
+{
+  "id": "kaze_gt_bonnet_cowl",
+  "name": "Cowl bonnet (Kaze GT)",
+  "category": "body",
+  "slot": "bonnet",
+  "kind": "component",
+  "purpose": "swap",
+  "price": 800,
+  "mass": 17,
+  "model": "assets/parts/body/kaze_gt_bonnet_cowl.glb",
+  "icon": "assets/icons/parts/kaze_gt_bonnet_cowl.png",
+  "fits": ["car:kaze_gt"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["bonnet:cowl"],
+  "bounds": {
+    "min": [-0.7122, -0.0646, 0.0002],
+    "max": [0.7122, 0.266, 1.2626]
+  },
+  "massOffset": [0, -0.009, 0.685],
+  "contactMaterial": "metal",
+  "detach": {
+    "detachable": true,
+    "looseType": "hinge",
+    "hinge": {
+      "axis": [1, 0, 0],
+      "limits": [-110, 0]
+    },
+    "attachStrength": 2500,
+    "looseThreshold": 10,
+    "detachThreshold": 85,
+    "looseDrag": 0.12,
+    "open": 0.5,
+    "pop": 1.2
+  },
+  "collision": {
+    "method": "built-in",
+    "hulls": [[-0.712, -0.029, 0, 0.688, -0.065, 1.263, 0.558, -0.004, 0, -0.584, -0.051, 1.263, -0.076, 0.024, 0.186, -0.57, -0.038, 0.622, 0.583, -0.039, 0.635, 0.051, -0.021, 1.263, -0.44, 0.022, 0.24, -0.27, 0.034, 1.117, 0.498, 0.012, 0.979, 0.707, -0.032, 0.307, 0.211, 0.005, 0, -0.695, -0.026, 0.944, 0.376, -0.048, 1.263, -0.706, -0.017, 0.359], [-0.128, 0.043, 0.178, 0.442, 0.057, 1.097, -0.483, 0.047, 1.044, 0.479, 0.071, 0.421, 0.011, 0.259, 0.75, -0.481, 0.092, 0.533, -0.024, 0.046, 1.13, 0.405, 0.239, 0.766, 0.137, 0.16, 0.398, -0.357, 0.26, 0.802, -0.174, 0.185, 0.481, 0.203, 0.216, 0.993, -0.442, 0.086, 0.233, 0.285, 0.055, 0.188, -0.139, 0.259, 0.973, 0.315, 0.203, 0.545]],
+    "volumes": [0.084505, 0.102277]
+  },
+  "madeBy": {
+    "generator": "tools/generators/body.js",
+    "design": "the stock bonnet with a raised cowl over the engine bay",
+    "settings": {
+      "halfWidth": 0.41,
+      "from": 0.25,
+      "to": 1,
+      "full": 0.75,
+      "rearShare": 0.4,
+      "height": 0.27,
+      "fall": 0.1,
+      "nose": 0.16,
+      "splits": 2,
+      "mass": 17
+    }
+  },
+  "tier": "sport",
+  "_note": "The stock bonnet with a raised cowl over the engine bay: room for an engine swapped in (the Brute 500's V8, with or without a twin-screw blower on it, and the Strada Evo's turbo four). The swap kits need it."
+}

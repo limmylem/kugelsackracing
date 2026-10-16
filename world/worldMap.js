@@ -80,6 +80,9 @@ const css = `
 .worldCarMarker { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 20px solid #e2462f; filter: drop-shadow(0 1px 2px #000a); }
 @media (max-width: 560px) { #worldMini { width: 130px; height: 130px; } #worldFullSide { width: 180px; } }`;
 
+// (travel anywhere on the full map: in development and the tests — online, quests are driven to)
+const freeTravel = () => { const env = globalThis.KR_SITE?.env; return !env || env === 'development' || env === 'test'; };
+
 export async function createWorldMaps({ manifest, base, onTravel }) {
   if (!document.getElementById('worldMapCss')) { const s = document.createElement('style'); s.id = 'worldMapCss'; s.textContent = css; document.head.appendChild(s); }
   const ml = await maplibre(), fileUrl = new URL(manifest.map, base).href;
@@ -120,7 +123,8 @@ export async function createWorldMaps({ manifest, base, onTravel }) {
     full.style.display = on ? 'block' : 'none';
     if (on && !fullMap) {
       fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
-      fullMap.on('click', e => { if (e.originalEvent.shiftKey) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); } });
+      // (shift-click: anywhere — development only: online, quests are driven to)
+      fullMap.on('click', e => { if (e.originalEvent.shiftKey && freeTravel()) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); } });
       const el = document.createElement('div'); el.className = 'worldCarMarker';
       carMarker = new ml.Marker({ element: el, rotationAlignment: 'map' }).setLngLat(last ? [last.lon, last.lat] : [lon0, lat0]).addTo(fullMap);
     }

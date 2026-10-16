@@ -36,43 +36,43 @@
     "kaze_gt": {
       "model": "assets/parts/intercooler/front_mount_intercooler/kaze_gt.glb",
       "bounds": {
-        "min": [-0.3, -0.102, -0.2256],
-        "max": [0.3, 0.102, 0.004]
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/intercooler/front_mount_intercooler/hana_roadster.glb",
       "bounds": {
-        "min": [-0.3, -0.084, -0.2256],
-        "max": [0.3, 0.0856, 0.004]
+        "min": [-0.3, -0.102, -0.1956],
+        "max": [0.3, 0.102, 0.034]
       }
     },
     "ridgeback_4x4": {
       "model": "assets/parts/intercooler/front_mount_intercooler/ridgeback_4x4.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2256],
-        "max": [0.3, 0.16, 0.004]
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
       }
     },
     "vortex_r": {
       "model": "assets/parts/intercooler/front_mount_intercooler/vortex_r.glb",
       "bounds": {
-        "min": [-0.3, -0.08, -0.2256],
-        "max": [0.3, 0.16, 0.004]
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
       }
     },
     "brute_500": {
       "model": "assets/parts/intercooler/front_mount_intercooler/brute_500.glb",
       "bounds": {
-        "min": [-0.3, -0.102, -0.2256],
-        "max": [0.3, 0.102, 0.004]
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
       }
     },
     "strada_evo": {
       "model": "assets/parts/intercooler/front_mount_intercooler/strada_evo.glb",
       "bounds": {
-        "min": [-0.3, -0.102, -0.2256],
-        "max": [0.3, 0.102, 0.004]
+        "min": [-0.3, -0.12, -0.1956],
+        "max": [0.3, 0.12, 0.034]
       }
     },
     "apex_v8": {

@@ -1,5 +1,5 @@
 # what the server image leaves out (Dockerfile): dependencies (installed in it), the repository's history,
-# secrets, tests, tools and docs, the server's setup and deploy files, local data and reports, source files for models
+# secrets, tests, the Blender add-on and docs, the server's setup and deploy files, local data and reports, source files for models
 node_modules
 **/node_modules
 .git
@@ -12,7 +12,9 @@ node_modules
 !**/.env.example
 tests
 server/test
-tools
+# (the tools stay: the live admin page's Builder makes its previews and works out what a family makes with the content
+# pipeline's own code — tools/content, tools/generators, tools/shapes; docs/CONTENT_PIPELINE.md)
+tools/blender
 docs
 design
 incoming

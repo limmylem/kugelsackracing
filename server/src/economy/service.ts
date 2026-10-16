@@ -42,12 +42,12 @@ type Game = Awaited<ReturnType<EconomyConfig['gameDb']>> & { onCommit: (() => vo
 const DAMAGE = { partsPerReport: 64, hitsPerPart: 32, reportsPerSession: 20000, refundWindowSec: 120, timeoutMin: 10 };
 
 // the actions a player may ask for (their arguments are checked by the routes' schemas first)
-export const PLAYER_ACTIONS = ['buyPart', 'sellPart', 'sellParts', 'refundPart', 'buyBundle', 'sellCar', 'buyUsedCar', 'buyGarageSlot', 'repairPart', 'repairParts', 'repairBody', 'repairCar', 'replaceWithSpare', 'basicRepair', 'installPart', 'removePart', 'buyAndInstall',
+export const PLAYER_ACTIONS = ['buyPart', 'sellPart', 'sellParts', 'refundPart', 'buyBundle', 'sellCar', 'buyUsedCar', 'buyGarageSlot', 'towCar', 'repairPart', 'repairParts', 'repairBody', 'repairCar', 'replaceWithSpare', 'basicRepair', 'installPart', 'removePart', 'buyAndInstall',
   'setBuild', 'setTuning', 'setPaint', 'setPartFinish', 'selectCar', 'buyCar', 'saveSetup', 'renameSetup', 'deleteSetup', 'switchSetup', 'markHint', 'favouriteTrack',
   'startQuest', 'refundQuest', 'finishQuest', 'failQuest', 'awardCar', 'forfeitCar', 'damageCar', 'wearPart', 'sessionReset', 'chooseStarter'] as const;
 export type PlayerAction = typeof PLAYER_ACTIONS[number];
 
-const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purchase', buyCar: 'purchase', buyBundle: 'purchase', buyUsedCar: 'purchase', buyGarageSlot: 'purchase', sellPart: 'sale', sellParts: 'sale', sellCar: 'sale', refundPart: 'refund', repairPart: 'repair', repairParts: 'repair', repairBody: 'repair', repairCar: 'repair', replaceWithSpare: 'repair', basicRepair: 'repair', startQuest: 'entry_fee', refundQuest: 'refund', finishQuest: 'reward', failQuest: 'reward' };
+const KIND: Record<string, string> = { buyPart: 'purchase', buyAndInstall: 'purchase', buyCar: 'purchase', buyBundle: 'purchase', buyUsedCar: 'purchase', buyGarageSlot: 'purchase', towCar: 'purchase', sellPart: 'sale', sellParts: 'sale', sellCar: 'sale', refundPart: 'refund', repairPart: 'repair', repairParts: 'repair', repairBody: 'repair', repairCar: 'repair', replaceWithSpare: 'repair', basicRepair: 'repair', startQuest: 'entry_fee', refundQuest: 'refund', finishQuest: 'reward', failQuest: 'reward' };
 
 // clock: what time it is (the tests move it on: a sale ending, the refund window closing, tomorrow's used lot)
 export function createEconomy({ db, config, tracks, log = () => {}, clock = () => Date.now() }: { db: Db; config: EconomyConfig; tracks: TrackService; log?: (o: object, m: string) => void; clock?: () => number }) {
@@ -237,6 +237,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
         case 'buyBundle': answer = await S.buyBundle(args.bundleId, args.opts ?? {}); meta.reason = `Bought a kit: ${(E.game.economy.shop?.bundles ?? []).find((b: any) => b.id === args.bundleId)?.name ?? args.bundleId}`; meta.ref = { bundleId: args.bundleId, instanceIds: answer.instanceIds ?? [], partIds: (answer.instanceIds ?? []).map((i: string) => answer.updatedState?.parts?.[i]?.partId ?? null) }; break;
         case 'buyUsedCar': answer = await S.buyUsedCar(args.listingId); meta.reason = `Bought a used car (${args.listingId})`; meta.ref = { listingId: args.listingId, carInstanceId: answer.carInstanceId ?? null, carId: answer.carInstanceId ? answer.updatedState?.cars?.[answer.carInstanceId]?.carId ?? null : null }; break;
         case 'buyGarageSlot': answer = await S.buyGarageSlot(); meta.reason = 'Bought garage space'; meta.ref = { capacity: answer.capacity ?? null }; break;
+        case 'towCar': answer = await S.towCar(); meta.reason = 'Towed to the garage'; meta.ref = { fee: answer.fee ?? null }; break;
         case 'sellCar': {
           // (not one that's racing: a run under way with it)
           const racing = (await tx.execute(sql`select 1 from economy_sessions where user_id = ${user.id} and kind = 'quest' and state = 'active' and car_instance_id = ${args.carInstanceId}`)).rows.length;

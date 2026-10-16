@@ -294,3 +294,35 @@ test('unlimited money (development): everything free while it\'s on, money untou
   await service.setUnlimitedMoney(false);
   assert.equal((await service.buyPart(pricey.id)).ok, false);
 });
+
+test('a tow to the garage: its fee; with less money, what you have (nobody stranded); free with unlimited money', async () => {
+  const { service } = await fresh(), fee = db.economy.tow.fee;
+  assert.ok(fee > 0);
+  let r = await service.towCar();
+  assert.ok(r.ok, r.error);
+  assert.equal(r.cost, fee);
+  assert.equal(r.updatedState.money, db.economy.startingMoney - fee);
+  assert.equal(r.updatedState.shopLog[0].what, 'tow');
+  await service.addMoney(-(r.updatedState.money - 40));
+  r = await service.towCar();
+  assert.ok(r.ok, r.error);
+  assert.equal(r.cost, 40);
+  assert.equal(r.updatedState.money, 0);
+  r = await service.towCar();
+  assert.ok(r.ok, 'towed with no money at all');
+  assert.equal(r.cost, 0);
+  await service.setUnlimitedMoney(true);
+  await service.addMoney(500);
+  r = await service.towCar();
+  assert.equal(r.cost, 0);
+  assert.equal(r.updatedState.money, 500);
+});
+
+test('a player whose id prefix is all digits: the id counter stays small across reopening (it saves as a 32-bit integer on the server)', async () => {
+  const { service, storage, profile } = await fresh(null, { idPrefix: '21013347' });
+  assert.ok(Object.keys(profile.parts).every(id => id.includes('_21013347')), 'the prefix in its ids');
+  await service.buyPart(Object.keys(db.parts).find(id => db.parts[id].price > 0 && db.parts[id].price < profile.money && !db.parts[id].retired));
+  const again = await reopen(storage, { idPrefix: '21013347' });
+  assert.ok(again.profile.nextId < 1000, `next id ${again.profile.nextId}`);
+  assert.ok(again.profile.nextId >= profile.nextId, 'and still past every id used');
+});

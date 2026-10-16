@@ -40,7 +40,8 @@ if (args.includes('--local-libs')) {
 const page = await ctx.newPage();
 page.on('pageerror', (e: any) => errors.push(String(e)));
 page.on('console', (m: any) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });   // (fonts are blocked here; the page asks who's signed in before the sign-in)
-page.on('dialog', async (d: any) => d.accept(d.message().includes('Price ×') ? '1.1' : 'Test: from the content browser check'));
+// (5% cheaper: the picked parts' prices stay inside their tier's band — some drafts sit at its top)
+page.on('dialog', async (d: any) => d.accept(d.message().includes('Price ×') ? '0.95' : 'Test: from the content browser check'));
 const shot = async (name: string) => { if (shots) await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: false }); };
 try {
   await page.goto(`${BASE}/admin/`);
@@ -77,7 +78,7 @@ try {
   const boxes = await page.$$('section table tr td input[type=checkbox]');
   for (const b of boxes.slice(0, 3)) await b.check();
   await page.click('button:has-text("Price ×")');
-  await page.waitForFunction(() => /changed: new draft versions/.test(document.querySelector('section .msg')?.textContent ?? ''), null, { timeout: 20000 });
+  await page.waitForFunction(() => /changed: new draft versions/.test(document.querySelector('section .msg')?.textContent ?? ''), null, { timeout: 20000 }).catch(async e => { throw new Error(`no bulk change: ${await page.textContent('section .msg').catch(() => '')}`); });
   check('three picked and their price changed in bulk: new draft versions', true, await page.textContent('section .msg'));
   await shot('content-bulk');
   check('no errors on the page', !errors.length, errors.slice(0, 3).join(' | '));

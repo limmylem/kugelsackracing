@@ -10,28 +10,33 @@
 //    weight moving onto the outside tyres (more for a higher centre of mass on a narrower track), and
 //    less again for underdamped suspension (worn dampers: the body bounces the tyres off their best)
 //  - braking: 100–0 km/h, the tyres' grip or the brakes' torque, whichever gives out first, longer for
-//    brakes that fade early (worn: they won't last a lap of hard stops)
+//    brakes that fade early (worn: they won't last a lap of hard stops) — brakingCold, what the rating
+//    scores (the classes are set on it). What the garage shows, braking, is that over a race's hard
+//    stops: against the car's own brakes (assists.abs.referenceTorque, referenceFade), a quarter of how
+//    much shorter (or longer) their stops are hot, at 300–500 °C — where pads and discs that fade later
+//    keep more of their grip (the car's own brakes: their cold stop)
 // Each estimate scores 0–1 between its worst and best (classes.ranges), the scores are weighted
 // (classes.weights) and the sum maps onto 100–999.
 
 import { engineTorque } from '../physics/engine.js';
 import { angleScale } from '../physics/parts.js';
 import { SEA_LEVEL_DENSITY } from '../physics/aero.js';
+import { fullTorques } from '../physics/brakes.js';
 
-const G = 9.81, rpm = w => w * 30 / Math.PI;
+const G = 9.81, rpm = w => w * 30 / Math.PI, HOT = [300, 350, 400, 450, 500], HOT_SHARE = 0.25;
 
 export function performance(spec, geometry, config, topSpeed) {
   const e = estimate(spec, geometry, topSpeed);
   const r = config.ranges, w = config.weights;
   const score = (x, { worst, best }) => Math.min(1, Math.max(0, (x - worst) / (best - worst)));
-  const scores = { acceleration: score(e.zeroTo100, r.acceleration), topSpeed: score(e.topSpeed, r.topSpeed), grip: score(e.grip, r.grip), braking: score(e.braking, r.braking) };
+  const scores = { acceleration: score(e.zeroTo100, r.acceleration), topSpeed: score(e.topSpeed, r.topSpeed), grip: score(e.grip, r.grip), braking: score(e.brakingCold, r.braking) };   // (the cold stop: the classes are set on it)
   const total = Object.entries(scores).reduce((a, [k, s]) => a + s * w[k], 0) / Object.values(w).reduce((a, b) => a + b, 0);
   const index = Math.round(100 + 899 * total);
   const cls = config.classes.filter(c => index >= c.from).pop()?.class ?? config.classes[0].class;
   return { index, class: cls, estimates: e, scores };
 }
 
-// The estimates themselves: { zeroTo100 (s), topSpeed (km/h), grip (g), braking (m) }. geometry:
+// The estimates themselves: { zeroTo100 (s), topSpeed (km/h), grip (g), braking (m, over a race), brakingCold (m) }. geometry:
 // { wheelbase, track, frontAxle (z of the front axle), comHeight (the centre of mass above the ground) }
 export function estimate(spec, geometry, topSpeed) {
   const m = spec.mass, W = spec.wheels, r = W.radius, A = spec.aero, T = spec.tyre;
@@ -80,9 +85,14 @@ export function estimate(spec, geometry, topSpeed) {
   const B = spec.brakes, P = B.maxPressureBar * 1e5;
   const torque = end => 2 * end.padMu * P * end.pistonArea * end.discRadius;
   const brakeForce = 2 * (torque(B.front) + torque(B.rear)) / r;
-  const decel = Math.min(muX * 0.92 * G, brakeForce / m);
-  const fade = 1 + 0.4 * Math.max(0, (250 - B.fade.startTemp) / 250);
-  const vb = 100 / 3.6, braking = vb * vb / (2 * decel) * fade;
+  const vb = 100 / 3.6, stop = force => vb * vb / (2 * Math.min(muX * 0.92 * G, force / m));
+  // (a stop hot: the share of the pads' grip left at each of a race's brake temperatures, averaged)
+  const hotStop = (force, F) => HOT.reduce((a, T) => { const t = Math.min(1, Math.max(0, (T - F.startTemp) / (F.fullTemp - F.startTemp))); return a + stop(force * (1 - (1 - F.muAtFull) * t * t * (3 - 2 * t))); }, 0) / HOT.length;
+  const ref = spec.assists?.abs?.referenceTorque, refFade = spec.assists?.abs?.referenceFade;
+  const fit = fullTorques(B), fitForce = 2 * (fit.front + fit.rear) / r, ownForce = ref ? 2 * (ref.front + ref.rear) / r : fitForce, ownFade = refFade ?? { startTemp: 250, fullTemp: 450, muAtFull: 0.4 };
+  const wornFade = 1 + 0.4 * Math.max(0, (250 - B.fade.startTemp) / 250);   // (brakes that fade early: worn, they won't last a lap of hard stops)
+  const brakingCold = stop(brakeForce) * wornFade;
+  const braking = brakingCold * (1 + HOT_SHARE * (hotStop(fitForce, B.fade) - hotStop(ownForce, ownFade)) / hotStop(ownForce, ownFade));
 
-  return { zeroTo100, topSpeed: topSpeed ?? null, grip, braking };
+  return { zeroTo100, topSpeed: topSpeed ?? null, grip, braking, brakingCold };
 }

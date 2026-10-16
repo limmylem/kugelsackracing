@@ -120,7 +120,25 @@ function applyEffect(spec, effect) {
 }
 const PHASES = [['add'], ['multiply', 'boost'], ['set']];
 
-export function computeStats(build, db) {
+// Worked out once for each build: the same car, the same part copies in the same sockets, each as it is (its condition,
+// tuning, damage, attachment: garage/fingerprint.js), the same game data — a garage action works out the same build
+// several times (before, its checks, after; the next action's before), and the server one player's after another's.
+// computeStats hands each caller a copy of its own (callers change specs: the tuning panel, the tests); shared: true the
+// cached result itself, for callers that only read it (garage/validate.js).
+const STATS = new WeakMap(), STATS_MAX = 4000;
+const statsKey = (build, db) => JSON.stringify([build.carId, build.sockets ?? {}, build.attach ?? null]) + fingerprint(build, db.owned ?? {});
+export function computeStats(build, db, { shared = false } = {}) {
+  if (!db?.parts || !build) return statsOf(build, db);
+  let by = STATS.get(db.parts);
+  if (!by) STATS.set(db.parts, by = new Map());
+  const key = statsKey(build, db), hit = by.get(key);
+  if (hit && hit.cars === db.cars && hit.classes === db.classes && hit.condition === db.condition && hit.damage === db.damage && hit.finishes === db.finishes) return shared ? hit.result : structuredClone(hit.result);
+  const result = statsOf(build, db);
+  if (by.size >= STATS_MAX) by.clear();
+  by.set(key, { result: shared ? result : structuredClone(result), cars: db.cars, classes: db.classes, condition: db.condition, damage: db.damage, finishes: db.finishes });
+  return shared ? by.get(key).result : result;
+}
+function statsOf(build, db) {
   const car = db.cars[build.carId], errors = [], breakdown = {};
   if (!car) return { spec: null, totals: null, breakdown, errors: [`there's no car "${build.carId}"`] };
   const record = (path, entry) => (breakdown[path] ||= []).push(entry);
@@ -157,9 +175,12 @@ export function computeStats(build, db) {
   const stockBrakesPart = db.parts[car.sockets.find(s => s.slot === 'brakes')?.stock?.[0]];
   if (stockBrakesPart?.brakes && spec.assists?.abs) {
     spec.assists.abs.referenceTorque = fullTorques(stockBrakesPart.brakes);
+    spec.assists.abs.referenceFade = { ...stockBrakesPart.brakes.fade };      // (and how they fade: the rating's hot stops)
+    delete spec.assists.abs.referenceFade._note;
     for (const k of ['front', 'rear']) record(`assists.abs.referenceTorque.${k}`, { step: 'base', source: { kind: 'part', id: stockBrakesPart.id, name: stockBrakesPart.name }, to: spec.assists.abs.referenceTorque[k], note: 'the car\'s own brakes at full pedal: what its ABS is set for' });
+    for (const k of Object.keys(spec.assists.abs.referenceFade)) record(`assists.abs.referenceFade.${k}`, { step: 'base', source: { kind: 'part', id: stockBrakesPart.id, name: stockBrakesPart.name }, to: spec.assists.abs.referenceFade[k], note: 'how the car\'s own brakes fade: what the rating\'s Braking compares hot stops with' });
   }
-  const derived = ['mass', 'centreOfMass', 'inertiaTensor', 'wheels.radius', 'wheels.inertia', 'wheels.unsprung', 'wheels.offsets', 'assists.abs.referenceTorque'];
+  const derived = ['mass', 'centreOfMass', 'inertiaTensor', 'wheels.radius', 'wheels.inertia', 'wheels.unsprung', 'wheels.offsets', 'assists.abs.referenceTorque', 'assists.abs.referenceFade'];
   for (const [path, value] of leaves(spec, '')) if (value !== null && !derived.some(d => path === d || path.startsWith(d + '.'))) record(path, { step: 'base', source: carSource, to: value });
 
   // 2. components

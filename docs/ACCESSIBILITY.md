@@ -135,7 +135,7 @@ By hand, before a release (on the deployed game, a fresh browser profile):
 
 ## Known gaps
 
-- **Hard-coded English**: about 725 player-facing strings, mostly in older screens (the garage, multiplayer screens,
+- **Hard-coded English**: about 740 player-facing strings, mostly in older screens (the garage, multiplayer screens,
   free roam, the quest HUD, `index.html`), aren't in `locales/` yet (`data/i18n-baseline.json`;
   [TRANSLATIONS.md](TRANSLATIONS.md)). Many of those screens also have fixed pixel font sizes, so the Text size setting
   doesn't reach them (the HUD has its own size slider).

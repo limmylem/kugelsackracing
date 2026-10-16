@@ -6,8 +6,9 @@
 // the economy rules). Every file it writes is worked out from the definitions, the same every time: change the
 // definition, not the files. A part no longer made is retired (kept: players who own one keep it), never deleted.
 //
-//   buildContent({ only: [ids], check: true }) → { made, updated, unchanged, retired, failed: [{ id, problems }], parts, models }
-//     (check: build and check everything, write nothing)
+//   buildContent({ only: [ids], check: true, progress }) → { made, updated, unchanged, retired, failed: [{ id, problems }], parts, models }
+//     (check: build and check everything, write nothing; progress({ done, total }) after each model)
+//   buildWords(r, { check, seconds }) → the result in words, as npm run content -- build says it
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,7 +27,7 @@ import { forCar, REFERENCE_CAR } from './balance.mjs';
 import { cratePart } from '../../garage/engines.js';
 import { expandFamily, priceFamilyParts } from './families.mjs';
 import { engineModel } from '../shapes/engine.js';
-import { shapeFor } from '../shapes/index.js';
+import { shapeFor, withKits } from '../shapes/index.js';
 import { loadCar } from '../generators/lib/car.js';
 import { fitBuild, fitCheck } from '../generators/lib/fitcheck.js';
 
@@ -67,14 +68,14 @@ export async function plan({ root = ROOT, only = null, project = null } = {}) {
   for (const { file, def } of listDefs(root, 'data/families')) {
     if (!wanted(def.id)) continue;
     if (path.basename(file, '.json') !== def.id) { failed.push({ id: def.id ?? file, source: file, problems: [`${file}: its id should be "${path.basename(file, '.json')}" (its file name)`] }); continue; }
-    const r = expandFamily(def, { formulas, db: project.db });
+    const r = expandFamily(def, { formulas, db: project.db, root });
     if (r.problems.length) failed.push({ id: def.id, source: file, problems: r.problems });
     const shape = r.kind && shapeFor(r.kind.shape);
     if (r.kind && !shape) { failed.push({ id: def.id, source: file, problems: [`${def.id}: there's no shape "${r.kind.shape}" (tools/shapes/index.js)`] }); continue; }
     // (the cars each goes on: the data with the new parts in it)
     const all = { ...project.db, parts: { ...project.db.parts, ...Object.fromEntries(r.variants.map(v => [v.id, v.part])) } };
     for (const v of r.variants) {
-      const p = v.part, design = def.shape ?? {}, base = `assets/parts/${p.category}/${def.id}/${v.modelKey}`;
+      const p = v.part, design = await withKits(def.kind, r.kind, v.design), base = `assets/parts/${p.category}/${def.id}/${v.modelKey}`;
       let models;
       if (r.kind.perCar) models = [{ file: p.model, build: async () => shape(v.modelKey, v.ctx, v.stats, design, await loadCar(v.settings.car)) }];
       else if (r.kind.fit) {
@@ -90,10 +91,11 @@ export async function plan({ root = ROOT, only = null, project = null } = {}) {
   return { project, formulas, standards, tiers, jobs, failed };
 }
 
-export async function buildContent({ root = ROOT, only = null, check = false, log = () => {} } = {}) {
+export async function buildContent({ root = ROOT, only = null, check = false, log = () => {}, progress = () => {} } = {}) {
   const { project, formulas, tiers, jobs, failed } = await plan({ root, only });
   const out = { made: [], updated: [], unchanged: [], retired: [], failed, parts: [], models: 0, clashes: [] };
-  const io = await modelIO(), rules = project.rules, made = new Map();
+  const io = await modelIO(), rules = project.rules, made = new Map(), total = new Set(jobs.flatMap(j => j.models.map(m => m.file))).size;
+  progress({ done: 0, total });
   // each model once (a family's finishes share theirs): made, fixed (compressed), checked
   for (const job of jobs) {
     for (const m of job.models) {
@@ -111,6 +113,7 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
         } catch (err) { problems.push(`${job.id}: its model couldn't be made: ${err.message}`); }
         made.set(m.file, { doc, problems, fit, info: doc ? inspect(doc) : null, tris: model?.tris?.() ?? null });
         log(`  model ${m.file}${fit?.clashes ? ` (${fit.clashes} clash${fit.clashes > 1 ? 'es' : ''} left)` : ''}`);
+        progress({ done: made.size, total });
       }
       const r = made.get(m.file);
       if (r.problems.length) { job.failed = [...(job.failed ?? []), ...r.problems]; continue; }
@@ -201,4 +204,22 @@ export async function buildContent({ root = ROOT, only = null, check = false, lo
     out.retired.push(p.id);
   }
   return out;
+}
+
+// What a build did, in words — what npm run content -- build prints, and a content job's log (the admin page)
+export function buildWords(r, { check = false, seconds = null } = {}) {
+  const lines = [], by = {};
+  for (const p of r.parts) { const k = p.generated?.family ?? `engine ${p.generated?.engine}`; (by[k] ??= []).push(p); }
+  for (const [k, list] of Object.entries(by)) {
+    const tiers = {}; for (const p of list) tiers[p.tier] = (tiers[p.tier] ?? 0) + 1;
+    const prices = list.map(p => p.price);
+    lines.push({ ok: true, text: `${k}: ${list.length} part${list.length > 1 ? 's' : ''} (${Object.entries(tiers).map(([t, n]) => `${n} ${t}`).join(', ')}), $${Math.min(...prices).toLocaleString('en-GB')}–$${Math.max(...prices).toLocaleString('en-GB')}` });
+  }
+  const left = r.clashes.filter(c => c.left), cars = [...new Set(left.map(c => `${c.id.split('_')[0]} on the ${c.car}`))];
+  if (cars.length) lines.push({ text: `note: left off the cars they can't be made to fit: ${cars.join(', ')}` });
+  if (r.failed.length) { lines.push({ bad: true, text: `${r.failed.length} couldn't be made:` }); for (const f of r.failed) for (const p of f.problems) lines.push({ bad: true, text: `  ✘ ${p}` }); }
+  const took = seconds == null ? '' : ` — ${seconds.toFixed(1)} s`;
+  if (check) lines.push({ text: `Checked ${r.parts.length} parts and ${r.models} models${took}: nothing written.` });
+  else lines.push({ text: `${r.made.length} new, ${r.updated.length} changed, ${r.unchanged.length} the same, ${r.retired.length} retired; ${r.models} models${took}.${r.made.length || r.updated.length ? ' Next: npm run content -- check' : ''}` });
+  return lines;
 }

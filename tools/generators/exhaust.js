@@ -6,8 +6,9 @@ import { annulus, cylinder, lathe, moved, scaled, tube } from './lib/geometry.js
 import { PartModel, suggestPrice } from './lib/part.js';
 
 // settings: { tips: [[x, y], …] (each tip's centre), radius, length, shape ('round' | 'oval': squashed in y),
-//   cut ('rolled' | 'slash' | 'straight'), material ('chrome' | 'titanium' | 'raw_metal'), joiner (a pipe
-//   joining twin tips to one inlet), segments (round each tip) }
+//   cut ('rolled' | 'slash' | 'straight'), slash (m: how far a slash cut slopes back across a tip), material ('chrome' |
+//   'titanium' | 'raw_metal'), joiner (a pipe joining twin tips to one inlet), segments (round each tip), piece (a kit
+//   piece's triangles in place of each round tip: tools/generators/lib/kit.js) }
 export function exhaustTip(id, s) {
   const m = new PartModel(id), R = s.radius, L = s.length ?? 0.18, mat = s.material ?? 'chrome', seg = s.segments ?? 16;
   const squash = s.shape === 'oval' ? [1.45, 0.7, 1] : [1, 1, 1];
@@ -16,7 +17,9 @@ export function exhaustTip(id, s) {
     const lip = s.cut === 'rolled' ? [[R * 0.88, -L], [R * 1.08, -L + 0.004], [R * 1.08, -L + 0.018]] : [[R * 0.88, -L], [R, -L]];
     const prof = [[R * 0.7, 0], [R * 0.82, 0], [R * 0.82, -0.04], [R, -0.06], ...lip.reverse().map(p => p), [R * 0.86, -L + 0.002], [R * 0.86, -0.06], [R * 0.7, -0.04], [R * 0.7, 0]];
     let wall = lathe(prof.map(([r, z]) => [r, z]), seg, 'z');
-    if (s.cut === 'slash') wall = wall.map(t => t.map(([px, py, pz]) => [px, py, pz < -L * 0.6 ? pz + (py / R) * 0.035 : pz]));
+    if (s.cut === 'slash') wall = wall.map(t => t.map(([px, py, pz]) => [px, py, pz < -L * 0.6 ? pz + (py / R) * (s.slash ?? 0.035) : pz]));
+    // (a kit piece in place of the tip: scaled to its radius and length, its origin at the tip's inlet)
+    if (s.piece) { for (const [tris, pm] of s.piece(R, L)) m.add(moved(scaled(tris, squash), [x, y, 0]), pm ?? mat); continue; }
     m.add(moved(scaled(wall, squash), [x, y, 0]), mat);
     // the dark inside, set back from the mouth
     m.add(moved(scaled(cylinder('z', R * 0.86, -L + 0.03, -L + 0.034, seg), squash), [x, y, 0]), 'black');

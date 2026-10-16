@@ -38,15 +38,15 @@
     "kaze_gt": {
       "model": "assets/parts/interior/quick_release_wheel/kaze_gt.glb",
       "bounds": {
-        "min": [-0.191, -0.191, -0.088],
-        "max": [0.191, 0.193, 0]
+        "min": [-0.17, -0.17, -0.088],
+        "max": [0.17, 0.172, 0]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/quick_release_wheel/hana_roadster.glb",
       "bounds": {
-        "min": [-0.191, -0.191, -0.088],
-        "max": [0.191, 0.193, 0]
+        "min": [-0.17, -0.17, -0.128],
+        "max": [0.17, 0.172, 0]
       }
     },
     "ridgeback_4x4": {
@@ -66,8 +66,8 @@
     "brute_500": {
       "model": "assets/parts/interior/quick_release_wheel/brute_500.glb",
       "bounds": {
-        "min": [-0.191, -0.191, -0.088],
-        "max": [0.191, 0.193, 0]
+        "min": [-0.1805, -0.1805, -0.088],
+        "max": [0.1805, 0.1825, 0]
       }
     },
     "strada_evo": {
@@ -80,8 +80,8 @@
     "apex_v8": {
       "model": "assets/parts/interior/quick_release_wheel/apex_v8.glb",
       "bounds": {
-        "min": [-0.191, -0.191, -0.128],
-        "max": [0.191, 0.193, 0]
+        "min": [-0.1805, -0.1805, -0.108],
+        "max": [0.1805, 0.1825, 0]
       }
     }
   }

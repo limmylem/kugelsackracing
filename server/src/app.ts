@@ -46,7 +46,14 @@ import { adminShopRoutes } from './routes/adminShop.ts';
 import { adminContentRoutes } from './routes/adminContent.ts';
 import { launchRoutes } from './routes/launch.ts';
 import { createContentManager } from './content/manager.ts';
+import { createContentBuilder } from './content/builder.ts';
+import { createGithubRunner } from './content/github.ts';
+import { githubApi } from './github.ts';
+import { createDevlog } from './devlog.ts';
+import { adminDevlogRoutes } from './routes/adminDevlog.ts';
+import { adminBuilderRoutes } from './routes/adminBuilder.ts';
 import { createContentService } from './content/service.ts';
+import { ensureStartingGarages } from './content/garages.ts';
 import { trackRoutes } from './routes/tracks.ts';
 import { moveGuestData, deleteUserData } from './data.ts';
 import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
@@ -79,7 +86,9 @@ export const scrubUrl = (url: string) => {
 export type AppDeps = { config: Config; rtBridge?: import('./rt/bridge.ts').RtBridge; db?: Db; pool?: { end(): Promise<void> }; mailer?: Mailer; botCheck?: BotCheck | null;
   // (the rollback drill only — server/tools/rollback-test.ts: a "broken release", every request matching it answering 500.
   // Never from settings or the environment, and refused in production)
-  fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number };
+  fault?: RegExp | null; mockOAuth?: { discoveryUrl: string; clientId: string; clientSecret: string } | null; onUnexpected?: (err: unknown, req?: { id?: string; method?: string; url?: string }) => void; logStream?: { write(msg: string): void }; clock?: () => number;
+  // (tests only: GitHub's API, for the live Builder's jobs — content/github.ts)
+  githubFetch?: typeof fetch };
 
 export async function buildApp(deps: AppDeps) {
   const { config } = deps;
@@ -379,6 +388,9 @@ export async function buildApp(deps: AppDeps) {
   });
   const content = createContentService({ db, rules: loadRules() });
   app.decorate('content', content);
+  // (the starting garages — drive-through buildings in each region, data/world/garages.json — published once, if never there;
+  // not on a test server: its tests start from empty content)
+  if (config.env !== 'test') app.addHook('onReady', async () => { await ensureStartingGarages(db, content, (o, m) => app.log.info(o, m)).catch(e => app.log.warn({ err: e }, 'starting garages failed')); });
   const tracks = createTrackService({ db, config, log: (o, m) => app.log.info(o, m) });
   app.decorate('tracks', tracks);
   app.addHook('onClose', async () => { await tracks.close(); });
@@ -408,6 +420,14 @@ export async function buildApp(deps: AppDeps) {
   app.decorate('contentManager', contentManager);
   app.addHook('onReady', async () => { void contentManager.resume().catch(e => app.log.warn({ err: e }, 'content checks resume failed')); });
   app.addHook('onClose', async () => contentManager.close());
+  // (the admin page's Builder: its jobs run here on a development copy, or are sent to GitHub's content-builder workflow
+  // from the live server — config contentBuilder.mode)
+  const CB = config.contentBuilder;
+  const remote = CB.enabled && CB.mode === 'github' ? createGithubRunner({ repo: CB.repo ?? 'limmylem/kugelsackracing', token: config.contentBuilderToken, ...(deps.githubFetch && { fetchFn: deps.githubFetch }) }) : null;
+  const contentBuilder = createContentBuilder(db, { manager: contentManager, enabled: CB.enabled, remote, log: (o: any, m: string) => app.log.warn(o, m) });
+  app.addHook('onClose', async () => contentBuilder.close());
+  // (the admin page's Devlog tab: the devlog workflow run and its videos shown, through GitHub with the same token)
+  const devlog = createDevlog(db, { github: config.contentBuilderToken || deps.githubFetch ? githubApi({ repo: CB.repo ?? 'limmylem/kugelsackracing', token: config.contentBuilderToken, ...(deps.githubFetch && { fetchFn: deps.githubFetch }) }) : null });
   const sweeper = setInterval(() => { void economy.sweep().catch(e => app.log.warn({ err: e }, 'session sweep failed')); }, 60_000);
   sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
@@ -423,13 +443,15 @@ export async function buildApp(deps: AppDeps) {
     await adminRoutes(api, { config, db, auth, G, rtBridge });
     await rtRoutes(api, { config, G, mp });
     await mpRoutes(api, { config, G, mp, db });
-    await roamRoutes(api, { config, G, roam });
+    await roamRoutes(api, { config, G, roam, mp });
     await contentRoutes(api, { config, content, G });
     await trackRoutes(api, { config, tracks, G, auth });
     await playerRoutes(api, { economy, config: economyConfig, content: contentManager, G });
     await adminEconomyRoutes(api, { db, economy, config: economyConfig, G });
     await adminShopRoutes(api, { db, config: economyConfig, G, clock: economy.clock });
     await adminContentRoutes(api, { db, manager: contentManager, G });
+    await adminBuilderRoutes(api, { builder: contentBuilder, G });
+    await adminDevlogRoutes(api, { devlog, G });
     await launchRoutes(api, { db, economy, G, authSecret: config.authSecret });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks) });
@@ -461,6 +483,10 @@ export async function buildApp(deps: AppDeps) {
         if (role && p !== top.slice(0, -1)) {
           try { await G.requireRole(role)(req); }
           catch (e: any) {
+            // (a script or other file of the tool — the game imports the editor's code cross-site with the session — is
+            // answered with why, not redirected: a module import can't follow a redirect to the sign-in page (the browser
+            // reports CORS), and the game sends the person there itself — site/urls.js importTool)
+            if (!(p.endsWith('/') || p.endsWith('.html'))) { reply.header('cache-control', 'no-store'); return sendError(reply, req, e?.status ?? 403, e?.code ?? 'FORBIDDEN', e?.message ?? 'Not for this account.', e?.details); }
             if (e?.status === 401 || e?.code === 'TERMS_REQUIRED' || e?.code === 'MFA_REQUIRED') return reply.redirect(`${config.gameUrl}/account/?${new URLSearchParams({ next: `${config.publicUrl}${top}`, ...(e?.code === 'TERMS_REQUIRED' ? { mode: 'terms' } : e?.code === 'MFA_REQUIRED' ? { mode: 'mfa' } : {}) })}`, 302);
             return reply.status(403).header('content-type', 'text/html; charset=utf-8').header('cache-control', 'no-store').send(`<!doctype html><meta charset="utf-8"><title>Not for this account</title><p style="font:16px system-ui;margin:3em">This page is for ${role === 'admin' ? 'admins' : 'editors'}. <a href="${config.gameUrl}/">Back to the game</a></p>`);
           }
@@ -473,6 +499,17 @@ export async function buildApp(deps: AppDeps) {
       if (p.includes('..') || p.split('/').some(s => s.startsWith('.'))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (!(roots.has(top) || CLIENT_FILES.includes(file))) return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
       if (config.env === 'production' && top === '/dev/') return sendError(reply, req, 404, 'NOT_FOUND', 'There\'s nothing here.');
+      // (the admin and editor pages, kept by no browser or cache between deploys — no-store, which the static files'
+      // own Cache-Control would otherwise replace with a public one — and their page asking for its script by this
+      // deploy's version, so a copy kept from before can never be the one run)
+      if (TOOL_PAGES[top] && p !== top.slice(0, -1)) {
+        reply.header('cache-control', 'no-store');
+        if (p === top && fs.existsSync(path.join(REPO_DIR, file))) {
+          const html = fs.readFileSync(path.join(REPO_DIR, file), 'utf8').replace(/(<script type="module" src=")([\w-]+\.js)(")/g, `$1$2?v=${encodeURIComponent(config.version)}$3`);
+          return reply.header('content-type', 'text/html; charset=utf-8').send(html);
+        }
+        return reply.sendFile(file, { cacheControl: false });
+      }
       if (!reply.hasHeader('cache-control')) reply.header('cache-control', /\.(html|json)$/.test(p) ? 'no-cache' : 'public, max-age=3600');
       return reply.sendFile(file);
     });

@@ -104,7 +104,7 @@ step('San Francisco\'s quests, made with the editor\'s templates on real roads')
 console.log(`  ${candidates.length} candidate routes near the start`);
 const rookie = (t: number) => t === 1;
 // fifteen Rookie quests round the start (the first three: the series) — about what the balance simulation
-// assumes a new player can find (data/economy.json simulation.pool): Club tier takes ~15 first-time golds
+// assumes a new player can find (data/economy.json simulation.pool): Club tier (level 2) takes ~7 first-time golds
 const easy = [
   await makeQuest('Embarcadero dash', pick('city_sprint', rookie), 'city_sprint'),
   await makeQuest('Downtown time trial', pick('solo_time_trial', rookie), 'solo_time_trial'),

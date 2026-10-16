@@ -15,8 +15,8 @@
   "provides": [],
   "_note": "A bigger turbo in place of the Vortex's own: a lot more top end, a little later.",
   "bounds": {
-    "min": [-0.408, -0.3022, -0.3087],
-    "max": [0.0119, 0.0736, 0.1955]
+    "min": [-0.3228, -0.3179, -0.2287],
+    "max": [0.0089, 0.1, 0.2687]
   },
   "effects": [
     {

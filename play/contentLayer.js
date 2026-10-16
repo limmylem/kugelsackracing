@@ -10,16 +10,22 @@
 // its medal: stateOf).
 //
 //   const L = createContentLayer({ THREE, world, carNow, questCard(item, el) → drew it?, venueCard(item, el) → drew it?, stateOf(id), busy() })
+//   (guide: { set(item) → Promise, clear(), to() → id | null } — a garage's card has Route: the way there on the maps)
 //   (a race venue's card: its track events — play/trackUi.js, Phase 5 Step 3)
 //     world: the game's Map v3 world      L.refresh()  the quests' states again (the maps)
-//   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()
+//   L.frame(dt, carPos (sim frame), canvas)   L.show(on)   L.dispose()   L.setMapExtras(items) (every quest and venue in the region, on the maps)
+//
+// Garages (kind garage) aren't markers: each near enough is a drive-through building (play/garageBuilding.js) with
+// its walls in the physics (RAPIER, sim); driving through one under its canopy calls onGarage(item, side, building) (side:
+// which way out — −1 the front, +1 the back). L.nearestGarage(lat, lon) → the nearest published one (a tow's).
 
 import { worldContent } from '../content/client.js';
 import { createMarkers3d } from '../editor/markers3d.js';
 import { KINDS, TYPES, MARKER_KINDS, rewardsOf, entryCheck } from '../content/quests.js';
 import { distanceKm } from '../content/geo.js';
+import { createGarageBuilding, garageFrame, inLane } from './garageBuilding.js';
 
-const RADIUS_KM = 3, REQUERY_M = 250, CARD_M = 22, CARD_LEAVE_M = 60;
+const RADIUS_KM = 3, REQUERY_M = 250, CARD_M = 22, CARD_LEAVE_M = 60, BUILD_M = 900, DROP_M = 1300, GARAGE_KM = 50;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const CSS = `
@@ -31,17 +37,25 @@ const CSS = `
 #contentCard li { margin: 2px 0; }
 #contentCard li.ok::before { content: '✔ '; color: #8fe08a; } #contentCard li.no::before { content: '✖ '; color: #ff8a7a; } #contentCard li.unknown::before { content: '• '; opacity: .6; }
 #contentCard .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .7; }
-#contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }`;
+#contentCard button { font: 600 12px Barlow, system-ui, sans-serif; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .15); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+#contentCard .foot > span { flex: 1; }
+#contentCard button[data-route] { margin-right: 6px; background: #3a6fe0; border-color: #5b8cff; }`;
 
-export function createContentLayer({ THREE, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false }) {
+export function createContentLayer({ THREE, RAPIER = null, sim = null, world: w, carNow = () => null, questCard = null, venueCard = null, stateOf = null, busy = () => false, onGarage = null, guide = null }) {
   const S = w.stream, P = S.projection;
   let C = null, items = [], places = new Float64Array(0), byId = new Map(), queriedAt = null, querying = false, dirty = true, shown = true, card = null, cardFor = null, cardDismissed = null;
   const markers = createMarkers3d({ THREE, parent: S.world, place: it => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); return [x, it.location.alt ?? 0, z]; }, far: 1800, labels: 8, labelDist: 300 });
+  // the garages near enough to be built: id → { building, was (in the lane last frame: null until seen) }
+  const garages = new Map();
   worldContent().then(c => { C = c; c.service.on(ev => { if (['publish', 'unpublish', 'archive', 'restore', 'state', 'import'].includes(ev.type)) dirty = true; }); }).catch(e => console.warn(`No world content: ${e.message}`));
 
   if (!document.getElementById('contentCardCss')) { const s = document.createElement('style'); s.id = 'contentCardCss'; s.textContent = CSS; document.head.appendChild(s); }
   card = document.createElement('div'); card.id = 'contentCard'; document.body.appendChild(card);
-  card.addEventListener('click', e => { if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } else if (e.target.closest('[data-start]:not(:disabled)')) { cardDismissed = cardFor; hideCard(); } });
+  card.addEventListener('click', e => {
+    // (a garage's Route: the way there by road on the maps — again to clear it)
+    const R = e.target.closest('[data-route]');
+    if (R && guide) { const it = byId.get(cardFor); if (!it) return; R.disabled = true; Promise.resolve(guide.to() === it.id ? guide.clear() : guide.set(it)).finally(() => cardFor === it.id && showCard(it, card.dataset.pinned === '1')); return; }
+    if (e.target.closest('[data-close]')) { cardDismissed = cardFor; hideCard(); } else if (e.target.closest('[data-start]:not(:disabled)')) { cardDismissed = cardFor; hideCard(); } });
 
   async function query(lat, lon) {
     if (!C || querying) return;
@@ -55,7 +69,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       // (each one's place in the world, worked out once: the nearest is looked for every frame)
       places = new Float64Array(items.length * 2);
       items.forEach((it, k) => { const [x, z] = P.toXZ(it.location.lat, it.location.lon); places[2 * k] = x; places[2 * k + 1] = z; });
-      markers.setItems(items);
+      markers.setItems(items.filter(it => it.kind !== 'garage'));
       toMaps();
       queriedAt = { lat, lon }; dirty = false;
       if (cardFor && !byId.has(cardFor)) hideCard();
@@ -64,10 +78,14 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
 
   // (on the minimap and the full map: again whenever the maps are new — they load after the world)
   let mapsFed = null;
+  // (the maps: what's near, as the world draws it, and every quest and venue further off in the region too —
+  // the quest finder's, setMapExtras — so the full map shows them all, not only what's within RADIUS_KM)
+  let extras = [];
   function toMaps() {
     if (!w.maps) return;
     mapsFed = w.maps;
-    w.maps.setContent(items.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published', ...(it.kind === 'quest' && stateOf ? stateOf(it.id) : {}) } })), id => showCard(byId.get(id), true));
+    const all = [...items, ...extras.filter(e => !byId.has(e.id))];
+    w.maps.setContent(all.map(it => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.location.lon, it.location.lat] }, properties: { id: it.id, kind: it.kind, name: it.name, status: 'published', ...(it.kind === 'quest' && stateOf ? stateOf(it.id) : {}) } })), id => showCard(byId.get(id) ?? extras.find(e => e.id === id), true));
   }
 
   function showCard(it, pinned = false) {
@@ -84,7 +102,7 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
         <ul>${req.length ? req.map(x => `<li class="${x.ok === true ? 'ok' : x.ok === false ? 'no' : 'unknown'}">${esc(x.text)}</li>`).join('') : '<li class="ok">Any car</li>'}</ul>
         <div class="money">${it.type === 'pink_slip' ? `Winner takes ${esc(C?.cars[it.params?.opponentCar]?.name ?? 'the rival\'s car')}` : `Reward ${esc(cur)}${(r?.money ?? 0).toLocaleString('en-GB')} · ${r?.xp ?? 0} xp`}${r?.fee > 0 ? ` · entry ${esc(cur)}${r.fee.toLocaleString('en-GB')}` : ''}${it.kind === 'quest' && r?.stars ? ` · ${'★'.repeat(r.stars)}` : ''}</div>
         ${it.conditions && (it.conditions.timeOfDay !== 'any' || it.conditions.weather !== 'any') ? `<div style="font-size:12px;opacity:.75">${esc([it.conditions.timeOfDay !== 'any' ? it.conditions.timeOfDay : null, it.conditions.weather !== 'any' ? it.conditions.weather : null].filter(Boolean).join(' · '))}</div>` : ''}` : ''}
-      <div class="foot"><span>${it.kind === 'quest' ? 'Starting quests comes soon' : esc(it.road?.name ?? '')}</span><button data-close>Close</button></div>`;
+      <div class="foot"><span>${it.kind === 'quest' ? 'Starting quests comes soon' : esc(it.road?.name ?? '')}</span>${it.kind === 'garage' && guide ? `<button data-route>${guide.to() === it.id ? 'Clear route' : 'Route'}</button>` : ''}<button data-close>Close</button></div>`;
     card.style.display = shown ? 'block' : 'none';
     card.dataset.pinned = pinned ? '1' : '';
   }
@@ -97,6 +115,27 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
     raycaster.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
     const id = markers.pick(raycaster);
     if (id) showCard(byId.get(id), true);
+  }
+
+  // the garages: built when near, taken down when far (their walls too); driving through one under its canopy
+  function garagesFrame(wx, wz) {
+    for (const it of items) {
+      if (it.kind !== 'garage') continue;
+      const [x, z] = P.toXZ(it.location.lat, it.location.lon), d = Math.hypot(x - wx, z - wz);
+      if (d < BUILD_M && !garages.has(it.id)) garages.set(it.id, { building: createGarageBuilding({ THREE, RAPIER, sim, stream: S, item: it }), was: null });
+    }
+    for (const [id, g] of garages) {
+      const it = byId.get(id), F = g.building.frame, d = Math.hypot(F.cx - wx, F.cz - wz);
+      if (!it || it.updated !== g.building.item.updated || d > DROP_M) { g.building.dispose(); garages.delete(id); continue; }
+      // (fitted to the road and ground — leaning, its driveways, set into the ground — once the map round it is in)
+      g.building.settle?.();
+      if (d > 40) { g.was = false; continue; }
+      const p = F.local(wx, wz), now = inLane(p);
+      // (in: from outside it, a moment ago — not put down in it, or still in it coming back out of the garage)
+      if (now && g.was === false && !busy() && onGarage) { g.was = true; onGarage(it, g.side ?? -1, g.building); continue; }
+      if (!now) g.side = p.z > 0 ? -1 : 1;      // (coming from behind it: out of the front)
+      g.was = now;
+    }
   }
 
   return {
@@ -114,12 +153,15 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       markers.update({ x: cam[0], y: camera?.position.y ?? pos[1], z: cam[1] });
       // driving up to one: its card (until driven away from, or closed)
       let near = null, nd = Infinity;
-      for (let k = 0; k < items.length; k++) { const d = Math.hypot(places[2 * k] - wx, places[2 * k + 1] - wz); if (d < nd) { nd = d; near = items[k]; } }
+      garagesFrame(wx, wz);
+      for (let k = 0; k < items.length; k++) { if (items[k].kind === 'garage') continue; const d = Math.hypot(places[2 * k] - wx, places[2 * k + 1] - wz); if (d < nd) { nd = d; near = items[k]; } }
       if (near && nd < CARD_M && !busy() && cardFor !== near.id && cardDismissed !== near.id) showCard(near);
       if (cardFor && card.dataset.pinned !== '1') { const it = byId.get(cardFor), [x, z] = it ? P.toXZ(it.location.lat, it.location.lon) : [Infinity, Infinity]; if (Math.hypot(x - wx, z - wz) > CARD_LEAVE_M) hideCard(); }
       if (cardDismissed && (near?.id !== cardDismissed || nd > CARD_LEAVE_M)) cardDismissed = null;
     },
     click,
+    // every quest and venue in the region, for the maps (play/questFinder.js: each time it loads them)
+    setMapExtras(list) { extras = (list ?? []).filter(it => it?.location && !it.track && it.kind !== 'garage'); toMaps(); },
     refresh() { toMaps(); if (cardFor && byId.get(cardFor)) showCard(byId.get(cardFor), card.dataset.pinned === '1'); },
     hideCard,
     // (fast travel: the quest's card, pinned, once it's arrived)
@@ -128,7 +170,18 @@ export function createContentLayer({ THREE, world: w, carNow = () => null, quest
       if (!byId.has(it.id)) { items.push(it); byId.set(it.id, it); const [x, z] = P.toXZ(it.location.lat, it.location.lon), a2 = new Float64Array(items.length * 2); a2.set(places); a2[a2.length - 2] = x; a2[a2.length - 1] = z; places = a2; }
       showCard(it, true);
     },
-    show(on) { shown = on; markers.group.visible = on; if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
-    dispose() { markers.dispose(); card.remove(); },
+    // (hidden: the garages too — the editor draws its own, drafts and all)
+    show(on) { shown = on; markers.group.visible = on; for (const g of garages.values()) g.building.visible(on); if (!on) card.style.display = 'none'; else if (cardFor) card.style.display = 'block'; },
+    // (a tow: the nearest published garage, and where you come out of it — null: none within 50 km)
+    async nearestGarage(lat, lon) {
+      if (!C) return null;
+      const r = await C.service.query({ lat, lon, km: GARAGE_KM, view: 'published', offered: true, kinds: ['garage'], limit: 500 }).catch(() => null);
+      let best = null, bd = Infinity;
+      for (const { item: it } of r?.ok ? r.items : []) { const d = distanceKm({ lat, lon }, it.location); if (d < bd) { bd = d; best = it; } }
+      // (where you come out: the building's fit to the road, if it's built, else as the item says the road runs)
+      return best ? { item: best, km: bd, out: garages.get(best.id)?.building.exit(-1) ?? garageFrame(best, P).out(-1) } : null;
+    },
+    get garages() { return [...garages.values()].map(g => g.building); },
+    dispose() { markers.dispose(); card.remove(); for (const g of garages.values()) g.building.dispose(); garages.clear(); },
   };
 }

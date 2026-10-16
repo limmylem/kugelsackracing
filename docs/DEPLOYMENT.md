@@ -18,6 +18,20 @@
 > every model fetched at an address with its version and kept in the browser's cache; models with levels of detail
 > (+2 MB on the tiles' address) and **studio thumbnails** (`assets/thumbs/`, a few MB). No change to the services or
 > what they cost.
+> Then the content pipeline's **family builder** (2026-10-15; [CONTENT_PIPELINE.md](CONTENT_PIPELINE.md) "A family
+> from the admin page"): families, engines and cars made and changed from the admin page's Builder tab — **on the live
+> server too** (the owner's choice, the same day: [The live Builder](#the-live-builder)): what's made there is made by
+> the `content-builder` workflow, committed to `main`, and deployed with the owner's approval. The server's image now
+> has the content pipeline's code and the seven libraries it uses (about 100 MB more). Publishing now keeps a copy of
+> what players get (price, tier, unlock level, name, stats), so a deploy that changes a published part's files leaves
+> it as it was for players, and shows it as a draft, until it's published again (parts published before this carry on
+> as before until their next publish). The kit pieces (`assets/kits/`, 40 kB) go to the tiles' address with the rest.
+> No migration; no change to the services or what they cost.
+> Then **the seven cars rebuilt from the starter coupe's model** (2026-10-15; tools/content/coupeCar.mjs): every car but
+> the coupe is its model reshaped to the car's proportions, their parts' models made again to fit (about 2 MB more on
+> the tiles' address). The parts fit as before but a few, waived and listed in [KNOWN_ISSUES.md](KNOWN_ISSUES.md); no
+> car drives differently (the engines, gearboxes, axles and wheels stay where they were). No change to the services or
+> what they cost.
 > Then Phase 8 Step 4, the launch polish (2026-10-15; [ONBOARDING.md](ONBOARDING.md), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 > [TRANSLATIONS.md](TRANSLATIONS.md), [ANALYTICS.md](ANALYTICS.md), [LIVE_UPDATES.md](LIVE_UPDATES.md),
 > [PHOTO_MODE.md](PHOTO_MODE.md), [RELEASE.md](RELEASE.md), [LAUNCH_PLAN.md](LAUNCH_PLAN.md)): **migration 0016** —
@@ -81,7 +95,10 @@ GitHub Actions ──► deploys (SSH to the VPS, Pages, R2) · nightly backups 
   asking the game's address for `/assets/…` gets a 302 there (`_redirects`). PMTiles reads byte ranges (206), and
   Cloudflare caches the files (a cache rule, an hour, from each file's `Cache-Control`).
 - **The admin page** is at `api.ognistrada.com/admin/` (`ognistrada.com/admin` redirects there). Signed out: sent to
-  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in.
+  sign in on the game, then back. A player: refused (403). An admin: the page, after two-factor sign-in. Its files
+  (and the editor's) are sent `no-store`, and the page asks for its script by the deploy's version
+  (`admin.js?v=<commit>`), so a browser or Cloudflare never runs a copy kept from before a deploy (until 2026-10-15
+  the static files' own `public` header replaced `no-store`, and a new tab could take a while to show).
 - **The editor's code** (`editor/`) isn't on the game's address: the game loads it from the API's with the session
   (`site/urls.js`'s `importTool()`), served only to editors and admins. The game's import map points the editor's
   imports of shared modules back at the game's address, so they load once. `editor/access.js` (whether the editor's
@@ -156,6 +173,7 @@ The free plans' limits that matter (October 2026; *check* each pricing page):
 | `perf` | Every push to `main` that changes the game, and by hand | The five benchmark scenes ([docs/PERFORMANCE.md](PERFORMANCE.md)) on GitHub's free machines (no graphics card: software rendering, so the CPU's side, draw calls, memory, garbage and loading are compared, not frame rates) against `tests/perf/ci-baseline.json`; worse beyond `data/performance.json` `ci` warns or fails. Never deploys, and a deploy never waits for it. Free (public repository). | — |
 | `browsers` | Pushes to `main` that change the game's page or start-up, and by hand | Chrome, Edge, Chromium, Firefox and WebKit on Linux, WebKit and Chromium on macOS (Safari's engine): what each supports, the game driven on low and high, the settings switched while driving, an old browser told what to use (`tools/browsers.mjs`). Free. | — |
 | `soak` | By hand, and Sundays | The long play test: two hours round and round (free roam, races, the garage, the test centre's pile-up), memory sampled; fails if it grew after the first round (`tools/memory-soak.mjs`). Free. | — |
+| `content-builder` | Started by the live Builder (and by hand, with *dry run*) | A family, engine, car or preset made from the admin page: checked again, made, everything the pre-commit hook runs, committed to `main`, then `server` started to deploy it ([The live Builder](#the-live-builder)) | The deploy's, as always |
 | `slow-tail` | By hand | The end of `server`'s slow tests on their own (the browser race test, the drills, the load tests, the image) — never deploys | — |
 | `live-look` | By hand | The live game opened in a browser, read only: errors on its pages, a few seconds' driving and its sound, the quests' tiers as the live server prices them (`tools/live-look.mjs`) | — |
 | `loadtest` | By hand | 20 online bots on demand (up to 200): half in free roam, half in quick races, for a couple of minutes against the real servers, each number against its target (`server/tools/online-bots.ts`; tickets with `LOADTEST_TOKEN`). GitHub's runners are in the US, so the pings include the trip to Sydney. | — |
@@ -211,7 +229,8 @@ Cloudflare as players reach it:
 - every address (the game, the API, the tiles, `rt.`) over HTTPS with a valid certificate; `http://` → `https://`;
   `www` → the game with the path and query kept; HSTS, once it's on;
 - the API: healthy, `production`, its database answering; CORS for the game (with cookies), not for another site; the
-  admin page and the editor's code, signed out, send you to sign in;
+  admin page, signed out, sends you to sign in; the editor's code, signed out, isn't served (401, with why, for the game
+  to read: it sends the person to sign in itself);
 - the game: its page loads its settings first; `site/config.js` names every address and has `multiplayer: true`; it's
   the commit the API runs (asked again for up to a minute: just after a deploy Pages can answer with the one before
   for some seconds); `/assets/` goes to the tiles, `/admin/` to the API; the editor's code isn't on its address;
@@ -258,6 +277,37 @@ a room joined, the admin and editor pages for their roles.
 
 The admin page's Monitoring tab shows the live numbers ([OPERATIONS.md](OPERATIONS.md)).
 
+## The live Builder
+
+The admin page's **Builder** tab works on the live server (docs/CONTENT_PIPELINE.md "A family from the admin page"),
+though the server's files aren't the repository (`contentBuilder.mode` `github` in `server/config/production.json`):
+- **Worked out on the server:** the form, what a family would make (every part's stats, tier, price, unlock level),
+  names, the live 3D shape and previews — the content pipeline's own code, in the image (`tools/`, and
+  `@gltf-transform/*`, `meshoptimizer`, `sharp`, `three`, `ktx2-encoder` as the server's dependencies). Previews are
+  made in the container's temporary folder; nothing is written to the game's files.
+- **Made on GitHub:** Make (a family, a change, an engine, a car's placeholder, variations, a preset) sends the request
+  to the **content-builder** workflow (`server/src/content/github.ts`: a `workflow_dispatch`). It checks the request
+  again with the same code (`npm run content -- run-job`), writes the files, builds and checks them, runs everything the
+  pre-commit hook runs, commits to `main` as "Kugelsack Builder" (who asked and why in the message), then starts the
+  `server` workflow (`deploy: true`) — whose deploy waits for the owner's **Approve** like every other. Anything failing:
+  nothing is committed. About 15–20 minutes, then the deploy's. The Builder's **Jobs** shows each run (waiting, its
+  step, done or the step that failed, a link to its log); cancelling there cancels the run. One at a time.
+- **Its token**, the secret `CONTENT_BUILDER_TOKEN` (passed to the server by each deploy, like the others): a
+  fine-grained GitHub token that can only start, read and cancel this repository's workflows. Without it the Builder
+  works things out and previews, and says Make needs it. To make it (the owner, once a year):
+  1. GitHub → your picture → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained
+     tokens** → **Generate new token**.
+  2. Name `Kugelsack Builder`; expiration **1 year**; resource owner `limmylem`; **Only select repositories** →
+     `kugelsackracing`.
+  3. **Repository permissions** → **Actions**: **Read and write**. Nothing else.
+  4. **Generate token**, copy it, then the repository → **Settings** → **Secrets and variables** → **Actions** →
+     **New repository secret**: name `CONTENT_BUILDER_TOKEN`, paste it, **Add secret**. Never paste it anywhere else.
+  5. The next deploy gives it to the server (or run **rollback** at the current commit to deploy now).
+- **Cost:** nothing. GitHub's workflows are free for a public repository; the server's plan is the same.
+- **The Devlog tab** (DEVLOG.md "From the admin page") uses the same token: it starts the `devlog` workflow, follows
+  its runs, and fetches the finished video from the run's artifact to play it on the page (unpacked into the
+  container's temporary folder).
+
 ## Redis: not used
 
 With one real-time process on one server, rooms, presence, the matchmaking queue, parties, invite codes, one-use
@@ -296,6 +346,7 @@ Nothing is rebuilt; each step adds:
 | What | When | What to do |
 |---|---|---|
 | The domain `ognistrada.com` | Yearly, at Namecheap | Keep auto-renew on and the card up to date. The DNS is Cloudflare's; the registration stays at Namecheap. |
+| The live Builder's GitHub token (`CONTENT_BUILDER_TOKEN`) | A year after it was made | Make a new one the same way ([The live Builder](#the-live-builder)), replace the secret, deploy. Until then the Builder can't make anything (it says so). |
 | Cloudflare API tokens (`ognistrada setup`, `ognistrada deploy`) | A year after they were made (October 2027) | Make new ones with the same permissions (GO_LIVE.md Part 1 step 7), replace `CLOUDFLARE_SETUP_TOKEN` (environment `infra`) and `CLOUDFLARE_API_TOKEN`, delete the old ones. Claude reminds the owner a month before. |
 | R2 access keys (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) | Never, unless an expiry was set | Replace yearly: a new token, the two secrets updated, the old token deleted |
 | Cloudflare's certificates | Every few months | Automatic (Universal SSL); there are none on the server |

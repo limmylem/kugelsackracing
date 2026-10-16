@@ -27,7 +27,7 @@ const socketsOn = (car, p) => car.sockets.filter(s => s.slot === p.slot || car.s
 const lines = [
   '# Models to make',
   '',
-  `Made by \`npm run models-todo\` from the car and part data (each one's \`modelTodo\`): ${cars.filter(c => c.modelTodo).length} cars and ${todoParts.length} parts are drawn as placeholders until their model is made. Sizes are the placeholder boxes' (the part's bounds, in its socket's frame: +z forward, +x left, +y up). Positions are in the car's frame, metres, the ground at y = 0. A part's model has its origin at its socket. Make one, then \`npm run import -- incoming/<type>_<name>.glb\` (a car: \`incoming/car_<id>.glb\`, its parts under their socket nodes).`,
+  `Made by \`npm run models-todo\` from the car and part data (each one's \`modelTodo\`): ${cars.filter(c => c.modelTodo).length} cars and ${todoParts.length} parts are drawn as placeholders until their model is made. Sizes are the placeholders' (the part's bounds, in its socket's frame: +z forward, +x left, +y up). Positions are in the car's frame, metres, the ground at y = 0. A part's model has its origin at its socket. Make one, then \`npm run import -- incoming/<type>_<name>.glb\` (a car: \`incoming/car_<id>.glb\`, its parts under their socket nodes — each car's prompt for Claude Design is in [car_prompts.md](car_prompts.md)).`,
   '',
   'Variants (sizes and finishes of a rim, a tyre in more sizes) use their base part\'s model: only the base is listed.',
   '',

@@ -1,0 +1,61 @@
+{
+  "id": "kugel_18_flow_painted",
+  "name": "18\" Kugel wheel, painted (flow-formed)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 670,
+  "mass": 9.8,
+  "model": "assets/parts/wheels/kugel/kugel_18.glb",
+  "icon": "assets/icons/parts/kugel_18_flow_painted.png",
+  "fits": ["wheel_hub:std", "rim_fits:18"],
+  "requires": [],
+  "conflicts": [],
+  "provides": ["rim:18"],
+  "contactMaterial": "metal",
+  "toughness": 1.1,
+  "rim": {
+    "diameter": 18,
+    "width": 7.5,
+    "offset": 35
+  },
+  "purpose": "looks",
+  "look": {
+    "materials": {
+      "rim_finish": {
+        "finish": "painted"
+      }
+    }
+  },
+  "status": "draft",
+  "generated": {
+    "family": "kugel",
+    "kind": "wheels",
+    "key": "18_flow_painted",
+    "settings": {
+      "diameter": 18,
+      "width": 7.5,
+      "offset": 35,
+      "spokes": 10,
+      "construction": "flow",
+      "finish": "painted"
+    },
+    "stats": {
+      "mass": 9.8,
+      "inertia": 0.307,
+      "toughness": 1.1
+    },
+    "gain": null,
+    "priceFactor": 1.005
+  },
+  "_generated": "Made by npm run content -- build from data/families/kugel.json (and data/content/formulas.json families.wheels): change those, not this file. sport: priced by its settings, $670, unlocked at level 3.",
+  "bounds": {
+    "min": [-0.1042, -0.2446, -0.2446],
+    "max": [0.1152, 0.2446, 0.2446]
+  },
+  "massOffset": [0.038, 0, 0],
+  "tier": "sport",
+  "unlock": {
+    "level": 3
+  }
+}

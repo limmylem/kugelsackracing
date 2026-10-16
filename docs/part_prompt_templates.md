@@ -82,6 +82,27 @@ Rules:
 Save it as bonnet_[name].glb.
 ```
 
+## Cowl bonnet
+
+```text
+Make a low-poly 3D model of a cowl bonnet for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
+
+Size: 1–1.9 m wide (across the car), 0.01–0.6 m tall and 0.6–1.8 m long (front to back).
+Origin (the point it attaches by, at 0, 0, 0): the middle of its back edge (the hinge line), level with the panel's top there (the cowl rises above it).
+Triangles: under 1,500.
+
+Use the material "car_atlas" (a small palette texture: UV each face onto its colour) or finish materials such as "raw_metal", "chrome" or "rubber"; "paint" only for anything in the car's body colour.
+
+Rules:
+- Units are metres, at real size. +Y is up, +Z is the front of the car, +X is the car's left.
+- Material names, exactly: "paint", "car_atlas", "glass", "rim_finish", "caliper", "seat_fabric", "light_*", or a finish: "gloss", "matte", "metallic", "pearl", "carbon", "chrome", "matte_black", "gloss_black", "raw_metal", "rubber", "titanium", "polished", "painted".
+- Textures at most 1024×1024, square, a power of two.
+- Flat-shaded low-poly, with normals; UVs on anything textured. Closed meshes (no holes), so its weight can be worked out.
+- Only meshes: no cameras, lights, animations, armatures or extra scenes.
+- Export as glTF Binary (.glb), +Y up, with all transforms applied (scale 1).
+Save it as cowl_bonnet_[name].glb.
+```
+
 ## Boot lid
 
 ```text
@@ -194,7 +215,7 @@ Save it as door_right_[name].glb.
 ```text
 Make a low-poly 3D model of a left front wing (fender) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
 
-Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.6 m long (front to back).
+Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.7 m long (front to back).
 Origin (the point it attaches by, at 0, 0, 0): its inner edge where it bolts to the body, at the top.
 Triangles: under 1,500.
 
@@ -216,7 +237,7 @@ Save it as fender_left_[name].glb.
 ```text
 Make a low-poly 3D model of a right front wing (fender) for a stylised racing game: [describe it — e.g. its style, shape and details]. It fits a small 1980s rear-drive coupe (about 4.0 m long and 1.7 m wide).
 
-Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.6 m long (front to back).
+Size: 0.02–0.35 m wide (across the car), 0.15–0.9 m tall and 0.5–1.7 m long (front to back).
 Origin (the point it attaches by, at 0, 0, 0): its inner edge where it bolts to the body, at the top.
 Triangles: under 1,500.
 
@@ -996,7 +1017,7 @@ Save it as lift_kit_[name].glb.
 ## A whole car
 
 ```text
-Make a low-poly 3D model of [the car] for a stylised racing game, 3–5.6 m long, 1.4–2.2 m wide and 1–2.1 m tall, standing on the ground (y = 0), under 25,000 triangles.
+Make a low-poly 3D model of [the car] for a stylised racing game, 3–5.6 m long, 1.4–2.2 m wide and 1–2.1 m tall, standing on the ground (y = 0), under 150,000 triangles.
 
 Axes: +Y up, the car's front towards +Z, its left (the driver's left as they sit in it) towards +X. Units: metres.
 Every part is its own mesh under an empty named for its socket: socket_wheel_FL, socket_wheel_FR, socket_wheel_RL, socket_wheel_RR, socket_bonnet, socket_boot, socket_bumper_front, socket_bumper_rear, socket_door_left, socket_door_right, socket_fender_FL, socket_fender_FR, socket_skirt_left, socket_skirt_right, socket_mirror_left, socket_mirror_right, socket_seat_driver, socket_seat_passenger, socket_steering_wheel, socket_engine, socket_intake, socket_turbo, socket_exhaust_tip, socket_spoiler. Each empty sits where its part attaches (see the part types for where that is). The wheel sockets are at each wheel's centre; the right-hand ones (socket_wheel_FR, socket_wheel_RR) are turned 180° round Y so their +X points out of the car, like the left ones.

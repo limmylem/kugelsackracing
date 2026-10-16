@@ -5,7 +5,8 @@
 //   assetUrl(url)          a /assets/… address on this page's own host → the same file on the tiles address
 //   apiBase                '' or the API's address
 //   importTool(path)       a module of the editor's, from the API's address with the session (site/tool.js in a
-//                          <script> with crossorigin="use-credentials": the server serves it to editor accounts only)
+//                          <script> with crossorigin="use-credentials": the server serves it to editor accounts only;
+//                          refused because two-factor is due again, the terms or a sign-in: to the account page for it)
 
 export const SITE = globalThis.KR_SITE ?? { env: 'local', api: '', game: '', tiles: '', rt: '' };
 export const apiBase = SITE.api ?? '';
@@ -24,11 +25,27 @@ export function importTool(path) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.type = 'module'; s.crossOrigin = 'use-credentials';
-    globalThis[key] = { resolve, reject };
+    // (refused: the import inside site/tool.js fails — why asked for, and the account page for it: refused())
+    globalThis[key] = { resolve, reject: () => void refused(url).then(reject) };
     // (a file of the game's own that does the import — an inline script is refused by the content security policy)
     s.src = new URL(`/site/tool.js?u=${encodeURIComponent(url)}&k=${key}`, here()).href;
     s.onload = () => s.remove();
-    s.onerror = () => { s.remove(); reject(new Error(`Couldn't load ${url}`)); };
+    s.onerror = () => { s.remove(); void refused(url).then(reject); };
     document.head.appendChild(s);
   });
+}
+// (a tool's file refused: asked again to read why — the server answers a tool's files with the reason, not a redirect.
+// Signed out, the terms to accept, or two-factor due again (editor and admin accounts every few hours): to the account
+// page for that step, then back here)
+async function refused(url) {
+  let status = 0, code = null, message = null;
+  try { const r = await fetch(url, { credentials: 'include', cache: 'no-store' }); status = r.status; const b = r.ok ? null : await r.json().catch(() => null); code = b?.error?.code ?? null; message = b?.error?.message ?? null; } catch { /* offline, or the server's down */ }
+  const mode = code === 'MFA_REQUIRED' ? 'mfa' : code === 'TERMS_REQUIRED' ? 'terms' : status === 401 ? 'sign-in' : null;
+  const err = Object.assign(new Error(message ?? `Couldn't load ${url}`), { code, status });
+  if (mode && globalThis.location) {
+    const back = `${location.pathname}${location.search}${location.hash}`;
+    err.signIn = `${SITE.game || location.origin}/account/?${new URLSearchParams({ ...(mode !== 'sign-in' ? { mode } : {}), next: back })}`;
+    location.assign(err.signIn);
+  }
+  return err;
 }

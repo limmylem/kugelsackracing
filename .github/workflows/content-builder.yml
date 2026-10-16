@@ -1,0 +1,64 @@
+# The live admin page's Builder, made here (docs/CONTENT_PIPELINE.md "A family from the admin page"; the owner's choice,
+# 2026-10-15): the live server hasn't the repository's files, so a family, engine, car or preset made or changed there is
+# sent here (server/src/content/github.ts: a workflow_dispatch with the request) and made as on a computer — checked
+# again with the same code (npm run content -- run-job), written, built and checked, then everything the pre-commit
+# hook runs — and committed to main, then the server workflow started to deploy it (which waits for the owner's
+# approval, as every deploy does). Anything failing: nothing is committed, and the Builder's Jobs list says which step.
+# One at a time (each starts from main as the one before left it). dry_run: everything but the commit and the deploy.
+name: content-builder
+run-name: "builder ${{ inputs.id }}: ${{ inputs.title }}"
+on:
+  workflow_dispatch:
+    inputs:
+      id: { description: 'The Builder job id', required: true, type: string }
+      title: { description: 'What it makes', required: true, type: string }
+      request: { description: 'The request (base64 JSON: tools/content/builder.mjs requestJobs)', required: true, type: string }
+      dry_run: { description: 'Make and check it, but commit and deploy nothing', type: boolean, default: false }
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: content-builder
+  cancel-in-progress: false
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Made (checked again, written, built and checked as the Builder's jobs)
+        env:
+          REQUEST: ${{ inputs.request }}
+        run: |
+          printf '%s' "$REQUEST" | base64 -d > "$RUNNER_TEMP/request.json"
+          node tools/content.mjs run-job "$RUNNER_TEMP/request.json" --message "$RUNNER_TEMP/message.txt"
+      - name: Everything the pre-commit hook runs (data, models, content verify, physics, crash suite)
+        run: sh .githooks/pre-commit
+      - name: Committed to main
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name 'Kugelsack Builder'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A data assets
+          if git diff --cached --quiet; then echo "Nothing changed: nothing to commit."; echo "NOTHING=1" >> "$GITHUB_ENV"; exit 0; fi
+          git commit -q -F "$RUNNER_TEMP/message.txt"
+          for i in 1 2 3 4; do
+            if git pull -q --rebase origin main && git push -q origin HEAD:main; then break; fi
+            [ "$i" = 4 ] && exit 1
+            sleep $((i * 4))
+          done
+          echo "Committed $(git rev-parse --short HEAD) to main." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Deploy started (the server workflow; it waits for the owner's approval)
+        if: ${{ !inputs.dry_run && env.NOTHING != '1' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run server.yml --ref main -f deploy=true
+          echo "The deploy is started: Actions → server → the newest run → Review deployments → production → Approve and deploy." | tee -a "$GITHUB_STEP_SUMMARY"

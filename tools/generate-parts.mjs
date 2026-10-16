@@ -47,8 +47,9 @@ for (const name of wanted.length ? wanted : all) {
   console.log(bold(`\n── ${name}: ${jobs.length} part${jobs.length > 1 ? 's' : ''}`));
   for (const job of jobs) {
     const cars = job.cars ?? [];
-    const base = cars.length ? (cars.includes(job.baseCar) ? job.baseCar : cars[0]) : null;
-    const versions = [base, ...cars.filter(c => c !== base)];
+    // (versionsOnly: a part with a model of its own already — made by hand — gets versions for these cars only)
+    const base = job.versionsOnly ? null : cars.length ? (cars.includes(job.baseCar) ? job.baseCar : cars[0]) : null;
+    const versions = job.versionsOnly ? cars : [base, ...cars.filter(c => c !== base)];
     const notes = [];
     let ok = true;
     for (const carId of versions) {

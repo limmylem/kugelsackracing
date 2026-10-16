@@ -88,7 +88,8 @@ share, the level it opens at, and a pink slip's highest stake class.
 
 1–5 stars from points: each feature of the route (`route/stats.js` `routeFeatures`) scores its value /
 full (at most 1) × its weight — length, corners per km, their sharpness, hairpins, climbing per km, the
-steepest grade, the share on narrow roads, junctions per km, drops without a rail — plus the rivals (how
+steepest grade (and more again for a very steep one: the part over 15%, full at 30% — 20–28% hills are where the
+AI and new players struggle), the share on narrow roads, junctions per km, drops without a rail — plus the rivals (how
 many and how good) and how tight the gold time is. The stars are how many thresholds the total reaches,
 plus one. Hover the stars on the quest card to see what scored.
 
@@ -103,11 +104,11 @@ quest's class. The card shows it, and warns when your car is under `warnBelow` o
 
 - **Level** from xp: reaching level L takes `base × ((L−1) + growth × (L−1)(L−2)/2)` xp (400, 0.25):
   level 2 at 400, 3 at 900, 6 at 3,000, 10 at 7,200.
-- **Tiers open by level**: Rookie at 1, Club at 3, Pro at 6, Expert at 10, Legend at 15. A locked quest's
-  card says why (*"Club quests open at level 3 (you're level 1)"*).
-- About **15 first-time Rookie golds** take a new player to level 3 (a 2–3 km Rookie quest pays 50–65 xp,
-  a series bonus 80 or so). A starting area needs that much Rookie content — see
-  [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+- **Tiers open by level**: Rookie at 1, Club at 2, Pro at 6, Expert at 10, Legend at 15. A locked quest's
+  card says why (*"Club quests open at level 2 (you're level 1)"*).
+- About **7 first-time Rookie golds** take a new player to level 2 and the Club tier (a 2–3 km Rookie quest pays
+  50–65 xp, a series bonus 80 or so; Club opened at level 3, about 15 golds, until 2026-10-14). A starting area
+  needs that much Rookie content.
 
 ## Finding quests (`quest/finder.js`, `play/questFinder.js`)
 
@@ -115,8 +116,17 @@ quest's class. The card shows it, and warns when your car is under `warnBelow` o
   suits it, stars about right for your level, not yet gold, nearer first), **filters** (type, difficulty,
   distance, done or not, medal, suits my car) over every quest in every baked region, and the **regions**
   (each with its quest count; Travel).
-- **Fast travel**: *Go* on any quest in a baked region. The loading screen holds until its start area is
-  in and its route loaded, then the car is on its grid and its card opens. *Travel* goes to a region.
+- **Quests are driven to** (2026-10-14; no fast travel): *Route* on a quest in this region sets the way there on
+  the maps (the card's *Set route*, the same); in another region, *Go to <region>* takes you to that region, to
+  drive from there. The route's line is taken off behind the car as you drive it (play/questUi.js trimGuideLine:
+  while you're within 40 m of it), and goes when you arrive ("You've arrived"); "Finding the way there…" while the
+  road graph loads the first time. Blue arrows on the road show the way too, along its next 300 m (every 12 m, on the
+  drawn road: play/routeDressing.js createGuideArrows), moving along as the line is taken off behind the car. The full map shows every quest and venue in the region (the finder's list:
+  play/contentLayer.js setMapExtras), not only those within 3 km of the car as before.
+  A quest's card opens from anywhere (its marker, the map), but **Start** opens only within
+  `START_M` (60 m) of its start (play/questUi.js: "Drive there to start", how far, live as you drive up); a start
+  asked for from further is refused. Track events start from their venue's card, as before. The full map's
+  shift-click travel is for development only (its numbered spots stay). *Travel* goes to a region.
 - **Nearby notice** while free roaming: passing within 250 m of a quest you haven't played, a small notice
   — at most one every 45 s, each quest once a session, never during a quest. Off in the settings
   (Races: *Nearby quest notices*).

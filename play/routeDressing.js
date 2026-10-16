@@ -113,3 +113,50 @@ export function createRouteDressing({ THREE, parent, compiled: c, guides = {}, p
     },
   };
 }
+
+// Arrows on the road along the way to somewhere (the maps' guide line: play/questUi.js's Route), the next stretch
+// of it only: every GUIDE_ARROW.every m from just ahead of where the line starts (the car's place — it's taken off
+// behind the car) for GUIDE_ARROW.ahead m, in the guide line's colour. Moved along each time the line changes.
+//   const A = createGuideArrows({ THREE, parent, palette, style, heightAt })   A.set(line [{ x, z, h }] | null)   A.dispose()
+//   heightAt(x, z) → the road's surface there (world frame) or null: they sit on it (the line's own h, from the road
+//   graph, can be under the drawn road)
+export const GUIDE_ARROW = { every: 12, first: 8, ahead: 300 };
+// where they stand on a line: [{ x, z, h, heading }] (pure — tests/unit/quest-play.test.mjs)
+export function guideArrowSpots(line, { every = GUIDE_ARROW.every, first = GUIDE_ARROW.first, ahead = GUIDE_ARROW.ahead } = {}) {
+  const out = [];
+  if (!line || line.length < 2) return out;
+  let s = 0, next = first;
+  for (let i = 0; i + 1 < line.length && next <= ahead; i++) {
+    const a = line[i], b = line[i + 1], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+    if (len < 1e-6) continue;
+    while (next <= s + len && next <= ahead) {
+      const t = (next - s) / len;
+      out.push({ x: a.x + dx * t, z: a.z + dz * t, h: (a.h ?? 0) + ((b.h ?? a.h ?? 0) - (a.h ?? 0)) * t, heading: headingOf(dx, dz) });
+      next += every;
+    }
+    s += len;
+  }
+  return out;
+}
+export function createGuideArrows({ THREE, parent, palette = paletteOf('standard'), style = guideStyle('normal'), heightAt = () => null }) {
+  const max = Math.ceil(GUIDE_ARROW.ahead / GUIDE_ARROW.every) + 2;
+  const shape = new THREE.Shape([new THREE.Vector2(-0.9, -0.6), new THREE.Vector2(0, 0.4), new THREE.Vector2(0.9, -0.6), new THREE.Vector2(0.9, -0.1), new THREE.Vector2(0, 0.9), new THREE.Vector2(-0.9, -0.1)]);
+  const geo = new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ color: palette.guide, transparent: true, opacity: Math.min(0.9, (style.arrowOpacity ?? 0.55) + 0.25), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const im = new THREE.InstancedMesh(geo, mat, max);
+  im.name = 'route-guide-arrows'; im.count = 0; im.frustumCulled = false;
+  parent.add(im);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
+  return {
+    set(line, look = {}) {
+      if (look.palette) mat.color.set(look.palette.guide);
+      const spots = guideArrowSpots(line).slice(0, max), k = (look.style ?? style).arrowScale ?? 1.4;
+      sc.set(k * 1.2, 1, k * 1.2);
+      // (the shape points to -z: turned to point along)
+      spots.forEach((a, i) => { q.setFromAxisAngle(up, (a.heading + 180) * Math.PI / 180); p.set(a.x, (heightAt(a.x, a.z) ?? a.h) + 0.07, a.z); m.compose(p, q, sc); im.setMatrixAt(i, m); });
+      im.count = spots.length;
+      im.instanceMatrix.needsUpdate = true;
+    },
+    dispose() { parent.remove(im); geo.dispose(); mat.dispose(); im.dispose?.(); },
+  };
+}

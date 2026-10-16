@@ -12,6 +12,10 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      # (the live admin page's Builder starts this once it has committed what it made: content-builder.yml — a commit made
+      # by a workflow doesn't start the push run itself)
+      deploy: { description: 'Build the image and deploy main (as a push to main does)', type: boolean, default: false }
 permissions:
   contents: read
 jobs:
@@ -101,6 +105,10 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/deploy-browser.ts
       - name: The content manager in a browser (docs/CONTENT_PIPELINE.md — parts listed and filtered, one opened with its checks and a 3D preview on a car, published, a bulk price change)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/content-browser.ts --local-libs
+      - name: The family builder in a browser (docs/CONTENT_PIPELINE.md "A family from the admin page" — a new family picked step by step, real brands refused, every part listed before anything is made, a preview, made as a job and cancelled with everything put back, a family changed, an engine's live torque curve)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/builder-browser.ts --local-libs
+      - name: The Devlog tab in a browser (DEVLOG.md "From the admin page" — what the video is about filled in, the boxes sent to the devlog workflow, a finished video played with its caption, new words over the same filming)
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/devlog-browser.ts
       - name: Models in a browser (a far car drawn from its levels of detail, a KTX2 texture decoded, the content bundle's models downloaded once and cached)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node tools/model-browser.mjs
       - name: The launch screens in a browser (support and feedback, credits, status; the admin's support, closed beta and invites, monitoring, history)
@@ -115,6 +123,8 @@ jobs:
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser.ts
       - name: Multiplayer in two windows of one browser (one sign-in; ?player=A/B; each window draws the other's car, moving; a background window stays; F8, F9)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-two-windows.ts
+      - name: Voice chat in two windows (docs/FREE_ROAM.md "Voice chat"; a stand-in for Cloudflare's SFU, Chromium's fake microphone) — heard near, muted, switched off and on, out of range and back, push to talk
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/voice-browser.ts
       - name: Opening in the region you were last in (the same browser, reloaded; another computer, signed in, back to its free-roam place; nothing saved, San Francisco)
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/regions-browser.ts
       - name: Multiplayer races with bots (one real-time process, no Redis; reports/mp-races.md) — a ranked quick race on a real-world route, a generated track, a party and the NPC fill, disconnects, chat and kicks, a spectator
@@ -141,7 +151,7 @@ jobs:
   # (the image the server runs — the API and the real-time server — named by its commit; the newest 20 kept, so a
   # rollback can go back that far: rollback.yml)
   image:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -183,7 +193,7 @@ jobs:
   # GitHub before it starts — the deploy job's environment)
   production:
     needs: [checks, image]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) && vars.DEPLOY_ENABLED == 'true'
     permissions:
       contents: read
       packages: read

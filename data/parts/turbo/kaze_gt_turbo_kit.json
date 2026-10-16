@@ -16,8 +16,8 @@
   "_note": "A turbo kit made for the Kaze GT's flat-four: an equal-length manifold and a twin-scroll turbo — strong mid-range, the boxer rumble with a whistle over it.",
   "hides": ["socket_intake"],
   "bounds": {
-    "min": [-0.436, -0.3342, -0.3885],
-    "max": [0.0666, 0.0915, 0.1068]
+    "min": [-0.412, -0.3346, -0.0685],
+    "max": [0.0666, 0.0237, 0.4203]
   },
   "effects": [
     {

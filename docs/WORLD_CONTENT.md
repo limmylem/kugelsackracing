@@ -3,6 +3,39 @@
 > **Phase 5 Step 3:** a fifth kind, `venue` ("Race venue", the editor's tool 6), lists track events: quests with
 > a `track` (a generated track's code) in place of a route. See [TRACK_EVENTS.md](TRACK_EVENTS.md).
 
+> **Garages:** a kind `garage` ("Garage", the editor's tool 8) is a drive-through building like a petrol station
+> (`play/garageBuilding.js`) beside the road, on the right of its heading, so players can drive past: a forecourt, an IN
+> driveway off the road into its lane and an OUT driveway back onto the road, a canopy on four posts over the lane, the
+> workshop with roller doors beyond, a tall GARAGE sign. Its location is the road's middle and its heading the road's way
+> (the editor puts it on the side of the road you click, snapped to the road; **Other side of the road** turns it round).
+> **Each garage fits itself to where it stands** (`play/garageFit.js`), once the map round it is in — the same in the
+> game and in the editor's 3D view: it finds the road's real edge every metre along (the tile's road mesh: straight or
+> curving, however wide) and its surface's height; it leans with the road's slope; its floor sits at the ground's middle
+> height (from 0.3 m under the road's level to just over it); each driveway leaves the road's edge running along it, on
+> the road's own surface, rises smoothly (over the road's own slope) to the forecourt's level by the time it reaches the
+> forecourt and runs into the lane at the lane's width — of a few ways of laying them, the gentlest kept — in the roads'
+> own asphalt. Between the driveways along the road is a flat grass verge at the garage's level with a low kerb (and the
+> tall sign, out of every driving line). **It's set into the ground** (`map/render/streamer.ts` `carve`): inside its
+> outlines the drawn ground, grass cover and car parks aren't drawn (`map/render/objects.ts` ground holes), nor any tree
+> or railing standing there; the physics' ground (the tiles' heightfields, as they are and as they load) is lowered under
+> it, and the car parks', paths', cover's, trees' and railings' collision taken out there (roads kept; put back when the
+> garage goes); the tyres find tarmac on the driveways and lane, concrete on the forecourt, grass on the verge. Where the
+> ground just outside the garage stands higher, a concrete retaining wall (solid, with a ledge behind it at the ground's
+> height) runs up to it; where the ground falls away, the forecourt's and driveways' sides go down to it. Nothing solid
+> stands in a driving line that isn't drawn (`tests/unit/garage-building.test.mjs` drives them). Driving through under the canopy opens your garage; leaving it you come out on the road beside the
+> OUT driveway. A garage's card on the map has **Route** for the way there; the editor's garage panel says how well it
+> fits where it is (how much ground is cut away or filled, how steep the driveways get). There's no garage button any
+> more: the dock's **Tow** (and Backspace twice, and a wrecked car's results) is a paid tow (`data/economy.json`
+> `tow.fee`, $150; with less money it takes what you have, so nobody is stranded) that brings you out of the nearest
+> garage. The starting garages — one to three in every baked region, as many level spots as it has (a mountain pass has
+> one) — are `data/world/garages.json` (`node tools/place-garages.mjs` picks them from the road graphs: straight, wide
+> roads at ground level, away from junctions, no other road, building or tree in the footprint, and fitted as the game
+> will fit them: little ground cut away or filled, gentle driveways, a fairly level road); the server publishes each
+> once (`server/src/content/garages.ts`, not on a test server) and a server-less page seeds them into its browser store
+> once. After that they're the editors' like anything else: moved, renamed or archived, that stands. Earlier starting
+> garages since replaced (the file's `retired`) are archived at start where nobody has changed them. `dev/garage-building.html` shows the building by itself
+> (`node tools/serve.mjs`).
+
 Phase 4 Steps 1 and 2. The editor places world content (quest starts, points of interest, spawn points)
 anywhere on Earth and fills in the details, and draws routes on the region's real roads (Step 2:
 [ROUTES.md](ROUTES.md) — the route tool, checkpoints and shortcuts, test drives). The game shows what's published near the player. Everything
@@ -25,7 +58,11 @@ it in the browser. A server with PostGIS can take over later with no change to t
     world map). If that can't be reached, it shows the baked region's own map.
     - Drag to pan, right-drag to turn and tilt, the wheel zooms.
     - W A S D pan, Q / E turn, R / F tilt, Z / X zoom; Shift is faster.
-  - **3D**: a free-flying camera over the baked world the game drives in (San Francisco for now).
+  - **3D**: a free-flying camera over the baked world you opened the editor from (the region you last drove in).
+- **Every region**: the editor works in whichever baked region you're in (data/map/baked.json: San Francisco,
+  Adelaide, Monaco, Tokyo, …) — the one you came from, where you place a new route, or the one an opened route
+  belongs to ("Working in Adelaide"). Snapping and road heights use every region's roads. Markers can go anywhere
+  on the map; routes need a baked region's roads.
     - W A S D fly, Q / E down and up, right-drag or the arrow keys to look round.
     - The wheel sets the speed; Shift is faster.
 - **Find a place** with the search box:

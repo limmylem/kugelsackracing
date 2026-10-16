@@ -6,7 +6,7 @@
 //
 //   const F = installFakeAudio()   (globals: AudioContext, the nodes, OfflineAudioContext, fetch for the repo's files)
 //   F.ctx (the context made, once made) · F.live() → { nodes, sources, worklets, edges } (made and not yet let go)
-//   F.messages(name) → every message sent to that kind of worklet node · F.restore()
+//   F.messages(name) → every message sent to that kind of worklet node · F.all() → every node made · F.restore()
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -86,6 +86,7 @@ export function installFakeAudio() {
       return { nodes, sources, worklets };
     },
     get made() { return all.size; },
+    all: () => [...all],
     messages: name => msgs.filter(x => !name || x.name === name).map(x => x.m),
     forget() { for (const n of [...all]) if (n.dead || n.ended) all.delete(n); msgs.length = 0; },
     restore() { for (const [k, v] of Object.entries(saved)) globalThis[k] = v; },

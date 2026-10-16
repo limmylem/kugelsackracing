@@ -12,6 +12,10 @@
 //    car.json started from the starter car's (with its own copies of the stock body parts) if it has
 //    none, then split into its body and stock part models (tools/split-car.mjs), and an icon.
 // The original goes to incoming/imported/.
+//  - a kit piece (kit_<kind>_<attach>_<name>.glb: a hand-made piece a family's model generator mixes in — a wing's
+//    end plate, a wheel's centre…; data/content/model-rules.json kits): checked by its attach point's rules (no palette
+//    texture: it's mixed into a model made in code), fixed, and put in assets/kits/<kind>/<attach>_<name>.glb — a choice
+//    for that kind's kit shape setting from then on.
 //
 // For generated parts (npm run generate-parts), options also take: id (the part's id, whatever the file
 // is called), byCar (a car id: this is that car's own version of the part's model, written to
@@ -40,6 +44,8 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // placeOrigin, paint, materials, keepOriginal } → { ok, type, id, before, after, did, written, notes, message }
 export async function importFile(file, project, options = {}) {
   const { root, rules } = project, base = path.basename(file, path.extname(file)).toLowerCase();
+  const kit = kitFromName(base, rules);
+  if (kit) return importKit(file, project, kit, options);
   let type = options.type ?? typeFromName(file, rules);
   if (!type && options.ask) type = await options.ask(file, [...Object.keys(rules.types), 'car']);
   if (!type) return { ok: false, type: null, message: `Can't tell what ${path.basename(file)} is: name it after its type (${Object.keys(rules.types).slice(0, 5).join('_…, ')}_…, e.g. spoiler_ducktail.glb, or car_<id>.glb), or run npm run import in a terminal to choose.` };
@@ -70,6 +76,59 @@ export async function importFile(file, project, options = {}) {
     out.notes.push(`moved the original to ${rel(done, root)}`);
   }
   return result;
+}
+
+// ---------- a kit piece ----------
+
+// kit_spoiler_endplate_fin → { kind: 'spoiler', attach: 'endplate', name: 'fin' } (the longest kind and attach point that
+// fit, kinds and attach points having _ in them), or null
+export function kitFromName(base, rules) {
+  if (!base.startsWith('kit_')) return null;
+  let best = null;
+  for (const [kind, points] of Object.entries(rules.kits ?? {})) {
+    if (kind.startsWith('_')) continue;
+    for (const attach of Object.keys(points).filter(a => !a.startsWith('_'))) {
+      const pre = `kit_${kind}_${attach}_`;
+      if (base.startsWith(pre) && (!best || pre.length > best.pre.length)) best = { kind, attach, name: base.slice(pre.length), pre };
+    }
+  }
+  return best && /^[a-z0-9_]+$/.test(best.name) ? { kind: best.kind, attach: best.attach, name: best.name } : null;
+}
+// A kit piece's rules as a part type's (what checkModel and autoFix take): { rules, type }
+export function kitRules(rules, kind, attach) {
+  const r = rules.kits?.[kind]?.[attach];
+  if (!r) return null;
+  const type = `kit:${kind}:${attach}`;
+  return { type, rules: { ...rules, types: { ...rules.types, [type]: { ...r, label: `kit piece (${r.label.toLowerCase()})` } } } };
+}
+// (what a kit piece mustn't have, over a part's rules: the palette texture, any texture)
+export function kitFindings(info) {
+  const mats = new Set(info.primitives.map(p => p.material)), out = [];
+  if (mats.has('car_atlas') || info.textures.length) out.push({ level: 'fail', check: 'kit', text: 'A kit piece is mixed into a model made in code, which has no palette texture: it can\'t use car_atlas or textures.', fix: 'Give its faces paint, a finish (carbon, chrome, raw_metal, matte_black…) or rim_finish instead.' });
+  return out;
+}
+async function importKit(file, project, kit, options) {
+  const { root } = project, K = kitRules(project.rules, kit.kind, kit.attach), rel0 = rel(file, root);
+  let doc;
+  try { doc = await readModel(file); }
+  catch (err) { return { ok: false, type: K.type, message: `${path.basename(file)} can't be read (${err.message}): export it again as glTF Binary (.glb).` }; }
+  const check = d => { const info = inspect(d), r = checkModel(info, { rules: K.rules, type: K.type, file: rel0 }), extra = kitFindings(info); r.findings.push(...extra); if (extra.length) r.verdict = 'fail'; return r; };
+  const before = check(doc);
+  const did = await autoFix(doc, { rules: K.rules, type: K.type, scale: options.scale, placeOrigin: options.placeOrigin, materials: options.materials, compress: true });
+  const after = check(doc), out = { ok: false, type: K.type, before, after, did, written: [], notes: [] };
+  if (after.verdict === 'fail') return { ...out, message: `${path.basename(file)} still has problems after fixing what could be fixed: it stays in ${rel(path.dirname(file), root)} until they're fixed (see above).` };
+  const io = await modelIO(), dest = `assets/kits/${kit.kind}/${kit.attach}_${kit.name}.glb`;
+  write(root, dest, await io.writeBinary(doc));
+  out.written.push(dest);
+  const F = readJson('data/content/formulas.json', root), key = Object.entries(F.families?.[kit.kind]?.shapeSettings ?? {}).find(([, S]) => S?.kit === kit.attach)?.[0];
+  out.notes.push(`a kit piece: ${kit.kind} families can use it now${key ? ` (their shape setting ${key}: "${kit.name}")` : ''}; npm run content -- build makes it into the models of the families that do`);
+  if (!options.keepOriginal) {
+    const done = path.join(path.dirname(file), 'imported', path.basename(file));
+    fs.mkdirSync(path.dirname(done), { recursive: true });
+    fs.renameSync(file, done);
+    out.notes.push(`moved the original to ${rel(done, root)}`);
+  }
+  return { ...out, ok: true, id: `${kit.kind}/${kit.attach}_${kit.name}` };
 }
 
 // ---------- a part ----------

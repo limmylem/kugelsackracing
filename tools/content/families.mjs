@@ -14,10 +14,13 @@
 import { evaluate, said } from '../../garage/formulas.js';
 import { expandFamily as expand, perfKey } from '../../garage/families.js';
 import { REFERENCE_CAR, TIER_ORDER, forCar, partGain } from './balance.mjs';
+import { listKits } from '../generators/lib/kit.js';
+import { ROOT } from './rules.mjs';
 
-export function expandFamily(def, { formulas, db }) {
+// (the kit pieces there are: assets/kits — what a family's kit shape settings may name)
+export function expandFamily(def, { formulas, db, root = ROOT, kits = listKits(root) }) {
   const carNames = Object.fromEntries(Object.values(db.cars).map(c => [c.id, c.name]));
-  return expand(def, { formulas, carNames });
+  return expand(def, { formulas, carNames, kits });
 }
 
 // A slot's tiers along its gain scale: [{ tier, lo, hi }] (bands split at the middle of where they overlap)
@@ -105,9 +108,11 @@ export function priceFamilyParts(items, { db, formulas: F, tiers }) {
       const scaleBand = tiers.tiers[r.tier].price.map(k => k * r.rule.street);
       let base = alongCurve(rising, r.gain) ?? scaleBand[0] + (scaleBand[1] - scaleBand[0]) * r.t;
       base = Math.min(hi, Math.max(lo, base));
-      // (its tier: the one its gain puts it in if that tier's price band holds the price, else one whose bands hold both)
+      // (its tier: the one its gain puts it in if that tier's price band holds the price, else one whose bands hold both;
+      // first, one whose band holds its price for what it does — a street band's top would make it too cheap for that)
       const fits = t => { const g = r.rule.gain?.[t], b = tiers.tiers[t]?.price?.map(k => k * r.rule.street); return g && b && r.gain >= g[0] - 1e-9 && r.gain <= g[1] + 1e-9 && Math.max(lo, b[0]) <= Math.min(hi, b[1]) + 0.5; };
-      const tier = fits(r.tier) ? r.tier : TIER_ORDER.find(fits);
+      const holds = t => { const b = tiers.tiers[t].price.map(k => k * r.rule.street); return base >= b[0] - 0.5 && base <= b[1] + 0.5; };
+      const tier = [r.tier, ...TIER_ORDER].find(t => fits(t) && holds(t)) ?? (fits(r.tier) ? r.tier : TIER_ORDER.find(fits));
       if (!tier) { say(r.part.id, `${r.part.name}: for what it does (${said(r.gain, '%')}) it has to cost ${money(lo)}${hi < Infinity ? `–${money(hi)}` : ' or more'} next to the slot's other parts, which no tier's price band for ${slot} allows`); r.failed = true; continue; }
       const band = tiers.tiers[tier].price.map(k => k * r.rule.street), lo2 = Math.max(lo, band[0]), hi2 = Math.min(hi, band[1]);
       base = Math.min(hi2, Math.max(lo2, base));

@@ -160,8 +160,9 @@ Each event can set a time of day (dawn, day, dusk, night) and weather (clear, cl
 takes the theme's own (`eventConditions`). `data/tracks.json` conditions: the hour each time is in the
 game's day (`effects/lighting.js`), its warmth, and each weather's sun, greyness, fog and rain. Rain falls
 round the camera (streaks), the road goes dark and shiny. **Grip**: the weather's `grip` (rain 0.82) is
-applied to every surface only when `conditions.applyGrip` is true — false for now (visual only), the hook
-ready. **Floodlights**: circuits at dusk and night light up — lamps on the light towers, or masts at the
+applied to every surface, for every car in the race (`physics/sim.js` setGrip), when `conditions.applyGrip` is
+true (it is, since 2026-10-14); the NPCs plan their speeds on it (`route/racingLine.js` wetCaps) and a rain event's
+medal times allow for it (`data/quests.json` medals.weather). **Floodlights**: circuits at dusk and night light up — lamps on the light towers, or masts at the
 marshal posts — with pools of light following the camera and the scene lit cool from above.
 
 ## TV cameras and replays (`track/cameras.js`, `race/raceReplay.js`)

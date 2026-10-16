@@ -123,4 +123,20 @@ results["car_typo"] = None
 bpy.data.objects["socket_spoiler"].name = "socket_spoilr"
 results["car_typo"] = summary(T.check_scene(ctx, "car", "addon_car", new_car=True))
 
+# 7. a kit piece: a wing's end plate (its inner face at x 0, the element's middle at y 0, z 0), exported as a kit piece;
+# then one in the palette texture (a kit piece can't be)
+clear()
+box("plate", (0.006, 0.2, 0.44), (0.003, 0.03, -0.02), mat="carbon")
+results["kit"] = summary(T.check_scene(ctx, "kit:spoiler:endplate", "fin"))
+results["kit_kinds"] = [k for k, _, _ in T.kind_items(None, ctx) if k.startswith("kit:")]
+results["kit_exported"] = T.export_model(ctx, "kit:spoiler:endplate", "addon_fin", out_dir)[0]
+clear()
+box("plate_atlas", (0.006, 0.2, 0.44), (0.003, 0.03, -0.02), mat="car_atlas")
+results["kit_atlas"] = summary(T.check_scene(ctx, "kit:spoiler:endplate", "atlas"))
+clear()
+box("plate_off", (0.006, 0.2, 0.44), (0.25, 0.03, -0.02), mat="carbon")
+results["kit_origin"] = summary(T.check_scene(ctx, "kit:spoiler:endplate", "off"))
+T.place_at_origin(ctx, "kit:spoiler:endplate", selected_only=False)
+results["kit_placed"] = summary(T.check_scene(ctx, "kit:spoiler:endplate", "off"))
+
 print("RESULT " + json.dumps(results))

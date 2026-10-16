@@ -24,7 +24,8 @@ import { createChecks } from './checks.ts';
 import { createGrid } from './interest.ts';
 import { send } from './outbox.ts';
 
-export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any };
+export type RtEnv = { secret: string; allowGuests: boolean; maxPlayers: number; roomMaxClients: number; netsim: boolean; log: (msg: string, extra?: object) => void; api?: import('./mp.ts').RtApi | null; quickVenue?: any;
+  voice?: import('./voice.ts').Sfu | null; voiceGuests?: boolean };
 let ENV: RtEnv;
 export const setRtEnv = (e: RtEnv) => { ENV = e; };
 
@@ -230,6 +231,8 @@ export class TestRoom extends Room {
   protected virtualCars(): Iterable<{ id: number; latest: any; latestF: any; entry: any }> { return []; }
   // (whether a player's car goes to the others: a race room sends only the cars racing)
   protected relays(_p: Player) { return true; }
+  // (whether this room sends target's car to viewer: here, always; free roam's zones share it out — roam.ts)
+  protected sends(_viewer: Player, _target: Player, _now: number) { return true; }
   // (Phase 7 Step 4: free roam — a page's key, so its connections to several zones don't replace each other; who a player
   // never sees (blocked either way); the roster entry a viewer gets (a private player's name); after joining)
   protected pageOf(_options: any): string | null { return null; }
@@ -331,9 +334,11 @@ export class TestRoom extends Room {
       const near = r.latestF && this.relays(r) ? this.grid.near({ id: r.id, pos: r.latestF.pos }) : [...byId.values()].filter(o => o !== r && o.latestF && o.status === 'here' && (o.virtual || this.relays(o))).map(o => ({ id: o.id, d: 0, every: 1 }));
       const keep = new Set<number>(), cars: any[] = [];
       for (const n of near) {
+        const o = byId.get(n.id);
+        // (another room sends this car to this player: free roam near a border — roam.ts)
+        if (o && !o.virtual && !this.sends(r, o, now)) continue;
         keep.add(n.id);
         if ((tick + n.id) % n.every) continue;
-        const o = byId.get(n.id);
         if (!o?.latest) continue;
         if (!o.virtual && this.hidden(r, o)) continue;
         const base = r.sentBase.get(n.id);

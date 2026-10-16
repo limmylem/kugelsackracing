@@ -44,8 +44,15 @@ async function local(src: string, dir: string, log) {
   fs.renameSync(file + '.part', file);
   return file;
 }
+// (and a raw copy kept beside it: a big compressed raster takes minutes to inflate in JavaScript, the copy a moment to
+// read — remade whenever the raster's newer)
 async function readRaster(file: string) {
+  for (const T of [Float32Array, Uint8Array]) {
+    const raw = `${file}.${T.name}.bin`;
+    if (fs.existsSync(raw) && fs.statSync(raw).mtimeMs >= fs.statSync(file).mtimeMs) { const b = fs.readFileSync(raw); return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); }
+  }
   const tiff = await fromFile(file), im = await tiff.getImage(), [data] = await im.readRasters() as any;
+  if (data instanceof Float32Array || data instanceof Uint8Array) fs.writeFileSync(`${file}.${data.constructor.name}.bin`, Buffer.from(data.buffer, data.byteOffset, data.byteLength));
   return data;
 }
 

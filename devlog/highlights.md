@@ -15,6 +15,38 @@ A real car's dashboard: rev counter, speedometer and warning lights
 The garage fits properly in Safari
 Cars and parts load faster, and stay saved between visits
 Parts knocked off in a crash tumble in their real shape
+Garages are real drive-through buildings now; or pay for a tow
+Cars look better: glossy paint, real reflections and proper tyres
+Garages sit beside the road now; drive past or pull in
+Tap a garage on the map for a route there
+Garages have their own in and out driveways, and solid ground
+Garage driveways meet the road smoothly
+Every garage now fits its spot: driveways flow off the road
+Garage driveways grip like real roads, with nothing invisible in the way
+Voice chat: talk to your party anywhere, or drivers nearby
+Adelaide's roads rebuilt: wider, smooth junctions, no holes or invisible walls
+Adelaide has street lights now: drive the city at night
+Brake pads now bite harder and stay strong when hot
+The quest arrow now points the right way to the next checkpoint
+Quests are driven to now: set the route, then start it there
+Every quest in the city now shows on the map
+The route line shrinks behind you as you follow it
+Blue arrows on the road now show the way to your quest
+Hard landings now hit the bump stops, not the car's floor
+Rain makes generated tracks slippery, for you and the AI
+Race replays now show the wheels turning and steering
+Lobby hosts can pick any published route to race
+Club quests open sooner: at level 2
+Steep hills now make a quest harder
+Other players' damaged engines now misfire
+Reporting a player now opens the game's own window
+The Kaze GT's engine swaps now come with a raised cowl bonnet
+The ducktail spoiler now fits the Ridgeback and Vortex R
+Other players' damaged cars now steam and flap their loose panels
+Voice chat now works in lobbies and races
+AI racers no longer flip when they rejoin the pack
+The game now opens right where you left off
+Every car rebuilt to look as good as the starter coupe
 Pick your first car, then a short guided drive on a real road
 A driving school: seven lessons, with bronze, silver and gold medals
 Remap every control, and choose hold or toggle

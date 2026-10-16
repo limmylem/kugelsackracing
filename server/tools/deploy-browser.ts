@@ -15,7 +15,7 @@
 //   and another tab's change arriving (server-sent events)
 //   the admin page: signed out → sign in on the game's address → back to it; a player → refused; an admin → it
 //   the editor's code: refused for a player; for an editor from the API's address, the modules it shares with
-//   the game from the game's (loaded once)
+//   the game from the game's (loaded once); two-factor due again: the game goes to "Enter your code", then back
 //   map files: /assets/ on the game's address → the tiles address; a byte range; CORS refused elsewhere
 //   the real-time server: /health (ok, the commit); a ticket from the API (its url the real-time server's), and a
 //   room joined with it from the game's page; a join without a ticket refused from elsewhere
@@ -218,6 +218,21 @@ try {
     l.onload = () => res(`loaded, ${l.sheet?.cssRules.length ?? 0} rules`); l.onerror = () => res('refused'); document.head.appendChild(l);
   }), U.api);
   check('…and its stylesheet from the API\'s address', /^loaded, [1-9]/.test(String(css)), String(css));
+
+  // (two-factor due again — the session's code 13 hours old, the limit 12: the owner's report, 2026-10-15, where the
+  // game showed a CORS error instead): the editor's code refused with why, and the game goes to "Enter your code" on its
+  // own address, then back; the editor loads after
+  await app.deps.db.execute(sql`update sessions set mfa_verified_at = now() - interval '13 hours' where user_id = (select id from users where email = 'pia@example.com')`);
+  await page.goto(`${U.game}/editor-test.html`);
+  void page.evaluate(async () => { const { importTool } = await import('/site/urls.js'); await importTool('editor/editor.js').catch(() => {}); }).catch(() => {});
+  const toCode = await page.waitForURL((u: URL) => u.origin === U.game && u.pathname === '/account/' && u.search.includes('mode=mfa'), { timeout: 15000 }).then(() => true, () => false);
+  check('the editor\'s code with two-factor due again: the game goes to "Enter your code" (no CORS error)', toCode && decodeURIComponent(page.url()).includes('next=/editor-test.html'), page.url());
+  // (a code from the next 30 seconds' window: the one used above may not be taken twice)
+  await page.waitForTimeout(30500 - Date.now() % 30000);
+  await page.fill('input[autocomplete=one-time-code]', totp(key)); await page.press('input[autocomplete=one-time-code]', 'Enter');
+  await page.waitForURL((u: URL) => u.pathname === '/editor-test.html', { timeout: 15000 }).catch(() => {});
+  const again = await page.evaluate(async () => { const { importTool } = await import('/site/urls.js'); return importTool('editor/editor.js').then(m => typeof m.createEditor, e => `refused: ${e.message}`); }).catch((e: any) => `error: ${e.message}`);
+  check('…the code entered: back, and the editor loads', page.url().endsWith('/editor-test.html') && again === 'function', `${page.url()} · ${again}`);
 
   // a player, signed out at first
   const { page: p2 } = await newPage();

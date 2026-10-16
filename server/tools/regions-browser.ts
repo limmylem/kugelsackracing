@@ -9,11 +9,15 @@
 //   D. signed in, chosen in this browser since (the owner's report: to Adelaide, reloaded, landed in San Francisco): the
 //      account's place is in San Francisco, saved 10 minutes ago; this browser went to Adelaide just now — reloaded with
 //      ?mp it stays in Adelaide (no going back), and free roam saves Adelaide
+//   E. signed in, left off in the region it opens in (San Francisco, 1.5 km from its spawn): the world is built at the
+//      saved place straight away — the car is never at the spawn on the way — and free roam doesn't move it again
 //
 //   node server/tools/regions-browser.ts [--local-libs]   (needs PostgreSQL: TEST_DATABASE_URL; playwright-core and
 //   Chromium: PLAYWRIGHT_CORE, CHROMIUM; jsDelivr, or CDN_LIBS with --local-libs — see mp-browser.ts)
 
+import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { sql } from 'drizzle-orm';
 import { freshDatabase, testConfig, signUp } from '../test/helpers.ts';
 import { buildApp } from '../src/app.ts';
@@ -46,6 +50,23 @@ await app.deps.db.execute(sql`insert into roam_players (user_id, region, pos, he
 // (the owner's: San Francisco, on a road near the Embarcadero, 10 minutes ago)
 const ownerId = (await owner.get('/api/v1/me')).body.user.id as string;
 await app.deps.db.execute(sql`insert into roam_players (user_id, region, pos, heading, saved_at) values (${ownerId}, 'sf', ${JSON.stringify([3597.88, 2.87, -2563.44])}::jsonb, 315, now() - interval '10 minutes')`);
+// (E: someone who left off in San Francisco about 1.5 km from its spawn, on a road from its road graph)
+const sfer = await signUp(app, app.deps.mailer.outbox as any[], { email: 'sfer@example.com', name: 'Sf Er', ip: '10.9.5.4' });
+const SF_SAVED = (() => {
+  const G = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(REPO_DIR, 'assets/map/sf/graph.json.gz'))).toString('utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(REPO_DIR, 'assets/map/sf/manifest.json'), 'utf8')), [sx, sz] = M.spawn.xz;
+  for (const g of G.segs) {
+    if (g.structure !== 'ground' || !['primary', 'secondary', 'tertiary'].includes(g.class) || g.points.length < 12) continue;
+    const k = (g.points.length / 3 >> 1) * 3, [x, z, h] = g.points.slice(k, k + 3);
+    const d = Math.hypot(x - sx, z - sz);
+    if (d < 1400 || d > 1800) continue;
+    const [nx, nz] = g.points.slice(k + 3, k + 5), heading = Math.atan2(nx - x, nz - z) * 180 / Math.PI;
+    return { region: 'sf', pos: [x, h, z], heading, spawn: [sx, sz], road: g.name };
+  }
+  throw new Error('no road 1.4–1.8 km from the spawn');
+})();
+const sferId = (await sfer.get('/api/v1/me')).body.user.id as string;
+await app.deps.db.execute(sql`insert into roam_players (user_id, region, pos, heading, saved_at) values (${sferId}, 'sf', ${JSON.stringify(SF_SAVED.pos)}::jsonb, ${SF_SAVED.heading}, now() - interval '2 minutes')`);
 const savedOf = async (uid: string) => (await app.deps.db.execute(sql`select region, pos, saved_at from roam_players where user_id = ${uid}`)).rows[0] as any;
 
 const browser = await pw.chromium.launch({ executablePath: process.env.CHROMIUM ?? '/opt/pw-browsers/chromium', args: ['--no-proxy-server', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
@@ -66,6 +87,7 @@ async function computer(name: string) {
   const P = await ctx.newPage();
   P.on('pageerror', (e: any) => errors.push(`${name}: ${e}`));
   if (process.env.MP_DEBUG) P.on('console', (m: any) => console.log(`[${name}] ${m.type()}: ${m.text().slice(0, 240)}`));
+  if (process.env.MP_DEBUG) P.on('requestfailed', (r: any) => console.log(`[${name}] failed: ${r.url().slice(0, 200)} ${r.failure()?.errorText ?? ''}`));
   return { ctx, P };
 }
 const signIn = (P, email) => P.goto(`${BASE}/account/`).then(() => P.evaluate(async (e) => { const { createApi } = await import('/account/api.js'); await createApi().auth('/sign-in/email', { email: e, password: 'correct horse battery' }); }, email));
@@ -175,6 +197,24 @@ try {
     check('…no going back to San Francisco (no note of it, nothing of it asked for)', !later.toasts.some(t => /Going back/.test(t)) && sfAsked.length === 0, `notes ${JSON.stringify(later.toasts)} · ${sfAsked.length} San Francisco files asked for`);
     const saved = await until(async () => { const r = await savedOf(ownerId); return r?.region === 'adelaide' ? r : null; }, 90000, 2000) ?? await savedOf(ownerId);
     check('…and free roam saves Adelaide', saved?.region === 'adelaide', JSON.stringify(saved));
+    await ctx.close();
+  }
+
+  // ---------- E. left off in the region it opens in: loaded there straight away ----------
+  console.log(`\n== E. signed in: left off in San Francisco on ${SF_SAVED.road ?? 'a road'}, ${f(Math.hypot(SF_SAVED.pos[0] - SF_SAVED.spawn[0], SF_SAVED.pos[2] - SF_SAVED.spawn[1]), 0)} m from its spawn; opened with ?mp`);
+  {
+    const { ctx, P } = await computer('E');
+    await signIn(P, 'sfer@example.com');
+    // (every place the car is seen at, from the world's first moment: never at the spawn)
+    await ctx.addInitScript(() => { const g = globalThis as any; g.__seen = []; setInterval(async () => { try { const { debug } = await import('/testtrack/test-scene.js'), w = debug.active; if (!w?.stream) return; const p = w.sim.vehicle.body.translation(); g.__seen.push(w.stream.toWorld(p.x, p.z)); } catch { /* not yet */ } }, 100); });
+    await open(P, `${BASE}/?mp&view=600`);
+    const at = await until(async () => { const l = await look(P); return l.ready && l.roam === 'roam:sf' ? l : null; }, 300000) ?? await look(P);
+    await P.waitForTimeout(8000);
+    const later = await look(P), seen = await P.evaluate(() => (globalThis as any).__seen as number[][]);
+    const d = (xz: number[]) => Math.hypot(xz[0] - SF_SAVED.pos[0], xz[1] - SF_SAVED.pos[2]), nearSpawn = seen.filter(xz => Math.hypot(xz[0] - SF_SAVED.spawn[0], xz[1] - SF_SAVED.spawn[1]) < 400).length;
+    check('the world opens at the saved place: the car lands there first (within 5 m)', at.region === 'sf' && d(at.xz) < 5, `${f(d(at.xz))} m from it`);
+    check('…never at the region\'s spawn on the way (no second trip)', seen.length > 0 && nearSpawn === 0 && seen.every(xz => d(xz) < 60), `${seen.length} places seen, ${nearSpawn} near the spawn, farthest ${f(Math.max(...seen.map(d)))} m from the saved spot`);
+    check('…and stays there with free roam on, saying so', d(later.xz) < 60 && later.toasts.some(t => /Back where you left off/.test(t)), `${f(d(later.xz))} m · notes ${JSON.stringify(later.toasts)}`);
     await ctx.close();
   }
 

@@ -20,6 +20,13 @@ export const FIXED_ONLY = 6;
 
 const WHEELS = ['FL', 'FR', 'RL', 'RR'];
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// The bump stops: past a spring's travel the strut meets a rubber stop that pushes back harder the further it's squashed
+// (rate × the spring's stiffness, rising by its own share every soft m), with damping (× the damper's), instead of the
+// body coming down onto the road — braking hard at speed with the aero load on top used to put the floor on the tarmac.
+// The stop squashes at most max m: past that its push stays what it was there (the ground far above the wheel, a rock
+// or a ledge under the car, is the body's to hit, not something to spring the car off). A car's suspension can carry its
+// own (spec.suspension.bumpStop).
+export const BUMP_STOP = { rate: 1.5, soft: 0.02, damping: 3, max: 0.06 };
 
 // Pacejka Magic Formula, per unit of load: D * sin(C * atan(B*x - E*(B*x - atan(B*x))))
 export function magicFormula({ B, C, D, E }, x) {
@@ -111,6 +118,7 @@ export class Vehicle {
     this.aero = new Aero(spec, sockets);
     this.altitudeBase = 0;
     this.wind = spec.aero.wind ? [...spec.aero.wind] : [0, 0, 0];
+    this.gripScale = 1;                       // (the weather's share of every surface's grip: 1 dry; sim.setGrip)
     this.slipstream = { drag: 0, downforce: 0, amount: 0 };
     this.brakes = new Brakes(spec, this.wheels, this.peak.x);
     // mechanical damage (spec.damage): each wheel's toe, grip, radius…, the engine's heat, the clutch's
@@ -334,32 +342,37 @@ export class Vehicle {
       w.origin = origin;
       w.steerAngle = this.wheelSteer(w) + w.toe + (w.front ? this.torqueSteer : 0);
       if (!hit) {
-        Object.assign(w, { grounded: false, length: w.rest, compression: 0, compressionSpeed: 0, load: 0, contact: null, normal: null, surface: null, grip: 1 });
+        Object.assign(w, { grounded: false, length: w.rest, compression: 0, compressionSpeed: 0, over: 0, load: 0, contact: null, normal: null, surface: null, grip: 1 });
         continue;
       }
-      // Wheel centre sits one radius above the hit; the spring can't compress past its travel
+      // Wheel centre sits one radius above the hit; the spring can't compress past its travel (the bump stop takes
+      // what's beyond it)
       const len = clamp(hit.timeOfImpact - w.radius, w.rest - S.travel, w.rest);
-      const compression = w.rest - len;
+      const bs = S.bumpStop ?? BUMP_STOP;
+      const compression = w.rest - len, over = clamp(w.rest - (hit.timeOfImpact - w.radius) - S.travel, 0, bs.max);
+      const overSpeed = (over - (w.grounded ? w.over ?? 0 : 0)) / dt;
       // How fast the spring is actually being squashed (from its length last step). Not the body's
       // velocity along its own up axis: when the car is tilted relative to the ground, part of its
       // forward speed would count as the strut extending and cancel the spring.
       const compressionSpeed = (compression - (w.grounded ? w.compression : 0)) / dt;
       // (a kerb's edge hit hard, a heavy landing: physics/mechanical.js)
       const hn = fromXYZ(hit.normal), vo = velAt(origin);
-      // (the ground's own rise: what the spring took up, less the car coming down onto it)
-      M.strike(w, w.grounded ? { rise: compression - w.compression + dot(vo, up) * dt, speed, pitch: Math.atan2(-dot(hn, fwd), dot(hn, up)) * (speed < 0 ? -1 : 1) } : { landing: Math.min(dot(vo, down), -dot(vo, hn)) }, dt);
-      const load = Math.max(0, S.stiffness * compression + S.damping * w.dampK * compressionSpeed); // springs only push
+      // (the ground's own rise: what the spring and its bump stop took up, less the car coming down onto it)
+      M.strike(w, w.grounded ? { rise: compression + over - w.compression - (w.over ?? 0) + dot(vo, up) * dt, speed, pitch: Math.atan2(-dot(hn, fwd), dot(hn, up)) * (speed < 0 ? -1 : 1) } : { landing: Math.min(dot(vo, down), -dot(vo, hn)) }, dt);
+      const stop = over > 0 ? S.stiffness * bs.rate * over * (1 + over / bs.soft) + S.damping * w.dampK * bs.damping * overSpeed : 0;
+      const load = Math.max(0, S.stiffness * compression + S.damping * w.dampK * compressionSpeed + stop); // springs only push
       // The ground holds the wheel up along its normal, at the contact patch: the suspension links take
       // the rest, so a body leaning in a corner (or pitching under braking) gets no sideways (or fore-
       // aft) push from its own springs
       const contact = add(origin, scale(down, hit.timeOfImpact)), normal = fromXYZ(hit.normal);
       if (!linked) push(scale(normal, load), contact);
       const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2]) : null;
-      // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't)
+      // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't; times the
+      // weather's — a wet road: sim.setGrip)
       const onIt = surface && Ty.surfaceGrip?.[surface.name];
       Object.assign(w, {
-        grounded: true, length: len, compression, compressionSpeed, load, spring: load,
-        contact, normal, surface, grip: onIt ? (surface.grip ?? 1) * onIt : surface?.grip ?? 1,
+        grounded: true, length: len, compression, compressionSpeed, over, load, spring: load,
+        contact, normal, surface, grip: (onIt ? (surface.grip ?? 1) * onIt : surface?.grip ?? 1) * this.gripScale,
       });
       // a wheel heavier (or lighter) than the suspension was set up with: that much of the car's weight
       // goes straight onto its tyre instead of through the body

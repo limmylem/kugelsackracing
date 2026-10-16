@@ -46,6 +46,13 @@ test('difficulty: stars from the route, its rivals and its medals; a recommended
   assert.ok(raced.points > dEasy.points && raced.stars > dEasy.stars);
   const est = easy.course.stats.estimatedTime;
   assert.ok(difficultyOf(sprint(), easy.course, { config, classes, medals: { kind: 'time', gold: est * 0.8 } }).points > dEasy.points);
+  // a very steep hill counts for more than its share of the grade (20–28% hills: where the AI and new players struggle)
+  const withGrade = g => ({ ...easy.course, stats: { ...easy.course.stats, features: { ...easy.course.stats.features, maxGrade: g } } });
+  const at = g => difficultyOf(sprint(), withGrade(g), { config, classes });
+  assert.ok(!at(12).parts.some(p => p.what === 'steep grade'), 'a 12% grade: no extra');
+  const steep = at(26).parts.find(p => p.what === 'steep grade');
+  assert.ok(steep && steep.points > 0.3, JSON.stringify(at(26).parts));
+  assert.ok(at(26).points - at(20).points > (26 - 20) / 30 * 0.5, 'past 15% each % counts for more');
   // the recommended car: more for more stars, inside the quest's class
   assert.ok(dHard.recommended > dEasy.recommended);
   const forC = difficultyOf(sprint({ entry: { classes: ['C'], minLevel: 1 } }), hard.course, { config, classes });

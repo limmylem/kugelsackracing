@@ -123,10 +123,10 @@ try {
   await game.goto(`${BASE}/economy-blank.html`);
   const g = await game.evaluate(async () => {
     const { garageSession } = await import('/garage/session.js'), S = await garageSession();
+    (globalThis as any).__S = S;
     return { remote: S.player.constructor.name, money: S.player.profile.money, cars: Object.keys(S.player.profile.cars).length };
   });
   check('the game\'s garage, signed in: the server\'s', g.remote === 'RemotePlayerService' && g.money === 920 && g.cars === 1, JSON.stringify(g));
-  await ctx.close();
 
   // ---------- the admin page ----------
   const actx = await newContext(), adm = await newPage(actx);
@@ -156,6 +156,19 @@ try {
   await adm.waitForFunction(() => (document.querySelector('textarea') as HTMLTextAreaElement).value.length > 100, null, { timeout: 10000 });
   const cfgText = await adm.inputValue('textarea');
   check('the economy\'s settings shown, with their history', /"economy"/.test(cfgText) && (await adm.textContent('main'))!.includes('(active)'));
+  // the quest tiers on their own: Club's level changed in its box and saved — a new version
+  const club = adm.locator('main table tr:has(td:text("2. Club")) input');
+  await club.fill('3');
+  await adm.locator('main input[placeholder^="Why"]').first().fill('Club later: a test of the tier box');
+  await adm.click('main button:text("Save tier levels")');
+  await adm.waitForSelector('.msg.good:text("Tier levels saved")', { timeout: 10000 }).catch(() => null);
+  const tierNow = (await app.deps.economyConfig?.active?.())?.data?.economy?.quests?.tiers?.find((t: any) => t.name === 'Club')?.level
+    ?? ((await app.deps.db.execute(sql`select data from economy_config where active`)).rows[0] as any)?.data?.economy?.quests?.tiers?.find((t: any) => t.name === 'Club')?.level;
+  check('the quest tiers in a table of their own: Club\'s level changed there and saved as a new version', tierNow === 3 && (await adm.textContent('main'))!.includes('Club later'), `Club opens at ${tierNow}`);
+  // the game already open picks the change up (as its profile card opens, every few minutes, when the window comes back)
+  const seen = await game.evaluate(async () => { const S = (globalThis as any).__S; const changed = await S.refreshSettings(); return { changed, club: S.db.economy.quests.tiers.find((t: any) => t.name === 'Club')?.level }; });
+  check('…and a game already open gets it without a reload', seen.changed === true && seen.club === 3, JSON.stringify(seen));
+  await ctx.close();
 
   await adm.click('#tabs button:text("Economy dashboard")');
   await adm.waitForSelector('h3:text("Average balance by level")', { timeout: 10000 });

@@ -118,7 +118,7 @@ Work down it in order.
   ([docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)).
 - [x] Translations ready (English at launch, the owner's choice): ICU messages, plurals, units, place names,
   pseudo-languages, the Crowdin/Lokalise workflow and the right-to-left plan ([docs/TRANSLATIONS.md](docs/TRANSLATIONS.md)).
-- [ ] The rest of the hard-coded English moved into `locales/` (725 strings left; the check only lets it go down).
+- [ ] The rest of the hard-coded English moved into `locales/` (737 strings left; the check only lets it go down).
 - [x] Music made by the game, for the menu, the garage and races, building with the race (docs/AUDIO.md "Music").
 - [x] Photo mode, clips, share links, the player profile and crews ([docs/PHOTO_MODE.md](docs/PHOTO_MODE.md)).
 - [x] Settings saved to the account (graphics, gamepad and wheel stay on each device).

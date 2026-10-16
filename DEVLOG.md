@@ -12,6 +12,23 @@ A short vertical video for TikTok and Instagram Reels, made almost by itself. Yo
 It costs nothing: GitHub runs it for free (the repository is public), and every tool it uses is free. Nothing in the
 game or on its servers changes.
 
+## From the admin page (the easiest way)
+
+**ognistrada.com/admin → Devlog.** Everything below, on one page:
+
+- **Tell it what's new**: a box already filled in with the highlights added since the last devlog. Change the
+  lines, add your own (`HOOK: …` sets the title), and that's what the video is about; nothing is saved to the game,
+  and you don't need to edit `devlog/highlights.md`. Or **Write the whole script**: the title, each caption and the
+  end card's line, in boxes.
+- **How it's made**: what to film, the second car, music, using an earlier video's filming (new words in about 5
+  minutes), and whether it's this week's devlog.
+- **Make the video**, then watch it being made on the right (which step it's at; about 40 minutes). When it's ready
+  it plays right there: **Download the video**, **Copy the post's caption**, and **New words, same filming** to change
+  the words without filming again.
+
+It starts the same workflow as below (the page uses the Builder's GitHub token, `CONTENT_BUILDER_TOKEN`:
+docs/DEPLOYMENT.md "The live Builder"), and every video started or stopped is in the admins' log.
+
 ## Make this week's video (in your browser, nothing to install)
 
 1. Open **github.com/limmylem/kugelsackracing → Actions → devlog** (in the list on the left).
@@ -80,6 +97,7 @@ cuts don't click. If you add music, the game's sound goes a little quieter so yo
 
 | Box | What it does |
 |---|---|
+| What this video is about | Optional: the things players will notice, `\|` between them (`HOOK: …` sets the title). Used in place of `devlog/highlights.md`'s new lines; the draft fills up from the commits. The admin page's Devlog tab fills it in for you. |
 | What to film | **local** (default): the game as it is in the repository (what's deployed, or about to be), with its own private game server on GitHub's computer: production isn't touched. **live**: ognistrada.com itself, as players see it. |
 | A second car joins | On (default): a second car races in the same private room. Locally it needs nothing. On the live site both cars use the load-test token (`LOADTEST_TOKEN`, already in the repository's secrets): made-up guests ("Bot 190", "Bot 191"), never anyone's account, and nothing they do counts; without the token it films one car and says so. If the second car ever fails, you still get the video, without those shots. |
 | Mark this as this week's devlog | On (default): tags the commit `devlog-YYYY-MM-DD`. Turn it off for a test run. |

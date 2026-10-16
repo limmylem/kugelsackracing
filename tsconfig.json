@@ -15,5 +15,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["map/format/**/*.ts", "map/bake/**/*.ts", "map/render/**/*.ts", "tests/map/**/*.ts"]
+  "include": ["map/format/**/*.ts", "map/bake/**/*.ts", "map/model/**/*.ts", "map/collision/**/*.ts", "map/debug/**/*.ts", "map/render/**/*.ts", "tests/map/**/*.ts"]
 }

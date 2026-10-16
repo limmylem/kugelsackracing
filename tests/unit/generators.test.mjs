@@ -26,7 +26,7 @@ const jobs = [];
 for (const f of generators) for (const j of await (await import(path.join(dir, f))).parts({ project, loadCar, carsFor })) jobs.push({ ...j, generator: f });
 
 test('there are generators for every kind of mechanical part, and they make the parts from the prompts document and the 20 extra rims', () => {
-  assert.deepEqual(generators, ['aero.js', 'bay.js', 'brakes.js', 'engine.js', 'exhaust.js', 'interior.js', 'lights.js', 'offroad.js', 'rims.js']);
+  assert.deepEqual(generators, ['aero.js', 'bay.js', 'body.js', 'brakes.js', 'engine.js', 'exhaust.js', 'interior.js', 'lights.js', 'offroad.js', 'rims.js']);
   const ids = new Set(jobs.map(j => j.id));
   for (const id of ['rim_multispoke', 'rim_rally', 'rim_beadlock', 'rim_deepdish', 'brakes_street', 'brakes_sport', 'brakes_race', 'turbo_kit', 'turbo_medium', 'turbo_large', 'supercharger_centrifugal', 'supercharger_twin_screw', 'front_mount_intercooler', 'intake_filter_street', 'cold_air_intake',
     'kaze_gt_gt_wing', 'kaze_gt_ducktail', 'kaze_gt_front_lip', 'vortex_r_front_splitter', 'kaze_gt_canards', 'strada_evo_mud_flaps', 'bucket_seat_street', 'bucket_seat_race', 'quick_release_wheel', 'gauge_pod', 'roll_cage_bolt_in', 'roll_cage_welded', 'strut_brace',
@@ -36,8 +36,8 @@ test('there are generators for every kind of mechanical part, and they make the 
   assert.equal(pack.length, 20);
   assert.equal(new Set(pack.map(j => JSON.stringify([j.settings.spoke, j.settings.spokes, j.settings.diameter]))).size, 20, 'twenty different designs');
   for (const d of [15, 16, 17, 18, 19, 20]) assert.ok(pack.some(j => j.settings.diameter === d), `a ${d}" one`);
-  // (nothing that has to follow a car's curves: those are modelled by hand)
-  for (const j of jobs) assert.ok(!['bonnet', 'boot', 'bumper_front', 'bumper_rear', 'fender_left', 'fender_right', 'widebody', 'roof', 'engine_cover', 'skirt_left', 'skirt_right'].includes(project.rules.types[j.type].slot), j.id);
+  // (nothing that has to follow a car's curves: those are modelled by hand — or made from the car's own panel, fromStock)
+  for (const j of jobs.filter(j => !j.fromStock)) assert.ok(!['bonnet', 'boot', 'bumper_front', 'bumper_rear', 'fender_left', 'fender_right', 'widebody', 'roof', 'engine_cover', 'skirt_left', 'skirt_right'].includes(project.rules.types[j.type].slot), j.id);
 });
 
 test('every generated model (and each car\'s own version) is under its budget, passes the checks without a warning, and is closed', async () => {
@@ -65,6 +65,8 @@ test('the game has what the generators make: each part\'s model, a version for e
   for (const j of jobs) {
     const p = db.parts[j.id];
     assert.ok(p, `${j.id} is a part`);
+    // (versions only: a hand-made part given a version for these cars — the part itself isn't the generator's)
+    if (j.versionsOnly) { for (const c of j.cars) assert.ok(p.byCar?.[c] && fs.existsSync(path.join(root, p.byCar[c].model)), `${j.id}: its ${c} version`); continue; }
     assert.equal(p.madeBy?.generator, `tools/generators/${j.generator}`, j.id);
     assert.deepEqual(p.madeBy.settings ?? null, j.settings ? JSON.parse(JSON.stringify(j.settings)) : null, `${j.id}: made with its generator's settings now (npm run generate-parts)`);
     assert.ok(p.model && fs.existsSync(path.join(root, p.model)), `${j.id}: ${p.model}`);
@@ -98,7 +100,12 @@ test('every generated part fits every car it goes on: nothing through the body o
   // docs/KNOWN_ISSUES.md)
   const known = JSON.parse(fs.readFileSync(path.join(root, 'data/content/check-rules.json'), 'utf8')).fit.known;
   const allowed = (p, carId, owner, n) => (ENGINE_MOUNTED.has(p.slot) && owner === db.parts[db.cars[carId].sockets.find(s => s.name === 'socket_engine')?.stock?.[0]]?.name)
-    || (carId === 'starter_car' && p.rim?.diameter === 17 && owner === 'the body') || n <= (known[p.id]?.cars?.[carId]?.[owner] ?? -1);
+    || (carId === 'starter_car' && p.rim?.diameter === 17 && owner === 'the body') || n <= (known[p.id]?.cars?.[carId]?.[owner] ?? -1)
+    // (a panel made from the car's own meets the body as that one does: no worse, give or take the content check's margin)
+    || (fromStock[p.id] && n <= (stockClashes[p.id]?.[owner] ?? 0) + Math.max(rules0.fit.extra, Math.floor(rules0.fit.share * (tris[p.id] ?? 0))));
+  const rules0 = JSON.parse(fs.readFileSync(path.join(root, 'data/content/check-rules.json'), 'utf8')), fromStock = Object.fromEntries(jobs.filter(j => j.fromStock).map(j => [j.id, j.fromStock]));
+  const stockClashes = {}, tris = {};
+  for (const [id, stock] of Object.entries(fromStock)) { const carId = db.parts[id].fits?.find(f => f.startsWith('car:'))?.slice(4); stockClashes[id] = (await fitCheck(db, carId, stock)).clashes ?? {}; tris[id] = (await fitCheck(db, carId, id)).triangles; }
   const bad = [];
   for (const p of Object.values(db.parts).filter(p => p.madeBy)) for (const carId of Object.keys(db.cars)) {
     if (!forCar(db, carId, p)) continue;

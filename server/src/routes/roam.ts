@@ -1,5 +1,6 @@
 // Free roam's API (Phase 7 Step 4; docs/FREE_ROAM.md):
 //   GET    /roam/me                      your settings, and where you come back to (where you left, or the garage — and why)
+//   GET    /roam/me?player=A             development only (config rt.devPlayers): the same for ?player=A's guest
 //   PUT    /roam/settings { settings }   privacy (location: everyone | friends | nobody; appear offline), nearby chat, names,
 //                                        contact, passive mode, party contact (the zone servers enforce the cooldowns live)
 //   GET    /roam/challenges              your recent challenges: place, time, pay (or why not)
@@ -24,11 +25,22 @@ import { AppError } from '../errors.ts';
 const Settings = z.object({
   location: z.enum(['everyone', 'friends', 'nobody']).optional(), appearOffline: z.boolean().optional(), nearbyChat: z.boolean().optional(), names: z.boolean().optional(),
   contact: z.boolean().optional(), passive: z.boolean().optional(), partyContact: z.boolean().optional(),
+  voiceParty: z.boolean().optional(), voiceNearby: z.boolean().optional(),
 }).strict();
 
-export async function roamRoutes(api: FastifyInstance, { config, G, roam }: { config: Config; G: Guards; roam: any }) {
+export async function roamRoutes(api: FastifyInstance, { config, G, roam, mp = null }: { config: Config; G: Guards; roam: any; mp?: any }) {
   const app = api.withTypeProvider<ZodTypeProvider>();
-  app.get('/roam/me', async (req, reply) => { const s = await G.requireTerms(req); reply.header('cache-control', 'no-store'); return roam.comeBack(s.user.id); });
+  app.get('/roam/me', { schema: { querystring: z.object({ player: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).optional() }).strict() } }, async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    // (a development ?player= window: its own guest's saved place, as POST /rt/ticket { player } makes it)
+    const player = req.query.player;
+    if (player) {
+      if (!config.rt.devPlayers || !mp) throw new AppError(403, 'FORBIDDEN', '?player= is for development only.');
+      return roam.comeBack((await mp.devPlayer(player)).id);
+    }
+    const s = await G.requireTerms(req);
+    return roam.comeBack(s.user.id);
+  });
   app.put('/roam/settings', { schema: { body: z.object({ settings: Settings }).strict() } }, async req => { const s = await G.requireTerms(req); return { settings: await roam.saveSettings(s.user.id, req.body.settings) }; });
   app.get('/roam/challenges', async req => { const s = await G.requireTerms(req); return { challenges: await roam.myChallenges(s.user.id) }; });
   app.get('/roam/meets', async () => ({ events: await roam.listMeets() }));

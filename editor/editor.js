@@ -39,7 +39,11 @@ import { editorAccessNow } from './access.js';
 import { createRouteTool } from './routeTool.js';
 import { assetUrl } from '../site/urls.js';
 
-const REGION = 'assets/map/sf/manifest.json';
+// the baked regions (data/map/baked.json: San Francisco, Adelaide, …): the editor works in whichever one you're in —
+// the 3D world it was opened from, where a route is placed, the region a route belongs to
+const BAKED = 'data/map/baked.json', FIRST_REGION = 'sf';
+const inBbox = (b, lat, lon) => !!b && lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3];   // ([west, south, east, north])
+const regionIdOfWorld = w => w?.track?.mapV3?.manifest?.match(/assets\/map\/([^/]+)\//)?.[1] ?? null;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const clone = x => x === undefined ? undefined : JSON.parse(JSON.stringify(x));
 const getPath = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
@@ -49,7 +53,7 @@ const sameContent = (a, b) => { if (!a || !b) return false; const strip = x => (
 const fmtLL = l => `${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}`;
 
 export function createEditor({ game }) {
-  let C = null, H = null, roads = null, region = null, mapView = null, worldView = null, root = null, ui = {};
+  let C = null, H = null, roads = null, region = null, regionUrl = null, baked = [], mapView = null, worldView = null, root = null, ui = {};
   let active = false, view = 'map', tool = 'select', snap = localStorageGet('kugelsack.editor.snap') !== 'off', selected = null, current = null, published = null;
   let items = [], publishedById = new Map(), showArchived = false, filter = 'all', picking = null, lastType = 'sprint', roadNote = null, typing = null, refreshTimer = null, rafId = 0, lastT = 0, loading = null;
   let questRoute;            // the selected quest's route item (null: none by its id; undefined: not looked up)
@@ -59,12 +63,27 @@ export function createEditor({ game }) {
   const loadNpcCfg = () => npcLoading ??= fetch('data/npc.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { npcCfg = j; return j; });
   // the route tool: drawn on the map and in 3D, its edits through edit() like every other
   const routeTool = createRouteTool({ THREE, api: {
-    regionManifest: () => region, regionBase: () => new URL(REGION, document.baseURI).href,
+    regionManifest: () => region, regionBase: () => new URL(regionUrl, document.baseURI).href,
     flash: (t, bad) => flash(t, bad), renderProps: () => renderProps(),
     editCourse: (label, fn, opts) => editCourse(label, fn, opts),
     testDrive: (it, o) => testDrive(it, o),
     cars: () => C?.cars ?? {},
   } });
+
+  // the region the editor works in: its manifest (the route tool's roads, test races, place search); another one's
+  // loaded when you go there. Returns whether it changed.
+  async function useRegion(id) {
+    const r = baked.find(x => x.id === id);
+    if (!r || r.manifest === regionUrl) return false;
+    const m = await fetch(r.manifest, { cache: 'no-cache' }).then(x => x.json()).catch(() => null);
+    if (!m) { flash(`${r.name}'s map couldn't be loaded.`, true); return false; }
+    region = m; regionUrl = r.manifest;
+    routeTool.resetNetwork();
+    return true;
+  }
+  // which baked region a place is in (null: none — the map view still edits there, without road data)
+  const regionIdAt = (lat, lon) => baked.find(r => inBbox(r.bbox, lat, lon))?.id ?? null;
+  const regionName = id => baked.find(r => r.id === id)?.name ?? id;
 
   // ---------- setting up (once) ----------
   async function ready() {
@@ -72,8 +91,11 @@ export function createEditor({ game }) {
     C = await worldContent();
     H = createHistory(C.service);
     H.on(() => renderTop());
-    region = await (await fetch(REGION, { cache: 'no-cache' })).json().catch(() => null);
-    roads = createRoadFinder({ regions: region ? [{ manifestUrl: new URL(assetUrl(REGION), document.baseURI).href }] : [] });
+    baked = await fetch(BAKED, { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions ?? []).catch(() => []);
+    if (!baked.length) baked = [{ id: FIRST_REGION, name: 'San Francisco', manifest: `assets/map/${FIRST_REGION}/manifest.json` }];
+    await useRegion(FIRST_REGION);
+    // (snapping to roads and their heights: every region's road graph, each loaded when first needed)
+    roads = createRoadFinder({ regions: baked.map(r => ({ manifestUrl: new URL(assetUrl(r.manifest), document.baseURI).href })) });
     C.service.on(ev => { if (active) { scheduleRefresh(); if (ev.id && ev.id === selected) loadSelected(); } saving(); });
     build();
   }
@@ -110,11 +132,12 @@ export function createEditor({ game }) {
     loading = (async () => {
       await ready();
       const w = await game.ensureRealWorld();
+      await useRegion(regionIdOfWorld(w) ?? FIRST_REGION);
       game.pause(true);
       active = true;
       document.body.classList.add('editor-on');
       root.style.display = '';
-      if (w?.stream && !worldView) { worldView = createWorldView({ THREE, world: w, canvas: game.canvas() }); routeTool.attachWorld(worldView, w.stream); }
+      if (w?.stream && !worldView) { worldView = createWorldView({ THREE, world: w, canvas: game.canvas(), onGarageFit: id => { if (current?.id === id) { const el = root?.querySelector('#edGarageFit'); if (el) el.innerHTML = garageFitText(current); } } }); routeTool.attachWorld(worldView, w.stream); }
       if (worldView) game.hooks.camera = worldView.camera;
       game.hooks.frame = (_w, dt) => { if (view === '3d' && worldView) worldView.frame(dt); };
       // (the map view comes in the background when there's a 3D view to start in)
@@ -134,7 +157,7 @@ export function createEditor({ game }) {
     return mapMaking ??= (async () => {
       try {
         const start = worldView ? { ...worldView.where(), zoom: 16 } : null;
-        mapView = await createMapView({ container: ui.map, regionManifest: region, regionBase: new URL(REGION, document.baseURI).href, start, onClick: onMapClick, onPick: id => pickItem(id), onDrag: (id, at, done) => dragTo(id, at, done), onMove: scheduleRefresh });
+        mapView = await createMapView({ container: ui.map, regionManifest: region, regionBase: new URL(regionUrl, document.baseURI).href, start, onClick: onMapClick, onPick: id => pickItem(id), onDrag: (id, at, done) => dragTo(id, at, done), onMove: scheduleRefresh });
         mapView.show(active && view === 'map');
         routeTool.attachMap(mapView.map);
         if (!mapView.world) flash('The world map can\'t be reached: showing the baked region\'s own map. Search by coordinates still works anywhere.');
@@ -172,7 +195,7 @@ export function createEditor({ game }) {
   }
 
   function setView(v) {
-    if (v === '3d' && !worldView) { flash('The 3D view is the baked world (San Francisco for now): use the map view elsewhere.', true); v = 'map'; }
+    if (v === '3d' && !worldView) { flash('The 3D view needs a world loaded: use the map view (it works everywhere).', true); v = 'map'; }
     if (v === 'map' && !mapView) { flash('The map is loading…'); mapNow().then(m => { if (m && active) setView('map'); }); return; }
     // (the same place in the other view)
     if (v === '3d' && view === 'map' && mapView) { const m = mapView.where(); if (worldView.covers(m.lat, m.lon)) worldView.lookAt(m.lat, m.lon); }
@@ -192,7 +215,7 @@ export function createEditor({ game }) {
     const sel = current && current.status !== 'archived';
     ui.top.innerHTML = `
       <button data-view="map" class="${view === 'map' ? 'on' : ''}" title="The whole Earth (M)">Map</button><button data-view="3d" class="${view === '3d' ? 'on' : ''}" ${worldView ? '' : 'disabled'} title="The baked world in 3D (M)">3D</button>
-      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}${t('meet', 'Meet spot', '7')}
+      <span class="sep"></span>${t('select', 'Select', 'V')}${t('quest', 'Quest start', '1')}${t('poi', 'Point of interest', '2')}${t('spawn', 'Spawn point', '3')}${t('route', 'Route', '4')}${t('series', 'Series', '5')}${t('venue', 'Race venue', '6')}${t('meet', 'Meet spot', '7')}${t('garage', 'Garage', '8')}
       <button data-act="snap" class="${snap ? 'on' : ''}" title="Snap to the nearest road, facing along it (N)">Snap to road<kbd>N</kbd></button>
       <span class="sep"></span>
       <button data-act="undo" ${H?.canUndo ? '' : 'disabled'} title="${esc(H?.undoLabel ? `Undo ${H.undoLabel}` : 'Nothing to undo')} (Ctrl+Z)">↶ Undo</button>
@@ -254,7 +277,7 @@ export function createEditor({ game }) {
     worldView?.setItems(shown); worldView?.select(selected);
   }
   function renderFilters() {
-    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'meet', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
+    ui.filters.innerHTML = ['all', 'quest', 'series', 'venue', 'meet', 'garage', 'route', 'poi', 'spawn'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f === 'all' ? 'All' : KINDS[f].label}</button>`).join('') + `<label style="font-size:11px;margin-left:4px"><input type="checkbox" id="edArch" ${showArchived ? 'checked' : ''}> archived</label>`;
     ui.filters.onclick = e => { const b = e.target.closest('button'); if (b) { filter = b.dataset.f; renderFilters(); refresh(); } };
     ui.filters.querySelector('#edArch').onchange = e => { showArchived = e.target.checked; refresh(); };
   }
@@ -292,6 +315,8 @@ export function createEditor({ game }) {
     // (a quest's route: looked up for its checks and shown faintly on the map)
     questRoute = undefined;
     if (current?.kind === 'quest' && current.route) questRoute = (await C.service.get(current.route)).item ?? (await C.service.get(current.route, { view: 'published' })).item ?? null;
+    const routeRegion = (current?.kind === 'route' ? current : questRoute)?.region;
+    if (routeRegion && await useRegion(routeRegion)) flash(`Working in ${regionName(routeRegion)}.`);
     routeTool.show(current, questRoute);
     renderProps();
     // which road it's on, and the nearest intersection (asked of the road data, not stored unless snapped)
@@ -303,6 +328,19 @@ export function createEditor({ game }) {
   const input = (path, value, type = 'text', extra = '') => `<input data-field="${path}" type="${type}" value="${esc(value ?? '')}" ${extra}>`;
   const num = (path, value, extra = '') => input(path, value, 'number', `step="any" ${extra}`);
   const select = (path, value, options) => `<select data-field="${path}">${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  // how well a garage fits where it is (its building in the 3D view, fitted: play/garageFit.js quality)
+  function garageFitText(it) {
+    const q = worldView?.garageFit?.(it.id);
+    if (!q) return worldView ? 'Fitting it to the road and ground there…' : 'Open the 3D view (M) to see it fitted to the road and ground.';
+    if (!q.found) return '⚠ No road beside it: snap it to a road (N, or Snap to road).';
+    const notes = [];
+    if (q.cut > 1.5) notes.push(`the ground stands up to ${q.cut.toFixed(1)} m above it (set into a bank behind retaining walls)`);
+    if (q.fill > 2) notes.push(`the ground falls away up to ${q.fill.toFixed(1)} m under it`);
+    if (q.grade > 0.12) notes.push(`a driveway gets steep (${Math.round(q.grade * 100)}%)`);
+    if (Math.abs(q.pitch) > 0.08) notes.push(`the road's steep here (${Math.round(Math.abs(q.pitch) * 100)}%)`);
+    const fig = `Ground cut away up to ${q.cut.toFixed(1)} m, filled up to ${q.fill.toFixed(1)} m · driveways up to ${Math.round(q.grade * 100)}%`;
+    return notes.length ? `⚠ ${fig}: ${notes.join('; ')} — a flatter, straighter spot looks better.` : `✓ ${fig}: a good spot.`;
+  }
   function renderProps() {
     if (!ui.right) return;
     if (toolsPanel && !current) return renderToolsPanel();
@@ -328,6 +366,7 @@ export function createEditor({ game }) {
     if (it.kind === 'series') html += seriesFields(it);
     if (it.kind === 'venue') html += venueFields(it);
     if (it.kind === 'meet') html += meetFields(it);
+    if (it.kind === 'garage') html += `<div class="section"><b>Garage</b><div class="hint">A drive-through building like a petrol station beside the road, so players can drive past: click the side of the road you want it on (snapped, it follows the road). It fits itself to the road and the ground there — its driveways leave the road's real edge, it leans with the road, and it's set into the ground (a retaining wall where a bank stands higher). Players drive through under the canopy to open their garage, and a paid tow brings them out of the nearest one.</div><div class="actions"><button data-act="garageFlip">Other side of the road</button></div><div id="edGarageFit" class="hint">${garageFitText(it)}</div></div>`;
     html += `</fieldset><div id="edProblems">${problems.length ? problems.map(p => `<div class="p ${p.level}" data-goto="${esc(p.field)}">${p.level === 'error' ? '✖' : '⚠'} ${esc(p.message)}</div>`).join('') : '<div class="ok">✔ Ready to publish.</div>'}</div>
       <div class="actions">${archived ? '<button data-act="restore" class="go">Restore as a draft</button>' : `<button data-act="publish" class="go" ${errors.length ? 'disabled title="Fix the errors first"' : ''}>${pub ? (changed ? 'Publish changes' : 'Published ✔') : 'Publish'}</button>${pub ? '<button data-act="unpublish">Unpublish</button>' : ''}<button data-act="duplicate">Duplicate <kbd>Ctrl+D</kbd></button><button data-act="delete" class="warn">${pub ? 'Archive' : 'Delete'} <kbd>Del</kbd></button>`}</div>`;
     ui.right.innerHTML = html;
@@ -466,7 +505,7 @@ export function createEditor({ game }) {
     say('<div class="hint">Loading the route\'s world and building the rivals\' cars…</div>');
     try {
       const { startAiTestRace } = await import('./aiTestRace.js');
-      aiRun = await startAiTestRace({ map: mapView.map, quest, route, manifest: region, base: new URL(REGION, document.baseURI).href, fast,
+      aiRun = await startAiTestRace({ map: mapView.map, quest, route, manifest: region, base: new URL(regionUrl, document.baseURI).href, fast,
         onUpdate: ({ phase, report, cars }) => say(`<div class="hint">${phase === 'race' ? `Racing${fast ? ' (fast)' : ''}: ${cars.map(c => `${c.place}. ${esc(c.name)}`).join(' · ')}` : 'Reference laps (low, medium, high skill)…'}${report.spots.length ? ` · ${report.spots.length} problem spot${report.spots.length > 1 ? 's' : ''}` : ''}</div>`),
         onDone: async rep => {
           const times = rep.aiTimes, cls = rep.carClass;
@@ -576,6 +615,7 @@ export function createEditor({ game }) {
     const act = b.dataset.act;
     if (act === 'publish') publish(); else if (act === 'unpublish') unpublish(); else if (act === 'duplicate') duplicate(); else if (act === 'delete') remove(); else if (act === 'restore') restore();
     else if (act === 'turnL') turn(-15); else if (act === 'turnR') turn(15);
+    else if (act === 'garageFlip') turn(180);
     else if (act === 'goto') focusOn(current.location);
     else if (act === 'openRoute' && questRoute) pickItem(questRoute.id);
     else if (act === 'tdOpen') { td = newDesigner((await loadTracksCfg()).presets); previewTrack(td, tracksCfg); renderProps(); }
@@ -602,6 +642,8 @@ export function createEditor({ game }) {
   // route suggestions: the loaded region's road graph scanned for good racing roads (route/suggest.js),
   // each made into a draft route — and a draft quest from a template — only when asked (never published)
   async function suggestHere() {
+    const at = view === '3d' && worldView ? worldView.where() : mapView?.where(), here = at && regionIdAt(at.lat, at.lon);
+    if (here) await useRegion(here);
     let N = routeTool.N;
     if (!N) { try { N = await routeTool.network(); } catch (e) { return flash(`Suggestions come from a baked region's road graph: ${e.message}`, true); } }
     flash('Looking for good roads…');
@@ -681,7 +723,15 @@ export function createEditor({ game }) {
     if (tool === 'route' && current?.kind === 'route') { await routeTool.click(at); return; }
     if (tool === 'select') { deselect(); return; }
     const kind = tool, { location, road } = await settle(at, cameraHeading());
-    const { author: _, id: _id, ...item } = newItem(kind, { location, type: lastType, region: region?.region ?? region?.id ?? null });      // (the service names and signs it)
+    // (a garage stands on the right of its heading: turned round if the click was on the road's other side)
+    if (kind === 'garage' && road) {
+      const h = location.heading * Math.PI / 180, dx = (at.lon - location.lon) * Math.cos(location.lat * Math.PI / 180) * 111320, dz = -(at.lat - location.lat) * 110540;
+      if (dx * Math.cos(h) + dz * Math.sin(h) < -0.5) location.heading = wrap360(location.heading + 180);
+    }
+    const here = regionIdAt(location.lat, location.lon);
+    if (kind === 'route' && !here) return flash('Routes follow the roads of a region the game has (San Francisco, Adelaide, …): this place isn\'t in one yet.', true);
+    if (here && await useRegion(here)) flash(`Working in ${regionName(here)}.`);
+    const { author: _, id: _id, ...item } = newItem(kind, { location, type: lastType, region: here });      // (the service names and signs it)
     if (kind === 'route') { item.course.waypoints = [{ lat: Math.round(at.lat * 1e7) / 1e7, lon: Math.round(at.lon * 1e7) / 1e7 }]; item.road = null; }
     item.road = road;
     const r = await H.run(`Place ${KINDS[kind].label.toLowerCase()}`, [], () => C.service.create(item));
@@ -826,7 +876,7 @@ export function createEditor({ game }) {
     if (current?.kind === 'route' && routeTool.key(k)) { e.stopPropagation(); return; }
     if (k === 'KeyT' && current?.kind === 'route') { testDrive(current); e.stopPropagation(); return; }
     if (k === 'Escape') { if (picking) { picking = null; ui.pick.style.display = 'none'; } else if (tool !== 'select') setTool('select'); else deselect(); }
-    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue'); else if (k === 'Digit7') setTool('meet');
+    else if (k === 'KeyV') setTool('select'); else if (k === 'Digit1') setTool('quest'); else if (k === 'Digit2') setTool('poi'); else if (k === 'Digit3') setTool('spawn'); else if (k === 'Digit4') setTool('route'); else if (k === 'Digit5') setTool('series'); else if (k === 'Digit6') setTool('venue'); else if (k === 'Digit7') setTool('meet'); else if (k === 'Digit8') setTool('garage');
     else if (k === 'KeyN') { snap = !snap; localStorageSet('kugelsack.editor.snap', snap ? 'on' : 'off'); renderTop(); flash(snap ? 'Snap to road: on' : 'Snap to road: off'); }
     else if (k === 'KeyM') setView(view === 'map' ? '3d' : 'map');
     else if (k === 'Delete' || k === 'Backspace') remove();

@@ -10,10 +10,11 @@
 //   kick { uid } (host) · chat { text } · block { uid } · loaded { hash } · spectate · race · run { result, recording } (a long
 //   recording first in pieces: run-part { i, of, data }) ·
 //   rematch { v } · ping { ms } · contact-report (Phase 7 Step 3: a contact the game saw; ./contact.ts) ·
-//   report-ramming { evidenceId, details } (the victim's one-tap report)
+//   report-ramming { evidenceId, details } (the victim's one-tap report) · voice-hello / voice-join / … (voice chat: ./voice.ts)
 // What it sends:  lobby (everything: settings, players, host, phase, venue, code) · chat · event (the race's) ·
 //   standings (4 a second while racing) · results (provisional) · confirmed (once the runs are checked) · notice ·
-//   contact (the agreed result) · contact-rejected · ghosts (who touches nobody, and why) · ramming (to its victim)
+//   contact (the agreed result) · contact-rejected · ghosts (who touches nobody, and why) · ramming (to its victim) ·
+//   voice { mode: 'room', mic, peers } (everyone here in voice chat) and voice chat's answers
 // (Phase 7 Step 5) the results and runs reach the API however long it takes (outbox.ts: tried again for ~15 minutes);
 // while the server drains for an update no race starts here, and it waits for the one under way (busy())
 
@@ -29,7 +30,9 @@ import { send } from './outbox.ts';
 import { loadtestBot } from './tickets.ts';
 import { courseOf, setStatus, clearStatus, claimCode, renewCode, dropCode } from './mp.ts';
 import { cleanChat } from '../names.ts';
-import { MP, NPC_DRIVERS } from './mpData.ts';
+import { voiceMode } from '../../../mp/voice.js';
+import { onVoice, voiceEntries, putVoice, dropVoice, refreshed, voicesOf, type VoiceWho } from './voice.ts';
+import { MP, NPC_DRIVERS, ROAM } from './mpData.ts';
 import { createReferee } from './contact.ts';
 import { generateTrack } from '../../../track/generate.js';
 import { pitSpan, PIT } from '../../../track/gen/v2.js';
@@ -85,6 +88,7 @@ export class RaceRoom extends TestRoom {
     if (this.kind === 'quick') await this.setPrivate(true);
     this.onMessage('mp', (c, m) => { try { this.onMp(c, m); } catch (e: any) { rtEnv.log('rt race message failed', { err: e?.message }); } });
     this.clock.setInterval(() => this.raceTick(), 100);
+    this.clock.setInterval(() => void this.voiceTick().catch(e => rtEnv.log('rt race voice tick failed', { err: e?.message })), ROAM.voice.everySec * 1000);
     this.clock.setInterval(() => { if (this.code) void Promise.resolve(renewCode(this.code, this.roomId)).catch(() => {}); }, 600000);
     // (each player's status kept fresh for their friends)
     this.clock.setInterval(() => { for (const p of this.race?.players.values() ?? []) if (!p.npc && !p.gone && this.isHere(p.pid)) void this.status(p.pid); }, 30000);
@@ -180,11 +184,33 @@ export class RaceRoom extends TestRoom {
     else this.race.drop(uid, this.roomNow());                         // (gone without a word: out after the grace)
     this.votes.delete(uid);
     void Promise.resolve(clearStatus(uid)).catch(() => {});
+    // (their voice entry, if it's still this room's: gone with them — free roam's voice joins again on its own)
+    void voiceEntries(true).then(list => { const e = list.find(x => x.uid === uid); if (e?.room === this.roomId) return dropVoice(uid); }).catch(() => {});
     if (this.host === uid) { const n = nextHost([...this.race.players.values()].filter((x: any) => this.isHere(x.pid)), uid); this.host = n?.pid ?? null; if (this.host) this.broadcastJson({ t: 'notice', text: `${this.race.players.get(this.host)?.name} is the host now.` }); }
     this.broadcastLobby();
     void this.meta();
   }
   isHere(uid: string) { return [...this.players.values()].some(p => p.t.uid === uid && p.status === 'here'); }
+
+  // ---------- voice chat (./voice.ts): the lobby's and its race's ----------
+  voiceWho(p: Player): VoiceWho {
+    const t: any = p.t;
+    return { uid: t.uid, name: this.race?.players.get(t.uid)?.name ?? t.name, guest: !!t.guest && !rtEnv.voiceGuests, region: `room:${this.roomId}`, pos: null, party: null, room: this.roomId, settings: {}, blocked: new Set<string>(t.mp?.blocked ?? []) };
+  }
+  // every voice.everySec: each player here who's in voice chat — their entry this room's, and the voices they hear
+  async voiceTick() {
+    if (!rtEnv.voice) return;
+    const entries = await voiceEntries();
+    for (const p of this.players.values()) {
+      if (p.status !== 'here') continue;
+      const e = entries.find(x => x.uid === p.t.uid);
+      if (!e) continue;
+      const w = this.voiceWho(p), me = refreshed(e, w);
+      await putVoice(me);
+      const peers = (await voicesOf(me, w.blocked)).map(v => ({ uid: v.uid, name: v.name, d: null, party: false }));
+      this.sendTo(p, { t: 'voice', mode: voiceMode(me), mic: me.mic, peers });
+    }
+  }
   playerOf(c: Client) { return this.players.get(c.sessionId); }
 
   // ---------- the game's messages ----------
@@ -193,6 +219,10 @@ export class RaceRoom extends TestRoom {
     if (!p || !m || typeof m.t !== 'string') return;
     const uid = p.t.uid, r = this.race, now = this.roomNow(), isHost = uid === this.host && this.kind !== 'quick';
     switch (m.t) {
+      // (voice chat: everyone in this lobby and its race hears everyone else here — ./voice.ts, mp/voice.js 'room')
+      case 'voice-hello': return this.sendTo(p, { t: 'voice-hello', voice: !!rtEnv.voice && (!p.t.guest || !!rtEnv.voiceGuests) });
+      case 'voice-join': case 'voice-mic': case 'voice-pull': case 'voice-answer': case 'voice-drop': case 'voice-leave':
+        return void onVoice(rtEnv.voice ?? null, this.voiceWho(p), m, msg => this.sendTo(p, msg), rtEnv.log);
       case 'ready': r.setReady(uid, !!m.v); break;
       case 'car': {
         const car = (p.t.mp?.cars ?? []).find((x: any) => x.instanceId === m.instanceId);

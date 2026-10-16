@@ -1,0 +1,65 @@
+{
+  "_note": "The family builder's limits (the admin page's Content tab › New family, and npm run content -- new-family / preview / variations; docs/CONTENT_PIPELINE.md). Every limit the builder keeps is here, not in code: how many parts a family may make, how many jobs run at once, what a name and an id may be, how many parts a preview makes, when it warns. Shape settings' ranges are in formulas.json (families.<kind>.shapeSettings); the real names a name is checked against in real-names.json.",
+  "families": {
+    "_note": "maxVariants: above it the summary warns (a family that big is slow to build and check, and floods its slot); hardMaxVariants: above it nothing is made. maxValuesPerSetting: how many values one setting may list (from, to, step counts too).",
+    "maxVariants": 120,
+    "hardMaxVariants": 400,
+    "maxValuesPerSetting": 24
+  },
+  "names": {
+    "_note": "A family's name: its length, the characters it may have (letters, digits, a hyphen, one space), and how close to a real make, model or part brand (real-names.json) it may be — similarity is 0 (nothing alike) to 1 (the same, after lower-casing and reading 0 as o, 1 as i…): at or over it, refused. shortWholeWord: real names this short or shorter only count as a whole word (\"OZ\" refuses \"OZ Line\", not \"Ozone\"); fuzzyFrom: real names at least this long are matched fuzzily (by similarity), shorter ones only as written or as they sound (Spool isn't Spoon). suggestions: how many Suggest names offers at a time.",
+    "minLength": 3,
+    "maxLength": 24,
+    "pattern": "^[A-Z][A-Za-z0-9]*(-?[A-Za-z0-9]+)*( [A-Z0-9][A-Za-z0-9-]*)?$",
+    "similarity": 0.8,
+    "shortWholeWord": 3,
+    "fuzzyFrom": 6,
+    "suggestions": 6,
+    "parts": {
+      "_note": "What suggested names are made from: a first part for the kind, then an ending (or a number). Made up, in the style of the families there are (Streetline, Mesh-10, Aerofoil, Coldcore…).",
+      "wheels": ["Mesh", "Spoke", "Star", "Disc", "Blade", "Ring", "Halo", "Lattice", "Vane", "Arc"],
+      "exhaust": ["Street", "Tone", "Boom", "Echo", "Bark", "Hush", "Flare", "Drone", "Rumble", "Pulse"],
+      "spoiler": ["Aero", "Down", "Foil", "Plane", "Keel", "Glide", "Fin", "Crest", "Ridge", "Deck"],
+      "intake": ["Air", "Breath", "Draft", "Gust", "Inlet", "Plume", "Gale", "Swirl", "Vent", "Tide"],
+      "turbo": ["Spool", "Whirl", "Boost", "Vortex", "Gyre", "Surge", "Rotor", "Spiral", "Torque", "Whistle"],
+      "intercooler": ["Cold", "Frost", "Chill", "Ice", "Glacier", "Drift", "Polar", "Brisk", "Cool", "Floe"],
+      "seat": ["Shell", "Cradle", "Perch", "Brace", "Hold", "Nest", "Bucket", "Clasp", "Pod", "Cocoon"],
+      "steering_wheel": ["Grip", "Hoop", "Helm", "Loop", "Wheel", "Turn", "Circle", "Hand", "Rim", "Coil"],
+      "gauges": ["Read", "Dial", "Needle", "Glance", "Sweep", "Tell", "Gauge", "Watch", "Mark", "Scale"],
+      "body_kit": ["Ground", "Low", "Skim", "Edge", "Shear", "Slice", "Hug", "Plow", "Sill", "Floor"],
+      "endings": ["line", "core", "flow", "back", "out", "form", "set", "mark", "wave", "craft", "works", "point", "path", "field", "shift"],
+      "numbers": [5, 7, 8, 9, 10, 12, 16, 20]
+    }
+  },
+  "ids": {
+    "_note": "A family's id: made from its name (lower case, the hyphen and space left out or made _), unique among families, engines and the parts there are.",
+    "pattern": "^[a-z][a-z0-9_]{2,23}$"
+  },
+  "jobs": {
+    "_note": "Build and check run as jobs on the server (tools/content/jobs.mjs). maxRunning: jobs at once (previews alongside each other; a job that writes files has them to itself, the others that write wait their turn); maxQueued: waiting at most; keepFinished: finished jobs kept to look at; timeoutMinutes: a job running longer is stopped (and everything it did put back).",
+    "maxRunning": 2,
+    "maxQueued": 6,
+    "keepFinished": 40,
+    "timeoutMinutes": 90
+  },
+  "preview": {
+    "_note": "Preview: the parts it makes models for when none are picked (the smallest, the largest, one in the middle, and one of each shape), at most maxParts; maxCars: the cars it fits a fitted kind's models to.",
+    "maxParts": 12,
+    "maxCars": 3
+  },
+  "warnings": {
+    "_note": "When the summary warns: crowdedTier — a slot that would have at least this many parts at one tier (the shop's list gets long); nearStats — another family's part whose every stat is within this share of the new one's (the same part, really); nearShape — a design whose shape settings are all within this share of their range of another family's of the kind.",
+    "crowdedTier": 40,
+    "nearStats": 0.01,
+    "nearShape": 0.05
+  },
+  "engines": {
+    "_note": "New engine (the Content tab › New engine; data/engines/<id>.json): the makers it can be from — made up, like everything in the game — and the colours its model can be.",
+    "makers": ["Kugel Motorworks", "Ognistrada Engines", "Halden Power", "Vireo Motor Co", "Brightwater Works"],
+    "colours": ["grey", "silver", "black", "blue", "red", "orange", "green", "bronze"]
+  },
+  "variations": {
+    "_note": "Make variations: at most this many new families at once, each a draft, each previewed before anything is made.",
+    "max": 8
+  }
+}

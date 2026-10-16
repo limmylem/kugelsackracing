@@ -76,7 +76,8 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
   // (cars hitting cars: physics/carCollisions.js — 'off' is ghosting, every car passing through the others)
   let collisions = 'full';
   // (a generated track: every car with continuous collision detection — its barriers never passed through)
-  const setupCar = v => { if (track.generated) v.body.enableCcd(true); v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; v.collider.setCollisionGroups(collisionGroups(collisions)); return v; };
+  let gripScale = 1;                       // (the weather's: every car's tyres on every surface — setGrip)
+  const setupCar = v => { v.gripScale = gripScale; if (track.generated) v.body.enableCcd(true); v.sensor = new ImpactSensor(v, settings.impacts); v.parts = new LooseParts(v, RAPIER, debris, debrisRules); v.surfaceAt = surfaces; v.altitudeBase = (track.altitude ?? 0) + altitudeOffset; if (track.wind) v.worldWind = [...track.wind]; v.wind = v.worldWind ?? v.wind; v.collider.setCollisionGroups(collisionGroups(collisions)); return v; };
   let vehicle = setupCar(new Vehicle(RAPIER, world, spec, sockets, spawn));
   vehicle.id = 0;                                        // (yours: 0; others' are their ids)
   // Other cars (AI test cars now; traffic / multiplayer later): { id, vehicle, driver(vehicle, dt) → input }
@@ -247,6 +248,12 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
       accumulator = n === settings.maxStepsPerFrame ? Math.min(left, dt) : left; // too far behind: drop the backlog
       return { previous, current, alpha: accumulator / dt, stepsThisFrame: n, totalSteps: steps };
     },
+    // The weather's grip (a wet road: data/tracks.json conditions): every car's tyres on every surface, × k (1: dry)
+    setGrip(k = 1) {
+      gripScale = Number.isFinite(k) && k > 0 ? k : 1;
+      for (const v of [vehicle, ...cars.map(c => c.vehicle)]) v.gripScale = gripScale;
+    },
+    get gripScale() { return gripScale; },
     // Put just the car somewhere else (e.g. back on the road): { position, headingDeg }
     resetCar(at) {
       vehicle.reset(at);
@@ -277,6 +284,14 @@ export function createSimulation(RAPIER, { settings, spec, sockets, track }) {
     // more colliders on a static body already there (collision that arrives a piece at a time)
     addToStatic(handle, descs) {
       for (const d of descs) { const c = world.createCollider(d.desc ?? d, handle.body); if (d.userData) c.userData = d.userData; handle.colliders.push(c); }
+    },
+    // one of a static body's colliders made again (its collision changed in place: the ground carved under something built)
+    replaceInStatic(handle, i, desc) {
+      const old = handle.colliders[i], userData = desc.userData ?? old?.userData;
+      if (old && world.getCollider(old.handle)) world.removeCollider(old, false);
+      const c = world.createCollider(desc.desc ?? desc, handle.body);
+      if (userData) c.userData = userData;
+      handle.colliders[i] = c;
     },
     removeStatic(handle) { if (handle?.body && world.getRigidBody(handle.body.handle)) world.removeRigidBody(handle.body); },
     moveStatic(handle, pose) {

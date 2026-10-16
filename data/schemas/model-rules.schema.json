@@ -35,6 +35,11 @@
     },
     "icon": { "$ref": "#/$defs/icon" },
     "types": { "type": "object", "additionalProperties": { "$ref": "#/$defs/type" } },
+    "kits": {
+      "type": "object", "description": "Kit pieces: hand-made pieces a family's model generator mixes in (tools/generators/lib/kit.js), by kind of family, then attach point",
+      "patternProperties": { "^_": { "type": "string" } },
+      "additionalProperties": { "type": "object", "patternProperties": { "^_": { "type": "string" } }, "additionalProperties": { "$ref": "#/$defs/kit" } }
+    },
     "car": {
       "type": "object", "required": ["names", "size", "requiredSockets", "expectedSockets", "triangles"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
       "properties": {
@@ -50,6 +55,20 @@
     }
   },
   "$defs": {
+    "kit": {
+      "type": "object", "required": ["label", "size", "origin", "attach", "triangles"], "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },
+      "properties": {
+        "label": { "type": "string" },
+        "size": { "type": "object", "additionalProperties": false, "properties": { "x": { "$ref": "#/$defs/range" }, "y": { "$ref": "#/$defs/range" }, "z": { "$ref": "#/$defs/range" } } },
+        "origin": { "type": "object", "additionalProperties": false, "properties": { "x": { "$ref": "#/$defs/originRule" }, "y": { "$ref": "#/$defs/originRule" }, "z": { "$ref": "#/$defs/originRule" } } },
+        "originTolerance": { "type": "number", "exclusiveMinimum": 0 },
+        "attach": { "type": "string", "description": "Where the origin goes, in words" },
+        "triangles": { "type": "integer", "minimum": 1 },
+        "sizes": { "type": "array", "items": { "type": "string" }, "description": "The sizes the generator passes, in order" },
+        "reference": { "type": "object", "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }, "description": "The sizes it's modelled at" },
+        "scale": { "type": "object", "additionalProperties": false, "properties": { "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" } }, "description": "Which of the sizes each axis is scaled by" }
+      }
+    },
     "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } },
     "icon": {
       "type": "object", "additionalProperties": false, "patternProperties": { "^_": { "type": "string" } },

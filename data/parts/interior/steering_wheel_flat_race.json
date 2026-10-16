@@ -44,15 +44,15 @@
     "kaze_gt": {
       "model": "assets/parts/interior/steering_wheel_flat_race/kaze_gt.glb",
       "bounds": {
-        "min": [-0.177, -0.1482, -0.099],
-        "max": [0.177, 0.179, 0]
+        "min": [-0.1674, -0.1403, -0.099],
+        "max": [0.1674, 0.1694, 0]
       }
     },
     "hana_roadster": {
       "model": "assets/parts/interior/steering_wheel_flat_race/hana_roadster.glb",
       "bounds": {
-        "min": [-0.177, -0.1482, -0.099],
-        "max": [0.177, 0.179, 0]
+        "min": [-0.1674, -0.1403, -0.119],
+        "max": [0.1674, 0.1694, 0]
       }
     },
     "ridgeback_4x4": {
@@ -86,7 +86,7 @@
     "apex_v8": {
       "model": "assets/parts/interior/steering_wheel_flat_race/apex_v8.glb",
       "bounds": {
-        "min": [-0.177, -0.1482, -0.119],
+        "min": [-0.177, -0.1482, -0.099],
         "max": [0.177, 0.179, 0]
       }
     }

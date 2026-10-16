@@ -20,7 +20,8 @@ const IN = 0.0254;
 //   twist (radians across the spoke's length), concave (m: the hub stands this far out of the face's rim end),
 //   dish (m: the face this far in from the outer flange), lip (m: a flat lip ring this wide round the outside of the face),
 //   lipMaterial, cap: 'flat' | 'dome' | 'none', capMaterial, nuts (how many), beadlock (true: a bolted ring),
-//   holes (for 'holes' / 'slot': how many), colour / metalness / roughness (the face's own look) }
+//   holes (for 'holes' / 'slot': how many), colour / metalness / roughness (the face's own look), centrePiece (a kit
+//   piece in place of the cap: its triangles, origin on the hub's front face, +x out — tools/generators/lib/kit.js) }
 export function rim(id, s) {
   const m = new PartModel(id), R = s.diameter * IN / 2, W = s.width * IN, seg = s.segments ?? 28;
   if (s.colour) m.material('rim_finish', { colour: s.colour, metalness: s.metalness ?? 0.75, roughness: s.roughness ?? 0.3 });
@@ -101,7 +102,8 @@ export function rim(id, s) {
   m.add(lathe([[0, hubFront - 0.045], [rIn, hubFront - 0.045], [rIn, hubFront - 0.004], [rIn - 0.012, hubFront + 0.003], [0, hubFront + 0.003]], 16, 'x'), 'rim_finish');
   const nuts = s.nuts ?? 5;
   m.add(around(moved(cylinder('x', 0.0095, hubFront - 0.002, hubFront + 0.014, 6), [0, 0.05, 0]), nuts, 'x', Math.PI / nuts), 'raw_metal');
-  if ((s.cap ?? 'flat') !== 'none') {
+  if (s.centrePiece) for (const [tris, pm] of s.centrePiece()) m.add(moved(tris, [hubFront, 0, 0]), pm ?? s.capMaterial ?? 'black');
+  else if ((s.cap ?? 'flat') !== 'none') {
     const capR = s.capRadius ?? 0.032;
     m.add(s.cap === 'dome'
       ? lathe([[0, hubFront], [capR, hubFront], [capR * 0.92, hubFront + 0.012], [capR * 0.55, hubFront + 0.02], [0, hubFront + 0.022]], 12, 'x')

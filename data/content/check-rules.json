@@ -8,21 +8,279 @@
     "share": 0.02,
     "known": {
       "_note": "Problems the fit check found in parts players already have, kept (waived) until they're fixed: for each part, on each car, what it may go through and in how many places at most (any more, or anything else, fails again) and why. Leaving them off those cars now would make a player's car that has one fitted undrivable until it came off. The content manager shows them; docs/KNOWN_ISSUES.md lists them. A part that isn't published yet can't be waived: fix it.",
-      "spoiler_ducktail": {
-        "cars": { "ridgeback_4x4": { "the body": 56 }, "vortex_r": { "the body": 30 } },
-        "why": "Shaped for a coupe's boot lid: on the Ridgeback 4x4's tailgate and the Vortex R's hatch it sinks into the body. To fix: a version for each (byCar), or leave it off them (conflicts) once no player has it fitted there."
+      "short_shifter": {
+        "cars": {
+          "ridgeback_4x4": {
+            "the body": 22
+          },
+          "hana_roadster": {
+            "the body": 2
+          },
+          "vortex_r": {
+            "the body": 2
+          },
+          "strada_evo": {
+            "the body": 2
+          },
+          "apex_v8": {
+            "the body": 2
+          }
+        },
+        "why": "The Ridgeback 4x4's coupe-based cabin (2026-10-15) has a taller centre console than the shifter is made for: its base sits in it. To fix: the shifter made to each car (byCar), like the cages."
       },
       "brute_500_engine": {
-        "cars": { "kaze_gt": { "the body": 7, "Bonnet (Kaze GT, stock)": 14 } },
-        "why": "The V8 swapped into the Kaze GT (its V8 swap kit) is taller than the Kaze GT's bonnet. To fix: a raised (cowl) bonnet for the Kaze GT that the swap needs."
+        "cars": {
+          "kaze_gt": {
+            "the body": 3,
+            "Cowl bonnet (Kaze GT)": 7
+          },
+          "ridgeback_4x4": {
+            "Bonnet (Ridgeback 4x4, stock)": 12
+          }
+        },
+        "why": "The V8 swapped into the Kaze GT and the Ridgeback 4x4 is taller than their coupe-based bonnets (2026-10-15) over it. To fix: a taller cowl bonnet, or the engine sat lower in the swap."
       },
-      "strada_evo_engine": {
-        "cars": { "kaze_gt": { "Bonnet (Kaze GT, stock)": 7 } },
-        "why": "The turbo four swapped into the Kaze GT (its turbo four swap kit) touches the underside of the Kaze GT's bonnet. To fix: the raised bonnet above, or the engine sat lower in the swap."
+      "hana_roadster_roll_hoop": {
+        "cars": {
+          "hana_roadster": {
+            "the body": 28,
+            "Seat (Hana Roadster, stock)": 23
+          }
+        },
+        "why": "The Hana Roadster's coupe-based cabin (2026-10-15) is shorter behind the seats than the hoop is made for. To fix: the hoop fitted to the new cabin (tools/generators/interior.js)."
       },
-      "supercharger_twin_screw": {
-        "cars": { "kaze_gt": { "5.0 L V8 (Brute 500, stock)": 106, "Bonnet (Kaze GT, stock)": 44 } },
-        "why": "It only goes on the Kaze GT with the V8 swapped in (above), and on that V8 it goes through the Kaze GT's bonnet too. To fix: with the raised bonnet."
+      "race_harness": {
+        "cars": {
+          "apex_v8": {
+            "Sport bucket seat": 21
+          },
+          "ridgeback_4x4": {
+            "the body": 52,
+            "Sport bucket seat": 40
+          },
+          "strada_evo": {
+            "Sport bucket seat": 16
+          },
+          "vortex_r": {
+            "the body": 32,
+            "Sport bucket seat": 71
+          }
+        },
+        "why": "The harness's belts run where the coupe-based cabins (2026-10-15) of these cars put the seat back and the rear shelf. To fix: the harness made to each car (byCar)."
+      },
+      "roll_cage_bolt_in": {
+        "cars": {
+          "brute_500": {
+            "the body": 154
+          },
+          "hana_roadster": {
+            "the body": 46,
+            "Seat (Hana Roadster, stock)": 23
+          },
+          "ridgeback_4x4": {
+            "the body": 153
+          }
+        },
+        "why": "The cage finder (tools/generators/interior.js) finds no clear plane behind the seats in these cars' coupe-based cabins (2026-10-15), so the cage takes the cabin's measured size and meets the side trim. To fix: the finder taught the new cabins."
+      },
+      "roll_cage_welded": {
+        "cars": {
+          "brute_500": {
+            "the body": 167
+          },
+          "hana_roadster": {
+            "the body": 111,
+            "Seat (Hana Roadster, stock)": 23
+          },
+          "ridgeback_4x4": {
+            "the body": 157
+          }
+        },
+        "why": "As the bolt-in cage: no clear plane behind the seats in these coupe-based cabins (2026-10-15). To fix: the finder taught the new cabins."
+      },
+      "strut_brace": {
+        "cars": {
+          "ridgeback_4x4": {
+            "Bonnet (Ridgeback 4x4, stock)": 17
+          }
+        },
+        "why": "The Ridgeback 4x4's coupe-based bonnet (2026-10-15) sits closer over its strut towers than the brace is made for. To fix: the brace fitted lower on that car."
+      },
+      "strut_brace_carbon": {
+        "cars": {
+          "ridgeback_4x4": {
+            "Bonnet (Ridgeback 4x4, stock)": 12
+          },
+          "vortex_r": {
+            "Bonnet (Vortex R, stock)": 2
+          },
+          "strada_evo": {
+            "Bonnet (Strada Evo, stock)": 2
+          }
+        },
+        "why": "As the strut brace: the Ridgeback 4x4's bonnet sits close over its towers (2026-10-15). To fix: the brace fitted lower on that car."
+      },
+      "kaze_gt_ducktail": {
+        "cars": {
+          "kaze_gt": {
+            "Boot lid (Kaze GT, stock)": 2
+          }
+        },
+        "why": "A touch of a few places against the coupe-based body or its panels (2026-10-15). To fix: the part fitted to the new body."
+      },
+      "ridgeback_4x4_snorkel": {
+        "cars": {
+          "ridgeback_4x4": {
+            "Door mirror, right (Ridgeback 4x4, stock)": 8
+          }
+        },
+        "why": "A touch of a few places against the coupe-based body or its panels (2026-10-15). To fix: the part fitted to the new body."
+      },
+      "catback_oval": {
+        "cars": {
+          "vortex_r": {
+            "the body": 5
+          },
+          "brute_500": {
+            "the body": 1
+          }
+        },
+        "why": "The pipe meets the coupe-based body's rear underfloor (2026-10-15) on its way to the tip. To fix: the pipe routed lower, or the floor cut round it."
+      },
+      "catback_quad": {
+        "cars": {
+          "vortex_r": {
+            "the body": 8
+          },
+          "brute_500": {
+            "the body": 2
+          }
+        },
+        "why": "The pipe meets the coupe-based body's rear underfloor (2026-10-15) on its way to the tip. To fix: the pipe routed lower, or the floor cut round it."
+      },
+      "catback_race": {
+        "cars": {
+          "vortex_r": {
+            "the body": 8
+          },
+          "brute_500": {
+            "the body": 1
+          }
+        },
+        "why": "The pipe meets the coupe-based body's rear underfloor (2026-10-15) on its way to the tip. To fix: the pipe routed lower, or the floor cut round it."
+      },
+      "catback_sport": {
+        "cars": {
+          "vortex_r": {
+            "the body": 6
+          },
+          "brute_500": {
+            "the body": 1
+          }
+        },
+        "why": "The pipe meets the coupe-based body's rear underfloor (2026-10-15) on its way to the tip. To fix: the pipe routed lower, or the floor cut round it."
+      },
+      "catback_street": {
+        "cars": {
+          "vortex_r": {
+            "the body": 5
+          },
+          "brute_500": {
+            "the body": 1
+          }
+        },
+        "why": "The pipe meets the coupe-based body's rear underfloor (2026-10-15) on its way to the tip. To fix: the pipe routed lower, or the floor cut round it."
+      },
+      "cold_air_intake": {
+        "cars": {
+          "ridgeback_4x4": {
+            "Bonnet (Ridgeback 4x4, stock)": 4
+          }
+        },
+        "why": "A touch of a few places against the coupe-based body or its panels (2026-10-15). To fix: the part fitted to the new body."
+      },
+      "intake_race": {
+        "cars": {
+          "ridgeback_4x4": {
+            "Bonnet (Ridgeback 4x4, stock)": 2
+          }
+        },
+        "why": "A touch of a few places against the coupe-based body or its panels (2026-10-15). To fix: the part fitted to the new body."
+      },
+      "bucket_seat_race": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 2
+          },
+          "hana_roadster": {
+            "the body": 6
+          },
+          "vortex_r": {
+            "the body": 2
+          },
+          "brute_500": {
+            "the body": 4
+          },
+          "apex_v8": {
+            "the body": 2
+          }
+        },
+        "why": "The seat's base meets the coupe-based cabin floor (2026-10-15) by a few millimetres. To fix: the seat fitted to each floor (byCar)."
+      },
+      "bucket_seat_street": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 2
+          },
+          "vortex_r": {
+            "the body": 2
+          },
+          "apex_v8": {
+            "the body": 2
+          }
+        },
+        "why": "The seat's base meets the coupe-based cabin floor (2026-10-15) by a few millimetres. To fix: the seat fitted to each floor (byCar)."
+      },
+      "kaze_gt_turbo_kit": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 1
+          }
+        },
+        "why": "A touch of a few places against the coupe-based body or its panels (2026-10-15). To fix: the part fitted to the new body."
+      },
+      "rim_10spoke_19": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 19
+          },
+          "vortex_r": {
+            "the body": 19
+          }
+        },
+        "why": "A 19\" rim's barrel meets the coupe-based body's rear bulkhead, which runs right up to the tyre as on the starter coupe (whose own 17\" rims meet its arches the same way), 2026-10-15. To fix: the bulkhead cut back clear of the wheels."
+      },
+      "rim_slot10_19": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 19
+          },
+          "vortex_r": {
+            "the body": 19
+          }
+        },
+        "why": "A 19\" rim's barrel meets the coupe-based body's rear bulkhead, which runs right up to the tyre as on the starter coupe (whose own 17\" rims meet its arches the same way), 2026-10-15. To fix: the bulkhead cut back clear of the wheels."
+      },
+      "rim_star7_19": {
+        "cars": {
+          "kaze_gt": {
+            "the body": 19
+          },
+          "vortex_r": {
+            "the body": 20
+          }
+        },
+        "why": "A 19\" rim's barrel meets the coupe-based body's rear bulkhead, which runs right up to the tyre as on the starter coupe (whose own 17\" rims meet its arches the same way), 2026-10-15. To fix: the bulkhead cut back clear of the wheels."
       }
     }
   },

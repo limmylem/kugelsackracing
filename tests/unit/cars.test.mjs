@@ -4,7 +4,7 @@
 //    the test centre's wall (dents, lost condition, bent and leaking mechanicals, all saved) and
 //    repaired (back to 100%, for what the rules say);
 //  - the engine swap: the Brute 500's V8 in the Kaze GT — refused without the kit, the kit refused
-//    without an uprated clutch, gearbox and radiator; with them, the V8's torque, weight and sound;
+//    without an uprated clutch, gearbox, radiator and the cowl bonnet; with them, the V8's torque, weight and sound;
 //  - the Ridgeback 4x4 climbs the 30° dirt slope in 4L that stops it in 2H;
 //  - the Strada Evo is the fastest car there is on the gravel rally stage.
 // npm run test:unit
@@ -124,8 +124,8 @@ test('engine swap: the Brute 500\'s V8 in the Kaze GT — the kit and its needs 
   assert.match(noKit.error, /engine_swap:brute_v8|swap kit/i);
   const noNeeds = await service.installPart(id, kit);
   assert.equal(noNeeds.ok, false);
-  assert.match(noNeeds.error, /race clutch|uprated gearbox|uprated radiator/i);
-  for (const p of ['clutch_race', 'gearbox_uprated', 'radiator_aluminium']) ok(await service.installPart(id, await buy(p), { auto: true }), `fit ${p}`);
+  assert.match(noNeeds.error, /race clutch|uprated gearbox|uprated radiator|cowl bonnet/i);
+  for (const p of ['clutch_race', 'gearbox_uprated', 'radiator_aluminium', 'kaze_gt_bonnet_cowl']) ok(await service.installPart(id, await buy(p), { auto: true }), `fit ${p}`);
   ok(await service.installPart(id, kit), 'fit the swap kit');
   ok(await service.installPart(id, v8, { socket: 'socket_engine' }), 'fit the V8');
   const g = garageOf(service, id), s = g.stats();

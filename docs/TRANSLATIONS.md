@@ -90,7 +90,7 @@ Use them on every new screen: pick one in Settings → Language, go through the 
 **The ratchet**: `hardCoded()` counts words a player reads that aren't from `locales/` (text between tags, in
 `textContent`, `title`, `placeholder`, `aria-label`, `alert()`…) in the player-facing folders (`ui`, `testtrack`,
 `play`, `garage`, `account`, `site` and the rest; not `editor`, `admin`, `dev` or tests). It's rough on purpose. Each
-file may only go down: new words go in `locales/en.json` and through `t()`. At launch about 725 were left (the legal pages aside), mostly in the
+file may only go down: new words go in `locales/en.json` and through `t()`. At launch about 740 were left (the legal pages aside), mostly in the
 garage, the multiplayer screens and free roam.
 
 **Where it runs**: `tests/unit/i18n.test.mjs` runs `check()` and fails on any problem; it's part of `npm run test:unit`,
