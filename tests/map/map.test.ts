@@ -468,7 +468,7 @@ async function streamingTest() {
     }
   }
   const gc = (globalThis as any).gc ?? (() => {}), mem: any[] = [];
-  let notReady = 0, falls = 0, worstAhead = Infinity, maxTiles = 0, maxColliders = 0, frames = 0;
+  let notReady = 0, holds = 0, falls = 0, worstAhead = Infinity, maxTiles = 0, maxColliders = 0, frames = 0;
   const seen = new Set<string>();
   let along = 0, k = 0;
   while (k + 1 < route.length) {
@@ -477,6 +477,8 @@ async function streamingTest() {
     await step(x, z, (nx - x) / l * speed, (nz - z) / l * speed);
     frames++;
     const [px, pz] = S.toSim(x, z);
+    // (and would the game hold the car for the ground ahead? map/render/game.ts realWorldFrame)
+    if (!S.readyAhead(px, pz, (nx - x) / l * speed, (nz - z) / l * speed, 0.6, 8)) holds++;
     if (!S.readyAround(px, pz, 0)) notReady++;
     else if (S.groundBelow(px, pz, 900, 2000) == null) falls++;
     if (frames % 15 === 0 && frames > 120 && k < route.length - 200) {
@@ -488,7 +490,7 @@ async function streamingTest() {
     maxTiles = Math.max(maxTiles, S.tiles.size); maxColliders = Math.max(maxColliders, S.status.colliders);
     if (frames % 600 === 0) { gc(); mem.push({ tiles: seen.size, heap: process.memoryUsage().heapUsed, colliders: S.status.colliders, held: S.tiles.size }); }
   }
-  report('streaming', `${(along / 1000).toFixed(1)} km at ${perf.streaming.speedKmh} km/h`, !notReady && !falls, `${notReady ? `ground not ready under the car for ${(notReady * dt).toFixed(1)} s` : 'the ground was always ready'}${falls ? `, ${falls} frames with nothing under the car` : ''} · ready ≥ ${worstAhead === Infinity ? '—' : worstAhead} m ahead at worst · first ground after ${waited.toFixed(1)} s · ${seen.size} tiles in, ${maxTiles} at once`);
+  report('streaming', `${(along / 1000).toFixed(1)} km at ${perf.streaming.speedKmh} km/h`, !notReady && !holds && !falls, `${notReady ? `ground not ready under the car for ${(notReady * dt).toFixed(1)} s` : 'the ground was always ready'}${holds ? `, the car held for the ground ahead for ${(holds * dt).toFixed(1)} s` : ', never held for it'}${falls ? `, ${falls} frames with nothing under the car` : ''} · ready ≥ ${worstAhead === Infinity ? '—' : worstAhead} m ahead at worst · first ground after ${waited.toFixed(1)} s · ${seen.size} tiles in, ${maxTiles} at once`);
   const base = mem.find(m => m.tiles >= 30) ?? mem[0], last = mem[mem.length - 1], dropped = seen.size - S.tiles.size;
   if (!base || seen.size < 100) report('memory', '100 tiles in and out', false, `only ${seen.size} tiles on the route`);
   else { const growth = (last.heap - base.heap) / 1e6; report('memory', `${seen.size} tiles in, ${dropped} dropped again`, growth < perf.targets.memoryGrowthMB, `heap ${(base.heap / 1e6).toFixed(0)} MB at ${base.tiles} tiles → ${(last.heap / 1e6).toFixed(0)} MB at ${last.tiles} (${growth >= 0 ? '+' : ''}${growth.toFixed(0)} MB, at most ${perf.targets.memoryGrowthMB}) · colliders at most ${maxColliders}`); }
