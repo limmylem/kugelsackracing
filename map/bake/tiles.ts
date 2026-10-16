@@ -13,6 +13,10 @@ import type { Tile } from '../format/tileFormat.ts';
 import type { Mesh, Seg } from './roads.ts';
 import type { Building } from './buildingMerge.ts';
 import { extrude, rgb } from './extrude.ts';
+import { FACADES } from '../model/buildingsV5.ts';
+
+// (Map v5's building types, as tiles' lists.buildingInfo name them)
+const BUILDING_TYPES = [...FACADES, 'canopy'];
 import { sampleGrid } from './terrain.ts';
 
 class Part {
@@ -229,7 +233,7 @@ export function tileBuilder(D: {
     const wallsBy: Record<string, Part> = {}, roofs = new Part(), hulls: number[] = [], landmarks: any[] = [];
     const bCfg = cfg.buildings;
     let buildingCount = 0, estimatedHeights = 0;
-    const shopSigns: any[] = [];
+    const shopSigns: any[] = [], buildingInfo: number[] = [];
     for (const k of b.buildings) {
       const bd = D.buildings[k];
       // (Map v5: one a hand-made model stands in for — map/model/landmarks.ts — not drawn)
@@ -243,6 +247,9 @@ export function tileBuilder(D: {
       // (Map v5: its sign bands — its businesses' names, or its chain's parody — over the ground floor of the wall facing
       // its street (props.v5.front: map/model/buildingsV5.ts), that wall shared between them)
       const V5 = bd.props.v5;
+      // (Map v5: what it is, for the debug views — map/render/debugV5.ts: [x, top, z, type (header.buildingTypes),
+      // flags (1 type estimated, 2 landmark, 4 height estimated, 8 colour estimated), brand (−1 none)])
+      if (V5) buildingInfo.push(e.centre[0], e.top, e.centre[1], BUILDING_TYPES.indexOf(V5.type), (V5.estimatedType ? 1 : 0) | (e.landmark ? 2 : 0) | (bd.estimated || V5.estimatedHeight ? 4 : 0) | (V5.estimatedColour ? 8 : 0), V5.brand ?? -1);
       if (V5?.names?.length && V5.front) {
         const [ax, az, bx, bz, mcx, mcz] = V5.front, L = Math.hypot(bx - ax, bz - az);
         let nx = (bz - az) / L, nz = -(bx - ax) / L;
@@ -283,7 +290,7 @@ export function tileBuilder(D: {
     for (const [name, p] of [['roads', roads], ['markings', marks], ['paved', paved], ['cover', cover], ['water', water], ['roofs', roofs], ...Object.entries(wallsBy).map(([k, p]) => [`walls_${k}`, p])] as [string, Part][]) if (!p.empty) meshes[name] = p.out();
     return {
       header: {
-        region: D.region.id, key, i, j, size: T, centre: [cx, cz], names, landmarks, positionQuantum: 0.01,
+        region: D.region.id, key, i, j, size: T, centre: [cx, cz], names, landmarks, positionQuantum: 0.01, ...(buildingInfo.length && { buildingTypes: BUILDING_TYPES }),
         terrain: { palette, lodErrors: cfg.terrain.lodErrors },
         dem: { ...dem, share: { lidar: srcCount[1] / (N1 * N1), copernicus: srcCount[2] / (N1 * N1), blend: srcCount[3] / (N1 * N1), sea: srcCount[0] / (N1 * N1) } },
         stats: { buildings: buildingCount, estimatedHeights, roads: b.segs.size, trees: trees.length / 5, barriers: Object.fromEntries(Object.entries(b.barriers as Record<string, number[]>).map(([t, l]) => [t, l.length])), estimatedBarriers: Object.entries(b.barriers as Record<string, number[]>).reduce((n, [t, ks]) => n + ks.filter(k => D.barriers[t][k + 7] === 1).length, 0) },
@@ -294,6 +301,7 @@ export function tileBuilder(D: {
         labels: { stride: 6, data: Float32Array.from(labels) }, signs: { stride: 6, data: Float32Array.from(signs) }, roads: { stride: 7, quantum: 0.02, data: Float32Array.from(roadList) },
         ...barrierLists,
         ...(shopSignRows.length && { shopSigns: { stride: 8, data: Float32Array.from(shopSignRows) } }),
+        ...(buildingInfo.length && { buildingInfo: { stride: 6, data: Float32Array.from(buildingInfo) } }),
       },
       grids: { surface: { n: per, cell: g.cell, names: SURF_NAMES, data: surface }, terrain: { n: N1, cell: g.cell, data: terrain }, dem: { n: N1, cell: g.cell, names: ['sea', 'lidar', 'copernicus', 'blend'], data: demGrid } },
       heightfield: { n: per, size: T, heights, quantum: 0.01 },
