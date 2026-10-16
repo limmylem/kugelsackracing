@@ -36,6 +36,9 @@ export function createRtApi({ url, secret, timeoutMs = 20000 }: { url: string; s
     queueStats: (s: unknown) => call('POST', '/queue-stats', s),
     act: (uid: string, a: Record<string, unknown>) => call('POST', '/act', { ...a, uid }),
     saveEvidence: (e: unknown) => call('POST', '/evidence', e),
+    // (co-op police pursuits: docs/PURSUIT.md) the quest and its route; its end, for the API to check and pay
+    pursuitMission: (questId: string) => call('POST', '/pursuit-mission', { questId }),
+    recordPursuit: (rec: unknown) => call('POST', '/pursuits', rec),
     // (Phase 7 Step 4, free roam: docs/FREE_ROAM.md) where players are (saved as they drive and when they leave), a
     // player's settings, an auto-ghost's safety drop, a challenge's record (checked and paid), the zones' numbers
     roamSave: (rows: unknown[]) => call('POST', '/roam/save', { rows }),

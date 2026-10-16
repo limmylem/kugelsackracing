@@ -38,11 +38,14 @@
 //   R.contact → this race's contact client (mp/contactClient.js: its debug, the overlay's)   R.scrape() → your car
 //   rubbing on another ({ amount, speed, material, point, normal } — the game adds it to its own scrapes) or null
 
+import { createPursuitHud } from './pursuitHud.js';
+import { pursuitRules } from '../quest/types/pursuit.js';
 import { createQuestSession } from '../quest/session.js';
 import { createRecorder } from '../quest/recording.js';
 import { buildResult } from '../quest/result.js';
 import { createAutopilot } from '../route/autopilot.js';
-import { at } from '../route/geometry.js';
+import { at, project } from '../route/geometry.js';
+import { cinematicCamera, throttleAt } from './cinematic.js';
 import { raceQuest } from '../mp/quest.js';
 import { startLights } from '../track/lights.js';
 import { zoom } from '../track/cameras.js';
@@ -90,6 +93,35 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   }));
   offs.push(S.on('results', () => { if (run && (run.state === 'grid' || run.state === 'racing')) { run.state = 'out'; } }));
   offs.push(S.on('left', () => end()));
+  // ---------- a co-op police pursuit (docs/PURSUIT.md: server/src/rt/pursuit.ts decides; the host's game drives the police) ----------
+  offs.push(S.on('pursuit', m => { S.pursuit = m; S.pursuitHost = m.host ?? S.pursuitHost; }));
+  offs.push(S.on('pursuit-quest', m => { if (run) run.pursuitQuest = m.quest; }));
+  offs.push(S.on('pursuit-cmd', m => run?.P?.command(m)));
+  offs.push(S.on('pursuit-host', m => { S.pursuitHost = m.uid; if (m.uid === S.myUid && run?.P) { run.P.adopt(m.units); say('You\'re driving the police now (the host left)', 'info'); } }));
+  offs.push(S.on('pursuit-event', m => { if (run?.P) pursuitNews(m.e); }));
+  offs.push(S.on('pursuit-done', m => { S.pursuitDone = m; run?.P?.finish(); }));
+  offs.push(S.on('pursuit-paid', m => { const p = m.pay?.[S.myUid]; if (p) say(p.money || p.xp ? `Co-op pursuit: +${p.money} · +${p.xp} xp${p.medal ? ` (${p.medal})` : ''}` : 'Co-op pursuit: nothing earned this time', 'info'); }));
+  const nameOf = uid => S.lobby?.players?.find(p => p.uid === uid)?.name ?? uid;
+  function pursuitNews(e) {
+    if (e.type === 'heat' && e.level > e.was) say(`Heat ${e.level}`, 'bad');
+    else if (e.type === 'lost') say('Out of sight: get out of the search area', 'info');
+    else if (e.type === 'spotted' || e.type === 'reacquired') say('Spotted!', 'bad');
+    else if (e.type === 'escaped') say('ESCAPED', 'info');
+    else if (e.type === 'coop-busted') say(e.player === S.myUid ? (e.respawn ? `Busted: back in ${e.respawn}s` : 'Busted: watching the others') : `${nameOf(e.player)} is busted`, 'bad');
+    else if (e.type === 'coop-drop') say(`${nameOf(e.player)} dropped the goods!`, 'bad');
+    else if (e.type === 'coop-pickup') say(`${e.player === S.myUid ? 'You have' : `${nameOf(e.player)} has`} the goods`, 'info');
+    else if (e.type === 'coop-arrived') say(`${e.player === S.myUid ? 'You\'re' : `${nameOf(e.player)} is`} at the drop`, 'info');
+  }
+  // what this player's session is told each tick: the room's word, with "me" picked out (quest/types/pursuitCoop.js)
+  function pursuitNow() {
+    const st = S.pursuit?.status;
+    if (!st) return null;
+    const uid = S.myUid, coop = st.coop ?? {}, mine = coop.players?.find(p => p.id === uid) ?? null, R = pursuitRules(quests);
+    const done = S.pursuitDone ? { status: S.pursuitDone.status, reason: S.pursuitDone.reason } : coop.done ?? null;
+    return { ...st, players: [st.players?.find(p => p.id === uid) ?? { id: uid, bust: 0, busted: false, seen: false }], coop: { ...coop, done, me: mine, mine: coop.carrier === uid, score: S.pursuitDone?.scores?.[uid] ?? R.perSecond * (mine?.score ?? 0) } };
+  }
+  const hud = createPursuitHud();
+  offs.push(() => hud.dispose());
   // (car-to-car contact: the agreed results, refusals, who's a ghost — the contact client's)
   for (const k of ['contact', 'contact-rejected', 'ghosts']) offs.push(S.on(k, m => run?.C?.message(m)));
   // (the contact replay asked for: both players' views of it, side by side)
@@ -97,6 +129,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   // F10 the contact overlay, Shift+F10 the last contact replayed (docs/CONTACT.md "Debug tools")
   let replayView = null;
   const keys = e => {
+    // (Space: the co-op intro's camera skipped to yours — the AI drives on to GO, the party in step)
+    if ((e.code === 'Space' || e.code === 'Enter') && run?.cine?.phase === 'playing' && !run.cine.skipped) { e.preventDefault(); run.cine.skipped = true; return; }
     if (e.code !== 'F10' || !run?.C) return;
     e.preventDefault();
     if (e.shiftKey) { const cid = run.overlay?.lastCid() ?? [...run.C.debug.agreed].reverse().find(a => a.cid)?.cid; if (cid) S.send({ t: 'contact-replay', cid }); else say('No contact yet to replay', 'info'); return; }
@@ -113,7 +147,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
       const got = await game.goTo(m.venue, m.course, { onProgress: t => { r.progress = t; } });
       if (run !== r) return;
       r.course = got.course; r.hash = got.hash ?? null;
-      r.quest = raceQuest({ raceId: m.raceId, venue: m.venue.venue, laps: m.laps, loop: r.course.loop, trackHash: r.hash });
+      r.quest = m.pursuit?.quest ?? r.pursuitQuest ?? raceQuest({ raceId: m.raceId, venue: m.venue.venue, laps: m.laps, loop: r.course.loop, trackHash: r.hash });
+      if (r.quest.type === 'pursuit_coop') { r.cineDef = r.quest.params?.intro === false ? null : await game.cinematic?.('pursuit_intro_coop') ?? null; S.pursuit = null; S.pursuitDone = null; S.pursuitPaid = null; r.P = await game.startCoopPursuit?.({ quest: r.quest, course: r.course, session: () => r.Q, net: { me: S.myUid, host: () => S.pursuitHost === S.myUid, send: x => S.send(x), status: () => S.pursuit?.status ?? null, players: () => (S.lobby?.players ?? []).filter(p => p.role === 'racer' && !p.npc).map(p => p.uid) } }) ?? null; }
       r.A = game.adapters();
       r.dressing = game.dressing(r.course);
       r.M = await game.drawCars(S.race.net, { label: o => labelOf(o) });
@@ -148,7 +183,10 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     watching = null; game.hideCar(false); game.focus?.(null);
     r.A.place(slot); r.A.hold();
     const car = game.car();
-    r.Q = createQuestSession({ quest: r.quest, course: r.course, config: quests, car, startMode: 'standing', externalGo: true, slot: p.slot });
+    // (a co-op pursuit with its intro: the cinematic start — the AI drives through the countdown, GO hands over moving)
+    const cine = !!(r.P && r.cineDef);
+    r.Q = createQuestSession({ quest: r.quest, course: r.course, config: quests, car, startMode: cine ? 'cinematic' : 'standing', externalGo: true, slot: p.slot });
+    if (cine) { r.P.setCinematic(r.cineDef); const q = project(r.course.line, slot.x, slot.z); r.cineLane = q?.d ?? 0; }
     r.Q.begin({ intro: false });
     r.Q.drain();
     r.rec = createRecorder({ hz: quests.recording?.hz ?? 20 });
@@ -164,12 +202,21 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     if (run !== r || !r.Q || r.offset == null) return;
     const t = simT + r.offset, go = goAt();
     if (go != null) r.Q.setGo(go / 1000);
+    // (the co-op intro: from GO − its length, on the server's clock — the same moment in every game of the party)
+    if (r.cineDef && go != null && !r.cine && t * 1000 >= go - r.cineDef.seconds * 1000 && r.A.ready()) {
+      r.cine = { t0: go / 1000 - r.cineDef.seconds, t: 0, phase: 'playing', pilot: createAutopilot(r.course.line, { loop: r.course.loop, offset: r.cineLane ?? 0 }), ho: 0 };
+      r.A.release({ speed: 0 }); r.P.cinematicBegin();
+    }
+    if (r.cine?.phase === 'playing') r.cine.t = t - r.cine.t0;
     if (!r.released && go != null && t * 1000 >= go) {
       r.released = true; r.A.release({ speed: 0 }); r.state = 'racing';
+      r.P?.event({ type: 'go', speed: 0 });
+      if (r.cine) { r.cine.phase = 'handover'; r.cine.ho = 0; }
       // (the run's record from here: the car put exactly where it stands — the verifier starts it the same way)
       if (r.recorder) r.recorder.start({ pose: game.carPose(), t0: Math.round(t * 1000), carId: game.car()?.carId ?? null, origin: game.toWorld([0, 0, 0]) });
     }
     const st = r.Q.state.state;
+    if (r.P) { r.Q.state.pursuitNow = pursuitNow(); coopState(r); }
     if ((st === 'countdown' || st === 'racing') && r.A.ready()) {
       const c = r.A.carState();
       r.Q.tick({ t, dt, ...c });
@@ -181,10 +228,22 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     }
     if (!r.handed && r.Q.outcome && (r.Q.state.state === 'finished' || r.Q.state.state === 'results' || r.Q.state.state === 'failed')) handIn(r);
   }
+  // (co-op: busted — held where you are, back in after the respawn, or watching the others; back in, put on the road
+  // away from the police)
+  function coopState(r) {
+    const me = r.Q.state.pursuitNow?.coop?.me, was = r.coopState;
+    if (!me || me.state === was) return;
+    r.coopState = me.state;
+    if (me.state === 'respawning' || me.state === 'spectating') r.A.hold();
+    if (me.state === 'spectating') watch(true);
+    if (me.state === 'active' && was === 'respawning') { const pt = r.P.respawnPoint?.(); if (pt) r.A.resetTo(pt); r.A.release({ speed: 0 }); r.M?.reset(); say('Back in: go!', 'info'); }
+  }
   // the run, handed in to be checked: the server's results wait for it
   function handIn(r) {
     r.handed = true;
     const o = r.Q.outcome;
+    // (a co-op pursuit: the room decided it and the API pays it — nothing to hand in)
+    if (r.P) { r.state = o.status === 'finished' ? 'finished' : 'out'; return; }
     if (o.status !== 'finished') { r.state = 'out'; return; }
     const result = buildResult({ quest: r.quest, course: r.course, outcome: o, car: game.car() });
     S.sendRun(result, r.rec.finish({ questId: r.quest.id, routeVersion: r.course.version ?? null }), r.recorder?.on ? r.recorder.stop() : null);
@@ -216,7 +275,31 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
   }
   function nextCamera() { if (watching) { watching.mode = CAMERAS[(CAMERAS.indexOf(watching.mode) + 1) % CAMERAS.length]; watching.tv = null; } }
   // (the camera, if watching: true when it placed it)
+  // the co-op intro's camera: its shots round your car, your teammates' and the police car (sim frame poses)
+  function cinePose(handle) {
+    const c = run?.M?.car(handle), p = c?.pose;
+    if (!p) return null;
+    const q = p.rot, pos = game.toSim(p.pos);
+    return { p: pos, f: [2 * (q[0] * q[2] + q[3] * q[1]), 2 * (q[1] * q[2] - q[3] * q[0]), 1 - 2 * (q[0] * q[0] + q[1] * q[1])], l: [1 - 2 * (q[1] * q[1] + q[2] * q[2]), 2 * (q[0] * q[1] + q[3] * q[2]), 2 * (q[0] * q[2] - q[3] * q[1])] };
+  }
+  function cineCamera(cam, dt) {
+    const r = run, C = r?.cine;
+    if (!C || C.phase !== 'playing' || C.skipped) return false;
+    const q = cam.quaternion, f = (() => { const x = q.x, y = q.y, z = q.z, w = q.w; return [-(2 * (x * z + w * y)), -(2 * (y * z - w * x)), -(1 - 2 * (x * x + y * y))]; })();
+    const own = { p: [cam.position.x, cam.position.y, cam.position.z], look: [cam.position.x + f[0] * 20, cam.position.y + f[1] * 20, cam.position.z + f[2] * 20], fov: cam.fov };
+    const subjects = { player: game.cinePose?.() };
+    if (!subjects.player) return false;
+    const net = S.race?.net, mates = (S.lobby?.players ?? []).filter(p => p.role === 'racer' && !p.npc && p.uid !== S.myUid).sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99));
+    mates.forEach((m, i) => { const np = net && [...net.players.values()].find(x => x.uid === m.uid); const pose = np && cinePose(np.id); if (pose) subjects[`player:${i + 1}`] = pose; });
+    const police = r.P?.poseOf() ?? (u => u?.net != null ? cinePose(u.net) : null)(S.pursuit?.status?.units?.[0]);
+    if (police) subjects.police = police;
+    const c = cinematicCamera(r.cineDef, Math.max(0, C.t), { subjects, chase: own });
+    cam.position.set(...c.p); cam.up.set(0, 1, 0); cam.lookAt(c.look[0], c.look[1], c.look[2]);
+    if (Math.abs(cam.fov - c.fov) > 0.01) { cam.fov = c.fov; cam.updateProjectionMatrix(); }
+    return true;
+  }
   function camera(cam, dt) {
+    if (cineCamera(cam, dt)) return true;
     if (!watching || !run?.M) return false;
     if (watching.id == null || !cars().some(c => c.id === watching.id)) { const l = cars(); watching.id = l[0]?.id ?? null; }
     const c = watching.id != null ? run.M.car(watching.id) : null, v = c?.handle ? game.carView(c.handle) : null;
@@ -275,6 +358,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     r.C?.dispose(); if (r.recorder?.on) r.recorder.stop(); r.overlay?.dispose(); replayView?.close();
     game.setOpacity?.('me', 1);
     r.detach?.(); r.dressing?.dispose(); r.A?.dispose(); void r.M?.leave();
+    if (r.P) { game.endCoopPursuit?.(r.P); r.P = null; hud.hide(); }
     game.hideCar(false); game.focus?.(null); game.realTime?.(false);
   }
 
@@ -302,6 +386,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     frame(dt) {
       const r = run;
       if (!r) return;
+      if (r.cine?.phase === 'handover' && (r.cine.ho += dt) >= 0.5) r.cine.phase = 'done';
       r.A?.frame?.();
       if (r.course && r.dressing) { const c = game.carNow(); r.dressing.update?.(c.x, c.z); }
       if (r.state === 'loaded' && ['countdown', 'racing'].includes(S.phase) && me()?.role === 'racer' && me()?.slot != null) toGrid(r);
@@ -311,6 +396,12 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
       // your car to the others: once it's on its slot, while racing (not in the lobby, not while watching)
       const sending = r.state === 'grid' || r.state === 'racing' || r.state === 'finished';
       r.M?.frame(dt, () => sending ? game.localState() : null);
+      // (a co-op pursuit: its panel, and the search area and the police on the maps)
+      if (r.P) {
+        const n = r.Q?.state.pursuitNow;
+        if (n) hud.show({ ...n, bust: n.players?.[0]?.bust ?? 0, seen: !!n.players?.[0]?.seen, units: (n.units ?? []).filter(u => u.mode !== 'out').length, score: n.coop?.score ?? 0, names: nameOf });
+        if ((r.mapAt = (r.mapAt ?? 0) - dt) <= 0) { r.mapAt = 0.5; game.pursuitMap?.(n); }
+      }
       // the contact: who's near (drawn nearer the present), the proxies; ghosts drawn see-through — yours too
       if (r.C) {
         r.C.frame(dt);
@@ -319,6 +410,19 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
         if (r.overlay?.shown && (r.overlayAt = (r.overlayAt ?? 0) - dt) <= 0) { r.overlayAt = 0.2; r.overlay.update(); }
       }
     },
+    get cinematic() { return run?.cine?.phase === 'playing'; },
+    cinematicInput(dt) {
+      const C = run.cine, c = game.carNow();
+      const cmd = C.pilot.drive({ x: c.x, z: c.z, fx: Math.sin(c.heading * Math.PI / 180), fz: Math.cos(c.heading * Math.PI / 180), speed: c.forward, dt });
+      return C.last = { throttle: cmd.brake > 0 ? 0 : Math.min(1, throttleAt(run.cineDef.player.throttle, Math.max(0, C.t))), brake: cmd.brake, steer: cmd.steer, handbrake: false, device: 'wheel' };
+    },
+    get handingOver() { const C = run?.cine; if (C?.phase !== 'handover') return false; return true; },
+    handover(mine) {
+      const C = run.cine, k = Math.min(1, C.ho / 0.5), ai = C.last ?? mine, mix = (a, b) => (a ?? 0) * (1 - k) + (b ?? 0) * k;
+      return { ...mine, throttle: mix(ai.throttle, mine.throttle), brake: mix(ai.brake, mine.brake), steer: mix(ai.steer, mine.steer) };
+    },
+    skipCinematic() { if (run?.cine?.phase === 'playing') { run.cine.skipped = true; return true; } return false; },
+    get filming() { return run?.cine?.phase === 'playing' && !run.cine.skipped; },
     get auto() { return !!run?.pilot && run.released && (run.state === 'racing' || run.state === 'finished'); },
     autoInput(dt) {
       const c = game.carNow();

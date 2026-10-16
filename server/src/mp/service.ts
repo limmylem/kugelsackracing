@@ -39,6 +39,9 @@ import { flagForReview } from '../abuse/detect.ts';
 import { safetyAfterRace, safetyTier } from '../../../mp/contact.js';
 import { checkContacts, checkTrail } from '../../../mp/verify.js';
 import { createReplayer } from './replay.ts';
+import { rewardsOf } from '../../../content/quests.js';
+import { medalTargets, medalOf } from '../../../quest/rules.js';
+import { maxPursuitScore } from '../../../quest/types/pursuit.js';
 
 const json = (f: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, f), 'utf8'));
 export const MP = json('data/multiplayer.json');
@@ -429,5 +432,42 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
     const c = r.contacts && !Array.isArray(r.contacts) ? r.contacts : { contacts: r.contacts ?? [] };
     return { id: r.id, contacts: c.contacts ?? [], rejected: c.rejected ?? [] };
   }
-  return { routeList, saveEvidence, evidence, contactsOf, act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); replayer?.close(); } };
+  // ---------- co-op police pursuits (docs/PURSUIT.md: server/src/rt/pursuit.ts runs them) ----------
+  // the race server's room for a party: the quest (published, a co-op pursuit) and its route as a venue
+  async function pursuitMission(questId: string) {
+    const q = await one(sql`select id, data from content_items where id = ${String(questId).slice(0, 120)} and view = 'published' and kind = 'quest'`);
+    if (!q || q.data?.type !== 'pursuit_coop') throw new AppError(404, 'NOT_FOUND', 'There\'s no such co-op pursuit (or it isn\'t published).');
+    const quest = { ...q.data, id: q.id, kind: 'quest' };
+    const { check, ...v } = await venue({ kind: 'route', id: quest.route });
+    return { quest, venue: v };
+  }
+  // A co-op pursuit's end, as the race server decided it (its director and mission: the heat, the busts, the escape or
+  // the drop — never a player's word): each player paid once (economy.payReward, keyed by the run), their share of the
+  // quest's reward for the medal their score earns — the score held to what the run's length and heat allow
+  async function recordPursuit(rec: any) {
+    const { quest } = await pursuitMission(rec?.questId);
+    const G = await economyConfig.gameDb(), E = G.db.economy, Q = G.quests ?? G.db.quests, P = quest.params ?? {};
+    const id = String(rec?.id ?? '').slice(0, 120), finished = rec?.status === 'finished';
+    if (!id) throw new AppError(400, 'BAD_REQUEST', 'No run id.');
+    const wall = Math.max(0, (Number(rec.endedAt) - Number(rec.startedAt)) / 1000 || 0);
+    const seconds = Math.max(0, Math.min(Number(rec.seconds) || 0, wall + 2)), heat = Math.max(1, Math.min(P.maxHeat ?? 5, Math.floor(Number(rec.heatMax) || 1)));
+    const disabled = Math.max(0, Math.min(Q.pursuit?.maxDisabled ?? 24, P.totalUnits ?? Infinity, Math.floor(Number(rec.disabled) || 0)));
+    const R = rewardsOf(quest, E), most = maxPursuitScore(Q, { seconds, heat, disabled }), targets = medalTargets(quest, null, Q);
+    const pay: Record<string, any> = {};
+    for (const p of (Array.isArray(rec.players) ? rec.players : []).slice(0, 4)) {
+      const uid = String(p?.uid ?? '').slice(0, 80);
+      if (!uid || uid.startsWith('npc:')) continue;
+      const score = Math.max(0, Math.min(Number(p.score) || 0, most)), share = Math.max(0, Math.min(1, Number(p.share) || 0));
+      const medal = finished ? medalOf(targets, { score } as any) : null;
+      const money = finished ? Math.round(R.money * (medal ? Q.rewards[medal] : Q.rewards.finish) * share) : 0;
+      const xp = finished ? Math.round(R.xp * (medal ? Q.rewards.xp[medal] : Q.rewards.xp.finish) * share) : 0;
+      let paid: any = { paid: false };
+      if (money > 0 || xp > 0) { try { paid = await economy.payReward(uid, { money, xp, reason: `Co-op pursuit: ${quest.name ?? 'police pursuit'}${medal ? ` (${medal})` : ''}`, key: `pursuit:${id}` }); } catch (e) { log({ err: e, run: id, uid }, 'paying a pursuit failed'); } }
+      pay[uid] = { money, xp, medal, score: Math.round(score), paid: !!paid.paid };
+    }
+    log({ run: id, quest: quest.id, status: rec.status, seconds, heat }, 'co-op pursuit recorded');
+    return { id, pay };
+  }
+
+  return { pursuitMission, recordPursuit, routeList, saveEvidence, evidence, contactsOf, act, friends, requestFriend, acceptFriend, removeFriend, block, unblock, relations, ratingOf, cooldown, ticketClaims, me, devPlayer, venue, recordRace, submitRun, finalize, raceView, sweep, leaderboard, queueStats, dashboard, close() { for (const t of timers.values()) clearTimeout(t); timers.clear(); replayer?.close(); } };
 }

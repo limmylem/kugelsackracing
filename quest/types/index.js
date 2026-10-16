@@ -22,5 +22,6 @@ import hillclimb from './hillclimb.js';
 import endurance from './endurance.js';
 // (police pursuits: docs/PURSUIT.md)
 import pursuit from './pursuit.js';
+import pursuit_coop from './pursuitCoop.js';
 
-export const TYPE_MODULES = { sprint, time_trial, checkpoint, drift, delivery, pink_slip, circuit_race, hot_lap, hillclimb, endurance, pursuit };
+export const TYPE_MODULES = { sprint, time_trial, checkpoint, drift, delivery, pink_slip, circuit_race, hot_lap, hillclimb, endurance, pursuit, pursuit_coop };

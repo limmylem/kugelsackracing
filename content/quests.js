@@ -109,6 +109,29 @@ export const TYPES = {
       { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }],
     check: (p, ctx) => pursuitChecks(p, ctx, 'Police pursuit'),
   },
+  // (co-op: a party only — the race server runs the police's decisions, server/src/rt/pursuit.ts)
+  pursuit_coop: {
+    label: 'Co-op pursuit', icon: 'siren', blurb: 'Your party against the police: get away together, carry the goods, or split up.', party: true,
+    params: { kind: 'convoy', objective: 'escape', startHeat: 2, maxHeat: 4, drops: [], busted: 'respawn', respawnSeconds: 15, rewards: 'shared', maxUnits: null, totalUnits: null, timeLimitSeconds: null, bustPenalty: null, escapeFirst: false, scoreTarget: 4000, timerEnds: null, roadblocks: true, spikes: true },
+    fields: [{ key: 'kind', label: 'Mission', kind: 'choice', options: ['convoy', 'getaway', 'split'] },
+      { key: 'objective', label: 'Convoy / getaway: get away, or to the drop (the route\'s finish)', kind: 'choice', options: ['escape', 'destination'] },
+      { key: 'drops', label: 'Split up: a drop for each (in party order)', kind: 'places' },
+      { key: 'busted', label: 'A busted player', kind: 'choice', options: ['respawn', 'spectate'] }, { key: 'respawnSeconds', label: 'Respawn after (s)', kind: 'int', min: 3, max: 120 },
+      { key: 'rewards', label: 'Rewards', kind: 'choice', options: ['shared', 'split'] },
+      { key: 'startHeat', label: 'Starting heat (1–5)', kind: 'int', min: 1, max: 5 }, { key: 'maxHeat', label: 'Most heat (1–5)', kind: 'int', min: 1, max: 5 },
+      { key: 'maxUnits', label: 'Police cars at once (blank: the heat\'s)', kind: 'int', min: 1, max: 16 }, { key: 'totalUnits', label: 'Police cars in all (blank: no limit)', kind: 'int', min: 1, max: 24 },
+      { key: 'roadblocks', label: 'Roadblocks (heat 4+)', kind: 'bool' }, { key: 'spikes', label: 'Spike strips (heat 5)', kind: 'bool' },
+      { key: 'timerEnds', label: 'Cooldown ends inside the search area', kind: 'choice', options: ['', 'reacquire', 'escape'] },
+      { key: 'escapeFirst', label: 'Lose them before the drop', kind: 'bool' }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 10 },
+      { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }],
+    check: (p, ctx) => [
+      ...pursuitChecks(p, ctx, 'Co-op pursuit'),
+      ...(['convoy', 'getaway', 'split'].includes(p.kind ?? 'convoy') ? [] : [err('params.kind', 'The mission: convoy, getaway or split.')]),
+      ...((p.kind ?? 'convoy') !== 'split' || (p.drops?.length ?? 0) >= 2 ? [] : [err('params.drops', 'Split up needs a drop for each player: at least two.')]),
+      ...(['respawn', 'spectate'].includes(p.busted ?? 'respawn') ? [] : [err('params.busted', 'A busted player respawns or spectates.')]),
+      ...(['shared', 'split'].includes(p.rewards ?? 'shared') ? [] : [err('params.rewards', 'Rewards: shared or split.')]),
+    ],
+  },
   // ---------- track events (Phase 5 Step 3: on a generated track, track/events/) ----------
   circuit_race: {
     label: 'Circuit race', icon: 'flag', blurb: 'Laps of a circuit against the field: first past the flag wins.', track: true,
@@ -162,7 +185,7 @@ function needsTrackOrRoute(p, ctx, what) { return ctx.track || ctx.route ? [] : 
 function laps(p) { return p.laps === undefined || (Number.isInteger(p.laps) && p.laps >= 1) ? [] : [err('params.laps', 'Laps must be a whole number, at least 1.')]; }
 // what each type of quest needs of its route: a point-to-point one (a delivery goes somewhere), or either
 export const ROUTE_KINDS = { sprint: ['p2p', 'loop'], time_trial: ['p2p', 'loop'], checkpoint: ['p2p', 'loop'], drift: ['p2p', 'loop'], delivery: ['p2p'], pink_slip: ['p2p', 'loop'],
-  circuit_race: ['loop'], hot_lap: ['loop'], hillclimb: ['p2p'], endurance: ['loop'], pursuit: ['p2p', 'loop'] };
+  circuit_race: ['loop'], hot_lap: ['loop'], hillclimb: ['p2p'], endurance: ['loop'], pursuit: ['p2p', 'loop'], pursuit_coop: ['p2p', 'loop'] };
 // the quest types rivals race in
 export const RIVAL_TYPES = ['sprint', 'pink_slip', 'circuit_race', 'hillclimb', 'endurance'];
 // the quest types made for a generated track (they can't run on a route)

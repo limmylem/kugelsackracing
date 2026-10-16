@@ -31,7 +31,11 @@ import { createSiren } from '../audio/siren.js';
 
 const MODE_COLOUR = { patrol: '#9aa4b2', alerted: '#ffbd4a', pursue: '#ff5a5f', intercept: '#e05cff', ram: '#ff2d2d', pit: '#ff8c2d', box: '#ffd24a', block: '#4fc3f7', search: '#7ee08a', out: '#555', leave: '#888' };
 
-export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, network, session, db, game, audio = () => null, rng = Math.random, debug = false }) {
+//   co-op (net: server/src/rt/pursuit.ts decides; the host's game drives the police): net = { me (uid), host() → bool,
+//   send(msg), status() → the room's last word ({ units: [{ id, net, pos, mode }], strips, coop, … }), players() → [uid],
+//   command(msg) (P.command: the room's orders for the host) } — game.peer(uid) → a teammate's car { x, z, vx, vz, speed },
+//   game.remote(net) → a police car as drawn from the room ({ vis, pose }) for its light bar and siren
+export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, network, session, db, game, audio = () => null, rng = Math.random, debug = false, net = null }) {
   const sim = w.sim, P = quest.params ?? {}, roads = createPursuitRoads(network);
   const D = createDirector({ cfg, rng, mission: { startHeat: P.startHeat, maxHeat: P.maxHeat, maxUnits: P.maxUnits, totalUnits: P.totalUnits, objective: P.objective, timerEnds: P.timerEnds || null, roadblocks: P.roadblocks !== false, spikes: P.spikes !== false } });
   const units = new Map();          // carId → { id, car, driver, damage, build, spec, kind, condition, drivable, dirty, vis, bar, siren }
@@ -39,6 +43,7 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
   let started = false, over = false, disposed = false, seedN = 0, startSpot = null, startSpeed = 0, flash = 0, lastHits = [];
   // (a cinematic intro, play/cinematic.js: the police parked by the road, pulling out, keeping their gap — cineT its clock)
   let cine = null, cineT = null;
+  const remoteBars = new Map(), remoteSirens = new Map(), remotePrev = new Map();
   const emit = e => events.push(e);
 
   // ---------- where things are ----------
@@ -94,11 +99,11 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
   const clearOfCars = (x, z, r = 9) => { const [sx, sz] = frame.toSim(x, z); return [sim.vehicle, ...sim.cars.map(c => c.vehicle)].every(v => { const p = v.body.translation(); return Math.hypot(p.x - sx, p.z - sz) > r; }); };
 
   // ---------- the units ----------
-  async function addUnit({ x, z, heading, speed = 0, rating, kind = 'chase', target = 0, joinAt = null }) {
+  async function addUnit({ x, z, heading, speed = 0, rating, kind = 'chase', target = 0, joinAt = null, sid = null }) {
     let n;
     try { n = await game.buildPolice({ rating: (game.rating ?? 400) * (rating ?? 1), seed: ++seedN }); } catch (e) { console.warn(`No police car: ${e.message}`); D.spawnFailed(); return null; }
     if (disposed || over) { D.spawnFailed(); return null; }
-    const u = { kind, build: n.build, spec: n.spec, condition: 100, drivable: true, dirty: false, damagedAt: -1 };
+    const u = { kind, sid, build: n.build, spec: n.spec, condition: 100, drivable: true, dirty: false, damagedAt: -1 };
     u.driver = createPoliceDriver({ cfg, frame, car: policeCaps(carCaps(n.build.stats)), pathTo: roads.pathTo, clear: () => u.car ? sees(u) && driveClear(u) : true, feel });
     if (kind === 'block') u.driver.order = { mode: 'block' };
     const [sx, sz] = frame.toSim(x, z);
@@ -123,14 +128,15 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     if (sim.cars.some(c => c.id === id)) sim.removeCar(id);
   }
   // its hits: its damage (the same rules as yours — a disabled unit is out), the player's hits on it (the heat)
-  function takeHits(u, me, hits) {
+  // (who it hit: a player within 7 m of it — co-op: any of you)
+  function takeHits(u, me, hits, who = null) {
     for (const impact of u.car.vehicle.sensor.take()) {
       const out = u.damage.hit(impact, { scale: 1 });
       game.impact?.(u.id, impact, out?.result ?? null);
       u.dirty = true;
-      if (impact.other === 'car' && !over) {
-        const p = carState(u.car.vehicle);
-        if (Math.hypot(p.x - me.x, p.z - me.z) < 7 && impact.strength > 1) hits.push({ unit: u.id, player: 0, strength: impact.strength });
+      if (impact.other === 'car' && !over && impact.strength > 1) {
+        const p = carState(u.car.vehicle), hit = who ? who(p) : Math.hypot(p.x - me.x, p.z - me.z) < 7 ? 0 : null;
+        if (hit != null) hits.push({ unit: who ? u.sid : u.id, player: hit, uid: hit, strength: impact.strength });
       }
     }
   }
@@ -227,19 +233,96 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
   }
 
   // ---------- each physics tick ----------
+  // ---------- co-op: the room decides, the host drives (net) ----------
+  const cmds = [], acks = [], netHits = [];
+  let netClock = 0, sentAt = -1, seenAt = -1, stripN = 0;
+  const bySid = sid => [...units.values()].find(u => u.sid === sid);
+  const peerState = uid => uid === net?.me ? { id: uid, ...carState(sim.vehicle) } : (p => p ? { id: uid, ...p } : null)(game.peer?.(uid));
+  const nearestPeer = p => { let best = null, d0 = 7; for (const uid of net.players()) { const q = peerState(uid); if (!q) continue; const d = Math.hypot(q.x - p.x, q.z - p.z); if (d < d0) { d0 = d; best = uid; } } return best; };
+  // a unit the room asked for: where it goes (the first behind the grid, parked; the rest on a road behind its target)
+  async function netSpawn(s, me) {
+    let spot, tg = peerState(s.target) ?? me;
+    if (s.start) { const s0 = Math.max(0, course.grid.startS - cfg.police.startGap - 12), p = lineAt(course.line, s0, course.loop); spot = { x: p.x, z: p.z, heading: headingOf(p.dx, p.dz) }; }
+    else spot = spawnSpot(tg);
+    if (!spot) { acks.push({ id: s.id, ok: false }); return; }
+    const u = await addUnit({ ...spot, speed: s.start ? 0 : Math.min((tg.speed ?? 0) * 0.8, 25), rating: s.rating, kind: s.kind ?? 'chase', target: s.target, sid: s.id, joinAt: s.joinAt ?? null });
+    if (u && s.start) u.driver.order = { mode: 'block' };
+    acks.push({ id: s.id, ok: !!u, carId: u?.build?.carId ?? null });
+  }
+  function netRoadblock(r, me) {
+    const R = cfg.roadblock, tg = peerState(r.target) ?? me, p = roads.along(tg, R.aheadMin, { junction: true }), d = p ? Math.hypot(p.x - tg.x, p.z - tg.z) : Infinity;
+    if (!p || d > R.aheadMax * 1.3 || !clearOfCars(p.x, p.z, 12)) { for (const id of r.ids) acks.push({ id, ok: false }); return; }
+    const sx = p.dz, sz = -p.dx, h = headingOf(sx, sz);
+    emit({ type: 'roadblock', x: p.x, z: p.z });
+    r.ids.forEach((id, i) => { const o = (i - (r.ids.length - 1) / 2) * R.gap; addUnit({ x: p.x - p.dx * 6 + sx * o, z: p.z - p.dz * 6 + sz * o, heading: h, speed: 0, rating: r.rating, kind: 'block', target: r.target, joinAt: r.joinAt, sid: id }).then(u => acks.push({ id, ok: !!u, carId: u?.build?.carId ?? null })); });
+  }
+  // a police car's state for the room (as a car's: its place in the world frame, its rotation, speeds, controls)
+  function stateOf(u) {
+    const v = u.car.vehicle, b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(), a = b.angvel(), [x, z] = frame.toWorld(p.x, p.z);
+    return { id: u.sid, pos: [x, p.y, z], rot: [q.x, q.y, q.z, q.w], vel: [l.x, l.y, l.z], ang: [a.x, a.y, a.z], steer: v.steer ?? 0, throttle: v.throttle ?? 0, brake: v.brake ?? 0, gear: v.drivetrain?.gear ?? 1, rpm: (v.drivetrain?.omega ?? 0) * 60 / (2 * Math.PI), drivable: u.drivable, carId: u.build.carId };
+  }
+  // can a police car the room says is there (world pos) see me
+  const seesFrom = pos => { const [sx, sz] = frame.toSim(pos[0], pos[2]), b = simPos(sim.vehicle.body), e = cfg.police.eyeHeight; return Math.hypot(sx - b.x, sz - b.z) <= cfg.police.sight && clearBetween([sx, pos[1] + e, sz], [b.x, b.y + e, b.z]); };
+  // the host's spike strips, laid on everyone's road
+  function syncStrips(list) {
+    for (const x of list) if (!strips.some(s => s.id === x.id)) { const s = stripAt(x); s.id = x.id; strips.push(s); emit({ type: 'spikes', x: x.x, z: x.z }); }
+  }
+  function netTick(dt) {
+    netClock += dt;
+    const me = { id: net.me, ...carState(sim.vehicle), ...game.health() };
+    // everyone: which police cars can see me, and how my car is (from GO)
+    if (started && netClock - seenAt > 0.2) {
+      seenAt = netClock;
+      const st = net.status(), ids = [];
+      if (net.host()) { for (const u of units.values()) if (u.sid && u.drivable && Math.hypot(carState(u.car.vehicle).x - me.x, carState(u.car.vehicle).z - me.z) <= cfg.police.sight && sees(u)) ids.push(u.sid); }
+      else for (const x of st?.units ?? []) if (x.pos && seesFrom(x.pos)) ids.push(x.id);
+      net.send({ t: 'police-seen', units: ids });
+      net.send({ t: 'pursuit-health', drivable: me.drivable !== false, condition: me.condition ?? 100 });
+      if (!net.host()) syncStrips(st?.strips ?? []);
+    }
+    if (strips.length) spikesTick(me);
+    if (!net.host()) return;
+    // the host: the room's orders carried out, the police driven, their states sent back
+    for (const c of cmds.splice(0)) {
+      for (const o of c.orders ?? []) { const u = bySid(o.id); if (u) u.netOrder = o; }
+      for (const x of c.spawn ?? []) netSpawn(x, me);
+      for (const x of c.roadblock ?? []) netRoadblock(x, me);
+      for (const x of c.spikes ?? []) { const tg = peerState(x.target) ?? me, S = cfg.spikes, p = roads.along(tg, S.aheadMin + (S.aheadMax - S.aheadMin) * rng()); if (p) { const st = stripAt(p); st.id = `s${++stripN}`; strips.push(st); emit({ type: 'spikes', x: p.x, z: p.z }); } }
+      for (const id of c.remove ?? []) { const u = bySid(id); if (u) removeUnit(u.id); }
+    }
+    for (const u of units.values()) {
+      if (u.netOrder && started) { u.driver.order = u.netOrder; u.driver.target = peerState(u.netOrder.target) ?? me; }
+      takeHits(u, me, netHits, nearestPeer);
+      if (u.dirty && netClock - u.damagedAt > 0.5) { u.damagedAt = netClock; applyDamage(u); }
+    }
+    if (netClock - sentAt >= 0.1) {
+      sentAt = netClock;
+      net.send({ t: 'police', units: [...units.values()].filter(u => u.sid).map(stateOf), hits: netHits.splice(0), added: acks.splice(0), strips: strips.filter(s => s.id).map(s => ({ id: s.id, x: s.x, z: s.z, dx: s.dx, dz: s.dz, width: s.width })) });
+    }
+  }
+  // (the room's new host is me: the police as they were, put in my physics — the room's ids kept)
+  function adopt(list) {
+    for (const x of list ?? []) {
+      if (bySid(x.id) || !x.state?.pos) continue;
+      const [px, , pz] = x.state.pos, q = x.state.rot ?? [0, 0, 0, 1], fx = 2 * (q[0] * q[2] + q[3] * q[1]), fz = 1 - 2 * (q[0] * q[0] + q[1] * q[1]);
+      addUnit({ x: px, z: pz, heading: Math.atan2(fx, fz) * 180 / Math.PI, speed: Math.hypot(x.state.vel?.[0] ?? 0, x.state.vel?.[2] ?? 0), rating: 1, kind: 'chase', sid: x.id });
+    }
+  }
+
+  // the cinematic: parked until they pull out, then after you, the gap closing to the handover's
+  function cineDrive(dt) {
+    if (!cine || cineT == null) return;
+    cineT += dt;
+    const me = { id: net?.me ?? 0, ...carState(sim.vehicle) }, C = cine.police, k = Math.min(1, cineT / cine.seconds), gap = C.gapAtStart + (C.gapAtHandover - C.gapAtStart) * k;
+    for (const u of units.values()) { u.driver.target = me; u.driver.order = cineT < C.pullOutAt ? { mode: 'block' } : { mode: 'follow', target: me.id, slot: gap, line: course.line }; }
+  }
+
   const detach = sim.onStep(s => tick(s.dt));
   function tick(dt) {
     if (disposed) return;
+    if (net) { if (!started) cineDrive(dt); if (!over) netTick(dt); return; }
     const Q = session(), st = Q?.state.state;
-    if (!started) {
-      // the cinematic: parked until they pull out, then after you, the gap closing to the handover's
-      if (cine && cineT != null) {
-        cineT += dt;
-        const me = { id: 0, ...carState(sim.vehicle) }, C = cine.police, k = Math.min(1, cineT / cine.seconds), gap = C.gapAtStart + (C.gapAtHandover - C.gapAtStart) * k;
-        for (const u of units.values()) { u.driver.target = me; u.driver.order = cineT < C.pullOutAt ? { mode: 'block' } : { mode: 'follow', target: 0, slot: gap, line: course.line }; }
-      }
-      return;
-    }
+    if (!started) { cineDrive(dt); return; }
     if (st !== 'racing') {
       // (it's over — finished, busted, out of time: the police stop where they are)
       if (!over) { over = true; for (const u of units.values()) { u.driver.order = { mode: 'block' }; u.siren?.dispose(); u.siren = null; } }
@@ -367,9 +450,12 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     frame(dt, { listener } = {}) {
       if (disposed) return;
       // (the first unit, once the ground's in where it goes)
-      if (startSpot && game.ready()) { const s = startSpot; startSpot = null; addUnit({ ...s, speed: 0, rating: cfg.levels[D.state.level - 1].rating, target: 0 }).then(u => { if (u && started) { const b = u.car.vehicle.body, q = b.rotation(), f = rotate(q, [0, 0, 1]), m = Math.hypot(f[0], f[2]) || 1; b.setLinvel({ x: f[0] / m * startSpeed, y: 0, z: f[2] / m * startSpeed }, true); } }); }
+      if (!net && startSpot && game.ready()) { const s = startSpot; startSpot = null; addUnit({ ...s, speed: 0, rating: cfg.levels[D.state.level - 1].rating, target: 0 }).then(u => { if (u && started) { const b = u.car.vehicle.body, q = b.rotation(), f = rotate(q, [0, 0, 1]), m = Math.hypot(f[0], f[2]) || 1; b.setLinvel({ x: f[0] / m * startSpeed, y: 0, z: f[2] / m * startSpeed }, true); } }); }
       flash += dt;
-      const S = D.status, chasing = !over && S.phase !== 'escaped';
+      const S = net ? net.status() ?? D.status : D.status, chasing = !over && S.phase !== 'escaped';
+      // (co-op, not the host: the police cars as the room draws them — a light bar on each, once it's drawn)
+      const remote = net && !net.host() ? (S.units ?? []).filter(x => x.net != null && x.mode !== 'out').map(x => { const r = game.remote?.(x.net); if (!r?.vis) return null; remoteBars.set(x.net, remoteBars.get(x.net) ?? lightBar(r.vis)); const g = r.vis.group.position; return { id: x.net, bar: remoteBars.get(x.net), pos: [g.x, g.y, g.z], vel: [0, 0, 0], kind: 'chase', block: x.mode === 'block' }; }).filter(Boolean) : [];
+      for (const x of remote) { const ph = (flash * 3 + x.id * 0.37) % 1, on = chasing || x.block; x.bar.red.material.color.set(on && ph < 0.5 ? '#ff2030' : '#3a0a0e'); x.bar.blue.material.color.set(on && ph >= 0.5 ? '#2a5cff' : '#0a1236'); }
       // the light bars: red and blue in turn (off once it's over or they've given up)
       for (const u of units.values()) {
         if (!u.bar) continue;
@@ -380,7 +466,20 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
       // the sirens: the nearest two that are chasing
       const A = audio();
       if (A && listener) {
-        const L = listener.pos, near = [...units.values()].filter(u => u.drivable && u.driver.order.mode !== 'block').map(u => ({ u, d: (() => { const p = u.car.vehicle.body.translation(); return Math.hypot(p.x - L[0], p.y - L[1], p.z - L[2]); })() })).sort((a, b) => a.d - b.d);
+        const L = listener.pos;
+        // (co-op, not the host: the room's police cars' sirens, where they're drawn)
+        if (remote.length || remoteSirens.size) {
+          const loud = new Set(chasing ? remote.filter(x => !x.block).map(x => ({ x, d: Math.hypot(x.pos[0] - L[0], x.pos[2] - L[2]) })).filter(o => o.d < 500).sort((a, b) => a.d - b.d).slice(0, 2).map(o => o.x.id) : []);
+          for (const [id, sn] of remoteSirens) if (!loud.has(id)) { sn.dispose(); remoteSirens.delete(id); }
+          for (const x of remote) {
+            if (!loud.has(x.id)) continue;
+            const sn = remoteSirens.get(x.id) ?? remoteSirens.set(x.id, createSiren(A, { tone: x.id % 2 ? 'wail' : 'yelp', seed: x.id })).get(x.id), prev = remotePrev.get(x.id), vel = prev ? x.pos.map((v, k) => (v - prev[k]) / Math.max(1e-3, dt)) : [0, 0, 0];
+            remotePrev.set(x.id, x.pos);
+            const rel = [x.pos[0] - L[0], x.pos[1] - L[1], x.pos[2] - L[2]];
+            sn.update(dt, { rel, at: listener.toCamera ? listener.toCamera(x.pos) : rel, vel, listenerVel: listener.vel, on: true, boost: 0.8 + 0.1 * (S.level ?? 1) });
+          }
+        }
+        const near = [...units.values()].filter(u => u.drivable && u.driver.order.mode !== 'block').map(u => ({ u, d: (() => { const p = u.car.vehicle.body.translation(); return Math.hypot(p.x - L[0], p.y - L[1], p.z - L[2]); })() })).sort((a, b) => a.d - b.d);
         const loud = new Set(chasing ? near.filter(x => x.d < 500 && x.u.drivable).slice(0, 2).map(x => x.u) : []);
         for (const u of units.values()) {
           if (!loud.has(u)) { if (u.siren) { u.siren.dispose(); u.siren = null; } continue; }
@@ -396,6 +495,18 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
       const S = D.status;
       return { units: [...units.values()].filter(u => u.drivable).map(u => { const p = worldOf(u.car.vehicle.body); return { x: p.x, z: p.z, mode: S.units.find(x => x.id === u.id)?.mode }; }), search: S.cooldown && S.phase === 'cooldown' ? { x: S.cooldown.x, z: S.cooldown.z, radius: S.cooldown.radius } : null };
     },
+    // (co-op: busted and back in) a road a few hundred metres off, the furthest from the police there is
+    respawnPoint() {
+      const me = carState(sim.vehicle), police = net && !net.host() ? (net.status()?.units ?? []).filter(x => x.pos).map(x => ({ x: x.pos[0], z: x.pos[2] })) : [...units.values()].map(u => carState(u.car.vehicle));
+      let best = null;
+      for (const m of [-260, 260, -420, 420]) {
+        const p = roads.along(me, m);
+        if (!p || p.deadEnd) continue;
+        const d = police.length ? Math.min(...police.map(q => Math.hypot(q.x - p.x, q.z - p.z))) : 1e9;
+        if (!best || d > best.d) best = { d, p, back: m < 0 };
+      }
+      return best ? { x: best.p.x, z: best.p.z, h: best.p.h, heading: best.back ? headingOf(-best.p.dx, -best.p.dz) : headingOf(best.p.dx, best.p.dz) } : null;
+    },
     // R: back on the nearest road (the police are told where you are)
     resetPoint() {
       const me = carState(sim.vehicle), p = roads.onRoad(me.x, me.z);
@@ -406,6 +517,10 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     drain() { return events.splice(0); },
     // ---------- a cinematic intro (play/questUi.js runs it: data/cinematics.json) ----------
     setCinematic(def) { cine = def; },
+    // (co-op) the room's orders for the host; a new host's police to take over; it's over
+    command(c) { if (net) cmds.push(c); },
+    adopt,
+    finish() { if (over) return; over = true; for (const u of units.values()) { u.driver.order = { mode: 'block' }; u.siren?.dispose(); u.siren = null; } for (const sn of remoteSirens.values()) sn.dispose(); remoteSirens.clear(); },
     // (ready to roll: the first unit's in, on the ground, and drawn)
     get cinematicReady() { return !startSpot && units.size > 0 && game.ready() && [...units.values()].every(u => u.vis); },
     cinematicBegin() { cineT = 0; },
@@ -429,6 +544,8 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
       hideDebug();
       for (const id of [...units.keys()]) removeUnit(id);
       for (const s of strips) { w.scene.remove(s.mesh); disposeMesh(s.mesh); }
+      for (const b of remoteBars.values()) { b.g.parent?.remove(b.g); disposeMesh(b.g); }
+      for (const sn of remoteSirens.values()) sn.dispose();
       strips.length = 0;
     },
   };

@@ -345,3 +345,56 @@ test('a police car feels its way round something solid just ahead (the road data
   assert.ok(r.cap < 8, 'and slower');
   assert.ok(avoid({ centre: 3, left: 2, right: 14 }, 15, 0).steer < -0.2);
 });
+
+test('co-op: a convoy fails only when everyone\'s busted (a busted player back in after the respawn, or watching)', async () => {
+  const { createCoopMission } = await import('../../pursuit/coop.js');
+  const st = busted => ({ phase: 'pursuit', level: 2, players: ['a', 'b'].map(id => ({ id, busted: busted.includes(id) })) });
+  const M = createCoopMission({ cfg, mission: { kind: 'convoy', players: ['a', 'b'], respawn: 2 } });
+  const pl = [{ id: 'a', x: 0, z: 0 }, { id: 'b', x: 50, z: 0 }], revived = [];
+  let ev = M.tick({ dt: 0.1, players: pl, status: st(['a']), revive: id => revived.push(id) });
+  assert.ok(ev.some(e => e.type === 'coop-busted' && e.player === 'a' && e.respawn === 2));
+  assert.equal(M.status.done, null, 'b is still free');
+  for (let i = 0; i < 25; i++) ev = M.tick({ dt: 0.1, players: pl, status: st([]), revive: id => revived.push(id) });
+  assert.deepEqual(revived, ['a']);
+  M.tick({ dt: 0.1, players: pl, status: st(['a', 'b']) });
+  assert.equal(M.status.done, null, 'busted together, both respawning: not over yet');
+  const S = createCoopMission({ cfg, mission: { kind: 'convoy', players: ['a', 'b'], busted: 'spectate' } });
+  S.tick({ dt: 0.1, players: pl, status: st(['a', 'b']) });
+  assert.equal(S.status.done.status, 'failed');
+  const E = createCoopMission({ cfg, mission: { kind: 'convoy', players: ['a', 'b'] } });
+  E.tick({ dt: 0.1, players: pl, status: { ...st([]), phase: 'escaped' } });
+  assert.equal(E.status.done.status, 'finished');
+});
+
+test('co-op getaway: the carrier busted drops the goods; a teammate picks them up and takes them to the drop', async () => {
+  const { createCoopMission } = await import('../../pursuit/coop.js');
+  const M = createCoopMission({ cfg, mission: { kind: 'getaway', players: ['a', 'b'], destination: { x: 500, z: 0 }, busted: 'spectate' } });
+  assert.equal(M.status.carrier, 'a');
+  const st = b => ({ phase: 'pursuit', level: 1, players: [{ id: 'a', busted: b }, { id: 'b', busted: false }] });
+  let ev = M.tick({ dt: 0.1, players: [{ id: 'a', x: 100, z: 0 }, { id: 'b', x: 140, z: 0 }], status: st(true) });
+  assert.ok(ev.some(e => e.type === 'coop-drop'));
+  assert.deepEqual(M.status.goods, { x: 100, z: 0 });
+  ev = M.tick({ dt: 0.1, players: [{ id: 'a', x: 100, z: 0 }, { id: 'b', x: 102, z: 0 }], status: st(true) });
+  assert.ok(ev.some(e => e.type === 'coop-pickup' && e.player === 'b'));
+  ev = M.tick({ dt: 0.1, players: [{ id: 'a', x: 100, z: 0 }, { id: 'b', x: 499, z: 0 }], status: st(true) });
+  assert.equal(M.status.done.status, 'finished');
+  assert.equal(M.status.done.reason, 'delivered');
+});
+
+test('co-op split up: each to their own drop; the reward shared, or split by each one\'s part', async () => {
+  const { createCoopMission } = await import('../../pursuit/coop.js');
+  const drops = [{ x: 300, z: 0 }, { x: -300, z: 0 }];
+  const M = createCoopMission({ cfg, mission: { kind: 'split', players: ['a', 'b'], drops, rewards: 'split' } });
+  const st = { phase: 'pursuit', level: 2, players: [{ id: 'a', busted: false }, { id: 'b', busted: false }] };
+  for (let i = 0; i < 20; i++) M.tick({ dt: 0.5, players: [{ id: 'a', x: 0, z: 0 }, { id: 'b', x: 0, z: 0 }], status: st });
+  M.tick({ dt: 0.1, players: [{ id: 'a', x: 300, z: 0 }, { id: 'b', x: 0, z: 0 }], status: st });
+  assert.equal(M.status.done, null, 'b isn\'t at its drop yet');
+  for (let i = 0; i < 10; i++) M.tick({ dt: 0.5, players: [{ id: 'a', x: 300, z: 0 }, { id: 'b', x: 0, z: 0 }], status: st });
+  M.tick({ dt: 0.1, players: [{ id: 'a', x: 300, z: 0 }, { id: 'b', x: -300, z: 0 }], status: st });
+  assert.equal(M.status.done.status, 'finished');
+  const sh = M.shares();
+  assert.ok(Math.abs(sh.a + sh.b - 1) < 1e-9);
+  assert.ok(sh.b > sh.a, 'b was chased longer');
+  const shared = createCoopMission({ cfg, mission: { kind: 'split', players: ['a', 'b'], drops } }).shares();
+  assert.deepEqual(shared, { a: 1, b: 1 });
+});

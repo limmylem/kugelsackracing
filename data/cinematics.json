@@ -51,10 +51,11 @@
     ]
   },
   "pursuit_intro_coop": {
-    "seconds": 9,
+    "_note": "A party's: it plays through the race room's countdown — from GO − seconds to GO on the server's clock, the same moment on every game (data/multiplayer.json race.countdownSec: no longer than that) — all the party's cars in it, each driven by its own game's AI, the police car the host's.",
+    "seconds": 6,
     "player": {
       "startKmh": 0,
-      "throttle": [[0, 0.55], [0.6, 0.85], [9, 0.8]]
+      "throttle": [[0, 0.55], [0.6, 0.85], [6, 0.8]]
     },
     "police": {
       "pullOutAt": 0.4,
@@ -63,13 +64,13 @@
       "gapAtHandover": 50
     },
     "skip": {
-      "metres": 150,
-      "kmh": 95
+      "metres": 110,
+      "kmh": 85
     },
     "shots": [
       {
         "from": 0,
-        "to": 2.6,
+        "to": 1.6,
         "ease": "inOut",
         "subject": "police",
         "path": [[-3.8, 0.8, 6.5], [-3.4, 1.2, 5.6], [-3.0, 1.7, 4.8]],
@@ -77,8 +78,8 @@
         "fov": [38, 34]
       },
       {
-        "from": 2.6,
-        "to": 4.2,
+        "from": 1.6,
+        "to": 2.6,
         "ease": "inOut",
         "subject": "player:1",
         "path": [[-4.5, 1.2, 6], [-3.5, 1.5, -1]],
@@ -86,8 +87,8 @@
         "fov": [38, 44]
       },
       {
-        "from": 4.2,
-        "to": 5.8,
+        "from": 2.6,
+        "to": 3.6,
         "ease": "inOut",
         "subject": "player:2",
         "path": [[4.5, 1.2, 6], [3.5, 1.5, -1]],
@@ -95,8 +96,8 @@
         "fov": [38, 44]
       },
       {
-        "from": 5.8,
-        "to": 7.2,
+        "from": 3.6,
+        "to": 4.5,
         "ease": "inOut",
         "subject": "player",
         "path": [[4.2, 1.4, 0.5], [2.2, 1.9, -5.5]],
@@ -104,8 +105,8 @@
         "fov": [40, 50]
       },
       {
-        "from": 7.2,
-        "to": 9,
+        "from": 4.5,
+        "to": 6,
         "ease": "inOut",
         "subject": "player",
         "path": [

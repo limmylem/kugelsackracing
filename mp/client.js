@@ -183,6 +183,11 @@ export function createMpSession({ transport, endpoint = null, getTicket, look = 
       // (its text, as the hub's: the screens show it)
       case 'notice': say(m.text); return;
       case 'votes': S.votes = m; break;
+      // (a co-op police pursuit's room: its state, its host, its end — play/mpRace.js; docs/PURSUIT.md)
+      case 'pursuit': S.pursuit = m; S.pursuitHost = m.host ?? S.pursuitHost; break;
+      case 'pursuit-host': S.pursuitHost = m.uid; break;
+      case 'pursuit-done': S.pursuitDone = m; break;
+      case 'pursuit-paid': S.pursuitPaid = m; break;
     }
     emit(m.t, m);
   }

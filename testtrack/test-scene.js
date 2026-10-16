@@ -57,6 +57,7 @@ import { createQuestFinder, loadVenues } from '../play/questFinder.js';
 import { regionOf } from '../quest/finder.js';
 import { createRace } from '../race/race.js';
 import { createPursuit } from '../play/pursuitPlay.js';
+import { t } from '../ui/i18n.js';
 import { buildNpcCar } from '../ai/npcCars.js';
 import { worldContent } from '../content/client.js';
 import { garageFor } from '../garage/player/profile.js';
@@ -352,15 +353,15 @@ function questGame(w) {
     pursuitCfg: null,
     // the police: real cars in the physics, built from the parts system for the player's car's rating × the heat's, in the
     // police livery with a light bar (play/pursuitPlay.js), their crashes' sparks and dents drawn here
-    async startPursuit({ quest, course, session, rating }) {
+    async startPursuit({ quest, course, session, rating, net = null, peer = null, remote = null }) {
       const cfg = this.pursuitCfg ?? await (await fetch('data/pursuit.json', { cache: 'no-cache' })).json();
       this.pursuitCfg = cfg;
       const N = await this.network(), self = this;
       const models = cfg.police.models.filter(id => db.cars[id] && !db.cars[id].hidden);
-      const P = createPursuit({ THREE, RAPIER, w, frame: { toWorld: S.toWorld, toSim: S.toSim }, cfg, quest, course, network: N, session, db,
+      const P = createPursuit({ THREE, RAPIER, w, frame: { toWorld: S.toWorld, toSim: S.toSim }, cfg, quest, course, network: N, session, db, net,
         debug: new URLSearchParams(location.search).has('pursuitDebug'), audio: () => s.audio?.A ?? null,
         game: {
-          rating: rating ?? 400,
+          rating: rating ?? 400, peer, remote,
           ready: () => !w.spawning,
           health: () => ({ drivable: drivableNow, condition: conditionNow }),
           async buildPolice({ rating: target, seed }) {
@@ -387,6 +388,14 @@ function questGame(w) {
       w.rig.reset();
     },
     simTime: () => w.sim.time,
+    // (a co-op pursuit: the party's leader starts it — the hub makes its race room and takes the party there: docs/PURSUIT.md)
+    partyStart(item) {
+      const M = s.mpS;
+      if (!M) { s.flash.show(t('pursuit.partyOnly'), 'warn', 3); return { ok: false, error: 'no multiplayer' }; }
+      M.hubSend({ t: 'party-pursuit', questId: item.id });
+      s.flash.show('Starting the co-op pursuit with your party…', 'ok', 3);
+      return { ok: true, party: true };
+    },
     endPursuit(P) { P.dispose(); if (w.pursuit === P) w.pursuit = null; w.pursuitFx = null; },
     endRace(race) {
       for (const r of race.npcs) { const vis = w.others.get(r.carId); if (vis) { dropCar(vis); w.others.delete(r.carId); } }
@@ -1353,10 +1362,11 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    let input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.cinematic ? () => w.quests.cinematicInput(w.sim.dt) : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    let input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.cinematic ? () => w.quests.cinematicInput(w.sim.dt) : shared.mpRace?.cinematic ? () => shared.mpRace.cinematicInput(w.sim.dt) : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
     // (a quest over: the car braked to a stop and held while its results show — play/questUi.js stopInput)
     // (a cinematic just handed over: its AI's input eased into yours — no lurch as the car becomes yours: play/questUi.js)
     if (!paused && w.quests?.handingOver) { const was = input; input = (start, end) => w.quests.handover(typeof was === 'function' ? was(start, end) : was); }
+    else if (!paused && shared.mpRace?.handingOver) { const was = input; input = (start, end) => shared.mpRace.handover(typeof was === 'function' ? was(start, end) : was); }
     if (!paused && w.quests?.stopping) { const was = input; input = (start, end) => w.quests.stopInput(typeof was === 'function' ? was(start, end) : was); }
     // (a multiplayer race keeps real time on a computer that draws slowly: the physics catches up to a second a frame)
     const simSeconds = shared.simFrameCap ? Math.min(Math.max((now - (shared.lastSim ?? now)) / 1000, 0), shared.simFrameCap) : seconds;
@@ -3010,6 +3020,30 @@ function mpRaceGame() {
       return { course, hash: course.trackHash };
     },
     adapters: () => active.questGame.adapters(),
+    // (a co-op police pursuit: the police in the room's hands — play/pursuitPlay.js net; docs/PURSUIT.md) a teammate's car
+    // and a police car the room draws, by the race's connection; the search area and the police on the maps
+    startCoopPursuit: ({ quest, course, session, net }) => {
+      const carOf = id => shared.mpRace?.drawn?.car(id), netOf = uid => [...(shared.mpS?.race?.net.players.values() ?? [])].find(p => p.uid === uid)?.id;
+      const rating = active.questGame.carSummary(shared.session.player.profile.currentCar)?.rating ?? null;
+      return active.questGame.startPursuit({ quest, course, session, rating, net,
+        peer: uid => { const c = carOf(netOf(uid)), p = c?.pose; if (!p) return null; const v = p.vel ?? [0, 0, 0]; return { x: p.pos[0], z: p.pos[2], vx: v[0], vz: v[2], speed: Math.hypot(v[0], v[2]) }; },
+        remote: id => { const c = carOf(id); return c?.handle?.vis ? { vis: c.handle.vis, pose: c.pose } : null; } });
+    },
+    endCoopPursuit: P => active?.questGame.endPursuit(P),
+    cinematic: async name => { shared.cinematics ??= await fetch('data/cinematics.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => ({})); return shared.cinematics[name] ?? null; },
+    cinePose: () => active?.questGame.carPose(),
+    pursuitMap: n => {
+      const S = active?.stream, M = active?.maps;
+      if (!S || !M?.setLines) return;
+      const ll = (x, z) => { const [lat, lon] = S.projection.toLatLon(x, z); return [lon, lat]; }, f = [];
+      if (!n) { M.setLines([]); return; }
+      const C = n.cooldown;
+      if (C && n.phase === 'cooldown') { const ring = []; for (let k = 0; k <= 48; k++) { const a = k / 48 * Math.PI * 2; ring.push(ll(C.x + Math.cos(a) * C.radius, C.z + Math.sin(a) * C.radius)); } f.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] }, properties: { kind: 'search', colour: '#ff9f1a' } }); }
+      for (const u of n.units ?? []) if (u.pos && u.mode !== 'out') f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: ll(u.pos[0], u.pos[2]) }, properties: { kind: 'police', colour: u.mode === 'block' ? '#4fc3f7' : '#ff3b4a' } });
+      const drop = n.coop?.me?.drop;
+      if (drop) f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: ll(drop.x, drop.z) }, properties: { kind: 'pin', colour: '#1fb6ff' } });
+      M.setLines(f);
+    },
     dressing: course => createRouteDressing({ THREE, parent: active.stream.world, compiled: course, guides: course.guides, palette: paletteOf(shared.prefs?.palette), style: guideStyle(shared.prefs?.guides) }),
     drawCars: (net, { label }) => joinMultiplayer({ account: null, world: 'race', look: null, adapter: A(), net, label, spread: false }),
     localState() {

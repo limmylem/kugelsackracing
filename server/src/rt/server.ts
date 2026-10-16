@@ -19,6 +19,7 @@ import { NET } from '../../../net/settings.js';
 import { CODES } from '../../../net/protocol.js';
 import { TestRoom, setRtEnv, resetKicks, drain } from './room.ts';
 import { pending } from './outbox.ts';
+import { PursuitRoom } from './pursuit.ts';
 import { RaceRoom } from './race.ts';
 import { QueueRoom } from './queue.ts';
 import { HubRoom } from './hub.ts';
@@ -57,6 +58,8 @@ export async function startRt(o: RtOptions) {
   server.define('test', TestRoom).filterBy(['world']);
   // (Phase 7 Step 2: lobbies and races, the quick-race queue per region, the hub — friends, invites, parties)
   server.define('race', RaceRoom);
+  // (co-op police pursuits: a party's — docs/PURSUIT.md)
+  server.define('pursuit', PursuitRoom);
   server.define('queue', QueueRoom).filterBy(['region']);
   server.define('hub', HubRoom);
   // (Phase 7 Step 4: free roam — a room per instance of a zone of a region; docs/FREE_ROAM.md)

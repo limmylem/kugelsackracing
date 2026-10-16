@@ -28,7 +28,7 @@ import { createAutopilot } from '../route/autopilot.js';
 import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf, levelProgress, SCORE_TYPES } from '../quest/rules.js';
 import { PURSUIT_TYPES } from '../quest/types/pursuit.js';
 import { carWarning, starsText } from '../quest/difficulty.js';
-import { rewardsOf } from '../content/quests.js';
+import { rewardsOf, TYPES } from '../content/quests.js';
 import { fmtTime, fmtDelta } from '../quest/timing.js';
 import { questState, bestOf } from '../garage/player/quests.js';
 import { ghostAt } from '../track/events/ghost.js';
@@ -335,6 +335,11 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   // ---------- starting ----------
   async function start(item, { restart = false, ghost = undefined } = {}) {
     if (run && !restart) return { ok: false, error: 'A quest is under way.' };
+    // (a party's quest — a co-op pursuit: started by the party's leader, the whole party taken into its race room)
+    if (TYPES[item.type]?.party) {
+      if (!game.partyStart) { game.say(t('pursuit.partyOnly'), 'warn'); return { ok: false, error: 'party only' }; }
+      return game.partyStart(item);
+    }
     // (a quest is played where it is: driven to, never jumped to)
     const far = restart ? null : farFrom(item);
     if (far != null && far > START_M) { game.say('Drive to the quest\'s start to play it', 'warn'); return { ok: false, error: 'far' }; }
