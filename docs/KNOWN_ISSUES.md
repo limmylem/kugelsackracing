@@ -54,7 +54,7 @@ fit.known: each with where, how many places and how to fix it) so a player who h
 - **Roll cages** (bolt-in and welded) in the Brute 500, Hana Roadster and Ridgeback 4x4: the cage finder finds no clear
   plane behind the seats, so the cage meets the side trim. The Hana Roadster's **roll hoop** too.
 - **The race harness** in the Apex V8, Ridgeback 4x4, Strada Evo and Vortex R: its belts meet the seat back or the shelf.
-- **The strut braces** under the Ridgeback 4x4's bonnet, **the short shifter** in its console, and **the Brute 500's V8**
+- **The strut braces** under the Ridgeback 4x4's bonnet, and **the Brute 500's V8**
   swapped into the Kaze GT and the Ridgeback 4x4 (taller than their bonnets).
 - Small touches, a few places each: **the 19" rims** on the Kaze GT and Vortex R (their barrels meet the rear bulkhead,
   which runs up to the tyre as on the starter coupe, whose own 17" rims meet it the same way), **the cat-back exhausts**

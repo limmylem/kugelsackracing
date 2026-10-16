@@ -150,6 +150,7 @@ export async function coupeCar(D) {
   }
   clearWheels(doc, body, D);
   clearEngineRoom(doc, body, D, mid);
+  onConsole(body, named('socket_shifter'));
   for (const n of orphans) { for (const c of n.listChildren()) top.addChild(c); n.dispose(); }
   if (named('panel_boot') && named('panel_boot').getParentNode() === top) mergeInto(named('panel_boot'), body);
 
@@ -160,6 +161,31 @@ export async function coupeCar(D) {
   const paint = root.listMaterials().find(m => m.getName() === 'paint');
   if (paint && D.paint) paint.setBaseColorFactor(linear(D.paint));
   return doc;
+}
+
+// The shifter socket on the reshaped console, where the gear lever comes out of it: the map moves the console a few mm
+// off the lever's foot, so the socket goes down (or up) to the console's top under a shifter's plate (±6 × ±7 cm),
+// 2 mm clear of it — a shifter fitted sits on it, not in it or over it
+function onConsole(body, socket) {
+  if (!body || !socket) return;
+  const [x0, y0, z0] = socket.getTranslation(), tops = [];
+  for (const [dx, dz] of [[0, 0], [0.06, 0.07], [0.06, -0.07], [-0.06, 0.07], [-0.06, -0.07]]) {
+    const x = x0 + dx, z = z0 + dz;
+    let top = -Infinity;
+    for (const prim of body.getMesh().listPrimitives()) {
+      const pos = prim.getAttribute('POSITION'), idx = prim.getIndices(), n = idx ? idx.getCount() : pos.getCount(), P = i => pos.getElement(idx ? idx.getScalar(i) : i, []);
+      for (let t = 0; t < n; t += 3) {
+        const [A, B, C] = [P(t), P(t + 1), P(t + 2)], d = (B[0] - A[0]) * (C[2] - A[2]) - (C[0] - A[0]) * (B[2] - A[2]);
+        if (Math.abs(d) < 1e-12) continue;
+        const u = ((x - A[0]) * (C[2] - A[2]) - (C[0] - A[0]) * (z - A[2])) / d, w = ((B[0] - A[0]) * (z - A[2]) - (x - A[0]) * (B[2] - A[2])) / d;
+        if (u < 0 || w < 0 || u + w > 1) continue;
+        const y = A[1] + u * (B[1] - A[1]) + w * (C[1] - A[1]);
+        if (y < y0 + 0.04 && y > y0 - 0.04) top = Math.max(top, y);
+      }
+    }
+    if (top > -Infinity) tops.push(top);
+  }
+  if (tops.length) socket.setTranslation([x0, +(Math.max(...tops) + 0.002).toFixed(3), z0]);
 }
 
 // Where a panel's socket goes: as far across the reshaped panel, along each axis, as the coupe's is across the coupe's panel
