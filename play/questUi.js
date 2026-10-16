@@ -625,6 +625,12 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       // (the maps come a moment after the world: told once where a click on an empty spot goes)
       if (w.maps && w.maps !== placeFed) { placeFed = w.maps; w.maps.onPlace?.(askPlace); }
       if (!run) return;
+      // (over: braked, then held where it stopped — or 4 s on at the most — so nothing, not even another car finishing
+      // behind, sends it on; let go when the results are closed: the adapters' dispose)
+      if (this.stopping) {
+        run.stopT = (run.stopT ?? 0) + realDt;
+        if (Math.abs(game.carNow()?.forward ?? 0) < 2 || run.stopT > 4) run.adapters.hold?.();
+      }
       run.adapters.frame?.();
       const car = game.carNow();
       run.dressing.update(car.x, car.z);
