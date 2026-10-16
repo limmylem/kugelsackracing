@@ -1252,6 +1252,8 @@ function frame(w, now) {
   // the race replay (after a race): it's what's drawn, and the world waits
   if (shared.raceReplay) { if (raceReplayFrame(w, now, seconds)) { PF.lap('render'); PF.frameEnd(); return; } }
   // a crash replay playing (or due): it's what's drawn, and the world waits
+  // (a quest's finish line crossed: no crash shown — a replay a crash just before it had queued is dropped)
+  if (shared.replayDue && !shared.replay && w.quests?.over) shared.replayDue = null;
   if (shared.replay || (shared.replayDue && now >= shared.replayDue.at)) { if (replayFrame(w, now, seconds, inp)) { PF.lap('render'); PF.frameEnd(); return; } }
   for (const act of inp.pressed) handleAction(w, act, inp);
   PF.lap('input');
