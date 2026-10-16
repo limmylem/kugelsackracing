@@ -6,13 +6,13 @@
 //     height in [yLo, yHi])?
 //   const X = exclusionMask(model, osm, bounds, cfg, tileSize)   a raster (cfg.exclusion.cell m) per tile, bits:
 //     1 a road surface (any layer), 2 within buffer m of one, 4 under a bridge deck (its footprint + deckMargin),
-//     8 a railway or a tunnel portal
+//     8 a railway or a tunnel portal, 16 (Map v5) the road's kerbs, verges, footpaths and islands
 //     X.at(x, z) → bits   X.tile(i, j) → { n, cell, data } (the tile's grid, for the file and the debug view)
 //     X.crownFree(x, z, r) → nothing masked under a crown of radius r there (trees)
 
 import type { OsmData } from '../bake/osmData.ts';
 
-export const MASK = { road: 1, buffer: 2, deck: 4, rail: 8 } as const;
+export const MASK = { road: 1, buffer: 2, deck: 4, rail: 8, side: 16 } as const;
 
 export function surfaceIndex(model: any, cell = 4) {
   const M = model.surface.mesh, P = M.positions, I = M.indices, grid = new Map<number, number[]>();
@@ -30,20 +30,23 @@ export function surfaceIndex(model: any, cell = 4) {
     return l1 * P[a + 1] + l2 * P[b + 1] + l3 * P[c + 1];
   };
   const heightsAt = (x: number, z: number) => {
-    const out: { y: number; level: number; seg: number }[] = [];
-    for (const t of grid.get(key(Math.floor(x / cell), Math.floor(z / cell))) ?? []) { const y = inTri(t, x, z); if (y != null) out.push({ y, level: M.level[t / 3], seg: M.seg[t / 3] }); }
+    const out: { y: number; level: number; seg: number; part: number }[] = [];
+    for (const t of grid.get(key(Math.floor(x / cell), Math.floor(z / cell))) ?? []) { const y = inTri(t, x, z); if (y != null) out.push({ y, level: M.level[t / 3], seg: M.seg[t / 3], part: M.part?.[t / 3] ?? 0 }); }
     return out;
   };
   // (within r: the point and a ring of points round it — enough at the scales used: a trunk, a lamp's foot, a rail)
-  const near = (x: number, z: number, r = 0, yLo = -Infinity, yHi = Infinity) => {
+  // (Map v5: the road itself only — its kerbs, verges and footpaths (part > 0) are where lamps and signs stand — unless
+  // any)
+  const near = (x: number, z: number, r = 0, yLo = -Infinity, yHi = Infinity, any = false) => {
     const pts = r > 0 ? [[0, 0], ...Array.from({ length: 8 }, (_, a) => [Math.cos(a * Math.PI / 4) * r, Math.sin(a * Math.PI / 4) * r])] : [[0, 0]];
-    return pts.some(([dx, dz]) => heightsAt(x + dx, z + dz).some(h => h.y >= yLo && h.y <= yHi));
+    return pts.some(([dx, dz]) => heightsAt(x + dx, z + dz).some(h => h.y >= yLo && h.y <= yHi && (any || !h.part)));
   };
   // the solid road triangles over a box (plan [[x, z]×3] and their heights' range), for cutting colliders off the road
+  // (the road and its kerbs: Map v5's verges and footpaths are cut round the buildings already)
   const trianglesIn = (x0: number, z0: number, x1: number, z1: number) => {
     const seen = new Set<number>(), out: { pts: number[][]; yLo: number; yHi: number }[] = [];
     for (let a = Math.floor(x0 / cell); a <= Math.floor(x1 / cell); a++) for (let b = Math.floor(z0 / cell); b <= Math.floor(z1 / cell); b++) for (const t of grid.get(key(a, b)) ?? []) {
-      if (seen.has(t)) continue;
+      if (seen.has(t) || (M.part?.[t / 3] ?? 0) > 1) continue;
       seen.add(t);
       const v = [I[t], I[t + 1], I[t + 2]];
       out.push({ pts: v.map(q => [P[q * 3], P[q * 3 + 2]]), yLo: Math.min(...v.map(q => P[q * 3 + 1])), yHi: Math.max(...v.map(q => P[q * 3 + 1])) });
@@ -89,6 +92,8 @@ export function exclusionMask(model: any, osm: OsmData, bounds: [number, number,
   const roadCells: number[] = [], deckCells: number[] = [];
   for (let t = 0; t < I.length; t += 3) {
     if (!M.solid[t / 3]) continue;
+    // (Map v5's kerbs, verges, footpaths and islands: the road's corridor, not its lanes — no buffer round them)
+    if (M.part?.[t / 3]) { fill(t, (x, z) => { if (inBounds(x, z)) set(x, z, MASK.side); }); continue; }
     fill(t, (x, z) => { if (!inBounds(x, z)) return; set(x, z, MASK.road); roadCells.push(x, z); if (M.level[t / 3] === 1) deckCells.push(x, z); });
     // (a thin triangle with no cell middle in it still marks the cell its own middle is in)
     const mx = (P[I[t] * 3] + P[I[t + 1] * 3] + P[I[t + 2] * 3]) / 3, mz = (P[I[t] * 3 + 2] + P[I[t + 1] * 3 + 2] + P[I[t + 2] * 3 + 2]) / 3;

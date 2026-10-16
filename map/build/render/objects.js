@@ -9,6 +9,8 @@
 import * as THREE from 'three';
 import { barrierInstances, barrierShape, quatYawPitch } from "../format/barriers.js";
 import { lampObjects } from "./lamps.js";
+import { furnitureObjects, brandObjects } from "./furniture.js";
+import { facadeMaterial } from "./facades.js";
 // ---------- shared materials (one each for the whole world) ----------
 let M = null;
 function windowTexture(kind) {
@@ -153,14 +155,18 @@ export function materials() {
         roads: lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
         // (Map v4's road surface: its kerb faces, skirts and decks' sides are one-sided pieces seen from either way)
         roadsV4: lambert({ flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
+        roadsV5: lambert({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }),
         paved: holed(lambert({ flatShading: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })),
         markings: lambert({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
         cover: holed(lambert({})),
         water: new THREE.MeshPhongMaterial({ color: '#3f7fb0', specular: '#9fc4e0', shininess: 60, transparent: true, opacity: 0.88, depthWrite: false }),
         roofs: lambert({ flatShading: true }),
         walls: Object.fromEntries(['house', 'block', 'tower', 'plain'].map(k => [k, lambert({ flatShading: true, map: windowTexture(k) })])),
+        // (Map v5: every building's walls from one facade atlas — map/render/facades.ts)
+        wallsV5: facadeMaterial(srgbVertexColours),
         canopy: holedInstances(new THREE.MeshLambertMaterial({ color: '#4d7a37', flatShading: true })),
         conifer: holedInstances(new THREE.MeshLambertMaterial({ color: '#3d6534', flatShading: true })),
+        plant: holedInstances(new THREE.MeshLambertMaterial({ color: '#6f8a3e', flatShading: true })),
         trunk: holedInstances(new THREE.MeshLambertMaterial({ color: '#6b4f36' })),
         barrier: {},
         post: holedInstances(new THREE.MeshLambertMaterial({ color: '#8d9296' })),
@@ -273,7 +279,7 @@ function textAtlas(items) {
     texture.anisotropy = 8;
     return { texture, rects };
 }
-function geometryOf(m, { normals = false, up = false } = {}) {
+function geometryOf(m, { normals = false, up = false, smooth = false } = {}) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(m.positions, 3));
     // (flat on the road: markings face straight up)
@@ -290,10 +296,14 @@ function geometryOf(m, { normals = false, up = false } = {}) {
     if (normals && m.normals)
         g.setAttribute('normal', new THREE.BufferAttribute(m.normals, 3));
     g.setIndex(new THREE.BufferAttribute(m.indices, 1));
+    // (Map v5's roads: each vertex's normal the area-weighted mean of its triangles' — a sliver the surface's T-junction
+    // repair leaves along a kerb is lit as the road round it, not by its own few-millimetre-wide face)
+    if (smooth)
+        g.computeVertexNormals();
     g.computeBoundingSphere();
     return g;
 }
-export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
+export function tileObjects(tile, { barriers: B, lamps: lampCfg = null, furniture: furnCfg = null }) {
     const mat = materials(), group = new THREE.Group(), owned = [];
     group.name = `tile ${tile.header.key}`;
     const mesh = (name, material, o = {}) => {
@@ -312,16 +322,18 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
         return obj;
     };
     const terrain = [0, 1, 2].map(k => mesh(`terrain${k}`, mat.terrain, { normals: true }));
-    const v4 = tile.header.map === 'v4';
-    const near = [mesh('roads', v4 ? mat.roadsV4 : mat.roads), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
+    const v4 = tile.header.map === 'v4' || tile.header.map === 'v5';
+    const v5 = tile.header.map === 'v5';
+    const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
     mesh('water', mat.water, { normals: true, order: 2 });
-    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true }))].filter(Boolean);
+    const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true })].filter(Boolean);
     // trees
     const trees = new THREE.Group(), T = tile.lists.trees;
     if (T) {
-        const kinds = [[], []];
+        // (kinds: 0 broadleaf, 1 conifer, 2 a low garden plant — Map v5's roundabout beds)
+        const kinds = [[], [], []];
         for (let k = 0; k < T.data.length; k += 5)
-            kinds[T.data[k + 4] ? 1 : 0].push(k);
+            kinds[Math.min(2, T.data[k + 4] | 0)].push(k);
         const sh = shapes(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
         kinds.forEach((list, kind) => {
             if (!list.length)
@@ -333,13 +345,18 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
                 const b = r % (a + 1);
                 [list[a], list[b]] = [list[b], list[a]];
             }
-            const top = new THREE.InstancedMesh(kind ? sh.conifer : sh.canopy, kind ? mat.conifer : mat.canopy, list.length), trunk = new THREE.InstancedMesh(sh.trunk, mat.trunk, list.length);
+            const conifer = kind === 1, plant = kind === 2;
+            const top = new THREE.InstancedMesh(conifer ? sh.conifer : sh.canopy, conifer ? mat.conifer : plant ? mat.plant : mat.canopy, list.length), trunk = new THREE.InstancedMesh(sh.trunk, mat.trunk, list.length);
             list.forEach((k, n) => {
                 const sc = T.data[k + 3] * 4;
                 q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), k * 2.39);
-                m4.compose(p.set(T.data[k], T.data[k + 1] + sc * (kind ? 0.35 : 0.55), T.data[k + 2]), q, s.set(sc * (kind ? 0.55 : 0.75), sc * (kind ? 1 : 0.7), sc * (kind ? 0.55 : 0.75)));
+                // (a plant: a low mound on the ground, no trunk to speak of)
+                if (plant)
+                    m4.compose(p.set(T.data[k], T.data[k + 1] + sc * 0.18, T.data[k + 2]), q, s.set(sc * 0.6, sc * 0.4, sc * 0.6));
+                else
+                    m4.compose(p.set(T.data[k], T.data[k + 1] + sc * (conifer ? 0.35 : 0.55), T.data[k + 2]), q, s.set(sc * (conifer ? 0.55 : 0.75), sc * (conifer ? 1 : 0.7), sc * (conifer ? 0.55 : 0.75)));
                 top.setMatrixAt(n, m4);
-                m4.compose(p.set(T.data[k], T.data[k + 1], T.data[k + 2]), q, s.set(1, sc * (kind ? 0.5 : 0.6), 1));
+                m4.compose(p.set(T.data[k], T.data[k + 1], T.data[k + 2]), q, s.set(plant ? 0.01 : 1, plant ? 0.01 : sc * (conifer ? 0.5 : 0.6), plant ? 0.01 : 1));
                 trunk.setMatrixAt(n, m4);
             });
             top.castShadow = true;
@@ -373,6 +390,14 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
     const lamps = tile.lists.lamps?.data.length ? lampObjects(tile, lampCfg) : null;
     if (lamps)
         group.add(lamps.group);
+    // street furniture (Map v5: map/render/furniture.ts)
+    const furn = tile.lists.furniture?.data.length || tile.lists.wires?.data.length ? furnitureObjects(tile, furnCfg) : null;
+    if (furn)
+        group.add(furn.group);
+    // the chains' sites and the buildings' sign bands (Map v5)
+    const brands = tile.lists.furniture?.data.length || tile.lists.shopSigns?.data.length ? brandObjects(tile, furnCfg) : null;
+    if (brands)
+        group.add(brands.group);
     // street names on the roads, signs at junctions (made when near)
     let labels = null;
     const makeLabels = () => {
@@ -452,6 +477,8 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
             trees.visible = d < 700;
             rails.visible = d < 900;
             lamps?.setDetail(d);
+            furn?.setDetail(d);
+            brands?.setDetail(d);
             if (d < 360 && !labels)
                 makeLabels();
             if (labels)
@@ -463,6 +490,8 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null }) {
             trees.traverse((o) => o.dispose?.());
             rails.traverse((o) => o.dispose?.());
             lamps?.dispose();
+            furn?.dispose();
+            brands?.dispose();
             labels?.traverse(o => { if (!o.isInstancedMesh)
                 o.geometry?.dispose?.(); if (o.material?.map)
                 o.material.dispose(); });

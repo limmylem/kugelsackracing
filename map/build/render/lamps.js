@@ -42,7 +42,7 @@ function shared(cfg) {
         // (by day a grey lens; after dark the lamp's own colour, unlit by the scene)
         lens: new THREE.MeshBasicMaterial({ color: '#9aa0a6' }),
         glow: new THREE.PointsMaterial({ map: glowTex, color: warm, size: C.glowSize * 2.4, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }),
-        pools: new THREE.MeshBasicMaterial({ map: poolTex, color: warm, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }),
+        pools: new THREE.MeshBasicMaterial({ map: poolTex, color: C.poolColour ? new THREE.Color(C.poolColour) : warm, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }),
         night: -1,
     };
     return S;
@@ -67,7 +67,8 @@ function setNight(night) {
     S.lens.color.set('#9aa0a6').lerp(S.warm, night).multiplyScalar(1 + night * 1.5);
     S.glow.opacity = Math.min(1, night * 1.1);
     S.glow.visible = night > 0.02;
-    S.pools.opacity = 0.26 * night;
+    // (Map v5's lamps are brighter: their pools as strong as poolOpacity — the manifest's lamps; Map v4's 0.26)
+    S.pools.opacity = Math.min(1, (S.C.poolOpacity ?? 0.26) * night);
     S.pools.visible = night > 0.02;
 }
 export function lampObjects(tile, cfg) {

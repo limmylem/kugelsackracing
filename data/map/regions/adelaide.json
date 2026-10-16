@@ -112,5 +112,65 @@
       "lon": 138.623,
       "bearing": 90
     }
-  ]
+  ],
+  "demV5": {
+    "_note": "Map v5's elevation (map/bake/elevationV5.ts; MAP_V5_DIAGNOSIS.md): best first. lidar-local: GeoTIFFs dropped into .cache/map/dem/<dir>/ (ELVIS's 1 m DEM; MGA zone 54, AHD) \u2014 none yet; terrain-tiles: Geoscience Australia's 5 m LiDAR DEM through AWS's terrain tiles, only where it's the 5 m data itself (native) and agrees with the 30 m models at its survey's edge; copernicus: Copernicus GLO-30 (a surface model; corrected under buildings and roads), its canopy capped by dems (GA's vegetation-removed DEM-S). crs: the source's own with its vertical datum, converted to EGM2008 by PROJ (AUSGeoid2020 for AHD, the EGM96 grid for EGM96: .cache/map/proj/).",
+    "sources": [
+      {
+        "name": "ELVIS LiDAR 1 m",
+        "kind": "lidar-local",
+        "dir": "elvis",
+        "crs": "EPSG:7854+5711",
+        "resolution": 1,
+        "ground": "dtm",
+        "role": "lidar",
+        "datum": "GDA2020 / MGA zone 54, AHD heights",
+        "conversion": "AHD \u2192 EGM2008 via AUSGeoid2020 (PROJ)",
+        "licence": "CC BY 4.0",
+        "attribution": "Elevation \u00a9 Government of South Australia, via ELVIS (Geoscience Australia)"
+      },
+      {
+        "name": "GA LiDAR 5 m",
+        "kind": "terrain-tiles",
+        "url": "https://elevation-tiles-prod.s3.amazonaws.com/geotiff",
+        "zoom": 14,
+        "crs": "EPSG:3857+5711",
+        "resolution": 5,
+        "native": true,
+        "ground": "dtm",
+        "role": "lidar",
+        "datum": "WGS84 Web Mercator, AHD heights",
+        "conversion": "AHD \u2192 EGM2008 via AUSGeoid2020 (PROJ)",
+        "licence": "CC BY 4.0",
+        "attribution": "Digital Elevation Model of Australia derived from LiDAR 5 Metre Grid \u00a9 Commonwealth of Australia (Geoscience Australia), via the Mapzen/AWS terrain tiles"
+      },
+      {
+        "name": "Copernicus GLO-30",
+        "kind": "glo30",
+        "crs": "EPSG:4326+3855",
+        "resolution": 30,
+        "ground": "dsm",
+        "role": "copernicus",
+        "datum": "WGS84, EGM2008 heights",
+        "conversion": "EGM2008 already (no shift)",
+        "licence": "Copernicus DEM licence (free, attribution)",
+        "attribution": "Copernicus DEM \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA"
+      },
+      {
+        "name": "GA DEM-S 1 second",
+        "kind": "cog-window",
+        "url": "https://dea-public-data.s3.ap-southeast-2.amazonaws.com/projects/elevation/ga_srtm_dem1sv1_0/dems1sv1_0.tif",
+        "dir": "ga-dems",
+        "file": "dems1sv1_0",
+        "crs": "EPSG:4326+5773",
+        "resolution": 30,
+        "ground": "dtm (vegetation offsets removed)",
+        "role": "dems",
+        "datum": "WGS84, EGM96 heights",
+        "conversion": "EGM96 \u2192 EGM2008 (PROJ)",
+        "licence": "CC BY 4.0",
+        "attribution": "SRTM-derived 1 Second Digital Elevation Models Version 1.0 \u00a9 Commonwealth of Australia (Geoscience Australia)"
+      }
+    ]
+  }
 }

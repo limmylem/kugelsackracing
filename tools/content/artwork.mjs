@@ -141,6 +141,13 @@ DRAW.anti_roll_bar_front = (m, c) => {
   for (const x of [-0.17, 0.17]) m.add(box([x - 0.025, -0.03, -0.025], [x + 0.025, 0.03, 0.025]), { colour: 'dark' });
 };
 DRAW.anti_roll_bar_rear = DRAW.anti_roll_bar_front;
+// (a wheel leaning in on its hub, and the slotted plate that sets it)
+DRAW.camber = (m, c) => {
+  const lean = 0.18;
+  m.add(ring(0.16, 0.22, 0.09, 'x').map(t => t.map(([x, y, z]) => [x * Math.cos(lean) - y * Math.sin(lean), x * Math.sin(lean) + y * Math.cos(lean), z])), { colour: 'dark' });
+  m.add(box([-0.2, 0.25, -0.12], [0.2, 0.28, 0.12]), { colour: c });
+  for (const x of [-0.12, 0, 0.12]) m.add(box([x - 0.02, 0.28, -0.06], [x + 0.02, 0.29, 0.06]), { colour: 'dark' });
+};
 DRAW.lift_kit = (m, c) => {
   m.add(sweep(helix(0.06, 0.3, 6), 0.01, 6), { colour: c });
   m.add(disc(0.08, 0.04, 'y').map(t => t.map(q => [q[0], q[1] - 0.19, q[2]])), { colour: 'dark' });

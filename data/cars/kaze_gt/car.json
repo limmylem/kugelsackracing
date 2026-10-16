@@ -499,6 +499,16 @@
       "blockedBy": []
     },
     {
+      "name": "socket_camber",
+      "slot": "camber",
+      "required": false,
+      "position": [0, 0.463, -0.035],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
       "name": "socket_brakes",
       "slot": "brakes",
       "required": true,

@@ -63,7 +63,7 @@ import { createNetwork } from '../route/network.js';
 import { gunzipJson } from '../editor/roads.js';
 import { createSimulation } from '../physics/sim.js';
 import { createReplayWheels } from '../race/replayWheels.js';
-import { axisAngle, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
+import { axisAngle, camberOf, modelRig, nodeBoxes, quatMul, socketsFromGlb, wheelTransform } from '../physics/sockets.js';
 import { roadCenterline, roadLine, terrainOf, trackShapes } from '../physics/track.js';
 // the game's sound (Phase 8 Step 1; docs/AUDIO.md): one system for everything, your car and every other one through it
 import { startAudio as startSound, audioSettings, audioSystem } from '../audio/system.js';
@@ -160,7 +160,8 @@ export const realWorldFile = () => lastRealFile;
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
 // the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
 let baked = null;
-const mapV3Wanted = () => { try { return new URLSearchParams(location.search).get('map') === 'v3' || localStorage.getItem('map.version') === 'v3'; } catch { return false; } };
+// (?map=v3 / v4 / v5 in the address — or localStorage map.version — a region's other bake, kept beside it for comparing)
+const mapWanted = () => { try { const v = new URLSearchParams(location.search).get('map') ?? localStorage.getItem('map.version'); return /^v[345]$/.test(v ?? '') ? v : null; } catch { return null; } };
 const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
 const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
 const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
@@ -567,7 +568,7 @@ function replayWheels(RR, vis, id, p, t) {
   const { spin, steer } = RR.wheels.at(id, p, t);
   for (const [name, v] of Object.entries(vis.wheelVis ?? {})) {
     if (!v?.pivot || !v.rig) continue;
-    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0);
+    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0, camberOf(shared.spec, name));
     v.pivot.quaternion.fromArray(tr.rotation);
     v.pivot.position.fromArray(tr.position);
     vis.setWheelSpin?.(name, v.rig.axle, spin);
@@ -1039,9 +1040,10 @@ async function buildWorld(file) {
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
   if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
-  // (Map v4's regions: ?map=v3 in the address — or localStorage map.version = v3 — loads the region's Map v3 bake, kept
-  // beside it for comparing; off by default)
-  if (track.mapV3?.manifest.endsWith('/v4/manifest.json') && mapV3Wanted()) track.mapV3 = { ...track.mapV3, manifest: track.mapV3.manifest.replace(/\/v4\/manifest\.json$/, '/manifest.json') };
+  // (a region baked as Map v4 or v5: ?map=v3, v4 or v5 in the address — or localStorage map.version — loads that bake
+  // of it instead, kept beside the default for comparing; off by default. Map v3's is the region's own manifest)
+  const wantMap = mapWanted();
+  if (wantMap && /\/v[45]\/manifest\.json$/.test(track.mapV3?.manifest ?? '')) track.mapV3 = { ...track.mapV3, manifest: track.mapV3.manifest.replace(/\/v[45]\/manifest\.json$/, wantMap === 'v3' ? '/manifest.json' : `/${wantMap}/manifest.json`) };
   // (the baked regions' files are on the tiles address when there is one — docs/DEPLOYMENT.md: everything that
   // streams in finds its files from here)
   if (track.mapV3) track.mapV3 = { ...track.mapV3, manifest: assetUrl(track.mapV3.manifest) };
@@ -2610,7 +2612,7 @@ function placeCar(vis, a, b, alpha) {
     const wa = a.wheels[i], v = vis.wheelVis[wb.name];
     if (!v?.pivot || wb.off) return;
     const drop = (W.mountHeight?.[W.front.includes(wb.name) ? 'front' : 'rear'] ?? 0) - lerp(wa.length, wb.length) + (W.radius - (wb.radius ?? W.radius)), spin = lerp(wa.spin, wb.spin);
-    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0);
+    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0, camberOf(shared.spec, wb.name));
     let q = t.rotation;
     if (wb.bend) { const r = v.rig, f = [r.axle[1] * r.up[2] - r.axle[2] * r.up[1], r.axle[2] * r.up[0] - r.axle[0] * r.up[2], r.axle[0] * r.up[1] - r.axle[1] * r.up[0]]; q = quatMul(axisAngle(f, 1.5 * wb.bend / 1000 / (W.rimRadius ?? W.radius) * Math.sin(spin)), q); }
     v.pivot.quaternion.fromArray(q);

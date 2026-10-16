@@ -13,6 +13,7 @@
   "requires": [],
   "conflicts": [],
   "provides": [],
+  "hides": ["gear_lever"],
   "_note": "A shorter gear lever throw: every shift a quarter quicker.",
   "bounds": {
     "min": [-0.06, 0, -0.07],

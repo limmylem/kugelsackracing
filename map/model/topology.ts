@@ -52,7 +52,7 @@ export function rowPoints(r: any) {
 
 export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
   const J = cfg.junctions, W = cfg.widths, gcfg = cfg.graph;
-  for (const g of G.segs) prepareNormals(g);
+  for (const g of G.segs) prepareNormals(g, 1.6, gcfg.normalSmooth ?? 0);
   const stats: any = { junctions: 0, joints: 0, ends: 0, clusters: 0, merged: 0, clamped: 0, extended: 0, unresolvedCorners: 0, unionFailures: 0, crossTrims: 0 };
   const armsAt = (k: number) => G.nodes[k].segs.flatMap(i => { const g = G.segs[i], out: { seg: Seg; atStart: boolean }[] = []; if (g.from === k) out.push({ seg: g, atStart: true }); if (g.to === k) out.push({ seg: g, atStart: false }); return out; });
   // (each arm's direction out of its node: towards its point min(4 m, half its length) out)

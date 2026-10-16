@@ -23,7 +23,8 @@ export function terrainMeshes(tile, errors = tile.header.terrain?.lodErrors ?? [
             rows[r * N1 + c] = H[r + c * N1];
     if (!cutters.has(N1))
         cutters.set(N1, new Martini(N1));
-    // (Map v4: under and beside the roads — the tile's exclusion mask, road or its buffer — each level is cut from heights
+    // (Map v4: under and beside the roads — the tile's exclusion mask, road or its buffer, and Map v5's kerbs, verges and
+    // footpaths (16) — each level is cut from heights
     // lowered by its own error and a little more, so a coarser level's triangles never reach up through a road: the
     // grid itself (and the physics) unchanged)
     const X = tile.grids.exclusion, drop = tile.header.terrain?.roadDrop ?? 0.02, nearRoad = X ? new Uint8Array(N1 * N1) : null;
@@ -37,7 +38,7 @@ export function terrainMeshes(tile, errors = tile.header.terrain?.lodErrors ?? [
                 let hit = 0;
                 for (let b = Math.max(0, Math.floor((z - cell) / xc)); b <= Math.min(xn - 1, Math.floor((z + cell) / xc)) && !hit; b++)
                     for (let a = Math.max(0, Math.floor((x - cell) / xc)); a <= Math.min(xn - 1, Math.floor((x + cell) / xc)); a++)
-                        if (X.data[b * xn + a] & 3) {
+                        if (X.data[b * xn + a] & 19) {
                             hit = 1;
                             break;
                         }

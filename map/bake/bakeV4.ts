@@ -23,6 +23,8 @@ import { encodeGraph, GRAPH_VERSION } from '../format/graph.ts';
 import { osmExtract, run } from './sources.ts';
 import { readOsm } from './osmData.ts';
 import { bakeElevation } from './elevation.ts';
+import { bakeElevationV5 } from './elevationV5.ts';
+import { mapConfig } from './config.ts';
 import { DRIVABLE } from './roads.ts';
 import { sampleGrid } from './terrain.ts';
 import { terrainBaseV4, shapeRoadsV4 } from './terrainV4.ts';
@@ -38,6 +40,12 @@ import { treesV4, barriersV4 } from '../model/props.ts';
 import { placeLamps, roadLit, LAMP_STRIDE } from '../model/lamps.ts';
 import { checkSurface } from '../model/checks.ts';
 import { auditTile } from '../collision/audit.ts';
+import { stylePackFor } from '../style/stylePack.ts';
+import { planCrossSections, buildBands } from '../model/crossSection.ts';
+import { placeFurniture } from '../model/furniture.ts';
+import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
+import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
+import { FURNITURE_STRIDE } from '../format/furniture.ts';
 
 export const BAKE_VERSION = 4;
 const EMPTY = { positions: [], colours: [], indices: [], surfaces: [], segOf: [] }, NAMELESS = { name: null, rank: 0, width: 0, s: [0], xs: [], zs: [], h: [] };
@@ -46,23 +54,26 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 
 // blocks: { tiles, pad } in place of data/map/v4.json's bake.blockTiles / blockPad — the same tiles whatever they are
 // (tests/map/map.test.ts --map v4 checks that)
-export async function bakeV4({ regionId, area = null as string | null, out = null as string | null, blocks: blockOpt = null as null | { tiles?: number; pad?: number }, log = (s: string) => console.log(s) }) {
+// (map: 'v5' bakes Map v5 — map/bake/bakeV5.ts — on the same pipeline: data/map/v5.json over v4.json, Map v5's elevation
+// and everything Map v5 adds, into assets/map/<region>/v5/)
+export async function bakeV4({ regionId, area = null as string | null, out = null as string | null, blocks: blockOpt = null as null | { tiles?: number; pad?: number }, map = 'v4' as 'v4' | 'v5', log = (s: string) => console.log(s) }) {
   const t0 = performance.now();
   let peak = 0;
   const lap = (s: string) => { const rss = process.memoryUsage().rss / 1e9; peak = Math.max(peak, rss); log(`${s} (${((performance.now() - t0) / 1000).toFixed(0)} s, ${rss.toFixed(1)} GB)`); };
   const region = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/regions', `${regionId}.json`), 'utf8'));
-  const v3cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/bake.json'), 'utf8')), cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/v4.json'), 'utf8'));
+  const v3cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/bake.json'), 'utf8')), cfg = mapConfig(map), v5 = map === 'v5';
   const [w, s, e, n] = region.bbox, P = transverseMercator(+((s + n) / 2).toFixed(6), +((w + e) / 2).toFixed(6));
-  const cacheDir = path.join(ROOT, '.cache/map', region.id), v3dir = path.join(ROOT, 'assets/map', region.id), outDir = out ?? path.join(v3dir, 'v4');
+  const cacheDir = path.join(ROOT, '.cache/map', region.id), v3dir = path.join(ROOT, 'assets/map', region.id), outDir = out ?? path.join(v3dir, map);
   fs.mkdirSync(cacheDir, { recursive: true });
   for (const d of ['tiles', 'far']) { fs.rmSync(path.join(outDir, d), { recursive: true, force: true }); fs.mkdirSync(path.join(outDir, d), { recursive: true }); }
   const corners = [[s, w], [s, e], [n, w], [n, e]].map(([la, lo]) => P.toXZ(la, lo));
   let bounds: [number, number, number, number] = [Math.min(...corners.map(c => c[0])), Math.min(...corners.map(c => c[1])), Math.max(...corners.map(c => c[0])), Math.max(...corners.map(c => c[1]))];
-  if (area) { const [la, lo, km] = area.split(',').map(Number), [x, z] = P.toXZ(la, lo), r = km * 500; bounds = [x - r, z - r, x + r - 1e-6, z + r - 1e-6]; }
+  // (lat,lon,km: a square km across; lat,lon,kmWide,kmHigh: a rectangle)
+  if (area) { const [la, lo, km, kmH = km] = area.split(',').map(Number), [x, z] = P.toXZ(la, lo), rx = km * 500, rz = kmH * 500; bounds = [x - rx, z - rz, x + rx - 1e-6, z + rz - 1e-6]; }
   const grid = gridFor(bounds, region.tileSize, region.cell), T = grid.tileSize;
   const gx1 = grid.x0 + (grid.W - 1) * grid.cell, gz1 = grid.z0 + (grid.H - 1) * grid.cell;
   const inArea = (x: number, z: number) => x >= grid.x0 && x <= gx1 && z >= grid.z0 && z <= gz1;
-  log(`Map v4: ${region.name}, ${(grid.i1 - grid.i0 + 1) * (grid.j1 - grid.j0 + 1)} tiles of ${T} m, heights every ${grid.cell} m (${grid.W} × ${grid.H}); roads: ${cfg.model}`);
+  log(`Map ${map}: ${region.name}, ${(grid.i1 - grid.i0 + 1) * (grid.j1 - grid.j0 + 1)} tiles of ${T} m, heights every ${grid.cell} m (${grid.W} × ${grid.H}); roads: ${cfg.model}`);
 
   // 1. OpenStreetMap, and the vector map (v3's, when it's there and newer than the extract)
   const osmSrc = await osmExtract(region, { cacheDir, log });
@@ -88,19 +99,23 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     }
     fs.writeFileSync(mask, JSON.stringify({ type: 'FeatureCollection', features: feats }));
   }
-  const E = await bakeElevation({ region, grid, P, cacheDir, mask, log });
+  const E: any = v5 && region.demV5 ? await bakeElevationV5({ region, grid, P, cacheDir, mask, cfg: cfg.elevation, log }) : await bakeElevation({ region, grid, P, cacheDir, mask, log });
   const demAt = (x: number, z: number) => sampleGrid(grid, E.heights, x, z);
   // (the road model's ground: the elevation blurred over demBlur m — a 30 m source's resampling and what's left of the
   // buildings a surface model sees are no road's hills)
   // (and opened first — the least within demOpen m, then the most of that: what's left of buildings and trees, bumps
   // narrower than that, gone; slopes and hills kept)
-  let demSmooth: Float32Array | null = blurGrid(openGrid(E.heights, grid.W, grid.H, Math.max(1, Math.round(cfg.heights.demOpen / grid.cell))), grid.W, grid.H, Math.max(1, Math.round(cfg.heights.demBlur / grid.cell))), roadDemAt = (x: number, z: number) => sampleGrid(grid, demSmooth!, x, z);
-  lap(`  elevation: ${E.sources.map((d: any) => `${d.name} (${d.resolution} m; ${d.conversion})`).join(' + ')}`);
+  let demSmooth: Float32Array | null = blurGrid(openGrid(E.heights, grid.W, grid.H, Math.max(1, Math.round(cfg.heights.demOpen / grid.cell))), grid.W, grid.H, Math.max(1, Math.round(cfg.heights.demBlur / grid.cell)));
+  // (Map v5: on bare-earth LiDAR the road's ground is the DEM itself — smoothed along the road only, by the road model;
+  // the surface model's opening and 2D blur fade in only as the LiDAR's weight fades out)
+  if (v5 && cfg.heights.lidarAlongRoad && E.lidar) for (let k = 0; k < demSmooth.length; k++) { const l = E.lidar[k] / 255; if (l > 0) demSmooth[k] = l * E.heights[k] + (1 - l) * demSmooth[k]; }
+  const roadDemAt = (x: number, z: number) => sampleGrid(grid, demSmooth!, x, z);
+  lap(`  elevation: ${E.sources.map((d: any) => `${d.name} (${d.resolution} m; ${d.conversion})`).join(' + ')}${E.stats ? `; LiDAR ${(E.stats.lidarShare * 100).toFixed(1)}% of the grid (${E.stats.rejected} cells of the 5 m tiles rejected), Copernicus capped by DEM-S at ${(E.stats.cappedShare * 100).toFixed(1)}%` : ''}`);
 
   // 3. the road model for the whole area — graph, widths, junctions, heights — (the roads reaching into it, and a
   // little beyond: junctions at its edge whole); its surface is built a block at a time, below
   const pad = 600, near = (p: any) => p.x >= grid.x0 - pad && p.x <= gx1 + pad && p.z >= grid.z0 - pad && p.z <= gz1 + pad;
-  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), demAt: roadDemAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
+  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), lines: v5 ? osm.lines.filter(l => l.tags.railway && l.nodes.some(near)) : [], demAt: roadDemAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
   for (const g of model.segs) g.width = g.visual;
   demSmooth = null;
   lap(`  road model ${model.version}: ${model.segs.length} segments, ${model.clusters.length} junction patches`);
@@ -115,6 +130,40 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   const hs: Record<string, number> = {}; for (const b of buildings) hs[b.hs] = (hs[b.hs] ?? 0) + 1;
   const bays = osm.areas.filter(a => a.tags.amenity === 'parking_space').map(a => a.parts[0][0]);
   lap(`  ground (before the roads): ${Tn.water.length} water areas, ${Tn.parking.length} car parks; buildings ${buildings.length}`);
+  // (Map v5: the region's style pack, and each road side's cross-section — kerb, verge, footpath: map/model/crossSection.ts)
+  const style = v5 ? stylePackFor(region) : null;
+  const lowerAt: number[][] = [];
+  if (v5) {
+    const xs = planCrossSections({ segs: model.segs, osm, buildings, style, classAt: (x, z) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; } });
+    for (const p of osm.points) if ((p.tags.highway === 'crossing' || p.tags.kerb === 'lowered' || p.tags.kerb === 'flush') && near(p)) lowerAt.push([p.x, p.z]);
+    for (const g of model.segs) if ((g as any).driveway) for (const k of [g.from, g.to]) if (model.nodes[k].segs.some((i: number) => !(model.segs[i] as any).driveway)) lowerAt.push([model.nodes[k].x, model.nodes[k].z]);
+    lap(`  cross-sections (style ${style.name}): ${xs.sides} road sides — ${xs.mapped} mapped sidewalks (${xs.sidewalkPoints} points snapped), ${xs.tagged} tagged, ${xs.estimated} estimated, ${xs.none} none; ${xs.paved} paved to the shops; ${lowerAt.length} kerbs lowered (crossings, driveways)`);
+  }
+  // (Map v5: the chains — data/map/v5/brands.json, every parody kept away from every real name, or no bake — and what
+  // each building is: map/model/brands.ts, map/model/buildingsV5.ts)
+  let registry: any = null, outlets: any[] = [];
+  const brandSiteStats: Record<string, number> = {};
+  if (v5) {
+    registry = loadRegistry();
+    const nsi = loadNsi(), chk = checkParodies(registry, nsi, cfg.tests.brandSimilarity);
+    if (!chk.ok) throw new Error(`a parody name is too close to a real one: ${JSON.stringify(chk.worst.filter(w => w.similarity >= cfg.tests.brandSimilarity))}`);
+    const [la0, lo0] = P.toLatLon(grid.x0 - 200, gz1 + 200), [la1, lo1] = P.toLatLon(gx1 + 200, grid.z0 - 200);
+    const placeRows = await overtureRows({ release: region.overture.release, theme: 'places', type: 'place', bbox: [lo0, la0, lo1, la1], columns: ['id', 'names', 'basic_category', 'taxonomy', 'brand', 'confidence', 'operating_status'], cacheDir: path.join(ROOT, '.cache/map') });
+    const places = placeRows.map((r: any) => { const c = r.geometry?.coordinates; if (!c) return null; const [x, z] = P.toXZ(c[1], c[0]); return { ...r, x, z }; }).filter(Boolean);
+    const det = detectBrands({ registry, nsi, osm, places, cfg });
+    outlets = det.outlets;
+    // (the nearest road to a point, for each building's frontage)
+    const RC = 40, rgrid = new Map<string, number[][]>();
+    for (const g of model.segs) if (!g.internal) for (let k = 0; k + 1 < g.xs.length; k++) { const key = `${Math.floor(g.xs[k] / RC)},${Math.floor(g.zs[k] / RC)}`; (rgrid.get(key) ?? rgrid.set(key, []).get(key)!).push([g.xs[k], g.zs[k], g.xs[k + 1], g.zs[k + 1]]); }
+    const roadAt = (x: number, z: number) => { let best: any = null; for (let i = Math.floor(x / RC) - 1; i <= Math.floor(x / RC) + 1; i++) for (let j = Math.floor(z / RC) - 1; j <= Math.floor(z / RC) + 1; j++) for (const [ax, az, bx, bz] of rgrid.get(`${i},${j}`) ?? []) { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz); if (!best || d < best.d) best = { x: px, z: pz, d }; } return best; };
+    const cls = classifyBuildings({ buildings, places, osm, classAt: (x, z) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; }, style, cfg, roadAt });
+    const ap = applyBrands({ outlets, buildings, registry, cfg });
+    const byChain: Record<string, number> = {}; for (const o of outlets) byChain[registry.brands[o.brand].parody.name] = (byChain[registry.brands[o.brand].parody.name] ?? 0) + 1;
+    lap(`  brands: ${places.length} places; ${det.stats.outlets} chain outlets (${Object.entries(det.stats).filter(([k]) => !['outlets'].includes(k)).map(([k, v]) => `${k} ${v}`).join(', ')}), ${ap.branded} on their buildings — ${Object.entries(byChain).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')}; parodies checked (closest to a real name: ${chk.worst[0].similarity.toFixed(2)}, limit ${cfg.tests.brandSimilarity})`);
+    lap(`  buildings: ${Object.entries(cls.types).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')}; type from its tag ${cls.stats.tagged}, from a place in it ${cls.stats.byPlace}, estimated ${cls.stats.estimated}; roofs estimated ${cls.stats.roofsEstimated}, colours estimated ${cls.stats.coloursEstimated}; ${cls.stats.named} with businesses' signs`);
+  }
+  const parkingRings = v5 ? osm.areas.filter(a => a.tags.amenity === 'parking').map(a => a.parts[0][0].map(q => [q.x, q.z])) : [];
+  const bandStats: Record<string, number> = {}, furnStats: Record<string, number> = {};
 
   // 5. block by block (blockTiles tiles square, and the roads within blockPad m of it): the road surface, the ground
   // shaped under it, the exclusion mask, trees, railings, lamps, names; the block's tiles, each audited (no collider
@@ -153,7 +202,21 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const clusterIds = new Set<number>(model.clusters.filter((c: any, k: number) => meets(clusterBox[k], reach)).map((c: any) => c.id));
     const S = timed('surface', () => model.surfaceFor({ segs: segIds, clusters: clusterIds }));
     const mB = { ...model, segs: model.segs.filter((g: any) => segIds.has(g.id)), clusters: model.clusters.filter((c: any) => clusterIds.has(c.id)), surface: S };
-    const c = timed('check', () => checkSurface(S.mesh, { segs: mB.segs, sampleEvery: 3, region: [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6] }));
+    // (Map v5: kerbs, verges, footpaths and islands in the road's mesh — cells of xsec.cell m over the block and its
+    // collision apron, each the same whichever block builds it)
+    if (v5) timed('bands', () => {
+      const CL = cfg.xsec.cell, ap = cfg.collision.apron, cells: [number, number, number, number][] = [];
+      for (let cz = Math.floor((box[1] - ap) / CL) * CL; cz < box[3] + ap; cz += CL) for (let cx = Math.floor((box[0] - ap) / CL) * CL; cx < box[2] + ap; cx += CL) cells.push([cx, cz, cx + CL, cz + CL]);
+      const near = buildings.filter(b => { const r = b.rings[0]; return r.some((p: number[]) => p[0] >= box[0] - ap - 60 && p[0] <= box[2] + ap + 60 && p[1] >= box[1] - ap - 60 && p[1] <= box[3] + ap + 60); });
+      const B = buildBands({ mesh: S.mesh, outlines: (S as any).outlines, segs: mB.segs, cells, style, cfg, buildings: near, lowerAt });
+      // (not repaired against the road: a kerb's vertex where a cell's border crosses the road's edge, split into the
+      // road's triangle, would leave a fan of slivers from its far corner — lit wrong. The kerb's foot lies on the edge
+      // to the millimetre: no crack to see or catch)
+      appendMesh(S.mesh, B.mesh);
+      (S as any).plants = B.plants;
+      for (const [k, v] of Object.entries<number>(B.stats)) bandStats[k] = (bandStats[k] ?? 0) + v;
+    });
+    const c = timed('check', () => checkSurface(S.mesh, { segs: mB.segs, sampleEvery: 3, region: [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6], roadOnly: true }));
     chk.cracks += c.crackCount; chk.overlaps += c.overlapCount; chk.sampled += c.sampled; chk.folds += c.folds.length; chk.triangles += c.triangles;
     timed('terrain', () => shapeRoadsV4(Tn, { grid, dem: E.heights, mesh: S.mesh, model: mB, cfg, box: [box[0], box[1], Math.min(box[2], gx1), Math.min(box[3], gz1)], share }));
     const surface = timed('index', () => surfaceIndex(mB)), X = timed('mask', () => exclusionMask(mB, osm, [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6], cfg, T));
@@ -164,10 +227,28 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const lamps: number[] = []; for (let k = 0; k < lp.lamps.length; k += LAMP_STRIDE) if (inBlock(lp.lamps[k], lp.lamps[k + 2])) for (let q = 0; q < LAMP_STRIDE; q++) lamps.push(lp.lamps[k + q]);
     // (names on the block's roads, at the drawn road's height; the rest of the area's roads left nameless)
     const lb = timed('labels', () => labels({ nodes: model.nodes as any, segs: model.segs.map((g: any) => (segIds.has(g.id) ? Object.assign(Object.create(g), { h: g.hd ?? g.h }) : NAMELESS)) as any, cfg: v3cfg }));
+    // (Map v5: street furniture where the map has it — map/model/furniture.ts — and the street name signs at the
+    // junctions' corners, off the road, in place of Map v4's)
+    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]] })) : null;
+    // (and the chains' sites: their pylon signs, canopies, pumps, menu boards and trolley bays)
+    if (fu) {
+      const near = buildings.filter(b => { const p = b.rings[0][0]; return p[0] >= box[0] - 300 && p[0] <= box[2] + 300 && p[1] >= box[1] - 300 && p[1] <= box[3] + 300; });
+      const bs = brandSites({ outlets, buildings: near, registry, model: mB, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]], parking: parkingRings });
+      for (const v of bs.items) fu.items.push(v);
+      for (const [k, v] of Object.entries<number>(bs.stats)) brandSiteStats[k] = (brandSiteStats[k] ?? 0) + v;
+    }
+    if (fu) {
+      const remap = fu.names.map(nm => { let k = lb.names.indexOf(nm); if (k < 0) { k = lb.names.length; lb.names.push(nm); } return k; });
+      lb.signs = []; for (let k = 0; k < fu.signs.length; k += 6) lb.signs.push(fu.signs[k], fu.signs[k + 1], fu.signs[k + 2], fu.signs[k + 3], remap[fu.signs[k + 4]], remap[fu.signs[k + 5]]);
+      for (const [k, v] of Object.entries<number>(fu.stats)) furnStats[k] = (furnStats[k] ?? 0) + v;
+    }
+    // (Map v5: the islands' planting — a roundabout's tree and low plants — with the block's trees)
+    const Pl = (S as any).plants as number[] | undefined;
+    if (Pl) for (let k = 0; k < Pl.length; k += 5) if (inBlock(Pl[k], Pl[k + 2])) tr.trees.push(Pl[k], Pl[k + 1], Pl[k + 2], Pl[k + 3], Pl[k + 4]);
     st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
-    const TB = tileBuilderV4({ region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface });
+    const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface, furniture: fu });
     for (let j = bj; j <= tj1; j++) for (let i = bi; i <= ti1; i++) {
       const t = TB.tile(i, j), cx = (i + 0.5) * T, cz = (j + 0.5) * T, a0 = performance.now();
       for (const p of auditTile(t, { cx, cz, surface, barriersCfg: v3cfg.barriers })) if (problems.length < 200) problems.push({ tile: `${i}_${j}`, ...p });
@@ -186,6 +267,9 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   }
   if (problems.length) throw new Error(`colliders with nothing drawn there (${problems.length}): ${JSON.stringify(problems.slice(0, 8))}`);
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
+  if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
+  if (v5) lap(`  chains' sites: ${brandSiteStats.outlets} outlets — ${brandSiteStats.pylons} pylon signs, petrol canopies ${brandSiteStats.canopiesMapped} mapped and ${brandSiteStats.canopies} placed (${brandSiteStats.pumps} pumps), ${brandSiteStats.menuBoards} drive-thru menu boards, ${brandSiteStats.trolleyBays} trolley bays (all estimated but the mapped canopies); ${brandSiteStats.noRoom} left out for want of room, ${brandSiteStats.noBuilding} with no building`);
+  if (v5) lap(`  furniture: ${furnStats.trafficLights} traffic lights, ${furnStats.stop} stop and ${furnStats.giveWay} give way signs, ${furnStats.speed} speed signs, ${furnStats.nameSigns} street name signs, ${furnStats.busStops} bus stops (${furnStats.shelters} shelters), ${furnStats.powerPoles} power poles (${furnStats.wires} spans of wire), ${furnStats.small} benches, bins and the like; ${furnStats.droppedInLane} that would have stood in a lane left out`);
   lap(`  road surface: ${(chk.triangles / 1e6).toFixed(2)}M triangles in ${blocks} blocks; check: ${chk.cracks} cracks, ${chk.overlaps} overlaps (of ${chk.sampled} sampled), ${chk.folds} folded edges; blocks: ${Object.entries(bms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
   lap(`  terrain shaped: ${Tn.shaped} grid points under or beside roads; trees ${st.trees} (${st.treesOff} kept off roads, decks and railways); railings ${railStats.mapped} mapped (${railStats.mappedDropped} over a road dropped), ${railStats.estimated} estimated; lamps ${st.lamps} (${lampStats.mapped} mapped, ${lampStats.mappedDropped} on a road dropped, ${lampStats.estimated + lampStats.junction + lampStats.crossing} estimated)`);
   lap(`  tiles: ${tiles.length}, ${(tiles.reduce((a, t) => a + t.bytes, 0) / 1e6).toFixed(1)} MB on ${pool.workers} workers; every collider has something drawn (audited); building colliders cut off a road ${hullStats.trimmed}, dropped ${hullStats.dropped}; car park triangles off the road ${hullStats.paved}; main thread: ${Object.entries(ms).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(', ')}`);
@@ -214,6 +298,8 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     if (sp.auto === 'roundabout') { const f = roundaboutByShape(model.segs); if (!f) return null; const [lat, lon] = P.toLatLon(f.x, f.z); return { ...sp, name: f.name ? `Roundabout, ${f.name}` : 'Roundabout', lat, lon, bearing: f.bearing, estimated: true }; }
     return sp;
   }).filter(Boolean).map((sp: any) => ({ ...sp, xz: P.toXZ(sp.lat, sp.lon).map(v => +v.toFixed(1)) })).filter((sp: any) => inArea(sp.xz[0], sp.xz[1]));
+  // (Map v5: Step 0's teleport spots too — ten well-known places and each known Map v4 bug's spot: data/map/v5/spots.json)
+  if (v5) { const f = path.join(ROOT, 'data/map/v5/spots.json'); if (fs.existsSync(f)) for (const sp of JSON.parse(fs.readFileSync(f, 'utf8')).spots) { const st = sp.street ?? sp, xz = P.toXZ(st.lat, st.lon); if (inArea(xz[0], xz[1]) && !spots.some((o: any) => o.id === sp.id)) spots.push({ id: sp.id, name: sp.name.replace(/^[^:]*: /, ''), kind: sp.bug ? `bug ${sp.bug}` : sp.name.split(':')[0].toLowerCase(), lat: st.lat, lon: st.lon, bearing: st.bearing ?? 0, xz: xz.map(v => +v.toFixed(1)) }); } }
   // (and a quick-travel spot at every known bad spot in the area: MAP_README.md, "Bad spots")
   const bad = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/known-bad-spots.json'), 'utf8')).spots ?? []; } catch { return []; } })();
   bad.filter((b: any) => b.region === region.id).forEach((b: any, k: number) => { const xz = P.toXZ(b.lat, b.lon); if (inArea(xz[0], xz[1])) spots.push({ id: `bad${k + 1}`, name: `Bad spot ${k + 1}: ${b.road ?? b.note?.slice(0, 40) ?? ''}`, kind: 'known bad spot', lat: b.lat, lon: b.lon, bearing: b.bearing ?? 0, xz: xz.map(v => +v.toFixed(1)), badSpot: true }); });
@@ -222,8 +308,8 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   const [sx, sz] = P.toXZ(region.spawn.lat, region.spawn.lon);
   const inputs = `${BAKE_VERSION}/${FORMAT_VERSION}/${v3cfg.version}/${cfg.version}/${osmSrc.source}:${osmSrc.date}/${region.overture.release}`;
   const manifest = {
-    _note: 'Map v4 (MAP_README.md): what this baked region holds. Tiles: tiles/<i>_<j>.m3t (map/format/tileFormat.ts, gzipped; header.map "v4"), tile (i, j) covering x ∈ [i·tileSize, (i+1)·tileSize), z (south) likewise, in the projection below. Everything about roads comes from the road surface model (roadmodel.json.gz).',
-    map: 'v4', region: region.id, name: region.name, version: `${inputs}#${output.digest('hex').slice(0, 12)}`, format: FORMAT_VERSION, graphVersion: GRAPH_VERSION, baked: new Date().toISOString().slice(0, 10),
+    _note: (v5 ? 'Map v5' : 'Map v4') + ' (MAP_README.md): what this baked region holds. Tiles: tiles/<i>_<j>.m3t (map/format/tileFormat.ts, gzipped; header.map "v4"), tile (i, j) covering x ∈ [i·tileSize, (i+1)·tileSize), z (south) likewise, in the projection below. Everything about roads comes from the road surface model (roadmodel.json.gz).',
+    map, region: region.id, name: region.name, version: `${inputs}#${output.digest('hex').slice(0, 12)}`, format: FORMAT_VERSION, graphVersion: GRAPH_VERSION, baked: new Date().toISOString().slice(0, 10),
     roadModel: { version: model.version, file: 'roadmodel.json.gz', stats: { segments: model.segs.length, junctionPatches: model.clusters.length, triangles: chk.triangles, blocks, check: { cracks: chk.cracks, overlaps: chk.overlaps, sampled: chk.sampled, folds: chk.folds } } },
     projection: { type: 'transverse-mercator', lat0: P.lat0, lon0: P.lon0, ellipsoid: 'WGS84', proj4: P.proj4, axes: 'x east, z south, y up (metres)' },
     grid: { tileSize: T, cell: grid.cell, i0: grid.i0, j0: grid.j0, i1: grid.i1, j1: grid.j1 }, bbox: region.bbox,
@@ -231,7 +317,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     sources: {
       osm: { source: osmSrc.source, url: osmSrc.url, date: osmSrc.date, note: osmSrc.source === 'overture' ? 'OpenStreetMap data as published by Overture Maps (its transportation and base themes keep OSM geometry and tags); a Geofabrik extract replaces it when reachable' : 'Geofabrik extract, clipped with osmium' },
       overture: { release: region.overture.release, used: 'building heights, floors, roof shapes and colours; buildings OSM lacks' },
-      elevation: E.sources, verticalDatum: 'EGM2008 (EPSG:3855)', blendBand: region.dem.blendBand,
+      elevation: E.sources, ...(E.stats && { elevationStats: E.stats }), verticalDatum: 'EGM2008 (EPSG:3855)', blendBand: v5 ? cfg.elevation.blendBand : region.dem.blendBand,
       tools: { planetiler: '0.8.4', gdal: run('gdalinfo', ['--version'], { quiet: true }).trim(), osmium: run('osmium', ['--version'], { quiet: true }).split('\n')[0] },
     },
     attribution: [
@@ -239,7 +325,11 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       { name: 'Overture Maps Foundation', url: 'https://overturemaps.org', licence: 'ODbL 1.0 (OSM-derived themes), CDLA Permissive 2.0 (buildings)' },
       ...E.sources.map((d: any) => ({ name: d.name, url: null, licence: d.licence, text: d.attribution })),
     ],
-    surfaces: Object.fromEntries(Object.entries(v3cfg.surfaces).filter(([k]) => !k.startsWith('_'))),
+    ...(style && { style: { id: style.id, name: style.name, drivingSide: style.drivingSide } }),
+    ...(v5 && { furniture: { cycle: cfg.furniture.cycle, style: style.furniture } }),
+    // (the parodies only: no real name is in anything the game draws)
+    ...(v5 && { brands: registry.brands.map((b: any) => ({ id: b.id, name: b.parody.name, colours: b.parody.colours, logo: b.parody.logo, category: b.category })) }),
+    surfaces: Object.fromEntries(Object.entries({ ...v3cfg.surfaces, ...(v5 ? cfg.tyreSurfaces : {}) }).filter(([k]) => !k.startsWith('_'))),
     barriers: v3cfg.barriers, lamps: cfg.lamps,
     files: { graph: 'graph.json.gz', map: pmtilesRel, roadModel: 'roadmodel.json.gz' },
     far: { size: FA, chunks: farChunks },
@@ -288,7 +378,7 @@ function roadModelFile(model: any, region: string, litBySeg: Map<number, boolean
     segs: model.segs.map((g: any) => ({ id: g.id, from: g.from, to: g.to, way: g.osmWay, name: g.name, class: g.cls, link: g.link, rank: g.rank, oneway: g.oneway, lanes: g.lanes, lanesEstimated: g.lanesEstimated, drivable: r2(g.drivable), visual: r2(g.visual), widthEstimated: g.widthEstimated, adjusted: g.adjusted, structure: g.structure, layer: g.layer, surface: g.surface, lit: g.lit, lamps: litBySeg.get(g.id) ? 1 : 0, internal: g.internal, trim: [r2(g.trim0), r2(g.trim1)],
       points: g.xs.flatMap((x: number, k: number) => [r2(x), r2(g.zs[k]), r2((g.hd ?? g.h)[k])]), half: g.hwL.flatMap((v: number, k: number) => [r2(v), r2(g.hwR[k])]), osm: g.orig.map((o: boolean, k: number) => (o ? [k, g.osmNodes[k], g.lat[k], g.lon[k]] : null)).filter(Boolean) })),
     nodes: model.nodes.map((n: any) => [r2(n.x), r2(n.z), r2(n.h ?? 0), n.kind === 'junction' ? 2 : n.kind === 'joint' ? 1 : 0, n.cluster ?? -1]),
-    junctions: model.clusters.map((c: any) => ({ id: c.id, nodes: c.nodes, plane: c.plane && { cx: r2(c.plane.cx), cz: r2(c.plane.cz), a: +c.plane.a.toFixed(5), b: +c.plane.b.toFixed(5), c: r2(c.plane.c) }, arms: c.arms.map((A: any) => [A.seg.id, A.atStart ? 1 : 0, r2(A.trim)]), rings: c.rings.map((poly: number[][][]) => poly.map(r => r.flatMap(p => [r2(p[0]), r2(p[1])]))) })),
+    junctions: model.clusters.map((c: any) => ({ id: c.id, nodes: c.nodes, plane: c.plane && { cx: r2(c.plane.cx), cz: r2(c.plane.cz), a: +c.plane.a.toFixed(5), b: +c.plane.b.toFixed(5), c: r2(c.plane.c), ...(c.plane.qa && { qa: +c.plane.qa.toExponential(4), qb: +c.plane.qb.toExponential(4), qc: +c.plane.qc.toExponential(4) }) }, arms: c.arms.map((A: any) => [A.seg.id, A.atStart ? 1 : 0, r2(A.trim)]), rings: c.rings.map((poly: number[][][]) => poly.map(r => r.flatMap(p => [r2(p[0]), r2(p[1])]))) })),
   };
 }
 
@@ -322,3 +412,14 @@ if (process.argv[1]?.endsWith('map/bake/bakeV4.ts')) {
   bakeV4({ regionId: opt('--region') ?? 'adelaide', area: opt('--area'), out: opt('--out'), blocks: bt || bp ? { tiles: bt ? +bt : undefined, pad: bp ? +bp : undefined } : null }).catch(e => { console.error(e); process.exit(1); });
 }
 void encodeTile;
+
+// a mesh's triangles added to another's (Map v5: the cross-section's bands into the road surface's); part per triangle
+// kept (0, the road, for what had none)
+function appendMesh(M: any, B: any) {
+  const base = M.positions.length / 3, n0 = M.indices.length / 3;
+  M.part ??= new Array(n0).fill(0);
+  for (const v of B.positions) M.positions.push(v);
+  for (const v of B.colours) M.colours.push(v);
+  for (const v of B.indices) M.indices.push(v + base);
+  for (const k of ['surfaces', 'solid', 'level', 'seg', 'part']) for (const v of B[k]) M[k].push(v);
+}

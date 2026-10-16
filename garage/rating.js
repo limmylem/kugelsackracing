@@ -51,6 +51,8 @@ export function estimate(spec, geometry, topSpeed) {
   // (the driven wheels: the rear, the front, or all four — a part-time 4WD launches in the mode it starts in)
   const GB = spec.gearbox, E = spec.engine, eff = spec.drivetrain.efficiency, layout = spec.drivetrain.layout;
   const driven = layout === 'FWD' ? 'front' : layout === 'AWD' || (layout === '4WD' && spec.transferCase?.mode && spec.transferCase.mode !== '2H') ? 'all' : 'rear';
+  // (static camber — a camber kit's — isn't in the rating: it's a setup, how the grip's shared between cornering and
+  // braking, that the physics drives (physics/camber.js), not more of the car)
   const muX = T.longitudinal.D, rolling = T.rollingResistance * m * G;
   const wheelInertia = 4 * W.inertia, engineInertia = E.inertia;
   let v = 0.5, t = 0, gear = 1;

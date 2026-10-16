@@ -7,7 +7,8 @@
 // Layout: "DWT2", the header's length (u32), the header (JSON), padding to 4 bytes, then the buffers;
 // the whole gzipped on disk (the baker), unpacked by decodeTile.
 // Each mesh is meshoptimizer-compressed (vertex and index codecs): positions as int16 on a per-mesh
-// scale and offset (about a centimetre), colours as rgba bytes, texture coordinates as int16 / 256;
+// scale and offset (about a centimetre), colours as rgba bytes, texture coordinates as int16 / 256 (float32 for a mesh
+// whose coordinates reach past ±128: Map v5's walls, their facade × 1000 + bays);
 // instance lists and physics shapes as float32 lists, or int16 multiples of a quantum (vertex codec
 // too); byte grids (surfaces underfoot, terrain colours); the height grid as u16 centimetres. The
 // terrain's meshes aren't stored: world/terrainMesh.js cuts them from the height grid.
@@ -51,7 +52,7 @@ export function encodeTile(tile, E) {
                 offset = off;
             }
         }
-        const hasC = !!m.colours, hasUV = !!m.uvs, stride = 8 + (hasC ? 4 : 0) + (hasUV ? 4 : 0);
+        const hasC = !!m.colours, hasUV = !!m.uvs, uvF32 = hasUV && m.uvs.some(u => Math.abs(u) >= 127.99), stride = 8 + (hasC ? 4 : 0) + (hasUV ? (uvF32 ? 8 : 4) : 0);
         const vb = new Uint8Array(n * stride), dv = new DataView(vb.buffer);
         for (let v = 0; v < n; v++) {
             const o = v * stride;
@@ -63,8 +64,12 @@ export function encodeTile(tile, E) {
                 p += 4;
             }
             if (hasUV)
-                for (let k = 0; k < 2; k++)
-                    dv.setInt16(p + k * 2, Math.max(-32768, Math.min(32767, Math.round(m.uvs[v * 2 + k] * 256))), true);
+                for (let k = 0; k < 2; k++) {
+                    if (uvF32)
+                        dv.setFloat32(p + k * 4, m.uvs[v * 2 + k], true);
+                    else
+                        dv.setInt16(p + k * 2, Math.max(-32768, Math.min(32767, Math.round(m.uvs[v * 2 + k] * 256))), true);
+                }
         }
         // (triangles and vertices in the order the codecs compress best, unless the triangles carry surfaces)
         let indices = m.indices, order = null;
@@ -84,7 +89,7 @@ export function encodeTile(tile, E) {
         }
         const idx32 = n > 65535, ib = idx32 ? Uint32Array.from(indices) : Uint16Array.from(indices);
         const evb = E.encodeVertexBuffer(vb, n, stride), eib = E.encodeIndexBuffer(new Uint8Array(ib.buffer), ib.length, idx32 ? 4 : 2);
-        H.meshes[name] = { count: n, stride, scale, offset, colours: hasC, uvs: hasUV, vb: put(evb), ib: put(eib), indexCount: ib.length, idx32,
+        H.meshes[name] = { count: n, stride, scale, offset, colours: hasC, uvs: uvF32 ? 'f32' : hasUV, vb: put(evb), ib: put(eib), indexCount: ib.length, idx32,
             ...(m.surfaces && { surfaces: put(m.surfaces) }) };
     }
     for (const [name, L] of Object.entries(tile.lists ?? {})) {
@@ -177,7 +182,7 @@ export async function decodeTile(bytes, D) {
             }
             if (uvs)
                 for (let k = 0; k < 2; k++)
-                    uvs[v * 2 + k] = dv.getInt16(p + k * 2, true) / 256;
+                    uvs[v * 2 + k] = M.uvs === 'f32' ? dv.getFloat32(p + k * 4, true) : dv.getInt16(p + k * 2, true) / 256;
         }
         tile.meshes[name] = { positions, colours, uvs, indices: (M.idx32 ? ib : Uint32Array.from(ib)), surfaces: M.surfaces ? slice(M.surfaces).slice() : null };
     }

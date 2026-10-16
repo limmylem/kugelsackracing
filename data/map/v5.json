@@ -1,0 +1,199 @@
+{
+  "_note": "Map v5 (MAP_README.md, MAP_V5_DIAGNOSIS.md): Map v4's settings (data/map/v4.json, extended here: every key below replaces v4's, deep) plus Map v5's own — elevation, road shape, heights by class, bridges and tunnels, the cross-section (footpaths, kerbs, verges), buildings, brands, street furniture, landmarks, vegetation, lighting and the tests' limits. Every size, spacing, colour, threshold and tolerance Map v5 uses is here or in its region style pack (data/map/styles/). Bump version after changing anything: the next bake redoes every tile and the game's tile cache drops the old ones.",
+  "extends": "v4.json",
+  "version": 1,
+  "map": "v5",
+  "model": "roads-5.0",
+  "elevation": {
+    "_note": "map/bake/elevationV5.ts. The terrain tiles' native detail: a block of nativeBlock px is the source's own data when at least nativeShare of its land pixels' rows bend (bilinear-upsampled data is straight between its posts); sea: seaLevel m or under. Near its coverage's edge (within edgeReach m of land it doesn't cover — connected, at least minUncovered 30 m blocks: a survey's edge, not a hole), a 30 m block (agreeScale) more than agreeWithin m outside both 30 m models is the survey's blend band: rejected, with erodeBlocks blocks round it. A better source fades into the next over blendBand m. Copernicus's canopy: never more than canopyCap m over DEM-S. The check is against Copernicus with its buildings taken out (and DEM-S): the city's towers aren't ground.",
+    "nativeBlock": 64,
+    "nativeShare": 0.85,
+    "seaLevel": 0.5,
+    "agreeScale": 30,
+    "agreeWithin": 12,
+    "edgeReach": 600,
+    "erodeBlocks": 2,
+    "blendBand": 80,
+    "canopyCap": 3,
+    "minUncovered": 200
+  },
+  "graph": {
+    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks.",
+    "continuous": true,
+    "minNodeGap": 1.5,
+    "cornerMinLeg": 14,
+    "continueMaxTurn": 75,
+    "normalSmooth": 3
+  },
+  "heights": {
+    "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck), what it crosses being a road or railway whose centre line crosses the deck's in plan (a carriageway beside it isn't under it), the deck's own road too where it comes back under it more than selfCrossAlong m along (a loop ramp); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.",
+    "lidarAlongRoad": true,
+    "corridor": {
+      "_note": "map/model/heights.ts corridorProfiles: each carriageway of these classes one height profile end to end through its junctions (the same name and class, turning no more than turn° at a node): the elevation along it — none on a structure, within portalSkip m of a tunnel's mouth (its cutting) or bridgeSkip m of a bridge's ends — a Gaussian of sigma m, held to its class's grade exactly (halfway between the highest profile within it nowhere above and the lowest nowhere below). Junctions on it fit their surface to it weight times as hard as to the side roads.",
+      "classes": ["motorway", "trunk", "primary"],
+      "turn": 35,
+      "sigma": 30,
+      "portalSkip": 120,
+      "bridgeSkip": 15,
+      "weight": 6
+    },
+    "maxGradeByClass": {
+      "motorway": 0.075,
+      "trunk": 0.1,
+      "primary": 0.13,
+      "secondary": 0.16,
+      "tertiary": 0.2,
+      "unclassified": 0.24,
+      "residential": 0.26,
+      "living_street": 0.26,
+      "road": 0.26,
+      "service": 0.3,
+      "track": 0.3,
+      "link": 0.1,
+      "busway": 0.12
+    },
+    "gradeWindow": 20,
+    "bridgeMaxGrade": 0.08,
+    "approachGrade": 0.065,
+    "deckDepth": 1.2,
+    "clearance": 5.0,
+    "clearanceRail": 5.5,
+    "selfCrossAlong": 60,
+    "quadraticAbove": 60,
+    "maxCurvature": 0.0012
+  },
+  "tunnels": {
+    "_note": "map/model/tunnels.ts: a tunnel's tube — walls height m high, a flat ceiling, offset m outside the drivable edge, wallThickness thick; a portal (a concrete face) where the hill's cover over the ceiling first reaches portalCover m, until then an open cutting; the hill over a tunnel left as it is (the physics' ground stays the hill's — it's over the car). Lights every lightSpacing m on the ceiling, lightColour.",
+    "height": 5.4,
+    "offset": 0.8,
+    "wallThickness": 0.6,
+    "portalCover": 1.5,
+    "portalWidthExtra": 2.5,
+    "portalHeightExtra": 2.2,
+    "lightSpacing": 12,
+    "wallColour": "#b9b6ad",
+    "ceilingColour": "#8f8c86",
+    "portalColour": "#c8c4b8"
+  },
+  "lamps": {
+    "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
+    "poolRadius": 15,
+    "poolIntensity": 1.6,
+    "poolOpacity": 0.6,
+    "poolColour": "#ffe2b0",
+    "glowSize": 1.9,
+    "realLights": 6,
+    "realLightRange": 40,
+    "realLightIntensity": 320
+  },
+  "xsec": {
+    "_note": "map/model/crossSection.ts: the cross-section's bands (kerbs, verges, footpaths, islands) are joined, cut and triangulated in square cells of cell m — each cell's the same whichever block of the bake builds it. Their widths, heights and colours are the region's style pack's (data/map/styles/).",
+    "cell": 64
+  },
+  "tyreSurfaces": {
+    "_note": "Surfaces Map v5 adds to data/map/bake.json's for the tyres (the manifest's surfaces).",
+    "footpath": { "grip": 0.95, "rollingResistance": 0.013, "sound": "tarmac" }
+  },
+  "surfaces": {
+    "_note": "The tyres' surface (Step 1f): a wheel on a road, footpath, kerb, car-park or deck collider takes that triangle's own surface, never the ground's raster under it. defaultRoad: a road triangle that has none.",
+    "defaultRoad": "tarmac",
+    "footpath": "concrete",
+    "kerb": "kerb",
+    "carpark": "tarmac"
+  },
+  "collision": {
+    "_note": "Map v5 over Map v4's: a building collider under 0.25 m² is a sliver and dropped unless its area over its longest side is at least sliverWidth m — a canopy's post stays solid.",
+    "sliverWidth": 0.1
+  },
+  "buildings": {
+    "_note": "map/model/buildingsV5.ts: a place inside a building (confidence at least placeConfidence) says what it is; offices taller than towerAbove m are towers; a shop-type place in a building smaller than mallArea m² is a shop, not a mall; with nothing else to go on, a residential building under houseArea m² is a house. signs: businesses' names on their buildings (at most signsPer each), on the wall facing a road within frontReach m.",
+    "placeConfidence": 0.5,
+    "towerAbove": 30,
+    "mallArea": 3000,
+    "houseArea": 350,
+    "signs": true,
+    "signsPer": 3,
+    "frontReach": 30,
+    "canopy": {
+      "_note": "A roof on posts (map/bake/extrude.ts): building=roof (verandahs, petrol canopies) and carports — height[kind] m tall where the data doesn't say (a petrol station's canopy: height.fuel), a slab thickness m deep, square posts post m across inset m in from its rectangle's corners and every postSpacing m along its long sides, never on a road; colours where the data has none.",
+      "kinds": ["roof", "carport"],
+      "height": { "roof": 3.2, "carport": 2.4, "fuel": 5.2 },
+      "thickness": 0.45,
+      "post": 0.25,
+      "inset": 0.35,
+      "postSpacing": 7,
+      "postColour": "#d6d6d2",
+      "roofColour": "#c9c9c4",
+      "fasciaColour": "#e4e2dc"
+    }
+  },
+  "brands": {
+    "_note": "map/model/brands.ts: chains found in the map data kept at minConfidence or more (or named on whitelist); the same chain twice within dedupe m is one outlet, and two chains of a oneSite category within siteDedupe m one site (a forecourt has one brand: the more confident). The registry and its parodies: data/map/v5/brands.json.",
+    "minConfidence": 0.7,
+    "dedupe": 60,
+    "oneSite": ["fuel"],
+    "siteDedupe": 35,
+    "whitelist": []
+  },
+  "brandSites": {
+    "_note": "A chain's site (map/model/buildingsV5.ts brandSites): its building the one its point is in or the nearest within buildingNear m; a pylon sign pylonHeight m tall pylonOut m past the edge of the road within roadNear m; a petrol canopy canopy [along, across] m, canopyHeight m up, canopyOut m back from the road's edge, over pumps islands — a mapped canopy (building=roof) within canopyNear m its own, its pumps pumpSpacing m apart (at most maxPumps), else one placed (the biggest of canopySizes [along, across] m that fits) where it's clear: tried canopySearch [reach m back, step m, steps along] round the first spot, nearest the outlet first, over no public road or building, its posts and pumps clear of every lane. A mapped one counts if it's of forecourt size (canopyArea m²), near a rectangle and at least canopyDepth m deep (a verandah is shallow) — and a fuel chain beside one sells fuel. Only a station with fuel (OSM amenity=fuel, Overture gas_station): a chain's shop alone gets neither canopy nor pylon; a drive-thru's menu board by the service road within laneNear m of its building; trolley bays trolleyApart m apart in the car park within carParkNear m. Each only where it's clear of every lane and building.",
+    "buildingNear": 25,
+    "roadNear": 45,
+    "pylonOut": 2.5,
+    "pylonHeight": 7,
+    "canopyOut": 6,
+    "canopy": [18, 11],
+    "canopyHeight": 5.2,
+    "pumps": 3,
+    "canopyNear": 35,
+    "pumpSpacing": 6,
+    "maxPumps": 6,
+    "canopySearch": [15, 2.5, 4],
+    "canopySizes": [[18, 11], [14, 9], [10, 7]],
+    "canopyArea": [60, 900],
+    "canopyDepth": 6,
+    "laneNear": 30,
+    "carParkNear": 90,
+    "trolleyApart": 14
+  },
+  "furniture": {
+    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
+    "clearance": 0.45,
+    "pushMax": 3,
+    "signalReach": 30,
+    "stopBack": 2.5,
+    "trafficLightHeight": 3.2,
+    "speedIn": 12,
+    "signReach": 18,
+    "shelterNear": 12,
+    "shelterBack": 2.2,
+    "poleHeight": 10.5,
+    "towerHeight": 28,
+    "maxSpan": 120,
+    "cycle": { "green": 20, "amber": 4, "allRed": 2 }
+  },
+  "tests": {
+    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night.",
+    "mainClasses": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary"
+    ],
+    "maxHeightErrorP95": 1.0,
+    "maxHeightError": 3.0,
+    "maxGradeError": 0.03,
+    "maxKinkPerMetre": 4,
+    "minTaper": {
+      "motorway": 60,
+      "trunk": 40,
+      "default": 15
+    },
+    "maxWheelAccel": 25,
+    "minClearance": 4.9,
+    "floatingOver": 0.6,
+    "signClearance": 0.4,
+    "nightMinLuminance": 0.12,
+    "brandSimilarity": 0.72
+  }
+}

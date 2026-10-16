@@ -232,6 +232,33 @@ export class Garage {
     return { ok: true, errors: [], warnings: r.warnings, steps, before, after: this.stats() };
   }
 
+  // Parts made for any one of several that needed what just came off (validateBuild's 'requires' errors, a list), off
+  // too — and the same for what needed them, in turn. A socket that has to hold something (the ECU) gets the car's own part back from the parts store, if there's
+  // a spare one; else it's left empty (fine in the garage) for the player to fill.
+  #takeOffDependents(needIt, removedName, { steps, ops, dependents, partName }) {
+    const build = this.build, fitted = () => new Set(Object.values(this.state.cars).flatMap(c => Object.values(c.build.sockets)));
+    let round = needIt;
+    for (let depth = 0; round.length && depth < 8; depth++) {
+      for (const e of round) {
+        if (!build.sockets[e.socket]) continue;
+        steps.push(`took ${partName(e.socket)} out of ${e.socket} too: it needs ${removedName} or something like it`);
+        ops.push({ op: 'remove', socket: e.socket, instanceId: build.sockets[e.socket] });
+        build.sockets[e.socket] = null;
+        dependents.add(e.socket);
+      }
+      round = validateBuild(build, this.view).errors.filter(e => e.code === 'requires' && Array.isArray(e.need) && e.need.length > 1 && build.sockets[e.socket]);
+    }
+    for (const sock of dependents) {
+      const s = this.car.sockets.find(x => x.name === sock), stock = s?.required && s.stock?.[0];
+      if (!stock || build.sockets[sock]) continue;
+      const spare = Object.values(this.state.parts).find(p => p.partId === stock && !fitted().has(p.instanceId));
+      if (!spare || !checkInstall(build, sock, spare.instanceId, this.view).ok) continue;
+      build.sockets[sock] = spare.instanceId;
+      steps.push(`put the spare ${this.db.parts[stock].name} in ${sock}`);
+      ops.push({ op: 'install', socket: sock, instanceId: spare.instanceId });
+    }
+  }
+
   #change(changes, auto) {
     const saved = JSON.stringify(this.state), before = this.stats();
     const build = this.build, steps = [], errors = [], warnings = [], ops = [];
@@ -239,7 +266,7 @@ export class Garage {
     const wasEmpty = new Set(validateBuild(build, this.view).errors.filter(e => e.code === 'required_empty').map(e => e.socket));
     const partName = sock => this.db.parts[this.state.parts[build.sockets[sock]]?.partId]?.name;
     // take off (recursively) whatever blocks a socket, remembering it to put back
-    const putBack = [];
+    const putBack = [], dependents = new Set();
     const clear = (sock, depth = 0) => {
       const s = this.car.sockets.find(x => x.name === sock);
       for (const b of s?.blockedBy || []) {
@@ -262,10 +289,16 @@ export class Garage {
       if (c.remove) {
         const r = checkRemove(build, c.socket, this.view);
         warnings.push(...r.warnings);
-        if (!r.ok) { errors.push(...r.errors); break; }
-        steps.push(`took ${partName(c.socket)} out of ${c.socket}`);
+        // (a part made for any one of several — an intercooler or a boost map, for a turbo or a supercharger — comes
+        // off with the last of them, into the parts store, step by step or not: it isn't in the way, it just can't
+        // work without it. One that needs this very part — the turbo kit, its intercooler — keeps it on.)
+        const needIt = r.errors.filter(e => e.code === 'requires' && Array.isArray(e.need) && e.need.length > 1);
+        if (needIt.length !== r.errors.length) { errors.push(...r.errors); break; }
+        const name = partName(c.socket);
+        steps.push(`took ${name} out of ${c.socket}`);
         ops.push({ op: 'remove', socket: c.socket, instanceId: build.sockets[c.socket] });
         build.sockets[c.socket] = null;
+        if (needIt.length) this.#takeOffDependents(needIt, name, { steps, ops, dependents, partName });
       } else {
         const instance = c.instance ?? this.acquire(c.partId).instanceId;
         const r = checkInstall(build, c.socket, instance, this.view);
@@ -307,7 +340,7 @@ export class Garage {
       warnings.push(...result.warnings);
       // a removal may leave a required socket empty (fine in the garage), so may a part it left off, or
       // one that was empty already; anything else is an error
-      const removed = new Set([...changes.filter(c => c.remove).map(c => c.socket), ...leftOff.keys(), ...wasEmpty]);
+      const removed = new Set([...changes.filter(c => c.remove).map(c => c.socket), ...leftOff.keys(), ...wasEmpty, ...dependents]);
       for (const e of result.errors) {
         if (e.code === 'required_empty' && removed.has(e.socket)) warnings.push({ ...e, message: `${e.message} (fine while it's in the garage)` });
         else errors.push(e);

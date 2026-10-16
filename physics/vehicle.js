@@ -13,6 +13,7 @@ import { Aero, SEA_LEVEL_DENSITY } from './aero.js';
 import { breathing } from './engine.js';
 import { CAR_GROUPS } from './looseParts.js';
 import { Mechanical } from './mechanical.js';
+import { camberGrip } from './camber.js';
 
 // ray queries against the fixed world only (Rapier QueryFilterFlags EXCLUDE_KINEMATIC | EXCLUDE_DYNAMIC: no
 // JS callback per collider)
@@ -20,6 +21,7 @@ export const FIXED_ONLY = 6;
 
 const WHEELS = ['FL', 'FR', 'RL', 'RR'];
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const DEG = Math.PI / 180;
 // The bump stops: past a spring's travel the strut meets a rubber stop that pushes back harder the further it's squashed
 // (rate × the spring's stiffness, rising by its own share every soft m), with damping (× the damper's), instead of the
 // body coming down onto the road — braking hard at speed with the aero load on top used to put the floor on the tarmac.
@@ -123,7 +125,7 @@ export class Vehicle {
     this.brakes = new Brakes(spec, this.wheels, this.peak.x);
     // mechanical damage (spec.damage): each wheel's toe, grip, radius…, the engine's heat, the clutch's
     this.mechanical = new Mechanical(this);
-    this.surfaceAt = null;                 // (x, z) → { name, grip, rollingResistance } from the world, if it has surfaces
+    this.surfaceAt = null;                 // (x, z, hit?, y?) → { name, grip, rollingResistance } from the world, if it has surfaces
     this.syncAeroParts();
     this.reset(spawn);
   }
@@ -255,6 +257,7 @@ export class Vehicle {
     let fx = 0, fy = 0;
     if (s > 1e-9) {
       fx = N * magicFormula(X, s * this.peak.x) * sx / s;
+      fx *= w.longGrip ?? 1;
       fy = -N * magicFormula(Y, s * this.peak.y) * sy / s * (w.lateralGrip ?? 1);
     }
 
@@ -366,7 +369,8 @@ export class Vehicle {
       // aft) push from its own springs
       const contact = add(origin, scale(down, hit.timeOfImpact)), normal = fromXYZ(hit.normal);
       if (!linked) push(scale(normal, load), contact);
-      const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2]) : null;
+      // (the hit too: a world whose colliders know their triangles' surfaces answers from what the wheel is on)
+      const surface = this.surfaceAt ? this.surfaceAt(contact[0], contact[2], hit, contact[1]) : null;
       // (the surface's grip, times how this tyre takes to it: a gravel tyre bites on gravel, a slick doesn't; times the
       // weather's — a wet road: sim.setGrip)
       const onIt = surface && Ty.surfaceGrip?.[surface.name];
@@ -443,8 +447,10 @@ export class Vehicle {
     // Drift assist: while already drifting on the throttle, the rear tyres give up a little sideways
     // grip so the drift holds; off the throttle it comes straight back and the car straightens
     const rearGrip = 1 - Ad.rearGripLoss * drifting * accel;
+    const camber = this.#camber();
     for (const w of this.wheels) {
-      w.lateralGrip = w.front ? 1 : rearGrip;
+      w.lateralGrip = (w.front ? 1 : rearGrip) * (camber?.[w.name]?.lat ?? 1);
+      w.longGrip = camber?.[w.name]?.long ?? 1;
       w.holdT = Math.max(input.handbrake && !w.front ? Br.handbrake.torque : 0, this.held ? Br.autoHold.torque : 0);
       w.dragT = ((w.surface?.rollingResistance ?? Ty.rollingResistance) + w.rollExtra) * w.load * w.radius; // rolling resistance, in proportion to load (more on a soft tyre)
       w.fxSum = 0;
@@ -567,6 +573,25 @@ export class Vehicle {
       const trail = SA.pneumaticTrail * Math.max(0, 1 - Math.abs(w.slipAngle) / (SA.trailZeroAtPeak * this.peak.y)) + SA.mechanicalTrail;
       this.sat -= trail * w.fy;               // + pulls the steering left
     }
+  }
+
+  // Static camber (suspension.camber.front / rear, °; negative: the wheels' tops in — a camber kit's): each wheel's
+  // grip sideways and braking / accelerating against none (physics/camber.js), as it leans with the body's roll —
+  // each axle's, from the difference in its two springs' compression (left lower: the body leans left, the left
+  // wheel's top out). null: none set (the grip as it always was)
+  #camber() {
+    const C = this.spec.suspension?.camber;
+    if (!C || (!C.front && !C.rear)) return null;
+    const out = {};
+    for (const front of [true, false]) {
+      const pair = this.wheels.filter(w => w.front === front), L = pair.find(w => w.socket[0] > 0), Rw = pair.find(w => w.socket[0] < 0);
+      if (!L || !Rw) continue;
+      const g0 = front ? C.front : C.rear, track = L.socket[0] - Rw.socket[0];
+      const roll = track > 0 ? ((L.grounded ? L.compression : 0) - (Rw.grounded ? Rw.compression : 0)) / track / DEG : 0;
+      out[L.name] = camberGrip(g0, roll);
+      out[Rw.name] = camberGrip(g0, -roll);
+    }
+    return out;
   }
 
   // Each axle's link between its sides: an anti-roll bar (suspension.antiRoll.front / rear, N a metre of

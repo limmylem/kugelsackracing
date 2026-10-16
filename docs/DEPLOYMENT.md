@@ -32,6 +32,10 @@
 > the tiles' address). The parts fit as before but a few, waived and listed in [KNOWN_ISSUES.md](KNOWN_ISSUES.md); no
 > car drives differently (the engines, gearboxes, axles and wheels stay where they were). No change to the services or
 > what they cost.
+> Then **camber kits** (2026-10-15): two new parts in the shop (camber bolts, race camber plates) on a new socket on
+> every car (socket_camber), their front and rear camber set in the Tuning tab: the physics' grip follows it
+> (physics/camber.js; a car without one drives exactly as before) and the wheels lean as set. No migration; no change to
+> the services or what they cost.
 > Then Phase 8 Step 4, the launch polish (2026-10-15; [ONBOARDING.md](ONBOARDING.md), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 > [TRANSLATIONS.md](TRANSLATIONS.md), [ANALYTICS.md](ANALYTICS.md), [LIVE_UPDATES.md](LIVE_UPDATES.md),
 > [PHOTO_MODE.md](PHOTO_MODE.md), [RELEASE.md](RELEASE.md), [LAUNCH_PLAN.md](LAUNCH_PLAN.md)): **migration 0016** —

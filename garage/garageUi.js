@@ -413,7 +413,8 @@ export class GarageScreen {
     // what else happens: parts in the way (back on after, or not if they don't fit the new part), and
     // whether the car can still be driven (one line for a whole group of empty sockets)
     const ops = p.ops ?? [], others = ops.filter(o => o.op === 'remove' && o.socket !== this.ui.socket && !this.#sameGroup(o.socket, this.ui.socket)).map(o => o.socket);
-    const goBack = others.filter(x => ops.some(o => o.op === 'install' && o.socket === x)), stayOff = others.filter(x => !goBack.includes(x));
+    // (back on: the same copy put back — a spare of the car's own part put in its place is that part staying off)
+    const goBack = others.filter(x => ops.some(o => o.op === 'install' && o.socket === x && o.instanceId === ops.find(r => r.op === 'remove' && r.socket === x)?.instanceId)), stayOff = others.filter(x => !goBack.includes(x));
     const empties = (p.warnings ?? []).filter(x => x.code === 'required_empty').map(x => x.socket);
     const rest = [...new Set((p.warnings ?? []).filter(x => x.code !== 'required_empty').map(x => this.#words(x.message)))];
     const notes = [
@@ -618,7 +619,7 @@ export class GarageScreen {
       <div class="panel-head" style="flex-direction:column;gap:14px;align-items:stretch">
         <div style="display:flex;flex-direction:column;gap:4px"><div class="label">Setup · adjustable parts only</div><div class="panel-title">Tuning</div></div>
         <div class="g-effects" data-effects>${this.#effects()}</div></div>
-      <div class="panel-body" style="gap:16px;padding-top:18px" data-scroll="tuning">${sections || '<div class="empty-list">No adjustable parts fitted. Fit sport coilovers, the standalone ECU, a sport LSD, the close-ratio gearbox or the rear wing to tune them.</div>'}${locked}</div>
+      <div class="panel-body" style="gap:16px;padding-top:18px" data-scroll="tuning">${sections || '<div class="empty-list">No adjustable parts fitted. Fit sport coilovers, a camber kit, the standalone ECU, a sport LSD, the close-ratio gearbox or the rear wing to tune them.</div>'}${locked}</div>
       <div class="panel-foot"><button class="btn ghost" data-act="tune-reset:all" data-key="reset-all" ${settings.length ? '' : 'disabled'}>${icon('restart_alt')}Reset</button>
         <div class="secondary-text" style="flex:1;font-size:13px;line-height:1.35">Kept as you go. The settings stay with the part, in whichever setup it's in.</div></div></section>`;
   }

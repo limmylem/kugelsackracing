@@ -41,6 +41,7 @@
     "test:map": "node --expose-gc --max-old-space-size=8192 tests/map/map.test.ts",
     "test:map4": "node --expose-gc --max-old-space-size=8192 tests/map/v4.test.ts",
     "map:bake4": "node --max-old-space-size=12000 --max-semi-space-size=64 map/bake/bakeV4.ts",
+    "map:bake5": "node --max-old-space-size=12000 --max-semi-space-size=64 map/bake/bakeV5.ts",
     "test:world": "node --expose-gc --max-old-space-size=4096 tests/world.mjs",
     "stress:content": "node --expose-gc tests/content-stress.mjs",
     "test:shapes": "node tests/content-shapes.mjs",

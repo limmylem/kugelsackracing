@@ -18,6 +18,8 @@ import { createWorldStream } from './streamer.ts';
 import { createWorldMaps } from './maps.ts';
 import { createMapDebug } from './debug.ts';
 import { lampLights } from './lamps.ts';
+import { furnitureTick } from './furniture.ts';
+import { facadeNight } from './facades.ts';
 
 // (startAt: where to start instead of the region's spawn — the player's saved place, { region, xz: [x, z] (the map's frame),
 // heading } — used when it's this region's: the world loads there straight away, not at the spawn first)
@@ -101,7 +103,7 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
   w.mapDebug = createMapDebug(w, { travelTo, setHours: (h: number) => { shared.prefs.timeOfDay = h; shared.savePrefs?.(); }, hours: () => shared.prefs?.timeOfDay ?? 13 });
   // Map v4's street lamps: the nearest few as real lights after dark (map/render/lamps.ts)
   w.mapLamps?.dispose();
-  w.mapLamps = stream.manifest.map === 'v4' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
+  w.mapLamps = stream.manifest.map === 'v4' || stream.manifest.map === 'v5' ? lampLights(w.scene, stream.manifest.lamps ?? {}) : null;
   w.travel = (place: any) => travelTo(w, place);
   (globalThis as any).__mapDebug = w.mapDebug;
   return stream;
@@ -217,11 +219,12 @@ export function realWorldFrame(w, shared, seconds) {
   if ((w.labelTimer = (w.labelTimer ?? 0) - seconds) <= 0) {
     w.labelTimer = 0.25;
     const dem = where.dem, [wx, wz] = S.toWorld(p.x, p.z), at = placeOf(w, wx, wz);
-    const M = S.manifest, v4 = M.map === 'v4';
-    w.label.textContent = `Map ${v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}`;
+    const M = S.manifest, v5 = M.map === 'v5', v4 = M.map === 'v4' || v5;
+    w.label.textContent = `Map ${v5 ? 'v5' : v4 ? 'v4' : 'v3'} | tile ${where.tile[0]}/${where.tile[1]} | DEM: ${dem ? `${dem.name}${dem.resolution && !String(dem.name).endsWith(`${dem.resolution} m`) ? ` ${dem.resolution} m` : ''}` : '…'}${v4 ? ` | roads: ${M.roadModel?.version ?? '?'}` : ''}${v5 ? ` | style: ${M.style?.name ?? '?'}` : ''}`;
     w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
   }
   w.mapDebug?.frame(seconds);
+  if (S.manifest.map === 'v5') { furnitureTick(seconds, S.manifest.furniture); facadeNight.value = w.light?.night ?? 0; }
   if (w.mapLamps) { const lit: any[] = []; for (const e of S.tiles.values()) if (e.obj?.lamps) lit.push(e.obj.lamps); w.mapLamps.frame(w.camera, w.light?.night ?? 0, lit); }
   // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
   // after the scene), as the frame profiler counted them (perf/profiler.js)
