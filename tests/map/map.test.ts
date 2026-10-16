@@ -15,7 +15,8 @@
 //   determinism  a small area baked twice: identical tiles and graph, byte for byte (Map v4: the second a block per tile)
 //   physics      the Phase 1 straight-line tests on a real road (straight and level), against the car's targets
 //
-//   (--map v4: the same tests on the region's Map v4 bake, assets/map/<region>/v4/ — tests/map/v4.test.ts has v4's own)
+//   (--map v4 / v5: the same tests on the region's Map v4 or v5 bake, assets/map/<region>/v4/ or v5/ —
+//   tests/map/v4.test.ts and v5.test.ts have their own)
 //
 //   npm run test:map                          all
 //   npm run test:map -- --only rails,height   some
@@ -35,7 +36,9 @@ import { CarDamage } from '../../garage/carDamage.js';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'sf', mapV = opt('--map') ?? 'v3';
-const M = await mapHarness(region, mapV === 'v4' ? path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/map', region, 'v4') : undefined), { H, manifest, T, P } = M;
+// (Map v5 is a Map v4 bake with more on it: what these tests treat as Map v4's holds for it too)
+const v4bake = mapV === 'v4' || mapV === 'v5';
+const M = await mapHarness(region, v4bake ? path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/map', region, mapV) : undefined), { H, manifest, T, P } = M;
 const perf = JSON.parse(fs.readFileSync(path.join(M.root, 'data/map/performance.json'), 'utf8'));
 const CAR = 'starter_car', garage = H.garage(null, CAR), spec = garage.stats().spec;
 const KMH = 1 / 3.6, IDLE = { device: 'wheel', throttle: 0, brake: 0, steer: 0, handbrake: false };
@@ -105,14 +108,14 @@ async function roadsTest() {
       }
       if (!any) continue;
       if (!covered) { uncovered++; note(`no road surface over OSM node ${id} at ${x.toFixed(2)}, ${z.toFixed(2)} (${s.name ?? s.class}, ${s.structure}, segment ${s.id}, point ${k} of ${s.points.length / 3})`); }
-      if (mapV === 'v4') { meshN++; continue; }
+      if (v4bake) { meshN++; continue; }
       const inJunction = covered && best > 0.5;
       if (!inJunction) { meshWorst = Math.max(meshWorst, best); meshN++; }
     }
   }
   report('roads', 'baked centre lines vs OpenStreetMap', worst < 0.5 && n > 0, `${n.toLocaleString('en-GB')} OSM nodes ${osmNode ? '(re-read from the OSM extract)' : '(the graph\'s own copy: no extract here)'}: largest difference ${(worst * 100).toFixed(1)} cm${worstAt ? ` at ${worstAt}` : ''}`);
   // (Map v4: its cross-sections aren't built on OSM's nodes — the road surface covering each is what's asked)
-  if (mapV === 'v4') report('roads', 'drawn road surface over every OSM node', uncovered === 0 && meshN > 0, `${meshN} sampled nodes: ${uncovered} with no road surface drawn over them`);
+  if (v4bake) report('roads', 'drawn road surface over every OSM node', uncovered === 0 && meshN > 0, `${meshN} sampled nodes: ${uncovered} with no road surface drawn over them`);
   else report('roads', 'drawn road surface through every OSM node', meshWorst < 0.5 && meshN > 0, `${meshN} sampled nodes: the road surface has a vertex within ${(meshWorst * 100).toFixed(1)} cm of each (junctions: its middle)`);
   // connected: no road ends on another (same layer and structure) without joining it — that's a step or
   // a gap where they meet
@@ -173,7 +176,7 @@ async function heightTest() {
     // (what a wheel on this road stands on: the first solid ground below a point just over its surface)
     // (Map v4 puts a mesh vertex on every graph point — its cross-sections' crowns — and a ray straight down through a
     // vertex can slip past it, Rapier's edge case, where no wheel ever is: 5 mm off it)
-    const off = mapV === 'v4' ? 0.005 : 0, S = sims.get(key), phys = S.ground(p.x + off, p.z + off, p.h + 0.5, true, 3.4);
+    const off = v4bake ? 0.005 : 0, S = sims.get(key), phys = S.ground(p.x + off, p.z + off, p.h + 0.5, true, 3.4);
     if (phys === null && edgeOfBake(t)) { edgeSkips++; continue; }
     const dv = vis === undefined ? Infinity : Math.abs(vis - p.h), dp = phys === null ? Infinity : Math.abs(phys - p.h);
     if (inFan(p) && vis !== undefined && phys !== null) { fans++; worstFan = Math.max(worstFan, dv, dp); continue; }
@@ -497,14 +500,14 @@ async function determinismTest() {
   console.log('\nDeterminism: the same area baked twice');
   if (!fs.existsSync(path.join(M.root, '.cache/map', region, `${region}.osm.pbf`))) { report('determinism', 'baking twice', true, 'needs the bake\'s inputs in .cache/map (run a bake first)', true); return; }
   // (Map v4: its own bake, the road surface model's file with the rest)
-  const bake = mapV === 'v4' ? (await import('../../map/bake/bakeV4.ts')).bakeV4 : (await import('../../map/bake/bake.ts')).bake;
+  const bake = v4bake ? (await import('../../map/bake/bakeV4.ts')).bakeV4 : (await import('../../map/bake/bake.ts')).bake;
   // (Map v4 bakes a block of tiles at a time: the second bake a block for every tile, with a wider pad — the same files,
   // or a block's edge shows)
   const [la, lo] = [manifest.spawn.lat, manifest.spawn.lon], dirs = [0, 1].map(k => fs.mkdtempSync(path.join(os.tmpdir(), `map-det-${k}-`)));
-  for (const [k, out] of dirs.entries()) await bake({ regionId: region, area: `${la},${lo},${mapV === 'v4' ? 1.2 : 0.6}`, out, blocks: mapV === 'v4' && k === 1 ? { tiles: 1, pad: 400 } : null, log: () => {} } as any);
-  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz', ...(mapV === 'v4' ? ['roadmodel.json.gz'] : [])];
+  for (const [k, out] of dirs.entries()) await bake({ regionId: region, ...(v4bake && { map: mapV }), area: `${la},${lo},${v4bake ? 1.2 : 0.6}`, out, blocks: v4bake && k === 1 ? { tiles: 1, pad: 400 } : null, log: () => {} } as any);
+  const files = (d: string) => [...fs.readdirSync(path.join(d, 'tiles')).map(f => `tiles/${f}`), ...fs.readdirSync(path.join(d, 'far')).map(f => `far/${f}`), 'graph.json.gz', ...(v4bake ? ['roadmodel.json.gz'] : [])];
   const a = files(dirs[0]), diff = a.filter(f => !fs.readFileSync(path.join(dirs[0], f)).equals(fs.readFileSync(path.join(dirs[1], f))));
-  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${mapV === 'v4' ? ', road surface model; the second bake a block per tile' : ''})`);
+  report('determinism', `${a.length} files baked twice`, diff.length === 0 && a.length > 3, diff.length ? `${diff.length} differ: ${diff.slice(0, 5).join(', ')}` : `identical, byte for byte (tiles, far layer, road graph${v4bake ? ', road surface model; the second bake a block per tile' : ''})`);
   for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
 }
 
@@ -568,7 +571,7 @@ async function physicsTest() {
 
 const TESTS: Record<string, () => Promise<void>> = { roads: roadsTest, height: heightTest, seams: seamsTest, datum: datumTest, rails: railTest, streaming: streamingTest, determinism: determinismTest, physics: physicsTest };
 const t0 = performance.now();
-console.log(`Map v3's tests${mapV === 'v4' ? ' on the Map v4 bake' : ''}: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
+console.log(`Map v3's tests${v4bake ? ` on the Map ${mapV} bake` : ''}: ${manifest.name} (${manifest.tiles.length} tiles, bake ${manifest.version})`);
 for (const [id, fn] of Object.entries(TESTS)) if (!only || only.includes(id) || (id === 'streaming' && only.includes('memory'))) await fn();
 const failed = rows.filter(r => !r.pass);
 console.log(`\n${rows.length - failed.length} of ${rows.length} passed${rows.some(r => r.skipped) ? ` (${rows.filter(r => r.skipped).length} skipped)` : ''} in ${((performance.now() - t0) / 1000).toFixed(0)} s${failed.length ? ` — failed: ${failed.map(r => `${r.test}: ${r.name}`).join('; ')}` : ''}\n`);

@@ -1,9 +1,18 @@
-# Map v4: the real world
+# Map v5: the real world, recognisable
 
 The game's real-world maps are simple low-poly copies of real regions: **Adelaide** (the city, the coast, the
 Adelaide Hills), **San Francisco** (the hills, the Pacific coast, the Bay, the Golden Gate Bridge, the freeways) and
 a few smaller ones. Each is **baked offline** into static files. The browser never asks Overpass for anything,
 never builds terrain and never extrudes buildings. It loads tiles and draws them.
+
+**Map v5** (Adelaide) is what the game draws now. Map v4 made the roads accurate, watertight and drivable; Map v5 makes
+the place **recognisable** — someone who knows the street should know where they are from what's round them alone,
+with no HUD and no map. It keeps Map v4's road surface model, bake, elevation, tiles, collision, streaming and
+lighting, and adds to them: kerbs, verges and footpaths along every road, buildings that look like what they are,
+chain stores drawn as parody brands, street furniture, railways, landmarks, sports grounds, vegetation by species,
+and a style pack for how the region's streets look where the data doesn't say. Everything it estimates is marked
+estimated. [Map v5](#map-v5) below; what it changed and fixed, with numbers and pictures, is in
+[MAP_V5_REPORT.md](MAP_V5_REPORT.md), and why, in [MAP_V5_DIAGNOSIS.md](MAP_V5_DIAGNOSIS.md).
 
 **Map v4** (Adelaide) rebuilds everything about the roads from **one road surface model** (`map/model/`). The model
 is made at bake time and is the only description of a road. These all come from it, and nothing else works roads
@@ -30,10 +39,11 @@ baked data:
 So they always line up.
 
 - **In the game:** **Real world** (the game opens on it). The label at the bottom left reads
-  `Map v4 | tile x/y | DEM: <source> <resolution> | roads: <model version>` in a Map v4 region, and
-  `Map v3 | tile x/y | DEM: …` in the others.
+  `Map v5 | tile x/y | DEM: <source> <resolution> | roads: <model version> | style: <region style pack>` in
+  Adelaide, and `Map v3 | tile x/y | DEM: …` in the others.
 - **The old maps** are behind debug flags, all off by default:
-  - `?map=v3` loads Adelaide's Map v3 bake, for comparing. `localStorage` `map.version` = `v3` does the same.
+  - `?map=v4` loads Adelaide's Map v4 bake, `?map=v3` its Map v3 bake, for comparing. `localStorage` `map.version`
+    = `v4` or `v3` does the same. A slice baked beside them loads by its folder: `?map=v5-heysen`.
   - `?map=v2` runs the low-poly map before that.
   - `?photoreal=1` runs the Cesium one.
 - **Keys:**
@@ -75,18 +85,27 @@ map/
               junctions, trims, clusters, patch outlines), heights.ts (profiles, junction planes, chains, bridges),
               surface.ts (the mesh), geom.ts (cross-sections), mask.ts (exclusion mask, road-surface index),
               props.ts (trees, railings), lamps.ts (street lamps), checks.ts (cracks, overlaps, folds)
+              Map v5's, beside them: crossSection.ts (kerbs, verges, footpaths, islands), tunnels.ts (tubes,
+              portals), buildingsV5.ts (building types, chains' sites), brands.ts (chain detection, parody checks),
+              fences.ts (front fences), furniture.ts (signals, signs, bus stops, poles), markingsV5.ts (turn arrows,
+              bike and bus lanes), railways.ts (track, level crossings, platforms, wiring), landmarks.ts (ranking,
+              hand-made models), placeSigns.ts (suburbs', parks'), fields.ts (sports grounds, pools),
+              vegetation.ts (species, street and garden trees)
+  style/      Map v5's region style packs: stylePack.ts picks data/map/styles/<pack>.json for a region
   collision/  Map v4's colliders against what's drawn: buildings.ts (building hulls cut off roads), audit.ts
               (every collider has something drawn there)
   bake/       the offline pipeline (Node):
               bake.ts (Map v3's command), sources.ts (OSM extract, Osmium), osmBridge.ts (OSM from Overture when
               Geofabrik is unreachable), planetiler.yml (the vector map), osmData.ts, elevation.ts (GDAL), roads.ts,
               terrain.ts, buildingMerge.ts, extrude.ts, details.ts (railings, trees, names), tiles.ts
-              bakeV4.ts (Map v4's command), terrainV4.ts (the ground under and round the roads), tilesV4.ts (v4
-              tiles), clip.ts (the surface cut at tile borders), encodePool.ts + encodeWorker.ts (tiles encoded on
+              bakeV4.ts (Map v4's command; Map v5's too, bakeV5.ts runs it with map 'v5'), terrainV4.ts (the ground
+              under and round the roads), tilesV4.ts (v4 and v5 tiles), clip.ts (the surface cut at tile borders), encodePool.ts + encodeWorker.ts (tiles encoded on
               every core)
   render/     the game side (browser): streamer.ts, worker.ts, objects.ts (three.js), physics.ts (Rapier),
               lamps.ts (street lamps, the nearest few as real lights), maps.ts (MapLibre), game.ts (HUD, label,
-              travel, overlay), debug.ts (debug views, bad spots)
+              travel, overlay), debug.ts (debug views, bad spots); Map v5's: debugV5.ts (its debug views),
+              furniture.ts (street furniture, place signs), rails.ts (track), models.ts (hand-made landmarks),
+              facades.ts (facade kits)
   debug/      tools for looking: diagnoseV3.ts (Map v4 Step 0's measurements), modelSlice.ts (the model for a small
               area, top down, to a PNG, without a bake), tileHeights.ts (a baked road surface coloured by height),
               plot.ts
@@ -346,6 +365,153 @@ one does). The steps run in order, and each uses only what the steps before it m
   `roadmodel.json.gz` (the model's roads and junctions), `tiles/` and `far/`. The vector map is v3's
   (`../map.pmtiles`).
 
+## Map v5
+
+Map v5 is baked by the same command as Map v4 (`map/bake/bakeV5.ts` runs `bakeV4.ts` with map `v5`), from the same
+road surface model, onto the same tiles. Its settings are `data/map/v5.json`, laid over `data/map/v4.json`
+(every key it names replaces Map v4's, the rest stay), and the region's style pack (`data/map/styles/`). Every size
+and threshold is in one of them; the bake is deterministic (the same inputs give byte-identical tiles); and every
+collider has something drawn there, or the bake stops.
+
+What it adds, by the brief's steps:
+
+- **Step 1, Map v4's known faults** ([MAP_V5_DIAGNOSIS.md](MAP_V5_DIAGNOSIS.md) has their causes):
+  - *Elevation:* the road's ground sampled along the road only where the source is bare earth (GA's 5 m LiDAR), a
+    steepest grade per road class, gently curved surfaces for big junctions (`heights` in `v5.json`).
+  - *Bends and merges:* a way's end tangent carried into the road that continues it, cross-sections turned on the
+    road's chord either side (`graph.normalSmooth`), hairpins curved rather than cornered.
+  - *Wheels at joins:* kerbs and footpaths close every road edge (the cross-section below), so no open step is left.
+  - *Bridges:* the deck's clearance over what it crosses spread back along the approaches; a deck beside a road on
+    the ground where it rises away is narrowed so neither overhangs the other (`widths.acrossLevels`).
+  - *Tunnels* (`map/model/tunnels.ts`): where a tunnel road runs under more than `terrain.tunnelCover` m of ground —
+    the Heysen Tunnels — a tube built from the road surface: walls, a ceiling, portals with headwalls and wings,
+    lamps on the walls, all solid; the hill over it left as it is, the road inside on its real grade.
+  - *Surfaces:* a wheel takes the surface of the very triangle it's on (road, footpath, kerb, verge, car park,
+    deck), never the ground's raster under it.
+  - *Signs* stand off the road on the footpath or verge, on the driving side, facing their traffic.
+  - *Floating:* street-side parking is part of the road; car parks lie on the ground as the roads shaped it.
+  - *Lights:* brighter, wider pools of light on the road and footpath under each lamp.
+  - *Roundabouts:* the island raised behind a kerb, a garden bed with low plants and a tree.
+- **Step 2, the cross-section** (`map/model/crossSection.ts`): each side of each road planned — kerb, verge,
+  footpath — from OSM's mapped footpaths where they are (`footway=sidewalk`), its `sidewalk` tags, else the style
+  pack's widths for the road's class in built-up areas (estimated). A side whose buildings typically stand close to
+  the kerb in a shopping street is paved to their walls; a street of houses keeps its front gardens. Kerbs are
+  lowered at crossings and driveways. Holes in the road no bigger than an island are raised islands.
+- **Step 3, buildings** (`map/model/buildingsV5.ts`, `map/render/facades.ts`, `map/model/fences.ts`): each building's
+  type (house, terrace, apartment, shop, office, tower, warehouse, industrial, school, church, petrol, mall,
+  hospital, station, garage) from its tags, then the places inside it, else its land use, size and height
+  (estimated); a facade kit for its type; its roof and colours from the data, else the style pack's (estimated);
+  its businesses' names on sign bands; houses' front fences, walls and hedges (estimated).
+- **Step 4, chains** ([Brands and parodies](#brands-and-parodies)).
+- **Step 5, street furniture, railways and markings** ([Street furniture](#street-furniture),
+  [Markings](#markings)): traffic lights, stop, give way, speed, roundabout, one-way and no-entry signs, bus stops
+  and shelters, power poles and lines, benches, bins and the rest where OSM maps them; railways with ballast,
+  sleepers and rails, rail bridges, level crossings with booms, platforms and overhead wiring
+  (`map/model/railways.ts`, `map/render/rails.ts`); turn arrows, bicycle lanes and bus lanes.
+- **Step 6, landmarks and grounds** ([Landmarks](#landmarks)): the region's most prominent buildings seen from
+  anywhere; hand-made models standing in for buildings; sports grounds' markings, courts and pools
+  (`map/model/fields.ts`); suburbs' and parks' name signs (`map/model/placeSigns.ts`).
+- **Step 7, vegetation** (`map/model/vegetation.ts`): trees by species — broadleaf, conifer, eucalypt, palm, low
+  plants — from OSM's tags, else the style pack's mix for where they are; street trees in the verges and garden
+  trees behind houses (estimated); nothing estimated on pitches, pools, playgrounds or greens; the pack's dry-summer
+  grass colours.
+- **Step 8, style packs** ([Region style packs](#region-style-packs)).
+- **Step 9, debug views and the recognisability capture** ([Debug views and bad spots](#debug-views-and-bad-spots)).
+
+Never invented: no road, building or business is added that the data doesn't have. What's estimated — a kerb's
+width, a building's type, a front fence, a street tree, a turn arrow, a canopy — is marked so in the tiles (a flag on
+each piece) and counted in the bake's log.
+
+### Brands and parodies
+
+The game never draws a real chain's name, logo or colours. `data/map/v5/brands.json` is the registry: each chain by
+its brand's Wikidata ID, the names it's known by (`real`: used only to find it, never drawn), its category (fast
+food, fuel, supermarket, big box: each with a site template) and its **parody** — an invented name, its own colours
+and a logo the game draws from a shape and a mark (or `assets/brands/<id>.svg` when there is one) — and an
+`ipNote` saying why the parody is safe.
+
+`map/model/brands.ts` finds each outlet in the map data, best evidence first: OSM's `brand:wikidata` (1.0),
+Overture's brand Wikidata (0.95), OSM's `brand` (0.9), Overture's brand name (0.85), then the place's own name by the
+name-suggestion-index or the registry's names (0.8 with an agreeing category, 0.5 on the name alone). It keeps those
+at `brands.minConfidence` or more; one chain twice within `brands.dedupe` m is one outlet, and two fuel brands within
+`brands.siteDedupe` m one site. Each outlet's building takes its parody's colours and name, and its site gets the
+template's pieces where there's room: a pylon sign, a petrol station's canopy over its forecourt with pumps, a
+drive-thru's menu board, a supermarket's trolley bays (`buildingsV5.ts brandSites`, all marked estimated).
+
+The bake **fails** if any parody name comes within `tests.brandSimilarity` (0.72) of any real brand name — the
+registry's own and every one in the name-suggestion-index — after folding case, accents and punctuation, or holds a
+distinctive real name as a word.
+
+**To add a parody brand:**
+
+1. Find the chain's Wikidata ID: the name-suggestion-index lists it (`brand:wikidata`), or wikidata.org.
+2. Add an entry to `brands` in `data/map/v5/brands.json`: `id` (a slug of the parody's name), `wikidata`, `real`
+   (every name and spelling it's known by), `category`, and a `parody`: a `name` with no letters or sounds of the
+   original, `colours` (`primary`, `secondary`, `text`) clearly unlike its own, a `logo` (`shape`, `mark`), and an
+   `ipNote`. No slogans, mascots or trade dress.
+3. Bake a slice where it has outlets (`--area`). The log's `brands:` line counts its outlets; the bake stops if the
+   name is too close to a real one.
+
+### Landmarks
+
+`map/model/landmarks.ts` scores every building by how much it stands out — its height, its footprint, a Wikipedia or
+Wikidata entry, a landmark's kind (a stadium, a cathedral, a station, a tower), a name — and the top
+`landmarks.top` (80) are drawn in the far layer too, so they're seen from anywhere in the region. The manifest lists
+the first 20 (`landmarks`).
+
+**To add a hand-made landmark:** put a glTF model (`.gltf` or `.glb`; y up, metres, its base at y 0) in
+`data/map/v5/landmarks/` and an entry in `landmarks.json` there:
+
+```json
+{ "name": "Adelaide Oval", "file": "adelaide-oval.glb", "osm": "way/123456", "rotation": 0, "scale": 1, "box": [190, 30, 160] }
+```
+
+- `osm` (the building it stands in for: that building is hidden) or `lat` and `lon` (the building there hidden);
+- `rotation` (degrees, clockwise seen from above), `scale`, `lift` (m);
+- `box` ([width, height, depth] m) makes it solid with a box collider round its anchor; without it, it's drawn only;
+- `"enabled": false` keeps an entry as an example only. `example-placeholder.gltf`, a plain 10 m block, is one to copy.
+
+The bake copies the file into the region's bake and logs `landmarks: … hand-made`; a missing file is logged, not fatal.
+
+### Region style packs
+
+How a country's streets look where the map data doesn't say. `data/map/styles/australia.json` is Adelaide's;
+`generic.json` is used where no pack covers a region. `map/style/stylePack.ts` picks the first pack whose `bboxes` hold
+the region's middle. A pack holds:
+
+- `drivingSide` and `markings` (the road marking style);
+- `crossSection`: kerbs, verges and footpaths by road class, when a side is paved to its shops;
+- `islands`: when a hole in the road is a raised island, and a roundabout's garden;
+- `buildings`: roof and wall palettes by type, default roof shapes, front fences' looks;
+- `furniture`: traffic lights', signs', poles' and bus stops' look and size;
+- `vegetation`: the mixes of tree kinds by place (street, park, forest, scrub, garden), how often a house has a
+  garden tree, the ground's colours;
+- `tunnel`, `fields`, `railways` (gauges, colours), `markingColours`, `frontFences` (the mix of walls, fences and
+  hedges).
+
+**To add a region style pack:** copy `generic.json` to `data/map/styles/<id>.json`, set `id`, `name`, `bboxes`
+([west, south, east, north] degrees, one or more) and `drivingSide`, change what differs (each block's `_note` says
+what its numbers mean), and bake. The label's `style:` shows which pack a bake used; every estimated thing the pack
+adds is marked estimated.
+
+### Street furniture
+
+`map/model/furniture.ts` places what OSM maps, each piece clearance m off the drawn road's edge past the kerb on the
+side traffic keeps to, facing its traffic (`furniture` in `v5.json`): traffic lights at every approach of a junction
+with signals (two phase groups, cycled by the game), OSM's stop and give way signs, speed signs where the limit
+changes, a give way and roundabout sign at each roundabout entry, ONE WAY and NO ENTRY signs at one-way streets (not
+a divided road's carriageways), street name signs at junction corners, bus stops and shelters, power poles and their
+lines, and benches, bins, post boxes, hydrants and bollards. A piece that would stand in a lane is pushed out, or
+left out. The road model's side +1 is on the right of a segment's direction (x east, z south): `map/model/geom.ts`.
+
+### Markings
+
+Map v4's lane lines, stop lines and zebras, and `map/model/markingsV5.ts`'s: turn arrows in each lane coming into a
+junction with traffic lights (OSM's `turn:lanes` where tagged, else from the junction's arms: estimated), bicycle lanes
+with their line, a bicycle painted every so often and green paint at their ends, and bus lanes (`markingsV5` in
+`v5.json`). OSM's copy here has no keep-clear areas or painted medians, so none are drawn.
+
+
 ## Baking a region
 
 Requirements: Node 22+, Java 21+, GDAL 3.x with its Python scripts, Osmium, and PROJ's geoid grids for
@@ -389,10 +555,24 @@ sudo apt-get install gdal-bin python3-gdal osmium-tool proj-bin proj-data
    - It fails if any tile has a collider with nothing drawn there.
    - To switch the game to it, point the region's `manifest` in `data/map/baked.json` at
      `assets/map/<id>/v4/manifest.json`. `?map=v3` still loads the Map v3 bake beside it.
+5. **Map v5** (Adelaide):
+   ```sh
+   npm run map:bake5 -- --region <id> --area <lat>,<lon>,3        # a 3 km slice (about 2½ minutes for the CBD)
+   npm run map:bake5 -- --region <id> --area <lat>,<lon>,3.6,2    # a 3.6 × 2 km one
+   npm run map:bake5 -- --region <id> --area <lat>,<lon>,2 --out assets/map/<id>/v5-<name>   # a named slice
+   npm run map:bake5 -- --region <id>                             # the whole region
+   ```
+   - It writes `assets/map/<id>/v5/` (or `--out`), with the style pack the region's middle falls in.
+   - The bake fails if any tile has a collider with nothing drawn there, or a parody name is too close to a real one.
+   - A named slice loads in the game with `?map=v5-<name>`; its spawn is the nearest road to its middle.
+   - The game loads the region's `manifest` in `data/map/baked.json`: `assets/map/<id>/v5/manifest.json` for Adelaide.
+     `?map=v4` and `?map=v3` load the bakes beside it.
 
 Tuning:
 
 - **Map v3:** `data/map/bake.json` (road shape, terrain slopes, colours, railings, trees, building heights).
+- **Map v5:** `data/map/v5.json` over `v4.json` (bump its `version` after changing anything), and the region's style
+  pack in `data/map/styles/`.
 - **Map v4:** `data/map/v4.json`, for everything about roads and what's made from them: widths, junctions, heights,
   surface, terrain under roads, collision, exclusion mask, lamps, railings, the block bake (`bake`) and the tests'
   limits (`tests`). Bump its `version` after changing anything; the game's tile cache then drops the old tiles.
@@ -410,6 +590,16 @@ Tuning:
   - **mask**: the exclusion mask. Road is red, under a deck yellow, railway blue.
   - **lamps**: mapped (OSM) lamps white, estimated orange, the real lights ringed.
   - **seams**: tile borders, and any height or road-edge mismatch where two loaded tiles meet (red).
+  - Map v5's, on a v5 map (`map/render/debugV5.ts`), each drawn from what the tile holds near the car:
+    - **xsection**: the road mesh by its part of the cross-section: road white, kerb yellow, verge green, footpath
+      cyan, island grey, garden brown.
+    - **surface**: what the tyres feel: the road collision mesh by surface, and the ground's surface grid round it.
+    - **elevation**: the terrain's source every 8 m: GA LiDAR 5 m green, Copernicus orange, blended yellow, sea blue.
+    - **clearance**: under each bridge deck a line down to the ground, green at 5 m clear or more, yellow at 4.3 m,
+      red less; tunnels' edges purple.
+    - **buildings**: each building's type at its roof, pale where estimated, ringed where it's a landmark.
+    - **brands**: each chain's sign bands and site pieces in its parody's colour, with its name.
+    - **furniture**: every piece of street furniture by kind; estimated pieces ringed orange.
 - **Shift+F6** steps the time of day: day, dusk, night (for the lamps). It's saved like the settings' time of day.
 - **Shift+F4** logs a **bad spot**: position, heading, tile and a note. With the dev server running, it's written
   into `data/map/known-bad-spots.json`; otherwise it's kept in the browser, and Shift+F4 twice quickly saves the file.
@@ -421,7 +611,14 @@ Tools that need no browser:
   to a PNG, without a bake.
 - `node map/debug/tileHeights.ts --region adelaide --at <x>,<z> --size 40`: a baked road surface coloured by
   height, with its triangles' edges.
-- `node tools/map-shots.mjs --spots <file> [--map v3]`: screenshots in the game at a list of spots.
+- `node tools/map-shots.mjs --spots <file> [--map v3]`: screenshots in the game at a list of spots (top down or the
+  chase camera, with any debug view on: `"view": "xsection"`).
+- **The recognisability capture**, `node tools/map-recognise.mjs [--maps v5,v4]`: the places in
+  `data/map/v5/recognise.json` — 18 a local would know — shot from the chase camera in each map with nothing on
+  screen that names them (no HUD, no where-am-I box, no label, no names painted on the road; the world's own street
+  signs stay). It writes `output/map-recognise/index.html`: a quiz to try on someone who knows the city, each
+  place's Map v5 picture with Map v4's beside it, "where is this?", the answer kept back until asked
+  (`answers.json` beside it). A place outside what a map baked is left out of it.
 
 ## Data sources and licences
 
@@ -432,10 +629,15 @@ Tools that need no browser:
 | Elevation, San Francisco | USGS 3D Elevation Program, 1 m LiDAR DTM (CA_SanFrancisco_B23) | Public domain |
 | Elevation, elsewhere | Copernicus DEM GLO-30 © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, provided under COPERNICUS by the European Union and ESA | Copernicus DEM licence |
 | Geoid grids | PROJ-data (NOAA GEOID18, NGA EGM2008) | Public domain / open |
+| Elevation, Adelaide | GA 5 m LiDAR DEM (Digital Elevation Model of Australia derived from LiDAR 5 Metre Grid © Commonwealth of Australia, Geoscience Australia), and GA DEM-S 1 second where it has none | CC BY 4.0 |
+| Places — the businesses in buildings, chains' outlets, parks' names (Map v5) | Overture Maps Places © Overture Maps Foundation | CDLA Permissive 2.0 |
+| Suburbs' boundaries (Map v5's place signs) | Overture Maps divisions © Overture Maps Foundation, from OpenStreetMap | ODbL 1.0 |
+| Chain names, to recognise chains (Map v5; none of them drawn) | name-suggestion-index © its contributors (8.0.20260918, from npm) | BSD-3-Clause |
 | Tools | Planetiler (Apache 2.0), GDAL (MIT), Osmium (GPL-3, run as a tool), meshoptimizer (MIT), Martini (ISC), MapLibre GL JS (BSD-3) | |
 
 The game shows OpenStreetMap, Overture and each elevation source at the bottom right and on the full
-map. The manifest lists them all (`attribution`, `sources`).
+map. The manifest lists them all (`attribution`, `sources`). The parody brands are the game's own (`data/map/v5/brands.json`): no real chain's
+name, logo or colours is drawn.
 
 ## Tests
 
@@ -515,6 +717,38 @@ Each test decodes the tiles and collides with them as the game does (`tests/map/
 streaming, memory, determinism, Phase 1 physics) on the v4 bake. For determinism, it bakes a 1.2 km area twice with
 `bakeV4.ts`, the second time with a block for every tile and a 400 m pad, and every file must be byte-identical. So a
 block's edge can't show.
+
+### Map v5's tests
+
+```sh
+npm run test:map5                                       # on assets/map/adelaide/v5/
+npm run test:map5 -- --dir assets/map/adelaide/v5-heysen --only tunnels
+npm run test:map5 -- --only side,lanes,floating,clearance,roundabouts,buildings,tunnels --verbose
+npm run test:map4 -- --dir assets/map/adelaide/v5       # Map v4's tests, on the v5 bake
+```
+
+Limits are in `data/map/v5.json` (`tests`). A test with nothing of its own in the bake (no tunnel in a slice) is
+skipped, not passed.
+
+- **side** (1g): traffic lights and regulatory signs stand on the driving side of the traffic they face (at least
+  `drivingSideShare`, or all but one), measured against the road running their way.
+- **lanes** (2, 5, 7): nothing stands on a lane — the road's own surface, at its foot's height: furniture, lamps (a
+  tunnel's hang on its walls), trees, place and street name signs.
+- **floating** (1h): car parks and paths more than `floatingOver` m over the ground with no building or road under
+  them, at most `floatingShare` of their triangles.
+- **clearance** (1d): every bridge deck's edge over a road at least `minEdgeClearance` m over it (the bake keeps
+  `heights.clearance` where the centre lines cross; the edge on a grade comes lower).
+- **roundabouts** (1j): known roundabouts' islands are gardens (Britannia's two), a known crossing of divided roads
+  isn't (North Terrace / King William Street).
+- **buildings** (3): every building has a type; how many are estimated.
+- **tunnels** (1e): every one-way tunnel of `tunnelMinLength` m or more driven through end to end by the autopilot
+  — no fall through, no climb onto the hill, out the far portal — and probed from inside: a ceiling over the road
+  and a wall either side, all solid, the hill over it intact.
+
+Map v4's tests on a v5 bake know what Map v5 changed: its road mesh holds kerbs, verges, footpaths, islands and
+gardens, so a lane is the road's own surface and cracks are counted in the road's own triangles; it turns its
+cross-sections on a smoothed normal, so the edges test leaves tight bends out (`tests.bendTurn`); and its low plants
+(no collider) aren't trunks. What they still find is in [MAP_V5_REPORT.md](MAP_V5_REPORT.md).
 
 ## The San Francisco bake (results)
 
