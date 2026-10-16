@@ -115,7 +115,7 @@ export class GarageScreen {
   reset() {
     this.ui = { tab: 'parts', area: null, view: 'overview', panel: null, socket: null, candidate: null, filter: 'all', sort: 'performance', expanded: 'power', paintEdit: null, dyno: { t: null, overlay: null }, dialog: null, pop: null, toast: null, labels: this.ui?.labels ?? 'hover', wheelCorner: 'FL',
       inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null, view: 'parts', picked: [] }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts', brand: 'all', tier: 'all', band: 'all' }, dmg: { problem: null, zone: null },
-      confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null, lot: 'new', used: null, spin: true } };
+      confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null, lot: 'new', used: null } };
     this.preview = null; this.dynoShown = null; this.ghosting = null; this.tuneBase = null;
   }
   set workshop(w) {
@@ -234,7 +234,7 @@ export class GarageScreen {
     if (this.ui.tab === 'dyno') return 'DYNO BAY';
     if (this.ui.tab === 'inventory') return 'PARTS STORE';
     if (this.ui.tab === 'shop') return 'SHOWROOM';
-    if (this.ui.tab === 'dealer') return 'DEALERSHIP · TURNTABLE';
+    if (this.ui.tab === 'dealer') return 'DEALERSHIP';
     if (this.ui.tab === 'paint') return 'PAINT BOOTH';
     if (this.ui.tab === 'damage') return `DAMAGE REPORT${this.ui.view !== 'overview' ? ` · ${(VIEW_WORDS[this.ui.view] ?? this.ui.view).toUpperCase()}` : ''}`;
     if (this.ui.tab === 'tuning') return 'SIDE PROFILE';
@@ -904,7 +904,7 @@ export class GarageScreen {
       .then(() => { this.shownLook = null; this.#dealerView(this.ui.dealer.view ?? 'overview'); this.render(); }).catch(err => console.warn('The dealership couldn\'t show the car:', err));
   }
   // the showroom's views: outside (turning, if it's on), the interior (driver's door open), the engine bay, the boot
-  #dealerView(v) { this.ui.dealer.view = v; this.scene.turntable = v === 'overview' && this.ui.dealer.spin !== false; this.#view(v); }
+  #dealerView(v) { this.ui.dealer.view = v; this.#view(v); }
   async #loadLot() {
     if (this.lotLoading) return;
     this.lotLoading = true;
@@ -914,8 +914,7 @@ export class GarageScreen {
   #dealer() {
     const w = this.w, d = this.ui.dealer, space = w.space;
     d.lot ??= 'new';
-    const views = `<div class="g-dealer-views">${DEALER_VIEWS.map(([v, n, ic]) => `<button class="chip square ${(d.view ?? 'overview') === v ? 'on' : ''}" data-act="dealer-view:${v}" data-key="dealer-view:${v}">${icon(ic, 'style="font-size:18px"')}${n}</button>`).join('')}
-      <button class="chip square ${d.spin !== false ? 'on' : ''}" data-act="dealer-spin" data-key="dealer-spin" title="Turn the car on the lift (drag to turn it yourself)">${icon('360', 'style="font-size:18px"')}Turn</button></div>`;
+    const views = `<div class="g-dealer-views">${DEALER_VIEWS.map(([v, n, ic]) => `<button class="chip square ${(d.view ?? 'overview') === v ? 'on' : ''}" data-act="dealer-view:${v}" data-key="dealer-view:${v}">${icon(ic, 'style="font-size:18px"')}${n}</button>`).join('')}</div>`;
     const spaceLine = `<div class="g-space ${space.used >= space.capacity ? 'full' : ''}">${icon('garage')}<span>Your garage: ${space.used} of ${space.capacity} spaces</span>
       ${space.next != null ? `<button class="g-link" data-act="buy-slot" data-key="buy-slot" ${w.money >= space.next ? '' : `disabled title="You need ${esc(this.money(space.next - w.money))} more"`}>${this.ui.confirm === 'slot' ? `Buy one for ${esc(this.money(space.next))}?` : `${icon('add')}Another space · ${esc(this.money(space.next))}`}</button>` : '<span class="muted">as big as it gets</span>'}</div>`;
     const tabs = `<div class="segmented" style="align-self:flex-start">${[['new', 'New cars'], ['used', `Used lot${this.lot ? ` · ${this.lot.listings.length}` : ''}`]].map(([id, n]) => `<button class="${d.lot === id ? 'on' : ''}" data-act="dealer-lot:${id}" data-key="dealer-lot:${id}">${n}</button>`).join('')}</div>`;
@@ -1290,7 +1289,6 @@ export class GarageScreen {
         return this.toast(`Bought a ${w.db.cars[arg].name}: it's in your cars (top left)`, 'directions_car', 'good');
       }
       case 'dealer-view': this.#dealerView(arg); return this.render();
-      case 'dealer-spin': this.ui.dealer.spin = this.ui.dealer.spin === false; this.#dealerView(this.ui.dealer.view ?? 'overview'); return this.render();
       case 'dealer-lot': {
         this.ui.dealer.lot = arg; this.ui.confirm = null; this.dealerShown = null;
         if (arg === 'used') { const l = this.lot?.listings.find(x => x.id === this.ui.dealer.used) ?? this.lot?.listings[0]; if (l) { this.ui.dealer.used = l.id; this.#showUsedCar(l); } else this.#loadLot().then(() => { const f = this.lot?.listings[0]; if (f && this.ui.dealer.lot === 'used') { this.ui.dealer.used = f.id; this.#showUsedCar(f); } }); }
@@ -1536,12 +1534,12 @@ export class GarageScreen {
     if (this.ui.tab === 'paint' && tab !== 'paint') { this.ui.paintEdit = null; this.scene.previewPaint(this.w.paint); }
     // (the dealership: a dealer's car on the lift, turning; leaving it, the player's own car again)
     if (tab === 'dealer' && this.ui.tab !== 'dealer') {
-      this.ui.tab = tab; this.ui.dealer.view = 'overview'; this.scene.turntable = this.ui.dealer.spin !== false;
+      this.ui.tab = tab; this.ui.dealer.view = 'overview';
       const used = this.ui.dealer.lot === 'used' && this.lot?.listings.find(l => l.id === this.ui.dealer.used);
       if (used) this.#showUsedCar(used); else { this.ui.dealer.lot = 'new'; this.#showDealerCar(this.ui.dealer.carId ?? dealerList(this.w.db)[0].cars[0].id); }
       this.lot = null; this.#loadLot();
     }
-    else if (tab !== 'dealer' && this.ui.tab === 'dealer') { this.scene.turntable = false; this.dealerShown = null; this.showCar().then(() => this.render()); }
+    else if (tab !== 'dealer' && this.ui.tab === 'dealer') { this.dealerShown = null; this.showCar().then(() => this.render()); }
     this.ui.tab = tab; this.ui.pop = null; this.ui.confirm = null;
     if (tab === 'tuning') this.tuneBase = this.stats;
     this.scene.clearGhost(); this.scene.setSeeThrough(false);
