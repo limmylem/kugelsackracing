@@ -80,7 +80,17 @@ address is published). The developer is credited as Zane Darley (the owner's cho
   This computer has no graphics card, so they're drawn by a software renderer; on a computer with one,
   `node tools/press-shots.mjs --gpu` makes nicer ones. Run it again after a visible change.
 - **The logo PNG** is drawn from the SVG in a browser with its fonts (`tools/press-shots.mjs --logo`).
-- **A trailer**: not made yet. The plan: 60–90 seconds from the game's own race replay cameras (`race/raceReplay.js`: the TV
-  and chase cameras) and photo mode's free camera, with the race music; cuts of San Francisco's hills, Monaco's harbour,
-  the Stelvio's hairpins, a close race, the garage, and the driving school. Recorded with photo mode's clip button or
-  a screen recorder on a computer with a graphics card.
+- **The trailer** (`assets/press/ognistrada-trailer.mp4`, 1920×1080, about 50 seconds; on the press kit and the
+  landing page, served from the tiles' address like the map files): made from the game itself by
+  `cd devlog && node trailer/make.mjs` —
+  - **filmed** by the devlog's capture (`devlog/capture/capture.mjs`, frame by frame, so it's smooth on a computer
+    without a graphics card): Adelaide, San Francisco, Monaco and the Stelvio Pass driven along real roads by the
+    game's autopilot (the routes the tests drive, `tests/map/realRoutes.ts`), then a race track from several cameras
+    and a second car online (`devlog/trailer/shots.json`);
+  - **the music**: the game's own race music (`audio/music.js`), rendered offline to the trailer's plan — calm under
+    the title, building through the cities, flat out on the tracks — under the game's own engine and tyre sound;
+  - **cut** by `devlog/remotion/Trailer.jsx` (the timeline and captions: `devlog/remotion/trailerPlan.js`): the logo
+    and "In your browser · Free", each city named, the map's credit while a real place is on screen, an end card with
+    ognistrada.com, "Closed beta · Rated 13+".
+  - Filming takes about an hour here; `--reuse-clips` re-cuts or re-scores without filming again. Change the shots in
+    `devlog/trailer/shots.json`, the words in `trailerPlan.js`. On a computer with a graphics card it looks better.

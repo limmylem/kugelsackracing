@@ -10,7 +10,15 @@
 // "recording mode" with no change to the game).
 //
 //   node capture/capture.mjs [--target local|live] [--shots capture/shots.json] [--out out/clips]
-//                            [--multiplayer] [--fps 30] [--quick] [--max-seconds n]
+//                            [--multiplayer] [--fps 30] [--quick] [--max-seconds n] [--size 540x960]
+//
+//   --size WxH       the page's size in CSS pixels, drawn at 2× (540x960: the devlog's 1080×1920; 960x540: the
+//                    trailer's 1920×1080 — trailer/shots.json)
+//
+// A shots file has either one track and its shots (the devlog's), or "runs": each a generated track ({ track, shots,
+// multiplayer? }) or a real region driven along real roads ({ region, waypoints: [[lat, lon], …], shots }) — the
+// region's road network bakes a course through the waypoints (route/model.js bakeRoute, as the multiplayer routes are)
+// and the same autopilot drives it.
 //
 //   --target local   (default) this checkout: tools/serve.mjs serves the game; with --multiplayer a real-time server
 //                    runs in this process (server/src/rt/server.ts) and the join tickets are signed here
@@ -43,6 +51,7 @@ const QUICK = flag('--quick');
 const SOUND = !flag('--no-sound'), SAMPLE_RATE = 48000;
 const FPS = +opt('--fps', QUICK ? 15 : 30);
 const MAX_SECONDS = +opt('--max-seconds', QUICK ? 1 : 60);
+const [VIEW_W, VIEW_H] = opt('--size', '540x960').split('x').map(Number);
 const OUT = path.resolve(opt('--out', path.join(DEVLOG, 'out/clips')));
 const SHOTS = JSON.parse(fs.readFileSync(path.resolve(opt('--shots', path.join(HERE, 'shots.json'))), 'utf8'));
 const MULTI = flag('--multiplayer') || SHOTS.multiplayer === true;
@@ -208,7 +217,7 @@ if (TARGET === 'local') {
   };
 }
 
-async function openGame({ who, width, height, scale, track, room, names, on = browser, audioSeconds = 0 }) {
+async function openGame({ who, width, height, scale, track, region = null, room, names, on = browser, audioSeconds = 0 }) {
   const ctx = await on.newContext({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: 'no-preference' });
   if (TARGET === 'local') await localLibs(ctx);
   await ctx.addInitScript(VIRTUAL_FRAMES);
@@ -223,21 +232,37 @@ async function openGame({ who, width, height, scale, track, room, names, on = br
   // (locally there's no API: the CSRF token the game asks for before any request that writes, made up — only the
   // ticket request above uses it)
   if (ticketFor && TARGET === 'local') await ctx.route(/\/api\/v1\/csrf$/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"token":"devlog-local"}' }));
+  // (a real region: as a returning player, the first launch's screens already seen; the music off — the trailer
+  // has its own, unbroken across the cuts)
+  if (region) await ctx.addInitScript(() => {
+    localStorage.setItem('ognistrada.photosensitivity.v1', '2026-01-01');
+    localStorage.setItem('ognistrada.onboarding.v1', JSON.stringify({ welcome: 'offline', starter: 'starter_car', tutorial: 'skipped' }));
+  });
   const page = await ctx.newPage();
   page.on('pageerror', e => console.log(`  [${who}] page error: ${String(e.message).slice(0, 300)}`));
   if (process.env.DEVLOG_DEBUG) page.on('console', m => console.log(`  [${who}] ${m.type()}: ${m.text().slice(0, 300)}`));
-  const q = new URLSearchParams({ track });
-  // (multiplayer: a room of its own, and each window its own player — the ticket for it answered above)
-  if (room) { q.set('mp', room); q.set('player', who); } else q.set('mp', '0');
-  await page.goto(`${base}/?${q}`, { waitUntil: 'load', timeout: 120000 });
-  // the track built, the car on it, nothing still loading
+  if (region) {
+    // (its world opened straight: dev/world.html, the same scene as the game's page, at the high graphics preset)
+    const world = region === 'sf' ? 'map_v3' : `map_v3.json?region=${region}&_=`;
+    await page.goto(`${base}/dev/world.html?${new URLSearchParams({ world, graphics: 'high' })}`, { waitUntil: 'load', timeout: 120000 });
+  } else {
+    const q = new URLSearchParams({ track });
+    // (multiplayer: a room of its own, and each window its own player — the ticket for it answered above)
+    if (room) { q.set('mp', room); q.set('player', who); } else q.set('mp', '0');
+    await page.goto(`${base}/?${q}`, { waitUntil: 'load', timeout: 120000 });
+  }
+  // the track built (or the region's map streamed in round the car), the car on it, nothing still loading
   const ready = () => page.evaluate(async () => {
     const { debug } = await import('/testtrack/test-scene.js');
     window.__devlogShared = () => debug.shared;
-    const w = debug.active;
-    return !!(w?.sim && w.trackData && !w.spawning && debug.shared?.renderer);
+    const w = debug.active, st = w?.stream?.status;
+    return !!(w?.sim && (w.trackData || (st && st.tiles > 0 && !st.loading)) && !w.spawning && debug.shared?.renderer);
   }).catch(() => false);
-  for (let t = Date.now(); !(await ready()); await sleep(1000)) if (Date.now() - t > 240000) throw new Error(`${who}: the track didn't load in 4 minutes`);
+  const why = () => page.evaluate(async () => { const { debug } = await import('/testtrack/test-scene.js'); const w = debug.active; return JSON.stringify({ file: w?.file, sim: !!w?.sim, track: !!w?.trackData, stream: w?.stream?.status ?? null, spawning: !!w?.spawning }); }).catch(e => e.message);
+  for (let t = Date.now(), k = 0; !(await ready()); await sleep(1000), k++) {
+    if (Date.now() - t > 240000) throw new Error(`${who}: the ${region ? 'region' : 'track'} didn't load in 4 minutes: ${await why()}`);
+    if (k % 30 === 29) log(`  still loading: ${await why()}`);
+  }
   // (anything asking for a key press or a click at the start — a sign-in hint, a cookie note — out of the way)
   // (a key press is also what starts the game's sound: browsers allow it only after one)
   await page.keyboard.press('Escape').catch(() => {});
@@ -247,21 +272,34 @@ async function openGame({ who, width, height, scale, track, room, names, on = br
     for (let k = 0; k < 40 && !(ok = await up()); k++) await sleep(500);
     log(ok ? '  the game\'s sound is on (rendered in step with the frames)' : '  the game\'s sound didn\'t start: these clips are silent');
   }
+  // (the game's own music silent in the clips: a video adds its own over the cuts)
+  if (region || SHOTS.runs) await page.evaluate(() => globalThis.__krMusic?.stop?.()).catch(() => {});
   await page.addStyleTag({ content: RECORDING_CSS(names) });
   await page.evaluate(() => { window.__devlogShared().renderer.domElement.classList.add('devlog-view'); });
   return { ctx, page };
 }
 
 // the route test drive with its autopilot, round the track's own course (as dev/world.html?world=track&drive=1 does)
-const startAutopilot = page => page.evaluate(async laps => {
+const startAutopilot = (page, { region = null, waypoints = null } = {}) => page.evaluate(async ({ laps, region, waypoints }) => {
   const { debug, testDriveRoute } = await import('/testtrack/test-scene.js');
-  const { viewCourse } = await import('/route/model.js'), { trackProjection } = await import('/track/build.js');
-  const course = debug.active.trackData.course;
+  const { viewCourse, bakeRoute, newRoute } = await import('/route/model.js');
   window.__devlogDrive = 'running';
-  const r = await testDriveRoute({ compiled: viewCourse(course, trackProjection), item: { course }, laps, autopilot: true, onDone: res => { window.__devlogDrive = res ? 'done' : 'ended'; } });
+  let course, compiled;
+  if (region) {
+    // (a real region: a course baked through the waypoints on its road network — the shortest way by road between
+    // each — then drawn and driven as the editor's test drive does)
+    const game = debug.active.questGame, N = await game.network();
+    course = bakeRoute(N, { ...newRoute(region, 'p2p'), waypoints: waypoints.map(([lat, lon]) => ({ lat, lon })), grid: { count: 1, adjust: {} } });
+    compiled = viewCourse(course, game.projection);
+  } else {
+    const { trackProjection } = await import('/track/build.js');
+    course = debug.active.trackData.course;
+    compiled = viewCourse(course, trackProjection);
+  }
+  const r = await testDriveRoute({ compiled, item: { course }, laps: region ? 1 : laps, autopilot: true, onDone: res => { window.__devlogDrive = res ? 'done' : 'ended'; } });
   if (r && r.ok === false) return r.error;
   return null;
-}, 3);
+}, { laps: 3, region, waypoints });
 const camera = (page, name) => page.evaluate(async n => {
   const { CAMERAS } = await import('/testtrack/camera.js');
   const s = window.__devlogShared(), i = CAMERAS.indexOf(n);
@@ -279,11 +317,11 @@ const step = (page, ms) => page.evaluate(m => window.__devlog.step(m), ms);
 const keepLabels = page => page.evaluate(() => { for (const el of document.querySelectorAll('div')) if (el.style.position === 'absolute' && el.style.transform === 'translate(-50%, -100%)' && el.textContent.length < 40) el.classList.add('devlog-keep'); });
 
 // ---------- a run: one page (and the rival's), the shots in order along the lap ----------
-async function run(shots, { track, multiplayer }) {
+async function run(shots, { track, region = null, waypoints = null, multiplayer }) {
   const room = multiplayer ? `devlog-${Date.now().toString(36)}` : null;
   // (the sound's length: the whole run in game time, and a little over)
   const audioSeconds = SOUND ? Math.max(...shots.map(s => (s.at ?? 0) + Math.min(s.seconds, MAX_SECONDS))) + 4 : 0;
-  const rec = await openGame({ who: 'rec', width: 540, height: 960, scale: QUICK ? 1 : 2, track, room, names: !!SHOTS.names, audioSeconds });
+  const rec = await openGame({ who: 'rec', width: VIEW_W, height: VIEW_H, scale: QUICK ? 1 : 2, track, region, room, names: !!SHOTS.names, audioSeconds });
   const sound = audioSeconds && await rec.page.evaluate(() => !!window.__devlogAudio).catch(() => false);
   log(`the game is up${room ? `: room ${room}` : ''}`);
   // (held still from here: it waits, drawing nothing, until it's stepped)
@@ -299,7 +337,7 @@ async function run(shots, { track, multiplayer }) {
     // the rival goes first: a head start (game seconds), so it's on the road ahead of the camera car
     for (let k = 0; k < Math.round((SHOTS.rivalHeadStart ?? 1.5) * 20); k++) { await step(rival.page, 50); await sleep(60); }
   }
-  const e = await startAutopilot(rec.page); if (e) throw new Error(e);
+  const e = await startAutopilot(rec.page, { region, waypoints }); if (e) throw new Error(e);
   const dt = 1000 / FPS;
   let t = 0;                        // game seconds since the autopilot started
   // Both pages go forward the same game time each frame, and each frame takes the same real time (the period). The
@@ -363,7 +401,7 @@ async function run(shots, { track, multiplayer }) {
     ff.stdin.end();
     await done;
     if (multiplayer) log(`  ${s.name}, at its end: ${await othersSeen(rec.page)}`);
-    made.push({ name: s.name, file: path.relative(DEVLOG, file), seconds, fps: FPS, multiplayer: !!multiplayer, camera: s.camera ?? 'chase', label: s.label ?? null, soundFrom, sound: false });
+    made.push({ name: s.name, file: path.relative(DEVLOG, file), seconds, fps: FPS, multiplayer: !!multiplayer, camera: s.camera ?? 'chase', label: s.label ?? null, region, soundFrom, sound: false });
     log(`${s.name}: ${seconds} s → ${path.relative(process.cwd(), file)}`);
   }
   // the sound: the rest of the run rendered, each shot's stretch of it into its clip (a failure here leaves the clips
@@ -390,13 +428,19 @@ const names = () => !!SHOTS.names;
 
 let clips = [], failed = false;
 try {
-  const solo = SHOTS.shots.filter(s => !s.multiplayer), duo = SHOTS.shots.filter(s => s.multiplayer);
-  if (solo.length) clips.push(...await run(solo, { track: SHOTS.track, multiplayer: false }));
-  // (the second car's part failing leaves the solo shots: the video's still made, and the run says why)
-  if (duo.length && MULTI) {
-    try { clips.push(...await run(duo, { track: SHOTS.multiplayerTrack ?? SHOTS.track, multiplayer: true })); }
-    catch (e) { console.error(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}The multiplayer shots failed (the video is made without them): ${String(e.message ?? e).split('\n')[0]}`); if (process.env.DEVLOG_DEBUG) console.error(e.stack); }
-  } else if (duo.length) log(`(${duo.length} multiplayer shot${duo.length > 1 ? 's' : ''} left out: --multiplayer films them)`);
+  // (a shots file of runs — the trailer's: each a track or a region, filmed in turn; else the devlog's one track)
+  const runs = SHOTS.runs ?? [{ track: SHOTS.track, shots: SHOTS.shots }];
+  for (const R of runs) {
+    const solo = R.shots.filter(s => !s.multiplayer && !R.multiplayer), duo = R.shots.filter(s => s.multiplayer || R.multiplayer);
+    try {
+      if (solo.length) clips.push(...await run(solo, { track: R.track, region: R.region ?? null, waypoints: R.waypoints ?? null, multiplayer: false }));
+    } catch (e) { if (!SHOTS.runs) throw e; console.error(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}A run failed (${R.region ?? R.track}): ${String(e.message ?? e).split('\n')[0]}`); }
+    // (the second car's part failing leaves the solo shots: the video's still made, and the run says why)
+    if (duo.length && MULTI) {
+      try { clips.push(...await run(duo, { track: SHOTS.multiplayerTrack ?? R.track, multiplayer: true })); }
+      catch (e) { console.error(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}The multiplayer shots failed (the video is made without them): ${String(e.message ?? e).split('\n')[0]}`); if (process.env.DEVLOG_DEBUG) console.error(e.stack); }
+    } else if (duo.length) log(`(${duo.length} multiplayer shot${duo.length > 1 ? 's' : ''} left out: --multiplayer films them)`);
+  }
 } catch (e) {
   failed = true;
   console.error(`capture failed: ${e.stack ?? e}`);
@@ -406,8 +450,8 @@ try {
   server?.kill();
   if (rt) { try { await rt.stop?.(); } catch {} }
 }
-const order = new Map(SHOTS.shots.map((s, i) => [s.name, i]));
+const order = new Map((SHOTS.runs ? SHOTS.runs.flatMap(R => R.shots) : SHOTS.shots).map((s, i) => [s.name, i]));
 clips.sort((a, b) => order.get(a.name) - order.get(b.name));
-fs.writeFileSync(path.join(OUT, 'clips.json'), JSON.stringify({ target: TARGET, track: SHOTS.track, size: QUICK ? [540, 960] : [1080, 1920], fps: FPS, made: new Date().toISOString(), clips }, null, 2) + '\n');
+fs.writeFileSync(path.join(OUT, 'clips.json'), JSON.stringify({ target: TARGET, track: SHOTS.track, size: QUICK ? [VIEW_W, VIEW_H] : [VIEW_W * 2, VIEW_H * 2], fps: FPS, made: new Date().toISOString(), clips }, null, 2) + '\n');
 log(`${clips.length} clip${clips.length === 1 ? '' : 's'} in ${path.relative(process.cwd(), OUT)}`);
 process.exit(failed || !clips.length ? 1 : 0);

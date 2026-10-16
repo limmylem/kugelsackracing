@@ -1,0 +1,29 @@
+{
+  "//": "What the trailer films (docs/RELEASE.md \"Trailer\"; devlog/trailer/make.mjs): node capture/capture.mjs --shots trailer/shots.json --size 960x540 --multiplayer. Each run is a real region driven along real roads by the game's autopilot (its waypoints: tests/map/realRoutes.ts, the routes the tests drive) or a generated race track; each shot: name, at (game seconds after the drive starts), seconds long, camera (chase, bonnet, cockpit, side, high). The trailer uses the shots in this order.",
+  "names": true,
+  "rivalHeadStart": 1.2,
+  "runs": [
+    { "region": "adelaide", "waypoints": [[-34.9070, 138.5970], [-34.9140, 138.5988], [-34.9190, 138.5990]],
+      "shots": [
+        { "name": "adelaide", "at": 11, "seconds": 4, "camera": "chase", "label": "Adelaide" },
+        { "name": "adelaide-high", "at": 17, "seconds": 3, "camera": "high", "label": "Adelaide" }
+      ] },
+    { "region": "sf", "waypoints": [[37.7936, -122.3955], [37.7880, -122.4075], [37.7765, -122.4170]],
+      "shots": [
+        { "name": "sf", "at": 11, "seconds": 4, "camera": "chase", "label": "San Francisco" },
+        { "name": "sf-side", "at": 18, "seconds": 3, "camera": "side", "label": "San Francisco" }
+      ] },
+    { "region": "monaco", "waypoints": [[43.7395, 7.4275], [43.7433, 7.4298], [43.74225, 7.42965]],
+      "shots": [ { "name": "monaco", "at": 11, "seconds": 4, "camera": "chase", "label": "Monaco" } ] },
+    { "region": "stelvio", "waypoints": [[46.52862, 10.45321], [46.53379, 10.47700]],
+      "shots": [ { "name": "stelvio", "at": 13, "seconds": 4, "camera": "high", "label": "Stelvio Pass" } ] },
+    { "track": "08028-CG81C-D1K00-02R00-0003M-8",
+      "shots": [
+        { "name": "track-launch", "at": 7, "seconds": 4, "camera": "chase" },
+        { "name": "track-side", "at": 14, "seconds": 3, "camera": "side" },
+        { "name": "track-cockpit", "at": 24, "seconds": 3, "camera": "cockpit" },
+        { "name": "track-rival", "at": 2, "seconds": 5, "camera": "chase", "multiplayer": true },
+        { "name": "track-bonnet", "at": 44, "seconds": 3, "camera": "bonnet" }
+      ] }
+  ]
+}
