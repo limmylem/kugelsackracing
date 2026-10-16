@@ -70,6 +70,33 @@
    ]
   },
   {
+   "name": "GA LiDAR 5 m",
+   "url": null,
+   "licence": "CC BY 4.0",
+   "text": "Digital Elevation Model of Australia derived from LiDAR 5 Metre Grid © Commonwealth of Australia (Geoscience Australia), via the Mapzen/AWS terrain tiles",
+   "regions": [
+    "Adelaide"
+   ]
+  },
+  {
+   "name": "GA DEM-S 1 second",
+   "url": null,
+   "licence": "CC BY 4.0",
+   "text": "SRTM-derived 1 Second Digital Elevation Models Version 1.0 © Commonwealth of Australia (Geoscience Australia)",
+   "regions": [
+    "Adelaide"
+   ]
+  },
+  {
+   "name": "name-suggestion-index",
+   "url": "https://github.com/osmlab/name-suggestion-index",
+   "licence": "BSD-3-Clause",
+   "text": "Used when baking to recognise chain stores by name; the game draws its own parody brands, never these names",
+   "regions": [
+    "Adelaide"
+   ]
+  },
+  {
    "name": "Geoid grids (PROJ-data: NOAA GEOID18, NGA EGM2008)",
    "url": "https://cdn.proj.org",
    "licence": "Public domain / open",
