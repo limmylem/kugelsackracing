@@ -1,6 +1,6 @@
-# The end of server.yml's slow tests on their own, run by hand (Actions → slow-tail → Run workflow): the browser race
-# test, then the drills, the load tests and the image — the ones a failure higher up the full run would skip, without
-# the hour of tests before them. Every step runs whatever the one before did, so one run says how each of them stands.
+# The end of server.yml's slow tests on their own, run by hand (Actions → slow-tail → Run workflow): the two-windows
+# multiplayer test, the browser race test, then the drills, the load tests and the image — the ones a failure higher
+# up the full run would skip, without the hour of tests before them. Every step runs whatever the one before did, so one run says how each of them stands.
 # Never deploys. The same services and settings as server.yml's `test` job.
 name: slow-tail
 on:
@@ -39,7 +39,11 @@ jobs:
       - run: |
           npm i --no-save --no-audit --no-fund playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Multiplayer in two windows of one browser (one sign-in; ?player=A/B; each window draws the other's car, moving; a background window stays; F8, F9)
+        if: '!inputs.race_only'
+        run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-two-windows.ts
       - name: Multiplayer races in the browser (what each screen draws — lobby, loading, the lights against the server's clock, live positions, a spectator's cameras, confirmed results; a quick race)
+        if: success() || failure()
         run: CHROMIUM="$(node -e "console.log(require('playwright').chromium.executablePath())")" node server/tools/mp-browser-race.ts
       - name: Disaster recovery drill (backup, the database lost, restored, every row and sign-in checked; docs/DISASTER_RECOVERY.md)
         if: (success() || failure()) && !inputs.race_only
