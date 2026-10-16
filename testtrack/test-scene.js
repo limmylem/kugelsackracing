@@ -1156,7 +1156,14 @@ async function buildWorld(file) {
     roadLines: (track.roads || []).map(roadLine), rig: createCameraRig(),
     aiDamage: new Map(),                 // AI car id → its own crash damage (garage/carDamage.js)
     recorder: new ReplayRecorder(shared.session.db.sessions.replay),
+    fxLog: [],                           // (the effects' events of the last 20 s, by the simulation's time: a crash replay plays them again)
   };
+  fx.onEvent(e => {
+    if (w.fxReplaying) return;
+    const log = w.fxLog, t = w.sim.time;
+    log.push({ t, e: structuredClone(e) });
+    while (log.length && log[0].t < t - 20) log.shift();
+  });
   if (track.streamed) await RW2.attachRealWorld(w, shared, { RAPIER });
   if (trackData) {
     TrackScene.attachTrackWorld(w, trackData, { THREE, RAPIER });
@@ -1402,6 +1409,9 @@ function replayFrame(w, now, seconds, inp) {
       tv: w.tvCams ? nearestCamera(w.tvCams, ...due.focus) : null };
     w.raceRec?.note(due.time, 'crash', { id: 0 });
     w.carVis.setDamage(due.before, s.session.db.damage);
+    // (the sparks and bits in the air now are the crash's: gone, to come again as the replay reaches them)
+    w.fx.clearAir();
+    s.replay.fxT = s.replay.player.t;
     hint('replay');
   }
   const R = s.replay;
@@ -1422,6 +1432,7 @@ function replayFrame(w, now, seconds, inp) {
   updateCarDetails(w.carVis, A.get(0), B.get(0), alpha);
   for (const [id, vis] of w.others) { const ca = A.get(id), cb = B.get(id); if (ca && cb) placeCar(vis, ca, cb, alpha); }
   drawParts(w, { ...B.get(0), debris: b.debris });
+  replayEffects(w, R, B);
   const cam = R.player.camera();
   if (R.tv) {
     const c0 = A.get(0), c1 = B.get(0), at = [0, 1, 2].map(k => c0.position[k] + (c1.position[k] - c0.position[k]) * alpha);
@@ -1434,9 +1445,20 @@ function replayFrame(w, now, seconds, inp) {
   s.dents.flush();
   s.hintCard.update(seconds);
   s.info.innerHTML = `<div class="world">${w.name}</div><div class="test">REPLAY <b>×${s.session.db.sessions.replay.speed}</b> · any key skips</div>`;
-  daylight(w, s.prefs.timeOfDay ?? 13);
+  updateEffects(w, daylight(w, s.prefs.timeOfDay ?? 13), Math.max(0, R.player.t - (R.fxDrawn ?? R.player.t)));
+  R.fxDrawn = R.player.t;
   s.gfx.render(w.fxDraw, w.scene, w.camera);
   return true;
+}
+// The effects in a crash replay: each event the effects played (sparks, glass, a part off…) again as the replay
+// reaches the moment it happened, where the recording has the cars then; in slow motion with the rest
+function replayEffects(w, R, cars) {
+  const t = R.player.t;
+  for (const [id, c] of cars) w.fx.updateCar(id, c, 0);
+  w.fxReplaying = true;
+  try { for (const x of w.fxLog) if (x.t > R.fxT && x.t <= t) w.fx.play(structuredClone(x.e)); }
+  finally { w.fxReplaying = false; }
+  R.fxT = Math.max(R.fxT, t);
 }
 // The garage: driven to (a garage building in the real world — play/garageBuilding.js) or towed to for a fee
 // (data/economy.json tow). Out again, you come out of that building's far side; towed, out of the nearest one.
