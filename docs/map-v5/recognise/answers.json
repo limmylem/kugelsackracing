@@ -1,0 +1,200 @@
+[
+ {
+  "n": 1,
+  "id": "south-road-superway",
+  "name": "The South Road Superway",
+  "lat": -34.8616,
+  "lon": 138.568,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 2,
+  "id": "anzac-highway",
+  "name": "Anzac Highway",
+  "lat": -34.956,
+  "lon": 138.56,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 3,
+  "id": "north-terrace-kws",
+  "name": "North Terrace, coming up to King William Street",
+  "lat": -34.92152,
+  "lon": 138.599,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 4,
+  "id": "kw-road-oval",
+  "name": "King William Road towards Adelaide Oval",
+  "lat": -34.918,
+  "lon": 138.5986,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 5,
+  "id": "henley-square",
+  "name": "Henley Square, Henley Beach",
+  "lat": -34.9203,
+  "lon": 138.4945,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 6,
+  "id": "kws-victoria-square",
+  "name": "King William Street at Victoria Square, looking north",
+  "lat": -34.92905,
+  "lon": 138.59985,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 7,
+  "id": "port-adelaide",
+  "name": "Commercial Road, Port Adelaide",
+  "lat": -34.8465,
+  "lon": 138.504,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 8,
+  "id": "gouger-street",
+  "name": "Gouger Street, Chinatown and the Central Market",
+  "lat": -34.92845,
+  "lon": 138.598,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 9,
+  "id": "rundle-street",
+  "name": "Rundle Street, East End",
+  "lat": -34.92255,
+  "lon": 138.60745,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 10,
+  "id": "hindley-street",
+  "name": "Hindley Street",
+  "lat": -34.9233,
+  "lon": 138.596,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 11,
+  "id": "heysen-tunnels",
+  "name": "The South Eastern Freeway at the Heysen Tunnels",
+  "lat": -34.972885,
+  "lon": 138.676585,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 12,
+  "id": "montefiore-hill",
+  "name": "Montefiore Road over the rail yards",
+  "lat": -34.922,
+  "lon": 138.59335,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 13,
+  "id": "unley-road",
+  "name": "Unley Road",
+  "lat": -34.9505,
+  "lon": 138.606,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 14,
+  "id": "alfred-street-parkside",
+  "name": "A street of houses: Alfred Street, Parkside",
+  "lat": -34.943297,
+  "lon": 138.616405,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 15,
+  "id": "jetty-road-glenelg",
+  "name": "Jetty Road, Glenelg, towards the bay",
+  "lat": -34.9801,
+  "lon": 138.517,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 16,
+  "id": "oconnell-street",
+  "name": "O'Connell Street, North Adelaide",
+  "lat": -34.9085,
+  "lon": 138.595,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 17,
+  "id": "the-parade",
+  "name": "The Parade, Norwood",
+  "lat": -34.9207,
+  "lon": 138.633,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ },
+ {
+  "n": 18,
+  "id": "britannia-roundabout",
+  "name": "Britannia Roundabout from Wakefield Road",
+  "lat": -34.92785,
+  "lon": 138.6212,
+  "maps": [
+   "v5",
+   "v4"
+  ]
+ }
+]

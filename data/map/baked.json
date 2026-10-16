@@ -1,5 +1,5 @@
 {
-  "_note": "The regions baked and in the game (assets/map/<id>/manifest.json; Map v4's in assets/map/<id>/v4/ — ?map=v3 in the address loads a region's Map v3 bake instead, for comparing): fast travel can reach a quest in any of them, and the full map lists them. bbox [west, south, east, north] in degrees, as each region's manifest has it. tests/unit/finder.test.mjs checks this list against what's baked. `inGame`: the regions the game has (the owner's choice, 2026-10-16: Adelaide only, for speed); the first is where the real world opens. The rest stay baked — ?regions=all in the address brings them back (the browser tests that race in San Francisco use it) — and deleting `inGame` brings them back for everyone.",
+  "_note": "The regions baked and in the game (assets/map/<id>/manifest.json; Map v5's in assets/map/<id>/v5/, Map v4's in v4/ — ?map=v4 or ?map=v3 in the address loads a region's older bake instead, for comparing): fast travel can reach a quest in any of them, and the full map lists them. bbox [west, south, east, north] in degrees, as each region's manifest has it. tests/unit/finder.test.mjs checks this list against what's baked. `inGame`: the regions the game has (the owner's choice, 2026-10-16: Adelaide only, for speed); the first is where the real world opens. The rest stay baked — ?regions=all in the address brings them back (the browser tests that race in San Francisco use it) — and deleting `inGame` brings them back for everyone.",
   "inGame": ["adelaide"],
   "regions": [
     { "id": "sf", "name": "San Francisco", "bbox": [-122.52, 37.705, -122.355, 37.838], "manifest": "assets/map/sf/manifest.json" },
@@ -8,6 +8,6 @@
     { "id": "stelvio", "name": "Stelvio Pass", "bbox": [10.44, 46.525, 10.48, 46.545], "manifest": "assets/map/stelvio/manifest.json" },
     { "id": "munich", "name": "Munich (A9 / A99)", "bbox": [11.61, 48.225, 11.645, 48.245], "manifest": "assets/map/munich/manifest.json" },
     { "id": "mk", "name": "Milton Keynes", "bbox": [-0.78, 52.03, -0.74, 52.05], "manifest": "assets/map/mk/manifest.json" },
-    { "id": "adelaide", "name": "Adelaide", "bbox": [138.49, -35.01, 138.72, -34.835], "manifest": "assets/map/adelaide/v4/manifest.json" }
+    { "id": "adelaide", "name": "Adelaide", "bbox": [138.49, -35.01, 138.72, -34.835], "manifest": "assets/map/adelaide/v5/manifest.json" }
   ]
 }

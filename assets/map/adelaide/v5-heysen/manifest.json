@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#8bfb333502fb",
+ "version": "4/3/1/1/overture:2026-10-16/2026-09-23.1#bf5f2811fbc9",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-16",
@@ -59,7 +59,7 @@
   "osm": {
    "source": "overture",
    "url": "https://overturemaps-us-west-2.s3.amazonaws.com/release/2026-09-23.1/",
-   "date": "2026-10-11",
+   "date": "2026-10-16",
    "note": "OpenStreetMap data as published by Overture Maps (its transportation and base themes keep OSM geometry and tags); a Geofabrik extract replaces it when reachable"
   },
   "overture": {
@@ -128,7 +128,7 @@
   {
    "name": "Overture Maps Foundation",
    "url": "https://overturemaps.org",
-   "licence": "ODbL 1.0 (OSM-derived themes), CDLA Permissive 2.0 (buildings)"
+   "licence": "ODbL 1.0 (OSM-derived themes, divisions), CDLA Permissive 2.0 (buildings, places)"
   },
   {
    "name": "GA LiDAR 5 m",
@@ -147,6 +147,12 @@
    "url": null,
    "licence": "CC BY 4.0",
    "text": "SRTM-derived 1 Second Digital Elevation Models Version 1.0 © Commonwealth of Australia (Geoscience Australia)"
+  },
+  {
+   "name": "name-suggestion-index",
+   "url": "https://github.com/osmlab/name-suggestion-index",
+   "licence": "BSD-3-Clause",
+   "text": "Used when baking to recognise chain stores by name; the game draws its own parody brands, never these names"
   }
  ],
  "style": {
@@ -224,7 +230,7 @@
  ],
  "landmarks": [
   {
-   "id": 179521,
+   "id": 254400,
    "name": "Utopia @ Waterfall Gully",
    "score": 773,
    "h": 12
@@ -766,7 +772,7 @@
  },
  "files": {
   "graph": "graph.json.gz",
-  "map": "../map.pmtiles",
+  "map": "map.pmtiles",
   "roadModel": "roadmodel.json.gz"
  },
  "far": {
@@ -775,7 +781,7 @@
    {
     "a": 1,
     "b": 1,
-    "bytes": 31182,
+    "bytes": 31181,
     "landmarks": 1
    },
    {
@@ -809,6 +815,18 @@
    "xz": [
     6547.5,
     5613.7
+   ]
+  },
+  {
+   "id": "landmark-254400",
+   "name": "Utopia @ Waterfall Gully",
+   "kind": "landmark",
+   "lat": -34.969446,
+   "lon": 138.68083,
+   "bearing": 0,
+   "xz": [
+    6924.9,
+    5210.8
    ]
   }
  ],
@@ -29127,7 +29145,7 @@
   },
   "roads": 744,
   "junctions": 195,
-  "trees": 38752,
+  "trees": 38751,
   "lamps": 401,
   "lampStats": {
    "mapped": 26,
@@ -29141,17 +29159,17 @@
   "railings": {
    "mapped": 817,
    "mappedDropped": 33,
-   "estimated": 3852,
-   "estimatedDropped": 525
+   "estimated": 3853,
+   "estimatedDropped": 524
   },
-  "peakMemoryGB": 1.6,
-  "bakeSeconds": 41
+  "peakMemoryGB": 1.5,
+  "bakeSeconds": 51
  },
  "tiles": [
   {
    "i": 11,
    "j": 9,
-   "bytes": 306482,
+   "bytes": 306933,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29160,7 +29178,7 @@
   {
    "i": 12,
    "j": 9,
-   "bytes": 116226,
+   "bytes": 116334,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29169,7 +29187,7 @@
   {
    "i": 13,
    "j": 9,
-   "bytes": 131726,
+   "bytes": 131813,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29196,7 +29214,7 @@
   {
    "i": 11,
    "j": 10,
-   "bytes": 237550,
+   "bytes": 237896,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29205,7 +29223,7 @@
   {
    "i": 12,
    "j": 10,
-   "bytes": 275749,
+   "bytes": 275901,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29214,7 +29232,7 @@
   {
    "i": 13,
    "j": 10,
-   "bytes": 130089,
+   "bytes": 130111,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 1,
@@ -29241,7 +29259,7 @@
   {
    "i": 11,
    "j": 11,
-   "bytes": 293198,
+   "bytes": 293225,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29250,7 +29268,7 @@
   {
    "i": 12,
    "j": 11,
-   "bytes": 320609,
+   "bytes": 321378,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29259,7 +29277,7 @@
   {
    "i": 13,
    "j": 11,
-   "bytes": 278592,
+   "bytes": 278693,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29268,7 +29286,7 @@
   {
    "i": 14,
    "j": 11,
-   "bytes": 199053,
+   "bytes": 199057,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29286,7 +29304,7 @@
   {
    "i": 11,
    "j": 12,
-   "bytes": 94623,
+   "bytes": 94353,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29295,7 +29313,7 @@
   {
    "i": 12,
    "j": 12,
-   "bytes": 158841,
+   "bytes": 158831,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29304,7 +29322,7 @@
   {
    "i": 13,
    "j": 12,
-   "bytes": 131335,
+   "bytes": 131262,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29313,7 +29331,7 @@
   {
    "i": 14,
    "j": 12,
-   "bytes": 263154,
+   "bytes": 263369,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,

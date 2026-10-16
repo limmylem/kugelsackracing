@@ -83,3 +83,10 @@ The ROADBOOK: a season of challenges, the Midnight Run and a Season Shop
 Police pursuits: lose the cops, or get to the drop with them behind you
 Every pursuit opens with a cinematic: sirens, the camera, and you're off
 Co-op pursuits: your party against the police, together or split up
+Adelaide's streets now have footpaths, kerbs, verges and front fences
+Houses, shops, offices and towers in Adelaide each look like themselves
+Drive through the Heysen Tunnels on the South Eastern Freeway
+Traffic lights, road signs and bus stops line Adelaide's streets
+Burger, fuel and supermarket chains appear under our own made-up names
+Adelaide's roads now follow the real ground, and bridges clear the roads below
+The game opens straight into Adelaide
