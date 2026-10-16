@@ -10,7 +10,10 @@
 //   maps.setContent(features, onPick)  world content near the player (play/contentLayer.js): marked on both,
 //   clustered on the full map when zoomed out; onPick(id) when one's clicked; a quest's state (properties
 //   state: new | attempted | completed, medal) in its colour and mark
-//   maps.setLines(features)  a quest's route and the guide line to its start, on both
+//   maps.setLines(features)  a quest's route and the guide line to its start, on both; a Point with kind 'pin': the place
+//   a route was asked to (a pin on both)
+//   maps.onPlace(fn(lat, lon))  a click (a tap) on an empty spot of the full map — not on a quest or a player — and
+//   maps.ask(lat, lon, element) shows a small card there (play/questUi.js: "Route here?"), maps.closeAsk()
 //   maps.setPlayers(features, onPick)  (Phase 7 Step 4) other players in free roam, as each may be seen (the zone server
 //   decides: privacy, blocks): GeoJSON points with uid, name, rel ('friend' | 'party' | 'other'), heading; onPick(uid)
 //   maps.side, maps.onOpen(fn(open)), maps.close(), maps.flyTo(lat, lon)  the full map's panel (quest finding)
@@ -80,6 +83,13 @@ const css = `
 #worldFullSide button { display: block; width: 100%; text-align: left; margin: 3px 0; padding: 6px 8px; border: 0; border-radius: 7px; background: rgba(255, 255, 255, .1); color: #fff; font: inherit; cursor: pointer; }
 #worldFullSide button:hover { background: rgba(94, 200, 255, .35); }
 #worldFullSide small { opacity: .7; }
+.worldAsk .maplibregl-popup-content { background: rgba(15, 20, 30, .92); color: #fff; border-radius: 10px; padding: 10px 12px; font: 13px/1.4 system-ui, sans-serif; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
+.worldAsk .maplibregl-popup-tip { border-top-color: rgba(15, 20, 30, .92); border-bottom-color: rgba(15, 20, 30, .92); }
+.worldAsk .maplibregl-popup-close-button { color: #fff; font-size: 16px; }
+.worldAsk b { display: block; font-size: 14px; margin-bottom: 2px; }
+.worldAsk .row { display: flex; gap: 6px; margin-top: 8px; }
+.worldAsk button { border: 0; border-radius: 7px; padding: 6px 10px; font: 600 13px system-ui, sans-serif; cursor: pointer; background: rgba(255, 255, 255, .12); color: #fff; }
+.worldAsk button.go { background: #1fb6ff; color: #0b0f16; }
 .worldCarMarker { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 20px solid #e2462f; filter: drop-shadow(0 1px 2px #000a); }
 @media (max-width: 560px) { #worldMini { width: 130px; height: 130px; } #worldFullSide { width: 180px; } }`;
 
@@ -136,6 +146,8 @@ export function lineLayers(map: any, prefix = 'lines') {
     const before = map.getLayer(`${prefix.replace(/-lines$/, '')}-points`) ? `${prefix.replace(/-lines$/, '')}-points` : undefined;
     map.addLayer({ id: `${prefix}-route`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#e05cff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-opacity': 0.85 } }, before);
     map.addLayer({ id: `${prefix}-guide`, type: 'line', source: src, filter: ['==', ['get', 'kind'], 'guide'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'colour'], '#1fb6ff'], 'line-width': ['coalesce', ['get', 'width'], 4], 'line-dasharray': [1.2, 1] } }, before);
+    // (the place a route goes to: a pin — a dot ringed white, in the guide's colour)
+    map.addLayer({ id: `${prefix}-pin`, type: 'circle', source: src, filter: ['==', ['get', 'kind'], 'pin'], paint: { 'circle-color': ['coalesce', ['get', 'colour'], '#1fb6ff'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 16, 9], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
   };
   if (map.isStyleLoaded()) add(); else map.once('load', add);
   map.on('styledata', () => { if (map.isStyleLoaded() && !map.getSource(src)) add(); });
@@ -181,6 +193,7 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   let fullPlayers: any = null, playersNow: any[] = [], onPlayerNow: any = null;
   let fullLines: any = null, linesNow: any[] = [];
   let fullContent: any = null, contentNow: any[] = [], onPickNow: any = null;
+  let onPlaceNow: ((lat: number, lon: number) => void) | null = null, asking: any = null;
   const north = mini.querySelector('#worldMiniN') as HTMLElement;
   // the full map: north up, the car marked, the test spots to travel to
   const full = document.createElement('div');
@@ -207,12 +220,19 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
   mini.onclick = () => set(true);
   function set(on) {
     open = on;
+    if (!on) closeAsk();
     full.style.display = on ? 'block' : 'none';
     for (const fn of openers) fn(on);
     if (on && !fullMap) {
       fullMap = new ml.Map({ container: full.querySelector('#worldFullMap'), style: st, center: last ? [last.lon, last.lat] : [lon0, lat0], zoom: 14, attributionControl: { compact: true, customAttribution: manifest.attribution?.map(a => a.text ?? a.name).join(' · ') } });
       // (shift-click: anywhere — development only: online, quests are driven to)
-      fullMap.on('click', e => { if (e.originalEvent.shiftKey && freeTravel()) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); } });
+      fullMap.on('click', e => {
+        if (e.originalEvent.shiftKey && freeTravel()) { set(false); onTravel?.({ name: 'there', lat: e.lngLat.lat, lon: e.lngLat.lng }); return; }
+        // (an empty spot — not a quest, a cluster or a player, which have clicks of their own — asks whether to route there)
+        const own = ['full-points', 'full-clusters', 'full-players-dots'].filter(l => fullMap.getLayer(l));
+        if (own.length && fullMap.queryRenderedFeatures(e.point, { layers: own }).length) return;
+        onPlaceNow?.(e.lngLat.lat, e.lngLat.lng);
+      });
       fullContent = contentLayers(fullMap, { prefix: 'full' });
       fullLines = lineLayers(fullMap, 'full-lines'); fullLines.set(linesNow);
       fullContent.set(contentNow, id => { set(false); onPickNow?.(id); });
@@ -222,8 +242,19 @@ export async function createWorldMaps({ manifest, base, onTravel }: { manifest: 
     }
     if (on && last) { fullMap.resize(); fullMap.jumpTo({ center: [last.lon, last.lat] }); carMarker.setLngLat([last.lon, last.lat]).setRotation(last.bearing); }
   }
+  function closeAsk() { asking?.remove(); asking = null; }
   return {
     get open() { return open; },
+    // (a click on an empty spot of the full map; ask: a small card there, with the caller's words and buttons)
+    onPlace(fn: (lat: number, lon: number) => void) { onPlaceNow = fn; },
+    ask(lat: number, lon: number, el: HTMLElement) {
+      closeAsk();
+      if (!fullMap) return null;
+      asking = new ml.Popup({ className: 'worldAsk', closeButton: true, closeOnClick: false, maxWidth: '260px', offset: 12 }).setLngLat([lon, lat]).setDOMContent(el).addTo(fullMap);
+      asking.on('close', () => { asking = null; });
+      return asking;
+    },
+    closeAsk,
     // the full map's side panel (play/questFinder.js draws the quest filters and fast travel there), and
     // a callback each time the full map opens or closes
     get side() { return full.querySelector('#worldFullSide') as HTMLElement; },
