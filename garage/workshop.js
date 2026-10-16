@@ -157,11 +157,13 @@ export class Workshop {
     if (this.gainCache?.key !== key) this.gainCache = { key, map: new Map() };
     if (!this.gainCache.map.has(partId)) {
       const socket = this.socketFor(partId), t = socket && this.#try(socket, { instanceId: null, partId }, 'quick');
-      const before = this.stats().totals?.rating?.index, after = t?.ok ? t.garage.stats().totals?.rating?.index : null;
-      this.gainCache.map.set(partId, before != null && after != null ? after - before : null);
+      const before = this.stats().totals?.rating, after = t?.ok ? t.garage.stats().totals?.rating : null;
+      this.gainCache.map.set(partId, before && after ? { shown: after.index - before.index, exact: after.exact - before.exact } : null);
     }
-    return this.gainCache.map.get(partId);
+    return this.gainCache.map.get(partId)?.shown ?? null;
   }
+  // (the same, before rounding: for sorting — parts that round to the same gain still rank by what they really do)
+  ratingGainExact(partId) { this.ratingGain(partId); return this.gainCache.map.get(partId)?.exact ?? null; }
 
   // ---- the shop's rules (garage/shop.js) ----
   get levels() { return this.service.quests?.config ?? null; }
@@ -264,7 +266,8 @@ export class Workshop {
   // shop's parts that fit — hidden if they're for another slot or don't fit (their fits tags); shown
   // locked (with the reason) if they need something that isn't fitted or clash with something that is.
   // Each with what it would do: [{ key, instanceId (a spare copy) | null (from the shop), partId,
-  // count, part, condition, owned, price, set, locked, blockers, gain, ratingChange }]
+  // count, part, condition, owned, price, set, locked, blockers, gain, ratingChange (rounded, as shown), ratingExact (before
+  // rounding: what the list sorts by), massChange (kg) }]
   partsFor(socketName) {
     const key = `${socketName}|${this.mode}|${this.build.fingerprint}|${this.profile.saved}|${this.profile.money}|${this.service.unlimited}`;
     if (this.partsCache?.key === key) return this.partsCache.value;
@@ -285,7 +288,8 @@ export class Workshop {
       candidates.push({ key: owned ? instance.instanceId : `shop:${part.id}`, instanceId: cand.instanceId, partId: part.id, count: owned ? count : 0, part, condition: owned ? instance.condition ?? 100 : 100, owned,
         set: n, price: o.price * n, sale: owned ? null : o.sale, affordable: owned || this.money >= o.price * n,
         locked, blockers: trial.ok ? trial.result.ops.filter(o => o.op === 'remove' && o.socket !== socketName && !this.#sameGroup(o.socket, socketName)).map(o => o.socket) : [],
-        gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0 });
+        gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0,
+        ratingExact: after?.totals?.rating && before.totals?.rating ? after.totals.rating.exact - before.totals.rating.exact : 0, massChange: after ? after.spec.mass - before.spec.mass : 0 });
     };
     for (const [partId, list] of spares) { list.sort((a, b) => b.condition - a.condition); consider(this.db.parts[partId], list[0], list.length); }
     // (the shop's: parts the player has no spare of — or not enough for a set)
@@ -563,15 +567,24 @@ export const STAT_KEYS = [
 ];
 
 // The main things a part changes, in a few words ("+62 hp", "−7 kg")
+// The parts list's "Performance" order (garageUi.js): the rating change before rounding — parts that round to the same
+// number still rank by what they really do (a 4.9 kg seat above a 5 kg one) — then the lighter, then the one you have,
+// then by name
+export function byPerformance(a, b) {
+  const d = b.ratingExact - a.ratingExact;
+  return (Math.abs(d) > 1e-6 ? d : 0) || (a.massChange - b.massChange) || (b.owned - a.owned) || a.part.name.localeCompare(b.part.name);
+}
+
 function gains(before, after) {
   const out = [];
   for (const k of STAT_KEYS) {
     if (k.key === 'rating') continue;
     const a = k.of(before), b = k.of(after);
     if (a == null || b == null) continue;
-    const d = b - a, shown = +d.toFixed(k.dec);
+    // (a small change one more decimal: two wings' −0.016 and −0.024 g both read "−0.02 g", and the list's order looked wrong)
+    const d = b - a, dec = k.dec >= 2 && Math.abs(d) < 0.1 ? k.dec + 1 : k.dec, shown = +d.toFixed(dec);
     if (!shown) continue;
-    out.push({ key: k.key, text: `${shown > 0 ? '+' : '−'}${Math.abs(shown).toFixed(k.dec)} ${k.unit}`.trim(), better: k.up ? d > 0 : d < 0, weight: Math.abs(d / a) });
+    out.push({ key: k.key, text: `${shown > 0 ? '+' : '−'}${Math.abs(shown).toFixed(dec)} ${k.unit}`.trim(), better: k.up ? d > 0 : d < 0, weight: Math.abs(d / a) });
   }
   return out.sort((x, y) => y.weight - x.weight).slice(0, 2);
 }

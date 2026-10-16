@@ -31,9 +31,10 @@ export function performance(spec, geometry, config, topSpeed) {
   const score = (x, { worst, best }) => Math.min(1, Math.max(0, (x - worst) / (best - worst)));
   const scores = { acceleration: score(e.zeroTo100, r.acceleration), topSpeed: score(e.topSpeed, r.topSpeed), grip: score(e.grip, r.grip), braking: score(e.brakingCold, r.braking) };   // (the cold stop: the classes are set on it)
   const total = Object.entries(scores).reduce((a, [k, s]) => a + s * w[k], 0) / Object.values(w).reduce((a, b) => a + b, 0);
-  const index = Math.round(100 + 899 * total);
+  // (exact: before rounding — two parts that round to the same index still rank by what they really do: garageUi.js)
+  const exact = 100 + 899 * total, index = Math.round(exact);
   const cls = config.classes.filter(c => index >= c.from).pop()?.class ?? config.classes[0].class;
-  return { index, class: cls, estimates: e, scores };
+  return { index, exact, class: cls, estimates: e, scores };
 }
 
 // The estimates themselves: { zeroTo100 (s), topSpeed (km/h), grip (g), braking (m, over a race), brakingCold (m) }. geometry:
