@@ -66,7 +66,8 @@ try {
   // 2. a suggested name
   await step('2. Name');
   await page.click('button:has-text("Suggest names")');
-  await page.waitForSelector(`${left} .row button.btn.ghost >> nth=0`);
+  // (the suggestions come back from the server: wait for them, not just the row)
+  await page.waitForSelector(`${left} .row:has(button:has-text("Suggest names")) button >> nth=1`);
   const suggested = await page.$$eval(`${left} .row:has(button:has-text("Suggest names")) button`, (bs: any[]) => bs.slice(1).map(b => b.textContent));
   await page.click(`${left} .row:has(button:has-text("Suggest names")) button >> nth=1`);
   await page.waitForSelector(`${left} span:has-text("Its id")`, { timeout: 10000 });
