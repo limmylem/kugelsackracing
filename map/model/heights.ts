@@ -392,8 +392,11 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
   void T;
   const C = 40, grid = new Map<number, [any, number, boolean][]>(), key = (i: number, j: number) => (i + 5000) * 10000 + j + 5000;
   const add = (g: any, k: number, rail: boolean) => { const xs = g.xs, zs = g.zs; for (let i = Math.floor(Math.min(xs[k], xs[k + 1]) / C); i <= Math.floor(Math.max(xs[k], xs[k + 1]) / C); i++) for (let j = Math.floor(Math.min(zs[k], zs[k + 1]) / C); j <= Math.floor(Math.max(zs[k], zs[k + 1]) / C); j++) (grid.get(key(i, j)) ?? grid.set(key(i, j), []).get(key(i, j))!).push([g, k, rail]); };
-  for (const g of G.segs) if (g.structure !== 'bridge' && !g.internal) for (let k = 0; k + 1 < g.xs.length; k++) add(g, k, false);
+  // (a junction's own roads too — a deck over a big junction, the Superway over Grand Junction Road, crosses those, not
+  // the roads leading into it: on the junction's surface, solved already)
+  for (const g of G.segs) if (g.structure !== 'bridge') for (let k = 0; k + 1 < g.xs.length; k++) add(g, k, false);
   for (const r of rails) for (let k = 0; k + 1 < r.xs.length; k++) add(r, k, true);
+  const clusterOfSeg = (g: any) => (g.internal ? clusterOf(g.from) ?? clusterOf(g.to) : null);
   const railH = (r: any, k: number, t: number) => demAt(r.xs[k] + (r.xs[k + 1] - r.xs[k]) * t, r.zs[k] + (r.zs[k + 1] - r.zs[k]) * t);
   const seen = new Map<any, Map<any, boolean>>();
   const crosses = (ch: any, g: any) => {
@@ -419,6 +422,8 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
   };
   const needsOf = (ch: any) => {
     const P = ch.P, own = new Set(ch.parts.map((p: any) => p.seg.id)), out: { i: number; need: number }[] = [];
+    // (not the junctions the chain itself comes down into: it lands on those)
+    const landsOn = new Set([clusterOf(ch.start), clusterOf(ch.end)].filter(Boolean));
     // (the chain's own road counts where it comes back under itself — a loop ramp — far enough along it)
     const at = new Map<string, number>(); P.forEach((p: any, i: number) => at.set(`${p.seg.id}:${p.k}`, i));
     for (let i = 0; i < P.length; i++) {
@@ -426,15 +431,22 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
       const x = P[i].x, z = P[i].z, sg = P[i].seg, hw = Math.max(sg.hwL[P[i].k], sg.hwR[P[i].k]);
       let need = -Infinity;
       for (const [g, k, rail] of grid.get(key(Math.floor(x / C), Math.floor(z / C))) ?? []) {
-        if (!rail && (!g.h || g.from === sg.from || g.to === sg.to || g.from === sg.to || g.to === sg.from)) continue;
+        const jc = rail ? null : clusterOfSeg(g);
+        if (jc && landsOn.has(jc)) continue;
+        if (!rail && ((!g.h && !jc) || g.from === sg.from || g.to === sg.to || g.from === sg.to || g.to === sg.from)) continue;
         if (!rail && own.has(g.id) && !(Math.abs(ch.S[at.get(`${g.id}:${k}`) ?? i] - ch.S[i]) > Hc.selfCrossAlong)) continue;
         const ax = g.xs[k], az = g.zs[k], dx = g.xs[k + 1] - ax, dz = g.zs[k + 1] - az, L2 = dx * dx + dz * dz || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
         const ohw = rail ? 2.5 : Math.max(g.hwL[k], g.hwR[k]);
         if (Math.hypot(x - ax - dx * t, z - az - dz * t) > hw + ohw) continue;
         // (crossing it, not beside it: a parallel carriageway, or the road a deck merges into, isn't under the deck —
         // what's under it is a road whose centre line crosses the deck's in plan)
-        if (!crosses(ch, g)) continue;
-        const below = rail ? railH(g, k, t) : g.h[k] + (g.h[k + 1] - g.h[k]) * t, want = below + (rail ? Hc.clearanceRail : Hc.clearance) + Hc.deckDepth;
+        // (or along under it: a road whose centre line runs beneath the deck's surface — South Road under the Superway —
+        // away from where the deck comes down to the ground it's anchored to, (clearance + deckDepth) / approachGrade m)
+        if (!crosses(ch, g)) {
+          const off = Math.hypot(x - ax - dx * t, z - az - dz * t);
+          if (!(off < hw - 0.5 && anchorDist(P[i]) > (Hc.clearance + Hc.deckDepth) / Hc.approachGrade)) continue;
+        }
+        const below = rail ? railH(g, k, t) : jc ? planeAt(jc, ax + dx * t, az + dz * t) : g.h[k] + (g.h[k + 1] - g.h[k]) * t, want = below + (rail ? Hc.clearanceRail : Hc.clearance) + Hc.deckDepth;
         // (only what's under it: a road far above or below is another level — another deck, a tunnel)
         if (want > ch.h[i] - Hc.deckDepth - 12 && want < ch.h[i] + 12) need = Math.max(need, want);
       }
@@ -442,11 +454,60 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
     }
     return out;
   };
-  const floorOf = (ch: any, needs: { i: number; need: number }[]) => ch.S.map((s: number) => { let m = -Infinity; for (const q of needs) m = Math.max(m, q.need - Hc.approachGrade * Math.abs(ch.S[q.i] - s)); return m; });
+  // (a viaduct stays up: the decks joined through nodes off the ground — a viaduct, its ramps and the junctions on it —
+  // are one structure, every deck point of it at least its lowest need, less approachGrade from the ground it's anchored
+  // to. Chain by chain, the Superway's 2.8 km over South Road came down to 1.7 m over the road it runs above, between its
+  // crossings, at the junctions on it where its ramps join — those take their heights from the ground at its ends)
+  const compOf = new Map<number, number>(), toAnchor = new Map<number, { d: number; h: number }>();
+  // (on the ground: a road on the ground meets it there — a motorway's corridor profile runs across its decks too, so
+  // its nodes up on the viaduct count as on its corridor, not on the ground, here)
+  const onGround = (k: number) => G.nodes[k].segs.some(i => G.segs[i].structure === 'ground');
+  {
+    let next = 0;
+    for (const g0 of G.segs) {
+      if (g0.structure !== 'bridge' || compOf.has(g0.id)) continue;
+      const id = next++, comp: any[] = [], stack = [g0]; compOf.set(g0.id, id);
+      while (stack.length) { const g = stack.pop()!; comp.push(g); for (const nk of [g.from, g.to]) if (!onGround(nk)) for (const si of G.nodes[nk].segs) { const o = G.segs[si]; if (o.structure === 'bridge' && !compOf.has(o.id)) { compOf.set(o.id, id); stack.push(o); } } }
+      // (each node's road distance to the nearest ground it's anchored to, and that ground's height)
+      const q: number[] = [];
+      for (const g of comp) for (const nk of [g.from, g.to]) if (onGround(nk) && !toAnchor.has(nk)) { toAnchor.set(nk, { d: 0, h: G.nodes[nk].h }); q.push(nk); }
+      while (q.length) {
+        q.sort((a, b) => toAnchor.get(a)!.d - toAnchor.get(b)!.d);
+        const u = q.shift()!, du = toAnchor.get(u)!;
+        for (const g of comp) { const v = g.from === u ? g.to : g.to === u ? g.from : -1; if (v < 0) continue; const nd = du.d + g.s[g.s.length - 1]; if (nd < (toAnchor.get(v)?.d ?? Infinity)) { toAnchor.set(v, { d: nd, h: du.h }); q.push(v); } }
+      }
+    }
+  }
+  let level = new Map<number, number>();
+  const anchorDist = (p: any) => { const g = p.seg, s = g.s[p.k], L = g.s[g.s.length - 1], a = toAnchor.get(g.from), b = toAnchor.get(g.to); return Math.min(a ? a.d + s : Infinity, b ? b.d + L - s : Infinity); };
+  const viaductFloor = (p: any) => {
+    if (p.structure !== 'bridge') return -Infinity;
+    const lv = level.get(compOf.get(p.seg.id)!); if (lv === undefined) return -Infinity;
+    const g = p.seg, s = g.s[p.k], L = g.s[g.s.length - 1], a = toAnchor.get(g.from), b = toAnchor.get(g.to);
+    const da = a ? a.d + s : Infinity, db = b ? b.d + L - s : Infinity, near = da <= db ? a : b;
+    return near ? Math.min(lv, near.h + Hc.approachGrade * Math.min(da, db)) : lv;
+  };
+  // (and along one deck, between two of its needs, no lower than the lower of them: no dip between what it crosses)
+  const floorOf = (ch: any, needs: { i: number; need: number }[]) => {
+    const F = ch.S.map((s: number, i: number) => { let m = viaductFloor(ch.P[i]); for (const q of needs) m = Math.max(m, q.need - Hc.approachGrade * Math.abs(ch.S[q.i] - s)); return m; });
+    const sorted = [...needs].sort((a, b) => a.i - b.i);
+    for (let q = 0; q + 1 < sorted.length; q++) {
+      const a = sorted[q], b = sorted[q + 1];
+      if (b.i - a.i < 2) continue;
+      let deck = true; for (let i = a.i; i <= b.i && deck; i++) deck = ch.P[i].structure === 'bridge';
+      if (!deck) continue;
+      const lo = Math.min(a.need, b.need);
+      for (let i = a.i + 1; i < b.i; i++) F[i] = Math.max(F[i], lo);
+    }
+    return F;
+  };
   const bridgeChains = chains.filter(ch => ch.P && ch.isStruct?.some((v: boolean, i: number) => v && ch.P[i].structure === 'bridge'));
   for (let round = 0; round < 3; round++) {
     const work: { ch: any; needs: { i: number; need: number }[] }[] = [];
-    for (const ch of bridgeChains) { const needs = needsOf(ch); if (needs.length) work.push({ ch, needs }); }
+    const all = bridgeChains.map(ch => ({ ch, needs: needsOf(ch) }));
+    level = new Map();
+    for (const { ch, needs } of all) for (const q of needs) { const c = compOf.get(ch.P[q.i].seg.id); if (c !== undefined && ch.P[q.i].structure === 'bridge') level.set(c, Math.min(level.get(c) ?? Infinity, q.need)); }
+    for (const w of all) if (w.needs.length || w.ch.P.some((p: any) => p.structure === 'bridge' && level.has(compOf.get(p.seg.id)!))) work.push(w);
     if (!work.length) break;
     if (round === 0) for (const w of work) stats.crossings += w.needs.length;
     // (the junctions at the chains' ends, raised to meet their floors at the trims)

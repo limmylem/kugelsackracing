@@ -108,19 +108,22 @@ async function tunnelsTest() {
     // (where the first thing down from the sky is more than tunnelCover m over the road — the hill, drawn and solid —
     // the road's in its tube: a ceiling over it, a wall either side; elsewhere it's open, in a cutting, and the first
     // thing down is the road itself)
-    let ceil = 0, walls = 0, n = 0, open = 0, openBad = 0;
+    // (under a building — a road through or under one, Sir Richard Williams Avenue under the airport's forecourt — the
+    // building's own collider is the roof, from the road's clearance up: headroom of tunnelBuildingHeadroom m, no tube)
+    let ceil = 0, walls = 0, n = 0, open = 0, openBad = 0, built = 0, builtLow = 0;
     const bad: string[] = [];
     for (let q = inFrom + X.tunnelProbeEvery / 2; q < inTo; q += X.tunnelProbeEvery) {
       const j = Math.min(line.length - 2, Math.floor(q / 4)), a = line[j], b = line[j + 1], h = lineH(q), [px, pz] = S.toSim(a.x, a.z);
       const tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl, nz = tx / tl;
       const top = S.ray([px, h + 400, pz], [0, -1, 0], 400), over = top ? 400 - top.d : -Infinity;
-      if (over < C - 0.3) { open++; if (over > 0.5) { openBad++; if (bad.length < 4) bad.push(`something ${over.toFixed(1)} m over the open road at ${q.toFixed(0)} m`); } continue; }
+      if (top?.kind === 'building') { built++; const up = S.ray([px, h + 0.3, pz], [0, 1, 0], 20), room = up ? up.d + 0.3 : Infinity; if (room < X.tunnelBuildingHeadroom) { builtLow++; if (bad.length < 4) bad.push(`a building ${room.toFixed(1)} m over the road at ${q.toFixed(0)} m`); } continue; }
+      if (over < C - 0.3) { open++; if (over > 0.5) { openBad++; if (bad.length < 4) bad.push(`${top?.kind ?? 'something'} ${over.toFixed(1)} m over the open road at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)})`); } continue; }
       n++;
       const up = S.ray([px, h + 1.5, pz], [0, 1, 0], 20), left = S.ray([px, h + 1.5, pz], [nx, 0, nz], 30), right = S.ray([px, h + 1.5, pz], [-nx, 0, -nz], 30);
       if (up && up.kind === 'tunnel' && Math.abs(up.d - (Hc - 1.5)) < 0.6) ceil++; else if (bad.length < 4) bad.push(`ceiling ${up ? `${up.kind} ${(up.d + 1.5).toFixed(1)}` : 'none'} m up at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)})`);
       if (left?.kind === 'tunnel' && right?.kind === 'tunnel' && left.d + right.d < a.w + 2) walls++; else if (bad.length < 4) bad.push(`walls ${left ? `${left.kind} ${left.d.toFixed(1)}` : 'none'} / ${right ? `${right.kind} ${right.d.toFixed(1)}` : 'none'} m at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)}; left ${nx.toFixed(2)}, ${nz.toFixed(2)})`);
     }
-    report('tunnels', `${name}: solid all round, hill intact`, n > 0 && ceil === n && walls === n && openBad === 0, `${n} points under the hill (≥ ${C} m of it over the road): ceiling ${ceil}, both walls ${walls}; ${open} in its cuttings, open to the sky (${openBad} not)${bad.length ? ` — ${bad.join('; ')}` : ''}`, { n, ceil, walls, open, openBad });
+    report('tunnels', `${name}: solid all round, hill intact`, (n > 0 || built > 0) && ceil === n && walls === n && openBad === 0 && builtLow === 0, `${n} points under the hill (≥ ${C} m of it over the road): ceiling ${ceil}, both walls ${walls}; ${built} under a building (${builtLow} with under ${X.tunnelBuildingHeadroom} m of headroom); ${open} in its cuttings, open to the sky (${openBad} not)${bad.length ? ` — ${bad.join('; ')}` : ''}`, { n, ceil, walls, open, openBad, built, builtLow });
     S.free();
   }
 }

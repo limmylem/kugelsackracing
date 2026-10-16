@@ -291,7 +291,7 @@
     "paintAtEnds": 15
   },
   "tests": {
-    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night. Tunnels (one-way runs of tunnelMinLength m or more): driven at up to tunnelSpeed km/h from tunnelApproach m before to after within tunnelTimeLimit s, the body within tunnelBodyOverRoad m of the road all through the tube; probed every tunnelProbeEvery m for its ceiling, walls and the ground over it. Traffic lights and regulatory signs: at least drivingSideShare on the driving side of the traffic they face. In a lane (on the road's own surface at their foot's height): at most inLaneAllowed pieces. Car parks and paths more than floatingOver m over the ground with no building or road under them: at most floatingShare of their triangles. Bridges over a road: at most lowClearanceShare of their deck edges under minEdgeClearance m from the road to the deck's underside (deckDepth m under its surface) — the bake keeps heights.clearance where the centre lines cross, and a deck's edge on its grade comes lower by the grade times its half-width. Known roundabouts' islands gardens, and known places with no roundabout none (roundabouts: r m round each middle).",
+    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night. Tunnels (one-way runs of tunnelMinLength m or more): driven at up to tunnelSpeed km/h from tunnelApproach m before to after within tunnelTimeLimit s, the body within tunnelBodyOverRoad m of the road all through the tube; probed every tunnelProbeEvery m for its ceiling, walls and the ground over it (under a building instead — a road under one — tunnelBuildingHeadroom m of headroom, no tube: the bake builds tubes under hills). Traffic lights and regulatory signs: at least drivingSideShare on the driving side of the traffic they face. In a lane (on the road's own surface at their foot's height): at most inLaneAllowed pieces. Car parks and paths more than floatingOver m over the ground with no building or road under them: at most floatingShare of their triangles. Bridges over a road: at most lowClearanceShare of their deck edges under minEdgeClearance m from the road to the deck's underside (deckDepth m under its surface) — the bake keeps heights.clearance where the centre lines cross, and a deck's edge on its grade comes lower by the grade times its half-width. Known roundabouts' islands gardens, and known places with no roundabout none (roundabouts: r m round each middle).",
     "mainClasses": [
       "motorway",
       "trunk",
@@ -316,7 +316,7 @@
     "tunnelMinLength": 150,
     "tunnelApproach": 250,
     "tunnelTimeLimit": 150,
-    "tunnelBodyOverRoad": 1.5,
+    "tunnelBodyOverRoad": 1.5, "tunnelBuildingHeadroom": 4.0,
     "tunnelProbeEvery": 25,
     "tunnelSpeed": 90,
     "drivingSideShare": 0.95,

@@ -219,7 +219,8 @@ const NZ = Clipper.FillRule.NonZero;
 export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildings = [], lowerAt = [] }: { mesh: Mesh; outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; cells: [number, number, number, number][]; style: any; cfg: any; buildings?: any[]; lowerAt?: number[][] }) {
   const X = style.crossSection, IS = style.islands, colours = X.colours, P = M.positions, I = M.indices;
   const kerbW = X.kerbBevel + X.kerbTop;
-  const stats = { edges: 0, loops: 0, cells: 0, triangles: 0, islands: 0, gardens: 0, plants: 0, kerbM: 0, footpathM2: 0, vergeM2: 0, clipperSnapped: 0, clipperFailed: 0 };
+  const stats = { edges: 0, loops: 0, cells: 0, triangles: 0, islands: 0, gardens: 0, plants: 0, kerbM: 0, footpathM2: 0, vergeM2: 0, clipperSnapped: 0, clipperFailed: 0, unheighted: 0 };
+  const unheighted = new Set<number>();
   // (each of Clipper's operations here guarded against its loops — map/model/clipperGuard.ts: run again on its input
   // snapped to a few mm if it looped, counted; left out, and counted, if that loops too)
   const snapped = (list: any[], g: number) => (g ? list.map(p => Array.from(p as any[], (q: any) => ({ x: Math.round(q.x / g) * g, y: Math.round(q.y / g) * g }))) : list);
@@ -403,10 +404,13 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
       if (!rings.length) return;
       const tris = triangulatePatch([rings]);
       const vid = new Map<string, number>();
-      const v = (p: number[]) => { const k = `${p[0]},${p[1]}`; let i = vid.get(k); if (i === undefined) { const y = heightAt(p[0], p[1], part, isl); i = out.positions.length / 3; out.positions.push(p[0], Number.isFinite(y) ? y : 0, p[1]); const c = colOf[part]; out.colours.push(c[0], c[1], c[2], 255); vid.set(k, i); } return i; };
+      // (a corner with no road edge near enough to take its height from is a stray: its triangles left out, counted —
+      // at 0 m, the height they were given, the ground was shaped down to them: a car park in Burnside 7 m up a pit)
+      const v = (p: number[]) => { const k = `${p[0]},${p[1]}`; let i = vid.get(k); if (i === undefined) { const y = heightAt(p[0], p[1], part, isl); i = out.positions.length / 3; if (!Number.isFinite(y)) unheighted.add(i); out.positions.push(p[0], Number.isFinite(y) ? y : 0, p[1]); const c = colOf[part]; out.colours.push(c[0], c[1], c[2], 255); vid.set(k, i); } return i; };
       const seg = nearSeg((cell[0] + cell[2]) / 2, (cell[1] + cell[3]) / 2, 400)?.g.id ?? -1;
       for (const t of tris) {
         const a = v(t[0]), b = v(t[1]), c = v(t[2]), Pp = out.positions;
+        if (unheighted.has(a) || unheighted.has(b) || unheighted.has(c)) { stats.unheighted++; continue; }
         const ny = (Pp[b * 3 + 2] - Pp[a * 3 + 2]) * (Pp[c * 3] - Pp[a * 3]) - (Pp[b * 3] - Pp[a * 3]) * (Pp[c * 3 + 2] - Pp[a * 3 + 2]);
         if (Math.abs(ny) < 1e-8) continue;
         if (ny < 0) out.indices.push(a, c, b); else out.indices.push(a, b, c);
@@ -420,7 +424,19 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     // (a roundabout's: a garden bed; a small traffic island concrete; a bigger one grassed)
     for (const { p, s } of islandPieces) emit(p, s.round ? PARTS.garden : s.area < IS.paveBelow ? PARTS.island : PARTS.verge, s);
   }
-  // (islands' planting, once each — the cell holding its middle: low plants round it, a tree in a roundabout's middle)
+  // (islands' planting, once each — the cell holding its middle: low plants round it, a tree in a roundabout's middle —
+  // each inside the island's own outline, plantInset m (a tree treeInset m) in from its kerb: a turning circle's island
+  // isn't round, and plants on rings of its mean radius stood in the road round it. Estimated: TREE_ESTIMATED, 8)
+  const inBy = (pts: number[][], x: number, z: number, m: number) => {
+    let inside = false, d = Infinity;
+    for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
+      const [ax, az] = pts[a], [bx, bz] = pts[b];
+      if ((az > z) !== (bz > z) && x < (bx - ax) * (z - az) / (bz - az) + ax) inside = !inside;
+      const ex = bx - ax, ez = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez || 1e-9)));
+      d = Math.min(d, Math.hypot(x - ax - ex * t, z - az - ez * t));
+    }
+    return inside && d >= m;
+  };
   for (const s of islands) {
     const mine = cells.some(c => s.cx >= c[0] && s.cx < c[2] && s.cz >= c[1] && s.cz < c[3]);
     if (!mine) continue;
@@ -428,12 +444,12 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     if (!s.round) continue;
     stats.gardens++;
     const y0 = heightAt(s.cx, s.cz, PARTS.garden, s);
-    if (s.r >= IS.treeRadius && Number.isFinite(y0)) plants.push(s.cx, y0, s.cz, 1.1, 0);
+    if (s.r >= IS.treeRadius && Number.isFinite(y0) && inBy(s.pts, s.cx, s.cz, IS.treeInset)) plants.push(s.cx, y0, s.cz, 1.1, 0 + 8);
     for (let ring = 0.45; ring < 0.9; ring += 0.35) {
       const n = Math.max(4, Math.floor(2 * Math.PI * s.r * ring / IS.plantSpacing));
       for (let q = 0; q < n; q++) {
         const a = (q + ring) / n * 2 * Math.PI, x = s.cx + Math.cos(a) * s.r * ring, z = s.cz + Math.sin(a) * s.r * ring, y = heightAt(x, z, PARTS.garden, s);
-        if (Number.isFinite(y)) { plants.push(x, y, z, 0.35, 2); stats.plants++; }
+        if (Number.isFinite(y) && inBy(s.pts, x, z, IS.plantInset)) { plants.push(x, y, z, 0.35, 2 + 8); stats.plants++; }
       }
     }
   }

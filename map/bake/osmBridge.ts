@@ -60,7 +60,9 @@ function segmentWays(row): { coords: number[][]; tags: Tags }[] {
     const f0 = cuts[i], f1 = cuts[i + 1], f = (f0 + f1) / 2;
     if (f1 - f0 < 1e-9) continue;
     const flags = new Set([...(row.road_flags ?? []), ...(row.rail_flags ?? [])].filter(r => covers(r, f)).flatMap(r => r.values ?? []));
-    if (flags.has('is_indoor')) continue;
+    // (indoors — and a road or railway still being built, or abandoned: not one to drive, never invented — the North-South
+    // Motorway's Torrens to Darlington tunnels under South Road, say, years from opening)
+    if (flags.has('is_indoor') || flags.has('is_under_construction') || flags.has('is_abandoned')) continue;
     const coords = cuts.length > 2 ? piece(g.coordinates, at, f0, f1) : g.coordinates;
     const level = row.level_rules?.find(r => covers(r, f))?.value;
     const common: Tags = { 'source:map': 'overture', 'overture:id': row.id, 'osm:way': osmWay(row.sources, f), bridge: flags.has('is_bridge') ? 'yes' : undefined, tunnel: flags.has('is_tunnel') ? 'yes' : undefined, covered: flags.has('is_covered') ? 'yes' : undefined, layer: level ? String(level) : undefined };
