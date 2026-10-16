@@ -18,6 +18,8 @@ import { createWorldStream } from './streamer.ts';
 import { createWorldMaps } from './maps.ts';
 import { createMapDebug } from './debug.ts';
 import { lampLights } from './lamps.ts';
+import { furnitureTick } from './furniture.ts';
+import { facadeNight } from './facades.ts';
 
 // (startAt: where to start instead of the region's spawn — the player's saved place, { region, xz: [x, z] (the map's frame),
 // heading } — used when it's this region's: the world loads there straight away, not at the spawn first)
@@ -219,6 +221,7 @@ export function realWorldFrame(w, shared, seconds) {
     w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
   }
   w.mapDebug?.frame(seconds);
+  if (S.manifest.map === 'v5') { furnitureTick(seconds, S.manifest.furniture); facadeNight.value = w.light?.night ?? 0; }
   if (w.mapLamps) { const lit: any[] = []; for (const e of S.tiles.values()) if (e.obj?.lamps) lit.push(e.obj.lamps); w.mapLamps.frame(w.camera, w.light?.night ?? 0, lit); }
   // the performance overlay (F3): the last frame's draw calls, every pass of it (the effects draw
   // after the scene), as the frame profiler counted them (perf/profiler.js)

@@ -8,6 +8,7 @@
 //                         neighbours draw there): one connected mesh for Rapier's internal-edge fix, no edge at the
 //                         border for a wheel to catch on
 //   lists.hulls           buildings' colliders, cut off any road (map/collision/buildings.ts)
+//   lists.furniture, lists.wires   Map v5's street furniture and power lines (map/format/furniture.ts)
 //   lists.trees, lists.barrier_*  the model's (map/model/props.ts); lists.lamps (map/model/lamps.ts)
 //   lists.roadEdges       the debug view's road model: [ax, ay, az, bx, by, bz, class, kind]
 //   lists.roadBorder      the road's vertices on the tile's border: [x, y, z, matched] (the seam view)
@@ -21,6 +22,7 @@ import { tileBuilder } from './tiles.ts';
 import { bucketTriangles, clipToBox } from './clip.ts';
 import { trimHulls } from '../collision/buildings.ts';
 import { LAMP_STRIDE } from '../model/lamps.ts';
+import { FURNITURE_STRIDE } from '../format/furniture.ts';
 import { welder, SURFACES } from '../model/surface.ts';
 
 export function tileBuilderV4(D: any) {
@@ -31,6 +33,10 @@ export function tileBuilderV4(D: any) {
   const tileOf = (x: number, z: number) => `${Math.floor(x / T)}_${Math.floor(z / T)}`;
   const edgesBy = new Map<string, number[]>(), E = D.model.surface.edges;
   for (let k = 0; k < E.length; k += 8) { const key = tileOf((E[k] + E[k + 3]) / 2, (E[k + 2] + E[k + 5]) / 2); (edgesBy.get(key) ?? edgesBy.set(key, []).get(key)!).push(k); }
+  // (Map v5's street furniture and power lines: each piece in the tile its foot is in, a wire in its middle's)
+  const furnBy = new Map<string, number[]>(), Fu = D.furniture?.items ?? [], wiresBy = new Map<string, number[]>(), Wi = D.furniture?.wires ?? [];
+  for (let k = 0; k < Fu.length; k += FURNITURE_STRIDE) { const key = tileOf(Fu[k], Fu[k + 2]); (furnBy.get(key) ?? furnBy.set(key, []).get(key)!).push(k); }
+  for (let k = 0; k < Wi.length; k += 6) { const key = tileOf((Wi[k] + Wi[k + 3]) / 2, (Wi[k + 2] + Wi[k + 5]) / 2); (wiresBy.get(key) ?? wiresBy.set(key, []).get(key)!).push(k); }
   const lampsBy = new Map<string, number[]>(), Lp = D.lamps;
   for (let k = 0; k < Lp.length; k += LAMP_STRIDE) { const key = tileOf(Lp[k], Lp[k + 2]); (lampsBy.get(key) ?? lampsBy.set(key, []).get(key)!).push(k); }
   const stats = { hullsTrimmed: 0, hullsDropped: 0, pavedDropped: 0, ms: { v3: 0, roads: 0, collision: 0, hulls: 0, lists: 0 } as Record<string, number> };
@@ -64,6 +70,10 @@ export function tileBuilderV4(D: any) {
     time('hulls');
     // lamps, the road model's edges, the border's vertices, the exclusion mask
     t.lists.lamps = { stride: LAMP_STRIDE, data: Float32Array.from((lampsBy.get(key) ?? []).flatMap(k => [Lp[k] - cx, Lp[k + 1], Lp[k + 2] - cz, ...Array.from(Lp.slice(k + 3, k + LAMP_STRIDE))])) };
+    if (D.furniture) {
+      t.lists.furniture = { stride: FURNITURE_STRIDE, data: Float32Array.from((furnBy.get(key) ?? []).flatMap(k => [Fu[k] - cx, Fu[k + 1], Fu[k + 2] - cz, ...Array.from(Fu.slice(k + 3, k + FURNITURE_STRIDE))])) };
+      t.lists.wires = { stride: 6, data: Float32Array.from((wiresBy.get(key) ?? []).flatMap(k => [Wi[k] - cx, Wi[k + 1], Wi[k + 2] - cz, Wi[k + 3] - cx, Wi[k + 4], Wi[k + 5] - cz])) };
+    }
     t.lists.roadEdges = { stride: 8, quantum: 0.05, data: Float32Array.from((edgesBy.get(key) ?? []).flatMap(k => [E[k] - cx, E[k + 1], E[k + 2] - cz, E[k + 3] - cx, E[k + 4], E[k + 5] - cz, E[k + 6], E[k + 7]])) };
     const border: number[] = [];
     if (t.meshes.roads) { const P = t.meshes.roads.positions, half = T / 2; for (let v = 0; v < P.length; v += 3) if (Math.abs(Math.abs(P[v]) - half) < 1e-6 || Math.abs(Math.abs(P[v + 2]) - half) < 1e-6) border.push(P[v], P[v + 1], P[v + 2], 1); }

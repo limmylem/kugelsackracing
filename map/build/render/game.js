@@ -17,6 +17,8 @@ import { createWorldStream } from "./streamer.js";
 import { createWorldMaps } from "./maps.js";
 import { createMapDebug } from "./debug.js";
 import { lampLights } from "./lamps.js";
+import { furnitureTick } from "./furniture.js";
+import { facadeNight } from "./facades.js";
 // (startAt: where to start instead of the region's spawn — the player's saved place, { region, xz: [x, z] (the map's frame),
 // heading } — used when it's this region's: the world loads there straight away, not at the spawn first)
 export async function prepareTrack(track, { startAt = null } = {}) {
@@ -273,6 +275,10 @@ export function realWorldFrame(w, shared, seconds) {
         w.whereBox.innerHTML = `<div style="font-weight:700;font-size:17px">${where.road ?? '&nbsp;'}</div><div>${[at.area, at.city].filter(Boolean).join(' · ')}</div><div style="font:600 12px 'JetBrains Mono',monospace;opacity:.9">${compass(bearing)} ${String(Math.round(bearing)).padStart(3, '0')}°</div>`;
     }
     w.mapDebug?.frame(seconds);
+    if (S.manifest.map === 'v5') {
+        furnitureTick(seconds, S.manifest.furniture);
+        facadeNight.value = w.light?.night ?? 0;
+    }
     if (w.mapLamps) {
         const lit = [];
         for (const e of S.tiles.values())

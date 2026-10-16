@@ -20,7 +20,7 @@ const ringArea = r => { let a = 0; for (let i = 0, j = r.length - 1; i < r.lengt
 const clean = r => { const out = []; for (const p of r) { const l = out.at(-1); if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 0.05) out.push(p); } if (out.length > 2 && Math.hypot(out[0][0] - out.at(-1)[0], out[0][1] - out.at(-1)[1]) < 0.05) out.pop(); return out; };
 
 // the smallest rectangle round a ring (rotating the hull's edges): { c: [x, z], u (long axis), half: [along, across], area }
-function minRect(ring) {
+export function minRect(ring) {
   const pts = hull2d(ring);
   let best = null;
   for (let i = 0; i < pts.length; i++) {
@@ -94,7 +94,7 @@ class Part {
   tri(a, b, c) { this.indices.push(a, b, c); }
 }
 
-export function extrude(b, ground, C) {
+export function extrude(b, ground, C, opts: { postOk?: (x: number, z: number) => boolean } = {}) {
   const rings = b.rings.map(clean).filter(r => r.length >= 3);
   if (!rings.length) return null;
   // outer anticlockwise seen from above (x east, z south: positive area in this sum), holes the other way
@@ -102,15 +102,21 @@ export function extrude(b, ground, C) {
   for (let k = 1; k < rings.length; k++) if (ringArea(rings[k]) > 0) rings[k].reverse();
   const area = Math.abs(ringArea(rings[0])) - rings.slice(1).reduce((a, r) => a + Math.abs(ringArea(r)), 0);
   if (area < 4) return null;
-  const P = b.props, h0 = hashOf(b.id);
+  const P0 = b.props, h0 = hashOf(b.id), V5 = P0.v5;
+  // (Map v5: what map/model/buildingsV5.ts decided — its type's facade, and the roof and colours the data doesn't give)
+  const P = V5 ? { ...P0, rs: P0.rs ?? V5.rs, rh: P0.rh ?? V5.rh, fc: V5.brand != null ? V5.fc : P0.fc ?? V5.fc, rc: P0.rc ?? V5.rc } : P0;
   const style = C.style[P.b] ?? 'default', pal = C.palettes[style] ?? C.palettes.default;
   const facade = rgb(P.fc ?? pal.facade[h0 % pal.facade.length]), roofC = rgb(P.rc ?? pal.roof[(h0 >>> 8) % pal.roof.length]);
+  // (its facade in the atlas: the walls' u offset by 1000 a facade — map/render/facades.ts)
+  const fu = V5 ? (V5.facade ?? 0) * 1000 : 0;
   const shade = (c, k) => c.map(v => Math.max(0, Math.min(255, Math.round(v * k))));
   // the ground: lowest under its walls (they go down to it), and in its middle (heights are from there)
   const outer = rings[0];
   let gMin = Infinity, cx = 0, cz = 0;
   for (const [x, z] of outer) { gMin = Math.min(gMin, ground(x, z)); cx += x; cz += z; }
   cx /= outer.length; cz /= outer.length;
+  // (Map v5: a roof on posts — map/model/buildingsV5.ts's canopy — not a box)
+  if (V5?.canopy) return canopyOf(rings, P, V5.canopy, ground, gMin, cx, cz, area, opts, style, facade, roofC);
   const gC = ground(cx, cz), height = heightOf(P, area, C);
   const top = gC + height, foot = P.mh > 0 ? gC + P.mh : gMin - 0.4;
   if (top - foot < 1) return null;
@@ -136,8 +142,8 @@ export function extrude(b, ground, C) {
       if (l < 0.05) continue;
       // (one colour for the whole building: the lighting shades its faces, and the corners are shared)
       const c = facade, ta = wallTop(ax, az), tb = wallTop(bx, bz);
-      const v0 = walls.vertex(ax, foot, az, c, s / bay, (foot - gC) / storey), v1 = walls.vertex(bx, foot, bz, c, (s + l) / bay, (foot - gC) / storey);
-      const v2 = walls.vertex(bx, tb, bz, c, (s + l) / bay, (tb - gC) / storey), v3 = walls.vertex(ax, ta, az, c, s / bay, (ta - gC) / storey);
+      const v0 = walls.vertex(ax, foot, az, c, fu + s / bay, (foot - gC) / storey), v1 = walls.vertex(bx, foot, bz, c, fu + (s + l) / bay, (foot - gC) / storey);
+      const v2 = walls.vertex(bx, tb, bz, c, fu + (s + l) / bay, (tb - gC) / storey), v3 = walls.vertex(ax, ta, az, c, fu + s / bay, (ta - gC) / storey);
       walls.tri(v0, v2, v1); walls.tri(v0, v3, v2);      // (facing out: anticlockwise seen from outside)
       s += l;
     }
@@ -177,7 +183,7 @@ export function extrude(b, ground, C) {
     face([E[0], E[1], R1, R0], 0.95); face([E[2], E[3], R0, R1], 0.82);
     if (shape === 'hipped') { face([E[1], E[2], R1], 0.9); face([E[3], E[0], R0], 0.88); }
     else for (const [a, b2, r] of [[E[1], E[2], R1], [E[3], E[0], R0]]) {
-      const c = shade(facade, 0.92), ia = walls.vertex(...a, c, 0, (eave - gC) / storey), ib = walls.vertex(...b2, c, 2 * Wd / bay, (eave - gC) / storey), ir = walls.vertex(...r, c, Wd / bay, (top - gC) / storey);
+      const c = shade(facade, 0.92), ia = walls.vertex(...a, c, fu, (eave - gC) / storey), ib = walls.vertex(...b2, c, fu + 2 * Wd / bay, (eave - gC) / storey), ir = walls.vertex(...r, c, fu + Wd / bay, (top - gC) / storey);
       walls.tri(ia, ir, ib);
     }
   }
@@ -185,5 +191,54 @@ export function extrude(b, ground, C) {
   const pieces = convexPieces(rings, tris), y1 = shape === 'flat' ? top : eave + rh * 0.5;
   const hulls = pieces.filter(p => p.length >= 3).map(p => ({ points: p.flatMap(k => pts[k]), y0: foot, y1 }));
   const kind = P.b ?? '', landmark = top - gC >= C.landmark.height || (C.landmark.kinds.includes(kind) && area >= C.landmark.minArea);
-  return { style, windows: C.windows[style] ?? C.windows.default, walls, roof, hulls, top, foot, height: top - gC, landmark, centre: [cx, cz] };
+  return { style, windows: V5 ? 'v5' : C.windows[style] ?? C.windows.default, walls, roof, hulls, top, foot, height: top - gC, landmark, centre: [cx, cz] };
+}
+
+// Map v5's roof on posts: building=roof (a verandah over the footpath, a petrol station's canopy) or a carport — its
+// slab from `thick` m under its top (or its min_height) to its top, the fascia round its edge the walls' colour, the
+// top and underside the roof's; square posts `post` m across down to the ground at its rectangle's corners, `inset` m
+// in, and every `spacing` m along its long sides — only where opts.postOk lets one stand (never on a road). Nothing
+// walled in under it: its colliders are its posts (the slab is overhead, out of a car's reach)
+function canopyOf(rings, P, K, ground, gMin, cx, cz, area, opts, style, fascia, roofC) {
+  const gC = ground(cx, cz), top = gC + (P.h > 0 ? P.h : K.h);
+  if (top - gMin < 2) return null;
+  const bottom = Math.max(gMin + 1.8, Math.min(top - 0.15, P.mh > 0 ? gC + P.mh : top - K.thick));
+  const walls = new Part(true), roof = new Part(false), pts = rings.flat(), tris = triangulate(rings);
+  const underside = fascia.map(v => Math.round(v * 0.7)), postC = rgb(K.postColour);
+  const baseT = roof.positions.length / 3;
+  for (const [x, z] of pts) roof.vertex(x, top, z, roofC);
+  for (const [a, b2, c] of tris) roof.tri(baseT + a, baseT + c, baseT + b2);
+  const baseB = roof.positions.length / 3;
+  for (const [x, z] of pts) roof.vertex(x, bottom, z, underside);
+  for (const [a, b2, c] of tris) roof.tri(baseB + a, baseB + b2, baseB + c);
+  for (const r of rings) for (let i = 0; i < r.length; i++) {
+    const [ax, az] = r[i], [bx, bz] = r[(i + 1) % r.length];
+    const v0 = roof.vertex(ax, bottom, az, fascia), v1 = roof.vertex(bx, bottom, bz, fascia), v2 = roof.vertex(bx, top, bz, fascia), v3 = roof.vertex(ax, top, az, fascia);
+    roof.tri(v0, v2, v1); roof.tri(v0, v3, v2);
+  }
+  // the posts
+  const rect = minRect(rings[0]), hulls = [], spots = [];
+  if (rect && area / rect.area > 0.6) {
+    const { c: [rx, rz], u: [ux, uz], half: [L, W] } = rect, ins = K.inset + K.post / 2, n = Math.max(1, Math.ceil(2 * (L - ins) / K.spacing));
+    for (let k = 0; k <= n; k++) for (const sd of [-1, 1]) { const s = -(L - ins) + 2 * (L - ins) * k / n, t = sd * Math.max(0, W - ins); spots.push([rx + ux * s - uz * t, rz + uz * s + ux * t]); }
+  } else for (const [x, z] of rings[0].length <= 12 ? rings[0] : []) { const d = Math.hypot(cx - x, cz - z) || 1, ins = K.inset + K.post / 2; spots.push([x + (cx - x) / d * ins, z + (cz - z) / d * ins]); }
+  // (each under the roof as drawn — a corner of a footprint short of its rectangle moved in towards the middle, half a
+  // metre at a time, up to 3 m; else none there)
+  const h = K.post / 2, inside = (x, z) => { let c = false; for (const r of rings) for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > z) !== (r[j][1] > z) && x < (r[j][0] - r[i][0]) * (z - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
+  const covered = (x, z) => [[0, 0], [-h, -h], [h, -h], [h, h], [-h, h]].every(([dx, dz]) => inside(x + dx, z + dz));
+  for (const s0 of spots) {
+    let [x, z] = s0;
+    const d = Math.hypot(cx - x, cz - z) || 1;
+    for (let k = 1; k <= 6 && !covered(x, z); k++) { x = s0[0] + (cx - s0[0]) / d * 0.5 * k; z = s0[1] + (cz - s0[1]) / d * 0.5 * k; }
+    if (!covered(x, z)) continue;
+    if (opts.postOk && !opts.postOk(x, z)) continue;
+    const g = ground(x, z) - 0.1, corners = [[x - h, z - h], [x + h, z - h], [x + h, z + h], [x - h, z + h]];
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = corners[i], [bx, bz] = corners[(i + 1) % 4];
+      const v0 = roof.vertex(ax, g, az, postC), v1 = roof.vertex(bx, g, bz, postC), v2 = roof.vertex(bx, bottom, bz, postC), v3 = roof.vertex(ax, bottom, az, postC);
+      roof.tri(v0, v2, v1); roof.tri(v0, v3, v2);
+    }
+    hulls.push({ points: corners.flat(), y0: g, y1: bottom });
+  }
+  return { style, windows: 'v5', walls, roof, hulls, top, foot: bottom, height: top - gC, landmark: false, centre: [cx, cz], posts: hulls.length };
 }

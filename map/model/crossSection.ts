@@ -133,6 +133,7 @@ export function planCrossSections({ segs, osm, buildings, style, classAt = () =>
       for (let k = 0; k < g.xs.length; k += Math.max(1, Math.floor(g.xs.length / 8))) {
         const nx = g.nx[k], nz = g.nz[k];
         for (const q of buildingsNear(g.xs[k], g.zs[k], X.urbanReach)) {
+          if (buildings[q].props?.b === 'roof' || buildings[q].props?.mh > 0.5) continue;
           const [mx, mz] = mids[q], off = (mx - g.xs[k]) * nx + (mz - g.zs[k]) * nz;
           if (off * sign <= 0 || Math.hypot(mx - g.xs[k], mz - g.zs[k]) > X.urbanReach) continue;
           count++;
@@ -183,8 +184,18 @@ const P64 = (pts: number[][]) => { const p = new Clipper.Path64(); for (const [x
 // (wound positive: under the non-zero rule a piece wound the other way would cancel another where they overlap)
 const POS = (pts: number[][]) => { const p = P64(pts); if (Clipper.Clipper.area(p) < 0) p.reverse(); return p; };
 // (fresh points every time: Clipper2-js can stall on paths that share points with an operation's output — the same
-// workaround as map/model/topology.ts's copyPaths)
-const paths = (list: any[]) => { const o = new Clipper.Paths64(); for (const p of list) { const c = new Clipper.Path64(); for (const pt of p) c.push(new Clipper.Point64(pt.x, pt.y)); o.push(c); } return o; };
+// workaround as map/model/topology.ts's copyPaths) — and tidied: an operation's output can repeat a point and carry
+// rings of no area, and fed back in, those make Clipper2-js drop whole pieces (Rundle Street's footpath, 4 m of it)
+const paths = (list: any[]) => {
+  const o = new Clipper.Paths64();
+  for (const p of list) {
+    const c = new Clipper.Path64();
+    for (const pt of p) { const l = c[c.length - 1]; if (!l || l.x !== pt.x || l.y !== pt.y) c.push(new Clipper.Point64(pt.x, pt.y)); }
+    while (c.length > 1 && c[0].x === c[c.length - 1].x && c[0].y === c[c.length - 1].y) c.pop();
+    if (c.length >= 3 && Clipper.Clipper.area(c) !== 0) o.push(c);
+  }
+  return o;
+};
 const NZ = Clipper.FillRule.NonZero;
 
 export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildings = [], lowerAt = [] }: { mesh: Mesh; outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; cells: [number, number, number, number][]; style: any; cfg: any; buildings?: any[]; lowerAt?: number[][] }) {
@@ -315,7 +326,10 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     return e.h + up + X.crossfall * Math.max(0, e.d - kerbW);
   };
   // 5. cell by cell: joined, the road and buildings taken out, cut to the cell, triangulated
-  const bPaths = buildings.map((b: any) => POS(b.rings[0])), bBox = buildings.map((b: any) => { const r = b.rings[0]; return [Math.min(...r.map((p: number[]) => p[0])), Math.min(...r.map((p: number[]) => p[1])), Math.max(...r.map((p: number[]) => p[0])), Math.max(...r.map((p: number[]) => p[1]))]; });
+  // (only what stands on the ground: a verandah over the footpath — building=roof — or anything raised off it doesn't
+  // take the footpath's place)
+  const standing = buildings.filter((b: any) => b.props?.b !== 'roof' && b.props?.b !== 'carport' && !(b.props?.mh > 0.5));
+  const bPaths = standing.map((b: any) => POS(b.rings[0])), bBox = standing.map((b: any) => { const r = b.rings[0]; return [Math.min(...r.map((p: number[]) => p[0])), Math.min(...r.map((p: number[]) => p[1])), Math.max(...r.map((p: number[]) => p[0])), Math.max(...r.map((p: number[]) => p[1]))]; });
   const C = Clipper.Clipper;
   const colOf: Record<number, number[]> = { [PARTS.kerb]: hex(colours.kerb), [PARTS.verge]: hex(colours.verge), [PARTS.footpath]: hex(colours.footpath), [PARTS.island]: hex(colours.island), [PARTS.garden]: hex(colours.mulch) };
   const surfOf: Record<number, number> = { [PARTS.kerb]: SURFACES.indexOf('kerb'), [PARTS.verge]: SURFACES.indexOf('grass'), [PARTS.footpath]: SURFACES.indexOf(X.footpathSurface === 'concrete' ? 'footpath' : X.footpathSurface), [PARTS.island]: SURFACES.indexOf('concrete'), [PARTS.garden]: SURFACES.indexOf('dirt') };

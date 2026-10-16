@@ -22,8 +22,10 @@ export function trimHulls(H: ArrayLike<number>, cx: number, cz: number, surface:
     k += 3 + n * 2;
     // (a sliver — a footprint's convex pieces can include one, metres long and a millimetre wide — is no building: as a
     // collider it's an invisible wall, its tip anywhere; gone, as the pieces trimmed below too small to matter)
-    let a2 = 0; for (let q = 0; q < n; q++) { const p = pts[q], o = pts[(q + 1) % n]; a2 += p[0] * o[1] - o[0] * p[1]; }
-    if (Math.abs(a2) / 2 < 0.25) { dropped++; continue; }
+    // (Map v5: a small piece that's no sliver — its area over its longest side at least sliverWidth m: a canopy's post —
+    // stays)
+    let a2 = 0, edge = 0; for (let q = 0; q < n; q++) { const p = pts[q], o = pts[(q + 1) % n]; a2 += p[0] * o[1] - o[0] * p[1]; edge = Math.max(edge, Math.hypot(o[0] - p[0], o[1] - p[1])); }
+    if (Math.abs(a2) / 2 < 0.25 && !(C.sliverWidth != null && Math.abs(a2) / 2 / (edge || 1) >= C.sliverWidth)) { dropped++; continue; }
     const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]), r = C.roadClearance;
     // the road triangles reaching within r of it at a height within its span (slivers too: at the road's outer edge a
     // T-junction's stitch has no neighbour beyond it)
