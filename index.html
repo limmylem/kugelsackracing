@@ -1873,7 +1873,10 @@ let dock = null;
 const DEV_SITE = (globalThis.KR_SITE?.env ?? 'local') !== 'production';
 const showWorlds = admin => document.body.classList.toggle('kr-worlds', DEV_SITE || !!admin);
 showWorlds(false);
-import('./play/dock.js').then(({ mountDock }) => {
+// (the game's words first — ui/i18n.js, the player's language from their settings — so the dock and the news button
+// aren't drawn with message names; they change with the language after that by themselves)
+const wordsReady = import('./ui/i18n.js').then(({ setLanguage }) => { let lang = 'auto'; try { lang = JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}')?.language ?? 'auto'; } catch { /* auto */ } return setLanguage(lang); }).catch(e => console.warn(`The game's words: ${e.message}`));
+wordsReady.then(() => import('./play/dock.js')).then(({ mountDock }) => {
   // (the garage isn't a button any more: drive into a garage building, or the dock's Tow — paid — takes you to the nearest)
   dock = mountDock({ garage: () => { import('./testtrack/test-scene.js').then(t => t.towToGarage()); }, editor: async () => { try { (await editorNow()).enter(); } catch (err) { console.error(err); } } });
   dock.editor(editorAllowed);
@@ -1884,7 +1887,7 @@ Promise.all([import('./account/session.js'), import('./account/status.js'), impo
   let onboarded = false; try { onboarded = !!JSON.parse(localStorage.getItem('ognistrada.onboarding.v1') ?? '{}')?.welcome; } catch { /* first time */ }
   mountAccountChip(A, { welcome: onboarded });
   // (Phase 8 Step 4: news, what's new after an update, events, maintenance notices — ui/news.js)
-  import('./ui/news.js').then(({ mountNews }) => { let prefs = {}; try { prefs = JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}') ?? {}; } catch { /* defaults */ } mountNews({ A, settings: prefs }); }).catch(e => console.warn(`News: ${e.message}`));
+  wordsReady.then(() => import('./ui/news.js')).then(({ mountNews }) => { let prefs = {}; try { prefs = JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}') ?? {}; } catch { /* defaults */ } mountNews({ A, settings: prefs }); }).catch(e => console.warn(`News: ${e.message}`));
   const check = () => {
     showWorlds(A.me?.role === 'admin');
     const ok = editorAccess(A).allowed; dock?.editor(ok); if (ok !== editorAllowed) { editorAllowed = ok; drawWorldButtons(); }

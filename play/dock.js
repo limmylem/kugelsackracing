@@ -68,7 +68,7 @@ const MARK = `<svg viewBox="-30 -20 300 280" aria-hidden="true"><defs><linearGra
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-chrome)" stroke-width="32"/>
   <path d="M222 54 C160 28 58 46 74 96 C84 126 166 114 168 150 C172 192 78 204 18 184" stroke="url(#dk-red)" stroke-width="22"/></g></svg>`;
 
-import { t, esc } from '../ui/i18n.js';
+import { t, esc, onLanguage } from '../ui/i18n.js';
 
 const FOLD = 'kr.dock.folded';
 const read = () => { try { return localStorage.getItem(FOLD) === '1'; } catch { return false; } };
@@ -83,15 +83,23 @@ export function mountDock({ garage, editor } = {}) {
   dock.id = 'krDock'; dock.setAttribute('aria-label', t('dock.menu'));
   dock.innerHTML = `<button class="dk-brand" data-k="fold" title="${esc(t('dock.fold'))}" aria-label="${esc(t('dock.fold'))}">${MARK}</button>
     <div class="dk-sep"></div>
-    <button class="dk-item" data-k="garage" data-tip="${esc(t('dock.towTip'))}"><span class="dk-ic" aria-hidden="true">car_repair</span>${esc(t('dock.tow'))}</button>
+    <button class="dk-item" data-k="garage" data-tip="${esc(t('dock.towTip'))}" data-lt="dock.towTip"><span class="dk-ic" aria-hidden="true">car_repair</span><span data-l="dock.tow">${esc(t('dock.tow'))}</span></button>
     <div class="dk-slot" id="krDockRace"></div>
     <div class="dk-slot" id="krDockRoam"></div>
-    <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" hidden><span class="dk-ic" aria-hidden="true">forum</span>${esc(t('dock.chat'))}<kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
-    <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}"><span class="dk-ic" aria-hidden="true">school</span>${esc(t('dock.school'))}</button>
+    <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" data-lt="dock.chatTip" hidden><span class="dk-ic" aria-hidden="true">forum</span><span data-l="dock.chat">${esc(t('dock.chat'))}</span><kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
+    <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}" data-lt="dock.schoolTip"><span class="dk-ic" aria-hidden="true">school</span><span data-l="dock.school">${esc(t('dock.school'))}</span></button>
     <div class="dk-sep"></div>
-    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}"><span class="dk-ic" aria-hidden="true">account_circle</span>${esc(t('dock.account'))}</a>
-    <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" hidden><span class="dk-ic" aria-hidden="true">edit_road</span>${esc(t('dock.editor'))}<kbd>F2</kbd></button>`;
+    <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}" data-lt="dock.account"><span class="dk-ic" aria-hidden="true">account_circle</span><span data-l="dock.account">${esc(t('dock.account'))}</span></a>
+    <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" data-lt="dock.editorTip" hidden><span class="dk-ic" aria-hidden="true">edit_road</span><span data-l="dock.editor">${esc(t('dock.editor'))}</span><kbd>F2</kbd></button>`;
   document.body.appendChild(dock);
+  // (the words again once the game's language has loaded, or changes: the dock can be drawn before they're in)
+  const relabel = () => {
+    dock.setAttribute('aria-label', t('dock.menu'));
+    const fold = dock.querySelector('.dk-brand'); fold.title = t('dock.fold'); fold.setAttribute('aria-label', t('dock.fold'));
+    for (const el of dock.querySelectorAll('[data-l]')) el.textContent = t(el.dataset.l);
+    for (const el of dock.querySelectorAll('[data-lt]')) el.dataset.tip = t(el.dataset.lt);
+  };
+  onLanguage(relabel);
   dock.classList.toggle('folded', read());
   const badge = dock.querySelector('.dk-badge'), chat = dock.querySelector('.dk-chat'), roamSlot = dock.querySelector('#krDockRoam');
   let unread = 0;
