@@ -9,6 +9,7 @@
 
 import { roadbook } from '../roadbook/client.js';
 import { metresBetween } from '../roadbook/geo.js';
+import { t } from '../ui/i18n.js';
 
 const SAMPLE_MS = 500, PING_MS = 5000, MAX_SAMPLES = 40;
 const CSS = `
@@ -36,9 +37,11 @@ const CSS = `
 #rbToasts .t b { color: #c9b3ff; }
 @keyframes rbIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 `;
-const compass = deg => ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+const compass = deg => t(`roadbook.dir.${['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'][Math.round(((deg % 360) + 360) % 360 / 45) % 8]}`);
 const bearing = (a, b) => { const r = Math.PI / 180, y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r), x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r); return (Math.atan2(y, x) / r + 360) % 360; };
-const km = m => m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${Math.round(m / 10) * 10} m`;
+const km = m => m >= 1000 ? t('roadbook.hud.km', { n: (m / 1000).toFixed(m >= 10000 ? 0 : 1) }) : t('roadbook.hud.m', { n: Math.round(m / 10) * 10 });
+// (a message, ready for the page: its words from locales/en.json, escaped)
+const T = (key, vars) => esc(t(key, vars));
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, travel = null }) {
@@ -54,17 +57,17 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
 
   // ---------- what was earned, as it's earned ----------
   function toast(html, ms = 5000) {
-    const t = document.createElement('div');
-    t.className = 't'; t.innerHTML = html;
-    toasts.append(t);
-    setTimeout(() => t.remove(), ms);
+    const box = document.createElement('div');
+    box.className = 't'; box.innerHTML = html;
+    toasts.append(box);
+    setTimeout(() => box.remove(), ms);
   }
   function tell(r) {
-    for (const a of r?.awards ?? []) toast(`${esc(a.reason)}${a.tokens ? ` · <b>+${a.tokens} tokens</b>` : ''}${a.points ? ` · +${a.points} points` : ''}`, 7000);
+    for (const a of r?.awards ?? []) toast(`${esc(a.reason)}${a.tokens ? ` · <b>${T('roadbook.toast.tokens', { n: a.tokens })}</b>` : ''}${a.points ? ` · ${T('roadbook.toast.points', { n: a.points })}` : ''}`, 7000);
     for (const e of r?.events ?? []) {
-      if (e.type === 'place_discovered') toast(`Discovered: <b>${esc(placeName(e.data.place))}</b>${e.data.hidden ? ' (a hidden place!)' : ''}`);
+      if (e.type === 'place_discovered') toast(`${T('roadbook.toast.discovered')} <b>${esc(placeName(e.data.place))}</b>${e.data.hidden ? ` ${T('roadbook.toast.hidden')}` : ''}`);
       else if (e.type === 'notice') toast(esc(e.data.text), e.data.kind === 'failed' ? 7000 : 4000);
-      else if (e.type === 'expedition_completed') toast(`<b>Expedition complete!</b> Open the ROADBOOK to see it in your history.`, 8000);
+      else if (e.type === 'expedition_completed') toast(`<b>${T('roadbook.toast.expDone')}</b> ${T('roadbook.toast.expDoneMore')}`, 8000);
     }
   }
   const placeName = id => R.view?.places?.find(p => p.id === id)?.name ?? id;
@@ -128,12 +131,12 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
     const st = x.stage, idx = x.stages.findIndex(s => s.current) + 1;
     const lines = [`<div class="stage">${esc(st.name)}</div>`, `<div>${esc(st.text)}</div>`];
     if (st.clue) lines.push(`<div class="clue">${esc(st.clue)}</div>`);
-    if (st.hint) lines.push(`<div class="hint">Hint: ${esc(st.hint)}</div>`);
-    else if (st.hintIn) lines.push(`<div class="row"><span>A hint in</span><span>${Math.ceil(st.hintIn / 60)} min</span></div>`);
-    if (st.items) lines.push(`<div class="row"><span>Picked up</span><span>${st.collected.length} of ${st.items}</span></div>`);
-    if (st.timeLimitSec) lines.push(st.run ? `<div class="row"><span>Next: ${st.run.next >= st.run.of - 1 ? 'the finish' : `checkpoint ${st.run.next} of ${st.run.of - 2}`}</span><span class="clock" data-k="clock"></span></div>` : `<div class="row"><span>Time limit (from the start line)</span><span>${Math.floor(st.timeLimitSec / 60)}:${String(st.timeLimitSec % 60).padStart(2, '0')}</span></div>`);
+    if (st.hint) lines.push(`<div class="hint">${T('roadbook.exp.hint', { hint: st.hint })}</div>`);
+    else if (st.hintIn) lines.push(`<div class="row"><span>${T('roadbook.hud.hintIn')}</span><span>${T('roadbook.hud.min', { n: Math.ceil(st.hintIn / 60) })}</span></div>`);
+    if (st.items) lines.push(`<div class="row"><span>${T('roadbook.hud.picked')}</span><span>${T('roadbook.hud.ofItems', { n: st.collected.length, of: st.items })}</span></div>`);
+    if (st.timeLimitSec) lines.push(st.run ? `<div class="row"><span>${st.run.next >= st.run.of - 1 ? T('roadbook.hud.nextFinish') : T('roadbook.hud.nextCheckpoint', { n: st.run.next, of: st.run.of - 2 })}</span><span class="clock" data-k="clock"></span></div>` : `<div class="row"><span>${T('roadbook.hud.limit')}</span><span>${Math.floor(st.timeLimitSec / 60)}:${String(st.timeLimitSec % 60).padStart(2, '0')}</span></div>`);
     lines.push(`<div class="go" data-k="go"></div>`);
-    hud.innerHTML = `<header><span class="ic" aria-hidden="true">explore</span><b>${esc(x.name)}</b><small>Stage ${idx} of ${x.stages.length}</small></header><div class="body">${lines.join('')}</div>`;
+    hud.innerHTML = `<header><span class="ic" aria-hidden="true">explore</span><b>${esc(x.name)}</b><small>${T('roadbook.hud.stage', { n: idx, of: x.stages.length })}</small></header><div class="body">${lines.join('')}</div>`;
     hud.classList.toggle('folded', folded);
     runClock = st.run ? { startedAt: Date.parse(st.run.startedAt), limit: st.timeLimitSec * 1000 } : null;
   }
@@ -152,9 +155,8 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
       if (!last || metresBetween(last, at) > 0.5) { samples.push([+at.lat.toFixed(7), +at.lon.toFixed(7), Date.now()]); last = { ...at }; }
       if (samples.length > MAX_SAMPLES * 3) samples = samples.slice(-MAX_SAMPLES);
     }
-    const T = targets();
-    const near = T.some(t => metresBetween(at, t) <= (t.radius ?? 60) + 5);
-    if (samples.length && (now - lastPing >= PING_MS || (near && now - nearPinged > 1500))) { if (near) nearPinged = now; void send(); }
+    const nearAny = targets().some(x => metresBetween(at, x) <= (x.radius ?? 60) + 5);
+    if (samples.length && (now - lastPing >= PING_MS || (nearAny && now - nearPinged > 1500))) { if (nearAny) nearPinged = now; void send(); }
     // the beams (the Expedition's targets only) and the way there, a few times a second
     const carY = w.sim?.vehicle?.body?.translation().y ?? 0;
     const xT = (R.view?.expeditions ?? []).filter(x => x.started && !x.done).flatMap(x => x.stage?.targets ?? []);
@@ -163,10 +165,10 @@ export function createRoadbookPlay({ THREE, w, carInstanceId = () => null, trave
       lastHud = now;
       const go = hud.querySelector('[data-k="go"]');
       if (go) {
-        const t = xT.map(t => ({ t, d: metresBetween(at, t) })).sort((a, b) => a.d - b.d)[0];
-        go.innerHTML = t ? `<span class="arrow">➤</span><span>${esc(t.t.name)}: ${km(t.d)} ${compass(bearing(at, t.t))}</span>` : '<span>Find it from the clue.</span>';
+        const near = xT.map(x => ({ t: x, d: metresBetween(at, x) })).sort((a, b) => a.d - b.d)[0];
+        go.innerHTML = near ? `<span class="arrow">➤</span><span>${T('roadbook.hud.way', { name: near.t.name, distance: km(near.d), direction: compass(bearing(at, near.t)) })}</span>` : `<span>${T('roadbook.hud.findIt')}</span>`;
         const arrow = go.querySelector('.arrow');
-        if (arrow && t) arrow.style.transform = `rotate(${bearing(at, t.t) - 90}deg)`;
+        if (arrow && near) arrow.style.transform = `rotate(${bearing(at, near.t) - 90}deg)`;
       }
       const clock = hud.querySelector('[data-k="clock"]');
       if (clock && runClock) { const left = Math.max(0, runClock.limit - (Date.now() - runClock.startedAt)) / 1000; clock.textContent = `${Math.floor(left / 60)}:${(left % 60).toFixed(1).padStart(4, '0')}`; clock.classList.toggle('low', left < 30); }

@@ -547,7 +547,8 @@ async function create() {
     },
   };
 
-  const paintFinishes = () => Object.entries(db.finishes).filter(([, f]) => f.paint).map(([k]) => k);
+  // (the console's list: not the season shop's locked ones — only their owners can use those)
+  const paintFinishes = () => Object.entries(db.finishes).filter(([, f]) => f.paint && !f.locked).map(([k]) => k);
   const partSockets = which => {
     const b = garage.build.sockets, car = garage.car;
     if (car.socketGroups?.[which]) return car.socketGroups[which].filter(s => b[s]);

@@ -7,6 +7,7 @@
 
 import { roadbook } from '../roadbook/client.js';
 import { fmtTime } from '../quest/timing.js';
+import { t } from './i18n.js';
 
 const CSS = `
 /* (the page's own styles for sections, buttons, chips… don't reach in: everything here is set below) */
@@ -66,14 +67,17 @@ const CSS = `
 #rbBook .err { color: #a0402a; font-weight: 600; }
 @media (max-width: 720px) { #rbBook .cover { grid-template-columns: 1fr; grid-template-rows: auto 1fr; padding: 8px; } #rbBook .tabs { flex-direction: row; overflow-x: auto; padding: 4px; } #rbBook .tabs button { border-radius: 8px 8px 0 0; } #rbBook .tabs button.on { margin: 0 0 -8px; } #rbBook .tabs .season { display: none; } #rbBook .page { padding: 18px 16px 20px 22px; } }
 `;
-const TABS = [['chapters', 'menu_book', 'Chapters'], ['expeditions', 'explore', 'Expeditions'], ['shop', 'storefront', 'Season Shop'], ['history', 'history_edu', 'My history']];
+const TABS = [['chapters', 'menu_book'], ['expeditions', 'explore'], ['shop', 'storefront'], ['history', 'history_edu']];
 const STYLE_ICON = { racing: 'sports_score', building: 'build', exploring: 'explore' };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const n = x => Number(x ?? 0).toLocaleString('en-AU');
-const dateOf = iso => iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+// (a message, ready for the page: its words from locales/en.json, escaped)
+const T = (key, vars) => esc(t(key, vars));
+const n = x => Number(x ?? 0).toLocaleString();
+const dateOf = iso => iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 const daysLeft = iso => Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000));
 const timeOf = ms => ms == null ? '' : `${Math.floor(ms / 60000)}:${(ms / 1000 % 60).toFixed(2).padStart(5, '0')}`;
 const pretty = id => String(id ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const limitOf = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 
 let el = null, tab = 'chapters', off = null, error = '';
 const carNames = new Map();
@@ -86,7 +90,7 @@ export function openRoadbook(opts = {}) {
   }
   if (!el) {
     el = document.createElement('div');
-    el.id = 'rbBook'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'ROADBOOK');
+    el.id = 'rbBook'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', t('roadbook.title'));
     el.addEventListener('click', onClick);
     el.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeRoadbook(); } });
     document.body.append(el);
@@ -103,6 +107,7 @@ async function onClick(e) {
   if (e.target === el) return closeRoadbook();
   const b = e.target.closest('[data-act]');
   if (!b) return;
+  e.preventDefault();
   const [act, arg] = b.dataset.act.split(':');
   const R = roadbook();
   error = '';
@@ -112,7 +117,7 @@ async function onClick(e) {
     if (act === 'start') { b.disabled = true; await R.startExpedition(arg); }
     if (act === 'buy') {
       const it = R.view?.shop?.find(x => x.id === arg);
-      if (!it || !confirm(`Buy the ${it.name} for ${n(it.price)} Season Tokens?\n\nIt's yours for good. Tokens can't be given back.`)) return;
+      if (!it || !globalThis.confirm(t('roadbook.shop.confirm', { item: it.name, price: n(it.price) }))) return;
       b.disabled = true; await R.buy(arg);
     }
   } catch (err) { error = err?.message ?? String(err); }
@@ -122,35 +127,35 @@ async function onClick(e) {
 function draw() {
   if (!el) return;
   const v = roadbook().view, S = v?.season;
-  const side = `<nav class="tabs">${TABS.map(([k, ic, name]) => `<button data-act="tab:${k}" class="${tab === k ? 'on' : ''}"><span class="ic" aria-hidden="true">${ic}</span>${name}</button>`).join('')}
+  const side = `<nav class="tabs">${TABS.map(([k, ic]) => `<button data-act="tab:${k}" class="${tab === k ? 'on' : ''}"><span class="ic" aria-hidden="true">${ic}</span>${T(`roadbook.tab.${k}`)}</button>`).join('')}
     <div class="season">${S ? `<b>${esc(S.name)}</b>${esc(S.tagline ?? '')}` : ''}</div></nav>`;
   let body;
-  if (!v) body = `<h1>ROADBOOK</h1><p class="sub">Your driver's journal: the season's challenges and Expeditions, the Season Shop and everything you've done.</p><p class="note">Sign in (the account tile) to keep a ROADBOOK. It lives on the game's server.</p>`;
+  if (!v) body = `<h1>${T('roadbook.title')}</h1><p class="sub">${T('roadbook.intro')}</p><p class="note">${T('roadbook.signIn')}</p>`;
   else if (tab === 'history') body = history(v);
-  else if (!S) body = `<h1>ROADBOOK</h1><p class="sub">No season is on right now. Your history is kept: see <a href="#" data-act="tab:history">My history</a>.</p>`;
+  else if (!S) body = `<h1>${T('roadbook.title')}</h1><p class="sub">${T('roadbook.noSeason')}</p>`;
   else body = tab === 'expeditions' ? expeditions(v) : tab === 'shop' ? shop(v) : chapters(v);
-  el.innerHTML = `<div class="cover">${side}<article class="page"><button class="close" data-act="close" aria-label="Close">close</button>${error ? `<p class="err">${esc(error)}</p>` : ''}${body}</article></div>`;
+  el.innerHTML = `<div class="cover">${side}<article class="page"><button class="close" data-act="close" aria-label="${T('roadbook.close')}"><span aria-hidden="true">close</span></button>${error ? `<p class="err">${esc(error)}</p>` : ''}${body}</article></div>`;
 }
 
 // the season's head: its name, dates, points and tokens; the warning before it ends
-function head(v, title) {
-  const S = v.season;
-  const status = S.status === 'testing' ? '<span class="chip">Testing: only admins and editors see it until the open beta</span>' : S.status === 'ended' ? `<span class="chip">Ended ${dateOf(S.endsAt)}</span>` : S.endsAt ? `<span class="chip">${daysLeft(S.endsAt)} days left · ends ${dateOf(S.endsAt)}</span>` : '';
-  const warn = S.warning ? `<div class="warn"><b>The season ends in ${daysLeft(S.endsAt)} day${daysLeft(S.endsAt) === 1 ? '' : 's'}.</b> Season Tokens don't carry over: any you haven't spent become cash at <b>$${n(S.conversion.cashPerToken)} each</b> (you'd get $${n(v.tokens * S.conversion.cashPerToken)} for your ${n(v.tokens)}).</div>` : '';
-  return `<h1>${esc(title)}</h1><p class="sub">${esc(S.name)} — ${esc(S.tagline ?? '')} ${status}</p>
-    <div class="meters"><span class="meter"><b>${n(v.points)}</b> ROADBOOK points</span><span class="meter"><b>${n(v.tokens)}</b> Season Tokens</span></div>${warn}`;
+function head(v, titleKey) {
+  const S = v.season, days = S.endsAt ? daysLeft(S.endsAt) : 0, rate = S.conversion.cashPerToken;
+  const status = S.status === 'testing' ? `<span class="chip">${T('roadbook.status.testing')}</span>` : S.status === 'ended' ? `<span class="chip">${T('roadbook.status.ended', { date: dateOf(S.endsAt) })}</span>` : S.endsAt ? `<span class="chip">${T('roadbook.status.live', { days, date: dateOf(S.endsAt) })}</span>` : '';
+  const warn = S.warning ? `<div class="warn"><b>${T('roadbook.warn.title', { days })}</b> ${T('roadbook.warn.body', { rate: n(rate), cash: n(v.tokens * rate), tokens: n(v.tokens) })}</div>` : '';
+  return `<h1>${T(titleKey)}</h1><p class="sub">${esc(S.name)} — ${esc(S.tagline ?? '')} ${status}</p>
+    <div class="meters"><span class="meter"><b>${n(v.points)}</b> ${T('roadbook.points')}</span><span class="meter"><b>${n(v.tokens)}</b> ${T('roadbook.tokens')}</span></div>${warn}`;
 }
 
 function chapters(v) {
-  const out = [head(v, 'Chapters'), '<p class="note">Points open the next chapter: you don\'t need every challenge. Every challenge stays open all season, and anything you do before a chapter opens still counts.</p>'];
+  const out = [head(v, 'roadbook.tab.chapters'), `<p class="note">${T('roadbook.chapters.note')}</p>`];
   for (const c of v.chapters) {
     const mine = v.challenges.filter(x => x.chapter === c.id), done = mine.filter(x => x.done).length;
-    const tag = c.milestone ? '<span class="tag done">Finished</span>' : c.open ? '<span class="tag open">Open</span>' : `<span class="tag">Opens at ${n(c.unlockAt)} points (${n(Math.max(0, c.unlockAt - v.points))} to go)</span>`;
-    out.push(`<div class="chapter ${c.open ? '' : 'locked'}"><header><h3>${esc(c.name)}</h3><span class="note">${done} of ${mine.length} done${c.milestoneTokens ? ` · finish them all: +${n(c.milestoneTokens)} tokens` : ''}</span>${tag}</header>
+    const tag = c.milestone ? `<span class="tag done">${T('roadbook.chapter.finished')}</span>` : c.open ? `<span class="tag open">${T('roadbook.chapter.open')}</span>` : `<span class="tag">${T('roadbook.chapter.opensAt', { points: n(c.unlockAt), left: n(Math.max(0, c.unlockAt - v.points)) })}</span>`;
+    out.push(`<div class="chapter ${c.open ? '' : 'locked'}"><header><h3>${esc(c.name)}</h3><span class="note">${T('roadbook.chapter.done', { done, total: mine.length })}${c.milestoneTokens ? ` · ${T('roadbook.chapter.milestone', { tokens: n(c.milestoneTokens) })}` : ''}</span>${tag}</header>
       <p class="sub">${esc(c.blurb ?? '')}</p>
       ${mine.map(ch => `<div class="ch ${ch.done ? 'done' : ''}"><span class="ic" aria-hidden="true">${ch.done ? 'task_alt' : STYLE_ICON[ch.style] ?? 'flag'}</span><span class="name">${esc(ch.name)}</span>
-        <span class="gain">${n(ch.points)} pts${ch.tokens ? `<br>+${n(ch.tokens)} tokens` : ''}</span>
-        <span class="what">${esc(ch.description)} ${ch.need > 1 ? `<b>${ch.need >= 1000 ? `${(ch.have / 1000).toFixed(1)} of ${n(ch.need / 1000)} km` : `${n(ch.have)} of ${n(ch.need)}`}</b>` : ''}</span>
+        <span class="gain">${T('roadbook.challenge.points', { points: n(ch.points) })}${ch.tokens ? `<br>${T('roadbook.challenge.tokens', { tokens: n(ch.tokens) })}` : ''}</span>
+        <span class="what">${esc(ch.description)} ${ch.need > 1 ? `<b>${ch.need >= 1000 ? T('roadbook.challenge.km', { have: (ch.have / 1000).toFixed(1), need: n(ch.need / 1000) }) : T('roadbook.challenge.count', { have: n(ch.have), need: n(ch.need) })}</b>` : ''}</span>
         ${ch.need > 1 && !ch.done ? `<span class="bar"><i style="width:${Math.round(100 * ch.have / ch.need)}%"></i></span>` : ''}</div>`).join('')}
     </div>`);
   }
@@ -158,18 +163,18 @@ function chapters(v) {
 }
 
 function expeditions(v) {
-  const out = [head(v, 'Expeditions'), '<p class="note">Adventures out in the open world: drive to each place for real. Your progress is saved after every stage, so you can do one today and the next tomorrow.</p>'];
+  const out = [head(v, 'roadbook.tab.expeditions'), `<p class="note">${T('roadbook.expeditions.note')}</p>`];
   for (const x of v.expeditions) {
-    const stages = x.stages.map((s, i) => `<li class="${s.done ? 'done' : s.current ? 'current' : 'todo'}"><span class="ic" aria-hidden="true">${s.done ? 'check_circle' : s.current ? 'radio_button_checked' : 'radio_button_unchecked'}</span>${i + 1}. ${esc(s.name)}${s.finale ? ' (the finale)' : ''}<span class="note" style="margin-left:auto">${s.tokens ? `+${n(s.tokens)} tokens` : ''}</span></li>`).join('');
-    const st = x.stage;
-    const card = !x.started ? `<p><button class="btn violet" data-act="start:${esc(x.id)}"><span class="ic" aria-hidden="true">flag</span>Start the Expedition</button></p>`
-      : x.done ? `<div class="card"><b>Done ${dateOf(x.doneAt)}.</b>${x.times?.hill_run || Object.keys(x.times ?? {}).length ? ` Times: ${Object.entries(x.times).map(([k, t]) => `${esc(pretty(k))} ${timeOf(t)}`).join(', ')}` : ''}</div>`
-      : `<div class="card"><h3>Now: ${esc(st.name)}</h3><p>${esc(st.text)}</p>${st.clue ? `<p class="clue">${esc(st.clue)}</p>` : ''}${st.hint ? `<p><b>Hint:</b> ${esc(st.hint)}</p>` : st.hintIn ? `<p class="note">A hint comes in ${Math.ceil(st.hintIn / 60)} minutes.</p>` : ''}
-          ${st.items ? `<p>Picked up ${st.collected.length} of ${st.items}.</p>` : ''}${st.timeLimitSec ? `<p>Time limit ${Math.floor(st.timeLimitSec / 60)}:${String(st.timeLimitSec % 60).padStart(2, '0')}, from the start line. Out of time and you start again.</p>` : ''}
-          <p class="note">${st.targets?.length ? 'A beam of violet light marks where to go; the panel on the right of the screen points the way.' : 'No marker for this one: follow the clue.'}</p></div>`;
+    const stages = x.stages.map((s, i) => `<li class="${s.done ? 'done' : s.current ? 'current' : 'todo'}"><span class="ic" aria-hidden="true">${s.done ? 'check_circle' : s.current ? 'radio_button_checked' : 'radio_button_unchecked'}</span>${i + 1}. ${esc(s.name)}${s.finale ? ` ${T('roadbook.exp.finale')}` : ''}<span class="note" style="margin-left:auto">${s.tokens ? T('roadbook.challenge.tokens', { tokens: n(s.tokens) }) : ''}</span></li>`).join('');
+    const st = x.stage, times = Object.entries(x.times ?? {});
+    const card = !x.started ? `<p><button class="btn violet" data-act="start:${esc(x.id)}"><span class="ic" aria-hidden="true">flag</span>${T('roadbook.exp.start')}</button></p>`
+      : x.done ? `<div class="card"><b>${T('roadbook.exp.doneOn', { date: dateOf(x.doneAt) })}</b>${times.length ? ` ${T('roadbook.exp.times', { list: times.map(([k, ms]) => `${pretty(k)} ${timeOf(ms)}`).join(', ') })}` : ''}</div>`
+      : `<div class="card"><h3>${T('roadbook.exp.now', { stage: st.name })}</h3><p>${esc(st.text)}</p>${st.clue ? `<p class="clue">${esc(st.clue)}</p>` : ''}${st.hint ? `<p>${T('roadbook.exp.hint', { hint: st.hint })}</p>` : st.hintIn ? `<p class="note">${T('roadbook.exp.hintIn', { min: Math.ceil(st.hintIn / 60) })}</p>` : ''}
+          ${st.items ? `<p>${T('roadbook.exp.picked', { have: st.collected.length, of: st.items })}</p>` : ''}${st.timeLimitSec ? `<p>${T('roadbook.exp.limit', { time: limitOf(st.timeLimitSec) })}</p>` : ''}
+          <p class="note">${st.targets?.length ? T('roadbook.exp.marker') : T('roadbook.exp.noMarker')}</p></div>`;
     out.push(`<div class="exp"><h2 style="margin-top:0">${esc(x.name)}</h2><p class="sub">${esc(x.blurb ?? '')}</p><ul class="stages">${stages}</ul>${card}</div>`);
   }
-  if (!v.expeditions.length) out.push('<p class="note">No Expeditions this season.</p>');
+  if (!v.expeditions.length) out.push(`<p class="note">${T('roadbook.exp.none')}</p>`);
   return out.join('');
 }
 
@@ -177,32 +182,32 @@ function shop(v) {
   const S = v.season, closed = S.status === 'ended';
   const items = v.shop.map(it => {
     const short = Math.max(0, it.price - v.tokens);
-    const action = it.owned ? '<span class="chip">Yours, for good</span>' : closed ? '<span class="chip">The shop has closed</span>'
-      : `<button class="btn violet" data-act="buy:${esc(it.id)}" ${short ? 'disabled' : ''}>${short ? `Save up: ${n(short)} more` : 'Buy'}</button>`;
-    return `<div class="item ${it.owned ? 'owned' : ''}"><span class="ic" aria-hidden="true">${esc(it.icon ?? 'redeem')}</span><b>${esc(it.name)}</b><p>${esc(it.description)}</p><span class="price">${n(it.price)} tokens</span>${action}</div>`;
+    const action = it.owned ? `<span class="chip">${T('roadbook.shop.owned')}</span>` : closed ? `<span class="chip">${T('roadbook.shop.closed')}</span>`
+      : `<button class="btn violet" data-act="buy:${esc(it.id)}" ${short ? 'disabled' : ''}>${short ? T('roadbook.shop.saveUp', { n: n(short) }) : T('roadbook.shop.buy')}</button>`;
+    return `<div class="item ${it.owned ? 'owned' : ''}"><span class="ic" aria-hidden="true">${esc(it.icon ?? 'redeem')}</span><b>${esc(it.name)}</b><p>${esc(it.description)}</p><span class="price">${T('roadbook.shop.price', { n: n(it.price) })}</span>${action}</div>`;
   }).join('');
-  const log = (v.tokenHistory ?? []).map(t => `<tr><td>${dateOf(t.at)}</td><td>${esc(t.reason)}</td><td class="n ${t.amount > 0 ? 'plus' : 'minus'}">${t.amount > 0 ? '+' : ''}${n(t.amount)}</td><td class="n">${n(t.balance)}</td></tr>`).join('');
-  return `${head(v, 'Season Shop')}<p class="note">Looks only: nothing here makes a car faster. Every price is shown up front and nothing is random. What you buy is yours for good. Tokens only buy things in this season's shop; at the end of the season any left become cash at $${n(S.conversion.cashPerToken)} each.</p>
-    <div class="shop">${items}</div><h2>Every token</h2>${log ? `<table><tbody>${log}</tbody></table>` : '<p class="note">None yet: challenges, Expeditions and hidden places all earn them.</p>'}`;
+  const log = (v.tokenHistory ?? []).map(x => `<tr><td>${dateOf(x.at)}</td><td>${esc(x.reason)}</td><td class="n ${x.amount > 0 ? 'plus' : 'minus'}">${x.amount > 0 ? '+' : ''}${n(x.amount)}</td><td class="n">${n(x.balance)}</td></tr>`).join('');
+  return `${head(v, 'roadbook.tab.shop')}<p class="note">${T('roadbook.shop.note', { rate: n(S.conversion.cashPerToken) })}</p>
+    <div class="shop">${items}</div><h2>${T('roadbook.shop.every')}</h2>${log ? `<table><tbody>${log}</tbody></table>` : `<p class="note">${T('roadbook.shop.none')}</p>`}`;
 }
 
 function history(v) {
   const h = v.history ?? {};
   const most = h.mostUsedCar ? carName(h.mostUsedCar.carId) : null;
   const tiles = [
-    [`${n(h.distanceKm)} km`, 'driven'], [n(h.racesEntered), 'races entered'], [n(h.wins), 'wins'],
-    [`${n(h.medals?.gold)} · ${n(h.medals?.silver)} · ${n(h.medals?.bronze)}`, 'gold · silver · bronze medals'],
-    [n(h.cars?.bought), 'cars bought'], [n(h.cars?.won), 'cars won'], [n(h.cars?.sold), 'cars sold'], [n(h.cars?.partsFitted), 'parts fitted'],
-    [`${n(h.places?.length)} of ${n(h.placesTotal)}`, 'places discovered'], [n(h.expeditions?.length), 'Expeditions completed'],
-    ...(most ? [[esc(most), `most driven (${n(h.mostUsedCar.km)} km)`]] : []),
-  ];
-  const recs = (h.personalRecords ?? []).map(r => `<tr><td>${r.kind === 'track' ? `Track ${esc(r.id)}${r.carClass ? ` (class ${esc(r.carClass)})` : ''}` : `Quest ${esc(pretty(r.id))}`}</td><td class="n">${r.time != null ? fmtTime(r.time) : r.score != null ? `${n(Math.round(r.score))} pts` : ''}</td><td>${r.medal ? esc(r.medal) : ''}</td></tr>`).join('');
-  return `<h1>My history</h1><p class="sub">Everything you've done, for good: it never resets when a season ends.</p>
+    [T('roadbook.history.km', { km: n(h.distanceKm) }), 'driven'], [n(h.racesEntered), 'races'], [n(h.wins), 'wins'],
+    [`${n(h.medals?.gold)} · ${n(h.medals?.silver)} · ${n(h.medals?.bronze)}`, 'medals'],
+    [n(h.cars?.bought), 'bought'], [n(h.cars?.won), 'won'], [n(h.cars?.sold), 'sold'], [n(h.cars?.partsFitted), 'fitted'],
+    [T('roadbook.history.of', { n: n(h.places?.length), of: n(h.placesTotal) }), 'places'], [n(h.expeditions?.length), 'expeditions'],
+  ].map(([b, k]) => [b, T(`roadbook.history.${k}`)]);
+  if (most) tiles.push([esc(most), T('roadbook.history.mostDriven', { km: n(h.mostUsedCar.km) })]);
+  const recs = (h.personalRecords ?? []).map(r => `<tr><td>${r.kind === 'track' ? (r.carClass ? T('roadbook.history.trackClass', { code: r.id, cls: r.carClass }) : T('roadbook.history.track', { code: r.id })) : T('roadbook.history.quest', { name: pretty(r.id) })}</td><td class="n">${r.time != null ? fmtTime(r.time) : r.score != null ? T('roadbook.history.score', { n: n(Math.round(r.score)) }) : ''}</td><td>${r.medal ? esc(r.medal) : ''}</td></tr>`).join('');
+  return `<h1>${T('roadbook.tab.history')}</h1><p class="sub">${T('roadbook.history.sub')}</p>
     <div class="stats">${tiles.map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('')}</div>
-    <h2>Places discovered</h2>${h.places?.length ? `<div class="chips">${h.places.map(p => `<span class="chip" title="${esc(dateOf(p.at))}">${esc(p.name)}</span>`).join('')}</div>` : '<p class="note">Drive somewhere new: the city\'s landmarks, and a few hidden places.</p>'}
-    <h2>Expeditions</h2>${h.expeditions?.length ? `<div class="chips">${h.expeditions.map(x => `<span class="chip">${esc(pretty(x.id))} · ${esc(pretty(x.season))} · ${dateOf(x.at)}</span>`).join('')}</div>` : '<p class="note">None finished yet.</p>'}
-    <h2>Personal records</h2>${recs ? `<table><tbody>${recs}</tbody></table>` : '<p class="note">Set a time in a quest or a track event.</p>'}
-    ${h.winsNote ? `<p class="note">${esc(h.winsNote)}</p>` : ''}`;
+    <h2>${T('roadbook.history.placesTitle')}</h2>${h.places?.length ? `<div class="chips">${h.places.map(p => `<span class="chip" title="${esc(dateOf(p.at))}">${esc(p.name)}</span>`).join('')}</div>` : `<p class="note">${T('roadbook.history.placesNone')}</p>`}
+    <h2>${T('roadbook.history.expTitle')}</h2>${h.expeditions?.length ? `<div class="chips">${h.expeditions.map(x => `<span class="chip">${esc(pretty(x.id))} · ${esc(pretty(x.season))} · ${dateOf(x.at)}</span>`).join('')}</div>` : `<p class="note">${T('roadbook.history.expNone')}</p>`}
+    <h2>${T('roadbook.history.recordsTitle')}</h2>${recs ? `<table><tbody>${recs}</tbody></table>` : `<p class="note">${T('roadbook.history.recordsNone')}</p>`}
+    <p class="note">${T('roadbook.history.winsNote')}</p>`;
 }
 
 // a car's name, from its data file (fetched once; the id until then)
