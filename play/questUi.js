@@ -590,6 +590,14 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     stateOf: id => questState(game.player.profile, id),
     // (fast travel: its route loaded before the car arrives, so it starts at once)
     preload: item => courseOf(item).catch(() => null),
+    // over the line (or out): the car brought to a stop and held there while the results show — it kept going, at race
+    // speed, into whatever was ahead, and was wrecked (2026-10-16). The player's steering stays theirs; no throttle,
+    // the brakes on, then the handbrake once it's stopped (the brake at a standstill would select reverse)
+    get stopping() { return !!run?.results; },
+    stopInput(i) {
+      const v = Math.abs(game.carNow()?.forward ?? 0);
+      return { ...i, throttle: 0, brake: v > 1 ? 1 : 0, handbrake: v <= 1, steer: i?.steer ?? 0 };
+    },
     // the browser tests: the autopilot drives once it's GO
     get auto() { return !!run?.pilot && run.controller.state === 'racing' && !paused; },
     autoInput(dt) {

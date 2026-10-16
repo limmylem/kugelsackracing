@@ -1281,7 +1281,9 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    const input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    let input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    // (a quest over: the car braked to a stop and held while its results show — play/questUi.js stopInput)
+    if (!paused && w.quests?.stopping) { const was = input; input = (start, end) => w.quests.stopInput(typeof was === 'function' ? was(start, end) : was); }
     // (a multiplayer race keeps real time on a computer that draws slowly: the physics catches up to a second a frame)
     const simSeconds = shared.simFrameCap ? Math.min(Math.max((now - (shared.lastSim ?? now)) / 1000, 0), shared.simFrameCap) : seconds;
     shared.lastSim = now;

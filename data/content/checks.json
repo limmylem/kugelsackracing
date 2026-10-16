@@ -15936,6 +15936,46 @@
       },
       "ok": true
     },
+    "crate_v12_kugel": {
+      "fit": {
+        "key": "17a3b11d612f8e07",
+        "ok": true,
+        "problems": [],
+        "cars": {}
+      },
+      "drive": {
+        "key": "225276508ba3831a",
+        "ok": true,
+        "problems": [],
+        "cars": {}
+      },
+      "crash": {
+        "key": "c30d386f29979f5b",
+        "ok": true,
+        "problems": [],
+        "cars": {}
+      },
+      "sound": {
+        "key": "3d48e8788832424d",
+        "ok": true,
+        "problems": [],
+        "note": "it goes on no car"
+      },
+      "budget": {
+        "key": "4c70f439d130f6ef",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 1320,
+        "models": 1
+      },
+      "economy": {
+        "key": "d998a4e74d0f3067",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
     "diff_front_open": {
       "fit": {
         "key": "c9f6bbe907bb540d",
@@ -21541,12 +21581,12 @@
       "crash": {
         "key": "d96238f09251135f",
         "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,  257: more than 2 race wins"],
+        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,   257: more than 2 race wins"],
         "cars": {
           "brute_500": {
             "carKey": "c2943342a96b334e",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  257: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   257: more than 2 race wins"],
             "drivable": true,
             "repair": 3257,
             "loose": 1
@@ -21613,12 +21653,12 @@
       "crash": {
         "key": "ec3fb0cd59eae88e",
         "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,  157: more than 2 race wins"],
+        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,   157: more than 2 race wins"],
         "cars": {
           "kaze_gt": {
             "carKey": "23176ff9ba21582c",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  157: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   157: more than 2 race wins"],
             "drivable": true,
             "repair": 3157,
             "loose": 1
@@ -21685,12 +21725,12 @@
       "crash": {
         "key": "3b7b4cc0b0039913",
         "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,  194: more than 2 race wins"],
+        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,   194: more than 2 race wins"],
         "cars": {
           "strada_evo": {
             "carKey": "fedfa9da2910dcde",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,  194: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,   194: more than 2 race wins"],
             "drivable": true,
             "repair": 3194,
             "loose": 1
