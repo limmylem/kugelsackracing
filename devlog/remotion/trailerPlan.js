@@ -12,8 +12,8 @@ export const CAPTIONS = {
   sf: 'Built from open map data',
   monaco: 'Drive them all in your browser',
   stelvio: 'Seven regions, and counting',
-  'track-launch': 'Race on endless new tracks',
   'track-rival': 'Race your friends online',
+  'track-side': 'Race on endless new tracks',
   'track-cockpit': 'Build it. Tune it. Learn to drive it.',
 };
 

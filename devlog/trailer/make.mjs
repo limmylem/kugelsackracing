@@ -30,7 +30,10 @@ if (!flag('--reuse-clips')) {
   const r = spawnSync(process.execPath, [path.join(DEVLOG, 'capture/capture.mjs'), '--shots', path.join(HERE, 'shots.json'), '--size', '960x540', '--multiplayer', '--out', CLIPS, ...(QUICK ? ['--quick', '--max-seconds', '1'] : [])], { cwd: DEVLOG, stdio: 'inherit' });
   if (r.status !== 0 && !fs.existsSync(path.join(CLIPS, 'clips.json'))) { console.error('Filming failed.'); process.exit(1); }
 }
-const listed = JSON.parse(fs.readFileSync(path.join(CLIPS, 'clips.json'), 'utf8')).clips;
+// (in the trailer's order: shots.json "order" — they're filmed run by run, the second car's shots last)
+const ORDER = JSON.parse(fs.readFileSync(path.join(HERE, 'shots.json'), 'utf8')).order ?? [];
+const rank = n => { const i = ORDER.indexOf(n); return i < 0 ? ORDER.length : i; };
+const listed = JSON.parse(fs.readFileSync(path.join(CLIPS, 'clips.json'), 'utf8')).clips.filter(c => !ORDER.length || ORDER.includes(c.name)).sort((a, b) => rank(a.name) - rank(b.name));
 const clips = listed.filter(c => fs.existsSync(path.resolve(DEVLOG, c.file)))
   .map(c => ({ src: path.relative(OUT, path.resolve(DEVLOG, c.file)).split(path.sep).join('/'), seconds: c.seconds, name: c.name, sound: !!c.sound, label: c.label ?? null }));
 const P = trailerPlan({ clips, fps: 30 });

@@ -1,5 +1,6 @@
 {
-  "//": "What the trailer films (docs/RELEASE.md \"Trailer\"; devlog/trailer/make.mjs): node capture/capture.mjs --shots trailer/shots.json --size 960x540 --multiplayer. Each run is a real region driven along real roads by the game's autopilot (its waypoints: tests/map/realRoutes.ts, the routes the tests drive) or a generated race track; each shot: name, at (game seconds after the drive starts), seconds long, camera (chase, bonnet, cockpit, side, high). The trailer uses the shots in this order.",
+  "//": "What the trailer films (docs/RELEASE.md \"Trailer\"; devlog/trailer/make.mjs): node capture/capture.mjs --shots trailer/shots.json --size 960x540 --multiplayer. Each run is a real region driven along real roads by the game's autopilot (its waypoints: tests/map/realRoutes.ts, the routes the tests drive) or a generated race track; each shot: name, at (game seconds after the drive starts), seconds long, camera (chase, bonnet, cockpit, side, high). The trailer uses the shots in the order of \"order\" (filmed in the order of the runs, the second car's last).",
+  "order": ["adelaide", "adelaide-high", "sf", "sf-side", "monaco", "stelvio", "track-rival", "track-side", "track-cockpit", "track-bonnet"],
   "names": true,
   "rivalHeadStart": 0.3,
   "runs": [
@@ -19,7 +20,6 @@
       "shots": [ { "name": "stelvio", "at": 23, "seconds": 4, "camera": "high", "label": "Stelvio Pass" } ] },
     { "track": "08028-CG81C-D1K00-02R00-0003M-8",
       "shots": [
-        { "name": "track-launch", "at": 7, "seconds": 4, "camera": "chase" },
         { "name": "track-side", "at": 14, "seconds": 3, "camera": "side" },
         { "name": "track-cockpit", "at": 24, "seconds": 3, "camera": "cockpit" },
         { "name": "track-rival", "at": 4.5, "seconds": 5, "camera": "chase", "multiplayer": true },
