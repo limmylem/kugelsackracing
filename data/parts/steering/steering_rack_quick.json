@@ -1,0 +1,31 @@
+{
+  "id": "steering_rack_quick",
+  "name": "Quick steering rack",
+  "category": "steering",
+  "slot": "steering_rack",
+  "kind": "modifier",
+  "tier": "street",
+  "price": 400,
+  "mass": 0.5,
+  "model": "",
+  "icon": "assets/icons/parts/steering_rack_quick.png",
+  "fits": [
+    "suspension_mount:std"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A quicker-ratio rack: the front wheels turn 18% further for the same steering wheel, so they reach more lock — a tighter turning circle — and answer sooner. At speed it steers as before (the keys and pad reach no further there).",
+  "effects": [
+    {
+      "target": "steering.ratio",
+      "op": "multiply",
+      "value": 0.85
+    },
+    {
+      "target": "steering.falloffSpeed",
+      "op": "multiply",
+      "value": 0.784
+    }
+  ]
+}

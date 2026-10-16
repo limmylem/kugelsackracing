@@ -37,7 +37,7 @@ export const areaOf = focus => AREAS.find(a => a.focus.includes(focus))?.id ?? '
 export const SYSTEMS = [
   { name: 'Engine & induction', icon: 'settings', slots: ['intake', 'turbo', 'intercooler', 'header', 'pistons'] },
   { name: 'Drivetrain', icon: 'settings_input_component', slots: ['gearbox', 'clutch', 'flywheel', 'differential', 'differential_front', 'centre_diff', 'transfer_case'] },
-  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'camber', 'lift_kit', 'spacer'] },
+  { name: 'Brakes & chassis', icon: 'do_not_disturb_on', slots: ['brakes', 'brake_pads', 'brake_lines', 'brake_fluid', 'brake_cooling', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'camber', 'steering_rack', 'lift_kit', 'spacer'] },
   { name: 'Electronics', icon: 'memory', slots: ['ecu'] },
   { name: 'Weight', icon: 'fitness_center', slots: ['weight_rear_seats', 'weight_sound_deadening'] },
 ];
@@ -50,7 +50,7 @@ const ICONS = { engine: 'settings', intake: 'air', turbo: 'mode_fan', intercoole
   fender_left: 'directions_car', fender_right: 'directions_car', skirt_left: 'horizontal_rule', skirt_right: 'horizontal_rule', mirror_left: 'flip', mirror_right: 'flip',
   seat: 'airline_seat_recline_normal', steering_wheel: 'trip_origin', spoiler: 'flight', brake_pads: 'layers', flywheel: 'radio_button_checked', header: 'call_split',
   pistons: 'unfold_more', weight_rear_seats: 'event_seat', weight_sound_deadening: 'volume_off',
-  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', camber: 'architecture', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
+  anti_roll_bar_front: 'linear_scale', anti_roll_bar_rear: 'linear_scale', camber: 'architecture', brake_lines: 'cable', brake_fluid: 'water_drop', brake_cooling: 'air', steering_rack: 'u_turn_left', differential_front: 'join', centre_diff: 'join_inner', transfer_case: 'swap_vert', lift_kit: 'vertical_align_top', roof: 'roofing', engine_cover: 'directions_car' };
 export const iconFor = slot => ICONS[slot] ?? 'build';
 export const conditionClass = c => c >= 70 ? 'good' : c >= 40 ? 'warn' : 'bad';
 export const conditionWord = (c, part) => c >= 100 ? 'New' : c >= 70 ? 'Good' : c >= 40 ? 'Worn' : c > 0 ? 'Damaged' : part?.engine ? 'Blown' : 'Broken';

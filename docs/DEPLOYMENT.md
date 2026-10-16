@@ -36,6 +36,11 @@
 > every car (socket_camber), their front and rear camber set in the Tuning tab: the physics' grip follows it
 > (physics/camber.js; a car without one drives exactly as before) and the wheels lean as set. No migration; no change to
 > the services or what they cost.
+> Then **brake and steering parts** (2026-10-16): braided brake lines (more bite), racing brake fluid (fades later),
+> brake cooling ducts (cooler discs), a quick steering rack and a steering angle kit (more lock: a tighter turning
+> circle, the starter coupe's 8.4 m → 7.1 m and 6.3 m), on four new sockets on every car. They change the spec's brakes
+> and steering numbers only; a car without them drives exactly as before. No migration; no change to the services or
+> what they cost.
 > Then Phase 8 Step 4, the launch polish (2026-10-15; [ONBOARDING.md](ONBOARDING.md), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 > [TRANSLATIONS.md](TRANSLATIONS.md), [ANALYTICS.md](ANALYTICS.md), [LIVE_UPDATES.md](LIVE_UPDATES.md),
 > [PHOTO_MODE.md](PHOTO_MODE.md), [RELEASE.md](RELEASE.md), [LAUNCH_PLAN.md](LAUNCH_PLAN.md)): **migration 0016** —
