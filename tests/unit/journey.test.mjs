@@ -159,7 +159,7 @@ test('turbo, ECU, pistons, intercooler and clutch: every combination — the val
     const missing = [];
     if (turbo && !cooler) missing.push(/needs an intercooler fitted too/);
     if (turbo === 'turbo_medium' && !pistons) missing.push(/needs Forged pistons and rods fitted too/);
-    if (turbo === 'turbo_medium' && clutch === 'stock_clutch') missing.push(/needs Sport clutch or Race clutch \(twin-plate\) fitted too/);
+    if (turbo === 'turbo_medium' && clutch === 'stock_clutch') missing.push(/needs a part like Sport clutch fitted too/);      // (sport, race or triple-plate)
     if ((ecu === 'ecu_stage2' || ecu === 'ecu_standalone') && !turbo) missing.push(/needs a turbo or a supercharger or a turbocharged engine fitted too/);
     assert.equal(v.ok, !missing.length, `${key}: ${v.errors.map(e => e.message).join('; ')}`);
     for (const m of missing) assert.ok(v.errors.some(e => m.test(e.message)), `${key}: says ${m}: ${v.errors.map(e => e.message).join('; ')}`);
@@ -177,7 +177,7 @@ test('turbo, ECU, pistons, intercooler and clutch: every combination — the val
   assert.equal(r.ok, false);
   assert.deepEqual(r.errors.map(e => e.message).sort(), [
     'Medium turbo kit (socket_turbo) needs Forged pistons and rods fitted too.',
-    'Medium turbo kit (socket_turbo) needs Sport clutch or Race clutch (twin-plate) fitted too.',
+    'Medium turbo kit (socket_turbo) needs a part like Sport clutch fitted too.',
     'Medium turbo kit (socket_turbo) needs an intercooler fitted too.',
   ]);
   for (const id of ['front_mount_intercooler', 'pistons_forged', 'clutch_sport', 'turbo_medium', 'ecu_stage2']) ok(g.install(id), `fit ${id}`);

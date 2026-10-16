@@ -78,3 +78,4 @@ Your car stops safely at the end of a quest
 Eight new engine sounds: build a V12, V10, flat six and more
 Aero kits now sit snug against the body on every car
 Your car takes no damage after crossing a quest's finish line
+The garage camera stays still: drag to turn around your car
