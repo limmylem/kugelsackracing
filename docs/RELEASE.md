@@ -9,6 +9,10 @@ The checklist that tracks all of it is [LAUNCH_CHECKLIST.md](../LAUNCH_CHECKLIST
 
 ## Age rating — a legal decision for the owner and the lawyer
 
+**The owner's decision (2026-10-16): 13+.** The game is for players aged 13 and over — the same as its minimum age
+(`minAge`: 13), the terms ("Who can play") and the privacy policy ("Children"). The landing page and the press kit say
+so. What follows is for the lawyer: whether a formal rating (IARC) is also needed in Australia.
+
 The game is web-only, so no store asks for a rating. Whether a free browser game needs one is a question for the
 lawyer. The facts to take to them:
 
@@ -69,7 +73,7 @@ footer. Its Open Graph tags give link previews a picture (`/press/shots/drive-sf
 
 `/press/` (`press/index.html`): a fact sheet, the game in a sentence and a paragraph, the features, the screenshots,
 the logo (`press/logo.svg`, `press/logo.png`), the video plan, credits, and contact (the support form — no email
-address is published). Fields in [square brackets] are for the owner (the developer's name as they want it shown).
+address is published). The developer is credited as Zane Darley (the owner's choice, 2026-10-16), on the press kit and the credits screen.
 
 - **Screenshots** are taken from the game by `node tools/press-shots.mjs` (writes `press/shots/*.jpg` and
   `shots.json`): driving in San Francisco and Adelaide, photo mode, the accessibility settings, the driving school.

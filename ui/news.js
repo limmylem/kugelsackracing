@@ -5,7 +5,7 @@
 //
 //   const news = mountNews({ A, settings, t })   // a News button (lit when there's something new) and its panel
 
-import { t as tr, i18n, esc } from './i18n.js';
+import { t as tr, i18n, esc, onLanguage } from './i18n.js';
 import { trapFocus, announce } from './accessibility.js';
 
 const SEEN = 'ognistrada.news.seen', VERSION = 'ognistrada.news.version', REMINDED = 'ognistrada.news.reminded';
@@ -112,6 +112,8 @@ export function mountNews({ A, settings, t = tr, poll = 5 * 60_000, version = gl
     }
   });
   drawButton();
+  // (its words again once the game's language has loaded, or changes)
+  onLanguage(() => { drawButton(); if (!panel.hidden) draw(); });
   load();
   const timer = setInterval(load, poll);
   A?.on?.(() => { if (A.online && !items.length) load(); });

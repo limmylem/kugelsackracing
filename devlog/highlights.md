@@ -64,3 +64,4 @@ Start a crew and invite your friends
 Your settings follow you to any device
 News, patch notes and an event calendar in the game
 Speeds in miles per hour where you use them
+The dock and News button show their words again, not code names

@@ -7,6 +7,7 @@
 //   4. the settings (O): every tab opens; Accessibility's text size, high contrast and reduced motion change the page
 //   5. photo mode (/): the HUD hidden but the map's credit kept; Esc closes it from the picture
 //   6. the pseudo-language (en-XA, every message longer): the settings' text stays inside its panel
+//   7. the player's page (index.html): the dock and the news button in words, never a message's name
 // Anything wrong is printed, and the exit code is 1.
 //
 //   node tools/first-launch-browser.mjs [--port 8941] [--wait 45000]     (server.yml runs it beside each deploy)
@@ -26,17 +27,29 @@ const exe = process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : fs
 const browser = await pw.chromium.launch({ ...exe, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const nm = path.join(root, 'node_modules');
 let failed = 0;
+const bundles = new Map();
+const bundle = async pkg => {
+  if (!bundles.has(pkg)) {
+    const esbuild = await import('esbuild');
+    const contents = pkg === 'pbf' ? "import * as m from 'pbf'; export * from 'pbf'; export default m.default ?? m.Pbf ?? Object.values(m).find(v => typeof v === 'function');" : `export * from '${pkg}';`;
+    bundles.set(pkg, (await esbuild.build({ stdin: { contents, resolveDir: root }, bundle: true, format: 'esm', write: false, logLevel: 'silent' })).outputFiles[0].text);
+  }
+  return bundles.get(pkg);
+};
 const check = (name, ok, detail = '') => { console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`); if (!ok) failed++; };
 
-async function open(url, init = null) {
+async function open(url, init = null, { cesium = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'en-AU' });
   if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  // (the player's page's map-tile libraries from the CDN as ES modules: this computer's copies, bundled, when it has
+  // them — the CDN where it can be reached, as in CI, works too)
+  if (fs.existsSync(path.join(nm, 'pbf')) && fs.existsSync(path.join(nm, '@mapbox/vector-tile'))) await page.route(/cdn\.jsdelivr\.net\/npm\/(pbf|@mapbox\/vector-tile)@/, async r => r.fulfill({ body: await bundle(/pbf@/.test(r.request().url()) ? 'pbf' : '@mapbox/vector-tile'), contentType: 'text/javascript' }));
   await page.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: path.join(nm, 'three', new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' }));
   await page.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: path.join(nm, '@dimforge/rapier3d-compat/dist/rapier.mjs'), contentType: 'text/javascript' }));
-  await page.route(/fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/cesium/, r => r.abort());
+  await page.route(cesium ? /fonts\.(googleapis|gstatic)\.com/ : /fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/cesium/, r => r.abort());   // (the player's page needs Cesium to start: it's there)
   await page.goto(`http://127.0.0.1:${port}${url}`);
   await page.waitForTimeout(wait);
   return { page, errors };
@@ -93,6 +106,16 @@ try {
   check('… Esc closes it from the picture', !(await visible(page, '#photoMode')) && await visible(page, '#playerHud'));
   check('no errors on the page', !errors.length, errors.slice(0, 3).join(' | '));
   await page.context().close();
+
+  // 7. the player's page (index.html): its dock and news button drawn with words, never a message's name (they were,
+  // online, when they were drawn before the words had loaded)
+  console.log('\n== the player\'s page (/): words, not message names');
+  const keys = new Set(Object.keys(JSON.parse(fs.readFileSync(path.join(root, 'locales/en.json'), 'utf8'))));
+  const P = await open('/', () => { localStorage.setItem('ognistrada.photosensitivity.v1', '2026-01-01'); }, { cesium: true });
+  const shown = await P.page.evaluate(() => { const out = []; for (const el of document.querySelectorAll('#krDock, #krDock *, .newsButton, #newsPanel, #newsPanel *')) { out.push(el.textContent.trim(), el.getAttribute('aria-label') ?? '', el.dataset?.tip ?? '', el.title ?? ''); } return out; });
+  const named = [...new Set(shown.flatMap(x => x.split(/\s+/)).filter(w => keys.has(w)))];
+  check('the dock and the news button in words', shown.length > 10 && !named.length, named.length ? named.join(', ') : `${shown.filter(Boolean).length} labels`);
+  await P.page.context().close();
 
   // 6. the pseudo-language: longer text, still inside the panels
   console.log('\n== the pseudo-language (en-XA: every message longer and accented)');

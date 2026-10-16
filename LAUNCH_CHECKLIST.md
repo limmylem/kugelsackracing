@@ -19,12 +19,13 @@ Work down it in order.
   - [ ] the governing law;
   - [ ] the data transfers (the server and database are in Sydney now; Resend in Tokyo, Sentry in the US);
   - [ ] the breach process.
-- [ ] **The age rating** (web only): does a free browser game need one in Australia, and is IARC's enough? The facts
+- [x] **The age rating: 13+** (the owner, 2026-10-16), the same as the minimum age; on the landing page and press kit.
+- [ ] **A formal rating** (web only): does a free browser game also need one in Australia, and is IARC's enough? The facts
   for the lawyer are in [docs/RELEASE.md](docs/RELEASE.md#age-rating--a-legal-decision-for-the-owner-and-the-lawyer).
 - [ ] **The play statistics** (opt-in, our own, 400 days) and the new data (settings, profiles, photos, crews): in the
   privacy policy's draft for the same review ([docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md), question 8).
-- [ ] **The press kit's and credits' names**: the developer's name as the owner wants it shown (`press/index.html`),
-  and who's listed on the credits screen (`data/credits-people.json`; nobody without saying yes).
+- [x] **The press kit's and credits' names**: Zane Darley, the developer (the owner, 2026-10-16). Anyone else on the
+  credits screen (`data/credits-people.json`) only with their yes.
 - [ ] **Self-hosting Google Fonts and the jsDelivr libraries**, or listing them in the privacy policy. Players' browsers send their IP address to both ([docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md)).
 - [ ] **The car models' origin and licences** confirmed. The credits page lists them as the project's own; check before launch.
 - [x] **The hosting chosen and bought by the owner** (2026-10-08): an OVHcloud VPS-1 and PlanetScale Postgres PS-5, both in Sydney, about US$10.50–11.50 a month in all ([docs/COSTS.md](docs/COSTS.md)). GO_LIVE.md Parts 0–5 done.
