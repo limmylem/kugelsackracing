@@ -69,3 +69,4 @@ The Stelvio Pass loads now: no more endless loading screen
 A trailer: real cities, real roads, in your browser
 New brake and steering parts: sharper, cooler brakes and tighter turns
 Friends joining free roam at the same moment now meet in one place
+The shop shows what brake and steering parts really change
