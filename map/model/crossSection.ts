@@ -27,6 +27,7 @@
 import * as Clipper from 'clipper2-js';
 import type { Seg } from './graph.ts';
 import { triangulatePatch } from './topology.ts';
+import { unlooped } from './clipperGuard.ts';
 import { SURFACES, welder } from './surface.ts';
 import type { Mesh } from './surface.ts';
 
@@ -218,7 +219,18 @@ const NZ = Clipper.FillRule.NonZero;
 export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildings = [], lowerAt = [] }: { mesh: Mesh; outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; cells: [number, number, number, number][]; style: any; cfg: any; buildings?: any[]; lowerAt?: number[][] }) {
   const X = style.crossSection, IS = style.islands, colours = X.colours, P = M.positions, I = M.indices;
   const kerbW = X.kerbBevel + X.kerbTop;
-  const stats = { edges: 0, loops: 0, cells: 0, triangles: 0, islands: 0, gardens: 0, plants: 0, kerbM: 0, footpathM2: 0, vergeM2: 0 };
+  const stats = { edges: 0, loops: 0, cells: 0, triangles: 0, islands: 0, gardens: 0, plants: 0, kerbM: 0, footpathM2: 0, vergeM2: 0, clipperSnapped: 0, clipperFailed: 0 };
+  // (each of Clipper's operations here guarded against its loops — map/model/clipperGuard.ts: run again on its input
+  // snapped to a few mm if it looped, counted; left out, and counted, if that loops too)
+  const snapped = (list: any[], g: number) => (g ? list.map(p => Array.from(p as any[], (q: any) => ({ x: Math.round(q.x / g) * g, y: Math.round(q.y / g) * g }))) : list);
+  const op = (f: (...a: any[]) => any, ...lists: any[][]) => {
+    const { result, snap } = unlooped(g => f(...lists.map(l => paths(snapped(l, g)))));
+    if (snap > 0) stats.clipperSnapped++;
+    if (result == null) { stats.clipperFailed++; return new Clipper.Paths64(); }
+    return result;
+  };
+  const C = Clipper.Clipper, U = (list: any[]) => op(a => C.Union(a, undefined, NZ), list);
+  const D = (a: any[], b: any[]) => op((x, y) => C.Difference(x, y, NZ), a, b), CUT = (a: any[], b: any[]) => op((x, y) => C.Intersect(x, y, NZ), a, b);
   const out: Mesh & { part: number[] } = { positions: [], colours: [], indices: [], surfaces: [], solid: [], level: [], seg: [], part: [] };
   const plants: number[] = [];
   const nearSeg = segIndex(segs), nearAny = segIndex(segs, 16, true);
@@ -257,7 +269,7 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
   const pieceBox = ground.map(o => { const r = o.rings[0]; return [Math.min(...r.map(p => p[0])), Math.min(...r.map(p => p[1])), Math.max(...r.map(p => p[0])), Math.max(...r.map(p => p[1]))]; });
   // (the pieces near a box, each cut to it first — a ribbon runs far past a cell — then joined)
   const roadIn = (b: number[]) => { const list: any[] = []; ground.forEach((o, q) => { if (!meets(pieceBox[q], b)) return; o.rings.forEach((r, k) => { const c = clipRing(r, b); if (c.length < 3) return; const ccw = ringArea(c) > 0; list.push(P64(k === 0 ? (ccw ? c : c.reverse()) : (ccw ? c.reverse() : c))); }); }); return Clipper.Clipper.Union(paths(list), undefined, NZ); };
-  const allRoad = Clipper.Clipper.Union(paths(piecePaths.flat()), undefined, NZ);
+  const allRoad = U(piecePaths.flat());
   const loops: number[][][] = allRoad.map((p: any) => p.map((pt: any) => [pt.x / S, pt.y / S]));
   stats.loops = loops.length;
   const X0 = (w: number) => P[rep[w] * 3], Y0 = (w: number) => P[rep[w] * 3 + 1], Z0 = (w: number) => P[rep[w] * 3 + 2];
@@ -357,7 +369,6 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
   // take the footpath's place)
   const standing = buildings.filter((b: any) => b.props?.b !== 'roof' && b.props?.b !== 'carport' && !(b.props?.mh > 0.5));
   const bPaths = standing.map((b: any) => POS(b.rings[0])), bBox = standing.map((b: any) => { const r = b.rings[0]; return [Math.min(...r.map((p: number[]) => p[0])), Math.min(...r.map((p: number[]) => p[1])), Math.max(...r.map((p: number[]) => p[0])), Math.max(...r.map((p: number[]) => p[1]))]; });
-  const C = Clipper.Clipper;
   const colOf: Record<number, number[]> = { [PARTS.kerb]: hex(colours.kerb), [PARTS.verge]: hex(colours.verge), [PARTS.footpath]: hex(colours.footpath), [PARTS.island]: hex(colours.island), [PARTS.garden]: hex(colours.mulch) };
   const surfOf: Record<number, number> = { [PARTS.kerb]: SURFACES.indexOf('kerb'), [PARTS.verge]: SURFACES.indexOf('grass'), [PARTS.footpath]: SURFACES.indexOf(X.footpathSurface === 'concrete' ? 'footpath' : X.footpathSurface), [PARTS.island]: SURFACES.indexOf('concrete'), [PARTS.garden]: SURFACES.indexOf('dirt') };
   for (const cell of cells) {
@@ -376,17 +387,14 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     // edges in one difference, and loops for good in doHorizontal on a difference whose clip is the road's, kerb's,
     // footpath's and buildings' rings overlapping — a verge in Enfield, -34.8616, 138.6228. Joined under the same rule,
     // the clip is the same ground)
-    const U = (list: any[]) => C.Union(paths(list), undefined, NZ);
     const kU = U(kq), fU = U(fq), vU = U(vq), roadU = U(road), roadKerb = U([...roadU, ...kU]);
     const footCut = U([...roadKerb, ...bld, ...islP]);
-    const kerb = C.Difference(paths(kU), paths(roadU), NZ);
-    const foot = C.Difference(paths(fU), paths(footCut), NZ);
-    const verge = C.Difference(paths(vU), paths(U([...footCut, ...fU])), NZ);
+    const kerb = D(kU, roadU), foot = D(fU, footCut), verge = D(vU, U([...footCut, ...fU]));
     // (islands: their whole hole, less the kerb round it; nothing else in them)
     const islandPieces: { p: any; s: typeof islands[number] }[] = [];
-    for (const s of isl) islandPieces.push({ p: C.Difference(paths([POS(s.pts)]), paths(roadKerb), NZ), s });
+    for (const s of isl) islandPieces.push({ p: D([POS(s.pts)], roadKerb), s });
     const emit = (shape: any, part: number, isl?: typeof islands[number]) => {
-      const clipped = C.Intersect(paths(shape), paths([cellPath]), NZ).filter((p: any) => Math.abs(C.area(p)) > 0.0004 * S * S);
+      const clipped = CUT(shape, [cellPath]).filter((p: any) => Math.abs(C.area(p)) > 0.0004 * S * S);
       if (!clipped.length) return;
       // (on the tiles' 1 cm grid, as the road's own vertices are — so the tiles' welding moves nothing — each ring's
       // repeats dropped)

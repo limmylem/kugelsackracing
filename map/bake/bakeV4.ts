@@ -46,6 +46,7 @@ import { buildTunnels } from '../model/tunnels.ts';
 import { buildFields } from '../model/fields.ts';
 import { openAreas, kindOf, pickKind, streetTrees, gardenTrees, TREE_ESTIMATED } from '../model/vegetation.ts';
 import { rankLandmarks, overrides } from '../model/landmarks.ts';
+import { clipperLoops } from '../model/clipperGuard.ts';
 import { placeSigns } from '../model/placeSigns.ts';
 import { railways } from '../model/railways.ts';
 import { markingsV5 } from '../model/markingsV5.ts';
@@ -354,7 +355,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   }
   if (problems.length) throw new Error(`colliders with nothing drawn there (${problems.length}): ${JSON.stringify(problems.slice(0, 8))}`);
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
-  if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
+  if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants); Clipper looped ${clipperLoops.count} times (map/model/clipperGuard.ts): ${bandStats.clipperSnapped} pieces made again snapped to a few mm, ${bandStats.clipperFailed} left out`);
   if (v5) lap(`  railways: ${(railStatsV5.km ?? 0).toFixed(1)} km of track (${railStatsV5.inRoad ?? 0} pieces in a road), ${railStatsV5.bridges ?? 0} rail bridges with decks, ${railStatsV5.crossings ?? 0} level crossings with booms (estimated: found where a line crosses a road at grade), ${railStatsV5.platforms ?? 0} platform slabs, ${railStatsV5.masts ?? 0} overhead wire masts (estimated)`);
   if (v5) lap(`  front fences (estimated): ${fenceStats.fenced ?? 0} of ${fenceStats.houses ?? 0} houses (counted by every block near them), ${((fenceStats.metres ?? 0) / 1e3).toFixed(1)} km in ${fenceStats.pieces ?? 0} pieces; ${fenceStats.noRoom ?? 0} too close to the street for one, ${fenceStats.noStreet ?? 0} with no street near, ${fenceStats.unfenced ?? 0} left open (the mix's none); ${fenceStats.blocked ?? 0} pieces left out on a road surface, footpath or building, ${fenceStats.driveways ?? 0} across a mapped driveway`);
   if (v5) lap(`  markings: ${markStats.arrows ?? 0} turn arrows at traffic lights (${markStats.arrowsTagged ?? 0} from OSM's turn:lanes, ${markStats.arrowsEstimated ?? 0} estimated from the junction's arms), ${markStats.bikeLanes ?? 0} bicycle lane sides with ${markStats.bikeSymbols ?? 0} bicycles, ${markStats.busLanes ?? 0} bus lane sides (each counted by every block that draws it); ${markStats.offSurface ?? 0} pieces left out off the road's surface`);
