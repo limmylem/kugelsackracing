@@ -33,7 +33,7 @@ export function placeSigns({ localities, parks, places, segs, style, cfg, surfac
     const f = g.s[k + 1] > g.s[k] ? (s - g.s[k]) / (g.s[k + 1] - g.s[k]) : 0, x0 = g.xs[k] + (g.xs[k + 1] - g.xs[k]) * f, z0 = g.zs[k] + (g.zs[k + 1] - g.zs[k]) * f;
     const tx = g.xs[k + 1] - g.xs[k], tz = g.zs[k + 1] - g.zs[k], tl = Math.hypot(tx, tz) || 1, fx = tx / tl * dir, fz = tz / tl * dir, sx = left ? fz : -fz, sz = left ? -fx : fx;
     if (!inBox(x0, z0) || done.some(d => d.q === into && Math.hypot(d.x - x0, d.z - z0) < C.dedupe)) return;
-    const hw = (left === (dir > 0) ? g.hwL?.[k] : g.hwR?.[k]) ?? g.visual / 2, at = place(x0, z0, sx, sz, hw);
+    const hw = (left === (dir > 0) ? g.hwR?.[k] : g.hwL?.[k]) ?? g.visual / 2, at = place(x0, z0, sx, sz, hw);
     if (!at) { stats.noRoom++; return; }
     out.push(at[0], groundAt(at[0], at[1]), at[1], Math.atan2(-fx, -fz), PLACE_SIGN.suburb, nameIdx(localities[into].name));
     done.push({ q: into, x: x0, z: z0 }); stats.suburbs++;

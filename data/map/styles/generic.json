@@ -241,5 +241,14 @@
     "_note": "map/model/fields.ts: sports grounds' line colour, a cricket pitch's strip, courts' surfaces by sport, pools' water and coping.",
     "line": "#f2f2ea", "cricketPitch": "#b9a47c", "pool": "#4aa8cf", "coping": "#d9d6cc",
     "courts": { "tennis": "#3f7d63", "netball": "#3d6ea8", "basketball": "#b5543d", "default": "#5d7f8e" }
+  },
+  "railways": {
+    "_note": "map/model/railways.ts, map/render/rails.ts: a line's gauge (mm) where it doesn't say, by kind; trams electrified where nothing says; the colours.",
+    "gauge": 1435, "tramGauge": 1435, "narrowGauge": 1000, "tramsElectrified": true,
+    "ballast": "#8b8379", "sleeper": "#5d5248", "rail": "#7e8286", "deck": "#a7a39b", "platform": "#bdb8ae", "platformEdge": "#d9c64a"
+  },
+  "markingColours": {
+    "_note": "map/model/markingsV5.ts: Map v5's markings' paint: the white lines and arrows, the green at a bicycle lane's ends, a bus lane's colour at its ends.",
+    "white": "#e8e8e2", "bikeLane": "#3f8a4a", "busLane": "#a8473a"
   }
 }

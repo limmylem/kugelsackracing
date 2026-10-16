@@ -18,12 +18,13 @@
     "minUncovered": 200
   },
   "graph": {
-    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks.",
+    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks. mergeCopies: a road given twice (the same nodes) is kept once with both copies' tags — Overture's copy gives each bridge twice, OSM's lanes, turn lanes and cycle lanes on the copy that has no name or layer.",
     "continuous": true,
     "minNodeGap": 1.5,
     "cornerMinLeg": 14,
     "continueMaxTurn": 75,
-    "normalSmooth": 3
+    "normalSmooth": 3,
+    "mergeCopies": true
   },
   "heights": {
     "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck), what it crosses being a road or railway whose centre line crosses the deck's in plan (a carriageway beside it isn't under it), the deck's own road too where it comes back under it more than selfCrossAlong m along (a loop ramp); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.",
@@ -134,6 +135,21 @@
       "fasciaColour": "#e4e2dc"
     }
   },
+  "railways": {
+    "_note": "map/model/railways.ts: lines of kinds drawn (not in tunnels) in pieces of at most piece m, on a ballast bed ballast m up, flush in a road whose surface is within roadNear m of the ground; level crossings where a line crosses a road (not of noCrossing classes) at grade — a boom gate boomBack m before the line, boomOut m past the road's edge; platforms platformHeight m up (lines: platformWidth m wide); overhead wiring's masts every mastSpacing m, mastOffset m beside the line, the wire wireHeight m over the rails.",
+    "kinds": ["rail", "light_rail", "tram", "narrow_gauge"],
+    "piece": 8,
+    "ballast": 0.3,
+    "roadNear": 0.6,
+    "noCrossing": ["motorway", "trunk"],
+    "boomBack": 6,
+    "boomOut": 1,
+    "platformHeight": 0.95,
+    "platformWidth": 4,
+    "mastSpacing": 45,
+    "mastOffset": 2.6,
+    "wireHeight": 5.5
+  },
   "placeSigns": {
     "_note": "map/model/placeSigns.ts: a suburb's name where a road of roadClasses enters it (Overture's division areas of subtypes), past m in, on the driving side at the first of offsets m past the road's edge that's clearance m clear of every lane and building; one a suburb within dedupe m; a point's suburb the smallest area holding it (none over maxArea km²). A park's (a place of parkCategories, parkConfidence or more, inside an OSM park; a name once within dedupe m) at its edge nearest a road within parkRoadNear m, parkIn m inside it.",
     "subtypes": ["locality", "neighborhood", "macrohood"],
@@ -227,6 +243,26 @@
     "towerHeight": 28,
     "maxSpan": 120,
     "cycle": { "green": 20, "amber": 4, "allRed": 2 }
+  },
+  "markingsV5": {
+    "_note": "map/model/markingsV5.ts: Map v5's markings on top of Map v4's, lift m above them (surface.markingLift). Turn arrows arrowBack m before a junction with traffic lights, arrowLength m long, on approaches with arrowMinLanes lanes or more coming in, at junctions of three streets or more (arms of minorArms' classes not counted); an arm within aheadWithin degrees of straight on is ahead, one up to turnWithin degrees a turn. Bicycle lanes bikeLane m wide (their line lineWidth m), a bicycle every bikeSymbolEvery m; bus lanes busLane m wide (their line busLineWidth m); both drawn in pieces of step m, laneEndSkip m clear of a road's ends, painted for paintAtEnds m at each. A mark is drawn only where the road's surface is, within maxStep m of the road model's height; margin m past the block so one across its edge is whole.",
+    "lift": 0.003,
+    "margin": 30,
+    "maxStep": 1.5,
+    "arrowBack": 8,
+    "arrowLength": 5,
+    "arrowMinLanes": 2,
+    "minorArms": ["service", "track", "path", "living_street"],
+    "aheadWithin": 35,
+    "turnWithin": 150,
+    "bikeLane": 1.5,
+    "lineWidth": 0.12,
+    "bikeSymbolEvery": 60,
+    "busLane": 3.2,
+    "busLineWidth": 0.3,
+    "step": 3,
+    "laneEndSkip": 4,
+    "paintAtEnds": 15
   },
   "tests": {
     "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night. Tunnels (one-way runs of tunnelMinLength m or more): driven at up to tunnelSpeed km/h from tunnelApproach m before to after within tunnelTimeLimit s, the body within tunnelBodyOverRoad m of the road all through the tube; probed every tunnelProbeEvery m for its ceiling, walls and the ground over it.",

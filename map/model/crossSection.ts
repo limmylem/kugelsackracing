@@ -119,7 +119,7 @@ export function planCrossSections({ segs, osm, buildings, style, classAt = () =>
   const median = (v: number[]) => { const s = [...v].sort((a, b) => a - b); return s[s.length >> 1]; };
   for (const g of segs) {
     if (g.internal) continue;
-    const tags = wayTags.get(g.way) ?? {}, cls = g.link ? 'link' : g.cls, spec = X.byClass[cls] ?? { kerb: false, footpath: 0, verge: 0 };
+    const tags = g.tags ?? wayTags.get(g.way) ?? {}, cls = g.link ? 'link' : g.cls, spec = X.byClass[cls] ?? { kerb: false, footpath: 0, verge: 0 };
     const driveway = g.cls === 'service' && (tags.service === 'driveway' || tags.service === 'parking_aisle' || tags.service === 'drive-through');
     (g as any).driveway = driveway;
     const out: any = {};
@@ -148,9 +148,10 @@ export function planCrossSections({ segs, osm, buildings, style, classAt = () =>
         }
       }
       const urban = count >= X.urbanBuildings;
-      const sw = tags.sidewalk ?? '', swSide = tags[`sidewalk:${sd === 'L' ? 'left' : 'right'}`] ?? '';
-      const taggedNo = sw === 'no' || sw === 'none' || sw === 'separate' || swSide === 'no' || swSide === 'separate' || (sw === 'left' && sd === 'R') || (sw === 'right' && sd === 'L');
-      const taggedYes = sw === 'both' || swSide === 'yes' || (sw === 'left' && sd === 'L') || (sw === 'right' && sd === 'R');
+      // (OSM's left and right are the way's, along it: the model's 'L', along the normal, is its right — map/model/geom.ts)
+      const osmSide = sd === 'L' ? 'right' : 'left', sw = tags.sidewalk ?? '', swSide = tags[`sidewalk:${osmSide}`] ?? '';
+      const taggedNo = sw === 'no' || sw === 'none' || sw === 'separate' || swSide === 'no' || swSide === 'separate' || ((sw === 'left' || sw === 'right') && sw !== osmSide);
+      const taggedYes = sw === 'both' || swSide === 'yes' || sw === osmSide;
       const m = mapped.get(`${g.id}:${sd}`);
       let side: Side;
       const kerbW = X.kerbBevel + X.kerbTop;
