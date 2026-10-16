@@ -596,6 +596,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     // the handbrake once it's stopped (the brake at a standstill would select reverse); no damage meanwhile
     // (test-scene.js)
     get stopping() { const st = run?.controller.state; return !!run && (!!run.results || !!run.controller.ending || st === 'finished' || st === 'failed' || st === 'results'); },
+    // (the same moment: the line crossed, or the quest out — no damage to your car from then until the results are
+    // closed: test-scene.js crashEvents)
+    get over() { return this.stopping; },
     stopInput(i) {
       const v = Math.abs(game.carNow()?.forward ?? 0);
       return { ...i, throttle: 0, brake: v > 1 ? 1 : 0, handbrake: v <= 1, steer: i?.steer ?? 0 };
