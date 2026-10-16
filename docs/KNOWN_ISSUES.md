@@ -59,9 +59,9 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
   instance's group was a random name, so two players placed before either's room existed each got their own. Now it's
   the first free name (g1, g2, …), the same for both (mp/roam.js `placeInstance`; tests/unit/roam.test.mjs). This is
   what failed the two-windows browser test (`server/tools/mp-two-windows.ts`: both "online #1", in different rooms,
-  seeing nobody) and, earlier, its F9 check. Deployed 2026-10-16 (run 360). **Not yet confirmed by that browser
-  test**: in the runs since, an earlier step's flake (below) stopped the slow tests before it. It's now in `slow-tail`
-  too (Actions → slow-tail → Run workflow), to run it on its own.
+  seeing nobody) and, earlier, its F9 check. Deployed 2026-10-16 (run 360), and the two-windows test passes
+  again (slow-tail run 3, all its checks). It's in `slow-tail` now (Actions → slow-tail → Run workflow), as an earlier
+  step's flake (below) can stop the full run's slow tests before it.
 - **The trailer's multiplayer shot was filmed with one car.** After most of an hour of filming, the browser drew a
   frame every few seconds and lost its connection to the game server. The filming (devlog/capture/capture.mjs) now
   opens fresh browsers for each run, and leaves out a multiplayer shot whose camera car isn't online rather than
