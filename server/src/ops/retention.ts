@@ -13,6 +13,7 @@
 //   alerts          cleared alerts, alertsDays after
 //   evidence        a contact's replay kept for a ramming report (mp_evidence), evidenceDays after it was kept — unless an
 //                   open report points at it (it waits for an admin with the report)
+//   analytics       anonymous play statistics (Phase 8 Step 4), analyticsDays after (docs/ANALYTICS.md)
 // Results, records, replays, the ledger and the save stay while the account does (deleting the account deletes them).
 
 import { sql } from 'drizzle-orm';
@@ -21,9 +22,9 @@ import { deleteUserData } from '../data.ts';
 
 export type RetentionRules = {
   guestInactiveDays: number; sessionsExpiredDays: number; signalsDays: number; supportDays: number; reportsDays: number;
-  flagsDays: number; inviteUsesDays: number; auditDays: number; alertsDays: number; evidenceDays?: number;
+  flagsDays: number; inviteUsesDays: number; auditDays: number; alertsDays: number; evidenceDays?: number; analyticsDays?: number;
 };
-export const DEFAULT_RETENTION: RetentionRules = { guestInactiveDays: 30, sessionsExpiredDays: 7, signalsDays: 90, supportDays: 365, reportsDays: 365, flagsDays: 365, inviteUsesDays: 365, auditDays: 730, alertsDays: 90, evidenceDays: 30 };
+export const DEFAULT_RETENTION: RetentionRules = { guestInactiveDays: 30, sessionsExpiredDays: 7, signalsDays: 90, supportDays: 365, reportsDays: 365, flagsDays: 365, inviteUsesDays: 365, auditDays: 730, alertsDays: 90, evidenceDays: 30, analyticsDays: 400 };
 
 export async function runRetention(db: Db, R: RetentionRules = DEFAULT_RETENTION, { dryRun = false } = {}) {
   const n = async (q: ReturnType<typeof sql>) => Number(((await db.execute(q)).rows[0] as any)?.n ?? 0);
@@ -43,6 +44,8 @@ export async function runRetention(db: Db, R: RetentionRules = DEFAULT_RETENTION
   out.flags = await del(sql`select count(*) as n from abuse_flags where status <> 'open' and reviewed_at < now() - make_interval(days => ${R.flagsDays})`, sql`delete from abuse_flags where status <> 'open' and reviewed_at < now() - make_interval(days => ${R.flagsDays})`);
   out.inviteUses = await del(sql`select count(*) as n from invite_uses where used_at < now() - make_interval(days => ${R.inviteUsesDays})`, sql`delete from invite_uses where used_at < now() - make_interval(days => ${R.inviteUsesDays})`);
   out.audit = await del(sql`select count(*) as n from audit_log where at < now() - make_interval(days => ${R.auditDays})`, sql`delete from audit_log where at < now() - make_interval(days => ${R.auditDays})`);
+  const aDays = R.analyticsDays ?? 400;
+  out.analytics = await del(sql`select count(*) as n from analytics_events where at < now() - make_interval(days => ${aDays})`, sql`delete from analytics_events where at < now() - make_interval(days => ${aDays})`);
   out.alerts = await del(sql`select count(*) as n from alerts where state = 'resolved' and last_at < now() - make_interval(days => ${R.alertsDays})`, sql`delete from alerts where state = 'resolved' and last_at < now() - make_interval(days => ${R.alertsDays})`);
   const evidenceDays = R.evidenceDays ?? DEFAULT_RETENTION.evidenceDays!;
   const oldEvidence = sql`from mp_evidence e where e.created_at < now() - make_interval(days => ${evidenceDays})

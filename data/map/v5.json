@@ -76,7 +76,8 @@
     "portalColour": "#c8c4b8"
   },
   "lamps": {
-    "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
+    "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m. tunnelOnWall: a tunnel's lamps fixtures on its tube's walls.",
+    "tunnelOnWall": true,
     "poolRadius": 15,
     "poolIntensity": 1.6,
     "poolOpacity": 0.6,
@@ -101,12 +102,17 @@
     "kerb": "kerb",
     "carpark": "tarmac"
   },
+  "terrain": {
+    "_note": "Map v5 over Map v4's: a tunnel road under more than tunnelCover m of ground is in a tube (map/model/tunnels.ts) — more than its ceiling's 5.6 m, so the hill is always over it — the trench under it widened tunnelPad m past its edges, clear of the tube's walls; under less, a cutting.",
+    "tunnelCover": 7,
+    "tunnelPad": 3
+  },
   "collision": {
     "_note": "Map v5 over Map v4's: a building collider under 0.25 m² is a sliver and dropped unless its area over its longest side is at least sliverWidth m — a canopy's post stays solid.",
     "sliverWidth": 0.1
   },
   "buildings": {
-    "_note": "map/model/buildingsV5.ts: a place inside a building (confidence at least placeConfidence) says what it is; offices taller than towerAbove m are towers; a shop-type place in a building smaller than mallArea m² is a shop, not a mall; with nothing else to go on, a residential building under houseArea m² is a house. signs: businesses' names on their buildings (at most signsPer each), on the wall facing a road within frontReach m.",
+    "_note": "map/model/buildingsV5.ts: a place inside a building (confidence at least placeConfidence) says what it is; offices taller than towerAbove m are towers; a shop-type place in a building smaller than mallArea m² is a shop, not a mall; with nothing else to go on, a residential building under houseArea m² is a house. signs: businesses' names on their buildings (at most signsPer each), on the wall facing a road within frontReach m; a named building of the namePlates types its own name on a plate.",
     "placeConfidence": 0.5,
     "towerAbove": 30,
     "mallArea": 3000,
@@ -114,6 +120,7 @@
     "signs": true,
     "signsPer": 3,
     "frontReach": 30,
+    "namePlates": ["church", "school", "hospital", "station", "mall"],
     "canopy": {
       "_note": "A roof on posts (map/bake/extrude.ts): building=roof (verandahs, petrol canopies) and carports — height[kind] m tall where the data doesn't say (a petrol station's canopy: height.fuel), a slab thickness m deep, square posts post m across inset m in from its rectangle's corners and every postSpacing m along its long sides, never on a road; colours where the data has none.",
       "kinds": ["roof", "carport"],
@@ -126,6 +133,55 @@
       "roofColour": "#c9c9c4",
       "fasciaColour": "#e4e2dc"
     }
+  },
+  "placeSigns": {
+    "_note": "map/model/placeSigns.ts: a suburb's name where a road of roadClasses enters it (Overture's division areas of subtypes), past m in, on the driving side at the first of offsets m past the road's edge that's clearance m clear of every lane and building; one a suburb within dedupe m; a point's suburb the smallest area holding it (none over maxArea km²). A park's (a place of parkCategories, parkConfidence or more, inside an OSM park; a name once within dedupe m) at its edge nearest a road within parkRoadNear m, parkIn m inside it.",
+    "subtypes": ["locality", "neighborhood", "macrohood"],
+    "roadClasses": ["trunk", "primary", "secondary", "tertiary"],
+    "past": 6,
+    "offsets": [1.2, 2, 3, 4.5],
+    "clearance": 0.5,
+    "dedupe": 300,
+    "maxArea": 40,
+    "parkCategories": ["park", "dog_park", "playground", "garden", "botanical_garden"],
+    "parkConfidence": 0.6,
+    "parkRoadNear": 40,
+    "parkIn": 1.5
+  },
+  "landmarks": {
+    "_note": "map/model/landmarks.ts: buildings ranked by height^heightPower × √footprint (minHeight m tall or more, or with a Wikipedia/Wikidata entry), × wikiBonus with one, × kindBonus for a landmark kind, × nameBonus named; the top `top` drawn in the far layer (seen from anywhere). Hand-made models: data/map/v5/landmarks/.",
+    "top": 80,
+    "minHeight": 12,
+    "heightPower": 1.3,
+    "wikiBonus": 3,
+    "kindBonus": 2,
+    "nameBonus": 1.5,
+    "kinds": ["stadium", "cathedral", "church", "train_station", "tower", "university", "hospital", "museum", "civic", "government", "transportation"]
+  },
+  "vegetation": {
+    "_note": "map/model/vegetation.ts: open ground no estimated tree stands on (leisure openLeisure, golf openGolf, landuse openLanduse, amenity openAmenity); street trees none along noStreetTrees classes, clearOfJunction m from a road's trimmed ends, clearOfLowered m from a lowered kerb (driveways, crossings), none within mappedNear m of a tree already placed; a street tree's trunk on the verge, trunkClear m from any lane.",
+    "openLeisure": ["pitch", "stadium", "track", "swimming_pool", "playground", "ice_rink", "miniature_golf"],
+    "openGolf": ["green", "fairway", "tee", "bunker", "driving_range", "pin"],
+    "openLanduse": [],
+    "openAmenity": ["parking"],
+    "noStreetTrees": ["motorway", "service", "track", "path", "footway", "cycleway"],
+    "clearOfJunction": 12,
+    "clearOfLowered": 4,
+    "mappedNear": 6,
+    "trunkClear": 0.8
+  },
+  "fields": {
+    "_note": "map/model/fields.ts: sports grounds' lines (lineWidth m wide, in pieces of at most step m so they follow the ground, lift m over it) by sport and shape — an oval if its footprint is within ovalTolerance of an ellipse's share of its rectangle and over ovalMin m long (boundary boundaryIn m inside it), a court if shorter than courtMax m (lines courtIn m in), a field's lines rectIn m in; pools edged coping m.",
+    "lift": 0.05,
+    "lineWidth": 0.12,
+    "step": 2,
+    "coping": 0.35,
+    "ovalTolerance": 0.08,
+    "ovalMin": 50,
+    "boundaryIn": 3,
+    "courtMax": 25,
+    "courtIn": 0.5,
+    "rectIn": 2
   },
   "brands": {
     "_note": "map/model/brands.ts: chains found in the map data kept at minConfidence or more (or named on whitelist); the same chain twice within dedupe m is one outlet, and two chains of a oneSite category within siteDedupe m one site (a forecourt has one brand: the more confident). The registry and its parodies: data/map/v5/brands.json.",
@@ -173,7 +229,7 @@
     "cycle": { "green": 20, "amber": 4, "allRed": 2 }
   },
   "tests": {
-    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night.",
+    "_note": "Map v5's tests' limits (tests/map/v5.test.ts), on top of Map v4's: road heights against the reference elevation (LiDAR where it's valid) on main roads — the 95th percentile and the largest, and the grade's error over gradeWindow; the road's shape — the largest change of heading per metre (kinks), merges' taper; wheels over joins — vertical acceleration; bridges' clearance; floating geometry; sign clearance; lamps' brightness at night. Tunnels (one-way runs of tunnelMinLength m or more): driven at up to tunnelSpeed km/h from tunnelApproach m before to after within tunnelTimeLimit s, the body within tunnelBodyOverRoad m of the road all through the tube; probed every tunnelProbeEvery m for its ceiling, walls and the ground over it.",
     "mainClasses": [
       "motorway",
       "trunk",
@@ -194,6 +250,12 @@
     "floatingOver": 0.6,
     "signClearance": 0.4,
     "nightMinLuminance": 0.12,
-    "brandSimilarity": 0.72
+    "brandSimilarity": 0.72,
+    "tunnelMinLength": 150,
+    "tunnelApproach": 250,
+    "tunnelTimeLimit": 150,
+    "tunnelBodyOverRoad": 1.5,
+    "tunnelProbeEvery": 25,
+    "tunnelSpeed": 90
   }
 }

@@ -37,7 +37,7 @@ export function terrainBaseV4({ grid: g, dem, osm, v3cfg }: { grid: Grid; dem: F
 
 // share: m past the box whose ground is kept too (the next block works it out the same) — at least as far as what
 // stands on the ground in the box's tiles reaches out
-export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box, share = 40 }: { grid: Grid; dem: Float32Array; mesh: any; model: any; cfg: any; box: [number, number, number, number]; share?: number }) {
+export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box, share = 40, tube = null }: { grid: Grid; dem: Float32Array; mesh: any; model: any; cfg: any; box: [number, number, number, number]; share?: number; tube?: Uint8Array | null }) {
   const Tc = cfg.terrain, P = M.positions, I = M.indices;
   // ---- the window: the box and its share, and far enough past them that every road reaching their points is in
   const reachM = Tc.margin + Tc.maxBlend + share;
@@ -62,16 +62,43 @@ export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box, s
       fn(r * W + cc, l1 * P[a + 1] + l2 * P[b + 1] + l3 * P[c + 1]);
     }
   };
+  // (a point over a tunnel's trench: the height of the tunnel road under it — what's shaped there for a road over the
+  // hill is the ground over the tunnel, its cover, never the trench)
+  const tunnelTris: number[] = [], trench = new Float32Array(N).fill(NaN);
   for (let t = 0; t < I.length; t += 3) {
     if (!M.solid[t / 3]) continue;
     const lv = M.level[t / 3], sg = M.seg[t / 3], sname = SURFACES[M.surfaces[t / 3]] ?? 'tarmac';
     if (lv === 1) { forTri(t, (k, y) => { deck[k] = Math.min(deck[k], y); }); continue; }
     if (lv === 2 || (sg >= 0 && tunnelSegs.has(sg))) {
       // (a tunnel: under thick ground, the grid kept clear under the road and the ground over it kept as its roof)
-      forTri(t, (k, y) => { if (dem[G(k)] - y > Tc.tunnelCover) { if (cover[k] !== cover[k]) cover[k] = h[k]; h[k] = Math.min(h[k], y - 1); } else { surf[k] = Number.isNaN(surf[k]) ? y : Math.min(surf[k], y); code[k] = SURF_CODE[sname] ?? 1; } });
+      // (Map v5: in the tube or not as its tube's triangles say — map/model/tunnels.ts — the trench under exactly them)
+      const inTube = tube ? tube[t / 3] === 1 : null;
+      forTri(t, (k, y) => { if (inTube ?? dem[G(k)] - y > Tc.tunnelCover) { if (cover[k] !== cover[k]) cover[k] = h[k]; h[k] = Math.min(h[k], y - 1); trench[k] = Math.min(trench[k] === trench[k] ? trench[k] : Infinity, y); } else { surf[k] = Number.isNaN(surf[k]) ? y : Math.min(surf[k], y); code[k] = SURF_CODE[sname] ?? 1; } });
+      if (Tc.tunnelPad && inTube !== false) tunnelTris.push(t);
       continue;
     }
     forTri(t, (k, y) => { surf[k] = Number.isNaN(surf[k]) ? y : Math.min(surf[k], y); if (sname !== 'kerb') code[k] = SURF_CODE[sname] ?? 1; else code[k] ||= 1; });
+  }
+  // (Map v5, tunnelPad: the trench under thick ground widened tunnelPad m past the tunnel road's edges — clear of the
+  // tube's walls (map/model/tunnels.ts), the ground over it kept as its roof — where no road's surface is)
+  if (Tc.tunnelPad) for (const t of tunnelTris) {
+    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3, ys = Math.min(P[a + 1], P[b + 1], P[c + 1]), pad = Tc.tunnelPad;
+    const tx = [P[a], P[b], P[c]], tz = [P[a + 2], P[b + 2], P[c + 2]];
+    const ca = Math.max(0, Math.ceil((Math.min(...tx) - pad - g.x0) / g.cell) - c0), cb = Math.min(W - 1, Math.floor((Math.max(...tx) + pad - g.x0) / g.cell) - c0);
+    const ra = Math.max(0, Math.ceil((Math.min(...tz) - pad - g.z0) / g.cell) - r0), rb = Math.min(Hh - 1, Math.floor((Math.max(...tz) + pad - g.z0) / g.cell) - r0);
+    for (let r = ra; r <= rb; r++) for (let cc = ca; cc <= cb; cc++) {
+      const k = r * W + cc;
+      // (not where an open road at about the tunnel's own level is — its approach, in a cutting — but under a road over
+      // the hill, yes: that road's ground is the cover, shaped to it below)
+      if ((surf[k] === surf[k] && surf[k] < ys + Tc.tunnelCover - 1) || dem[G(k)] - ys <= Tc.tunnelCover) continue;
+      const x = xOf(cc), z = zOf(r);
+      let d = Infinity;
+      for (let e = 0; e < 3; e++) { const ex = tx[(e + 1) % 3] - tx[e], ez = tz[(e + 1) % 3] - tz[e], l2 = ex * ex + ez * ez || 1e-12, f = Math.max(0, Math.min(1, ((x - tx[e]) * ex + (z - tz[e]) * ez) / l2)); d = Math.min(d, Math.hypot(x - tx[e] - ex * f, z - tz[e] - ez * f)); }
+      if (d > pad) continue;
+      if (cover[k] !== cover[k]) cover[k] = h[k];
+      h[k] = Math.min(h[k], ys - 1);
+      trench[k] = Math.min(trench[k] === trench[k] ? trench[k] : Infinity, ys);
+    }
   }
   // ---- 2. the nearest road point to every point near one (two-pass chamfer propagation of the nearest source)
   const src = new Int32Array(N).fill(-1);
@@ -120,6 +147,15 @@ export function shapeRoadsV4(T: any, { grid: g, dem, mesh: M, model, cfg, box, s
     const d = Math.sqrt(d2of(k, s));
     if (d > reach) continue;
     const top = surf[s] - Tc.sink;
+    // (over a tube — Map v5 — its trench kept; the ground over it shaped instead, and only for a road well over the
+    // tunnel, never the tunnel's own approach)
+    if (trench[k] === trench[k]) {
+      if (cover[k] !== cover[k] || top < trench[k] + Tc.tunnelCover - 1) continue;
+      if (road[k] || d <= Tc.margin) { cover[k] = Math.min(top, lowest[k] >= trench[k] + Tc.tunnelCover - 1 ? lowest[k] : Infinity); continue; }
+      const bl = Math.max(Tc.minBlend, Math.min(Tc.maxBlend, Math.abs(dem[G(k)] - top) * Tc.slope));
+      if (d <= Tc.margin + bl) { const w = 1 - smoothstep(0, bl, d - Tc.margin); cover[k] = cover[k] + (top - cover[k]) * w; }
+      continue;
+    }
     if (road[k] || d <= Tc.margin) { h[k] = Math.min(top, lowest[k]); if (!road[k]) road[k] = 2; continue; }
     const blend = Math.max(Tc.minBlend, Math.min(Tc.maxBlend, Math.abs(dem[G(k)] - top) * Tc.slope));
     if (d <= Tc.margin + blend) { const w = 1 - smoothstep(0, blend, d - Tc.margin); h[k] = h[k] + (top - h[k]) * w; }

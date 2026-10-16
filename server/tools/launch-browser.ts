@@ -3,7 +3,8 @@
 //   device (the feedback with the game's last errors — Phase 7 Step 5); the credits page; the status page
 //   an admin (two-factor sign-in): the Support tab shows both messages with their version and device, and answers one by
 //   email; the Launch tab closes sign-ups and makes an invite code; a new player can't sign up without it, and does with it
-//   (the code's use shown on the Launch tab); Reports & flags and Monitoring open; a player's full history
+//   (the code's use shown on the Launch tab); Reports & flags and Monitoring open; the Live tab publishes patch notes and
+//   the Statistics tab opens (Phase 8 Step 4); a player's full history
 //
 //   TEST_DATABASE_URL=postgres://… node server/tools/launch-browser.ts      (needs playwright-core and Chromium: PLAYWRIGHT_CORE, CHROMIUM)
 // @ts-nocheck — (the page's own modules are imported inside the browser: not this program's)
@@ -163,6 +164,22 @@ try {
   await adm.waitForSelector('h2:text("Monitoring")', { timeout: 10000 });
   const mon = await adm.textContent('main');
   check('the Monitoring tab: players, requests, the database', /database/i.test(mon!) && /request/i.test(mon!), mon!.replace(/\s+/g, ' ').slice(0, 160));
+
+  // (Phase 8 Step 4: the Live tab — a news item written and published, then in the game's news; the Statistics tab)
+  await adm.click('#tabs button:has-text("Live")');
+  await adm.waitForSelector('h2:text("Event calendar")', { timeout: 10000 });
+  await adm.click('button:text("New item")');
+  await adm.selectOption('fieldset select', 'patch');
+  await adm.fill('fieldset label:has-text("Title") input', 'Faster loading');
+  await adm.fill('fieldset textarea', 'What changed:\n- The map loads faster');
+  await adm.check('fieldset input[type=checkbox]');
+  await adm.click('fieldset button:text("Save")');
+  await adm.waitForSelector('main td:text("Faster loading")', { timeout: 10000 });
+  const news = await (await fetch(`${BASE}/api/v1/news`)).json();
+  check('the Live tab: patch notes written and published, and in the game\'s news', news.items?.some((i: any) => i.title === 'Faster loading' && i.kind === 'patch'), JSON.stringify(news.items?.map((i: any) => i.title)));
+  await adm.click('#tabs button:has-text("Statistics")');
+  await adm.waitForSelector('h3:text("Errors and crashes by version")', { timeout: 10000 });
+  check('the Statistics tab opens, with its tables', /Coming back/.test((await adm.textContent('main'))!));
 
   await adm.click('#tabs button:has-text("Players")');
   await adm.fill('input[type=search]', 'Pia'); await adm.click('button:text("Find")');

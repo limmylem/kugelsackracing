@@ -108,6 +108,14 @@
     "mound": 0.25
   },
   "vegetation": {
+    "streetMix": { "broadleaf": 0.8, "conifer": 0.2 },
+    "parkMix": { "broadleaf": 0.75, "conifer": 0.25 },
+    "forestMix": { "broadleaf": 0.5, "conifer": 0.5 },
+    "scrubMix": { "broadleaf": 0.4, "shrub": 0.6 },
+    "gardenMix": { "broadleaf": 0.6, "shrub": 0.3, "conifer": 0.1 },
+    "gardenChance": 0.5,
+    "gardenBack": 2.5,
+    "groundColours": {},
     "_note": "The mix of trees and plants: species shapes (map/render/objects.ts) by share — dry eucalypts, brown summer grass. Street trees every streetTreeSpacing m along a verge at least streetTreeVerge m wide (estimated where none are mapped, seeded by the road's id).",
     "streetTreeSpacing": 14,
     "streetTreeVerge": 1.8,
@@ -223,5 +231,15 @@
       "colour": "#c8c4b8",
       "style": "concrete-face"
     }
+  },
+  "tunnel": {
+    "_note": "map/model/tunnels.ts: a tunnel's tube — its walls height m up from the road's edges (a band m high at their foot), its ceiling height m over the road; a portal's headwall above m over the hillside, its wings wing m out either side.",
+    "height": 5.6, "band": 1.1, "above": 1.0, "wing": 4,
+    "colours": { "wall": "#d4d4d0", "band": "#707070", "ceiling": "#505050", "portal": "#b4b0a8" }
+  },
+  "fields": {
+    "_note": "map/model/fields.ts: sports grounds' line colour, a cricket pitch's strip, courts' surfaces by sport, pools' water and coping.",
+    "line": "#f2f2ea", "cricketPitch": "#b9a47c", "pool": "#4aa8cf", "coping": "#d9d6cc",
+    "courts": { "tennis": "#3f7d63", "netball": "#3d6ea8", "basketball": "#b5543d", "default": "#5d7f8e" }
   }
 }

@@ -39,7 +39,10 @@ export function createCameraRig() {
     shake(amount) { s.crash = Math.min(1, Math.max(s.crash, amount)); },
     // camera: the THREE camera; car: the drawn car (a THREE object at the physics car's pose);
     // snap: the latest physics snapshot; C: spec.camera
-    update(camera, car, snap, dt, mode, C) {
+    // motion: the accessibility settings' (ui/accessibility.js motionOf): { cameraShake 0..1, speedEffects } — reduced
+    // motion: no shake, no widening at speed
+    update(camera, car, snap, dt, mode, C, motion = null) {
+      const shakeK = motion?.cameraShake ?? 1, speedK = motion?.speedEffects === false ? 0 : 1;
       const snapTo = mode !== s.mode;
       s.mode = mode;
       s.time += dt;
@@ -68,9 +71,9 @@ export function createCameraRig() {
       const t = s.time, ab = s.bumps * Sh.bumps, ak = kerb * Sh.kerbs, as = fast * Sh.speed;
       s.crash *= Math.exp(-dt / 0.12);
       const ac = s.crash ** 1.5;
-      const shakeUp = 0.035 * ab * wobble(t, 7, 0.3) + 0.012 * ak * wobble(t, 22, 1.7) + 0.008 * as * wobble(t, 11, 2.9) + 0.12 * ac * wobble(t, 17, 0.8);
-      const shakeSide = 0.02 * ab * wobble(t, 5, 4.1) + 0.006 * ak * wobble(t, 19, 0.6) + 0.006 * as * wobble(t, 9, 5.3) + 0.1 * ac * wobble(t, 13, 2.4);
-      const shakeRoll = (0.5 * ab * wobble(t, 6, 2.2) + 0.25 * ak * wobble(t, 21, 3.3) + 0.15 * as * wobble(t, 12, 0.9) + 3 * ac * wobble(t, 15, 1.9)) * DEG;
+      const shakeUp = shakeK * (0.035 * ab * wobble(t, 7, 0.3) + 0.012 * ak * wobble(t, 22, 1.7) + 0.008 * as * wobble(t, 11, 2.9) + 0.12 * ac * wobble(t, 17, 0.8));
+      const shakeSide = shakeK * (0.02 * ab * wobble(t, 5, 4.1) + 0.006 * ak * wobble(t, 19, 0.6) + 0.006 * as * wobble(t, 9, 5.3) + 0.1 * ac * wobble(t, 13, 2.4));
+      const shakeRoll = shakeK * (0.5 * ab * wobble(t, 6, 2.2) + 0.25 * ak * wobble(t, 21, 3.3) + 0.15 * as * wobble(t, 12, 0.9) + 3 * ac * wobble(t, 15, 1.9)) * DEG;
 
       camera.up.set(0, 1, 0);
       let fov = C.chase.fov, near = 0.1;
@@ -92,7 +95,7 @@ export function createCameraRig() {
         look.y -= Math.tan(s.pitch * Ch.sway) * Ch.distance;
         camera.lookAt(look);
         camera.rotateZ(-s.roll * Ch.sway + shakeRoll);
-        fov = Ch.fov + Ch.fovAtSpeed * Math.pow(clamp(kmh / Ch.fovSpeed, 0, 1), 1.5);
+        fov = Ch.fov + speedK * Ch.fovAtSpeed * Math.pow(clamp(kmh / Ch.fovSpeed, 0, 1), 1.5);
       } else if (mode === 'bonnet' || mode === 'cockpit') {
         const B = mode === 'bonnet' ? C.bonnet : C.cockpit, inside = mode === 'cockpit';
         // head: leans against the g-forces (out of the turn, back when accelerating), and glances into turns
@@ -105,7 +108,7 @@ export function createCameraRig() {
         camera.position.copy(eye.applyQuaternion(quat).add(pos));
         // face the car's +z (a camera looks down its own -z), then pitch down, glance, shake
         camera.quaternion.copy(quat).multiply(q.setFromEuler(e.set(0, Math.PI + s.glance, 0, 'YXZ'))).multiply(q.setFromEuler(e.set(-B.pitch * DEG, 0, shakeRoll * 0.6)));
-        fov = B.fov + (C.chase.fovAtSpeed * 0.4) * Math.pow(clamp(kmh / C.chase.fovSpeed, 0, 1), 1.5);
+        fov = B.fov + speedK * (C.chase.fovAtSpeed * 0.4) * Math.pow(clamp(kmh / C.chase.fovSpeed, 0, 1), 1.5);
         near = 0.03;
       } else {
         // side / high: follow the car on the flat

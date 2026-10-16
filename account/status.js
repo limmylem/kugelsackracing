@@ -138,7 +138,7 @@ export function mountAccountChip(A, { parent = document.body, welcome = true } =
     try { sessionStorage.setItem('kr.welcomed', '1'); } catch { /* fine */ }
     const box = document.createElement('div');
     box.id = 'krWelcome';
-    box.innerHTML = `<div><h2>Kugelsack Racing</h2><p>Sign in to keep your progress on any device, or play as a guest — make an account later and your progress comes with you.</p>
+    box.innerHTML = `<div><h2>Ogni Strada</h2><p>Sign in to keep your progress on any device, or play as a guest — make an account later and your progress comes with you.</p>
       <a class="primary" data-k="in">Sign in</a><a data-k="up">Create an account</a><button data-k="guest">Play as a guest</button><button class="ghost" data-k="later">Just drive (free roam)</button><div class="err" hidden></div></div>`;
     const err = box.querySelector('.err');
     box.querySelector('[data-k=in]').href = `/account/?next=${next}`;

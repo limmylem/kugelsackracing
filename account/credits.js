@@ -14,6 +14,7 @@ const table = (head, rows) => h('table', {}, h('tr', {}, ...head.map(x => h('th'
 try {
   const C = await (await fetch('credits.json', { cache: 'no-cache' })).json();
   $('list').replaceChildren(
+    ...(C.people?.length ? [h('h2', {}, 'The people'), h('dl', {}, ...C.people.flatMap(p => [h('dt', {}, p.role), h('dd', {}, p.names.join(', '))]))] : []),
     h('h2', {}, 'The world'),
     h('p', {}, 'The roads, buildings, land and heights of the real places in the game come from open data. Thank you to everyone who maps.'),
     table(['Data', 'Licence', 'Where'], C.data.map(d => [h('div', {}, link(d.name, d.url), d.text ? h('div', { class: 'muted' }, d.text) : null), d.licence, d.regions.join(', ')])),

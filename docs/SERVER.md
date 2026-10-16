@@ -171,7 +171,7 @@ whole file. Nothing here is in the repository.
 |---|---|---|
 | `APP_ENV` | `production` | the deploy |
 | `PUBLIC_URL` · `GAME_URL` · `TILES_URL` · `RT_URL` | `https://api.ognistrada.com` · `https://ognistrada.com` · `https://tiles.ognistrada.com` · `wss://rt.ognistrada.com` | the deploy |
-| `MAIL_FROM` | `Kugelsack Racing <noreply@ognistrada.com>` | the deploy |
+| `MAIL_FROM` | `Ogni Strada <noreply@ognistrada.com>` | the deploy |
 | `SMTP_URL` | `smtps://resend:<RESEND_SMTP_KEY>@smtp.resend.com:465` | the secret `RESEND_SMTP_KEY` |
 | `DATABASE_URL` | PlanetScale's direct connection (port 5432, `sslmode=verify-full`) | secret |
 | `DATABASE_POOL_MAX` | 10 (the default; not set) | — |

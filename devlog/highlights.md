@@ -50,3 +50,18 @@ Every car rebuilt to look as good as the starter coupe
 Camber kits in the shop: tilt your wheels in the tuning tab
 Taking off a supercharger or turbo works again
 A short shifter now replaces the stock gear lever
+Pick your first car, then a short guided drive on a real road
+A driving school: seven lessons, with bronze, silver and gold medals
+Remap every control, and choose hold or toggle
+Play on a phone or tablet with touch controls
+Bigger text, high contrast and colours for colour blindness
+Reduced motion and flashing, and important sounds shown on screen
+The game's own music, building as the race gets close
+Photo mode: fly the camera, set the light, save the shot
+Share a link to your best time for friends to beat
+Your profile: medals, best times, favourite cars and photos
+Start a crew and invite your friends
+Your settings follow you to any device
+News, patch notes and an event calendar in the game
+Speeds in miles per hour where you use them
+The dock and News button show their words again, not code names

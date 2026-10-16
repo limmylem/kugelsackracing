@@ -41,6 +41,7 @@ export const METHODS = {
   sellCar: '(carInstanceId, { keep: [instanceId] }) a car and the parts on it, bar those kept (to the inventory) — never the last car that can be driven',
   buyUsedCar: '(listingId) a car from today\'s used lot (garage/shop.js usedLot), as it is',
   buyGarageSlot: '() room for one more car',
+  chooseStarter: '(carId) the first launch\'s starter car: one of economy.starterChoices instead of the starting car, once, before anything else (play/onboarding.js)',
   towCar: '() a tow to the garage (data/economy.json tow.fee; with less money it takes what you have) → { cost }',
   getUsedLot: '→ { day, endsAt, listings } today\'s used cars',
   repairPart: '(instanceId) back to 100%, its dents out, its mechanical damage put right and bolted back on, for its repair cost',
@@ -464,7 +465,7 @@ export class LocalPlayerService extends PlayerService {
     return this.#change('car', p => {
       if (!p.questPending?.pinkSlip || p.questPending.attemptId !== attemptId) return { error: 'A car only changes hands in a pink-slip race.' };
       if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
-      if (p.cars[carInstanceId].carId === this.db.economy.startingCar) return { error: 'The starter car can\'t be staked.' };
+      if (p.cars[carInstanceId].carId === this.db.economy.startingCar || p.cars[carInstanceId].carId === p.starterChosen) return { error: 'The starter car can\'t be staked.' };
       if (Object.keys(p.cars).length < 2) return { error: 'You can\'t race your only car for pink slips.' };
       for (const [id, x] of Object.entries(p.parts)) if (x.installedOn?.car === carInstanceId) delete p.parts[id];
       delete p.cars[carInstanceId];
@@ -627,6 +628,25 @@ export class LocalPlayerService extends PlayerService {
   selectCar(carInstanceId) { return this.#change('car', p => this.#car(p, carInstanceId) ?? (p.currentCar = carInstanceId, {})); }
   // (room for one more car, or why not)
   #room(p) { const n = capacity(this.db, p); return Object.keys(p.cars).length >= n ? { error: `Your garage is full (${n} cars): sell a car or buy more space first.` } : null; }
+  // The first launch's starter car (Phase 8 Step 4: play/onboarding.js): one of economy.starterChoices instead of the
+  // starting car, once, and only while the garage still has just the car it started with, never driven in a quest
+  chooseStarter(carId) {
+    return this.#change('car', p => {
+      const E = this.db.economy, choices = E.starterChoices ?? [E.startingCar];
+      if (!choices.includes(carId) || !this.db.cars[carId]) return { error: `The ${this.db.cars[carId]?.name ?? carId} isn't one of the starter cars.` };
+      if (p.starterChosen) return { error: 'You\'ve chosen your starter car already.' };
+      const ids = Object.keys(p.cars);
+      if (ids.length !== 1 || p.cars[ids[0]].carId !== E.startingCar || Object.keys(p.quests ?? {}).length) return { error: 'The starter car is chosen at the start, before anything else.' };
+      p.starterChosen = carId;
+      if (carId === E.startingCar) return { result: { carInstanceId: ids[0] } };
+      // (the starting car goes with its stock parts: nothing of it is left to sell)
+      for (const [pid, part] of Object.entries(p.parts)) if (part.installedOn?.car === ids[0]) delete p.parts[pid];
+      delete p.cars[ids[0]];
+      const id = addCar(p, this.db, carId, 0);
+      p.currentCar = id;
+      return { result: { carInstanceId: id } };
+    });
+  }
   buyCar(carId) {
     return this.#change('car', p => {
       const def = this.db.cars[carId], now = this.now();

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ogni Strada</title><link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600&display=swap" rel="stylesheet">
+<script src="/site/config.js"></script>
+<link rel="stylesheet" href="/ui/a11y.css">
+<style>html,body{margin:0;background:#07090b;color:#e9ecef;font:500 15px/1.6 Barlow,system-ui,sans-serif}main{width:min(860px,calc(100vw - 32px));margin:32px auto 64px}h1,h2{font-family:'Barlow Condensed',Barlow,sans-serif;font-weight:600;letter-spacing:.02em}h1{font-size:32px;margin:0}h2{font-size:21px;margin:28px 0 8px}p,li,td{color:#c9d0d8}.muted{color:#8a939e;font-size:13px}a{color:#36b3f5}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.stat{background:#10151b;border:1px solid #1c2229;border-radius:10px;padding:10px 12px}.stat b{display:block;font-size:22px;color:#fff}.stat span{color:#8a939e;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:5px 8px;border-bottom:1px solid #1c2229}th{color:#8a939e;font-weight:600}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}.photos figure{margin:0;background:#10151b;border-radius:10px;overflow:hidden}.photos img{width:100%;display:block;aspect-ratio:16/10;object-fit:cover}.photos figcaption{padding:6px 10px;font-size:13px;color:#c9d0d8;display:flex;justify-content:space-between;gap:8px}
+button,input{font:inherit}button{background:#1d6fe0;color:#fff;border:0;border-radius:8px;padding:7px 14px;cursor:pointer}button.quiet{background:#1c2229}input{background:#10151b;border:1px solid #2a323b;color:#fff;border-radius:8px;padding:6px 10px}
+.medals{font-size:20px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}</style></head>
+<body><a class="skip-link" href="#main" data-i18n="a11y.skip">Skip to the profile</a><main id="main" tabindex="-1">
+<div id="profile" aria-live="polite"><p class="muted" data-i18n="common.loading">Loading…</p></div>
+<p class="muted"><a href="/" data-i18n="profile.backToGame">Back to the game</a> · <a href="/account/" data-i18n="profile.account">Your account</a></p>
+</main><script type="module" src="profile.js"></script></body></html>

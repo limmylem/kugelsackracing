@@ -5,7 +5,7 @@
 //
 //   const M = await mapHarness('sf', dir?)
 //   M.tile(i, j), M.cached(i, j), M.graph(), M.P (projection), M.T
-//   const S = await M.simAround(x, z, { radius })  → { sim, origin, toSim, loaded, ground(x, z, fromY, onlyGround), free() }
+//   const S = await M.simAround(x, z, { radius })  → { sim, origin, toSim, loaded, ground(x, z, fromY, onlyGround), ray(o, dir, max), free() }
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -69,6 +69,12 @@ export async function mapHarness(region = 'sf', dir = path.join(root, 'assets/ma
         const [sx, sz] = toSim(wx, wz), R = H.RAPIER;
         const hit = sim.vehicle.world.castRay(new R.Ray({ x: sx, y: fromY, z: sz }, { x: 0, y: -1, z: 0 }), reachDown, true, undefined, undefined, undefined, sim.vehicle.body, onlyGround ? ground : undefined);
         return hit ? fromY - hit.timeOfImpact : null;
+      },
+      // the first solid thing along a ray (the sim's frame: origin [x, y, z], a unit direction), within max m —
+      // { d, kind } (the collider's userData.kind) or null
+      ray(o: number[], dir: number[], max = 100) {
+        const R = H.RAPIER, hit = sim.vehicle.world.castRay(new R.Ray({ x: o[0], y: o[1], z: o[2] }, { x: dir[0], y: dir[1], z: dir[2] }), max, true, undefined, undefined, undefined, sim.vehicle.body);
+        return hit ? { d: hit.timeOfImpact, kind: hit.collider?.parent?.()?.userData?.kind ?? hit.collider?.userData?.kind ?? null } : null;
       },
     };
   }

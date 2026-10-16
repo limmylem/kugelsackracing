@@ -46,7 +46,7 @@ function clipRing(ring: number[][], x0: number, z0: number, x1: number, z1: numb
 const bucketKey = (i: number, j: number) => `${i}_${j}`;
 
 export function tileBuilder(D: {
-  region: any; grid: Grid; cfg: any; heights: Float32Array; classes: Uint8Array; classNames: string[]; roadSurface: Uint8Array; surfaceNames: string[]; cover: Float32Array; demSource: Uint8Array; demSources: any[];
+  region: any; grid: Grid; cfg: any; heights: Float32Array; classes: Uint8Array; classNames: string[]; roadSurface: Uint8Array; surfaceNames: string[]; cover: Float32Array; coverEdges?: boolean; demSource: Uint8Array; demSources: any[];
   water: any[]; parking: any[]; parkingCell: Uint8Array; mesh: Mesh; marks: Mesh; segs: Seg[]; buildings: Building[]; barriers: Record<string, number[]>; trees: number[]; labels: { labels: number[]; signs: number[]; names: string[] }; bays: { x: number; z: number }[][];
 }) {
   const { grid: g, cfg } = D, T = g.tileSize, per = T / g.cell, N1 = per + 1;
@@ -209,8 +209,11 @@ export function tileBuilder(D: {
     }
     for (let r = 0; r < per; r++) for (let c = 0; c < per; c++) {
       const ks = [at(c, r), at(c + 1, r), at(c + 1, r + 1), at(c, r + 1)];
-      if (ks.some(k => D.cover[k] !== D.cover[k])) continue;
-      const v = ks.map((k, q) => cover.vertex(-half + (c + (q === 1 || q === 2 ? 1 : 0)) * g.cell, D.cover[k], -half + (r + (q >= 2 ? 1 : 0)) * g.cell, pal.default));
+      // (Map v5, coverEdges: a cell with any corner over the tunnel covered too, its other corners at the ground's own
+      // height — no notch along the trench's edge in the hill over a tunnel)
+      // (never over a road, though: a portal's cell half over the open road would close the tunnel's mouth)
+      if (D.coverEdges ? ks.every(k => D.cover[k] !== D.cover[k]) || ks.some(k => D.cover[k] !== D.cover[k] && D.roadSurface[k] && !D.parkingCell[k]) : ks.some(k => D.cover[k] !== D.cover[k])) continue;
+      const v = ks.map((k, q) => cover.vertex(-half + (c + (q === 1 || q === 2 ? 1 : 0)) * g.cell, D.cover[k] === D.cover[k] ? D.cover[k] : D.heights[k], -half + (r + (q >= 2 ? 1 : 0)) * g.cell, pal.default));
       cover.upTri(v[0], v[1], v[2], SURF_NAMES.indexOf('grass')); cover.upTri(v[0], v[2], v[3], SURF_NAMES.indexOf('grass'));
     }
     // ---- water: flat at its level, clipped to the tile
@@ -229,6 +232,8 @@ export function tileBuilder(D: {
     const shopSigns: any[] = [];
     for (const k of b.buildings) {
       const bd = D.buildings[k];
+      // (Map v5: one a hand-made model stands in for — map/model/landmarks.ts — not drawn)
+      if (bd.props.v5?.hidden) continue;
       // (a footprint the road runs right through is a passage, below: only corners standing on its edge move)
       const corner = (q: number[]) => { const [x, z] = offRoad(q[0], q[1]); return [x - cx, z - cz]; };
       const rings = bd.rings.map(r => r.map(q => corner(q)));
@@ -245,7 +250,7 @@ export function tileBuilder(D: {
         const n = V5.names.length, part = L / n, lift = Math.min(e.top - e.foot - 0.8, V5.type === 'mall' ? 5 : 3.3);
         V5.names.forEach((name: string, q: number) => {
           const t = (q + 0.5) / n, x = ax + (bx - ax) * t + nx * 0.14, z = az + (bz - az) * t + nz * 0.14;
-          shopSigns.push({ x: x - cx, y: ground(x, z) + lift, z: z - cz, yaw: Math.atan2(nx, nz), w: Math.min(part * 0.9, 1.6 + name.length * 0.42), h: V5.type === 'mall' ? 1.4 : 0.8, brand: V5.brand ?? -1, name });
+          shopSigns.push({ x: x - cx, y: ground(x, z) + lift, z: z - cz, yaw: Math.atan2(nx, nz), w: Math.min(part * 0.9, 1.6 + name.length * 0.42), h: V5.type === 'mall' ? 1.4 : 0.8, brand: V5.brand ?? (V5.plate ? -2 : -1), name });
         });
       }
       (wallsBy[e.windows] ??= new Part(true)).add(e.walls, 0, 0);
@@ -313,7 +318,7 @@ export function tileBuilder(D: {
     D.buildings.forEach(bd => {
       const r0 = bd.rings[0]; let mx = 0, mz = 0; for (const p of r0) { mx += p[0]; mz += p[1]; } mx /= r0.length; mz /= r0.length;
       if (mx < cx - FAR / 2 || mx >= cx + FAR / 2 || mz < cz - FAR / 2 || mz >= cz + FAR / 2) return;
-      if (!(bd.props.h >= 24) && !cfg.buildings.landmark.kinds.includes(bd.props.b)) return;
+      if (bd.props.v5?.hidden || (!(bd.props.h >= 24) && !cfg.buildings.landmark.kinds.includes(bd.props.b) && !bd.props.v5?.landmark)) return;
       const e = extrude({ id: bd.id, rings: bd.rings.map(r => r.map(q => [q[0] - cx, q[1] - cz])), props: bd.props }, (x: number, z: number) => ground(x + cx, z + cz), cfg.buildings);
       if (!e) return;
       if (e.landmark) { lw.add(e.walls, 0, 0); lr.add(e.roof, 0, 0); landmarks.push({ id: bd.id, centre: [e.centre[0] + cx, e.centre[1] + cz], top: e.top, height: e.height, name: bd.props.name ?? null }); return; }

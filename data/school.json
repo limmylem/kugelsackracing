@@ -1,0 +1,53 @@
+{
+  "_note": "The driving school (Phase 8 Step 4; docs/ONBOARDING.md; play/school.js runs the lessons, server/src/routes/launch.ts pays their medals). Each lesson teaches one thing about how the cars really behave, in order; its medals are reached by its measure (better: 'lower' or 'higher'), and each medal is paid once, up to its own reward: a better medal later pays the difference, so a lesson's best medal has paid its reward in all. bounds: what a real run can measure — anything outside is refused as not real. Rewards are small on purpose: the school teaches, quests earn.",
+  "rewards": { "bronze": { "money": 150, "xp": 40 }, "silver": { "money": 300, "xp": 80 }, "gold": { "money": 600, "xp": 150 } },
+  "lessons": [
+    {
+      "id": "braking-zone", "topic": "braking", "world": "proving",
+      "measure": "stopError", "unit": "m", "better": "lower",
+      "medals": { "bronze": 6, "silver": 3, "gold": 1.2 }, "bounds": [0, 200],
+      "setup": { "speedKmh": 100, "stopAt": 120, "aids": { "abs": true } }
+    },
+    {
+      "id": "threshold-braking", "topic": "braking", "world": "proving",
+      "measure": "stopDistance", "unit": "m", "better": "lower",
+      "medals": { "bronze": 52, "silver": 46, "gold": 42 }, "bounds": [25, 300],
+      "setup": { "speedKmh": 100, "aids": { "abs": false } }
+    },
+    {
+      "id": "cornering-line", "topic": "cornering", "world": "proving",
+      "measure": "time", "unit": "s", "better": "lower",
+      "medals": { "bronze": 24, "silver": 21.5, "gold": 20 }, "bounds": [10, 600],
+      "setup": { "course": "hairpins" }
+    },
+    {
+      "id": "trail-braking", "topic": "cornering", "world": "proving",
+      "measure": "exitSpeed", "unit": "km/h", "better": "higher",
+      "medals": { "bronze": 70, "silver": 78, "gold": 84 }, "bounds": [0, 250],
+      "setup": { "course": "single-corner", "entryKmh": 110 }
+    },
+    {
+      "id": "drift-intro", "topic": "drifting", "world": "proving",
+      "measure": "driftSeconds", "unit": "s", "better": "higher",
+      "medals": { "bronze": 2, "silver": 4, "gold": 7 }, "bounds": [0, 120],
+      "setup": { "course": "skidpad", "aids": { "esc": false, "tc": false } }
+    },
+    {
+      "id": "wet-control", "topic": "wet", "world": "proving",
+      "measure": "time", "unit": "s", "better": "lower",
+      "medals": { "bronze": 30, "silver": 27, "gold": 25 }, "bounds": [12, 600],
+      "setup": { "course": "hairpins", "weather": "wet" }
+    },
+    {
+      "id": "car-control", "topic": "control", "world": "proving",
+      "measure": "conesHit", "unit": "", "better": "lower",
+      "medals": { "bronze": 4, "silver": 1, "gold": 0 }, "bounds": [0, 60],
+      "setup": { "course": "slalom" }
+    }
+  ],
+  "firsts": {
+    "_note": "The guided first steps: each one-time and skippable; finishing one pays a small thanks (once).",
+    "steps": ["tutorial", "quest", "repair", "part", "npcRace"],
+    "reward": { "money": 200, "xp": 50 }
+  }
+}

@@ -285,6 +285,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     get watching() { if (!watching) return null; const c = cars().find(x => x.id === watching.id); return { id: watching.id, name: c?.name ?? null, place: c?.place ?? null, mode: watching.mode }; },
     get racing() { return !!run && (run.state === 'grid' || run.state === 'racing'); },
     get lap() { const H = run?.Q?.hud?.(); return H ? { lap: H.lap, laps: H.laps } : null; },
+    // how the race is going, for the music (audio/music.js raceIntensity): the lap and how far through it
+    raceInfo() { const H = run?.Q?.hud?.(); return H ? { lap: H.lap ?? 1, laps: H.laps ?? 1, progress: H.checkpoints ? Math.min(1, (H.checkpoint ?? 0) / H.checkpoints) : null } : {}; },
     get drawn() { return run?.M ?? null; },          // (the others' cars as drawn: play/multiplayer.js's — .car(id))
     get contact() { return run?.C ?? null; },
     scrape() { return run?.C?.scrape() ?? null; },

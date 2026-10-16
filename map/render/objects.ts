@@ -10,8 +10,10 @@
 import * as THREE from 'three';
 import { barrierInstances, barrierShape, quatYawPitch } from '../format/barriers.ts';
 import { lampObjects } from './lamps.ts';
-import { furnitureObjects, brandObjects } from './furniture.ts';
+import { furnitureObjects, brandObjects, placeSignObjects } from './furniture.ts';
 import { facadeMaterial } from './facades.ts';
+import { treeKinds } from './physics.ts';
+import { modelObjects } from './models.ts';
 
 // ---------- shared materials (one each for the whole world) ----------
 let M = null;
@@ -139,12 +141,17 @@ export function materials() {
     cover: holed(lambert({})),
     water: new THREE.MeshPhongMaterial({ color: '#3f7fb0', specular: '#9fc4e0', shininess: 60, transparent: true, opacity: 0.88, depthWrite: false }),
     roofs: lambert({ flatShading: true }),
+    // (Map v5's tunnel tubes: walls, ceiling and portals, seen from either side)
+    tunnel: lambert({ flatShading: true, side: THREE.DoubleSide }),
     walls: Object.fromEntries(['house', 'block', 'tower', 'plain'].map(k => [k, lambert({ flatShading: true, map: windowTexture(k) })])),
     // (Map v5: every building's walls from one facade atlas — map/render/facades.ts)
     wallsV5: facadeMaterial(srgbVertexColours),
     canopy: holedInstances(new THREE.MeshLambertMaterial({ color: '#4d7a37', flatShading: true })),
     conifer: holedInstances(new THREE.MeshLambertMaterial({ color: '#3d6534', flatShading: true })),
     plant: holedInstances(new THREE.MeshLambertMaterial({ color: '#6f8a3e', flatShading: true })),
+    gum: holedInstances(new THREE.MeshLambertMaterial({ color: '#73885c', flatShading: true })),
+    palm: holedInstances(new THREE.MeshLambertMaterial({ color: '#4d7d3a', flatShading: true })),
+    gumTrunk: holedInstances(new THREE.MeshLambertMaterial({ color: '#cfc4b2' })),
     trunk: holedInstances(new THREE.MeshLambertMaterial({ color: '#6b4f36' })),
     barrier: {},
     post: holedInstances(new THREE.MeshLambertMaterial({ color: '#8d9296' })),
@@ -226,7 +233,7 @@ function geometryOf(m, { normals = false, up = false, smooth = false } = {}) {
   return g;
 }
 
-export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, furniture: furnCfg = null }: any) {
+export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, furniture: furnCfg = null, models: modelCfg = null, placeNames = null }: any) {
   const mat = materials(), group = new THREE.Group(), owned = [];
   group.name = `tile ${tile.header.key}`;
   const mesh = (name: string, material: any, o: any = {}) => {
@@ -241,31 +248,33 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
   const terrain = [0, 1, 2].map(k => mesh(`terrain${k}`, mat.terrain, { normals: true }));
   const v4 = tile.header.map === 'v4' || tile.header.map === 'v5';
   const v5 = tile.header.map === 'v5';
-  const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true })].filter(Boolean);
+  const near = [mesh('roads', v5 ? mat.roadsV5 : v4 ? mat.roadsV4 : mat.roads, { smooth: v5 }), mesh('paved', mat.paved), mesh('paths', mat.paved), mesh('cover', mat.cover, { normals: true }), mesh('markings', mat.markings, { order: 1, up: true }), mesh('fields', mat.markings, { order: 1, up: true })].filter(Boolean);
   mesh('water', mat.water, { normals: true, order: 2 });
-  const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true })].filter(Boolean);
+  const buildings = [mesh('roofs', mat.roofs, { shadow: true }), ...['house', 'block', 'tower', 'plain'].map(k => mesh(`walls_${k}`, mat.walls[k], { shadow: true })), mesh('walls_v5', mat.wallsV5, { shadow: true }), mesh('tunnel', mat.tunnel, { shadow: true })].filter(Boolean);
   // trees
   const trees = new THREE.Group(), T = tile.lists.trees;
   if (T) {
-    // (kinds: 0 broadleaf, 1 conifer, 2 a low garden plant — Map v5's roundabout beds)
-    const kinds = [[], [], []];
-    for (let k = 0; k < T.data.length; k += 5) kinds[Math.min(2, T.data[k + 4] | 0)].push(k);
+    // (kinds: 0 broadleaf, 1 conifer, 2 a low garden plant — Map v5's roundabout beds — 3 a eucalypt, 4 a palm: in
+    // the order physics.ts treeKinds shuffles them, so the trunks it collides with are the ones drawn)
+    const kinds = treeKinds(T.data);
     const sh = shapes(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     kinds.forEach((list, kind) => {
       if (!list.length) return;
       // (in a shuffled order, the same every time: drawing the first n of them thins the trees evenly — the graphics
       // settings' scenery, setScenery)
-      for (let a = list.length - 1, r = list.length * 7919 + kind; a > 0; a--) { r = (r * 16807) % 2147483647; const b = r % (a + 1); [list[a], list[b]] = [list[b], list[a]]; }
-      const conifer = kind === 1, plant = kind === 2;
-      const top = new THREE.InstancedMesh(conifer ? sh.conifer : sh.canopy, conifer ? mat.conifer : plant ? mat.plant : mat.canopy, list.length), trunk = new THREE.InstancedMesh(sh.trunk, mat.trunk, list.length);
+      const conifer = kind === 1, plant = kind === 2, gum = kind === 3, palm = kind === 4;
+      const top = new THREE.InstancedMesh(conifer ? sh.conifer : sh.canopy, conifer ? mat.conifer : plant ? mat.plant : gum ? mat.gum : palm ? mat.palm : mat.canopy, list.length), trunk = new THREE.InstancedMesh(sh.trunk, gum ? mat.gumTrunk : mat.trunk, list.length);
       list.forEach((k, n) => {
         const sc = T.data[k + 3] * 4;
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), k * 2.39);
-        // (a plant: a low mound on the ground, no trunk to speak of)
+        // (a plant: a low mound on the ground, no trunk to speak of; a eucalypt: tall, its crown high, open and
+        // lopsided; a palm: a bare trunk under a flat crown)
         if (plant) m4.compose(p.set(T.data[k], T.data[k + 1] + sc * 0.18, T.data[k + 2]), q, s.set(sc * 0.6, sc * 0.4, sc * 0.6));
+        else if (gum) m4.compose(p.set(T.data[k] + sc * 0.08, T.data[k + 1] + sc * 0.95, T.data[k + 2]), q, s.set(sc * 0.62, sc * 0.55, sc * 0.5));
+        else if (palm) m4.compose(p.set(T.data[k], T.data[k + 1] + sc * 1.1, T.data[k + 2]), q, s.set(sc * 0.55, sc * 0.16, sc * 0.55));
         else m4.compose(p.set(T.data[k], T.data[k + 1] + sc * (conifer ? 0.35 : 0.55), T.data[k + 2]), q, s.set(sc * (conifer ? 0.55 : 0.75), sc * (conifer ? 1 : 0.7), sc * (conifer ? 0.55 : 0.75)));
         top.setMatrixAt(n, m4);
-        m4.compose(p.set(T.data[k], T.data[k + 1], T.data[k + 2]), q, s.set(plant ? 0.01 : 1, plant ? 0.01 : sc * (conifer ? 0.5 : 0.6), plant ? 0.01 : 1));
+        m4.compose(p.set(T.data[k], T.data[k + 1], T.data[k + 2]), q, s.set(plant ? 0.01 : palm ? 0.7 : 1, plant ? 0.01 : sc * (conifer ? 0.5 : gum ? 1.05 : palm ? 1.25 : 0.6), plant ? 0.01 : palm ? 0.7 : 1));
         trunk.setMatrixAt(n, m4);
       });
       top.castShadow = true; top.customDepthMaterial = mat.treeShadow; trees.add(top, trunk);
@@ -299,6 +308,12 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
   // the chains' sites and the buildings' sign bands (Map v5)
   const brands = tile.lists.furniture?.data.length || tile.lists.shopSigns?.data.length ? brandObjects(tile, furnCfg) : null;
   if (brands) group.add(brands.group);
+  // suburbs' and parks' signs (Map v5)
+  const places = tile.lists.placeSigns?.data.length ? placeSignObjects(tile, placeNames && { names: placeNames, style: furnCfg?.style }) : null;
+  if (places) group.add(places.group);
+  // hand-made landmarks (Map v5: map/render/models.ts)
+  const models = tile.lists.models?.data.length ? modelObjects(tile, modelCfg) : null;
+  if (models) group.add(models.group);
   // street names on the roads, signs at junctions (made when near)
   let labels = null;
   const makeLabels = () => {
@@ -367,7 +382,7 @@ export function tileObjects(tile: any, { barriers: B, lamps: lampCfg = null, fur
     dispose() {
       for (const g of owned) g.dispose();
       trees.traverse((o: any) => o.dispose?.()); rails.traverse((o: any) => o.dispose?.());
-      lamps?.dispose(); furn?.dispose(); brands?.dispose();
+      lamps?.dispose(); furn?.dispose(); brands?.dispose(); models?.dispose(); places?.dispose();
       labels?.traverse(o => { if (!o.isInstancedMesh) o.geometry?.dispose?.(); if (o.material?.map) o.material.dispose(); });
       labels?.userData.atlas?.dispose();
       group.removeFromParent();

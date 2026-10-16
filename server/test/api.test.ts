@@ -206,5 +206,5 @@ test('the logs never hold a password, a token, a cookie or a secret in a URL', a
   }
   assert.ok(all.includes('[redacted]'), 'secret query values shown as [redacted]');
   // (and the outbox's mail bodies aren't logged either: only that a mail was sent)
-  assert.ok(!all.includes('Reset your Kugelsack Racing password'));
+  assert.ok(!all.includes('Reset your Ogni Strada password'));
 });

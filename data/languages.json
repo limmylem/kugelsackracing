@@ -1,0 +1,14 @@
+{
+  "_note": "The game's languages (ui/i18n.js; docs/TRANSLATIONS.md). Launch: English only (the owner, 2026-10-12), with its regions' own spellings, units and formats. A new language: its file in locales/ (from Crowdin or Lokalise), a line here, and npm run i18n -- check passing. 'rtl': written right to left (the layout mirrors: docs/TRANSLATIONS.md).",
+  "default": "en",
+  "languages": [
+    { "code": "en", "name": "English" },
+    { "code": "en-AU", "name": "English (Australia)" },
+    { "code": "en-GB", "name": "English (UK)" },
+    { "code": "en-US", "name": "English (US)" }
+  ],
+  "testing": [
+    { "code": "en-XA", "name": "Pseudo (long, accented)" },
+    { "code": "ar-XB", "name": "Pseudo (right to left)", "rtl": true }
+  ]
+}

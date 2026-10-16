@@ -88,9 +88,12 @@ export async function attachRealWorld(w, shared, { RAPIER }) {
   (globalThis as any).__map3 = w;          // (for the browser tests and the console)
   w.perf = { frameMs: 16.7, worstMs: 0, worstAt: 0, targets: null };
   fetch('data/map/performance.json', { cache: 'no-cache' }).then(r => r.json()).then(p => { w.perf.targets = p.targets; }).catch(() => {});
-  // the neighbourhoods and the city, for where you are (smallest first)
-  w.places = (stream.manifest.cities ?? []).map(p => ({ ...p, kind: p.level === 6 ? 'county' : 'locality' })).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
-  w.placePoints = (stream.manifest.places ?? []).filter(p => p.kind !== 'city' && p.kind !== 'town').map(p => ({ ...p, point: p.xz, kind: p.kind === 'neighbourhood' ? 'neighborhood' : p.kind === 'quarter' ? 'microhood' : p.kind === 'suburb' ? 'macrohood' : p.kind }));
+  // the neighbourhoods and the city, for where you are (smallest first) — in English where the player chose English
+  // place names and the map has one (Phase 8 Step 4; docs/TRANSLATIONS.md "Place names")
+  const english = (() => { try { return JSON.parse(localStorage.getItem('driveWorld.settings.v1') ?? '{}')?.placeNames === 'english'; } catch { return false; } })();
+  const named = (p: any) => english && p.en ? { ...p, local: p.name, name: p.en } : p;
+  w.places = (stream.manifest.cities ?? []).map(named).map(p => ({ ...p, kind: p.level === 6 ? 'county' : 'locality' })).map(p => { const r = p.rings[0]; let a = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); x0 = Math.min(x0, r[i][0]); x1 = Math.max(x1, r[i][0]); z0 = Math.min(z0, r[i][1]); z1 = Math.max(z1, r[i][1]); } return { ...p, area: Math.abs(a / 2), box: [x0, z0, x1, z1] }; }).sort((p, q) => p.area - q.area);
+  w.placePoints = (stream.manifest.places ?? []).map(named).filter(p => p.kind !== 'city' && p.kind !== 'town').map(p => ({ ...p, point: p.xz, kind: p.kind === 'neighbourhood' ? 'neighborhood' : p.kind === 'quarter' ? 'microhood' : p.kind === 'suburb' ? 'macrohood' : p.kind }));
   // the maps (MapLibre from its CDN: without it, no minimap — the world doesn't need it)
   createWorldMaps({ manifest: stream.manifest, base: new URL(w.track.mapV3.manifest, document.baseURI).href, onTravel: spot => travelTo(w, spot) })
     .then(m => { w.maps = m; if (!w.shown) m.show(false); }).catch(e => console.warn(`No world map: ${e.message}`));
@@ -127,10 +130,10 @@ function placeOf(w, x, z) {
 // travel: the car held high over a place (lat/lon or the world frame's xz) until its ground is in, then
 // put down on its nearest road, as at the start
 // (place.heading given: put down exactly there, facing that way — a start grid's slot — not on the
-// nearest road)
+// nearest road; place.y given too: on the first ground under that height — a road in a tunnel, not the hill over it)
 export function travelTo(w, place) {
   const S = w.stream, [wx, wz] = place.xz ?? S.projection.toXZ(place.lat, place.lon), [x, z] = S.toSim(wx, wz);
-  w.landAt = place.heading != null ? { wx, wz, heading: place.heading } : null;
+  w.landAt = place.heading != null ? { wx, wz, heading: place.heading, y: place.y ?? null } : null;
   hold(w);
   w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 };
   w.sim.vehicle.body.setTranslation({ x, y: 600, z }, true);
@@ -164,8 +167,9 @@ function onRoad(w, x, z) {
   return best;
 }
 // lay the car down on the ground at a place (sim frame); false if there's no ground there yet
-function land(w, x, z, headingDeg) {
-  const y = w.stream.groundBelow(x, z, 900, 1400);
+// (fromY: the first ground under that height — under a tunnel's roof — if there's any within 40 m, else from the sky)
+function land(w, x, z, headingDeg, fromY = null) {
+  const y = (fromY != null ? w.stream.groundBelow(x, z, fromY + 3, 40) : null) ?? w.stream.groundBelow(x, z, 900, 1400);
   if (y === null) return false;
   release(w, false);
   w.sim.resetCar({ position: [x, y + (w.sim.vehicle.spec.spawnHeight ?? 0.6), z], headingDeg });
@@ -176,9 +180,10 @@ function land(w, x, z, headingDeg) {
 // (pinned: held until let go, whatever the streaming would do)
 export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; }
 export function releaseCar(w) { w.pinned = false; release(w, false); }
+// (back on the road at the car's own level: in a tunnel, its road — not the hill over it)
 export function resetToRoad(w) {
   const p = w.sim.vehicle.body.translation(), r = onRoad(w, p.x, p.z);
-  if (r) land(w, r.x, r.z, r.heading);
+  if (r) land(w, r.x, r.z, r.heading, p.y + 1);
 }
 
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
@@ -200,8 +205,8 @@ export function realWorldFrame(w, shared, seconds) {
     waiting = true;
     // on the nearest road to the spawn, once its ground is in
     if (S.readyAround(p.x, p.z, 60)) {
-      const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading }; })() : onRoad(w, p.x, p.z);
-      if (r && land(w, r.x, r.z, r.heading)) { w.spawning = false; w.landAt = null; waiting = false; S.stats.lastDrivable = performance.now() - w.startedAt; S.stats.firstDrivable ??= S.stats.lastDrivable; }
+      const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading, y: w.landAt.y }; })() : onRoad(w, p.x, p.z);
+      if (r && land(w, r.x, r.z, r.heading, r.y ?? null)) { w.spawning = false; w.landAt = null; waiting = false; S.stats.lastDrivable = performance.now() - w.startedAt; S.stats.firstDrivable ??= S.stats.lastDrivable; }
     }
   } else if (!S.readyAround(p.x, p.z, 20 + speed * 0.5)) waiting = true;
   // (held where it is while the world catches up; carrying on as it was once it has)

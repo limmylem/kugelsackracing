@@ -1,6 +1,8 @@
 # Launch checklist
 
-What has to be true before the closed beta, and before opening to everyone. Built in Phase 6 Step 5.
+What has to be true before the closed beta, and before opening to everyone. Built in Phase 6 Step 5; the launch
+polish (Phase 8 Step 4) added section 11, the age rating and the release pages. How launch day and the first week go:
+[docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md).
 - **[x]** done and tested on this computer.
 - **[ ]** not done yet: most need the hosting being set up now (friends testing, Phase 7 Step 5: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/GO_LIVE.md](docs/GO_LIVE.md)), money, or a decision from the owner.
 
@@ -17,6 +19,13 @@ Work down it in order.
   - [ ] the governing law;
   - [ ] the data transfers (the server and database are in Sydney now; Resend in Tokyo, Sentry in the US);
   - [ ] the breach process.
+- [x] **The age rating: 13+** (the owner, 2026-10-16), the same as the minimum age; on the landing page and press kit.
+- [ ] **A formal rating** (web only): does a free browser game also need one in Australia, and is IARC's enough? The facts
+  for the lawyer are in [docs/RELEASE.md](docs/RELEASE.md#age-rating--a-legal-decision-for-the-owner-and-the-lawyer).
+- [ ] **The play statistics** (opt-in, our own, 400 days) and the new data (settings, profiles, photos, crews): in the
+  privacy policy's draft for the same review ([docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md), question 8).
+- [x] **The press kit's and credits' names**: Zane Darley, the developer (the owner, 2026-10-16). Anyone else on the
+  credits screen (`data/credits-people.json`) only with their yes.
 - [ ] **Self-hosting Google Fonts and the jsDelivr libraries**, or listing them in the privacy policy. Players' browsers send their IP address to both ([docs/PRIVACY_DATA.md](docs/PRIVACY_DATA.md)).
 - [ ] **The car models' origin and licences** confirmed. The credits page lists them as the project's own; check before launch.
 - [x] **The hosting chosen and bought by the owner** (2026-10-08): an OVHcloud VPS-1 and PlanetScale Postgres PS-5, both in Sydney, about US$10.50–11.50 a month in all ([docs/COSTS.md](docs/COSTS.md)). GO_LIVE.md Parts 0–5 done.
@@ -100,9 +109,36 @@ Work down it in order.
 - [x] Browser tests: accounts, economy, shop, deploy layout, and the launch screens (`npm run test:browser:launch -w @kr/server`).
 - [x] DR drill, rollback drill, load test report.
 
+## 11. The launch polish (Phase 8 Step 4)
+
+- [x] The first launch: photosensitivity warning, guest or sign in, starter car, a guided drive on a real road; the
+  driving tutorial with assist suggestions; guided first steps; the driving school with medals
+  ([docs/ONBOARDING.md](docs/ONBOARDING.md)).
+- [x] Accessibility: remapping with hold or toggle, touch controls, sounds shown on screen, text size, high contrast,
+  colour-blind palettes, reduced motion and flashing, keyboard and screen-reader menus
+  ([docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)).
+- [x] Translations ready (English at launch, the owner's choice): ICU messages, plurals, units, place names,
+  pseudo-languages, the Crowdin/Lokalise workflow and the right-to-left plan ([docs/TRANSLATIONS.md](docs/TRANSLATIONS.md)).
+- [ ] The rest of the hard-coded English moved into `locales/` (737 strings left; the check only lets it go down).
+- [x] Music made by the game, for the menu, the garage and races, building with the race (docs/AUDIO.md "Music").
+- [x] Photo mode, clips, share links, the player profile and crews ([docs/PHOTO_MODE.md](docs/PHOTO_MODE.md)).
+- [x] Settings saved to the account (graphics, gamepad and wheel stay on each device).
+- [x] Our own statistics with consent and an admin Statistics tab, crash and error rates by version
+  ([docs/ANALYTICS.md](docs/ANALYTICS.md)).
+- [x] News, patch notes, maintenance notices and an event calendar, from the admin's Live tab
+  ([docs/LIVE_UPDATES.md](docs/LIVE_UPDATES.md)).
+- [x] Credits and licences up to date, the game's own music listed; the landing page (`/about/`) and the press kit
+  (`/press/`, screenshots from the game) ([docs/RELEASE.md](docs/RELEASE.md)).
+- [ ] A trailer (the plan is in RELEASE.md).
+- [x] Tests: `tests/unit/launch.test.mjs`, `i18n.test.mjs`, `client-files.test.mjs` (every folder the game loads is
+  deployed), `server/test/launch.test.ts`, and `tools/first-launch-browser.mjs` (the first minutes in a real browser,
+  beside each deploy).
+- [ ] A week of the friends' beta with the statistics on, and its findings fixed (LAUNCH_PLAN.md section 1).
+
 ## Opening to everyone (after the beta)
 
 - [ ] Everything in section 1 decided.
-- [ ] Closed beta switched off (Launch tab).
+- [ ] Every test in [docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md) section 1 passing, online where it says so.
+- [ ] Closed beta switched off (Launch tab), on launch day as LAUNCH_PLAN.md section 2 says.
 - [ ] HSTS and DMARC tightened ([docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), "Once everything works").
 - [ ] A bigger server, or a second one, if the beta's Monitoring numbers say so (COSTS.md; ask first).
