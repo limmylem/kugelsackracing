@@ -1,0 +1,76 @@
+{
+  "id": "crate_v12_kugel",
+  "name": "Ognistrada Engines 8.0 L V8 (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 17080,
+  "mass": 221,
+  "model": "assets/parts/engine/crate_v12_kugel.glb",
+  "icon": "assets/icons/parts/crate_v12_kugel.png",
+  "fits": ["mount:mid", "bay:xl"],
+  "requires": ["clutch_rating:race", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": [],
+  "provides": ["engine_family:crate_v12_kugel", "engine_layout:v8", "induction:natural", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[900, 507], [1850, 580], [2750, 638], [3700, 687], [4600, 724], [5550, 750], [6450, 764], [7200, 768], [7400, 765], [8300, 722], [8700, 653]],
+    "idleRpm": 900,
+    "redlineRpm": 8300,
+    "inertia": 0.276,
+    "induction": "natural",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8_tt.json",
+    "friction": {
+      "base": 36.8,
+      "perKrpm": 18.4,
+      "perKrpm2": 2.1344
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "race",
+  "unlock": {
+    "level": 9
+  },
+  "bounds": {
+    "min": [-0.4376, 0, -0.348],
+    "max": [0.4376, 0.5376, 0.341]
+  },
+  "massOffset": [0, 0.243, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 8,
+    "displacement": 8,
+    "aspiration": "natural",
+    "boost": 0,
+    "mounts": ["mid"],
+    "bay": "xl",
+    "size": [0.7, 0.88, 0.64],
+    "peakTorque": 768,
+    "peakPower": 842,
+    "words": "8.0 L V8"
+  },
+  "generated": {
+    "engine": "v12_kugel"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/v12_kugel.json (and data/content/formulas.json engines): change those, not this file. 8.0 L V8: 768 N·m, 842 hp, 221 kg, 0.7 × 0.88 × 0.64 m (a xl bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated)."
+}
