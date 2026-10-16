@@ -91,3 +91,4 @@ Burger, fuel and supermarket chains appear under our own made-up names
 Adelaide's roads now follow the real ground, and bridges clear the roads below
 The game opens straight into Adelaide
 Expeditions show the way on the road and the map; the Midnight Run is at midnight
+No more sudden stops while the city loads around you

@@ -211,7 +211,13 @@ export function realWorldFrame(w, shared, seconds) {
       const r = w.landAt ? (() => { const [lx, lz] = S.toSim(w.landAt.wx, w.landAt.wz); return { x: lx, z: lz, heading: w.landAt.heading, y: w.landAt.y }; })() : onRoad(w, p.x, p.z);
       if (r && land(w, r.x, r.z, r.heading, r.y ?? null)) { w.spawning = false; w.landAt = null; waiting = false; S.stats.lastDrivable = performance.now() - w.startedAt; S.stats.firstDrivable ??= S.stats.lastDrivable; }
     }
-  } else if (!S.readyAround(p.x, p.z, 20 + speed * 0.5)) waiting = true;
+  } else {
+    // held only when the ground under it, or just ahead of where it's going, isn't in yet (not for tiles beside it or
+    // behind it); the streamer builds that ground first and faster. Once held, let go when a little more is in, so it
+    // doesn't stop and start. (While held its own velocity is the one kept, w.held: the body is still.)
+    const hv = w.held?.linvel ?? vel;
+    waiting = !S.readyAhead(p.x, p.z, hv.x, hv.z, w.held ? 0.9 : 0.6, w.held ? 12 : 8);
+  }
   // (held where it is while the world catches up; carrying on as it was once it has)
   if (waiting && !w.spawning) hold(w); else if (!waiting && !w.spawning && !w.pinned) release(w);
   // a short note when the world's waiting
