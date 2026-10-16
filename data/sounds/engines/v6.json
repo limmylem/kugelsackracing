@@ -1,5 +1,6 @@
 {
   "_note": "The Ridgeback 4x4's 4.0 L V6's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A V6: six even firings a cycle — smoother and fuller than a four, a hollow snarl up high.",
+  "label": "V6 (a smooth, throaty growl)",
   "engine": "ridgeback_4x4_engine",
   "cylinders": 6,
   "layers": [

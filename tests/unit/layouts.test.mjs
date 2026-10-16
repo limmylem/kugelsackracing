@@ -269,3 +269,33 @@ test('a sound for each engine type: whole-cycle loops that join without a click;
     assert.equal(s.spec.engine.sound, `data/sounds/engines/${type}.json`, id);
   }
 });
+
+test('the Builder\'s engine sounds — one for every cylinder count it makes (2, 3, 5, 6, 10, 12 besides the cars\' own): whole-cycle loops that join without a click; the twin lopes, the sixes, V10 and V12 fire evenly, the V12 and V10 brighter than the V8; each sweep reaches past any revs the Builder allows', async () => {
+  const { soundProblems } = await import('../../tools/content/build.mjs');
+  const power = (x, sr, f) => { const k = 2 * Math.cos(2 * Math.PI * f / sr); let s1 = 0, s2 = 0; for (const v of x) { const s = v + k * s1 - s2; s2 = s1; s1 = s; } return (s1 * s1 + s2 * s2 - k * s1 * s2) / x.length ** 2; };
+  const R = load('data/content/formulas.json').engines.ranges, half = {}, centroid = {};
+  const list = { twin: 2, i3: 3, i5: 5, i6: 6, i6_turbo: 6, flat6: 6, v10: 10, v12: 12, v8: 8 };
+  for (const [name, cyl] of Object.entries(list)) {
+    const cfg = load(`data/sounds/engines/${name}.json`);
+    assert.equal(cfg.cylinders, cyl, name);
+    for (const L of cfg.layers) for (const f of [L.on, L.off]) {
+      const { samples: x, sr } = readWav(fs.readFileSync(path.join(root, f))), cycles = x.length / sr * L.rpm / 120;
+      assert.ok(Math.abs(cycles - Math.round(cycles)) * (120 / L.rpm) * sr < 1.5, `${f}: ${cycles.toFixed(3)} cycles`);
+      let biggest = 0;
+      for (let i = 1; i < x.length; i++) biggest = Math.max(biggest, Math.abs(x[i] - x[i - 1]));
+      assert.ok(Math.abs(x[0] - x.at(-1)) <= biggest, `${f}: joins without a click`);
+    }
+    const L = cfg.layers.find(l => l.rpm >= 2000) ?? cfg.layers[4], { samples: x, sr } = readWav(fs.readFileSync(path.join(root, L.on))), fire = L.rpm / 60 * cyl / 2;
+    let h = 0, m = 0; for (let k = 0.9; k <= 1.1; k += 0.02) { h = Math.max(h, power(x, sr, fire / 2 * k)); m = Math.max(m, power(x, sr, fire * k)); }
+    half[name] = h / m;
+    let num = 0, den = 0; for (let f = 50; f < 8000; f *= 1.05) { const p = power(x, sr, f); num += p * f; den += p; }
+    centroid[name] = num / den;
+    if (name === 'v8') continue;
+    // (any engine with as many cylinders, at the lowest idle and the highest redline the Builder allows: its sound fits)
+    for (const [idle, redline] of [[R.idle[0], R.redline[0]], [R.idle[1], R.redline[1]], [R.idle[0], R.redline[1]]])
+      assert.deepEqual(soundProblems(root, { id: 'x', sound: name, cylinders: cyl, idle, redline }), [], `${name} at ${idle}–${redline} rpm`);
+  }
+  assert.ok(half.twin > 0.05, `the twin lopes: ${half.twin.toFixed(3)}`);
+  for (const n of ['i6', 'i6_turbo', 'flat6', 'v10', 'v12']) assert.ok(half[n] < 0.02, `${n} fires evenly: ${half[n].toFixed(3)}`);
+  assert.ok(centroid.v12 > centroid.v8 * 1.5 && centroid.v10 > centroid.v8 * 1.5 && centroid.i6_turbo < centroid.i6, JSON.stringify(Object.fromEntries(Object.entries(centroid).map(([k, v]) => [k, Math.round(v)]))));
+});

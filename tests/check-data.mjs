@@ -56,7 +56,7 @@ const soundDir = 'data/sounds/engines', soundConfigs = fs.existsSync(path.join(r
 for (const f of soundConfigs) {
   const file = `${soundDir}/${f}`, cfg = await readJson(file);
   for (const e of loaded.validator.validate('engine-sound.schema.json', cfg)) problems.push({ file, path: e.path, message: e.message });
-  if (!db.parts[cfg.engine]?.engine) problems.push({ file, path: 'engine', message: `names ${cfg.engine}, which isn't an engine part` });
+  if (cfg.engine && !db.parts[cfg.engine]?.engine) problems.push({ file, path: 'engine', message: `names ${cfg.engine}, which isn't an engine part` });
   const named = [...(cfg.layers ?? []).flatMap(L => [L.on, L.off]), cfg.intake?.file, cfg.shift?.file, cfg.limiter?.file, cfg.damage?.bang, cfg.damage?.bent, cfg.granular?.on, cfg.granular?.off, cfg.granular?.grains].filter(Boolean);
   const missing = named.filter(n => !fs.existsSync(path.join(root, n)));
   if (missing.length) problems.push({ file, path: 'layers', message: `${missing.length} of its sound files aren't there (npm run sounds makes them): ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}` });

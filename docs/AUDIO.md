@@ -33,7 +33,9 @@ the page (each frame)                                   the audio thread (AudioW
 ## Engines
 
 Each engine has a sound config (`data/sounds/engines/*.json`: i4, i4_turbo, flat4, v6, v8, v8_tt, rs17) and its
-files. The voice (`audio/dsp.js` EngineVoice) takes the revs, throttle, load (the torque model's: positive on
+files. The Builder's engines pick from those or from the sounds made for any engine with as many cylinders (twin, i3,
+i5, i6, i6_turbo, flat6, v10, v12: a `range` of revs in place of an `engine`, wide enough for any idle and redline
+the Builder allows; `label`: what the Builder calls each). The voice (`audio/dsp.js` EngineVoice) takes the revs, throttle, load (the torque model's: positive on
 power, negative on the overrun), gear, clutch, boost and the limiter, and plays:
 
 - **The engine itself, two ways.** *Granular* (the default): a recorded-style sweep from idle to past the redline,

@@ -1,5 +1,6 @@
 {
   "_note": "The Hana Roadster's 1.8 L inline-four's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). An inline-four: even firing, a buzzing mid-range and a hard edge up high.",
+  "label": "Inline four (a revvy rasp)",
   "engine": "hana_roadster_engine",
   "cylinders": 4,
   "layers": [

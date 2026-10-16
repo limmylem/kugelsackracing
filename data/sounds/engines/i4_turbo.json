@@ -1,5 +1,6 @@
 {
   "_note": "The Vortex R's (and the Strada Evo's) 2.0 L turbo inline-four's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A turbo four: the turbine muffles the exhaust — deeper and duller than the naturally aspirated four, less rasp — and its whistle (the engine's turbo) rides on top.",
+  "label": "Inline four, turbocharged (muffled, with a whistle)",
   "engine": "vortex_r_engine",
   "cylinders": 4,
   "layers": [
