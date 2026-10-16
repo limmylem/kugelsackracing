@@ -114,7 +114,8 @@ const MARK_VERTEX = /* glsl */`
   void main() {
     float age = uTime - mTime.x, f = mTime.y;
     float t = clamp((age - f * 0.6667) / (f * 0.3333), 0.0, 1.0);
-    vColour = vec4(mColour.rgb, age < f ? mColour.a * (1.0 - t * t * (3.0 - 2.0 * t)) : 0.0);
+    // (made after uTime — a crash replay showing the moments before it: not there yet)
+    vColour = vec4(mColour.rgb, age >= 0.0 && age < f ? mColour.a * (1.0 - t * t * (3.0 - 2.0 * t)) : 0.0);
     vUv = mUv; vRound = mTime.z;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }`;
