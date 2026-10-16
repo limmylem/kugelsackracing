@@ -117,7 +117,10 @@ async function tunnelsTest() {
       const tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl, nz = tx / tl;
       const top = S.ray([px, h + 400, pz], [0, -1, 0], 400), over = top ? 400 - top.d : -Infinity;
       if (top?.kind === 'building') { built++; const up = S.ray([px, h + 0.3, pz], [0, 1, 0], 20), room = up ? up.d + 0.3 : Infinity; if (room < X.tunnelBuildingHeadroom) { builtLow++; if (bad.length < 4) bad.push(`a building ${room.toFixed(1)} m over the road at ${q.toFixed(0)} m`); } continue; }
-      if (over < C - 0.3) { open++; if (over > 0.5) { openBad++; if (bad.length < 4) bad.push(`${top?.kind ?? 'something'} ${over.toFixed(1)} m over the open road at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)})`); } continue; }
+      // (the tube's own ceiling over it — the tube runs on a little past where the hill over it thins below tunnelCover,
+      // to its portal — is the tube, not something over an open road)
+      const ownTube = top?.kind === 'tunnel' && Math.abs(over - Hc) < 0.8;
+      if (over < C - 0.3 && !ownTube) { open++; if (over > 0.5) { openBad++; if (bad.length < 4) bad.push(`${top?.kind ?? 'something'} ${over.toFixed(1)} m over the open road at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)})`); } continue; }
       n++;
       const up = S.ray([px, h + 1.5, pz], [0, 1, 0], 20), left = S.ray([px, h + 1.5, pz], [nx, 0, nz], 30), right = S.ray([px, h + 1.5, pz], [-nx, 0, -nz], 30);
       if (up && up.kind === 'tunnel' && Math.abs(up.d - (Hc - 1.5)) < 0.6) ceil++; else if (bad.length < 4) bad.push(`ceiling ${up ? `${up.kind} ${(up.d + 1.5).toFixed(1)}` : 'none'} m up at ${q.toFixed(0)} m (${a.x.toFixed(1)}, ${a.z.toFixed(1)}, ${h.toFixed(1)})`);
