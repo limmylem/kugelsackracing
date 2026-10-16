@@ -514,8 +514,9 @@ development players (`?player=A`) can use them too.
 ## Venues
 
 `data/multiplayer.json` `venues.routes`: one official real-world route a baked region, published as world content by
-`server/tools/seed-mp-routes.ts` (ids `route_mp<region>`; run it once on a database:
-`DATABASE_URL=… node server/tools/seed-mp-routes.ts`). A quick race's venue per region is the real-time server's
+`server/tools/seed-mp-routes.ts` (ids `route_mp<region>`, made on the bake the game plays; every deploy runs it for
+the regions in the game, docs/DEPLOYMENT.md step 5; on another database: `DATABASE_URL=… node
+server/tools/seed-mp-routes.ts`). A quick race's venue per region is the real-time server's
 `quickVenue` setting; "random" picks among the published routes and the official tracks.
 
 ## The game's side

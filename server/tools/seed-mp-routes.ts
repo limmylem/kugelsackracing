@@ -2,14 +2,17 @@
 // Official multiplayer routes (Phase 7 Step 2; docs/MULTIPLAYER.md "Venues"): one real-road route in each baked region
 // (tests/map/realRoutes.ts — the routes every route test drives), compiled on the region's road network and published
 // as world content, so quick races and lobbies on "random" have real-world routes to race. Ids route_mp<region>:
-// running it again brings them up to date.
+// running it again brings them up to date. Each is made on the bake the game plays in its region (server/src/mapDir.ts:
+// Adelaide's Map v5), so the server finds the same roads under it. Every deploy runs it (deploy.yml step 2c) for the
+// regions in the game (data/map/baked.json inGame), so a new region's route goes live with it.
 //
-//   DATABASE_URL=… node server/tools/seed-mp-routes.ts [--regions mk,sf]
+//   DATABASE_URL=… node server/tools/seed-mp-routes.ts [--regions mk,sf]    (no --regions: the regions in the game)
 //   seedMpRoutes(content, { regions }) → [{ id, region, name, km, loop }]    (the tests seed their own database)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gameMapDir } from '../src/mapDir.ts';
 
 // (their names: data/multiplayer.json venues.routes — the lobby offers the same list)
 const MP = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../data/multiplayer.json'), 'utf8'));
@@ -31,7 +34,7 @@ export async function seedMpRoutes(content: any, { regions, extra = [] }: { regi
   const nets = new Map();
   for (const R of todo) {
     const region = R.region;
-    if (!nets.has(region)) { const M = await mapHarness(region); nets.set(region, createNetwork(M.graph(), { P: M.P, region, version: M.manifest.version })); }
+    if (!nets.has(region)) { const M = await mapHarness(region, gameMapDir(region)); nets.set(region, createNetwork(M.graph(), { P: M.P, region, version: M.manifest.version })); }
     const N = nets.get(region);
     const course = bakeRoute(N, { ...newRoute(region, R.kind), waypoints: R.waypoints.map(([lat, lon]: number[]) => ({ lat, lon })), grid: { count: 8 } });
     const id = R.id, [lat, lon] = R.waypoints[0];
@@ -48,7 +51,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const { openDb } = await import('../src/db/index.ts');
   const { createContentService } = await import('../src/content/service.ts');
   const { loadRules } = await import('../src/content/rules.ts');
-  const i = process.argv.indexOf('--regions'), regions = i > 0 ? process.argv[i + 1].split(',') : undefined;
+  const baked = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../data/map/baked.json'), 'utf8'));
+  const i = process.argv.indexOf('--regions'), regions = i > 0 ? process.argv[i + 1].split(',') : baked.inGame;
   const { db, pool } = openDb(process.env.DATABASE_URL ?? 'postgres://kr:kr@localhost:5432/kr_dev', { max: 2 });
   const content = createContentService({ db, rules: loadRules() });
   const made = await seedMpRoutes(content, { regions });

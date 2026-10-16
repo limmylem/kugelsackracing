@@ -209,6 +209,10 @@ so nothing ever points at something that isn't there yet:
    older deploy beside the new ones. (`data/content/checks.json`, the content checks' results, stays out: the server
    reads it, the game doesn't.)
 4. **The checks** (`tools/check-deploy.mjs`). A failed check fails the deploy, and the run's summary says how to roll back.
+5. **The official multiplayer routes** (`server/tools/seed-mp-routes.ts`, from the runner to the database): one real-road
+   route for each region in the game (`data/map/baked.json` `inGame`), made on the bake the game plays and published,
+   so a new region's route goes live with it (running again brings them up to date). Its failure doesn't fail the
+   deploy (the game and the server are already live); the run then shows a warning to run it again.
 
 **What players notice.** The API restarts in seconds (there's one of it: requests in those seconds fail, and the game
 retries). **The real-time server drains first:** on SIGTERM nobody new joins, races under way finish and their results
