@@ -26,6 +26,7 @@ import { verifyChallenge, challengePay, groupKey } from '../../../mp/challenge.j
 import { START } from '../../../mp/rank.js';
 import { createNetwork } from '../../../route/network.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
+import { gameMapDir } from '../mapDir.ts';
 
 const json = (f: string) => JSON.parse(fs.readFileSync(path.join(REPO_DIR, f), 'utf8'));
 export const ROAM = json('data/roam.json');
@@ -35,8 +36,8 @@ const MPC = json('data/multiplayer.json').contact;
 const MAP_DIR = path.join(REPO_DIR, 'assets/map');
 export function bakedRegions(): string[] { try { return fs.readdirSync(MAP_DIR).filter(d => fs.existsSync(path.join(MAP_DIR, d, 'manifest.json'))).sort(); } catch { return []; } }
 const manifests = new Map<string, any>(), graphs = new Map<string, any>();
-// (a region baked with Map v4 has it in v4/ — the game's; Map v3's, beside it, only for comparing)
-const regionDir = (r: string) => (fs.existsSync(path.join(MAP_DIR, r, 'v4', 'manifest.json')) ? path.join(MAP_DIR, r, 'v4') : path.join(MAP_DIR, r));
+// (the bake the game plays there — Map v5's or v4's, in v5/ or v4/; the others beside it only for comparing: mapDir.ts)
+const regionDir = (r: string) => gameMapDir(r);
 const manifest = (r: string) => { if (!manifests.has(r)) { try { manifests.set(r, JSON.parse(fs.readFileSync(path.join(regionDir(r), 'manifest.json'), 'utf8'))); } catch { manifests.set(r, null); } } return manifests.get(r); };
 function graph(r: string) {
   if (graphs.has(r)) return graphs.get(r);

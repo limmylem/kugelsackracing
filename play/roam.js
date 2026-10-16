@@ -509,7 +509,8 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
   const first = firstStart; firstStart = false;
   if (goingBack?.region === region) back = goingBack;
   goingBack = null;
-  if (back && !back.garage) {
+  // (a place in a region this game doesn't have — data/map/baked.json's inGame — is left where it is)
+  if (back && !back.garage && game.hasRegion?.(back.region) !== false) {
     // (just out of a garage: you came out of its building — that's where you are)
     if (back.region === region && game.justCameOut?.()) { /* where the garage put you */ }
     // (the world was built right there already — the game asked before loading it: nothing to move)

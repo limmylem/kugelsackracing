@@ -39,7 +39,7 @@ import { loadtestBot } from './tickets.ts';
 import { setStatus, clearStatus, toUser, onUser, getParty } from './mp.ts';
 import { cleanChat } from '../names.ts';
 import { MP, ROAM } from './mpData.ts';
-import { REPO_DIR } from '../config.ts';
+import { gameMapDir } from '../mapDir.ts';
 import { createReferee } from './contact.ts';
 import { safetyTier, yawOf } from '../../../mp/contact.js';
 import { createChatGate } from '../../../mp/lobby.js';
@@ -70,9 +70,8 @@ export function networkOf(region: string) {
   if (networks.has(region)) return networks.get(region);
   let N: any = null;
   try {
-    const base = path.join(REPO_DIR, 'assets/map', region.replace(/[^a-z0-9_-]/gi, ''));
-    // (Map v4's bake when the region has one: the game's)
-    const dir = fs.existsSync(path.join(base, 'v4', 'manifest.json')) ? path.join(base, 'v4') : base;
+    // (the bake the game plays there: mapDir.ts)
+    const dir = gameMapDir(region);
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
     const P = transverseMercator(m.projection.lat0, m.projection.lon0);
     N = createNetwork(JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, 'graph.json.gz'))).toString()), { P, region, version: m.version, bbox: m.bbox } as any);

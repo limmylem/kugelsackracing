@@ -68,3 +68,9 @@ test('fast travel: every baked region is known, and a quest\'s region is found f
   assert.equal(regionOf({ lat: -34.9285, lon: 138.6007 }, baked.regions).id, 'adelaide', 'Victoria Square');
   assert.equal(regionOf({ lat: 0, lon: 0 }, baked.regions), null);
 });
+
+test('the game\'s regions (inGame): each one baked and listed, the first where the real world opens', () => {
+  if (!baked.inGame) return;
+  assert.ok(Array.isArray(baked.inGame) && baked.inGame.length > 0, 'inGame: one region at least');
+  for (const id of baked.inGame) assert.ok(baked.regions.some(r => r.id === id), `${id}: in the region list`);
+});

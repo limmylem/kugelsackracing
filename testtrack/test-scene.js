@@ -158,12 +158,26 @@ let [lastRealFile, lastRealAt] = (() => { try { const raw = localStorage.getItem
 export const realWorldFile = () => lastRealFile;
 
 const TEST_CENTRE = 'scenes/test_centre.json', RESULTS = 'driveWorld.testResults.v1';
-// the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests
-let baked = null;
+// the baked regions of the real world (data/map/baked.json): fast travel reaches any of their quests. Its `inGame`, when
+// it has one, keeps the game to those (the others stay baked, for ?regions=all in the address: the tests that race
+// elsewhere); the first of them is where the real world opens (scenes/map_v3.json, with no ?region=)
+let baked = null, homeRegion = 'sf', inGame = null;
 // (?map=v3 / v4 / v5 in the address — or localStorage map.version — a region's other bake, kept beside it for comparing)
 const mapWanted = () => { try { const v = new URLSearchParams(location.search).get('map') ?? localStorage.getItem('map.version'); return /^v[345](-[a-z0-9]+)?$/.test(v ?? '') ? v : null; } catch { return null; } };
-const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions).catch(() => []);
-const regionFile = id => id === 'sf' ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
+const allRegions = () => { try { return new URLSearchParams(location.search).get('regions') === 'all'; } catch { return false; } };
+const bakedRegions = () => baked ??= fetch('data/map/baked.json', { cache: 'no-cache' }).then(r => r.json()).then(j => {
+  const L = j.inGame && !allRegions() ? j.regions.filter(r => j.inGame.includes(r.id)) : j.regions;
+  homeRegion = L[0]?.id ?? 'sf'; inGame = new Set(L.map(r => r.id));
+  return L;
+}).catch(() => []);
+const regionFile = id => id === homeRegion ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
+// (one name for each region's world, so it's built once: its home region's is the bare file, and a region not in the
+// game opens the home region)
+async function worldFileOf(file) {
+  if (!file.startsWith('scenes/map_v3.json')) return file;
+  const L = await bakedRegions(), id = new URLSearchParams(file.split('?')[1] ?? '').get('region');
+  return !id || !L.some(r => r.id === id) || id === L[0].id ? 'scenes/map_v3.json' : `scenes/map_v3.json?region=${id}`;
+}
 const regionIdOf = w => w?.track?.mapV3 ? (w.track.mapV3.manifest.match(/assets\/map\/([^/]+)\//)?.[1] ?? null) : null;
 
 // Display / sound only (not physics):
@@ -656,7 +670,7 @@ async function leaveTrack() {
   if (shared.trip?.state === 'track') await shared.trip.leave();
 }
 // (another world through the page's own switch, so its world buttons follow)
-async function switchWorld(file) { if (hooks.switchTo) { const ok = await hooks.switchTo(file); if (ok !== false && active?.file === file) return; } await enter(file); }
+async function switchWorld(file) { file = await worldFileOf(file); if (hooks.switchTo) { const ok = await hooks.switchTo(file); if (ok !== false && active?.file === file) return; } await enter(file); }
 // the best lap of the player's record on this track (for their car's class), as a ghost
 async function bestLapGhost(event) {
   const p = shared.session.player.profile, cls = shared.session.stats?.totals?.rating?.class ?? 'open';
@@ -683,6 +697,7 @@ export const trackTrip = () => shared?.trip ?? null;
 export const trackUiNow = () => shared?.trackUi ?? null;
 
 export async function enter(file) {
+  file = await worldFileOf(file);
   if (!shared) {
     try { shared = await createShared(); applyHudScale(); applyGraphics(); }
     catch (e) { startup?.fail(e); throw e; }
@@ -1039,7 +1054,7 @@ async function buildWorld(file) {
   const trackData = path.startsWith('track:') ? await loadTrack({ code: path.slice(6) }, { onProgress: (step, share) => { shared.info.textContent = `Making the track… ${step} ${Math.round(share * 100)}%`; trackProgress?.(step, share); } }) : null;
   if (trackData) for (const [f, other] of worlds) if (other.trackData && f !== file && other !== active) { worlds.delete(f); disposeWorld(other); }     // (one generated track kept at a time)
   const track = trackData ? trackWorld(trackData) : await (await fetch(path)).json();
-  if (region && track.mapV3) { const r = (await bakedRegions()).find(x => x.id === region); if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
+  if (track.mapV3) { const L = await bakedRegions(), r = L.find(x => x.id === region) ?? L[0]; if (r) { track.mapV3 = { ...track.mapV3, manifest: r.manifest }; track.name = r.name; } }
   // (a region baked as Map v4 or v5: ?map=v3, v4 or v5 in the address — or localStorage map.version — loads that bake
   // of it instead, kept beside the default for comparing; off by default. Map v3's is the region's own manifest; a
   // named slice baked beside them, ?map=v5-heysen, its own folder's)
@@ -1615,9 +1630,10 @@ async function runOwnBenchmarks(say = () => {}) {
     say('Downtown on the autopilot…');
     await go('scenes/map_v3.json');
     const w = active, N = await w.questGame.network(), { newRoute, saveCourse } = await import('../route/model.js');
-    const WP = [[37.7936, -122.3955], [37.7880, -122.4075], [37.7765, -122.4170]];
+    // (the home region's: Market Street and Powell Street, or O'Connell Street to King William Road — tests/map/realRoutes.ts)
+    const WP = { sf: [[37.7936, -122.3955], [37.7880, -122.4075], [37.7765, -122.4170]], adelaide: [[-34.9070, 138.5970], [-34.9140, 138.5988], [-34.9190, 138.5990]] }[regionIdOf(w)] ?? [];
     const saved = saveCourse(N, { ...newRoute(N.region, 'p2p'), waypoints: WP.map(([lat, lon]) => ({ lat, lon })) });
-    if (saved?.course) {
+    if (WP.length && saved?.course) {
       await testDriveRoute({ compiled: viewCourse(saved.course, w.stream.projection), item: { course: saved.course }, autopilot: true });
       await measure('Downtown on the autopilot', 20);
       routeRun?.end();
@@ -2825,6 +2841,8 @@ async function startRoamHere(w, o) {
       carPose() { const v = active?.sim.vehicle; if (!v) return null; const b = v.body, p = b.translation(), q = b.rotation(), l = b.linvel(); return { pos: Ad.toWorld([p.x, p.y, p.z]), headingDeg: Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180 / Math.PI, speed: Math.hypot(l.x, l.z) }; },
       place: (pos, h) => Ad.place(pos, h),
       async switchRegion(id, { joinFriend } = {}) { shared.roamGoto = joinFriend ?? null; await switchWorld(regionFile(id)); },
+      // (a region in this game: data/map/baked.json's inGame)
+      hasRegion: id => !inGame || inGame.has(id),
       maps: () => active?.maps ?? null,
       latLonOf: (x, z) => P()?.toLatLon(x, z) ?? [0, 0], xzOf: (lat, lon) => P()?.toXZ(lat, lon) ?? [0, 0],
       say: (text, kind) => shared.flash.show(text, kind === 'warn' ? 'warn' : 'ok', 3),

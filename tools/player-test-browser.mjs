@@ -35,7 +35,7 @@ const text = sel => page.evaluate(s => document.querySelector(s)?.innerText.repl
 const spotOf = () => page.evaluate(() => { const w = window.testWorld.active, p = w.sim.vehicle.body.translation(); return { file: w.file, x: p.x, z: p.z }; });
 const results = async () => { await page.waitForFunction(() => document.querySelector('.questScreen [data-retry]'), null, { timeout: 3000000, polling: 1000 }); await page.waitForTimeout(1500); };
 try {
-  await page.goto(`http://localhost:${port}/dev/world.html?world=map_v3&questBot`);
+  await page.goto(`http://localhost:${port}/dev/world.html?world=map_v3&questBot&regions=all`);   // (San Francisco's in it: every baked region)
   await page.waitForFunction(() => window.testWorld?.active?.quests && window.testWorld.active.content && !window.testWorld.active.spawning && window.testWorld.shared.trackUi, null, { timeout: 240000 });
   step('1. the real world');
   // a race venue with an official track event, 400 m down the road (published as an author would)

@@ -394,6 +394,22 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   }).filter(Boolean).map((sp: any) => ({ ...sp, xz: P.toXZ(sp.lat, sp.lon).map(v => +v.toFixed(1)) })).filter((sp: any) => inArea(sp.xz[0], sp.xz[1]));
   // (Map v5: Step 0's teleport spots too — ten well-known places and each known Map v4 bug's spot: data/map/v5/spots.json)
   if (v5) { const f = path.join(ROOT, 'data/map/v5/spots.json'); if (fs.existsSync(f)) for (const sp of JSON.parse(fs.readFileSync(f, 'utf8')).spots) { const st = sp.street ?? sp, xz = P.toXZ(st.lat, st.lon); if (inArea(xz[0], xz[1]) && !spots.some((o: any) => o.id === sp.id)) spots.push({ id: sp.id, name: sp.name.replace(/^[^:]*: /, ''), kind: sp.bug ? `bug ${sp.bug}` : sp.name.split(':')[0].toLowerCase(), lat: st.lat, lon: st.lon, bearing: st.bearing ?? 0, xz: xz.map(v => +v.toFixed(1)) }); } }
+  // (and Step 10's: each parody chain at its most confident outlet in the area, and the most prominent named landmarks
+  // — the car lands on the road nearest each: map/build/render/game.js travelTo)
+  if (v5) {
+    const at = (id: string, name: string, kind: string, x: number, z: number) => { const [lat, lon] = P.toLatLon(x, z); spots.push({ id, name, kind, lat: +lat.toFixed(6), lon: +lon.toFixed(6), bearing: 0, xz: [+x.toFixed(1), +z.toFixed(1)] }); };
+    const chains = new Set<number>();
+    for (const o of outlets) if (!chains.has(o.brand) && inArea(o.x, o.z)) { chains.add(o.brand); const b = registry.brands[o.brand]; at(`chain-${b.id}`, b.parody.name, `chain: ${b.category}`, o.x, o.z); }
+    const byId = new Map(buildings.map((b: any) => [b.id, b]));
+    let n = 0;
+    for (const l of landmarkList) {
+      const b: any = byId.get(l.id), r = b?.rings?.[0];
+      if (n >= cfg.landmarks.spots || !l.name || !r) continue;
+      let x = 0, z = 0; for (const q of r) { x += q[0]; z += q[1]; }
+      x /= r.length; z /= r.length;
+      if (inArea(x, z)) { n++; at(`landmark-${l.id}`, l.name, 'landmark', x, z); }
+    }
+  }
   // (and a quick-travel spot at every known bad spot in the area: MAP_README.md, "Bad spots")
   const bad = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'data/map/known-bad-spots.json'), 'utf8')).spots ?? []; } catch { return []; } })();
   bad.filter((b: any) => b.region === region.id).forEach((b: any, k: number) => { const xz = P.toXZ(b.lat, b.lon); if (inArea(xz[0], xz[1])) spots.push({ id: `bad${k + 1}`, name: `Bad spot ${k + 1}: ${b.road ?? b.note?.slice(0, 40) ?? ''}`, kind: 'known bad spot', lat: b.lat, lon: b.lon, bearing: b.bearing ?? 0, xz: xz.map(v => +v.toFixed(1)), badSpot: true }); });
@@ -426,8 +442,10 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     },
     attribution: [
       { name: 'OpenStreetMap contributors', url: 'https://www.openstreetmap.org/copyright', licence: 'ODbL 1.0' },
-      { name: 'Overture Maps Foundation', url: 'https://overturemaps.org', licence: 'ODbL 1.0 (OSM-derived themes), CDLA Permissive 2.0 (buildings)' },
+      { name: 'Overture Maps Foundation', url: 'https://overturemaps.org', licence: v5 ? 'ODbL 1.0 (OSM-derived themes, divisions), CDLA Permissive 2.0 (buildings, places)' : 'ODbL 1.0 (OSM-derived themes), CDLA Permissive 2.0 (buildings)' },
       ...E.sources.map((d: any) => ({ name: d.name, url: null, licence: d.licence, text: d.attribution })),
+      // (Map v5: the chains are found by name with it at bake time — no name of it is drawn: data/map/v5/brands.json)
+      ...(v5 ? [{ name: 'name-suggestion-index', url: 'https://github.com/osmlab/name-suggestion-index', licence: 'BSD-3-Clause', text: 'Used when baking to recognise chain stores by name; the game draws its own parody brands, never these names' }] : []),
     ],
     ...(style && { style: { id: style.id, name: style.name, drivingSide: style.drivingSide } }),
     ...(v5 && { furniture: { cycle: cfg.furniture.cycle, style: style.furniture, railways: style.railways, drivingSide: style.drivingSide } }),

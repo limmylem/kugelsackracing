@@ -99,7 +99,7 @@ try {
   console.log('== Two windows, Player A and Player B, into San Francisco with ?mp; voice through the stand-in SFU');
   // (the fake microphone's beep is steady: noise suppression would learn it as noise and send silence — off for the test)
   await ctx.addInitScript(() => { try { localStorage.setItem('kr.voice', JSON.stringify({ noiseSuppression: false })); } catch { /* none */ } });
-  for (const [n, P] of [['A', A], ['B', B]] as const) await P.goto(`${BASE}/?mp&player=${n}&view=600`);
+  for (const [n, P] of [['A', A], ['B', B]] as const) await P.goto(`${BASE}/?mp&player=${n}&view=600&regions=all`);   // (San Francisco's in it: every baked region)
   for (const [n, P] of [['A', A], ['B', B]] as const) {
     await until(async () => { const b = P.locator('[data-k="later"]'); if (await b.isVisible().catch(() => false)) await b.click().catch(() => {}); return P.evaluate(async () => !!(await import('/testtrack/test-scene.js')).enter).catch(() => false); }, 120000, 1000);
     void P.evaluate(async () => { const m = await import('/testtrack/test-scene.js'); await m.enter('scenes/map_v3.json?region=sf'); }).catch((e: any) => console.log(`  ${n}: entering San Francisco failed: ${e?.message}`));

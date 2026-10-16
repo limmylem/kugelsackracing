@@ -92,7 +92,9 @@ async function computer(name: string) {
 }
 const signIn = (P, email) => P.goto(`${BASE}/account/`).then(() => P.evaluate(async (e) => { const { createApi } = await import('/account/api.js'); await createApi().auth('/sign-in/email', { email: e, password: 'correct horse battery' }); }, email));
 const open = async (P, url) => {
-  await P.goto(url);
+  // (every baked region: these cases are about choosing between them — data/map/baked.json's inGame keeps the game to
+  // Adelaide otherwise)
+  await P.goto(`${url}${url.includes('?') ? '&' : '?'}regions=all`);
   // (the first-launch question, if it's asked: later)
   await until(async () => { const b = P.locator('[data-k="later"]'); if (await b.isVisible().catch(() => false)) await b.click().catch(() => {}); return P.evaluate(async () => !!(await import('/testtrack/test-scene.js')).debug.active).catch(() => false); }, 240000, 1000);
 };

@@ -54,7 +54,8 @@ async function open(url, init = null, { cesium = false } = {}) {
   await page.route('https://cdn.jsdelivr.net/npm/three@0.160.0/**', r => r.fulfill({ path: path.join(nm, 'three', new URL(r.request().url()).pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' }));
   await page.route('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/**', r => r.fulfill({ path: path.join(nm, '@dimforge/rapier3d-compat/dist/rapier.mjs'), contentType: 'text/javascript' }));
   await page.route(cesium ? /fonts\.(googleapis|gstatic)\.com/ : /fonts\.(googleapis|gstatic)\.com|cdn\.jsdelivr\.net\/npm\/cesium/, r => r.abort());   // (the player's page needs Cesium to start: it's there)
-  await page.goto(`http://127.0.0.1:${port}${url}`);
+  // (every baked region, San Francisco among them: data/map/baked.json's inGame keeps the game to Adelaide otherwise)
+  await page.goto(`http://127.0.0.1:${port}${url}${url.includes('?') ? '&' : '?'}regions=all`);
   await page.waitForTimeout(wait);
   return { page, errors };
 }

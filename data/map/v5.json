@@ -171,8 +171,9 @@
     "parkIn": 1.5
   },
   "landmarks": {
-    "_note": "map/model/landmarks.ts: buildings ranked by height^heightPower × √footprint (minHeight m tall or more, or with a Wikipedia/Wikidata entry), × wikiBonus with one, × kindBonus for a landmark kind, × nameBonus named; the top `top` drawn in the far layer (seen from anywhere). Hand-made models: data/map/v5/landmarks/.",
+    "_note": "map/model/landmarks.ts: buildings ranked by height^heightPower × √footprint (minHeight m tall or more, or with a Wikipedia/Wikidata entry), × wikiBonus with one, × kindBonus for a landmark kind, × nameBonus named; the top `top` drawn in the far layer (seen from anywhere); the first `spots` named ones teleport spots in the manifest. Hand-made models: data/map/v5/landmarks/.",
     "top": 80,
+    "spots": 10,
     "minHeight": 12,
     "heightPower": 1.3,
     "wikiBonus": 3,

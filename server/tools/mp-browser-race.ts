@@ -186,7 +186,7 @@ try {
   // (they drive with the autopilot once it's GO: ?mpauto)
   // (?view=600: the world loaded 600 m round the car, not 1.4 km — drawn in software, the city is slow)
   const extra = process.env.MP_QUERY ? `&${process.env.MP_QUERY}` : '';
-  await A.goto(`${BASE}/?mp&player=A&mpauto&view=600${extra}`); await B.goto(`${BASE}/?mp&player=B&mpauto&view=600${extra}`);
+  await A.goto(`${BASE}/?mp&player=A&mpauto&view=600&regions=all${extra}`); await B.goto(`${BASE}/?mp&player=B&mpauto&view=600&regions=all${extra}`);   // (San Francisco's in it: every baked region)
   // (into San Francisco, where the test's route is: the page's own start is the globe, which needs Cesium — not
   // reachable here, as voice-browser.ts)
   for (const [n, P] of [['A', A], ['B', B]] as const) {

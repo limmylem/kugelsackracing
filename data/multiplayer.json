@@ -73,7 +73,8 @@
       { "id": "route_mpmonaco", "region": "monaco", "name": "Monaco Harbour Run" },
       { "id": "route_mptokyo", "region": "tokyo", "name": "Omotesando Climb" },
       { "id": "route_mpstelvio", "region": "stelvio", "name": "Stelvio Pass" },
-      { "id": "route_mpmunich", "region": "munich", "name": "A99 Autobahn Blast" }
+      { "id": "route_mpmunich", "region": "munich", "name": "A99 Autobahn Blast" },
+      { "id": "route_mpadelaide", "region": "adelaide", "name": "O'Connell Street to the Oval" }
     ]
   },
   "rank": {

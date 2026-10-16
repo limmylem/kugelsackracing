@@ -91,9 +91,11 @@ export function createEditor({ game }) {
     C = await worldContent();
     H = createHistory(C.service);
     H.on(() => renderTop());
-    baked = await fetch(BAKED, { cache: 'no-cache' }).then(r => r.json()).then(j => j.regions ?? []).catch(() => []);
+    // (the game's regions: its inGame when it has one — ?regions=all in the address for every one baked)
+    const all = new URLSearchParams(location.search).get('regions') === 'all';
+    baked = await fetch(BAKED, { cache: 'no-cache' }).then(r => r.json()).then(j => (j.inGame && !all ? j.regions?.filter(r => j.inGame.includes(r.id)) : j.regions) ?? []).catch(() => []);
     if (!baked.length) baked = [{ id: FIRST_REGION, name: 'San Francisco', manifest: `assets/map/${FIRST_REGION}/manifest.json` }];
-    await useRegion(FIRST_REGION);
+    await useRegion(baked[0].id);
     // (snapping to roads and their heights: every region's road graph, each loaded when first needed)
     roads = createRoadFinder({ regions: baked.map(r => ({ manifestUrl: new URL(assetUrl(r.manifest), document.baseURI).href })) });
     C.service.on(ev => { if (active) { scheduleRefresh(); if (ev.id && ev.id === selected) loadSelected(); } saving(); });
@@ -132,7 +134,7 @@ export function createEditor({ game }) {
     loading = (async () => {
       await ready();
       const w = await game.ensureRealWorld();
-      await useRegion(regionIdOfWorld(w) ?? FIRST_REGION);
+      await useRegion(regionIdOfWorld(w) ?? baked[0]?.id ?? FIRST_REGION);
       game.pause(true);
       active = true;
       document.body.classList.add('editor-on');
