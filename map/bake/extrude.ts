@@ -190,7 +190,8 @@ export function extrude(b, ground, C, opts: { postOk?: (x: number, z: number) =>
   // the collider: convex pieces of the footprint, from the foot to most of the roof
   const pieces = convexPieces(rings, tris), y1 = shape === 'flat' ? top : eave + rh * 0.5;
   const hulls = pieces.filter(p => p.length >= 3).map(p => ({ points: p.flatMap(k => pts[k]), y0: foot, y1 }));
-  const kind = P.b ?? '', landmark = top - gC >= C.landmark.height || (C.landmark.kinds.includes(kind) && area >= C.landmark.minArea);
+  // (Map v5: one of the region's most prominent — map/model/landmarks.ts — too)
+  const kind = P.b ?? '', landmark = top - gC >= C.landmark.height || (C.landmark.kinds.includes(kind) && area >= C.landmark.minArea) || !!V5?.landmark;
   return { style, windows: V5 ? 'v5' : C.windows[style] ?? C.windows.default, walls, roof, hulls, top, foot, height: top - gC, landmark, centre: [cx, cz] };
 }
 

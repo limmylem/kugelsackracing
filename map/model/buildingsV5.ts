@@ -103,6 +103,8 @@ export function classifyBuildings({ buildings, places, osm, classAt, style, cfg,
     // (the businesses in it with names: a sign each, up to signsPer)
     const names = [...new Set(inside.filter(p => p.name && SIGNED.test(p.cat) && !/school|church|hospital|station/.test(p.cat)).map(p => p.name as string))];
     if (cfg.buildings.signs && names.length && ['shop', 'mall', 'petrol', 'office', 'tower', 'industrial', 'warehouse'].includes(type)) { v5.names = names.slice(0, cfg.buildings.signsPer); stats.named++; }
+    // (a named church, school, hospital, station or shopping centre: its own name on a plate over its front)
+    else if (cfg.buildings.signs && P.name && cfg.buildings.namePlates.includes(type)) { v5.names = [P.name]; v5.plate = true; stats.plates = (stats.plates ?? 0) + 1; }
     const fk = frontOf(ring, cx, cz, roadAt, cfg.buildings.frontReach);
     if (fk !== null) { const a = ring[fk], c = ring[(fk + 1) % ring.length]; v5.front = [a[0], a[1], c[0], c[1], cx, cz]; }
     P.v5 = v5;

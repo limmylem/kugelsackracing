@@ -23,15 +23,17 @@ function inRings(x: number, z: number, rings: { x: number; z: number }[][]) {
 
 // box: the area's bounds when there are some (the bake's block): woods and parks wholly outside it skipped (each one's
 // own random sequence: the trees inside are the same either way)
-export function treesV4({ osm, groundAt, onPaved, mask, cfg, v3cfg, inArea, box = null }: { osm: OsmData; groundAt: (x: number, z: number) => number; onPaved: (x: number, z: number) => boolean; mask: any; cfg: any; v3cfg: any; inArea: (x: number, z: number) => boolean; box?: [number, number, number, number] | null }) {
-  const T = v3cfg.trees, X = cfg.exclusion, out: number[] = [], stats = { placed: 0, rejected: 0 };
+// veg (Map v5 — map/model/vegetation.ts): { open(x, z): open ground no estimated tree stands on, mapped(tags): a mapped
+// tree's kind, estimated(areaKind, tags, r): an estimated one's (with its TREE_ESTIMATED flag) }; without it, Map v4's
+export function treesV4({ osm, groundAt, onPaved, mask, cfg, v3cfg, inArea, box = null, veg = null }: { osm: OsmData; groundAt: (x: number, z: number) => number; onPaved: (x: number, z: number) => boolean; mask: any; cfg: any; v3cfg: any; inArea: (x: number, z: number) => boolean; box?: [number, number, number, number] | null; veg?: { open: (x: number, z: number) => boolean; mapped: (tags: any) => number; estimated: (kind: string, tags: any, r: number) => number } | null }) {
+  const T = v3cfg.trees, X = cfg.exclusion, out: number[] = [], stats = { placed: 0, rejected: 0, open: 0 };
   // (a tree of this scale's crown: the drawn canopy is 0.75 × 4 × scale m round — crownRadius × 4 × scale is checked)
   const ok = (x: number, z: number, s: number) => { if (!inArea(x, z)) return false; const free = !onPaved(x, z) && mask.crownFree(x, z, X.crownRadius * 4 * s); if (!free) stats.rejected++; return free; };
   const add = (x: number, z: number, s: number, kind: number) => { out.push(x, groundAt(x, z), z, s, kind); stats.placed++; };
-  for (const p of osm.points) if (p.tags.natural === 'tree') { const R = rng(p.id), s = 0.85 + R() * 0.4; if (ok(p.x, p.z, s)) add(p.x, p.z, s, 0); }
+  for (const p of osm.points) if (p.tags.natural === 'tree') { const R = rng(p.id), s = 0.85 + R() * 0.4; if (ok(p.x, p.z, s)) add(p.x, p.z, s, veg ? veg.mapped(p.tags) : 0); }
   for (const w of osm.lines) if (w.tags.natural === 'tree_row') {
     const R = rng(w.id);
-    for (let q = 0; q + 1 < w.nodes.length; q++) { const a = w.nodes[q], b = w.nodes[q + 1], l = Math.hypot(b.x - a.x, b.z - a.z); for (let s = 0; s < l; s += T.spacing) { const x = a.x + (b.x - a.x) * s / l, z = a.z + (b.z - a.z) * s / l, sc = 0.8 + R() * 0.4; if (ok(x, z, sc)) add(x, z, sc, 0); } }
+    for (let q = 0; q + 1 < w.nodes.length; q++) { const a = w.nodes[q], b = w.nodes[q + 1], l = Math.hypot(b.x - a.x, b.z - a.z); for (let s = 0; s < l; s += T.spacing) { const x = a.x + (b.x - a.x) * s / l, z = a.z + (b.z - a.z) * s / l, sc = 0.8 + R() * 0.4; if (ok(x, z, sc)) add(x, z, sc, veg ? veg.mapped(w.tags) : 0); } }
   }
   for (const a of osm.areas) {
     const kind = a.tags.landuse === 'forest' || a.tags.natural === 'wood' ? 'forest' : a.tags.leisure === 'park' ? 'park' : a.tags.natural === 'scrub' ? 'scrub' : a.tags.landuse === 'cemetery' ? 'cemetery' : a.tags.leisure === 'garden' ? 'garden' : a.tags.leisure === 'golf_course' ? 'golf' : null;
@@ -44,9 +46,11 @@ export function treesV4({ osm, groundAt, onPaved, mask, cfg, v3cfg, inArea, box 
     for (const [q, rings] of a.parts.entries()) {
       const [xa, za, xb, zb] = ext[q];
       for (let x = Math.floor(xa / step) * step; x < xb; x += step) for (let z = Math.floor(za / step) * step; z < zb; z += step) {
-        const tx = x + R() * step, tz = z + R() * step, s = 0.75 + R() * 0.55, conifer = kind === 'forest' && R() < 0.6;
-        if (!inArea(tx, tz) || !inRings(tx, tz, rings) || !ok(tx, tz, s)) continue;
-        add(tx, tz, s, conifer ? 1 : 0);
+        const tx = x + R() * step, tz = z + R() * step, s = 0.75 + R() * 0.55, r = R(), conifer = kind === 'forest' && r < 0.6;
+        if (!inArea(tx, tz) || !inRings(tx, tz, rings)) continue;
+        if (veg?.open(tx, tz)) { stats.open++; continue; }
+        if (!ok(tx, tz, s)) continue;
+        add(tx, tz, s, veg ? veg.estimated(kind, a.tags, r) : conifer ? 1 : 0);
       }
     }
   }

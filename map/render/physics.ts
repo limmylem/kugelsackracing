@@ -37,6 +37,9 @@ export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {
   }
   // (Map v5: a tunnel's tube — walls, ceiling, portals — solid all round)
   if (d.meshes.tunnel) out.push({ desc: trimesh(d.meshes.tunnel), userData: { material: 'concrete', sound: 'building', kind: 'tunnel', mesh: 'tunnel' }, shape: { type: 'trimesh', positions: d.meshes.tunnel.positions, indices: d.meshes.tunnel.indices } });
+  // (Map v5: a hand-made landmark with a box — lists.models — solid as that box round its anchor)
+  const Md = d.lists.models?.data;
+  if (Md) for (let k = 0; k < Md.length; k += 9) { const w = Md[k + 6], h = Md[k + 7], dd = Md[k + 8]; if (!(w > 0 && h > 0 && dd > 0)) continue; const yaw = Md[k + 3], s = Md[k + 4], rot = { x: 0, y: Math.sin(-yaw / 2), z: 0, w: Math.cos(-yaw / 2) }, centre: [number, number, number] = [Md[k], Md[k + 1] + h * s / 2, Md[k + 2]]; out.push({ desc: RAPIER.ColliderDesc.cuboid(w * s / 2, h * s / 2, dd * s / 2).setTranslation(...centre).setRotation(rot), userData: { material: 'concrete', sound: 'building', kind: 'model' }, shape: { type: 'box', halfExtents: [w * s / 2, h * s / 2, dd * s / 2], centre, rotation: rot } }); }
   // railings and walls (and v4's intentional ones: flagged in the data, drawn or not)
   for (const [name, L] of Object.entries<any>(d.lists)) {
     if (!name.startsWith('barrier_')) continue;
@@ -45,7 +48,7 @@ export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {
   // tree trunks (v4: only the trees drawn — the first treeShare of them, in the order the drawing thins them)
   const Tr = d.lists.trees?.data;
   if (Tr) {
-    const list = v4 ? drawnTrees(Tr, treeShare) : Array.from({ length: Tr.length / 5 }, (_, q) => q).filter(q => (Tr[q * 5 + 4] | 0) !== 2);
+    const list = v4 ? drawnTrees(Tr, treeShare) : Array.from({ length: Tr.length / 5 }, (_, q) => q).filter(q => ((Tr[q * 5 + 4] | 0) & 7) !== 2);
     for (const q of list) {
       const k = q * 5, h = Tr[k + 3] * 4 * 0.6, r = v4 ? 0.2 : 0.25;
       out.push({ desc: RAPIER.ColliderDesc.cylinder(h / 2 + 0.5, r).setTranslation(Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]), userData: { material: 'wood', sound: 'tree', kind: 'tree' }, shape: { type: 'cylinder', half: h / 2 + 0.5, radius: r, centre: [Tr[k], Tr[k + 1] + h / 2 - 0.5, Tr[k + 2]] } });
@@ -56,9 +59,12 @@ export function tileColliders(d: any, RAPIER: any, B: any, { treeShare = 1 } = {
 
 // the trees drawn at a scenery share (map/render/objects.ts): each kind in its shuffled order (the same every
 // time), the first round(n · share) of each
+// (kinds: 0 broadleaf, 1 conifer, 2 a low garden plant, 3 a eucalypt, 4 a palm — Map v5's)
+export const TREE_KINDS = 5;
 export function treeKinds(Tr: ArrayLike<number>) {
-  const kinds: number[][] = [[], [], []];
-  for (let k = 0; k < Tr.length; k += 5) kinds[Math.min(2, Tr[k + 4] | 0)].push(k);
+  const kinds: number[][] = Array.from({ length: TREE_KINDS }, () => []);
+  // (+ 8: estimated — map/model/vegetation.ts TREE_ESTIMATED — drawn the same)
+  for (let k = 0; k < Tr.length; k += 5) kinds[Math.min(TREE_KINDS - 1, Math.max(0, (Tr[k + 4] | 0) & 7))].push(k);
   kinds.forEach((list, kind) => { for (let a = list.length - 1, r = list.length * 7919 + kind; a > 0; a--) { r = (r * 16807) % 2147483647; const b = r % (a + 1); [list[a], list[b]] = [list[b], list[a]]; } });
   return kinds;
 }

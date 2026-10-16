@@ -3,10 +3,10 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#2c107fe17309",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#a0c325ef6d4c",
  "format": 3,
  "graphVersion": 1,
- "baked": "2026-10-15",
+ "baked": "2026-10-16",
  "roadModel": {
   "version": "roads-5.0",
   "file": "roadmodel.json.gz",
@@ -202,6 +202,144 @@
    }
   }
  },
+ "placeNames": [
+  "South Terrace Glover Playground",
+  "East Terrace Glover Playground",
+  "Memorial Drive Park",
+  "Barr Smith Lawns",
+  "Rundle Park",
+  "Onkaparinga National Park",
+  "Kent Town",
+  "Norwood",
+  "Rose Park",
+  "Adelaide",
+  "College Park",
+  "Stepney",
+  "Hackney"
+ ],
+ "landmarks": [
+  {
+   "id": 264210,
+   "name": "Adelaide Health & Medical Sciences",
+   "score": 37206,
+   "h": 70
+  },
+  {
+   "id": 264373,
+   "name": "Festival Tower",
+   "score": 34915,
+   "h": 115
+  },
+  {
+   "id": 267456,
+   "name": "The Adelaidean",
+   "score": 33612,
+   "h": 138
+  },
+  {
+   "id": 264298,
+   "name": "Riverbank Stand",
+   "score": 33568,
+   "h": 40
+  },
+  {
+   "id": 264646,
+   "name": "RAA Place",
+   "score": 32037,
+   "h": 132
+  },
+  {
+   "id": 267420,
+   "name": "Realm Adelaide",
+   "score": 30786,
+   "h": 132
+  },
+  {
+   "id": 265800,
+   "name": "Kodo",
+   "score": 28556,
+   "h": 103
+  },
+  {
+   "id": 264666,
+   "name": "Grenfell Centre",
+   "score": 28070,
+   "h": 103
+  },
+  {
+   "id": 264545,
+   "name": "83 Pirie",
+   "score": 24680,
+   "h": 89
+  },
+  {
+   "id": 264507,
+   "name": "BDO Place",
+   "score": 23732,
+   "h": 104
+  },
+  {
+   "id": 264678,
+   "name": "60 King William",
+   "score": 22419,
+   "h": 65
+  },
+  {
+   "id": 264633,
+   "name": "ANZ House",
+   "score": 21904,
+   "h": 84
+  },
+  {
+   "id": 264622,
+   "name": "Victoria Tower",
+   "score": 21846,
+   "h": 121
+  },
+  {
+   "id": 264777,
+   "name": "Sofitel Adelaide",
+   "score": 21770,
+   "h": 99
+  },
+  {
+   "id": 264307,
+   "name": "St Peter’s Cathedral",
+   "score": 19425,
+   "h": 51
+  },
+  {
+   "id": 267452,
+   "name": "Yugo",
+   "score": 18481,
+   "h": 119
+  },
+  {
+   "id": 264178,
+   "name": "Australian Bragg Centre",
+   "score": 18325,
+   "h": 74
+  },
+  {
+   "id": 264211,
+   "name": "Bradley Building",
+   "score": 17927,
+   "h": 42
+  },
+  {
+   "id": 264444,
+   "name": "The Switch",
+   "score": 15830,
+   "h": 119
+  },
+  {
+   "id": 264289,
+   "name": "Eastern Stands",
+   "score": 15182,
+   "h": 20.889467239379883
+  }
+ ],
+ "models": [],
  "brands": [
   {
    "id": "patty-wagon",
@@ -682,7 +820,7 @@
   }
  },
  "lamps": {
-  "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m.",
+  "_note": "Map v4's lamps, brighter (Step 1i): each lamp's pool of light on the road and footpath under it poolRadius m across, poolOpacity strong in the middle (Map v4's 0.26), in poolColour; poolIntensity the night test's brightness to beat, drawn in one instanced draw per tile; realLights of them real lights within realLightRange m. tunnelOnWall: a tunnel's lamps fixtures on its tube's walls.",
   "spacing": {
    "urban": 34,
    "motorway": 45,
@@ -730,6 +868,7 @@
   "fadeDistance": 25,
   "poolRadius": 15,
   "glowSize": 1.9,
+  "tunnelOnWall": true,
   "poolIntensity": 1.6,
   "poolOpacity": 0.6,
   "poolColour": "#ffe2b0"
@@ -745,26 +884,26 @@
    {
     "a": -1,
     "b": -1,
-    "bytes": 27304,
-    "landmarks": 13
+    "bytes": 31170,
+    "landmarks": 30
    },
    {
     "a": 0,
     "b": -1,
-    "bytes": 17353,
-    "landmarks": 6
+    "bytes": 17885,
+    "landmarks": 9
    },
    {
     "a": -1,
     "b": 0,
-    "bytes": 33108,
-    "landmarks": 16
+    "bytes": 36849,
+    "landmarks": 50
    },
    {
     "a": 0,
     "b": 0,
-    "bytes": 18677,
-    "landmarks": 3
+    "bytes": 19339,
+    "landmarks": 7
    }
   ]
  },
@@ -29231,16 +29370,16 @@
   },
   "roads": 8040,
   "junctions": 2219,
-  "trees": 9521,
-  "lamps": 4961,
+  "trees": 8810,
+  "lamps": 4994,
   "lampStats": {
    "mapped": 2057,
    "mappedDropped": 472,
    "estimated": 758,
    "junction": 753,
-   "tunnel": 0,
+   "tunnel": 33,
    "crossing": 1393,
-   "rejected": 40
+   "rejected": 4
   },
   "railings": {
    "mapped": 3238,
@@ -29248,14 +29387,14 @@
    "estimated": 507,
    "estimatedDropped": 109
   },
-  "peakMemoryGB": 2.4,
-  "bakeSeconds": 135
+  "peakMemoryGB": 2.5,
+  "bakeSeconds": 141
  },
  "tiles": [
   {
    "i": -4,
    "j": -2,
-   "bytes": 129136,
+   "bytes": 129041,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29264,7 +29403,7 @@
   {
    "i": -3,
    "j": -2,
-   "bytes": 172411,
+   "bytes": 180557,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29273,7 +29412,7 @@
   {
    "i": -2,
    "j": -2,
-   "bytes": 262365,
+   "bytes": 281620,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 4,
@@ -29282,7 +29421,7 @@
   {
    "i": -1,
    "j": -2,
-   "bytes": 239852,
+   "bytes": 246629,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29291,7 +29430,7 @@
   {
    "i": 0,
    "j": -2,
-   "bytes": 185843,
+   "bytes": 186711,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29300,7 +29439,7 @@
   {
    "i": 1,
    "j": -2,
-   "bytes": 267949,
+   "bytes": 271460,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29309,7 +29448,7 @@
   {
    "i": 2,
    "j": -2,
-   "bytes": 296663,
+   "bytes": 312974,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29318,7 +29457,7 @@
   {
    "i": 3,
    "j": -2,
-   "bytes": 522236,
+   "bytes": 524038,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29327,52 +29466,52 @@
   {
    "i": -4,
    "j": -1,
-   "bytes": 308071,
+   "bytes": 312503,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 0,
-   "lamps": 189
+   "landmarks": 3,
+   "lamps": 190
   },
   {
    "i": -3,
    "j": -1,
-   "bytes": 304553,
+   "bytes": 309567,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 4,
+   "landmarks": 5,
    "lamps": 145
   },
   {
    "i": -2,
    "j": -1,
-   "bytes": 417142,
+   "bytes": 419810,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
-   "landmarks": 2,
-   "lamps": 172
+   "landmarks": 11,
+   "lamps": 192
   },
   {
    "i": -1,
    "j": -1,
-   "bytes": 401255,
+   "bytes": 403393,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 2,
+   "landmarks": 6,
    "lamps": 130
   },
   {
    "i": 0,
    "j": -1,
-   "bytes": 462935,
+   "bytes": 464377,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 4,
+   "landmarks": 7,
    "lamps": 154
   },
   {
    "i": 1,
    "j": -1,
-   "bytes": 377292,
+   "bytes": 377965,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29381,7 +29520,7 @@
   {
    "i": 2,
    "j": -1,
-   "bytes": 458846,
+   "bytes": 466936,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29390,7 +29529,7 @@
   {
    "i": 3,
    "j": -1,
-   "bytes": 556288,
+   "bytes": 557983,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29399,7 +29538,7 @@
   {
    "i": -4,
    "j": 0,
-   "bytes": 294352,
+   "bytes": 313071,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29408,52 +29547,52 @@
   {
    "i": -3,
    "j": 0,
-   "bytes": 596045,
+   "bytes": 597353,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 0,
+   "landmarks": 4,
    "lamps": 196
   },
   {
    "i": -2,
    "j": 0,
-   "bytes": 530063,
+   "bytes": 531017,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 4,
+   "landmarks": 15,
    "lamps": 138
   },
   {
    "i": -1,
    "j": 0,
-   "bytes": 600290,
+   "bytes": 601478,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 4,
+   "landmarks": 11,
    "lamps": 168
   },
   {
    "i": 0,
    "j": 0,
-   "bytes": 537736,
+   "bytes": 541977,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 1,
+   "landmarks": 4,
    "lamps": 241
   },
   {
    "i": 1,
    "j": 0,
-   "bytes": 309374,
+   "bytes": 311877,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 0,
+   "landmarks": 1,
    "lamps": 125
   },
   {
    "i": 2,
    "j": 0,
-   "bytes": 303641,
+   "bytes": 319472,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29462,7 +29601,7 @@
   {
    "i": 3,
    "j": 0,
-   "bytes": 585239,
+   "bytes": 587185,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29471,7 +29610,7 @@
   {
    "i": -4,
    "j": 1,
-   "bytes": 223567,
+   "bytes": 231170,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29480,43 +29619,43 @@
   {
    "i": -3,
    "j": 1,
-   "bytes": 589432,
+   "bytes": 590926,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 0,
+   "landmarks": 1,
    "lamps": 127
   },
   {
    "i": -2,
    "j": 1,
-   "bytes": 686256,
+   "bytes": 687430,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 2,
-   "lamps": 222
+   "landmarks": 6,
+   "lamps": 230
   },
   {
    "i": -1,
    "j": 1,
-   "bytes": 499011,
+   "bytes": 500506,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 3,
+   "landmarks": 9,
    "lamps": 206
   },
   {
    "i": 0,
    "j": 1,
-   "bytes": 572764,
+   "bytes": 576603,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
-   "lamps": 212
+   "lamps": 216
   },
   {
    "i": 1,
    "j": 1,
-   "bytes": 646141,
+   "bytes": 648781,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29525,7 +29664,7 @@
   {
    "i": 2,
    "j": 1,
-   "bytes": 207623,
+   "bytes": 207908,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29534,7 +29673,7 @@
   {
    "i": 3,
    "j": 1,
-   "bytes": 494656,
+   "bytes": 498923,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29543,7 +29682,7 @@
   {
    "i": -4,
    "j": 2,
-   "bytes": 241587,
+   "bytes": 242648,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29552,7 +29691,7 @@
   {
    "i": -3,
    "j": 2,
-   "bytes": 669350,
+   "bytes": 670711,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29561,7 +29700,7 @@
   {
    "i": -2,
    "j": 2,
-   "bytes": 745399,
+   "bytes": 746026,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29570,16 +29709,16 @@
   {
    "i": -1,
    "j": 2,
-   "bytes": 592756,
+   "bytes": 597853,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
-   "landmarks": 1,
+   "landmarks": 2,
    "lamps": 220
   },
   {
    "i": 0,
    "j": 2,
-   "bytes": 603027,
+   "bytes": 605638,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29588,7 +29727,7 @@
   {
    "i": 1,
    "j": 2,
-   "bytes": 526709,
+   "bytes": 528845,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 1,
@@ -29597,7 +29736,7 @@
   {
    "i": 2,
    "j": 2,
-   "bytes": 137683,
+   "bytes": 140069,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
@@ -29606,7 +29745,7 @@
   {
    "i": 3,
    "j": 2,
-   "bytes": 335760,
+   "bytes": 338416,
    "dem": "GA LiDAR 5 m",
    "resolution": 5,
    "landmarks": 0,
