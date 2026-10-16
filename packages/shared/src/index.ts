@@ -219,6 +219,7 @@ export const RunResult = z.object({
   field: z.array(z.object({ id: z.string().max(60), name: z.string().max(80).nullable(), player: z.boolean(), status: z.string().max(20), time: Num.nullable(), estimated: z.boolean() })).max(64).optional(),
   track: z.object({ code: TrackCode, kind: TrackKind, hash: z.string().max(60).nullable(), version: z.number().int().nullable() }).optional(),
   stints: z.unknown().optional(),
+  pursuit: z.object({ objective: z.string().max(20), escaped: z.boolean(), reached: z.boolean(), heatMax: z.number().int().min(1).max(5), disabled: z.number().int().min(0).max(100), seconds: Num, busted: z.string().max(20).nullable().optional() }).optional(),
   recording: z.string().max(120).nullable(),
 });
 export const TrackResultBody = z.object({ eventId: z.string().max(120), result: RunResult, recording: RecordingSchema.nullable().optional(), replayId: z.string().max(80).nullable().optional() });

@@ -31,6 +31,8 @@ export function buildResult({ quest, course, outcome, car = {}, recordingId = nu
     // hash isn't the event's pays nothing)
     ...(quest.track ? { track: { code: quest.track.code, kind: quest.track.kind ?? 'official', hash: course?.trackHash ?? null, version: quest.track.version ?? null } } : {}),
     ...(outcome.stints ? { stints: outcome.stints } : {}),
+    // (a police pursuit: how it went — the server checks the score against it: quest/validate.js)
+    ...(outcome.pursuit ? { pursuit: outcome.pursuit } : {}),
     recording: recordingId,
   };
 }

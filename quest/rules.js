@@ -12,7 +12,7 @@
 import { rewardsOf, TYPES, classOrder } from '../content/quests.js';
 
 export const TIERS = ['bronze', 'silver', 'gold'];
-export const SCORE_TYPES = new Set(['drift']);
+export const SCORE_TYPES = new Set(['drift', 'pursuit', 'pursuit_coop']);
 const ordinal = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 const money = (n, cur = '$') => `${cur}${Math.round(n).toLocaleString('en-GB')}`;
 

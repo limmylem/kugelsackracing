@@ -25,7 +25,8 @@ import { groundOf } from './garageBuilding.js';
 import { viewCourse, lineOf } from '../route/model.js';
 import { buildRoute, routeOptions } from '../route/build.js';
 import { createAutopilot } from '../route/autopilot.js';
-import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf, levelProgress } from '../quest/rules.js';
+import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf, levelProgress, SCORE_TYPES } from '../quest/rules.js';
+import { PURSUIT_TYPES } from '../quest/types/pursuit.js';
 import { carWarning, starsText } from '../quest/difficulty.js';
 import { rewardsOf } from '../content/quests.js';
 import { fmtTime, fmtDelta } from '../quest/timing.js';
@@ -177,6 +178,15 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (!guideArrows) { const G = groundOf(S); guideArrows = createGuideArrows({ THREE, parent: S.world, palette: palette(), style: style(), heightAt: (x, z) => G?.road(x, z) ?? G?.terrain(x, z) ?? null }); }
     guideArrows.set(guide && !run ? guide : null, { palette: palette(), style: style() });
     const f = [];
+    // (a pursuit: no route to follow — the drop, the police, and the search area while they're looking for you)
+    if (run?.pursuit) {
+      const V = run.pursuit.mapView(), ll = (x, z) => { const [lat, lon] = P.toLatLon(x, z); return [lon, lat]; };
+      if (V.search) { const ring = []; for (let k = 0; k <= 48; k++) { const a = k / 48 * Math.PI * 2; ring.push(ll(V.search.x + Math.cos(a) * V.search.radius, V.search.z + Math.sin(a) * V.search.radius)); } f.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] }, properties: { kind: 'search', colour: '#ff9f1a' } }); }
+      for (const u of V.units) f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: ll(u.x, u.z) }, properties: { kind: 'police', colour: u.mode === 'block' ? '#4fc3f7' : '#ff3b4a' } });
+      if (run.item.params?.objective === 'destination') { const F = run.course.finish; f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: ll(F.x, F.z) }, properties: { kind: 'pin', colour: palette().guide } }); }
+      w.maps?.setLines?.(f);
+      return;
+    }
     if (run?.course) f.push(lineFeature(run.course.line, 'route'));
     else if (preview) f.push(lineFeature(preview, 'route'));
     if (guide && !run) f.push(lineFeature(guide, 'guide'));
@@ -355,7 +365,14 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
-    if (prev) { prev.race && game.endRace(prev.race); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
+    if (prev) { prev.race && game.endRace(prev.race); prev.pursuit && game.endPursuit(prev.pursuit); prev.dressing.dispose(); prev.adapters.dispose(); prev.controller.dispose(); }
+    // a police pursuit: the police (play/pursuitPlay.js), ready for the session's first events (where to put the first unit)
+    if (PURSUIT_TYPES.has(item.type) && game.startPursuit) {
+      try { me.pursuit = await game.startPursuit({ quest: item, course: c.course, session: () => controller.session, rating: car.rating ?? null }); }
+      catch (e) { game.say(`The police couldn't be set up: ${e.message}`, 'warn'); if (run === me) stop(); return { ok: false, error: e.message }; }
+      if (run !== me) { game.endPursuit(me.pursuit); return { ok: false, error: 'superseded' }; }
+      hint('pursuit');
+    }
     guide = null; guideFor = null; setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
     if (!r.ok) { if (run === me) { game.say(r.error, 'warn'); stop(); } return r; }
@@ -384,8 +401,13 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   function say(text, cls = '', secs = 2) { if (run) { run.message = { text, cls }; run.messageFor = secs; } }
   function event(e) {
     if (!run) return;
+    run.pursuit?.event(e);
     sounds.event(e);
     if (e.type === 'go') say('GO', 'go', 0.8);
+    else if (e.type === 'pursuit-lost') say('Out of sight: get out of the search area', 'go', 2.5);
+    else if (e.type === 'pursuit-spotted') say('Spotted!', 'bad', 1.6);
+    else if (e.type === 'pursuit-escaped') say(run.item.params?.objective === 'destination' ? 'Escaped: now get to the drop' : 'ESCAPED', 'go', 3);
+    else if (e.type === 'pursuit-disabled') say('Police car out of action', 'go', 1.6);
     else if (e.type === 'jump') say(`Jump start +${e.penalty}s`, 'bad', 2);
     else if (e.type === 'checkpoint') say(`${e.number} / ${e.of}  ${fmtTime(e.time)}${e.delta != null ? `  ${fmtDelta(e.delta)}` : ''}${e.extension ? `  +${e.extension}s` : ''}`, e.delta == null || e.delta <= 0 ? 'go' : 'warn', 1.6);
     else if (e.type === 'bonus') say(`Bonus${e.extension ? ` +${e.extension}s` : ''}`, 'go', 1.4);
@@ -397,6 +419,15 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     else if (e.type === 'cargo' && e.lost >= 3) say(`Cargo damaged: ${Math.round(e.condition)}%`, 'warn', 1.5);
     else if (e.type === 'finish') say(e.outcome.medal ? `${e.outcome.medal.toUpperCase()}` : 'FINISHED', 'go', 3);
     else if (e.type === 'fail') say(e.outcome.text ?? 'Failed', 'bad', 3);
+  }
+  // the police's own news (the director's: play/pursuitPlay.js drain)
+  function pursuitNews(e) {
+    if (e.type === 'heat' && e.level > e.was) say(`Heat ${e.level}`, 'bad', 2);
+    else if (e.type === 'roadblock') say('Roadblock ahead!', 'bad', 2.2);
+    else if (e.type === 'spikes') say('Spike strip ahead!', 'bad', 2.2);
+    else if (e.type === 'spiked') say('Tyre punctured!', 'bad', 1.8);
+    else if (e.type === 'reacquired') say('They\'ve found you!', 'bad', 2);
+    else if (e.type === 'busting') say('Get moving or you\'re busted!', 'warn', 1.6);
   }
   function ended(res) {
     if (!run) return;
@@ -419,7 +450,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const lap = H.laps > 1 ? `<div class="row">Lap ${H.lap} / ${H.laps}${H.bestLap != null ? ` · best ${fmtTime(H.bestLap)}` : ''}</div>` : '';
     const sp = H.split ? `<div class="split ${H.split.delta == null ? '' : H.split.delta <= 0 ? 'good' : 'bad'}">${H.split.number}/${H.split.of} ${fmtTime(H.split.time)}${H.split.delta != null ? ` ${fmtDelta(H.split.delta)}` : ''}</div>` : '';
     // the next checkpoint's arrow: its way from the car's heading
-    const ang = arrowAngle(car, H.next);
+    const ang = H.next ? arrowAngle(car, H.next) : null;
     let panelHtml = '';
     if (panel?.kind === 'drift') panelHtml = `<div class="k">Drift</div><div class="big">${panel.score.toLocaleString('en-GB')}</div><div>${panel.pot ? `+${panel.pot.toLocaleString('en-GB')} × ${panel.multiplier}` : panel.multiplier > 1 ? `× ${panel.multiplier}` : '&nbsp;'}</div>${panel.next ? `<div style="font-size:12px">${panel.next.tier}: ${panel.next.score.toLocaleString('en-GB')}</div>` : panel.medal ? `<div style="color:${MEDAL[panel.medal]}">● ${panel.medal}</div>` : ''}`;
     else if (panel?.kind === 'delivery') panelHtml = `<div class="k">${esc(panel.name)}${panel.fragile ? ' · fragile' : ''}</div><div class="big ${panel.condition < 50 ? 'bad' : ''}">${panel.condition}%</div><div class="bar"><i style="width:${panel.condition}%;background:${panel.condition < 50 ? '#ff7a6a' : panel.condition < 80 ? '#ffbd4a' : '#7ee08a'}"></i></div>`;
@@ -427,6 +458,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     else if (panel?.kind === 'target' && panel.next) panelHtml = `<div class="k">Target</div><div style="color:${MEDAL[panel.next.tier]}">● ${panel.next.tier} ${fmtTime(panel.next.time, 1)}</div>`;
     else if (panel?.kind === 'hotLap') panelHtml = `<div class="k">${panel.mode === 'best_lap' ? 'This lap' : 'Total'}</div><div class="big">${fmtTime(Math.max(0, panel.mode === 'best_lap' ? panel.lapTime : H.clock), 1)}</div>${panel.best != null ? `<div style="font-size:12px">best ${fmtTime(panel.best)}${panel.medal ? ` <span style="color:${MEDAL[panel.medal]}">●</span>` : ''}</div>` : ''}${panel.next ? `<div style="color:${MEDAL[panel.next.tier]};font-size:12px">● ${panel.next.tier} ${fmtTime(panel.next.time, 1)}</div>` : ''}`;
     else if (panel?.kind === 'endurance') panelHtml = `<div class="k">Endurance</div><div class="big">Stint ${panel.stint} / ${panel.stints}</div><div style="font-size:12px">lap ${panel.lap} / ${panel.laps}</div>`;
+    else if (panel?.kind === 'pursuit') panelHtml = pursuitPanel(panel);
     else if (panel?.kind === 'clock') panelHtml = `<div class="k">Checkpoints</div><div class="big">${panel.passed} / ${panel.of}</div>`;
     const msg = H.message ? { text: H.message, cls: H.message.startsWith('Wrong') ? 'bad' : 'warn' } : run.message;
     hudEl.innerHTML = st === 'intro' ? `<div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · Space to skip</div>` : `
@@ -434,16 +466,27 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         <div class="row">${H.checkpoints ? `Checkpoint ${Math.min(H.checkpoint, H.checkpoints)} / ${H.checkpoints}` : ''}${H.penalty ? ` · +${H.penalty}s penalty` : ''}</div>${lap}${sp}</div>
       <div class="side">${raceSide(H)}</div>
       ${panelHtml ? `<div class="panel">${panelHtml}</div>` : ''}
-      ${st === 'racing' ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudScale()})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? palette().arrowMissed : palette().arrow}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
+      ${st === 'racing' && ang != null ? `<div class="arrow" style="transform:rotate(${ang}deg) scale(${hudScale()})"><svg viewBox="0 0 40 40"><path d="M20 3 L34 30 L20 23 L6 30 Z" fill="${H.message?.startsWith('Missed') ? palette().arrowMissed : palette().arrow}" stroke="#1b1b1b" stroke-width="1.5"/></svg></div>` : ''}
       <div class="speed">${(sp2 => `${sp2.value}<small> ${sp2.unit}</small>`)(playerUnits().speedKmh(car.kmh))} · ${esc(car.gear ?? '')}</div>
       ${st === 'countdown' && H.count ? `<div class="count">${H.count}</div>` : ''}
       ${msg && st !== 'countdown' ? `<div class="msg ${msg.cls}">${esc(msg.text)}</div>` : ''}`;
   }
 
+  // a pursuit's panel: the heat (five lights), what the police are doing — after you, the cooldown's time left and the
+  // search area, escaped — the bust meter when they've got you slowed, how many are out, the score
+  function pursuitPanel(p) {
+    const lights = [1, 2, 3, 4, 5].map(n => `<span style="display:inline-block;width:14px;height:14px;margin-right:3px;border-radius:3px;background:${n <= p.level ? (n >= 4 ? '#ff3b4a' : '#ff9f1a') : n <= p.maxHeat ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.05)'}"></span>`).join('');
+    const C = p.cooldown, state = p.phase === 'escaped' ? `<div class="big" style="color:#7ee08a">${t('pursuit.escaped')}</div>`
+      : p.phase === 'cooldown' && C ? `<div class="big" style="color:#ffbd4a">${t('pursuit.cooldown', { s: Math.ceil(C.left) })}</div><div class="bar"><i style="width:${Math.round(100 * (1 - C.left / C.total))}%;background:#ffbd4a"></i></div><div style="font-size:12px">${t('pursuit.leaveArea')}</div>`
+        : `<div class="big" style="color:#ff5a5f">${t(p.seen ? 'pursuit.inPursuit' : 'pursuit.losing')}</div>`;
+    const bust = p.bust > 0.02 && p.phase === 'pursuit' ? `<div style="font-size:12px;color:#ff7a6a">${t('pursuit.bustMeter')}</div><div class="bar"><i style="width:${Math.round(p.bust * 100)}%;background:#ff3b4a"></i></div>` : '';
+    return `<div class="k">${t('pursuit.heat', { n: p.level })}</div><div>${lights}</div>${state}${bust}<div style="font-size:12px">${t('pursuit.units', { n: p.units, score: p.score.toLocaleString('en-GB') })}${p.objective === 'destination' ? ` · ${t('pursuit.toDrop')}` : ''}</div>`;
+  }
   // the race's side of the HUD: my place, the gaps either side, the standings (names, gaps); no race: the
   // position placeholder
   function raceSide(H) {
     const R = run?.race;
+    if (run?.pursuit) return '';
     if (!R) return `<div class="pos"><div class="k">Position</div><div class="v">${ord(H.position.place)} / ${H.position.of}</div></div>`;
     const st = R.standings(), me = st.find(x => x.player), gap = g => g == null ? '' : `${g.toFixed(1)}s`;
     const rows = st.map(x => `<div class="row" style="font:600 13px 'JetBrains Mono',monospace;${x.player ? 'color:#ffd24a' : ''}${x.status === 'retired' ? ';opacity:.5' : ''}">${x.place}. ${esc(x.player ? 'You' : x.name)}${x.status === 'retired' ? ' DNF' : x.status === 'finished' ? ' ✓' : ''}</div>`).join('');
@@ -483,10 +526,12 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (!again) { run.controller.showResults(); sounds.results(res); if (res.outcome.status === 'finished') hint('medal'); }
     const o = res.outcome, pay = res.pay ?? {}, cur = game.currency, item = run.item, prog = game.player.profile.quests?.[item.id];
     const money = n => `${cur}${Math.round(n).toLocaleString('en-GB')}`;
-    const title = o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
-    const main = o.score != null && item.type === 'drift' ? `${o.score.toLocaleString('en-GB')} pts` : o.time != null ? fmtTime(o.time) : '—';
-    const was = pay.was ? (item.type === 'drift' ? pay.was.score : pay.was.time) : null;
-    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (${pay.was?.older ? 'on the older version of this route: ' : 'was '}${item.type === 'drift' ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${item.type === 'drift' ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
+    const title = o.reason === 'busted' ? 'Busted' : o.status === 'finished' ? (o.medal ? `<span class="medal" style="background:${MEDAL[o.medal]}"></span>${o.medal[0].toUpperCase()}${o.medal.slice(1)}` : 'Finished') : o.reason === 'wrecked' ? 'Wrecked' : o.status === 'dnf' ? 'Did not finish' : esc(o.text ?? 'Failed');
+    const scored = SCORE_TYPES.has(item.type);
+    const main = o.score != null && scored ? `${o.score.toLocaleString('en-GB')} pts` : o.time != null ? fmtTime(o.time) : '—';
+    const was = pay.was ? (scored ? pay.was.score : pay.was.time) : null;
+    const pb = o.status === 'finished' && pay.valid ? (pay.pb ? `<span class="good">Personal best${was != null ? ` (${pay.was?.older ? 'on the older version of this route: ' : 'was '}${scored ? was.toLocaleString('en-GB') : fmtTime(was)})` : ''}</span>` : `Best: ${scored ? (prog?.bestScore ?? 0).toLocaleString('en-GB') : fmtTime(prog?.bestTime)}`) : '';
+    const X = o.pursuit, chase = X ? `<h3>${t('pursuit.title')}</h3><div>${t(X.escaped ? 'pursuit.escaped' : X.reached ? 'pursuit.atDrop' : X.busted ? 'pursuit.busted' : 'pursuit.caught')} · ${t('pursuit.summary', { heat: X.heatMax, time: fmtTime(X.seconds, 1), out: X.disabled })}${o.status !== 'finished' && pay.fine ? ` · <span class="bad">${t('pursuit.fined', { money: money(pay.fine) })}</span>` : ''}</div>` : '';
     const splits = o.splits?.length ? `<h3>Splits</h3><table>${o.splits.map(s => `<tr><td>${o.laps.length > 1 ? `L${s.lap} ` : ''}CP ${s.number}</td><td>${fmtTime(s.time)}</td><td class="${s.delta == null ? '' : s.delta <= 0 ? 'good' : 'bad'}">${fmtDelta(s.delta)}</td></tr>`).join('')}</table>` : '';
     const laps = o.laps?.length > 1 ? `<h3>Laps</h3><table>${o.laps.map((t, i) => `<tr><td>Lap ${i + 1}</td><td class="${t === o.bestLap ? 'good' : ''}">${fmtTime(t)}${t === o.bestLap ? ' best' : ''}</td></tr>`).join('')}</table>` : '';
     const penalties = o.penalties?.length ? `<div class="bad">${o.penalties.map(p => `${esc(p.what)} +${p.seconds}s`).join(' · ')}</div>` : '';
@@ -501,7 +546,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const itemFee = rewardsOf(item, game.economy).fee, fee = cfg.restart?.free || !itemFee ? '' : ` (${money(itemFee)})`;
     const field = res.field?.length ? `<h3>Standings</h3><table>${res.field.map(f => `<tr style="${f.player ? 'color:#ffd24a' : ''}"><td>${f.place}. ${esc(f.player ? 'You' : f.name)}${f.car ? ` <span style="opacity:.6">${esc(f.car)}</span>` : ''}</td><td>${f.status === 'retired' || f.status === 'dnf' ? `DNF${f.why ? ` (${esc(f.why)})` : ''}` : f.time != null ? `${fmtTime(f.time)}${f.estimated ? ' *' : ''}` : '—'}</td></tr>`).join('')}</table>${res.field.some(f => f.estimated) ? '<div style="font-size:12px;opacity:.7">* still racing when you finished: their time from their pace</div>' : ''}` : '';
     const pink = o.pinkSlip ? `<h3>Pink slip</h3><div class="${o.pinkSlip.won ? 'good' : 'bad'}">${o.pinkSlip.won ? `You won ${esc(o.pinkSlip.rival)}'s ${esc(game.db.cars[o.pinkSlip.car]?.name ?? o.pinkSlip.car)}: it's in your garage.` : `${esc(o.pinkSlip.rival)} takes your car.`}${o.pinkSlip.ok ? '' : ` (${esc(o.pinkSlip.error ?? 'it didn\'t go through')})`}</div>` : '';
-    showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${field}${pink}${splits}${laps}${damage}${earned}
+    showScreen(`<h2>${title}${o.place ? ` · ${ord(o.place)}` : ''}</h2><div style="font:700 30px 'JetBrains Mono',monospace">${main}</div>${penalties}<div>${pb}</div>${chase}${field}${pink}${splits}${laps}${damage}${earned}
       ${trackLine(pay)}
       <div class="buttons"><button class="primary" data-retry>Retry${fee}</button>${game.canReplay?.() ? '<button data-replay>Watch replay</button>' : ''}<button data-roam>${game.leaveTrack ? 'Drive the track' : 'Free roam'}</button>${game.leaveTrack ? '<button data-leave>Back to the real world</button>' : ''}<button data-garage>Tow to a garage${game.towFee?.() ? ` (${esc(game.towFee())})` : ''}</button></div>`, {
       retry: () => start(item, { restart: true }), roam: () => stop(),
@@ -551,6 +596,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const r = run; run = null; paused = false;
     if (r.controller.state === 'racing' || r.controller.state === 'countdown' || r.controller.state === 'intro') r.controller.quit();
     if (r.race) game.endRace(r.race);
+    if (r.pursuit) game.endPursuit(r.pursuit);
     r.dressing.dispose(); r.adapters.dispose(); r.controller.dispose();
     if (r.ghost) game.showGhost?.(null);
     game.pause(false); hideScreen(); hud(); labels(); preview = null; setLines();
@@ -616,9 +662,10 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     resetNow() {
       const Q = run?.controller.session;
       if (!Q || Q.state.state !== 'racing' || w.spawning) return false;
-      const point = Q.tracker.resetPoint();
+      const own = run.pursuit?.resetPoint(), point = own ?? Q.tracker.resetPoint();
+      if (!point) return false;
       run.adapters.resetTo(point); Q.noteReset(point);
-      say('Back to the last checkpoint', 'warn', 2);
+      say(own ? 'Back on the road' : 'Back to the last checkpoint', 'warn', 2);
       return true;
     },
     frame(realDt) {
@@ -644,6 +691,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         const t = racing ? (run.ghost.perLap ? Q.clock - Q.lapTimes.reduce((a, b) => a + b, 0) : Q.clock) : -1;
         game.showGhost(racing ? ghostAt(run.ghost.frames, t) : null);
       }
+      if (run.pursuit) { for (const e of run.pursuit.drain()) pursuitNews(e); if ((run.mapAt = (run.mapAt ?? 0) + realDt) > 0.5) { run.mapAt = 0; setLines(); } }
       run.messageFor -= realDt; if (run.messageFor <= 0) run.message = null;
       hud(); labels();
     },

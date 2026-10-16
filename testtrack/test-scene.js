@@ -56,6 +56,8 @@ import { createQuestPlay } from '../play/questUi.js';
 import { createQuestFinder, loadVenues } from '../play/questFinder.js';
 import { regionOf } from '../quest/finder.js';
 import { createRace } from '../race/race.js';
+import { createPursuit } from '../play/pursuitPlay.js';
+import { buildNpcCar } from '../ai/npcCars.js';
 import { worldContent } from '../content/client.js';
 import { garageFor } from '../garage/player/profile.js';
 import { carWork } from '../garage/repair.js';
@@ -244,6 +246,7 @@ export const questPlayNow = () => active?.quests ?? null;
 function questGame(w) {
   const s = shared, S = w.stream, db = s.session.db, player = s.session.player;
   fetch('data/npc.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { G.npcCfg = j; }).catch(e => console.warn(`No NPC racers: ${e.message}`));
+  fetch('data/pursuit.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { G.pursuitCfg = j; }).catch(e => console.warn(`No police pursuits: ${e.message}`));
   let content = null, network = null;
   const car = () => w.sim.vehicle;
   const summary = id => {
@@ -345,6 +348,36 @@ function questGame(w) {
       for (const r of race.npcs) npcVisual(w, r).catch(e => console.warn(`NPC car ${r.name}: ${e.message}`));
       return race;
     },
+    // ---------- police pursuits (play/pursuitPlay.js; docs/PURSUIT.md) ----------
+    pursuitCfg: null,
+    // the police: real cars in the physics, built from the parts system for the player's car's rating × the heat's, in the
+    // police livery with a light bar (play/pursuitPlay.js), their crashes' sparks and dents drawn here
+    async startPursuit({ quest, course, session, rating }) {
+      const cfg = this.pursuitCfg ?? await (await fetch('data/pursuit.json', { cache: 'no-cache' })).json();
+      this.pursuitCfg = cfg;
+      const N = await this.network(), self = this;
+      const models = cfg.police.models.filter(id => db.cars[id] && !db.cars[id].hidden);
+      const P = createPursuit({ THREE, RAPIER, w, frame: { toWorld: S.toWorld, toSim: S.toSim }, cfg, quest, course, network: N, session, db,
+        debug: new URLSearchParams(location.search).has('pursuitDebug'), audio: () => s.audio?.A ?? null,
+        game: {
+          rating: rating ?? 400,
+          ready: () => !w.spawning,
+          health: () => ({ drivable: drivableNow, condition: conditionNow }),
+          async buildPolice({ rating: target, seed }) {
+            const carId = models[seed % Math.max(1, models.length)] ?? 'starter_car';
+            const build = buildNpcCar(db, { carId, quest: { entry: {} }, target, seed, cfg: self.npcCfg, qcfg: player.quests.config });
+            const n = { build, spec: build.stats.spec };
+            await self.prepareNpc(n);
+            return n;
+          },
+          showPolice: (carId, n) => policeVisual(w, carId, n, cfg.police.livery),
+          setDamage: (carId, view3d) => w.others.get(carId)?.setDamage(view3d, db.damage),
+          impact: (carId, impact, result) => (w.pursuitFx ??= []).push({ carId, impact, result }),
+        } });
+      w.pursuit = P;
+      return P;
+    },
+    endPursuit(P) { P.dispose(); if (w.pursuit === P) w.pursuit = null; w.pursuitFx = null; },
     endRace(race) {
       for (const r of race.npcs) { const vis = w.others.get(r.carId); if (vis) { dropCar(vis); w.others.delete(r.carId); } }
       race.dispose();
@@ -439,6 +472,33 @@ async function npcVisual(w, r) {
   if (!w.npcRace || !w.npcRace.npcs.includes(r)) { dropCar(vis); return; }
   w.scene.add(vis.group);
   w.others.set(r.carId, vis);
+}
+// A police car as drawn (play/pursuitPlay.js): its own build from the parts system, in the police livery (fixed: not the
+// player's paint), its wheels and lamps like any car's; its dents from its own crash damage
+async function policeVisual(w, carId, n, livery) {
+  const s = shared, db = s.session.db, G = n.build.garage;
+  const vis = await createCarVisual({ car: G.car, finishes: db.finishes, models: s.models, paint: { colour: livery.body, finish: livery.finish } });
+  await vis.applyBuild(G.build, G.view);
+  vis.fixedPaint = true;
+  vis.wheelVis = Object.fromEntries(Object.entries(n.rig?.wheels ?? s.rig.wheels).map(([k, rig]) => [k, { pivot: vis.wheels[k], rig }]));
+  vis.details = { taillamp: null, lampOff: 1, lampOn: 1, glass: null, glassOpacity: 1, steeringWheel: null };
+  const alive = () => w.pursuit && w.sim.cars.some(c => c.id === carId);
+  if (!alive()) { dropCar(vis); return null; }
+  await precompile(vis.group, w);
+  if (!alive()) { dropCar(vis); return null; }
+  w.scene.add(vis.group);
+  w.others.set(carId, vis);
+  return vis;
+}
+// a pursuit's crashes each frame: the police cars' sparks, bits and sounds (their damage is the pursuit's own)
+function pursuitEvents(w) {
+  if (!w.pursuitFx?.length) return;
+  for (const e of w.pursuitFx.splice(0)) {
+    const c = w.sim.cars.find(x => x.id === e.carId);
+    if (!c) continue;
+    if (e.impact?.strength > 5) shared.audio?.env.cheer('crash', Math.min(1, e.impact.strength / 20));
+    w.fx.play(w.fx.impactEvent(e.carId, e.impact, e.result, groundUnder(c.vehicle)));
+  }
 }
 // a race's goings-on each frame: crashes (sparks, sounds, dents), resets (a quick fade)
 function npcRaceEvents(w) {
@@ -1306,6 +1366,7 @@ function frame(w, now) {
   // (a quest's own clock is the physics' ticks: this is its intro, HUD and the like)
   w.quests?.frame(T ? 0 : seconds);
   npcRaceEvents(w);
+  pursuitEvents(w);
   PF.lap('game');
   // (a multiplayer race: its run on the server's clock, the others' cars, the screens — play/mpRace.js, mpScreens.js)
   if (shared.mpRace && !T) { shared.mpView = view; shared.mpRace.frame(seconds); shared.mpScreens?.frame(seconds); }
@@ -1352,7 +1413,10 @@ function frame(w, now) {
   PF.lap('effects');
   shared.flash.update(seconds);
   PF.lap('game');
-  if (shared.audio) shared.audio.update(b, seconds, audioFrame(w, b));
+  const heard = shared.audio ? audioFrame(w, b) : null;
+  if (shared.audio) shared.audio.update(b, seconds, heard);
+  // (a police pursuit: the light bars, the sirens, its debug overlay)
+  w.pursuit?.frame(T ? 0 : seconds, { listener: heard?.listener ?? null });
   shared.audioOverlay?.update(seconds);
   shared.perfOverlay.update();
   PF.lap('audio');

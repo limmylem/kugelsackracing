@@ -894,6 +894,14 @@
             "endurance": {
               "type": "number",
               "minimum": 0
+            },
+            "pursuit": {
+              "type": "number",
+              "minimum": 0
+            },
+            "pursuit_coop": {
+              "type": "number",
+              "minimum": 0
             }
           }
         },

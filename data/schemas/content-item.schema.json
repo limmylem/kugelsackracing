@@ -138,7 +138,9 @@
         "circuit_race",
         "hot_lap",
         "hillclimb",
-        "endurance"
+        "endurance",
+        "pursuit",
+        "pursuit_coop"
       ]
     },
     "route": {

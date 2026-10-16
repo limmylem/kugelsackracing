@@ -40,7 +40,7 @@ import { headingOf } from '../route/grid.js';
 const BIN = 10;
 const CLEAR_M = 7;          // (a car put back into the physics from its cheap run: at least this far from any other car)
 // a spec refilled in place, as the game's own car's is (garage/session.js assignDeep)
-function assignDeep(target, source) {
+export function assignDeep(target, source) {
   for (const k of Object.keys(target)) if (!(k in source)) delete target[k];
   for (const [k, v] of Object.entries(source)) {
     if (v && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) assignDeep(target[k], v);

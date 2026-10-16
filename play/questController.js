@@ -37,7 +37,8 @@ export function createQuestController({ quest, course, config, player, car = {},
       const slot = e.slot;
       if (e.rolling) {
         // (behind the start line by the rolling distance, along the route)
-        const s0 = course.grid.startS - e.rollingDistance, L = course.length, p = at(course.line, course.loop ? ((s0 % L) + L) % L : Math.max(0, s0), course.loop);
+        // (a type's own start: that far along the route — a pursuit's, the police behind it)
+        const s0 = e.at ?? course.grid.startS - e.rollingDistance, L = course.length, p = at(course.line, course.loop ? ((s0 % L) + L) % L : Math.max(0, s0), course.loop);
         A.place({ x: p.x, z: p.z, h: p.h, heading: headingOf(p.dx, p.dz) }, { speed: 0 });
       } else A.place({ x: slot.x, z: slot.z, h: slot.h, heading: slot.heading }, { speed: 0 });
       A.hold();

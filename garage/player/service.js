@@ -22,7 +22,7 @@ import { appendHits } from '../damageLog.js';
 import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quests.js';
 import { setFavourite } from '../../track/events/records.js';
 import { entryReasons, CAR_CODES } from '../../quest/rules.js';
-import { feeOf } from '../../content/quests.js';
+import { feeOf, bustFineOf } from '../../content/quests.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
 import { migrateRecording } from '../../quest/recording.js';
 
@@ -416,7 +416,7 @@ export class LocalPlayerService extends PlayerService {
       const unpaid = this.#pay(p, fee, 'the entry fee is');
       if (unpaid) return unpaid;
       const aid = attemptId ?? `att_${String(p.nextId++).padStart(6, '0')}`;
-      startAttempt(p, { quest, fee: this.unlimited ? 0 : fee, attemptId: aid, now: this.now(), car: id });
+      startAttempt(p, { quest, fee: this.unlimited ? 0 : fee, attemptId: aid, now: this.now(), car: id, fine: this.unlimited ? 0 : bustFineOf(quest, this.db.economy, cfg) });
       return { result: { attemptId: aid, fee: this.unlimited ? 0 : fee } };
     });
   }
@@ -452,7 +452,7 @@ export class LocalPlayerService extends PlayerService {
     return this.#change('quest', p => { const r = setFavourite(p, track, on, this.now(), this.quests?.tracks ?? null); return r.error ? r : { result: r }; });
   }
   failQuest(attemptId, { questId, status = 'dnf', reason = null } = {}) {
-    return this.#change('quest', p => { failAttempt(p, { attemptId, questId, status, reason, now: this.now() }); return {}; });
+    return this.#change('quest', p => { const r = failAttempt(p, { attemptId, questId, status, reason, now: this.now(), fineReasons: this.quests?.config?.pursuit?.fine?.reasons }); return { result: r }; });
   }
   async getRecording(recordingId) {
     let rec = recordingId ? await this.quests?.recordings?.get(recordingId) : null;
