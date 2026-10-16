@@ -372,15 +372,19 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     const bld = bPaths.filter((_, q) => meets(bBox[q], box)), islP = isl.map(s => POS(s.pts));
     // (each a difference of the pieces, joined, less what takes the place first: the road, then the kerb, then the
     // footpath; buildings and islands out of the footpath and verge)
-    // (each piece set joined on its own first: Clipper2-js can stall on many overlapping raw quads in one operation)
-    // (each piece set joined on its own first: Clipper2-js stalls on many raw quads sharing edges in one difference)
-    const kU = C.Union(paths(kq), undefined, NZ), fU = C.Union(paths(fq), undefined, NZ), vU = C.Union(paths(vq), undefined, NZ);
-    const kerb = C.Difference(paths(kU), paths(road), NZ);
-    const foot = C.Difference(paths(fU), paths([...road, ...kU, ...bld, ...islP]), NZ);
-    const verge = C.Difference(paths(vU), paths([...road, ...kU, ...fU, ...bld, ...islP]), NZ);
+    // (each piece set joined on its own first, and each set taken out too: Clipper2-js stalls on many raw quads sharing
+    // edges in one difference, and loops for good in doHorizontal on a difference whose clip is the road's, kerb's,
+    // footpath's and buildings' rings overlapping — a verge in Enfield, -34.8616, 138.6228. Joined under the same rule,
+    // the clip is the same ground)
+    const U = (list: any[]) => C.Union(paths(list), undefined, NZ);
+    const kU = U(kq), fU = U(fq), vU = U(vq), roadU = U(road), roadKerb = U([...roadU, ...kU]);
+    const footCut = U([...roadKerb, ...bld, ...islP]);
+    const kerb = C.Difference(paths(kU), paths(roadU), NZ);
+    const foot = C.Difference(paths(fU), paths(footCut), NZ);
+    const verge = C.Difference(paths(vU), paths(U([...footCut, ...fU])), NZ);
     // (islands: their whole hole, less the kerb round it; nothing else in them)
     const islandPieces: { p: any; s: typeof islands[number] }[] = [];
-    for (const s of isl) islandPieces.push({ p: C.Difference(paths([POS(s.pts)]), paths([...road, ...kU]), NZ), s });
+    for (const s of isl) islandPieces.push({ p: C.Difference(paths([POS(s.pts)]), paths(roadKerb), NZ), s });
     const emit = (shape: any, part: number, isl?: typeof islands[number]) => {
       const clipped = C.Intersect(paths(shape), paths([cellPath]), NZ).filter((p: any) => Math.abs(C.area(p)) > 0.0004 * S * S);
       if (!clipped.length) return;
