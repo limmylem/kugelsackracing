@@ -23,7 +23,7 @@ import { trackServer } from './trackServer.js';
 import { createRouteDressing, createGuideArrows } from './routeDressing.js';
 import { groundOf } from './garageBuilding.js';
 import { viewCourse, lineOf } from '../route/model.js';
-import { buildRoute } from '../route/build.js';
+import { buildRoute, routeOptions } from '../route/build.js';
 import { createAutopilot } from '../route/autopilot.js';
 import { entryReasons, carsThatQualify, medalTargets, typeLabel, CAR_CODES, levelOf, levelProgress } from '../quest/rules.js';
 import { carWarning, starsText } from '../quest/difficulty.js';
@@ -47,6 +47,7 @@ export function arrowAngle(car, to) {
 }
 import { paletteOf, guideStyle } from './palette.js';
 import { playerUnits } from '../ui/units.js';
+import { t } from '../ui/i18n.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const MEDAL = { gold: '#f2c230', silver: '#c9d1d9', bronze: '#cd7f32' };
@@ -179,7 +180,30 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (run?.course) f.push(lineFeature(run.course.line, 'route'));
     else if (preview) f.push(lineFeature(preview, 'route'));
     if (guide && !run) f.push(lineFeature(guide, 'guide'));
+    // (a place picked on the map: its pin, where the route ends)
+    if (guide && !run && guideFor === PLACE && place) f.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [place.lon, place.lat] }, properties: { kind: 'pin', colour: palette().guide } });
     w.maps?.setLines?.(f);
+  }
+
+  // A route to anywhere: a click (a tap) on an empty spot of the full map asks "Route here?" — how far, as the crow
+  // flies — and Set route finds the way on the roads, as a quest's Set route does (the line on both maps, arrows on the
+  // road, taken off as it's driven, "You've arrived" at the end). The spot's pin stays on the maps until then.
+  const PLACE = 'place';
+  let place = null, placeFed = null;
+  function askPlace(lat, lon) {
+    const M = w.maps;
+    if (!M?.ask) return;
+    const el = document.createElement('div'), car = game.carNow(), [x, z] = P.toXZ(lat, lon);
+    const button = (text, cls, fn) => { const b = document.createElement('button'); b.textContent = text; if (cls) b.className = cls; b.onclick = fn; return b; };
+    const head = document.createElement('b'); head.textContent = t('map.routeHere');
+    const far = document.createElement('div'); far.textContent = t('map.routeAway', { distance: playerUnits().distance(Math.hypot(x - car.x, z - car.z)).text });
+    const row = document.createElement('div'); row.className = 'row';
+    if (run) far.textContent = t('map.routeInQuest');
+    else row.append(button(t('map.routeSet'), 'go', () => { M.closeAsk(); place = { lat, lon }; setGuide({ id: PLACE, location: { lat, lon } }); }));
+    if (guide && !run) row.append(button(t('map.routeClear'), '', () => { M.closeAsk(); clearGuide(); }));
+    row.append(button(t('map.routeCancel'), '', () => M.closeAsk()));
+    el.append(head, far, row);
+    M.ask(lat, lon, el);
   }
   let preview = null;
 
@@ -266,14 +290,22 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     game.say('Finding the way there…', 'ok');
     try {
       const N = await game.network(), car = game.carNow(), [lat, lon] = P.toLatLon(car.x, car.z);
-      const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, { lat: item.location.lat, lon: item.location.lon }], options: { oneway: false } });
+      let to = { lat: item.location.lat, lon: item.location.lon };
+      // (a place picked on the map — a park, the water's edge — taken to the nearest road to it, and its pin with it)
+      if (item.id === PLACE) {
+        const [x, z] = N.P.toXZ(to.lat, to.lon), near = N.nearest(x, z, routeOptions({ oneway: false }), 3000);
+        if (!near) { game.say('No road near there', 'warn'); return; }
+        const [nlat, nlon] = N.P.toLatLon(near.x, near.z);
+        to = { lat: nlat, lon: nlon }; place = to;
+      }
+      const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, to], options: { oneway: false } });
       if (!r.ok || r.line.length < 2) { game.say('No way there on the roads', 'warn'); return; }
       guide = r.line; guideFor = item.id; setLines();
       game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
     } catch (e) { game.say(`Couldn't set a route: ${e.message}`, 'warn'); }
     done?.();
   }
-  function clearGuide(done) { guide = null; guideFor = null; setLines(); done?.(); }
+  function clearGuide(done) { guide = null; guideFor = null; place = null; setLines(); done?.(); }
   // the route behind the car taken off as it's driven (twice a second): the line on the maps starts where the
   // car is; at its end, gone ("You've arrived"). Off the route (further than GUIDE_ON_M from it), kept as it is.
   let trimAt = 0;
@@ -580,6 +612,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       frameDt = realDt;
       restyle();
       trimGuide(realDt);
+      // (the maps come a moment after the world: told once where a click on an empty spot goes)
+      if (w.maps && w.maps !== placeFed) { placeFed = w.maps; w.maps.onPlace?.(askPlace); }
       if (!run) return;
       run.adapters.frame?.();
       const car = game.carNow();

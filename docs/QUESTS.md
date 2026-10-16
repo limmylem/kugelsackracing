@@ -27,6 +27,10 @@ through PlayerService, and the rules are in `data/quests.json`.
   If the game then can't start it, the fee is refunded (`refundQuest`).
 - **Set route.** Shows a dashed guide line on the minimap and the full map from the car to the quest's
   start, along the region's road graph.
+- **A route to anywhere.** A click (a tap) on an empty spot of the full map (Tab) asks *Route here?*, with how far it
+  is in a straight line; *Set route* finds the way on the roads to the nearest road to that spot (within 3 km: a park,
+  the water's edge), the same guide as a quest's, with a pin where it ends. *Clear route* (in the same card) or
+  arriving takes it off. Not during a quest (play/questUi.js `askPlace`; map/render/maps.ts `onPlace`, `ask`).
 
 ## The run (one QuestSession for every type)
 
