@@ -3,7 +3,7 @@
  "map": "v5",
  "region": "adelaide",
  "name": "Adelaide",
- "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#e60e0498e1ab",
+ "version": "4/3/1/1/overture:2026-10-11/2026-09-23.1#6ba73ddac97a",
  "format": 3,
  "graphVersion": 1,
  "baked": "2026-10-16",
@@ -200,6 +200,19 @@
     "colour": "#c8c4b8",
     "style": "concrete-face"
    }
+  },
+  "railways": {
+   "_note": "map/model/railways.ts, map/render/rails.ts: a line's gauge (mm) where it doesn't say, by kind; trams electrified where nothing says; the colours.",
+   "gauge": 1600,
+   "tramGauge": 1435,
+   "narrowGauge": 1067,
+   "tramsElectrified": true,
+   "ballast": "#8b8379",
+   "sleeper": "#5d5248",
+   "rail": "#7e8286",
+   "deck": "#a7a39b",
+   "platform": "#bdb8ae",
+   "platformEdge": "#d9c64a"
   }
  },
  "placeNames": [
@@ -29130,8 +29143,8 @@
    "estimated": 3852,
    "estimatedDropped": 525
   },
-  "peakMemoryGB": 1.6,
-  "bakeSeconds": 32
+  "peakMemoryGB": 1.7,
+  "bakeSeconds": 34
  },
  "tiles": [
   {
@@ -29236,7 +29249,7 @@
   {
    "i": 12,
    "j": 11,
-   "bytes": 319869,
+   "bytes": 319870,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29245,7 +29258,7 @@
   {
    "i": 13,
    "j": 11,
-   "bytes": 277940,
+   "bytes": 277936,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,
@@ -29299,7 +29312,7 @@
   {
    "i": 14,
    "j": 12,
-   "bytes": 263181,
+   "bytes": 263182,
    "dem": "Copernicus GLO-30",
    "resolution": 30,
    "landmarks": 0,

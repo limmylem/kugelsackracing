@@ -104,5 +104,9 @@
     "_note": "map/model/railways.ts, map/render/rails.ts: a line's gauge (mm) where it doesn't say, by kind; trams electrified where nothing says; the colours.",
     "gauge": 1600, "tramGauge": 1435, "narrowGauge": 1067, "tramsElectrified": true,
     "ballast": "#8b8379", "sleeper": "#5d5248", "rail": "#7e8286", "deck": "#a7a39b", "platform": "#bdb8ae", "platformEdge": "#d9c64a"
+  },
+  "markingColours": {
+    "_note": "map/model/markingsV5.ts: Map v5's markings' paint: the white lines and arrows, the green at a bicycle lane's ends, a bus lane's colour at its ends.",
+    "white": "#e8e8e2", "bikeLane": "#3f8a4a", "busLane": "#a8473a"
   }
 }

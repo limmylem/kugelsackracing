@@ -48,6 +48,7 @@ import { openAreas, kindOf, pickKind, streetTrees, gardenTrees, TREE_ESTIMATED }
 import { rankLandmarks, overrides } from '../model/landmarks.ts';
 import { placeSigns } from '../model/placeSigns.ts';
 import { railways } from '../model/railways.ts';
+import { markingsV5 } from '../model/markingsV5.ts';
 import { placeFurniture } from '../model/furniture.ts';
 import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
 import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
@@ -139,7 +140,9 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (Map v5: the region's style pack, and each road side's cross-section — kerb, verge, footpath: map/model/crossSection.ts)
   const style = v5 ? stylePackFor(region) : null;
   let landmarkList: any[] = [], handMade: any = { models: [], hidden: 0, missing: [] }, parkAreas: any[] = [], namedPlaces: any[] = [];
-  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {};
+  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {};
+  // (Map v5: each road's OSM tags by way, for the markings' lanes)
+  const roadTags = v5 ? new Map<number, Record<string, string>>(osm.roads.map((r: any) => [r.id, r.tags])) : null;
   // (Map v5: the ground's colours the style pack's where it says — Adelaide's dry summer grass; parks and pitches,
   // watered, stay green)
   if (style?.vegetation?.groundColours) Object.assign(v3cfg.colours, style.vegetation.groundColours);
@@ -258,6 +261,15 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const FL = v5 ? timed('fields', () => buildFields({ areas: fieldAreas, groundAt, style, cfg, box })) : null;
     if (FL) for (const [k, v] of Object.entries<number>(FL.stats)) fieldStats[k] = (fieldStats[k] ?? 0) + v;
     const surface = timed('index', () => surfaceIndex(mB)), X = timed('mask', () => exclusionMask(mB, osm, [box[0], box[1], box[2] - 1e-6, box[3] - 1e-6], cfg, T));
+    // (Map v5: turn arrows, bicycle and bus lanes — map/model/markingsV5.ts — with Map v4's markings in the road's marks)
+    if (v5) timed('markings', () => {
+      const MK = markingsV5({ model: mB, points: osm.points, tagsOf: (g: any) => g.tags ?? roadTags!.get(g.way), surface, style, cfg, box }), K: any = S.marks, M = MK.mesh, base = K.positions.length / 3;
+      for (const v of M.positions) K.positions.push(v);
+      for (const v of M.colours) K.colours.push(v);
+      for (const v of M.indices) K.indices.push(v + base);
+      for (const k of ['surfaces', 'solid', 'level', 'seg']) for (const v of (M as any)[k]) K[k].push(v);
+      for (const [k, v] of Object.entries<number>(MK.stats)) markStats[k] = (markStats[k] ?? 0) + v;
+    });
     const onPaved = (x: number, z: number) => { const k = cellAt(x, z); return k < 0 || !!Tn.road[k] || !!Tn.parkingCell[k]; };
     const tr = timed('trees', () => treesV4({ osm, groundAt, onPaved, mask: X, cfg, v3cfg, inArea: inBlock, box, veg }));
     // (Map v5: street trees in the verges, garden trees behind the houses — map/model/vegetation.ts — estimated, clear
@@ -332,6 +344,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
   if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants)`);
   if (v5) lap(`  railways: ${(railStatsV5.km ?? 0).toFixed(1)} km of track (${railStatsV5.inRoad ?? 0} pieces in a road), ${railStatsV5.bridges ?? 0} rail bridges with decks, ${railStatsV5.crossings ?? 0} level crossings with booms (estimated: found where a line crosses a road at grade), ${railStatsV5.platforms ?? 0} platform slabs, ${railStatsV5.masts ?? 0} overhead wire masts (estimated)`);
+  if (v5) lap(`  markings: ${markStats.arrows ?? 0} turn arrows at traffic lights (${markStats.arrowsTagged ?? 0} from OSM's turn:lanes, ${markStats.arrowsEstimated ?? 0} estimated from the junction's arms), ${markStats.bikeLanes ?? 0} bicycle lane sides with ${markStats.bikeSymbols ?? 0} bicycles, ${markStats.busLanes ?? 0} bus lane sides (each counted by every block that draws it); ${markStats.offSurface ?? 0} pieces left out off the road's surface`);
   if (v5) lap(`  place signs: ${placeStats.suburbs ?? 0} suburbs' (from ${localities.length} of Overture's localities), ${placeStats.parks ?? 0} parks'; ${placeStats.noRoom ?? 0} left out for want of room`);
   if (v5) lap(`  vegetation: ${vegStats.street ?? 0} street trees in the verges, ${vegStats.garden ?? 0} garden trees behind houses (estimated); ${vegStats.offOpenGround ?? 0} estimated park trees kept off pitches, pools, playgrounds and greens; kinds from the tags or the ${style.name} mix`);
   if (v5) lap(`  grounds: ${fieldStats.ovals ?? 0} ovals (${fieldStats.cricketPitches ?? 0} cricket pitches), ${fieldStats.rectangles ?? 0} fields, ${fieldStats.courts ?? 0} courts, ${fieldStats.pools ?? 0} pools marked out (estimated: each sport's own layout on its mapped shape; counted in each block that reaches them); ${fieldStats.plain ?? 0} pitches left plain`);

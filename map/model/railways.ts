@@ -90,7 +90,7 @@ export function railways({ lines, areas, groundAt, surface, segs, style, cfg, bo
         const tx = g.xs[k + 1] - g.xs[k], tz = g.zs[k + 1] - g.zs[k], tl = Math.hypot(tx, tz) || 1, ux = tx / tl, uz = tz / tl, left = style.drivingSide !== 'right';
         // (each way along the road: the boom before the line, on the driving side, facing the traffic coming)
         for (const dir of g.oneway ? [1] : [1, -1]) {
-          const fx = ux * dir, fz = uz * dir, sx = left ? fz : -fz, sz = left ? -fx : fx, hw = (left === (dir > 0) ? g.hwL?.[k] : g.hwR?.[k]) ?? g.visual / 2;
+          const fx = ux * dir, fz = uz * dir, sx = left ? fz : -fz, sz = left ? -fx : fx, hw = (left === (dir > 0) ? g.hwR?.[k] : g.hwL?.[k]) ?? g.visual / 2;
           const bx = cx - fx * R.boomBack + sx * (hw + R.boomOut), bz = cz - fz * R.boomBack + sz * (hw + R.boomOut);
           if (surface.near(bx, bz, 0.4)) continue;
           items.push(bx, groundAt(bx, bz), bz, Math.atan2(-fx, -fz), FURN.boomGate, 0, hw * 2, 1);

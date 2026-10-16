@@ -63,7 +63,10 @@ export function rowAt(g: Seg, s: number) {
   return { s, x, z, nx, nz, mitre, hwL: lerp(g.hwL), hwR: lerp(g.hwR), dL: lerp(g.dL), dR: lerp(g.dR) };
 }
 
-// a point of a row's cross-section: side +1 left (along the normal), −1 right; at `off` m from the centre line
+// a point of a row's cross-section: side +1 'left' (along the normal), −1 'right'; at `off` m from the centre line.
+// (The names are Map v4's: in the world's frame — x east, z south, y up — the normal (−tz, tx) is to the right of the
+// segment's direction seen from above, so hwL/dL are the right-hand side's. Anything that depends on which side is
+// which — the driving side, OSM's :left/:right tags — takes side +1 as the right of the way's direction)
 export const at = (r: any, off: number) => [r.x + r.nx * off * r.mitre, r.z + r.nz * off * r.mitre];
 
 // where two polylines cross first, walking along the first: { i, t, j, u, x, z } (piece i of a at t, piece j of b at u)
