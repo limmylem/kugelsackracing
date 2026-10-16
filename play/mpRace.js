@@ -358,7 +358,7 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
     r.C?.dispose(); if (r.recorder?.on) r.recorder.stop(); r.overlay?.dispose(); replayView?.close();
     game.setOpacity?.('me', 1);
     r.detach?.(); r.dressing?.dispose(); r.A?.dispose(); void r.M?.leave();
-    if (r.P) { game.endCoopPursuit?.(r.P); r.P = null; hud.hide(); }
+    if (r.P) { game.endCoopPursuit?.(r.P); r.P = null; hud.hide(); document.body?.classList.remove('coopPursuit', 'pursuitFilm'); }
     game.hideCar(false); game.focus?.(null); game.realTime?.(false);
   }
 
@@ -396,6 +396,8 @@ export function createMpRace({ S, game, cfg, quests, autopilot = false }) {
       // your car to the others: once it's on its slot, while racing (not in the lobby, not while watching)
       const sending = r.state === 'grid' || r.state === 'racing' || r.state === 'finished';
       r.M?.frame(dt, () => sending ? game.localState() : null);
+      document.body?.classList.toggle('coopPursuit', !!r.P);
+      document.body?.classList.toggle('pursuitFilm', r.cine?.phase === 'playing' && !r.cine.skipped);
       // (a co-op pursuit: its panel, and the search area and the police on the maps)
       if (r.P) {
         const n = r.Q?.state.pursuitNow;

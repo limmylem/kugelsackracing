@@ -7,10 +7,14 @@
 
 import { t } from '../ui/i18n.js';
 
+// (a co-op pursuit: no race standings — nobody's racing anybody; and through its intro, just the picture)
+const CSS = 'body.coopPursuit #mpHud{display:none!important}body.pursuitFilm > *:not(canvas):not(#questHud):not(#pursuitDebug):not(style):not(script){visibility:hidden !important}';
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export function createPursuitHud() {
   let el = null;
+  if (typeof document !== 'undefined' && !document.getElementById('pursuitHudCss')) { const st = document.createElement('style'); st.id = 'pursuitHudCss'; st.textContent = CSS; document.head.appendChild(st); }
   const ensure = () => {
     if (el) return el;
     el = document.createElement('div');

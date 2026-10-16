@@ -152,6 +152,27 @@ still drives to GO, so the party stays in step).
 The room's messages are listed at the top of `server/src/rt/pursuit.ts`. Its test: `node server/tools/pursuit-test.ts`
 (the API, the race server and a party of bots, with a stand-in for the host's game; needs `TEST_DATABASE_URL`).
 
+## How to test it
+
+**Solo.** Make a route in the editor (a few hundred metres of city or more), then a quest of type *Police pursuit*
+on it (objective *escape*, starting heat 1, most heat 3), and publish both. Drive to its start and press Start on its
+card. Watch the intro (or press Space), then:
+- *Escape:* get out of the police car's sight (round a corner, behind buildings); the cooldown and the orange
+  search circle on the minimap appear; drive out of the circle before the time runs out → *Escaped*, paid.
+- *Busted:* stop with the police car on you; the BUSTED bar fills in 3.5 s → *Busted*, the fine taken.
+- *Heat:* starting heat 4–5 shows more units, intercepts, rams, PITs, box-ins, a roadblock and spike strips.
+- **F4** shows the debug overlay (also `?pursuitDebug` in the address).
+
+**Co-op.** Two players (two windows: `?mp&player=A` and `?mp&player=B` in development): A makes a party (F7 →
+Party), B joins; publish a *Co-op pursuit* quest; A drives to it and presses Start on its card. Both are taken into
+its room; the intro plays in both through the countdown; at GO both drive. A's game drives the police; B sees them.
+
+**Automated:** `node --test tests/unit/pursuit.test.mjs` (the director, police aiming, the session, the server's check,
+the fine, the cinematic maths, co-op missions); `node server/tools/pursuit-test.ts` (a party of bots through the API
+and the race server: chased, lost, escaped, paid once; the host leaving); `node server/tools/pursuit-browser.ts
+--local-libs` (two game windows: the party, the synced intro, the host's police, both sides' views, the end). The
+server tools need `TEST_DATABASE_URL` (PostgreSQL with PostGIS).
+
 ## Files
 
 | File | |

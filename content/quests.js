@@ -99,20 +99,21 @@ export const TYPES = {
   // ---------- police pursuits (docs/PURSUIT.md: quest/types/pursuit.js; the police: data/pursuit.json) ----------
   pursuit: {
     label: 'Police pursuit', icon: 'siren', blurb: 'The police are on you: get away, or get to the drop with them behind you.',
-    params: { objective: 'escape', startHeat: 1, maxHeat: 3, maxUnits: null, totalUnits: null, timeLimitSeconds: null, bustPenalty: null, escapeFirst: false, scoreTarget: 2500, timerEnds: null, roadblocks: true, spikes: true },
+    params: { objective: 'escape', intro: true, startHeat: 1, maxHeat: 3, maxUnits: null, totalUnits: null, timeLimitSeconds: null, bustPenalty: null, escapeFirst: false, scoreTarget: 2500, timerEnds: null, roadblocks: true, spikes: true },
     fields: [{ key: 'objective', label: 'Objective', kind: 'choice', options: ['escape', 'destination'] },
       { key: 'startHeat', label: 'Starting heat (1–5)', kind: 'int', min: 1, max: 5 }, { key: 'maxHeat', label: 'Most heat (1–5)', kind: 'int', min: 1, max: 5 },
       { key: 'maxUnits', label: 'Police cars at once (blank: the heat\'s)', kind: 'int', min: 1, max: 12 }, { key: 'totalUnits', label: 'Police cars in all (blank: no limit)', kind: 'int', min: 1, max: 24 },
       { key: 'roadblocks', label: 'Roadblocks (heat 4+)', kind: 'bool' }, { key: 'spikes', label: 'Spike strips (heat 5)', kind: 'bool' },
       { key: 'timerEnds', label: 'Cooldown ends inside the search area', kind: 'choice', options: ['', 'reacquire', 'escape'] },
       { key: 'escapeFirst', label: 'Lose them before the drop', kind: 'bool' }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 10 },
-      { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }],
+      { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 },
+      { key: 'intro', label: 'Intro cinematic (data/cinematics.json; off: a rolling start)', kind: 'bool' }],
     check: (p, ctx) => pursuitChecks(p, ctx, 'Police pursuit'),
   },
   // (co-op: a party only — the race server runs the police's decisions, server/src/rt/pursuit.ts)
   pursuit_coop: {
     label: 'Co-op pursuit', icon: 'siren', blurb: 'Your party against the police: get away together, carry the goods, or split up.', party: true,
-    params: { kind: 'convoy', objective: 'escape', startHeat: 2, maxHeat: 4, drops: [], busted: 'respawn', respawnSeconds: 15, rewards: 'shared', maxUnits: null, totalUnits: null, timeLimitSeconds: null, bustPenalty: null, escapeFirst: false, scoreTarget: 4000, timerEnds: null, roadblocks: true, spikes: true },
+    params: { kind: 'convoy', objective: 'escape', intro: true, startHeat: 2, maxHeat: 4, drops: [], busted: 'respawn', respawnSeconds: 15, rewards: 'shared', maxUnits: null, totalUnits: null, timeLimitSeconds: null, escapeFirst: false, scoreTarget: 4000, timerEnds: null, roadblocks: true, spikes: true },
     fields: [{ key: 'kind', label: 'Mission', kind: 'choice', options: ['convoy', 'getaway', 'split'] },
       { key: 'objective', label: 'Convoy / getaway: get away, or to the drop (the route\'s finish)', kind: 'choice', options: ['escape', 'destination'] },
       { key: 'drops', label: 'Split up: a drop for each (in party order)', kind: 'places' },
@@ -123,7 +124,7 @@ export const TYPES = {
       { key: 'roadblocks', label: 'Roadblocks (heat 4+)', kind: 'bool' }, { key: 'spikes', label: 'Spike strips (heat 5)', kind: 'bool' },
       { key: 'timerEnds', label: 'Cooldown ends inside the search area', kind: 'choice', options: ['', 'reacquire', 'escape'] },
       { key: 'escapeFirst', label: 'Lose them before the drop', kind: 'bool' }, { key: 'timeLimitSeconds', label: 'Time limit (s, optional)', kind: 'number', min: 10 },
-      { key: 'bustPenalty', label: 'Bust fine (blank: the entry fee)', kind: 'number', min: 0 }, { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }],
+      { key: 'scoreTarget', label: 'Gold score', kind: 'int', min: 100 }, { key: 'intro', label: 'Intro cinematic (off: the lights)', kind: 'bool' }],
     check: (p, ctx) => [
       ...pursuitChecks(p, ctx, 'Co-op pursuit'),
       ...(['convoy', 'getaway', 'split'].includes(p.kind ?? 'convoy') ? [] : [err('params.kind', 'The mission: convoy, getaway or split.')]),

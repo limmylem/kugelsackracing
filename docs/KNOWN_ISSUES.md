@@ -43,6 +43,22 @@ How quests, rewards and progression work: [PROGRESSION.md](PROGRESSION.md).
 - **Other players' damaged engines misfire**, from the crashes their cars send (the engine's condition lost), as an
   NPC's does; a leaking radiator steams and a loose panel flaps too (audio/remoteDamage.js), as yours do.
 
+## Police pursuits (docs/PURSUIT.md)
+
+- **The road data runs through fences.** In places OSM's roads pass through construction hoardings or closed lanes
+  (Market Street has some). Police paths keep to one-way streets and feel their way round anything solid ahead, and a
+  unit stuck for 12 s out of your sight is replaced — but one can still be seen nosing at a fence for a moment.
+- **The bots in the server test don't drive the police.** `server/tools/pursuit-test.ts` stands in for the host's
+  game (police kept a little behind each player); the real police physics is checked by the two-window browser test
+  (`server/tools/pursuit-browser.ts`) and the solo probes.
+- **Co-op, not the host: sight lines from the room's positions.** Each game checks which police cars can see it from
+  where the room last said they were (a tenth of a second old) — fine at chase distances.
+- **Co-op: Space only cuts the intro's camera.** The cars still drive themselves to GO, so the party stays in step.
+- **Co-op pursuits have no entry fee and no bust fine**, and pay again each time they're won (no farming cut yet).
+- **Spike strips puncture tyres only with full damage on** (the damage setting): with damage off they do nothing.
+- **Software rendering:** in the browser tests (no graphics card) the physics runs slower than real time, so the
+  chase reads slower there than it plays.
+
 ## Phase 8 Step 4: final polish and launch (LAUNCH_CHECKLIST.md, docs/RELEASE.md)
 
 ### Fixed on the way (2026-10-16)
