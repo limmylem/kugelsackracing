@@ -15,6 +15,9 @@
 //   Q.drain() → the events since      Q.hud() → what the HUD shows      Q.outcome  when it's over
 //   externalGo (Phase 7 Step 2, a multiplayer race): the countdown doesn't set GO itself — Q.setGo(t) does (t on the
 //   ticks' clock: when the race server's lights go out), and may move it as the clocks settle, until it's passed
+//   A cinematic start (startMode 'cinematic': a pursuit's intro, play/cinematic.js): the car's put down and held, the
+//   game's cinematic lets it go (the AI driving it, the police pulling out) and Q.setGo(t) — when the cinematic hands over
+//   — is GO: no 3-2-1, no jump start, the clock from GO, the car already moving (not set going by the session).
 //   A free type (S.free: a police pursuit, quest/types/pursuit.js) is driven anywhere: no checkpoints, no corridor, the
 //   clock from GO; the type's own tick says when it's over. Its start (type.startAt: metres along the route, its speed)
 //   and its HUD arrow (type.next: a place, or null for none) are its own; type.intro: false — no fly-along.
@@ -164,22 +167,23 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
     },
     skipIntro() { if (S.state === 'intro') api.toGrid(); },
     // (a multiplayer race: GO when the race server says — on the ticks' clock)
-    setGo(t) { if (externalGo && (S.state === 'countdown' || S.state === 'ready' || S.state === 'intro')) S.goAt = t; },
+    setGo(t) { if ((externalGo || startMode === 'cinematic') && (S.state === 'countdown' || S.state === 'ready' || S.state === 'intro')) S.goAt = t; },
     toGrid() {
       S.state = 'countdown';
       const rolling = startMode === 'rolling', R = config.start, own = type.startAt?.(S) ?? null;
-      emit({ type: 'place', slot: course.grid.slots[slot] ?? course.grid.slots[0], rolling, rollingDistance: R.rollingDistance, rollingSpeed: (own?.kmh ?? R.rollingKmh) / 3.6, ...(own ? { at: own.s } : {}) });
+      emit({ type: 'place', slot: course.grid.slots[slot] ?? course.grid.slots[0], rolling, rollingDistance: R.rollingDistance, rollingSpeed: (own?.kmh ?? R.rollingKmh) / 3.6, ...(own ? { at: own.s } : {}), ...(startMode === 'cinematic' ? { cinematic: true, rolling: false } : {}) });
     },
     tick(I) {
       S.t = I.t;
       if (S.state === 'countdown') {
         const R = config.start;
-        if (S.tCount == null) { S.tCount = I.t; S.tGo = externalGo ? (S.goAt ?? Infinity) : I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
-        if (externalGo && S.goAt != null) S.tGo = S.goAt;
+        const outside = externalGo || startMode === 'cinematic';
+        if (S.tCount == null) { S.tCount = I.t; S.tGo = outside ? (S.goAt ?? Infinity) : I.t + R.countdown; tracker.begin(I.x, I.z).start(); }
+        if (outside && S.goAt != null) S.tGo = S.goAt;
         const left = S.tGo - I.t;
         const n = Math.ceil(left - 1e-9);
-        if (n > 0 && n <= R.countdown && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
-        if (startMode !== 'rolling' && !S.jump && (I.throttle ?? 0) > R.jumpThrottle && left <= R.jumpWindow + 1e-9) {
+        if (startMode !== 'cinematic' && n > 0 && n <= R.countdown && n !== S.count) { S.count = n; emit({ type: 'count', n }); }
+        if (startMode === 'standing' && !S.jump && (I.throttle ?? 0) > R.jumpThrottle && left <= R.jumpWindow + 1e-9) {
           S.jump = true; S.penalties.push({ what: 'Jump start', seconds: R.jumpPenalty });
           emit({ type: 'jump', penalty: R.jumpPenalty });
         }
@@ -187,7 +191,8 @@ export function createQuestSession({ quest, course, config, car = {}, startMode 
           S.state = 'racing'; S.count = 0;
           if (startMode !== 'rolling' || S.free) { S.t0 = S.tGo; S.clock = clockAt(I.t); }
           S.prev = { x: I.x, z: I.z, t: I.t };
-          emit({ type: 'go', rolling: startMode === 'rolling', speed: (type.startAt?.(S)?.kmh ?? config.start.rollingKmh) / 3.6 });
+          // (a cinematic's car is already going: GO hands it over as it is)
+          emit({ type: 'go', rolling: startMode === 'rolling', speed: startMode === 'cinematic' ? 0 : (type.startAt?.(S)?.kmh ?? config.start.rollingKmh) / 3.6, ...(startMode === 'cinematic' ? { cinematic: true } : {}) });
         }
         return;
       }

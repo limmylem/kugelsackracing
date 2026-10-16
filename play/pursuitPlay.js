@@ -37,6 +37,8 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
   const units = new Map();          // carId → { id, car, driver, damage, build, spec, kind, condition, drivable, dirty, vis, bar, siren }
   const strips = [], events = [];
   let started = false, over = false, disposed = false, seedN = 0, startSpot = null, startSpeed = 0, flash = 0, lastHits = [];
+  // (a cinematic intro, play/cinematic.js: the police parked by the road, pulling out, keeping their gap — cineT its clock)
+  let cine = null, cineT = null;
   const emit = e => events.push(e);
 
   // ---------- where things are ----------
@@ -75,6 +77,14 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     }
     return true;
   }
+  // a car's feelers: how far it is to something solid ahead of it, straight on and 25° either side (bumper height, 14 m)
+  const FEEL = 14, SIDE = 25 * Math.PI / 180;
+  function feel(v) {
+    const b = v.body, p = b.translation(), f = rotate(b.rotation(), [0, 0, 1]), m = Math.hypot(f[0], f[2]) || 1, fx = f[0] / m, fz = f[2] / m;
+    const ray = a => { const c = Math.cos(a), s2 = Math.sin(a), dx = fx * c + fz * s2, dz = -fx * s2 + fz * c; try { const h = world().castRay(new RAPIER.Ray({ x: p.x + fx * 2.2, y: p.y + 0.55, z: p.z + fz * 2.2 }, { x: dx, y: 0, z: dz }), FEEL, true, undefined, undefined, undefined, undefined, solid); return h ? h.timeOfImpact : FEEL; } catch { return FEEL; } };
+    // (left: turning the forward a quarter left is +x for +z — physics/ai.js; + angle here turns it that way)
+    return { centre: ray(0), left: ray(SIDE), right: ray(-SIDE) };
+  }
   function sees(u) {
     const a = simPos(u.car.vehicle.body), b = simPos(sim.vehicle.body), e = cfg.police.eyeHeight;
     return clearBetween([a.x, a.y + e, a.z], [b.x, b.y + e, b.z]);
@@ -89,7 +99,7 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     try { n = await game.buildPolice({ rating: (game.rating ?? 400) * (rating ?? 1), seed: ++seedN }); } catch (e) { console.warn(`No police car: ${e.message}`); D.spawnFailed(); return null; }
     if (disposed || over) { D.spawnFailed(); return null; }
     const u = { kind, build: n.build, spec: n.spec, condition: 100, drivable: true, dirty: false, damagedAt: -1 };
-    u.driver = createPoliceDriver({ cfg, frame, car: policeCaps(carCaps(n.build.stats)), pathTo: roads.pathTo, clear: () => u.car ? sees(u) && driveClear(u) : true });
+    u.driver = createPoliceDriver({ cfg, frame, car: policeCaps(carCaps(n.build.stats)), pathTo: roads.pathTo, clear: () => u.car ? sees(u) && driveClear(u) : true, feel });
     if (kind === 'block') u.driver.order = { mode: 'block' };
     const [sx, sz] = frame.toSim(x, z);
     const id = sim.addCar({ position: [sx, 0, sz], headingDeg: heading, speed }, (v, dt) => u.driver.drive(v, dt), n.spec, n.sockets);
@@ -221,7 +231,15 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
   function tick(dt) {
     if (disposed) return;
     const Q = session(), st = Q?.state.state;
-    if (!started) return;
+    if (!started) {
+      // the cinematic: parked until they pull out, then after you, the gap closing to the handover's
+      if (cine && cineT != null) {
+        cineT += dt;
+        const me = { id: 0, ...carState(sim.vehicle) }, C = cine.police, k = Math.min(1, cineT / cine.seconds), gap = C.gapAtStart + (C.gapAtHandover - C.gapAtStart) * k;
+        for (const u of units.values()) { u.driver.target = me; u.driver.order = cineT < C.pullOutAt ? { mode: 'block' } : { mode: 'follow', target: 0, slot: gap, line: course.line }; }
+      }
+      return;
+    }
     if (st !== 'racing') {
       // (it's over — finished, busted, out of time: the police stop where they are)
       if (!over) { over = true; for (const u of units.values()) { u.driver.order = { mode: 'block' }; u.siren?.dispose(); u.siren = null; } }
@@ -240,7 +258,7 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     for (const o of out.orders) { const u = units.get(o.id); if (u) { u.driver.order = o; u.driver.target = me; } }
     for (const r of out.requests) request(r, me);
     // (a unit hopelessly stuck — against a wall it can't back away from — taken away while you can't see it: another comes)
-    for (const u of units.values()) if ((u.driver.state.stuckFor ?? 0) > cfg.police.stuckRemove && !sees(u)) removeUnit(u.id);
+    for (const u of units.values()) if ((u.driver.state.stuckFor ?? 0) > cfg.police.stuckRemove && (!sees(u) || Math.hypot(carState(u.car.vehicle).x - me.x, carState(u.car.vehicle).z - me.z) > 80)) removeUnit(u.id);
     for (const e of D.drain()) emit(e);
     if (strips.length) spikesTick(me);
     if (Q) Q.state.pursuitNow = D.status;
@@ -331,16 +349,17 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
     event(e) {
       if (disposed) return;
       if (e.type === 'place') {
-        // the first unit: startGap behind you on the route, waiting with you for GO
-        const sAt = e.at ?? course.grid.startS, L = course.length, s0 = Math.max(0, sAt - cfg.police.startGap), p = lineAt(course.line, course.loop ? ((s0 % L) + L) % L : s0, course.loop);
-        startSpot = { x: p.x, z: p.z, heading: headingOf(p.dx, p.dz) }; startSpeed = e.rollingSpeed ?? 0;
+        // the first unit: startGap behind you on the route, waiting with you for GO (a cinematic's: parked by the road)
+        const C = e.cinematic && cine ? cine.police : null, sAt = e.at ?? course.grid.startS, L = course.length, s0 = Math.max(0, sAt - (C?.gapAtStart ?? cfg.police.startGap)), p = lineAt(course.line, course.loop ? ((s0 % L) + L) % L : s0, course.loop);
+        const side = C?.side ?? 0;
+        startSpot = { x: p.x - p.dz * side, z: p.z + p.dx * side, heading: headingOf(p.dx, p.dz) }; startSpeed = e.rollingSpeed ?? 0;
         D.expect(cfg.police.expectStart ?? 1);
       } else if (e.type === 'go') {
-        started = true;
-        // (rolling: the police rolling too)
+        started = true; cineT = null;
+        // (rolling: the police rolling too — after a cinematic they're already going)
         for (const u of units.values()) {
           const b = u.car.vehicle.body, q = b.rotation(), f = rotate(q, [0, 0, 1]), m = Math.hypot(f[0], f[2]) || 1;
-          b.setLinvel({ x: f[0] / m * (e.speed ?? 0), y: 0, z: f[2] / m * (e.speed ?? 0) }, true);
+          if (e.speed > 0) b.setLinvel({ x: f[0] / m * e.speed, y: 0, z: f[2] / m * e.speed }, true);
           u.driver.order = { mode: 'pursue', target: 0 };
         }
       }
@@ -385,6 +404,23 @@ export function createPursuit({ THREE, RAPIER, w, frame, cfg, quest, course, net
       return { x: p.x, z: p.z, h: p.h, heading: same ? headingOf(p.dx, p.dz) : headingOf(-p.dx, -p.dz) };
     },
     drain() { return events.splice(0); },
+    // ---------- a cinematic intro (play/questUi.js runs it: data/cinematics.json) ----------
+    setCinematic(def) { cine = def; },
+    // (ready to roll: the first unit's in, on the ground, and drawn)
+    get cinematicReady() { return !startSpot && units.size > 0 && game.ready() && [...units.values()].every(u => u.vis); },
+    cinematicBegin() { cineT = 0; },
+    // the first police car's pose, for the shots (sim frame: p, forward, left)
+    poseOf(which = 'police') { const u = [...units.values()][0]; if (!u) return null; const b = u.car.vehicle.body, p = b.translation(), q = b.rotation(); return { p: [p.x, p.y, p.z], f: rotate(q, [0, 0, 1]), l: rotate(q, [1, 0, 0]) }; },
+    // skipped: the police put gap m behind you along the route (s: yours), at speed (m/s), as if it had played out
+    placeBehind(sPlayer, gap, speed) {
+      const L = course.length;
+      [...units.values()].forEach((u, i) => {
+        const s0 = Math.max(0, sPlayer - gap - i * 10), p = lineAt(course.line, course.loop ? ((s0 % L) + L) % L : s0, course.loop), [sx, sz] = frame.toSim(p.x, p.z);
+        const y = groundHeight(u.car.vehicle, sx, sz) ?? groundAt(p.x, p.z);
+        u.car.vehicle.reset({ position: [sx, y + 0.05, sz], headingDeg: headingOf(p.dx, p.dz), speed });
+      });
+      cineT = cine?.seconds ?? cineT;
+    },
     dispose() {
       if (disposed) return;
       disposed = true;

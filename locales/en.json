@@ -430,6 +430,7 @@
  "pursuit.inPursuit": "In pursuit",
  "pursuit.leaveArea": "leave the search area (map) to escape",
  "pursuit.losing": "Losing them…",
+ "pursuit.skip": "Space to skip",
  "pursuit.summary": "heat {heat} · chased {time}{out, plural, =0 {} one { · # police car out of action} other { · # police cars out of action}}",
  "pursuit.title": "Pursuit",
  "pursuit.toDrop": "get to the drop",

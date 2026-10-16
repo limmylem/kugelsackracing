@@ -97,7 +97,7 @@ import { eventCourse } from '../track/events/prepare.js';
 import { account as accountNow } from '../account/session.js';
 import { createDyno, createTacho } from './gauges.js';
 import { InputManager } from './input.js';
-import { reverseLine, roadFollower, straightLine } from '../physics/ai.js';
+import { reverseLine, roadFollower, straightLine, groundHeight } from '../physics/ai.js';
 import { createSettingsPanel, loadSettings, saveSettings } from './settings.js';
 import { prepareLanguage, createLaunch } from './launch.js';
 import { CAMERAS, createCameraRig } from './camera.js';
@@ -377,6 +377,16 @@ function questGame(w) {
       w.pursuit = P;
       return P;
     },
+    // (a cinematic: the car's pose for its shots — sim frame, forward and left; put down moving where a skipped one would
+    // have left it — the wheels turning, in the gear for that speed: physics/vehicle.js reset; the physics' clock)
+    carPose() { const b = car().body, p = b.translation(), q = b.rotation(); return { p: [p.x, p.y, p.z], f: [2 * (q.x * q.z + q.w * q.y), 2 * (q.y * q.z - q.w * q.x), 1 - 2 * (q.x * q.x + q.y * q.y)], l: [1 - 2 * (q.y * q.y + q.z * q.z), 2 * (q.x * q.y + q.w * q.z), 2 * (q.x * q.z - q.w * q.y)] }; },
+    putCar({ x, z, heading, speed = 0 }) {
+      const [sx, sz] = S.toSim(x, z), y = groundHeight(car(), sx, sz) ?? car().body.translation().y;
+      if (w.pinned) rwOf(w).releaseCar(w);
+      car().reset({ position: [sx, y + 0.05, sz], headingDeg: heading, speed });
+      w.rig.reset();
+    },
+    simTime: () => w.sim.time,
     endPursuit(P) { P.dispose(); if (w.pursuit === P) w.pursuit = null; w.pursuitFx = null; },
     endRace(race) {
       for (const r of race.npcs) { const vis = w.others.get(r.carId); if (vis) { dropCar(vis); w.others.delete(r.carId); } }
@@ -1343,8 +1353,10 @@ function frame(w, now) {
   let view = T ? stepTests(T, seconds) : null;
   if (!view && shared.switching) view = w.sim.advance(0, { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device });   // (another car on its way: hold still)
   if (!view) {
-    let input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
+    let input = paused ? { throttle: 0, brake: 0, steer: 0, handbrake: false, device: inp.device } : routeRun?.auto ? routeRun.autoInput() : w.quests?.cinematic ? () => w.quests.cinematicInput(w.sim.dt) : w.quests?.auto ? () => w.quests.autoInput(w.sim.dt) : shared.mpRace?.auto ? () => shared.mpRace.autoInput(w.sim.dt) : (start, end) => shared.input.stepInput(inp, now + start * 1000, now + end * 1000);
     // (a quest over: the car braked to a stop and held while its results show — play/questUi.js stopInput)
+    // (a cinematic just handed over: its AI's input eased into yours — no lurch as the car becomes yours: play/questUi.js)
+    if (!paused && w.quests?.handingOver) { const was = input; input = (start, end) => w.quests.handover(typeof was === 'function' ? was(start, end) : was); }
     if (!paused && w.quests?.stopping) { const was = input; input = (start, end) => w.quests.stopInput(typeof was === 'function' ? was(start, end) : was); }
     // (a multiplayer race keeps real time on a computer that draws slowly: the physics catches up to a second a frame)
     const simSeconds = shared.simFrameCap ? Math.min(Math.max((now - (shared.lastSim ?? now)) / 1000, 0), shared.simFrameCap) : seconds;

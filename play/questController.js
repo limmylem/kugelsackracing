@@ -40,6 +40,10 @@ export function createQuestController({ quest, course, config, player, car = {},
         // (a type's own start: that far along the route — a pursuit's, the police behind it)
         const s0 = e.at ?? course.grid.startS - e.rollingDistance, L = course.length, p = at(course.line, course.loop ? ((s0 % L) + L) % L : Math.max(0, s0), course.loop);
         A.place({ x: p.x, z: p.z, h: p.h, heading: headingOf(p.dx, p.dz) }, { speed: 0 });
+      } else if (e.at != null) {
+        // (a type's own start along the route: a pursuit's cinematic — the car on the road there, facing along it)
+        const L = course.length, p = at(course.line, course.loop ? ((e.at % L) + L) % L : Math.max(0, e.at), course.loop);
+        A.place({ x: p.x, z: p.z, h: p.h, heading: headingOf(p.dx, p.dz) }, { speed: 0 });
       } else A.place({ x: slot.x, z: slot.z, h: slot.h, heading: slot.heading }, { speed: 0 });
       A.hold();
       placed = true;

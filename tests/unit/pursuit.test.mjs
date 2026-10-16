@@ -294,3 +294,54 @@ test('the bust fine: worked out from the quest when it starts, taken when busted
   // the editor's checks
   assert.ok(problems({ ...pursuitQuest({ startHeat: 4, maxHeat: 2 }) }, { route: {} }).some(x => x.field === 'params.maxHeat'));
 });
+
+test('the intro cinematic: its shots as data — eased curves round the cars, ending on the chase camera; the throttle schedule', async () => {
+  const { cinematicCamera, catmullRom, throttleAt, EASE, shotAt } = await import('../../play/cinematic.js');
+  const cine = JSON.parse(fs.readFileSync(new URL('../../data/cinematics.json', import.meta.url)));
+  for (const [name, def] of Object.entries(cine)) {
+    if (name.startsWith('_')) continue;
+    assert.equal(def.shots[0].from, 0, `${name} starts at 0`);
+    def.shots.forEach((s, i) => { if (i) assert.equal(s.from, def.shots[i - 1].to, `${name}: shot ${i} follows on`); });
+    assert.equal(def.shots.at(-1).to, def.seconds);
+    assert.equal(def.shots.at(-1).path.at(-1), 'chase', `${name} hands over on the chase camera`);
+  }
+  assert.deepEqual(catmullRom([[0, 0, 0], [10, 0, 0]], 0), [0, 0, 0]);
+  assert.deepEqual(catmullRom([[0, 0, 0], [10, 0, 0], [10, 10, 0]], 1), [10, 10, 0]);
+  for (const e of Object.values(EASE)) { assert.equal(e(0), 0); assert.equal(e(1), 1); }
+  assert.equal(throttleAt([[0, 0.5], [1, 1]], -1), 0.5); assert.equal(throttleAt([[0, 0.5], [1, 1]], 5), 1);
+  const def = cine.pursuit_intro, pose = (x, z) => ({ p: [x, 0, z], f: [0, 0, 1], l: [1, 0, 0] });
+  const chase = { p: [0, 3, -8], look: [0, 1, 10], fov: 60 }, subjects = { player: pose(0, 0), police: pose(0, -20) };
+  // (the first shot round the police car; at the end, exactly the chase camera: no cut at the handover)
+  const a = cinematicCamera(def, 0, { subjects, chase });
+  assert.equal(a.shot.subject, 'police');
+  assert.ok(Math.hypot(a.p[0] - 0, a.p[2] + 20) < 10);
+  const end = cinematicCamera(def, def.seconds - 1e-6, { subjects, chase });
+  assert.ok(Math.hypot(end.p[0] - chase.p[0], end.p[1] - chase.p[1], end.p[2] - chase.p[2]) < 0.05);
+  assert.ok(Math.abs(end.fov - 60) < 0.1);
+  // (right is −left: a point to the right of a car facing +z with +x on its left is at −x)
+  const s = { ...def, shots: [{ from: 0, to: 1, subject: 'player', path: [[2, 0, 0]], look: [0, 0, 1], fov: [40, 40] }] };
+  assert.deepEqual(cinematicCamera(s, 0.5, { subjects, chase }).p, [-2, 0, 0]);
+  assert.equal(shotAt(def, 3).subject, 'player');
+});
+
+test('a cinematic start: held until the game lets it go, no 3-2-1 or jump start, GO when the cinematic says (the clock from then), the car not set going', () => {
+  const course = makeCourse([[0, 0], [3000, 0]]), Q = createQuestSession({ quest: pursuitQuest(), course, config: qcfg, car: { topSpeed: 60 }, startMode: 'cinematic' });
+  Q.begin();
+  const place = Q.drain().find(e => e.type === 'place');
+  assert.ok(place.cinematic && !place.rolling && place.at > course.grid.startS);
+  const ev = [];
+  for (let i = 0; i < 600; i++) { const t = i / 60; if (i === 300) Q.setGo(t); Q.state.pursuitNow = status(); Q.tick({ t, dt: 1 / 60, x: 100 + t * 10, z: 0, vx: 10, vz: 0, fx: 1, fz: 0, throttle: 1, drivable: true, condition: 100 }); ev.push(...Q.drain()); }
+  assert.ok(!ev.some(e => e.type === 'count' || e.type === 'jump'), 'no 3-2-1, no jump start under full throttle');
+  const go = ev.find(e => e.type === 'go');
+  assert.ok(go?.cinematic && go.speed === 0, 'GO hands the car over as it is');
+  assert.ok(Math.abs(Q.state.t0 - 5) < 1e-9, 'the clock from GO');
+});
+
+test('a police car feels its way round something solid just ahead (the road data running through a fence)', async () => {
+  const { avoid } = await import('../../pursuit/police.js');
+  assert.deepEqual(avoid({ centre: 14, left: 14, right: 14 }, 20, 0.1), { steer: 0.1, cap: Infinity });
+  const r = avoid({ centre: 3, left: 14, right: 2 }, 15, 0);
+  assert.ok(r.steer > 0.2, 'to the left: more room there');
+  assert.ok(r.cap < 8, 'and slower');
+  assert.ok(avoid({ centre: 3, left: 2, right: 14 }, 15, 0).steer < -0.2);
+});

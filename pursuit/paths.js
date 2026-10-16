@@ -13,13 +13,27 @@ import { piecePoints, routeOptions } from '../route/build.js';
 import { resample, smooth } from '../route/geometry.js';
 
 export function createPursuitRoads(N, { maxPathM = 2500 } = {}) {
-  const o = routeOptions({ reverseOneway: true, unpaved: true, motorways: true, tunnels: true });
+  const o = routeOptions({ reverseOneway: false, unpaved: true, motorways: true, tunnels: true });
+  // (from: the car — its x, z, and the way it's facing, fx, fz: the road it's on and going along that way is preferred to
+  // a nearer one it would have to turn round on: a hairpin to start with holds it to a crawl)
   const pathTo = (from, to) => {
     if (Math.hypot(to.x - from.x, to.z - from.z) > maxPathM) return null;
-    const a = N.nearest(from.x, from.z, o, 150), b = N.nearest(to.x, to.z, o, 250);
-    if (!a || !b) return null;
-    const r = N.path({ seg: a.seg, s: a.s }, { seg: b.seg, s: b.s }, o);
-    if (r.error) return null;
+    const b = N.nearest(to.x, to.z, o, 250);
+    if (!b) return null;
+    const starts = N.candidates(from.x, from.z, o, 60, 4);
+    if (!starts.length) { const a = N.nearest(from.x, from.z, o, 150); if (a) starts.push(a); }
+    let best = null;
+    for (const a of starts) {
+      const r = N.path({ seg: a.seg, s: a.s }, { seg: b.seg, s: b.s }, o);
+      if (r.error || !r.pieces?.length) continue;
+      // (which way it sets off along its first road, against the way the car faces)
+      const p0 = r.pieces[0], q = N.pointOn(p0.seg, p0.s0), way = p0.s1 >= p0.s0 ? 1 : -1;
+      const back = from.fx != null && (q.dx * way * from.fx + q.dz * way * from.fz) < -0.3;
+      const cost = r.length + a.d * 3 + (back ? 120 : 0);
+      if (!best || cost < best.cost) best = { a, r, cost };
+    }
+    if (!best) return null;
+    const { a, r } = best;
     const pts = [{ x: from.x, z: from.z, h: a.h, w: a.seg.width ?? 7 }];
     for (const p of r.pieces) pts.push(...piecePoints(N, p));
     // (the goal itself, if it's off the road: a search point, a car on a car park)

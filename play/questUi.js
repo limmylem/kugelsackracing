@@ -38,6 +38,8 @@ import { npcSettings, setupNpcs } from '../race/setup.js';
 import { hashSeed } from '../ai/rng.js';
 import { createQuestSounds } from './questSounds.js';
 import { createCameraBlend, orbitPose } from './cameraBlend.js';
+import { cinematicCamera, throttleAt } from './cinematic.js';
+import { at as lineAt } from '../route/geometry.js';
 
 // The HUD's arrow to a place: its angle on screen (degrees, clockwise from straight up) from the car's heading.
 // (The world's x is to the car's left when it faces +z — heading and bearing both turn from +z toward +x, which is
@@ -106,6 +108,8 @@ const CSS = `
 #questHud .count{position:absolute;top:34%;left:50%;transform:translate(-50%,-50%);font:800 110px Barlow,system-ui,sans-serif;color:#fff;-webkit-text-stroke:2px rgba(0,0,0,.55)}
 #questHud .count.go{color:var(--q-good,#7ee08a)}
 #questHud .intro{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);text-align:center}
+body.pursuitFilm > *:not(canvas):not(#questHud):not(#pursuitDebug):not(style):not(script){visibility:hidden !important}
+#questHud .bars{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 11vh 0 #000,inset 0 -11vh 0 #000}
 #questHud .intro b{font-size:28px;display:block}
 #questHud.hidden .top,#questHud.hidden .side,#questHud.hidden .panel,#questHud.hidden .speed,#questHud.hidden .arrow{display:none}
 .questScreen{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(6,8,12,.55);font:14px/1.45 Barlow,system-ui,sans-serif;color:#f2f4f7}
@@ -353,6 +357,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     const prev = run;
     if (prev && ['intro', 'countdown', 'racing'].includes(prev.controller.state)) await prev.controller.quit();
     const A = game.adapters(), me = {};
+    // (a pursuit's intro cinematic — data/cinematics.json: the police pull out, the camera swings to you, GO while moving)
+    const cineDef = PURSUIT_TYPES.has(item.type) && item.params?.intro !== false && game.carPose ? await cinematicDef(item.type === 'pursuit_coop' ? 'pursuit_intro_coop' : 'pursuit_intro') : null;
     // (a run on a generated track: handed to the server — its record and leaderboard are the server's; the
     // race replay kept there with it)
     const report = item.track ? async ({ result, recording }) => {
@@ -361,7 +367,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       const replay = A.raceReplay?.();
       return S.submit({ eventId: item.id, result, recording, replay: replay ? { ...replay, title: item.name } : null });
     } : null;
-    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, series: game.seriesOf ?? null, report,
+    const controller = createQuestController({ quest: item, course: c.course, config: cfg, player: game.player, car, adapters: A, race: () => me.race ?? null, startMode: cineDef ? 'cinematic' : null, series: game.seriesOf ?? null, report,
       best: (() => { const B = bestOf(prog, c.course.version); return B && !B.old ? { splits: B.splits, laps: B.laps, time: B.time, score: B.score } : null; })(),
       onEvent: ev => { if (run === me) event(ev); }, onEnd: res => { if (run === me) ended(res); } });
     run = Object.assign(me, { item, course: c.course, controller, adapters: A, dressing: dressingFor(c.course), message: null, messageFor: 0, results: null, pilot: autopilot ? createAutopilot(c.course.line, { loop: c.course.loop }) : null, startedAt: performance.now(), fee: 0, ghost });
@@ -371,6 +377,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       try { me.pursuit = await game.startPursuit({ quest: item, course: c.course, session: () => controller.session, rating: car.rating ?? null }); }
       catch (e) { game.say(`The police couldn't be set up: ${e.message}`, 'warn'); if (run === me) stop(); return { ok: false, error: e.message }; }
       if (run !== me) { game.endPursuit(me.pursuit); return { ok: false, error: 'superseded' }; }
+      if (cineDef) { me.pursuit.setCinematic(cineDef); me.cine = { def: cineDef, phase: 'waiting', t: 0, startS: null }; }
       hint('pursuit');
     }
     guide = null; guideFor = null; setLines(); hud(); hideScreen();
@@ -397,11 +404,50 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     return true;
   }
 
+  // ---------- a cinematic intro (play/cinematic.js, data/cinematics.json) ----------
+  // Waiting (the car put down and held, the police car coming in by the road) → playing (the AI drives your car along the
+  // route, the police pull out with lights and sirens and keep their gap, the shots play) → GO at its end, on the
+  // physics' clock: the car's yours while it's moving — its speed, wheels, revs, gear and clutch simply carry on (it was
+  // driving in the same physics all along); the AI's input eased into yours over HANDOVER s. Space skips it: everyone put
+  // where it would have left them (data: skip), moving, and GO at once.
+  const HANDOVER = 0.5;
+  let cinematics = null;
+  async function cinematicDef(name) {
+    cinematics ??= await fetch('data/cinematics.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => ({}));
+    return cinematics[name] ?? null;
+  }
+  function cineFrame(realDt) {
+    const C = run?.cine;
+    if (!C) return;
+    if (C.phase === 'waiting' && run.controller.state === 'countdown' && run.pursuit?.cinematicReady && !paused) {
+      C.phase = 'playing'; C.t0 = game.simTime(); C.t = 0;
+      C.pilot = createAutopilot(run.course.line, { loop: run.course.loop });
+      run.adapters.release({ speed: 0 });
+      run.pursuit.cinematicBegin();
+    }
+    if (C.phase === 'playing') { C.t = game.simTime() - C.t0; if (C.t >= C.def.seconds) cineGo(); }
+    else if (C.phase === 'handover' && (C.ho += realDt) >= HANDOVER) C.phase = 'done';
+  }
+  function cineGo() { const C = run.cine; C.phase = 'going'; run.controller.session?.setGo(game.simTime()); }
+  function cineSkip() {
+    const C = run.cine;
+    if (!C || !(C.phase === 'playing' || (C.phase === 'waiting' && run.pursuit?.cinematicReady)) || C.startS == null) return false;
+    const K = C.def.skip, s = C.startS + K.metres, L = run.course.length, p = lineAt(run.course.line, run.course.loop ? ((s % L) + L) % L : Math.min(s, L - 5), run.course.loop);
+    run.adapters.release({ speed: 0 });
+    game.putCar({ x: p.x, z: p.z, heading: Math.atan2(p.dx, p.dz) * 180 / Math.PI, speed: K.kmh / 3.6 });
+    run.pursuit.placeBehind(s, C.def.police.gapAtHandover, K.kmh / 3.6);
+    C.lastInput = { throttle: 1, brake: 0, steer: 0, handbrake: false, device: 'wheel' };
+    cineGo();
+    return true;
+  }
+
   // ---------- during the run ----------
   function say(text, cls = '', secs = 2) { if (run) { run.message = { text, cls }; run.messageFor = secs; } }
   function event(e) {
     if (!run) return;
     run.pursuit?.event(e);
+    if (run.cine && e.type === 'place') run.cine.startS = e.at ?? run.course.grid.startS;
+    if (run.cine && e.type === 'go') { run.cine.phase = 'handover'; run.cine.ho = 0; }
     sounds.event(e);
     if (e.type === 'go') say('GO', 'go', 0.8);
     else if (e.type === 'pursuit-lost') say('Out of sight: get out of the search area', 'go', 2.5);
@@ -461,7 +507,10 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     else if (panel?.kind === 'pursuit') panelHtml = pursuitPanel(panel);
     else if (panel?.kind === 'clock') panelHtml = `<div class="k">Checkpoints</div><div class="big">${panel.passed} / ${panel.of}</div>`;
     const msg = H.message ? { text: H.message, cls: H.message.startsWith('Wrong') ? 'bad' : 'warn' } : run.message;
-    hudEl.innerHTML = st === 'intro' ? `<div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · Space to skip</div>` : `
+    const filming = run.cine && (run.cine.phase === 'waiting' || run.cine.phase === 'playing');
+    // (the game's own gauges and panels hidden while it plays: just the picture, the bars and its title)
+    document.body.classList.toggle('pursuitFilm', !!filming);
+    hudEl.innerHTML = filming ? `<div class="bars"></div><div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · ${t('pursuit.skip')}</div>` : st === 'intro' ? `<div class="intro"><b>${esc(run.item.name)}</b>${esc(typeLabel(run.item.type))} · Space to skip</div>` : `
       <div class="top"><div class="clock ${H.timeLeft != null && H.timeLeft < 10 && H.running ? 'low' : ''}">${fmtTime(Math.max(0, clock), H.running ? 2 : 3)}</div>
         <div class="row">${H.checkpoints ? `Checkpoint ${Math.min(H.checkpoint, H.checkpoints)} / ${H.checkpoints}` : ''}${H.penalty ? ` · +${H.penalty}s penalty` : ''}</div>${lap}${sp}</div>
       <div class="side">${raceSide(H)}</div>
@@ -600,6 +649,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     r.dressing.dispose(); r.adapters.dispose(); r.controller.dispose();
     if (r.ghost) game.showGhost?.(null);
     game.pause(false); hideScreen(); hud(); labels(); preview = null; setLines();
+    document.body.classList.remove('pursuitFilm');
   }
 
   function onKey(e) {
@@ -608,7 +658,8 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
     if (e.code === 'Escape') {
       e.preventDefault(); e.stopImmediatePropagation();
       if (run.results) stop(); else pause(!paused);
-    } else if (st === 'intro' && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); e.stopImmediatePropagation(); run.controller.skipIntro(); }
+    } else if (run.cine && (e.code === 'Space' || e.code === 'Enter') && cineSkip()) { e.preventDefault(); e.stopImmediatePropagation(); }
+    else if (st === 'intro' && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); e.stopImmediatePropagation(); run.controller.skipIntro(); }
     else if (e.code === 'KeyT' || e.code === 'F2') e.stopImmediatePropagation();      // (not another world, mid-quest)
   }
   addEventListener('keydown', onKey, true);
@@ -649,6 +700,21 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       const v = Math.abs(game.carNow()?.forward ?? 0);
       return { ...i, throttle: 0, brake: v > 1 ? 1 : 0, handbrake: v <= 1, steer: i?.steer ?? 0 };
     },
+    // a cinematic: the AI drives your car (along the route, its throttle the cinematic's) until GO; then, a moment, its input
+    // eased into yours
+    get cinematic() { const p = run?.cine?.phase; return (p === 'playing' || p === 'going') && !paused; },
+    cinematicInput(dt) {
+      const C = run.cine, c = game.carNow(), t = Math.max(0, C.t ?? 0);
+      const cmd = C.pilot.drive({ x: c.x, z: c.z, fx: Math.sin(c.heading * Math.PI / 180), fz: Math.cos(c.heading * Math.PI / 180), speed: c.forward, dt });
+      const i = { throttle: cmd.brake > 0 ? 0 : Math.min(1, throttleAt(C.def.player.throttle, t)), brake: cmd.brake, steer: cmd.steer, handbrake: false, device: 'wheel' };
+      C.lastInput = i;
+      return i;
+    },
+    get handingOver() { return run?.cine?.phase === 'handover' && !paused; },
+    handover(mine) {
+      const C = run.cine, k = Math.min(1, C.ho / HANDOVER), ai = C.lastInput ?? mine, mix = (a, b) => (a ?? 0) * (1 - k) + (b ?? 0) * k;
+      return { ...mine, throttle: mix(ai.throttle, mine.throttle), brake: mix(ai.brake, mine.brake), steer: mix(ai.steer, mine.steer) };
+    },
     // the browser tests: the autopilot drives once it's GO
     get auto() { return !!run?.pilot && run.controller.state === 'racing' && !paused; },
     autoInput(dt) {
@@ -681,6 +747,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         run.stopT = (run.stopT ?? 0) + realDt;
         if (Math.abs(game.carNow()?.forward ?? 0) < 2 || run.stopT > 4) run.adapters.hold?.();
       }
+      cineFrame(realDt);
       run.adapters.frame?.();
       const car = game.carNow();
       run.dressing.update(car.x, car.z);
@@ -707,6 +774,9 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
         const c = run.controller.introCamera();
         const p = S.world.localToWorld(new THREE.Vector3(c.x, c.y, c.z)), lk = S.world.localToWorld(new THREE.Vector3(c.lookX, c.lookY, c.lookZ));
         source = 'intro'; pose = { p: p.toArray(), look: lk.toArray(), fov: camera.fov };
+      } else if (run?.cine && (run.cine.phase === 'playing' || run.cine.phase === 'waiting') && run.pursuit?.poseOf()) {
+        const C = run.cine, c = cinematicCamera(C.def, Math.max(0, C.t ?? 0), { subjects: { player: game.carPose(), police: run.pursuit.poseOf() }, chase: own });
+        source = 'cinematic'; pose = { p: c.p, look: c.look, fov: c.fov };
       } else if (st === 'countdown' || st === 'racing') source = 'race';
       else if (run && (st === 'finished' || st === 'failed' || st === 'results') && run.results?.outcome.status !== 'dnf') {
         if (blend.source !== 'results') resultsT = 0;

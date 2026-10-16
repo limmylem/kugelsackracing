@@ -17,7 +17,7 @@ import { rotate } from '../physics/math.js';
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const G = 9.81;
-const TARGETED = new Set(['pursue', 'ram', 'pit', 'box']);
+const TARGETED = new Set(['pursue', 'ram', 'pit', 'box', 'follow']);
 
 // the car's caps for the autopilot from its build (route/racingLine.js carCaps: grip in g or m/s²)
 export function policeCaps(caps) {
@@ -51,6 +51,8 @@ export function aimFor(mode, me, tg, slot, D) {
   const lead = mode === 'ram' ? D.lead * 0.5 : D.lead;
   const x = tg.x + tg.vx * lead * clamp(d / 30, 0, 1.5), z = tg.z + tg.vz * lead * clamp(d / 30, 0, 1.5);
   if (mode === 'ram') return { x, z, speed: sp + D.ramClosingKmh / 3.6 };
+  // follow (a cinematic's: gap m behind, no closer — the police right behind you when it hands over)
+  if (mode === 'follow') return { x, z, speed: Math.max(0, sp + clamp((d - (slot ?? 30)) * 0.6, -8, 12)) };
   // pursue: close in, then sit on its bumper
   return { x, z, speed: d > 30 ? sp + clamp((d - 30) * 0.25, 4, 20) : sp + clamp((d - 7) * 0.45, -3, 8) };
 }
@@ -63,9 +65,19 @@ export function rubberBand(R, d) {
   return -R.max + 2 * R.max * (d - R.near) / (R.far - R.near);
 }
 
-export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true }) {
+// what to do about something solid just ahead (feel: the clear distance straight ahead and either side of it, m): steer
+// to the side with more room, the nearer it is the harder (+ left) — and slow down for it
+export function avoid(feel, speed, steer) {
+  if (!feel) return { steer, cap: Infinity };
+  const near = 4 + Math.abs(speed) * 0.45;
+  if (feel.centre >= near && Math.min(feel.left, feel.right) >= near * 0.5) return { steer, cap: Infinity };
+  const way = feel.left > feel.right ? 1 : -1, k = clamp(1 - Math.min(feel.centre, Math.min(feel.left, feel.right) * 1.6) / near, 0.25, 1);
+  return { steer: clamp(steer + way * k * 1.2, -1, 1), cap: Math.max(4, feel.centre * 1.2) };
+}
+
+export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true, feel = null }) {
   const D = cfg.driving;
-  let line = null, pilot = null, planned = -Infinity, plannedFor = null, clock = 0, slowFor = 0, backing = 0, clearAt = -1, clearNow = false;
+  let line = null, pilot = null, planned = -Infinity, plannedFor = null, clock = 0, slowFor = 0, backing = 0, clearAt = -1, clearNow = false, feltAt = -1, felt = null;
   const U = {
     order: { mode: 'patrol', target: null, goal: null, slot: null }, target: null,
     state: { mode: 'patrol', how: 'idle', aim: null, speedWanted: 0, line: null },
@@ -73,7 +85,7 @@ export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true
       clock += dt;
       const b = vehicle.body, p = b.translation(), q = b.rotation(), v = b.linvel(), fw = rotate(q, [0, 0, 1]);
       const fm = Math.hypot(fw[0], fw[2]) || 1, fx = fw[0] / fm, fz = fw[2] / fm;
-      const [x, z] = frame.toWorld(p.x, p.z), speed = v.x * fx + v.z * fz, me = { x, z };
+      const [x, z] = frame.toWorld(p.x, p.z), speed = v.x * fx + v.z * fz, me = { x, z, fx, fz };
       const wr = vehicle.spec.steering.maxWheelRotation, O = U.order, mode = O.mode, S = U.state;
       S.mode = mode;
       const stop = (hand = false) => ({ device: 'wheel', wheelRange: wr, steer: 0, throttle: 0, brake: Math.abs(speed) > 0.5 ? 1 : 0, handbrake: hand || Math.abs(speed) <= 0.5 });
@@ -88,7 +100,7 @@ export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true
       const dGoal = goal ? Math.hypot(goal.x - x, goal.z - z) : 0;
       const rb = tg ? rubberBand(D.rubberBand, Math.hypot(tg.x - x, tg.z - z)) : 0;
       // straight for it (off the road if need be) when it's close and nothing's in the way
-      if (targeted && dGoal < D.directRange) {
+      if (targeted && dGoal < D.directRange && !O.line) {
         if (clock - clearAt > 0.3) { clearAt = clock; clearNow = dGoal < 7 || clear(me, goal); }
       } else clearNow = false;
       let steer, want;
@@ -107,7 +119,9 @@ export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true
       } else if (goal) {
         // on the roads: a path to the goal, replanned now and then (or when the goal's moved on)
         const moved = plannedFor ? Math.hypot(goal.x - plannedFor.x, goal.z - plannedFor.z) : Infinity;
-        if (pilot ? (clock - planned > D.replanEvery && moved > 4) || moved > D.replanMoveM : clock - planned > 0.5) {
+        // (a line given with the order — a cinematic's: the quest's route — driven as it is, not planned)
+        if (O.line) { if (line !== O.line) { line = O.line; pilot = createAutopilot(line, { car: { ...car, vmax: car.vmax * (1 + rb) }, margin: D.corneringMargin }); S.line = line; } }
+        else if (pilot ? (clock - planned > D.replanEvery && moved > 4) || moved > D.replanMoveM : clock - planned > 0.5) {
           planned = clock; plannedFor = { ...goal };
           const l = pathTo(me, goal);
           if (l && l.length >= 2) { line = l; pilot = createAutopilot(line, { car: { ...car, vmax: car.vmax * (1 + rb) }, margin: D.corneringMargin }); S.line = line; }
@@ -120,9 +134,15 @@ export function createPoliceDriver({ cfg, frame, car, pathTo, clear = () => true
         const left = line.at(-1).s - pilot.s;
         want = Math.min(cmd.target ?? car.vmax, left < 30 && !targeted ? Math.max(4, left * 0.4) : Infinity, mode === 'search' ? 18 : mode === 'leave' ? 14 : Infinity);
         // (after a car: no slower than it wants to close on it — the path's end is the car, not a place to stop at)
-        if (targeted && aim) want = left < 40 ? Math.min(aim.speed, cmd.target > 2 ? Infinity : aim.speed) : Math.max(Math.min(want, aim.speed * 1.4 + 6), 0);
+        if (mode === 'follow' && aim) want = Math.min(want, aim.speed);
+        else if (targeted && aim) want = left < 40 ? Math.min(aim.speed, cmd.target > 2 ? Infinity : aim.speed) : Math.max(Math.min(want, aim.speed * 1.4 + 6), 0);
         S.aim = at(line, pilot.s + 10); S.left = left; S.pathTarget = cmd.target;
       } else { S.how = 'idle'; return stop(); }
+      // (something solid just ahead — a fence, a wall the road data runs through: round it)
+      if (feel && clock - feltAt > 0.1) { feltAt = clock; felt = feel(vehicle); }
+      const A = avoid(felt, speed, steer);
+      steer = A.steer; want = Math.min(want, A.cap);
+      S.felt = felt;
       S.speedWanted = want; S.lastSteer = steer;
       const err = want - speed;
       // (stuck: hardly moving while it wants to go — against a wall, a building, another car)
