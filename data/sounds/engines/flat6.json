@@ -1,0 +1,179 @@
+{
+  "_note": "A flat six: a boxer's even firing, its two banks breathing through short headers — a hard, metallic, rising howl. A sound for any 6-cylinder engine the Builder makes (range: the revs it's made for), played as the RS17's is (data/sounds/engines/rs17.json says how).",
+  "label": "Flat six (a hard, metallic boxer howl)",
+  "range": {
+    "idleRpm": 560,
+    "redlineRpm": 9500
+  },
+  "cylinders": 6,
+  "layers": [
+    {
+      "band": "idle",
+      "rpm": 750,
+      "on": "assets/sounds/engines/flat6/rpm0750_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm0750_off.wav"
+    },
+    {
+      "band": "idle",
+      "rpm": 1000,
+      "on": "assets/sounds/engines/flat6/rpm1000_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm1000_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1400,
+      "on": "assets/sounds/engines/flat6/rpm1400_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm1400_off.wav"
+    },
+    {
+      "band": "low",
+      "rpm": 1900,
+      "on": "assets/sounds/engines/flat6/rpm1900_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm1900_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 2600,
+      "on": "assets/sounds/engines/flat6/rpm2600_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm2600_off.wav"
+    },
+    {
+      "band": "mid",
+      "rpm": 3500,
+      "on": "assets/sounds/engines/flat6/rpm3500_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm3500_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 4700,
+      "on": "assets/sounds/engines/flat6/rpm4700_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm4700_off.wav"
+    },
+    {
+      "band": "high",
+      "rpm": 6300,
+      "on": "assets/sounds/engines/flat6/rpm6300_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm6300_off.wav"
+    },
+    {
+      "band": "redline",
+      "rpm": 8400,
+      "on": "assets/sounds/engines/flat6/rpm8400_on.wav",
+      "off": "assets/sounds/engines/flat6/rpm8400_off.wav"
+    }
+  ],
+  "mode": "granular",
+  "granular": {
+    "on": "assets/sounds/engines/flat6/sweep_on.wav",
+    "off": "assets/sounds/engines/flat6/sweep_off.wav",
+    "grains": "assets/sounds/engines/flat6/sweep.json",
+    "step": 0.012
+  },
+  "mix": {
+    "blend": 0.5,
+    "level": 0.46,
+    "idleLevel": 0.42,
+    "offLoadLevel": 0.6,
+    "curve": 1.3,
+    "load": [0.04, 0.55],
+    "toneHz": [2000, 10000],
+    "maxShift": 0.3
+  },
+  "intake": {
+    "file": "assets/sounds/engines/flat6/intake.wav",
+    "gain": 0.1,
+    "hz": [380, 1900],
+    "q": 0.9,
+    "throttle": [0.45, 1]
+  },
+  "shift": {
+    "file": "assets/sounds/engines/flat6/shift.wav",
+    "gain": 0.22
+  },
+  "limiter": {
+    "file": "assets/sounds/engines/flat6/limiter.wav",
+    "gain": 0.18,
+    "every": 0.06,
+    "hz": 11,
+    "depth": 0.8
+  },
+  "damage": {
+    "bang": "assets/sounds/engines/flat6/bang.wav",
+    "bangGain": 1,
+    "bent": "assets/sounds/engines/flat6/bent.wav",
+    "bentGain": 0.55,
+    "rough": 0.35
+  },
+  "exhaust": {
+    "rasp": 0.04,
+    "pops": 0.04
+  },
+  "pops": {
+    "from": 0.45,
+    "gain": 0.5
+  },
+  "idle": {
+    "wobble": 0.012,
+    "hz": 1.2
+  },
+  "start": {
+    "crankRpm": 180,
+    "seconds": 1.1,
+    "flare": 1.5,
+    "gain": 0.17
+  },
+  "synth": {
+    "_note": "How npm run sounds makes the files (tools/content/sound.mjs). Pairs are [at idle, at the redline] (a layer's place between them by log rpm). Each firing: a pressure pulse (pulseRise, pulseDecay s, shorter up high) and combustion noise (noise × the pulse, noiseDecay s), cylinder to cylinder a little different (cylinders) and a little early or late (jitter, share of the gap); through the exhaust's resonances (band-passes: hz, q, gain on load, offLoad), plus direct × the raw pulse; high-passed at highpass Hz, driven into a soft clip (clip), low-passed at tone Hz; rms: the loop's level. Off load: the pulses × offLoad.pulse, some burble (random ± share per firing), its own noise, clip and tone.",
+    "seed": 68,
+    "sampleRate": 32000,
+    "length": 0.9,
+    "cylinders": [1, 0.9, 1.04, 0.92, 1.02, 0.88],
+    "jitter": 0.015,
+    "pulseRise": 0.0003,
+    "pulseDecay": 0.0018,
+    "noiseDecay": 0.0016,
+    "noise": [0.25, 0.8],
+    "direct": 0.2,
+    "highpass": 35,
+    "resonances": [
+      {
+        "name": "boom",
+        "hz": [95, 130],
+        "q": 1.2,
+        "gain": [0.6, 0.45],
+        "offLoad": 0.6
+      },
+      {
+        "name": "tone",
+        "hz": [300, 600],
+        "q": 1.5,
+        "gain": [1.7, 1.2],
+        "offLoad": 1.1
+      },
+      {
+        "name": "rasp",
+        "hz": [1300, 2600],
+        "q": 1.3,
+        "gain": [0.6, 1.2],
+        "offLoad": 0.2
+      },
+      {
+        "name": "edge",
+        "hz": [3600, 5200],
+        "q": 2,
+        "gain": [0.2, 0.6],
+        "offLoad": 0.03
+      }
+    ],
+    "clip": [0.5, 2.6],
+    "tone": [2400, 10000],
+    "rms": 0.21,
+    "offLoad": {
+      "pulse": 0.4,
+      "burble": 0.3,
+      "noise": 0.06,
+      "clip": 0.2,
+      "tone": [1200, 3200]
+    }
+  }
+}

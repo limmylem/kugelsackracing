@@ -596,6 +596,344 @@
    "seconds": 13.80225,
    "bytes": 152248
   },
+  "assets/sounds/engines/flat6/bang.wav": {
+   "opus": "assets/sounds/engines/flat6/bang.opus",
+   "sha": "bd8a060e32a459c7",
+   "seconds": 1.6,
+   "bytes": 12007
+  },
+  "assets/sounds/engines/flat6/bent.wav": {
+   "opus": "assets/sounds/engines/flat6/bent.opus",
+   "sha": "381196315974b6d7",
+   "seconds": 0.36,
+   "bytes": 4001
+  },
+  "assets/sounds/engines/flat6/intake.wav": {
+   "opus": "assets/sounds/engines/flat6/intake.opus",
+   "sha": "a6fec0c7e2c6abcf",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15565
+  },
+  "assets/sounds/engines/flat6/limiter.wav": {
+   "opus": "assets/sounds/engines/flat6/limiter.opus",
+   "sha": "270085aa092cf045",
+   "seconds": 0.09,
+   "bytes": 980
+  },
+  "assets/sounds/engines/flat6/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm0750_off.opus",
+   "sha": "82f994272abe42ea",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13186
+  },
+  "assets/sounds/engines/flat6/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm0750_on.opus",
+   "sha": "8f356a5bb1b76924",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13144
+  },
+  "assets/sounds/engines/flat6/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1000_off.opus",
+   "sha": "6a2917e8b3db7b55",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12000
+  },
+  "assets/sounds/engines/flat6/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1000_on.opus",
+   "sha": "28fea4a1384b0189",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12498
+  },
+  "assets/sounds/engines/flat6/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1400_off.opus",
+   "sha": "98159551f2937fb6",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11252
+  },
+  "assets/sounds/engines/flat6/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1400_on.opus",
+   "sha": "136598f51ca2468c",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 10489
+  },
+  "assets/sounds/engines/flat6/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1900_off.opus",
+   "sha": "1a413d2eda21d419",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 10803
+  },
+  "assets/sounds/engines/flat6/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm1900_on.opus",
+   "sha": "89e88458db116297",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 9927
+  },
+  "assets/sounds/engines/flat6/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm2600_off.opus",
+   "sha": "82a98b65608c71ec",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10206
+  },
+  "assets/sounds/engines/flat6/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm2600_on.opus",
+   "sha": "a34e973a04c1fb9c",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 9369
+  },
+  "assets/sounds/engines/flat6/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm3500_off.opus",
+   "sha": "4c1056ed40c93f4a",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8638
+  },
+  "assets/sounds/engines/flat6/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm3500_on.opus",
+   "sha": "91a447995f2aedab",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8624
+  },
+  "assets/sounds/engines/flat6/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm4700_off.opus",
+   "sha": "522bfbf99d88397c",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8332
+  },
+  "assets/sounds/engines/flat6/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm4700_on.opus",
+   "sha": "1a3f8e3b6ab80ec5",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8591
+  },
+  "assets/sounds/engines/flat6/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm6300_off.opus",
+   "sha": "af6bcf963d534c92",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8162
+  },
+  "assets/sounds/engines/flat6/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm6300_on.opus",
+   "sha": "1f669fe8f4bc482a",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8724
+  },
+  "assets/sounds/engines/flat6/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm8400_off.opus",
+   "sha": "4e7cc6d09dc0f3ab",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 7957
+  },
+  "assets/sounds/engines/flat6/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/flat6/rpm8400_on.opus",
+   "sha": "473d1de51cbfa0db",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8628
+  },
+  "assets/sounds/engines/flat6/shift.wav": {
+   "opus": "assets/sounds/engines/flat6/shift.opus",
+   "sha": "56736ca67193199e",
+   "seconds": 0.24,
+   "bytes": 2507
+  },
+  "assets/sounds/engines/flat6/sweep_off.wav": {
+   "opus": "assets/sounds/engines/flat6/sweep_off.opus",
+   "sha": "6a974acb82dd9e3b",
+   "seconds": 20.442625,
+   "bytes": 232822
+  },
+  "assets/sounds/engines/flat6/sweep_on.wav": {
+   "opus": "assets/sounds/engines/flat6/sweep_on.opus",
+   "sha": "595d4f7ce50b3624",
+   "seconds": 20.442625,
+   "bytes": 224843
+  },
+  "assets/sounds/engines/i3/bang.wav": {
+   "opus": "assets/sounds/engines/i3/bang.opus",
+   "sha": "f89dd55f35dc3720",
+   "seconds": 1.6,
+   "bytes": 11936
+  },
+  "assets/sounds/engines/i3/bent.wav": {
+   "opus": "assets/sounds/engines/i3/bent.opus",
+   "sha": "38aaf4bca50e6452",
+   "seconds": 0.36,
+   "bytes": 3915
+  },
+  "assets/sounds/engines/i3/intake.wav": {
+   "opus": "assets/sounds/engines/i3/intake.opus",
+   "sha": "838d392c862d8b36",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15592
+  },
+  "assets/sounds/engines/i3/limiter.wav": {
+   "opus": "assets/sounds/engines/i3/limiter.opus",
+   "sha": "d069e7b6124bd41b",
+   "seconds": 0.09,
+   "bytes": 978
+  },
+  "assets/sounds/engines/i3/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm0750_off.opus",
+   "sha": "856dfb25998fd2ef",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12009
+  },
+  "assets/sounds/engines/i3/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm0750_on.opus",
+   "sha": "172fa645fe4ec49e",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11718
+  },
+  "assets/sounds/engines/i3/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1000_off.opus",
+   "sha": "be86c2c916fc12e0",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13265
+  },
+  "assets/sounds/engines/i3/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1000_on.opus",
+   "sha": "2b39ff5d6da5f786",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13506
+  },
+  "assets/sounds/engines/i3/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1400_off.opus",
+   "sha": "2faf920f889b15fe",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 13265
+  },
+  "assets/sounds/engines/i3/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1400_on.opus",
+   "sha": "d01647ea9ffe2899",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 13217
+  },
+  "assets/sounds/engines/i3/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1900_off.opus",
+   "sha": "72fc98fb9e229e00",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 12016
+  },
+  "assets/sounds/engines/i3/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm1900_on.opus",
+   "sha": "ab9416bdd39c16c6",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 11972
+  },
+  "assets/sounds/engines/i3/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm2600_off.opus",
+   "sha": "62d52bea5e2b8ef7",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10826
+  },
+  "assets/sounds/engines/i3/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm2600_on.opus",
+   "sha": "1dba12beefa0f2b4",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10158
+  },
+  "assets/sounds/engines/i3/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm3500_off.opus",
+   "sha": "abf2dadbf24f6d34",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 10435
+  },
+  "assets/sounds/engines/i3/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm3500_on.opus",
+   "sha": "8ca3ebbd8183dd2d",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 9484
+  },
+  "assets/sounds/engines/i3/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm4700_off.opus",
+   "sha": "8009ac5003005776",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 10037
+  },
+  "assets/sounds/engines/i3/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm4700_on.opus",
+   "sha": "cad8244c48b767e5",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 9503
+  },
+  "assets/sounds/engines/i3/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm6300_off.opus",
+   "sha": "c6ada327842b6a79",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 9188
+  },
+  "assets/sounds/engines/i3/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm6300_on.opus",
+   "sha": "f65043710070324e",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8778
+  },
+  "assets/sounds/engines/i3/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/i3/rpm8400_off.opus",
+   "sha": "6e40f0be0c578ece",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8459
+  },
+  "assets/sounds/engines/i3/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/i3/rpm8400_on.opus",
+   "sha": "696288e4ab8cd5be",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8548
+  },
+  "assets/sounds/engines/i3/shift.wav": {
+   "opus": "assets/sounds/engines/i3/shift.opus",
+   "sha": "d9f42ab3c34c7e0a",
+   "seconds": 0.24,
+   "bytes": 2474
+  },
+  "assets/sounds/engines/i3/sweep_off.wav": {
+   "opus": "assets/sounds/engines/i3/sweep_off.opus",
+   "sha": "ef1e51490181c16c",
+   "seconds": 20.442625,
+   "bytes": 221968
+  },
+  "assets/sounds/engines/i3/sweep_on.wav": {
+   "opus": "assets/sounds/engines/i3/sweep_on.opus",
+   "sha": "db5998d2312d9849",
+   "seconds": 20.442625,
+   "bytes": 218520
+  },
   "assets/sounds/engines/i4/bang.wav": {
    "opus": "assets/sounds/engines/i4/bang.opus",
    "sha": "8325ca81e3da54ec",
@@ -934,6 +1272,513 @@
    "seconds": 14.712406,
    "bytes": 168131
   },
+  "assets/sounds/engines/i5/bang.wav": {
+   "opus": "assets/sounds/engines/i5/bang.opus",
+   "sha": "21f0b7f61a978f57",
+   "seconds": 1.6,
+   "bytes": 11990
+  },
+  "assets/sounds/engines/i5/bent.wav": {
+   "opus": "assets/sounds/engines/i5/bent.opus",
+   "sha": "9c8fd0f7c1ed421f",
+   "seconds": 0.36,
+   "bytes": 3948
+  },
+  "assets/sounds/engines/i5/intake.wav": {
+   "opus": "assets/sounds/engines/i5/intake.opus",
+   "sha": "d9729fefd462cc52",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15639
+  },
+  "assets/sounds/engines/i5/limiter.wav": {
+   "opus": "assets/sounds/engines/i5/limiter.opus",
+   "sha": "35209ba46436a3e3",
+   "seconds": 0.09,
+   "bytes": 972
+  },
+  "assets/sounds/engines/i5/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm0750_off.opus",
+   "sha": "946c6e6f16a1ac3f",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13531
+  },
+  "assets/sounds/engines/i5/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm0750_on.opus",
+   "sha": "7985cc5ce27c2eef",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13352
+  },
+  "assets/sounds/engines/i5/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1000_off.opus",
+   "sha": "de32803812550db7",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13054
+  },
+  "assets/sounds/engines/i5/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1000_on.opus",
+   "sha": "baf9d486b1f4b181",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13002
+  },
+  "assets/sounds/engines/i5/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1400_off.opus",
+   "sha": "96be9e2f43b6d5a0",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11381
+  },
+  "assets/sounds/engines/i5/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1400_on.opus",
+   "sha": "4f1a9900e167f213",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11480
+  },
+  "assets/sounds/engines/i5/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1900_off.opus",
+   "sha": "849e7df55cec50b0",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 10500
+  },
+  "assets/sounds/engines/i5/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm1900_on.opus",
+   "sha": "449ea64cf2fdd09c",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 9444
+  },
+  "assets/sounds/engines/i5/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm2600_off.opus",
+   "sha": "8f9fcb25a5fe08c9",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 11194
+  },
+  "assets/sounds/engines/i5/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm2600_on.opus",
+   "sha": "c306869fa7e0cb7b",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10237
+  },
+  "assets/sounds/engines/i5/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm3500_off.opus",
+   "sha": "5e2dae631ca152a1",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 9433
+  },
+  "assets/sounds/engines/i5/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm3500_on.opus",
+   "sha": "a5a972256d10b9e6",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 9040
+  },
+  "assets/sounds/engines/i5/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm4700_off.opus",
+   "sha": "8bcb2971114db645",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 9055
+  },
+  "assets/sounds/engines/i5/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm4700_on.opus",
+   "sha": "d1c5651360daed51",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8584
+  },
+  "assets/sounds/engines/i5/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm6300_off.opus",
+   "sha": "b033098cf4abe9e8",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 7916
+  },
+  "assets/sounds/engines/i5/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm6300_on.opus",
+   "sha": "2a7d0c86fa888f10",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8735
+  },
+  "assets/sounds/engines/i5/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/i5/rpm8400_off.opus",
+   "sha": "57af7a6dda4642e1",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 7968
+  },
+  "assets/sounds/engines/i5/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/i5/rpm8400_on.opus",
+   "sha": "eb4b6549a53dd1d5",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8816
+  },
+  "assets/sounds/engines/i5/shift.wav": {
+   "opus": "assets/sounds/engines/i5/shift.opus",
+   "sha": "94b1d1b962918bd8",
+   "seconds": 0.24,
+   "bytes": 2524
+  },
+  "assets/sounds/engines/i5/sweep_off.wav": {
+   "opus": "assets/sounds/engines/i5/sweep_off.opus",
+   "sha": "c9212663d20aef58",
+   "seconds": 20.442625,
+   "bytes": 234497
+  },
+  "assets/sounds/engines/i5/sweep_on.wav": {
+   "opus": "assets/sounds/engines/i5/sweep_on.opus",
+   "sha": "3bf9fc0380d94802",
+   "seconds": 20.442625,
+   "bytes": 226202
+  },
+  "assets/sounds/engines/i6/bang.wav": {
+   "opus": "assets/sounds/engines/i6/bang.opus",
+   "sha": "5d00bcf8fd9bc6b2",
+   "seconds": 1.6,
+   "bytes": 11970
+  },
+  "assets/sounds/engines/i6/bent.wav": {
+   "opus": "assets/sounds/engines/i6/bent.opus",
+   "sha": "5f44208cb902e832",
+   "seconds": 0.36,
+   "bytes": 3938
+  },
+  "assets/sounds/engines/i6/intake.wav": {
+   "opus": "assets/sounds/engines/i6/intake.opus",
+   "sha": "e466d24945ec0fb5",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15586
+  },
+  "assets/sounds/engines/i6/limiter.wav": {
+   "opus": "assets/sounds/engines/i6/limiter.opus",
+   "sha": "d50ee5b7d19fcc38",
+   "seconds": 0.09,
+   "bytes": 902
+  },
+  "assets/sounds/engines/i6/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm0750_off.opus",
+   "sha": "d04b86659e33c1c3",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13102
+  },
+  "assets/sounds/engines/i6/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm0750_on.opus",
+   "sha": "a05f78b014babc43",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13094
+  },
+  "assets/sounds/engines/i6/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1000_off.opus",
+   "sha": "e5dbace59c2ac09c",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12022
+  },
+  "assets/sounds/engines/i6/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1000_on.opus",
+   "sha": "d494005f06438803",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12440
+  },
+  "assets/sounds/engines/i6/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1400_off.opus",
+   "sha": "7c455d6cd10a370e",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11683
+  },
+  "assets/sounds/engines/i6/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1400_on.opus",
+   "sha": "604bdabfe038fde3",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11139
+  },
+  "assets/sounds/engines/i6/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1900_off.opus",
+   "sha": "bb5e7804da6af2f7",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 11404
+  },
+  "assets/sounds/engines/i6/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm1900_on.opus",
+   "sha": "a83328a13bbacba7",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 10721
+  },
+  "assets/sounds/engines/i6/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm2600_off.opus",
+   "sha": "7723c0f096b28a0f",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10551
+  },
+  "assets/sounds/engines/i6/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm2600_on.opus",
+   "sha": "54de631889afdc11",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 9960
+  },
+  "assets/sounds/engines/i6/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm3500_off.opus",
+   "sha": "0de18b0b1e7be1b9",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 9029
+  },
+  "assets/sounds/engines/i6/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm3500_on.opus",
+   "sha": "3a067d73c0d04057",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8990
+  },
+  "assets/sounds/engines/i6/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm4700_off.opus",
+   "sha": "ef7a52305cdb879a",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8080
+  },
+  "assets/sounds/engines/i6/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm4700_on.opus",
+   "sha": "bb52f8087b09f3a0",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8650
+  },
+  "assets/sounds/engines/i6/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm6300_off.opus",
+   "sha": "37614608f7e05612",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8099
+  },
+  "assets/sounds/engines/i6/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm6300_on.opus",
+   "sha": "fe79b761f1b339a0",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8841
+  },
+  "assets/sounds/engines/i6/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/i6/rpm8400_off.opus",
+   "sha": "f5882a982ac12f18",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 7922
+  },
+  "assets/sounds/engines/i6/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/i6/rpm8400_on.opus",
+   "sha": "8f08b70679d26277",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8736
+  },
+  "assets/sounds/engines/i6/shift.wav": {
+   "opus": "assets/sounds/engines/i6/shift.opus",
+   "sha": "ba137a5a22d52ab9",
+   "seconds": 0.24,
+   "bytes": 2489
+  },
+  "assets/sounds/engines/i6/sweep_off.wav": {
+   "opus": "assets/sounds/engines/i6/sweep_off.opus",
+   "sha": "21621d769fe61672",
+   "seconds": 20.442625,
+   "bytes": 233950
+  },
+  "assets/sounds/engines/i6/sweep_on.wav": {
+   "opus": "assets/sounds/engines/i6/sweep_on.opus",
+   "sha": "b66170d617ffc708",
+   "seconds": 20.442625,
+   "bytes": 229362
+  },
+  "assets/sounds/engines/i6_turbo/bang.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/bang.opus",
+   "sha": "ef27e1ae125b3543",
+   "seconds": 1.6,
+   "bytes": 11927
+  },
+  "assets/sounds/engines/i6_turbo/bent.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/bent.opus",
+   "sha": "d64f3d02192da5b8",
+   "seconds": 0.36,
+   "bytes": 3949
+  },
+  "assets/sounds/engines/i6_turbo/intake.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/intake.opus",
+   "sha": "b5c8b463ad4f3af4",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15608
+  },
+  "assets/sounds/engines/i6_turbo/limiter.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/limiter.opus",
+   "sha": "ec1123141eea081e",
+   "seconds": 0.09,
+   "bytes": 936
+  },
+  "assets/sounds/engines/i6_turbo/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm0750_off.opus",
+   "sha": "dc6b81912d576a06",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13110
+  },
+  "assets/sounds/engines/i6_turbo/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm0750_on.opus",
+   "sha": "91e55a346093da42",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 13254
+  },
+  "assets/sounds/engines/i6_turbo/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1000_off.opus",
+   "sha": "1a888599b77c2993",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12008
+  },
+  "assets/sounds/engines/i6_turbo/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1000_on.opus",
+   "sha": "45b01fc50401b8dc",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12329
+  },
+  "assets/sounds/engines/i6_turbo/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1400_off.opus",
+   "sha": "7dd62d1492da8db3",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11567
+  },
+  "assets/sounds/engines/i6_turbo/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1400_on.opus",
+   "sha": "00aa389bf6668222",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11320
+  },
+  "assets/sounds/engines/i6_turbo/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1900_off.opus",
+   "sha": "7c7085cf818d0626",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 11508
+  },
+  "assets/sounds/engines/i6_turbo/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm1900_on.opus",
+   "sha": "8f6a023a0449dfc2",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 10954
+  },
+  "assets/sounds/engines/i6_turbo/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm2600_off.opus",
+   "sha": "8cc0e4a503d9a60f",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10574
+  },
+  "assets/sounds/engines/i6_turbo/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm2600_on.opus",
+   "sha": "f4bc2190267c35d4",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 10198
+  },
+  "assets/sounds/engines/i6_turbo/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm3500_off.opus",
+   "sha": "364f1961a0b47588",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 9079
+  },
+  "assets/sounds/engines/i6_turbo/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm3500_on.opus",
+   "sha": "50156e0cca614c58",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8908
+  },
+  "assets/sounds/engines/i6_turbo/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm4700_off.opus",
+   "sha": "f5795ba8ec4fc15a",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 7799
+  },
+  "assets/sounds/engines/i6_turbo/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm4700_on.opus",
+   "sha": "e4a1621cff3ca0b1",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8409
+  },
+  "assets/sounds/engines/i6_turbo/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm6300_off.opus",
+   "sha": "dde6772760152c87",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8015
+  },
+  "assets/sounds/engines/i6_turbo/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm6300_on.opus",
+   "sha": "05aa452e08c67b14",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8548
+  },
+  "assets/sounds/engines/i6_turbo/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm8400_off.opus",
+   "sha": "c9b0fb678fbffa23",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 7815
+  },
+  "assets/sounds/engines/i6_turbo/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/rpm8400_on.opus",
+   "sha": "940f45ea3a444762",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8481
+  },
+  "assets/sounds/engines/i6_turbo/shift.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/shift.opus",
+   "sha": "9333bff310e9b2c3",
+   "seconds": 0.24,
+   "bytes": 2486
+  },
+  "assets/sounds/engines/i6_turbo/sweep_off.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/sweep_off.opus",
+   "sha": "c62cfd53ffc5072d",
+   "seconds": 20.442625,
+   "bytes": 233998
+  },
+  "assets/sounds/engines/i6_turbo/sweep_on.wav": {
+   "opus": "assets/sounds/engines/i6_turbo/sweep_on.opus",
+   "sha": "f34609ebe55f518c",
+   "seconds": 20.442625,
+   "bytes": 231477
+  },
   "assets/sounds/engines/rs17/bang.wav": {
    "opus": "assets/sounds/engines/rs17/bang.opus",
    "sha": "4bb21d8cb699fe0d",
@@ -1102,6 +1947,513 @@
    "sha": "167c522a6a6cdeaf",
    "seconds": 12.023438,
    "bytes": 134361
+  },
+  "assets/sounds/engines/twin/bang.wav": {
+   "opus": "assets/sounds/engines/twin/bang.opus",
+   "sha": "79547c103f061905",
+   "seconds": 1.6,
+   "bytes": 12006
+  },
+  "assets/sounds/engines/twin/bent.wav": {
+   "opus": "assets/sounds/engines/twin/bent.opus",
+   "sha": "9bb6b0e0a17f1734",
+   "seconds": 0.36,
+   "bytes": 3930
+  },
+  "assets/sounds/engines/twin/intake.wav": {
+   "opus": "assets/sounds/engines/twin/intake.opus",
+   "sha": "98c8ec107c8191d2",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15531
+  },
+  "assets/sounds/engines/twin/limiter.wav": {
+   "opus": "assets/sounds/engines/twin/limiter.opus",
+   "sha": "83aef5f748c94901",
+   "seconds": 0.09,
+   "bytes": 927
+  },
+  "assets/sounds/engines/twin/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm0750_off.opus",
+   "sha": "55be35f48a756776",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11996
+  },
+  "assets/sounds/engines/twin/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm0750_on.opus",
+   "sha": "9e9cb89e40fab7f8",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11751
+  },
+  "assets/sounds/engines/twin/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1000_off.opus",
+   "sha": "9d13bf57e6a8875d",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12316
+  },
+  "assets/sounds/engines/twin/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1000_on.opus",
+   "sha": "06851b75cb300c6b",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12295
+  },
+  "assets/sounds/engines/twin/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1400_off.opus",
+   "sha": "967f81d6f9fed16b",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 13013
+  },
+  "assets/sounds/engines/twin/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1400_on.opus",
+   "sha": "208f1710dad25b81",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 13172
+  },
+  "assets/sounds/engines/twin/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1900_off.opus",
+   "sha": "4c6d0ec1f1acb575",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 12236
+  },
+  "assets/sounds/engines/twin/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm1900_on.opus",
+   "sha": "b89172dd0f561200",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 12136
+  },
+  "assets/sounds/engines/twin/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm2600_off.opus",
+   "sha": "e388120a307882d0",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 11962
+  },
+  "assets/sounds/engines/twin/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm2600_on.opus",
+   "sha": "c517d16f7558847a",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 11524
+  },
+  "assets/sounds/engines/twin/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm3500_off.opus",
+   "sha": "9490eeea6b2ae59d",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 11193
+  },
+  "assets/sounds/engines/twin/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm3500_on.opus",
+   "sha": "a67ec8bb21fed80f",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 10307
+  },
+  "assets/sounds/engines/twin/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm4700_off.opus",
+   "sha": "782b2e0570474957",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 10063
+  },
+  "assets/sounds/engines/twin/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm4700_on.opus",
+   "sha": "f51c8d11ec26736f",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8860
+  },
+  "assets/sounds/engines/twin/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm6300_off.opus",
+   "sha": "f06b62fcb6c1c84c",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 10211
+  },
+  "assets/sounds/engines/twin/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm6300_on.opus",
+   "sha": "a7eb8c7195833479",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 9253
+  },
+  "assets/sounds/engines/twin/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/twin/rpm8400_off.opus",
+   "sha": "02dab51f2355c005",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 10851
+  },
+  "assets/sounds/engines/twin/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/twin/rpm8400_on.opus",
+   "sha": "6699ad8eede6e2ab",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 9623
+  },
+  "assets/sounds/engines/twin/shift.wav": {
+   "opus": "assets/sounds/engines/twin/shift.opus",
+   "sha": "3595f18ea11591c5",
+   "seconds": 0.24,
+   "bytes": 2502
+  },
+  "assets/sounds/engines/twin/sweep_off.wav": {
+   "opus": "assets/sounds/engines/twin/sweep_off.opus",
+   "sha": "d18851b3cfe7af86",
+   "seconds": 20.442625,
+   "bytes": 212897
+  },
+  "assets/sounds/engines/twin/sweep_on.wav": {
+   "opus": "assets/sounds/engines/twin/sweep_on.opus",
+   "sha": "e7d0836d7999f5f0",
+   "seconds": 20.442625,
+   "bytes": 206642
+  },
+  "assets/sounds/engines/v10/bang.wav": {
+   "opus": "assets/sounds/engines/v10/bang.opus",
+   "sha": "b77b347ebcfaaf86",
+   "seconds": 1.6,
+   "bytes": 12165
+  },
+  "assets/sounds/engines/v10/bent.wav": {
+   "opus": "assets/sounds/engines/v10/bent.opus",
+   "sha": "3e50f91f51e4d3c5",
+   "seconds": 0.36,
+   "bytes": 3954
+  },
+  "assets/sounds/engines/v10/intake.wav": {
+   "opus": "assets/sounds/engines/v10/intake.opus",
+   "sha": "c275ebdae614a49e",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15572
+  },
+  "assets/sounds/engines/v10/limiter.wav": {
+   "opus": "assets/sounds/engines/v10/limiter.opus",
+   "sha": "215aa4271a08a96c",
+   "seconds": 0.09,
+   "bytes": 950
+  },
+  "assets/sounds/engines/v10/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm0750_off.opus",
+   "sha": "b8d38db25b0e0536",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12539
+  },
+  "assets/sounds/engines/v10/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm0750_on.opus",
+   "sha": "4463fe0a5256761a",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12417
+  },
+  "assets/sounds/engines/v10/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1000_off.opus",
+   "sha": "ba4767cffb09ba0c",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12232
+  },
+  "assets/sounds/engines/v10/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1000_on.opus",
+   "sha": "f9053c656452fdc9",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11492
+  },
+  "assets/sounds/engines/v10/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1400_off.opus",
+   "sha": "8bc5b40cd62b0082",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 11471
+  },
+  "assets/sounds/engines/v10/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1400_on.opus",
+   "sha": "0039fe447bc30d48",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 10569
+  },
+  "assets/sounds/engines/v10/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1900_off.opus",
+   "sha": "4e24a31a6d53d23e",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 8657
+  },
+  "assets/sounds/engines/v10/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm1900_on.opus",
+   "sha": "09aeab23af4a7c0e",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 9244
+  },
+  "assets/sounds/engines/v10/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm2600_off.opus",
+   "sha": "a0140af4a71ee220",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 8471
+  },
+  "assets/sounds/engines/v10/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm2600_on.opus",
+   "sha": "3342b15f002f260a",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 8965
+  },
+  "assets/sounds/engines/v10/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm3500_off.opus",
+   "sha": "7a96eb768408a1e1",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 7795
+  },
+  "assets/sounds/engines/v10/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm3500_on.opus",
+   "sha": "40268d494d8d621c",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8833
+  },
+  "assets/sounds/engines/v10/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm4700_off.opus",
+   "sha": "1682610d27fb841d",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8227
+  },
+  "assets/sounds/engines/v10/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm4700_on.opus",
+   "sha": "b22d58a0d8123010",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 9083
+  },
+  "assets/sounds/engines/v10/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm6300_off.opus",
+   "sha": "26d2003d655ab5ee",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8284
+  },
+  "assets/sounds/engines/v10/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm6300_on.opus",
+   "sha": "0a401891a23f64f9",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8613
+  },
+  "assets/sounds/engines/v10/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/v10/rpm8400_off.opus",
+   "sha": "b4c017fa99dc9bf2",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8359
+  },
+  "assets/sounds/engines/v10/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/v10/rpm8400_on.opus",
+   "sha": "81ae69e6bb16010f",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8559
+  },
+  "assets/sounds/engines/v10/shift.wav": {
+   "opus": "assets/sounds/engines/v10/shift.opus",
+   "sha": "63f7a2919c8fcde5",
+   "seconds": 0.24,
+   "bytes": 2494
+  },
+  "assets/sounds/engines/v10/sweep_off.wav": {
+   "opus": "assets/sounds/engines/v10/sweep_off.opus",
+   "sha": "bc0140a7ef097959",
+   "seconds": 20.442625,
+   "bytes": 221731
+  },
+  "assets/sounds/engines/v10/sweep_on.wav": {
+   "opus": "assets/sounds/engines/v10/sweep_on.opus",
+   "sha": "08e1f22957b145d4",
+   "seconds": 20.442625,
+   "bytes": 211736
+  },
+  "assets/sounds/engines/v12/bang.wav": {
+   "opus": "assets/sounds/engines/v12/bang.opus",
+   "sha": "cb2f715698118471",
+   "seconds": 1.6,
+   "bytes": 12028
+  },
+  "assets/sounds/engines/v12/bent.wav": {
+   "opus": "assets/sounds/engines/v12/bent.opus",
+   "sha": "8957909bf0dfb54d",
+   "seconds": 0.36,
+   "bytes": 3871
+  },
+  "assets/sounds/engines/v12/intake.wav": {
+   "opus": "assets/sounds/engines/v12/intake.opus",
+   "sha": "6933a3d8c170a231",
+   "seconds": 2,
+   "pad": 0.05,
+   "bytes": 15553
+  },
+  "assets/sounds/engines/v12/limiter.wav": {
+   "opus": "assets/sounds/engines/v12/limiter.opus",
+   "sha": "d0dfbcb137a20741",
+   "seconds": 0.09,
+   "bytes": 931
+  },
+  "assets/sounds/engines/v12/rpm0750_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm0750_off.opus",
+   "sha": "4f126052db9859d7",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12431
+  },
+  "assets/sounds/engines/v12/rpm0750_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm0750_on.opus",
+   "sha": "e48639ff0b4fb89f",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11966
+  },
+  "assets/sounds/engines/v12/rpm1000_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1000_off.opus",
+   "sha": "f8ea64cfce6bf644",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 12351
+  },
+  "assets/sounds/engines/v12/rpm1000_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1000_on.opus",
+   "sha": "86930d7ca929660a",
+   "seconds": 0.96,
+   "pad": 0.05,
+   "bytes": 11831
+  },
+  "assets/sounds/engines/v12/rpm1400_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1400_off.opus",
+   "sha": "863905902a3fe532",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 10042
+  },
+  "assets/sounds/engines/v12/rpm1400_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1400_on.opus",
+   "sha": "f38cfdb3a0850b8f",
+   "seconds": 0.942844,
+   "pad": 0.05,
+   "bytes": 9816
+  },
+  "assets/sounds/engines/v12/rpm1900_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1900_off.opus",
+   "sha": "0d1dba26da4d4884",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 8189
+  },
+  "assets/sounds/engines/v12/rpm1900_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm1900_on.opus",
+   "sha": "012c56c1cfd1d57c",
+   "seconds": 0.884219,
+   "pad": 0.05,
+   "bytes": 8832
+  },
+  "assets/sounds/engines/v12/rpm2600_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm2600_off.opus",
+   "sha": "140fe8dff041de52",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 8158
+  },
+  "assets/sounds/engines/v12/rpm2600_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm2600_on.opus",
+   "sha": "04582fa243d03376",
+   "seconds": 0.923063,
+   "pad": 0.05,
+   "bytes": 9233
+  },
+  "assets/sounds/engines/v12/rpm3500_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm3500_off.opus",
+   "sha": "f63222dcd34ad2d0",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 7833
+  },
+  "assets/sounds/engines/v12/rpm3500_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm3500_on.opus",
+   "sha": "34fc9a15b4a1ea56",
+   "seconds": 0.891438,
+   "pad": 0.05,
+   "bytes": 8886
+  },
+  "assets/sounds/engines/v12/rpm4700_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm4700_off.opus",
+   "sha": "86a2285409ab7c41",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8339
+  },
+  "assets/sounds/engines/v12/rpm4700_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm4700_on.opus",
+   "sha": "2b6960cdb1359978",
+   "seconds": 0.893625,
+   "pad": 0.05,
+   "bytes": 8619
+  },
+  "assets/sounds/engines/v12/rpm6300_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm6300_off.opus",
+   "sha": "790d049dddd8c39d",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8079
+  },
+  "assets/sounds/engines/v12/rpm6300_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm6300_on.opus",
+   "sha": "c37d22429d52bd3f",
+   "seconds": 0.89525,
+   "pad": 0.05,
+   "bytes": 8683
+  },
+  "assets/sounds/engines/v12/rpm8400_off.wav": {
+   "opus": "assets/sounds/engines/v12/rpm8400_off.opus",
+   "sha": "2dcc7975d523fa1a",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8358
+  },
+  "assets/sounds/engines/v12/rpm8400_on.wav": {
+   "opus": "assets/sounds/engines/v12/rpm8400_on.opus",
+   "sha": "283eb0beb4308210",
+   "seconds": 0.9,
+   "pad": 0.05,
+   "bytes": 8354
+  },
+  "assets/sounds/engines/v12/shift.wav": {
+   "opus": "assets/sounds/engines/v12/shift.opus",
+   "sha": "d46b46ce884f0f0f",
+   "seconds": 0.24,
+   "bytes": 2492
+  },
+  "assets/sounds/engines/v12/sweep_off.wav": {
+   "opus": "assets/sounds/engines/v12/sweep_off.opus",
+   "sha": "773788952d7247f3",
+   "seconds": 20.442625,
+   "bytes": 219242
+  },
+  "assets/sounds/engines/v12/sweep_on.wav": {
+   "opus": "assets/sounds/engines/v12/sweep_on.opus",
+   "sha": "fc6fd712529279f2",
+   "seconds": 20.442625,
+   "bytes": 210913
   },
   "assets/sounds/engines/v6/bang.wav": {
    "opus": "assets/sounds/engines/v6/bang.opus",

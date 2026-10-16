@@ -4,7 +4,8 @@
 // (per direction on a one-way carriageway) — marked estimated. Then roads side by side that don't meet there
 // (the two carriageways of a divided road, a service road beside a street): the sides facing each other are
 // narrowed so the real gap between them stays (a median kept, never filled in), eased along the road — marked
-// adjusted. Each segment ends with per-point half widths each side: hwL / hwR (visual), dL / dR (drivable),
+// adjusted (Map v5, acrossLevels: a bridge beside a road on the ground too, where they run alongside). Each segment
+// ends with per-point half widths each side: hwL / hwR (visual), dL / dR (drivable),
 // "left" being the side of the normal (−dz, dx) to its direction from → to.
 //
 //   assignWidths(G, cfg)  (sets seg.lanes, lanesEstimated, drivable, visual, kerb, widthEstimated, hwL, hwR, dL, dR, adjusted)
@@ -54,7 +55,10 @@ export function assignWidths(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
       const x = g.xs[k], z = g.zs[k];
       const seen = new Set<Seg>();
       for (let i = Math.floor((x - reach) / C); i <= Math.floor((x + reach) / C); i++) for (let j = Math.floor((z - reach) / C); j <= Math.floor((z + reach) / C); j++) for (const [o, q] of grid.get(`${i},${j}`) ?? []) {
-        if (o === g || levelOf(o) !== levelOf(g)) continue;
+        // (another level — a bridge beside a road on the ground — only with W.acrossLevels (Map v5), and only alongside:
+        // their centre lines apart by at least acrossLevelsShare of their half-widths, not one over the other)
+        const across = levelOf(o) !== levelOf(g);
+        if (o === g || (across && !W.acrossLevels)) continue;
         // (a road meeting this one at its end node: only beyond where their surfaces part — the junction takes the rest)
         if (near.has(o.id)) {
           const shared = [g.from, g.to].find(nn => nn === o.from || nn === o.to);
@@ -70,7 +74,7 @@ export function assignWidths(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
         const el = Math.hypot(ex, ez) || 1, cos = Math.abs((ex * dx + ez * dz) / (el * l));
         if (cos < 0.82) continue;
         const d = Math.abs(t), ho = o.visual / 2, need = hw + ho + W.medianMin;
-        if (d >= need) continue;
+        if (d >= need || (across && d < (hw + ho) * W.acrossLevelsShare)) continue;
         const allowed = Math.max(W.minHalf, (d - W.medianMin) * hw / (hw + ho));
         if (t > 0) rawL[k] = Math.min(rawL[k], allowed); else rawR[k] = Math.min(rawR[k], allowed);
         seen.add(o);

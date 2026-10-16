@@ -173,6 +173,7 @@
     "maxCracksPer100k": 2,
     "maxOverlapShare": 0.006,
     "edgeInset": 0.15,
+    "bendTurn": 30,
     "edgeSpacing": 3,
     "maxHoleShare": 0.0005,
     "maxGroundThroughShare": 0.001,

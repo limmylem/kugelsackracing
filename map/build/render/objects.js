@@ -465,6 +465,7 @@ export function tileObjects(tile, { barriers: B, lamps: lampCfg = null, furnitur
         if (roadNames.length) {
             const m = new THREE.Mesh(quads(roadNames, true), new THREE.MeshBasicMaterial({ map: atlas.texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
             m.renderOrder = 3;
+            m.name = 'roadNames';
             labels.add(m);
         }
         if (plates.length)

@@ -7,13 +7,15 @@
 //   mask        the exclusion mask (v4 tiles): what keeps trees and props off roads, bridges and under decks
 //   lamps       street lamps (v4 tiles): mapped (OSM) white, estimated orange, the nearest-N real lights ringed
 //   seams       tile borders, and any height or road-edge mismatch where two loaded tiles meet (red)
-// Shift+F3 cycles them. Shift+F6 steps the time of day (day, dusk, night: the lamps). Shift+F4 logs a bad spot (position, heading, tile, a note) to known-bad-spots.json —
+// and Map v5's, on a v5 map (map/render/debugV5.ts): xsection, surface, elevation, clearance, buildings, brands,
+// furniture. Shift+F3 cycles them. Shift+F6 steps the time of day (day, dusk, night: the lamps). Shift+F4 logs a bad spot (position, heading, tile, a note) to known-bad-spots.json —
 // written into data/map/ through the dev server when there is one, else kept in the browser (Shift+F4 offers the
 // file to save). Shift+F2 takes the car to the next saved bad spot (and data/map/known-bad-spots.json's).
 //
 //   const D = createMapDebug(w)   D.frame()   D.view (name)   D.cycle()   D.logBadSpot(note)   D.nextBadSpot()
 
 import * as THREE from 'three';
+import { v5View, V5_VIEWS, V5_LEGENDS } from './debugV5.ts';
 
 export const VIEWS = ['off', 'colliders', 'roads', 'mask', 'lamps', 'seams'];
 const KIND_COLOUR: Record<string, number> = { terrain: 0x3fbf3f, road: 0xf0f0f0, building: 0xff9a2e, barrier: 0xff3030, tree: 0x9a5b2a, other: 0xff40ff };
@@ -73,7 +75,7 @@ const disposeGroup = (g: any) => g?.traverse((o: any) => { o.geometry?.dispose?.
 export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) => void; setHours?: (h: number) => void; hours?: () => number }) {
   const { travelTo } = opts;
   let view = 'off', built = new Map<string, any>(), lastKey = '', timer = 0, spotIndex = -1;
-  const S = w.stream, T = S.manifest.grid.tileSize, holder = new THREE.Group();
+  const S = w.stream, T = S.manifest.grid.tileSize, holder = new THREE.Group(), views = S.manifest.map === 'v5' ? [...VIEWS, ...V5_VIEWS] : VIEWS;
   holder.name = 'map debug';
   S.world.add(holder);
   const note = document.createElement('div');
@@ -86,10 +88,12 @@ export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) =>
     const g = new THREE.Group(), d = e.data;
     g.position.set((e.i + 0.5) * T, 0, (e.j + 0.5) * T);
     const by = new Map<number, number[]>(), put = (c: number) => by.get(c) ?? by.set(c, []).get(c)!;
-    if (view === 'colliders') {
+    // (near the car: tile-local x, z within 160 m of it)
+    const car = S.toWorld(...(() => { const p = w.sim.vehicle.body.translation(); return [p.x, p.z]; })()), cx = (e.i + 0.5) * T, cz = (e.j + 0.5) * T;
+    const near = (x: number, z: number) => Math.hypot(x + cx - car[0], z + cz - car[1]) < 160;
+    if (V5_VIEWS.includes(view)) v5View(view, e, put, { T, near, manifest: S.manifest, group: g });
+    else if (view === 'colliders') {
       // (the pieces the physics holds now; roads and the heightfield only near the car — they're big)
-      const car = S.toWorld(...(() => { const p = w.sim.vehicle.body.translation(); return [p.x, p.z]; })()), cx = (e.i + 0.5) * T, cz = (e.j + 0.5) * T;
-      const near = (x: number, z: number) => Math.hypot(x + cx - car[0], z + cz - car[1]) < 160;
       for (const p of (e.pieces ?? []).slice(0, e.added ?? 0)) pieceLines(p.shape, put(KIND_COLOUR[p.userData?.kind] ?? KIND_COLOUR.other), p.shape?.type === 'heightfield' || p.shape?.type === 'trimesh' ? near : null);
     } else if (view === 'roads' && d.lists.roadEdges) {
       // [ax, ay, az, bx, by, bz, classIndex, kind] per edge piece (kind: 0 road edge, 1 junction patch, 2 trim, 3 bridge, 4 tunnel)
@@ -147,8 +151,8 @@ export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) =>
     if (view === 'off') return;
     timer -= dt;
     // (rebuilt when the tiles near the car change, or every few seconds for the colliders — they come in a few a frame)
-    const p = w.sim.vehicle.body.translation(), [wx, wz] = S.toWorld(p.x, p.z), near = [...S.tiles.values()].filter((e: any) => e.state === 'ready' && Math.hypot(Math.max(0, Math.abs(wx - (e.i + 0.5) * T) - T / 2), Math.max(0, Math.abs(wz - (e.j + 0.5) * T) - T / 2)) < (view === 'colliders' ? 200 : 400));
-    const key = `${view}|${near.map((e: any) => `${e.key}:${e.added ?? 0}`).join(',')}|${view === 'colliders' ? `${Math.round(wx / 60)},${Math.round(wz / 60)}` : ''}`;
+    const p = w.sim.vehicle.body.translation(), [wx, wz] = S.toWorld(p.x, p.z), near = [...S.tiles.values()].filter((e: any) => e.state === 'ready' && Math.hypot(Math.max(0, Math.abs(wx - (e.i + 0.5) * T) - T / 2), Math.max(0, Math.abs(wz - (e.j + 0.5) * T) - T / 2)) < (view === 'colliders' || V5_VIEWS.includes(view) ? 200 : 400));
+    const key = `${view}|${near.map((e: any) => `${e.key}:${e.added ?? 0}`).join(',')}|${view === 'colliders' || V5_VIEWS.includes(view) ? `${Math.round(wx / 60)},${Math.round(wz / 60)}` : ''}`;
     if (key === lastKey && timer > 0) return;
     lastKey = key; timer = 3;
     clear();
@@ -157,7 +161,7 @@ export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) =>
   function setView(v: string) {
     view = v; lastKey = ''; clear();
     note.style.display = v === 'off' ? 'none' : 'block';
-    note.textContent = `debug view: ${v} (Shift+F3)${v === 'colliders' ? ' · terrain green · road white · building orange · barrier red · tree brown · other magenta' : v === 'lamps' ? ' · mapped white · estimated orange' : v === 'mask' ? ' · road red · under a deck yellow · railway blue' : v === 'seams' ? ' · matched cyan/green · mismatch red' : ''}`;
+    note.textContent = `debug view: ${v} (Shift+F3)${V5_LEGENDS[v] ? ` · ${V5_LEGENDS[v]}` : v === 'colliders' ? ' · terrain green · road white · building orange · barrier red · tree brown · other magenta' : v === 'lamps' ? ' · mapped white · estimated orange' : v === 'mask' ? ' · road red · under a deck yellow · railway blue' : v === 'seams' ? ' · matched cyan/green · mismatch red' : ''}`;
   }
 
   // ---------- bad spots ----------
@@ -200,14 +204,14 @@ export function createMapDebug(w: any, opts: { travelTo: (w: any, place: any) =>
 
   const onKey = (e: KeyboardEvent) => {
     if (!e.shiftKey || (e.target as any)?.tagName === 'INPUT' || !w.shown) return;
-    if (e.code === 'F3') { e.preventDefault(); e.stopImmediatePropagation(); setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]); }
+    if (e.code === 'F3') { e.preventDefault(); e.stopImmediatePropagation(); setView(views[(views.indexOf(view) + 1) % views.length]); }
     else if (e.code === 'F4') { e.preventDefault(); e.stopImmediatePropagation(); const now = performance.now(); if (now - lastLog < 600) download(); else logBadSpot(); lastLog = now; }
     else if (e.code === 'F2') { e.preventDefault(); e.stopImmediatePropagation(); nextBadSpot(); }
     else if (e.code === 'F6' && opts.setHours) { e.preventDefault(); e.stopImmediatePropagation(); const now = opts.hours?.() ?? 13, next = DAY_NIGHT.find(([h]) => h > now + 0.01) ?? DAY_NIGHT[0]; opts.setHours(next[0]); flash(`Time of day: ${next[1]} (${String(Math.floor(next[0])).padStart(2, '0')}:${String(Math.round((next[0] % 1) * 60)).padStart(2, '0')})`); }
   };
   addEventListener('keydown', onKey, true);
   return {
-    frame, cycle: () => setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]), setView, logBadSpot, nextBadSpot, download,
+    frame, cycle: () => setView(views[(views.indexOf(view) + 1) % views.length]), views, setView, logBadSpot, nextBadSpot, download,
     get view() { return view; }, get spots() { return local(); },
     dispose() { clear(); holder.removeFromParent(); note.remove(); removeEventListener('keydown', onKey, true); },
   };

@@ -1,5 +1,6 @@
 {
   "_note": "The Apex V8's 4.0 L twin-turbo V8's sound, for the game's sound (audio/dsp.js; docs/AUDIO.md) (the same layered loops as the RS17's: data/sounds/engines/rs17.json says how they're played). A flat-plane V8: even firing, high revving, a hard, rasping howl rather than a burble; its turbos whistle on top (the engine's turbo).",
+  "label": "V8, flat-plane twin-turbo (a hard, rasping howl)",
   "engine": "apex_v8_engine",
   "cylinders": 8,
   "layers": [

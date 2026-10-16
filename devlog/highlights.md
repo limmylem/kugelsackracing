@@ -75,3 +75,4 @@ Crash replays show your car whole until the moment it hits
 Mark any spot on the map and get a route there
 Crash replays show your car whole, and its sparks, until the moment it hits
 Your car stops safely at the end of a quest
+Eight new engine sounds: build a V12, V10, flat six and more
