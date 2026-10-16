@@ -129,7 +129,7 @@ Work down it in order.
   ([docs/LIVE_UPDATES.md](docs/LIVE_UPDATES.md)).
 - [x] Credits and licences up to date, the game's own music listed; the landing page (`/about/`) and the press kit
   (`/press/`, screenshots from the game) ([docs/RELEASE.md](docs/RELEASE.md)).
-- [ ] A trailer (the plan is in RELEASE.md).
+- [x] The trailer, made from the game itself (`devlog/trailer/make.mjs`; RELEASE.md).
 - [x] Tests: `tests/unit/launch.test.mjs`, `i18n.test.mjs`, `client-files.test.mjs` (every folder the game loads is
   deployed), `server/test/launch.test.ts`, and `tools/first-launch-browser.mjs` (the first minutes in a real browser,
   beside each deploy).

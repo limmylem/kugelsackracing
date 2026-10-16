@@ -68,6 +68,10 @@ test('instances: party first, then friends, then players near, then ping; never 
   // a handoff keeps its group: the same one in the next zone, or a new one by that name if it isn't there yet
   assert.equal(placeInstance({ me: { uid: 'me', pos: [0, 0], group: 'g7' }, cfg: CFG, candidates: [c('g1', fill(9)), c('g7', fill(2, 'q'))] }).group, 'g7');
   assert.equal(placeInstance({ me: { uid: 'me', pos: [0, 0], group: 'g7' }, cfg: CFG, candidates: [] }).group, 'g7');
+  // a new instance: the first free name, the same for two players arriving at an empty zone together (one instance, not two)
+  const [x, y] = ['x', 'y'].map(uid => placeInstance({ me: { uid, pos: [0, 0] }, cfg: CFG, candidates: [] }));
+  assert.equal(x.group, 'g1'); assert.equal(y.group, x.group); assert.equal(x.why, 'new instance');
+  assert.equal(placeInstance({ me: { uid: 'me', pos: [0, 0] }, cfg: CFG, candidates: [c('g1', fill(CFG.zones.capacity + CFG.zones.friendSlots)), c('g3', fill(CFG.zones.capacity, 'z'))] }).group, 'g2');
 });
 
 test('seeing: blocks hide everywhere; location everyone / friends / nobody on the maps and for joining; appear offline; names', () => {

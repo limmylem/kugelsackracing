@@ -103,7 +103,10 @@ export function senderRoom(viewer, car) {
 // me: { uid, pos: [x, z] | null, party: [uids] (not me), friends: [uids], blocked: [uids] (either way), group (the one
 // it's in elsewhere: a handoff keeps it) }
 // candidates: [{ group, room, players, uids: [], positions: [[x, z]], process?, pingMs? }]
-export function placeInstance({ me, candidates, cfg, newGroup = () => `g${Math.random().toString(36).slice(2, 9)}` }) {
+// (a new instance's group: the first of g1, g2, … not in use in the zone — the same for everyone arriving at once, so
+// two players joining an empty zone together meet in one instance; a random name gave each its own, 2026-10-16)
+const firstFree = candidates => { const used = new Set(candidates.map(c => c.group)); let n = 1; while (used.has(`g${n}`)) n++; return `g${n}`; };
+export function placeInstance({ me, candidates, cfg, newGroup = () => firstFree(candidates) }) {
   const Z = cfg.zones, cap = Z.capacity, hard = Z.capacity + Z.friendSlots;
   const blocked = new Set(me.blocked ?? []), party = new Set(me.party ?? []), friends = new Set(me.friends ?? []);
   const ok = candidates.filter(c => !(c.uids ?? []).some(u => blocked.has(u)) && !(c.uids ?? []).includes(me.uid));
