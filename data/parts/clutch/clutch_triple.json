@@ -1,0 +1,47 @@
+{
+  "id": "clutch_triple",
+  "name": "Triple-plate carbon clutch",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "tier": "race",
+  "price": 1300,
+  "mass": 6.5,
+  "model": "",
+  "icon": "assets/icons/parts/clutch_triple.png",
+  "fits": [
+    [
+      "clutch_spline:rs",
+      "clutch_spline:std"
+    ]
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [
+    "clutch_rating:sport",
+    "clutch_rating:race",
+    "clutch_rating:triple",
+    "clutch:uprated"
+  ],
+  "_note": "Three carbon plates: holds 2,800 N·m whatever the car's own clutch held — for the biggest crate engines (over 1,400 N·m they need it) — and bites fast.",
+  "purpose": "swap",
+  "upgrade": {
+    "effects": [
+      {
+        "target": "clutch.maxTorque",
+        "op": "set",
+        "value": 2800
+      },
+      {
+        "target": "clutch.engageTime",
+        "op": "multiply",
+        "value": 0.5
+      },
+      {
+        "target": "clutch.releaseTime",
+        "op": "multiply",
+        "value": 0.58
+      }
+    ]
+  }
+}

@@ -22,7 +22,9 @@ const progress = p => post({ type: 'progress', ...p });
 class Stop extends Error { constructor(message, problems = [], result = null) { super(message); this.problems = problems; this.result = result; } }
 
 // build → check → thumbnails → verify, for these families or engines (what npm run content -- build / check do)
-async function buildAndCheck(ids, { what }) {
+// (an engine: the cars the class check finds it would take past their class limits — a monster crate engine in a small
+// car — are added to its leaveOff and it's made and checked again, so it goes only in the cars it keeps fair)
+async function buildAndCheck(ids, { what, engine = null, again = 0 }) {
   const { buildContent, buildWords } = await import('./build.mjs');
   step('build', `Building ${what} (npm run content -- build ${ids.join(' ')})…`);
   let t0 = performance.now();
@@ -35,6 +37,17 @@ async function buildAndCheck(ids, { what }) {
   t0 = performance.now();
   const c = await runChecks({ root, only, log: t => log(t.trim()), progress });
   for (const line of formatChecks(c).split('\n')) if (line.trim()) log(line);
+  if (engine && again < 2) {
+    const crate = `crate_${engine}`, over = Object.entries(c.classes ?? {}).flatMap(([car, x]) => (x.blamed ?? []).filter(b => b.id === crate).map(b => [car, b.why]));
+    if (over.length) {
+      const file = path.join(root, `data/engines/${engine}.json`), def = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const { engineText } = await import('./builder.mjs');
+      def.leaveOff = { ...(def.leaveOff ?? {}), ...Object.fromEntries(over.map(([car]) => [car, 'it would take it past its class limit'])) };
+      fs.writeFileSync(file, engineText(def));
+      log(`Too strong for ${over.map(([car]) => car).join(', ')}: it would take ${over.length === 1 ? 'it' : 'them'} past ${over.length === 1 ? 'its' : 'their'} class limit${over.length === 1 ? '' : 's'}, so it's left off ${over.length === 1 ? 'that car' : 'those cars'} (leaveOff) — made and checked again.`, 'good');
+      return buildAndCheck(ids, { what, engine, again: again + 1 });
+    }
+  }
   // (only what this job made: anything else failing isn't its doing — the command line would say so too)
   const failed = c.failed.filter(f => only.includes(f.id));
   if (failed.length) throw new Stop(`${failed.length} that players have would fail their checks: ${failed[0].problems[0]}`, failed.flatMap(f => f.problems.map(p => `${f.id}: ${p}`)));
@@ -63,7 +76,7 @@ async function run() {
     fs.mkdirSync(path.join(root, dir), { recursive: true });
     fs.writeFileSync(path.join(root, file), P.text);
     log(`Wrote ${file} (${P.text.split('\n').length - 1} lines): status ${P.def.status ?? 'draft'}.`);
-    return { file, ...(await buildAndCheck([job.target], { what: `the ${P.def.name ?? job.target} ${job.type}` })) };
+    return { file, ...(await buildAndCheck([job.target], { what: `the ${P.def.name ?? job.target} ${job.type}`, engine: job.type === 'engine' ? job.target : null })) };
   }
   if (job.type === 'build') return buildAndCheck(P.ids, { what: P.ids.join(', ') });
   if (job.type === 'car') {

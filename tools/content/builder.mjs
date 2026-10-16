@@ -499,7 +499,7 @@ export async function variationPlan(from, vary, ctx, { count = ctx.config.variat
 // ---------- engines ----------
 
 export const ENGINE_NOTE = 'An engine (docs/CONTENT_PIPELINE.md): its settings here, its torque curve, mass and size from data/content/formulas.json engines (overrides: torqueCurve, mass, size to set them yourself). npm run content -- build makes its crate engine part, data/parts/engine/crate_<id>.json, and its model.';
-const ENGINE_KEYS = ['_note', 'id', 'maker', 'name', 'layout', 'cylinders', 'displacement', 'aspiration', 'boost', 'idle', 'redline', 'character', 'mount', 'sound', 'colour', 'overrides', 'status'];
+const ENGINE_KEYS = ['_note', 'id', 'maker', 'name', 'layout', 'cylinders', 'displacement', 'aspiration', 'boost', 'idle', 'redline', 'character', 'mount', 'sound', 'colour', 'overrides', 'leaveOff', 'status'];
 export function engineText(def) {
   const keys = [...ENGINE_KEYS.filter(k => def[k] !== undefined), ...Object.keys(def).filter(k => !ENGINE_KEYS.includes(k) && def[k] !== undefined)];
   const val = (k, v) => k === 'displacement' && Number.isInteger(v) ? v.toFixed(1) : k === 'boost' && Number.isInteger(v) ? v.toFixed(1) : inline(v);
@@ -527,7 +527,7 @@ export async function engineSummary(input, ctx, { editing = null } = {}) {
   const def = {
     _note: input._note ?? ctx.engines[editing]?._note ?? ENGINE_NOTE, id: editing ?? String(input.id ?? '').trim(), maker: String(input.maker ?? '').trim(), ...(input.name ? { name: String(input.name).trim() } : {}),
     layout: input.layout, cylinders: num('cylinders'), displacement: num('displacement'), aspiration: input.aspiration ?? 'natural', ...((input.aspiration ?? 'natural') !== 'natural' ? { boost: num('boost') } : {}),
-    idle: num('idle'), redline: num('redline'), character: num('character'), mount: input.mount, sound: input.sound, colour: input.colour ?? 'grey', ...(input.overrides && { overrides: input.overrides }), status: input.status ?? ctx.engines[editing]?.status ?? 'draft',
+    idle: num('idle'), redline: num('redline'), character: num('character'), mount: input.mount, sound: input.sound, colour: input.colour ?? 'grey', ...(input.overrides && { overrides: input.overrides }), ...((input.leaveOff ?? ctx.engines[editing]?.leaveOff) && { leaveOff: input.leaveOff ?? ctx.engines[editing].leaveOff }), status: input.status ?? ctx.engines[editing]?.status ?? 'draft',
   };
   if (!/^[a-z][a-z0-9_]{2,30}$/.test(def.id)) problems.push(`An engine's id is 3 to 31 lower-case letters, digits and _, starting with a letter (like "kmw_v6_35"): "${def.id}" isn't one.`);
   else if (!editing && (ctx.engines[def.id] || ctx.families[def.id] || ctx.db.cars[def.id] || ctx.db.parts[`crate_${def.id}`])) problems.push(`There's already an engine, family or car "${def.id}" (or a part crate_${def.id}): pick another id.`);

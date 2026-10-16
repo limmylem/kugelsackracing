@@ -150,22 +150,41 @@ export async function aeroKit(id, car, s) {
     m.add(box(p(sx > 0 ? half + 0.003 : -half - 0.07, y, z - L), p(sx > 0 ? half + 0.07 : -half - 0.003, y + 0.006, z)), 'carbon');
   }
   // side blades along the sills
-  // (under the skirts, sticking out past them)
-  const sy = car.sills.y - 0.008, front = car.frontAxle - car.wheelRadius - 0.08, rear = car.rearAxle + car.wheelRadius + 0.08;
+  // (tucked up against the underside of the sills and their skirts, sticking out past them)
+  const front = car.frontAxle - car.wheelRadius - 0.08, rear = car.rearAxle + car.wheelRadius + 0.08, edge = car.collider.halfExtents[0];
+  const sides = await car.obstacles(['socket_skirt_left', 'socket_skirt_right']);
+  const sill = underside(car, [edge - 0.06, edge - 0.03, edge], [0, 0.25, 0.5, 0.75, 1].map(f => rear + (front - rear) * f), sides) ?? car.sills.y, sy = sill - 0.002;
   for (const sx of s.blades === false ? [] : [1, -1]) {
-    const x = sx * (car.collider.halfExtents[0] - 0.06);
+    const x = sx * (edge - 0.06);
     m.add(box(p(Math.min(x, x + sx * 0.14), sy - 0.006, rear), p(Math.max(x, x + sx * 0.14), sy, front)), 'carbon');
     m.add(box(p(x + sx * 0.135 - 0.003, sy - 0.04, rear + 0.05), p(x + sx * 0.135 + 0.003, sy - 0.006, front - 0.05)), 'carbon');
   }
-  // the diffuser: a ramp under the back, and its strakes
-  // (under the rear bumper: its floor and strakes below it)
-  const rb = (await car.stockTris('socket_bumper_rear'))?.flat(), rz = rb ? Math.min(...rb.map(q => q[2])) : -car.collider.halfExtents[2], rLow = rb ? Math.min(...rb.map(q => q[1])) : car.sills.y;
-  const dl = 0.3 + 0.3 * (s.diffuser ?? 0.5), dw = half * 0.8, y0 = Math.min(car.sills.y, rLow) - 0.012;
-  m.add(prism([[y0 - 0.008, rz + dl], [y0 - 0.008, rz + 0.02], [y0, rz + 0.02], [y0, rz + dl]].map(([y, z]) => [y - at[1], z - at[2]]), -dw, dw, 'x').map(t => t.map(([x, y, z]) => [x - at[0], y, z])), 'carbon');
+  // the diffuser: a floor tucked up against the rear bumper's underside, its strakes below it (no lower than the car's
+  // floor), as deep as the bumper's underside runs forward — round the tailpipes (gaps where they come out)
+  const rb = await car.stockTris('socket_bumper_rear'), rbPts = rb?.flat();
+  const rz = rbPts ? Math.min(...rbPts.map(q => q[2])) : -car.collider.halfExtents[2], dw = half * 0.8;
+  const under = (rb && underside(car, [-dw, 0, dw], [rz + 0.03], rb)) ?? car.sills.y + 0.08;
+  let depth = 0.06;
+  while (depth < 0.3 + 0.3 * (s.diffuser ?? 0.5) && rb && Math.abs((underside(car, [-dw * 0.5, 0, dw * 0.5], [rz + depth + 0.02], rb) ?? -9) - under) < 0.015) depth += 0.02;
+  const y0 = under - 0.002, zf = rz + depth, bottom = Math.min(car.sills.y + 0.01, y0 - 0.03);
+  const pipes = [];
+  for (const t of (await car.stockTris('socket_exhaust')) ?? []) {
+    if (Math.max(...t.map(q => q[1])) < bottom - 0.01 || Math.min(...t.map(q => q[1])) > y0 + 0.01 || Math.max(...t.map(q => q[2])) < rz - 0.01 || Math.min(...t.map(q => q[2])) > zf + 0.01) continue;
+    const lo = Math.min(...t.map(q => q[0])) - 0.02, hi = Math.max(...t.map(q => q[0])) + 0.02, near = pipes.find(g => lo <= g[1] && hi >= g[0]);
+    if (near) { near[0] = Math.min(near[0], lo); near[1] = Math.max(near[1], hi); } else pipes.push([lo, hi]);
+  }
+  pipes.sort((a, b) => a[0] - b[0]);
+  const spans = [];
+  let from = -dw;
+  for (const [lo, hi] of pipes) { if (lo > from + 0.05) spans.push([from, Math.min(lo, dw)]); from = Math.max(from, hi); }
+  if (dw > from + 0.05) spans.push([from, dw]);
+  for (const [a, b] of spans) m.add(prism([[y0 - 0.008, zf], [y0 - 0.008, rz + 0.02], [y0, rz + 0.02], [y0, zf]].map(([y, z]) => [y - at[1], z - at[2]]), a - at[0], b - at[0], 'x'), 'carbon');
   const strakes = s.strakes ?? 5;
   for (let i = 0; i < strakes; i++) {
     const x = -dw * 0.8 + i * dw * (1.6 / (strakes - 1));
-    m.add(prism([[y0 - 0.07, rz + dl * 0.7], [y0 - 0.07, rz + 0.04], [y0 - 0.008, rz + 0.04], [y0 - 0.008, rz + dl * 0.7]].map(([y, z]) => [y - at[1], z - at[2]]), x - 0.004 - at[0], x + 0.004 - at[0], 'x'), 'carbon');
+    if (!spans.some(([a, b]) => x - 0.004 > a && x + 0.004 < b)) continue;
+    // (deepest at the back, rising to the floor at the front)
+    m.add(prism([[bottom, rz + 0.04], [y0 - 0.008, rz + 0.04], [y0 - 0.008, zf - 0.01], [y0 - 0.02, zf - 0.01]].map(([y, z]) => [y - at[1], z - at[2]]), x - 0.004 - at[0], x + 0.004 - at[0], 'x'), 'carbon');
   }
   // a kit piece on each front corner of the bumper (a vent, a scoop, a canard): its origin on the corner, +x outwards
   if (s.bumperPiece) {
@@ -173,6 +192,14 @@ export async function aeroKit(id, car, s) {
     for (const [tris, pm] of s.bumperPiece()) for (const sx of [1, -1]) m.add(tris.map(t => (sx > 0 ? t : [t[2], t[1], t[0]]).map(p => [sx * (p[0] + corner[0]) + (sx > 0 ? 0 : -2 * at[0]), p[1] + corner[1], p[2] + corner[2]])), pm ?? 'carbon');
   }
   return m;
+}
+
+// The lowest underside of the body (or of the given triangles) over these points: where a ray straight up from the ground
+// first meets it (null if it meets nothing)
+function underside(car, xs, zs, tris) {
+  let low = Infinity;
+  for (const x of xs) for (const z of zs) { const d = car.ray([x, 0.005, z], [0, 1, 0], tris); if (Number.isFinite(d)) low = Math.min(low, 0.005 + d); }
+  return Number.isFinite(low) ? low : null;
 }
 
 // ---------- the parts ----------

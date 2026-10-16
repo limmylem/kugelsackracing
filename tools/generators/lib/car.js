@@ -14,12 +14,13 @@ import { forCar } from '../../content/balance.mjs';
 const cache = new Map();
 
 // Every node's triangles, in the model's frame ({ name: [[a, b, c], …] })
-async function nodeTriangles(file) {
+async function nodeTriangles(file, where = {}) {
   const doc = await readModel(path.join(ROOT, file)), out = {};
   const apply = (m, v) => [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12], m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13], m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14]];
   const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
   const walk = node => {
     const mesh = node.getMesh(), m = node.getWorldMatrix(), list = (out[node.getName()] ??= []);
+    where[node.getName()] = [m[12], m[13], m[14]];
     for (const prim of mesh?.listPrimitives() ?? []) {
       const P = prim.getAttribute('POSITION'), I = prim.getIndices(), n = I ? I.getCount() : P.getCount(), el = [];
       for (let t = 0; t + 2 < n; t += 3) list.push([0, 1, 2].map(k => apply(m, P.getElement(I ? I.getScalar(t + k) : t + k, el))));
@@ -42,18 +43,19 @@ export async function loadCar(id) {
   const sockets = new Map(def.sockets.map(s => [s.name, s]));
   const socket = name => { const s = sockets.get(name); if (!s) throw new Error(`${id} has no ${name}`); return s.position; };
   const has = name => sockets.has(name);
-  const nodes = await nodeTriangles(def.model.file);
+  const nodeAt = {}, nodes = await nodeTriangles(def.model.file, nodeAt);
   const body = Object.entries(nodes).filter(([n]) => !/^socket_/.test(n)).flatMap(([, t]) => t);
   const shell = nodes.body_shell?.length ? nodes.body_shell : body;
   const W = { FL: socket('socket_wheel_FL'), FR: socket('socket_wheel_FR'), RL: socket('socket_wheel_RL'), RR: socket('socket_wheel_RR') };
   const wheelRadius = W.FL[1], frontAxle = W.FL[2], rearAxle = W.RL[2], track = W.FL[0] - W.FR[0];
   const bodyBox = boundsOf(body), col = def.dimensions.bodyCollider;
 
-  // the stock part in a socket: its model's triangles, in the car frame
+  // the stock part in a socket: its model's triangles, in the car frame (where the game draws it: at the socket's node
+  // in the car's model when it names one — an exhaust's tip, under the back — else at the socket)
   const stockTris = async socketName => {
     const s = sockets.get(socketName), pid = s?.stock?.[0], p = pid && parts(pid);
     if (!p?.model) return null;
-    const t = await nodeTriangles(p.model), at = s.position;
+    const t = await nodeTriangles(p.model), at = (s.node && nodeAt[s.node]) || s.position;
     return Object.values(t).flat().map(tri => tri.map(q => [q[0] + at[0], q[1] + at[1], q[2] + at[2]]));
   };
 

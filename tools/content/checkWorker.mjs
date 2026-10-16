@@ -223,7 +223,7 @@ export function classCheck(db, carId) {
   const s = new Garage(db, null, carId).stats().totals.rating;
   let max, problems = [];
   for (let round = 0; round < 5; round++) {
-    max = maxBuild(db, carId, { forSale: p => !p.retired && !p.todo?.length && !blamed.includes(p.id) });
+    max = maxBuild(db, carId, { forSale: p => !p.retired && !p.todo?.length && !blamed.some(b => b.id === p.id) });
     problems = classProblems(db, carId, balance, { stock: s, max: max.rating });
     if (!problems.length) break;
     const drafts = max.parts.filter(id => !released(db.parts[id]));

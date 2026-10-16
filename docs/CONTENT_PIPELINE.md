@@ -76,6 +76,13 @@ part. It goes in **every car with the same mount and a big enough bay**, needs a
 strong enough for it, and changes the car's weight and balance. Cars it physically won't fit under (through the
 bonnet) are left out automatically, with the reason written in the part.
 
+Up to 2,000 hp (10 L, 3 bar of boost, `data/content/formulas.json` engines): past 1,400 N·m it needs the triple-plate
+clutch (`clutch_triple`, 2,800 N·m), and past 900 hp it's a race part at the top of the band. A monster engine keeps
+the classes fair: made from the Builder, the cars the class check finds it would take past their class limit (more
+than two classes up, fully upgraded) go in its `leaveOff` and it's made and checked again (`tools/content/jobWorker.mjs`),
+so it fits only the cars it doesn't — the top ones. Traction control keeps up: past twice the driven tyres' grip, its
+window narrows with the engine's pull (`physics/vehicle.js` TC_OVERPOWER), so the extra power is speed, not wheelspin.
+
 ### 4. A new car
 
 **`npm run content -- new-car <id> --type <hatchback|saloon|coupe|estate|suv|pickup|sports> [--name "…"]`**
