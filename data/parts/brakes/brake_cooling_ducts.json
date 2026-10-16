@@ -1,0 +1,31 @@
+{
+  "id": "brake_cooling_ducts",
+  "name": "Brake cooling ducts",
+  "category": "brakes",
+  "slot": "brake_cooling",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 420,
+  "mass": 1.6,
+  "model": "",
+  "icon": "assets/icons/parts/brake_cooling_ducts.png",
+  "fits": [
+    "brake_mount:std"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Ducts from the front bumper to the discs: at speed the air takes the heat away 60% faster (and a little faster standing still), so the brakes stay cooler and fade later.",
+  "effects": [
+    {
+      "target": "brakes.cooling.perSpeed",
+      "op": "multiply",
+      "value": 1.6
+    },
+    {
+      "target": "brakes.cooling.still",
+      "op": "multiply",
+      "value": 1.2
+    }
+  ]
+}

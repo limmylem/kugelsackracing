@@ -19,6 +19,7 @@ import { baseWidth } from './widths.ts';
 export interface MNode { id: number; x: number; z: number; lat: number; lon: number; segs: number[]; border: boolean; kind?: 'junction' | 'joint' | 'end'; cluster?: number; h?: number; ground?: boolean; arms?: number }
 export interface Seg {
   id: number; way: number; osmWay: number; from: number; to: number;
+  tags?: Record<string, string>;   // (its way's tags: with a second copy's merged in, graph.mergeCopies)
   xs: number[]; zs: number[]; orig: boolean[]; osmNodes: (number | null)[]; lat: number[]; lon: number[]; s: number[];
   name: string | null; ref: string | null; cls: string; link: boolean; rank: number; oneway: number; maxspeed: number | null;
   lanesTag: number | null; widthTag: number | null; structure: 'ground' | 'bridge' | 'tunnel'; layer: number; surface: string; lit: 'yes' | 'no' | null;
@@ -98,12 +99,23 @@ export function thinNodes<T extends { id: number; x: number; z: number }>(nodes:
 export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any; v3roads: any; tileSize: number }) {
   // (copies: the joins add nodes to ways; the caller's OSM data stays as read)
   let ways = roads.filter(w => DRIVABLE.has(w.tags.highway) && w.tags.area !== 'yes').map(w => ({ ...w, nodes: [...w.nodes] }));
-  // one copy of a road given twice (the copy that knows its layer)
+  // one copy of a road given twice (the copy that knows its layer). (Map v5, graph.mergeCopies: the other copy's tags
+  // fill in what the kept one lacks — Overture's copy of OSM gives a bridge twice, one copy with its name and layer,
+  // the other with OSM's lanes, turn lanes, cycle lanes and footpaths)
   {
     const keyOf = (w: Way) => { const f = w.nodes.map(p => `${p.x.toFixed(1)},${p.z.toFixed(1)}`), b = [...f].reverse(); const a = f.join(';'), r = b.join(';'); return a < r ? a : r; };
     const kept = new Map<string, number>(), score = (x: Way) => Math.abs(num(x.tags.layer) ?? 0) * 2 + (x.tags.bridge || x.tags.tunnel ? 1 : 0);
-    ways.forEach((w, i) => { const k = keyOf(w), j = kept.get(k); if (j === undefined || score(w) > score(ways[j])) kept.set(k, i); });
+    const keys = ways.map(keyOf);
+    ways.forEach((w, i) => { const k = keys[i], j = kept.get(k); if (j === undefined || score(w) > score(ways[j])) kept.set(k, i); });
     const keep = new Set(kept.values());
+    if (cfg.graph.mergeCopies) ways.forEach((w, i) => {
+      if (keep.has(i)) return;
+      const K = ways[kept.get(keys[i])!], same = K.nodes[0].id === w.nodes[0].id;
+      // (only what doesn't depend on the way's direction, unless both run the same way)
+      const t = { ...K.tags };
+      for (const [k, v] of Object.entries(w.tags)) if (t[k] === undefined && (same || !/(^|:)(forward|backward|left|right)(:|$)|^oneway$/.test(k))) t[k] = v;
+      K.tags = t;
+    });
     ways = ways.filter((_, i) => keep.has(i));
   }
   // (an end within a road's own width — Map v4's — joined to it)
@@ -162,7 +174,7 @@ export function buildGraph(roads: Way[], { cfg, v3roads, tileSize }: { cfg: any;
       if (s[s.length - 1] < 0.05) { start = q; continue; }
       const keyA = a.border ? `b${a.x.toFixed(3)},${a.z.toFixed(3)},${w.id}` : a.node.id, keyB = b.border ? `b${b.x.toFixed(3)},${b.z.toFixed(3)},${w.id}` : b.node.id;
       const seg: Seg = {
-        id: segs.length, way: w.id, osmWay: num(t['osm:way']) ?? w.id,
+        id: segs.length, way: w.id, osmWay: num(t['osm:way']) ?? w.id, tags: t,
         from: nodeOf(keyA, a.border ? a : a.node, a.border), to: nodeOf(keyB, b.border ? b : b.node, b.border),
         xs, zs, orig: part.map(p => p.orig), osmNodes: part.map(p => p.osm), lat: part.map(p => p.lat), lon: part.map(p => p.lon), s,
         name: t.name ?? null, ref: t.ref ?? null, cls: base, link, rank: RANK[base] ?? 2, oneway, maxspeed: speedKmh(t.maxspeed),

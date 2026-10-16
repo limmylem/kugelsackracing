@@ -46,9 +46,10 @@ export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box 
     return true;
   };
   // (a road side's kerb point s m along: the side traffic keeps to, for traffic going `dir` (+1 along the segment, −1
-  // against), and the way it faces — towards that traffic)
+  // against), and the way it faces — towards that traffic. The model's side +1, along its normal, is to the right of
+  // the segment's direction: map/model/geom.ts)
   const kerbPoint = (g: any, s: number, dir: number, extra = 0) => {
-    const r = rowAt(g, s), travelLeft = dir > 0 ? 1 : -1, side = left ? travelLeft : -travelLeft;
+    const r = rowAt(g, s), travelRight = dir > 0 ? 1 : -1, side = left ? -travelRight : travelRight;
     const hw = side > 0 ? r.hwL : r.hwR, d = hw + kerbW + F.clearance + extra;
     const x = r.x + r.nx * side * d, z = r.z + r.nz * side * d;
     // (facing the traffic: against its way, the segment's direction there being (nz, −nx))
@@ -159,7 +160,7 @@ export function placeFurniture({ model, osm, surface, groundAt, style, cfg, box 
     const h = nearestSeg(p.x, p.z, 25);
     if (!h || !drivable(h.g)) continue;
     // (the stop's side: the one it's mapped on; its traffic: the one keeping to that side)
-    const side = h.off >= 0 ? 1 : -1, dir = (left ? side : -side) > 0 ? 1 : -1;
+    const side = h.off >= 0 ? 1 : -1, dir = (left ? -side : side) > 0 ? 1 : -1;
     const k = kerbPoint(h.g, h.s, dir);
     const shelter = p.tags.shelter === 'yes' || shelters.some(q => Math.hypot(q.x - p.x, q.z - p.z) < F.shelterNear);
     if (put(k.x, k.z, k.yaw, FURN.busStop, shelter ? 1 : 0, 0, 0, k.out)) {

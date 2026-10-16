@@ -50,6 +50,18 @@ function shared(cfg) {
         shelterMat: new THREE.MeshLambertMaterial({ color: st.busStop?.shelter ?? '#3b4a52' }), wood: new THREE.MeshLambertMaterial({ color: '#7a5a3a' }), green: new THREE.MeshLambertMaterial({ color: '#33503a' }),
         red: new THREE.MeshLambertMaterial({ color: '#c8102e' }), yellow: new THREE.MeshLambertMaterial({ color: '#d8b62a' }),
         stopFace: face(stopTex), giveFace: face(giveTex), busFace: face(busTex), speedFace,
+        // (a level crossing's: its crossbuck, a boom arm raised, its lights)
+        crossbuck: plate(new THREE.PlaneGeometry(0.9, 0.9), 2.7), crossFace: face(canvasTex(128, 128, g => { g.clearRect(0, 0, 128, 128); g.lineCap = 'round'; for (const [c, w] of [['#c8102e', 26], ['#ffffff', 16]]) {
+            g.strokeStyle = c;
+            g.lineWidth = w;
+            g.beginPath();
+            g.moveTo(14, 14);
+            g.lineTo(114, 114);
+            g.moveTo(114, 14);
+            g.lineTo(14, 114);
+            g.stroke();
+        } })),
+        boomArm: box(0.12, 4.2, 0.12), white: new THREE.MeshLambertMaterial({ color: '#f2f2ee' }),
         // (the lenses: [phase group][red, amber, green], lit or dark by the cycle)
         lenses: [0, 1].map(() => [lit('#3a0b0b'), lit('#3a2a08'), lit('#08300f')]),
         wire: new THREE.LineBasicMaterial({ color: '#2a2a2a' }),
@@ -137,6 +149,18 @@ export function furnitureObjects(tile, cfg) {
                 break;
             case FURN.bollard:
                 add('bollard', Sh.bollard, Sh.metal, x, y, z, yaw);
+                break;
+            case FURN.boomGate:
+                add('bgPost', Sh.pole, Sh.metal, x, y, z, yaw, 1, 3.0, 1);
+                add('bgCross', Sh.crossbuck, Sh.crossFace, x, y, z, yaw);
+                add('bgLights', Sh.housing, Sh.dark, x, y + 1.9, z, yaw, 2.2, 0.35, 0.6, 0, 0, 0.1);
+                for (const sd of [-1, 1])
+                    add('bgLens', Sh.lens, Sh.lenses[0][0], x, y + 2.07, z, yaw, 1, 1, 1, sd * 0.25, 0, 0.27);
+                add('bgArm', Sh.boomArm, Sh.white, x, y + 1.0, z, yaw, 1, 1, 1, 0.22, 0, 0);
+                break;
+            case FURN.catenaryMast:
+                add('mast', Sh.pole, Sh.metal, x, y, z, yaw, 1.2, b || 6.2, 1.2);
+                add('mastArm', Sh.housing, Sh.metal, x, y + (b || 6.2) - 0.3, z, yaw, 0.25, 0.12, 9.5, 0, 0, 1.25);
                 break;
         }
     }
@@ -405,15 +429,17 @@ export function brandObjects(tile, cfg) {
         tex = canvasTex(RW * per, H, g => {
             for (let s = 0; s < fit; s++) {
                 const o = s * 8, bi = Sg[o + 6] | 0, b = bi >= 0 ? brands[bi] : null, x = (s % per) * RW, y = Math.floor(s / per) * RH;
-                g.fillStyle = b ? b.colours.primary : '#2b2f33';
+                // (a name plate — brand −2: a church's, a school's — cream, dark lettering)
+                const plate = bi === -2;
+                g.fillStyle = b ? b.colours.primary : plate ? '#ece4d2' : '#2b2f33';
                 g.fillRect(x, y, RW, RH);
                 let tx = x + 12;
                 if (b) {
                     drawLogo(g, b.logo, b.colours, x + 6, y + 6, RH - 12);
                     tx = x + RH + 4;
                 }
-                g.fillStyle = b ? b.colours.text : '#f2efe6';
-                g.font = 'bold 38px sans-serif';
+                g.fillStyle = b ? b.colours.text : plate ? '#2d2a26' : '#f2efe6';
+                g.font = `${plate ? '' : 'bold '}38px ${plate ? 'serif' : 'sans-serif'}`;
                 g.textBaseline = 'middle';
                 g.fillText(b ? b.name : names[Sg[o + 7]] ?? '', tx, y + RH / 2 + 2, x + RW - tx - 8);
             }
@@ -444,5 +470,78 @@ export function brandObjects(tile, cfg) {
         setDetail(d) { group.visible = d < 700; },
         dispose() { for (const g of owned)
             g.dispose(); tex?.dispose(); bands?.material?.dispose?.(); group.removeFromParent(); },
+    };
+}
+// Map v5's place signs (lists.placeSigns: [x, y, z, yaw, kind (0 a suburb's, 1 a park's), name — the manifest's
+// placeNames]): a panel on posts, its name on the face towards the traffic (yaw), the back plain; one canvas atlas a
+// tile. Suburbs': the style pack's direction-sign green, the name in capitals; parks': brown, cream lettering.
+export function placeSignObjects(tile, cfg) {
+    const L = tile.lists.placeSigns?.data, group = new THREE.Group(), owned = [];
+    group.name = 'placeSigns';
+    if (!L?.length || !cfg?.names)
+        return { group, setDetail() { }, dispose() { } };
+    const n = L.length / 6, RW = 512, RH = 128, H = Math.min(4096, 2 ** Math.ceil(Math.log2(Math.max(1, n) * RH))), fit = Math.min(n, Math.floor(H / RH));
+    const green = cfg.style?.signs?.direction ?? '#00653a';
+    const tex = canvasTex(RW, H, g => {
+        for (let s = 0; s < fit; s++) {
+            const kind = L[s * 6 + 4] | 0, name = cfg.names[L[s * 6 + 5] | 0] ?? '', y = s * RH;
+            g.fillStyle = kind === 0 ? green : '#5a4330';
+            g.fillRect(0, y, RW, RH);
+            g.strokeStyle = kind === 0 ? '#ffffff' : '#e8dcc0';
+            g.lineWidth = 6;
+            g.strokeRect(6, y + 6, RW - 12, RH - 12);
+            g.fillStyle = kind === 0 ? '#ffffff' : '#efe4c8';
+            g.font = `bold ${kind === 0 ? 64 : 56}px sans-serif`;
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText(kind === 0 ? name.toUpperCase() : name, RW / 2, y + RH / 2 + 3, RW - 40);
+        }
+    });
+    const pos = [], uv = [], idx = [], back = [], bidx = [];
+    const post = new THREE.BoxGeometry(0.08, 1, 0.08);
+    post.translate(0, 0.5, 0);
+    owned.push(post);
+    const posts = new THREE.InstancedMesh(post, colourMat('#9aa0a2'), fit * 2), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    for (let s = 0; s < fit; s++) {
+        const o = s * 6, x = L[o], y = L[o + 1], z = L[o + 2], yaw = L[o + 3], kind = L[o + 4] | 0, name = cfg.names[L[o + 5] | 0] ?? '';
+        const w = Math.min(3.2, 0.5 + name.length * (kind === 0 ? 0.16 : 0.12)), h = kind === 0 ? 0.6 : 0.5, foot = kind === 0 ? 1.7 : 1.1;
+        // (its face towards (sin yaw, cos yaw); across it, (cos yaw, −sin yaw))
+        const fx = Math.sin(yaw), fz = Math.cos(yaw), ux = Math.cos(yaw), uz = -Math.sin(yaw), base = pos.length / 3, v0 = 1 - (s * RH) / H, v1 = 1 - (s * RH + RH) / H;
+        for (const [a, b2] of [[-1, 0], [1, 0], [1, 1], [-1, 1]])
+            pos.push(x + ux * a * w / 2 + fx * 0.03, y + foot + b2 * h, z + uz * a * w / 2 + fz * 0.03);
+        uv.push(0, v1, 1, v1, 1, v0, 0, v0);
+        idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+        const bb = back.length / 3;
+        for (const [a, b2] of [[1, 0], [-1, 0], [-1, 1], [1, 1]])
+            back.push(x + ux * a * w / 2 - fx * 0.0, y + foot + b2 * h, z + uz * a * w / 2 - fz * 0.0);
+        bidx.push(bb, bb + 1, bb + 2, bb, bb + 2, bb + 3);
+        for (const [k, a] of [[0, -1], [1, 1]]) {
+            q.setFromAxisAngle(up, yaw);
+            posts.setMatrixAt(s * 2 + k, m4.compose(p.set(x + ux * a * (w / 2 - 0.15), y, z + uz * a * (w / 2 - 0.15)), q, sc.set(1, foot + h, 1)));
+        }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    g.computeBoundingSphere();
+    const gb = new THREE.BufferGeometry();
+    gb.setAttribute('position', new THREE.Float32BufferAttribute(back, 3));
+    gb.setIndex(bidx);
+    gb.computeVertexNormals();
+    gb.computeBoundingSphere();
+    const face = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: tex })), rear = new THREE.Mesh(gb, colourMat('#8d9296'));
+    for (const o of [face, rear, posts]) {
+        o.matrixAutoUpdate = false;
+        o.castShadow = true;
+        group.add(o);
+    }
+    owned.push(g, gb);
+    return {
+        group,
+        setDetail(d) { group.visible = d < 900; },
+        dispose() { for (const o of owned)
+            o.dispose(); tex.dispose(); face.material.dispose(); posts.dispose(); group.removeFromParent(); },
     };
 }

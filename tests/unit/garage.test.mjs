@@ -323,3 +323,19 @@ test('a shifter fitted hides the car\'s own gear lever (each car\'s body has it 
   for (const p of Object.values(db.parts).filter(p => p.slot === 'shifter')) assert.ok(p.hides?.includes('gear_lever'), `${p.id} hides the stock lever`);
   for (const car of Object.values(db.cars)) if (car.sockets.some(s => s.slot === 'shifter')) assert.ok(nodeNames(car.model.file).includes('gear_lever'), `${car.id}'s body has its gear lever as a node`);
 });
+
+test('the shifter socket is where the car\'s own gear lever comes out of the console, so a shifter fitted stands in its place', async () => {
+  const { modelIO } = await import('../../tools/content/io.mjs'), io = await modelIO();
+  for (const car of Object.values(db.cars)) {
+    const at = car.sockets.find(s => s.slot === 'shifter')?.position;
+    if (!at) continue;
+    const lever = (await io.read(path.join(root, car.model.file))).getRoot().listNodes().find(n => n.getName() === 'gear_lever'), m = lever.getWorldMatrix(), pts = [];
+    for (const prim of lever.getMesh().listPrimitives()) {
+      const a = prim.getAttribute('POSITION'), v = [0, 0, 0];
+      for (let i = 0; i < a.getCount(); i++) { a.getElement(i, v); pts.push([0, 1, 2].map(k => m[k] * v[0] + m[4 + k] * v[1] + m[8 + k] * v[2] + m[12 + k])); }
+    }
+    const low = Math.min(...pts.map(p => p[1])), base = pts.filter(p => p[1] < low + 0.02), mid = k => base.reduce((s, p) => s + p[k], 0) / base.length;
+    assert.ok(Math.abs(at[1] - low) < 0.015, `${car.id}: the socket (y ${at[1]}) at the lever's foot (y ${low.toFixed(3)}), not up at its knob`);
+    assert.ok(Math.hypot(at[0] - mid(0), at[2] - mid(2)) < 0.03, `${car.id}: the socket over the lever's foot`);
+  }
+});

@@ -56,6 +56,14 @@
     "mound": 0.25
   },
   "vegetation": {
+    "streetMix": { "plane": 0.3, "jacaranda": 0.2, "eucalypt": 0.35, "broadleaf": 0.15 },
+    "parkMix": { "eucalypt": 0.55, "broadleaf": 0.3, "conifer": 0.08, "palm": 0.07 },
+    "forestMix": { "eucalypt": 0.9, "conifer": 0.1 },
+    "scrubMix": { "eucalypt": 0.5, "shrub": 0.5 },
+    "gardenMix": { "broadleaf": 0.4, "eucalypt": 0.2, "shrub": 0.25, "palm": 0.08, "conifer": 0.07 },
+    "gardenChance": 0.55,
+    "gardenBack": 2.5,
+    "groundColours": { "default": "#a4a26b", "meadow": "#b0a872", "grass": "#9ba465", "farmland": "#bfb27a", "crop": "#bfb27a", "scrub": "#7f8656", "heath": "#968d5f" },
     "_note": "The mix of trees and plants: species shapes (map/render/objects.ts) by share — dry eucalypts, brown summer grass. Street trees every streetTreeSpacing m along a verge at least streetTreeVerge m wide (estimated where none are mapped, seeded by the road's id).",
     "streetTreeSpacing": 14,
     "streetTreeVerge": 1.8,
@@ -86,5 +94,19 @@
     "_note": "map/model/tunnels.ts: a tunnel's tube — its walls height m up from the road's edges (a band m high at their foot), its ceiling height m over the road; a portal's headwall above m over the hillside, its wings wing m out either side.",
     "height": 5.6, "band": 1.1, "above": 1.0, "wing": 4,
     "colours": { "wall": "#d9d5c8", "band": "#6f716f", "ceiling": "#4a4c4e", "portal": "#c8c4b8" }
+  },
+  "fields": {
+    "_note": "map/model/fields.ts: sports grounds' line colour, a cricket pitch's strip, courts' surfaces by sport, pools' water and coping.",
+    "line": "#f2f2ea", "cricketPitch": "#b9a47c", "pool": "#4aa8cf", "coping": "#d9d6cc",
+    "courts": { "tennis": "#3f7d63", "netball": "#3d6ea8", "basketball": "#b5543d", "default": "#5d7f8e" }
+  },
+  "railways": {
+    "_note": "map/model/railways.ts, map/render/rails.ts: a line's gauge (mm) where it doesn't say, by kind; trams electrified where nothing says; the colours.",
+    "gauge": 1600, "tramGauge": 1435, "narrowGauge": 1067, "tramsElectrified": true,
+    "ballast": "#8b8379", "sleeper": "#5d5248", "rail": "#7e8286", "deck": "#a7a39b", "platform": "#bdb8ae", "platformEdge": "#d9c64a"
+  },
+  "markingColours": {
+    "_note": "map/model/markingsV5.ts: Map v5's markings' paint: the white lines and arrows, the green at a bicycle lane's ends, a bus lane's colour at its ends.",
+    "white": "#e8e8e2", "bikeLane": "#3f8a4a", "busLane": "#a8473a"
   }
 }

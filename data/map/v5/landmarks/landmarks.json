@@ -1,0 +1,19 @@
+{
+  "_note": "Map v5's hand-made landmarks (map/model/landmarks.ts; MAP_README.md, 'Landmarks'). Each: a glTF model in this folder (file; y up, metres, its base at y 0), anchored by the OSM id of the building it stands in for (osm: 'way/123' \u2014 that building hidden) or a lat/lon (the building there hidden), turned rotation degrees (clockwise seen from above), scaled scale, lifted lift m; box [width, height, depth] m makes it solid (a box collider round its anchor), else it's drawn only. enabled: false keeps an entry as an example only.",
+  "landmarks": [
+    {
+      "name": "An example: a 10 m block at Victoria Square",
+      "file": "example-placeholder.gltf",
+      "lat": -34.92867,
+      "lon": 138.60008,
+      "rotation": 0,
+      "scale": 1,
+      "box": [
+        10,
+        10,
+        10
+      ],
+      "enabled": false
+    }
+  ]
+}

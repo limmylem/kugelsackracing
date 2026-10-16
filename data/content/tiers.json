@@ -250,6 +250,26 @@
       "street": 250,
       "stat": null
     },
+    "brake_lines": {
+      "_note": "braided hoses: a firmer pedal, more bite (the stopping distance with ABS stays the tyres')",
+      "street": 180,
+      "stat": null
+    },
+    "brake_fluid": {
+      "_note": "high-boiling fluid: the brakes fade later when they're hot",
+      "street": 60,
+      "stat": null
+    },
+    "brake_cooling": {
+      "_note": "ducts to the discs: the brakes cool faster, so they fade later",
+      "street": 200,
+      "stat": null
+    },
+    "steering_rack": {
+      "_note": "more steering lock: a tighter turning circle (and quicker steering)",
+      "street": 400,
+      "stat": null
+    },
     "camber": {
       "_note": "the wheels' lean: a little negative for cornering grip, at some cost braking and accelerating",
       "street": 320,

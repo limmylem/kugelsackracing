@@ -8,26 +8,6 @@
     "share": 0.02,
     "known": {
       "_note": "Problems the fit check found in parts players already have, kept (waived) until they're fixed: for each part, on each car, what it may go through and in how many places at most (any more, or anything else, fails again) and why. Leaving them off those cars now would make a player's car that has one fitted undrivable until it came off. The content manager shows them; docs/KNOWN_ISSUES.md lists them. A part that isn't published yet can't be waived: fix it.",
-      "short_shifter": {
-        "cars": {
-          "ridgeback_4x4": {
-            "the body": 22
-          },
-          "hana_roadster": {
-            "the body": 2
-          },
-          "vortex_r": {
-            "the body": 2
-          },
-          "strada_evo": {
-            "the body": 2
-          },
-          "apex_v8": {
-            "the body": 2
-          }
-        },
-        "why": "The Ridgeback 4x4's coupe-based cabin (2026-10-15) has a taller centre console than the shifter is made for: its base sits in it. To fix: the shifter made to each car (byCar), like the cages."
-      },
       "brute_500_engine": {
         "cars": {
           "kaze_gt": {

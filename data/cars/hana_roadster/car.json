@@ -508,6 +508,46 @@
       "blockedBy": []
     },
     {
+      "name": "socket_brake_lines",
+      "slot": "brake_lines",
+      "required": false,
+      "position": [0, 0.301, -0.075],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_brake_fluid",
+      "slot": "brake_fluid",
+      "required": false,
+      "position": [0, 0.301, -0.075],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_brake_cooling",
+      "slot": "brake_cooling",
+      "required": false,
+      "position": [0, 0.301, -0.075],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
+      "name": "socket_steering_rack",
+      "slot": "steering_rack",
+      "required": false,
+      "position": [0, 0.17, 1.08],
+      "pull": [0, -1, 0],
+      "focus": "underbody",
+      "stock": [],
+      "blockedBy": []
+    },
+    {
       "name": "socket_brakes",
       "slot": "brakes",
       "required": true,
@@ -871,7 +911,7 @@
       "name": "socket_shifter",
       "slot": "shifter",
       "required": false,
-      "position": [0, 0.556, -0.044],
+      "position": [0, 0.383, -0.023],
       "pull": [0, 1, 0],
       "blockedBy": [],
       "focus": "interior",

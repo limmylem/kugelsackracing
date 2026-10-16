@@ -1,0 +1,31 @@
+{
+  "id": "brake_fluid_race",
+  "name": "Racing brake fluid",
+  "category": "brakes",
+  "slot": "brake_fluid",
+  "kind": "modifier",
+  "tier": "sport",
+  "price": 120,
+  "mass": 0,
+  "model": "",
+  "icon": "assets/icons/parts/brake_fluid_race.png",
+  "fits": [
+    "brake_mount:std"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "High-boiling fluid (DOT 5.1 racing): the brakes start to fade 60 °C hotter and are fully faded 80 °C hotter — they keep biting through lap after lap.",
+  "effects": [
+    {
+      "target": "brakes.fade.startTemp",
+      "op": "add",
+      "value": 60
+    },
+    {
+      "target": "brakes.fade.fullTemp",
+      "op": "add",
+      "value": 80
+    }
+  ]
+}

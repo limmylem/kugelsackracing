@@ -67,3 +67,4 @@ Speeds in miles per hour where you use them
 The dock and News button show their words again, not code names
 The Stelvio Pass loads now: no more endless loading screen
 A trailer: real cities, real roads, in your browser
+New brake and steering parts: sharper, cooler brakes and tighter turns

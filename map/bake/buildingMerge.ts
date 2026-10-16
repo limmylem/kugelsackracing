@@ -49,7 +49,7 @@ export function mergeBuildings(osm: OsmData, overture: any[], P: Projection, cfg
     const props = {
       h: metres(t.height) ?? (t['building:levels'] === undefined ? e.h : undefined), mh: metres(t.min_height) ?? (num(t['building:min_level']) !== undefined ? num(t['building:min_level'])! * 3 : e.mh),
       fl: num(t['building:levels']) ?? e.fl, rs: t['roof:shape'] ?? e.rs, rh: metres(t['roof:height']) ?? e.rh, ro: t['roof:orientation'],
-      fc: colour(t['building:colour']) ?? e.fc, rc: colour(t['roof:colour']) ?? e.rc, b: t.building && t.building !== 'yes' ? t.building : e.b ?? t.building, name: t.name,
+      fc: colour(t['building:colour']) ?? e.fc, rc: colour(t['roof:colour']) ?? e.rc, b: t.building && t.building !== 'yes' ? t.building : e.b ?? t.building, name: t.name, wd: t.wikidata ?? t.wikipedia, osm: t['osm:way'] ?? t['osm:relation'],
       _tagH: metres(t.height) !== undefined, _ovH: metres(t.height) === undefined && e.h !== undefined,
     };
     for (const p of a.parts) out.push({ id: a.id, source: 'osm', dataset: 'OpenStreetMap', rings: p.map(ring => ring.map(q => [q.x, q.z])), props, hs: '', estimated: false, part: !!t['building:part'] });

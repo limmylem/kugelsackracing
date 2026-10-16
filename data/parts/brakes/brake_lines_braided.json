@@ -1,0 +1,26 @@
+{
+  "id": "brake_lines_braided",
+  "name": "Braided brake lines",
+  "category": "brakes",
+  "slot": "brake_lines",
+  "kind": "modifier",
+  "tier": "street",
+  "price": 180,
+  "mass": 0.4,
+  "model": "",
+  "icon": "assets/icons/parts/brake_lines_braided.png",
+  "fits": [
+    "brake_mount:std"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Stainless braided hoses in place of the rubber ones: they don't swell under pressure, so the pedal is firmer and the calipers get 8% more of what your foot asks for — more bite for the same pedal.",
+  "effects": [
+    {
+      "target": "brakes.maxPressureBar",
+      "op": "multiply",
+      "value": 1.08
+    }
+  ]
+}
