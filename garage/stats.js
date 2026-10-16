@@ -506,7 +506,24 @@ export function totalsOf(spec, fitted = [], geometry = null, classes = null) {
     wheel: wheelSize(fitted, spec),
     centreOfMassHeight: geometry?.comHeight ?? null,
     rating: geometry && classes ? performance(spec, geometry, classes, topSpeed.kmh) : null,
+    steering: steeringOf(spec, geometry),
+    brakes: brakeFeel(spec),
   };
+}
+
+// The steering: its lock (the front wheels' furthest turn, °) and the turning circle that gives (m, kerb to kerb: the
+// outer front wheel's circle at full lock)
+export function steeringOf(spec, geometry) {
+  const St = spec.steering, lock = St.maxWheelRotation / 2 / St.ratio;
+  return { lock, turningCircle: geometry ? 2 * geometry.wheelbase / Math.sin(lock * Math.PI / 180) + geometry.track : null };
+}
+
+// What the brakes do besides stopping the car (stopping it is the tyres' with ABS: rating.estimates.braking): the
+// pressure the pedal gives (bar: their bite), the disc temperature they start to fade at (°C), and how fast a hot
+// front disc cools at 100 km/h (°C a second, at 400 °C)
+export function brakeFeel(spec) {
+  const B = spec.brakes, C = B.cooling;
+  return { pressureBar: B.maxPressureBar, fadeFrom: B.fade.startTemp, cooling: (C.still + C.perSpeed * 100 / 3.6) * (400 - C.ambient) / B.front.heatCapacity };
 }
 
 // The first tyre on a rim (a tyre part in a socket drawn at a wheel socket): its size, the rim and

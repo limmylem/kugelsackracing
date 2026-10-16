@@ -139,6 +139,19 @@ test('the comparison says which way is better for each stat', async () => {
   assert.equal(by('braking').better, true);
   assert.equal(by('weight').better, false);            // 0.5 kg heavier a tyre
   assert.equal(by('rating').better, true);
+  assert.equal(by('turning'), undefined, 'no turning-circle row: tyres don\'t change it');
+});
+
+test('the steering and brake parts show what they change: the turning circle, the pedal\'s pressure, the fade, the cooling', async () => {
+  const w = await fresh(), before = w.stats();
+  const rowsWith = id => { const g = new Garage(H.db, JSON.parse(JSON.stringify(w.state)), w.carDef.id); assert.equal(g.install(id).ok, true); return compareStats(before, g.stats(), H.db, w.state, g.state); };
+  const row = (id, key) => rowsWith(id).find(r => r.key === key);
+  for (const [id, key] of [['steering_angle_kit', 'turning'], ['brake_lines_braided', 'bite'], ['brake_fluid_race', 'fade'], ['brake_cooling_ducts', 'cooling']]) {
+    const r = row(id, key);
+    assert.equal(r?.better, true, `${id}: its ${key} row, better`);
+    assert.ok(r.breakdown.length, `${id}: what changed it`);
+  }
+  assert.ok(row('steering_angle_kit', 'turning').next < row('steering_rack_quick', 'turning').next, 'the kit turns tighter than the rack');
 });
 
 test('a dyno run: the wheels\' torque and power, and what changed since the last run', async () => {

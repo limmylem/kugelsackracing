@@ -555,6 +555,11 @@ export const STAT_KEYS = [
   { key: 'top', label: 'Top speed', unit: 'km/h', dec: 0, up: true, of: s => s.totals?.topSpeed.kmh },
   { key: 'accel', label: '0–100', unit: 's', dec: 1, up: false, of: s => s.totals?.rating?.estimates.zeroTo100 },
   { key: 'rating', label: 'Performance rating', unit: '', dec: 0, up: true, of: s => s.totals?.rating?.index },
+  // (shown only when a part changes them: the steering's and brakes' parts — garage/stats.js steeringOf, brakeFeel)
+  { key: 'turning', label: 'Turning circle', unit: 'm', dec: 1, up: false, extra: true, of: s => s.totals?.steering?.turningCircle },
+  { key: 'bite', label: 'Brake pressure', unit: 'bar', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.pressureBar },
+  { key: 'fade', label: 'Brakes fade from', unit: '°C', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.fadeFrom },
+  { key: 'cooling', label: 'Brake cooling', unit: '°C/s', dec: 1, up: true, extra: true, of: s => s.totals?.brakes?.cooling },
 ];
 
 // The main things a part changes, in a few words ("+62 hp", "−7 kg")
@@ -577,8 +582,9 @@ export function compareStats(before, after, db, stateBefore, stateAfter) {
   return STAT_KEYS.map(k => {
     const cur = k.of(before), next = k.of(after), delta = cur != null && next != null ? next - cur : null;
     const rounded = delta == null ? 0 : +delta.toFixed(k.dec);
+    if (k.extra && !rounded) return null;
     return { ...k, cur, next, delta, better: rounded === 0 ? null : k.up ? delta > 0 : delta < 0, breakdown: breakdownOf(k.key, before, after, db, stateBefore, stateAfter) };
-  });
+  }).filter(Boolean);
 }
 
 // What makes up a stat on the new build (and what changed it from the current one)
@@ -622,7 +628,7 @@ function breakdownOf(key, before, after, db, stateBefore, stateAfter) {
       if (!s.spec) return null;
       let cd = s.spec.aero.dragCoefficient, down = -(s.spec.aero.front.liftCoefficient + s.spec.aero.rear.liftCoefficient);
       for (const a of s.spec.aeroParts || []) { const k = angleScale(a.part.aero, a.angle); cd += a.part.aero.dragCoefficient * k; down += -a.part.aero.liftCoefficient * k; }
-      return { power: s.totals.peakPower.hp, mass: s.spec.mass, grip: s.totals.rating.estimates.grip, cd, down, gear: s.spec.gearbox.finalDrive * s.spec.gearbox.ratios[0] / s.spec.wheels.radius, fade: s.spec.brakes.fade.startTemp, radius: s.spec.wheels.radius * 1000 };
+      return { power: s.totals.peakPower.hp, mass: s.spec.mass, grip: s.totals.rating.estimates.grip, cd, down, gear: s.spec.gearbox.finalDrive * s.spec.gearbox.ratios[0] / s.spec.wheels.radius, fade: s.spec.brakes.fade.startTemp, radius: s.spec.wheels.radius * 1000, lock: s.totals.steering?.lock ?? 0, pressure: s.spec.brakes.maxPressureBar, cool: s.totals.brakes?.cooling ?? 0 };
     };
     const A = f(before), B = f(after);
     const factors = {
@@ -630,7 +636,11 @@ function breakdownOf(key, before, after, db, stateBefore, stateAfter) {
       accel: [['Power', 'peak', 'power', 'hp', 0, true], ['Weight', '', 'mass', 'kg', 0, false], ['Grip', 'the tyres', 'grip', 'g', 2, true], ['Gearing', '1st gear, at the wheels', 'gear', '', 1, true]],
       braking: [['Grip', 'the tyres', 'grip', 'g', 2, true], ['Weight', '', 'mass', 'kg', 0, false], ['Brake fade', 'starts at', 'fade', '°C', 0, true], ['Downforce', 'lift coefficient', 'down', '', 3, true]],
       rating: [['Power', 'peak', 'power', 'hp', 0, true], ['Weight', '', 'mass', 'kg', 0, false], ['Grip', 'the tyres', 'grip', 'g', 2, true], ['Drag', 'drag coefficient', 'cd', '', 3, false]],
-    }[key];
+      turning: [['Steering lock', 'the front wheels at full lock', 'lock', '°', 1, true]],
+      bite: [['Line pressure', 'at full pedal: more bite for the same press', 'pressure', 'bar', 0, true]],
+      fade: [['Brake fade', 'starts at', 'fade', '°C', 0, true]],
+      cooling: [['Airflow', 'a hot disc cooling at 100 km/h', 'cool', '°C/s', 1, true]],
+    }[key] ?? [];
     for (const [name, sub, k, unit, dec, up] of factors) {
       if (!A || !B) continue;
       const d = +(B[k] - A[k]).toFixed(dec + 1);
