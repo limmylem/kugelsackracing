@@ -368,8 +368,11 @@ export class Vehicle {
       const compressionSpeed = (compression - (w.grounded ? w.compression : 0)) / dt;
       // (a kerb's edge hit hard, a heavy landing: physics/mechanical.js)
       const hn = fromXYZ(hit.normal), vo = velAt(origin);
-      // (the ground's own rise: what the spring and its bump stop took up, less the car coming down onto it)
-      M.strike(w, w.grounded ? { rise: compression + over - w.compression - (w.over ?? 0) + dot(vo, up) * dt, speed, pitch: Math.atan2(-dot(hn, fwd), dot(hn, up)) * (speed < 0 ? -1 : 1) } : { landing: Math.min(dot(vo, down), -dot(vo, hn)) }, dt);
+      // (the ground's own rise: what the spring and its bump stop took up, less the car coming down onto it; a step's
+      // edge is met at the speed across it — rolled back up a kerb at a shallow angle, only a little of the car's speed)
+      const rise = compression + over - w.compression - (w.over ?? 0) + dot(vo, up) * dt;
+      const across = w.grounded && rise > (M.D?.rules?.kerb?.minStep ?? Infinity) ? this.#acrossEdge(add(origin, scale(down, hit.timeOfImpact)), rise, vo, up, fwd, left, dt, speed) : speed;
+      M.strike(w, w.grounded ? { rise, speed: across, pitch: Math.atan2(-dot(hn, fwd), dot(hn, up)) * (speed < 0 ? -1 : 1) } : { landing: Math.min(dot(vo, down), -dot(vo, hn)) }, dt);
       const stop = over > 0 ? S.stiffness * bs.rate * over * (1 + over / bs.soft) + S.damping * w.dampK * bs.damping * overSpeed : 0;
       const load = Math.max(0, S.stiffness * compression + S.damping * w.dampK * compressionSpeed + stop); // springs only push
       // The ground holds the wheel up along its normal, at the contact patch: the suspension links take
@@ -620,6 +623,31 @@ export class Vehicle {
   // (a bump on one side tilting the other wheel), axle steer and axle wrap. What it gives is what matters
   // most off road and on it: the body rolls more on the road, and over rough ground the axle articulates
   // with the load kept on both wheels.
+  // How fast a wheel met the edge of a step it just climbed (m/s, signed as speed): the ground round its contact point c,
+  // in a ring wide enough to reach back past where it was a step ago, finds the edge — where the ring's points go from
+  // level with the wheel to below it (by half the step: a car leaning on its springs isn't an edge), each found to a few degrees — and its velocity across that edge is the speed it
+  // met it at. Head on, all of it; along a kerb at 5°, about a tenth. (No edge found round it: head on.)
+  #acrossEdge(c, rise, vo, up, fwd, left, dt, speed) {
+    const vh = sub(vo, scale(up, dot(vo, up))), v = length(vh);
+    if (v < 0.5) return speed;
+    const R = this.R, d = Math.max(0.12, v * dt * 1.5), down = scale(up, -1), N = 16;
+    const dirAt = a => add(scale(fwd, Math.cos(a)), scale(left, Math.sin(a)));
+    const low = a => { const hit = this.world.castRay(new R.Ray(toXYZ(add(add(c, scale(up, 0.6)), scale(dirAt(a), d))), toXYZ(down)), 1.2, true, FIXED_ONLY, undefined, undefined, this.body); return !hit || hit.timeOfImpact - 0.6 > rise / 2; };
+    const lows = Array.from({ length: N }, (_, i) => low(i * 2 * Math.PI / N));
+    // (the angles where it goes level → low and low → level, each narrowed down by halving)
+    const edge = (i, intoLow) => { let a = i * 2 * Math.PI / N, b = a + 2 * Math.PI / N; for (let k = 0; k < 4; k++) { const m = (a + b) / 2; if (low(m) === intoLow) b = m; else a = m; } return (a + b) / 2; };
+    let from = null, to = null;
+    for (let i = 0; i < N; i++) {
+      const j = (i + 1) % N;
+      if (!lows[i] && lows[j]) { if (from != null) return speed; from = edge(i, true); }
+      else if (lows[i] && !lows[j]) { if (to != null) return speed; to = edge(i, false); }
+    }
+    if (from == null || to == null) return speed;
+    // (the edge's normal, pointing down it: the middle of the low arc)
+    const mid = from + (((to - from) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / 2;
+    return Math.abs(dot(vh, dirAt(mid))) * (speed < 0 ? -1 : 1);
+  }
+
   #linked() {
     const S = this.spec.suspension, A = S.antiRoll, B = S.solidAxle;
     if (!(A?.front || A?.rear || B?.front || B?.rear)) return null;

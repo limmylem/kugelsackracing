@@ -360,3 +360,21 @@ test('the car limps round after a bad crash, and a lost wheel ends it', () => {
   const noFront = lap(t.stats({ ...t.build, attach: { socket_wheel_FR: 'detached' } }).spec);
   assert.ok(noFront.time > ok.time * 1.15, `${ok.time.toFixed(0)} s → ${noFront.time.toFixed(0)} s`);
 });
+
+test('back up onto the road from the gutter: a kerb rolled up at a shallow angle is met at the speed across it, head on at all of it', () => {
+  // (a step's edge was always taken as met head on: back up a 15 cm kerb at 5-10° at 110 km/h tore the wheels off)
+  const spec = H.garage().stats().spec, step = 0.15, off = M.wheelOff.from;
+  const track = { name: 'kerb', ground: { size: [800, 800], thickness: 2, colour: '#777' }, spawn: { position: [0, 0, 0], headingDeg: 0 },
+    objects: [{ type: 'box', name: 'road', centre: [21.5, step / 2, 0], halfExtents: [20, step / 2, 380], colour: '#444' }] };
+  const strikes = (kmh, angle) => {
+    const d = drive(spec, { track, at: angle === 90 ? [-6, 0, 0] : [0.3 - Math.sin(angle * Math.PI / 180) * 6, 0, -200], kmh });
+    d.sim.resetCar({ position: angle === 90 ? [-6, 0, 0] : [0.3 - Math.sin(angle * Math.PI / 180) * 6, 0, -200], headingDeg: angle, speed: kmh / 3.6 });
+    return d.run(2.5, cruise(kmh)).filter(e => e.type === 'strike');
+  };
+  for (const angle of [5, 10]) {
+    const s = strikes(110, angle);
+    assert.ok(s.every(e => e.strength < 3), `110 km/h at ${angle}°: ${JSON.stringify(s)}`);
+  }
+  const head = strikes(110, 90);
+  assert.ok(head.length >= 2 && head.some(e => e.strength >= off), `head on at 110 km/h it still tears a wheel off: ${JSON.stringify(head)}`);
+});
