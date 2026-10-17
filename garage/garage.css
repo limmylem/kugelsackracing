@@ -25,6 +25,10 @@
 .g-carbtn .car-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .g-wallet { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: var(--r-btn); background: var(--c-viewport); border: 1px solid var(--c-line); font-family: var(--f-mono); font-size: 17px; font-weight: 600; white-space: nowrap; }
 .g-wallet .icon { color: var(--c-good); font-size: 20px; }
+.g-tokens { font-family: var(--f-ui, inherit); font-size: 15px; }
+.g-tokens .icon { color: var(--c-accent, #ffb020); }
+.g-tokens.out { color: var(--c-text-3); }
+.g-tokens.out .icon { color: var(--c-text-3); }
 .g-top .spacer { flex: 1; min-width: 8px; }
 .g-top .divider { width: 1px; height: 32px; background: var(--c-line); margin: 0 4px; }
 .g-top .actions { display: flex; gap: 6px; align-items: center; }

@@ -17,6 +17,7 @@ import { buildOf, carName, carPrice, garageStateOf, inInventory, needsRepair, re
 import { bundles, capacity, carSellValue, lockOf, makerOf, needsConfirm, offer, refundable, sellValue, slotPrice, shopOf, usedLot, dayOf } from './shop.js';
 import { carProblems } from './damageReport.js';
 import { cornerWord } from './repair.js';
+import { tokensNow } from './repairTokens.js';
 
 const clone = x => JSON.parse(JSON.stringify(x));
 const HP_PER = 1 / 7120.9;       // hp = N·m × rpm / 7120.9
@@ -475,6 +476,9 @@ export class Workshop {
   get repairAllCost() { return this.#worn().reduce((a, id) => a + repairCost(this.db, this.profile.parts[id]), 0) + this.body.cost; }
   // every part on the car and its body, in full (one change)
   repairAll() { return this.service.repairCar(this.carInstanceId, { kind: 'full' }); }
+  // repair tokens (garage/repairTokens.js): { enabled, count, max, nextAt } — one repairs everything above, free
+  get repairTokens() { return tokensNow(this.profile, this.db.economy.repairTokens, new Date().toISOString()); }
+  repairAllWithToken() { return this.service.repairCar(this.carInstanceId, { kind: 'full', useToken: true }); }
 
   // ---- cars ----
   cars() {

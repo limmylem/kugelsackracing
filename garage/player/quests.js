@@ -130,7 +130,7 @@ export function finishAttempt(p, { result, quest, course, config, economy, now, 
     bonuses.push({ series: S.item.id, name: S.item.name, ...b });
   }
   const level = levelOf(p.xp ?? 0, config);
-  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat, farming: pay.farming, series: bonuses, levelUp: level > levelWas ? level : null, ...(track ? { track, capped: !!pay.capped } : {}) };
+  return { valid: true, problems: [], money: pay.money, xp: pay.xp, medal, pb, was, lines: pay.lines, tiers: pay.tiers, repeat: pay.repeat, farming: pay.farming, series: bonuses, levelUp: level > levelWas ? level : null, ...(level > levelWas ? { levelWas } : {}), ...(track ? { track, capped: !!pay.capped } : {}) };
 }
 
 // A series' bonus (data/economy.json series): its share of what its quests' gold medals pay, in all

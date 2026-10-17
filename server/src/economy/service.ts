@@ -28,6 +28,7 @@ import type { TrackService } from '../tracks/service.ts';
 import { LocalPlayerService } from '../../../garage/player/service.js';
 import { levelOf, xpForLevel } from '../../../quest/rules.js';
 import { garageFor, carName } from '../../../garage/player/profile.js';
+import { earnTokens } from '../../../garage/repairTokens.js';
 import { viewCourse } from '../../../route/model.js';
 import { transverseMercator } from '../../../map/build/format/projection.js';
 import { validateResult } from '../../../quest/validate.js';
@@ -256,7 +257,7 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
         case 'repairPart': answer = await S.repairPart(args.instanceId); meta.reason = `Repaired ${name('part', profile.parts[args.instanceId]?.partId ?? args.instanceId)}`; meta.ref = { instanceIds: [args.instanceId] }; break;
         case 'repairParts': answer = await S.repairParts(args.instanceIds); meta.reason = `Repaired ${args.instanceIds.length} part${args.instanceIds.length === 1 ? '' : 's'}`; meta.ref = { instanceIds: args.instanceIds }; break;
         case 'repairBody': answer = await S.repairBody(args.carInstanceId); meta.reason = `Repaired the body of the ${profile.cars[args.carInstanceId] ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId }; break;
-        case 'repairCar': answer = await S.repairCar(args.carInstanceId, args.opts ?? {}); meta.reason = `${args.opts?.kind === 'quick' ? 'Quick' : 'Full'} repair on the ${profile.cars[args.carInstanceId] ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId, items: args.opts?.items ?? 'all' }; break;
+        case 'repairCar': answer = await S.repairCar(args.carInstanceId, args.opts ?? {}); meta.reason = `${args.opts?.useToken ? 'Repair token: full' : args.opts?.kind === 'quick' ? 'Quick' : 'Full'} repair on the ${profile.cars[args.carInstanceId] ? carName(profile, E.game, args.carInstanceId) : 'car'}`; meta.ref = { car: args.carInstanceId, items: args.opts?.items ?? 'all' }; break;
         case 'replaceWithSpare': answer = await S.replaceWithSpare(args.carInstanceId, args.socket, args.instanceId); meta.reason = `Fitted a spare ${name('part', profile.parts[args.instanceId]?.partId ?? '')}`; meta.ref = { car: args.carInstanceId, socket: args.socket, instanceId: args.instanceId }; break;
         case 'basicRepair': answer = await S.basicRepair(args.carInstanceId); meta.reason = 'The free basic repair'; meta.ref = { car: args.carInstanceId }; break;
         case 'installPart': answer = await S.installPart(args.carInstanceId, args.instanceId, args.opts ?? {}); facts = { partId: profile.parts[args.instanceId]?.partId ?? null }; break;
@@ -444,13 +445,17 @@ export function createEconomy({ db, config, tracks, log = () => {}, clock = () =
     });
   }
   // a confirmed race's pay: money (a ledger row saying which race) and xp, once (the race and player as its key)
-  async function payRace(userId: string, { money, xp, reason, raceId }: { money: number; xp: number; reason: string; raceId: string }) {
+  async function payRace(userId: string, { money, xp, reason, raceId, win = false }: { money: number; xp: number; reason: string; raceId: string; win?: boolean }) {
     return withPlayer(userId, async (tx, G) => {
       const before = await loadProfile(tx, userId);
       if (!before) return { paid: false as const, why: 'No garage yet.' };
       const done = (await tx.execute(sql`select 1 from ledger where user_id = ${userId} and kind = 'reward' and ref->>'mpRace' = ${raceId}`)).rows.length;
       if (done) return { paid: false as const, why: 'Paid already.' };
-      const r = await saveProfile(tx, userId, before, { ...before, money: before.money + money, xp: (before.xp ?? 0) + xp }, { kind: 'reward', reason, action: 'mpRace', questsConfig: G.quests, ref: { mpRace: raceId, xp } });
+      // (repair tokens: a win, and a level gained: garage/repairTokens.js)
+      const after = { ...before, money: before.money + money, xp: (before.xp ?? 0) + xp, ...(before.repairTokens ? { repairTokens: { ...before.repairTokens } } : {}) };
+      const levels = Math.max(0, levelOf(after.xp, G.quests) - levelOf(before.xp ?? 0, G.quests));
+      earnTokens(after, G.db.economy.repairTokens, { wins: win ? 1 : 0, levels }, new Date().toISOString());
+      const r = await saveProfile(tx, userId, before, after, { kind: 'reward', reason, action: 'mpRace', questsConfig: G.quests, ref: { mpRace: raceId, xp } });
       return { paid: true as const, rev: r.rev };
     }).then(r => { if (r.paid) events.emit('change', userId, r.rev); return r; });
   }

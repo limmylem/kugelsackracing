@@ -23,6 +23,7 @@ import { startAttempt, refundAttempt, finishAttempt, failAttempt } from './quest
 import { setFavourite } from '../../track/events/records.js';
 import { entryReasons, CAR_CODES } from '../../quest/rules.js';
 import { feeOf, bustFineOf } from '../../content/quests.js';
+import { earnTokens, spendToken, tokensNow } from '../repairTokens.js';
 import { basicRepair, drivability, ownedBySocket, partWork, repairPart, repairShell, shellWork, workCost } from '../repair.js';
 import { migrateRecording } from '../../quest/recording.js';
 
@@ -47,7 +48,8 @@ export const METHODS = {
   repairPart: '(instanceId) back to 100%, its dents out, its mechanical damage put right and bolted back on, for its repair cost',
   repairParts: '([instanceId]) several at once (repair all)',
   repairBody: '(carInstanceId) the body shell: condition, dents, broken glass and lights, for its repair cost',
-  repairCar: '(carInstanceId, { kind: \'quick\' | \'full\', items: [{ target: instanceId | \'shell\', scope: \'all\' | a piece of its damage }] }) repair pieces of a car\'s damage (no items: all of it), quick or full (garage/repair.js), for what they cost',
+  repairCar: '(carInstanceId, { kind: \'quick\' | \'full\', items: [{ target: instanceId | \'shell\', scope: \'all\' | a piece of its damage }], useToken }) repair pieces of a car\'s damage (no items: all of it), quick or full (garage/repair.js), for what they cost — or, useToken, all of it in full for one repair token (garage/repairTokens.js)',
+  repairTokens: '() the repair tokens now: { enabled, count, max, nextAt }',
   replaceWithSpare: '(carInstanceId, socket, instanceId) fit a spare copy from the inventory in place of a damaged part (which goes to the inventory, as it is)',
   basicRepair: '(carInstanceId) the safety net: a car that can\'t be driven, whose player can\'t afford to make it drivable, made just drivable, free',
   damageCar: '(carInstanceId, { parts: { instanceId: { condition, hits, damage, attach } }, shell: { condition, hits, broken } }, { cause }) crash damage from driving (hits: the dents a crash made, garage/damage.js; damage: a part\'s mechanical damage block as it is now, garage/mechanical.js; attach: loose or detached): conditions only go down, parts only come further off; allowed while driving',
@@ -248,7 +250,7 @@ export class LocalPlayerService extends PlayerService {
   }
   // Repairs (garage/repair.js): items [{ target: instanceId | 'shell', scope }] on a car (target's
   // copies anywhere: a spare in the inventory too), each priced by its pieces; kind quick or full
-  #repair(p, items, kind = 'full', carInstanceId = null) {
+  #repair(p, items, kind = 'full', carInstanceId = null, { token = false } = {}) {
     const car = carInstanceId && p.cars[carInstanceId], todo = [];
     if (carInstanceId && !car) return { error: 'That car isn\'t yours.' };
     for (const it of items) {
@@ -265,13 +267,16 @@ export class LocalPlayerService extends PlayerService {
       if (work.length) todo.push({ x, scope: it.scope, cost: workCost(work, kind) });
     }
     if (!todo.length) return { error: items.length > 1 || !items.length ? 'Everything\'s in perfect condition already.' : items[0].target === 'shell' ? 'The bodywork is perfect already.' : `${this.#name(p.parts[items[0].target])} is in perfect condition already.` };
-    const cost = todo.reduce((a, t) => a + t.cost, 0), unpaid = this.#pay(p, cost, `the ${kind === 'quick' ? 'quick ' : ''}repair${todo.length > 1 ? 's' : ''} cost${todo.length > 1 ? '' : 's'}`);
-    if (unpaid) return unpaid;
+    const cost = todo.reduce((a, t) => a + t.cost, 0);
+    // (a repair token: everything for one, whatever it costs)
+    let tokensLeft = null;
+    if (token) { const spent = spendToken(p, this.db.economy.repairTokens, this.now()); if (spent.error) return spent; tokensLeft = spent.count; }
+    else { const unpaid = this.#pay(p, cost, `the ${kind === 'quick' ? 'quick ' : ''}repair${todo.length > 1 ? 's' : ''} cost${todo.length > 1 ? '' : 's'}`); if (unpaid) return unpaid; }
     for (const t of todo) {
       if (t.shell) { const d = repairShell(this.db, car.damage, { scope: t.scope, kind }); if (d) { car.damage = { condition: d.condition, ...(d.broken?.length && { broken: d.broken }) }; setDents(car.damage, { base: d.dents }, this.db.damage); } else delete car.damage; }
       else this.#apply(t.x, repairPart(this.db, t.x, { scope: t.scope, kind }));
     }
-    return { result: { cost, repaired: todo.length, kind } };
+    return { result: token ? { cost: 0, worth: cost, token: true, tokensLeft, repaired: todo.length, kind } : { cost, repaired: todo.length, kind } };
   }
   // (a repair's fields onto a copy: dents start a new log from what's left)
   #apply(x, f) {
@@ -280,14 +285,17 @@ export class LocalPlayerService extends PlayerService {
     if (f.damage !== undefined) { if (Object.keys(f.damage).length) x.damage = f.damage; else delete x.damage; }
     if (f.attach !== undefined) { if (f.attach && f.attach !== 'attached') x.attach = f.attach; else delete x.attach; }
   }
-  repairCar(carInstanceId, { kind = 'full', items = null } = {}) {
+  repairCar(carInstanceId, { kind = 'full', items = null, useToken = false } = {}) {
     return this.#change('repair', p => {
       if (!p.cars[carInstanceId]) return { error: 'That car isn\'t yours.' };
       if (kind !== 'quick' && kind !== 'full') return { error: `"${kind}" isn't a kind of repair: quick or full.` };
+      // (a token repairs the whole car, in full)
+      if (useToken) { kind = 'full'; items = null; }
       const all = items ?? [...Object.values(p.parts).filter(x => x.installedOn?.car === carInstanceId && needsRepair(x)).map(x => ({ target: x.instanceId, scope: 'all' })), { target: 'shell', scope: 'all' }];
-      return this.#repair(p, all.map(it => ({ target: it.target, scope: it.scope ?? 'all' })), kind, carInstanceId);
+      return this.#repair(p, all.map(it => ({ target: it.target, scope: it.scope ?? 'all' })), kind, carInstanceId, { token: useToken });
     });
   }
+  repairTokens(p = this.profile) { return tokensNow(p, this.db.economy.repairTokens, this.now()); }
   // The body shell: back to 100%, dents out, glass and lights new
   repairBody(carInstanceId) {
     return this.#change('repair', p => {
@@ -430,7 +438,16 @@ export class LocalPlayerService extends PlayerService {
     // (the recording goes in its own store first: the save only keeps its id, if it's the best run)
     const recordingId = recording ? `rec_${quest.id}_${result.attemptId}` : null;
     const before = this.#recordingIds();
-    const out = await this.#change('quest', p => ({ result: finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series, tracksCfg: this.quests?.tracks ?? null }) }));
+    const out = await this.#change('quest', p => {
+      const r = finishAttempt(p, { result: { ...result, recording: recordingId }, quest, course, config: cfg, economy: this.db.economy, now: this.now(), recordingId, series, tracksCfg: this.quests?.tracks ?? null });
+      // (repair tokens: a gold — a race won — not farmed, and a level gained)
+      if (r.valid) {
+        const levels = r.levelUp ? r.levelUp - (r.levelWas ?? r.levelUp - 1) : 0, wins = r.medal === 'gold' && !r.farming ? 1 : 0;
+        const given = earnTokens(p, this.db.economy.repairTokens, { wins, levels }, this.now());
+        if (given) r.tokens = { earned: given, count: p.repairTokens.count };
+      }
+      return { result: r };
+    });
     const store = this.quests?.recordings;
     // (kept if it's the quest's best — or, on a generated track, the record for its code and class)
     if (out.ok && out.valid && (out.pb || out.track?.record?.pb) && recording && store) {

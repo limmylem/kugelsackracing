@@ -205,6 +205,77 @@
         }
       }
     },
+    "repairTokens": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "start",
+        "max",
+        "refill",
+        "earn"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^_": {
+          "type": "string"
+        }
+      },
+      "description": "Repair tokens: one repairs everything on a car in full (garage/repairTokens.js)",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "refill": {
+          "type": "object",
+          "required": [
+            "everyHours",
+            "upTo"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "everyHours": {
+              "type": "number",
+              "minimum": 0,
+              "description": "0: no free refill"
+            },
+            "upTo": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "earn": {
+          "type": "object",
+          "required": [
+            "win",
+            "levelUp"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "win": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "winsPerDay": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "levelUp": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
     "safetyNet": {
       "type": "object",
       "required": [

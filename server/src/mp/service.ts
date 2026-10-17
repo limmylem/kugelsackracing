@@ -326,7 +326,7 @@ export function createMpService({ db, tracks, economy, economyConfig, roam = nul
       if (known.has(r.uid)) {
         const p = pay[r.uid] ?? { money: 0, xp: 0, why: '' };
         let paid: any = { paid: false };
-        if (p.money > 0 || p.xp > 0) { try { paid = await economy.payRace(r.uid, { money: p.money, xp: p.xp, raceId, reason: `Multiplayer race: ${p.why}` }); } catch (e) { log({ err: e, race: raceId, uid: r.uid }, 'paying a race failed'); } }
+        if (p.money > 0 || p.xp > 0) { try { paid = await economy.payRace(r.uid, { money: p.money, xp: p.xp, raceId, reason: `Multiplayer race: ${p.why}`, win: r.place === 1 && r.status === 'finished' }); } catch (e) { log({ err: e, race: raceId, uid: r.uid }, 'paying a race failed'); } }
         entry.pay = { ...p, paid: !!paid.paid };
         // (the ROADBOOK hears every confirmed result: roadbook/service.ts)
         economy.events.emit('mpRaceResult', { userId: r.uid, raceId, place: r.place, status: r.status });

@@ -26,6 +26,7 @@ import { prune } from '../mechanical.js';
 import { dentsOf, packLog, unpackDents } from '../damageLog.js';
 import { needsWork, partWork, priceOf, shellWork, workCost } from '../repair.js';
 import { checkQuests } from './quests.js';
+import { checkTokens } from '../repairTokens.js';
 
 export const PROFILE_VERSION = 4;
 export const clone = x => JSON.parse(JSON.stringify(x));
@@ -235,6 +236,8 @@ export function checkProfile(input, db) {
   if (profile.hints !== undefined) { profile.hints = Array.isArray(profile.hints) ? [...new Set(profile.hints.filter(h => typeof h === 'string' && /^[a-zA-Z0-9_]+$/.test(h)))] : []; if (!profile.hints.length) delete profile.hints; }
   // the quests played (garage/player/quests.js)
   checkQuests(profile);
+  // the repair tokens (garage/repairTokens.js)
+  checkTokens(profile, db.economy.repairTokens);
   // parts whose definition is gone
   const gone = new Map();
   for (const [id, p] of Object.entries(profile.parts)) {

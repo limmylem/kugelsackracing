@@ -111,6 +111,20 @@ compact events format, and:
 
 Repairs are priced on the server from the damage it keeps (`repairCost`, the settings' repair rules).
 
+### Repair tokens
+
+So a big crash doesn't take all of a player's money (garage/repairTokens.js, the settings' `repairTokens`):
+- one token repairs **everything** on a car in full, whatever it would cost (`repairCar` with `useToken`: the
+  whole car, never a piece or a quick repair); nothing to repair, no token spent;
+- a new player (and an existing one, the first time) has `start` (5); while they have fewer than
+  `refill.upTo` (3), one comes back free every `refill.everyHours` (6 h), timed by the server's clock;
+- a quest's gold (a race won), not farmed, earns `earn.win` (1), at most `earn.winsPerDay` (4) a day; a
+  multiplayer race won the same; each level gained `earn.levelUp` (2); never more than `max` (10) held;
+- out of tokens, repairs are paid with money as before, the garage shows when the next free one comes, and
+  the free basic repair (safetyNet) still gets anyone broke driving again;
+- the count is in the profile (`repairTokens`), checked on load (never more than `max`); a token repair
+  moves no money, so it writes no ledger row.
+
 ## The economy's settings
 
 The settings are `data/economy.json` and `data/quests.json` as one versioned document on the server

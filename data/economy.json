@@ -46,6 +46,14 @@
     "margin": 0.75,
     "engineCondition": 30
   },
+  "repairTokens": {
+    "_note": "garage/repairTokens.js. One token repairs everything on a car in full, whatever it would cost (the garage's Repair everything). A new player has start; while there are fewer than refill.upTo, one more comes free every refill.everyHours; a win (a race won, a quest's gold) earns earn.win, at most earn.winsPerDay of those a day; each level gained earn.levelUp; never more than max held. Out of tokens: repairs are paid with money, and the safety net still applies.",
+    "enabled": true,
+    "start": 5,
+    "max": 10,
+    "refill": { "everyHours": 6, "upTo": 3 },
+    "earn": { "win": 1, "winsPerDay": 4, "levelUp": 2 }
+  },
   "raceRewards": {
     "_note": "Placeholder prize money (races come later): what the balance report weighs crash repairs against.",
     "win": 1500,

@@ -292,6 +292,7 @@ export class GarageScreen {
       <div class="spacer"></div>
       ${this.#levelChip()}
       <div class="g-wallet" title="Your money">${icon('account_balance_wallet')}<span>${esc(this.money(w.money))}</span></div>
+      ${this.#tokenChip()}
       <div class="actions">
         <button class="icon-btn settings" data-act="pop:settings" data-key="pop:settings" title="Garage settings and the save">${icon('settings')}</button>
         <div class="divider"></div>
@@ -585,10 +586,35 @@ export class GarageScreen {
       <div class="rows well"><div class="g-sys-row" style="cursor:default"><span class="dot" style="background:${condColour(b.condition)}"></span><span class="sn">Body shell</span><span class="sp">${esc(damaged ? what : 'No damage')}</span>
         ${damaged ? `<button class="btn ghost bar sm" data-act="repair-body" data-key="repair-body" ${w.money >= b.cost ? '' : `disabled title="You need ${esc(this.money(b.cost - w.money))} more"`}>Repair · ${esc(this.money(b.cost))}</button>` : `<span class="sv" style="color:${condColour(b.condition)}">100%</span>`}</div></div></div>`;
   }
-  // (every part on the car back to 100%)
+  // (every part on the car back to 100%: for a repair token if there's one, else for money)
   #repairAllButton() {
     const w = this.w, cost = w.repairAllCost;
-    return cost ? `<button class="btn secondary bar" data-act="repair-all" data-key="repair-all" ${w.money >= cost ? '' : `disabled title="You need ${esc(this.money(cost - w.money))} more"`}>${icon('build')}Repair all · ${esc(this.money(cost))}</button>` : '';
+    if (!cost) return '';
+    const pay = `<button class="btn ${this.#tokens().count > 0 ? 'ghost' : 'secondary'} bar" data-act="repair-all" data-key="repair-all" ${w.money >= cost ? '' : `disabled title="You need ${esc(this.money(cost - w.money))} more"`}>${icon('build')}${this.#tokens().count > 0 ? esc(t('garage.tokens.orPay', { cost: this.money(cost) })) : `Repair all · ${esc(this.money(cost))}`}</button>`;
+    return this.#tokenButton(cost) + pay;
+  }
+  // ---------- repair tokens (garage/repairTokens.js) ----------
+  #tokens() { return this.w.repairTokens ?? { enabled: false, count: 0 }; }
+  // (how long until a time: "5 h 20 min", "12 min")
+  #until(at) {
+    const m = Math.max(1, Math.ceil((Date.parse(at) - Date.now()) / 60e3)), h = Math.floor(m / 60);
+    return h ? `${h} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+  }
+  #tokenWhy() {
+    const T = this.#tokens(), C = this.w.db.economy.repairTokens;
+    return T.nextAt ? t('garage.tokens.next', { time: this.#until(T.nextAt) }) : t('garage.tokens.full', { hours: C.refill.everyHours, upTo: C.refill.upTo, max: C.max });
+  }
+  #tokenChip() {
+    const T = this.#tokens();
+    if (!T.enabled) return '';
+    return `<div class="g-wallet g-tokens ${T.count ? '' : 'out'}" data-key="tokens" title="${esc(`${t('garage.tokens.chip', { n: T.count })}. ${t('garage.tokens.chipTip', { next: this.#tokenWhy() })}`)}" aria-label="${esc(t('garage.tokens.chip', { n: T.count }))}">${icon('confirmation_number')}<span>${T.count}</span></div>`;
+  }
+  // (the whole car repaired in full for a token; none left: when the next comes)
+  #tokenButton(worth, busy = false) {
+    const T = this.#tokens();
+    if (!T.enabled || !worth) return '';
+    if (T.count < 1) return `<div class="secondary-text g-tokens-out" style="font-size:13px">${icon('confirmation_number', 'aria-hidden="true" style="font-size:16px;vertical-align:-3px"')} ${esc(T.nextAt ? t('garage.tokens.out', { time: this.#until(T.nextAt) }) : t('garage.tokens.outNoRefill'))}</div>`;
+    return `<button class="btn primary bar" data-act="repair-token" data-key="repair-token" ${busy ? 'disabled' : ''} title="${esc(t('garage.tokens.useTip', { worth: this.money(worth), left: t('garage.tokens.left', { n: T.count - 1 }) }))}">${icon('confirmation_number')}${esc(t('garage.tokens.use'))}</button>`;
   }
 
   // ---------- the damage report ----------
@@ -624,8 +650,9 @@ export class GarageScreen {
       </div>
       ${r.problems.length ? `<div class="panel-foot" style="flex-direction:column;align-items:stretch;gap:10px">
         <div class="g-kv"><span>Repair everything</span><span class="mono">quick ${money(r.quick)} · full ${money(r.full)}</span></div>
+        ${this.#tokenButton(r.full, busy)}
         <div style="display:flex;gap:10px"><button class="btn secondary" style="flex:1" data-act="dmg-all:quick" data-key="dmg-all-quick" ${busy ? 'disabled' : afford(r.quick)}>${icon('build')}Quick · ${money(r.quick)}</button>
-          <button class="btn primary" style="flex:1" data-act="dmg-all:full" data-key="dmg-all-full" ${busy ? 'disabled' : afford(r.full)}>${icon('build')}Full · ${money(r.full)}</button></div>
+          <button class="btn ${this.#tokens().count > 0 ? 'secondary' : 'primary'}" style="flex:1" data-act="dmg-all:full" data-key="dmg-all-full" ${busy ? 'disabled' : afford(r.full)}>${icon('build')}Full · ${money(r.full)}</button></div>
       </div>` : ''}</section>`;
   }
   // The car from above and from the left, each zone coloured by its worst problem (click one: the camera
@@ -1525,6 +1552,7 @@ export class GarageScreen {
         return this.toast(`${name} repaired to 100% · ${this.money(r.cost)}`, 'build', 'good');
       }
       case 'repair-body': { const r = await w.repairBody(); if (failed(r)) return; return this.toast(`Bodywork repaired · ${this.money(r.cost)}`, 'build', 'good'); }
+      case 'repair-token': return this.#repairWith(() => w.repairAllWithToken(), r => t('garage.tokens.used', { worth: this.money(r.worth ?? 0), n: r.tokensLeft ?? 0 }));
       case 'repair-all': { const r = await w.repairAll(); if (failed(r)) return; return this.toast(`${r.repaired} part${r.repaired === 1 ? '' : 's'} repaired · ${this.money(r.cost)}`, 'build', 'good'); }
       case 'repair-shown': {
         const u = this.ui.inv, q = u.q.trim().toLowerCase();

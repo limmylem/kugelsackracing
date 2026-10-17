@@ -111,3 +111,4 @@ Gauge pods now sit properly on the dash in every car
 Groundline aero kits are in the shop, and an Extreme tier above Race
 Racing wheels, pedals and H-shifters now just work, with a quick set-up
 Lowered, lifted or on bigger wheels: the car now shows it, in the garage and on the road
+Repair tokens: fix your whole car for a token instead of your cash
