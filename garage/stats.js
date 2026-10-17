@@ -490,6 +490,38 @@ export function geometryOf(car, spec) {
   return { wheelbase, track, frontAxle: FL[2], comHeight: c[1] - groundY };
 }
 
+// How the car stands, parked, as drawn (the garage, a showroom): each wheel's drop on its spring once it's settled under the
+// car's weight (m, along its socket's up: mountHeight − the settled spring, as the physics has it), and the body's lift
+// and pitch that put all four tyres on the floor — a lower ride height, a lift kit, a bigger or smaller tyre. A stock
+// car's settled wheels are where its model draws them (its mountHeight is set so), so it stands as modelled.
+//   → { drop: { FL… }, y (m, up), pitch (rad: a turn about the car's x axis, three.js's rotation.x) } or null
+export function restingStance(car, spec) {
+  const at = k => car.sockets.find(s => s.name === car.model.sockets[k])?.position;
+  const P = Object.fromEntries(['FL', 'FR', 'RL', 'RR'].map(k => [k, at(k)]));
+  const S = spec?.suspension, W = spec?.wheels;
+  if (!P.FL || !P.RL || !S || !W?.radius) return null;
+  const wheelbase = P.FL[2] - P.RL[2], c = spec.centreOfMass ?? [0, 0, 0], g = 9.81;
+  const frontShare = Math.min(1, Math.max(0, wheelbase ? (c[2] - P.RL[2]) / wheelbase : 0.5));
+  const settled = (axle, share) => {
+    const du = (W.unsprung?.[axle === 'front' ? 'FL' : 'RL'] ?? 0) - (W.unsprungBaseline ?? 0);
+    const load = spec.mass * g * share / 2 - du * g;
+    return Math.max(S.restLength - S.travel, S.restLength - load / S.stiffness);
+  };
+  const drop = {}, bottom = {};
+  for (const k of ['FL', 'FR', 'RL', 'RR']) {
+    if (!P[k]) continue;
+    const front = (W.front ?? ['FL', 'FR']).includes(k), axle = front ? 'front' : 'rear';
+    drop[k] = (W.mountHeight?.[axle] ?? 0) - settled(axle, front ? frontShare : 1 - frontShare);
+    bottom[k] = P[k][1] + drop[k] - W.radius;
+  }
+  const bF = ((bottom.FL ?? bottom.FR) + (bottom.FR ?? bottom.FL)) / 2, bR = ((bottom.RL ?? bottom.RR) + (bottom.RR ?? bottom.RL)) / 2;
+  // (the body turned by pitch about the car frame's x axis, then raised by y: both axles' tyres on y = 0 — a point
+  // [y, z] turned goes to y cos − z sin)
+  const pitch = wheelbase ? Math.atan2(bF - bR, wheelbase) : 0;
+  const zF = P.FL[2], y = -(bF * Math.cos(pitch) - zF * Math.sin(pitch));
+  return { drop, y, pitch };
+}
+
 // Totals: mass, peak torque and power (flywheel, full throttle, sea level), an estimated top speed,
 // the wheels' size, how high the centre of mass sits, and the performance rating (garage/rating.js,
 // with data/classes.json)

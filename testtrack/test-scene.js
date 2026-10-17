@@ -500,6 +500,7 @@ async function npcVisual(w, r) {
   const vis = await createCarVisual({ car: G.car, finishes: db.finishes, models: s.models, paint: { colour: r.profile.colour ?? '#c8452f', finish: 'metallic' } });
   await vis.applyBuild(G.build, G.view);
   vis.fixedPaint = true;
+  vis.spec = r.spec ?? r.build.stats?.spec ?? null;          // (its own wheels: their mounts, size, spacers and camber — placeCar)
   vis.wheelVis = Object.fromEntries(Object.entries(r.rig?.wheels ?? s.rig.wheels).map(([k, rig]) => [k, { pivot: vis.wheels[k], rig }]));
   vis.details = { taillamp: null, lampOff: 1, lampOn: 1, glass: null, glassOpacity: 1, steeringWheel: null };
   if (!w.npcRace || !w.npcRace.npcs.includes(r)) { dropCar(vis); return; }     // (the race was over before it loaded)
@@ -515,6 +516,7 @@ async function policeVisual(w, carId, n, livery) {
   const vis = await createCarVisual({ car: G.car, finishes: db.finishes, models: s.models, paint: { colour: livery.body, finish: livery.finish } });
   await vis.applyBuild(G.build, G.view);
   vis.fixedPaint = true;
+  vis.spec = n.spec ?? n.build.stats?.spec ?? null;
   vis.wheelVis = Object.fromEntries(Object.entries(n.rig?.wheels ?? s.rig.wheels).map(([k, rig]) => [k, { pivot: vis.wheels[k], rig }]));
   vis.details = { taillamp: null, lampOff: 1, lampOn: 1, glass: null, glassOpacity: 1, steeringWheel: null };
   const alive = () => w.pursuit && w.sim.cars.some(c => c.id === carId);
@@ -658,12 +660,12 @@ function raceReplayFrame(w, now, seconds) {
 
 // A replayed car's wheels: turning and steering as it moved (race/replayWheels.js)
 function replayWheels(RR, vis, id, p, t) {
-  const W = shared.spec.wheels;
+  const SP = vis.spec?.wheels ? vis.spec : shared.spec, W = SP.wheels;
   RR.wheels ??= createReplayWheels({ radius: W.radius ?? 0.3 });
   const { spin, steer } = RR.wheels.at(id, p, t);
   for (const [name, v] of Object.entries(vis.wheelVis ?? {})) {
     if (!v?.pivot || !v.rig) continue;
-    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0, camberOf(shared.spec, name));
+    const tr = wheelTransform(v.rig, NO_TURN, W.front?.includes(name) ? steer : 0, spin, 0, W.offsets?.[name] ?? 0, camberOf(SP, name));
     v.pivot.quaternion.fromArray(tr.rotation);
     v.pivot.position.fromArray(tr.position);
     vis.setWheelSpin?.(name, v.rig.axle, spin);
@@ -2785,15 +2787,16 @@ function placeCar(vis, a, b, alpha) {
   vis.group.position.set(lerp(a.position[0], b.position[0]), lerp(a.position[1], b.position[1]), lerp(a.position[2], b.position[2]));
   vis.group.quaternion.set(a.rotation.x, a.rotation.y, a.rotation.z, a.rotation.w).slerp(new THREE.Quaternion(b.rotation.x, b.rotation.y, b.rotation.z, b.rotation.w), alpha);
   // each wheel rides the suspension (its centre is mountHeight − length from its socket), steers and
-  // spins forwards about the car's axle (see modelRig)
-  const W = shared.spec.wheels;
+  // spins forwards about the car's axle (see modelRig) — with the car's own spec: another player's, an NPC's or a police
+  // car's wheels sit on their own mounts, at their own size, spacers and camber (vis.spec), not the player's
+  const SP = vis.spec?.wheels ? vis.spec : shared.spec, W = SP.wheels;
   // (a soft or flat tyre is drawn its full size, so the wheel goes up by what it's sagged: the car sits
   // lower on it; a bent rim wobbles as it turns; a wheel torn off is somewhere else)
   b.wheels.forEach((wb, i) => {
     const wa = a.wheels[i], v = vis.wheelVis[wb.name];
     if (!v?.pivot || wb.off) return;
     const drop = (W.mountHeight?.[W.front.includes(wb.name) ? 'front' : 'rear'] ?? 0) - lerp(wa.length, wb.length) + (W.radius - (wb.radius ?? W.radius)), spin = lerp(wa.spin, wb.spin);
-    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0, camberOf(shared.spec, wb.name));
+    const t = wheelTransform(v.rig, NO_TURN, lerp(wa.steerAngle, wb.steerAngle), spin, drop, W.offsets?.[wb.name] ?? 0, camberOf(SP, wb.name));
     let q = t.rotation;
     if (wb.bend) { const r = v.rig, f = [r.axle[1] * r.up[2] - r.axle[2] * r.up[1], r.axle[2] * r.up[0] - r.axle[0] * r.up[2], r.axle[0] * r.up[1] - r.axle[1] * r.up[0]]; q = quatMul(axisAngle(f, 1.5 * wb.bend / 1000 / (W.rimRadius ?? W.radius) * Math.sin(spin)), q); }
     v.pivot.quaternion.fromArray(q);
@@ -3153,7 +3156,9 @@ function ghostLook(group, a) {
 function mpLook() {
   const s = shared.session, G = s.garage, parts = {};
   for (const [socket, id] of Object.entries(G.build.sockets)) if (id) parts[socket] = G.state.parts[id]?.partId ?? null;
-  return lookOf({ carId: G.car.id, paint: s.paint ?? null, parts, engine: shared.spec.engine, damage: s.damage, name: null });
+  const W = shared.spec.wheels, C = shared.spec.suspension?.camber, r3 = v => Math.round(v * 1000) / 1000;
+  const stance = { offsets: Object.fromEntries(Object.entries(W.offsets ?? {}).map(([k, v]) => [k, r3(v)])), camber: C ? { front: r3(C.front ?? 0), rear: r3(C.rear ?? 0) } : null };
+  return lookOf({ carId: G.car.id, paint: s.paint ?? null, parts, engine: shared.spec.engine, damage: s.damage, name: null, stance });
 }
 const mpAttach = () => Object.fromEntries(Object.entries(shared.session.attach.states).filter(([, x]) => x?.state && x.state !== 'attached').map(([k, x]) => [k, x.state]));
 const mpDents = () => { const d = shared.session.damage; return (d.shell?.dents?.length ?? 0) + Object.values(d.parts ?? {}).reduce((a, x) => a + (x?.length ?? 0), 0); };
@@ -3164,7 +3169,7 @@ const WHEEL_ORDER = ['FL', 'FR', 'RL', 'RR'];
 // for other cars (audio/voices.js: the nearest few in full), driven by its revs, throttle and gear and its wheels' slip
 const remoteSpecs = new Map();
 function remoteSpec(look, db) {
-  const key = JSON.stringify([look.carId, look.parts]);
+  const key = JSON.stringify([look.carId, look.parts, look.stance ?? null]);
   if (remoteSpecs.has(key)) return remoteSpecs.get(key);
   const car = db.cars[look.carId] ?? shared.session.garage.car;
   let spec = null;
@@ -3174,6 +3179,13 @@ function remoteSpec(look, db) {
     spec = r.spec;
   } catch { /* (its parts aren't all here: its car's own engine below) */ }
   if (!spec) { const E = db.parts[car.sockets.find(x => x.slot === 'engine')?.stock?.[0]]?.engine; spec = { engine: E ?? shared.spec.engine, audio: null }; }
+  // (its spacers' and camber's settings as its player has them — the look's stance: parts alone give their defaults)
+  else if (look.stance) {
+    const st = look.stance, num = v => typeof v === 'number' && Number.isFinite(v);
+    spec = { ...spec, wheels: { ...spec.wheels, offsets: { ...spec.wheels.offsets } }, suspension: { ...spec.suspension, camber: { ...(spec.suspension.camber ?? {}) } } };
+    for (const k of ['FL', 'FR', 'RL', 'RR']) if (num(st.offsets?.[k])) spec.wheels.offsets[k] = Math.max(-0.1, Math.min(0.1, st.offsets[k]));
+    for (const a of ['front', 'rear']) if (num(st.camber?.[a])) spec.suspension.camber[a] = Math.max(-10, Math.min(10, st.camber[a]));
+  }
   if (remoteSpecs.size > 64) remoteSpecs.clear();
   remoteSpecs.set(key, spec);
   return spec;
@@ -3211,6 +3223,7 @@ function mpAdapter() {
       const owned = Object.fromEntries(Object.entries(look.parts ?? {}).filter(([, id]) => id && db.parts[id]).map(([k, id]) => [k, { instanceId: k, partId: id, condition: 100 }]));
       await vis.applyBuild({ sockets: Object.fromEntries(Object.keys(owned).map(k => [k, k])) }, { parts: db.parts, owned });
       vis.fixedPaint = true;
+      vis.spec = remoteSpec(look, db);                           // (its own wheels: placeCar)
       const glb = await glbOf(car.model.file), rig = modelRig(glb, car.model);
       vis.wheelVis = Object.fromEntries(Object.entries(rig.wheels ?? shared.rig.wheels).map(([k, r]) => [k, { pivot: vis.wheels[k], rig: r }]));
       let taillamp = null;
@@ -3300,7 +3313,7 @@ function mpFrame(w, view, seconds) {
   shared.mpLookIn = (shared.mpLookIn ?? 0) - seconds;
   if (shared.mpLookIn <= 0) {
     shared.mpLookIn = 2;
-    const l = mpLook(), key = JSON.stringify([l.carId, l.paint, l.parts]), dents = mpDents();
+    const l = mpLook(), key = JSON.stringify([l.carId, l.paint, l.parts, l.stance]), dents = mpDents();
     if (shared.mpLookKey && (key !== shared.mpLookKey || dents < (shared.mpDentCount ?? 0))) M.setLook(l);
     shared.mpLookKey = key; shared.mpDentCount = dents;
   }

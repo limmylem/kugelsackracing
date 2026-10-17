@@ -66,10 +66,11 @@ export function rtEndpoint(site = globalThis.KR_SITE ?? {}, ticketUrl = null, lo
   return u.replace(/^ws(s?):/, 'http$1:').replace(/\/$/, '');
 }
 
-// The look another player's game draws your car with (and its damage so far: the dents packed, as the save keeps them)
-export function lookOf({ carId, paint, parts, engine, damage, name }) {
+// The look another player's game draws your car with (and its damage so far: the dents packed, as the save keeps them;
+// its stance: each wheel's offset, m — rims and spacers — and the camber's settings, °, which its parts alone don't say)
+export function lookOf({ carId, paint, parts, engine, damage, name, stance = null }) {
   const packed = damage ? { shell: packDents(damage.shell?.dents ?? []), broken: damage.shell?.broken ?? [], parts: Object.fromEntries(Object.entries(damage.parts ?? {}).map(([k, d]) => [k, packDents(d)]).filter(([, t]) => t)) } : null;
-  return { carId, paint: paint ?? null, parts: parts ?? {}, sound: engine ? { file: engine.sound ?? null, idle: engine.idleRpm ?? 900, redline: engine.redlineRpm ?? 6800 } : null, damage: packed, name: name ?? null };
+  return { carId, paint: paint ?? null, parts: parts ?? {}, sound: engine ? { file: engine.sound ?? null, idle: engine.idleRpm ?? 900, redline: engine.redlineRpm ?? 6800 } : null, damage: packed, name: name ?? null, ...(stance && { stance }) };
 }
 
 // A car's damage to draw: its look's (when it joined) with every crash since folded on, the same way on every machine

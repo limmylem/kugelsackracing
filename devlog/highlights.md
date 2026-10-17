@@ -109,3 +109,4 @@ Gauge pods in the cockpit now read your engine's real boost, oil and water
 No more bouncing off the rev limiter when pulling away at walking pace
 Gauge pods now sit properly on the dash in every car
 Groundline aero kits are in the shop, and an Extreme tier above Race
+Lowered, lifted or on bigger wheels: the car now shows it, in the garage and on the road

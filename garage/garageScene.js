@@ -17,6 +17,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCarVisual, placeholderBox, placeholderWing, resolveLook, tyreKey, tyreModel } from './visual.js';
 import { tyreFit } from './tyres.js';
 import { partShape } from './partShape.js';
+import { restingStance } from './stats.js';
 import { camberOf, wheelTransform } from '../physics/sockets.js';
 
 export const LIFT_HEIGHT = 1.35;
@@ -104,6 +105,11 @@ export class GarageScene {
     this.#lift();
     this.carGroup = new THREE.Group();
     this.scene.add(this.carGroup);
+    // (the car on its springs, parked: raised or lowered and pitched so its tyres stand on the floor — a lower ride
+    // height, a lift kit, bigger tyres show — garage/stats.js restingStance; eased there as it changes)
+    this.stanceGroup = new THREE.Group();
+    this.carGroup.add(this.stanceGroup);
+    this.stance = { y: 0, pitch: 0, drop: {} }; this.stanceTarget = null;
     this.lift = { y: 0, target: 0 };
     this.hingeDefs = HINGES;
     this.views = VIEWS;
@@ -203,21 +209,24 @@ export class GarageScene {
     if (!this.vis || this.vis.car !== car) {
       this.vis?.dispose();
       this.vis = await createCarVisual({ car, finishes, models: this.models, paint, environment: this.env });
-      this.carGroup.add(this.vis.group);
+      this.stanceGroup.add(this.vis.group);
       this.hingeRest = null;
+      this.stance = null;                              // (a new car: straight to how it stands, not eased from the last)
       // (its own panels and views: where its engine and wheels are)
       this.hingeDefs = carHinges(car, view?.parts);
       this.views = carViews(car, this.hingeDefs);
       this.hinges = Object.fromEntries(Object.keys(this.hingeDefs).map(k => [k, { open: 0, target: 0 }]));
     }
     this.rig = this.rigFor ? await this.rigFor(car) : rig; this.spec = spec;
+    this.#restingStance();
     await this.vis.applyBuild(build, view);
     if (paint && (this.vis.paint.colour !== paint.colour || this.vis.paint.finish !== paint.finish)) this.vis.setPaint(paint);
     if (damage && rules) this.vis.setDamage(damage, rules);        // (its dents and broken glass, until they're repaired)
     this.#restHinges();
     this.vis.showAttach(damage?.attach ?? {}, view?.parts ?? {});   // (loose parts hanging, torn-off ones gone)
   }
-  setSpec(spec) { if (spec) this.spec = spec; }
+  setSpec(spec) { if (spec) { this.spec = spec; this.#restingStance(); } }
+  #restingStance() { this.stanceTarget = this.vis && this.spec ? restingStance(this.vis.car, this.spec) : null; if (!this.stance && this.stanceTarget) this.stance = { ...this.stanceTarget, drop: { ...this.stanceTarget.drop } }; }
   previewPaint(paint) { if (this.vis && paint) this.vis.setPaint(paint); }
 
   // (the hinged nodes' closed positions, taken once the car's built)
@@ -277,12 +286,20 @@ export class GarageScene {
     this.carGroup.position.y = L.y;
     this.liftMoving.position.y = L.y;
     this.contact.material.opacity = 1 - 0.85 * liftEase;
-    // the wheels hang on their springs once off the ground
+    // how it stands on its springs (eased to a new ride height, tyre or lift kit), and the wheels hanging on them once off
+    // the ground
+    const T = this.stanceTarget, St = this.stance ??= { y: 0, pitch: 0, drop: {} };
+    if (T) {
+      const e = Math.min(1, dt * 6);
+      St.y += (T.y - St.y) * e; St.pitch += (T.pitch - St.pitch) * e;
+      for (const [k, d] of Object.entries(T.drop)) St.drop[k] = (St.drop[k] ?? d) + (d - (St.drop[k] ?? d)) * e;
+    }
+    this.stanceGroup.position.y = St.y; this.stanceGroup.rotation.x = St.pitch;
     if (this.vis && this.rig && this.spec) {
-      const W = this.spec.wheels, S = this.spec.suspension;
+      const W = this.spec.wheels, S = this.spec.suspension, hang = Math.min(1, lk * 4);
       for (const [k, pivot] of Object.entries(this.vis.wheels)) {
-        const mount = W.mountHeight?.[W.front.includes(k) ? 'front' : 'rear'] ?? 0;
-        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, 0, (mount - S.restLength) * Math.min(1, lk * 4), W.offsets?.[k] ?? 0, camberOf(this.spec, k));
+        const mount = W.mountHeight?.[W.front.includes(k) ? 'front' : 'rear'] ?? 0, rest = St.drop[k] ?? 0;
+        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, 0, rest + (mount - S.restLength - rest) * hang, W.offsets?.[k] ?? 0, camberOf(this.spec, k));
         pivot.quaternion.fromArray(t.rotation); pivot.position.fromArray(t.position);
       }
     }
