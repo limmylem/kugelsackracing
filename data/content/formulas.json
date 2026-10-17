@@ -329,7 +329,7 @@
       "settings": {
         "count": { "label": "gauges", "range": [1, 4], "integer": true },
         "size": { "label": "gauge size", "unit": "mm", "range": [52, 60], "default": "52" },
-        "layout": { "label": "where", "values": ["pillar", "dash"], "default": "pillar" }
+        "layout": { "label": "where", "values": ["dash"], "default": "dash" }
       },
       "shapeSettings": {
         "bezel": { "label": "bezels", "values": ["chrome", "black", "raw_metal"], "default": "chrome" },
@@ -340,7 +340,7 @@
         "mass": { "label": "mass", "unit": "kg", "formula": "0.15 + count * size / 52 * 0.18", "range": [0.2, 3], "digits": 2 }
       },
       "economy": { "tierBy": { "by": "count", "steps": [["street", 3], ["sport", 4], ["race", 5]] }, "value": "clamp((count - 1) / 3, 0, 1)" },
-      "fit": { "axes": { "layout": [null, "dash"], "dz": [0, -0.04, -0.08, 0.04], "dy": [0, -0.03, -0.06, -0.09], "dx": [0, -0.05, 0.05, -0.1, 0.1] }, "weights": { "layout": 2 } }
+      "fit": { "axes": { "dz": [0, -0.04, -0.08, 0.04], "dy": [0, -0.03, -0.06, -0.09, -0.12], "dx": [0, -0.05, 0.05, -0.1, 0.1] }, "weights": {} }
     },
     "body_kit": {
       "label": "aero kit", "slot": "aero_kit", "category": "aero", "type": "aero_kit", "shape": "body_kit", "maker": "Downforce Lab", "finishMass": true, "perCar": true,
