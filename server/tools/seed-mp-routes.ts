@@ -3,7 +3,7 @@
 // (tests/map/realRoutes.ts — the routes every route test drives), compiled on the region's road network and published
 // as world content, so quick races and lobbies on "random" have real-world routes to race. Ids route_mp<region>:
 // running it again brings them up to date. Each is made on the bake the game plays in its region (server/src/mapDir.ts:
-// Adelaide's Map v5), so the server finds the same roads under it. Every deploy runs it (deploy.yml step 2c) for the
+// Adelaide's Map v5), so the server finds the same roads under it. Every deploy runs it (deploy.yml step 5) for the
 // regions in the game (data/map/baked.json inGame), so a new region's route goes live with it.
 //
 //   DATABASE_URL=… node server/tools/seed-mp-routes.ts [--regions mk,sf]    (no --regions: the regions in the game)
