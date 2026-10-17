@@ -1,0 +1,77 @@
+{
+  "id": "crate_kugel_v12i",
+  "name": "Ognistrada Engines 4.0 L supercharged V12 (crate engine)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 16260,
+  "mass": 252,
+  "model": "assets/parts/engine/crate_kugel_v12i.glb",
+  "icon": "assets/icons/parts/crate_kugel_v12i.png",
+  "fits": ["mount:long", "bay:large"],
+  "requires": ["clutch_rating:race", "gearbox:uprated", "cooling:uprated"],
+  "conflicts": ["car:ridgeback_4x4"],
+  "provides": ["engine_family:crate_kugel_v12i", "engine_layout:v12", "induction:natural", "forced_induction:supercharger", "intake_flange:std", "exhaust_flange:std"],
+  "engine": {
+    "torqueCurve": [[850, 538], [1600, 636], [2400, 857], [3150, 1037], [3600, 1075], [3950, 1075], [4700, 1075], [5050, 1075], [5450, 1031], [6250, 892], [7000, 731], [7400, 634]],
+    "idleRpm": 850,
+    "redlineRpm": 7000,
+    "inertia": 0.264,
+    "induction": "natural",
+    "cylinders": 12,
+    "sound": "data/sounds/engines/v12.json",
+    "friction": {
+      "base": 18.4,
+      "perKrpm": 9.2,
+      "perKrpm2": 1.0672
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    }
+  },
+  "tier": "race",
+  "unlock": {
+    "level": 8
+  },
+  "bounds": {
+    "min": [-0.3715, 0, -0.4424],
+    "max": [0.3715, 0.5691, 0.432]
+  },
+  "massOffset": [0, 0.213, 0],
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 12,
+    "displacement": 4,
+    "aspiration": "supercharged",
+    "boost": 3,
+    "mounts": ["long"],
+    "bay": "large",
+    "size": [0.9, 0.74, 0.56],
+    "peakTorque": 1075,
+    "peakPower": 790,
+    "words": "4.0 L supercharged V12"
+  },
+  "generated": {
+    "engine": "kugel_v12i"
+  },
+  "_generated": "Made by npm run content -- build from data/engines/kugel_v12i.json (and data/content/formulas.json engines): change those, not this file. 4.0 L supercharged V12: 1075 N·m, 790 hp, 252 kg, 0.9 × 0.74 × 0.56 m (a large bay or bigger). It needs a clutch that holds its torque (clutch_rating:race), a gearbox for its torque (gearbox:uprated), a radiator for its heat (cooling:uprated).",
+  "_fit": "It doesn't fit the Ridgeback 4x4 (through Bonnet (Ridgeback 4x4, stock) in 25 places): so it isn't for it."
+}

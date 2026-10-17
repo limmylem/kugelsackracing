@@ -16145,6 +16145,70 @@
       },
       "ok": true
     },
+    "crate_kugel_v12i": {
+      "fit": {
+        "key": "636bf99b810a5e54",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "brute_500": {
+            "carKey": "c2943342a96b334e",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          }
+        }
+      },
+      "drive": {
+        "key": "736097dfb4a687fc",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "brute_500": {
+            "carKey": "c2943342a96b334e",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 5.192,
+            "braking": 35.638
+          }
+        }
+      },
+      "crash": {
+        "key": "86f992565bba108f",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "brute_500": {
+            "carKey": "c2943342a96b334e",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1808,
+            "loose": 2
+          }
+        }
+      },
+      "sound": {
+        "key": "688a2faa3cc9b17b",
+        "ok": true,
+        "problems": [],
+        "louder": 0.632
+      },
+      "budget": {
+        "key": "860a2cd11d99c57f",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 1720,
+        "models": 1
+      },
+      "economy": {
+        "key": "a830fb6d0df0854c",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
     "crate_v12_kugel": {
       "fit": {
         "key": "17a3b11d612f8e07",
@@ -21830,12 +21894,12 @@
       "crash": {
         "key": "aeb5912261fdc8da",
         "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3, 259: more than 2 race wins"],
+        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,  259: more than 2 race wins"],
         "cars": {
           "brute_500": {
             "carKey": "c2943342a96b334e",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 259: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  259: more than 2 race wins"],
             "drivable": true,
             "repair": 3259,
             "loose": 1
@@ -21902,12 +21966,12 @@
       "crash": {
         "key": "8a8d9dcb73b81a7d",
         "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3, 167: more than 2 race wins"],
+        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,  167: more than 2 race wins"],
         "cars": {
           "kaze_gt": {
             "carKey": "23176ff9ba21582c",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 167: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  167: more than 2 race wins"],
             "drivable": true,
             "repair": 3167,
             "loose": 1
@@ -21974,12 +22038,12 @@
       "crash": {
         "key": "42277b7006a832fb",
         "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3, 196: more than 2 race wins"],
+        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,  196: more than 2 race wins"],
         "cars": {
           "strada_evo": {
             "carKey": "fedfa9da2910dcde",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3, 196: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,  196: more than 2 race wins"],
             "drivable": true,
             "repair": 3196,
             "loose": 1
@@ -95669,9 +95733,9 @@
         "class": "B"
       },
       "max": {
-        "index": 800,
+        "index": 822,
         "class": "S",
-        "parts": ["crate_kmw_v8_57", "pistons_forged", "intake_race", "turbo_medium", "intercooler_race", "streetline_89_stainless_matte", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "basic_wing", "radiator_aluminium", "short_shifter", "roll_cage_bolt_in", "groundline_brute_500_carbon"],
+        "parts": ["crate_kugel_v12i", "airflow_89_cold_air_matte", "streetline_76_stainless_matte", "header_4into1", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "aerofoil_1p5_0p3_matte", "supercharger_centrifugal", "radiator_aluminium", "roll_cage_bolt_in", "groundline_brute_500_carbon"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -95689,7 +95753,7 @@
             "value": 32000
           },
           {
-            "part": "basic_wing",
+            "part": "aerofoil_1p5_0p3_matte",
             "setting": "angle",
             "value": 16
           }
