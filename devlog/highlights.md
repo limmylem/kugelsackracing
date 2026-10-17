@@ -95,3 +95,4 @@ No more sudden stops while the city loads around you
 Other players' cars glide back smoothly after a hiccup, no more jumps
 A Roadmap in the game: see what's coming, vote, and share ideas
 Engines no longer blow up after the city loads at speed
+The Apex V8 can take the Inferno: a 1,500 hp twin-turbo V8
