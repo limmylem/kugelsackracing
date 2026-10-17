@@ -71,17 +71,17 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   const stats = { lagP50: 0, lagP95: 0, bufferMs: I.startBufferMs, delayMs: 0, corrections: 0, maxCorrectionCm: 0, extrapolatedMs: 0, states: 0 };
 
   // (how far the car really went between states j-1 and j against how fast it says it was going: a sender whose game
-  // can't keep up — its physics running slower than real time — or whose stamps are being steered onto the server's
-  // clock (just after joining) covers 5–15% less or more ground between states than its speed says. Not at a crawl, nor
-  // over a gap or a sparse far-away car's long steps)
+  // can't keep up — drawing 9 frames a second, its physics capped at 8 steps a frame, the car covers 50–70% of the
+  // ground its speed says — or whose stamps are being steered onto the server's clock (just after joining: 5–15% either
+  // way). Not at a crawl, nor over a gap)
   const stepPace = j => {
     const x = buf[j - 1], y = buf[j];
     if (!x || !y) return null;
     const span = (y.time - x.time) / 1000, said = (v3.len(x.vel) + v3.len(y.vel)) / 2;
-    if (span < 0.01 || span > 0.15 || said < 2) return null;
+    if (span < 0.01 || span > 0.3 || said < 2) return null;
     // (a few percent either way is nothing to go on — whole-ms stamps, and a curve's arc a touch longer than its chord:
     // left as it says; a real mismatch, 5% and more, taken in full, eased in between)
-    const r = Math.max(0.75, Math.min(1.33, v3.len(v3.sub(y.pos, x.pos)) / (said * span))), w = Math.min(1, Math.max(0, (Math.abs(r - 1) - 0.02) / 0.04));
+    const r = Math.max(0.4, Math.min(1.33, v3.len(v3.sub(y.pos, x.pos)) / (said * span))), w = Math.min(1, Math.max(0, (Math.abs(r - 1) - 0.02) / 0.04));
     return 1 + (r - 1) * w * w * (3 - 2 * w);
   };
   // the pace at state j: the steps either side of it, as there are (so the curve's speed carries on through the state)
@@ -95,8 +95,8 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     // two before it — the car where its own motion had it then, moving, rather than parked on that state and setting off
     // with a step; at most maxExtrapolateMs back)
     if (t <= buf[0].time) {
-      const f = buf[0], d = Math.max(-I.maxExtrapolateMs, t - f.time) / 1000;
-      return { ...f, pos: v3.add(f.pos, v3.scale(f.vel, d)), rot: quat.spin(f.rot, v3.scale(f.ang, -1), -d), extrapolating: false, staleMs: 0 };   // (spin takes a time ≥ 0: back by d, the spin reversed)
+      const f = buf[0], k = paceAt(0), d = Math.max(-I.maxExtrapolateMs, t - f.time) / 1000 * k;
+      return { ...f, vel: v3.scale(f.vel, k), pos: v3.add(f.pos, v3.scale(f.vel, d)), rot: quat.spin(f.rot, v3.scale(f.ang, -1), -d), extrapolating: false, staleMs: 0 };   // (spin takes a time ≥ 0: back by d, the spin reversed)
     }
     let i = n - 1;
     if (t < buf[i].time) {
@@ -109,11 +109,11 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       // whose positions don't match it overshoots and catches up within every step, a wobble — and never longer than
       // that by much, a sender far behind included)
       const chord = v3.len(v3.sub(b.pos, a.pos)), lim = (v, k) => { const l = v3.len(v) * k * span; return l > 1e-6 ? k * Math.min(1, 1.25 * chord / l) : k; };
-      const ta = span * lim(a.vel, paceAt(i - 1)), tb = span * lim(b.vel, paceAt(i));
+      const ka = paceAt(i - 1), kb = paceAt(i), ta = span * lim(a.vel, ka), tb = span * lim(b.vel, kb);
       const pos = [0, 1, 2].map(k => h00 * a.pos[k] + h10 * ta * a.vel[k] + h01 * b.pos[k] + h11 * tb * b.vel[k]);
       const near = u < 0.5 ? a : b, L = (x, y) => x + (y - x) * u;
       return {
-        pos, rot: quat.slerp(a.rot, b.rot, u), vel: v3.lerp(a.vel, b.vel, u), ang: v3.lerp(a.ang, b.ang, u),
+        pos, rot: quat.slerp(a.rot, b.rot, u), vel: v3.lerp(v3.scale(a.vel, ka), v3.scale(b.vel, kb), u), ang: v3.lerp(a.ang, b.ang, u),
         steer: L(a.steer, b.steer), throttle: L(a.throttle, b.throttle), brake: L(a.brake, b.brake), gear: near.gear, rpm: L(a.rpm, b.rpm),
         wheels: b.wheels.map((w, k) => { const x = a.wheels[k] ?? w; return { omega: L(x.omega, w.omega), length: L(x.length, w.length), slip: L(x.slip, w.slip), grounded: (u < 0.5 ? x : w).grounded }; }),
         flags: near.flags, extrapolating: false, staleMs: 0, seg: [a.time, b.time],
