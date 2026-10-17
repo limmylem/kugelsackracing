@@ -407,7 +407,7 @@ export class GarageScreen {
     const sel = this.ui.candidate === c.key;
     const gain = c.locked ? `<div class="lock">${icon('lock')}${esc(this.#words(c.locked.text))}</div>`
       : c.gain.length ? `<div class="gain">${c.gain.map(g => `<span style="color:${colourOf(g.better)}">${esc(g.text)}</span>`).join(' · ')}</div>` : `<div class="gain muted">no change to the numbers</div>`;
-    const side = c.owned ? `<span class="badge owned plain">OWNED</span><span class="badge ${conditionClass(c.condition)}">${conditionWord(c.condition)} · ${Math.round(c.condition)}%</span>`
+    const side = c.owned ? `<span style="display:flex;gap:4px">${tierBadge(c.part)}<span class="badge owned plain">OWNED</span></span><span class="badge ${conditionClass(c.condition)}">${conditionWord(c.condition)} · ${Math.round(c.condition)}%</span>`
       : `<span style="display:flex;gap:4px">${tierBadge(c.part)}<span class="badge info plain">${icon('storefront', 'style="font-size:14px"')}Shop</span></span><span class="g-price ${c.affordable ? '' : 'bad'}">${esc(this.money(c.price))}${c.set > 1 ? `<small> · set of ${c.set}</small>` : ''}</span>`;
     return `<button class="row ${sel ? 'selected' : ''} ${c.locked ? 'locked' : ''}" data-act="${c.locked ? '' : `pick:${c.key}`}" data-ghost="${c.key}" data-key="part:${c.key}" ${c.locked ? 'aria-disabled="true"' : ''}>
       ${thumb(c.part)}

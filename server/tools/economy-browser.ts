@@ -162,6 +162,8 @@ try {
   await adm.locator('main input[placeholder^="Why"]').first().fill('Club later: a test of the tier box');
   await adm.click('main button:text("Save tier levels")');
   await adm.waitForSelector('.msg.good:text("Tier levels saved")', { timeout: 10000 }).catch(() => null);
+  // (the history under it is drawn again after the save: wait for the new version's reason to be in it)
+  await adm.waitForFunction(() => document.querySelector('main')?.textContent?.includes('Club later'), null, { timeout: 10000 }).catch(() => null);
   const tierNow = (await app.deps.economyConfig?.active?.())?.data?.economy?.quests?.tiers?.find((t: any) => t.name === 'Club')?.level
     ?? ((await app.deps.db.execute(sql`select data from economy_config where active`)).rows[0] as any)?.data?.economy?.quests?.tiers?.find((t: any) => t.name === 'Club')?.level;
   check('the quest tiers in a table of their own: Club\'s level changed there and saved as a new version', tierNow === 3 && (await adm.textContent('main'))!.includes('Club later'), `Club opens at ${tierNow}`);
