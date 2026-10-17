@@ -45,18 +45,22 @@ function el(id, css) {
 }
 
 // Hold the car where it is (a kinematic body: the world keeps stepping, so ground arriving shows up to
-// its queries) and let it go again as it was going
+// its queries) and let it go again as it was going. Its engine, gearbox and wheels are held too (the vehicle's
+// frozen): stepped against a body standing still, the wheels stopped, the automatic went down to 1st and, let go
+// at speed, the engine was thrown far past its redline — valve float, bent valves, blown.
 function hold(w) {
   if (w.held) return;
-  const b = w.sim.vehicle.body, l = b.linvel(), a = b.angvel();
+  const v = w.sim.vehicle, b = v.body, l = b.linvel(), a = b.angvel();
   w.held = { linvel: { x: l.x, y: l.y, z: l.z }, angvel: { x: a.x, y: a.y, z: a.z } };
   b.setBodyType(w.RAPIER.RigidBodyType.KinematicPositionBased, true);
+  v.frozen = true;
 }
 function release(w, keepMotion = true) {
   if (!w.held) return;
-  const b = w.sim.vehicle.body;
+  const v = w.sim.vehicle, b = v.body;
   b.setBodyType(w.RAPIER.RigidBodyType.Dynamic, true);
   if (keepMotion) { b.setLinvel(w.held.linvel, true); b.setAngvel(w.held.angvel, true); }
+  v.frozen = false;
   w.held = null;
 }
 
@@ -181,7 +185,8 @@ function land(w, x, z, headingDeg, fromY = null) {
 }
 // the car held still (a countdown) and let go
 // (pinned: held until let go, whatever the streaming would do)
-export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; }
+// (parked on its slot for a countdown, or out of sight: let go standing still — its engine runs, so it can be revved)
+export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; w.sim.vehicle.frozen = false; }
 export function releaseCar(w) { w.pinned = false; release(w, false); }
 // (back on the road at the car's own level: in a tunnel, its road — not the hill over it)
 export function resetToRoad(w) {

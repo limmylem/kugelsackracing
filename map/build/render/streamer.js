@@ -405,6 +405,8 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
     }
     const groundReady = entry => !!entry?.physics && entry.added >= entry.groundPieces;
     const entryAt = (wx, wz) => tiles.get(`${Math.floor(wx / T)}_${Math.floor(wz / T)}`);
+    // solid ground at a place (world frame)? (somewhere off the map has none to wait for)
+    const groundOk = (wx, wz) => { const e = entryAt(wx, wz); return e ? groundReady(e) : !byKey.has(`${Math.floor(wx / T)}_${Math.floor(wz / T)}`); };
     // ---------- the graphics settings (Phase 8 Step 2: perf/quality.js) ----------
     // render distance: how far tiles are loaded (never less than the physics needs: what it drives on is the same on every
     // setting) and how far each tile's detail reaches; scenery: the share of trees drawn
@@ -463,7 +465,10 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         }
         // a few milliseconds of colliders, the car's own tile and those ahead first
         physicsQueue.sort((a, b) => Math.min(distTo(a, wx, wz), distTo(a, ax, az)) - Math.min(distTo(b, wx, wz), distTo(b, ax, az)));
-        const end = performance.now() + O.budgetMs;
+        // (more of them while the ground under the car, or where it'll be in a second or two, isn't in yet: so it's never
+        // held waiting for it)
+        const rush = !groundOk(wx, wz) || !groundOk(wx + vel[0] * 1.5, wz + vel[2] * 1.5);
+        const end = performance.now() + O.budgetMs * (rush ? 4 : 1);
         while (physicsQueue.length && performance.now() < end) {
             // (every waiting tile's ground and roads before anyone's buildings and railings)
             const e = physicsQueue.find(q => q.physics && q.added < q.groundPieces) ?? physicsQueue[0];
@@ -520,17 +525,26 @@ export async function createWorldStream({ manifestUrl, scene, sim, RAPIER, optio
         // is there solid ground (terrain, roads) everywhere within r m of a place (sim frame)?
         readyAround(x, z, r = 0) {
             const wx = x + origin[0], wz = z + origin[1];
-            for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
-                const e = entryAt(wx + dx, wz + dz);
-                if (!e) {
-                    if (!byKey.has(`${Math.floor((wx + dx) / T)}_${Math.floor((wz + dz) / T)}`))
-                        continue;
+            for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]])
+                if (!groundOk(wx + dx, wz + dz))
                     return false;
-                }
-                if (!groundReady(e))
-                    return false;
-            }
             return true;
+        },
+        // is there solid ground under a car (sim frame) and along where it's going for the next seconds (at least aheadMin m)?
+        // (only ahead: what's beside it and behind it can't be driven onto before it's in)
+        readyAhead(x, z, vx, vz, seconds = 1, aheadMin = 12) {
+            const wx = x + origin[0], wz = z + origin[1], speed = Math.hypot(vx, vz);
+            if (!groundOk(wx, wz))
+                return false;
+            if (speed < 0.5)
+                return true;
+            const reach = Math.max(aheadMin, speed * seconds), ux = vx / speed, uz = vz / speed;
+            for (let s = Math.min(T / 2, reach);; s = Math.min(s + T / 2, reach)) {
+                if (!groundOk(wx + ux * s, wz + uz * s))
+                    return false;
+                if (s >= reach)
+                    return true;
+            }
         },
         // the ground's height there (sim frame; the tile's heightfield, bilinear), null where it isn't in yet
         heightAt(x, z) {

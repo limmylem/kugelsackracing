@@ -46,23 +46,27 @@ function el(id, css) {
     return e;
 }
 // Hold the car where it is (a kinematic body: the world keeps stepping, so ground arriving shows up to
-// its queries) and let it go again as it was going
+// its queries) and let it go again as it was going. Its engine, gearbox and wheels are held too (the vehicle's
+// frozen): stepped against a body standing still, the wheels stopped, the automatic went down to 1st and, let go
+// at speed, the engine was thrown far past its redline — valve float, bent valves, blown.
 function hold(w) {
     if (w.held)
         return;
-    const b = w.sim.vehicle.body, l = b.linvel(), a = b.angvel();
+    const v = w.sim.vehicle, b = v.body, l = b.linvel(), a = b.angvel();
     w.held = { linvel: { x: l.x, y: l.y, z: l.z }, angvel: { x: a.x, y: a.y, z: a.z } };
     b.setBodyType(w.RAPIER.RigidBodyType.KinematicPositionBased, true);
+    v.frozen = true;
 }
 function release(w, keepMotion = true) {
     if (!w.held)
         return;
-    const b = w.sim.vehicle.body;
+    const v = w.sim.vehicle, b = v.body;
     b.setBodyType(w.RAPIER.RigidBodyType.Dynamic, true);
     if (keepMotion) {
         b.setLinvel(w.held.linvel, true);
         b.setAngvel(w.held.angvel, true);
     }
+    v.frozen = false;
     w.held = null;
 }
 export async function attachRealWorld(w, shared, { RAPIER }) {
@@ -226,7 +230,8 @@ function land(w, x, z, headingDeg, fromY = null) {
 }
 // the car held still (a countdown) and let go
 // (pinned: held until let go, whatever the streaming would do)
-export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; }
+// (parked on its slot for a countdown, or out of sight: let go standing still — its engine runs, so it can be revved)
+export function holdCar(w) { hold(w); w.held.linvel = { x: 0, y: 0, z: 0 }; w.held.angvel = { x: 0, y: 0, z: 0 }; w.pinned = true; w.sim.vehicle.frozen = false; }
 export function releaseCar(w) { w.pinned = false; release(w, false); }
 // (back on the road at the car's own level: in a tunnel, its road — not the hill over it)
 export function resetToRoad(w) {
@@ -263,8 +268,13 @@ export function realWorldFrame(w, shared, seconds) {
             }
         }
     }
-    else if (!S.readyAround(p.x, p.z, 20 + speed * 0.5))
-        waiting = true;
+    else {
+        // held only when the ground under it, or just ahead of where it's going, isn't in yet (not for tiles beside it or
+        // behind it); the streamer builds that ground first and faster. Once held, let go when a little more is in, so it
+        // doesn't stop and start. (While held its own velocity is the one kept, w.held: the body is still.)
+        const hv = w.held?.linvel ?? vel;
+        waiting = !S.readyAhead(p.x, p.z, hv.x, hv.z, w.held ? 0.9 : 0.6, w.held ? 12 : 8);
+    }
     // (held where it is while the world catches up; carrying on as it was once it has)
     if (waiting && !w.spawning)
         hold(w);

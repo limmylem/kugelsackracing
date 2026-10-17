@@ -172,3 +172,21 @@ test('the damage goes to the player\'s engine; a blown one can\'t be driven unti
   assert.equal(garage().stats().spec.engine.blown, false);
   assert.ok(garage().drivable().ok);
 });
+
+test('held while the real world\'s ground loads (frozen) at speed: let go in the same gear, the engine unharmed', () => {
+  // (stepped against a body standing still, the automatic went down to 1st and, let go at 200 km/h, blew the engine)
+  const sim = rolling(stock, 150, 4), v = sim.vehicle, d = v.drivetrain, b = v.body;
+  d.mode = 'auto';
+  const input = { device: 'keyboard', throttle: 1, brake: 0, steer: 0, handbrake: false };
+  for (let i = 0; i < 1 / sim.dt; i++) sim.step(input);
+  const gear = d.gear, rpm = d.rpm, l = b.linvel(), motion = { x: l.x, y: l.y, z: l.z };
+  b.setBodyType(H.RAPIER.RigidBodyType.KinematicPositionBased, true); v.frozen = true;      // (map/render/game.ts hold)
+  for (let i = 0; i < 2 / sim.dt; i++) sim.step(input);
+  assert.equal(d.gear, gear, 'the gearbox held'); assert.equal(d.rpm, rpm, 'the engine held');
+  b.setBodyType(H.RAPIER.RigidBodyType.Dynamic, true); b.setLinvel(motion, true); v.frozen = false;   // (release)
+  let peak = -1;
+  for (let i = 0; i < 3 / sim.dt; i++) { sim.step(input); peak = Math.max(peak, d.health.over); }
+  assert.ok(peak < 0, `never past the redline (peak ${(peak * 100).toFixed(1)}% over)`);
+  assert.equal(d.health.condition, 100);
+  assert.ok(!d.events.some(e => e.type === 'float' || e.type === 'bent' || e.type === 'blown'));
+});

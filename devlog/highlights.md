@@ -94,3 +94,4 @@ Expeditions show the way on the road and the map; the Midnight Run is at midnigh
 No more sudden stops while the city loads around you
 Other players' cars glide back smoothly after a hiccup, no more jumps
 A Roadmap in the game: see what's coming, vote, and share ideas
+Engines no longer blow up after the city loads at speed

@@ -42,12 +42,14 @@ function hold(w) {
   const b = w.sim.vehicle.body, l = b.linvel(), a = b.angvel();
   w.held = { linvel: { x: l.x, y: l.y, z: l.z }, angvel: { x: a.x, y: a.y, z: a.z } };
   b.setBodyType(w.RAPIER.RigidBodyType.KinematicPositionBased, true);
+  w.sim.vehicle.frozen = true;       // (its engine, gearbox and wheels held too: map/render/game.ts hold)
 }
 function release(w, keepMotion = true) {
   if (!w.held) return;
   const b = w.sim.vehicle.body;
   b.setBodyType(w.RAPIER.RigidBodyType.Dynamic, true);
   if (keepMotion) { b.setLinvel(w.held.linvel, true); b.setAngvel(w.held.angvel, true); }
+  w.sim.vehicle.frozen = false;
   w.held = null;
 }
 
