@@ -89,6 +89,7 @@ export function mountDock({ garage, editor } = {}) {
     <button class="dk-item dk-chat" data-k="chat" data-tip="${esc(t('dock.chatTip'))}" data-lt="dock.chatTip" hidden><span class="dk-ic" aria-hidden="true">forum</span><span data-l="dock.chat">${esc(t('dock.chat'))}</span><kbd>↵</kbd><b class="dk-badge" data-n="0"></b></button>
     <button class="dk-item" data-k="school" data-tip="${esc(t('dock.schoolTip'))}" data-lt="dock.schoolTip"><span class="dk-ic" aria-hidden="true">school</span><span data-l="dock.school">${esc(t('dock.school'))}</span></button>
     <button class="dk-item" data-k="roadbook" data-tip="${esc(t('dock.roadbookTip'))}" data-lt="dock.roadbookTip"><span class="dk-ic" aria-hidden="true">menu_book</span><span data-l="dock.roadbook">${esc(t('dock.roadbook'))}</span></button>
+    <button class="dk-item" data-k="roadmap" data-tip="${esc(t('dock.roadmapTip'))}" data-lt="dock.roadmapTip"><span class="dk-ic" aria-hidden="true">how_to_vote</span><span data-l="dock.roadmap">${esc(t('dock.roadmap'))}</span></button>
     <div class="dk-sep"></div>
     <a class="dk-item" data-k="account" href="/account/?next=${next}" data-tip="${esc(t('dock.account'))}" data-lt="dock.account"><span class="dk-ic" aria-hidden="true">account_circle</span><span data-l="dock.account">${esc(t('dock.account'))}</span></a>
     <button class="dk-item" data-k="editor" data-tip="${esc(t('dock.editorTip'))}" data-lt="dock.editorTip" hidden><span class="dk-ic" aria-hidden="true">edit_road</span><span data-l="dock.editor">${esc(t('dock.editor'))}</span><kbd>F2</kbd></button>`;
@@ -114,6 +115,7 @@ export function mountDock({ garage, editor } = {}) {
     else if (k === 'editor') { b.blur(); editor?.(); }
     else if (k === 'school') { b.blur(); dispatchEvent(new CustomEvent('kr:school')); }
     else if (k === 'roadbook') { b.blur(); dispatchEvent(new CustomEvent('kr:roadbook')); }
+    else if (k === 'roadmap') { b.blur(); dispatchEvent(new CustomEvent('kr:roadmap')); }
   });
   // free roam: the chat tile while it's on (its status sits in the slot), what's unread, which tile is open
   const roamOn = () => { chat.hidden = !roamSlot.firstElementChild; if (chat.hidden) setUnread(0); };

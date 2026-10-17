@@ -99,10 +99,13 @@ const live = async () => liveTools ??= (await import('./live.js')).createLiveToo
 // unsaved changes stay while you look at other tabs)
 let roadbookTools = null;
 const showRoadbook = async () => (roadbookTools ??= (await import('./roadbook.js')).createRoadbookTools({ api, h, say, when, errText, main: () => { tabs(); const m = $('main'); m.className = ''; m.style.gridTemplateColumns = ''; m.replaceChildren(); return m; } })).showRoadbook();
+// (the roadmap players vote on, and their ideas waiting to be accepted — admin/roadmap.js)
+let roadmapTools = null;
+const showRoadmap = async () => (roadmapTools ??= (await import('./roadmap.js')).createRoadmapTools({ api, h, say, when, errText, main: () => { tabs(); const m = $('main'); m.className = ''; m.style.gridTemplateColumns = ''; m.replaceChildren(); return m; } })).showRoadmap();
 function tabs() {
   const nav = document.getElementById('tabs') ?? document.querySelector('header').insertBefore(h('nav', { id: 'tabs', class: 'row', style: 'margin-left:16px' }), $('who'));
   nav.replaceChildren(...[['Players', showAdmin], ['Content', showContent], ['Builder', showBuilder], ['Devlog', showDevlog], ['Reports & flags', () => launchTools().showReports()], ['Support', () => launchTools().showSupport()], ['Launch', () => launchTools().showLaunch()], ['Live', async () => (await live()).showLive()], ['Statistics', async () => (await live()).showAnalytics()],
-    ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard], ['ROADBOOK', showRoadbook]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
+    ['Monitoring', () => launchTools().showMonitoring()], ['Contacts', showContacts], ['Free roam', showRoam], ['Economy settings', showSettings], ['Economy dashboard', showDashboard], ['Shop', showShop], ['Shop dashboard', showShopDashboard], ['ROADBOOK', showRoadbook], ['Roadmap', showRoadmap]].map(([label, fn]) => h('button', { class: 'btn ghost', onclick: fn }, label)));
 }
 function showAdmin() {
   tabs();

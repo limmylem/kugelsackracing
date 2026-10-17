@@ -93,3 +93,4 @@ The game opens straight into Adelaide
 Expeditions show the way on the road and the map; the Midnight Run is at midnight
 No more sudden stops while the city loads around you
 Other players' cars glide back smoothly after a hiccup, no more jumps
+A Roadmap in the game: see what's coming, vote, and share ideas
