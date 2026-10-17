@@ -40,7 +40,7 @@
     {
       "id": "framerate",
       "value": 1,
-      "detail": "identical after 12 s (1440 steps, car 75.5 m from the start) at 30 fps, 60 fps, 144 fps, jittery 4–40 ms"
+      "detail": "identical after 12 s (1440 steps, car 76.2 m from the start) at 30 fps, 60 fps, 144 fps, jittery 4–40 ms"
     }
   ]
 }
