@@ -209,6 +209,13 @@
 .g-marker:hover .tag .pn, .g-marker:focus-visible .tag .pn, .g-marker.sel .tag .pn { display: inline; }
 .g-marker:hover, .g-marker:focus-visible, .g-marker.sel { z-index: 2000 !important; }
 .g-marker.sel .tag { border-color: var(--c-accent); }
+/* (its row hovered in a slot list: lit up, labelled, on top) */
+.g-marker.lit { z-index: 3000 !important; }
+.g-marker.lit .tag { display: flex; border-color: var(--c-accent); }
+.g-marker.lit .tag .pn { display: inline; }
+.g-marker.lit .m { box-shadow: 0 0 0 7px rgba(54, 179, 245, 0.55) !important; animation: g-marker-lit 0.9s ease-in-out infinite alternate; }
+@keyframes g-marker-lit { to { box-shadow: 0 0 0 11px rgba(54, 179, 245, 0.2) !important; } }
+.g-step { display: flex; gap: 2px; margin-right: 4px; }
 .g-marker:focus-visible { outline: none; }
 .g-marker:focus-visible .m { box-shadow: 0 0 0 6px rgba(54, 179, 245, 0.45) !important; }
 

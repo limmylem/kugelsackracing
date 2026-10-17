@@ -2,8 +2,10 @@
 // garage/garage.css). It only shows things and passes on what the player does: the garage's logic is
 // the Workshop (garage/workshop.js), the 3D is the GarageScene (garage/garageScene.js).
 //
-//  Parts: the focus rail, markers on every socket (by condition; empty ones dashed), a socket's panel
-//    (what's fitted, what in the inventory fits, sorted and filtered, locked ones with the reason,
+//  Parts: the focus rail, markers on every socket (by condition; empty ones dashed; pushed apart so none sits on
+//    another, a name beside each only where it has room), each area's list of its slots and All parts (with a search;
+//    a row pointed at lights its marker), a socket's panel (its arrows and [ ] go on to the next slot, area after area)
+//    — what's fitted, what in the inventory fits, sorted and filtered, locked ones with the reason,
 //    a ghost on the car while one's hovered), the comparison (current vs new, what makes up each
 //    stat), fitting and taking off with the animation, and the Systems list for parts with no model
 //  Tuning: a slider for every setting of the fitted parts, the stats changing as they move
@@ -123,7 +125,7 @@ export class GarageScreen {
   reset() {
     this.ui = { tab: 'parts', area: null, view: 'overview', panel: null, socket: null, candidate: null, filter: 'all', sort: 'performance', expanded: 'power', paintEdit: null, dyno: { t: null, overlay: null }, dialog: null, pop: null, toast: null, labels: this.ui?.labels ?? 'hover', wheelCorner: 'FL',
       inv: this.ui?.inv ?? { cat: 'all', filter: 'all', sort: 'name', q: '', open: null, view: 'parts', picked: [] }, shop: this.ui?.shop ?? { cat: 'all', fits: true, sort: 'category', q: '', section: 'parts', brand: 'all', tier: 'all', band: 'all' }, dmg: { problem: null, zone: null },
-      confirm: null, renaming: null, fields: {}, dealer: this.ui?.dealer ?? { carId: null, paint: null, lot: 'new', used: null } };
+      confirm: null, renaming: null, fields: {}, slotQ: '', dealer: this.ui?.dealer ?? { carId: null, paint: null, lot: 'new', used: null } };
     this.preview = null; this.dynoShown = null; this.ghosting = null; this.tuneBase = null;
   }
   set workshop(w) {
@@ -200,7 +202,7 @@ export class GarageScreen {
       this.#top(), wide || tab === 'dealer' ? '' : this.#banner(), wide || tab === 'dealer' ? '' : this.#rail(),
       `<div class="g-cam">CAM · ${esc(this.#camLabel())}</div>`,
       this.#corners(),
-      tab === 'parts' && !this.ui.panel ? `<div class="g-hint">DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A MARKER TO OPEN ITS SLOT</div>` : '',
+      tab === 'parts' && !this.ui.panel ? `<div class="g-hint">${esc(t('garage.slots.hint'))}</div>` : '',
       showStrip ? this.#strip() : '',
       this.#side(),
       tab === 'dyno' ? this.#dyno() : '',
@@ -324,6 +326,7 @@ export class GarageScreen {
       <div class="areas panel a90"><div class="label">Focus area</div>
         ${AREAS.map(a => item(a.id, a.label, a.icon, socks.filter(s => s.area === a.id && !s.system), this.ui.area === a.id && this.ui.panel !== 'systems')).join('')}
         <div class="sep"></div>
+        ${item('all', esc(t('garage.slots.all')), 'format_list_bulleted', socks, this.ui.panel === 'list' && !this.ui.area)}
         ${item('systems', 'Systems', 'settings_suggest', socks.filter(s => s.system), this.ui.panel === 'systems')}
       </div>
       <div class="legend panel a90"><div class="label">Condition</div>
@@ -362,6 +365,7 @@ export class GarageScreen {
     if (this.ui.panel === 'socket') return this.#partsPanel();
     if (this.ui.panel === 'compare') return this.#comparePanel();
     if (this.ui.panel === 'systems') return this.#systemsPanel();
+    if (this.ui.panel === 'list') return this.#slotList();
     return '';
   }
 
@@ -377,9 +381,14 @@ export class GarageScreen {
         <div class="side"><span class="badge ${conditionClass(s.condition)}">${conditionWord(s.condition, s.part)} · ${Math.round(s.condition)}%${dents ? ` · dented` : ''}${broken ? ` · damaged` : ''}</span>
           <button class="btn ghost bar" style="height:30px;padding:0 10px;font-size:14px!important" data-act="takeoff" data-key="takeoff">${icon('logout', 'style="font-size:18px"')}Take off</button></div></div>`
       : `<div class="row empty"><div class="thumb">${icon('block', 'style="font-size:26px"')}</div><div class="info"><div class="name">Empty</div><div class="secondary-text">${s.required ? "The car can't be driven without one." : 'Nothing fitted here.'}</div></div></div>`;
+    const order = this.#slotOrder(), at = order.indexOf(s.name), inArea = order.filter(n => this.socket(n)?.area === s.area), atArea = inArea.indexOf(s.name);
     return `<section class="g-side panel">
-      <div class="panel-head"><div class="grow"><div class="label">${esc(area)} / ${esc(s.def.slot.replace(/_/g, ' '))}</div><div class="panel-title">${esc(s.label)}</div></div>
-        <button class="icon-btn flat" data-act="close" data-key="close" title="Close">${icon('close', 'style="font-size:22px"')}</button></div>
+      <div class="panel-head"><div class="grow"><div class="label">${esc(area)} / ${esc(s.def.slot.replace(/_/g, ' '))}${atArea >= 0 ? ` · ${esc(t('garage.slots.of', { n: atArea + 1, count: inArea.length }))}` : ''}</div><div class="panel-title">${esc(s.label)}</div></div>
+        <div class="g-step">
+          <button class="icon-btn flat" data-act="step:-1" data-key="step-prev" title="${esc(t('garage.slots.prev'))}" ${at < 0 ? 'disabled' : ''}>${icon('chevron_left', 'style="font-size:24px"')}</button>
+          <button class="icon-btn flat" data-act="step:1" data-key="step-next" title="${esc(t('garage.slots.next'))}" ${at < 0 ? 'disabled' : ''}>${icon('chevron_right', 'style="font-size:24px"')}</button>
+        </div>
+        <button class="icon-btn flat" data-act="close" data-key="close" title="${esc(t('garage.slots.backToList'))}">${icon('close', 'style="font-size:22px"')}</button></div>
       <div class="panel-body" data-scroll="socket:${s.name}">
         <div class="label">Installed</div>${installed}
         <div class="section-head"><div class="label">Compatible parts · ${list.length}</div>
@@ -527,6 +536,46 @@ export class GarageScreen {
           <span class="sp">${esc(s.part?.name ?? 'Empty slot')}</span><span class="sv" style="color:${condColour(s.condition)}">${s.condition == null ? '—' : Math.round(s.condition) + '%'}</span>${icon('chevron_right', 'style="color:var(--c-text-3)"')}</button>`).join('')}</div></div>`).join('')}</div>
       <div class="panel-foot"><div style="flex:1" class="secondary-text">${needTotal ? `${needTotal} ${needTotal > 1 ? 'things need' : 'thing needs'} attention` : 'Every system is in good order'}</div>
         ${this.#repairAllButton()}</div></section>`;
+  }
+  // ---------- every slot as a list (an area's, or all of them): nothing on the car in the way ----------
+  // An area's slots grouped (the wheels by corner, the sides by side; elsewhere what's on show, then what's under the skin),
+  // or every area's; the search keeps the slots whose name, part or kind has every word typed
+  #slotGroups(area, q = '') {
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const match = s => !words.length || words.every(x => `${s.label} ${s.part?.name ?? ''} ${s.def.slot.replace(/_/g, ' ')} ${this.area(s.area)?.label ?? ''}`.toLowerCase().includes(x));
+    const socks = this.sockets().filter(match);
+    if (!area) { const keep = new Set(socks.map(x => x.name)); return AREAS.map(a => ({ id: a.id, title: a.label, rows: this.#slotGroups(a.id).flatMap(g => g.rows).filter(r => keep.has(r.name)) })).filter(g => g.rows.length); }
+    const mine = socks.filter(s => s.area === area);
+    const FOCUS = { wheel_FL: 'Front left', wheel_FR: 'Front right', wheel_RL: 'Rear left', wheel_RR: 'Rear right', side_left: 'Left side', side_right: 'Right side' };
+    const groups = area === 'wheels' || area === 'sides'
+      ? Object.keys(FOCUS).map(f => ({ id: f, title: FOCUS[f], rows: mine.filter(s => s.def.focus === f) }))
+      : [{ id: 'shown', title: t('garage.slots.onShow'), rows: mine.filter(s => !s.system) }, { id: 'hidden', title: t('garage.slots.hidden'), rows: mine.filter(s => s.system) }];
+    // (anything the groups above missed, so every slot is somewhere)
+    const placed = new Set(groups.flatMap(g => g.rows)), rest = mine.filter(s => !placed.has(s));
+    if (rest.length) groups.push({ id: 'other', title: t('garage.slots.other'), rows: rest });
+    return groups.filter(g => g.rows.length);
+  }
+  // every slot in the order the lists show them, area after area (what the arrows step through)
+  #slotOrder() {
+    const order = this.#slotGroups(null).flatMap(g => g.rows.map(s => s.name)), seen = new Set(order);
+    return [...order, ...this.sockets().filter(s => !seen.has(s.name)).map(s => s.name)];
+  }
+  #slotList() {
+    const area = this.ui.listAll ? null : this.ui.area, groups = this.#slotGroups(area, this.ui.slotQ), count = groups.reduce((a, g) => a + g.rows.length, 0);
+    const need = rows => rows.filter(s => (s.condition != null && s.condition < 70) || (s.required && s.empty)).length;
+    return `<section class="g-side panel">
+      <div class="panel-head"><div class="grow"><div class="label">${esc(area ? t('garage.slots.area') : t('garage.slots.everyArea'))}</div><div class="panel-title">${esc(area ? this.area(area)?.label ?? '' : t('garage.slots.all'))}</div></div>
+        <button class="icon-btn flat" data-act="${area ? `area:${area}` : 'area:all'}" data-key="close" title="${esc(t('garage.slots.close'))}">${icon('close', 'style="font-size:22px"')}</button></div>
+      <div class="panel-body" style="gap:14px;padding-top:14px" data-scroll="list:${area ?? 'all'}">
+        <label class="g-search">${icon('search')}<input class="g-input" type="text" placeholder="${esc(t('garage.slots.search'))}" data-field="slots.q" data-key="slots-q" value="${esc(this.ui.slotQ)}" aria-label="${esc(t('garage.slots.search'))}"></label>
+        ${count ? groups.map(g => `<div class="g-sys-group">
+          <div class="gh"><span class="gn">${esc(g.title)}</span><span class="secondary-text" style="font-size:13px;color:var(--c-text-3)">${esc(need(g.rows) ? t('garage.slots.need', { n: need(g.rows) }) : t('garage.slots.count', { n: g.rows.length }))}</span></div>
+          <div class="rows well">${g.rows.map(s => `<button class="g-sys-row" data-act="open:${s.name}" data-hover="${s.name}" data-key="slot:${s.name}">
+            <span class="dot ${s.empty ? 'empty' : ''}" style="${s.empty ? (s.required ? 'border-color:var(--c-bad)' : '') : `background:${condColour(s.condition)}`}"></span><span class="sn">${esc(s.label)}</span>
+            <span class="sp">${esc(s.part?.name ?? (s.required ? t('garage.slots.emptyNeeded') : t('garage.slots.empty')))}</span>${s.system ? `<span class="secondary-text" title="${esc(t('garage.slots.hiddenTip'))}">${icon('visibility_off', 'style="font-size:16px;color:var(--c-text-3)"')}</span>` : ''}<span class="sv" style="color:${condColour(s.condition)}">${s.condition == null ? '—' : Math.round(s.condition) + '%'}</span>${icon('chevron_right', 'style="color:var(--c-text-3)"')}</button>`).join('')}</div></div>`).join('')
+          : `<div class="empty-list">${esc(t('garage.slots.none'))}</div>`}
+      </div>
+      <div class="panel-foot"><div style="flex:1" class="secondary-text">${esc(t('garage.slots.tip'))}</div></div></section>`;
   }
   // (the body shell: the car itself, without its parts — its crash damage, and repairing it)
   #bodyRow() {
@@ -1126,7 +1175,7 @@ export class GarageScreen {
       if (!el) { el = document.createElement('button'); el.className = 'g-marker'; el.dataset.act = `marker:${s.name}`; el.dataset.key = `marker:${s.name}`; this.markersEl.appendChild(el); this.markerEls.set(s.name, el); }
       const sel = this.ui.socket === s.name && this.ui.panel;
       const colour = s.empty ? (s.required ? 'var(--c-bad)' : 'var(--c-accent)') : condColour(s.condition);
-      el.classList.toggle('sel', !!sel);
+      el.classList.toggle('sel', !!sel); delete el.dataset.tw;
       el.innerHTML = (s.empty ? `<span class="m empty ${s.required ? 'required' : ''}" style="box-shadow:0 0 0 ${sel ? 6 : 0}px rgba(54,179,245,0.25)">+</span>`
         : `<span class="m filled" style="background:${colour};box-shadow:0 0 0 ${sel ? 6 : 4}px color-mix(in srgb, ${colour} ${sel ? 45 : 25}%, transparent)"></span>`)
         + `<span class="tag"><span>${esc(s.label)}</span>${s.empty ? '' : `<span class="pn">${esc(s.part.name)}</span>`}<span class="tv" style="color:${colour}">${s.empty ? 'Empty' : `${Math.round(s.condition)}%`}</span></span>`;
@@ -1139,14 +1188,47 @@ export class GarageScreen {
     const area = this.ui.area, zoomedOut = this.scene.zoomedOut, w = innerWidth, h = innerHeight, view = this.ui.view;
     const byName = new Map(this.sockets().map(s => [s.name, s])), I = this.#insets(this.#scale());
     const oneOf = area === 'wheels' || area === 'sides';     // (only the corner / side the camera's on)
+    const shown = [];
     for (const [name, el] of this.markerEls) {
       const s = byName.get(name), p = s && this.scene.socketOnScreen(s, w, h);
-      const inArea = area ? s.area === area && (!oneOf || s.def.focus === view) : false, sel = this.ui.socket === name;
+      const inArea = area ? s.area === area && (!oneOf || s.def.focus === view) : false, sel = this.ui.socket === name, lit = this.hover === name;
       const clear = p && p.x > I.left + 8 && p.x < w - I.right - 8 && p.y > I.top + 8 && p.y < h - I.bottom - 8;
-      const visible = p && p.visible && clear && !this.scene.busy && (sel || ((zoomedOut || inArea) && p.facing));
+      const visible = p && p.visible && clear && !this.scene.busy && (sel || lit || ((zoomedOut || inArea) && p.facing));
       el.style.display = visible ? '' : 'none';
-      el.classList.toggle('labelled', inArea && !zoomedOut);
-      if (visible) { el.style.transform = `translate(${(p.x - 9).toFixed(1)}px, ${(p.y - 9).toFixed(1)}px)`; el.style.zIndex = String(1000 - Math.round(p.depth * 10)); }
+      el.classList.toggle('lit', lit);
+      if (visible) shown.push({ el, x: p.x, y: p.y, x0: p.x, y0: p.y, z: sel || lit ? 3000 : 1000 - Math.round(p.depth * 10), pinned: sel || lit, label: inArea && !zoomedOut });
+      else el.classList.remove('labelled');
+    }
+    // (markers close together pushed apart so each can be clicked: a few rounds of nudging any two nearer than GAP,
+    // the selected or lit one staying put, none moved more than SPREAD from its place)
+    const GAP = 24, SPREAD = 40;
+    for (let round = 0; round < 6; round++) {
+      let moved = false;
+      for (let i = 0; i < shown.length; i++) for (let j = i + 1; j < shown.length; j++) {
+        const a = shown[i], b = shown[j];
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= GAP) continue;
+        if (d < 0.01) { const t = (i * 7 + j * 13) % 360 * Math.PI / 180; dx = Math.cos(t); dy = Math.sin(t); d = 1; }
+        const push = (GAP - d) / 2, ux = dx / d, uy = dy / d, ka = a.pinned ? 0 : b.pinned ? 2 : 1, kb = b.pinned ? 0 : a.pinned ? 2 : 1;
+        a.x -= ux * push * ka; a.y -= uy * push * ka; b.x += ux * push * kb; b.y += uy * push * kb;
+        moved = true;
+      }
+      for (const m of shown) { const ox = m.x - m.x0, oy = m.y - m.y0, o = Math.hypot(ox, oy); if (o > SPREAD) { m.x = m.x0 + ox / o * SPREAD; m.y = m.y0 + oy / o * SPREAD; } }
+      if (!moved) break;
+    }
+    // (and a name beside each only where it has room: nearest first, none over another's — the rest show theirs when
+    // pointed at, and every one is in the slot list)
+    const placed = [];
+    for (const m of [...shown].sort((a, b) => b.z - a.z)) {
+      let on = m.label;
+      if (on) {
+        const wd = Number(m.el.dataset.tw) || (m.el.dataset.tw = String(Math.max(60, (m.el.querySelector('.tag')?.textContent.length ?? 10) * 7.2 + 24)));
+        const box = [m.x + 12, m.y - 12, m.x + 12 + Number(wd), m.y + 12];
+        on = !placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]) && !shown.some(o => o !== m && o.x > box[0] - 9 && o.x < box[2] && o.y > box[1] - 9 && o.y < box[3] + 9);
+        if (on) placed.push(box);
+      }
+      m.el.classList.toggle('labelled', on);
+      m.el.style.transform = `translate(${(m.x - 9).toFixed(1)}px, ${(m.y - 9).toFixed(1)}px)`; m.el.style.zIndex = String(m.z);
     }
   }
 
@@ -1159,12 +1241,17 @@ export class GarageScreen {
       if (!b || !this.root.contains(b) || b.disabled || !b.dataset.act) return;
       this.act(b.dataset.act, b);
     });
+    // (a slot's row in a list, under the pointer or the keyboard's focus: its marker on the car lit up, wherever it is)
+    const hover = e => { const r = e.target.closest?.('[data-hover]'), name = r && this.root.contains(r) ? r.dataset.hover : null; if (name !== this.hover) { this.hover = name; this.updateMarkers(); } };
+    this.root.addEventListener('pointerover', hover); this.root.addEventListener('focusin', hover);
+    this.root.addEventListener('pointerleave', () => { if (this.hover) { this.hover = null; this.updateMarkers(); } });
     addEventListener('pointerdown', e => { if (this.visible && this.ui.pop && e.target?.id === 'garage-canvas') { this.ui.pop = null; this.ui.renaming = null; this.render(); } }, true);
     // text boxes: what's typed is kept (the screen is redrawn often); the searches filter as you type
     this.root.addEventListener('input', e => {
       const f = e.target.dataset?.field;
       if (!f) return;
       if (f === 'inv.q') { this.ui.inv.q = e.target.value; this.render(); }
+      else if (f === 'slots.q') { this.ui.slotQ = e.target.value; this.render(); }
       else if (f.startsWith('shop.')) { this.ui.shop[f.slice(5)] = e.target.value; this.render(); }
       else this.ui.fields[f] = e.target.value;
     });
@@ -1209,6 +1296,7 @@ export class GarageScreen {
         return;
       }
       if (e.key === 'Escape') { e.preventDefault(); this.back(); }
+      else if ((e.key === '[' || e.key === ']') && this.ui.tab === 'parts' && (this.ui.panel === 'socket' || this.ui.panel === 'compare')) { e.preventDefault(); this.stepSlot(e.key === ']' ? 1 : -1); }
       else if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('#garage-root [role="button"]')) { e.preventDefault(); e.target.click(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); this.act(e.shiftKey ? 'redo' : 'undo'); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); this.act('redo'); }
@@ -1222,9 +1310,11 @@ export class GarageScreen {
     const failed = r => { if (r && !r.ok) { this.toast(this.#words(r.error ?? "That didn't work"), 'error', 'bad'); return true; } return !r; };
     switch (cmd) {
       case 'tab': return this.setTab(arg);
-      case 'area': return arg === 'systems' ? this.openSystems() : this.setArea(arg);
+      case 'area': return arg === 'systems' ? this.openSystems() : arg === 'all' ? this.openList() : this.setArea(arg);
       case 'marker': case 'open': case 'goto': return this.openSocket(arg);
-      case 'close': this.ui.panel = null; this.ui.socket = null; this.ui.candidate = null; this.scene.clearGhost(); this.scene.setSeeThrough(false); return this.render();
+      // (a slot's panel closed: back to the list it was picked from — its area's, or all of them)
+      case 'close': this.ui.panel = (this.ui.panel === 'socket' || this.ui.panel === 'compare') && (this.ui.area || this.ui.listAll) ? 'list' : null; this.ui.socket = null; this.ui.candidate = null; this.scene.clearGhost(); this.scene.setSeeThrough(false); return this.render();
+      case 'step': return this.stepSlot(Number(arg));
       case 'back': return this.back();
       case 'pick': return this.pick(arg);
       case 'takeoff': this.ui.candidate = 'remove'; this.preview = w.previewRemove(this.ui.socket); this.ui.panel = 'compare'; this.scene.clearGhost(); return this.render();
@@ -1584,17 +1674,33 @@ export class GarageScreen {
   }
   setArea(id) {
     this.ui.tab = 'parts';
-    if (this.ui.area === id && this.ui.panel !== 'systems') { this.ui.area = null; this.ui.panel = null; this.#view('overview'); }
-    else { this.ui.area = id; this.ui.panel = null; this.#view(this.#areaView(id)); }
-    this.ui.socket = null; this.scene.clearGhost(); this.scene.setSeeThrough(false);
+    if (this.ui.area === id && this.ui.panel !== 'systems' && !this.ui.listAll) { this.ui.area = null; this.ui.panel = null; this.#view('overview'); }
+    else { this.ui.area = id; this.ui.panel = 'list'; this.#view(this.#areaView(id)); }
+    this.ui.listAll = false; this.ui.socket = null; this.scene.clearGhost(); this.scene.setSeeThrough(false);
     this.render();
   }
   #areaView(id) { return id === 'wheels' ? `wheel_${this.ui.wheelCorner}` : id === 'sides' ? 'side_left' : id === 'underside' ? 'underbody' : id; }
   #view(v) { this.ui.view = v; this.scene.focus(v); }
   openSystems() {
-    this.ui.tab = 'parts'; this.ui.panel = 'systems'; this.ui.area = null; this.ui.socket = null;
+    this.ui.tab = 'parts'; this.ui.panel = 'systems'; this.ui.area = null; this.ui.socket = null; this.ui.listAll = false;
     this.scene.clearGhost(); this.#view('systems'); this.scene.setSeeThrough(true);
     this.render();
+  }
+  // every slot on the car in one list (the rail's "All parts"), with a search
+  openList() {
+    this.ui.tab = 'parts';
+    if (this.ui.panel === 'list' && this.ui.listAll) { this.ui.panel = null; this.ui.listAll = false; this.#view('overview'); return this.render(); }
+    this.ui.panel = 'list'; this.ui.listAll = true; this.ui.area = null; this.ui.socket = null;
+    this.scene.clearGhost(); this.scene.setSeeThrough(false); this.#view('overview');
+    this.render();
+  }
+  // the slot before or after this one, through every focus area in turn (the slot panel's arrows; [ and ])
+  stepSlot(dir) {
+    const order = this.#slotOrder(), i = order.indexOf(this.ui.socket);
+    if (!order.length) return;
+    const listAll = this.ui.listAll;
+    this.openSocket(order[i < 0 ? 0 : (i + dir + order.length) % order.length]);
+    this.ui.listAll = listAll;
   }
   openSocket(name) {
     const s = this.socket(name);
@@ -1629,6 +1735,7 @@ export class GarageScreen {
     if (this.ui.dialog) { this.ui.dialog = null; return this.render(); }
     if (this.ui.pop) { this.ui.pop = null; this.ui.renaming = null; return this.render(); }
     if (this.ui.panel === 'compare') { this.ui.panel = 'socket'; this.ui.candidate = null; this.scene.clearGhost(); return this.render(); }
+    if (this.ui.panel === 'list') return this.ui.listAll ? this.openList() : this.setArea(this.ui.area);
     if (this.ui.panel) return this.act('close');
     if (this.ui.tab !== 'parts') return this.setTab('parts');
     if (this.ui.area) return this.setArea(this.ui.area);
