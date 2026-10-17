@@ -70,6 +70,23 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
   let blend = null;                     // a correction under way: from the path shown { t0, T, p0, v0, q0, w0 } to the real one
   const stats = { lagP50: 0, lagP95: 0, bufferMs: I.startBufferMs, delayMs: 0, corrections: 0, maxCorrectionCm: 0, extrapolatedMs: 0, states: 0 };
 
+  // (how far the car really went between states j-1 and j against how fast it says it was going: a sender whose game
+  // can't keep up — its physics running slower than real time — or whose stamps are being steered onto the server's
+  // clock (just after joining) covers 5–15% less or more ground between states than its speed says. Not at a crawl, nor
+  // over a gap or a sparse far-away car's long steps)
+  const stepPace = j => {
+    const x = buf[j - 1], y = buf[j];
+    if (!x || !y) return null;
+    const span = (y.time - x.time) / 1000, said = (v3.len(x.vel) + v3.len(y.vel)) / 2;
+    if (span < 0.01 || span > 0.15 || said < 2) return null;
+    // (a few percent either way is nothing to go on — whole-ms stamps, and a curve's arc a touch longer than its chord:
+    // left as it says; a real mismatch, 5% and more, taken in full, eased in between)
+    const r = Math.max(0.75, Math.min(1.33, v3.len(v3.sub(y.pos, x.pos)) / (said * span))), w = Math.min(1, Math.max(0, (Math.abs(r - 1) - 0.02) / 0.04));
+    return 1 + (r - 1) * w * w * (3 - 2 * w);
+  };
+  // the pace at state j: the steps either side of it, as there are (so the curve's speed carries on through the state)
+  const paceAt = j => { const l = stepPace(j), r = stepPace(j + 1); return l != null && r != null ? (l + r) / 2 : l ?? r ?? 1; };
+
   // the car's state at room time t from the states alone (no blending)
   function raw(t) {
     const n = buf.length;
@@ -88,10 +105,11 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       // position: a Hermite curve through both, with their velocities as its tangents (smooth, follows the
       // car's real path through corners, unlike a straight line between points)
       const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
-      // (the tangents no longer than the positions bear out: a sender whose game can't keep up — its physics running
-      // slower than real time — sends speeds its positions don't match, and full tangents would overshoot and wobble)
-      const chord = v3.len(v3.sub(b.pos, a.pos)), lim = (v) => { const l = v3.len(v) * span; return l > 1e-6 ? Math.min(1, 1.25 * chord / l) : 1; };
-      const ta = span * lim(a.vel), tb = span * lim(b.vel);
+      // (the tangents as long as the positions bear out — the speed at each state's pace: at the speed it says, a car
+      // whose positions don't match it overshoots and catches up within every step, a wobble — and never longer than
+      // that by much, a sender far behind included)
+      const chord = v3.len(v3.sub(b.pos, a.pos)), lim = (v, k) => { const l = v3.len(v) * k * span; return l > 1e-6 ? k * Math.min(1, 1.25 * chord / l) : k; };
+      const ta = span * lim(a.vel, paceAt(i - 1)), tb = span * lim(b.vel, paceAt(i));
       const pos = [0, 1, 2].map(k => h00 * a.pos[k] + h10 * ta * a.vel[k] + h01 * b.pos[k] + h11 * tb * b.vel[k]);
       const near = u < 0.5 ? a : b, L = (x, y) => x + (y - x) * u;
       return {
@@ -104,6 +122,9 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     // past the newest: predicted ahead from it, for a while; then easing to a stop
     let s = buf[n - 1];
     const prev = buf[n - 2];
+    // (at its pace, as between states)
+    const k = paceAt(n - 1);
+    if (k !== 1) s = { ...s, vel: v3.scale(s.vel, k), ang: v3.scale(s.ang, k) };
     // (its speed as its positions show it, if that's well below what it says: a sender whose game can't keep up
     // reports its physics' speed, but covers less ground a real second — predicting at the reported speed would
     // overshoot, then pull back)
@@ -114,7 +135,7 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     const ahead = (t - s.time) / 1000, cap = I.maxExtrapolateMs / 1000, d = Math.min(ahead, cap);
     let acc = [0, 0, 0];
     // (a change far quicker than any car accelerates or brakes by itself is a knock — over: its new speed carries on)
-    if (prev && s.time > prev.time) { acc = v3.scale(v3.sub(s.vel, prev.vel), 1000 / (s.time - prev.time)); const l = v3.len(acc); if (l > A_KNOCK) acc = [0, 0, 0]; else if (l > A_MAX) acc = v3.scale(acc, A_MAX / l); }
+    if (prev && s.time > prev.time) { acc = v3.scale(v3.sub(s.vel, v3.scale(prev.vel, k)), 1000 / (s.time - prev.time)); const l = v3.len(acc); if (l > A_KNOCK) acc = [0, 0, 0]; else if (l > A_MAX) acc = v3.scale(acc, A_MAX / l); }
     // (the acceleration fades over the prediction: a car braking into a corner doesn't reverse)
     const fade = Math.max(0, 1 - d / (2 * cap));
     let pos = v3.add(s.pos, v3.add(v3.scale(s.vel, d), v3.scale(acc, 0.5 * d * d * fade)));
