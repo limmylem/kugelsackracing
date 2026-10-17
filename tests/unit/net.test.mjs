@@ -147,6 +147,27 @@ test('a car whose sender stalls, then carries on: eased back onto its path, neve
   }
 });
 
+test('a sender whose game draws 9 frames a second (its physics capped at 8 steps a frame: its car covers 50–70% of the ground its speed says), over the target bad network: no snaps', () => {
+  for (let seed = 1; seed <= 4; seed++) {
+    let r0 = seed * 7919; const rnd = () => (r0 = (r0 * 16807) % 2147483647) / 2147483647;
+    const R = createRemote({ interp: NET.interp, sendHz: 30 }), M = createSmoothness({ snapCm: NET.interp.snapCm }), rad = 60, speed = 20;
+    const pending = []; let real = 0, dist = 0, lastArr = 0;
+    while (real < 20000) {
+      const f = 90 + rnd() * 50 + (rnd() < 0.05 ? 150 : 0); real += f; dist += speed * Math.min(f, 1000 / 120 * 8) / 1000;
+      const a = dist / rad, s = { time: Math.round(real), pos: [rad * Math.sin(a), 0, rad * Math.cos(a)], vel: [speed * Math.cos(a), 0, -speed * Math.sin(a)], rot: [0, Math.sin(-a / 2), 0, Math.cos(-a / 2)], ang: [0, -speed / rad, 0], steer: 0, throttle: 1, brake: 0, gear: 2, rpm: 3000, wheels: [], flags: 0 };
+      // (a WebSocket: in order; a loss stalls the stream about a round trip)
+      lastArr = Math.max(lastArr, s.time + 150 + rnd() * 30 + (rnd() < 0.05 ? 300 : 0)); pending.push([lastArr, s]);
+    }
+    let k = 0;
+    for (let now = 0; now < 20000; now += 1000 / 60) {
+      while (k < pending.length && pending[k][0] <= now) { R.push(pending[k][1], pending[k][0]); k++; }
+      const p = R.sample(now, 1 / 60); if (p) M.frame(p, 1 / 60);
+    }
+    const r = M.result();
+    assert.equal(r.snaps, 0, `seed ${seed}: ${JSON.stringify(r.notes[0])}`);
+  }
+});
+
 test('a bot drives its line smoothly, side by side with an offset', () => {
   const D = createRouteDriver(testLoop(), { offset: 3 });
   let prev = null, worst = 0;

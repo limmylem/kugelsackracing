@@ -35,6 +35,9 @@ export function cleanChat(text: string, maxLength = 200): string {
   const t = String(text ?? '').normalize('NFKC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
   return t ? censor.applyTo(t, matcher.getAllMatches(t)) : '';
 }
+// (the roadmap's ideas, docs/ROADMAP.md) does a player's text have words the filter matches? (refused, not starred:
+// an admin reads every idea before anyone else does)
+export const rudeText = (text: string) => { const t = String(text ?? '').normalize('NFKC'); return matcher.hasMatch(t) || matcher.hasMatch(unLeet(t)); };
 // a name from a social profile, made to fit (or a racer's name, if it can't be)
 export function nameFromProfile(raw: string | null | undefined): string {
   const cleaned = (raw ?? '').normalize('NFKC').replace(/[^\p{L}\p{N}_.\- ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, LIMITS.displayName.max - 5).trim();

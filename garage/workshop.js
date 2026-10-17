@@ -289,7 +289,7 @@ export class Workshop {
         set: n, price: o.price * n, sale: owned ? null : o.sale, affordable: owned || this.money >= o.price * n,
         locked, blockers: trial.ok ? trial.result.ops.filter(o => o.op === 'remove' && o.socket !== socketName && !this.#sameGroup(o.socket, socketName)).map(o => o.socket) : [],
         gain: after ? gains(before, after) : [], ratingChange: after?.totals?.rating && before.totals?.rating ? after.totals.rating.index - before.totals.rating.index : 0,
-        ratingExact: after?.totals?.rating && before.totals?.rating ? after.totals.rating.exact - before.totals.rating.exact : 0, massChange: after ? after.spec.mass - before.spec.mass : 0 });
+        ratingExact: after?.totals?.rating && before.totals?.rating ? after.totals.rating.exact - before.totals.rating.exact : 0, massChange: after?.spec && before.spec ? after.spec.mass - before.spec.mass : 0 });
     };
     for (const [partId, list] of spares) { list.sort((a, b) => b.condition - a.condition); consider(this.db.parts[partId], list[0], list.length); }
     // (the shop's: parts the player has no spare of — or not enough for a set)

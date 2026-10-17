@@ -29,6 +29,9 @@
 <body>
 <script type="module">
   import * as garage from './garage/garage.js';
+  import { setLanguage } from './ui/i18n.js';
+  // (the game's words, as the game page loads them)
+  await setLanguage('auto').catch(e => console.warn(e));
   const q = new URLSearchParams(location.search);
   window.garageWorld = garage.debug;
   await garage.enter({ leave: () => {}, testDrive: () => { location.href = 'dev/world.html?world=test_centre&back=garage'; } });

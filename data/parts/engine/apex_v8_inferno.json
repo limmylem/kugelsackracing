@@ -1,0 +1,193 @@
+{
+  "id": "apex_v8_inferno",
+  "name": "6.2 L twin-turbo V8 Inferno (Apex V8)",
+  "category": "engine",
+  "slot": "engine",
+  "kind": "component",
+  "price": 18000,
+  "mass": 222.8,
+  "model": "assets/parts/stock/apex_v8/apex_v8_engine.glb",
+  "icon": "assets/icons/parts/apex_v8_inferno.png",
+  "fits": [
+    "engine_bay:mid",
+    [
+      "car:apex_v8",
+      "engine_swap:apex_tt8"
+    ]
+  ],
+  "requires": [
+    "clutch_rating:triple",
+    "gearbox:uprated",
+    "cooling:uprated"
+  ],
+  "conflicts": [],
+  "provides": [
+    "engine_family:apex_tt8",
+    "engine_layout:v8",
+    "induction:turbo",
+    "intake_flange:std",
+    "exhaust_flange:std"
+  ],
+  "_note": "The Apex V8's engine, built out to the limit: stroked and bored to 6.2 L, forged throughout, and two huge turbos at 3 bar. Lazy below 4,000 rpm while they spool, then a wall of torque from 5,000: 1,526 N\u00b7m from 5,500 to 7,000 rpm and about 1,542 hp (the stock engine: 580 N\u00b7m, about 570 hp), in the same bay and on the same mounts (the Apex's own engine model). On the Apex: 0\u2013100 km/h in 4.0 s, the quarter mile in 10.5 s, 380 km/h flat out (stock: 3.6 s, 11.2 s, 329 km/h). As much as the Apex's rear tyres can take: at 1,900 N\u00b7m it spun at 260 km/h on the straight, using all their grip to push and none to hold the tail; 1,700 still held, so this keeps a margin. It needs the triple-plate clutch, an uprated gearbox and an uprated radiator fitted first. Its mass and price from the engine formulas (data/content/formulas.json engines: 6.2 L, turbo, 3 bar); the curve shaped by hand for the turbos' lag, which also lets the car pull away cleanly; the redline 8,300 (the twin-turbo V8 sound reaches 8,568 rpm).",
+  "massOffset": [
+    0,
+    0.18,
+    0
+  ],
+  "tier": "race",
+  "unlock": {
+    "level": 9
+  },
+  "bounds": {
+    "min": [
+      -0.375,
+      -0.0458,
+      -0.4062
+    ],
+    "max": [
+      0.375,
+      0.5042,
+      0.2938
+    ]
+  },
+  "status": "draft",
+  "engineSpec": {
+    "layout": "v",
+    "cylinders": 8,
+    "displacement": 6.2,
+    "aspiration": "turbo",
+    "boost": 3,
+    "mounts": [
+      "mid"
+    ],
+    "bay": "large",
+    "peakTorque": 1526,
+    "peakPower": 1542,
+    "words": "6.2 L twin-turbo V8"
+  },
+  "engine": {
+    "torqueCurve": [
+      [
+        1000,
+        304
+      ],
+      [
+        2000,
+        352
+      ],
+      [
+        3000,
+        416
+      ],
+      [
+        4000,
+        560
+      ],
+      [
+        5000,
+        1040
+      ],
+      [
+        5500,
+        1526
+      ],
+      [
+        7000,
+        1526
+      ],
+      [
+        7800,
+        1408
+      ],
+      [
+        8300,
+        1280
+      ],
+      [
+        8700,
+        1104
+      ]
+    ],
+    "idleRpm": 1000,
+    "redlineRpm": 8300,
+    "inertia": 0.249,
+    "induction": "turbo",
+    "cylinders": 8,
+    "sound": "data/sounds/engines/v8_tt.json",
+    "friction": {
+      "base": 28.52,
+      "perKrpm": 14.26,
+      "perKrpm2": 1.6542
+    },
+    "idle": {
+      "gain": 0.002,
+      "maxThrottle": 0.3
+    },
+    "limiter": {
+      "hysteresis": 150
+    },
+    "overRev": {
+      "valveFloat": 0.02,
+      "bentValves": 0.1,
+      "blown": 0.25,
+      "floatWear": 5,
+      "bendTime": 0.05,
+      "bentLoss": 40,
+      "bentWear": 15,
+      "blowTime": 0.03,
+      "misfireBelow": 70,
+      "misfire": 0.35,
+      "drag": 0.2
+    },
+    "turbo": {
+      "boost": [
+        [
+          1000,
+          0.15
+        ],
+        [
+          3000,
+          0.5
+        ],
+        [
+          4000,
+          1.2
+        ],
+        [
+          5000,
+          2.4
+        ],
+        [
+          5500,
+          3
+        ],
+        [
+          7000,
+          3
+        ],
+        [
+          8300,
+          2.6
+        ]
+      ],
+      "efficiency": 0.85,
+      "sound": {
+        "whistle": {
+          "fromHz": 2400,
+          "toHz": 7800,
+          "gain": 0.055,
+          "noise": 0.35,
+          "q": 12,
+          "spoolUp": 0.5,
+          "spoolDown": 0.35
+        },
+        "blowoff": {
+          "kind": "valve",
+          "gain": 0.05,
+          "hz": 2200,
+          "seconds": 0.4
+        }
+      }
+    }
+  }
+}

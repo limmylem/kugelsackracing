@@ -59,6 +59,7 @@ import { moveGuestData, deleteUserData } from './data.ts';
 import { createRoadbookConfig } from './roadbook/config.ts';
 import { createRoadbook } from './roadbook/service.ts';
 import { roadbookRoutes } from './routes/roadbook.ts';
+import { roadmapRoutes } from './routes/roadmap.ts';
 import { createSiteSettings, featureOf, FEATURES, bucketOf } from './ops/settings.ts';
 import { createBotCheck, BOT_CHECKED, type BotCheck } from './abuse/botCheck.ts';
 import { createSignals, scanForAbuse } from './abuse/detect.ts';
@@ -472,6 +473,7 @@ export async function buildApp(deps: AppDeps) {
     await adminDevlogRoutes(api, { devlog, G });
     await launchRoutes(api, { db, economy, G, authSecret: config.authSecret, badges: id => roadbook.badges(id) });
     await roadbookRoutes(api, { db, roadbook, config: roadbookConfig, G, env: config.env });
+    await roadmapRoutes(api, { db, G });
     await abuseRoutes(api, { db, auth, G, rules: config.abuse, rtSecret: config.rtSecret });
     await opsRoutes(api, { config, db, auth, G, mailer, settings: siteSettings, metrics, health: () => healthNow(db, opened?.pool ?? deps.pool, tracks),
       // (sign-ups opened to everyone: the ROADBOOK's season starts, if it was waiting for the beta)

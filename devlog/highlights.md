@@ -93,6 +93,11 @@ The game opens straight into Adelaide
 Expeditions show the way on the road and the map; the Midnight Run is at midnight
 No more sudden stops while the city loads around you
 Other players' cars glide back smoothly after a hiccup, no more jumps
+A Roadmap in the game: see what's coming, vote, and share ideas
+Engines no longer blow up after the city loads at speed
+Wheels stay on when you bump back up from the gutter
+The Apex V8 can take the Inferno: a 1,500 hp twin-turbo V8
+Every garage part is in one easy list: no more markers in the way
 Motorways run in their trenches under Adelaide's bridges, with room to spare
 No more paving floating in the air beside the roads
 Trees near Mount Lofty's summit stand on the ground again

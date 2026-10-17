@@ -589,6 +589,16 @@ export const calendarRsvps = pgTable('calendar_rsvps', {
   eventId: text('event_id').notNull().references(() => calendarEvents.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ name: 'calendar_rsvps_pk', columns: [t.eventId, t.userId] })]);
+// the roadmap: features, bugs and accepted ideas, and the votes for them (docs/ROADMAP.md; migration 0018)
+export const roadmapItems = pgTable('roadmap_items', {
+  id: text('id').primaryKey(), kind: text('kind').notNull(), title: text('title').notNull(), body: text('body').notNull().default(''), status: text('status').notNull(), note: text('note'),
+  authorId: text('author_id').references(() => users.id, { onDelete: 'set null' }), reviewedBy: text('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }), createdAt: created(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('roadmap_items_status').on(t.status, t.createdAt), index('roadmap_items_author').on(t.authorId, t.createdAt)]);
+export const roadmapVotes = pgTable('roadmap_votes', {
+  itemId: text('item_id').notNull().references(() => roadmapItems.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ name: 'roadmap_votes_pk', columns: [t.itemId, t.userId] })]);
 
 // ---------- the ROADBOOK, Expeditions and Season Tokens (docs/ROADBOOK.md; migration 0017) ----------
 const at = (name: string) => timestamp(name, { withTimezone: true });

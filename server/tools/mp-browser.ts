@@ -146,7 +146,7 @@ try {
     watching = false; await watcher; await W.leave();
     const wr = [...watched.entries()].map(([id, m]) => ({ id, moved: watchedMoved.get(id) ?? 0, ...m.result() }));
     check(`${phase}: both browsers' cars, watched at 60 fps by a third player: moving smoothly`, wr.length === 2 && wr.every(r => r.snaps === 0 && r.moved > 3),
-      wr.map(r => `#${r.id}: ${r.frames} frames, moved ${r.moved.toFixed(0)} m, ${r.snaps} snaps (worst ${r.worstJumpCm} cm)`).join(' · '));
+      wr.map(r => `#${r.id}: ${r.frames} frames, moved ${r.moved.toFixed(0)} m, ${r.snaps} snaps (worst ${r.worstJumpCm} cm)${r.snaps ? ` — the first: ${JSON.stringify(r.notes[0])}` : ''}`).join(' · '));
     if (process.env.MP_DEBUG) for (const P of [A, B]) console.log('DBG', P.email, await P.page.evaluate(async () => { const { debug } = await import('/testtrack/test-scene.js'), w = debug.active, v = w.sim.vehicle, p = v.body.translation(); return JSON.stringify({ file: w.file, pos: [p.x.toFixed(1), p.z.toFixed(1)], speed: v.forwardSpeed().toFixed(1), hold: !!w.pinned, spawning: !!w.spawning, focus: document.hasFocus(), vis: document.visibilityState, traceIds: Object.keys((globalThis as any).__krMpTrace), players: (globalThis as any).__krMp.net.players.size }); }));
     const bSawA = await seen(B), aSawB = await seen(A);
     for (const [who, s] of [['Ben sees Ana\'s car', bSawA], ['Ana sees Ben\'s car', aSawB]] as const)

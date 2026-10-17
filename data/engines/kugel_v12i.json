@@ -1,0 +1,17 @@
+{
+  "_note": "An engine (docs/CONTENT_PIPELINE.md): its settings here, its torque curve, mass and size from data/content/formulas.json engines (overrides: torqueCurve, mass, size to set them yourself). npm run content -- build makes its crate engine part, data/parts/engine/crate_<id>.json, and its model.",
+  "id": "kugel_v12i",
+  "maker": "Ognistrada Engines",
+  "layout": "v",
+  "cylinders": 12,
+  "displacement": 4.0,
+  "aspiration": "supercharged",
+  "boost": 3.0,
+  "idle": 850,
+  "redline": 7000,
+  "character": 1,
+  "mount": "long",
+  "sound": "v12",
+  "colour": "silver",
+  "status": "draft"
+}

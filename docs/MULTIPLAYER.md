@@ -194,8 +194,9 @@ It's measured continuously. It follows the network's spread, not its worst momen
 - Positions are Hermite curves using each state's velocity, with tangents limited by the chord, so a slow or
   sparse stream doesn't overshoot.
 - Each state's velocity is taken at the pace its positions show: how far the car really went over the steps
-  either side of it, against how fast it says. A sender whose game falls behind, or whose stamps are still being
-  steered onto the server's clock just after joining, can cover 5–15% more or less ground than its speed says. At
+  either side of it, against how fast it says. A sender whose game draws 9 frames a second, with its physics capped
+  at 8 steps a frame, covers 50–70% of the ground its speed says. A sender whose stamps are still being steered onto
+  the server's clock just after joining is 5–15% off either way. At
   the reported speed the curve would overshoot and catch up within every step. A mismatch under 2% is left alone
   (whole-ms stamps, a curve's arc slightly longer than its chord); 6% and more is taken in full. The prediction past
   the newest state uses the same pace.
