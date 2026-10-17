@@ -40,7 +40,8 @@ const signedIn = async (email: string, size = { width: 1300, height: 900 }) => {
 };
 const openBoard = async (page: any) => {
   await page.evaluate(async () => { const m = await import('/ui/roadmap.js'); m.closeRoadmap(); m.openRoadmap(); });
-  await page.waitForSelector('#rmBoard .item', { timeout: 10000 });
+  // (the board as last seen is drawn at once; the server's own a moment later: waited for)
+  await page.waitForSelector('#rmBoard[data-state="ready"] .item', { timeout: 10000 });
 };
 try {
   // ---------- a player's board ----------

@@ -66,7 +66,8 @@ async function load() {
     if (!a) { view = null; error = t('roadmap.offline'); return; }
     view = await a.get('/roadmap', { retries: 1 }); error = '';
   } catch (e) { error = e.message || t('roadmap.offline'); }
-  finally { draw(); }
+  // (the board as last seen is drawn at once on opening; data-state="ready" once the server's own is in: what a test waits for)
+  finally { if (el) el.dataset.state = 'ready'; draw(); }
 }
 
 export function openRoadmap() {
@@ -77,6 +78,7 @@ export function openRoadmap() {
     el.addEventListener('click', onClick);
     el.addEventListener('submit', onSubmit);
     el.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeRoadmap(); } });
+    el.dataset.state = 'loading';
     document.body.append(el);
     void load();
   }
