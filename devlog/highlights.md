@@ -103,3 +103,4 @@ No more paving floating in the air beside the roads
 Trees near Mount Lofty's summit stand on the ground again
 The South Eastern Freeway climbs at a gentler, truer grade
 Trees no longer poke through footpaths and bridges
+No more bouncing off the rev limiter when pulling away at walking pace

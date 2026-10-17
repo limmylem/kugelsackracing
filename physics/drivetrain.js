@@ -105,7 +105,7 @@ export class Drivetrain {
     this.request = 0;             // queued sequential shifts (+ up, - down)
     this.clutch = 0;              // engagement 0 (open) .. 1 (closed)
     this.clutchLocked = false;
-    this.launching = false;       // pulling away from a stop in 1st or reverse: the only time the auto-clutch slips on purpose
+    this.launching = false;       // pulling away (from a stop in 1st or reverse, or rolling too slowly for the gear): the only time the auto-clutch slips on purpose
     this.engaging = null;         // seconds since a gear went in while moving, until the clutch has it (null: not engaging)
     this.clutchTorque = 0;        // torque through the clutch last substep (N·m, + = engine driving)
     this.diffLocked = false;
@@ -291,7 +291,8 @@ export class Drivetrain {
     else if (pedals.handbrake) this.clutch = Math.max(0, this.clutch - dt / C.releaseTime);
     else if (stopped && brake > 0.05) this.clutch = Math.max(0, this.clutch - dt / C.releaseTime);   // (braked at a stop it waits open, not slipping against the brakes)
     else {
-      // Auto-clutch. Pulling away from a stop in 1st or reverse (and only then), it slips, carrying the
+      // Auto-clutch. Pulling away from a stop in 1st or reverse, or from rolling too slowly for the gear to
+      // carry the engine (and only then), it slips, carrying the
       // engine's own torque plus a bit more or less to steer the engine toward a launch rpm that rises
       // with the throttle, and closes once the car's rolling fast enough. A gear going in while moving
       // is taken up at once: closed within engageTime, the throttle rev-matching until the engine
@@ -299,9 +300,13 @@ export class Drivetrain {
       // never slips once it has the gear). Slowing to a stop it opens. The launch rpm is held only at
       // first: the engine comes down to meet the gearbox as the car gets going, and they meet half way
       // (no lower than idle + engageAbove), so the clutch slips for a moment, not all the way up to it.
-      if (this.clutchLocked) this.launching = false;
-      else if (Math.abs(this.gear) === 1 && Math.abs(speed) < A.stopSpeed * 4 && this.engaging == null) this.launching = true;
+      // (and pulling away while still rolling too slowly for the gear to carry the engine — under idle +
+      // engageAbove, where the clutch opens: the Apex V8's 1st only gets there at 13 km/h, and between that and
+      // the stop speed the throttle just held the engine on its limiter with the clutch open, until the car
+      // had rolled down to a crawl)
       const top = E.idleRpm + accel * (C.auto.launchRpm - E.idleRpm), locked = this.lockedRpm();
+      if (this.clutchLocked) this.launching = false;
+      else if (this.engaging == null && ((Math.abs(this.gear) === 1 && Math.abs(speed) < A.stopSpeed * 4) || (accel > 0.02 && locked < E.idleRpm + C.auto.engageAbove))) this.launching = true;
       const meet = Math.max(E.idleRpm + C.auto.engageAbove, (top + E.idleRpm) / 2), launchRpm = top - (top - meet) * Math.min(1, locked / meet);
       if (this.engaging != null) {
         this.clutch = Math.min(1, this.clutch + dt / C.engageTime);
