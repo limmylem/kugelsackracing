@@ -396,11 +396,14 @@ What it adds, by the brief's steps:
     Torrens Road, South Road under Anzac Highway. A junction is raised for a deck no more than its other roads could
     climb at `heights.raiseGrade` (Anzac Highway's 4 m stub at the foot of its bridge had become a 37% ramp), and from
     a junction that can't go up as far as the deck wants, the deck rises at `approachGrade`. A main road's carriageway
-    goes under a main road's bridge over it (`heights.corridor.underDecks`), and a motorway under any road's
-    (`underAnyDeck`): the newer motorways run in trenches the LiDAR predates. The North-South Motorway had come up
+    goes under a main road's bridge over it (`heights.corridor.underDecks`), and a motorway under any road's standing
+    on LiDAR ground (`underAnyDeck`; in the hills the 30 m data has the cuttings): the newer motorways run in trenches
+    the LiDAR predates. The North-South Motorway had come up
     level with Port Road's deck; Tonsley Boulevard's decks, held at their ends by junctions on South Road, came down
     to 1.5 m over the Southern Expressway. A deck in pieces (split where its ramps join, off the ground) is followed
-    to where its bridge comes down, for the ground at its ends.
+    to where its bridge comes down, for the ground at its ends. A deck still short over a road that couldn't come down
+    far enough has its junctions raised as far as it wants after all, unless they're held to a main road
+    (`underpass.raiseShort`): a car park ramp in Bowden had come down to 1.3 m over the lane under it.
   - *Junction surfaces:* a junction's plane is level in any direction its roads don't spread along
     (`heights.planeRidge`), and its outline has no hairpins (`junctions.despike`): a sliver where two pieces of the
     patch nearly met left T-junction cracks in the road. Each road's end row is put into the outline from 1 cm

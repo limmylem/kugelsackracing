@@ -71,12 +71,12 @@ function corridorPair(c: any): [{ x: number; z: number; h: number }, { x: number
   return [{ x: A.x, z: A.z, h: A.h }, { x: B.x, z: B.z, h: B.h, d: best.d }];
 }
 
-export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any, extra: { rails?: { xs: number[]; zs: number[] }[] } = {}) {
+export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any, extra: { rails?: { xs: number[]; zs: number[] }[]; lidarAt?: (x: number, z: number) => boolean } = {}) {
   const Hc = cfg.heights, stats: any = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0, quadratic: 0, crossings: 0, raisedJunctions: 0, shortOfClearance: 0, underpasses: 0, underpassDeepest: 0, underpassShort: 0, raiseCapped: 0 };
   // ---- 1. each segment's own smoothed profile
   for (const g of G.segs) { g.raw = g.xs.map((x: number, k: number) => demAt(x, g.zs[k])); g.smooth = smoothProfile(g.s, g.raw, Hc.median, Hc.smooth); }
   // (Map v5: main roads' profiles along whole carriageways, through their junctions — the junctions follow them)
-  if (Hc.corridor) stats.corridors = corridorProfiles(G, demAt, Hc);
+  if (Hc.corridor) stats.corridors = corridorProfiles(G, demAt, Hc, extra.lidarAt);
   // ---- 2. node heights: from the ground roads there; on structures, from the ground they're anchored to
   for (const n of G.nodes) {
     const ground = n.segs.map(i => G.segs[i]).filter(g => g.structure === 'ground'), corr = n.segs.map(i => G.segs[i]).filter(g => g.corr);
@@ -182,7 +182,21 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // ---- 6. the drawn profile: vertical curves
   drawnProfiles(chains, Hc);
   // ---- 7. (Map v5) where a deck as drawn still falls short over a road, that road lowered under it
-  if (Hc.underpass && cleared) drawnProfiles(underpasses(G, T, chains, cleared, Hc, stats), Hc);
+  if (Hc.underpass && cleared) {
+    const U = underpasses(G, T, chains, cleared, Hc, stats);
+    drawnProfiles(U.lowered, Hc);
+    // (a deck still short over a road that couldn't come down far enough — its own junctions either side, a service
+    // lane under a car park's ramp left 1.3 m — has the junctions at its ends raised as far as it wants after all,
+    // unless held to a main road: a steep approach, not a deck to drive into)
+    const free = new Set<any>();
+    for (const ch of U.short) for (const k of [ch.start, ch.end]) { const c = clusterOf(k); if (c && !(c as any).pinned) free.add(c); }
+    if (Hc.underpass.raiseShort && free.size) {
+      const s2: any = { crossings: 0, lifted: 0, raisedJunctions: 0, shortOfClearance: 0, raiseCapped: 0, gradeLimited: 0 };
+      clearancePass(G, T, chains, clusterOf, demAt, Hc, s2, extra.rails ?? [], free);
+      drawnProfiles(chains, Hc);
+      stats.freed = free.size; stats.freedRaised = s2.raisedJunctions; stats.shortOfClearance = s2.shortOfClearance;
+    }
+  }
   // (internal roads of a cluster: on its plane)
   for (const g of G.segs) if (g.internal) { const c = clusterOf(g.from) ?? clusterOf(g.to); g.h = g.xs.map((x: number, k: number) => (c ? planeAt(c, x, g.zs[k]) : g.smooth[k])); }
   return { chains, stats };
@@ -434,7 +448,7 @@ function fitQuadratic(pts: number[][], mx: number, mz: number, plane: any, maxCu
 // over it. That need falls away along the chain at approachGrade — onto the deck's approaches, not within the deck only —
 // so the road rises on an embankment to meet it; where a chain ends at a junction lower than the need there, the junction
 // is raised and every road round it solved again. A few rounds; what still falls short is counted (stats).
-function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, chains: any[], clusterOf: (k: number) => any, demAt: (x: number, z: number) => number, Hc: any, stats: any, rails: { xs: number[]; zs: number[] }[]) {
+function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, chains: any[], clusterOf: (k: number) => any, demAt: (x: number, z: number) => number, Hc: any, stats: any, rails: { xs: number[]; zs: number[] }[], free: Set<any> = new Set()) {
   void T;
   const C = 40, grid = new Map<number, [any, number, boolean][]>(), key = (i: number, j: number) => (i + 5000) * 10000 + j + 5000;
   const add = (g: any, k: number, rail: boolean) => { const xs = g.xs, zs = g.zs; for (let i = Math.floor(Math.min(xs[k], xs[k + 1]) / C); i <= Math.floor(Math.max(xs[k], xs[k + 1]) / C); i++) for (let j = Math.floor(Math.min(zs[k], zs[k + 1]) / C); j <= Math.floor(Math.max(zs[k], zs[k + 1]) / C); j++) (grid.get(key(i, j)) ?? grid.set(key(i, j), []).get(key(i, j))!).push([g, k, rail]); };
@@ -556,6 +570,7 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
   for (const ch of chains) if (ch.P && !ch.cycle) for (const k of [ch.start, ch.end]) { const c = clusterOf(k); if (c) { const L = chainsAt.get(c) ?? chainsAt.set(c, []).get(c)!; if (!L.includes(ch)) L.push(ch); } }
   const raiseRoom = (c: any, ch: any) => {
     let room = Infinity;
+    if (free.has(c)) return Infinity;
     for (const o of chainsAt.get(c) ?? []) if (o !== ch) room = Math.min(room, Math.max(0, Hc.raiseGrade * (o.S1 - o.S0)));
     return room;
   };
@@ -621,11 +636,11 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
 // underpass.flat m either side (its vertical curves don't round the dip back up) and back up at approachGrade, its grades
 // held again with those points fixed. A ground road only — never its trims (a junction's surface), a railway or a road
 // in a junction — and no more than underpass.maxDepth m down: what's still short is counted (stats.underpassShort).
-// Returns the chains lowered (their drawn profiles made again).
+// Returns the chains lowered (their drawn profiles made again) and the decks still short over one (short).
 function underpasses(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, chains: any[], { needsOf, bridgeChains }: { needsOf: (ch: any, under?: any[]) => any[]; bridgeChains: any[] }, Hc: any, stats: any) {
   const U = Hc.underpass, where = new Map<string, { ch: any; i: number }>();
   for (const ch of chains) ch.P?.forEach((p: any, i: number) => { where.set(`${p.seg.id}:${p.k}`, { ch, i }); if (p.also) where.set(`${p.also.seg.id}:${p.also.k}`, { ch, i }); });
-  const caps = new Map<any, { sc: number; top: number }[]>();
+  const caps = new Map<any, { sc: number; top: number; deck: any }[]>(), short = new Set<any>();
   for (const ch of bridgeChains) {
     const under: any[] = [], done = new Set<string>();
     needsOf(ch, under);
@@ -650,7 +665,7 @@ function underpasses(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[
           const w0 = where.get(`${g.id}:${kk}`), w1 = where.get(`${g.id}:${kk + 1}`);
           if (!w0 || !w1 || w0.ch !== w1.ch || w0.ch === ch || w0.ch.cycle) continue;
           const lc = w0.ch;
-          (caps.get(lc) ?? caps.set(lc, []).get(lc)!).push({ sc: lc.S[w0.i] + (lc.S[w1.i] - lc.S[w0.i]) * tt, top: y - Hc.deckDepth - U.clearance });
+          (caps.get(lc) ?? caps.set(lc, []).get(lc)!).push({ sc: lc.S[w0.i] + (lc.S[w1.i] - lc.S[w0.i]) * tt, top: y - Hc.deckDepth - U.clearance, deck: ch });
         }
       }
     }
@@ -666,27 +681,29 @@ function underpasses(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[
     for (let i = 0; i < n; i++) if (!can(i)) for (let q = 0; q < n; q++) room[q] = Math.min(room[q], Math.max(0, (lc.lim?.[q] ?? Hc.maxGrade) * Math.abs(S[q] - S[i]) + h0[q] - h0[i]));
     let deepest = 0;
     for (let i = 0; i < n; i++) if (can(i) && h[i] > cap[i] + 1e-3) { h[i] = Math.max(cap[i], h0[i] - room[i]); fixed[i] = true; deepest = Math.max(deepest, h0[i] - h[i]); }
-    if (!deepest) { stats.underpassShort += cs.length ? 1 : 0; continue; }
+    if (!deepest) { stats.underpassShort += cs.length ? 1 : 0; for (const c of cs) if (lerpAt(S, h, c.sc) > c.top + 0.05) short.add(c.deck); continue; }
     for (let pass = 0; pass < 3; pass++) { relax(S, h, fixed, lc.isStruct, Hc, stats, lc.lim); for (let i = 0; i < n; i++) if (can(i) && h[i] > cap[i]) h[i] = Math.max(cap[i], h0[i] - room[i]); }
     lc.P.forEach((p: any, i: number) => { p.seg.h[p.k] = h[i]; if (p.also) p.also.seg.h[p.also.k] = h[i]; });
     stats.underpasses++; stats.underpassDeepest = Math.max(stats.underpassDeepest, +deepest.toFixed(2));
     if (cs.some(c => lerpAt(S, h, c.sc) > c.top + 0.05)) stats.underpassShort++;
+    for (const c of cs) if (lerpAt(S, h, c.sc) > c.top + 0.05) short.add(c.deck);
     lowered.push(lc);
   }
-  return lowered;
+  return { lowered, short };
 }
 
 // (Map v5) the bridges over a run of points (a corridor's carriageway) carrying a main road of their own — held to its
 // own profile and junctions, so a deck that can't rise for what's under it — where each, standing on the ground at both
 // ends, crosses it: s along the run, and the most the run may be there (the ground at the deck's ends, between them as
 // far along it as it crosses, less clearance and deckDepth). A lesser road's deck rises for it instead: the clearance pass
-function decksOver(pts: { x: number; z: number; S: number; g: Seg }[], G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any) {
+function decksOver(pts: { x: number; z: number; S: number; g: Seg }[], G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any, lidarAt?: (x: number, z: number) => boolean) {
   // (another road, crossing it: not its own other carriageway, whose deck can meet it at a shallow angle where they part)
-  // (under a motorway, any road's: Tonsley Boulevard's decks over the Southern Expressway, Torrens Road's over the
-  // North-South Motorway — held at their ends by junctions on South Road, they came down to 1.5 m over it, or rose 6 m
-  // over the ground in a 17% ramp)
+  // (under a motorway, any road's standing on LiDAR ground at both ends: Tonsley Boulevard's decks over the Southern
+  // Expressway, Torrens Road's over the North-South Motorway — held at their ends by junctions on South Road, they came
+  // down to 1.5 m over it, or rose 6 m over the ground in a 17% ramp. Not in the hills, where the 30 m data has the
+  // freeway's cuttings: Mount Osmond Road's deck, lowered for, came down 6 m and the freeway under it dipped at 11.8%)
   const own = new Set(pts.map(p => p.g.id)), grounded = (k: number) => G.nodes[k].segs.some(i => G.segs[i].structure === 'ground'), name = pts[0]?.g.name ?? null;
-  const main = new Set<string>((Hc.corridor.underAnyDeck ?? []).includes(pts[0]?.g.cls) ? Object.keys(Hc.maxGradeByClass).filter(c => c !== 'track' && c !== 'link') : Hc.corridor.classes);
+  const main = new Set<string>(Hc.corridor.classes), any = (Hc.corridor.underAnyDeck ?? []).includes(pts[0]?.g.cls), lidar = (k: number) => !lidarAt || lidarAt(G.nodes[k].x, G.nodes[k].z);
   // (a deck in pieces — split where its ramps join, off the ground — stands on the ground where the bridge it's part of
   // comes down: along it through each node off the ground (the piece of the same name on, else any), its road distance
   // to there; none if it never does)
@@ -705,10 +722,10 @@ function decksOver(pts: { x: number; z: number; S: number; g: Seg }[], G: { node
   for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
   const out: { sc: number; top: number }[] = [];
   for (const d of G.segs) {
-    if (d.structure !== 'bridge' || own.has(d.id) || !main.has(d.cls) || (name && d.name === name)) continue;
+    if (d.structure !== 'bridge' || own.has(d.id) || !(main.has(d.cls) || any && d.cls !== 'track') || (name && d.name === name)) continue;
     if (Math.max(...d.xs) < x0 || Math.min(...d.xs) > x1 || Math.max(...d.zs) < z0 || Math.min(...d.zs) > z1) continue;
     const A = toGround(d, d.from), B = toGround(d, d.to);
-    if (!A || !B) continue;
+    if (!A || !B || !main.has(d.cls) && !(lidar(A.k) && lidar(B.k))) continue;
     const Ld = d.s[d.s.length - 1], L = A.d + Ld + B.d, hA = demAt(G.nodes[A.k].x, G.nodes[A.k].z), hB = demAt(G.nodes[B.k].x, G.nodes[B.k].z);
     for (let k = 0; k + 1 < d.xs.length; k++) for (let i = 0; i + 1 < pts.length; i++) {
       const ax = d.xs[k], az = d.zs[k], dx = d.xs[k + 1] - ax, dz = d.zs[k + 1] - az, cx = pts[i].x, cz = pts[i].z, ex = pts[i + 1].x - cx, ez = pts[i + 1].z - cz, den = dx * ez - dz * ex;
@@ -730,7 +747,7 @@ function decksOver(pts: { x: number; z: number; S: number; g: Seg }[], G: { node
 // nor within portalSkip m of a tunnel's mouth — the cutting there — nor bridgeSkip m of a bridge's ends; straight
 // across those), a Gaussian of sigma m, then held to its class's grade (maxGradeByClass) by relaxation with nothing
 // fixed. Sets seg.corr (a height per point). Returns the number of carriageways.
-function corridorProfiles(G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any) {
+function corridorProfiles(G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any, lidarAt?: (x: number, z: number) => boolean) {
   const C = Hc.corridor, classes = new Set<string>(C.classes), segs = G.segs.filter(g => !g.internal && classes.has(g.cls));
   // (through a junction's own short pieces too: they're the same road)
   const dirAt = (g: Seg, atEnd: boolean) => { const n = g.xs.length, a = atEnd ? n - 2 : 0, b = atEnd ? n - 1 : 1; const dx = g.xs[b] - g.xs[a], dz = g.zs[b] - g.zs[a], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
@@ -794,7 +811,7 @@ function corridorProfiles(G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number,
     // (Map v5, corridor.underDecks: no higher under a main road's bridge over it than that bridge's ground less clearance
     // and its deck, and from there back up at its grade: Adelaide's newer motorways run in trenches the LiDAR predates,
     // and the North-South Motorway came up level with Port Road's deck over it)
-    if (C.underDecks) for (const { sc, top } of decksOver(pts, G, demAt, Hc)) for (let i = 0; i < n; i++) h[i] = Math.min(h[i], top + lim[i] * Math.abs(S[i] - sc));
+    if (C.underDecks) for (const { sc, top } of decksOver(pts, G, demAt, Hc, lidarAt)) for (let i = 0; i < n; i++) h[i] = Math.min(h[i], top + lim[i] * Math.abs(S[i] - sc));
     for (const { g } of run) (g as any).corr = new Array(g.xs.length).fill(0);
     pts.forEach((p, i) => { (p.g as any).corr[p.k] = h[i]; if (p.also) (p.also.g as any).corr[p.also.k] = h[i]; });
     count++;

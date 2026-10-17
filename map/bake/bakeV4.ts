@@ -124,7 +124,9 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // 3. the road model for the whole area — graph, widths, junctions, heights — (the roads reaching into it, and a
   // little beyond: junctions at its edge whole); its surface is built a block at a time, below
   const pad = 600, near = (p: any) => p.x >= grid.x0 - pad && p.x <= gx1 + pad && p.z >= grid.z0 - pad && p.z <= gz1 + pad;
-  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), lines: v5 ? osm.lines.filter(l => l.tags.railway && l.nodes.some(near)) : [], demAt: roadDemAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
+  // (where the ground is LiDAR's: map/model/heights.ts decksOver)
+  const lidarAt = v5 && E.source ? (x: number, z: number) => { const c = Math.round((x - grid.x0) / grid.cell), r = Math.round((z - grid.z0) / grid.cell); return c >= 0 && r >= 0 && c < grid.W && r < grid.H && E.source[r * grid.W + c] === 1; } : undefined;
+  const model: any = buildRoadModel({ roads: osm.roads.filter(r => r.nodes.some(near)), points: osm.points.filter(near), lines: v5 ? osm.lines.filter(l => l.tags.railway && l.nodes.some(near)) : [], demAt: roadDemAt, lidarAt, cfg, v3roads: v3cfg.roads, tileSize: T, P, style: region.markings ?? 'AU', log, withSurface: false });
   for (const g of model.segs) g.width = g.visual;
   demSmooth = null;
   lap(`  road model ${model.version}: ${model.segs.length} segments, ${model.clusters.length} junction patches`);
