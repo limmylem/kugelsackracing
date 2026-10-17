@@ -1,0 +1,35 @@
+{
+  "id": "apex_v8_inferno_suspension",
+  "name": "Inferno race suspension (Apex V8)",
+  "category": "suspension",
+  "slot": "suspension",
+  "kind": "component",
+  "price": 2700,
+  "mass": 48,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_inferno_suspension.png",
+  "fits": [
+    "car:apex_v8"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Race springs, dampers and anti-roll bars for the Apex with forged uprights and arms: 65% stiffer springs, 43% firmer damping, 20 mm lower, 45% stiffer bars, three times as tough, and it holds the wheels on twice as hard (wheelHold; with the Inferno wheels, five times). Flatter in corners and steadier at 400 km/h.",
+  "toughness": 3,
+  "wheelHold": 2,
+  "suspension": {
+    "restLength": 0.23,
+    "travel": 0.13,
+    "stiffness": 88000,
+    "damping": 5800,
+    "antiRoll": {
+      "front": 26000,
+      "rear": 19000
+    }
+  },
+  "tier": "race",
+  "status": "draft",
+  "unlock": {
+    "level": 9
+  }
+}

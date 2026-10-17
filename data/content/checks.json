@@ -5933,6 +5933,448 @@
       },
       "ok": true
     },
+    "apex_v8_inferno_aero": {
+      "fit": {
+        "key": "f1cfd188a7d6eb4a",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          }
+        }
+      },
+      "drive": {
+        "key": "84e04ee2d36871d8",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.508,
+            "braking": 29.538
+          }
+        }
+      },
+      "crash": {
+        "key": "63572bc6182248ca",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 2476,
+            "loose": 1
+          }
+        }
+      },
+      "sound": {
+        "key": "90f812f179526059",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "5b3af4628933d6d9",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 496,
+        "models": 1
+      },
+      "economy": {
+        "key": "4e22dbbe67f402fb",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_brakes": {
+      "fit": {
+        "key": "59d032f397243368",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "note": "no model yet: nothing to fit"
+          }
+        }
+      },
+      "drive": {
+        "key": "72f8eed71f5774f7",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.542,
+            "braking": 29.633
+          }
+        }
+      },
+      "crash": {
+        "key": "596ba1b9a557ea4c",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 988,
+            "loose": 2
+          }
+        }
+      },
+      "sound": {
+        "key": "b3233e5a75724096",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "9b5539d1811bdbbf",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 0,
+        "models": 0
+      },
+      "economy": {
+        "key": "9c661b3691fc4829",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_clutch": {
+      "fit": {
+        "key": "c582ed3cd595376c",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "note": "no model yet: nothing to fit"
+          }
+        }
+      },
+      "drive": {
+        "key": "4b1ef3b6d72d9466",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.792,
+            "braking": 29.884
+          }
+        }
+      },
+      "crash": {
+        "key": "b2ef81a1b9d52c46",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 988,
+            "loose": 2
+          }
+        }
+      },
+      "sound": {
+        "key": "b1eba4d177a705d7",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "9b5539d1811bdbbf",
+        "ok": true,
+        "problems": [],
+        "note": "no model rules for the clutch slot"
+      },
+      "economy": {
+        "key": "3bbe126e4a602efb",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_gearbox": {
+      "fit": {
+        "key": "022a69aab324c756",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "note": "no model yet: nothing to fit"
+          }
+        }
+      },
+      "drive": {
+        "key": "72c1307421d68fa2",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.525,
+            "braking": 29.895
+          }
+        }
+      },
+      "crash": {
+        "key": "fee28c1175293edb",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1035,
+            "loose": 4
+          }
+        }
+      },
+      "sound": {
+        "key": "31f0018ca007b8dd",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "9b5539d1811bdbbf",
+        "ok": true,
+        "problems": [],
+        "note": "no model rules for the gearbox slot"
+      },
+      "economy": {
+        "key": "f698ed70974c5cf9",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_suspension": {
+      "fit": {
+        "key": "3feef01606e181a1",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "note": "no model yet: nothing to fit"
+          }
+        }
+      },
+      "drive": {
+        "key": "2bf01307bf32a9fa",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.558,
+            "braking": 29.656
+          }
+        }
+      },
+      "crash": {
+        "key": "0c5a09e18dc60c91",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1037,
+            "loose": 4
+          }
+        }
+      },
+      "sound": {
+        "key": "037cfb85a314a082",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "9b5539d1811bdbbf",
+        "ok": true,
+        "problems": [],
+        "note": "no model rules for the suspension slot"
+      },
+      "economy": {
+        "key": "06e97ac235167201",
+        "ok": true,
+        "problems": [],
+        "gain": 0.645,
+        "on": "apex_v8"
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_tyre": {
+      "fit": {
+        "key": "4a57007dc7d01f86",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "note": "no model yet: nothing to fit"
+          }
+        }
+      },
+      "drive": {
+        "key": "32a5a69619316912",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.075,
+            "braking": 24.213
+          }
+        }
+      },
+      "crash": {
+        "key": "15e01eb86efcbe43",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1036,
+            "loose": 4
+          }
+        }
+      },
+      "sound": {
+        "key": "9f8a214bdd622c5b",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "9b5539d1811bdbbf",
+        "ok": true,
+        "problems": [],
+        "note": "no model rules for the tyres slot"
+      },
+      "economy": {
+        "key": "351cede55d124a87",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
+    "apex_v8_inferno_wheel": {
+      "fit": {
+        "key": "e2816ce48a50a858",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          }
+        }
+      },
+      "drive": {
+        "key": "f27fbe8da02adf8a",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.525,
+            "braking": 29.852
+          }
+        }
+      },
+      "crash": {
+        "key": "b651edb6f6040e6c",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "f67b20658b81367f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1037,
+            "loose": 4
+          }
+        }
+      },
+      "sound": {
+        "key": "31afae3f69d47180",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "2bc893de959a081c",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 272,
+        "models": 1
+      },
+      "economy": {
+        "key": "9aeacd2cbe8e3e0b",
+        "ok": true,
+        "problems": []
+      },
+      "ok": true
+    },
     "apex_v8_mirror_left": {
       "fit": {
         "key": "651e15a910d717a4",
@@ -21963,12 +22405,12 @@
       "crash": {
         "key": "aeb5912261fdc8da",
         "ok": false,
-        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,   259: more than 2 race wins"],
+        "problems": ["on the Brute 500: fixing a 60 km/h crash costs $3,259: more than 2 race wins"],
         "cars": {
           "brute_500": {
             "carKey": "c2943342a96b334e",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   259: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,259: more than 2 race wins"],
             "drivable": true,
             "repair": 3259,
             "loose": 1
@@ -22035,12 +22477,12 @@
       "crash": {
         "key": "8a8d9dcb73b81a7d",
         "ok": false,
-        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,   167: more than 2 race wins"],
+        "problems": ["on the Kaze GT: fixing a 60 km/h crash costs $3,167: more than 2 race wins"],
         "cars": {
           "kaze_gt": {
             "carKey": "23176ff9ba21582c",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   167: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,167: more than 2 race wins"],
             "drivable": true,
             "repair": 3167,
             "loose": 1
@@ -22107,12 +22549,12 @@
       "crash": {
         "key": "42277b7006a832fb",
         "ok": false,
-        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,   196: more than 2 race wins"],
+        "problems": ["on the Strada Evo: fixing a 60 km/h crash costs $3,196: more than 2 race wins"],
         "cars": {
           "strada_evo": {
             "carKey": "fedfa9da2910dcde",
             "ok": false,
-            "problems": ["fixing a 60 km/h crash costs $3,   196: more than 2 race wins"],
+            "problems": ["fixing a 60 km/h crash costs $3,196: more than 2 race wins"],
             "drivable": true,
             "repair": 3196,
             "loose": 1
@@ -95881,16 +96323,10 @@
         "class": "S"
       },
       "max": {
-        "index": 838,
-        "class": "S",
-        "parts": ["apex_v8_inferno", "intake_race", "streetline_89_titanium_matte", "header_4into1", "ecu_stage2", "gearbox_uprated", "clutch_triple", "flywheel_light", "arb_rear_sport", "tyre_track_slick_285_30r20", "apex_v8_active_wing", "radiator_aluminium", "roll_cage_bolt_in", "apex_v8_aero_kit"],
-        "tuning": [
-          {
-            "part": "arb_rear_sport",
-            "setting": "stiffness",
-            "value": 32000
-          }
-        ]
+        "index": 999,
+        "class": "X",
+        "parts": ["apex_v8_inferno", "catback_race", "gearbox_uprated", "clutch_triple", "flywheel_light", "apex_v8_inferno_tyre", "radiator_aluminium"],
+        "tuning": []
       }
     }
   }

@@ -13,8 +13,8 @@
 //   radiator  → the engine: { coolant (share of full), leak (share a second) }
 //   intake    → the turbo: { boost } (share of its boost lost; no turbo, nothing to leak)
 //   gearbox, differential → { gears } · clutch → { wear } · exhaust → { holes } (0..1)
-// A corner hit hard enough (wheelOff.from) tears the wheel off: for the drive (the game puts it back,
-// bent and flat, like any part torn off).
+// A corner hit hard enough (wheelOff.from, times the rim's and the suspension's wheelHold) tears the wheel
+// off: for the drive (the game puts it back, bent and flat, like any part torn off).
 //
 // A hit reaches a zone by how near the contact is to the zone's box (within zoneReach, plus the dent's
 // depth: a hard hit crumples further in) and, for a zone that faces a way, how squarely it came from
@@ -61,7 +61,9 @@ export function mechanicalLayout({ car, build, db }) {
   // (no turbo part, but a factory turbo on the engine: its pipes are the engine's)
   if (!carriers.intake && carriers.radiator && partOf[carriers.radiator]?.engine?.turbo) carriers.intake = carriers.radiator;
   const off = Object.fromEntries(CORNERS.map(k => [k, build.attach?.[car.model.sockets[k]] === 'detached']));
-  return { carriers, toughness, partOf, off, zones: car.damageZones ?? {}, armour };
+  // (how much harder than wheelOff.from a hit must be to tear each wheel off: its rim's and the suspension's hold)
+  const held = id => partOf[id]?.wheelHold ?? 1, hold = Object.fromEntries(CORNERS.map(k => [k, held(carriers.rim[k]) * held(carriers.suspension)]));
+  return { carriers, toughness, partOf, off, hold, zones: car.damageZones ?? {}, armour };
 }
 
 // The zones a hit reaches, and how hard: [{ zone, strength, corner? }]
@@ -100,7 +102,7 @@ export function applyHits(state, hits, layout, rules, { toe = {} } = {}) {
     if (!zone) continue;
     const systems = zone.systems ?? [], k = h.corner, c = h.strength;
     if (k && layout.off[k]) continue;                                  // (no wheel there to damage)
-    if (k && M.wheelOff && c >= M.wheelOff.from && layout.carriers.rim[k]) out.wheelOff.push(k);
+    if (k && M.wheelOff && c >= M.wheelOff.from * (layout.hold?.[k] ?? 1) && layout.carriers.rim[k]) out.wheelOff.push(k);
     for (const sys of systems) {
       // (armour takes its share of the hit first)
       const R = S[sys], over = R ? c * (1 - (layout.armour?.[sys] ?? 0)) - R.from : 0;

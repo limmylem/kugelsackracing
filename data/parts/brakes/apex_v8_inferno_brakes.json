@@ -1,0 +1,58 @@
+{
+  "id": "apex_v8_inferno_brakes",
+  "name": "Inferno carbon-ceramic brakes (Apex V8)",
+  "category": "brakes",
+  "slot": "brakes",
+  "kind": "component",
+  "price": 2600,
+  "mass": 30,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_inferno_brakes.png",
+  "fits": [
+    "car:apex_v8"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "purpose": "extreme",
+  "_note": "Carbon-ceramic discs and big callipers for the Apex: bigger discs, stronger pads, more than twice the heat they can soak up, and fade only from 600 °C, so stop after stop from 400 km/h feels the same. 12 kg lighter than the stock brakes.",
+  "brakes": {
+    "maxPressureBar": 100,
+    "bias": 0.62,
+    "front": {
+      "discRadius": 0.19,
+      "pistonArea": 0.0045,
+      "padMu": 0.55,
+      "heatCapacity": 4000
+    },
+    "rear": {
+      "discRadius": 0.17,
+      "pistonArea": 0.0022,
+      "padMu": 0.52,
+      "heatCapacity": 2800
+    },
+    "fade": {
+      "startTemp": 600,
+      "fullTemp": 900,
+      "muAtFull": 0.75
+    },
+    "cooling": {
+      "ambient": 20,
+      "still": 4,
+      "perSpeed": 0.8
+    },
+    "handbrake": {
+      "torque": 3665,
+      "disengageClutch": true
+    },
+    "autoHold": {
+      "belowSpeed": 0.3,
+      "torque": 2060
+    }
+  },
+  "tier": "race",
+  "status": "draft",
+  "unlock": {
+    "level": 9
+  }
+}

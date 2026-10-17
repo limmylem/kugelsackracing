@@ -98,3 +98,4 @@ Engines no longer blow up after the city loads at speed
 Wheels stay on when you bump back up from the gutter
 The Apex V8 can take the Inferno: a 1,500 hp twin-turbo V8
 Every garage part is in one easy list: no more markers in the way
+Inferno parts for the Apex: hot slicks, launch control, wheels that stay on

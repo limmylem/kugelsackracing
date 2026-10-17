@@ -1,0 +1,45 @@
+{
+  "id": "apex_v8_inferno_wheel",
+  "name": "20\" forged Inferno wheel (Apex V8)",
+  "category": "wheels",
+  "slot": "wheels",
+  "kind": "component",
+  "price": 1500,
+  "mass": 7.5,
+  "contactMaterial": "metal",
+  "model": "assets/parts/stock/apex_v8/wheel_stock.glb",
+  "icon": "assets/icons/parts/apex_v8_inferno_wheel.png",
+  "fits": [
+    "car:apex_v8"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [
+    "rim:20"
+  ],
+  "_note": "A forged 20\" wheel on uprated hubs and studs for the Apex: 2.5 kg lighter than the stock one, three times as tough, and it stays on. A wheel is torn off by a corner hit or kerb strike of 21 m/s or more (data/damage.json wheelOff); this one takes 2.5 times that (wheelHold), and with the Inferno suspension five times — a kerb's edge at 380 km/h no longer takes a wheel off.",
+  "toughness": 3,
+  "wheelHold": 2.5,
+  "rim": {
+    "diameter": 20,
+    "width": 9.5,
+    "offset": 40
+  },
+  "tier": "race",
+  "bounds": {
+    "min": [
+      -0.0883,
+      -0.2533,
+      -0.2533
+    ],
+    "max": [
+      0.1104,
+      0.2533,
+      0.2533
+    ]
+  },
+  "status": "draft",
+  "unlock": {
+    "level": 9
+  }
+}

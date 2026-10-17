@@ -5,7 +5,8 @@ import path from 'node:path';
 
 export function formatJson(v, ind = '') {
   const flat = x => Array.isArray(x) && x.every(y => typeof y === 'number' || typeof y === 'string' || (Array.isArray(y) && y.every(z => typeof z === 'number')));
-  if (flat(v)) return JSON.stringify(v).replace(/,/g, ', ').replace(/\], \[/g, '], [');
+  // (a space after each item's comma — not the commas inside a string, which stay as they are)
+  if (flat(v)) return `[${v.map(y => Array.isArray(y) ? `[${y.map(z => JSON.stringify(z)).join(', ')}]` : JSON.stringify(y)).join(', ')}]`;
   if (Array.isArray(v)) return v.length ? `[\n${v.map(x => ind + '  ' + formatJson(x, ind + '  ')).join(',\n')}\n${ind}]` : '[]';
   if (v && typeof v === 'object') { const e = Object.entries(v).filter(([, x]) => x !== undefined); return e.length ? `{\n${e.map(([k, x]) => `${ind}  ${JSON.stringify(k)}: ${formatJson(x, ind + '  ')}`).join(',\n')}\n${ind}}` : '{}'; }
   return JSON.stringify(v);
