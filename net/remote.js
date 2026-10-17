@@ -79,6 +79,9 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
     if (!x || !y) return null;
     const span = (y.time - x.time) / 1000, said = (v3.len(x.vel) + v3.len(y.vel)) / 2;
     if (span < 0.01 || span > 0.3 || said < 2) return null;
+    // (only while its speed holds: across a knock or hard braking the speed it says changes within the step, and the
+    // distance against its average says nothing about its stamps — the prediction a contact is drawn with went wrong)
+    if (Math.abs(v3.len(y.vel) - v3.len(x.vel)) > 0.08 * said || v3.len(v3.sub(y.vel, x.vel)) > 0.15 * said) return null;
     // (a few percent either way is nothing to go on — whole-ms stamps, and a curve's arc a touch longer than its chord:
     // left as it says; a real mismatch, 5% and more, taken in full, eased in between)
     const r = Math.max(0.4, Math.min(1.33, v3.len(v3.sub(y.pos, x.pos)) / (said * span))), w = Math.min(1, Math.max(0, (Math.abs(r - 1) - 0.02) / 0.04));
