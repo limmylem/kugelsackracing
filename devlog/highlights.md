@@ -107,3 +107,4 @@ Directions now show clearly when a turn is coming up
 Inferno parts for the Apex: hot slicks, launch control, wheels that stay on
 Gauge pods in the cockpit now read your engine's real boost, oil and water
 No more bouncing off the rev limiter when pulling away at walking pace
+Gauge pods now sit properly on the dash in every car

@@ -242,7 +242,7 @@ const WHEELS = [
   ['steering_wheel_flat_race', ['Flat-bottomed race steering wheel', 'race'], { diameter: 0.32, grip: 0.017, spokes: 4, spoke: 'drilled', dish: 0.03, flatBottom: true, quickRelease: true, rimMaterial: 'seat_fabric', rimColour: '#26282c', marker: 'orange', spokeMaterial: 'carbon', horn: 'red' }],
 ];
 const GAUGES = [
-  ['gauge_pod', null, { gauges: 3, size: 0.052, layout: 'pillar' }],
+  ['gauge_pod', null, { gauges: 3, size: 0.052, layout: 'dash' }],
   ['gauge_pod_dash_twin', ['Twin dash gauge pod (boost, oil pressure)', 'street'], { gauges: 2, size: 0.052, layout: 'dash' }],
 ];
 const CAGES = {
@@ -256,7 +256,9 @@ const CAGES = {
 const SEARCH = {
   seat: [{ lean: [0.18, 0.12, 0.07, 0.03], kh: [1, 0.94, 0.88, 0.82], kw: [1, 0.94, 0.88], dz: [0, 0.03, 0.06, -0.03, 0.09, 0.12] }, { lean: 1, kh: 1.5, kw: 1.5, dz: 1 }],
   steering_wheel: [{ boss: [0, 0.02, 0.04, 0.06, 0.08], k: [1, 0.94, 0.88] }, { boss: 1, k: 1.5 }],
-  gauges: [{ layout: [null, 'dash'], dz: [0, -0.04, -0.08, 0.04], dy: [0, -0.03, -0.06, -0.09, -0.12], dx: [0, -0.05, 0.05, -0.1, 0.1] }, { layout: 2 }],
+  // (a row along the dash in front of the driver, never stood up on end: the cars have no pillar to mount it on, and a
+  // stack in the middle of the dash stood in the way of the view and out through the windscreen)
+  gauges: [{ dz: [0, -0.04, -0.08, 0.04], dy: [0, -0.03, -0.06, -0.09, -0.12], dx: [0, -0.05, 0.05, -0.1, 0.1] }, {}],
 };
 
 export async function parts({ carsFor, project }) {
@@ -267,7 +269,7 @@ export async function parts({ carsFor, project }) {
   const fresh = (slot, [name, tier], extra = {}) => ({ name, tier, price: suggestPrice(slot, tier), todo: ['price'], ...extra });
   for (const [id, isNew, settings] of WHEELS) jobs.push({ id, type: 'steering_wheel', design: isNew?.[0] ?? 'quick-release wheel', settings, defaults: isNew && fresh('steering_wheel', isNew, { purpose: 'looks', fits: ['steering_column:std'], _note: `${isNew[0]}: from tools/generators/interior.js.` }),
     ...(isNew ? { cars: Object.keys(db.cars), baseCar: 'starter_car', build: fitted('steering_wheel', 'steering_wheel', c => steeringWheel(id, { ...settings, boss: c.boss, diameter: settings.diameter * c.k })) } : forCars(id, 'steering_wheel', 'steering_wheel', c => steeringWheel(id, { ...settings, boss: c.boss, diameter: settings.diameter * c.k }))) });
-  for (const [id, isNew, settings] of GAUGES) jobs.push({ id, type: 'gauges', design: isNew?.[0] ?? 'A-pillar pod', settings, defaults: isNew && fresh('gauges', isNew, { purpose: 'looks', _note: `${isNew[0]}: from tools/generators/interior.js.` }),
+  for (const [id, isNew, settings] of GAUGES) jobs.push({ id, type: 'gauges', design: isNew?.[0] ?? 'dash pod', settings, defaults: isNew && fresh('gauges', isNew, { purpose: 'looks', _note: `${isNew[0]}: from tools/generators/interior.js.` }),
     ...(isNew ? { cars: Object.keys(db.cars), baseCar: 'starter_car', build: fitted('gauges', 'gauges', c => gaugePod(id, { ...settings, layout: c.layout ?? settings.layout }).moved([c.dx, c.dy, c.dz])) } : forCars(id, 'gauges', 'gauges', c => gaugePod(id, { ...settings, layout: c.layout ?? settings.layout }).moved([c.dx, c.dy, c.dz]))) });
   // (the harness laid over the bucket seat it needs — as that seat is made to fit each car)
   const H = { colour: 'red', seat: SEATS.bucket_seat_street.settings };

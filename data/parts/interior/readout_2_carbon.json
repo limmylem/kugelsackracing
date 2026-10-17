@@ -24,7 +24,7 @@
     "settings": {
       "count": 2,
       "size": 52,
-      "layout": "pillar",
+      "layout": "dash",
       "finish": "carbon"
     },
     "stats": {
@@ -43,8 +43,8 @@
     "apex_v8": {
       "model": "assets/parts/interior/readout/readout_2/apex_v8.glb",
       "bounds": {
-        "min": [-0.038, 0, 0.0175],
-        "max": [0.038, 0.14, 0.11]
+        "min": [-0.07, 0, 0.0175],
+        "max": [0.07, 0.076, 0.11]
       }
     },
     "brute_500": {
@@ -57,15 +57,15 @@
     "hana_roadster": {
       "model": "assets/parts/interior/readout/readout_2/hana_roadster.glb",
       "bounds": {
-        "min": [-0.038, 0, 0.0175],
-        "max": [0.038, 0.14, 0.11]
+        "min": [-0.07, 0, 0.0175],
+        "max": [0.07, 0.076, 0.11]
       }
     },
     "kaze_gt": {
       "model": "assets/parts/interior/readout/readout_2/kaze_gt.glb",
       "bounds": {
-        "min": [-0.038, 0, 0.0175],
-        "max": [0.038, 0.14, 0.11]
+        "min": [-0.07, -0.06, -0.1025],
+        "max": [0.07, 0.016, -0.01]
       }
     },
     "ridgeback_4x4": {
