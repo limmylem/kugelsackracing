@@ -52,7 +52,7 @@ async function roomStats(redisUrl: string) {
 const summarise = (res: ReturnType<Awaited<ReturnType<typeof runBots>>['results']>) => {
   const all = res.flatMap(r => r.saw);
   return {
-    pairs: all.length, snaps: all.reduce((a, s) => a + s.snaps, 0), frames: all.reduce((a, s) => a + s.frames, 0),
+    pairs: all.length, snaps: all.reduce((a, s) => a + s.snaps, 0), frames: all.reduce((a, s) => a + s.frames, 0), longFrames: all.reduce((a, s) => a + (s.longFrames ?? 0), 0),
     worstJumpCm: Math.max(0, ...all.map(s => s.worstJumpCm)), worstTurnDeg: Math.max(0, ...all.map(s => s.worstTurnDeg)),
     errorP95Cm: Math.max(0, ...all.map(s => s.errorP95Cm)), errorP50Cm: Math.max(0, ...all.map(s => s.errorP50Cm)),
     minMovedM: Math.min(...all.map(s => s.movedM)), maxFirstSeenMs: Math.max(...all.map(s => s.firstSeenMs)),
@@ -77,7 +77,7 @@ try {
   const clean = await eight('clean', null);
   json.clean = clean;
   check('every car visible to every other, and moving', clean.pairs === 56 && clean.minMovedM > SECS * 10, `${clean.pairs} of 56 pairs; each saw every other move at least ${clean.minMovedM} m; all seen within ${clean.maxFirstSeenMs} ms of joining`);
-  check('smooth: no visible snap', clean.snaps === 0, `${clean.snaps} snaps in ${clean.frames} car-frames; worst frame-to-frame jump ${clean.worstJumpCm} cm, turn ${clean.worstTurnDeg}°; shown within ${clean.errorP95Cm} cm of the true path (95%, once settled)`);
+  check('smooth: no visible snap', clean.snaps === 0, `${clean.snaps} snaps in ${clean.frames} car-frames${clean.longFrames ? ` (${clean.longFrames} over 50 ms not judged: this machine stalled)` : ''}; worst frame-to-frame jump ${clean.worstJumpCm} cm, turn ${clean.worstTurnDeg}°; shown within ${clean.errorP95Cm} cm of the true path (95%, once settled)`);
 
   section(`Bad networks (the simulator on every player's own link to the server)`);
   const T = NET.targets.smooth;
@@ -85,7 +85,7 @@ try {
     const r = await eight(`bad-${mode}`, { latencyMs: T.latencyMs, jitterMs: T.jitterMs, loss: T.loss, mode });
     json[`bad_${mode}`] = r;
     check(`${T.latencyMs} ms, ${T.jitterMs} ms jitter, ${T.loss * 100}% loss, ${mode === 'stream' ? 'WebSockets' : 'datagrams (WebTransport, later)'}: no visible snap`, r.snaps === 0 && r.pairs === 56,
-      `${r.snaps} snaps in ${r.frames} car-frames (worst jump ${r.worstJumpCm} cm); ${r.pairs}/56 pairs; shown ${r.bufferMs} ms behind the usual delay; within ${r.errorP95Cm} cm of the true path (95%, once settled)`);
+      `${r.snaps} snaps in ${r.frames} car-frames (worst jump ${r.worstJumpCm} cm${r.longFrames ? `; ${r.longFrames} over 50 ms not judged: this machine stalled` : ''}); ${r.pairs}/56 pairs; shown ${r.bufferMs} ms behind the usual delay; within ${r.errorP95Cm} cm of the true path (95%, once settled)`);
   }
   const worse = await eight('awful', { latencyMs: 400, jitterMs: 120, loss: 0.2 });
   json.awful = worse;

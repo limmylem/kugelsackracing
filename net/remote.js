@@ -153,13 +153,16 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       stats.states++;
       if (jump) { jump = false; blend = null; shown = null; lastT = null; teleported = true; return; }
       // the real path moved under what was shown (a late state replaced a prediction): steer across to it from where
-      // the car is shown, over longer the bigger the difference
+      // the car is shown, over longer the further that is — all of it, a correction already under way included (sized by
+      // this state's change alone, the rest of a big one would be squeezed into a fraction of a second: a lurch). More
+      // than TELEPORT_M off (a long stall just short of RESUME_MS): put there at once, flagged
       if (before && shown) {
         const after = raw(lastT), d = v3.len(v3.sub(before.pos, after.pos)), turn = quat.angle(quat.mul(before.rot, quat.conj(after.rot)));
-        if (d > TELEPORT_M) { blend = null; }
+        const far = v3.len(v3.sub(shown.pos, after.pos)), farTurn = quat.angle(quat.mul(shown.rot, quat.conj(after.rot)));
+        if (far > TELEPORT_M) { blend = null; teleported = true; }
         else if (d > 5e-4 || turn > 5e-4) {
           const dv = v3.len(v3.sub(shown.vel, after.vel));
-          const T = Math.min(1500, Math.max(I.blendMs, 300 * Math.sqrt(d) + 15 * dv, 2000 * turn));
+          const T = Math.min(1500, Math.max(I.blendMs, 300 * Math.sqrt(Math.max(d, far)) + 15 * dv, 2000 * Math.max(turn, farTurn)));
           blend = { t0: lastT, T, p0: shown.pos, v0: shown.vel, q0: shown.rot, w0: shown.ang };
           stats.corrections++;
         }
@@ -212,8 +215,10 @@ export function createRemote({ interp, sendHz = 30 } = {}) {
       }
       // (the car's motion as drawn: what the next correction starts from, and what the eye follows)
       const fdt = lastT != null ? (t - lastT) / 1000 : 0;
-      const vel = shown && fdt > 1e-4 ? v3.scale(v3.sub(pos, shown.pos), 1 / fdt) : resumed ? shown.vel : r.vel;
-      const ang = shown && fdt > 1e-4 ? quat.between(shown.rot, rot, fdt) : resumed ? shown.ang : r.ang;
+      // (not across a teleport: its own speed, there)
+      const moved = shown && fdt > 1e-4 && !teleported;
+      const vel = moved ? v3.scale(v3.sub(pos, shown.pos), 1 / fdt) : resumed ? shown.vel : r.vel;
+      const ang = moved ? quat.between(shown.rot, rot, fdt) : resumed ? shown.ang : r.ang;
       shown = { pos, rot, vel, ang };
       lastT = t;
       stats.maxCorrectionCm = Math.max(stats.maxCorrectionCm, corr); stats.lastCorrectionCm = corr;

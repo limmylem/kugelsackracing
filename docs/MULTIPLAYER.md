@@ -201,7 +201,10 @@ uses the observed speed.
 
 **No snapping.** When a real state arrives after a prediction, the car is blended from where it was shown to
 where it should be (projective velocity blending). The blend time grows with the error: from 200 ms up to
-1500 ms (`T = max(200, 300·√d + 15·dv, 2000·turn)`). A car is first drawn once it has two states, already moving
+1500 ms (`T = max(200, 300·√d + 15·dv, 2000·turn)`). `d` is how far the drawn car is from its real path, including
+any correction still under way. If it were only the latest state's change, a new state arriving during a big correction
+would squeeze the rest of it into 200 ms, and the car would lurch. More than 20 m off, the car is put there at once
+and flagged as a teleport. A car is first drawn once it has two states, already moving
 (shown a moment before its first one, along its own motion: not parked on it, then setting off). A reset or
 teleport is flagged, so it moves at once instead of gliding across the map.
 
@@ -339,11 +342,13 @@ are written to `reports/multiplayer-test.md` (not committed, like the other repo
 
 **A snap** is a drawn frame where a car moves more than 10 cm (or 10% of its movement that frame) beyond where
 its own motion would have taken it, or turns more than 1.5° beyond it (`net/measure.js`). It's measured on what
-was drawn, frame by frame, at 60 fps. "Its own motion" means its position, speed and acceleration as drawn, over
-the time the frame showed. While the buffer settles, the shown time runs 90–110% of real time; that plays the car
-slightly faster or slower, which isn't a jump. A correction eases the car onto its path with an acceleration of its
-own. On a busy machine drawing 20–40 frames a second, a long frame stretches that into a few centimetres without
-anything jumping, so the meter doesn't count it as a snap.
+was drawn, frame by frame, at 60 fps. "Its own motion" is the curve through the last three frames drawn, over the
+time each one showed. That's exact for a car speeding up, slowing or turning steadily, however uneven the frames.
+While the buffer settles, the shown time runs 90–110% of real time; that plays the car slightly faster or slower,
+which isn't a jump. A correction eases the car onto its path with an acceleration of its own; on a busy machine
+drawing 20–40 frames a second, judging that against constant speed made centimetres out of nothing. A frame longer
+than 50 ms (below 20 fps) means the drawing machine itself stalled, and the eye sees that hitch whatever the cars do.
+Those frames aren't judged; they're counted, and the test reports the count.
 
 **The trade-off.** At the target bad network over WebSockets, other cars are shown about 750 ms in the past. A
 lost packet stalls the TCP stream behind it, and the buffer has to cover that. Over datagrams it's about 380 ms. The
