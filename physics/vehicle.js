@@ -291,6 +291,9 @@ export class Vehicle {
   // handbrake bool, clutch: null for the auto-clutch or a 0..1 pedal, shift: +1 / -1 to change gear
   // this step }. The gearbox mode is this.drivetrain.mode.
   step(dt, input) {
+    // (frozen: held where it is while the real world's ground loads — map/render/game.ts hold — its engine, gearbox
+    // and wheels kept as they were, to carry on as they were when it's let go)
+    if (this.frozen) return;
     const { suspension: S, wheels: W, steering: St, brakes: Br, tyre: Ty } = this.spec;
     const b = this.body, R = this.R;
     const pos = fromXYZ(b.translation()), q = b.rotation();
