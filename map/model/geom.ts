@@ -23,7 +23,11 @@ export function prepareNormals(g: Seg, maxMitre = 1.6, smooth = 0) {
       if (dl > 1e-6) {
         const tx = (bx - ax) / dl, tz = (bz - az) / dl, b = Math.min(n - 1, k + 1), a = Math.max(0, k - 1);
         const px = g.xs[b] - g.xs[a], pz = g.zs[b] - g.zs[a], pl = Math.hypot(px, pz) || 1;
-        g.nx[k] = -tz; g.nz[k] = tx; g.mitre[k] = Math.min(maxMitre, 1 / Math.max(1e-6, Math.abs(tx * px / pl + tz * pz / pl)));
+        // (and against each piece either side at least half as long as smooth — a real corner, not a zigzag of nodes
+        // decimetres apart: across a car park's right-angled aisle the chord between the neighbours lies along the
+        // corner's middle, its mitre 1, and the inner edge cut the corner, 22 cm of the service road undrawn 7 m past it)
+        const piece = (i: number, j: number) => { const dx = g.xs[j] - g.xs[i], dz = g.zs[j] - g.zs[i], l = Math.hypot(dx, dz); return l >= smooth / 2 ? 1 / Math.max(1e-6, Math.abs(tx * dx / l + tz * dz / l)) : 0; };
+        g.nx[k] = -tz; g.nz[k] = tx; g.mitre[k] = Math.min(maxMitre, Math.max(1 / Math.max(1e-6, Math.abs(tx * px / pl + tz * pz / pl)), k > 0 ? piece(k - 1, k) : 0, k + 1 < n ? piece(k, k + 1) : 0));
         continue;
       }
     }

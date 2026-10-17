@@ -101,7 +101,8 @@ export function drawnHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
 
 // only: the roads and junction patches to build (by id) — a block of the region (map/bake/bakeV4.ts); each piece is the
 // same whichever others are built with it
-export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, cfg: any, { style = 'AU', crossings = new Map<number, string>(), only = null as null | { segs: Set<number>; clusters: Set<number> } } = {}) {
+// outlinesOnly: each piece's outline and nothing else (Map v5's islands, found once for the whole region: map/model/crossSection.ts)
+export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, cfg: any, { style = 'AU', crossings = new Map<number, string>(), only = null as null | { segs: Set<number>; clusters: Set<number> }, outlinesOnly = false } = {}) {
   const Sf = cfg.surface, H = cfg.heights, C = Sf.colours, mesh = newMesh(), marks = newMesh(), edges: number[] = [];
   // (the classes' numbers: the widths table's order, the same in every block's tiles; anything else after them)
   const classIdx: string[] = Object.keys(cfg.widths.classes).filter(k => !k.startsWith('_'));
@@ -122,7 +123,7 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   const stats: any = { ribbons: 0, rows: 0, folds: 0, patches: 0, patchTris: 0, markings: 0, tJunctions: 0, patchHoles: 0 };
   // (each piece's outline in plan — a ribbon's two drawn edges, a patch's rings — with its level: what the road covers,
   // for Map v5's cross-section)
-  const outlines: { level: number; rings: number[][][] }[] = [];
+  const outlines: { level: number; rings: number[][][]; id: number }[] = [];
 
   // ---------- ribbons ----------
   const segPlanes = new Map<number, any>();
@@ -156,8 +157,9 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const OFF = (r: any) => [r.hwL, r.dL, 0, -r.dR, -r.hwR];
     const lines = Array.from({ length: 5 }, (_, c) => rows.map(r => at(r, OFF(r)[c])));
     for (const line of lines) stats.folds += unfold(line, rows);
+    outlines.push({ level: LEVELS[g.structure], rings: [[...lines[0].map(p => [p[0], p[1]]), ...lines[4].slice().reverse().map(p => [p[0], p[1]])]], id: g.id });
+    if (outlinesOnly) continue;
     const heights = lines.map((line, c) => line.map((p, q) => surfaceHeight(g, rows[q].s, OFF(rows[q])[c], p[0], p[1], H, planes)));
-    outlines.push({ level: LEVELS[g.structure], rings: [[...lines[0].map(p => [p[0], p[1]]), ...lines[4].slice().reverse().map(p => [p[0], p[1]])]] });
     // (the first and last rows on a plane: exactly the plane, as the patch has them)
     const col = colourOf(g), sf = surfIdx(g), lv = LEVELS[g.structure], kerbS = SURFACES.indexOf('kerb');
     const ids = rows.map((_, q) => lines.map((line, c) => vtx(mesh, line[q][0], heights[c][q], line[q][1], c === 0 || c === 4 ? kerbC : col)));
@@ -198,8 +200,9 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     // (its colour: its main road's)
     const main = c.arms.slice().sort((p, q) => q.seg.rank - p.seg.rank)[0]?.seg, col = main ? colourOf(main) : hex(C.asphalt), sf = main ? surfIdx(main) : 0;
     const lv = c.arms.every(A => A.seg.structure === 'bridge') ? 1 : c.arms.every(A => A.seg.structure === 'tunnel') ? 2 : 0;
+    for (const poly of c.rings) outlines.push({ level: lv, rings: poly, id: -1 - c.id });
+    if (outlinesOnly) continue;
     const tris = triangulatePatch(c.rings), key = new Map<string, number>();
-    for (const poly of c.rings) outlines.push({ level: lv, rings: poly });
     const v = (p: number[]) => { const k = `${p[0]},${p[1]}`; let i = key.get(k); if (i === undefined) { i = vtx(mesh, p[0], planeAt(c, p[0], p[1]), p[1], col); key.set(k, i); } return i; };
     for (const t of tris) tri(mesh, v(t[0]), v(t[1]), v(t[2]), sf, 1, lv, -1 - c.id);
     // (its triangles cover its outline: else a hole in the road — counted, with where)
@@ -280,13 +283,21 @@ export function buildSurface(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   // (the tessellator's own stitches — solid triangles of no area along a T-junction — are kept: the tiles keep them too)
   stats.tJunctions = 0;
   for (let pass = 0; pass < 4; pass++) { const n = repairTJunctions(mesh, cfg.junctions.tJunction ?? q * 1.2); stats.tJunctions += n; if (!n) break; }
+  // (Map v5: again with the road's own kerb strips left out, the lanes' edges an outline too — a junction's patch running
+  // along a road's side met its lanes 3 mm off their vertices, under the kerb strip; then the whole again, the kerb
+  // strips split to match)
+  if (cfg.junctions.laneRepair) {
+    const kerbS = SURFACES.indexOf('kerb');
+    for (const only of [(t: number) => mesh.surfaces[t] !== kerbS, null]) for (let pass = 0; pass < 4; pass++) { const n = repairTJunctions(mesh, cfg.junctions.tJunction ?? q * 1.2, only); stats.tJunctions += n; if (!n) break; }
+  }
   return { mesh, marks, edges, outlines, classes: classIdx, stats };
 }
 
 // T-junctions closed: a vertex of the surface's outline lying on another piece's outline edge (within tol m, a
 // patch's corner on a road's side, say) — that edge's triangle split there, so the two pieces share the vertex and
 // no crack is left between them. Solid triangles only. Returns how many were split.
-export function repairTJunctions(mesh: Mesh, tol: number) {
+// only (Map v5): which triangles count, by index — the lanes alone, the road's own kerb strips left out
+export function repairTJunctions(mesh: Mesh, tol: number, only: ((t: number) => boolean) | null = null) {
   const P = mesh.positions, I = mesh.indices, nV = P.length / 3;
   // (vertices welded by position, 1 mm; edges by their welded ends, as numbers)
   const wid = new Int32Array(nV), weld = welder(nV);
@@ -295,10 +306,11 @@ export function repairTJunctions(mesh: Mesh, tol: number) {
   // (each edge kept with its lower welded end: the edges only one solid triangle has — the outline — by that triangle's
   // slot + side, in the order they come)
   const deg = new Int32Array(W + 1);
-  for (let t = 0; t < I.length; t += 3) { if (!mesh.solid[t / 3]) continue; for (let e = 0; e < 3; e++) deg[Math.min(wid[I[t + e]], wid[I[t + (e + 1) % 3]]) + 1]++; }
+  const counts = (t: number) => !!mesh.solid[t / 3] && (!only || only(t / 3));
+  for (let t = 0; t < I.length; t += 3) { if (!counts(t)) continue; for (let e = 0; e < 3; e++) deg[Math.min(wid[I[t + e]], wid[I[t + (e + 1) % 3]]) + 1]++; }
   for (let p = 0; p < W; p++) deg[p + 1] += deg[p];
   const fill = deg.slice(0, W), other = new Int32Array(deg[W]), slotOf = new Int32Array(deg[W]);
-  for (let t = 0; t < I.length; t += 3) { if (!mesh.solid[t / 3]) continue; for (let e = 0; e < 3; e++) { const p = wid[I[t + e]], q = wid[I[t + (e + 1) % 3]], lo = Math.min(p, q), at = fill[lo]++; other[at] = Math.max(p, q); slotOf[at] = t + e; } }
+  for (let t = 0; t < I.length; t += 3) { if (!counts(t)) continue; for (let e = 0; e < 3; e++) { const p = wid[I[t + e]], q = wid[I[t + (e + 1) % 3]], lo = Math.min(p, q), at = fill[lo]++; other[at] = Math.max(p, q); slotOf[at] = t + e; } }
   const outline: number[] = [];
   for (let p = 0; p < W; p++) for (let i = deg[p]; i < deg[p + 1]; i++) { let c = 0; for (let j = deg[p]; j < deg[p + 1]; j++) if (other[j] === other[i]) c++; if (c === 1) outline.push(slotOf[i]); }
   outline.sort((a, b) => a - b);

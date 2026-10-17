@@ -329,6 +329,9 @@ one does). The steps run in order, and each uses only what the steps before it m
    - The rest of the tile is Map v3's: heightfield, terrain colours, tyre surfaces, buildings, water, car parks,
      names, signs, and the HUD's road list.
    - New lists: `lamps`, `roadEdges` and `roadBorder` (for the debug views), and the `exclusion` grid.
+   - A list stored as int16 multiples of a quantum (trees, railings, hulls) keeps a column that reaches past int16's
+     range from an offset near its middle (`offsets`, in the tile's header). Without it a tree's height stopped at
+     655 m and a railing's at 327 m: the trees by Mount Lofty's summit were drawn under the ground.
 
 **In the game** (`map/render/`):
 
@@ -360,6 +363,10 @@ one does). The steps run in order, and each uses only what the steps before it m
   - A 3 km slice of central Adelaide went from 129 s to 54 s.
 - `--block-tiles` and `--block-pad` bake with other blocks. The tiles, graph and model come out byte-identical
   (tested on the slice: 6 × 6 tiles with a 100 m pad against 3 × 3 tiles with a 400 m pad).
+- Map v5 the same: every step that looks round — the cross-section's bands and islands, furniture, signs, trees,
+  railways' masts and wires, brands' signs, place names — works within its own reach of the block and keeps only
+  what lands in it, and what has to be the same everywhere is found once for the region (the islands, the one-way
+  pairs, the place signs' plan). A block bakes `bake.minShare` m of shaped ground round it at least.
 - The vector map and the elevation are reused from Map v3's bake when their inputs haven't changed.
 - Output goes beside the region's Map v3 bake, in `assets/map/<region>/v4/`: `manifest.json`, `graph.json.gz`,
   `roadmodel.json.gz` (the model's roads and junctions), `tiles/` and `far/`. The vector map is v3's
@@ -382,7 +389,28 @@ What it adds, by the brief's steps:
     road's chord either side (`graph.normalSmooth`), hairpins curved rather than cornered.
   - *Wheels at joins:* kerbs and footpaths close every road edge (the cross-section below), so no open step is left.
   - *Bridges:* the deck's clearance over what it crosses spread back along the approaches; a deck beside a road on
-    the ground where it rises away is narrowed so neither overhangs the other (`widths.acrossLevels`).
+    the ground where it rises away is narrowed so neither overhangs the other (`widths.acrossLevels`). Where a deck
+    as drawn still falls short over a road — eased down onto a junction held to its main road just past it, or
+    crossing at a skew so its edge is over the road near where it comes down — the road under it is lowered into an
+    underpass, flat under the deck and back up at `approachGrade` (`heights.underpass`): Devonport Terrace under
+    Torrens Road, South Road under Anzac Highway. A junction is raised for a deck no more than its other roads could
+    climb at `heights.raiseGrade` (Anzac Highway's 4 m stub at the foot of its bridge had become a 37% ramp), and from
+    a junction that can't go up as far as the deck wants, the deck rises at `approachGrade`. A main road's carriageway
+    goes under a main road's bridge over it (`heights.corridor.underDecks`), and a motorway under any road's standing
+    on LiDAR ground (`underAnyDeck`; in the hills the 30 m data has the cuttings): the newer motorways run in trenches
+    the LiDAR predates. The North-South Motorway had come up
+    level with Port Road's deck; Tonsley Boulevard's decks, held at their ends by junctions on South Road, came down
+    to 1.5 m over the Southern Expressway. A deck in pieces (split where its ramps join, off the ground) is followed
+    to where its bridge comes down, for the ground at its ends. A deck still short over a road that couldn't come down
+    far enough has its junctions raised as far as it wants after all, unless they're held to a main road
+    (`underpass.raiseShort`): a car park ramp in Bowden had come down to 1.3 m over the lane under it.
+  - *Junction surfaces:* a junction's plane is level in any direction its roads don't spread along
+    (`heights.planeRidge`), and its outline has no hairpins (`junctions.despike`): a sliver where two pieces of the
+    patch nearly met left T-junction cracks in the road. Each road's end row is put into the outline from 1 cm
+    (`junctions.snap`, `rowClean`), and the T-junction repair runs on the lanes alone as well (`laneRepair`).
+  - *Road edges at corners:* a cross-section is mitred against a real corner either side of it (pieces over half
+    `graph.normalSmooth` long), and a joint's shared cross-section is mitred too (`graph.jointMitre`): a right-angled
+    car park aisle's inside corner was cut off.
   - *Tunnels* (`map/model/tunnels.ts`): where a tunnel road runs under more than `terrain.tunnelCover` m of ground —
     the Heysen Tunnels — a tube built from the road surface: walls, a ceiling, portals with headwalls and wings,
     lamps on the walls, all solid; the hill over it left as it is, the road inside on its real grade.
@@ -414,7 +442,8 @@ What it adds, by the brief's steps:
 - **Step 7, vegetation** (`map/model/vegetation.ts`): trees by species — broadleaf, conifer, eucalypt, palm, low
   plants — from OSM's tags, else the style pack's mix for where they are; street trees in the verges and garden
   trees behind houses (estimated); nothing estimated on pitches, pools, playgrounds or greens; the pack's dry-summer
-  grass colours.
+  grass colours. Each tree's canopy, as drawn (`canopyAt`: an ellipsoid, a conifer's cone), is kept clear of every
+  road surface and band — a footpath up a bank beside it — else the tree is drawn smaller, else left out.
 - **Step 8, style packs** ([Region style packs](#region-style-packs)).
 - **Step 9, debug views and the recognisability capture** ([Debug views and bad spots](#debug-views-and-bad-spots)).
 
@@ -853,44 +882,39 @@ after pictures of the ten most complex junctions, three bridges and the known ba
   Adelaide is all Copernicus). Road positions within 0.7 cm of OSM, seams, railings at 50–300 km/h, streaming,
   memory, byte-identical re-bakes, and the Phase 1 tests on Grange Road.
 
-### Map v5 (2026-10-16)
+### Map v5 (2026-10-16; its known errors fixed 2026-10-17)
 
 Adelaide is on Map v5 now; the game loads `assets/map/adelaide/v5/` (`?map=v4` or `?map=v3` loads the older bakes,
 for comparing), and only Adelaide (`data/map/baked.json` `inGame`). The full report, Map v4 against Map v5, with
 before and after pictures of Step 0's places and bugs, is [MAP_V5_REPORT.md](MAP_V5_REPORT.md).
 
-- **Bake:** `npm run map:bake5 -- --region adelaide`: 72 minutes on 4 cores, 9.6 GB at most, in 49 blocks.
-- **Size:** 1,596 tiles, 545 MB, plus the road graph, the road model file and its own vector map: 585 MB in all.
+- **Bake:** `npm run map:bake5 -- --region adelaide`: 72 minutes on 4 cores, 8.0 GB at most, in 49 blocks.
+- **Size:** 1,596 tiles, 531 MB, plus the road graph, the road model file and its own vector map: 571 MB in all.
 - **Contents:**
   - 102,964 roads and 32,379 junctions;
-  - 18.0M road-surface triangles, plus 22.6M of kerbs, verges, footpaths and islands (8,918 km of kerb);
+  - 17.5M road-surface triangles, plus the kerbs, verges, footpaths and islands (8,918 km of kerb);
   - 263,735 buildings, each with a type (69% estimated);
   - 467 chain outlets under 21 parody brands;
   - 2,386 traffic lights and 16,531 street name signs;
-  - 423,040 trees;
+  - 720,119 trees (197,953 of them street trees and 93,548 garden trees, estimated);
   - the Heysen Tunnels' tubes.
-- **Road heights against the 5 m LiDAR:** median 0.00 m, 95th percentile 0.43 m (Map v4: +0.98 m and 3.48 m).
-- **Tests:** `npm run test:map5`: 17 of 19 pass on the whole region:
+- **Road heights against the 5 m LiDAR:** median 0.00 m, 95th percentile 0.40 m (Map v4: +0.98 m and 3.48 m).
+- **Tests:** `npm run test:map5`: 19 of 19 pass on the whole region:
   - signs and lights on the driving side of their traffic (98.5–99.8% of each kind);
-  - nothing on a lane (0 of 821,321 pieces);
+  - nothing on a lane (0 of 824,541 pieces);
+  - no car park or path floating (0 of 6.98M triangles);
+  - bridges clear of the roads under them (1.2% of deck edges under 4.5 m, limit 2%: two places);
   - Britannia Roundabout's gardens;
   - every building a type;
   - the Heysen Tunnels driven through end to end and solid all round, and Sir Richard Williams Avenue under the
     airport.
 
-  Two are just over their limits: 131 raised car-park or path triangles (limit 68, the highest 1.21 m), and 2.3% of
-  deck edges over a road under 4.5 m (limit 2%, the lowest 3.89 m). The CBD, Heysen and Superway slices pass all
-  theirs.
-- **Map v4's tests on it:** `npm run test:map4 -- --dir assets/map/adelaide/v5`: 21 of 27 pass. The six that don't:
-  - 12 T-junction cracks under 3 mm;
-  - 0.064% of edge points with no road (service lanes);
-  - 78 tree crowns through a deck;
-  - King William Street's 6 holes;
-  - 75 kerb and verge collision triangles a few cm off the next tile's at a bake block's edge, and 48 seam vertices
-    from the same cause.
-
-  Map v5's tiles depend on the bake's block size (Map v4's didn't), though the same blocks always give the same
-  tiles. [MAP_V5_REPORT.md](MAP_V5_REPORT.md#known-gaps) has all of it.
+  The CBD, Heysen and Superway slices pass all theirs.
+- **Map v4's tests on it:** `npm run test:map4 -- --dir assets/map/adelaide/v5`: 27 of 27 pass (2 cracks under 3 mm,
+  0 crowns through any road surface, King William Street with no holes, every seam vertex matched).
+- **Determinism:** the same area baked twice, the second a block per tile, gives byte-identical files (22 of 22): Map
+  v5's tiles no longer depend on the bake's block size. [MAP_V5_REPORT.md](MAP_V5_REPORT.md#known-gaps) has what's
+  left.
 
 ## Notes
 

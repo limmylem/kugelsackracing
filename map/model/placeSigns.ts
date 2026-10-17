@@ -3,20 +3,19 @@
 // within dedupe m); a named park's sign at its edge nearest a road (the park OSM maps, its name from a place of
 // Overture's inside it). Each stands clear of every lane (map/model/mask.ts surface.near) and building.
 //
-//   placeSigns({ localities, parks, places, segs, style, cfg, surface, groundAt, inBuilding, box, names })
-//     → { signs: [x, y, z, yaw, kind (0 suburb, 1 park), name index (into names, shared by every block) …], stats }
+//   planPlaceSigns({ localities, parks, places, segs, style, cfg }) → plan    (once, for the whole region: where each
+//     sign would go and its name — names, sorted — the same for every block of the bake)
+//   placeSigns({ plan, cfg, surface, groundAt, inBuilding, box })
+//     → { signs: [x, y, z, yaw, kind (0 suburb, 1 park), name index (into plan.names) …], stats }    (a block's: those
+//     with room, standing in its box)
 
 const inRing = (r: number[][], x: number, z: number) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) if ((r[i][1] > z) !== (r[j][1] > z) && x < (r[j][0] - r[i][0]) * (z - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c; return c; };
 
 export const PLACE_SIGN = { suburb: 0, park: 1 } as const;
 
-export function placeSigns({ localities, parks, places, segs, style, cfg, surface, groundAt, inBuilding, box, names }: { localities: { name: string; rings: number[][][] }[]; parks: any[]; places: any[]; segs: any[]; style: any; cfg: any; surface: any; groundAt: (x: number, z: number) => number; inBuilding: (x: number, z: number) => boolean; box: number[]; names: string[] }) {
-  const C = cfg.placeSigns, out: number[] = [], stats = { suburbs: 0, parks: 0, noRoom: 0 };
-  const nameIdx = (n: string) => { let k = names.indexOf(n); if (k < 0) { k = names.length; names.push(n); } return k; };
-  const inBox = (x: number, z: number) => x >= box[0] && x < box[2] && z >= box[1] && z < box[3];
-  const left = style.drivingSide !== 'right';
-  // (out from a road's edge until clear of every lane and building: the first of a few offsets)
-  const place = (x0: number, z0: number, nx: number, nz: number, hw: number) => { for (const d of C.offsets) { const x = x0 + nx * (hw + d), z = z0 + nz * (hw + d); if (!surface.near(x, z, C.clearance) && !inBuilding(x, z)) return [x, z]; } return null; };
+export function planPlaceSigns({ localities, parks, places, segs, style, cfg }: { localities: { name: string; rings: number[][][] }[]; parks: any[]; places: any[]; segs: any[]; style: any; cfg: any }) {
+  const C = cfg.placeSigns, left = style.drivingSide !== 'right';
+  const suburbs: { x0: number; z0: number; sx: number; sz: number; hw: number; yaw: number; name: string }[] = [], parkSigns: { x: number; z: number; yaw: number; name: string }[] = [];
   // ---- suburbs: each locality containing a point, by a coarse grid of their rings
   const G = 200, grid = new Map<string, number[]>();
   localities.forEach((L, q) => { for (const r of L.rings) { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const [x, z] of r) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } for (let i = Math.floor(x0 / G); i <= Math.floor(x1 / G); i++) for (let j = Math.floor(z0 / G); j <= Math.floor(z1 / G); j++) { const k = `${i},${j}`; const l = grid.get(k) ?? grid.set(k, []).get(k)!; if (!l.includes(q)) l.push(q); } } });
@@ -26,17 +25,16 @@ export function placeSigns({ localities, parks, places, segs, style, cfg, surfac
   const suburbAt = (x: number, z: number) => { let best = -1; for (const q of grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []) if (areaOf[q] <= C.maxArea * 1e6 && (best < 0 || areaOf[q] < areaOf[best]) && localities[q].rings.some(r => inRing(r, x, z))) best = q; return best; };
   const done: { q: number; x: number; z: number }[] = [];
   // (a sign entering suburb `into`, s m along g, going dir (1 forward, −1 back): on the driving side of the way it's
-  // going, facing the traffic coming in)
+  // going, facing the traffic coming in — one a suburb within dedupe m, the first in the region's order)
   const signAt = (g: any, s: number, dir: number, into: number) => {
     const L = g.s[g.s.length - 1]; s = Math.max(0, Math.min(L, s));
     let k = 0; while (k < g.s.length - 2 && g.s[k + 1] < s) k++;
     const f = g.s[k + 1] > g.s[k] ? (s - g.s[k]) / (g.s[k + 1] - g.s[k]) : 0, x0 = g.xs[k] + (g.xs[k + 1] - g.xs[k]) * f, z0 = g.zs[k] + (g.zs[k + 1] - g.zs[k]) * f;
     const tx = g.xs[k + 1] - g.xs[k], tz = g.zs[k + 1] - g.zs[k], tl = Math.hypot(tx, tz) || 1, fx = tx / tl * dir, fz = tz / tl * dir, sx = left ? fz : -fz, sz = left ? -fx : fx;
-    if (!inBox(x0, z0) || done.some(d => d.q === into && Math.hypot(d.x - x0, d.z - z0) < C.dedupe)) return;
-    const hw = (left === (dir > 0) ? g.hwR?.[k] : g.hwL?.[k]) ?? g.visual / 2, at = place(x0, z0, sx, sz, hw);
-    if (!at) { stats.noRoom++; return; }
-    out.push(at[0], groundAt(at[0], at[1]), at[1], Math.atan2(-fx, -fz), PLACE_SIGN.suburb, nameIdx(localities[into].name));
-    done.push({ q: into, x: x0, z: z0 }); stats.suburbs++;
+    if (done.some(d => d.q === into && Math.hypot(d.x - x0, d.z - z0) < C.dedupe)) return;
+    const hw = (left === (dir > 0) ? g.hwR?.[k] : g.hwL?.[k]) ?? g.visual / 2;
+    suburbs.push({ x0, z0, sx, sz, hw, yaw: Math.atan2(-fx, -fz), name: localities[into].name });
+    done.push({ q: into, x: x0, z: z0 });
   };
   const main = segs.filter(g => !g.internal && C.roadClasses.includes(g.cls) && g.structure === 'ground');
   const ends = new Map<any, { a: number; b: number }>();
@@ -76,10 +74,31 @@ export function placeSigns({ localities, parks, places, segs, style, cfg, surfac
     // (the ring's point nearest a road, a little inside the park)
     let best: any = null;
     for (let k = 0; k < ring.length; k += Math.max(1, Math.floor(ring.length / 60))) { const r = nearestRoad(ring[k][0], ring[k][1]); if (r) { const d = Math.hypot(r[0] - ring[k][0], r[1] - ring[k][1]); if (!best || d < best.d) best = { d, p: ring[k], r }; } }
-    if (!best || !inBox(best.p[0], best.p[1])) continue;
-    const dx = best.p[0] - best.r[0], dz = best.p[1] - best.r[1], dl = Math.hypot(dx, dz) || 1, x = best.p[0] + dx / dl * C.parkIn, z = best.p[1] + dz / dl * C.parkIn;
-    if (surface.near(x, z, C.clearance) || inBuilding(x, z)) { stats.noRoom++; continue; }
-    out.push(x, groundAt(x, z), z, Math.atan2(-dx / dl, -dz / dl), PLACE_SIGN.park, nameIdx(named.names.primary)); stats.parks++;
+    if (!best) continue;
+    const dx = best.p[0] - best.r[0], dz = best.p[1] - best.r[1], dl = Math.hypot(dx, dz) || 1;
+    parkSigns.push({ x: best.p[0] + dx / dl * C.parkIn, z: best.p[1] + dz / dl * C.parkIn, yaw: Math.atan2(-dx / dl, -dz / dl), name: named.names.primary });
+  }
+  const names = [...new Set([...suburbs.map(q => q.name), ...parkSigns.map(q => q.name)])].sort();
+  return { suburbs, parks: parkSigns, names, index: new Map(names.map((n, k) => [n, k])) };
+}
+
+export function placeSigns({ plan, cfg, surface, groundAt, inBuilding, box }: { plan: ReturnType<typeof planPlaceSigns>; cfg: any; surface: any; groundAt: (x: number, z: number) => number; inBuilding: (x: number, z: number) => boolean; box: number[] }) {
+  const C = cfg.placeSigns, out: number[] = [], stats = { suburbs: 0, parks: 0, noRoom: 0 };
+  const inBox = (x: number, z: number) => x >= box[0] && x < box[2] && z >= box[1] && z < box[3];
+  const reach = 30 + Math.max(...C.offsets);
+  // (out from a road's edge until clear of every lane and building: the first of a few offsets)
+  const place = (x0: number, z0: number, nx: number, nz: number, hw: number) => { for (const d of C.offsets) { const x = x0 + nx * (hw + d), z = z0 + nz * (hw + d); if (!surface.near(x, z, C.clearance) && !inBuilding(x, z)) return [x, z]; } return null; };
+  for (const q of plan.suburbs) {
+    if (q.x0 < box[0] - reach || q.x0 >= box[2] + reach || q.z0 < box[1] - reach || q.z0 >= box[3] + reach) continue;
+    const at = place(q.x0, q.z0, q.sx, q.sz, q.hw);
+    if (!at) { if (inBox(q.x0, q.z0)) stats.noRoom++; continue; }
+    if (!inBox(at[0], at[1])) continue;
+    out.push(at[0], groundAt(at[0], at[1]), at[1], q.yaw, PLACE_SIGN.suburb, plan.index.get(q.name)!); stats.suburbs++;
+  }
+  for (const q of plan.parks) {
+    if (!inBox(q.x, q.z)) continue;
+    if (surface.near(q.x, q.z, C.clearance) || inBuilding(q.x, q.z)) { stats.noRoom++; continue; }
+    out.push(q.x, groundAt(q.x, q.z), q.z, q.yaw, PLACE_SIGN.park, plan.index.get(q.name)!); stats.parks++;
   }
   return { signs: out, stats };
 }

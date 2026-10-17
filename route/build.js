@@ -128,9 +128,9 @@ export function buildRoute(N, spec) {
     const prevPiece = legs.at(-1)?.pieces?.at(-1), first = r.pieces[0];
     if (prevPiece && prevPiece.seg === first.seg && Math.sign(prevPiece.s1 - prevPiece.s0) === -Math.sign(first.s1 - first.s0) && Math.abs(first.s1 - first.s0) > 1) uturns.push(a.i);
     for (const p of r.pieces) {
-      const forward = p.s1 >= p.s0;
+      const forward = p.s1 >= p.s0, sRaw = along;
       addPoints(piecePoints(N, p));
-      segments.push({ key: N.keyOf(p.seg), way: p.seg.way, dir: forward ? 1 : -1, length: Math.round(p.seg.length * 10) / 10, covered: Math.round(Math.abs(p.s1 - p.s0) * 10) / 10, name: p.seg.name ?? null });
+      segments.push({ key: N.keyOf(p.seg), way: p.seg.way, dir: forward ? 1 : -1, length: Math.round(p.seg.length * 10) / 10, covered: Math.round(Math.abs(p.s1 - p.s0) * 10) / 10, name: p.seg.name ?? null, sRaw });
       // (a whole road: its end junction is passed)
       const endNode = forward ? (p.s1 >= p.seg.length - 1e-6 ? p.seg.to : null) : (p.s1 <= 1e-6 ? p.seg.from : null);
       if (endNode != null) nodes.push({ node: endNode, sRaw: along, degree: N.degree[endNode], x: N.nodes.x[endNode], z: N.nodes.z[endNode] });
@@ -145,5 +145,8 @@ export function buildRoute(N, spec) {
   const line = smooth(resample(raw), 1);
   // the junctions passed, on the finished line
   for (const nd of nodes) { const p = project(line, nd.x, nd.z, { from: Math.max(0, Math.floor(nd.sRaw / 4) - 30), to: Math.floor(nd.sRaw / 4) + 30 }); nd.s = p ? p.s : nd.sRaw; }
+  // (and where each road starts on it: for the directions' "onto …" — route/turns.js)
+  const scale = line.at(-1).s / (raw.at(-1).sRaw || 1);
+  for (const g of segments) { g.sStart = Math.round(g.sRaw * scale * 10) / 10; delete g.sRaw; }
   return { ok: !problems.some(p => p.level === 'error'), line, length: line.at(-1).s, legs, segments, nodes, uturns, problems, loop };
 }

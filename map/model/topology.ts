@@ -22,6 +22,7 @@
 //   seg.internal; and the normals at joints (geom.ts prepareNormals first)
 
 import * as Clipper from 'clipper2-js';
+import './clipperGuard.ts';   // (Clipper2-js's own bugs, worked round: map/model/clipperGuard.ts)
 import earcut from 'earcut';
 import libtess from 'libtess';
 import type { MNode, Seg } from './graph.ts';
@@ -90,7 +91,9 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
     for (const s of sides) {
       const g = s.g, e = s.e, Lw = s.along ? JL : JR, Rw = s.along ? JR : JL;
       g.fixedNormal ??= []; g.fixedNormal[e] = true;
-      g.nx[e] = s.along ? N[0] : -N[0]; g.nz[e] = s.along ? N[1] : -N[1]; g.mitre[e] = 1;
+      // (Map v5, jointMitre: mitred like any bend, its edges the roads' own width from each — a joint on a tile's
+      // border can turn a car park's right angle, and at 1 its inner corner was cut off)
+      g.nx[e] = s.along ? N[0] : -N[0]; g.nz[e] = s.along ? N[1] : -N[1]; g.mitre[e] = gcfg.jointMitre ? Math.min(1.6, 1 / Math.max(1e-6, tx * b[0] + tz * b[1])) : 1;
       // (tapered: the change fades over taperLength m from the joint)
       const L = g.s[g.s.length - 1], fromEnd = (q: number) => (e === 0 ? g.s[q] : L - g.s[q]);
       const dl = [Lw[0] - g.hwL[e], Lw[1] - g.dL[e]], dr = [Rw[0] - g.hwR[e], Rw[1] - g.dR[e]];
@@ -235,11 +238,20 @@ export function buildTopology(G: { nodes: MNode[]; segs: Seg[] }, cfg: any) {
       if (stats.unionFailures <= 3) console.warn(`    (junction patch at ${G.nodes[nodesIn[0]].x.toFixed(1)}, ${G.nodes[nodesIn[0]].z.toFixed(1)}: union failed — ${(e as Error).message}; its hull instead)`);
       rings = [[hull(pieces.flatMap(p => p[0]))]];
     }
+    // (Map v5: no hairpins — an outline running out and back on itself, a sliver where two pieces' edges, sampled at
+    // different points along a curved road, nearly meet: 2,600 of the CBD and Glenelg patches' 35,577 outline points, the
+    // road's T-junction cracks where they were triangulated. Each point the outline turns back at by more than despike°,
+    // or within despikeMerge m of the next, is taken out, again until there's none; a part left smaller than minPartArea
+    // m², a sliver on its own, goes)
+    if (J.despike) rings = rings.map(poly => poly.map(r => despike(r, Math.cos(J.despike * Math.PI / 180), J.despikeMerge))).filter(poly => poly[0].length >= 3 && Math.abs(polygonArea(poly[0])) >= J.minPartArea).map(poly => [poly[0], ...poly.slice(1).filter(h => h.length >= 3)]);
     // (holes too small or too thin to be a real island or median — slivers where pieces nearly meet — filled)
     rings = rings.map(poly => [poly[0], ...poly.slice(1).filter(h => { const a = Math.abs(polygonArea(h)); let per = 0; for (let q = 0; q < h.length; q++) { const b = h[(q + 1) % h.length]; per += Math.hypot(b[0] - h[q][0], b[1] - h[q][1]); } return a >= J.minHoleArea && a / Math.max(per, 1e-6) >= J.minHoleWidth / 2; })]);
     // every trimmed road's end row exactly on the outline: snapped to, and put into the edge it lies on
-    const must = external.flatMap(A => armRow(A, A.trim));
+    const rows = external.map(A => armRow(A, A.trim)), must = rows.flat();
     rings = rings.map(poly => poly.map(r => insertPoints(r, must, J.snap)));
+    // (Map v5: and nothing else of the outline on an end row between its points — a corner of another piece lying on
+    // it, a T-junction crack where the road's own end row meets it)
+    if (J.rowClean) rings = rings.map(poly => poly.map(r => cleanRows(r, rows, J.rowClean)));
     let cx = 0, cz = 0; for (const k of nodesIn) { cx += G.nodes[k].x; cz += G.nodes[k].z; }
     clusters.push({ id, nodes: nodesIn.slice().sort((p, q) => p - q), arms: external, internal: [...internal].sort((p, q) => p - q), rings, centre: [cx / nodesIn.length, cz / nodesIn.length], corners: cornerList });
     void root;
@@ -318,6 +330,27 @@ function fillet(c: any, n: number) {
   for (let q = 3; q >= 0; q--) eb.push(armEdge(B, sB + tl * q / 4, -1));
   const ring = [C, ...ea.slice(0, -1), ...curve, ...eb.slice(1)];
   return Math.abs(polygonArea(ring)) > 1e-4 ? { ring, curve } : null;
+}
+// a ring without its hairpins: each point where it turns back (the turn's cosine under cosMax) or that lies within merge m
+// of the next taken out, round and round until none is left (Map v5)
+export function despike(ring: number[][], cosMax: number, merge: number) {
+  const out = ring.slice();
+  for (let changed = true; changed && out.length > 3; ) {
+    changed = false;
+    for (let i = 0; i < out.length && out.length > 3; i++) {
+      const n = out.length, a = out[(i + n - 1) % n], b = out[i], c = out[(i + 1) % n];
+      const ux = b[0] - a[0], uz = b[1] - a[1], vx = c[0] - b[0], vz = c[1] - b[1], lu = Math.hypot(ux, uz), lv = Math.hypot(vx, vz);
+      if (lv <= merge || lu <= 1e-9 || (ux * vx + uz * vz) / (lu * lv) < cosMax) { out.splice(i, 1); i--; changed = true; }
+    }
+  }
+  return out;
+}
+// a ring without the points (other than the rows' own) lying within tol of a row between two of its points (Map v5)
+function cleanRows(ring: number[][], rows: number[][][], tol: number) {
+  const own = new Set(rows.flat()), pieces = rows.flatMap(row => row.slice(0, -1).map((p, i) => [p, row[i + 1]]));
+  const onRow = (p: number[]) => pieces.some(([a, b]) => { const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz; if (L2 < 1e-12) return false; const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L2; return t > 0 && t < 1 && Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / Math.sqrt(L2) <= tol; });
+  const out = ring.filter(p => own.has(p) || !onRow(p));
+  return out.length >= 3 ? out : ring;
 }
 // a ring with the given points on it: a vertex within `snap` of one becomes it exactly; one lying on an edge splits it
 function insertPoints(ring: number[][], pts: number[][], snap: number) {

@@ -1,7 +1,7 @@
 {
   "_note": "Map v5 (MAP_README.md, MAP_V5_DIAGNOSIS.md): Map v4's settings (data/map/v4.json, extended here: every key below replaces v4's, deep) plus Map v5's own — elevation, road shape, heights by class, bridges and tunnels, the cross-section (footpaths, kerbs, verges), buildings, brands, street furniture, landmarks, vegetation, lighting and the tests' limits. Every size, spacing, colour, threshold and tolerance Map v5 uses is here or in its region style pack (data/map/styles/). Bump version after changing anything: the next bake redoes every tile and the game's tile cache drops the old ones.",
   "extends": "v4.json",
-  "version": 1,
+  "version": 2,
   "map": "v5",
   "model": "roads-5.0",
   "elevation": {
@@ -23,25 +23,38 @@
     "acrossLevelsShare": 0.5
   },
   "graph": {
-    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks. mergeCopies: a road given twice (the same nodes) is kept once with both copies' tags — Overture's copy gives each bridge twice, OSM's lanes, turn lanes and cycle lanes on the copy that has no name or layer.",
+    "_note": "Map v4's, and: continuous — a way's end tangent taken through the road that continues it (Overture's copy of OSM splits roads at every junction, so each way's ends were kinks); cornerMinLeg — a turn sharper than corner° is a corner only where both legs are at least this long (a hairpin's nodes a few metres apart are a curve). normalSmooth: each cross-section's direction from the road's chord normalSmooth m either side (a few decimetres of zigzagging nodes no longer swing the road's edges), the centre line unmoved. minNodeGap: an OSM node within this many m of the last one kept is left out of the curve (its ends and junctions never are) — decimetres of zigzag in the data were kinks. mergeCopies: a road given twice (the same nodes) is kept once with both copies' tags — Overture's copy gives each bridge twice, OSM's lanes, turn lanes and cycle lanes on the copy that has no name or layer. jointMitre: a joint's shared cross-section mitred like any bend (its edges each road's own width from it; Map v4's 1 cut a corner's inside).",
     "continuous": true,
     "minNodeGap": 1.5,
     "cornerMinLeg": 14,
     "continueMaxTurn": 75,
     "normalSmooth": 3,
+    "jointMitre": true,
     "mergeCopies": true
   },
+  "junctions": {
+    "_note": "Map v4's, and: a junction patch's outline without hairpins (map/model/topology.ts despike) — every point it turns back at by more than despike°, or within despikeMerge m of the next, taken out until there's none (slivers where two pieces' edges, sampled at different points along a curved road, nearly meet: the road surface's T-junction cracks), and a part of it smaller than minPartArea m² left out. Each trimmed road's end row put into the outline from snap m (Map v4's 2 mm missed rows the outline's chords passed 3 mm from), and any other point of the outline within rowClean m of an end row between its points taken out: both T-junction cracks. laneRepair: the T-junction repair run again with the road's own kerb strips left out (a patch along a road's side meets its lanes vertex to vertex), then on the whole.",
+    "despike": 170,
+    "despikeMerge": 0.01,
+    "minPartArea": 0.5,
+    "snap": 0.01,
+    "rowClean": 0.01,
+    "laneRepair": true
+  },
   "heights": {
-    "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck), what it crosses being a road or railway whose centre line crosses the deck's in plan (a carriageway beside it isn't under it), the deck's own road too where it comes back under it more than selfCrossAlong m along (a loop ramp); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.",
+    "_note": "Map v4's, and: the road's ground sampled along the road only where the source is bare earth (LiDAR: no opening, no 2D blur; a surface model is still opened and blurred, demOpen / demBlur); maxGradeByClass — the steepest grade a road of each class may have over gradeWindow m (Map v4 had one maxGrade for all); approachGrade — the steepest a bridge's approach rises to clear what it crosses; clearance — the deck's underside over what it crosses (overpassClearance less the deck), what it crosses being a road or railway whose centre line crosses the deck's in plan (a carriageway beside it isn't under it), the deck's own road too where it comes back under it more than selfCrossAlong m along (a loop ramp); quadraticAbove — a junction cluster wider than this gets a gently curved surface (a quadratic, at most maxCurvature 1/m) instead of one plane.; planeRidge — a junction's plane is fitted as if each of its points also lay this many m off its middle every way at the middle's height: level in any direction its points don't spread along (points nearly on a line left the slope across it to their noise); raiseGrade — a junction is raised for a deck's approach no more than its other roads could climb at this grade between their trims (a short one can't take it: what's left short, the road under the deck is lowered for)",
     "lidarAlongRoad": true,
     "corridor": {
-      "_note": "map/model/heights.ts corridorProfiles: each carriageway of these classes one height profile end to end through its junctions (the same name and class, turning no more than turn° at a node): the elevation along it — none on a structure, within portalSkip m of a tunnel's mouth (its cutting) or bridgeSkip m of a bridge's ends — a Gaussian of sigma m, held to its class's grade exactly (halfway between the highest profile within it nowhere above and the lowest nowhere below). Junctions on it fit their surface to it weight times as hard as to the side roads.",
+      "_note": "map/model/heights.ts corridorProfiles: each carriageway of these classes one height profile end to end through its junctions (the same name and class, turning no more than turn° at a node): the elevation along it — none on a structure, within portalSkip m of a tunnel's mouth (its cutting) or bridgeSkip m of a bridge's ends — a Gaussian of sigma m, held to its class's grade exactly (halfway between the highest profile within it nowhere above and the lowest nowhere below). Junctions on it fit their surface to it weight times as hard as to the side roads; a junction its carriageway runs through (the same road in and out) takes its grade along it exactly, a cross slope from the side roads of no more than crossSlope, and is pinned (nothing after moves it up or down: a deck's approach raises what's at the deck's other end). underDecks: under a bridge carrying a main road (one of classes, held to its own profile) over it, standing on the ground at both ends, a carriageway is no higher than that ground (at the deck's ends, between them where it crosses) less clearance and deckDepth, and back up at its grade from there (the newer motorways' trenches the LiDAR predates). underAnyDeck: under these classes, any road's bridge counts, where it stands on LiDAR ground at both ends (not in the hills, where the 30 m data has the cuttings).",
       "classes": ["motorway", "trunk", "primary"],
+      "crossSlope": 0.04,
       "turn": 35,
       "sigma": 30,
       "portalSkip": 120,
       "bridgeSkip": 15,
-      "weight": 6
+      "weight": 6,
+      "underDecks": true,
+      "underAnyDeck": ["motorway"]
     },
     "maxGradeByClass": {
       "motorway": 0.075,
@@ -65,6 +78,15 @@
     "clearance": 5.0,
     "clearanceRail": 5.5,
     "selfCrossAlong": 60,
+    "planeRidge": 3,
+    "raiseGrade": 0.15,
+    "underpass": {
+      "_note": "map/model/heights.ts underpasses: where a deck's edges as drawn (eased onto a junction's plane near its ends) are less than deckDepth + clearance m over a ground road under them, that road is lowered to it (a deck held down by a junction on its main road: Torrens Road over Devonport Terrace) — flat for drawnSmooth + flat m either side of each point under the deck, back up at approachGrade, no more than maxDepth m down (Adelaide's newer motorways run in trenches the LiDAR predates: the Southern Expressway at Tonsley, the North-South Motorway at Port Road); never a road's trims, a railway or a junction's surface. raiseShort: a deck still short over a road that couldn't come down far enough has the junctions at its ends raised as far as it wants after all (heights.raiseGrade aside), unless held to a main road.",
+      "clearance": 4.8,
+      "flat": 1,
+      "maxDepth": 8,
+      "raiseShort": true
+    },
     "quadraticAbove": 60,
     "maxCurvature": 0.0012
   },
@@ -94,8 +116,9 @@
     "realLightIntensity": 320
   },
   "xsec": {
-    "_note": "map/model/crossSection.ts: the cross-section's bands (kerbs, verges, footpaths, islands) are joined, cut and triangulated in square cells of cell m — each cell's the same whichever block of the bake builds it. Their widths, heights and colours are the region's style pack's (data/map/styles/).",
-    "cell": 64
+    "_note": "map/model/crossSection.ts: the cross-section's bands (kerbs, verges, footpaths, islands) are joined, cut and triangulated in square cells of cell m — each cell's the same whichever block of the bake builds it: a block builds them as far out as it shapes the ground (its share and the shaping's reach past it), from the roads within an island's maxSpan and lookRound m (as far as a cell looks for its road's side, edge and height) of that. Their widths, heights and colours are the region's style pack's (data/map/styles/).",
+    "cell": 64,
+    "lookRound": 40
   },
   "tyreSurfaces": {
     "_note": "Surfaces Map v5 adds to data/map/bake.json's for the tyres (the manifest's surfaces).",
@@ -182,7 +205,9 @@
     "kinds": ["stadium", "cathedral", "church", "train_station", "tower", "university", "hospital", "museum", "civic", "government", "transportation"]
   },
   "vegetation": {
-    "_note": "map/model/vegetation.ts: open ground no estimated tree stands on (leisure openLeisure, golf openGolf, landuse openLanduse, amenity openAmenity); street trees none along noStreetTrees classes, clearOfJunction m from a road's trimmed ends, clearOfLowered m from a lowered kerb (driveways, crossings), none within mappedNear m of a tree already placed; a street tree's trunk on the verge, trunkClear m from any lane.",
+    "_note": "map/model/vegetation.ts: open ground no estimated tree stands on (leisure openLeisure, golf openGolf, landuse openLanduse, amenity openAmenity); street trees none along noStreetTrees classes, clearOfJunction m from a road's trimmed ends, clearOfLowered m from a lowered kerb (driveways, crossings), none within mappedNear m of a tree already placed; a street tree's trunk on the verge, trunkClear m from any lane. A block of the bake places the trees within blockReach m of it too, and keeps its own: one over its edge keeps a tree in it as far from it as in the next block. Every tree's drawn canopy (map/model/vegetation.ts canopyAt: map/render/objects.ts's shapes) is kept clear of every road surface and its bands, within crownMargin m — a footpath up a bank beside it, a deck — else the tree is drawn smaller (down to half its size), else left out.",
+    "crownMargin": 0.1,
+    "blockReach": 30,
     "openLeisure": ["pitch", "stadium", "track", "swimming_pool", "playground", "ice_rink", "miniature_golf"],
     "openGolf": ["green", "fairway", "tee", "bunker", "driving_range", "pin"],
     "openLanduse": [],
@@ -215,7 +240,7 @@
     "whitelist": []
   },
   "brandSites": {
-    "_note": "A chain's site (map/model/buildingsV5.ts brandSites): its building the one its point is in or the nearest within buildingNear m; a pylon sign pylonHeight m tall pylonOut m past the edge of the road within roadNear m; a petrol canopy canopy [along, across] m, canopyHeight m up, canopyOut m back from the road's edge, over pumps islands — a mapped canopy (building=roof) within canopyNear m its own, its pumps pumpSpacing m apart (at most maxPumps), else one placed (the biggest of canopySizes [along, across] m that fits) where it's clear: tried canopySearch [reach m back, step m, steps along] round the first spot, nearest the outlet first, over no public road or building, its posts and pumps clear of every lane. A mapped one counts if it's of forecourt size (canopyArea m²), near a rectangle and at least canopyDepth m deep (a verandah is shallow) — and a fuel chain beside one sells fuel. Only a station with fuel (OSM amenity=fuel, Overture gas_station): a chain's shop alone gets neither canopy nor pylon; a drive-thru's menu board by the service road within laneNear m of its building; trolley bays trolleyApart m apart in the car park within carParkNear m. Each only where it's clear of every lane and building.",
+    "_note": "A chain's site (map/model/buildingsV5.ts brandSites): its building the one its point is in or the nearest within buildingNear m; a pylon sign pylonHeight m tall pylonOut m past the edge of the road within roadNear m; a petrol canopy canopy [along, across] m, canopyHeight m up, canopyOut m back from the road's edge, over pumps islands — a mapped canopy (building=roof) within canopyNear m its own, its pumps pumpSpacing m apart (at most maxPumps), else one placed (the biggest of canopySizes [along, across] m that fits) where it's clear: tried canopySearch [reach m back, step m, steps along] round the first spot, nearest the outlet first, over no public road or building, its posts and pumps clear of every lane. A mapped one counts if it's of forecourt size (canopyArea m²), near a rectangle and at least canopyDepth m deep (a verandah is shallow) — and a fuel chain beside one sells fuel. Only a station with fuel (OSM amenity=fuel, Overture gas_station): a chain's shop alone gets neither canopy nor pylon; a drive-thru's menu board by the service road within laneNear m of its building; trolley bays trolleyApart m apart in the car park within carParkNear m. Each only where it's clear of every lane and building. A block works out every outlet within siteReach m of it and keeps the pieces standing in it.",
     "buildingNear": 25,
     "roadNear": 45,
     "pylonOut": 2.5,
@@ -233,10 +258,11 @@
     "canopyDepth": 6,
     "laneNear": 30,
     "carParkNear": 90,
-    "trolleyApart": 14
+    "trolleyApart": 14,
+    "siteReach": 130
   },
   "furniture": {
-    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A roundabout's entry signs (give way over the roundabout sign) at junctions within roundaboutReach m of its island's edge; OSM's give way points within entrySignNear m of one are that sign. One-way streets: ONE WAY and NO ENTRY signs oneWayIn m into the street from the junction (not a service road, nor a divided road's carriageway: a one-way road with a same-named twin within carriagewayGap m going the other way, within carriagewayAngle° of opposite). A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m.",
+    "_note": "map/model/furniture.ts: street furniture where the map has it. Each piece clearance m out from the drawn road's edge past the kerb (pushed out up to pushMax m if it would stand in a lane, else left out). Traffic lights: a junction with a traffic_signals point within signalReach m of its middle gets a light at each approach, stopBack m back from the junction, trafficLightHeight m tall; the game runs two phase groups on cycle (green, amber, red-to-all s). Speed signs speedIn m into a new limit. Street name signs at a junction's corner, at most signReach m out. A roundabout's entry signs (give way over the roundabout sign) at junctions within roundaboutReach m of its island's edge; OSM's give way points within entrySignNear m of one are that sign. One-way streets: ONE WAY and NO ENTRY signs oneWayIn m into the street from the junction (not a service road, nor a divided road's carriageway: a one-way road with a same-named twin within carriagewayGap m going the other way, within carriagewayAngle° of opposite). A bus stop's shelter shelterBack m behind its pole, if OSM maps one within shelterNear m. Power poles poleHeight m (towers towerHeight), wires between them on spans no longer than maxSpan m. Each piece is worked out from what it's placed by (a junction, a node, a mapped point) within placeReach m of a block of the bake, and kept by the block it stands in: the same whichever block builds it.",
     "clearance": 0.45,
     "pushMax": 3,
     "signalReach": 30,
@@ -254,6 +280,7 @@
     "poleHeight": 10.5,
     "towerHeight": 28,
     "maxSpan": 120,
+    "placeReach": 80,
     "cycle": { "green": 20, "amber": 4, "allRed": 2 }
   },
   "frontFences": {
@@ -330,5 +357,9 @@
       { "name": "Britannia Roundabout (west island)", "lat": -34.927574, "lon": 138.622643, "r": 4, "garden": true },
       { "name": "North Terrace / King William Street (divided roads crossing)", "lat": -34.92160, "lon": 138.59955, "r": 3, "garden": false }
     ]
+  },
+  "bake": {
+    "_note": "Map v5's blocks (data/map/v4.json bake): each shapes the ground at least minShare m past its edges — as far as a power line's or an overhead wire's far end from a span whose middle is in it (half of furniture.maxSpan and more) — so what it builds there stands on the ground the next block shapes the same.",
+    "minShare": 62
   }
 }

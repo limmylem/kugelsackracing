@@ -62,6 +62,19 @@ function clipRing(ring: number[][], b: number[]) {
   }
   return pts;
 }
+// (Clipper's output rings as polygons — each outer ring, wound positive, with the holes inside it — for the
+// triangulation's fallback, which takes a polygon's first ring as its outline and the rest as its holes)
+function polygonsOf(rings: number[][][]) {
+  const outers = rings.filter(r => ringArea(r) > 0);
+  if (!outers.length) return [rings];
+  const polys = outers.map(r => [r]);
+  for (const h of rings) {
+    if (ringArea(h) > 0) continue;
+    let best = -1; for (let q = 0; q < outers.length; q++) if (insidePts(outers[q], h[0][0], h[0][1]) && (best < 0 || Math.abs(ringArea(outers[q])) < Math.abs(ringArea(outers[best])))) best = q;
+    if (best >= 0) polys[best].push(h);
+  }
+  return polys;
+}
 const insidePts = (poly: number[][], x: number, z: number) => { let c = false; for (let k = 0, a = poly[poly.length - 1]; k < poly.length; a = poly[k++]) { const b = poly[k]; if ((b[1] > z) !== (a[1] > z) && x < (a[0] - b[0]) * (z - b[1]) / (a[1] - b[1]) + b[0]) c = !c; } return c; };
 
 // segments' centre-line pieces by cell: the nearest road to a point (its side: + left). (A junction's internal
@@ -216,7 +229,81 @@ const paths = (list: any[]) => {
 };
 const NZ = Clipper.FillRule.NonZero;
 
-export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildings = [], lowerAt = [] }: { mesh: Mesh; outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; cells: [number, number, number, number][]; style: any; cfg: any; buildings?: any[]; lowerAt?: number[][] }) {
+// the islands: the ground road's holes no bigger than maxArea (and maxSpan across) with no building on them — a
+// roundabout's middle, a junction's traffic island — and the roundabouts among them: round enough, ringed by roads going
+// round them. The bake finds them once for the region (outlinesOnly: map/model/surface.ts), on its own grid of IS.cell m
+// cells, not the bake's blocks: a join of a block's roads alone rounds a crossing where two edges meet at a shallow angle
+// by what else is in it, and an island's corners came out a few cm apart in two blocks. Each cell joins the roads within
+// maxSpan + 10 m of it (all round any island centred in it) and keeps the islands whose first corner is in it — one join
+// of the whole region's roads took Clipper2-js hours.
+export type Island = { pts: number[][]; box: number[]; area: number; round: boolean; cx: number; cz: number; r: number; ring: number[] };
+export function findIslands({ outlines, segs, buildings = [], style }: { outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; buildings?: any[]; style: any }): Island[] {
+  const IS = style.islands, nearAny = segIndex(segs, 16, true);
+  const ground = outlines.filter(o => o.level === 0);
+  const piecePaths = ground.flatMap(o => o.rings.map((r, q) => { const ccw = ringArea(r) > 0; return P64(q === 0 ? (ccw ? r : r.slice().reverse()) : (ccw ? r.slice().reverse() : r)); }));
+  const U = (list: any[]) => unlooped(g => Clipper.Clipper.Union(paths(g ? list.map(p => Array.from(p as any[], (q: any) => ({ x: Math.round(q.x / g) * g, y: Math.round(q.y / g) * g }))) : list), undefined, NZ)).result ?? new Clipper.Paths64();
+  // (buildings by 50 m cell: one standing in a hole makes it land between roads, no island)
+  const BC = 50, bGrid = new Map<string, number[][]>();
+  for (const b of buildings) { const p = b.rings[0][0], k = `${Math.floor(p[0] / BC)},${Math.floor(p[1] / BC)}`; (bGrid.get(k) ?? bGrid.set(k, []).get(k)!).push(p); }
+  const buildingIn = (pts: number[][], box: number[]) => { for (let i = Math.floor(box[0] / BC); i <= Math.floor(box[2] / BC); i++) for (let j = Math.floor(box[1] / BC); j <= Math.floor(box[3] / BC); j++) for (const p of bGrid.get(`${i},${j}`) ?? []) if (insidePts(pts, p[0], p[1])) return true; return false; };
+  // (the pieces by their bounds, on the region's grid of cells)
+  const CL = IS.cell, reach = IS.maxSpan + 10, boxes = piecePaths.map((p: any) => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of p) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.y); z1 = Math.max(z1, q.y); } return [x0 / S, z0 / S, x1 / S, z1 / S]; });
+  const byCell = new Map<string, number[]>();
+  boxes.forEach((b, k) => { for (let i = Math.floor((b[0] - reach) / CL); i <= Math.floor((b[2] + reach) / CL); i++) for (let j = Math.floor((b[1] - reach) / CL); j <= Math.floor((b[3] + reach) / CL); j++) { const key = `${i},${j}`; (byCell.get(key) ?? byCell.set(key, []).get(key)!).push(k); } });
+  const cells = [...byCell.keys()].map(k => k.split(',').map(Number)).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const loops: number[][][] = [], seen: number[][] = [];
+  for (const [i, j] of cells) {
+    const list = byCell.get(`${i},${j}`)!, joined = U(list.map(k => piecePaths[k]));
+    const cellLoops: number[][][] = joined.map((p: any) => p.map((pt: any) => [pt.x / S, pt.y / S]));
+    // (the road's outers wind the way the biggest of its loops does)
+    const sign = Math.sign(cellLoops.reduce((a, l) => (Math.abs(ringArea(l)) > Math.abs(a) ? ringArea(l) : a), 0)) || 1;
+    for (const loop of cellLoops) {
+      const A0 = ringArea(loop);
+      if (Math.sign(A0) === sign || Math.abs(A0) > IS.maxArea || Math.abs(A0) < 1) continue;
+      let q0 = 0; for (let q = 1; q < loop.length; q++) if (loop[q][0] < loop[q0][0] || (loop[q][0] === loop[q0][0] && loop[q][1] < loop[q0][1])) q0 = q;
+      // (its first corner in this cell — within a centimetre: the next cell's join can round it the other side of the
+      // line — and not one a cell before it found already)
+      const [fx, fz] = loop[q0];
+      if (fx < i * CL - 0.01 || fx >= (i + 1) * CL + 0.01 || fz < j * CL - 0.01 || fz >= (j + 1) * CL + 0.01) continue;
+      if (seen.some(o => Math.abs(o[0] - fx) < 0.05 && Math.abs(o[1] - fz) < 0.05 && Math.abs(o[2] - Math.abs(A0)) < 0.01 * o[2] + 0.05)) continue;
+      seen.push([fx, fz, Math.abs(A0)]);
+      loops.push(loop);
+    }
+  }
+  // (islands: the ground road's holes no bigger than maxArea with no building on them — a roundabout's middle, a
+  // junction's traffic island — and the roundabouts among them: round enough, ringed by roads going round them)
+  const islands: { pts: number[][]; box: number[]; area: number; round: boolean; cx: number; cz: number; r: number; ring: number[] }[] = [];
+  for (const loop of loops) {
+    const A0 = ringArea(loop);
+    // (no more than maxSpan across: a long gap between two roads side by side, closed only far off, is no island — and
+    // every block that builds a cell of one holds all of its ring)
+    const bx = loop.map(p => p[0]), bz = loop.map(p => p[1]);
+    if (Math.max(...bx) - Math.min(...bx) > IS.maxSpan || Math.max(...bz) - Math.min(...bz) > IS.maxSpan) continue;
+    // (from its first corner — the least x, then z — whichever block's join gave it: what's sampled round it the same)
+    let q0 = 0; for (let q = 1; q < loop.length; q++) if (loop[q][0] < loop[q0][0] || (loop[q][0] === loop[q0][0] && loop[q][1] < loop[q0][1])) q0 = q;
+    const pts = [...loop.slice(q0), ...loop.slice(0, q0)], A = ringArea(pts);
+    if (buildingIn(pts, [Math.min(...bx), Math.min(...bz), Math.max(...bx), Math.max(...bz)])) continue;
+    let per = 0, cx = 0, cz = 0; for (let q = 0; q < pts.length; q++) { per += Math.hypot(pts[(q + 1) % pts.length][0] - pts[q][0], pts[(q + 1) % pts.length][1] - pts[q][1]); cx += pts[q][0]; cz += pts[q][1]; }
+    cx /= pts.length; cz /= pts.length;
+    const compact = 4 * Math.PI * Math.abs(A) / (per * per);
+    const hits = pts.filter((_, q) => q % 3 === 0).map(p => nearAny(p[0], p[1], 30)).filter(Boolean) as { g: Seg; k: number }[], ring = hits.map(h => h.g);
+    // (and circulating: its roads all going round it the same way — clockwise seen from above where traffic keeps
+    // left. A block between a divided road's carriageways is ringed by one-way roads going opposite ways)
+    // (and curving round it: its roads' directions all the way round, no gap of more than maxTurnGap° between them —
+    // two divided roads crossing ring a hole with one-way roads going round it too, but in four directions only)
+    // (each ring road's way: its one-way's, else the way it's drawn — OSM draws a roundabout's ring the way its traffic
+    // goes, and Overture's copy, with no junction=roundabout, leaves the ring two-way)
+    const ways = hits.map(h => { const g = h.g, sd = g.oneway || 1, dx = (g.xs[h.k + 1] - g.xs[h.k]) * sd, dz = (g.zs[h.k + 1] - g.zs[h.k]) * sd; return { turn: Math.sign((g.xs[h.k] - cx) * dz - (g.zs[h.k] - cz) * dx), a: Math.atan2(dz, dx) }; });
+    const turning = ways.map(w => w.turn), angles = ways.map(w => w.a).sort((p, q) => p - q);
+    const gap = angles.length ? Math.max(...angles.map((a, q) => (q + 1 < angles.length ? angles[q + 1] - a : angles[0] + 2 * Math.PI - a))) * 180 / Math.PI : 360;
+    const sense = (style.drivingSide ?? 'left') === 'right' ? -1 : 1, circulates = turning.length > 0 && turning.filter(t => t === sense).length >= turning.length * IS.circulating && gap <= IS.maxTurnGap;
+    const round = compact >= IS.roundness && ring.length > 0 && circulates;
+    islands.push({ pts, box: [Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))], area: Math.abs(A), round, cx, cz, r: Math.sqrt(Math.abs(A) / Math.PI), ring: [...new Set(ring.map(g => g.id))] });
+  }
+  return islands;
+}
+
+export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildings = [], lowerAt = [], islands: islandsIn = null }: { mesh: Mesh; outlines: { level: number; rings: number[][][] }[]; segs: Seg[]; cells: [number, number, number, number][]; style: any; cfg: any; buildings?: any[]; lowerAt?: number[][]; islands?: Island[] | null }) {
   const X = style.crossSection, IS = style.islands, colours = X.colours, P = M.positions, I = M.indices;
   const kerbW = X.kerbBevel + X.kerbTop;
   const stats = { edges: 0, loops: 0, cells: 0, triangles: 0, islands: 0, gardens: 0, plants: 0, kerbM: 0, footpathM2: 0, vergeM2: 0, clipperSnapped: 0, clipperFailed: 0, unheighted: 0 };
@@ -270,35 +357,10 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
   const pieceBox = ground.map(o => { const r = o.rings[0]; return [Math.min(...r.map(p => p[0])), Math.min(...r.map(p => p[1])), Math.max(...r.map(p => p[0])), Math.max(...r.map(p => p[1]))]; });
   // (the pieces near a box, each cut to it first — a ribbon runs far past a cell — then joined)
   const roadIn = (b: number[]) => { const list: any[] = []; ground.forEach((o, q) => { if (!meets(pieceBox[q], b)) return; o.rings.forEach((r, k) => { const c = clipRing(r, b); if (c.length < 3) return; const ccw = ringArea(c) > 0; list.push(P64(k === 0 ? (ccw ? c : c.reverse()) : (ccw ? c.reverse() : c))); }); }); return Clipper.Clipper.Union(paths(list), undefined, NZ); };
-  const allRoad = U(piecePaths.flat());
-  const loops: number[][][] = allRoad.map((p: any) => p.map((pt: any) => [pt.x / S, pt.y / S]));
-  stats.loops = loops.length;
   const X0 = (w: number) => P[rep[w] * 3], Y0 = (w: number) => P[rep[w] * 3 + 1], Z0 = (w: number) => P[rep[w] * 3 + 2];
-  // (islands: the ground road's holes no bigger than maxArea with no building on them — a roundabout's middle, a
-  // junction's traffic island — and the roundabouts among them: round enough, ringed by roads going round them)
-  const outerSign = Math.sign(loops.reduce((a, l) => (Math.abs(ringArea(l)) > Math.abs(a) ? ringArea(l) : a), 0)) || 1;
-  const islands: { pts: number[][]; box: number[]; area: number; round: boolean; cx: number; cz: number; r: number; ring: number[] }[] = [];
-  for (const pts of loops) {
-    const A = ringArea(pts);
-    if (Math.sign(A) === outerSign || Math.abs(A) > IS.maxArea || Math.abs(A) < 1) continue;
-    if (buildings.some((b: any) => { const p = b.rings[0][0]; return insidePts(pts, p[0], p[1]); })) continue;
-    let per = 0, cx = 0, cz = 0; for (let q = 0; q < pts.length; q++) { per += Math.hypot(pts[(q + 1) % pts.length][0] - pts[q][0], pts[(q + 1) % pts.length][1] - pts[q][1]); cx += pts[q][0]; cz += pts[q][1]; }
-    cx /= pts.length; cz /= pts.length;
-    const compact = 4 * Math.PI * Math.abs(A) / (per * per);
-    const hits = pts.filter((_, q) => q % 3 === 0).map(p => nearAny(p[0], p[1], 30)).filter(Boolean) as { g: Seg; k: number }[], ring = hits.map(h => h.g);
-    // (and circulating: its roads all going round it the same way — clockwise seen from above where traffic keeps
-    // left. A block between a divided road's carriageways is ringed by one-way roads going opposite ways)
-    // (and curving round it: its roads' directions all the way round, no gap of more than maxTurnGap° between them —
-    // two divided roads crossing ring a hole with one-way roads going round it too, but in four directions only)
-    // (each ring road's way: its one-way's, else the way it's drawn — OSM draws a roundabout's ring the way its traffic
-    // goes, and Overture's copy, with no junction=roundabout, leaves the ring two-way)
-    const ways = hits.map(h => { const g = h.g, sd = g.oneway || 1, dx = (g.xs[h.k + 1] - g.xs[h.k]) * sd, dz = (g.zs[h.k + 1] - g.zs[h.k]) * sd; return { turn: Math.sign((g.xs[h.k] - cx) * dz - (g.zs[h.k] - cz) * dx), a: Math.atan2(dz, dx) }; });
-    const turning = ways.map(w => w.turn), angles = ways.map(w => w.a).sort((p, q) => p - q);
-    const gap = angles.length ? Math.max(...angles.map((a, q) => (q + 1 < angles.length ? angles[q + 1] - a : angles[0] + 2 * Math.PI - a))) * 180 / Math.PI : 360;
-    const sense = (style.drivingSide ?? 'left') === 'right' ? -1 : 1, circulates = turning.length > 0 && turning.filter(t => t === sense).length >= turning.length * IS.circulating && gap <= IS.maxTurnGap;
-    const round = compact >= IS.roundness && ring.length > 0 && circulates;
-    islands.push({ pts, box: [Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))], area: Math.abs(A), round, cx, cz, r: Math.sqrt(Math.abs(A) / Math.PI), ring: [...new Set(ring.map(g => g.id))] });
-  }
+  // (the islands: found once for the whole region — findIslands — or here, from this block's roads; those near its cells)
+  const cx0 = Math.min(...cells.map(c => c[0])) - IS.maxSpan, cz0 = Math.min(...cells.map(c => c[1])) - IS.maxSpan, cx1 = Math.max(...cells.map(c => c[2])) + IS.maxSpan, cz1 = Math.max(...cells.map(c => c[3])) + IS.maxSpan;
+  const islands = (islandsIn ?? findIslands({ outlines, segs, buildings, style })).filter(s => meets(s.box, [cx0, cz0, cx1, cz1]));
   const inIsland = (x: number, z: number) => islands.some(s => x >= s.box[0] && x <= s.box[2] && z >= s.box[1] && z <= s.box[3] && insidePts(s.pts, x, z));
   // 2. each band edge's side of the road (its nearest segment's), and each outline vertex's widths: the most of its
   //    edges' (a corner between two arms takes the wider)
@@ -402,7 +464,7 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
       const q = cfg.surface.quantum ?? 0.01;
       const rings = clipped.map((p: any) => { const r: number[][] = []; for (const pt of p) { const v = [Math.round(pt.x / S / q) * q, Math.round(pt.y / S / q) * q], l = r[r.length - 1]; if (!l || Math.abs(l[0] - v[0]) > 1e-9 || Math.abs(l[1] - v[1]) > 1e-9) r.push(v); } while (r.length > 1 && Math.abs(r[0][0] - r[r.length - 1][0]) < 1e-9 && Math.abs(r[0][1] - r[r.length - 1][1]) < 1e-9) r.pop(); return r; }).filter((r: number[][]) => r.length >= 3);
       if (!rings.length) return;
-      const tris = triangulatePatch([rings]);
+      const tris = triangulatePatch(polygonsOf(rings));
       const vid = new Map<string, number>();
       // (a corner with no road edge near enough to take its height from is a stray: its triangles left out, counted —
       // at 0 m, the height they were given, the ground was shaped down to them: a car park in Burnside 7 m up a pit)
@@ -454,5 +516,7 @@ export function buildBands({ mesh: M, outlines, segs, cells, style, cfg, buildin
     }
   }
   // (the roundabouts: their middles, island radii and ring roads — map/model/furniture.ts signs their entries)
-  return { mesh: out, plants, stats, roundabouts: islands.filter(s => s.round).map(s => ({ x: s.cx, z: s.cz, r: s.r, ring: s.ring })) };
+  // (those whose middle is within half an island's span of the cells: whole in every block that reports them)
+  const rx0 = cx0 + IS.maxSpan / 2, rz0 = cz0 + IS.maxSpan / 2, rx1 = cx1 - IS.maxSpan / 2, rz1 = cz1 - IS.maxSpan / 2;
+  return { mesh: out, plants, stats, roundabouts: islands.filter(s => s.round && s.cx >= rx0 && s.cx < rx1 && s.cz >= rz0 && s.cz < rz1).map(s => ({ x: s.cx, z: s.cz, r: s.r, ring: s.ring })) };
 }

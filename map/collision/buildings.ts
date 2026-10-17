@@ -8,6 +8,7 @@
 //   cfg (v4 collision)) → { hulls, trimmed, dropped }
 
 import * as Clipper from 'clipper2-js';
+import '../model/clipperGuard.ts';   // (Clipper2-js's own bugs, worked round: map/model/clipperGuard.ts)
 import libtess from 'libtess';
 
 const S = 1000;
