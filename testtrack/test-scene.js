@@ -147,6 +147,7 @@ import { createTrackTrip } from '../play/trackTrip.js';
 import { referenceTimes, createIdbRefCache } from '../track/events/reference.js';
 import { lapGhost, ghostFrames } from '../track/events/ghost.js';
 import { assetUrl } from '../site/urls.js';
+import { directions } from '../play/turnHud.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 // (every region's own maps too: each region of the real world has its minimap and full map, all but the one on screen
@@ -1360,6 +1361,8 @@ function frame(w, now) {
   // the real world: its ground streamed round the car; it waits while the ground ahead is loading
   const rw = w.stream ? rwOf(w).realWorldFrame(w, shared, seconds) : null;
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
+  // (the next turn, when the game's giving directions: play/turnHud.js — the routes are in the world frame)
+  { const p = v.body.translation(), [x, z] = w.stream ? w.stream.toWorld(p.x, p.z) : [p.x, p.z]; directions.update({ x, z }); }
   PF.lap('streaming');
   shared.trackUi?.frame(!!w.trackData && shared.trip?.state === 'track', !!w.quests?.active);
   // (a generated track's weather and floodlights)

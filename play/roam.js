@@ -16,6 +16,9 @@
 //   R.M (play/multiplayer.js's api: frame, crash, part, reset, repair, setLook, overlay, others, toNearest)
 //   R.frame(dt)  every frame after R.M.frame   R.flash(on)  your headlights flashed (held)   R.horn()   R.leave()
 
+import { routeTurns } from '../route/turns.js';
+import { withS } from '../route/geometry.js';
+import { directions } from './turnHud.js';
 import { joinMultiplayer, ticketGetter, rtEndpoint } from './multiplayer.js';
 import { createRoamClient } from '../mp/roamClient.js';
 import { lodFor, nameOpacity, meetEventState } from '../mp/roam.js';
@@ -461,6 +464,9 @@ export async function startRoam({ account, region, cfg, mpCfg, adapter: A, look,
     prompt.style.display = 'block'; prompt.onclick = e => { if (e.target.closest('button')) prompt.style.display = 'none'; };
   }
   function routeOnMaps(route) {
+    // (its turns, for the directions card: play/turnHud.js)
+    if (route?.line?.length > 2) { const line = withS(route.line.map(([x, z]) => ({ x, z, h: 0, w: 8 }))); directions.set('challenge', { line, turns: routeTurns(line) }, 2); }
+    else directions.clear('challenge');
     const maps = game.maps?.(); if (!maps) return;
     if (!route) { maps.setLines([]); return; }
     maps.setLines([{ type: 'Feature', geometry: { type: 'LineString', coordinates: route.line.map(([x, z]) => { const [lat, lon] = game.latLonOf(x, z); return [lon, lat]; }) }, properties: { kind: 'route', colour: '#ff7a1a', width: 5 } }]);

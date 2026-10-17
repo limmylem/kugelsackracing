@@ -18,6 +18,8 @@
 // the intro, the race and the results' orbit (play/cameraBlend.js); first-time hints (game.hint(when):
 // data/hints.json); and the accessibility settings (game.prefs: palette, guides, hudScale — play/palette.js).
 
+import { routeTurns } from '../route/turns.js';
+import { directions } from './turnHud.js';
 import { createQuestController } from './questController.js';
 import { trackServer } from './trackServer.js';
 import { createRouteDressing, createGuideArrows } from './routeDressing.js';
@@ -180,7 +182,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   let guideArrows = null;
   function setLines() {
     if (!guideArrows) { const G = groundOf(S); guideArrows = createGuideArrows({ THREE, parent: S.world, palette: palette(), style: style(), heightAt: (x, z) => G?.road(x, z) ?? G?.terrain(x, z) ?? null }); }
-    guideArrows.set(guide && !run ? guide : null, { palette: palette(), style: style() });
+    guideArrows.set(guide && !run ? guide : null, { palette: palette(), style: style(), turns: guideTurns });
     const f = [];
     // (a pursuit: no route to follow — the drop, the police, and the search area while they're looking for you)
     if (run?.pursuit) {
@@ -302,7 +304,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
   // "Set route": the way to the quest's start (or a garage) on the road graph, on the maps. item.pin: a pin on the maps
   // where it ends, and the end taken to the nearest road (an Expedition's target — play/roadbook.js); item.quiet: no
   // "Finding the way…" (a route worked out again, the player off it)
-  let pinAt = null;
+  let pinAt = null, guideTurns = null;
   async function setGuide(item, done) {
     // (the road graph loads the first time: say so at once)
     if (!item.quiet) game.say('Finding the way there…', 'ok');
@@ -319,12 +321,16 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       }
       const r = buildRoute(N, { kind: 'p2p', waypoints: [{ lat, lon }, to], options: { oneway: false } });
       if (!r.ok || r.line.length < 2) { game.say('No way there on the roads', 'warn'); return; }
-      guide = r.line; guideFor = item.id; pinAt = item.pin ? { lat: item.location.lat, lon: item.location.lon } : null; setLines();
+      guide = r.line; guideFor = item.id; pinAt = item.pin ? { lat: item.location.lat, lon: item.location.lon } : null;
+      // (its turns, for the directions card and the arrows on the road: play/turnHud.js)
+      guideTurns = routeTurns(r.line, { nodes: r.nodes, segments: r.segments });
+      directions.set('guide', { line: r.line, turns: guideTurns }, 1);
+      setLines();
       if (!item.quiet) game.say(`Route set: ${(r.length / 1000).toFixed(1)} km`, 'ok');
     } catch (e) { game.say(`Couldn't set a route: ${e.message}`, 'warn'); }
     done?.();
   }
-  function clearGuide(done) { guide = null; guideFor = null; place = null; pinAt = null; setLines(); done?.(); }
+  function clearGuide(done) { guide = null; guideFor = null; place = null; pinAt = null; guideTurns = null; directions.clear('guide'); setLines(); done?.(); }
   // the route behind the car taken off as it's driven (twice a second): the line on the maps starts where the
   // car is; at its end, gone ("You've arrived"). Off the route (further than GUIDE_ON_M from it), kept as it is.
   let trimAt = 0;
@@ -390,7 +396,7 @@ export function createQuestPlay({ THREE, w, game, autopilot = false }) {
       if (cineDef) { me.pursuit.setCinematic(cineDef); me.cine = { def: cineDef, phase: 'waiting', t: 0, startS: null }; }
       hint('pursuit');
     }
-    guide = null; guideFor = null; setLines(); hud(); hideScreen();
+    guide = null; guideFor = null; guideTurns = null; directions.clear('guide'); setLines(); hud(); hideScreen();
     const r = await controller.start({ restart });
     if (!r.ok) { if (run === me) { game.say(r.error, 'warn'); stop(); } return r; }
     run.fee = r.fee;
