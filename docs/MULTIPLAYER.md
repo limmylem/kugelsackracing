@@ -193,6 +193,12 @@ It's measured continuously. It follows the network's spread, not its worst momen
   until it's there. It resets only if it's more than 2 s off.
 - Positions are Hermite curves using each state's velocity, with tangents limited by the chord, so a slow or
   sparse stream doesn't overshoot.
+- Each state's velocity is taken at the pace its positions show: how far the car really went over the steps
+  either side of it, against how fast it says. A sender whose game falls behind, or whose stamps are still being
+  steered onto the server's clock just after joining, can cover 5–15% more or less ground than its speed says. At
+  the reported speed the curve would overshoot and catch up within every step. A mismatch under 2% is left alone
+  (whole-ms stamps, a curve's arc slightly longer than its chord); 6% and more is taken in full. The prediction past
+  the newest state uses the same pace.
 - Rotation is slerped.
 
 **Late states.** The car is predicted ahead from its last state's velocity and turn, for up to 500 ms, then eased
