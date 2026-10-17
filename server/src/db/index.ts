@@ -6,7 +6,12 @@ import * as schema from './schema.ts';
 
 export type Db = ReturnType<typeof openDb>['db'];
 
+// (libpq's sslrootcert=system — the usual certificate authorities, as PlanetScale's address asks — is what Node does
+// anyway with sslmode=verify-full; node-postgres would take it for a file's name, so every tool on that address failed)
+export const nodePgUrl = (url: string) => url.replace(/([?&])sslrootcert=system(&|$)/, '$1').replace(/[?&]$/, '');
+
 export function openDb(url: string, { max = 10 } = {}) {
+  url = nodePgUrl(url);
   const pool = new pg.Pool({ connectionString: url, max, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000,
     // (PlanetScale and other hosted Postgres: TLS when the URL asks for it — sslmode=require)
     ssl: /sslmode=(require|verify)/.test(url) ? { rejectUnauthorized: true } : undefined });

@@ -7,6 +7,15 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { testApp, Player, signUp } from './helpers.ts';
+import { nodePgUrl } from '../src/db/index.ts';
+
+test('PlanetScale\'s address as it is: its sslrootcert=system left to Node (node-postgres would open a file of that name)', () => {
+  const at = 'postgresql://u:p@db.example.test:5432/postgres';
+  assert.equal(nodePgUrl(`${at}?sslmode=verify-full&sslrootcert=system`), `${at}?sslmode=verify-full`);
+  assert.equal(nodePgUrl(`${at}?sslrootcert=system&sslmode=verify-full`), `${at}?sslmode=verify-full`);
+  assert.equal(nodePgUrl(`${at}?sslrootcert=system`), at);
+  assert.equal(nodePgUrl(`${at}?sslrootcert=/etc/ca.pem&sslmode=verify-full`), `${at}?sslrootcert=/etc/ca.pem&sslmode=verify-full`);
+});
 
 const SECRET = 'edge-secret-edge-secret-0123456789';
 let T: Awaited<ReturnType<typeof testApp>>;
