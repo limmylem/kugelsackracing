@@ -311,6 +311,12 @@ export class Vehicle {
     push(scale(g, this.spec.mass), com);
     // a gear change pressed during this step (sequential: pressing either leaves the automatic)
     if (input.shift) { this.drivetrain.mode = 'sequential'; this.drivetrain.requestShift(input.shift); }
+    // an H-pattern shifter: the gear it's in (0: neutral), held — straight into it, as the stick goes (testtrack/input.js)
+    if (input.gear != null) {
+      const D = this.drivetrain, g = Math.max(-1, Math.min(D.gears, input.gear));
+      D.mode = 'sequential';
+      if (!D.shifting && D.gear !== g) D.selectGear(g);
+    }
 
     // --- How the car is moving, for the steering aids: `align` is where the front wheels would point
     //     to roll the way the front of the car is going (zero front slip angle); rearDir is the rear

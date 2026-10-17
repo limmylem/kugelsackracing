@@ -7,6 +7,7 @@
 // of tabs a keyboard and a screen reader can use (arrow keys between the tabs, every control labelled).
 
 import { ACTIONS, DEFAULT_INPUT, DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_WHEEL, DEFAULT_TOGGLES, TOGGLEABLE } from './input.js';
+import { createWheelSetup, applyWheelSetup, SETUP_STEPS } from './wheelSetup.js';
 import { PALETTES } from '../play/palette.js';
 import { graphicsOf, withPreset, withSetting, PRESETS } from '../perf/quality.js';
 import { t, i18n, esc } from '../ui/i18n.js';
@@ -90,7 +91,9 @@ export const portable = s => Object.fromEntries(Object.entries(s).filter(([k]) =
 const AIDS = ['abs', 'tc', 'esc', 'countersteer', 'steering', 'drift', 'revProtection'];
 const SOUNDS = ['master', 'engine', 'tyres', 'impacts', 'environment', 'others', 'ui', 'music'];
 const clockText = h => i18n.time(new Date(2026, 0, 1, Math.floor(h) % 24, Math.round((h % 1) * 60)));
-const bindingText = b => !b ? '—' : b.type === 'button' ? t('controls.button', { n: b.index }) : b.rest == null ? t(b.invert ? 'controls.axisFlipped' : 'controls.axis', { n: b.index }) : t('controls.axis', { n: b.index });
+const bindingText = b => !b ? '—' : (b.type === 'button' ? t('controls.button', { n: b.index }) : b.rest == null ? t(b.invert ? 'controls.axisFlipped' : 'controls.axis', { n: b.index }) : t('controls.axis', { n: b.index })) + (b.dev ? ` · ${shortDev(b.dev)}` : '');
+// (a device by its name, short: "Thrustmaster T300RS Racing wheel (Vendor: 044f Product: b66e)" → "Thrustmaster T300RS Racing wheel")
+const shortDev = id => String(id).replace(/\s*\((?:STANDARD GAMEPAD\s*)?Vendor:.*$/i, '').replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, '').slice(0, 32);
 const pct = v => i18n.number(v, { style: 'percent', maximumFractionDigits: 0 });
 const opt = (v, cur, label, extra = '') => `<option value="${esc(v)}" ${String(cur) === String(v) ? 'selected' : ''} ${extra}>${esc(label)}</option>`;
 let uid = 0;
@@ -111,6 +114,34 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
   el.setAttribute('aria-labelledby', 'settingsTitle');
   let tab = 'gameplay';
   const changed = () => { saveSettings(settings); onChange(settings); render(); };
+  // the wheel set-up under way (testtrack/wheelSetup.js), and what it said when it finished
+  let setup = null, setupNote = '';
+  function startSetup() {
+    setup = createWheelSetup(); setupNote = '';
+    input.capture = null;
+    input.watch = devices => { if (setup?.feed(devices)) { if (setup.done) finishSetup(); else render(); } };
+    render();
+  }
+  function finishSetup() {
+    const found = setup.found;
+    input.watch = null; setup = null;
+    applyWheelSetup(settings, found);
+    if (settings.input.device === 'keyboard' || settings.input.device === 'gamepad') settings.input.device = 'auto';
+    const n = Object.keys(found).length;
+    setupNote = n ? t('controls.setup.done', { n }) : t('controls.setup.nothing');
+    changed();
+  }
+  function setupBlock() {
+    if (!setup) return `<div class="wheelSetup"><button type="button" data-wheel-setup>${t('controls.setup.start')}</button><small class="pads">${esc(setupNote || t('controls.setup.help'))}</small></div>`;
+    const S = setup.step, gears = S?.gears;
+    const what = S.kind === 'ask' ? t('controls.setup.askShifter') : S.gears ? (S.id === 'gearR' ? t('controls.setup.gearR') : t('controls.setup.gear', { n: S.id.slice(4) })) : t(`controls.setup.${S.id}`);
+    const moving = setup.candidate ? `<small class="pads">${t('controls.setup.letGo')}</small>` : '';
+    const buttons = S.kind === 'ask'
+      ? `<button type="button" data-ws="yes">${t('controls.setup.yes')}</button><button type="button" data-ws="no">${t('controls.setup.no')}</button>`
+      : `<button type="button" data-ws="skip">${t(gears ? 'controls.setup.noGear' : 'controls.setup.skip')}</button>${gears ? `<button type="button" data-ws="gearsDone">${t('controls.setup.gearsDone')}</button>` : ''}`;
+    return `<div class="wheelSetup listening" role="status" aria-live="polite"><b>${t('controls.setup.step', { n: setup.index + 1, count: SETUP_STEPS.length })}</b><p>${esc(what)}</p>${moving}
+      <div class="row">${buttons}<button type="button" data-ws="cancel">${t('controls.setup.cancel')}</button></div></div>`;
+  }
 
   function render() {
     uid = 0;
@@ -152,7 +183,8 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
     },
     controls() {
       const s = S(), I = s.input, pads = input.pads();
-      return `${select('data-str="input.device"', t('controls.device'), ['auto', 'keyboard', 'gamepad', 'wheel', 'touch'].map(d => opt(d, I.device, t(`controls.devices.${d}`))).join(''))}
+      return `${setupBlock()}
+        ${select('data-str="input.device"', t('controls.device'), ['auto', 'keyboard', 'gamepad', 'wheel', 'touch'].map(d => opt(d, I.device, t(`controls.devices.${d}`))).join(''))}
         <small class="pads">${pads.length ? pads.map(p => esc(`${t(`controls.devices.${p.kind}`)}: ${p.pad.id}`)).join('<br>') : t('controls.noPads')}</small>
         ${range('data-num="input.wheelRange"', t('controls.wheelRange'), 180, 1080, 10, I.wheelRange, `${I.wheelRange}°`)}
         ${range('data-num="input.stickDeadzone"', t('controls.stickDeadzone'), 0, 0.4, 0.01, I.stickDeadzone, i18n.number(I.stickDeadzone))}
@@ -292,6 +324,14 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
     if (!b) return;
     if (b.dataset.tab) { tab = b.dataset.tab; render(); el.querySelector(`[data-tab="${tab}"]`)?.focus(); return; }
     if (b.dataset.close !== undefined) { api.hide(); return; }
+    if (b.dataset.wheelSetup !== undefined) { startSetup(); return; }
+    if (b.dataset.ws && setup) {
+      const a = b.dataset.ws;
+      if (a === 'cancel') { input.watch = null; setup = null; render(); return; }
+      if (a === 'yes' || a === 'no') setup.answer(a === 'yes'); else if (a === 'gearsDone') setup.finishGears(); else setup.skip();
+      if (setup.done) finishSetup(); else render();
+      return;
+    }
     if (b.dataset.tutorial !== undefined) { api.hide(); onTutorial?.(); return; }
     if (b.dataset.photoWarning !== undefined) { import('../ui/accessibility.js').then(m => m.photosensitivityWarning({ force: true })); return; }
     if (b.dataset.resetControls !== undefined) { Object.assign(settings, { keys: clone(DEFAULT_KEYS), pad: clone(DEFAULT_PAD), wheel: clone(DEFAULT_WHEEL), input: clone(DEFAULT_INPUT), toggles: clone(DEFAULT_TOGGLES), touch: clone(DEFAULT_TOUCH) }); changed(); return; }
@@ -311,13 +351,16 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
         settings.keys[id] = [ev.code];
       } else {
         if (grp === 'keys') return false;
-        if (ev.kind === 'button') settings[grp][id] = { type: 'button', index: ev.index };
+        // (with the device it's on: pedals or a shifter plugged in on their own are read there, whichever drives)
+        const dev = ev.pad?.id;
+        if (ev.kind === 'button') settings[grp][id] = { type: 'button', index: ev.index, dev };
         else {
           const key = ev.pad.index + ':' + ev.index;
           if (!(key in rest)) { rest[key] = ev.value; return false; }
-          if (Math.abs(ev.value - rest[key]) < 0.5) return false;
+          // (a hat switch reads past ±1 at rest: not an axis to bind)
+          if (Math.abs(rest[key]) > 1.05 || Math.abs(ev.value - rest[key]) < 0.5) return false;
           // steering: turning left should read negative (the axis convention); pedals: 0 at rest, 1 pressed
-          settings[grp][id] = id === 'steer' ? { type: 'axis', index: ev.index, invert: ev.value > rest[key] } : { type: 'axis', index: ev.index, rest: rest[key], full: Math.sign(ev.value - rest[key]) };
+          settings[grp][id] = id === 'steer' ? { type: 'axis', index: ev.index, invert: ev.value > rest[key], dev } : { type: 'axis', index: ev.index, rest: rest[key], full: Math.sign(ev.value - rest[key]), dev };
         }
       }
       changed();
@@ -331,7 +374,7 @@ export function createSettingsPanel(settings, spec, input, onChange, { onRehint 
     get tab() { return tab; },
     show(which) { if (which && TABS.includes(which)) tab = which; el.hidden = false; render(); input.capture = null; import('../ui/accessibility.js').then(m => { release?.(); release = m.trapFocus(el, { onEscape: () => api.hide() }); }); },
     toggle() { if (el.hidden) api.show(); else api.hide(); },
-    hide() { el.hidden = true; input.capture = null; release?.(); release = null; },
+    hide() { el.hidden = true; input.capture = null; if (setup) { input.watch = null; setup = null; } release?.(); release = null; },
     render,
   };
   return api;

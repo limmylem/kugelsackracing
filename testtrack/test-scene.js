@@ -920,6 +920,8 @@ async function createShared() {
   // Player settings (aids, brake bias, input device and bindings), kept in this browser
   startup.step('settings and controls');
   const prefs = loadSettings(spec), input = new InputManager(prefs);
+  // (a known wheel seen for the first time: its own layout — testtrack/input.js WHEEL_PROFILES — kept, and said)
+  input.onProfile = name => { saveSettings(prefs); shared?.flash.show(t('controls.profile.title', { name }), 'ok', 5, t('controls.profile.text')); };
   // (Phase 8 Step 4: the player's language and accessibility first — every screen after this is in them)
   const languages = await prepareLanguage(prefs);
   // (the speedometer in km/h or mph: the settings' units, else the language's region's)

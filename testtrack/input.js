@@ -12,7 +12,13 @@
 //
 // Bindings: keyboard actions → key codes; gamepad / wheel actions → { type: 'button', index } or
 // { type: 'axis', index, rest, full } (pedals and triggers read 0 at `rest`, 1 at `full`; the steering
-// axis reads -1..1, flipped with invert).
+// axis reads -1..1, flipped with invert). A binding may name the device it's on (dev: the Gamepad API's id):
+// pedals or a shifter plugged in on their own are another device from the wheel, read wherever they are.
+//
+// Devices: a wheel (by its name), a gamepad, or an extra — a shifter or handbrake on its own, which never drives
+// and whose buttons do only what's bound to them on it. A known wheel (Thrustmaster, Logitech) gets its own
+// layout the first time it's seen (WHEEL_PROFILES); testtrack/wheelSetup.js finds any other by asking.
+// An H-pattern shifter: gear1…gear7 and gearR held (the gear it's in; none held: neutral) — poll()'s gear.
 
 import { InputTimeline } from '../physics/inputTimeline.js';
 
@@ -22,6 +28,7 @@ export const ACTIONS = [
   { id: 'throttle', label: 'Throttle' }, { id: 'brake', label: 'Brake / reverse' }, { id: 'handbrake', label: 'Handbrake' },
   { id: 'clutch', label: 'Clutch' }, { id: 'halfPedal', label: 'Half pedal (hold)', keyOnly: true },
   { id: 'shiftUp', label: 'Shift up', press: true }, { id: 'shiftDown', label: 'Shift down', press: true },
+  ...[1, 2, 3, 4, 5, 6, 7].map(g => ({ id: `gear${g}`, label: `Gear ${g} (H-shifter)`, padOnly: true, gear: g })), { id: 'gearR', label: 'Reverse (H-shifter)', padOnly: true, gear: -1 },
   { id: 'reset', label: 'Back on the road', press: true }, { id: 'camera', label: 'Camera', press: true },
   { id: 'aids', label: 'All aids on / off', press: true }, { id: 'gearbox', label: 'Gearbox auto / manual', press: true },
   { id: 'hud', label: 'Small HUD', press: true }, { id: 'debug', label: 'Debug lines', press: true },
@@ -68,8 +75,32 @@ export const DEFAULT_INPUT = { device: 'auto', wheelRange: 900, stickDeadzone: 0
 export const TOGGLEABLE = ['throttle', 'brake', 'handbrake', 'clutch', 'halfPedal'];
 export const DEFAULT_TOGGLES = Object.fromEntries(TOGGLEABLE.map(id => [id, false]));
 
-const WHEEL_NAMES = /wheel|G2[79]|G9[02]\d?|G923|T150|T248|T300|TMX|TX Racing|T-GT|Fanatec|CSL|Driving Force|DFGT|Momo|Moza|Simucube|SimXperience/i;
+const WHEEL_NAMES = /wheel|G2[579]|G9[02]\d?|G923|T128|T150|T248|T300|T500|T818|TMX|TX Racing|T-GT|TS-PC|TS-XW|Fanatec|CSL|Driving Force|DFGT|Momo|Moza|Simucube|SimXperience/i;
+// a shifter or handbrake on its own (its own USB plug): never the device that drives
+const EXTRA_NAMES = /shifter|TH8|TSS|SHH|sequential|handbrake|hand brake/i;
+// the USB vendor and product in a Gamepad API id (Chrome: "… (Vendor: 044f Product: b66e)"; Firefox: "044f-b66e-…")
+export function usbIds(id) {
+  const m = /Vendor:\s*([0-9a-f]{4})\s*Product:\s*([0-9a-f]{4})/i.exec(id ?? '') ?? /^([0-9a-f]{1,4})-([0-9a-f]{1,4})-/i.exec(id ?? '');
+  return m ? { vendor: m[1].toLowerCase().padStart(4, '0'), product: m[2].toLowerCase().padStart(4, '0') } : null;
+}
+// Known wheels' layouts in the browser (axes in the order of their HID usages: X, Y, Z, Rx, Ry, Rz, slider…; pedals at +1
+// released, -1 pressed). Thrustmaster's bases (T300, TX, T150, TMX, T248, T-GT…): the throttle on Y, the brake on Rz,
+// the clutch on the slider, the paddles buttons 0 and 1 — nothing else bound, so a shifter on the base (its gears are
+// the base's buttons) doesn't press anything it shouldn't. Logitech's (G25–G923, Driving Force): Z, Rz and Y.
+export const WHEEL_PROFILES = [
+  { name: 'Thrustmaster', vendor: '044f', names: /thrustmaster|T128|T150|T248|T300|T500|T818|TMX|TX Racing|T-GT|TS-PC|TS-XW/i,
+    bindings: { steer: axis(0), throttle: axis(1, 1, -1), brake: axis(5, 1, -1), clutch: axis(6, 1, -1), handbrake: null, shiftUp: btn(0), shiftDown: btn(1), reset: null, camera: null, settings: null } },
+  { name: 'Logitech', vendor: '046d', names: /logitech|G2[579]|G9[02]\d|G923|Driving Force|DFGT|Momo/i,
+    bindings: { steer: axis(0), throttle: axis(2, 1, -1), brake: axis(5, 1, -1), clutch: axis(1, 1, -1), handbrake: null, shiftUp: btn(4), shiftDown: btn(5), reset: btn(3), camera: btn(2), settings: btn(9) } },
+];
+export function wheelProfile(id) {
+  if (!WHEEL_NAMES.test(id ?? '') || EXTRA_NAMES.test(id ?? '')) return null;
+  const u = usbIds(id);
+  return WHEEL_PROFILES.find(P => (u && u.vendor === P.vendor) || P.names.test(id)) ?? null;
+}
+export const deviceKind = id => EXTRA_NAMES.test(id ?? '') ? 'extra' : WHEEL_NAMES.test(id ?? '') ? 'wheel' : 'gamepad';
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const PRESS = new Set(ACTIONS.filter(a => a.press).map(a => a.id)), GEARS = ACTIONS.filter(a => a.gear != null);
 // typing into a text / number box or a list: keys are for that, not the car (sliders and tick boxes
 // hand the keys on to the car)
 const typing = t => !!t && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(t.type)));
@@ -131,19 +162,40 @@ export class InputManager {
     return out;
   }
 
-  // Connected gamepads / wheels, with what kind each is
+  // Connected gamepads / wheels, with what kind each is. A known wheel seen for the first time gets its layout
+  // (WHEEL_PROFILES), once: rebinding it after that is kept
   pads() {
-    return this.getGamepads().filter(Boolean).map(p => ({ pad: p, kind: WHEEL_NAMES.test(p.id) ? 'wheel' : 'gamepad' }));
+    const list = this.getGamepads().filter(Boolean).map(p => ({ pad: p, kind: deviceKind(p.id) }));
+    for (const { pad, kind } of list) {
+      if (kind !== 'wheel') continue;
+      const P = wheelProfile(pad.id), key = `${P?.name}:${usbIds(pad.id)?.product ?? pad.id}`;
+      if (!P || this.settings.wheelProfile === key) continue;
+      Object.assign(this.settings.wheel, structuredClone(P.bindings));
+      this.settings.wheelProfile = key;
+      this.profileFound = { name: P.name, id: pad.id };
+      this.onProfile?.(P.name, pad.id);
+    }
+    this.padList = list;
+    return list;
+  }
+  // the bindings that are on a device: those naming it, and (naming none) those of its kind's set
+  bindingsOn(p, kind) {
+    const out = [];
+    for (const [setKind, set] of [['wheel', this.settings.wheel], ['gamepad', this.settings.pad]]) for (const [id, b] of Object.entries(set || {})) if (b && (b.dev ? b.dev === p.id : setKind === kind)) out.push([id, b]);
+    return out;
   }
   // a toggle action pressed on the touch controls (or anywhere else that isn't a key or button)
   flip(id) { this.toggled[id] = !this.toggled[id]; }
   bindingsFor(kind) { return kind === 'wheel' ? this.settings.wheel : this.settings.pad; }
 
-  // Reads a binding on a pad: buttons 0..1 (triggers are analog buttons), axes per their calibration
-  readBinding(p, b, kind) {
+  // Reads a binding on a pad (or the device it names): buttons 0..1 (triggers are analog buttons), axes per their
+  // calibration
+  readBinding(p, b) {
     if (!b) return 0;
-    if (b.type === 'button') return p.buttons[b.index]?.value ?? 0;
-    const v = p.axes[b.index] ?? 0;
+    const q = b.dev && b.dev !== p?.id ? this.padList?.find(x => x.pad.id === b.dev)?.pad : p;
+    if (!q) return 0;
+    if (b.type === 'button') return q.buttons[b.index]?.value ?? (q.buttons[b.index]?.pressed ? 1 : 0);
+    const v = q.axes[b.index] ?? 0;
     if (b.rest == null) return b.invert ? -v : v;
     return clamp((v - b.rest) / (b.full - b.rest), 0, 1);
   }
@@ -157,22 +209,32 @@ export class InputManager {
     this.timeline.prune(now);
 
     // gamepads / wheels: note presses, and which one was used last
-    const pads = this.pads();
+    const pads = this.pads(), hasWheel = pads.some(x => x.kind === 'wheel');
+    // (the wheel set-up, testtrack/wheelSetup.js: it sees every device as it is, and the game sees nothing)
+    if (this.watch) {
+      this.watch(pads.map(({ pad: p, kind }) => ({ id: p.id, index: p.index, kind, axes: [...p.axes], buttons: p.buttons.map(b => b.pressed) })));
+      for (const { pad: p } of pads) this.lastPadButtons.set(p.index, p.buttons.map(b => b.pressed));
+      return { device: this.active, steer: 0, throttle: 0, brake: 0, clutch: null, handbrake: false, gear: null, wheelRange: I.wheelRange, pressed: new Set(), padName: null };
+    }
     for (const { pad: p, kind } of pads) {
       const last = this.lastPadButtons.get(p.index) || [];
       const buttons = p.buttons.map(b => b.pressed);
-      const B = this.bindingsFor(kind);
+      const B = this.bindingsFor(kind), own = this.bindingsOn(p, kind);
       if (this.capture) {
         buttons.forEach((on, i) => { if (on && !last[i] && this.capture?.({ kind: 'button', pad: p, padKind: kind, index: i })) this.capture = null; });
         p.axes.forEach((v, i) => { if (this.capture?.({ kind: 'axis', pad: p, padKind: kind, index: i, value: v })) this.capture = null; });
       } else if (this.enabled) {
-        for (const id of TOGGLEABLE) if (S.toggles?.[id] && B[id]?.type === 'button' && buttons[B[id].index] && !last[B[id].index]) this.toggled[id] = !this.toggled[id];
-        for (const a of ACTIONS) if (a.press && B[a.id]?.type === 'button' && buttons[B[a.id].index] && !last[B[a.id].index]) {
-          pressed.add(a.id);
+        const edge = b => b.type === 'button' && buttons[b.index] && !last[b.index];
+        for (const [id, b] of own) if (TOGGLEABLE.includes(id) && S.toggles?.[id] && edge(b)) this.toggled[id] = !this.toggled[id];
+        for (const [id, b] of own) if (PRESS.has(id) && edge(b)) {
+          pressed.add(id);
           // (buttons are only seen when polled: a shift goes to the first step after the last poll)
-          if (a.id === 'shiftUp' || a.id === 'shiftDown') this.timeline.event(since + 0.001, a.id === 'shiftUp' ? 1 : -1);
+          if (id === 'shiftUp' || id === 'shiftDown') this.timeline.event(since + 0.001, id === 'shiftUp' ? 1 : -1);
         }
-        const moved = buttons.some(Boolean) || Math.abs(this.readBinding(p, B.steer, kind)) > 0.25 || this.readBinding(p, B.throttle, kind) > 0.2 || this.readBinding(p, B.brake, kind) > 0.2;
+        // (which device drives: the one used last — never an extra, and a gamepad's buttons alone don't take it from a
+        // wheel: a shifter or button box that calls itself a gamepad)
+        const axesMoved = Math.abs(this.readBinding(p, B.steer)) > 0.25 || this.readBinding(p, B.throttle) > 0.2 || this.readBinding(p, B.brake) > 0.2;
+        const moved = kind !== 'extra' && (axesMoved || (buttons.some(Boolean) && !(kind === 'gamepad' && hasWheel && this.active === 'wheel')));
         if (moved) { this.active = kind; this.activePad = p.index; }
       }
       this.lastPadButtons.set(p.index, buttons);
@@ -189,9 +251,12 @@ export class InputManager {
     let device = I.device === 'auto' ? this.active : I.device === 'touch' ? 'keyboard' : I.device;
     const pad = pads.find(x => x.pad.index === this.activePad && (device === 'auto' || x.kind === device)) || pads.find(x => x.kind === device);
     if (device !== 'keyboard' && !pad) device = 'keyboard';
-    const out = { device, steer: 0, throttle: 0, brake: 0, clutch: null, handbrake: false, wheelRange: I.wheelRange, pressed, padName: pad?.pad.id ?? null };
+    const out = { device, steer: 0, throttle: 0, brake: 0, clutch: null, handbrake: false, gear: null, wheelRange: I.wheelRange, pressed, padName: pad?.pad.id ?? null };
     if (device === 'keyboard' || !this.enabled) return this.enabled ? Object.assign(out, this.keyboardState()) : out;
-    const p = pad.pad, B = this.bindingsFor(pad.kind), read = id => this.readBinding(p, B[id], pad.kind);
+    const p = pad.pad, B = this.bindingsFor(pad.kind), read = id => this.readBinding(p, B[id]);
+    // an H-pattern shifter (its gears bound, and plugged in): the gear held, or neutral with none
+    const gears = GEARS.map(a => [a.gear, B[a.id]]).filter(([, b]) => b && (!b.dev || pads.some(x => x.pad.id === b.dev)));
+    if (gears.length) out.gear = gears.find(([, b]) => this.readBinding(p, b) > 0.5)?.[0] ?? 0;
     if (pad.kind === 'wheel') {
       // raw: no deadzones or curves on a wheel (pedals are calibrated by their bindings)
       out.steer = -clamp(read('steer'), -1, 1);         // axes read + to the right; the car's + is left
