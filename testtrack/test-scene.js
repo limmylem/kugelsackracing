@@ -148,6 +148,7 @@ import { referenceTimes, createIdbRefCache } from '../track/events/reference.js'
 import { lapGhost, ghostFrames } from '../track/events/ghost.js';
 import { assetUrl } from '../site/urls.js';
 import { directions } from '../play/turnHud.js';
+import { createLiveGauges } from '../play/liveGauges.js';
 // the real world: Map v3 (map/, MAP_README.md) — or v2's baked world (testtrack/realWorld.js), behind ?map=v2
 const rwOf = w => (w?.trackData ? TrackScene : w?.track?.mapV3 ? MapV3 : RW2);
 // (every region's own maps too: each region of the real world has its minimap and full map, all but the one on screen
@@ -1439,6 +1440,7 @@ function frame(w, now) {
   w.cones.forEach((m, i) => place(m, a.props[i], b.props[i]));
 
   updateCarDetails(w.carVis, a, b, alpha);
+  liveGaugesFrame(w.carVis, b);
   if (!T) drawParts(w, b);
   syncParts(w.carVis, b);
   if (!T) updateOtherCars(w, a, b, alpha, seconds);
@@ -2733,6 +2735,19 @@ function updateCarDetails(vis, a, b, alpha) {
   if (sw) sw.node.quaternion.fromArray(sw.base).multiply(scratchQ.setFromAxisAngle(Z_AXIS, sw.sign * (a.steering.wheelAngle + (b.steering.wheelAngle - a.steering.wheelAngle) * alpha)));
 }
 const scratchQ = new THREE.Quaternion(), Z_AXIS = new THREE.Vector3(0, 0, 1);
+// The gauge pod fitted (slot "gauges"), reading the engine's own numbers while it's driven (play/liveGauges.js): its
+// dials made when its model is on the car, again when the part changes
+function liveGaugesFrame(vis, b) {
+  const now = performance.now(), dt = Math.min(0.25, (now - (vis.gaugesAt ?? now)) / 1000);
+  vis.gaugesAt = now;
+  const socket = vis.car?.sockets?.find(s => s.slot === 'gauges')?.name, att = socket ? vis.attached?.get(socket) : null, object = att?.object ?? null;
+  if ((vis.liveGauges?.object ?? vis.gaugesTried ?? null) !== object) {
+    vis.liveGauges?.dispose();
+    vis.liveGauges = object ? createLiveGauges({ THREE, vis, socket, part: att.part, spec: shared.spec }) : null;
+    vis.gaugesTried = object;
+  }
+  vis.liveGauges?.update(b, dt);
+}
 
 // A car's look, from its parts (garage/visual.js): the body with every fitted part's model on its
 // socket, in its own paint (yours, unless one is given: an AI car's). details: its brake lights, its
@@ -2761,7 +2776,7 @@ async function carVisual({ paint } = {}) {
   s.visuals.add(vis);
   return vis;
 }
-const dropCar = vis => { vis.dispose(); shared.visuals.delete(vis); };
+const dropCar = vis => { vis.liveGauges?.dispose(); vis.dispose(); shared.visuals.delete(vis); };
 
 const NO_TURN = [0, 0, 0, 1];
 // Place a car's body and wheels part-way between two physics states
