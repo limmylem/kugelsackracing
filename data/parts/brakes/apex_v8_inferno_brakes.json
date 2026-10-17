@@ -14,7 +14,6 @@
   "requires": [],
   "conflicts": [],
   "provides": [],
-  "purpose": "extreme",
   "_note": "Carbon-ceramic discs and big callipers for the Apex: bigger discs, stronger pads, more than twice the heat they can soak up, and fade only from 600 °C, so stop after stop from 400 km/h feels the same. 12 kg lighter than the stock brakes.",
   "brakes": {
     "maxPressureBar": 100,
@@ -50,7 +49,7 @@
       "torque": 2060
     }
   },
-  "tier": "race",
+  "tier": "extreme",
   "status": "draft",
   "unlock": {
     "level": 9

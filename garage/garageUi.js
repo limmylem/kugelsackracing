@@ -67,7 +67,7 @@ const INV_FILTERS = [['all', 'All'], ['installed', 'Installed'], ['spare', 'Spar
 const INV_SORTS = [['name', 'Name: A–Z'], ['category', 'Category'], ['value', 'Value: highest first'], ['condition', 'Condition: worst first']];
 const SHOP_SORTS = [['category', 'Category'], ['gain', 'Best upgrade first'], ['price', 'Price: low to high'], ['price-desc', 'Price: high to low'], ['name', 'Name: A–Z']];
 const PRICE_BANDS = [['all', 0, Infinity], ['u500', 0, 500], ['u1500', 500, 1500], ['u5000', 1500, 5000], ['o5000', 5000, Infinity]];
-const TIER_NAMES = [['all', 'Any tier'], ['stock', 'Stock'], ['street', 'Street'], ['sport', 'Sport'], ['race', 'Race']];
+const TIER_NAMES = [['all', 'Any tier'], ['stock', 'Stock'], ['street', 'Street'], ['sport', 'Sport'], ['race', 'Race'], ['extreme', 'Extreme']];
 const DEALER_VIEWS = [['overview', 'Outside', 'directions_car'], ['interior', 'Interior', 'airline_seat_recline_normal'], ['engine_bay', 'Engine bay', 'car_repair'], ['rear', 'Boot', 'luggage']];
 const WHAT_WORDS = { buy: 'Bought', sell: 'Sold', refund: 'Refunded', 'buy-car': 'Bought a car', 'sell-car': 'Sold a car', 'buy-used': 'Bought used', slot: 'Garage space', tow: 'Towed' };
 const when = iso => iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';

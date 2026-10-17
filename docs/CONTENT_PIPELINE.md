@@ -109,11 +109,18 @@ The **Content** tab on the admin page (admins only) lists every part and car wit
   is refused with the reason. **Live checks** (tier bands, class limits) run on it too.
 - **Status**: draft → review → published. **Only published parts reach players** (the shop, the used lot, other
   drivers' cars). Publishing needs passing checks, and a part that fails stays as it was, with the reason.
+- **Every deploy publishes everything** (the owner's choice, 2026-10-17; `server/tools/publish-content.ts`, deploy.yml
+  step 6): every part and car whose checks pass goes live as its files are, a new draft from the files included. What
+  you moved back to a draft or into review here stays as you left it. What's refused (failing checks) is listed as a
+  warning on the deploy's run.
+- **Tiers**: stock, street, sport, race, and **extreme** above race (data/content/tiers.json): a car's no-limits parts,
+  priced 4–30× the slot's street price, with no gain band (the Apex V8's Inferno set).
 - **CSV out and in**: export, change prices in a spreadsheet, import (try it first as a dry run).
 - Every change is in the history and the admins' log, with who made it and why.
 - **Players keep what was published.** Publishing keeps a copy of what players get (price, tier, unlock level, name,
   stats). If the part's files change later — its family changed and rebuilt, then deployed — players keep that copy, and
-  the part shows as a new draft version ("changed in the files since it was published") until you publish it again. A
+  the part shows as a new draft version ("changed in the files since it was published") until it's published again (the
+  next deploy does it). A
   changed model is the exception: models aren't kept per version, so a new shape shows once it's deployed.
 
 ### 6. A family from the admin page

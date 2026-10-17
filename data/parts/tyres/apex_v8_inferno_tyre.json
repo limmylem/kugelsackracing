@@ -17,7 +17,6 @@
   "requires": [],
   "conflicts": [],
   "provides": [],
-  "purpose": "extreme",
   "_note": "A slick for the Apex built to put the Inferno down: far stickier than the stock semi-slick (1.8 times the load in drive and braking grip, 1.6 times in cornering; the stock tyre: 1.2 and 1.04). Same size as the stock tyre, on the Apex's 20\" rims. With the Inferno: 0–100 km/h in 2.7 s instead of 4.0, the quarter mile in 8.9 s at 297 km/h instead of 10.5, and 1.68 g round the skidpad instead of 1.07. Grips the gravel and grass no better than the stock tyre.",
   "toughness": 1.5,
   "tyreSize": {
@@ -61,7 +60,7 @@
     "reference": 180,
     "exponent": 0.3
   },
-  "tier": "race",
+  "tier": "extreme",
   "status": "draft",
   "unlock": {
     "level": 9

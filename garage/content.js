@@ -82,7 +82,7 @@ export function editProblems(part, changes, { formulas, tiers }) {
   for (const k of Object.keys(changes)) if (!['price', 'unlockLevel', 'tier', 'name', 'stats'].includes(k)) out.push(`"${k}" can't be changed here (price, unlockLevel, tier, name or stats)`);
   if ('price' in changes && !(Number.isInteger(changes.price) && changes.price > 0 && changes.price <= 1_000_000)) out.push('the price is a whole number of dollars, more than 0');
   if ('unlockLevel' in changes && !(changes.unlockLevel === null || (Number.isInteger(changes.unlockLevel) && changes.unlockLevel >= 1 && changes.unlockLevel <= 50))) out.push('the unlock level is a whole number from 1 to 50 (or none)');
-  if ('tier' in changes && !['street', 'sport', 'race'].includes(changes.tier)) out.push('the tier is street, sport or race');
+  if ('tier' in changes && !['street', 'sport', 'race', 'extreme'].includes(changes.tier)) out.push('the tier is street, sport, race or extreme');
   if ('name' in changes && !(typeof changes.name === 'string' && changes.name.trim().length >= 3 && changes.name.length <= 80)) out.push('the name is 3 to 80 characters');
   // (the price within its tier's band for its slot: data/content/tiers.json)
   const tier = changes.tier ?? part.tier, rule = tiers?.slots?.[part.slot], band = tiers?.tiers?.[tier]?.price;

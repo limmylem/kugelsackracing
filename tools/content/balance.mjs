@@ -31,7 +31,7 @@ export function tierProblems(db, tiers, carId = REFERENCE_CAR, gains = null) {
     if (!rule) { out.push({ id: p.id, problem: `data/content/tiers.json has no rules for the ${p.slot} slot` }); continue; }
     const lo = band[0] * rule.street, hi = band[1] * rule.street;
     if (p.price < lo - 0.5 || p.price > hi + 0.5) out.push({ id: p.id, problem: `${money(p.price)}${group(p) > 1 ? ' each' : ''} is outside the ${p.tier} price band for ${p.slot} (${money(lo)}–${money(hi)})` });
-    if (p.purpose || !rule.stat || !mine(p)) continue;              // (another car's part: priced by the rules, measured on its own car)
+    if (p.purpose || tiers.tiers[p.tier]?.open || !rule.stat || !mine(p)) continue;              // (another car's part: priced by the rules, measured on its own car)
     const g = gains.get(p.id), range = rule.gain?.[p.tier];
     if (!range) { out.push({ id: p.id, problem: `no ${p.tier} gain band for ${p.slot} in data/content/tiers.json` }); continue; }
     if (!g?.ok) { out.push({ id: p.id, problem: `can't be fitted to measure it: ${g?.error}` }); continue; }
@@ -40,7 +40,7 @@ export function tierProblems(db, tiers, carId = REFERENCE_CAR, gains = null) {
   // in each slot: the dearer part does more (a part with a purpose is left out: drift tyres, looks)
   // (tyres against tyres of their own rim size: a size up grips more whatever it costs)
   const bySlot = new Map(), sizeGroup = p => p.tyreSize ? `${p.slot} (${(p.fits ?? []).flat().find(t => t.startsWith('rim:'))?.slice(4)}")` : p.slot;
-  for (const p of live) if (p.tier !== 'stock' && !p.purpose && mine(p) && tiers.slots[p.slot]?.stat && gains.get(p.id)?.gain != null) { const k = sizeGroup(p); if (!bySlot.has(k)) bySlot.set(k, []); bySlot.get(k).push(p); }
+  for (const p of live) if (p.tier !== 'stock' && !p.purpose && !tiers.tiers[p.tier]?.open && mine(p) && tiers.slots[p.slot]?.stat && gains.get(p.id)?.gain != null) { const k = sizeGroup(p); if (!bySlot.has(k)) bySlot.set(k, []); bySlot.get(k).push(p); }
   // (a family's part in a dearer finish — chrome — costs more for its looks, not what it does: its price for what it
   // does is its price ÷ its finish's share; and two parts that perform the same, a finish apart, aren't compared)
   const forWhat = p => p.price / (p.generated?.priceFactor ?? 1), same = new Map(), keyOf = p => { if (!same.has(p.id)) same.set(p.id, perfKey(p)); return same.get(p.id); };

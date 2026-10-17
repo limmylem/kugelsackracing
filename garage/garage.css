@@ -349,6 +349,7 @@
 .badge.tier-street { background: var(--c-good-tint); color: var(--c-good); }
 .badge.tier-sport { background: var(--c-accent-tint); color: var(--c-accent); }
 .badge.tier-race { background: var(--c-bad-tint); color: var(--c-bad); }
+.badge.tier-extreme { background: rgba(180, 108, 255, 0.16); color: #c58cff; }
 /* a part's rendered icon (npm run import) in place of its slot's symbol */
 .ui .thumb.pic { padding: 3px; overflow: hidden; }
 .ui .thumb.pic img { width: 100%; height: 100%; object-fit: contain; display: block; }

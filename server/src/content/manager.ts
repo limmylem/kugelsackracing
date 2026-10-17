@@ -40,7 +40,11 @@ export function pinOf(part: any) {
   for (const k of Object.keys(o)) if (o[k] === undefined) delete o[k];
   return o;
 }
-const same = (a: any, b: any) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// (the same whatever order their keys are in: Postgres's jsonb keeps a pinned version's keys in its own order, so a
+// part with an object field — its family's generated block, an aero kit's aeroEffect — read as changed the moment it was
+// published, and showed as a draft again)
+const canonical = (x: any): any => Array.isArray(x) ? x.map(canonical) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().filter(k => x[k] !== undefined).map(k => [k, canonical(x[k])])) : x;
+const same = (a: any, b: any) => JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
 // (a pinned published version against the part as its files and edits have it now: the fields that differ)
 const pinnedDiff = (pin: any, now: any) => PINNED.filter(k => !same(pin[k], k === 'unlock' ? now.unlock ?? null : now[k]));
 
@@ -195,6 +199,23 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
     await db.transaction(async tx => { for (const p of plans) { await record(tx, p.ref, p.next, status === 'published' ? 'publish' : status === 'review' ? 'review' : 'draft', actorId, reason); done.push(p.ref); } });
     forget();
     return { done, refused, version: (await overlay()).version };
+  }
+
+  // Everything published (the owner's choice, 2026-10-17: every deploy publishes all the parts and cars — server/tools/
+  // publish-content.ts): each part and car not live as its files and edits are now, unless a person moved it back to a
+  // draft or into review in the admin page (that stays theirs). Refused ones (failing checks) are left as they were, with why.
+  async function publishEverything({ actorId = null, reason = 'published with the deploy' }: { actorId?: string | null; reason?: string } = {}) {
+    const { game, row } = await state(), held = new Set<string>(), refs: ItemRef[] = [];
+    const last = (await db.execute(sql`select distinct on (kind, id) kind, id, action, actor_id from catalogue_history order by kind, id, seq desc`)).rows as any[];
+    for (const h of last) if ((h.action === 'draft' || h.action === 'review') && h.actor_id) held.add(`${h.kind}:${h.id}`);
+    for (const kind of ['part', 'car'] as Kind[]) for (const id of Object.keys(kind === 'part' ? game.parts : game.cars)) {
+      const v = view(game, kind, id, row(kind, id));
+      if (!v || v.retired || held.has(`${kind}:${id}`)) continue;
+      if (v.live && v.status === 'published' && !v.edited && !v.filesChanged) continue;
+      refs.push({ kind, id });
+    }
+    const r = refs.length ? await setStatus({ items: refs, status: 'published', actorId: actorId as any, reason }) : { done: [], refused: [], version: (await overlay()).version };
+    return { ...r, keptAsDrafts: [...held] };
   }
 
   async function history(kind: Kind, id: string) { return (await item(kind, id)).history; }
@@ -352,7 +373,7 @@ export function createContentManager(db: Db, { log = (..._: any[]) => {} } = {})
   // (the files changed — a content builder job on a development copy made or changed parts: read them again)
   function reload() { checks = readMaybe('data/content/checks.json', { parts: {}, classes: {} }); thumbs = readMaybe('data/content/thumbs.json', { thumbs: {} }).thumbs ?? {}; forget(); }
 
-  return { overlay, items, item, edit, setStatus, history, preview, exportCsv, importCsv, resume, close, reload, prepareHold, applyHold, idle: () => !busy && !queue.length };
+  return { overlay, items, item, edit, setStatus, publishEverything, history, preview, exportCsv, importCsv, resume, close, reload, prepareHold, applyHold, idle: () => !busy && !queue.length };
 }
 export type ContentManager = ReturnType<typeof createContentManager>;
 

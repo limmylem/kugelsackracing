@@ -17,7 +17,6 @@
     "clutch_spline:std",
     "gearbox:uprated"
   ],
-  "purpose": "extreme",
   "_note": "The Apex's 7-speed in a race case: strong enough for the Inferno (it counts as the uprated gearbox the Inferno needs), shifts in half the time (0.035 s), and a taller final drive (3.3 instead of 3.6) so the Inferno runs out of road, not revs: about 419 km/h flat out instead of 380.",
   "gearbox": {
     "mode": "auto",
@@ -45,7 +44,7 @@
       "stopSpeed": 0.5
     }
   },
-  "tier": "race",
+  "tier": "extreme",
   "status": "draft",
   "unlock": {
     "level": 9

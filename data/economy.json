@@ -85,6 +85,9 @@
       "partTiers": {
         "race": {
           "level": 5
+        },
+        "extreme": {
+          "level": 9
         }
       },
       "carClasses": {

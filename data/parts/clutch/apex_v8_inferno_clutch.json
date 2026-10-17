@@ -5,7 +5,7 @@
   "slot": "clutch",
   "kind": "component",
   "price": 1300,
-  "mass": 6.5,
+  "mass": 4,
   "model": "",
   "icon": "assets/icons/parts/apex_v8_inferno_clutch.png",
   "fits": [
@@ -20,20 +20,19 @@
     "clutch_rating:triple",
     "clutch:uprated"
   ],
-  "purpose": "extreme",
-  "_note": "A triple-plate carbon clutch with launch control for the Apex: holds 2,800 N·m (all the Inferno makes, so it counts as the triple-plate clutch the Inferno needs) and bites twice as fast; the auto-clutch launches at 5,200 rpm instead of 3,800, with the turbos already spooling.",
+  "_note": "A triple-plate carbon clutch with launch control for the Apex: holds 3,200 N·m (more than the Inferno makes, so it counts as the triple-plate clutch the Inferno needs), bites twice as fast, weighs 4 kg, and the auto-clutch launches at 4,800 rpm instead of 3,800 with the turbos already spooling (tried from 3,800 to 6,800: 4,800 put the most down without spinning the tyres). With the Inferno and the rest of the Inferno set: 0–100 km/h in 2.6 s instead of 2.9, the quarter mile in 8.8 s instead of 9.0.",
   "clutch": {
-    "maxTorque": 2800,
+    "maxTorque": 3200,
     "engageTime": 0.04,
     "releaseTime": 0.116,
     "antiStallRpm": 700,
     "auto": {
-      "launchRpm": 5200,
+      "launchRpm": 4800,
       "holdRate": 8,
       "engageAbove": 300
     }
   },
-  "tier": "race",
+  "tier": "extreme",
   "status": "draft",
   "unlock": {
     "level": 9

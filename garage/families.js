@@ -142,8 +142,10 @@ export const KINDS = {
   seat: (c, st) => ({ kind: 'component', mass: st.mass, fits: [`seat_mount:${c.mount}`], provides: ['seat:bucket'] }),
   steering_wheel: (c, st) => ({ kind: 'component', mass: st.mass, fits: ['steering_column:std'] }),
   gauges: (c, st) => ({ kind: 'component', mass: st.mass }),
+  // (toughness 1.2: a whole kit — splitter, skirts, diffuser — on proper mounts; at 0.8 a 60 km/h crash cost more than two
+  // race wins to fix, so no kit could be published)
   body_kit: (c, st) => ({
-    kind: 'component', mass: st.mass, contactMaterial: c.finish.id === 'carbon' ? 'carbon' : 'plastic', toughness: 0.8, fits: [`car:${c.car}`],
+    kind: 'component', mass: st.mass, contactMaterial: c.finish.id === 'carbon' ? 'carbon' : 'plastic', toughness: 1.2, fits: [`car:${c.car}`],
     aeroEffect: { liftFront: st.liftFront, liftRear: st.liftRear, drag: st.drag },
     detach: { detachable: true, looseType: 'none', attachStrength: 1800, looseThreshold: 12, detachThreshold: 8 },
   }),

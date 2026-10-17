@@ -43,7 +43,7 @@
       "description": "No longer sold in the shop; copies players own still work"
     },
     "tier": {
-      "enum": ["stock", "street", "sport", "race"],
+      "enum": ["stock", "street", "sport", "race", "extreme"],
       "description": "Its upgrade tier: prices and stats follow the tier's rules (data/content/tiers.json)"
     },
     "todo": {
@@ -233,8 +233,8 @@
       }
     },
     "purpose": {
-      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap", "extreme"],
-      "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels; swap: room for a swapped engine, a cowl bonnet; extreme: past the race tier on purpose, a car's no-limits set to match a monster engine, the Apex V8 Inferno's): not held to its tier's stat band, and left out of value-for-money comparisons"
+      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap"],
+      "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels; swap: room for a swapped engine, a cowl bonnet): not held to its tier's stat band, and left out of value-for-money comparisons"
     },
     "model": {
       "type": "string",

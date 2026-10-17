@@ -23,7 +23,7 @@ const Filters = z.object({
 });
 const Changes = z.object({
   price: z.number().int().positive().max(1_000_000).optional(), priceTimes: z.number().positive().max(10).optional(),
-  unlockLevel: z.number().int().min(1).max(50).nullable().optional(), tier: z.enum(['street', 'sport', 'race']).optional(),
+  unlockLevel: z.number().int().min(1).max(50).nullable().optional(), tier: z.enum(['street', 'sport', 'race', 'extreme']).optional(),
   name: z.string().trim().min(3).max(80).optional(), stats: z.record(z.string().max(40), z.number()).optional(),
 }).strict();
 

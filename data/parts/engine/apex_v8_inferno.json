@@ -28,13 +28,13 @@
     "intake_flange:std",
     "exhaust_flange:std"
   ],
-  "_note": "The Apex V8's engine, built out to the limit: stroked and bored to 6.2 L, forged throughout, and two huge turbos at 3 bar. Lazy below 4,000 rpm while they spool, then a wall of torque from 5,000: 1,526 N\u00b7m from 5,500 to 7,000 rpm and about 1,542 hp (the stock engine: 580 N\u00b7m, about 570 hp), in the same bay and on the same mounts (the Apex's own engine model). On the Apex: 0\u2013100 km/h in 4.0 s, the quarter mile in 10.5 s, 380 km/h flat out (stock: 3.6 s, 11.2 s, 329 km/h). As much as the Apex's rear tyres can take: at 1,900 N\u00b7m it spun at 260 km/h on the straight, using all their grip to push and none to hold the tail; 1,700 still held, so this keeps a margin. It needs the triple-plate clutch, an uprated gearbox and an uprated radiator fitted first. Its mass and price from the engine formulas (data/content/formulas.json engines: 6.2 L, turbo, 3 bar); the curve shaped by hand for the turbos' lag, which also lets the car pull away cleanly; the redline 8,300 (the twin-turbo V8 sound reaches 8,568 rpm).",
+  "_note": "The Apex V8's engine, built out to the limit: stroked and bored to 6.2 L, forged throughout, and two huge turbos at 3 bar. Lazy below 4,000 rpm while they spool, then a wall of torque from 5,000: 1,526 N·m from 5,500 to 7,000 rpm and about 1,542 hp (the stock engine: 580 N·m, about 570 hp), in the same bay and on the same mounts (the Apex's own engine model). On the Apex: 0–100 km/h in 4.0 s, the quarter mile in 10.5 s, 380 km/h flat out (stock: 3.6 s, 11.2 s, 329 km/h). As much as the Apex's rear tyres can take: at 1,900 N·m it spun at 260 km/h on the straight, using all their grip to push and none to hold the tail; 1,700 still held, so this keeps a margin. It needs the triple-plate clutch, an uprated gearbox and an uprated radiator fitted first. Its mass and price from the engine formulas (data/content/formulas.json engines: 6.2 L, turbo, 3 bar); the curve shaped by hand for the turbos' lag, which also lets the car pull away cleanly; the redline 8,300 (the twin-turbo V8 sound reaches 8,568 rpm).",
   "massOffset": [
     0,
     0.18,
     0
   ],
-  "tier": "race",
+  "tier": "extreme",
   "unlock": {
     "level": 9
   },

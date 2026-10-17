@@ -52,7 +52,7 @@ export function makerOf(db, part) {
   const M = shopOf(db).makers ?? {}, own = entryOf(db, 'part', part.id).maker ?? M.parts?.[part.id];
   if (own) return own;
   if (part.tier === 'stock' || part.tier == null || Object.keys(db.cars).some(c => part.id.startsWith(`${c}_`))) return M.factory ?? 'Factory';
-  if (part.tier === 'race' && M.racing) return M.racing;
+  if ((part.tier === 'race' || part.tier === 'extreme') && M.racing) return M.racing;
   return M.byCategory?.[part.category] ?? null;
 }
 // The best sale on an item now (they don't add up)

@@ -284,7 +284,7 @@ export class Workshop {
       const trial = this.#try(socketName, cand, 'quick');
       if (trial.errors.some(e => e.code === 'does_not_fit' && e.part === part.id)) return;
       const soon = !owned && part.todo?.length, o = offer(this.db, 'part', part.id), lock = !owned && this.lock(o.unlock);
-      const locked = soon ? { kind: 'todo', text: 'Not in the shop yet: its price and stats are still to do' } : lock ? { kind: 'level', text: lock.text } : trial.ok ? null : reason(trial.errors), after = trial.ok ? trial.garage.stats() : null;
+      const locked = soon ? { kind: 'todo', text: 'Not in the shop yet: its price and stats are still to do' } : lock ? { kind: 'level', text: lock.text } : trial.ok ? null : reason(trial.errors, this.db, part.id), after = trial.ok ? trial.garage.stats() : null;
       candidates.push({ key: owned ? instance.instanceId : `shop:${part.id}`, instanceId: cand.instanceId, partId: part.id, count: owned ? count : 0, part, condition: owned ? instance.condition ?? 100 : 100, owned,
         set: n, price: o.price * n, sale: owned ? null : o.sale, affordable: owned || this.money >= o.price * n,
         locked, blockers: trial.ok ? trial.result.ops.filter(o => o.op === 'remove' && o.socket !== socketName && !this.#sameGroup(o.socket, socketName)).map(o => o.socket) : [],
@@ -307,7 +307,7 @@ export class Workshop {
   // What fitting a candidate would do (worked out on a copy): { ok, errors, reason, before, after, rows, warnings, ops }
   preview(socketName, candidate) {
     const t = this.#try(socketName, candidate), before = this.stats();
-    if (!t.ok) return { ok: false, errors: t.errors, reason: reason(t.errors), before, after: null, rows: [] };
+    if (!t.ok) return { ok: false, errors: t.errors, reason: reason(t.errors, this.db, candidate?.partId ?? this.profile.parts?.[candidate?.instanceId]?.partId), before, after: null, rows: [] };
     const after = t.garage.stats();
     return { ok: true, errors: [], before, after, rows: compareStats(before, after, this.db, this.state, t.garage.state), warnings: t.result.warnings, ops: t.result.ops, state: t.garage.state };
   }
@@ -539,10 +539,13 @@ export class Workshop {
 // ---------- comparing two stats ----------
 
 // Short reason a part can't go on: from the validator's errors
-function reason(errors) {
+// (partId: the part being tried — what another part on the car needs is said as that part's need, not this one's:
+// with the Inferno on, the stock gearbox isn't "Requires: uprated gearbox" but "The Inferno needs an uprated gearbox")
+function reason(errors, db = null, partId = null) {
   const e = errors.find(x => x.code === 'requires') ?? errors.find(x => x.code === 'conflicts') ?? errors[0];
   if (!e) return null;
   const req = e.message.match(/needs (.+) fitted too/), clash = e.message.match(/can't be fitted with (.+?) \(/);
+  if (req && partId && e.part && e.part !== partId) return { kind: 'requires', text: `${db?.parts[e.part]?.name ?? 'A part on the car'} needs ${req[1].replace(/^"(.+)"$/, '$1')} instead` };
   if (req) return { kind: 'requires', text: `Requires: ${req[1].replace(/^an? /, '').replace(/^"(.+)"$/, '$1')}` };
   if (clash) return { kind: 'conflicts', text: `Conflicts with: ${clash[1]}` };
   if (e.code === 'blocked') return { kind: 'blocked', text: e.message };
@@ -564,6 +567,9 @@ export const STAT_KEYS = [
   { key: 'bite', label: 'Brake pressure', unit: 'bar', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.pressureBar },
   { key: 'fade', label: 'Brakes fade from', unit: '°C', dec: 0, up: true, extra: true, of: s => s.totals?.brakes?.fadeFrom },
   { key: 'cooling', label: 'Brake cooling', unit: '°C/s', dec: 1, up: true, extra: true, of: s => s.totals?.brakes?.cooling },
+  // (the clutch's: how much torque it holds, and the rpm the auto-clutch launches at — the quick 0–100 estimate doesn't see it)
+  { key: 'clutch', label: 'Clutch holds', unit: 'Nm', dec: 0, up: true, extra: true, of: s => s.spec?.clutch?.maxTorque },
+  { key: 'launch', label: 'Launch rpm', unit: 'rpm', dec: 0, up: true, extra: true, of: s => s.spec?.clutch?.auto?.launchRpm },
 ];
 
 // The main things a part changes, in a few words ("+62 hp", "−7 kg")

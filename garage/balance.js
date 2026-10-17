@@ -10,7 +10,7 @@ import { Garage } from './data.js';
 import { STAT_KEYS } from './workshop.js';
 import { released } from './content.js';
 
-export const TIER_ORDER = ['stock', 'street', 'sport', 'race'];
+export const TIER_ORDER = ['stock', 'street', 'sport', 'race', 'extreme'];
 const brakeTorque = B => { const P = B.maxPressureBar * 1e5, t = e => 2 * e.padMu * P * e.pistonArea * e.discRadius; return 2 * (t(B.front) + t(B.rear)); };
 // The key stats a slot is judged by (tiers.json stats): a build's value, and whether more is better
 export const KEY_STATS = {

@@ -113,7 +113,7 @@ export function createContentTools({ api, h, say, when, errText, main }) {
       } else if (C.max) checkRows.push(h('tr', {}, h('td', {}, 'classes'), h('td', {}, C.ok ? '✔' : '✘'), h('td', {}, `stock ${C.stock?.class} (${C.stock?.index}), fully upgraded ${C.max.class} (${C.max.index})${(C.problems ?? []).length ? ` — ${C.problems.join('; ')}` : ''}`)));
       if (x.liveChecks) checkRows.push(h('tr', {}, h('td', {}, `live (v${x.liveChecks.version})`), h('td', {}, x.liveChecks.ok ? '✔' : '✘'), h('td', {}, (x.liveChecks.problems ?? []).join(' · ') || 'its tier and the class limits, with this version')));
       // the edit form: name, tier, price, unlock level and its family's stats (each with its allowed range)
-      const f = { name: h('input', { value: x.name, maxlength: 80 }), tier: h('select', {}, ...['street', 'sport', 'race'].map(t => h('option', { value: t, selected: x.tier === t }, t))), price: h('input', { type: 'number', value: x.price ?? '', min: 1, step: 10 }), unlock: h('input', { type: 'number', value: x.unlockLevel ?? '', min: 1, max: 50, placeholder: 'its tier\'s' }) };
+      const f = { name: h('input', { value: x.name, maxlength: 80 }), tier: h('select', {}, ...['street', 'sport', 'race', 'extreme'].map(t => h('option', { value: t, selected: x.tier === t }, t))), price: h('input', { type: 'number', value: x.price ?? '', min: 1, step: 10 }), unlock: h('input', { type: 'number', value: x.unlockLevel ?? '', min: 1, max: 50, placeholder: 'its tier\'s' }) };
       const statInputs = x.stats.map(s => ({ s, el: h('input', { type: 'number', value: s.value ?? '', step: 'any', min: s.range[0], max: s.range[1] }) }));
       const save = async () => {
         const changes = {};

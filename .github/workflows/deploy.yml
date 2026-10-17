@@ -11,6 +11,8 @@
 #   4. every check of tools/check-deploy.mjs
 #   5. the official multiplayer routes published (server/tools/seed-mp-routes.ts: the regions in the game) — its
 #      failure only a warning, the game and the server being live by then
+#   6. every part and car published (server/tools/publish-content.ts): what the files have now goes live, except what a
+#      person moved back to a draft in the admin page; its failure only a warning too
 # Its settings (docs/GO_LIVE.md Part 5): the repository variables CLOUDFLARE_ACCOUNT_ID, SERVER_HOST, TURNSTILE_SITE_KEY,
 # HSTS ("on" once everything works over HTTPS), SENTRY_CLIENT_DSN (optional) and SERVER_SSH_HOST_KEY (optional: pins
 # the server's SSH key); the secrets CLOUDFLARE_API_TOKEN, DEPLOY_SSH_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and
@@ -135,6 +137,16 @@ jobs:
         run: |
           node server/tools/seed-mp-routes.ts || {
             echo "::warning title=Multiplayer routes not published::server/tools/seed-mp-routes.ts failed (above); the game and server are live. Re-run this deploy's failed job, or the next deploy publishes them"
+            exit 1
+          }
+
+      - name: 6. Every part and car published (server/tools/publish-content.ts — the owner's choice, 2026-10-17)
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node server/tools/publish-content.ts || {
+            echo "::warning title=Content not published::server/tools/publish-content.ts failed (above); the game and server are live. Re-run this deploy's failed job, or the next deploy publishes them"
             exit 1
           }
 

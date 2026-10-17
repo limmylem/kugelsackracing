@@ -12,7 +12,7 @@
       "type": "object", "required": ["stock", "street", "sport", "race"],
       "additionalProperties": {
         "type": "object", "required": ["label", "colour"], "additionalProperties": false,
-        "properties": { "label": { "type": "string" }, "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "about": { "type": "string" }, "price": { "$ref": "#/$defs/range" } }
+        "properties": { "label": { "type": "string" }, "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "about": { "type": "string" }, "price": { "$ref": "#/$defs/range" }, "open": { "type": "boolean", "description": "No gain band: its parts go as far past the race tier as they go, and aren't held to doing more than cheaper parts (tools/content/balance.mjs)" } }
       }
     },
     "stats": { "type": "object", "additionalProperties": { "type": "string" } },

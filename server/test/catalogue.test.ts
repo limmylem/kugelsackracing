@@ -116,3 +116,20 @@ test('CSV out and back in: a changed price comes in as an edit', async () => {
   assert.equal(real.body.applied, true);
   assert.equal((await admin.get(`/api/v1/admin/content/items/part/${draft}`)).body.price, now + 10);
 });
+
+test('the deploy publishes everything (server/tools/publish-content.ts) — but what a person moved back to a draft stays one', async () => {
+  const others = Object.keys(checks.parts).filter(id => checks.parts[id].ok && part(id)?.status === 'draft' && id !== draft);
+  const [kept, fresh] = others;
+  assert.ok(kept && fresh);
+  assert.equal((await admin.post('/api/v1/admin/content/status', { items: [{ kind: 'part', id: kept }], status: 'draft', reason: 'Test: not yet' })).status, 200);
+  const r = await T.app.contentManager.publishEverything();
+  assert.ok(r.done.some(x => x.id === fresh) && !r.done.some(x => x.id === kept), JSON.stringify(r.done.slice(0, 5)));
+  assert.ok(r.keptAsDrafts.includes(`part:${kept}`));
+  assert.ok(r.refused.every(x => x.why.length > 5 && x.id !== fresh), 'refused only with why: failing checks, an edit still being checked');
+  const one = (await admin.get(`/api/v1/admin/content/items/part/${fresh}`)).body;
+  assert.equal(one.status, 'published'); assert.equal(one.live, true);
+  assert.equal((await ann.get('/api/v1/player/config')).body.content.parts[fresh].status, 'published');
+  assert.equal((await admin.get(`/api/v1/admin/content/items/part/${kept}`)).body.status, 'draft');
+  // again: nothing left to do
+  assert.equal((await T.app.contentManager.publishEverything()).done.length, 0);
+});

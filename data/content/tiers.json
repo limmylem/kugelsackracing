@@ -1,5 +1,5 @@
 {
-  "_note": "Upgrade tiers, so parts in the same tier are consistent. Every part has a tier (data/parts: tier). Price: a part's price (each, for a set) is its slot's street price × its tier's price band. Stats: what a part does to its slot's key stat (on the starter car, with whatever it needs fitted too: its own difference) is within its slot's band for its tier — a share of the stock value, better-ward (for weight, braking distance and 0–100 time: less). Parts with a purpose (drift, looks) do their own thing and aren't held to the stat bands. Checked by the balance tests (tests/unit/balance.test.mjs) and npm run balance-report.",
+  "_note": "Upgrade tiers, so parts in the same tier are consistent. Every part has a tier (data/parts: tier). Price: a part's price (each, for a set) is its slot's street price × its tier's price band. Stats: what a part does to its slot's key stat (on the starter car, with whatever it needs fitted too: its own difference) is within its slot's band for its tier — a share of the stock value, better-ward (for weight, braking distance and 0–100 time: less). Parts with a purpose (drift, looks) do their own thing and aren't held to the stat bands; nor are an open tier's (extreme). Checked by the balance tests (tests/unit/balance.test.mjs) and npm run balance-report.",
   "tiers": {
     "stock": {
       "label": "Stock",
@@ -23,6 +23,13 @@
       "colour": "#ff5a5f",
       "price": [3, 6],
       "about": "The last few per cent, at a price"
+    },
+    "extreme": {
+      "label": "Extreme",
+      "colour": "#b46cff",
+      "price": [4, 30],
+      "open": true,
+      "about": "Past race: a car's no-limits parts, made to go with a monster engine (the Apex V8's Inferno set). No gain band: they go as far as they go"
     }
   },
   "stats": {

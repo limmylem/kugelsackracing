@@ -15,10 +15,9 @@
   "requires": [],
   "conflicts": [],
   "provides": [],
-  "purpose": "extreme",
   "_note": "A bigger carbon splitter, dive planes and diffuser for the Apex: about three times the stock aero kit's downforce at both ends for a little more drag, so the car stays planted past 400 km/h.",
   "toughness": 0.8,
-  "tier": "race",
+  "tier": "extreme",
   "detach": {
     "detachable": true,
     "looseType": "none",

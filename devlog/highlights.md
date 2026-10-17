@@ -106,3 +106,4 @@ Trees no longer poke through footpaths and bridges
 Directions now show clearly when a turn is coming up
 Inferno parts for the Apex: hot slicks, launch control, wheels that stay on
 Gauge pods in the cockpit now read your engine's real boost, oil and water
+Groundline aero kits are in the shop, and an Extreme tier above Race

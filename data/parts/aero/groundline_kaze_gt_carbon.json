@@ -13,7 +13,7 @@
   "conflicts": [],
   "provides": [],
   "contactMaterial": "carbon",
-  "toughness": 0.8,
+  "toughness": 1.2,
   "aeroEffect": {
     "liftFront": -0.085,
     "liftRear": -0.08,
