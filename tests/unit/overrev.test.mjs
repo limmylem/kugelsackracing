@@ -190,3 +190,15 @@ test('held while the real world\'s ground loads (frozen) at speed: let go in the
   assert.equal(d.health.condition, 100);
   assert.ok(!d.events.some(e => e.type === 'float' || e.type === 'bent' || e.type === 'blown'));
 });
+
+test('an H-pattern shifter: the gear held goes in (manual from then on), neutral with none, reverse at a stop', () => {
+  const sim = rolling(stock, 60, 2), v = sim.vehicle, d = v.drivetrain;
+  d.mode = 'auto';
+  const input = gear => ({ device: 'wheel', throttle: 0.3, brake: 0, steer: 0, handbrake: false, gear });
+  for (let i = 0; i < 1 / sim.dt; i++) sim.step(input(3));
+  assert.equal(d.gear, 3); assert.equal(d.mode, 'sequential');
+  for (let i = 0; i < 1 / sim.dt; i++) sim.step(input(0));
+  assert.equal(d.gear, 0, 'neutral');
+  for (let i = 0; i < 1 / sim.dt; i++) sim.step(input(2));
+  assert.equal(d.gear, 2);
+});
