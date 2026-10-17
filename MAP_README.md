@@ -882,44 +882,39 @@ after pictures of the ten most complex junctions, three bridges and the known ba
   Adelaide is all Copernicus). Road positions within 0.7 cm of OSM, seams, railings at 50–300 km/h, streaming,
   memory, byte-identical re-bakes, and the Phase 1 tests on Grange Road.
 
-### Map v5 (2026-10-16)
+### Map v5 (2026-10-16; its known errors fixed 2026-10-17)
 
 Adelaide is on Map v5 now; the game loads `assets/map/adelaide/v5/` (`?map=v4` or `?map=v3` loads the older bakes,
 for comparing), and only Adelaide (`data/map/baked.json` `inGame`). The full report, Map v4 against Map v5, with
 before and after pictures of Step 0's places and bugs, is [MAP_V5_REPORT.md](MAP_V5_REPORT.md).
 
-- **Bake:** `npm run map:bake5 -- --region adelaide`: 72 minutes on 4 cores, 9.6 GB at most, in 49 blocks.
-- **Size:** 1,596 tiles, 545 MB, plus the road graph, the road model file and its own vector map: 585 MB in all.
+- **Bake:** `npm run map:bake5 -- --region adelaide`: 72 minutes on 4 cores, 8.0 GB at most, in 49 blocks.
+- **Size:** 1,596 tiles, 531 MB, plus the road graph, the road model file and its own vector map: 571 MB in all.
 - **Contents:**
   - 102,964 roads and 32,379 junctions;
-  - 18.0M road-surface triangles, plus 22.6M of kerbs, verges, footpaths and islands (8,918 km of kerb);
+  - 17.5M road-surface triangles, plus the kerbs, verges, footpaths and islands (8,918 km of kerb);
   - 263,735 buildings, each with a type (69% estimated);
   - 467 chain outlets under 21 parody brands;
   - 2,386 traffic lights and 16,531 street name signs;
-  - 423,040 trees;
+  - 720,119 trees (197,953 of them street trees and 93,548 garden trees, estimated);
   - the Heysen Tunnels' tubes.
-- **Road heights against the 5 m LiDAR:** median 0.00 m, 95th percentile 0.43 m (Map v4: +0.98 m and 3.48 m).
-- **Tests:** `npm run test:map5`: 17 of 19 pass on the whole region:
+- **Road heights against the 5 m LiDAR:** median 0.00 m, 95th percentile 0.40 m (Map v4: +0.98 m and 3.48 m).
+- **Tests:** `npm run test:map5`: 19 of 19 pass on the whole region:
   - signs and lights on the driving side of their traffic (98.5–99.8% of each kind);
-  - nothing on a lane (0 of 821,321 pieces);
+  - nothing on a lane (0 of 824,541 pieces);
+  - no car park or path floating (0 of 6.98M triangles);
+  - bridges clear of the roads under them (1.2% of deck edges under 4.5 m, limit 2%: two places);
   - Britannia Roundabout's gardens;
   - every building a type;
   - the Heysen Tunnels driven through end to end and solid all round, and Sir Richard Williams Avenue under the
     airport.
 
-  Two are just over their limits: 131 raised car-park or path triangles (limit 68, the highest 1.21 m), and 2.3% of
-  deck edges over a road under 4.5 m (limit 2%, the lowest 3.89 m). The CBD, Heysen and Superway slices pass all
-  theirs.
-- **Map v4's tests on it:** `npm run test:map4 -- --dir assets/map/adelaide/v5`: 21 of 27 pass. The six that don't:
-  - 12 T-junction cracks under 3 mm;
-  - 0.064% of edge points with no road (service lanes);
-  - 78 tree crowns through a deck;
-  - King William Street's 6 holes;
-  - 75 kerb and verge collision triangles a few cm off the next tile's at a bake block's edge, and 48 seam vertices
-    from the same cause.
-
-  Map v5's tiles depend on the bake's block size (Map v4's didn't), though the same blocks always give the same
-  tiles. [MAP_V5_REPORT.md](MAP_V5_REPORT.md#known-gaps) has all of it.
+  The CBD, Heysen and Superway slices pass all theirs.
+- **Map v4's tests on it:** `npm run test:map4 -- --dir assets/map/adelaide/v5`: 27 of 27 pass (2 cracks under 3 mm,
+  0 crowns through any road surface, King William Street with no holes, every seam vertex matched).
+- **Determinism:** the same area baked twice, the second a block per tile, gives byte-identical files (22 of 22): Map
+  v5's tiles no longer depend on the bake's block size. [MAP_V5_REPORT.md](MAP_V5_REPORT.md#known-gaps) has what's
+  left.
 
 ## Notes
 

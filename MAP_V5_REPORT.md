@@ -34,16 +34,16 @@ grades the same measures run on both bakes.
 
 | | Fault | Map v4 | Map v5 |
 |---|---|---|---|
-| 1a | Road heights against the 5 m LiDAR (every road point on pure LiDAR) | median +0.98 m, 95th percentile 3.48 m (1.05M points) | median 0.00 m, 95th percentile 0.43 m (1.27M points) |
-| 1a | Main roads on LiDAR: road − LiDAR, median / 95th percentile | South Road +0.73 / 2.2 m, Anzac Highway +1.33 / 2.4, Unley Road +1.76 / 3.2, Glen Osmond Road +1.88 / 7.8 | South Road 0.00 / 2.7 m, Anzac Highway 0.00 / 0.15, Unley Road −0.01 / 0.12, Glen Osmond Road +0.01 / 0.26 |
-| 1a | The South Eastern Freeway's steepest grade (the real road: about 6%) | 35.8% over 20 m and over 100 m | 13.6% over 20 m, 9.8% over 100 m |
+| 1a | Road heights against the 5 m LiDAR (every road point on pure LiDAR) | median +0.98 m, 95th percentile 3.48 m (1.05M points) | median 0.00 m, 95th percentile 0.40 m (1.27M points) |
+| 1a | Main roads on LiDAR: road − LiDAR, median / 95th percentile | South Road +0.73 / 2.2 m, Anzac Highway +1.33 / 2.4, Unley Road +1.76 / 3.2, Glen Osmond Road +1.88 / 7.8 | South Road 0.00 / 1.1 m, Anzac Highway 0.00 / 0.23, Unley Road −0.01 / 0.24, Glen Osmond Road +0.01 / 0.21 |
+| 1a | The South Eastern Freeway's steepest grade (the real road: about 6%) | 35.8% over 20 m and over 100 m | 8.9% over 20 m, 8.1% over 100 m |
 | 1c | A road's edge | an open 8 cm step for a wheel to catch, everywhere | closed by a kerb and a footpath or verge: 8,918 km of kerb |
-| 1d | Road bridge decks (segments of 10 m or more) steeper than 8% / 15% | 111 / 37 of 461; steepest 50.6% | 7 / 1 of 461; steepest 17.0% (Barcoo Road) |
-| 1d | Bridges over roads | 42 of 311 decks below the road under them, 132 more clearing it by less than 4.5 m | 35 of 1,544 deck-edge pieces over a road under 4.5 m (2.3%), the lowest 3.89 m; 3 decks short of their clearance |
+| 1d | Road bridge decks (segments of 10 m or more) steeper than 8% / 15% | 111 / 37 of 461; steepest 50.6% | 9 / 1 of 461; steepest 17.1% (Barcoo Road) |
+| 1d | Bridges over roads | 42 of 311 decks below the road under them, 132 more clearing it by less than 4.5 m | 19 of 1,571 deck-edge pieces over a road under 4.5 m (1.2%), in two places (Tonsley, Bowden) |
 | 1e | The Heysen Tunnels | a trench cut into the hill, no walls or ceiling, the hill's top 50 m up | tubes with walls, ceilings, portals and wall lamps, the hill intact over them; both bores driven through at 6.3–6.7% |
 | 1f | Road read as grass (central tiles) | 35% of sampled road points on a non-road raster cell | none: the surface is the triangle's own |
 | 1g | Signs in the road | 696 of 1,507 street name signs (46%) on the road surface (central tiles) | 0 of 821,321 signs, signals, lamps, furniture and trees on a lane |
-| 1h | Floating car parks and paths | 6,018 car-park triangles more than 1.5 m over the ground (central tiles), solid | 131 of 6.86M triangles more than 0.6 m over the ground, the highest 1.21 m |
+| 1h | Floating car parks and paths | 6,018 car-park triangles more than 1.5 m over the ground (central tiles), solid | 0 of 6.98M triangles more than 0.6 m over the ground |
 | 1i | Street lights | pools of light 8 m across, the nearest six lamps real lights at 160 reaching 32 m | pools 15 m across, the nearest six at 320 reaching 40 m |
 | 1j | Roundabout islands | grass, no kerb | 5,523 raised islands, 317 of them roundabout gardens with plants and a tree; Britannia Roundabout's two islands are gardens |
 
@@ -239,7 +239,7 @@ From the whole region's bake (each count from its log; what's estimated is flagg
 - **Landmarks and grounds** (Step 6): the 80 most prominent buildings are drawn from anywhere, among them Adelaide
   Health & Medical Sciences, Festival Tower, The Adelaidean and the Riverbank Stand. The grounds include 134 ovals
   (99 with cricket pitches), 164 fields, 2,058 courts and 1,520 pools. There are 629 suburb signs and 128 park signs.
-- **Vegetation** (Step 7): 423,040 trees by kind. 198,253 are street trees in the verges and 93,009 are garden trees
+- **Vegetation** (Step 7): 720,119 trees by kind. 197,953 are street trees in the verges and 93,548 are garden trees
   behind houses (estimated).
 - **Teleport spots** (Step 10): 69 in the full map (Tab). They include each parody chain at its most confident
   outlet, the ten most prominent named landmarks, Step 0's ten places and bug spots, and the known bad spots.
@@ -297,18 +297,63 @@ Each slice passed all its tests. The first whole-region bake found these, all fi
   the airport's forecourt. The bake builds tubes under hills; under a building the building's own collider is the
   roof, from the road's clearance up, and the test checks the headroom instead.
 
+## The known errors, fixed
+
+The first whole-region report's tests left these failing ([The tests](#the-tests) has them now). Each was traced to
+its cause on a slice of the place, fixed in the bake, and measured again on the whole region.
+
+- **Bridges low over roads** (35 deck-edge pieces under 4.5 m; now 19 of 1,571, 1.2%, in two places). A deck eases onto a junction's
+  surface over its last few metres, so one crossing a road just past a junction held to its main road was drawn lower
+  than its profile: Torrens Road over Devonport Terrace at 3.89 m. Now:
+  - the road under such a deck is lowered into an underpass, flat under it and back up at the approach grade
+    (`heights.underpass`, at most 8 m down; 35 roads in the region);
+  - a junction is raised for a deck no further than its other roads could climb (`heights.raiseGrade`, 15%):
+    Anzac Highway's 4 m stub at the foot of its bridge had become a 37% ramp;
+  - a motorway goes under a main road's bridge in a trench, and under any road's on the LiDAR ground
+    (`heights.corridor.underDecks`, `underAnyDeck`). The LiDAR predates the newer motorways' trenches: Tonsley
+    Boulevard's decks had come down to 1.5 m over the Southern Expressway, and Torrens Road's over the North-South
+    Motorway rose 6 m off the ground in a 17% ramp. Both now cross at the ground's level, the motorway 6–7 m below;
+  - a deck still short after all that has its junctions raised as far as it wants (`underpass.raiseShort`): a car
+    park ramp in Bowden had come down to 1.3 m over the lane under it.
+- **Raised paving** (131 car-park and path triangles over 0.6 m above the ground; now 0 of 6.98M). They were kerb and
+  band pieces at junctions, where the junction's surface and the roads coming into it didn't quite meet. The junction
+  surface work took them away: a junction's plane held level in any direction its roads don't spread along
+  (`heights.planeRidge`; it had tipped), no slivers in its outline where two of its pieces nearly met
+  (`junctions.despike`), and each road's end put into the outline from 1 cm (`junctions.snap`, `rowClean`).
+- **The South Eastern Freeway's grade** (13.6% over 20 m, 9.8% over 100 m; now 8.9% and 8.1%). The motorway limit
+  stays 7.5%; what made it steep was the junction surfaces at Mount Osmond and Devils Elbow sitting off its profile
+  (the plane fix above), and decks over it lifted at their ends. In the hills the 30 m data has the freeway's own
+  cuttings, so a lesser road's bridge there doesn't put it in a trench (Mount Osmond Road's did: an 11.8% dip).
+- **Cracks** (12; now 2, each under 3 mm). The junction outline fixes above, and the T-junction repair run on the lanes
+  alone too (`junctions.laneRepair`). The test also counted one crack once for each edge meeting it: a sliver at a
+  tile's edge came up 4 times. It counts places now.
+- **Holes at road edges** (0.064%; now 0.001%), **King William Street's holes** (6; now 0). A cross-section was square
+  to the chord either side, so at a real corner — a right-angled car park aisle — its edge cut the inside corner off.
+  It's mitred against corners now, and at a joint between two roads too (`graph.jointMitre`).
+- **Tree crowns** (78 through a deck; now 0 through any road surface, footpaths and verges included). Each tree's
+  canopy as drawn is kept clear of every road surface and band, else the tree is drawn smaller, else left out. The
+  test looks at the canopy as drawn too, and at the bands, not only decks.
+- **Trees and railings under the ground in the hills** (found on the way). A tile stores a tree's height as an int16
+  multiple of 2 cm, which stops at 655 m: every tree by Mount Lofty's summit was drawn up to 4 m under its verge.
+  Railings, at 1 cm, stopped at 327 m. A column that reaches past that is stored from an offset now.
+- **The block-size difference** (48 seam vertices, 75 collision triangles, the determinism test). Every step that
+  looks round — the cross-section's bands and islands, furniture, signs, trees, railways, brands' signs, place names —
+  now works within its own reach of the block and keeps only what lands in it, and what has to be the same everywhere
+  (the islands, one-way pairs, the place signs' plan) is found once for the region. The islands were a single
+  Clipper union over the whole region, which took hours; they're found cell by cell on a region-wide grid now.
+
 ## The bake
 
 | | Map v4 | Map v5 |
 |---|---|---|
-| Whole region | 21 min (1,267 s), 9.3 GB | 72 min (4,317 s), 9.6 GB |
-| Tiles | 366 MB (1,596 tiles) | 545 MB (1,596 tiles) |
-| Road surface | 17.7M triangles, 103,068 roads | 18.0M triangles, 102,964 roads, plus 22.6M of kerbs, verges, footpaths and islands |
-| Lamps / trees / railings | 76,313 / 431,358 / 167,358 | 76,073 / 423,040 / 145,989 |
+| Whole region | 21 min (1,267 s), 9.3 GB | 72 min (4,325 s), 8.0 GB |
+| Tiles | 366 MB (1,596 tiles) | 531 MB (1,596 tiles) |
+| Road surface | 17.7M triangles, 103,068 roads | 17.5M triangles, 102,964 roads, plus the kerbs, verges, footpaths and islands |
+| Lamps / trees / railings | 76,313 / 431,358 / 167,358 | 76,031 / 720,119 (the street and garden trees counted too, as they weren't) / 145,812 |
 
 The bake is deterministic: the same area baked twice gives byte-identical tiles, road graph and road model (only the
-manifest's note of the bake's time and memory differs). Unlike Map v4's, Map v5's tiles do depend on the size of the
-bake's blocks ([Known gaps](#known-gaps)).
+manifest's note of the bake's time and memory differs), and as with Map v4 that holds whatever the size of the bake's
+blocks ([The tests](#the-tests)).
 
 The bake takes about 3.4 times as long as Map v4's. Half of it is the cross-section bands: 2,237 s for 70,181 cells,
 each a few of Clipper's unions and differences. Joining each clip set first to avoid Clipper's stalls added 13% to
@@ -319,59 +364,54 @@ buildings' facades. It streams the same way.
 
 ## The tests
 
-### Map v5's own (`npm run test:map5`), on the whole region: 17 of 19 pass
+### Map v5's own (`npm run test:map5`), on the whole region: 19 of 19 pass
 
 - ✅ **side**: signs and lights on the left of the traffic they face, for every kind:
-  - traffic lights 2,376 of 2,386;
-  - give way 1,533 of 1,543;
+  - traffic lights 2,373 of 2,383;
+  - give way 1,536 of 1,546;
   - stop 389 of 393;
-  - speed 216 of 218;
-  - roundabout 1,009 of 1,011;
+  - speed 218 of 220;
+  - roundabout 2,161 of 2,165;
   - ONE WAY;
-  - NO ENTRY 647 of 657.
-- ✅ **lanes**: 0 of 821,321 pieces (furniture, signs, lamps, trees, place and street name signs) stand on a lane.
-- ❌ **floating**: 131 of 6,861,377 car-park and path triangles stand more than 0.6 m over the ground with nothing under
-  them; the test allows 68 (0.001%). The highest is 1.21 m.
-- ❌ **clearance**: 35 of 1,544 deck-edge pieces over a road are under 4.5 m (2.3%); the test allows 2%. The lowest is
-  3.89 m.
+  - NO ENTRY 649 of 659.
+- ✅ **lanes**: 0 of 824,541 pieces (furniture, signs, lamps, trees, place and street name signs) stand on a lane.
+- ✅ **floating**: 0 of 6,981,613 car-park and path triangles stand more than 0.6 m over the ground with nothing under
+  them (it was 131).
+- ✅ **clearance**: 19 of 1,571 deck-edge pieces over a road are under 4.5 m (1.2%; the test allows 2%; it was 35, 2.3%),
+  in two places ([Known gaps](#known-gaps)).
 - ✅ **roundabouts**: Britannia Roundabout's two islands are gardens (32 of 32 points each), and North Terrace / King
   William Street, a crossing of divided roads, isn't one.
 - ✅ **buildings**: all 263,735 have a type (69% estimated, marked so).
 - ✅ **tunnels** (6 of 6), each bore driven through end to end and solid all round:
-  - the Heysen Tunnels' bores, at 6.7% and −6.3% inside, the body within 0.15 m of the road;
+  - the Heysen Tunnels' bores, at 6.6% and −5.9% inside, the body within 0.15 m of the road;
   - Sir Richard Williams Avenue under the airport's forecourt, with headroom under the building.
 
-The CBD, Heysen and Superway slices pass all their tests.
+### Map v4's on the Map v5 bake (`npm run test:map4 -- --dir assets/map/adelaide/v5`): 27 of 27 pass
 
-### Map v4's on the Map v5 bake (`npm run test:map4 -- --dir assets/map/adelaide/v5`): 21 of 27 pass
-
-- ✅ widths: every class at least its model width (95% of 400 cross-sections at 100.5% or more).
-- ✅ overlapping road surfaces: 0.58% (limit 0.60%).
-- ✅ the drawn ground never through the road at near detail; the collision surface within 0.3 cm of the drawn road.
-- ✅ no building, railing or trunk over a lane, and 0 trunks on a road.
-- ✅ junction joins: 0.037% with no road, 0.23% with a step over 2 cm.
-- ✅ crossings at 30–150 km/h within 10.1 m/s².
+- ✅ widths: every class at least its model width (95% of 400 cross-sections at 101.0% or more).
+- ✅ **cracks**: 2 T-junction cracks inside the road on 25 tiles (0.84 per 100k triangles; the limit is 2), each under
+  3 mm, both slivers at a tile's edge (it was 12 counted, 3 places: the test counted a crack once for each edge
+  meeting it, and counts places now).
+- ✅ overlapping road surfaces: 0.55% (limit 0.60%).
+- ✅ **edges**: 0.001% of 2.6M points 0.15 m inside a road's edge have no drawn road (it was 0.064%; the limit is
+  0.050%).
+- ✅ the drawn ground never through the road at near detail; the collision surface within 0.2 cm of the drawn road.
+- ✅ **colliders**: all 87,683 audited have something drawn, and every road collision triangle is on the drawn road
+  (it was 75 off it at a block's edge).
+- ✅ no building, railing or trunk over a lane.
+- ✅ **trees**: 0 of 687,952 tree trunks on a road and 0 crowns through a road surface: decks, footpaths and verges (it
+  was 78 through a deck, and the test looked at decks only).
+- ✅ junction joins: 0.002% with no road, 0.15% with a step over 2 cm.
+- ✅ crossings at 30–150 km/h within 10.7 m/s².
 - ✅ lamps: 0 on a lane; 98.49% of lit road points with a lamp within 30 m.
-- ✅ 9 of the 10 known bad spots.
-- ❌ **cracks**: 12 T-junction cracks inside the road on 25 tiles (4.78 per 100k triangles; the limit is 2), each under
-  3 mm.
-- ❌ **edges**: 0.064% of 2.6M points 0.15 m inside a road's edge have no drawn road (the limit is 0.050%). They're
-  service lanes, drawn a little narrower than the model's edge.
-- ❌ **colliders**: of 87,554 audited, 75 road collision triangles lie more than 2 cm off the drawn road. They are kerb
-  and verge triangles at a block's edge, a few cm (at most 9 cm) off the neighbouring tile's drawn kerb or verge.
-  Something is drawn under each one; the bake's own audit, against the road model, passes.
-- ❌ **trees**: 78 of 687,722 tree crowns reach through a bridge deck.
-- ❌ **bad spots**: King William Street has 6 holes in 601 road points.
-- ❌ **seams**: 48 of 353,884 road vertices on the 2,982 shared tile edges are without their neighbour's within 1 cm.
-  These are the same block-edge kerbs and verges.
-
-The colliders and seams failures come from the block-edge difference in [Known gaps](#known-gaps). The cracks, the
-edge points, the crowns and King William Street's holes were found on the CBD slice too, and they're as small there.
+- ✅ **bad spots**: all 10, King William Street included (0 holes in 601 road points; it was 6).
+- ✅ **seams**: all 347,521 road vertices on the 2,982 shared tile edges have their neighbour's within 1 cm (it was 48
+  without).
 
 ### Map v3's determinism test on it (`npm run test:map -- --region adelaide --map v5 --only determinism`)
 
-❌ It fails: 18 of 22 files differ when the second bake is a block per tile. The same blocks twice give identical
-files.
+✅ 22 of 22 files (tiles, far layer, road graph, road surface model) come out byte for byte the same when the second
+bake is a block per tile (it was 18 of 22 differing).
 
 ### Map v4's tests, made V5-aware
 
@@ -410,21 +450,19 @@ What Map v5 doesn't do yet, or does only partly, and why:
   at the building's height; the parts aren't used yet.
 - **Overhead wires on street tram lines.** The tram's overhead wiring is drawn where the line has its own track;
   along King William Street and the Glenelg line's street section, where the tram runs in the road, it isn't.
-- **The South Eastern Freeway's grade** is still steeper than the real road in places: 13.6% over 20 m and 9.8% over
-  100 m, where the real freeway is about 6%. Its profile is held to the motorway limit (7.5%), but the junction
-  surfaces at the Mount Osmond and Devils Elbow interchanges sit off it by up to 1.5 m, and the road between them takes
-  the difference. Changing the motorway limit or the junctions' weight didn't fix it. The real fix is the hills' 1 m
-  LiDAR.
-- **Bridges a little low.** 35 deck-edge pieces (2.3% of those over a road; the test allows 2%) are under 4.5 m. The
-  worst is Torrens Road over Devonport Terrace at 3.89 m; others are Anzac Highway over South Road at 4.16 m, Mount
-  Osmond Road over the freeway at 4.33 m and Hart Street over Wirra Drive at 4.17 m. They're short decks, held down by
-  their approaches.
-- **A few raised paving pieces.** 131 car-park and path triangles (of 6.86M) stand 0.6–1.21 m over the ground beside
-  a road or a service bridge in 19 places (the test allows 68).
-- **Kerbs and verges at a bake block's edge.** Map v4's tiles were the same whatever the size of the bake's blocks. Map
-  v5's kerbs, verges, furniture, wires, trees and lamps near a block's edge come out a little different depending on
-  which block builds them. Each block works from what's within its own reach, so near its edge the road edges,
-  buildings and furniture it sees aren't quite its neighbour's. At a tile edge between two blocks a kerb or verge can
-  step by a few cm (at most 9 cm). That's the 48 seam vertices and 75 collision triangles above. It's deterministic
-  (the same blocks always give the same tiles); making every Map v5 step independent of the blocks is the fix.
+- **The South Eastern Freeway's grade** is 8.9% at its steepest over 20 m and 8.1% over 100 m, where the real freeway
+  is about 6%. Its profile is held to the motorway limit (7.5%); what's left is where a junction's surface meets it.
+  The hills' 1 m LiDAR would settle it.
+- **A few steep bridges and approaches.** 9 road bridge decks of 10 m or more are steeper than 8%, 1 steeper than 15%:
+  Barcoo Road's at 17.1% (as it was). 22 ground roads rise more than 20% over their last 10 m onto a deck, the same
+  number as before the fixes; the steepest are on Waterfall Gully Road (36%) and Port Road (33%).
+- **Two bridges still a little low.** 19 deck-edge pieces (1.2%; the test allows 2%) are under 4.5 m, in two places.
+  A trunk ramp at the Tonsley interchange crosses the Southern Expressway at 17°, and where it comes down onto its
+  junction its edge is 1.6 m over the expressway, which can't be lowered there (a ramp's junction of its own is
+  beside it). A service road's deck in Bowden is 4.4 m over the lane under it.
+- **Two levels of a car park on one spot.** At -34.9393, 138.5178 two service roads cross with the upper 1.5 m below
+  the lower in the road model: OSM's two levels of one car park, with no `layer` to tell them apart.
+- **What the clearance test can't see.** It measures the gap from a deck's underside down to a road more than 0.5 m
+  below it, so a road at a deck's own level (two roads that meet where OSM says one passes over the other) isn't
+  counted; the road model's crossings list (`map/model/heights.ts`, the bake's log) has those.
 - **The bake's length**: 72 minutes for the whole region (Map v4's 21).

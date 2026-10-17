@@ -93,3 +93,8 @@ The game opens straight into Adelaide
 Expeditions show the way on the road and the map; the Midnight Run is at midnight
 No more sudden stops while the city loads around you
 Other players' cars glide back smoothly after a hiccup, no more jumps
+Motorways run in their trenches under Adelaide's bridges, with room to spare
+No more paving floating in the air beside the roads
+Trees near Mount Lofty's summit stand on the ground again
+The South Eastern Freeway climbs at a gentler, truer grade
+Trees no longer poke through footpaths and bridges
