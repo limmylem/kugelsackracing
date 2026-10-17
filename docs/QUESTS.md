@@ -31,6 +31,19 @@ through PlayerService, and the rules are in `data/quests.json`.
   is in a straight line; *Set route* finds the way on the roads to the nearest road to that spot (within 3 km: a park,
   the water's edge), the same guide as a quest's, with a pin where it ends. *Clear route* (in the same card) or
   arriving takes it off. Not during a quest (play/questUi.js `askPlace`; map/render/maps.ts `onPlace`, `ask`).
+- **The next turn.** Whenever the game is giving directions, a card at the top of the screen shows the next turn
+  (`play/turnHud.js`). That covers a guide like these, an Expedition's, a race's or test drive's course, and a free-roam
+  challenge's route.
+  - **What it shows:** its arrow, how far to it, and the turn in words: "Turn left onto North Terrace", "Keep right",
+    "Sharp bend left", "Arrive". When another turn follows within 150 m, it adds "then" with that turn's arrow.
+  - **As the turn gets close:** further than 400 m out, the card only says how far to go straight on. Within 120 m it
+    turns amber, and within 30 m it says Now and pulses.
+  - **On the road:** the guide's arrows in the last 45 m before a turn are bigger and amber.
+  - **How turns are found** (`route/turns.js`, from the route's junctions and road names):
+    - A turn is a change of heading of 25° or more where three or more roads meet.
+    - On the road itself, only bends of 60° or more count. A race's course has no junctions, so only its bends count.
+  - **Which route it follows:** the highest-priority one the car is on: a course over a challenge over a guide. More
+    than 70 m off every route, the card is hidden.
 
 ## The run (one QuestSession for every type)
 

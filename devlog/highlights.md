@@ -103,4 +103,7 @@ No more paving floating in the air beside the roads
 Trees near Mount Lofty's summit stand on the ground again
 The South Eastern Freeway climbs at a gentler, truer grade
 Trees no longer poke through footpaths and bridges
+Directions now show clearly when a turn is coming up
+Inferno parts for the Apex: hot slicks, launch control, wheels that stay on
+Gauge pods in the cockpit now read your engine's real boost, oil and water
 No more bouncing off the rev limiter when pulling away at walking pace

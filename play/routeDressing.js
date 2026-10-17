@@ -9,6 +9,8 @@
 //     palette: paletteOf(…) (gate colours); style: guideStyle(…) (arrow size and brightness, gate height and glow)
 //   D.update(x, z)   the car's place (world frame): pieces in and out     D.stats    D.dispose()
 
+import { routeTurns } from '../route/turns.js';
+import { directions } from './turnHud.js';
 import { corners } from '../route/stats.js';
 import { at } from '../route/geometry.js';
 import { headingOf } from '../route/grid.js';
@@ -35,8 +37,12 @@ function signTexture(THREE, way) {
   return new THREE.CanvasTexture(c);
 }
 
+let dressings = 0;
 export function createRouteDressing({ THREE, parent, compiled: c, guides = {}, palette = paletteOf('standard'), style = guideStyle('normal') }) {
   const G = { arrows: true, signs: true, gates: true, arch: true, ...guides };
+  // (its turns for the directions card, play/turnHud.js: a course being raced or driven outranks a route to somewhere)
+  const turnsId = `course:${++dressings}`;
+  if (c.line?.length > 2) directions.set(turnsId, { line: c.line, turns: routeTurns(c.line, { nodes: c.built?.nodes, segments: c.built?.segments, loop: c.loop }), loop: !!c.loop, length: c.length }, 3);
   const root = new THREE.Group(); root.name = 'route-dressing';
   parent.add(root);
   // shared: shapes and materials, made once
@@ -106,6 +112,7 @@ export function createRouteDressing({ THREE, parent, compiled: c, guides = {}, p
       stats.objects = 0; root.traverse(() => stats.objects++);
     },
     dispose() {
+      directions.clear(turnsId);
       parent.remove(root);
       for (const ch of chunks.values()) if (ch.group) ch.group.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
       for (const geo of [post, plate, beam, arrow]) geo.dispose();
@@ -120,7 +127,7 @@ export function createRouteDressing({ THREE, parent, compiled: c, guides = {}, p
 //   const A = createGuideArrows({ THREE, parent, palette, style, heightAt })   A.set(line [{ x, z, h }] | null)   A.dispose()
 //   heightAt(x, z) → the road's surface there (world frame) or null: they sit on it (the line's own h, from the road
 //   graph, can be under the drawn road)
-export const GUIDE_ARROW = { every: 12, first: 8, ahead: 300 };
+export const GUIDE_ARROW = { every: 12, first: 8, ahead: 300, turn: 45 };
 // where they stand on a line: [{ x, z, h, heading }] (pure — tests/unit/quest-play.test.mjs)
 export function guideArrowSpots(line, { every = GUIDE_ARROW.every, first = GUIDE_ARROW.first, ahead = GUIDE_ARROW.ahead } = {}) {
   const out = [];
@@ -131,7 +138,7 @@ export function guideArrowSpots(line, { every = GUIDE_ARROW.every, first = GUIDE
     if (len < 1e-6) continue;
     while (next <= s + len && next <= ahead) {
       const t = (next - s) / len;
-      out.push({ x: a.x + dx * t, z: a.z + dz * t, h: (a.h ?? 0) + ((b.h ?? a.h ?? 0) - (a.h ?? 0)) * t, heading: headingOf(dx, dz) });
+      out.push({ x: a.x + dx * t, z: a.z + dz * t, h: (a.h ?? 0) + ((b.h ?? a.h ?? 0) - (a.h ?? 0)) * t, heading: headingOf(dx, dz), s: a.s != null && b.s != null ? a.s + (b.s - a.s) * t : null });
       next += every;
     }
     s += len;
@@ -142,20 +149,29 @@ export function createGuideArrows({ THREE, parent, palette = paletteOf('standard
   const max = Math.ceil(GUIDE_ARROW.ahead / GUIDE_ARROW.every) + 2;
   const shape = new THREE.Shape([new THREE.Vector2(-0.9, -0.6), new THREE.Vector2(0, 0.4), new THREE.Vector2(0.9, -0.6), new THREE.Vector2(0.9, -0.1), new THREE.Vector2(0, 0.9), new THREE.Vector2(-0.9, -0.1)]);
   const geo = new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({ color: palette.guide, transparent: true, opacity: Math.min(0.9, (style.arrowOpacity ?? 0.55) + 0.25), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const guideColour = new THREE.Color(palette.guide), turnColour = new THREE.Color(palette.turn ?? '#ffb020');
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: Math.min(0.9, (style.arrowOpacity ?? 0.55) + 0.25), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const im = new THREE.InstancedMesh(geo, mat, max);
   im.name = 'route-guide-arrows'; im.count = 0; im.frustumCulled = false;
   parent.add(im);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
   return {
     set(line, look = {}) {
-      if (look.palette) mat.color.set(look.palette.guide);
+      if (look.palette) guideColour.set(look.palette.guide);
       const spots = guideArrowSpots(line).slice(0, max), k = (look.style ?? style).arrowScale ?? 1.4;
-      sc.set(k * 1.2, 1, k * 1.2);
+      // (the arrows in the last GUIDE_ARROW.turn m before a turn — not a gentle bend — bigger, and amber: the turn's coming)
+      const turns = (look.turns ?? []).filter(t => t.junction || t.kind === 'sharpBend' || t.kind === 'hairpin');
+      const atTurn = a => a.s != null && turns.some(t => a.s > t.s - GUIDE_ARROW.turn && a.s < t.s + 6);
       // (the shape points to -z: turned to point along)
-      spots.forEach((a, i) => { q.setFromAxisAngle(up, (a.heading + 180) * Math.PI / 180); p.set(a.x, (heightAt(a.x, a.z) ?? a.h) + 0.07, a.z); m.compose(p, q, sc); im.setMatrixAt(i, m); });
+      spots.forEach((a, i) => {
+        const big = atTurn(a);
+        sc.set(k * (big ? 1.7 : 1.2), 1, k * (big ? 1.7 : 1.2));
+        q.setFromAxisAngle(up, (a.heading + 180) * Math.PI / 180); p.set(a.x, (heightAt(a.x, a.z) ?? a.h) + 0.07, a.z); m.compose(p, q, sc); im.setMatrixAt(i, m);
+        im.setColorAt(i, big ? turnColour : guideColour);
+      });
       im.count = spots.length;
       im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
     },
     dispose() { parent.remove(im); geo.dispose(); mat.dispose(); im.dispose?.(); },
   };

@@ -143,6 +143,11 @@
       "exclusiveMinimum": 0,
       "description": "How well it takes a hit (garage/damage.js): the condition points a crash costs it are divided by this (none: 1)"
     },
+    "wheelHold": {
+      "type": "number",
+      "minimum": 1,
+      "description": "A wheel or suspension that keeps the wheel on (garage/mechanical.js): a corner hit or kerb strike must be this many times data/damage.json's wheelOff.from to tear the wheel off (the rim's and the suspension's multiply; none: 1)"
+    },
     "detach": {
       "type": "object",
       "required": ["detachable", "looseType", "attachStrength", "looseThreshold", "detachThreshold"],
@@ -228,8 +233,8 @@
       }
     },
     "purpose": {
-      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap"],
-      "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels; swap: room for a swapped engine, a cowl bonnet): not held to its tier's stat band, and left out of value-for-money comparisons"
+      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap", "extreme"],
+      "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels; swap: room for a swapped engine, a cowl bonnet; extreme: past the race tier on purpose, a car's no-limits set to match a monster engine, the Apex V8 Inferno's): not held to its tier's stat band, and left out of value-for-money comparisons"
     },
     "model": {
       "type": "string",

@@ -1,0 +1,53 @@
+{
+  "id": "apex_v8_inferno_gearbox",
+  "name": "Inferno 7-speed paddle-shift (Apex V8)",
+  "category": "gearbox",
+  "slot": "gearbox",
+  "kind": "component",
+  "price": 5000,
+  "mass": 58,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_inferno_gearbox.png",
+  "fits": [
+    "car:apex_v8"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [
+    "clutch_spline:std",
+    "gearbox:uprated"
+  ],
+  "purpose": "extreme",
+  "_note": "The Apex's 7-speed in a race case: strong enough for the Inferno (it counts as the uprated gearbox the Inferno needs), shifts in half the time (0.035 s), and a taller final drive (3.3 instead of 3.6) so the Inferno runs out of road, not revs: about 419 km/h flat out instead of 380.",
+  "gearbox": {
+    "mode": "auto",
+    "ratios": [
+      3.4,
+      2.4,
+      1.8,
+      1.41,
+      1.14,
+      0.94,
+      0.78
+    ],
+    "reverse": 3,
+    "finalDrive": 3.3,
+    "shiftTime": 0.035,
+    "revMatchGain": 0.004,
+    "maxDownshiftRpm": 8200,
+    "auto": {
+      "upLight": 2200,
+      "upFull": 7900,
+      "downLight": 1300,
+      "downFull": 4250,
+      "downMargin": 500,
+      "minInterval": 0.3,
+      "stopSpeed": 0.5
+    }
+  },
+  "tier": "race",
+  "status": "draft",
+  "unlock": {
+    "level": 9
+  }
+}

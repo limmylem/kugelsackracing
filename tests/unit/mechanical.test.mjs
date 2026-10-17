@@ -83,6 +83,16 @@ test('a corner hit: toe the way the blow twists the wheel, camber, ride, damper,
   assert.deepEqual(hit(8.3).damage, {});
   // huge: torn off
   assert.deepEqual(hit(M.wheelOff.from + 1).wheelOff, ['FL']);
+  // ...unless the rim and the suspension hold it on (wheelHold: theirs multiply)
+  const held = { ...L, hold: { ...L.hold, FL: 2 * 1.5 } }, from = M.wheelOff.from;
+  assert.equal(L.hold.FL, 1, 'stock parts: no extra hold');
+  const heldHit = s => impactMechanical({}, { point: [0.85, 0.4, 1.4], normal: [1, 0, 0], strength: s }, held, M, { wheelAt }).wheelOff;
+  assert.deepEqual(heldHit(from * 2.9), []);
+  assert.deepEqual(heldHit(from * 3.1), ['FL']);
+  const view = { ...g.view, parts: { ...g.view.parts } }, rimPart = view.owned[L.carriers.rim.FL].partId, susPart = view.owned[L.carriers.suspension].partId;
+  view.parts[rimPart] = { ...view.parts[rimPart], wheelHold: 2 };
+  view.parts[susPart] = { ...view.parts[susPart], wheelHold: 1.5 };
+  assert.equal(mechanicalLayout({ car, build: g.build, db: view }).hold.FL, 3);
   // the front: the radiator leaks, the gearbox takes a hard one; no turbo, so no boost to leak
   const f = impactMechanical({}, { point: [0, 0.45, 1.95], normal: [0, 0, 1], strength: 20 }, L, M, { wheelAt });
   assert.ok(f.damage[L.carriers.radiator].leak > 0 && f.damage[L.carriers.gearbox].gears > 0);

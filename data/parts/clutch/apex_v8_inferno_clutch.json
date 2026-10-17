@@ -1,0 +1,41 @@
+{
+  "id": "apex_v8_inferno_clutch",
+  "name": "Inferno launch-control clutch (Apex V8)",
+  "category": "clutch",
+  "slot": "clutch",
+  "kind": "component",
+  "price": 1300,
+  "mass": 6.5,
+  "model": "",
+  "icon": "assets/icons/parts/apex_v8_inferno_clutch.png",
+  "fits": [
+    "clutch_spline:std",
+    "car:apex_v8"
+  ],
+  "requires": [],
+  "conflicts": [],
+  "provides": [
+    "clutch_rating:sport",
+    "clutch_rating:race",
+    "clutch_rating:triple",
+    "clutch:uprated"
+  ],
+  "purpose": "extreme",
+  "_note": "A triple-plate carbon clutch with launch control for the Apex: holds 2,800 N·m (all the Inferno makes, so it counts as the triple-plate clutch the Inferno needs) and bites twice as fast; the auto-clutch launches at 5,200 rpm instead of 3,800, with the turbos already spooling.",
+  "clutch": {
+    "maxTorque": 2800,
+    "engageTime": 0.04,
+    "releaseTime": 0.116,
+    "antiStallRpm": 700,
+    "auto": {
+      "launchRpm": 5200,
+      "holdRate": 8,
+      "engageAbove": 300
+    }
+  },
+  "tier": "race",
+  "status": "draft",
+  "unlock": {
+    "level": 9
+  }
+}
