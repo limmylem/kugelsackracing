@@ -11,6 +11,7 @@
 
 import type { OsmData } from '../bake/osmData.ts';
 import { rowAt, at } from './geom.ts';
+import { fitScale } from './vegetation.ts';
 
 export const ESTIMATED = 1;
 const rng = (seed: number) => () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -24,12 +25,19 @@ function inRings(x: number, z: number, rings: { x: number; z: number }[][]) {
 // box: the area's bounds when there are some (the bake's block): woods and parks wholly outside it skipped (each one's
 // own random sequence: the trees inside are the same either way)
 // veg (Map v5 — map/model/vegetation.ts): { open(x, z): open ground no estimated tree stands on, mapped(tags): a mapped
-// tree's kind, estimated(areaKind, tags, r): an estimated one's (with its TREE_ESTIMATED flag) }; without it, Map v4's
-export function treesV4({ osm, groundAt, onPaved, mask, cfg, v3cfg, inArea, box = null, veg = null }: { osm: OsmData; groundAt: (x: number, z: number) => number; onPaved: (x: number, z: number) => boolean; mask: any; cfg: any; v3cfg: any; inArea: (x: number, z: number) => boolean; box?: [number, number, number, number] | null; veg?: { open: (x: number, z: number) => boolean; mapped: (tags: any) => number; estimated: (kind: string, tags: any, r: number) => number } | null }) {
-  const T = v3cfg.trees, X = cfg.exclusion, out: number[] = [], stats = { placed: 0, rejected: 0, open: 0 };
+// tree's kind, estimated(areaKind, tags, r): an estimated one's (with its TREE_ESTIMATED flag), clear(x, y, z, scale,
+// kind): its drawn canopy clear of every road surface — a footpath up a bank beside it — else it's drawn smaller (its
+// scale is the bake's own, not the data's: vegetation.ts fitScale), or left out (stats.crowded) }; without it, Map v4's
+export function treesV4({ osm, groundAt, onPaved, mask, cfg, v3cfg, inArea, box = null, veg = null }: { osm: OsmData; groundAt: (x: number, z: number) => number; onPaved: (x: number, z: number) => boolean; mask: any; cfg: any; v3cfg: any; inArea: (x: number, z: number) => boolean; box?: [number, number, number, number] | null; veg?: { open: (x: number, z: number) => boolean; mapped: (tags: any) => number; estimated: (kind: string, tags: any, r: number) => number; clear?: (x: number, y: number, z: number, s: number, kind: number) => boolean } | null }) {
+  const T = v3cfg.trees, X = cfg.exclusion, out: number[] = [], stats = { placed: 0, rejected: 0, open: 0, crowded: 0, smaller: 0 };
   // (a tree of this scale's crown: the drawn canopy is 0.75 × 4 × scale m round — crownRadius × 4 × scale is checked)
   const ok = (x: number, z: number, s: number) => { if (!inArea(x, z)) return false; const free = !onPaved(x, z) && mask.crownFree(x, z, X.crownRadius * 4 * s); if (!free) stats.rejected++; return free; };
-  const add = (x: number, z: number, s: number, kind: number) => { out.push(x, groundAt(x, z), z, s, kind); stats.placed++; };
+  const add = (x: number, z: number, s: number, kind: number) => {
+    const y = groundAt(x, z), f = veg?.clear ? fitScale(s, q => veg.clear!(x, y, z, q, kind)) : s;
+    if (!f) { stats.crowded++; return; }
+    if (f < s) stats.smaller++;
+    out.push(x, y, z, f, kind); stats.placed++;
+  };
   for (const p of osm.points) if (p.tags.natural === 'tree') { const R = rng(p.id), s = 0.85 + R() * 0.4; if (ok(p.x, p.z, s)) add(p.x, p.z, s, veg ? veg.mapped(p.tags) : 0); }
   for (const w of osm.lines) if (w.tags.natural === 'tree_row') {
     const R = rng(w.id);

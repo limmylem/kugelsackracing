@@ -22,10 +22,11 @@ import { FURN } from '../format/furniture.ts';
 export const RAIL_IN_ROAD = 1, RAIL_BRIDGE = 2;
 const hex = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
-export function railways({ lines, areas, groundAt, surface, segs, style, cfg, box }: { lines: any[]; areas: any[]; groundAt: (x: number, z: number) => number; surface: any; segs: any[]; style: any; cfg: any; box: number[] }) {
+export function railways({ lines, areas, groundAt, baseAt = groundAt, surface, segs, style, cfg, box }: { lines: any[]; areas: any[]; groundAt: (x: number, z: number) => number; baseAt?: (x: number, z: number) => number; surface: any; segs: any[]; style: any; cfg: any; box: number[] }) {
   const R = cfg.railways, S = style.railways, pieces: number[] = [], items: number[] = [], wires: number[] = [], stats = { km: 0, inRoad: 0, bridges: 0, crossings: 0, platforms: 0, masts: 0 };
   const plat = { positions: [] as number[], colours: [] as number[], indices: [] as number[] }, cPlat = hex(S.platform), cEdge = hex(S.platformEdge);
   const inBox = (x: number, z: number) => x >= box[0] && x < box[2] && z >= box[1] && z < box[3];
+  const nearBox = (x: number, z: number, r: number) => x >= box[0] - r && x < box[2] + r && z >= box[1] - r && z < box[3] + r;
   // (the road surface right there, if it's about the ground's height: a tram line in the street, a level crossing)
   const roadY = (x: number, z: number) => { const g = groundAt(x, z), hs = (surface.heightsAt(x, z) as any[]).filter(h => !h.part && Math.abs(h.y - g) < R.roadNear); return hs.length ? Math.max(...hs.map(h => h.y)) : null; };
   for (const l of lines) {
@@ -41,26 +42,28 @@ export function railways({ lines, areas, groundAt, surface, segs, style, cfg, bo
     const yA = groundAt(pts[0][0], pts[0][1]), yB = groundAt(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     const yOn = (x: number, z: number, s: number) => { if (bridge) return { y: yA + (yB - yA) * (L > 0 ? s / L : 0), flags: RAIL_BRIDGE }; const r = roadY(x, z); return r !== null ? { y: r + 0.01, flags: RAIL_IN_ROAD } : { y: groundAt(x, z) + R.ballast, flags: 0 }; };
     const electrified = t.electrified === 'contact_line' || (S.tramsElectrified && (t.railway === 'tram' || t.railway === 'light_rail'));
-    let sinceMast = R.mastSpacing / 2, lastMast: number[] | null = null;
+    // (overhead wiring: a mast beside a line off the road where its length along passes each mastSpacing m — the same
+    // place whichever block builds it — the wire between one mast and the next; each kept by the block it's in, the
+    // wire by its middle. The pieces near the box only: the wires out from it to the next mast too)
+    let lastMast: number[] | null = null;
+    const wireReach = 2 * R.mastSpacing + R.piece;
     for (let k = 0; k + 1 < pts.length; k++) {
       const [ax, az] = pts[k], [bx, bz] = pts[k + 1], segL = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(segL / R.piece));
       for (let q = 0; q < n; q++) {
         const f0 = q / n, f1 = (q + 1) / n, px = ax + (bx - ax) * f0, pz = az + (bz - az) * f0, qx = ax + (bx - ax) * f1, qz = az + (bz - az) * f1, mx = (px + qx) / 2, mz = (pz + qz) / 2;
-        if (!inBox(mx, mz)) { sinceMast += segL / n; continue; }
-        const a = yOn(px, pz, sAt[k] + segL * f0), b = yOn(qx, qz, sAt[k] + segL * f1), flags = a.flags & b.flags || (a.flags | b.flags) & RAIL_BRIDGE;
-        pieces.push(px, a.y, pz, qx, b.y, qz, gauge, flags);
-        stats.km += segL / n / 1000; if (flags & RAIL_IN_ROAD) stats.inRoad++;
-        // (overhead wiring: masts beside a line off the road, the wire between them)
-        sinceMast += segL / n;
-        if (electrified && !(flags & RAIL_IN_ROAD) && sinceMast >= R.mastSpacing) {
-          const ux = (qx - px) / (segL / n || 1), uz = (qz - pz) / (segL / n || 1), mx2 = qx - uz * R.mastOffset, mz2 = qz + ux * R.mastOffset, y = b.y - (flags & RAIL_BRIDGE ? 0 : R.ballast);
-          if (!surface.near(mx2, mz2, 0.5)) {
-            items.push(mx2, y, mz2, Math.atan2(uz, -ux), FURN.catenaryMast, 0, R.wireHeight, 1);
-            const wx = qx, wz = qz, wy = b.y + R.wireHeight;
-            if (lastMast) wires.push(lastMast[0], lastMast[1], lastMast[2], wx, wy, wz);
-            lastMast = [wx, wy, wz]; sinceMast = 0; stats.masts++;
-          }
-        } else if (flags & RAIL_IN_ROAD) lastMast = null;
+        if (!nearBox(mx, mz, electrified ? wireReach : 0)) { lastMast = null; continue; }
+        const s0 = sAt[k] + segL * f0, s1 = sAt[k] + segL * f1;
+        const a = yOn(px, pz, s0), b = yOn(qx, qz, s1), flags = a.flags & b.flags || (a.flags | b.flags) & RAIL_BRIDGE;
+        if (inBox(mx, mz)) { pieces.push(px, a.y, pz, qx, b.y, qz, gauge, flags); stats.km += segL / n / 1000; if (flags & RAIL_IN_ROAD) stats.inRoad++; }
+        if (!electrified) continue;
+        if (flags & RAIL_IN_ROAD) { lastMast = null; continue; }
+        if (Math.floor(s1 / R.mastSpacing) === Math.floor(s0 / R.mastSpacing)) continue;
+        const ux = (qx - px) / (segL / n || 1), uz = (qz - pz) / (segL / n || 1), mx2 = qx - uz * R.mastOffset, mz2 = qz + ux * R.mastOffset, y = b.y - (flags & RAIL_BRIDGE ? 0 : R.ballast);
+        if (surface.near(mx2, mz2, 0.5)) continue;
+        if (inBox(mx2, mz2)) { items.push(mx2, y, mz2, Math.atan2(uz, -ux), FURN.catenaryMast, 0, R.wireHeight, 1); stats.masts++; }
+        const wx = qx, wz = qz, wy = b.y + R.wireHeight;
+        if (lastMast && inBox((lastMast[0] + wx) / 2, (lastMast[2] + wz) / 2)) wires.push(lastMast[0], lastMast[1], lastMast[2], wx, wy, wz);
+        lastMast = [wx, wy, wz];
       }
     }
     if (bridge) stats.bridges++;
@@ -73,7 +76,7 @@ export function railways({ lines, areas, groundAt, surface, segs, style, cfg, bo
   const RC = 64, rgrid = new Map<string, number[][]>();
   for (const l of rails) for (let q = 0; q + 1 < l.nodes.length; q++) {
     const a = l.nodes[q], b = l.nodes[q + 1];
-    if (Math.max(a.x, b.x) < box[0] - 20 || Math.min(a.x, b.x) > box[2] + 20 || Math.max(a.z, b.z) < box[1] - 20 || Math.min(a.z, b.z) > box[3] + 20) continue;
+    if (Math.max(a.x, b.x) < box[0] - 60 || Math.min(a.x, b.x) > box[2] + 60 || Math.max(a.z, b.z) < box[1] - 60 || Math.min(a.z, b.z) > box[3] + 60) continue;
     for (let i = Math.floor(Math.min(a.x, b.x) / RC); i <= Math.floor(Math.max(a.x, b.x) / RC); i++) for (let j = Math.floor(Math.min(a.z, b.z) / RC); j <= Math.floor(Math.max(a.z, b.z) / RC); j++) { const k = `${i},${j}`; (rgrid.get(k) ?? rgrid.set(k, []).get(k)!).push([a.x, a.z, b.x, b.z]); }
   }
   for (const g of segs) {
@@ -85,8 +88,11 @@ export function railways({ lines, areas, groundAt, surface, segs, style, cfg, bo
         const hit = cross([g.xs[k], g.zs[k]], [g.xs[k + 1], g.zs[k + 1]], [r[0], r[1]], [r[2], r[3]]);
         if (!hit) continue;
         const cx = g.xs[k] + (g.xs[k + 1] - g.xs[k]) * hit.t, cz = g.zs[k] + (g.zs[k + 1] - g.zs[k]) * hit.t;
-        if (!inBox(cx, cz) || done.some(d => Math.hypot(d[0] - cx, d[1] - cz) < 15)) continue;
-        done.push([cx, cz]); stats.crossings++;
+        // (one crossing within 15 m — of every one near the box, whichever block it's in)
+        if (!nearBox(cx, cz, 40) || done.some(d => Math.hypot(d[0] - cx, d[1] - cz) < 15)) continue;
+        done.push([cx, cz]);
+        if (!inBox(cx, cz)) continue;
+        stats.crossings++;
         const tx = g.xs[k + 1] - g.xs[k], tz = g.zs[k + 1] - g.zs[k], tl = Math.hypot(tx, tz) || 1, ux = tx / tl, uz = tz / tl, left = style.drivingSide !== 'right';
         // (each way along the road: the boom before the line, on the driving side, facing the traffic coming)
         for (const dir of g.oneway ? [1] : [1, -1]) {
@@ -98,20 +104,22 @@ export function railways({ lines, areas, groundAt, surface, segs, style, cfg, bo
       }
     }
   }
-  // ---- platforms: a slab, solid — its top, its sides; OSM's areas, and its lines (a slab along them)
+  // ---- platforms: a slab, solid — its top, its sides; OSM's areas, and its lines (a slab along them). Each built whole by
+  // every block it reaches (the tiles cut it at their borders), on the ground before the roads were shaped in — the same
+  // in every block — its sides a little deeper
   const slab = (ring: number[][]) => {
-    let x = 0, z = 0; for (const p of ring) { x += p[0]; z += p[1]; } x /= ring.length; z /= ring.length;
-    if (!inBox(x, z)) return;
-    const top = groundAt(x, z) + R.platformHeight, base = plat.positions.length / 3;
+    let x = 0, z = 0, x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const p of ring) { x += p[0]; z += p[1]; x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); } x /= ring.length; z /= ring.length;
+    if (x1 < box[0] || x0 >= box[2] || z1 < box[1] || z0 >= box[3]) return;
+    const top = baseAt(x, z) + R.platformHeight, base = plat.positions.length / 3;
     for (const [px, pz] of ring) { plat.positions.push(px, top, pz); plat.colours.push(cPlat[0], cPlat[1], cPlat[2], 255); }
     const tris = earcut(ring.flat());
     for (let t = 0; t < tris.length; t += 3) { const [a, b, c] = [tris[t], tris[t + 1], tris[t + 2]], A = ring[a], B = ring[b], C = ring[c], ny = (B[1] - A[1]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[1] - A[1]); plat.indices.push(...(ny < 0 ? [base + a, base + c, base + b] : [base + a, base + b, base + c])); }
     for (let i = 0; i < ring.length; i++) {
-      const [ax, az] = ring[i], [bx, bz] = ring[(i + 1) % ring.length], ga = groundAt(ax, az) - 0.2, gb = groundAt(bx, bz) - 0.2, v = plat.positions.length / 3;
+      const [ax, az] = ring[i], [bx, bz] = ring[(i + 1) % ring.length], ga = baseAt(ax, az) - 1, gb = baseAt(bx, bz) - 1, v = plat.positions.length / 3;
       plat.positions.push(ax, ga, az, bx, gb, bz, bx, top, bz, ax, top, az); for (let q = 0; q < 4; q++) plat.colours.push(cEdge[0], cEdge[1], cEdge[2], 255);
       plat.indices.push(v, v + 1, v + 2, v, v + 2, v + 3, v, v + 2, v + 1, v, v + 3, v + 2);
     }
-    stats.platforms++;
+    if (inBox(x, z)) stats.platforms++;
   };
   for (const a of areas) if (a.tags.railway === 'platform' || a.tags.public_transport === 'platform') { const r = a.parts[0][0].map((p: any) => [p.x, p.z]); if (r.length >= 3) slab(r.slice(0, r.length - (Math.hypot(r[0][0] - r[r.length - 1][0], r[0][1] - r[r.length - 1][1]) < 0.01 ? 1 : 0))); }
   for (const l of lines) if (l.tags.railway === 'platform' || l.tags.public_transport === 'platform') {

@@ -42,6 +42,15 @@ test('a tile comes back on the fixed 1 cm grid: the same world point from two ti
   }
 });
 
+test('a quantised list keeps heights past int16\'s reach: a tree at 700 m, a barrier at 400 m (once 655 m and 327 m)', async () => {
+  const t = { header: { key: 't' }, meshes: {}, grids: {}, heightfield: null, lists: {
+    trees: { stride: 5, quantum: 0.02, data: Float32Array.from([10.5, 700.13, -20.25, 0.9, 8, -200, 690.5, 240, 1, 3]) },
+    barrier_guard: { stride: 8, quantum: 0.01, data: Float32Array.from([1, 400.12, 2, 3, 401.5, 4, 0.8, 0]) },
+    low: { stride: 2, quantum: 0.02, data: Float32Array.from([1.5, 30.26]) } } };
+  const d = await decodeTile(encodeTile(t as any, MeshoptEncoder), MeshoptDecoder);
+  for (const [name, L] of Object.entries<any>(t.lists)) for (let k = 0; k < L.data.length; k++) assert.ok(Math.abs(d.lists[name].data[k] - L.data[k]) <= L.quantum / 2 + 1e-4, `${name}[${k}]: ${d.lists[name].data[k]} for ${L.data[k]}`);
+});
+
 test('terrain meshes: cut from the heightfield, with skirts round the edges, normals untouched', async () => {
   const n = 16, N1 = n + 1, heights = new Float32Array(N1 * N1).map((_, k) => Math.round(Math.sin(k / 7) * 300) / 100);
   const t = await decodeTile(encodeTile({ header: { key: 't', terrain: { palette: [[9, 9, 9]], lodErrors: [0.01] } }, meshes: {}, lists: {}, grids: {}, heightfield: { n, size: 32, heights, quantum: 0.01 } } as any, MeshoptEncoder), MeshoptDecoder);
@@ -105,4 +114,35 @@ test('a ground piece inside a bridge or a tunnel (OSM tagging gaps) is baked as 
   assert.equal(relabelStructures(graph(l, 4), l), 0);
   const m = [seg(0, 0, 1, 'bridge', 100), seg(1, 1, 2, 'ground', 60), seg(2, 2, 3, 'tunnel', 100)];
   assert.equal(relabelStructures(graph(m, 4), m), 0);
+});
+
+test('a tree\'s canopy as drawn: a surface through it, not one under its rounded edge; a tree too big for its spot drawn smaller', async () => {
+  const { canopyAt, crownThrough, fitScale } = await import('../../map/model/vegetation.ts');
+  // (a broadleaf of sc 3: an ellipsoid round 3.75 m, 2.1 m high either side, 2.25 m round; a conifer's cone 0.35 sc up)
+  assert.deepEqual(canopyAt(0, 3, 0)!.map(v => +v.toFixed(2)), [1.65, 5.85]);
+  assert.equal(canopyAt(0, 3, 2.25), null);
+  assert.deepEqual(canopyAt(1, 2, 0)!.map(v => +v.toFixed(2)), [0.7, 5.9]);
+  // a footpath 2 m up a bank from the tree's foot, from 1 m out: through a sc-3 broadleaf's canopy half way out (it
+  // spans 1.93-5.57 m there), clear of a sc-2.4 one's (its rings at 0.9 m, inside the bank, and 1.62 m: 2.27-3.73 m)
+  const bank = (x: number, z: number) => (Math.hypot(x, z) >= 1 ? [2] : []);
+  assert.ok(crownThrough(0, 3, 0, 0, 0, bank));
+  assert.ok(!crownThrough(0, 2.4, 0, 0, 0, bank));
+  assert.ok(Math.abs(fitScale(0.75, s => !crownThrough(0, s * 4, 0, 0, 0, bank)) - 0.6) < 1e-9);
+  // a road under it (at its foot) or a deck over its top: not through it; one through it nowhere it can shrink out of: left out
+  assert.ok(!crownThrough(0, 3, 0, 0, 0, () => [0.1, 6.5]));
+  assert.equal(fitScale(1, s => !crownThrough(0, s * 4, 0, 0, 0, () => [s * 4 * 1.25])), 0);
+});
+
+test('a junction patch\'s outline without hairpins: a sliver running out and back taken out, near-duplicate points merged', async () => {
+  const { despike } = await import('../../map/model/topology.ts');
+  const cos170 = Math.cos(170 * Math.PI / 180);
+  // a 10 m square with a 1 m spike out of its top edge 4 mm wide, and a point 3 mm from the corner after it
+  const ring = [[0, 0], [10, 0], [10, 10], [6, 10], [6.002, 11], [6.004, 10], [0, 10], [0, 10.003]];
+  const out = despike(ring, cos170, 0.01);
+  assert.ok(out.every(p => p[1] <= 10.0031), `spike left: ${JSON.stringify(out)}`);
+  assert.ok([[0, 0], [10, 0], [10, 10]].every(c => out.some(p => p[0] === c[0] && p[1] === c[1])));
+  assert.ok(out.length <= 5, `${out.length} points: ${JSON.stringify(out)}`);
+  // a clean ring is left as it is
+  const sq = [[0, 0], [10, 0], [10, 10], [0, 10]];
+  assert.deepEqual(despike(sq, cos170, 0.01), sq);
 });

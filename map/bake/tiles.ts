@@ -187,10 +187,18 @@ export function tileBuilder(D: {
       const ring = p.rings[0];
       for (let q = 0; q < ring.length; q++) {
         const A = ring[q], Bp = ring[(q + 1) % ring.length], l = Math.hypot(Bp.x - A.x, Bp.z - A.z);
-        for (let s = 0; s < l; s += 2) {
-          const t0 = s / l, t1 = Math.min(1, (s + 2) / l), xa = A.x + (Bp.x - A.x) * t0, za = A.z + (Bp.z - A.z) * t0, xb = A.x + (Bp.x - A.x) * t1, zb = A.z + (Bp.z - A.z) * t1, mx = (xa + xb) / 2, mz = (za + zb) / 2;
+        // (2 m pieces, each split again — down to a quarter metre — while the ground at its middle is more than a few cm
+        // off its chord: over a bank, a straight piece would stand in the air over the dip)
+        const pieces: number[][] = [];
+        const split = (t0: number, t1: number) => {
+          const xa = A.x + (Bp.x - A.x) * t0, za = A.z + (Bp.z - A.z) * t0, xb = A.x + (Bp.x - A.x) * t1, zb = A.z + (Bp.z - A.z) * t1, tm = (t0 + t1) / 2;
+          if ((t1 - t0) * l > 0.5 && Math.abs(y(A.x + (Bp.x - A.x) * tm, A.z + (Bp.z - A.z) * tm) - (y(xa, za) + y(xb, zb)) / 2) > 0.05) { split(t0, tm); split(tm, t1); } else pieces.push([t0, t1]);
+        };
+        for (let s = 0; s < l; s += 2) split(s / l, Math.min(1, (s + 2) / l));
+        for (const [t0, t1] of pieces) {
+          const xa = A.x + (Bp.x - A.x) * t0, za = A.z + (Bp.z - A.z) * t0, xb = A.x + (Bp.x - A.x) * t1, zb = A.z + (Bp.z - A.z) * t1, mx = (xa + xb) / 2, mz = (za + zb) / 2;
           if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue;
-          const cc = Math.round((mx - g.x0) / g.cell), rr = Math.round((mz - g.z0) / g.cell), onRoad = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => { const k = (rr + dr) * g.W + cc + dc; return D.roadSurface[k] && !D.parkingCell[k]; });
+          const cc = Math.round((mx - g.x0) / g.cell), rr = Math.round((mz - g.z0) / g.cell), onRoad = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => { const c2 = cc + dc, r2 = rr + dr; if (c2 < 0 || r2 < 0 || c2 >= g.W || r2 >= g.H) return false; const k = r2 * g.W + c2; return D.roadSurface[k] && !D.parkingCell[k]; });
           if (onRoad) continue;
           const nx = -(zb - za) / (l * (t1 - t0) || 1) * 0.125, nz = (xb - xa) / (l * (t1 - t0) || 1) * 0.125, ya = y(xa, za), yb = y(xb, zb);
           const v = [[xa - nx, ya + 0.12, za - nz], [xb - nx, yb + 0.12, zb - nz], [xb + nx, yb + 0.12, zb + nz], [xa + nx, ya + 0.12, za + nz]].map(p3 => paved.vertex(p3[0] - cx, p3[1], p3[2] - cz, kerbC));
@@ -285,6 +293,15 @@ export function tileBuilder(D: {
     // the roads here, for where-am-I: [ax, az, bx, bz, name, rank, segment id] per piece of centreline
     const roadList: number[] = [];
     for (const id of [...b.segs].sort((p, q) => p - q)) { const s = segById.get(id)!; for (let q = 0; q + 1 < s.xs.length; q++) { const mx = (s.xs[q] + s.xs[q + 1]) / 2, mz = (s.zs[q] + s.zs[q + 1]) / 2; if (Math.floor(mx / T) !== i || Math.floor(mz / T) !== j) continue; roadList.push(s.xs[q] - cx, s.zs[q] - cz, s.xs[q + 1] - cx, s.zs[q + 1] - cz, nameOf(s.name), s.rank, s.id); } }
+    // (the names in order — not as first met, which is the order a block of the bake holds its roads in — and each row
+    // pointing at its own: a tile the same whichever block builds it)
+    {
+      const order = names.map((_, k) => k).sort((a, b) => (names[a] < names[b] ? -1 : names[a] > names[b] ? 1 : 0)), at = new Int32Array(names.length);
+      order.forEach((k, r) => { at[k] = r; });
+      const re = (rows: number[], stride: number, cols: number[]) => { for (let k = 0; k < rows.length; k += stride) for (const c of cols) if (rows[k + c] >= 0) rows[k + c] = at[rows[k + c]]; };
+      re(labels, 6, [4]); re(signs, 6, [4, 5]); re(shopSignRows, 8, [7]); re(roadList, 7, [4]);
+      const sorted = order.map(k => names[k]); names.length = 0; names.push(...sorted);
+    }
     const best = srcCount.indexOf(Math.max(srcCount[1], srcCount[2], srcCount[3]));
     const demOf = (k: number) => k === 1 ? D.demSources.find(s => s.kind === 'lidar-dtm') : k === 2 ? D.demSources.find(s => s.kind === 'dsm') : null;
     const dem = best === 3 ? { name: `${demOf(1)?.name} + ${demOf(2)?.name} (blended)`, resolution: demOf(1)?.resolution } : srcCount[1] + srcCount[2] + srcCount[3] === 0 ? { name: 'sea', resolution: null } : { name: demOf(best)?.name, resolution: demOf(best)?.resolution };

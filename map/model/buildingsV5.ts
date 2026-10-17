@@ -170,6 +170,10 @@ export function applyBrands({ outlets, buildings, registry: R, cfg }: { outlets:
 export function brandSites({ outlets, buildings, registry: R, model, surface, groundAt, cfg, box, parking = [] }: { outlets: any[]; buildings: any[]; registry: any; model: any; surface: any; groundAt: (x: number, z: number) => number; style: any; cfg: any; box: [number, number, number, number]; parking?: number[][][] }) {
   const T = cfg.brandSites, items: number[] = [], stats: Record<string, number> = { outlets: 0, branded: 0, pylons: 0, canopies: 0, canopiesMapped: 0, pumps: 0, menuBoards: 0, trolleyBays: 0, noRoom: 0, noBuilding: 0 };
   const inBox = (x: number, z: number) => x >= box[0] && x < box[2] && z >= box[1] && z < box[3];
+  // (each outlet within siteReach m of the box worked out — its sign, forecourt or trolley bays can stand in it — and
+  // each piece kept by the block it stands in: the same whichever block builds it)
+  const nearBox = (x: number, z: number) => x >= box[0] - T.siteReach && x < box[2] + T.siteReach && z >= box[1] - T.siteReach && z < box[3] + T.siteReach;
+  const put = (...v: number[]) => { if (!inBox(v[0], v[2])) return false; items.push(...v); return true; };
   const clear = (x: number, z: number, r: number) => !surface.near(x, z, r) && !buildings.some(b => { const rg = b.rings[0]; return Math.abs(rg[0][0] - x) < 200 && Math.abs(rg[0][1] - z) < 200 && insideRing(rg, x, z); });
   const segs = model.segs.filter((g: any) => !g.internal);
   const nearestRoad = (x: number, z: number, r: number, service: boolean | null) => {
@@ -186,11 +190,12 @@ export function brandSites({ outlets, buildings, registry: R, model, surface, gr
     return best;
   };
   for (const o of outlets) {
-    if (!inBox(o.x, o.z)) continue;
-    stats.outlets++;
+    if (!nearBox(o.x, o.z)) continue;
+    const mine = inBox(o.x, o.z);
+    if (mine) stats.outlets++;
     const brand = R.brands[o.brand], cat = R.categories[brand.category];
     const bd = o.building ?? null;
-    if (!bd) stats.noBuilding++;
+    if (!bd && mine) stats.noBuilding++;
     const road = nearestRoad(o.x, o.z, T.roadNear, false);
     // (a chain of the fuel category without fuel sold there — its shop alone — gets no pylon and no forecourt)
     const forecourt = brand.category !== 'fuel' || o.fuel;
@@ -198,18 +203,18 @@ export function brandSites({ outlets, buildings, registry: R, model, surface, gr
     if (cat.pylon && road && forecourt) {
       const nx = -road.tz, nz = road.tx, side = (o.x - road.px) * nx + (o.z - road.pz) * nz > 0 ? 1 : -1;
       const x = road.px + nx * side * (road.hw + T.pylonOut), z = road.pz + nz * side * (road.hw + T.pylonOut);
-      if (clear(x, z, 0.8)) { items.push(x, groundAt(x, z), z, Math.atan2(road.tx, road.tz), FURN.pylonSign, o.brand, T.pylonHeight, 1); stats.pylons++; } else stats.noRoom++;
+      if (clear(x, z, 0.8)) { if (put(x, groundAt(x, z), z, Math.atan2(road.tx, road.tz), FURN.pylonSign, o.brand, T.pylonHeight, 1)) stats.pylons++; } else if (mine) stats.noRoom++;
     }
     // a petrol station's forecourt: its mapped canopy's pumps, in a row (two, under a deep one) along it
     if (cat.template === 'petrol' && o.fuel && o.canopy) {
       const rect = minRect(o.canopy.rings[0]);
       if (rect) {
         const { c: [rx, rz], u: [ux, uz], half: [L, W] } = rect, n = Math.max(1, Math.min(T.maxPumps, Math.floor(2 * L / T.pumpSpacing))), rows = W > 7 ? [-W / 2, W / 2] : [0];
-        stats.canopiesMapped++;
+        if (mine) stats.canopiesMapped++;
         for (const t of rows) for (let q = 0; q < n; q++) {
           const sA = ((q + 0.5) / n * 2 - 1) * L, px = rx + ux * sA - uz * t, pz = rz + uz * sA + ux * t;
           if (surface.near(px, pz, 0.8) || buildings.some(b => b !== o.canopy && b.props.v5?.type !== 'canopy' && Math.abs(b.rings[0][0][0] - px) < 200 && Math.abs(b.rings[0][0][1] - pz) < 200 && insideRing(b.rings[0], px, pz))) continue;
-          items.push(px, groundAt(px, pz), pz, Math.atan2(ux, uz), FURN.pump, o.brand, 0, 1); stats.pumps++;
+          if (put(px, groundAt(px, pz), pz, Math.atan2(ux, uz), FURN.pump, o.brand, 0, 1)) stats.pumps++;
         }
       }
     } else if (cat.template === 'petrol' && o.fuel && road) {
@@ -234,12 +239,12 @@ export function brandSites({ outlets, buildings, registry: R, model, surface, gr
         const spot = spots.find(fits);
         if (!spot) continue;
         const [x, z] = spot;
-        items.push(x, groundAt(x, z), z, along, FURN.canopy, o.brand, T.canopyHeight, canopyFlags(true, cL, cW)); stats.canopies++;
-        for (const [px, pz] of pumpsAt(x, z)) if (clear(px, pz, 0.6)) { items.push(px, groundAt(px, pz), pz, along, FURN.pump, o.brand, 0, 1); stats.pumps++; }
+        if (put(x, groundAt(x, z), z, along, FURN.canopy, o.brand, T.canopyHeight, canopyFlags(true, cL, cW))) stats.canopies++;
+        for (const [px, pz] of pumpsAt(x, z)) if (clear(px, pz, 0.6) && put(px, groundAt(px, pz), pz, along, FURN.pump, o.brand, 0, 1)) stats.pumps++;
         placed = true;
         break;
       }
-      if (!placed) stats.noRoom++;
+      if (!placed && mine) stats.noRoom++;
     }
     // a drive-thru's menu board beside its lane (the service road nearest its building)
     if (cat.template === 'drive-thru' && bd) {
@@ -248,7 +253,7 @@ export function brandSites({ outlets, buildings, registry: R, model, surface, gr
       if (lane) {
         const nx = -lane.tz, nz = lane.tx, side = (cx - lane.px) * nx + (cz - lane.pz) * nz > 0 ? 1 : -1;
         const x = lane.px + nx * side * (lane.hw + 0.9), z = lane.pz + nz * side * (lane.hw + 0.9);
-        if (clear(x, z, 0.4)) { items.push(x, groundAt(x, z), z, Math.atan2(-nx * side, -nz * side), FURN.menuBoard, o.brand, 0, 1); stats.menuBoards++; } else stats.noRoom++;
+        if (clear(x, z, 0.4)) { if (put(x, groundAt(x, z), z, Math.atan2(-nx * side, -nz * side), FURN.menuBoard, o.brand, 0, 1)) stats.menuBoards++; } else if (mine) stats.noRoom++;
       }
     }
     // a supermarket's trolley bays: in the car park nearest it (OSM's parking areas), either side of its middle
@@ -257,7 +262,7 @@ export function brandSites({ outlets, buildings, registry: R, model, surface, gr
       for (const r of parking) { let cx = 0, cz = 0; for (const p of r) { cx += p[0]; cz += p[1]; } cx /= r.length; cz /= r.length; const d = Math.hypot(cx - o.x, cz - o.z); if (d < bestD) { bestD = d; best = r; } }
       if (best) {
         let cx = 0, cz = 0; for (const p of best) { cx += p[0]; cz += p[1]; } cx /= best.length; cz /= best.length;
-        for (const off of [-T.trolleyApart / 2, T.trolleyApart / 2]) { const x = cx + off, z = cz; if (insideRing(best, x, z) && clear(x, z, 1)) { items.push(x, groundAt(x, z), z, 0, FURN.trolleyBay, o.brand, 0, 1); stats.trolleyBays++; } }
+        for (const off of [-T.trolleyApart / 2, T.trolleyApart / 2]) { const x = cx + off, z = cz; if (insideRing(best, x, z) && clear(x, z, 1) && put(x, groundAt(x, z), z, 0, FURN.trolleyBay, o.brand, 0, 1)) stats.trolleyBays++; }
       }
     }
   }

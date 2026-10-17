@@ -101,8 +101,10 @@
     "footpathSurface": "concrete"
   },
   "islands": {
-    "_note": "Raised islands: a hole in the road's surface (inside a roundabout, between a junction's lanes) no bigger than maxArea m² is filled. A roundabout's (a hole round enough — compactness at least roundness — ringed by roads, at least circulating of them going round it the same way (a two-way road the way it's drawn) — clockwise where traffic keeps left — and curving round, no gap of more than maxTurnGap° between their directions) is a garden bed — bark mulch, low plants every plantSpacing m (each at least plantInset m in from the kerb), a tree in the middle if it's at least treeRadius m across (and treeInset m in) — behind a raised kerb; the others concrete (smaller than paveBelow m²) or grass. Mapped data first (OSM's landuse/natural on it); these are the defaults, marked estimated.",
+    "_note": "Raised islands: a hole in the road's surface (inside a roundabout, between a junction's lanes) no bigger than maxArea m², and no more than maxSpan m across either way, is filled (a long gap between two roads running side by side isn't an island). A roundabout's (a hole round enough — compactness at least roundness — ringed by roads, at least circulating of them going round it the same way (a two-way road the way it's drawn) — clockwise where traffic keeps left — and curving round, no gap of more than maxTurnGap° between their directions) is a garden bed — bark mulch, low plants every plantSpacing m (each at least plantInset m in from the kerb), a tree in the middle if it's at least treeRadius m across (and treeInset m in) — behind a raised kerb; the others concrete (smaller than paveBelow m²) or grass. Mapped data first (OSM's landuse/natural on it); these are the defaults, marked estimated. They're found once for the region on its own grid of cell m cells (each joining the roads within maxSpan + 10 m of it), whatever the bake's blocks.",
     "maxArea": 2500,
+    "maxSpan": 80,
+    "cell": 256,
     "roundness": 0.6,
     "circulating": 0.9,
     "maxTurnGap": 75,

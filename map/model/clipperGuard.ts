@@ -3,7 +3,8 @@
 // ClipperBase.getCurrYMaximaVertex then walks round that ring forever: a whole-region bake stopped on a verge at
 // -34.8616, 138.6228 and a footpath at -34.9332, 138.5388. Guarded here: a walk that comes back to where it began throws, which Clipper's own
 // execute() catches — its result then empty — and counts it in clipperLoops, so an operation can tell it failed and
-// try again (map/model/crossSection.ts: on its input snapped to a few mm). Imported for its effect: once per process.
+// try again (map/model/crossSection.ts: on its input snapped to a few mm). Imported for its effect: once per process
+// (by everything that uses Clipper2-js: map/model/topology.ts, map/model/crossSection.ts, map/collision/buildings.ts).
 import * as Clipper from 'clipper2-js';
 
 export const clipperLoops = { count: 0 };
@@ -16,9 +17,18 @@ const walk = (open: boolean) => (ae: any) => {
   else { while (result.prev.pt.y === result.pt.y && more(result)) { result = result.prev; if (result === start) round(); } }
   return B.isMaxima(result) ? result : undefined;
 };
+// And the cause (found on an island beside North Terrace, -34.9214, 138.5966: 46 road pieces joined lost the hole they
+// ring, which the region's 3,236 joined kept): InternalClipper.getIntersectPoint hands back one of its segment's own end
+// points when the crossing is at an end, and getClosestPtOnSegment its segment's first point when the segment is a
+// point — and the sweep then moves that point to the scanline (addNewIntersectNode: ip.x =, ip.y =), moving the edge's
+// own vertex with it. In C# a point is copied; here each comes back as a point of its own.
+const IC: any = Clipper.InternalClipper;
 if (!B.__guarded) {
   B.getCurrYMaximaVertex = walk(false);
   B.getCurrYMaximaVertex_Open = walk(true);
+  const intersect = IC.getIntersectPoint, closest = IC.getClosestPtOnSegment;
+  IC.getIntersectPoint = (a: any, b: any, c: any, d: any) => { const r = intersect(a, b, c, d); return { ip: new Clipper.Point64(r.ip.x, r.ip.y), success: r.success }; };
+  IC.getClosestPtOnSegment = (p: any, a: any, b: any) => { const r = closest(p, a, b); return new Clipper.Point64(r.x, r.y); };
   B.__guarded = true;
 }
 

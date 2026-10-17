@@ -33,6 +33,7 @@ import { checkSurface } from '../../map/model/checks.ts';
 import { lampLights } from '../../map/render/lamps.ts';
 import { createSimulation } from '../../physics/sim.js';
 import { SURFACES } from '../../map/model/surface.ts';
+import { crownThrough } from '../../map/model/vegetation.ts';
 
 const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
 const only = opt('--only')?.split(',').map(s => s.trim()), verbose = args.includes('--verbose'), region = opt('--region') ?? 'adelaide';
@@ -183,12 +184,15 @@ async function surfaceTest() {
   const c = checkSurface({ positions: pos, indices: idx, solid }, { sampleEvery: 2, maxReports: 1e9 });
   // (not on a tile's edge: the joined tiles' own outer edge cuts roads off — the seams test has the edges between tiles)
   const onBorder = (x: number, z: number) => [x, z].some(v => Math.abs(v - Math.round(v / T) * T) < 0.01);
-  const all = c.cracks.filter((q: any) => !onBorder(q.at[0], q.at[2]));
+  // (a crack once each: checkSurface reports one for each edge meeting it — a sliver at a tile's edge came up 4 times)
+  const placed = new Set<string>();
+  const all = c.cracks.filter((q: any) => { const k = q.at.map((v: number) => Math.round(v * 100)).join(','); if (onBorder(q.at[0], q.at[2]) || placed.has(k)) return false; placed.add(k); return true; });
   // (inside the road — road all round it, 3 cm out every way: a seam you could see through — or a notch in the road's
   // own outline, where it ends anyway)
   const inside: any[] = [];
   for (const q of all) { let round = true; for (let a = 0; a < 8 && round; a++) { const hs = await roadAt(q.at[0] + Math.cos(a * Math.PI / 4) * 0.03, q.at[2] + Math.sin(a * Math.PI / 4) * 0.03); if (!hs?.some(h => Math.abs(h.y - q.at[1]) < 0.1)) round = false; } if (round) inside.push(q); }
   const per100k = inside.length / c.triangles * 1e5;
+  for (const q of inside) note(`crack at ${q.at.map((v: number) => v.toFixed(2)).join(', ')} (tile ${tileOf(q.at[0], q.at[2]).join('_')})`);
   report('surface', `${list.length} tiles joined, ${(c.triangles / 1000).toFixed(0)}k triangles`, per100k <= X.maxCracksPer100k, `${inside.length} T-junction cracks inside the road (${per100k.toFixed(2)} per 100k triangles, limit ${X.maxCracksPer100k}), ${all.length - inside.length} more in its outline; each under 3 mm${inside.length ? `, e.g. at ${inside.slice(0, 2).map((q: any) => q.at.join(', ')).join('; ')}` : ''} — Map v3: 5,421 holes along edges and 9,364 at junctions in 1.26M samples`, { cracks: inside.length, outline: all.length - inside.length, per100k });
   report('surface', 'overlapping road surfaces', c.overlapCount / c.sampled <= X.maxOverlapShare, `${c.overlapCount} of ${c.sampled.toLocaleString('en-GB')} sampled triangles have another solid one within 0.5 m over or under them (${pct(c.overlapCount, c.sampled)}, limit ${pct(X.maxOverlapShare, 1)}; Map v3: 6.5%)`, { share: c.overlapCount / c.sampled });
 }
@@ -301,11 +305,21 @@ async function treesTest() {
       if (hit) { trunks++; if (at.length < 4) at.push(`trunk at ${x.toFixed(1)}, ${z.toFixed(1)}`); continue; }
       // the crown: no deck (a road over its foot) within its radius, below its top
       let deck = false;
+      // (Map v5: no road surface through its canopy as drawn — map/model/vegetation.ts canopyAt, map/render/objects.ts's
+      // shapes, a eucalypt's crown higher than this cylinder's top, a palm's lower; its road mesh's footpaths and verges
+      // count too, so one up a bank beside a tree, clear of the canopy's rounded underside, isn't through it)
+      if (V5) {
+        // (the points it looks at first, then their heights — the tiles' road meshes are read asynchronously)
+        const pts: [number, number][] = [], hs = new Map<string, number[]>();
+        crownThrough(L.data[k + 4], sc, x, y, z, (px, pz) => { pts.push([px, pz]); return []; });
+        for (const [px, pz] of pts) hs.set(`${px},${pz}`, ((await roadAt(px, pz)) ?? []).map(h => h.y));
+        deck = crownThrough(L.data[k + 4], sc, x, y, z, (px, pz) => hs.get(`${px},${pz}`) ?? []);
+      } else
       for (let a = 0; a < 8 && !deck; a++) for (const f of [0.5, 1]) { const px = x + Math.cos(a * Math.PI / 4) * r * f, pz = z + Math.sin(a * Math.PI / 4) * r * f; if ((await roadAt(px, pz))?.some(h => h.y > y + 1.5 && h.y < top)) deck = true; }
-      if (deck) { crowns++; if (crownAt.length < 4) crownAt.push(`crown through a deck at ${x.toFixed(1)}, ${z.toFixed(1)}`); }
+      if (deck) { crowns++; if (crownAt.length < 4) crownAt.push(`crown through ${V5 ? 'a road surface' : 'a deck'} at ${x.toFixed(1)}, ${z.toFixed(1)}`); }
     }
   }
-  report('trees', `${n.toLocaleString('en-GB')} trees`, trunks === 0 && crowns === 0 && n > 0, `${trunks} trunks on a road, ${crowns} crowns through a bridge deck${at.length || crownAt.length ? `: ${[...at, ...crownAt].join('; ')}` : ''} (Map v3: 9 trunks in lanes, 5 crowns through the Hackney Road bridge)`, { trunks, crowns, n });
+  report('trees', `${n.toLocaleString('en-GB')} trees`, trunks === 0 && crowns === 0 && n > 0, `${trunks} trunks on a road, ${crowns} crowns through ${V5 ? 'a road surface (a deck, a footpath, a verge)' : 'a bridge deck'}${at.length || crownAt.length ? `: ${[...at, ...crownAt].join('; ')}` : ''} (Map v3: 9 trunks in lanes, 5 crowns through the Hackney Road bridge)`, { trunks, crowns, n });
 }
 
 // ---------- 5. junctions ----------

@@ -20,7 +20,8 @@
 
 import type { MNode, Seg } from './graph.ts';
 import type { Cluster } from './topology.ts';
-import { rowAt } from './geom.ts';
+import { at, rowAt } from './geom.ts';
+import { planesOf, surfaceHeight } from './surface.ts';
 
 // (Map v5: a big cluster's surface is a gently curved quadratic — qa·dx² + qb·dx·dz + qc·dz² on top of the plane)
 export const planeAt = (c: Cluster | any, x: number, z: number) => { const p = c.plane, dx = x - p.cx, dz = z - p.cz; return p.a * dx + p.b * dz + p.c + (p.qa ? p.qa * dx * dx + p.qb * dx * dz + p.qc * dz * dz : 0); };
@@ -48,8 +49,30 @@ const lerpAt = (S: number[], H: number[], s: number) => {
   const t = (s - S[lo]) / ((S[hi] - S[lo]) || 1); return H[lo] + (H[hi] - H[lo]) * t;
 };
 
+// a junction's main carriageway: two of its arms of one road (the same name and class, not a ramp), both with a corridor
+// profile — where they leave it (their trims) and their heights there, the second's distance from the first — or null
+// (none, or a second main road through it too)
+function corridorPair(c: any): [{ x: number; z: number; h: number }, { x: number; z: number; h: number; d: number }] | null {
+  const arms = c.arms.filter((A: any) => A.seg.corr && !A.seg.link && A.seg.structure === 'ground').map((A: any) => {
+    const g = A.seg, s = A.atStart ? A.trim : g.s[g.s.length - 1] - A.trim, r = rowAt(g, s);
+    return { g, x: r.x, z: r.z, h: lerpAt(g.s, g.corr, s) };
+  });
+  let best: any = null;
+  for (let i = 0; i < arms.length; i++) for (let j = i + 1; j < arms.length; j++) {
+    const a = arms[i], b = arms[j];
+    if (a.g.name !== b.g.name || a.g.cls !== b.g.cls || a.g === b.g) continue;
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    if (d > 1 && (!best || d > best.d || (d === best.d && a.g.id + b.g.id < best.k))) best = { a, b, d, k: a.g.id + b.g.id };
+  }
+  // (one main road only: where two cross, each needs its own grade — both fitted, as before)
+  if (!best || arms.some((q: any) => q.g.name !== best.a.g.name || q.g.cls !== best.a.g.cls)) return null;
+  // (in a fixed order: the lower segment id first)
+  const [A, B] = best.a.g.id < best.b.g.id ? [best.a, best.b] : [best.b, best.a];
+  return [{ x: A.x, z: A.z, h: A.h }, { x: B.x, z: B.z, h: B.h, d: best.d }];
+}
+
 export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, demAt: (x: number, z: number) => number, cfg: any, extra: { rails?: { xs: number[]; zs: number[] }[] } = {}) {
-  const Hc = cfg.heights, stats: any = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0, quadratic: 0, crossings: 0, raisedJunctions: 0, shortOfClearance: 0 };
+  const Hc = cfg.heights, stats: any = { chains: 0, lifted: 0, gradeLimited: 0, cycles: 0, planesMoved: 0, quadratic: 0, crossings: 0, raisedJunctions: 0, shortOfClearance: 0, underpasses: 0, underpassDeepest: 0, underpassShort: 0, raiseCapped: 0 };
   // ---- 1. each segment's own smoothed profile
   for (const g of G.segs) { g.raw = g.xs.map((x: number, k: number) => demAt(x, g.zs[k])); g.smooth = smoothProfile(g.s, g.raw, Hc.median, Hc.smooth); }
   // (Map v5: main roads' profiles along whole carriageways, through their junctions — the junctions follow them)
@@ -91,6 +114,10 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     mx /= W; mz /= W; mh /= W;
     let sxx = 0, sxz = 0, szz = 0, sxh = 0, szh = 0;
     for (const p of pts) { const x = p[0] - mx, z = p[1] - mz, h = p[2] - mh; sxx += p[3] * x * x; sxz += p[3] * x * z; szz += p[3] * z * z; sxh += p[3] * x * h; szh += p[3] * z * h; }
+    // (Map v5: level in any direction its points don't spread along — as if each also lay planeRidge m off the middle
+    // every way, at the middle's height. Points nearly on a line — a turning loop under Hart Street's bridge — left the
+    // slope across the line to their noise: 13.6%, the patch 0.6 m over the ground at its side, under the deck)
+    if (Hc.planeRidge) { sxx += W * Hc.planeRidge ** 2; szz += W * Hc.planeRidge ** 2; }
     const det = sxx * szz - sxz * sxz;
     let a = Math.abs(det) > 1e-6 ? (sxh * szz - szh * sxz) / det : 0, b = Math.abs(det) > 1e-6 ? (szh * sxx - sxh * sxz) / det : 0;
     // (one point's worth of roads — two nodes on a line — gives no cross slope: the line's own)
@@ -98,10 +125,24 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
     const slope = Math.hypot(a, b);
     if (slope > Hc.junctionMaxSlope) { a *= Hc.junctionMaxSlope / slope; b *= Hc.junctionMaxSlope / slope; }
     (c as any).plane = { cx: mx, cz: mz, a, b, c: mh };
+    // (Map v5: a junction on a main road's carriageway — the same road in and out of it, both on its corridor profile —
+    // takes the carriageway's own grade along it, through both its arms' heights exactly, and only a cross slope from the
+    // side roads, no more than corridor.crossSlope; it's pinned: nothing later moves it up or down. Fitted with the side
+    // roads, a service road off the South Eastern Freeway tipped its junction 13.7% across it, and capped, 3% along it
+    // where the freeway falls 7%: 1.7 m under it at one end, 1.4 m over at the other, a step in the freeway)
+    const main = Hc.corridor?.crossSlope != null ? corridorPair(c) : null;
+    if (main) {
+      const [A, B] = main, ux = (B.x - A.x) / B.d, uz = (B.z - A.z) / B.d, nx = -uz, nz = ux, gu = (B.h - A.h) / B.d, ox = (A.x + B.x) / 2, oz = (A.z + B.z) / 2, oh = (A.h + B.h) / 2;
+      let sw = 0, sv = 0;
+      for (const p of pts) { const v = (p[0] - ox) * nx + (p[1] - oz) * nz, r = p[2] - (oh + gu * ((p[0] - ox) * ux + (p[1] - oz) * uz)); sw += p[3] * v * v; sv += p[3] * v * r; }
+      const gc = Math.max(-Hc.corridor.crossSlope, Math.min(Hc.corridor.crossSlope, sw > 1e-6 ? sv / sw : 0));
+      (c as any).plane = { cx: ox, cz: oz, a: gu * ux + gc * nx, b: gu * uz + gc * nz, c: oh };
+      (c as any).pinned = true;
+    }
     // (Map v5: a cluster wider than quadraticAbove m on one plane folds against roads steeper than its average — the
     // windy route's 176 m junction at Springbank Road. Its surface gets the quadratic terms that fit what's left, no
     // more curved than maxCurvature — still one smooth surface, every arm met where it reaches it)
-    if (Hc.quadraticAbove) {
+    if (Hc.quadraticAbove && !(c as any).pinned) {
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
       if (Math.max(x1 - x0, z1 - z0) > Hc.quadraticAbove && pts.length >= 8) {
         // (kept only if no steeper anywhere on the junction than its plane may be)
@@ -137,9 +178,11 @@ export function solveHeights(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: 
   relaxPlanes(chains, clusterOf, G, Hc, stats, demAt);
   for (const ch of chains) solveChain(ch, G, clusterOf, demAt, Hc, stats);
   // ---- 5. bridges over roads: lifted to clear them (eased within the bridge), and the grades held again
-  if (Hc.approachGrade) clearancePass(G, T, chains, clusterOf, demAt, Hc, stats, extra.rails ?? []); else liftBridges(G, chains, Hc, stats);
+  const cleared = Hc.approachGrade ? clearancePass(G, T, chains, clusterOf, demAt, Hc, stats, extra.rails ?? []) : (liftBridges(G, chains, Hc, stats), null);
   // ---- 6. the drawn profile: vertical curves
   drawnProfiles(chains, Hc);
+  // ---- 7. (Map v5) where a deck as drawn still falls short over a road, that road lowered under it
+  if (Hc.underpass && cleared) drawnProfiles(underpasses(G, T, chains, cleared, Hc, stats), Hc);
   // (internal roads of a cluster: on its plane)
   for (const g of G.segs) if (g.internal) { const c = clusterOf(g.from) ?? clusterOf(g.to); g.h = g.xs.map((x: number, k: number) => (c ? planeAt(c, x, g.zs[k]) : g.smooth[k])); }
   return { chains, stats };
@@ -184,8 +227,11 @@ function relaxPlanes(chains: any[], clusterOf: (k: number) => any, G: { nodes: M
       worst = Math.max(worst, ex);
       // (half the excess each round, shared between the two: where two roads between the same junctions ask for
       // different things, the planes settle between them rather than satisfying whichever came last)
-      const m = Math.sign(off) * ex / 4;
-      L.cA.plane.c += m; L.cB.plane.c -= m; moved++;
+      // (a pinned junction — on a main road's carriageway — stays: the other takes the whole move)
+      const m = Math.sign(off) * ex / 4, pA = !!L.cA.pinned, pB = !!L.cB.pinned;
+      if (pA && pB) continue;
+      if (pA) L.cB.plane.c -= 2 * m; else if (pB) L.cA.plane.c += 2 * m; else { L.cA.plane.c += m; L.cB.plane.c -= m; }
+      moved++;
     }
     if (worst <= 1e-3) break;
   }
@@ -420,7 +466,8 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
     m.set(g, hit);
     return hit;
   };
-  const needsOf = (ch: any) => {
+  // (under: each road or railway under a deck point, as { i, g, k, t, rail, jc } — the underpass step's)
+  const needsOf = (ch: any, under?: any[]) => {
     const P = ch.P, own = new Set(ch.parts.map((p: any) => p.seg.id)), out: { i: number; need: number }[] = [];
     // (not the junctions the chain itself comes down into: it lands on those)
     const landsOn = new Set([clusterOf(ch.start), clusterOf(ch.end)].filter(Boolean));
@@ -448,7 +495,7 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
         }
         const below = rail ? railH(g, k, t) : jc ? planeAt(jc, ax + dx * t, az + dz * t) : g.h[k] + (g.h[k + 1] - g.h[k]) * t, want = below + (rail ? Hc.clearanceRail : Hc.clearance) + Hc.deckDepth;
         // (only what's under it: a road far above or below is another level — another deck, a tunnel)
-        if (want > ch.h[i] - Hc.deckDepth - 12 && want < ch.h[i] + 12) need = Math.max(need, want);
+        if (want > ch.h[i] - Hc.deckDepth - 12 && want < ch.h[i] + 12) { need = Math.max(need, want); under?.push({ i, g, k, t, rail, jc }); }
       }
       if (need > -Infinity) out.push({ i, need });
     }
@@ -502,6 +549,30 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
     return F;
   };
   const bridgeChains = chains.filter(ch => ch.P && ch.isStruct?.some((v: boolean, i: number) => v && ch.P[i].structure === 'bridge'));
+  // (a junction is raised for a deck no more than every other road from it could climb, at raiseGrade, between its trims
+  // — Anzac Highway's 2-road junction at the foot of its bridge over South Road went up 3.4 m with 4 m of road behind it,
+  // a 37% ramp; what that leaves the deck short over the road it crosses, the road is lowered for: underpasses)
+  const chainsAt = new Map<any, any[]>();
+  for (const ch of chains) if (ch.P && !ch.cycle) for (const k of [ch.start, ch.end]) { const c = clusterOf(k); if (c) { const L = chainsAt.get(c) ?? chainsAt.set(c, []).get(c)!; if (!L.includes(ch)) L.push(ch); } }
+  const raiseRoom = (c: any, ch: any) => {
+    let room = Infinity;
+    for (const o of chainsAt.get(c) ?? []) if (o !== ch) room = Math.min(room, Math.max(0, Hc.raiseGrade * (o.S1 - o.S0)));
+    return room;
+  };
+  // (and from a junction that can't go up as far as a deck wants — held to its main road, or that far — the deck rises
+  // at approachGrade: lifted at its very end instead, over the junction's plane, it was a ramp up to 66%; what it can't
+  // reach, the road under it is lowered for)
+  const heldDown = new Set<any>();
+  const capHeld = (ch: any, F: number[]) => {
+    if (ch.cycle) return F;
+    for (const [k, sc] of [[ch.start, ch.S0], [ch.end, ch.S1]] as [number, number][]) {
+      const c = clusterOf(k); if (!c || !heldDown.has(c)) continue;
+      let i = 0; while (i + 1 < ch.S.length && ch.S[i] < sc - 1e-6) i++;
+      const h0 = planeAt(c, ch.P[i].x, ch.P[i].z);
+      for (let q = 0; q < F.length; q++) F[q] = Math.min(F[q], h0 + Hc.approachGrade * Math.abs(ch.S[q] - sc));
+    }
+    return F;
+  };
   for (let round = 0; round < 3; round++) {
     const work: { ch: any; needs: { i: number; need: number }[] }[] = [];
     const all = bridgeChains.map(ch => ({ ch, needs: needsOf(ch) }));
@@ -519,7 +590,8 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
         const c = clusterOf(k); if (!c) continue;
         let i = 0; while (i + 1 < ch.S.length && ch.S[i] < sc - 1e-6) i++;
         const here = planeAt(c, ch.P[i].x, ch.P[i].z);
-        if (F[i] > here + 0.05) raise.set(c, Math.max(raise.get(c) ?? 0, F[i] - here));
+        if (F[i] > here + 0.05 && c.pinned) heldDown.add(c);
+        else if (F[i] > here + 0.05) { const d = Math.min(F[i] - here, raiseRoom(c, ch)); if (d < F[i] - here - 0.05) { stats.raiseCapped++; heldDown.add(c); } if (d > 0.05) raise.set(c, Math.max(raise.get(c) ?? 0, d)); }
       }
     }
     if (raise.size) {
@@ -528,7 +600,7 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
     }
     // (each bridge chain: at least its floor, its grades held again with the floor's points fixed)
     for (const { ch, needs } of work) {
-      const F = floorOf(ch, needs), h = ch.h;
+      const F = capHeld(ch, floorOf(ch, needs)), h = ch.h;
       for (let i = 0; i < h.length; i++) if (F[i] > h[i]) h[i] = F[i];
       const fixed = ch.fixed.map((f: boolean, i: number) => f || F[i] >= h[i] - 1e-6);
       for (let pass = 0; pass < 3; pass++) { relax(ch.S, h, fixed, ch.isStruct, Hc, stats, ch.lim); for (let i = 0; i < h.length; i++) if (F[i] > h[i]) h[i] = F[i]; }
@@ -538,6 +610,116 @@ function clearancePass(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluste
   }
   // (what still falls short: a deck under its need anywhere)
   for (const ch of bridgeChains) for (const q of needsOf(ch)) if (ch.h[q.i] < q.need - 0.1) { stats.shortOfClearance++; break; }
+  return { needsOf, bridgeChains };
+}
+
+// (Map v5) the road under a deck that can't rise enough, lowered under it: an underpass, as Adelaide's are. A deck eases
+// onto a junction's plane over its last armEase m (map/model/surface.ts), so one crossing a road just past a junction
+// held to its main road (pinned) is drawn lower than its profile — Torrens Road over Devonport Terrace, 12–20 m from its
+// junction, came to 3.2 m over it. The deck's edges as drawn, every metre over the road under it, less deckDepth and
+// underpass.clearance, are the most that road may be there: its chain is cut down to that, flat for drawnSmooth +
+// underpass.flat m either side (its vertical curves don't round the dip back up) and back up at approachGrade, its grades
+// held again with those points fixed. A ground road only — never its trims (a junction's surface), a railway or a road
+// in a junction — and no more than underpass.maxDepth m down: what's still short is counted (stats.underpassShort).
+// Returns the chains lowered (their drawn profiles made again).
+function underpasses(G: { nodes: MNode[]; segs: Seg[] }, T: { clusters: Cluster[] }, chains: any[], { needsOf, bridgeChains }: { needsOf: (ch: any, under?: any[]) => any[]; bridgeChains: any[] }, Hc: any, stats: any) {
+  const U = Hc.underpass, where = new Map<string, { ch: any; i: number }>();
+  for (const ch of chains) ch.P?.forEach((p: any, i: number) => { where.set(`${p.seg.id}:${p.k}`, { ch, i }); if (p.also) where.set(`${p.also.seg.id}:${p.also.k}`, { ch, i }); });
+  const caps = new Map<any, { sc: number; top: number }[]>();
+  for (const ch of bridgeChains) {
+    const under: any[] = [], done = new Set<string>();
+    needsOf(ch, under);
+    for (const u of under) {
+      const g = u.g, sg = ch.P[u.i].seg;
+      if (u.rail || u.jc || g.structure !== 'ground' || done.has(`${sg.id}:${g.id}`)) continue;
+      done.add(`${sg.id}:${g.id}`);
+      // (the deck's two edges as drawn, every metre along it: crossing at a skew, one edge is over the road well past
+      // where its middle is — Anzac Highway's over South Road, near where the deck comes down)
+      const { s0, s1, planes } = planesOf(sg, G, T, Hc);
+      for (let s = s0; s <= s1 + 1e-6; s += 1) {
+        const r = rowAt(sg, s);
+        for (const off of [r.hwL, -r.hwR]) {
+          const [x, z] = at(r, off), y = surfaceHeight(sg, s, off, x, z, Hc, planes);
+          // (over the road: its nearest piece, within its half width)
+          let best = Infinity, kk = -1, tt = 0;
+          for (let k = 0; k + 1 < g.xs.length; k++) {
+            const ax = g.xs[k], az = g.zs[k], dx = g.xs[k + 1] - ax, dz = g.zs[k + 1] - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1e-9))), d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+            if (d < best) { best = d; kk = k; tt = t; }
+          }
+          if (kk < 0 || best > Math.max(g.hwL[kk], g.hwR[kk]) + 0.3) continue;
+          const w0 = where.get(`${g.id}:${kk}`), w1 = where.get(`${g.id}:${kk + 1}`);
+          if (!w0 || !w1 || w0.ch !== w1.ch || w0.ch === ch || w0.ch.cycle) continue;
+          const lc = w0.ch;
+          (caps.get(lc) ?? caps.set(lc, []).get(lc)!).push({ sc: lc.S[w0.i] + (lc.S[w1.i] - lc.S[w0.i]) * tt, top: y - Hc.deckDepth - U.clearance });
+        }
+      }
+    }
+  }
+  const lowered: any[] = [];
+  for (const [lc, cs] of caps) {
+    const S: number[] = lc.S, h: number[] = lc.h, n = h.length, flat = Hc.drawnSmooth + U.flat, h0 = h.slice();
+    const cap = S.map(s => { let m = Infinity; for (const c of cs) m = Math.min(m, c.top + Hc.approachGrade * Math.max(0, Math.abs(s - c.sc) - flat)); return m; });
+    const can = (i: number) => !lc.fixed[i] && lc.P[i].structure === 'ground', fixed = lc.fixed.slice();
+    // (no deeper than the road can come down at its grade from where it can't move — a junction's surface at its trim, a
+    // structure: by the South Eastern Freeway's Mount Osmond interchange it went back up to the junction at 16%)
+    const room = new Array(n).fill(U.maxDepth);
+    for (let i = 0; i < n; i++) if (!can(i)) for (let q = 0; q < n; q++) room[q] = Math.min(room[q], Math.max(0, (lc.lim?.[q] ?? Hc.maxGrade) * Math.abs(S[q] - S[i]) + h0[q] - h0[i]));
+    let deepest = 0;
+    for (let i = 0; i < n; i++) if (can(i) && h[i] > cap[i] + 1e-3) { h[i] = Math.max(cap[i], h0[i] - room[i]); fixed[i] = true; deepest = Math.max(deepest, h0[i] - h[i]); }
+    if (!deepest) { stats.underpassShort += cs.length ? 1 : 0; continue; }
+    for (let pass = 0; pass < 3; pass++) { relax(S, h, fixed, lc.isStruct, Hc, stats, lc.lim); for (let i = 0; i < n; i++) if (can(i) && h[i] > cap[i]) h[i] = Math.max(cap[i], h0[i] - room[i]); }
+    lc.P.forEach((p: any, i: number) => { p.seg.h[p.k] = h[i]; if (p.also) p.also.seg.h[p.also.k] = h[i]; });
+    stats.underpasses++; stats.underpassDeepest = Math.max(stats.underpassDeepest, +deepest.toFixed(2));
+    if (cs.some(c => lerpAt(S, h, c.sc) > c.top + 0.05)) stats.underpassShort++;
+    lowered.push(lc);
+  }
+  return lowered;
+}
+
+// (Map v5) the bridges over a run of points (a corridor's carriageway) carrying a main road of their own — held to its
+// own profile and junctions, so a deck that can't rise for what's under it — where each, standing on the ground at both
+// ends, crosses it: s along the run, and the most the run may be there (the ground at the deck's ends, between them as
+// far along it as it crosses, less clearance and deckDepth). A lesser road's deck rises for it instead: the clearance pass
+function decksOver(pts: { x: number; z: number; S: number; g: Seg }[], G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number, z: number) => number, Hc: any) {
+  // (another road, crossing it: not its own other carriageway, whose deck can meet it at a shallow angle where they part)
+  // (under a motorway, any road's: Tonsley Boulevard's decks over the Southern Expressway, Torrens Road's over the
+  // North-South Motorway — held at their ends by junctions on South Road, they came down to 1.5 m over it, or rose 6 m
+  // over the ground in a 17% ramp)
+  const own = new Set(pts.map(p => p.g.id)), grounded = (k: number) => G.nodes[k].segs.some(i => G.segs[i].structure === 'ground'), name = pts[0]?.g.name ?? null;
+  const main = new Set<string>((Hc.corridor.underAnyDeck ?? []).includes(pts[0]?.g.cls) ? Object.keys(Hc.maxGradeByClass).filter(c => c !== 'track' && c !== 'link') : Hc.corridor.classes);
+  // (a deck in pieces — split where its ramps join, off the ground — stands on the ground where the bridge it's part of
+  // comes down: along it through each node off the ground (the piece of the same name on, else any), its road distance
+  // to there; none if it never does)
+  const toGround = (d0: Seg, k0: number) => {
+    let prev = d0, k = k0, dist = 0;
+    for (let guard = 0; guard < 50; guard++) {
+      if (grounded(k)) return { k, d: dist };
+      const on = G.nodes[k].segs.map(i => G.segs[i]).filter(o => o !== prev && o.structure === 'bridge');
+      const o = on.find(o => (o.name ?? null) === (prev.name ?? null)) ?? on[0];
+      if (!o) return null;
+      dist += o.s[o.s.length - 1]; k = o.from === k ? o.to : o.from; prev = o;
+    }
+    return null;
+  };
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+  const out: { sc: number; top: number }[] = [];
+  for (const d of G.segs) {
+    if (d.structure !== 'bridge' || own.has(d.id) || !main.has(d.cls) || (name && d.name === name)) continue;
+    if (Math.max(...d.xs) < x0 || Math.min(...d.xs) > x1 || Math.max(...d.zs) < z0 || Math.min(...d.zs) > z1) continue;
+    const A = toGround(d, d.from), B = toGround(d, d.to);
+    if (!A || !B) continue;
+    const Ld = d.s[d.s.length - 1], L = A.d + Ld + B.d, hA = demAt(G.nodes[A.k].x, G.nodes[A.k].z), hB = demAt(G.nodes[B.k].x, G.nodes[B.k].z);
+    for (let k = 0; k + 1 < d.xs.length; k++) for (let i = 0; i + 1 < pts.length; i++) {
+      const ax = d.xs[k], az = d.zs[k], dx = d.xs[k + 1] - ax, dz = d.zs[k + 1] - az, cx = pts[i].x, cz = pts[i].z, ex = pts[i + 1].x - cx, ez = pts[i + 1].z - cz, den = dx * ez - dz * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((cx - ax) * ez - (cz - az) * ex) / den, u = ((cx - ax) * dz - (cz - az) * dx) / den;
+      if (t < 0 || t > 1 || u < 0 || u > 1 || Math.abs(den) / (Math.hypot(dx, dz) * Math.hypot(ex, ez) || 1) < Math.sin(30 * Math.PI / 180)) continue;
+      const f = (A.d + d.s[k] + (d.s[k + 1] - d.s[k]) * t) / (L || 1);
+      out.push({ sc: pts[i].S + (pts[i + 1].S - pts[i].S) * u, top: hA + (hB - hA) * f - Hc.clearance - Hc.deckDepth });
+    }
+  }
+  return out;
 }
 
 // (Map v5) main roads' height profiles along whole carriageways. Overture's copy of OSM splits a road at every
@@ -609,6 +791,10 @@ function corridorProfiles(G: { nodes: MNode[]; segs: Seg[] }, demAt: (x: number,
     for (let i = 1; i < n; i++) { const d = lim[i - 1] * (S[i] - S[i - 1]); up[i] = Math.min(up[i], up[i - 1] + d); lo[i] = Math.max(lo[i], lo[i - 1] - d); }
     for (let i = n - 2; i >= 0; i--) { const d = lim[i] * (S[i + 1] - S[i]); up[i] = Math.min(up[i], up[i + 1] + d); lo[i] = Math.max(lo[i], lo[i + 1] - d); }
     for (let i = 0; i < n; i++) h[i] = (up[i] + lo[i]) / 2;
+    // (Map v5, corridor.underDecks: no higher under a main road's bridge over it than that bridge's ground less clearance
+    // and its deck, and from there back up at its grade: Adelaide's newer motorways run in trenches the LiDAR predates,
+    // and the North-South Motorway came up level with Port Road's deck over it)
+    if (C.underDecks) for (const { sc, top } of decksOver(pts, G, demAt, Hc)) for (let i = 0; i < n; i++) h[i] = Math.min(h[i], top + lim[i] * Math.abs(S[i] - sc));
     for (const { g } of run) (g as any).corr = new Array(g.xs.length).fill(0);
     pts.forEach((p, i) => { (p.g as any).corr[p.k] = h[i]; if (p.also) (p.also.g as any).corr[p.also.k] = h[i]; });
     count++;

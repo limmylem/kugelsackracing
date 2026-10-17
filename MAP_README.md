@@ -329,6 +329,9 @@ one does). The steps run in order, and each uses only what the steps before it m
    - The rest of the tile is Map v3's: heightfield, terrain colours, tyre surfaces, buildings, water, car parks,
      names, signs, and the HUD's road list.
    - New lists: `lamps`, `roadEdges` and `roadBorder` (for the debug views), and the `exclusion` grid.
+   - A list stored as int16 multiples of a quantum (trees, railings, hulls) keeps a column that reaches past int16's
+     range from an offset near its middle (`offsets`, in the tile's header). Without it a tree's height stopped at
+     655 m and a railing's at 327 m: the trees by Mount Lofty's summit were drawn under the ground.
 
 **In the game** (`map/render/`):
 
@@ -360,6 +363,10 @@ one does). The steps run in order, and each uses only what the steps before it m
   - A 3 km slice of central Adelaide went from 129 s to 54 s.
 - `--block-tiles` and `--block-pad` bake with other blocks. The tiles, graph and model come out byte-identical
   (tested on the slice: 6 × 6 tiles with a 100 m pad against 3 × 3 tiles with a 400 m pad).
+- Map v5 the same: every step that looks round — the cross-section's bands and islands, furniture, signs, trees,
+  railways' masts and wires, brands' signs, place names — works within its own reach of the block and keeps only
+  what lands in it, and what has to be the same everywhere is found once for the region (the islands, the one-way
+  pairs, the place signs' plan). A block bakes `bake.minShare` m of shaped ground round it at least.
 - The vector map and the elevation are reused from Map v3's bake when their inputs haven't changed.
 - Output goes beside the region's Map v3 bake, in `assets/map/<region>/v4/`: `manifest.json`, `graph.json.gz`,
   `roadmodel.json.gz` (the model's roads and junctions), `tiles/` and `far/`. The vector map is v3's
@@ -382,7 +389,25 @@ What it adds, by the brief's steps:
     road's chord either side (`graph.normalSmooth`), hairpins curved rather than cornered.
   - *Wheels at joins:* kerbs and footpaths close every road edge (the cross-section below), so no open step is left.
   - *Bridges:* the deck's clearance over what it crosses spread back along the approaches; a deck beside a road on
-    the ground where it rises away is narrowed so neither overhangs the other (`widths.acrossLevels`).
+    the ground where it rises away is narrowed so neither overhangs the other (`widths.acrossLevels`). Where a deck
+    as drawn still falls short over a road — eased down onto a junction held to its main road just past it, or
+    crossing at a skew so its edge is over the road near where it comes down — the road under it is lowered into an
+    underpass, flat under the deck and back up at `approachGrade` (`heights.underpass`): Devonport Terrace under
+    Torrens Road, South Road under Anzac Highway. A junction is raised for a deck no more than its other roads could
+    climb at `heights.raiseGrade` (Anzac Highway's 4 m stub at the foot of its bridge had become a 37% ramp), and from
+    a junction that can't go up as far as the deck wants, the deck rises at `approachGrade`. A main road's carriageway
+    goes under a main road's bridge over it (`heights.corridor.underDecks`), and a motorway under any road's
+    (`underAnyDeck`): the newer motorways run in trenches the LiDAR predates. The North-South Motorway had come up
+    level with Port Road's deck; Tonsley Boulevard's decks, held at their ends by junctions on South Road, came down
+    to 1.5 m over the Southern Expressway. A deck in pieces (split where its ramps join, off the ground) is followed
+    to where its bridge comes down, for the ground at its ends.
+  - *Junction surfaces:* a junction's plane is level in any direction its roads don't spread along
+    (`heights.planeRidge`), and its outline has no hairpins (`junctions.despike`): a sliver where two pieces of the
+    patch nearly met left T-junction cracks in the road. Each road's end row is put into the outline from 1 cm
+    (`junctions.snap`, `rowClean`), and the T-junction repair runs on the lanes alone as well (`laneRepair`).
+  - *Road edges at corners:* a cross-section is mitred against a real corner either side of it (pieces over half
+    `graph.normalSmooth` long), and a joint's shared cross-section is mitred too (`graph.jointMitre`): a right-angled
+    car park aisle's inside corner was cut off.
   - *Tunnels* (`map/model/tunnels.ts`): where a tunnel road runs under more than `terrain.tunnelCover` m of ground —
     the Heysen Tunnels — a tube built from the road surface: walls, a ceiling, portals with headwalls and wings,
     lamps on the walls, all solid; the hill over it left as it is, the road inside on its real grade.
@@ -414,7 +439,8 @@ What it adds, by the brief's steps:
 - **Step 7, vegetation** (`map/model/vegetation.ts`): trees by species — broadleaf, conifer, eucalypt, palm, low
   plants — from OSM's tags, else the style pack's mix for where they are; street trees in the verges and garden
   trees behind houses (estimated); nothing estimated on pitches, pools, playgrounds or greens; the pack's dry-summer
-  grass colours.
+  grass colours. Each tree's canopy, as drawn (`canopyAt`: an ellipsoid, a conifer's cone), is kept clear of every
+  road surface and band — a footpath up a bank beside it — else the tree is drawn smaller, else left out.
 - **Step 8, style packs** ([Region style packs](#region-style-packs)).
 - **Step 9, debug views and the recognisability capture** ([Debug views and bad spots](#debug-views-and-bad-spots)).
 

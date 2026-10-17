@@ -97,11 +97,23 @@ export function encodeTile(tile, E) {
         if (!count)
             continue;
         if (L.quantum) {
-            // (as whole multiples of the list's quantum, int16: coordinates to a couple of centimetres)
-            const n = L.data.length + (L.data.length % 2), q = new Int16Array(n);
+            // (as whole multiples of the list's quantum, int16: coordinates to a couple of centimetres; a column reaching past
+            // int16's range — heights in the hills: 0.02 m × 32767 is 655 m, and the trees by Mount Lofty's summit were drawn
+            // there, under the ground — from a whole multiple of the quantum near its middle, offsets[column])
+            const n = L.data.length + (L.data.length % 2), q = new Int16Array(n), Q = L.quantum, S = L.stride;
+            const off = new Array(S).fill(0);
+            for (let c = 0; c < S; c++) {
+                let lo = Infinity, hi = -Infinity;
+                for (let k = c; k < L.data.length; k += S) {
+                    lo = Math.min(lo, L.data[k]);
+                    hi = Math.max(hi, L.data[k]);
+                }
+                if (lo / Q < -32700 || hi / Q > 32700)
+                    off[c] = Math.round((lo + hi) / 2 / Q) * Q;
+            }
             for (let k = 0; k < L.data.length; k++)
-                q[k] = Math.max(-32768, Math.min(32767, Math.round(L.data[k] / L.quantum)));
-            H.lists[name] = { count, stride: L.stride, quantum: L.quantum, length: L.data.length, data: put(E.encodeVertexBuffer(new Uint8Array(q.buffer), n / 2, 4)) };
+                q[k] = Math.max(-32768, Math.min(32767, Math.round((L.data[k] - off[k % S]) / Q)));
+            H.lists[name] = { count, stride: S, quantum: Q, length: L.data.length, ...(off.some(v => v) ? { offsets: off } : {}), data: put(E.encodeVertexBuffer(new Uint8Array(q.buffer), n / 2, 4)) };
             continue;
         }
         H.lists[name] = { count, stride: L.stride, data: put(E.encodeVertexBuffer(new Uint8Array(L.data.buffer, L.data.byteOffset, L.data.byteLength), count, L.stride * 4)) };
@@ -191,8 +203,9 @@ export async function decodeTile(bytes, D) {
             const n = L.length + (L.length % 2), q = new Int16Array(n);
             D.decodeVertexBuffer(new Uint8Array(q.buffer), n / 2, 4, slice(L.data));
             const data = new Float32Array(L.length);
+            const off = L.offsets;
             for (let k = 0; k < L.length; k++)
-                data[k] = q[k] * L.quantum;
+                data[k] = q[k] * L.quantum + (off ? off[k % L.stride] : 0);
             tile.lists[name] = { stride: L.stride, data };
             continue;
         }

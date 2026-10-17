@@ -41,17 +41,17 @@ import { placeLamps, roadLit, LAMP_STRIDE } from '../model/lamps.ts';
 import { checkSurface } from '../model/checks.ts';
 import { auditTile } from '../collision/audit.ts';
 import { stylePackFor } from '../style/stylePack.ts';
-import { planCrossSections, buildBands, PARTS } from '../model/crossSection.ts';
+import { planCrossSections, buildBands, findIslands, PARTS } from '../model/crossSection.ts';
 import { buildTunnels } from '../model/tunnels.ts';
 import { buildFields } from '../model/fields.ts';
-import { openAreas, kindOf, pickKind, streetTrees, gardenTrees, TREE_ESTIMATED } from '../model/vegetation.ts';
+import { openAreas, kindOf, pickKind, streetTrees, gardenTrees, crownThrough, TREE_ESTIMATED } from '../model/vegetation.ts';
 import { rankLandmarks, overrides } from '../model/landmarks.ts';
 import { clipperLoops } from '../model/clipperGuard.ts';
-import { placeSigns } from '../model/placeSigns.ts';
+import { placeSigns, planPlaceSigns } from '../model/placeSigns.ts';
 import { railways } from '../model/railways.ts';
 import { markingsV5 } from '../model/markingsV5.ts';
 import { frontFences } from '../model/fences.ts';
-import { placeFurniture } from '../model/furniture.ts';
+import { placeFurniture, oneWayTwins } from '../model/furniture.ts';
 import { loadRegistry, loadNsi, checkParodies, detectBrands } from '../model/brands.ts';
 import { classifyBuildings, applyBrands, brandSites } from '../model/buildingsV5.ts';
 import { FURNITURE_STRIDE } from '../format/furniture.ts';
@@ -133,6 +133,9 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // block), the buildings (Overture's merged with OSM's)
   const Tn = terrainBaseV4({ grid, dem: E.heights, osm, v3cfg });
   const groundAt = (x: number, z: number) => sampleGrid(grid, Tn.heights, x, z);
+  // (the ground before any road is shaped in: the same whichever block asks — for what's built whole by every block it
+  // reaches, past where the block's own shaping holds)
+  const baseAt = (x: number, z: number) => sampleGrid(grid, Tn.base, x, z);
   const cellAt = (x: number, z: number) => { const c = Math.round((x - grid.x0) / grid.cell), r = Math.round((z - grid.z0) / grid.cell); return c >= 0 && r >= 0 && c < grid.W && r < grid.H ? r * grid.W + c : -1; };
   const ov = await overtureRows({ release: region.overture.release, theme: 'buildings', type: 'building', bbox: (() => { const a = P.toLatLon(grid.x0, gz1), b = P.toLatLon(gx1, grid.z0); return [a[1], a[0], b[1], b[0]]; })(), columns: ['id', 'class', 'subtype', 'height', 'min_height', 'num_floors', 'roof_shape', 'roof_height', 'roof_color', 'facade_color', 'is_underground', 'sources'], cacheDir: path.join(ROOT, '.cache/map') });
   const buildings = mergeBuildings(osm, ov, P, v3cfg.buildings).filter(b => { const p = b.rings[0][0]; return p[0] >= grid.x0 - 100 && p[0] <= gx1 + 100 && p[1] >= grid.z0 - 100 && p[1] <= gz1 + 100; });
@@ -142,18 +145,21 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (Map v5: the region's style pack, and each road side's cross-section — kerb, verge, footpath: map/model/crossSection.ts)
   const style = v5 ? stylePackFor(region) : null;
   let landmarkList: any[] = [], handMade: any = { models: [], hidden: 0, missing: [] }, parkAreas: any[] = [], namedPlaces: any[] = [];
-  const localities: { name: string; rings: number[][][] }[] = [], placeNames: string[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {}, fenceStats: Record<string, number> = {};
+  const localities: { name: string; rings: number[][][] }[] = [], placeStats: Record<string, number> = {}, railStatsV5: Record<string, number> = {}, markStats: Record<string, number> = {}, fenceStats: Record<string, number> = {};
   // (Map v5: each road's OSM tags by way, for the markings' lanes)
   const roadTags = v5 ? new Map<number, Record<string, string>>(osm.roads.map((r: any) => [r.id, r.tags])) : null;
   // (Map v5: the ground's colours the style pack's where it says — Adelaide's dry summer grass; parks and pitches,
   // watered, stay green)
   if (style?.vegetation?.groundColours) Object.assign(v3cfg.colours, style.vegetation.groundColours);
   const lowerAt: number[][] = [];
+  let islands: any[] | null = null;
   if (v5) {
     const xs = planCrossSections({ segs: model.segs, osm, buildings, style, classAt: (x, z) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; } });
     for (const p of osm.points) if ((p.tags.highway === 'crossing' || p.tags.kerb === 'lowered' || p.tags.kerb === 'flush') && near(p)) lowerAt.push([p.x, p.z]);
     for (const g of model.segs) if ((g as any).driveway) for (const k of [g.from, g.to]) if (model.nodes[k].segs.some((i: number) => !(model.segs[i] as any).driveway)) lowerAt.push([model.nodes[k].x, model.nodes[k].z]);
-    lap(`  cross-sections (style ${style.name}): ${xs.sides} road sides — ${xs.mapped} mapped sidewalks (${xs.sidewalkPoints} points snapped), ${xs.tagged} tagged, ${xs.estimated} estimated, ${xs.none} none; ${xs.paved} paved to the shops; ${lowerAt.length} kerbs lowered (crossings, driveways)`);
+    // (the raised islands, found once for the whole region from every road's outline: map/model/crossSection.ts)
+    islands = findIslands({ outlines: model.surfaceFor(null, { outlinesOnly: true }).outlines, segs: model.segs, buildings, style });
+    lap(`  cross-sections (style ${style.name}): ${xs.sides} road sides — ${xs.mapped} mapped sidewalks (${xs.sidewalkPoints} points snapped), ${xs.tagged} tagged, ${xs.estimated} estimated, ${xs.none} none; ${xs.paved} paved to the shops; ${lowerAt.length} kerbs lowered (crossings, driveways); ${islands.length} raised islands (${islands.filter((s: any) => s.round).length} roundabouts)`);
   }
   // (Map v5: the chains — data/map/v5/brands.json, every parody kept away from every real name, or no bake — and what
   // each building is: map/model/brands.ts, map/model/buildingsV5.ts)
@@ -218,6 +224,10 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   // (what's underfoot at a point — the land use — and which roads the lamps' rule lights: every road's, once)
   const classAt = (x: number, z: number) => { const k = cellAt(x, z); return k < 0 ? 'default' : Tn.classNames[Tn.classes[k]]; };
   const litBySeg = new Map<number, boolean>(model.segs.filter((g: any) => !g.internal).map((g: any) => [g.id, roadLit(g, cfg, classAt)]));
+  // (Map v5: a divided road's carriageways, worked out once for the whole region — map/model/furniture.ts)
+  const twins = v5 ? oneWayTwins(model.segs, cfg.furniture) : null;
+  // (and the suburbs' and parks' signs: where each would go, and their names, for the whole region — map/model/placeSigns.ts)
+  const signPlan = v5 ? planPlaceSigns({ localities, parks: parkAreas, places: namedPlaces, segs: model.segs, style, cfg }) : null, placeNames = signPlan?.names ?? [];
   const railStats: any = {}, lampStats: any = {}, hullStats = { trimmed: 0, dropped: 0, paved: 0 }, ms: Record<string, number> = {};
   // (each block's phases, timed: the bake's log)
   const bms: Record<string, number> = {}, timed = <R>(k: string, f: () => R): R => { const a = performance.now(), r = f(); bms[k] = (bms[k] ?? 0) + performance.now() - a; return r; };
@@ -234,18 +244,25 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const rr = cfg.terrain.margin + cfg.terrain.maxBlend + 2;
     let over = 0;
     for (const b of bB) for (const p of b.rings[0]) over = Math.max(over, box[0] - p[0], p[0] - box[2], box[1] - p[1], p[1] - box[3]);
-    const share = Math.max(40, Math.ceil(over) + 2), pad = Math.max(BP, share + rr), reach = [box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad];
+    // (Map v5: the cross-section's bands are built as far out as the ground is shaped — the block's share and the
+    // shaping's own reach past it, bandReach — so the ground the block keeps is shaped under them exactly as the block
+    // whose box it's in shapes it; and the roads are those within reach of that, an island's whole span and the bands'
+    // own look round past it — every band cell, and every island in one, the same whichever block builds it)
+    const share = Math.max(v5 ? cfg.bake.minShare : 40, Math.ceil(over) + 2), bandReach = v5 ? share + rr : 0;
+    const pad = Math.max(BP, share + rr, v5 ? bandReach + style.islands.maxSpan + cfg.xsec.lookRound : 0), reach = [box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad];
     const segIds = new Set<number>(model.segs.filter((g: any, k: number) => meets(segBox[k], reach)).map((g: any) => g.id));
     const clusterIds = new Set<number>(model.clusters.filter((c: any, k: number) => meets(clusterBox[k], reach)).map((c: any) => c.id));
     const S = timed('surface', () => model.surfaceFor({ segs: segIds, clusters: clusterIds }));
     const mB = { ...model, segs: model.segs.filter((g: any) => segIds.has(g.id)), clusters: model.clusters.filter((c: any) => clusterIds.has(c.id)), surface: S };
     // (Map v5: kerbs, verges, footpaths and islands in the road's mesh — cells of xsec.cell m over the block and its
-    // collision apron, each the same whichever block builds it)
+    // bandReach, each the same whichever block builds it)
     if (v5) timed('bands', () => {
-      const CL = cfg.xsec.cell, ap = cfg.collision.apron, cells: [number, number, number, number][] = [];
+      const CL = cfg.xsec.cell, ap = Math.max(cfg.collision.apron, bandReach), cells: [number, number, number, number][] = [];
       for (let cz = Math.floor((box[1] - ap) / CL) * CL; cz < box[3] + ap; cz += CL) for (let cx = Math.floor((box[0] - ap) / CL) * CL; cx < box[2] + ap; cx += CL) cells.push([cx, cz, cx + CL, cz + CL]);
-      const near = buildings.filter(b => { const r = b.rings[0]; return r.some((p: number[]) => p[0] >= box[0] - ap - 60 && p[0] <= box[2] + ap + 60 && p[1] >= box[1] - ap - 60 && p[1] <= box[3] + ap + 60); });
-      const B = buildBands({ mesh: S.mesh, outlines: (S as any).outlines, segs: mB.segs, cells, style, cfg, buildings: near, lowerAt });
+      // (the buildings the footpaths stop at and islands can't hold: every one near a cell or an island in one)
+      const bx0 = Math.floor((box[0] - ap) / CL) * CL - style.islands.maxSpan - 2, bz0 = Math.floor((box[1] - ap) / CL) * CL - style.islands.maxSpan - 2, bx1 = Math.ceil((box[2] + ap) / CL) * CL + style.islands.maxSpan + 2, bz1 = Math.ceil((box[3] + ap) / CL) * CL + style.islands.maxSpan + 2;
+      const near = buildings.filter(b => { const r = b.rings[0]; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const p of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); } return x1 >= bx0 && x0 <= bx1 && z1 >= bz0 && z0 <= bz1; });
+      const B = buildBands({ mesh: S.mesh, outlines: (S as any).outlines, segs: mB.segs, cells, style, cfg, buildings: near, lowerAt, islands });
       // (not repaired against the road: a kerb's vertex where a cell's border crosses the road's edge, split into the
       // road's triangle, would leave a fan of slivers from its far corner — lit wrong. The kerb's foot lies on the edge
       // to the millimetre: no crack to see or catch)
@@ -274,7 +291,13 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       for (const [k, v] of Object.entries<number>(MK.stats)) markStats[k] = (markStats[k] ?? 0) + v;
     });
     const onPaved = (x: number, z: number) => { const k = cellAt(x, z); return k < 0 || !!Tn.road[k] || !!Tn.parkingCell[k]; };
-    const tr = timed('trees', () => treesV4({ osm, groundAt, onPaved, mask: X, cfg, v3cfg, inArea: inBlock, box, veg }));
+    // (Map v5: the trees within vegetation.blockReach m of the block are placed too — those over its edge keep the ones
+    // in it as far from them as in the block next door — and only its own kept, below)
+    const VR = v5 ? cfg.vegetation.blockReach : 0, nearBlock = (x: number, z: number) => x >= box[0] - VR && x < box[2] + VR && z >= box[1] - VR && z < box[3] + VR && inArea(x, z);
+    // (Map v5: each tree's drawn canopy clear of every road surface, the road's bands too — a footpath up a bank beside
+    // it went through 78 crowns — else drawn smaller or left out: map/model/vegetation.ts)
+    const clear = (x: number, y: number, z: number, s: number, kind: number) => !crownThrough(kind, s * 4, x, y, z, (px, pz) => (surface.heightsAt(px, pz) as any[]).map(h => h.y), cfg.vegetation.crownMargin);
+    const tr = timed('trees', () => treesV4({ osm, groundAt, onPaved, mask: X, cfg, v3cfg, inArea: v5 ? nearBlock : inBlock, box: v5 ? [box[0] - VR, box[1] - VR, box[2] + VR, box[3] + VR] : box, veg: veg && { ...veg, clear } }));
     // (Map v5: street trees in the verges, garden trees behind the houses — map/model/vegetation.ts — estimated, clear
     // of the trees already placed, buildings, open ground and the exclusion mask)
     if (v5) timed('trees', () => {
@@ -288,20 +311,25 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       // (and stands on the verge itself — the road's level — not the ground under it, which can fall away beneath it)
       const vergeAt = (x: number, z: number) => { let y: number | null = null; for (const h of surface.heightsAt(x, z) as any[]) if (h.part === PARTS.verge && (y === null || h.y > y)) y = h.y; return y ?? groundAt(x, z); };
       const okStreet = (x: number, z: number, sc: number) => { const hs = surface.heightsAt(x, z) as any[]; return hs.some(h => h.part === PARTS.verge) && !hs.some(h => !h.part) && !surface.near(x, z, cfg.vegetation.trunkClear) && !inBuilding(x, z) && X.crownFree(x, z, cfg.exclusion.crownRadius * 4 * sc, MASK.deck | MASK.rail); };
-      for (const [name, f] of [['street', () => streetTrees({ segs: mB.segs, style, cfg, ok: okStreet, near, lowerAt, groundAt: vergeAt, inArea: inBlock })], ['garden', () => gardenTrees({ buildings: bB, style, cfg, ok, near, groundAt, inArea: inBlock })]] as [string, () => any][]) {
+      // (the houses whose garden trees can stand within the reach: those near the block)
+      const houses = buildings.filter(b => { const p = b.rings[0][0]; return p[0] >= box[0] - VR - 80 && p[0] < box[2] + VR + 80 && p[1] >= box[1] - VR - 80 && p[1] < box[3] + VR + 80; });
+      for (const [name, f] of [['street', () => streetTrees({ segs: mB.segs, style, cfg, ok: okStreet, near, lowerAt, groundAt: vergeAt, inArea: nearBlock, clear })], ['garden', () => gardenTrees({ buildings: houses, style, cfg, ok, near, groundAt, inArea: nearBlock, clear })]] as [string, () => any][]) {
         const r = f();
-        for (let k = 0; k < r.trees.length; k += 5) { tr.trees.push(r.trees[k], r.trees[k + 1], r.trees[k + 2], r.trees[k + 3], r.trees[k + 4]); index(r.trees[k], r.trees[k + 2]); }
-        vegStats[name] = (vegStats[name] ?? 0) + r.stats.placed;
+        for (let k = 0; k < r.trees.length; k += 5) { tr.trees.push(r.trees[k], r.trees[k + 1], r.trees[k + 2], r.trees[k + 3], r.trees[k + 4]); index(r.trees[k], r.trees[k + 2]); if (inBlock(r.trees[k], r.trees[k + 2])) vegStats[name] = (vegStats[name] ?? 0) + 1; }
       }
     });
+    // (the block's own)
+    if (v5) { const own: number[] = []; for (let k = 0; k < tr.trees.length; k += 5) if (inBlock(tr.trees[k], tr.trees[k + 2])) own.push(tr.trees[k], tr.trees[k + 1], tr.trees[k + 2], tr.trees[k + 3], tr.trees[k + 4]); tr.trees = own; }
     if (v5) vegStats.offOpenGround = (vegStats.offOpenGround ?? 0) + tr.stats.open;
     const br = timed('railings', () => barriersV4({ osm, model: mB, groundAt, demAt, surface, cfg, v3cfg, inArea: inBlock, box }));
     // (Map v5: the houses' front fences, estimated — map/model/fences.ts — with the railings; the houses round the block
     // too, for the pieces whose middle is in it)
     if (v5) timed('railings', () => {
-      const near = buildings.filter(b => { const c = b.rings[0][0]; return c[0] >= box[0] - 40 && c[0] < box[2] + 40 && c[1] >= box[1] - 40 && c[1] < box[3] + 40; });
+      const near = buildings.filter(b => { const c = b.rings[0][0]; return c[0] >= box[0] - 70 && c[0] < box[2] + 70 && c[1] >= box[1] - 70 && c[1] < box[3] + 70; });
       const FF = frontFences({ buildings: near, segs: mB.segs, style, cfg, surface, inBuilding, groundAt, inArea: inBlock });
       for (const [t, l] of Object.entries(FF.barriers)) { const L = (br.barriers[t] ??= []); for (const v of l) L.push(v); }
+      // (by type in a fixed order again: a tile's lists the same whichever block made it)
+      br.barriers = Object.fromEntries(Object.keys(br.barriers).sort().map(k => [k, br.barriers[k]]));
       for (const [k, v] of Object.entries<number>(FF.stats)) fenceStats[k] = (fenceStats[k] ?? 0) + v;
     });
     const lp = timed('lamps', () => placeLamps({ model: mB, osm, cfg, surface, mask: X, groundAt, classAt, box }));
@@ -311,7 +339,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
     const lb = timed('labels', () => labels({ nodes: model.nodes as any, segs: model.segs.map((g: any) => (segIds.has(g.id) ? Object.assign(Object.create(g), { h: g.hd ?? g.h }) : NAMELESS)) as any, cfg: v3cfg }));
     // (Map v5: street furniture where the map has it — map/model/furniture.ts — and the street name signs at the
     // junctions' corners, off the road, in place of Map v4's)
-    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]], roundabouts: (S as any).roundabouts ?? [] })) : null;
+    const fu = v5 ? timed('furniture', () => placeFurniture({ model: mB, osm, surface, groundAt, style, cfg, box: [box[0], box[1], box[2], box[3]], roundabouts: (S as any).roundabouts ?? [], twins })) : null;
     // (and the chains' sites: their pylon signs, canopies, pumps, menu boards and trolley bays)
     if (fu) {
       const near = buildings.filter(b => { const p = b.rings[0][0]; return p[0] >= box[0] - 300 && p[0] <= box[2] + 300 && p[1] >= box[1] - 300 && p[1] <= box[3] + 300; });
@@ -325,15 +353,15 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
       for (const [k, v] of Object.entries<number>(fu.stats)) furnStats[k] = (furnStats[k] ?? 0) + v;
     }
     // (Map v5: the railways — track, level crossings' booms, platforms, overhead wiring: map/model/railways.ts)
-    const RW = v5 ? timed('furniture', () => railways({ lines: osm.lines, areas: osm.areas, groundAt, surface, segs: mB.segs, style, cfg, box })) : null;
+    const RW = v5 ? timed('furniture', () => railways({ lines: osm.lines, areas: osm.areas, groundAt, baseAt, surface, segs: mB.segs, style, cfg, box })) : null;
     if (RW && fu) { for (const v of RW.items) fu.items.push(v); for (const v of RW.wires) fu.wires.push(v); for (const [k, v] of Object.entries<number>(RW.stats)) railStatsV5[k] = (railStatsV5[k] ?? 0) + v; }
     // (Map v5: the suburbs' and parks' signs)
-    const PSg = v5 ? timed('furniture', () => placeSigns({ localities, parks: parkAreas, places: namedPlaces, segs: mB.segs, style, cfg, surface, groundAt, inBuilding, box, names: placeNames })) : null;
+    const PSg = v5 ? timed('furniture', () => placeSigns({ plan: signPlan!, cfg, surface, groundAt, inBuilding, box })) : null;
     if (PSg) for (const [k, v] of Object.entries<number>(PSg.stats)) placeStats[k] = (placeStats[k] ?? 0) + v;
     // (Map v5: the islands' planting — a roundabout's tree and low plants — with the block's trees)
     const Pl = (S as any).plants as number[] | undefined;
     if (Pl) for (let k = 0; k < Pl.length; k += 5) if (inBlock(Pl[k], Pl[k + 2])) tr.trees.push(Pl[k], Pl[k + 1], Pl[k + 2], Pl[k + 3], Pl[k + 4]);
-    st.trees += tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
+    st.trees += v5 ? tr.trees.length / 5 : tr.stats.placed; st.treesOff += tr.stats.rejected; st.lamps += lamps.length / LAMP_STRIDE;
     for (const [k, v] of Object.entries<number>(br.stats)) railStats[k] = (railStats[k] ?? 0) + v;
     for (const [k, v] of Object.entries<number>(lp.stats)) lampStats[k] = (lampStats[k] ?? 0) + v;
     const TB = tileBuilderV4({ map, region, grid, cfg: v3cfg, v4: cfg, heights: Tn.heights, classes: Tn.classes, classNames: Tn.classNames, roadSurface: Tn.roadSurface, surfaceNames: Tn.surfaceNames, cover: Tn.cover, demSource: E.source, demSources: E.sources, water: Tn.water, parking: Tn.parking, parkingCell: Tn.parkingCell, segs: mB.segs, buildings: bB, barriers: br.barriers, trees: tr.trees, labels: lb, bays, model: mB, lamps, mask: X, surface, furniture: fu, tunnel: TU?.mesh ?? null, fields: FL?.mesh ?? null, models: handMade.models, placeSigns: PSg?.signs ?? null, rails: RW?.pieces ?? null, platforms: RW?.platforms ?? null, coverEdges: v5, parkingOnGround: v5 });
@@ -355,7 +383,7 @@ export async function bakeV4({ regionId, area = null as string | null, out = nul
   }
   if (problems.length) throw new Error(`colliders with nothing drawn there (${problems.length}): ${JSON.stringify(problems.slice(0, 8))}`);
   tiles.sort((p, q) => p.j - q.j || p.i - q.i);
-  if (v5) lap(`  cross-section bands (${bandStats.loops} outline rings): ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants); Clipper looped ${clipperLoops.count} times (map/model/clipperGuard.ts): ${bandStats.clipperSnapped} pieces made again snapped to a few mm, ${bandStats.clipperFailed} left out; ${bandStats.unheighted} triangles left out with no road edge near enough for their height`);
+  if (v5) lap(`  cross-section bands: ${(bandStats.footpathM2 / 1e3).toFixed(1)}k m² footpath, ${(bandStats.vergeM2 / 1e3).toFixed(1)}k m² verge, ${(bandStats.kerbM / 1e3).toFixed(1)} km of kerb, ${bandStats.triangles} triangles in ${bandStats.cells} cells; ${bandStats.islands} raised islands (${bandStats.gardens} roundabout gardens, ${bandStats.plants} plants); Clipper looped ${clipperLoops.count} times (map/model/clipperGuard.ts): ${bandStats.clipperSnapped} pieces made again snapped to a few mm, ${bandStats.clipperFailed} left out; ${bandStats.unheighted} triangles left out with no road edge near enough for their height`);
   if (v5) lap(`  railways: ${(railStatsV5.km ?? 0).toFixed(1)} km of track (${railStatsV5.inRoad ?? 0} pieces in a road), ${railStatsV5.bridges ?? 0} rail bridges with decks, ${railStatsV5.crossings ?? 0} level crossings with booms (estimated: found where a line crosses a road at grade), ${railStatsV5.platforms ?? 0} platform slabs, ${railStatsV5.masts ?? 0} overhead wire masts (estimated)`);
   if (v5) lap(`  front fences (estimated): ${fenceStats.fenced ?? 0} of ${fenceStats.houses ?? 0} houses (counted by every block near them), ${((fenceStats.metres ?? 0) / 1e3).toFixed(1)} km in ${fenceStats.pieces ?? 0} pieces; ${fenceStats.noRoom ?? 0} too close to the street for one, ${fenceStats.noStreet ?? 0} with no street near, ${fenceStats.unfenced ?? 0} left open (the mix's none); ${fenceStats.blocked ?? 0} pieces left out on a road surface, footpath or building, ${fenceStats.driveways ?? 0} across a mapped driveway`);
   if (v5) lap(`  markings: ${markStats.arrows ?? 0} turn arrows at traffic lights (${markStats.arrowsTagged ?? 0} from OSM's turn:lanes, ${markStats.arrowsEstimated ?? 0} estimated from the junction's arms), ${markStats.bikeLanes ?? 0} bicycle lane sides with ${markStats.bikeSymbols ?? 0} bicycles, ${markStats.busLanes ?? 0} bus lane sides (each counted by every block that draws it); ${markStats.offSurface ?? 0} pieces left out off the road's surface`);
