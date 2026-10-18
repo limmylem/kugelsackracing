@@ -1,0 +1,11 @@
+{
+  "_note": "A part family (docs/CONTENT_PIPELINE.md): npm run content -- build makes a part for every combination of the settings listed here and every finish, its stats from data/content/formulas.json (families.<kind>), its tier, price and unlock level from what it does. Change this file, not the parts it makes.",
+  "id": "strad_wings",
+  "kind": "spoiler",
+  "name": "Strad Wings",
+  "settings": { "span": 1.7, "chord": 0.38, "elements": 1, "mount": "boot", "style": "wing" },
+  "finishes": ["carbon"],
+  "shape": { "mounts": "pedestal", "profile": "high", "plates": "tall", "angle": 8, "gurney": 0.002, "platePiece": "fin" },
+  "aim": { "tiers": ["extreme"] },
+  "status": "draft"
+}
