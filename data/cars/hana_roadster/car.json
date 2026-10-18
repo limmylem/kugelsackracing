@@ -1036,6 +1036,36 @@
       "blockedBy": [],
       "focus": "front",
       "stock": []
+    },
+    {
+      "name": "socket_boat_floats",
+      "slot": "boat_floats",
+      "required": false,
+      "position": [
+        0, 0.12, 0],
+      "pull": [
+        1,
+        0,
+        0
+      ],
+      "blockedBy": [],
+      "focus": "underbody",
+      "stock": []
+    },
+    {
+      "name": "socket_outboard",
+      "slot": "outboard",
+      "required": false,
+      "position": [
+        0, 0.49, -1.97],
+      "pull": [
+        0,
+        0,
+        -1
+      ],
+      "blockedBy": [],
+      "focus": "rear",
+      "stock": []
     }
   ],
   "socketGroups": {

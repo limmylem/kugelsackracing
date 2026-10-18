@@ -233,7 +233,7 @@
       }
     },
     "purpose": {
-      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap"],
+      "enum": ["drift", "looks", "offroad", "gravel", "drag", "safety", "swap", "boat"],
       "description": "What it's for, if it isn't simply going faster (drift tyres, a locked differential, chrome wheels; swap: room for a swapped engine, a cowl bonnet): not held to its tier's stat band, and left out of value-for-money comparisons"
     },
     "model": {

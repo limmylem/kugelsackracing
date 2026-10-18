@@ -1,0 +1,89 @@
+{
+  "id": "boat_floats_grey",
+  "name": "Heavy-duty boat floats",
+  "category": "boat",
+  "slot": "boat_floats",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "boat",
+  "price": 1250,
+  "mass": 60,
+  "model": "assets/parts/boat/boat_floats_grey.glb",
+  "icon": "assets/icons/parts/boat_floats_grey.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Bigger tubes along the sills: the car sits high in the water, steady with a heavy engine.",
+  "effects": [
+    {
+      "target": "boat.floats",
+      "op": "set",
+      "value": 2.2
+    }
+  ],
+  "bounds": {
+    "min": [-1.4199, -0.2807, -1.589],
+    "max": [1.4199, 0.2087, 1.639]
+  },
+  "massOffset": [0, -0.096, 0.025],
+  "madeBy": {
+    "generator": "tools/generators/boat.js",
+    "design": "grey heavy-duty tubes",
+    "settings": {
+      "r": 0.24,
+      "colour": "grey"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/boat/boat_floats_grey/kaze_gt.glb",
+      "bounds": {
+        "min": [-1.4399, -0.2808, -1.7478],
+        "max": [1.4399, 0.2088, 1.6778]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/boat/boat_floats_grey/hana_roadster.glb",
+      "bounds": {
+        "min": [-1.425, -0.2808, -1.6506],
+        "max": [1.425, 0.2088, 1.5006]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/boat/boat_floats_grey/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-1.48, -0.2808, -1.8206],
+        "max": [1.48, 0.2088, 1.9306]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/boat/boat_floats_grey/vortex_r.glb",
+      "bounds": {
+        "min": [-1.4551, -0.2808, -1.7214],
+        "max": [1.4551, 0.2088, 1.7814]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/boat/boat_floats_grey/brute_500.glb",
+      "bounds": {
+        "min": [-1.48, -0.2807, -1.7458],
+        "max": [1.48, 0.2087, 1.8658]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/boat/boat_floats_grey/strada_evo.glb",
+      "bounds": {
+        "min": [-1.44, -0.2808, -1.6932],
+        "max": [1.44, 0.2088, 1.8032]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/boat/boat_floats_grey/apex_v8.glb",
+      "bounds": {
+        "min": [-1.495, -0.2807, -1.6682],
+        "max": [1.495, 0.2087, 1.8982]
+      }
+    }
+  }
+}

@@ -191,6 +191,8 @@ Name the file `<type>_<name>.glb` (or with one of the other names). Sizes are me
 
 | Type | File names | Goes in | Wide | Tall | Long | Origin | Triangles |
 |---|---|---|---|---|---|---|---|
+| Boat floats | `boat_floats_…` `floats_…` `pontoon_…` | boat / boat_floats | 1.2–3.2 | 0.15–0.6 | 2–5.2 | the middle of the floor | 1,500 |
+| Outboard motor | `outboard_…` | boat / outboard | 0.2–0.6 | 0.6–1.4 | 0.25–0.9 | the middle of the rear bumper | 1,500 |
 | Spoiler or wing | `spoiler_…` `wing_…` `ducktail_…` | aero / spoiler | 0.8–1.9 | 0.03–0.6 | 0.05–0.7 | the middle of the boot lid where it bolts on, at the bottom of its feet | 2,000 |
 | Wheel (rim only) | `rim_…` `wheel_…` | wheels / wheels | 0.1–0.35 | 0.35–0.55 | 0.35–0.55 | the wheel's centre on its axle; the outer face towards +x | 3,000 |
 | Bonnet | `bonnet_…` `hood_…` | body / bonnet | 1–1.9 | 0.01–0.3 | 0.6–1.8 | the middle of its back edge (the hinge line), level with its top surface | 1,500 |

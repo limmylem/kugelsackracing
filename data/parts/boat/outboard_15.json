@@ -1,0 +1,43 @@
+{
+  "id": "outboard_15",
+  "name": "Outboard motor (15 hp)",
+  "category": "boat",
+  "slot": "outboard",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "boat",
+  "price": 1200,
+  "mass": 31.4,
+  "model": "assets/parts/boat/outboard_15.glb",
+  "icon": "assets/icons/parts/outboard_15.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A small outboard clamped to the back: with floats fitted, the throttle pushes the car along in water (about 20 km/h).",
+  "effects": [
+    {
+      "target": "boat.thrust",
+      "op": "set",
+      "value": 2600
+    },
+    {
+      "target": "boat.topSpeed",
+      "op": "set",
+      "value": 5.5
+    }
+  ],
+  "bounds": {
+    "min": [-0.1331, -0.536, -0.3984],
+    "max": [0.1331, 0.54, 0]
+  },
+  "massOffset": [0, 0.126, -0.159],
+  "madeBy": {
+    "generator": "tools/generators/boat.js",
+    "design": "small white outboard",
+    "settings": {
+      "size": 0.44,
+      "colour": "white"
+    }
+  }
+}

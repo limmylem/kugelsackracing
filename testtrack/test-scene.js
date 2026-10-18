@@ -50,7 +50,7 @@ import '../physics/detmath-install.js';          // (first: the physics' maths t
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createContentLayer } from '../play/contentLayer.js';
-import { garageFrame } from '../play/garageBuilding.js';
+import { garageFrame, groundOf } from '../play/garageBuilding.js';
 import { createRouteRun } from '../play/testDrive.js';
 import { createQuestPlay } from '../play/questUi.js';
 import { createQuestFinder, loadVenues } from '../play/questFinder.js';
@@ -1368,6 +1368,7 @@ function frame(w, now) {
   if (w.content) { const p = v.body.translation(); w.content.frame(seconds, [p.x, p.y, p.z], w.camera); }
   // (the next turn, when the game's giving directions: play/turnHud.js — the routes are in the world frame)
   { const p = v.body.translation(), [x, z] = w.stream ? w.stream.toWorld(p.x, p.z) : [p.x, p.z]; directions.update({ x, z }); }
+  waterFrame(w, v, now);
   PF.lap('streaming');
   shared.trackUi?.frame(!!w.trackData && shared.trip?.state === 'track', !!w.quests?.active);
   // (a generated track's weather and floodlights)
@@ -2741,6 +2742,37 @@ function updateCarDetails(vis, a, b, alpha) {
 const scratchQ = new THREE.Quaternion(), Z_AXIS = new THREE.Vector3(0, 0, 1);
 // The gauge pod fitted (slot "gauges"), reading the engine's own numbers while it's driven (play/liveGauges.js): its
 // dials made when its model is on the car, again when the part changes
+// The water under the car (the boat kit: physics/boat.js) — the map tiles' water, ten times a second — and the
+// outboard's sound while it runs
+function waterFrame(w, v, now) {
+  if (!w.stream) { v.water = null; return; }
+  if (now - (w.waterAt ?? 0) > 100) {
+    w.waterAt = now;
+    w.waterGround ??= groundOf(w.stream);
+    const p = v.body.translation(), [x, z] = w.stream.toWorld(p.x, p.z), y = w.waterGround?.water(x, z);
+    // (below the sea's level with no tile water: the sea, out past the coast)
+    const ground = w.waterGround?.terrain(x, z), sea = ground != null && ground < -0.3 ? -0.06 : null;
+    v.water = y != null || sea != null ? { level: Math.max(y ?? -Infinity, sea ?? -Infinity) } : null;
+  }
+  outboardSound(v.inWater?.motor ?? 0, v.spec.boat?.thrust ?? 0);
+}
+
+// (an outboard's buzz: two detuned saws through a low-pass, pitch and loudness with how hard it runs; a bigger motor lower)
+let outboardVoice = null;
+function outboardSound(run, thrust) {
+  const A = audioSystem();
+  if (!A || (!run && !outboardVoice)) return;
+  if (!outboardVoice) {
+    const ctx = A.ctx, g = new GainNode(ctx, { gain: 0 }), f = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 900, Q: 2 });
+    const o1 = new OscillatorNode(ctx, { type: 'sawtooth', frequency: 60 }), o2 = new OscillatorNode(ctx, { type: 'sawtooth', frequency: 61.5 });
+    o1.connect(f); o2.connect(f); f.connect(g).connect(A.bus.engine); o1.start(); o2.start();
+    outboardVoice = { g, f, o1, o2 };
+  }
+  const V = outboardVoice, t = A.ctx.currentTime, base = thrust > 5000 ? 42 : 58, hz = base * (1 + 2.2 * run);
+  V.o1.frequency.setTargetAtTime(hz, t, 0.15); V.o2.frequency.setTargetAtTime(hz * 1.025, t, 0.15); V.f.frequency.setTargetAtTime(500 + 1600 * run, t, 0.15);
+  V.g.gain.setTargetAtTime(run ? 0.05 + 0.12 * run : 0, t, 0.2);
+}
+
 function liveGaugesFrame(vis, b) {
   const now = performance.now(), dt = Math.min(0.25, (now - (vis.gaugesAt ?? now)) / 1000);
   vis.gaugesAt = now;

@@ -44,6 +44,52 @@
     "elevation": 22
   },
   "types": {
+    "boat_floats": {
+      "label": "Boat floats",
+      "category": "boat",
+      "slot": "boat_floats",
+      "names": ["boat_floats", "floats", "pontoon"],
+      "size": {
+        "x": [1.2, 3.2],
+        "y": [0.15, 0.6],
+        "z": [2, 5.2]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the floor",
+      "triangles": 1500,
+      "density": 120,
+      "massRange": [8, 60],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
+    "outboard": {
+      "label": "Outboard motor",
+      "category": "boat",
+      "slot": "outboard",
+      "names": ["outboard"],
+      "size": {
+        "x": [0.2, 0.6],
+        "y": [0.6, 1.4],
+        "z": [0.25, 0.9]
+      },
+      "origin": {
+        "x": "centre",
+        "y": "within",
+        "z": "within"
+      },
+      "attach": "the middle of the rear bumper",
+      "triangles": 1500,
+      "density": 900,
+      "massRange": [15, 120],
+      "template": {
+        "todo": ["price", "effects"]
+      }
+    },
     "spoiler": {
       "label": "Spoiler or wing",
       "category": "aero",

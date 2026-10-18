@@ -168,6 +168,8 @@ function statsOf(build, db) {
     cooling: { capacity: car.cooling?.capacity ?? 1 },
     soundMod: { level: 1, tone: 1, intake: 1 },
     cosmetic: { smoke: '', underglow: '', tint: '', fog: '' },
+    // (the boat kit: floats — how many times its weight they hold up —, an outboard's push (N) and top speed (m/s) in water)
+    boat: { floats: 0, thrust: 0, topSpeed: 0 },
   };
   // (room in the arches for bigger tyres, which a lift kit adds to)
   if (W.maxTyreRadius) spec.wheels.maxTyreRadius = W.maxTyreRadius;

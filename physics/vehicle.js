@@ -14,6 +14,7 @@ import { breathing } from './engine.js';
 import { CAR_GROUPS } from './looseParts.js';
 import { Mechanical } from './mechanical.js';
 import { camberGrip } from './camber.js';
+import { waterForces } from './boat.js';
 
 // ray queries against the fixed world only (Rapier QueryFilterFlags EXCLUDE_KINEMATIC | EXCLUDE_DYNAMIC: no
 // JS callback per collider)
@@ -345,6 +346,15 @@ export class Vehicle {
     this.throttle = throttle;
     this.brake = brake;
     this.steer = ctl.road;                                     // front wheel angle (rad)
+
+    // --- Water (physics/boat.js): this.water.level set by the world when there's water under the car; floats keep it
+    //     up, an outboard pushes it, the steering turns it ---
+    if (this.water?.level != null) {
+      const Wf = waterForces({ level: this.water.level, pos, q, lin, ang, com, mass: this.spec.mass, g: -g[1], box: this.spec.bodyCollider, boat: this.spec.boat, throttle, brake, steer: clamp(input.steer ?? 0, -1, 1) });
+      for (const f of Wf.forces) push(f.force, f.point);
+      if (Wf.torque) b.applyTorqueImpulse(toXYZ(scale(Wf.torque, dt)), true);
+      this.inWater = Wf;
+    } else this.inWater = null;
 
     // --- Suspension: one ray per wheel, straight down (car's down) from the socket. Each wheel's rest
     //     length, radius, damping and grip are its own (damage: physics/mechanical.js — a wheel torn

@@ -44,13 +44,13 @@ const DIMS = { SIDE, LANE_HALF: LANE.halfWidth, LANE_END, COURT, FAR: DRIVE.far,
 // mesh: only its drivable top — not the skirt dipping past its edge), the ground's (its heightfield)
 export function groundOf(S) {
   if (!S?.tiles || !S.manifest?.grid) return null;
-  const T = S.manifest.grid.tileSize, known = new Set(S.manifest.tiles.map(t => `${t.i}_${t.j}`)), CELL = 4, grids = new WeakMap();
+  const T = S.manifest.grid.tileSize, known = new Set(S.manifest.tiles.map(t => `${t.i}_${t.j}`)), CELL = 4, grids = { roads: new WeakMap(), water: new WeakMap() };
   const keyAt = (wx, wz) => `${Math.floor(wx / T)}_${Math.floor(wz / T)}`;
-  const gridOf = d => {
-    let g = grids.get(d);
+  const gridOf = (d, name = 'roads') => {
+    let g = grids[name].get(d);
     if (g) return g;
-    grids.set(d, g = new Map());
-    const m = d.meshes?.roads;
+    grids[name].set(d, g = new Map());
+    const m = d.meshes?.[name];
     if (!m) return g;
     const p = m.positions, I = m.indices;
     for (let n = 0; n + 2 < I.length; n += 3) {
@@ -70,26 +70,30 @@ export function groundOf(S) {
       for (const [dx, dz] of [[0, 0], [-r, -r], [r, -r], [-r, r], [r, r]]) { const k = keyAt(wx + dx, wz + dz); if (known.has(k) && !S.tiles.get(k)?.data) return false; }
       return true;
     },
-    road(wx, wz) {
-      const e = S.tiles.get(keyAt(wx, wz)), d = e?.data;
-      if (!d?.meshes?.roads) return null;
-      const lx = wx - (e.i + 0.5) * T, lz = wz - (e.j + 0.5) * T, list = gridOf(d).get(`${Math.floor(lx / CELL)},${Math.floor(lz / CELL)}`);
-      if (!list) return null;
-      const p = d.meshes.roads.positions, I = d.meshes.roads.indices;
-      let best = null;
-      for (const n of list) {
-        const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3;
-        const area = (p[b] - p[a]) * (p[c + 2] - p[a + 2]) - (p[c] - p[a]) * (p[b + 2] - p[a + 2]);
-        if (Math.abs(area) < 1e-9) continue;
-        const w1 = ((p[b] - lx) * (p[c + 2] - lz) - (p[c] - lx) * (p[b + 2] - lz)) / area, w2 = ((p[c] - lx) * (p[a + 2] - lz) - (p[a] - lx) * (p[c + 2] - lz)) / area, w3 = 1 - w1 - w2;
-        if (w1 < -1e-6 || w2 < -1e-6 || w3 < -1e-6) continue;
-        const y = w1 * p[a + 1] + w2 * p[b + 1] + w3 * p[c + 1];
-        if (best == null || y > best) best = y;
-      }
-      return best;
-    },
+    road(wx, wz) { return surface('roads', wx, wz); },
+    // the water's surface (a river's, a lake's, the sea's in the tile) — the boat kit (physics/boat.js)
+    water(wx, wz) { return surface('water', wx, wz); },
     terrain(wx, wz) { if (!S.heightAt) return null; const [x, z] = S.toSim(wx, wz); return S.heightAt(x, z); },
   };
+  // (the highest of a tile mesh's flat triangles over a point)
+  function surface(name, wx, wz) {
+    const e = S.tiles.get(keyAt(wx, wz)), d = e?.data;
+    if (!d?.meshes?.[name]) return null;
+    const lx = wx - (e.i + 0.5) * T, lz = wz - (e.j + 0.5) * T, list = gridOf(d, name).get(`${Math.floor(lx / CELL)},${Math.floor(lz / CELL)}`);
+    if (!list) return null;
+    const p = d.meshes[name].positions, I = d.meshes[name].indices;
+    let best = null;
+    for (const n of list) {
+      const a = I[n] * 3, b = I[n + 1] * 3, c = I[n + 2] * 3;
+      const area = (p[b] - p[a]) * (p[c + 2] - p[a + 2]) - (p[c] - p[a]) * (p[b + 2] - p[a + 2]);
+      if (Math.abs(area) < 1e-9) continue;
+      const w1 = ((p[b] - lx) * (p[c + 2] - lz) - (p[c] - lx) * (p[b + 2] - lz)) / area, w2 = ((p[c] - lx) * (p[a + 2] - lz) - (p[a] - lx) * (p[c + 2] - lz)) / area, w3 = 1 - w1 - w2;
+      if (w1 < -1e-6 || w2 < -1e-6 || w3 < -1e-6) continue;
+      const y = w1 * p[a + 1] + w2 * p[b + 1] + w3 * p[c + 1];
+      if (best == null || y > best) best = y;
+    }
+    return best;
+  }
 }
 
 // where a place is in a garage's frame, and where you come out of it

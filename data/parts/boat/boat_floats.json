@@ -1,0 +1,89 @@
+{
+  "id": "boat_floats",
+  "name": "Boat floats (orange)",
+  "category": "boat",
+  "slot": "boat_floats",
+  "kind": "modifier",
+  "tier": "street",
+  "purpose": "boat",
+  "price": 900,
+  "mass": 60,
+  "model": "assets/parts/boat/boat_floats.glb",
+  "icon": "assets/icons/parts/boat_floats.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "Inflatable tubes along the sills: the car floats in water. Add an outboard motor to get about.",
+  "effects": [
+    {
+      "target": "boat.floats",
+      "op": "set",
+      "value": 1.6
+    }
+  ],
+  "bounds": {
+    "min": [-1.34, -0.2341, -1.549],
+    "max": [1.34, 0.1741, 1.599]
+  },
+  "massOffset": [0, -0.12, 0.025],
+  "madeBy": {
+    "generator": "tools/generators/boat.js",
+    "design": "orange inflatable tubes",
+    "settings": {
+      "r": 0.2,
+      "colour": "orange"
+    }
+  },
+  "byCar": {
+    "kaze_gt": {
+      "model": "assets/parts/boat/boat_floats/kaze_gt.glb",
+      "bounds": {
+        "min": [-1.36, -0.234, -1.7078],
+        "max": [1.36, 0.174, 1.6378]
+      }
+    },
+    "hana_roadster": {
+      "model": "assets/parts/boat/boat_floats/hana_roadster.glb",
+      "bounds": {
+        "min": [-1.345, -0.234, -1.6106],
+        "max": [1.345, 0.174, 1.4606]
+      }
+    },
+    "ridgeback_4x4": {
+      "model": "assets/parts/boat/boat_floats/ridgeback_4x4.glb",
+      "bounds": {
+        "min": [-1.4, -0.2339, -1.7806],
+        "max": [1.4, 0.1739, 1.8906]
+      }
+    },
+    "vortex_r": {
+      "model": "assets/parts/boat/boat_floats/vortex_r.glb",
+      "bounds": {
+        "min": [-1.375, -0.2339, -1.6814],
+        "max": [1.375, 0.1739, 1.7414]
+      }
+    },
+    "brute_500": {
+      "model": "assets/parts/boat/boat_floats/brute_500.glb",
+      "bounds": {
+        "min": [-1.4, -0.2339, -1.7058],
+        "max": [1.4, 0.1739, 1.8258]
+      }
+    },
+    "strada_evo": {
+      "model": "assets/parts/boat/boat_floats/strada_evo.glb",
+      "bounds": {
+        "min": [-1.36, -0.2339, -1.6532],
+        "max": [1.36, 0.1739, 1.7632]
+      }
+    },
+    "apex_v8": {
+      "model": "assets/parts/boat/boat_floats/apex_v8.glb",
+      "bounds": {
+        "min": [-1.4151, -0.2341, -1.6282],
+        "max": [1.4151, 0.1741, 1.8582]
+      }
+    }
+  }
+}

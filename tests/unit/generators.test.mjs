@@ -26,7 +26,7 @@ const jobs = [];
 for (const f of generators) for (const j of await (await import(path.join(dir, f))).parts({ project, loadCar, carsFor })) jobs.push({ ...j, generator: f });
 
 test('there are generators for every kind of mechanical part, and they make the parts from the prompts document and the 20 extra rims', () => {
-  assert.deepEqual(generators, ['aero.js', 'bay.js', 'body.js', 'brakes.js', 'engine.js', 'exhaust.js', 'interior.js', 'lights.js', 'offroad.js', 'rims.js']);
+  assert.deepEqual(generators, ['aero.js', 'bay.js', 'boat.js', 'body.js', 'brakes.js', 'engine.js', 'exhaust.js', 'interior.js', 'lights.js', 'offroad.js', 'rims.js']);
   const ids = new Set(jobs.map(j => j.id));
   for (const id of ['rim_multispoke', 'rim_rally', 'rim_beadlock', 'rim_deepdish', 'brakes_street', 'brakes_sport', 'brakes_race', 'turbo_kit', 'turbo_medium', 'turbo_large', 'supercharger_centrifugal', 'supercharger_twin_screw', 'front_mount_intercooler', 'intake_filter_street', 'cold_air_intake',
     'kaze_gt_gt_wing', 'kaze_gt_ducktail', 'kaze_gt_front_lip', 'vortex_r_front_splitter', 'kaze_gt_canards', 'strada_evo_mud_flaps', 'bucket_seat_street', 'bucket_seat_race', 'quick_release_wheel', 'gauge_pod', 'roll_cage_bolt_in', 'roll_cage_welded', 'strut_brace',

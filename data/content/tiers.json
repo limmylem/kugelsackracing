@@ -351,6 +351,16 @@
       "stat": null,
       "_note": "looks"
     },
+    "boat_floats": {
+      "street": 900,
+      "stat": null,
+      "_note": "novelty: floats on water"
+    },
+    "outboard": {
+      "street": 1200,
+      "stat": null,
+      "_note": "novelty: a motor in water"
+    },
     "fog_lights": {
       "street": 220,
       "stat": null,

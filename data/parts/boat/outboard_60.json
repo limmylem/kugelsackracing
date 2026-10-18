@@ -1,0 +1,43 @@
+{
+  "id": "outboard_60",
+  "name": "Outboard motor (60 hp)",
+  "category": "boat",
+  "slot": "outboard",
+  "kind": "modifier",
+  "tier": "sport",
+  "purpose": "boat",
+  "price": 3300,
+  "mass": 69.9,
+  "model": "assets/parts/boat/outboard_60.glb",
+  "icon": "assets/icons/parts/outboard_60.png",
+  "fits": [],
+  "requires": [],
+  "conflicts": [],
+  "provides": [],
+  "_note": "A big outboard: with floats fitted, about 45 km/h on the water.",
+  "effects": [
+    {
+      "target": "boat.thrust",
+      "op": "set",
+      "value": 7000
+    },
+    {
+      "target": "boat.topSpeed",
+      "op": "set",
+      "value": 12.5
+    }
+  ],
+  "bounds": {
+    "min": [-0.1694, -0.644, -0.4416],
+    "max": [0.1694, 0.66, 0]
+  },
+  "massOffset": [0, 0.222, -0.203],
+  "madeBy": {
+    "generator": "tools/generators/boat.js",
+    "design": "big black outboard",
+    "settings": {
+      "size": 0.56,
+      "colour": "dark"
+    }
+  }
+}
