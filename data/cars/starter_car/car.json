@@ -926,7 +926,7 @@
       "name": "socket_gauges",
       "slot": "gauges",
       "required": false,
-      "position": [0.38, 0.92, 0.53],
+      "position": [0.38, 0.86, 0.46],
       "pull": [0, 1, 0],
       "blockedBy": [],
       "focus": "interior",

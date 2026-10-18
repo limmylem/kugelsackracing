@@ -258,7 +258,7 @@ const SEARCH = {
   steering_wheel: [{ boss: [0, 0.02, 0.04, 0.06, 0.08], k: [1, 0.94, 0.88] }, { boss: 1, k: 1.5 }],
   // (a row along the dash in front of the driver, never stood up on end: the cars have no pillar to mount it on, and a
   // stack in the middle of the dash stood in the way of the view and out through the windscreen)
-  gauges: [{ dz: [0, -0.04, -0.08, 0.04], dy: [0, -0.03, -0.06, -0.09, -0.12], dx: [0, -0.05, 0.05, -0.1, 0.1] }, {}],
+  gauges: [{ dz: [0, -0.04, -0.08, 0.02], dy: [0, -0.03, -0.06, -0.09, -0.12], dx: [0, -0.05, 0.05, -0.1, 0.1] }, {}],
 };
 
 export async function parts({ carsFor, project }) {

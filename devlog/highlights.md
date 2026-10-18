@@ -114,3 +114,4 @@ Lowered, lifted or on bigger wheels: the car now shows it, in the garage and on 
 Repair tokens: fix your whole car for a token instead of your cash
 Leaving the garage: the door rolls up and you drive out
 Boat kit: fit floats and an outboard and drive into the water
+Gauge pods now sit inside every car, on the dash
