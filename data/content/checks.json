@@ -2190,11 +2190,7 @@
         "problems": [],
         "tried": 8
       },
-      "ok": false,
-      "classes": {
-        "ok": false,
-        "problems": ["with it the Hana Roadster's most powerful build is class A (681): fully upgraded it's class A (681): 3 classes up, at most 2"]
-      }
+      "ok": true
     },
     "aerofoil_1p5_0p3_matte": {
       "fit": {
@@ -16784,7 +16780,7 @@
       "ok": false,
       "classes": {
         "ok": false,
-        "problems": ["with it the Hana Roadster's most powerful build is class A (681): fully upgraded it's class A (681): 3 classes up, at most 2"]
+        "problems": ["with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"]
       }
     },
     "crate_kmw_i4_20t_trans": {
@@ -74879,6 +74875,208 @@
       },
       "ok": true
     },
+    "strad_wings_carbon": {
+      "fit": {
+        "key": "f587994bd72d948b",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "7251dbad9491f08f",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "brute_500": {
+            "carKey": "d125d706b65a59af",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "hana_roadster": {
+            "carKey": "62b0b0b2812acc56",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "kaze_gt": {
+            "carKey": "ba7282fb51dbd067",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "starter_car": {
+            "carKey": "1566a46d8d48af7f",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "strada_evo": {
+            "carKey": "201f49a41d037a68",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          },
+          "vortex_r": {
+            "carKey": "09ac2b396273d347",
+            "ok": true,
+            "problems": [],
+            "clashes": {}
+          }
+        }
+      },
+      "drive": {
+        "key": "fc76b392537b0569",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "7251dbad9491f08f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 3.483,
+            "braking": 29.758
+          },
+          "brute_500": {
+            "carKey": "d125d706b65a59af",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 5.408,
+            "braking": 34.893
+          },
+          "hana_roadster": {
+            "carKey": "62b0b0b2812acc56",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 8.7,
+            "braking": 38.693
+          },
+          "kaze_gt": {
+            "carKey": "ba7282fb51dbd067",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 7.35,
+            "braking": 37.723
+          },
+          "starter_car": {
+            "carKey": "1566a46d8d48af7f",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 9.442,
+            "braking": 39.886
+          },
+          "strada_evo": {
+            "carKey": "201f49a41d037a68",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 4.867,
+            "braking": 37.657
+          },
+          "vortex_r": {
+            "carKey": "09ac2b396273d347",
+            "ok": true,
+            "problems": [],
+            "zeroTo100": 6.342,
+            "braking": 36.187
+          }
+        }
+      },
+      "crash": {
+        "key": "d2ba1345ba55685e",
+        "ok": true,
+        "problems": [],
+        "cars": {
+          "apex_v8": {
+            "carKey": "7251dbad9491f08f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 988,
+            "loose": 2
+          },
+          "brute_500": {
+            "carKey": "d125d706b65a59af",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1106,
+            "loose": 1
+          },
+          "hana_roadster": {
+            "carKey": "62b0b0b2812acc56",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 871,
+            "loose": 2
+          },
+          "kaze_gt": {
+            "carKey": "ba7282fb51dbd067",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 940,
+            "loose": 3
+          },
+          "starter_car": {
+            "carKey": "1566a46d8d48af7f",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 721,
+            "loose": 2
+          },
+          "strada_evo": {
+            "carKey": "201f49a41d037a68",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1025,
+            "loose": 2
+          },
+          "vortex_r": {
+            "carKey": "09ac2b396273d347",
+            "ok": true,
+            "problems": [],
+            "drivable": true,
+            "repair": 1158,
+            "loose": 4
+          }
+        }
+      },
+      "sound": {
+        "key": "1a4cc7dfe702cd0a",
+        "ok": true,
+        "problems": [],
+        "note": "no sound of its own"
+      },
+      "budget": {
+        "key": "481cccf43b43f4e4",
+        "ok": true,
+        "problems": [],
+        "notes": [],
+        "triangles": 216,
+        "models": 7
+      },
+      "economy": {
+        "key": "7371e9fd3aa001ba",
+        "ok": true,
+        "problems": [],
+        "gain": 0.065,
+        "on": "starter_car"
+      },
+      "ranges": {
+        "key": "836ed742f1b71e8d",
+        "ok": true,
+        "problems": [],
+        "tried": 8
+      },
+      "ok": false,
+      "classes": {
+        "ok": false,
+        "problems": ["with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"]
+      }
+    },
     "strada_evo_airbox": {
       "fit": {
         "key": "857f3a76b5f85739",
@@ -83844,7 +84042,11 @@
         "problems": [],
         "tried": 14
       },
-      "ok": true
+      "ok": false,
+      "classes": {
+        "ok": false,
+        "problems": ["with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"]
+      }
     },
     "streetline_89_titanium_polished": {
       "fit": {
@@ -97052,9 +97254,9 @@
         "class": "D"
       },
       "max": {
-        "index": 667,
+        "index": 672,
         "class": "B",
-        "parts": ["pistons_forged", "intake_race", "spool_56_matte", "intercooler_race", "streetline_89_titanium_matte", "headers_long_tube", "ecu_standalone", "gearbox_close_ratio", "clutch_sport", "flywheel_light", "arb_front_sport", "arb_rear_sport", "rim_multispoke", "tyre_track_slick", "bonnet_vented", "bumper_front_splitter", "basic_wing", "weight_rear_seats", "weight_sound_deadening", "short_shifter", "roll_cage_bolt_in"],
+        "parts": ["pistons_forged", "intake_race", "spool_56_matte", "intercooler_race", "streetline_89_titanium_matte", "headers_long_tube", "ecu_standalone", "gearbox_close_ratio", "clutch_sport", "flywheel_light", "arb_front_sport", "arb_rear_sport", "rim_multispoke", "tyre_track_slick", "bonnet_vented", "bumper_front_splitter", "strad_wings_carbon", "weight_rear_seats", "weight_sound_deadening", "short_shifter", "roll_cage_bolt_in"],
         "tuning": [
           {
             "part": "ecu_standalone",
@@ -97082,7 +97284,7 @@
             "value": 32000
           },
           {
-            "part": "basic_wing",
+            "part": "strad_wings_carbon",
             "setting": "angle",
             "value": 16
           }
@@ -97101,7 +97303,7 @@
       "max": {
         "index": 734,
         "class": "A",
-        "parts": ["pistons_forged", "intake_race", "spool_62_matte", "intercooler_race", "streetline_89_titanium_matte", "headers_long_tube", "ecu_stage2", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "kaze_gt_gt_wing", "roll_cage_bolt_in", "groundline_kaze_gt_carbon", "outboard_60"],
+        "parts": ["pistons_forged", "intake_race", "spool_62_matte", "intercooler_race", "catback_race", "headers_long_tube", "ecu_stage2", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "strad_wings_carbon", "roll_cage_bolt_in", "groundline_kaze_gt_carbon", "outboard_15"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -97114,7 +97316,7 @@
             "value": 32000
           },
           {
-            "part": "kaze_gt_gt_wing",
+            "part": "strad_wings_carbon",
             "setting": "angle",
             "value": 16
           }
@@ -97128,11 +97330,15 @@
       "blamed": [
         {
           "id": "crate_kmw_i4_20t",
-          "why": "with it the Hana Roadster's most powerful build is class A (681): fully upgraded it's class A (681): 3 classes up, at most 2"
+          "why": "with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"
         },
         {
-          "id": "aerofoil_1p5_0p3_carbon",
-          "why": "with it the Hana Roadster's most powerful build is class A (681): fully upgraded it's class A (681): 3 classes up, at most 2"
+          "id": "streetline_89_titanium_matte",
+          "why": "with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"
+        },
+        {
+          "id": "strad_wings_carbon",
+          "why": "with it the Hana Roadster's most powerful build is class A (690): fully upgraded it's class A (690): 3 classes up, at most 2"
         }
       ],
       "stock": {
@@ -97142,7 +97348,7 @@
       "max": {
         "index": 676,
         "class": "B",
-        "parts": ["crate_kmw_v6_35", "pistons_forged", "airflow_89_cold_air_matte", "spool_56_matte", "intercooler_race", "streetline_89_stainless_matte", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_street", "pads_sport", "rim_multispoke", "tyre_track_slick", "basic_wing", "short_shifter", "hana_roadster_roll_hoop"],
+        "parts": ["crate_kmw_v6_35", "pistons_forged", "airflow_76_cold_air_matte", "spool_56_matte", "front_mount_intercooler", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "clutch_sport", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "pads_sport", "rim_multispoke", "tyre_track_slick", "aerofoil_1p5_0p3_carbon", "short_shifter", "hana_roadster_roll_hoop"],
         "tuning": [
           {
             "part": "ecu_standalone",
@@ -97170,12 +97376,12 @@
             "value": 40000
           },
           {
-            "part": "arb_rear_street",
+            "part": "arb_rear_sport",
             "setting": "stiffness",
-            "value": 16000
+            "value": 32000
           },
           {
-            "part": "basic_wing",
+            "part": "aerofoil_1p5_0p3_carbon",
             "setting": "angle",
             "value": 16
           }
@@ -97229,9 +97435,9 @@
         "class": "C"
       },
       "max": {
-        "index": 694,
+        "index": 696,
         "class": "A",
-        "parts": ["pistons_forged", "intake_race", "vortex_r_big_turbo", "intercooler_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_sport", "rim_multispoke_19_black", "tyre_track_slick_265_35r19", "basic_wing", "roll_cage_bolt_in", "vortex_r_front_splitter", "boat_floats"],
+        "parts": ["pistons_forged", "cold_air_intake", "vortex_r_big_turbo", "intercooler_race", "streetline_70_stainless_matte", "header_4into1", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_sport", "rim_multispoke_19_black", "tyre_track_slick_265_35r19", "strad_wings_carbon", "roll_cage_bolt_in", "vortex_r_front_splitter", "boat_floats"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -97249,7 +97455,7 @@
             "value": 40000
           },
           {
-            "part": "basic_wing",
+            "part": "strad_wings_carbon",
             "setting": "angle",
             "value": 16
           }
@@ -97266,9 +97472,9 @@
         "class": "B"
       },
       "max": {
-        "index": 823,
+        "index": 831,
         "class": "S",
-        "parts": ["crate_kugel_v12i", "airflow_89_cold_air_matte", "streetline_76_stainless_matte", "header_4into1", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "aerofoil_1p5_0p3_matte", "supercharger_centrifugal", "radiator_aluminium", "roll_cage_bolt_in", "groundline_brute_500_carbon", "outboard_60"],
+        "parts": ["crate_kugel_v12i", "airflow_89_cold_air_matte", "catback_race", "header_4into1", "ecu_standalone", "sequential_gearbox", "clutch_race", "flywheel_light", "sport_suspension", "arb_rear_sport", "rim_multispoke_20_black", "tyre_track_slick_285_30r20", "strad_wings_carbon", "supercharger_centrifugal", "radiator_aluminium", "short_shifter", "roll_cage_bolt_in", "groundline_brute_500_carbon"],
         "tuning": [
           {
             "part": "sport_suspension",
@@ -97276,17 +97482,12 @@
             "value": 15
           },
           {
-            "part": "arb_front_sport",
-            "setting": "stiffness",
-            "value": 40000
-          },
-          {
             "part": "arb_rear_sport",
             "setting": "stiffness",
             "value": 32000
           },
           {
-            "part": "aerofoil_1p5_0p3_matte",
+            "part": "strad_wings_carbon",
             "setting": "angle",
             "value": 16
           }
@@ -97303,9 +97504,9 @@
         "class": "B"
       },
       "max": {
-        "index": 725,
+        "index": 731,
         "class": "A",
-        "parts": ["intake_race", "intercooler_race", "streetline_89_titanium_matte", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_street", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "basic_wing", "roll_cage_bolt_in", "groundline_strada_evo_carbon"],
+        "parts": ["intake_race", "intercooler_race", "catback_race", "headers_long_tube", "ecu_standalone", "sequential_gearbox", "flywheel_light", "sport_suspension", "arb_front_sport", "arb_rear_sport", "rim_multispoke_18_black", "tyre_track_slick_245_40r18", "strad_wings_carbon", "roll_cage_bolt_in", "groundline_strada_evo_carbon"],
         "tuning": [
           {
             "part": "ecu_standalone",
@@ -97314,13 +97515,18 @@
           },
           {
             "part": "sport_suspension",
+            "setting": "rideHeight",
+            "value": -40
+          },
+          {
+            "part": "sport_suspension",
             "setting": "springs",
             "value": 70
           },
           {
-            "part": "arb_front_street",
+            "part": "arb_front_sport",
             "setting": "stiffness",
-            "value": 22000
+            "value": 40000
           },
           {
             "part": "arb_rear_sport",
@@ -97328,7 +97534,7 @@
             "value": 32000
           },
           {
-            "part": "basic_wing",
+            "part": "strad_wings_carbon",
             "setting": "angle",
             "value": 16
           }
