@@ -90,6 +90,11 @@ export function carViews(car, hinges = carHinges(car)) {
   return out;
 }
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+// The roller door (m) and driving out through it: the door up in door s, the camera round behind in camera s (az,
+// el, dist), away at go s at accel m/s² up to top, the revs rev over idle; the camera following follow of the way;
+// the fade from fadeFrom m to fadeTo m on (or fade s, not driving)
+const DOOR = { width: 4.6, height: 3.6 };
+const DRIVE_OUT = { door: 1.3, camera: 1.1, az: 166, el: 8, dist: 6.6, go: 1.1, accel: 3.6, top: 9, rev: 2600, follow: 0.82, fadeFrom: 6.5, fadeTo: 10.5, fade: 0.45 };
 const easeOutBack = t => { const c = 1.4; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 const deg = d => d * Math.PI / 180;
 
@@ -102,6 +107,7 @@ export class GarageScene {
     this.scene.environment = this.env;
     this.scene.background = new THREE.Color('#0d1013');
     this.#room();
+    this.#door();
     this.#lift();
     this.carGroup = new THREE.Group();
     this.scene.add(this.carGroup);
@@ -158,6 +164,96 @@ export class GarageScene {
     grad.addColorStop(0, 'rgba(0,0,0,0.62)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
     this.contact = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 4.9), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
     this.contact.rotation.x = -Math.PI / 2; this.contact.position.y = 0.006; s.add(this.contact);
+  }
+
+  // ---------- the roller door in front of the car (the way out: driveOut) ----------
+  // A roller door in the front wall with the day outside it: shut, it's part of the workshop; leaving, it rolls up
+  // into its drum, the daylight comes in and the car drives out through it
+  #door() {
+    const W = DOOR.width, H = DOOR.height, z = 11.96, s = this.scene;
+    const canvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+    // (outside: sky, a hazy far side, the forecourt's asphalt in the sun)
+    const day = canvas(64, 256, (g, w, h) => {
+      const sky = g.createLinearGradient(0, 0, 0, h * 0.62); sky.addColorStop(0, '#9cc4e8'); sky.addColorStop(1, '#e8f1f6'); g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.62);
+      g.fillStyle = '#b9c2b0'; g.fillRect(0, h * 0.58, w, h * 0.06);
+      const road = g.createLinearGradient(0, h * 0.62, 0, h); road.addColorStop(0, '#a8adb0'); road.addColorStop(1, '#6d7276'); g.fillStyle = road; g.fillRect(0, h * 0.62, w, h * 0.38);
+    });
+    const outside = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: day, toneMapped: false }));
+    outside.position.set(0, H / 2, z + 0.02); outside.rotation.y = Math.PI; s.add(outside);
+    // (the frame round the opening, and the drum the door rolls into)
+    const steel = new THREE.MeshStandardMaterial({ color: '#2b3137', roughness: 0.55, metalness: 0.5 });
+    for (const [w, h, x, y] of [[0.22, H + 0.3, -W / 2 - 0.11, (H + 0.3) / 2], [0.22, H + 0.3, W / 2 + 0.11, (H + 0.3) / 2], [W + 0.44, 0.5, 0, H + 0.25]]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.18), steel); m.position.set(x, y, z - 0.05); m.castShadow = true; s.add(m);
+    }
+    // (the door: ribbed steel slats)
+    const slats = canvas(16, 128, (g, w, h) => { for (let i = 0; i < 16; i++) { g.fillStyle = '#6c757d'; g.fillRect(0, i * 8, w, 8); g.fillStyle = '#4b5258'; g.fillRect(0, i * 8 + 6, w, 2); } });
+    slats.wrapT = THREE.RepeatWrapping; slats.repeat.set(1, 2);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.06), new THREE.MeshStandardMaterial({ map: slats, roughness: 0.6, metalness: 0.4 }));
+    panel.position.set(0, H / 2, z - 0.04); panel.receiveShadow = true; s.add(panel);
+    // (the sun coming in once it's open)
+    const sun = new THREE.DirectionalLight('#fff4e0', 0); sun.position.set(0, 3.5, 22); sun.target.position.set(0, 0, 0); s.add(sun, sun.target);
+    this.door = { panel, sun, open: 0, H };
+  }
+  #setDoor(open) {
+    const D = this.door, left = Math.max(0.001, 1 - open);
+    D.open = open;
+    D.panel.scale.y = left; D.panel.position.y = D.H - D.H * left / 2;
+    D.sun.intensity = 1.4 * open;
+  }
+
+  // ---------- driving out (leaving the garage) ----------
+  // The car drives out: the panels shut and the lift down, the camera round behind it, the door up, the engine
+  // revving as it pulls away through the door, the wheels turning; → a promise when it's gone (onFade(k), 0 to 1, as
+  // it leaves the frame, for the page to fade to the world). drivable false (a wheel off, a blown engine) or reduced
+  // motion: no drive, just the fade. skipDriveOut(): straight to the end.
+  driveOut({ drivable = true, onFade = () => {}, reduced = false } = {}) {
+    this.clearGhost(false);
+    for (const h of Object.values(this.hinges)) h.target = 0;
+    this.lift.target = 0;
+    return new Promise(done => {
+      this.exitRun = { t: 0, z: 0, v: 0, spin: 0, rpm: 0, drive: drivable && !reduced && !!this.vis, onFade, done, started: false };
+    });
+  }
+  skipDriveOut() { if (this.exitRun) this.exitRun.skip = true; }
+  get drivingOut() { return !!this.exitRun; }
+  // (back in: the car on the lift again, the door shut)
+  resetDriveOut() {
+    if (this.exitRun) { const R = this.exitRun; this.exitRun = null; R.done(); }
+    this.carGroup.position.z = 0; this.contact.position.z = 0;
+    this.#setDoor(0);
+    this.sounds?.dyno(null);
+  }
+  #driveOutFrame(dt) {
+    const R = this.exitRun, X = DRIVE_OUT;
+    const finish = () => { this.exitRun = null; this.sounds?.lift(false); this.sounds?.dyno(null); R.onFade(1); R.done(); };
+    if (R.skip || !R.drive) {
+      R.fade = Math.min(1, (R.fade ?? 0) + dt / (R.skip ? 0.15 : X.fade));
+      R.onFade(R.fade);
+      if (R.fade >= 1) finish();
+      return;
+    }
+    // (wait for the lift to come down and the panels to shut)
+    if (!R.started) {
+      if (this.lift.y > 0.01 || Object.values(this.hinges).some(h => h.open > 0.02)) return;
+      R.started = true;
+      this.tween = { t: 0, seconds: X.camera, from: { target: this.orbit.target.clone(), az: this.orbit.az, el: this.orbit.el, dist: this.orbit.dist }, to: { target: new THREE.Vector3(0, 0.55, 0.6), az: X.az, el: X.el, dist: X.dist } };
+      this.view = 'out';
+    }
+    R.t += dt;
+    const S = this.spec, E = S?.engine, radius = S?.wheels?.radius ?? 0.31;
+    // the door rolling up (its motor: the lift's pump), then the car away
+    const open = Math.min(1, R.t / X.door);
+    this.#setDoor(ease(open));
+    this.sounds?.lift(open < 1);
+    if (E && R.t > X.door * 0.4) { R.rpm = Math.min(E.idleRpm + X.rev, E.idleRpm + Math.max(0, R.t - X.door * 0.4) * X.rev * 0.9); this.sounds?.dyno(R.rpm, this.sounds.soundOf(S)); }
+    if (R.t > X.go) R.v = Math.min(X.top, R.v + X.accel * dt);
+    R.z += R.v * dt; R.spin += R.v * dt / radius;
+    this.carGroup.position.z = R.z; this.contact.position.z = R.z;
+    // (the camera after it, falling behind as it pulls away)
+    if (!this.tween) this.orbit.target.z = 0.6 + R.z * X.follow;
+    // (leaving the frame: the fade)
+    if (R.z > X.fadeFrom) { R.fade = Math.min(1, (R.z - X.fadeFrom) / (X.fadeTo - X.fadeFrom)); R.onFade(R.fade); }
+    if (R.z >= X.fadeTo) finish();
   }
 
   // ---------- the two-post lift ----------
@@ -279,9 +375,10 @@ export class GarageScene {
 
   // ---------- each frame ----------
   update(dt) {
+    if (this.exitRun) this.#driveOutFrame(dt);
     // the lift (and its hum)
     const L = this.lift, dir = Math.sign(L.target - L.y);
-    if (dir) { L.y += dir * Math.min(Math.abs(L.target - L.y), dt * 0.75); this.sounds?.lift(true); } else this.sounds?.lift(false);
+    if (dir) { L.y += dir * Math.min(Math.abs(L.target - L.y), dt * 0.75); this.sounds?.lift(true); } else if (!this.exitRun?.started) this.sounds?.lift(false);
     const lk = L.y / LIFT_HEIGHT, liftEase = ease(Math.min(1, Math.max(0, lk)));
     this.carGroup.position.y = L.y;
     this.liftMoving.position.y = L.y;
@@ -299,8 +396,10 @@ export class GarageScene {
       const W = this.spec.wheels, S = this.spec.suspension, hang = Math.min(1, lk * 4);
       for (const [k, pivot] of Object.entries(this.vis.wheels)) {
         const mount = W.mountHeight?.[W.front.includes(k) ? 'front' : 'rear'] ?? 0, rest = St.drop[k] ?? 0;
-        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, 0, rest + (mount - S.restLength - rest) * hang, W.offsets?.[k] ?? 0, camberOf(this.spec, k));
+        const spin = this.exitRun?.spin ?? 0;
+        const t = wheelTransform(this.rig.wheels[k], [0, 0, 0, 1], 0, spin, rest + (mount - S.restLength - rest) * hang, W.offsets?.[k] ?? 0, camberOf(this.spec, k));
         pivot.quaternion.fromArray(t.rotation); pivot.position.fromArray(t.position);
+        this.vis.setWheelSpin?.(k, this.rig.wheels[k].axle, spin);
       }
     }
     // hinged panels

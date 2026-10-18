@@ -77,6 +77,7 @@ export async function enter(h = {}) {
     workshop = new Workshop({ db: session.db, service: session.player, mode });
   }
   // (back from a test drive: the screen as it was; otherwise a fresh visit)
+  scene.resetDriveOut();
   if (!testing) screen.reset();
   testing = false;
   renderer.domElement.style.display = 'block';
@@ -126,9 +127,34 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-// Back to where the player came from (everything's already saved)
-function leave() {
-  hooks.leave?.();
+// Back to where the player came from (everything's already saved): the car drives out of the workshop's door
+// (garageScene.js driveOut) as the screen fades, then the world, faded in again. Any key or a click skips it.
+let leaving = false;
+async function leave() {
+  if (leaving || !g) return;
+  leaving = true;
+  const { scene, root } = g;
+  const shade = document.createElement('div');
+  shade.id = 'garageOut';
+  shade.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#07090b;opacity:0;pointer-events:none;transition:opacity .45s ease';
+  document.body.appendChild(shade);
+  root.style.transition = 'opacity .3s'; root.style.opacity = '0'; root.style.pointerEvents = 'none';
+  scene.setInsets({ left: 0, right: 0, top: 0, bottom: 0 });
+  const skip = e => { if (e.type === 'keydown' && e.repeat) return; scene.skipDriveOut(); };
+  addEventListener('keydown', skip, true); addEventListener('pointerdown', skip, true);
+  const reduced = document.documentElement.classList.contains('a11y-reduced-motion') || matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  try {
+    await scene.driveOut({ drivable: !!workshop?.drivable?.ok, reduced, onFade: k => { shade.style.transition = 'none'; shade.style.opacity = String(k); } });
+    shade.style.opacity = '1';
+    await hooks.leave?.();
+  } finally {
+    removeEventListener('keydown', skip, true); removeEventListener('pointerdown', skip, true);
+    root.style.opacity = ''; root.style.pointerEvents = ''; root.style.transition = '';
+    scene.resetDriveOut();
+    leaving = false;
+    // (the world, faded in)
+    requestAnimationFrame(() => { shade.style.transition = 'opacity .6s ease'; shade.style.opacity = '0'; setTimeout(() => shade.remove(), 700); });
+  }
 }
 
 // The car as it is in the test centre; the garage keeps its screen for when the player's back
